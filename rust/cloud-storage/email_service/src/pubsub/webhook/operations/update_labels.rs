@@ -1,8 +1,7 @@
 use crate::pubsub::context::PubSubContext;
-use crate::pubsub::util::{
-    cg_refresh_email, check_gmail_rate_limit_webhook, complete_transaction_with_processing_error,
-};
+use crate::pubsub::util::{cg_refresh_email, complete_transaction_with_processing_error};
 use crate::pubsub::webhook::process;
+use crate::pubsub::webhook::process::check_gmail_rate_limit_webhook;
 use email_db_client::labels::delete::delete_db_message_labels;
 use email_db_client::labels::insert;
 use email_db_client::threads::update::update_thread_metadata;

@@ -1,6 +1,7 @@
 use crate::pubsub::context::PubSubContext;
-use crate::pubsub::util::{cg_refresh_email, check_gmail_rate_limit_webhook};
+use crate::pubsub::util::cg_refresh_email;
 use crate::pubsub::webhook::process;
+use crate::pubsub::webhook::process::check_gmail_rate_limit_webhook;
 use crate::util::process_pre_insert::{process_message_pre_insert, process_threads_pre_insert};
 use crate::util::upload_attachment::upload_attachment;
 use email_db_client::threads;
