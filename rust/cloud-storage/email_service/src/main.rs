@@ -157,6 +157,17 @@ async fn main() -> anyhow::Result<()> {
         })
         .collect::<Vec<_>>();
 
+    let webhook_retry_workers = (0..config.webhook_retry_queue_workers)
+        .map(|_| {
+            sqs_worker::SQSWorker::new(
+                aws_sdk_sqs::Client::new(&gmail_queue_aws_config),
+                config.gmail_retry_webhook_queue.clone(),
+                config.webhook_retry_queue_max_messages,
+                config.queue_wait_time_seconds,
+            )
+        })
+        .collect::<Vec<_>>();
+
     let auth_service_client = authentication_service_client::AuthServiceClient::new(
         auth_service_secret_key,
         config.auth_service_url.clone(),
@@ -199,6 +210,7 @@ async fn main() -> anyhow::Result<()> {
         config.connection_gateway_url.clone(),
     );
 
+    // process user inbox updates from gmail webhook queue, triggered by update pubsub messages from Google
     for worker in webhook_workers {
         let db_webhook = db.clone();
         let sqs_client_webhook = sqs_client.clone();
@@ -222,6 +234,7 @@ async fn main() -> anyhow::Result<()> {
                 connection_gateway_client_webhook,
                 dss_client_webhook,
                 config.notifications_enabled,
+                false,
             )
             .await;
         });
@@ -231,6 +244,41 @@ async fn main() -> anyhow::Result<()> {
         "webhook workers started"
     );
 
+    // separate queue for retries to avoid backups for large inbox updates that hit gmail api rate limit
+    for worker in webhook_retry_workers {
+        let db_webhook = db.clone();
+        let sqs_client_webhook = sqs_client.clone();
+        let gmail_client_webhook = gmail_client.clone();
+        let auth_service_client_webhook = auth_service_client.clone();
+        let redis_client_webhook = redis_client.clone();
+        let macro_notify_client_webhook = macro_notify_client.clone();
+        let sfs_client_webhook = sfs_client.clone();
+        let connection_gateway_client_webhook = connection_gateway_client.clone();
+        let dss_client_webhook = dss_client.clone();
+        tokio::spawn(async move {
+            pubsub::webhook::worker::run_worker(
+                db_webhook,
+                worker,
+                sqs_client_webhook,
+                gmail_client_webhook,
+                auth_service_client_webhook,
+                redis_client_webhook,
+                macro_notify_client_webhook,
+                sfs_client_webhook,
+                connection_gateway_client_webhook,
+                dss_client_webhook,
+                config.notifications_enabled,
+                true,
+            )
+            .await;
+        });
+    }
+    tracing::info!(
+        num_workers = config.webhook_queue_workers,
+        "webhook workers started"
+    );
+
+    // backfill user emails upon signup
     for worker in backfill_workers {
         let db_backfill = db_backfill.clone();
         let sqs_client_backfill = sqs_client.clone();
@@ -268,6 +316,7 @@ async fn main() -> anyhow::Result<()> {
     let auth_service_client_refresh = auth_service_client.clone();
     let redis_client_refresh = redis_client.clone();
     let sqs_client_refresh = sqs_client.clone();
+    // daily refresh operations for user contacts and inbox subscriptions
     tokio::spawn(async move {
         pubsub::refresh::worker::run_worker(
             refresh_worker,
@@ -284,6 +333,7 @@ async fn main() -> anyhow::Result<()> {
     let gmail_client_scheduled = gmail_client.clone();
     let auth_service_client_scheduled = auth_service_client.clone();
     let redis_client_scheduled = redis_client.clone();
+    // send scheduled emails
     tokio::spawn(async move {
         pubsub::scheduled::worker::run_worker(
             scheduled_worker,
@@ -299,6 +349,7 @@ async fn main() -> anyhow::Result<()> {
         for worker in sfs_uploader_workers {
             let db_sfs_uploader = db.clone();
             let sfs_client_sfs_uploader = sfs_client.clone();
+            // upload user contact images to sfs from contact sync
             tokio::spawn(async move {
                 pubsub::sfs_uploader::worker::run_worker(
                     worker,
