@@ -97,6 +97,7 @@ async fn main() -> anyhow::Result<()> {
 
     let sqs_client = sqs_client::SQS::new(aws_sdk_sqs::Client::new(&gmail_queue_aws_config))
         .gmail_webhook_queue(&config.gmail_webhook_queue)
+        .gmail_webhook_retry_queue(&config.gmail_webhook_retry_queue)
         .search_event_queue(&config.search_event_queue)
         .insight_context_queue(&config.insight_context_queue)
         .email_backfill_queue(&config.backfill_queue)
@@ -161,7 +162,7 @@ async fn main() -> anyhow::Result<()> {
         .map(|_| {
             sqs_worker::SQSWorker::new(
                 aws_sdk_sqs::Client::new(&gmail_queue_aws_config),
-                config.gmail_retry_webhook_queue.clone(),
+                config.gmail_webhook_retry_queue.clone(),
                 config.webhook_retry_queue_max_messages,
                 config.queue_wait_time_seconds,
             )

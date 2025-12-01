@@ -27,7 +27,7 @@ pub struct Config {
 
     /// The SQS queue name we process history update retries from. Separate from the main queue
     /// to avoid backups for large inbox update operations
-    pub gmail_retry_webhook_queue: String,
+    pub gmail_webhook_retry_queue: String,
 
     /// The SQS queue name for search event
     pub search_event_queue: String,
@@ -145,8 +145,8 @@ impl Config {
         let gmail_webhook_queue =
             std::env::var("GMAIL_WEBHOOK_QUEUE").context("GMAIL_WEBHOOK_QUEUE must be provided")?;
 
-        let gmail_retry_webhook_queue = std::env::var("GMAIL_RETRY_WEBHOOK_QUEUE")
-            .context("GMAIL_RETRY_WEBHOOK_QUEUE must be provided")?;
+        let gmail_webhook_retry_queue = std::env::var("GMAIL_WEBHOOK_RETRY_QUEUE")
+            .context("GMAIL_WEBHOOK_RETRY_QUEUE must be provided")?;
 
         let search_event_queue =
             std::env::var("SEARCH_EVENT_QUEUE").context("SEARCH_EVENT_QUEUE must be provided")?;
@@ -268,7 +268,7 @@ impl Config {
             email_refresh_queue,
             email_scheduled_queue,
             gmail_webhook_queue,
-            gmail_retry_webhook_queue,
+            gmail_webhook_retry_queue,
             search_event_queue,
             insight_context_queue,
             gmail_gcp_queue,

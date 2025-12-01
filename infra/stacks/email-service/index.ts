@@ -274,7 +274,7 @@ const emailService = new EmailService('email-service', {
       value: webhookQueueName,
     },
     {
-      name: 'GMAIL_RETRY_WEBHOOK_QUEUE',
+      name: 'GMAIL_WEBHOOK_RETRY_QUEUE',
       value: webhookRetryQueueName,
     },
     {
