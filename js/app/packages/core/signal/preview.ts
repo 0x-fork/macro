@@ -4,7 +4,7 @@ import { isErr } from '@core/util/maybeResult';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
 import { commsServiceClient } from '@service-comms/client';
-import { emailClient } from '@service-email/client';
+import { getThread, type GetThreadResponse } from '@service-email/client';
 import { type ItemType, storageServiceClient } from '@service-storage/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { type Accessor, createEffect, createSignal } from 'solid-js';
@@ -326,12 +326,15 @@ async function fetchProjectPreviews(
 async function fetchEmailPreviews(threadIds: string[]): Promise<PreviewItem[]> {
   const results = await Promise.all(
     threadIds.map(async (threadId) => {
-      // TODO a preview thread endpoint woudl be better / faster
-      const result = await emailClient.getThread({
-        thread_id: threadId,
-        offset: 0,
-        limit: 1, // Only need first message for preview
+      // TODO a preview thread endpoint would be better / faster
+      const { data, error } = await getThread({
+        path: { id: threadId },
+        query: { offset: 0, limit: 1 }, // Only need first message for preview
       });
+
+      // Note: OpenAPI spec incorrectly defines this as Array<GetThreadResponse>
+      // but the actual API returns GetThreadResponse directly (single object)
+      const threadData = data as unknown as GetThreadResponse | undefined;
 
       const base = {
         _createdAt: new Date(),
@@ -339,7 +342,7 @@ async function fetchEmailPreviews(threadIds: string[]): Promise<PreviewItem[]> {
         type: 'email',
       } as const;
 
-      if (isErr(result)) {
+      if (error || !threadData?.thread) {
         return {
           ...base,
           access: 'no_access' as const,
@@ -347,8 +350,7 @@ async function fetchEmailPreviews(threadIds: string[]): Promise<PreviewItem[]> {
         };
       }
 
-      const [, data] = result;
-      const firstMessage = data.thread.messages[0];
+      const firstMessage = threadData.thread.messages[0];
       const subject = firstMessage?.subject ?? 'No Subject';
       const sender =
         firstMessage?.from?.email ?? firstMessage?.from?.name ?? undefined;
@@ -359,7 +361,7 @@ async function fetchEmailPreviews(threadIds: string[]): Promise<PreviewItem[]> {
         loading: false as const,
         name: subject,
         owner: sender as string | undefined,
-        updatedAt: new Date(data.thread.updated_at).getTime(),
+        updatedAt: new Date(threadData.thread.updated_at).getTime(),
       };
     })
   );

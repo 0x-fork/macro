@@ -4,10 +4,13 @@ import {
   type TimeoutError,
 } from '@core/auth/channel';
 import { openEmailAuthPopup } from '@core/auth/email';
-import { isErr } from '@core/util/maybeResult';
 import { queryKeys } from '@macro-entity';
-import { emailClient } from '@service-email/client';
-import type { Link } from '@service-email/generated/schemas/link';
+import {
+  listLinks,
+  initUser,
+  disableSync,
+  type Link,
+} from '@service-email/client';
 import { updateUserInfo } from '@service-gql/client';
 import { useQuery } from '@tanstack/solid-query';
 import { err, okAsync, type Result, ResultAsync } from 'neverthrow';
@@ -21,11 +24,11 @@ export const [emailRefetchInterval, setEmailRefetchInterval] = createSignal<
 const EMAIL_LINKS_QUERY_KEY = ['email-links'];
 
 async function fetchEmailLinks() {
-  const result = await emailClient.getLinks();
-  if (isErr(result)) {
-    throw new Error('Failed to fetch email links', { cause: result[0] });
+  const { data, error } = await listLinks();
+  if (error || !data) {
+    throw new Error('Failed to fetch email links', { cause: error });
   }
-  return result[1]?.links ?? [];
+  return (data as any)?.links ?? [];
 }
 
 export function useEmailLinksQuery() {
@@ -95,17 +98,17 @@ type EmailSyncError =
  * @returns ok if syncing was started, err if syncing failed
  */
 async function syncEmails(): Promise<Result<void, EmailSyncError>> {
-  const initResult = await emailClient.init();
+  const { error } = await initUser();
 
-  if (isErr(initResult)) {
-    const [errors] = initResult;
-    const badRequestError = errors.find((err) => err.code === '400');
+  if (error) {
+    // Check if it's a 400 error (already initialized) by checking the error message
+    const isBadRequest = error.message?.includes('400') || error.message?.includes('already');
     return err(
-      badRequestError
+      isBadRequest
         ? { tag: 'AlreadyInitialized' as const }
         : {
             tag: 'FailedToInitialize' as const,
-            message: 'Failed to initialize',
+            message: error.message || 'Failed to initialize',
           }
     );
   }
@@ -164,9 +167,8 @@ function maybeStartEmailSync(links: Link[]): boolean {
  * @returns ok if the email service was disconnected, err if it failed to disconnect
  */
 function disconnectEmail(): ResultAsync<void, 'failed-to-disconnect'> {
-  return ResultAsync.fromSafePromise(emailClient.stopSync()).andThen(
-    (response) =>
-      isErr(response) ? err('failed-to-disconnect') : okAsync(void 0)
+  return ResultAsync.fromSafePromise(disableSync()).andThen((response) =>
+    response.error ? err('failed-to-disconnect') : okAsync(void 0)
   );
 }
 

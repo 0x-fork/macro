@@ -3,8 +3,7 @@ import {
   isConsumerEmail,
 } from '@block-contact/util/emailUtils';
 import { ENABLE_GMAIL_BASED_CONTACTS } from '@core/constant/featureFlags';
-import { isErr } from '@core/util/maybeResult';
-import { emailClient } from '@service-email/client';
+import { listContacts } from '@service-email/client';
 import { createSingletonRoot } from '@solid-primitives/rootless';
 import { createMemo, createResource } from 'solid-js';
 
@@ -42,16 +41,13 @@ async function fetchEmailContacts(): Promise<EmailContact[]> {
   if (!ENABLE_GMAIL_BASED_CONTACTS) return [];
 
   try {
-    const response = await emailClient.listContacts();
-    if (isErr(response)) return [];
-
-    const [, contactsData] = response;
-    if (!contactsData?.contacts) return [];
+    const { data, error } = await listContacts();
+    if (error || !data?.contacts) return [];
 
     const items: EmailContact[] = [];
     const seenCompanies = new Set<string>();
 
-    for (const contactArray of Object.values(contactsData.contacts)) {
+    for (const contactArray of Object.values(data.contacts)) {
       for (const contact of contactArray) {
         if (contact.email_address) {
           items.push({

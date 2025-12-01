@@ -1,7 +1,7 @@
 import type {
   MessageToSendDbId,
   MessageWithBodyReplyless,
-} from '@service-email/generated/schemas';
+} from '@service-email/client';
 import { type Accessor, createMemo, type Setter, Show } from 'solid-js';
 import { produce } from 'solid-js/store';
 import { decodeBase64Utf8 } from '../util/decodeBase64';

@@ -1,203 +1,169 @@
+/**
+ * Email Service Client
+ *
+ * This module provides a configured hey-api client for the email service
+ * with automatic authentication via Bearer token.
+ *
+ * ## Queries (for reads):
+ * ```ts
+ * import { createQuery } from '@tanstack/solid-query';
+ * import { getThreadOptions } from '@service-email/client';
+ *
+ * const threadQuery = createQuery(() =>
+ *   getThreadOptions({ path: { id: threadId }, query: { offset: 0, limit: 5 } })
+ * );
+ * ```
+ *
+ * ## Mutations (for writes):
+ * ```ts
+ * import { createMutation } from '@tanstack/solid-query';
+ * import { sendMessageMutation } from '@service-email/client';
+ *
+ * const mutation = createMutation(() => sendMessageMutation());
+ * mutation.mutate({ body: { message: messageData } });
+ * ```
+ *
+ * ## Direct SDK calls (for imperative code):
+ * ```ts
+ * import { sendMessage } from '@service-email/client';
+ *
+ * const { data, error } = await sendMessage({ body: { message: messageData } });
+ * ```
+ */
+
 import { SERVER_HOSTS } from '@core/constant/servers';
-import {
-  type FetchWithTokenErrorCode,
-  fetchWithToken,
-} from '@core/util/fetchWithToken';
-import {
-  type MaybeError,
-  type MaybeResult,
-  mapOk,
-  type ObjectLike,
-} from '@core/util/maybeResult';
-import type { SafeFetchInit } from '@core/util/safeFetch';
+import { getMacroApiToken } from '@service-auth/fetch';
+import { client } from './generated/client.gen';
+
+// Configure the generated client with base URL and auth
+client.setConfig({
+  baseUrl: SERVER_HOSTS['email-service'],
+});
+
+// Add auth interceptor
+client.interceptors.request.use(async (request) => {
+  try {
+    const token = await getMacroApiToken();
+    if (token) {
+      request.headers.set('Authorization', `Bearer ${token}`);
+    }
+  } catch (error) {
+    console.error('Failed to get API token for email service:', error);
+  }
+  return request;
+});
+
+// Export the configured client instance
+export { client as emailClient };
+
+// Re-export all SDK functions for direct API calls
+export {
+  getAttachment,
+  cancelBackfillGmail,
+  getBackfillGmailActive,
+  getBackfillGmail,
+  listContacts,
+  createDraft,
+  deleteDraft,
+  initUser,
+  listLabels,
+  createLabel,
+  deleteLabel,
+  listLinks,
+  sendMessage,
+  getMessagesBatch,
+  addRemoveLabel,
+  getMessage,
+  disableSync,
+  enableSync,
+  previewsInboxCursor,
+  getThread,
+  archiveThread,
+  getThreadMessagesHandler,
+  threadSeen,
+  healthHandler,
+} from './generated/sdk.gen';
+
+// Re-export all TanStack Query options for reactive queries
+export {
+  // Query options (for reads)
+  getAttachmentOptions,
+  getAttachmentQueryKey,
+  getBackfillGmailActiveOptions,
+  getBackfillGmailActiveQueryKey,
+  getBackfillGmailOptions,
+  getBackfillGmailQueryKey,
+  listContactsOptions,
+  listContactsQueryKey,
+  listLabelsOptions,
+  listLabelsQueryKey,
+  listLinksOptions,
+  listLinksQueryKey,
+  getMessageOptions,
+  getMessageQueryKey,
+  previewsInboxCursorOptions,
+  previewsInboxCursorQueryKey,
+  previewsInboxCursorInfiniteOptions,
+  previewsInboxCursorInfiniteQueryKey,
+  getThreadOptions,
+  getThreadQueryKey,
+  getThreadInfiniteOptions,
+  getThreadInfiniteQueryKey,
+  getThreadMessagesHandlerOptions,
+  getThreadMessagesHandlerQueryKey,
+  healthHandlerOptions,
+  healthHandlerQueryKey,
+  // Mutation options (for writes)
+  cancelBackfillGmailMutation,
+  createDraftMutation,
+  deleteDraftMutation,
+  initUserMutation,
+  createLabelMutation,
+  deleteLabelMutation,
+  sendMessageMutation,
+  getMessagesBatchMutation,
+  addRemoveLabelMutation,
+  disableSyncMutation,
+  enableSyncMutation,
+  archiveThreadMutation,
+  threadSeenMutation,
+  // Query key type
+  type QueryKey,
+} from './generated/@tanstack/solid-query.gen';
+
+// Re-export all types
+export type * from './generated/types.gen';
+
+// Type alias for backward compatibility
+// (In the old Orval schema, this was a separate exported type)
+export type MessageToSendDbId = string | null;
+
+/**
+ * NOTE: The OpenAPI spec incorrectly defines some endpoints as returning arrays
+ * when they should return single objects. These helper functions unwrap the response.
+ * This should be fixed in the backend OpenAPI spec.
+ */
 import type {
-  ApiPaginatedThreadCursor,
-  CreateDraftRequest,
-  CreateDraftResponse,
-  GetAttachmentResponse,
   GetThreadResponse,
-  ListContactsResponse,
-  ListLabelsResponse,
+  GetAttachmentResponse,
   ListLinksResponse,
-  SendMessageRequest,
-  SendMessageResponse,
-  UpdateLabelBatchRequest,
-  UpdateLabelBatchResponse,
-} from './generated/schemas';
-import type { EmptyResponse } from './generated/schemas/emptyResponse';
+  ListContactsResponse,
+} from './generated/types.gen';
 
-const emailHost: string = SERVER_HOSTS['email-service'];
-
-export function emailFetch(
-  url: string,
-  init?: SafeFetchInit
-): Promise<MaybeError<FetchWithTokenErrorCode>>;
-export function emailFetch<T extends ObjectLike>(
-  url: string,
-  init?: SafeFetchInit
-): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
-export function emailFetch<T extends ObjectLike = never>(
-  url: string,
-  init?: SafeFetchInit
-):
-  | Promise<MaybeResult<FetchWithTokenErrorCode, T>>
-  | Promise<MaybeError<FetchWithTokenErrorCode>> {
-  return fetchWithToken<T>(`${emailHost}${url}`, init);
+// Helper to unwrap array responses from SDK calls
+// Usage: const data = unwrapResponse(await getThread({...}))
+export function unwrapResponse<T>(response: {
+  data?: T[];
+  error?: unknown;
+}): { data: T | undefined; error: unknown } {
+  return {
+    data: response.data?.[0],
+    error: response.error,
+  };
 }
 
-export const emailClient = {
-  async init() {
-    return mapOk(
-      await emailFetch<EmptyResponse>('/email/init', {
-        method: 'POST',
-      }),
-      (result) => result
-    );
-  },
-  async getThread(args: {
-    offset?: number;
-    limit?: number;
-    thread_id: string;
-  }) {
-    const { offset, limit, thread_id } = args;
-    return mapOk(
-      await emailFetch<GetThreadResponse>(
-        `/email/threads/${thread_id}?offset=${offset ?? 0}&limit=${limit ?? 5}`,
-        {
-          method: 'GET',
-        }
-      ),
-      (result) => result
-    );
-  },
-  async getUserLabels() {
-    return mapOk(
-      await emailFetch<ListLabelsResponse>(`/email/labels`, {
-        method: 'GET',
-      }),
-      (result) => result
-    );
-  },
-  async getPreviews(args: {
-    view: string;
-    limit: number;
-    sort_method: string;
-    cursor?: string;
-  }) {
-    const { view, ...params } = args;
-    const p = Object.entries(params)
-      .map(([k, v]) => `${k}=${v}`)
-      .join('&');
-    const qp = p.length > 0 ? '?' + p : p;
-
-    return mapOk(
-      await emailFetch<ApiPaginatedThreadCursor>(
-        `/email/threads/previews/cursor/${view}${qp}`,
-        {
-          method: 'GET',
-        }
-      ),
-      (result) => result
-    );
-  },
-  async updateMessageLabelBatch(args: UpdateLabelBatchRequest) {
-    const { message_ids, label_id, value } = args;
-    return mapOk(
-      await emailFetch<UpdateLabelBatchResponse>(`/email/messages/labels`, {
-        method: 'PATCH',
-        body: JSON.stringify({ value, label_id, message_ids }),
-      }),
-      (result) => result
-    );
-  },
-  async flagArchived(args: { value: boolean; id: string }) {
-    const { value, id } = args;
-    return mapOk(
-      await emailFetch<EmptyResponse>(`/email/threads/${id}/archived`, {
-        method: 'PATCH',
-        body: JSON.stringify({ value }),
-      }),
-      (result) => result
-    );
-  },
-  async startSync() {
-    return mapOk(
-      await emailFetch<EmptyResponse>('/email/sync', {
-        method: 'POST',
-      }),
-      (result) => result
-    );
-  },
-  async stopSync() {
-    return mapOk(
-      await emailFetch<EmptyResponse>('/email/sync', {
-        method: 'DELETE',
-      }),
-      (result) => result
-    );
-  },
-
-  async sendMessage(args: SendMessageRequest) {
-    return mapOk(
-      await emailFetch<SendMessageResponse>('/email/messages', {
-        method: 'POST',
-        body: JSON.stringify(args),
-      }),
-      (result) => result
-    );
-  },
-
-  async getLinks() {
-    return mapOk(
-      await emailFetch<ListLinksResponse>('/email/links', {
-        method: 'GET',
-      }),
-      (result) => result
-    );
-  },
-
-  async listContacts() {
-    return mapOk(
-      await emailFetch<ListContactsResponse>('/email/contacts', {
-        method: 'GET',
-      }),
-      (result) => result
-    );
-  },
-  async getAttachmentUrl(args: { id: string }) {
-    const { id } = args;
-    return mapOk(
-      await emailFetch<GetAttachmentResponse>(`/email/attachments/${id}`, {
-        method: 'GET',
-      }),
-      (result) => result
-    );
-  },
-  async createDraft(args: CreateDraftRequest) {
-    return mapOk(
-      await emailFetch<CreateDraftResponse>('/email/drafts', {
-        method: 'POST',
-        body: JSON.stringify(args),
-      }),
-      (result) => result
-    );
-  },
-  async deleteDraft(args: { id: string }) {
-    const { id } = args;
-    return mapOk(
-      await emailFetch<EmptyResponse>(`/email/drafts/${id}`, {
-        method: 'DELETE',
-      }),
-      (result) => result
-    );
-  },
-  async markThreadAsSeen(args: { thread_id: string }) {
-    const { thread_id } = args;
-    return mapOk(
-      await emailFetch<EmptyResponse>(`/email/threads/${thread_id}/seen`, {
-        method: 'POST',
-      }),
-      (result) => result
-    );
-  },
-};
+// Corrected type exports for consumers that need single objects
+export type ThreadResponse = GetThreadResponse;
+export type AttachmentResponse = GetAttachmentResponse;
+export type LinksResponse = ListLinksResponse;
+export type ContactsResponse = ListContactsResponse;

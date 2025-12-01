@@ -3,10 +3,8 @@ import { IconButton } from '@core/component/IconButton';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { channelTheme } from '@core/component/LexicalMarkdown/theme';
 import { DEV_MODE_ENV } from '@core/constant/featureFlags';
-import { isErr } from '@core/util/maybeResult';
 import DotsThree from '@icon/regular/dots-three.svg';
-import { emailClient } from '@service-email/client';
-import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
+import { getAttachment, type MessageWithBodyReplyless, type GetAttachmentResponse } from '@service-email/client';
 import { useEmail } from '@service-gql/client';
 import {
   type Accessor,
@@ -134,9 +132,12 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
             const normalizedCid = rawCid.replace(/[<>]/g, '');
             const dbId = contentIdToDbId.get(normalizedCid);
             if (!dbId) return;
-            const res = await emailClient.getAttachmentUrl({ id: dbId });
-            if (isErr(res)) return;
-            const dataUrl = res[1].attachment.data_url;
+            const { data, error } = await getAttachment({ path: { id: dbId } });
+            // Note: OpenAPI spec incorrectly defines this as Array<GetAttachmentResponse>
+            // but the actual API returns GetAttachmentResponse directly (single object)
+            const attachmentData = data as unknown as GetAttachmentResponse | undefined;
+            if (error || !attachmentData?.attachment) return;
+            const dataUrl = attachmentData.attachment.data_url;
             if (!dataUrl) return;
             img.src = dataUrl;
             img.dataset.cidResolved = 'true';

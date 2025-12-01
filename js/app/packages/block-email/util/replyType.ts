@@ -1,4 +1,4 @@
-import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
+import type { MessageWithBodyReplyless } from '@service-email/client';
 
 export type ReplyType = 'reply' | 'reply-all' | 'forward';
 

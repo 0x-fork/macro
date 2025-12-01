@@ -13,8 +13,7 @@ import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import { useDisplayName, type WithCustomUserInput } from '@core/user';
 import { isErr } from '@core/util/maybeResult';
 import Caution from '@icon/regular/warning.svg';
-import { emailClient } from '@service-email/client';
-import type { Link as EmailAccountLink } from '@service-email/generated/schemas';
+import { listLinks, type Link as EmailAccountLink } from '@service-email/client';
 import {
   createMemo,
   createSignal,
@@ -40,13 +39,12 @@ export function EmailCompose() {
   const [link, setLink] = createSignal<EmailAccountLink | null>(null);
   const [linkError, setLinkError] = createSignal<string | null>(null);
   onMount(async () => {
-    const maybeLinks = await emailClient.getLinks();
-    if (isErr(maybeLinks)) {
+    const { data, error } = await listLinks();
+    if (error || !data) {
       setLinkError('Could not find linked email account.');
       return;
     }
-    const [, { links }] = maybeLinks;
-    const [link] = links;
+    const [link] = (data as any).links;
     if (link) {
       setLink(link);
     } else {

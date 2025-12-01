@@ -16,7 +16,7 @@ import {
   markNotificationsForEntityAsDone,
   type NotificationSource,
 } from '@notifications';
-import { emailClient } from '@service-email/client';
+import { archiveThread } from '@service-email/client';
 import stringify from 'json-stable-stringify';
 import { queryClient } from '../../macro-entity/src/queries/client';
 import type { UnifiedListContext } from './SoupContext';
@@ -332,7 +332,7 @@ export async function archiveEmail(
 
   try {
     // server mutation
-    await emailClient.flagArchived({ value: !options.isDone, id });
+    await archiveThread({ path: { id }, body: { value: !options.isDone } });
   } catch (_err) {
     // rollback on error
     for (const [key, data] of previous) {

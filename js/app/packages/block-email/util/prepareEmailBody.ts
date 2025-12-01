@@ -9,7 +9,7 @@ import {
   type ClassedBlockNode,
   type DocumentMentionInfo,
 } from '@lexical-core';
-import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
+import type { MessageWithBodyReplyless } from '@service-email/client';
 import {
   $createLineBreakNode,
   $createParagraphNode,

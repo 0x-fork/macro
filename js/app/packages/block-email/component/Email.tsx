@@ -17,9 +17,7 @@ import {
   createEffectOnEntityTypeNotification,
   isNotificationWithMetadata,
 } from '@notifications';
-import { emailClient } from '@service-email/client';
-import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
-import type { Thread } from '@service-email/generated/schemas/thread';
+import { archiveThread as archiveThreadApi, type MessageWithBodyReplyless, type Thread } from '@service-email/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { useSearchParams } from '@solidjs/router';
 import {
@@ -446,9 +444,9 @@ export function Email(props: EmailProps) {
 
   const archiveThread = createCallback(() => {
     if (!props.threadData()) return false;
-    emailClient.flagArchived({
-      value: props.threadData()!.inbox_visible,
-      id: props.threadData()!.db_id!,
+    archiveThreadApi({
+      path: { id: props.threadData()!.db_id! },
+      body: { value: props.threadData()!.inbox_visible },
     });
     navigateThread('down');
     return true;

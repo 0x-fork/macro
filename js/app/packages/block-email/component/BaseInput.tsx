@@ -14,7 +14,6 @@ import { TOKENS } from '@core/hotkey/tokens';
 import { isMobileWidth } from '@core/mobile/mobileWidth';
 import { trackMention } from '@core/signal/mention';
 import { useDisplayName } from '@core/user';
-import { isErr, isOk } from '@core/util/maybeResult';
 import ReplyAll from '@icon/regular/arrow-bend-double-up-left.svg';
 import Reply from '@icon/regular/arrow-bend-up-left.svg';
 import Forward from '@icon/regular/arrow-bend-up-right.svg';
@@ -27,13 +26,7 @@ import type { DocumentMentionInfo } from '@lexical-core';
 import { logger } from '@observability';
 import Spinner from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
 import ArrowFatLineUp from '@phosphor-icons/core/fill/arrow-fat-line-up-fill.svg?component-solid';
-import { emailClient } from '@service-email/client';
-import type {
-  AttachmentMacro,
-  MessageToSend,
-  MessageToSendDbId,
-  MessageWithBodyReplyless,
-} from '@service-email/generated/schemas';
+import { listLinks, sendMessage as sendEmailMessage, type AttachmentMacro, type MessageToSend, type MessageToSendDbId, type MessageWithBodyReplyless } from '@service-email/client';
 import { useEmail, useUserId } from '@service-gql/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import type { Item } from '@service-storage/generated/schemas/item';
@@ -262,15 +255,16 @@ export function BaseInput(props: {
 
     let linkId: string | undefined = currentThread?.link_id;
     if (newMessage || !linkId) {
-      const maybeFallbackLinks = await emailClient.getLinks();
+      const { data: fallbackLinks, error } = await listLinks();
       if (
-        isErr(maybeFallbackLinks) ||
-        maybeFallbackLinks[1].links.length === 0
+        error ||
+        !fallbackLinks ||
+        (fallbackLinks as any).links.length === 0
       ) {
         logger.error(new Error('Failed to save email draft: no links found'));
         return false;
       }
-      linkId = maybeFallbackLinks[1].links[0].id;
+      linkId = (fallbackLinks as any).links[0].id;
     }
 
     const draftResponse = await saveEmailDraft({
@@ -381,13 +375,13 @@ export function BaseInput(props: {
 
     let linkId: string | undefined = currentThread?.link_id;
     if (newMessage || !linkId) {
-      const maybeFallbackLinks = await emailClient.getLinks();
-      if (isErr(maybeFallbackLinks) || maybeFallbackLinks[1].links.length < 1) {
+      const { data: fallbackLinks, error } = await listLinks();
+      if (error || !fallbackLinks || (fallbackLinks as any).links.length < 1) {
         toast.failure('Email failed to send');
         logger.error('No links found');
         return;
       }
-      linkId = maybeFallbackLinks[1].links[0].id;
+      linkId = (fallbackLinks as any).links[0].id;
     }
 
     const prepared = prepareEmailBody(editor(), {
@@ -396,32 +390,33 @@ export function BaseInput(props: {
     });
     if (!prepared) return;
 
-    const response = await emailClient.sendMessage({
-      message: {
-        bcc,
-        body_html: prepared.bodyHtml,
-        body_macro: bodyMacro(),
-        body_text: prepared.bodyText,
-        cc,
-        provider_id: props.draft?.provider_id,
-        provider_thread_id: currentThread?.provider_id,
-        replying_to_id: props.replyingTo()?.db_id,
-        subject: form().subject(),
-        thread_db_id: currentThread?.db_id,
-        to,
-        link_id: linkId!,
+    const { data, error: sendError } = await sendEmailMessage({
+      body: {
+        message: {
+          bcc,
+          body_html: prepared.bodyHtml,
+          body_macro: bodyMacro(),
+          body_text: prepared.bodyText,
+          cc,
+          provider_id: props.draft?.provider_id,
+          provider_thread_id: currentThread?.provider_id,
+          replying_to_id: props.replyingTo()?.db_id,
+          subject: form().subject(),
+          thread_db_id: currentThread?.db_id,
+          to,
+          link_id: linkId!,
+        },
       },
     });
-    if (isOk(response)) {
+    if (!sendError) {
       toast.success('Email sent');
-      const [, { message }] = response;
       prepared.mentions.forEach((mention) => {
         trackMention(blockId, 'document', mention.documentId);
       });
       clearEmailBody(editor());
       resetState();
       if (props.sideEffectOnSend) {
-        props.sideEffectOnSend(message.db_id ?? null);
+        props.sideEffectOnSend(data.message.db_id ?? null);
       }
     } else {
       toast.failure('Failed to send email');

@@ -1,10 +1,8 @@
 import { EntityIcon } from '@core/component/EntityIcon';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
-import { isErr } from '@core/util/maybeResult';
 import { uploadFile } from '@core/util/upload';
 import X from '@icon/regular/x.svg';
-import { emailClient } from '@service-email/client';
-import type { Attachment } from '@service-email/generated/schemas/attachment';
+import { getAttachment, type Attachment, type GetAttachmentResponse } from '@service-email/client';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { platformFetch } from 'core/util/platformFetch';
@@ -35,10 +33,13 @@ export function EmailAttachmentPill(props: {
       onclick={async () => {
         const dbId = props.attachment.db_id;
         if (!dbId) return;
-        const response = await emailClient.getAttachmentUrl({ id: dbId });
-        if (isErr(response)) return;
+        const { data, error } = await getAttachment({ path: { id: dbId } });
+        // Note: OpenAPI spec incorrectly defines this as Array<GetAttachmentResponse>
+        // but the actual API returns GetAttachmentResponse directly (single object)
+        const attachmentData = data as unknown as GetAttachmentResponse | undefined;
+        if (error || !attachmentData?.attachment) return;
 
-        const dataUrl = response[1].attachment.data_url;
+        const dataUrl = attachmentData.attachment.data_url;
         if (!dataUrl) return;
         const fileBlob = await platformFetch(dataUrl)
           .then((res) => res.blob())

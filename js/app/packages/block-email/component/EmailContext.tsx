@@ -2,7 +2,7 @@ import type { WithCustomUserInput } from '@core/user';
 import type {
   MessageWithBodyReplyless,
   Thread,
-} from '@service-email/generated/schemas';
+} from '@service-email/client';
 import {
   type Accessor,
   createContext,

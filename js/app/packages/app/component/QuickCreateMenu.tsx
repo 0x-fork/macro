@@ -46,7 +46,6 @@ import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import type { ContactInfo, WithCustomUserInput } from '@core/user';
 import { useSendMessageToPeople } from '@core/util/channels';
 import { createMarkdownFile } from '@core/util/create';
-import { isErr } from '@core/util/maybeResult';
 import TextBold from '@icon/bold/text-b-bold.svg';
 import CommentIcon from '@icon/regular/chat-circle-text.svg';
 import TextCode from '@icon/regular/code.svg';
@@ -62,8 +61,7 @@ import { Dialog } from '@kobalte/core/dialog';
 import { $generateHtmlFromNodes } from '@lexical/html';
 import MacroGridLoader from '@macro-icons/macro-grid-noise-loader-4.svg';
 import type { SimpleMention } from '@service-comms/generated/models/simpleMention';
-import { emailClient } from '@service-email/client';
-import type { MessageToSend } from '@service-email/generated/schemas/messageToSend';
+import { listLinks, sendMessage as sendEmailMessage, type MessageToSend } from '@service-email/client';
 import { normalizeEnterPlugin } from 'core/component/LexicalMarkdown/plugins/normalize-enter';
 import {
   $getRoot,
@@ -252,8 +250,8 @@ export function QuickCreateMenuInner(props: QuickCreateMenuProps) {
     });
 
     // Get email links for new emails
-    const fallbackLinks = await emailClient.getLinks();
-    if (isErr(fallbackLinks) || fallbackLinks[1].links.length < 1) {
+    const { data: fallbackLinks, error } = await listLinks();
+    if (error || !fallbackLinks || (fallbackLinks as any).links.length < 1) {
       toast.failure('Failed to send email');
       return false;
     }
@@ -271,7 +269,7 @@ export function QuickCreateMenuInner(props: QuickCreateMenuProps) {
     const body_text = editor.read(() => $getRoot().getTextContent());
     const body_macro = content();
 
-    const message: MessageToSend = {
+    const messageToSend: MessageToSend = {
       to: toContacts,
       cc: [],
       bcc: [],
@@ -279,14 +277,14 @@ export function QuickCreateMenuInner(props: QuickCreateMenuProps) {
       body_html,
       body_text,
       body_macro,
-      link_id: fallbackLinks[1].links[0].id,
+      link_id: (fallbackLinks as any).links[0].id,
     };
 
-    const sendRequest = await emailClient.sendMessage({
-      message,
+    const { error: sendError } = await sendEmailMessage({
+      body: { message: messageToSend },
     });
 
-    if (isErr(sendRequest)) {
+    if (sendError) {
       toast.failure('Failed to send email');
       return false;
     }

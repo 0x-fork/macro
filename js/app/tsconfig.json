@@ -112,6 +112,12 @@
       "@service-email/*": [
         "./packages/service-email/*"
       ],
+      "@api-client": [
+        "./packages/api-client"
+      ],
+      "@api-client/*": [
+        "./packages/api-client/*"
+      ],
       "@service-insight/*": [
         "./packages/service-insight/*"
       ],

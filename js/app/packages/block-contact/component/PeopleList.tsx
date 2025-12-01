@@ -2,10 +2,9 @@ import { createBlockSignal } from '@core/block';
 import { CircleSpinner } from '@core/component/CircleSpinner';
 import { UserIcon } from '@core/component/UserIcon';
 import { type ContactInfo, emailToId } from '@core/user';
-import { isErr } from '@core/util/maybeResult';
 import { For, onMount, Show } from 'solid-js';
 import { useSplitLayout } from '../../app/component/split-layout/layout';
-import { emailClient } from '../../service-email/client';
+import { listContacts } from '@service-email/client';
 
 const peopleAtCompanySignal = createBlockSignal<ContactInfo[]>([]);
 const isLoadingPeopleSignal = createBlockSignal(false);
@@ -30,14 +29,13 @@ export function PeopleList(props: { domain: string }) {
       const domainWithoutAt = props.domain.substring(1);
 
       // Get all contacts from the email service
-      const contactsResult = await emailClient.listContacts();
+      const { data, error } = await listContacts();
 
-      if (!isErr(contactsResult)) {
-        const [, contactsData] = contactsResult;
+      if (!error && data) {
         const allContacts: ContactInfo[] = [];
 
         // Flatten all contacts from the response
-        for (const contacts of Object.values(contactsData.contacts)) {
+        for (const contacts of Object.values(data.contacts)) {
           allContacts.push(...contacts);
         }
 

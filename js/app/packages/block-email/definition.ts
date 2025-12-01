@@ -1,8 +1,8 @@
 import { defineBlock, type ExtractLoadType, LoadErrors } from '@core/block';
-import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
-import { isErr, ok } from '@core/util/maybeResult';
-import { emailClient } from '@service-email/client';
+import { ok } from '@core/util/maybeResult';
+import type { GetThreadResponse } from '@service-email/client';
 import EmailBlock from './component/Block';
+import { fetchAndCacheThread } from './collections/threadCollection';
 
 export const definition = defineBlock({
   name: 'email',
@@ -13,29 +13,16 @@ export const definition = defineBlock({
 
   async load(source) {
     if (source.type === 'dss') {
-      let email = await emailClient.getThread({
-        thread_id: source.id,
-        offset: 0,
-        limit: DEFAULT_THREAD_MESSAGES_LIMIT,
-      });
+      // Fetch with caching - returns cached data if fresh, otherwise fetches
+      const data = await fetchAndCacheThread(source.id);
 
-      if (isErr(email)) {
-        if (isErr(email, 'MISSING')) {
-          return LoadErrors.MISSING;
-        } else if (isErr(email, 'UNAUTHORIZED')) {
-          return LoadErrors.UNAUTHORIZED;
-        } else if (isErr(email, 'GONE')) {
-          return LoadErrors.GONE;
-        } else {
-          return LoadErrors.INVALID;
-        }
+      if (!data?.thread) {
+        // TODO: We lose the HTTP status code here, so we can't differentiate
+        // between 404, 401, etc. For now, return MISSING as the most common case.
+        return LoadErrors.MISSING;
       }
 
-      const [, emailData] = email;
-
-      return ok({
-        ...emailData,
-      });
+      return ok(data);
     }
     return LoadErrors.INVALID;
   },

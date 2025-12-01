@@ -1,4 +1,4 @@
-import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
+import type { MessageWithBodyReplyless } from '@service-email/client';
 import type { ReplyType } from './replyType';
 
 export const getSubjectText = (

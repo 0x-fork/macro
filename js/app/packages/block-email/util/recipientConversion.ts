@@ -4,7 +4,7 @@ import {
   emailToId,
   recipientEntityMapper,
 } from '@core/user';
-import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
+import type { MessageWithBodyReplyless } from '@service-email/client';
 import type { EmailRecipient } from '../component/EmailContext';
 
 const extractedContactInfo = (contact: ContactInfo): ExtractedContactInfo => ({

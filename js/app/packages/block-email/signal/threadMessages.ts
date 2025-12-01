@@ -1,10 +1,9 @@
 import { createBlockResource } from '@core/block';
 import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
-import { isErr } from '@core/util/maybeResult';
 import { logger } from '@observability/logger';
-import { emailClient } from '@service-email/client';
-import type { Thread } from '@service-email/generated/schemas/thread';
+import { getThread, type Thread, type GetThreadResponse } from '@service-email/client';
 import { reconcile } from 'solid-js/store';
+import { updateCachedThread } from '../collections/threadCollection';
 
 export type ThreadMessagesFetchResult = {
   thread: Thread;
@@ -26,19 +25,24 @@ const fetchThreadMessages = async (
       ? refetching.offset
       : 0;
 
-  const result = await emailClient.getThread({
-    thread_id: threadId,
-    offset,
-    limit: DEFAULT_THREAD_MESSAGES_LIMIT,
+  const { data, error } = await getThread({
+    path: { id: threadId },
+    query: {
+      offset,
+      limit: DEFAULT_THREAD_MESSAGES_LIMIT,
+    },
   });
 
-  if (isErr(result)) {
-    logger.error(`Failed to get email thread messages: ${result[0]}`);
-    throw new Error(`Failed to get email thread messages: ${result[0]}`);
+  // Note: OpenAPI spec incorrectly defines this as Array<GetThreadResponse>
+  // but the actual API returns GetThreadResponse directly (single object)
+  const threadData = data as unknown as GetThreadResponse | undefined;
+
+  if (error || !threadData?.thread) {
+    logger.error(`Failed to get email thread messages: ${error}`);
+    throw new Error(`Failed to get email thread messages: ${error}`);
   }
 
-  const [, data] = result;
-  const newMessages = data.thread.messages ?? [];
+  const newMessages = threadData.thread.messages ?? [];
 
   const existingMessages = offset > 0 && value ? value.thread.messages : [];
   const allMessages = [...existingMessages, ...newMessages];
@@ -47,7 +51,7 @@ const fetchThreadMessages = async (
 
   return {
     thread: {
-      ...data.thread,
+      ...threadData.thread,
       messages: allMessages,
     },
     hasMore,
@@ -81,18 +85,22 @@ export const createThreadMessagesResource = (
   };
 
   const refresh = async () => {
-    const freshResult = await emailClient.getThread({
-      thread_id: threadId,
-      offset: 0,
-      limit: DEFAULT_THREAD_MESSAGES_LIMIT,
+    const { data: freshData, error } = await getThread({
+      path: { id: threadId },
+      query: {
+        offset: 0,
+        limit: DEFAULT_THREAD_MESSAGES_LIMIT,
+      },
     });
-    if (isErr(freshResult)) {
-      logger.error(
-        `Failed to refresh email thread messages: ${freshResult[0]}`
-      );
+
+    // Note: OpenAPI spec incorrectly defines this as Array<GetThreadResponse>
+    // but the actual API returns GetThreadResponse directly (single object)
+    const threadData = freshData as unknown as GetThreadResponse | undefined;
+
+    if (error || !threadData?.thread) {
+      logger.error(`Failed to refresh email thread messages: ${error}`);
       return;
     }
-    const [, freshData] = freshResult;
     const currentData = resource();
     if (!currentData) {
       refetch({ offset: 0 });
@@ -108,16 +116,23 @@ export const createThreadMessagesResource = (
       return {
         ...prev,
         thread: {
-          ...freshData.thread,
-          messages: reconcile(freshData.thread.messages, {
+          ...threadData.thread,
+          messages: reconcile(threadData.thread.messages, {
             key: 'db_id',
             merge: false, // Don't merge partial updates, replace entirely
           })(prev.thread.messages),
         },
         hasMore:
-          freshData.thread.messages.length >= DEFAULT_THREAD_MESSAGES_LIMIT,
+          threadData.thread.messages.length >= DEFAULT_THREAD_MESSAGES_LIMIT,
       };
     });
+
+    // Update the thread collection cache with fresh data
+    updateCachedThread(threadId, (cached) => ({
+      ...cached,
+      ...threadData.thread,
+      _fetchedAt: Date.now(),
+    }));
   };
 
   return {

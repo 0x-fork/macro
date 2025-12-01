@@ -1,6 +1,6 @@
 import { Message } from '@core/component/Message';
 import { useDisplayName } from '@core/user';
-import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
+import type { MessageWithBodyReplyless } from '@service-email/client';
 import { useUserId } from '@service-gql/client';
 import {
   type Accessor,

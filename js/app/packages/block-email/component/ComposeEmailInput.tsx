@@ -9,18 +9,12 @@ import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core
 import { toast } from '@core/component/Toast/Toast';
 import { fileDrop } from '@core/directive/fileDrop';
 import type { WithCustomUserInput } from '@core/user';
-import { isErr } from '@core/util/maybeResult';
 import Plus from '@icon/regular/plus.svg';
 import TextAa from '@icon/regular/text-aa.svg';
 import type { DocumentMentionInfo } from '@lexical-core';
 import Spinner from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
 import ArrowFatLineUp from '@phosphor-icons/core/fill/arrow-fat-line-up-fill.svg?component-solid';
-import { emailClient } from '@service-email/client';
-import type {
-  ContactInfo,
-  Link as EmailAccountLink,
-  MessageToSend,
-} from '@service-email/generated/schemas';
+import { sendMessage, type ContactInfo, type Link as EmailAccountLink, type MessageToSend } from '@service-email/client';
 import { useUserId } from '@service-gql/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import type { Item } from '@service-storage/generated/schemas/item';
@@ -204,21 +198,19 @@ export function ComposeEmailInput(props: {
         attachments: [],
       };
 
-      const result = await emailClient.sendMessage({
-        message: messageToSend,
+      const { data, error: sendError } = await sendMessage({
+        body: { message: messageToSend },
       });
 
-      if (isErr(result)) {
+      if (sendError) {
         const e = 'Failed to send email';
         failure(e);
         return;
       }
       toast.success('Email sent');
 
-      const [, { message }] = result;
-
-      if (message.thread_db_id) {
-        replaceSplit({ type: 'email', id: message.thread_db_id }, true);
+      if (data.message.thread_db_id) {
+        replaceSplit({ type: 'email', id: data.message.thread_db_id }, true);
       }
       globalSplitManager();
     } catch (error) {

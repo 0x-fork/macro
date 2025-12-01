@@ -2,7 +2,7 @@ import type { IOrganizationUserInternal } from '@service-organization/client';
 import type { Accessor } from 'solid-js';
 
 export type { ChannelWithParticipants } from '@service-comms/generated/models';
-export type { ContactInfo } from '@service-email/generated/schemas';
+export type { ContactInfo } from '@service-email/client';
 export type IOrganizationUser = IOrganizationUserInternal;
 
 export type IUser = {

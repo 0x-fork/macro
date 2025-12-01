@@ -1,23 +1,25 @@
-import { isErr } from '@core/util/maybeResult';
-import { emailClient } from '@service-email/client';
-import type { ApiPaginatedThreadCursor } from '@service-email/generated/schemas';
+import {
+  previewsInboxCursor,
+  type ApiPaginatedThreadCursor,
+} from '@service-email/client';
 import { createSingletonRoot } from '@solid-primitives/rootless';
 import type { Accessor } from 'solid-js';
 import { createMemo, createResource } from 'solid-js';
 
 export type EmailPreview = ApiPaginatedThreadCursor['items'][number];
 
-// TODO
 async function getPreviews() {
-  const result = await emailClient.getPreviews({
-    limit: 100,
-    sort_method: 'updated_at',
-    view: 'all',
+  const { data, error } = await previewsInboxCursor({
+    path: { view: 'all' },
+    query: { limit: 100, sort_method: 'updated_at' },
   });
 
-  if (isErr(result)) return;
-  const [, previews] = result;
-  return previews;
+  if (error) {
+    console.error('Failed to fetch email previews:', error);
+    return undefined;
+  }
+
+  return data;
 }
 
 const emailsResource = createSingletonRoot(() => createResource(getPreviews));

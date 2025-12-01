@@ -1,7 +1,7 @@
 import { defineBlock, type ExtractLoadType, LoadErrors } from '@core/block';
 import type { ContactInfo } from '@core/user';
 import { isErr, ok } from '@core/util/maybeResult';
-import { emailClient } from '@service-email/client';
+import { listContacts } from '@service-email/client';
 import { UnfurlServiceClient } from '@service-unfurl/client';
 import BlockContact from './component/Block';
 
@@ -51,13 +51,12 @@ export const definition = defineBlock({
       const email = id;
 
       // Get contact data from the email service
-      const contactsResponse = await emailClient.listContacts();
+      const { data, error } = await listContacts();
 
-      if (isErr(contactsResponse)) {
+      if (error) {
         return LoadErrors.INVALID;
       }
 
-      const [, data] = contactsResponse;
       let foundContact: ContactInfo | null = null;
 
       // Search through all contacts to find the one with matching email

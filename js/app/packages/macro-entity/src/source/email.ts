@@ -1,5 +1,4 @@
-import { isErr } from '@core/util/maybeResult';
-import { emailClient } from '@service-email/client';
+import { archiveThread, threadSeen } from '@service-email/client';
 import { trackStore } from '@solid-primitives/deep';
 import type { UseInfiniteQueryResult } from '@tanstack/solid-query';
 import {
@@ -117,8 +116,11 @@ export function createEmailSource(
 
     try {
       // Server mutation
-      const maybeResult = await emailClient.flagArchived({ id, value });
-      if (isErr(maybeResult)) throw maybeResult[0];
+      const { error } = await archiveThread({
+        path: { id },
+        body: { value },
+      });
+      if (error) throw error;
     } catch (_) {
       // Rollback on error
       setStore(id, 'done', previousValue);
@@ -135,8 +137,8 @@ export function createEmailSource(
 
     try {
       // Server mutation
-      const maybeResult = await emailClient.markThreadAsSeen({ thread_id: id });
-      if (isErr(maybeResult)) throw maybeResult[0];
+      const { error } = await threadSeen({ path: { id } });
+      if (error) throw error;
     } catch (_) {
       // Rollback on error
       setStore(id, 'isRead', previousValue);
