@@ -118,7 +118,7 @@ const macroDbUrlArn: pulumi.Output<string> = aws.secretsmanager
 
 const webhook_queue = new Queue('email-service-gmail-webhook', {
   tags,
-  maxReceiveCount: 20,
+  maxReceiveCount: 5,
   visibilityTimeoutSeconds: 60,
 });
 
@@ -127,7 +127,7 @@ export const webhookQueueName = pulumi.interpolate`${webhook_queue.queue.name}`;
 
 const webhook_retry_queue = new Queue('email-service-gmail-webhook-retry', {
   tags,
-  maxReceiveCount: 20,
+  maxReceiveCount: 100,
   visibilityTimeoutSeconds: 60,
 });
 
