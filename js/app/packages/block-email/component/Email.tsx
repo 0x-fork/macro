@@ -109,23 +109,27 @@ export function Email(props: EmailProps) {
   // Map Parent Messages to Draft Children
   // ============================================
 
-  const initialDraftChildren: Record<string, MessageWithBodyReplyless> =
-    (() => {
-      const t = untrack(() => props.threadData());
-      const map: Record<string, MessageWithBodyReplyless> = {};
-      if (!t) return map;
-      for (const message of t.messages) {
-        if (!(message.is_draft && message.body_text?.trim() !== '')) continue;
-        const headers = message.headers_json as unknown;
-        const parentMessageDbId = getHeaderValue(headers, 'Macro-In-Reply-To');
-        if (!parentMessageDbId) continue;
-        map[parentMessageDbId] = message;
-      }
-      return map;
-    })();
-
   const [messageDbIdToDraftChildren, setMessageDbIdToDraftChildren] =
-    createStore<Record<string, MessageWithBodyReplyless>>(initialDraftChildren);
+    createStore<Record<string, MessageWithBodyReplyless>>({});
+
+  // Compute draft children lazily after mount to avoid blocking render
+  let draftChildrenInitialized = false;
+  createEffect(() => {
+    if (draftChildrenInitialized) return;
+    const t = props.threadData();
+    if (!t) return;
+
+    draftChildrenInitialized = true;
+    const map: Record<string, MessageWithBodyReplyless> = {};
+    for (const message of t.messages) {
+      if (!(message.is_draft && message.body_text?.trim() !== '')) continue;
+      const headers = message.headers_json as unknown;
+      const parentMessageDbId = getHeaderValue(headers, 'Macro-In-Reply-To');
+      if (!parentMessageDbId) continue;
+      map[parentMessageDbId] = message;
+    }
+    setMessageDbIdToDraftChildren(map);
+  });
 
   // ============================================
   // SHARED RECIPIENT OPTIONS
@@ -133,7 +137,10 @@ export function Email(props: EmailProps) {
   const organizationUsers = useOrganizationUsers();
   const contacts = useContacts();
   const emailContacts = useEmailContacts();
-  const personEmailContacts = emailContacts().filter(isPersonEmailContact);
+  // Lazy filter - only compute when accessed
+  const personEmailContacts = createMemo(() =>
+    emailContacts().filter(isPersonEmailContact)
+  );
 
   const [augmentedRecipients, setAugmentedRecipients] = createSignal<
     EmailRecipient[]
@@ -158,19 +165,30 @@ export function Email(props: EmailProps) {
     setAugmentedRecipients([...existing, ...uniques]);
   }
 
+  // Deferred external recipient sources - load after initial render
+  const [externalSourcesLoaded, setExternalSourcesLoaded] = createSignal(false);
+  onMount(() => {
+    // Defer loading external sources to avoid blocking initial render
+    requestAnimationFrame(() => setExternalSourcesLoaded(true));
+  });
+
   const recipientOptions = createMemo<EmailRecipient[]>(() => {
     const optionsMap = new Map<string, EmailRecipient>();
 
-    organizationUsers()
-      .map(recipientEntityMapper('user'))
-      .forEach((u) => optionsMap.set(u.data.email, u));
-    contacts()
-      .map(recipientEntityMapper('user'))
-      .forEach((u) => optionsMap.set(u.data.email, u));
-    personEmailContacts
-      .map(recipientEntityMapper('contact'))
-      .forEach((c) => optionsMap.set(c.data.email, c));
+    // Only include external sources after initial render
+    if (externalSourcesLoaded()) {
+      organizationUsers()
+        .map(recipientEntityMapper('user'))
+        .forEach((u) => optionsMap.set(u.data.email, u));
+      contacts()
+        .map(recipientEntityMapper('user'))
+        .forEach((u) => optionsMap.set(u.data.email, u));
+      personEmailContacts()
+        .map(recipientEntityMapper('contact'))
+        .forEach((c) => optionsMap.set(c.data.email, c));
+    }
 
+    // Thread participants are always included (fast, local data)
     const t = props.threadData();
     if (t) {
       const seen = new Map<string, ContactInfo>();

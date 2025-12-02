@@ -24,12 +24,28 @@ export default function BlockEmail() {
     return data.thread.messages[0].subject!;
   });
 
+  // Memoize resource creation - only create once per threadId, not on every blockData change
+  let cachedResource: ReturnType<typeof createThreadMessagesResource> | null =
+    null;
+  let cachedThreadId: string | undefined;
+
   const threadMessagesResource = createMemo(() => {
     const data = blockData();
     const threadId = data?.thread?.db_id;
-    return threadId
-      ? createThreadMessagesResource(threadId, data.thread)
-      : null;
+
+    if (!threadId) {
+      cachedResource = null;
+      cachedThreadId = undefined;
+      return null;
+    }
+
+    // Only create a new resource if threadId changed
+    if (threadId !== cachedThreadId) {
+      cachedThreadId = threadId;
+      cachedResource = createThreadMessagesResource(threadId, data.thread);
+    }
+
+    return cachedResource;
   });
 
   const threadData = createMemo(() => {
