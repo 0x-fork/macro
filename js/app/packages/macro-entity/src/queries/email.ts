@@ -1,5 +1,4 @@
 import {
-  type ApiPaginatedThreadCursor,
   type ApiSortMethod,
   type PreviewViewStandardLabel,
   previewsInboxCursor,

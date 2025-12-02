@@ -1,6 +1,5 @@
 import { defineBlock, type ExtractLoadType, LoadErrors } from '@core/block';
 import { ok } from '@core/util/maybeResult';
-import type { GetThreadResponse } from '@service-email/client';
 import { fetchAndCacheThread } from './collections/threadCollection';
 import EmailBlock from './component/Block';
 

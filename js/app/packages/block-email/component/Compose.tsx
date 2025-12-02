@@ -11,7 +11,6 @@ import { fileDrop } from '@core/directive/fileDrop';
 import { useEmailLinks } from '@core/email-link';
 import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import { useDisplayName, type WithCustomUserInput } from '@core/user';
-import { isErr } from '@core/util/maybeResult';
 import Caution from '@icon/regular/warning.svg';
 import {
   type Link as EmailAccountLink,
