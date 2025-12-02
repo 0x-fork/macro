@@ -1,7 +1,7 @@
 import {
-  type PreviewViewStandardLabel,
   type ApiPaginatedThreadCursor,
   type ApiSortMethod,
+  type PreviewViewStandardLabel,
   previewsInboxCursor,
 } from '@service-email/client';
 import { useInfiniteQuery } from '@tanstack/solid-query';

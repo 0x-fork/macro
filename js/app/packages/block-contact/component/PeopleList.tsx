@@ -2,9 +2,9 @@ import { createBlockSignal } from '@core/block';
 import { CircleSpinner } from '@core/component/CircleSpinner';
 import { UserIcon } from '@core/component/UserIcon';
 import { type ContactInfo, emailToId } from '@core/user';
+import { listContacts } from '@service-email/client';
 import { For, onMount, Show } from 'solid-js';
 import { useSplitLayout } from '../../app/component/split-layout/layout';
-import { listContacts } from '@service-email/client';
 
 const peopleAtCompanySignal = createBlockSignal<ContactInfo[]>([]);
 const isLoadingPeopleSignal = createBlockSignal(false);

@@ -56,36 +56,18 @@ client.interceptors.request.use(async (request) => {
 // Export the configured client instance
 export { client as emailClient };
 
-// Re-export all SDK functions for direct API calls
-export {
-  getAttachment,
-  cancelBackfillGmail,
-  getBackfillGmailActive,
-  getBackfillGmail,
-  listContacts,
-  createDraft,
-  deleteDraft,
-  initUser,
-  listLabels,
-  createLabel,
-  deleteLabel,
-  listLinks,
-  sendMessage,
-  getMessagesBatch,
-  addRemoveLabel,
-  getMessage,
-  disableSync,
-  enableSync,
-  previewsInboxCursor,
-  getThread,
-  archiveThread,
-  getThreadMessagesHandler,
-  threadSeen,
-  healthHandler,
-} from './generated/sdk.gen';
-
 // Re-export all TanStack Query options for reactive queries
 export {
+  addRemoveLabelMutation,
+  archiveThreadMutation,
+  // Mutation options (for writes)
+  cancelBackfillGmailMutation,
+  createDraftMutation,
+  createLabelMutation,
+  deleteDraftMutation,
+  deleteLabelMutation,
+  disableSyncMutation,
+  enableSyncMutation,
   // Query options (for reads)
   getAttachmentOptions,
   getAttachmentQueryKey,
@@ -93,43 +75,60 @@ export {
   getBackfillGmailActiveQueryKey,
   getBackfillGmailOptions,
   getBackfillGmailQueryKey,
+  getMessageOptions,
+  getMessageQueryKey,
+  getMessagesBatchMutation,
+  getThreadInfiniteOptions,
+  getThreadInfiniteQueryKey,
+  getThreadMessagesHandlerOptions,
+  getThreadMessagesHandlerQueryKey,
+  getThreadOptions,
+  getThreadQueryKey,
+  healthHandlerOptions,
+  healthHandlerQueryKey,
+  initUserMutation,
   listContactsOptions,
   listContactsQueryKey,
   listLabelsOptions,
   listLabelsQueryKey,
   listLinksOptions,
   listLinksQueryKey,
-  getMessageOptions,
-  getMessageQueryKey,
-  previewsInboxCursorOptions,
-  previewsInboxCursorQueryKey,
   previewsInboxCursorInfiniteOptions,
   previewsInboxCursorInfiniteQueryKey,
-  getThreadOptions,
-  getThreadQueryKey,
-  getThreadInfiniteOptions,
-  getThreadInfiniteQueryKey,
-  getThreadMessagesHandlerOptions,
-  getThreadMessagesHandlerQueryKey,
-  healthHandlerOptions,
-  healthHandlerQueryKey,
-  // Mutation options (for writes)
-  cancelBackfillGmailMutation,
-  createDraftMutation,
-  deleteDraftMutation,
-  initUserMutation,
-  createLabelMutation,
-  deleteLabelMutation,
-  sendMessageMutation,
-  getMessagesBatchMutation,
-  addRemoveLabelMutation,
-  disableSyncMutation,
-  enableSyncMutation,
-  archiveThreadMutation,
-  threadSeenMutation,
+  previewsInboxCursorOptions,
+  previewsInboxCursorQueryKey,
   // Query key type
   type QueryKey,
+  sendMessageMutation,
+  threadSeenMutation,
 } from './generated/@tanstack/solid-query.gen';
+// Re-export all SDK functions for direct API calls
+export {
+  addRemoveLabel,
+  archiveThread,
+  cancelBackfillGmail,
+  createDraft,
+  createLabel,
+  deleteDraft,
+  deleteLabel,
+  disableSync,
+  enableSync,
+  getAttachment,
+  getBackfillGmail,
+  getBackfillGmailActive,
+  getMessage,
+  getMessagesBatch,
+  getThread,
+  getThreadMessagesHandler,
+  healthHandler,
+  initUser,
+  listContacts,
+  listLabels,
+  listLinks,
+  previewsInboxCursor,
+  sendMessage,
+  threadSeen,
+} from './generated/sdk.gen';
 
 // Re-export all types
 export type * from './generated/types.gen';
@@ -144,18 +143,18 @@ export type MessageToSendDbId = string | null;
  * This should be fixed in the backend OpenAPI spec.
  */
 import type {
-  GetThreadResponse,
   GetAttachmentResponse,
-  ListLinksResponse,
+  GetThreadResponse,
   ListContactsResponse,
+  ListLinksResponse,
 } from './generated/types.gen';
 
 // Helper to unwrap array responses from SDK calls
 // Usage: const data = unwrapResponse(await getThread({...}))
-export function unwrapResponse<T>(response: {
-  data?: T[];
-  error?: unknown;
-}): { data: T | undefined; error: unknown } {
+export function unwrapResponse<T>(response: { data?: T[]; error?: unknown }): {
+  data: T | undefined;
+  error: unknown;
+} {
   return {
     data: response.data?.[0],
     error: response.error,

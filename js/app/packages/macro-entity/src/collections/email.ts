@@ -1,13 +1,13 @@
-import { createCollection, type Collection } from '@tanstack/solid-db';
-import { queryCollectionOptions } from '@tanstack/db-collections';
-import { queryClient } from '../queries/client';
 import {
-  previewsInboxCursor,
-  archiveThread,
-  type ApiThreadPreviewCursor,
-  type PreviewViewStandardLabel,
   type ApiSortMethod,
+  type ApiThreadPreviewCursor,
+  archiveThread,
+  type PreviewViewStandardLabel,
+  previewsInboxCursor,
 } from '@service-email/client';
+import { queryCollectionOptions } from '@tanstack/db-collections';
+import { type Collection, createCollection } from '@tanstack/solid-db';
+import { queryClient } from '../queries/client';
 import { queryKeys } from '../queries/key';
 
 /**

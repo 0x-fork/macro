@@ -6,10 +6,10 @@ import {
 import { openEmailAuthPopup } from '@core/auth/email';
 import { queryKeys } from '@macro-entity';
 import {
-  listLinks,
-  initUser,
   disableSync,
+  initUser,
   type Link,
+  listLinks,
 } from '@service-email/client';
 import { updateUserInfo } from '@service-gql/client';
 import { useQuery } from '@tanstack/solid-query';
@@ -102,7 +102,8 @@ async function syncEmails(): Promise<Result<void, EmailSyncError>> {
 
   if (error) {
     // Check if it's a 400 error (already initialized) by checking the error message
-    const isBadRequest = error.message?.includes('400') || error.message?.includes('already');
+    const isBadRequest =
+      error.message?.includes('400') || error.message?.includes('already');
     return err(
       isBadRequest
         ? { tag: 'AlreadyInitialized' as const }

@@ -17,7 +17,11 @@ import {
   createEffectOnEntityTypeNotification,
   isNotificationWithMetadata,
 } from '@notifications';
-import { archiveThread as archiveThreadApi, type MessageWithBodyReplyless, type Thread } from '@service-email/client';
+import {
+  archiveThread as archiveThreadApi,
+  type MessageWithBodyReplyless,
+  type Thread,
+} from '@service-email/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { useSearchParams } from '@solidjs/router';
 import {

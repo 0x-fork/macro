@@ -26,7 +26,14 @@ import type { DocumentMentionInfo } from '@lexical-core';
 import { logger } from '@observability';
 import Spinner from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
 import ArrowFatLineUp from '@phosphor-icons/core/fill/arrow-fat-line-up-fill.svg?component-solid';
-import { listLinks, sendMessage as sendEmailMessage, type AttachmentMacro, type MessageToSend, type MessageToSendDbId, type MessageWithBodyReplyless } from '@service-email/client';
+import {
+  type AttachmentMacro,
+  listLinks,
+  type MessageToSend,
+  type MessageToSendDbId,
+  type MessageWithBodyReplyless,
+  sendMessage as sendEmailMessage,
+} from '@service-email/client';
 import { useEmail, useUserId } from '@service-gql/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import type { Item } from '@service-storage/generated/schemas/item';

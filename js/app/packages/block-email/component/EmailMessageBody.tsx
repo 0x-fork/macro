@@ -4,7 +4,11 @@ import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/S
 import { channelTheme } from '@core/component/LexicalMarkdown/theme';
 import { DEV_MODE_ENV } from '@core/constant/featureFlags';
 import DotsThree from '@icon/regular/dots-three.svg';
-import { getAttachment, type MessageWithBodyReplyless, type GetAttachmentResponse } from '@service-email/client';
+import {
+  type GetAttachmentResponse,
+  getAttachment,
+  type MessageWithBodyReplyless,
+} from '@service-email/client';
 import { useEmail } from '@service-gql/client';
 import {
   type Accessor,
@@ -135,7 +139,9 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
             const { data, error } = await getAttachment({ path: { id: dbId } });
             // Note: OpenAPI spec incorrectly defines this as Array<GetAttachmentResponse>
             // but the actual API returns GetAttachmentResponse directly (single object)
-            const attachmentData = data as unknown as GetAttachmentResponse | undefined;
+            const attachmentData = data as unknown as
+              | GetAttachmentResponse
+              | undefined;
             if (error || !attachmentData?.attachment) return;
             const dataUrl = attachmentData.attachment.data_url;
             if (!dataUrl) return;

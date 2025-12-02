@@ -1,8 +1,8 @@
 import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
 import {
-  getThread,
-  type GetThreadResponse,
   type ApiThread,
+  type GetThreadResponse,
+  getThread,
 } from '@service-email/client';
 
 /**
@@ -50,10 +50,14 @@ export async function fetchAndCacheThread(
       const age = Date.now() - cached._fetchedAt;
       if (age < staleTime) {
         // Return cached data
-        console.log(`[ThreadCache] HIT for ${threadId} (age: ${Math.round(age / 1000)}s)`);
+        console.log(
+          `[ThreadCache] HIT for ${threadId} (age: ${Math.round(age / 1000)}s)`
+        );
         return { thread: cached };
       }
-      console.log(`[ThreadCache] STALE for ${threadId} (age: ${Math.round(age / 1000)}s)`);
+      console.log(
+        `[ThreadCache] STALE for ${threadId} (age: ${Math.round(age / 1000)}s)`
+      );
     }
   }
 

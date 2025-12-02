@@ -1,5 +1,10 @@
 import { logger } from '@observability/logger';
-import { createDraft, deleteDraft, type MessageToSendDbId, type MessageToSend } from '@service-email/client';
+import {
+  createDraft,
+  deleteDraft,
+  type MessageToSend,
+  type MessageToSendDbId,
+} from '@service-email/client';
 
 export async function saveEmailDraft(
   draft: MessageToSend

@@ -1,9 +1,9 @@
-import { useLiveQuery, eq } from '@tanstack/solid-db';
-import { createMemo, type Accessor } from 'solid-js';
+import { eq, useLiveQuery } from '@tanstack/solid-db';
+import { type Accessor, createMemo } from 'solid-js';
 import {
   createEmailPreviewsCollection,
-  type EmailPreviewItem,
   type EmailCollectionParams,
+  type EmailPreviewItem,
 } from './email';
 
 export type EmailFilterOptions = {

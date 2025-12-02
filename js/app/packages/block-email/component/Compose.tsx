@@ -13,7 +13,10 @@ import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import { useDisplayName, type WithCustomUserInput } from '@core/user';
 import { isErr } from '@core/util/maybeResult';
 import Caution from '@icon/regular/warning.svg';
-import { listLinks, type Link as EmailAccountLink } from '@service-email/client';
+import {
+  type Link as EmailAccountLink,
+  listLinks,
+} from '@service-email/client';
 import {
   createMemo,
   createSignal,

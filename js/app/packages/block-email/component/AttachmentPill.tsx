@@ -2,7 +2,11 @@ import { EntityIcon } from '@core/component/EntityIcon';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { uploadFile } from '@core/util/upload';
 import X from '@icon/regular/x.svg';
-import { getAttachment, type Attachment, type GetAttachmentResponse } from '@service-email/client';
+import {
+  type Attachment,
+  type GetAttachmentResponse,
+  getAttachment,
+} from '@service-email/client';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { platformFetch } from 'core/util/platformFetch';
@@ -36,7 +40,9 @@ export function EmailAttachmentPill(props: {
         const { data, error } = await getAttachment({ path: { id: dbId } });
         // Note: OpenAPI spec incorrectly defines this as Array<GetAttachmentResponse>
         // but the actual API returns GetAttachmentResponse directly (single object)
-        const attachmentData = data as unknown as GetAttachmentResponse | undefined;
+        const attachmentData = data as unknown as
+          | GetAttachmentResponse
+          | undefined;
         if (error || !attachmentData?.attachment) return;
 
         const dataUrl = attachmentData.attachment.data_url;

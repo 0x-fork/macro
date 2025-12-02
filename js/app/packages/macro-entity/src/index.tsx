@@ -1,3 +1,5 @@
+export * from './collections/email';
+export * from './collections/useEmailCollection';
 export { Entity, type EntityClickHandler } from './components/Entity';
 export { EntityWrapper } from './components/EntityWrapper';
 export { createFilter } from './components/Filter';
@@ -32,8 +34,6 @@ export {
 } from './queries/notification';
 export * from './queries/search';
 export { createEmailSource, type EmailSource, useEmails } from './source/email';
-export * from './collections/email';
-export * from './collections/useEmailCollection';
 export * from './types/entity';
 export * from './types/notification';
 export * from './types/search';

@@ -1,7 +1,11 @@
 import { createBlockResource } from '@core/block';
 import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
 import { logger } from '@observability/logger';
-import { getThread, type Thread, type GetThreadResponse } from '@service-email/client';
+import {
+  type GetThreadResponse,
+  getThread,
+  type Thread,
+} from '@service-email/client';
 import { reconcile } from 'solid-js/store';
 import { updateCachedThread } from '../collections/threadCollection';
 

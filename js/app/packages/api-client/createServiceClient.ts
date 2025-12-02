@@ -1,5 +1,5 @@
-import { createClient, type Client, type Config } from '@hey-api/client-fetch';
 import { SERVER_HOSTS } from '@core/constant/servers';
+import { type Client, type Config, createClient } from '@hey-api/client-fetch';
 import { authInterceptor } from './interceptors/auth';
 
 export type ServiceName = keyof typeof SERVER_HOSTS;

@@ -61,7 +61,11 @@ import { Dialog } from '@kobalte/core/dialog';
 import { $generateHtmlFromNodes } from '@lexical/html';
 import MacroGridLoader from '@macro-icons/macro-grid-noise-loader-4.svg';
 import type { SimpleMention } from '@service-comms/generated/models/simpleMention';
-import { listLinks, sendMessage as sendEmailMessage, type MessageToSend } from '@service-email/client';
+import {
+  listLinks,
+  type MessageToSend,
+  sendMessage as sendEmailMessage,
+} from '@service-email/client';
 import { normalizeEnterPlugin } from 'core/component/LexicalMarkdown/plugins/normalize-enter';
 import {
   $getRoot,
