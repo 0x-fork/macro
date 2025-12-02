@@ -3,9 +3,9 @@ use crate::domain::{
     ports::SoupService,
 };
 use axum::{
-    Json, Router,
-    extract::{FromRef, Query, State},
-    http::StatusCode,
+    Json, Router, async_trait,
+    extract::{FromRef, FromRequestParts, Query, State},
+    http::{StatusCode, request::Parts},
     response::IntoResponse,
     routing::{get, post},
 };
@@ -30,13 +30,35 @@ use models_pagination::{
 };
 use models_soup::item::SoupItem;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 use thiserror::Error;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 #[cfg(test)]
 mod tests;
+
+/// An extractor that optionally extracts an email link.
+/// Returns `None` if the user has no email link, instead of failing with 404.
+pub struct OptionalEmailLinkExtractor<U>(pub Option<Link>, pub PhantomData<U>);
+
+#[async_trait]
+impl<S, U> FromRequestParts<S> for OptionalEmailLinkExtractor<U>
+where
+    EmailPreviewState<U>: FromRef<S>,
+    U: EmailService,
+    S: Send + Sync + 'static,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let link = Cached::<EmailLinkExtractor<U>>::from_request_parts(parts, state)
+            .await
+            .ok()
+            .map(|Cached(EmailLinkExtractor(link, _))| link);
+        Ok(Self(link, PhantomData))
+    }
+}
 
 #[derive(Debug, Default, serde::Deserialize, IntoParams, ToSchema)]
 #[into_params(parameter_in = Query)]
@@ -115,7 +137,7 @@ where
     async fn handle(
         &self,
         macro_user_id: MacroUserIdStr<'static>,
-        email_link: Link,
+        email_link: Option<Link>,
         PostSoupRequest { filters, params }: PostSoupRequest,
         cursor: SoupCursor,
     ) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr> {
@@ -162,7 +184,7 @@ where
                 email_preview_view: PreviewView::StandardLabel(
                     email::domain::models::PreviewViewStandardLabel::Inbox,
                 ),
-                link_id: email_link.id,
+                link_id: email_link.map(|l| l.id),
             })
             .await?;
 
@@ -243,7 +265,7 @@ impl IntoResponse for SoupHandlerErr {
 pub async fn get_soup_handler<T, U>(
     State(service): State<SoupRouterState<T, U>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
-    Cached(EmailLinkExtractor(link, _)): Cached<EmailLinkExtractor<U>>,
+    OptionalEmailLinkExtractor(link, _): OptionalEmailLinkExtractor<U>,
     Query(params): Query<Params>,
     cursor: SoupCursor,
 ) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr>
@@ -293,7 +315,7 @@ type SoupCursor = EitherWrapper<
 pub async fn post_soup_handler<T, U>(
     State(service): State<SoupRouterState<T, U>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
-    Cached(EmailLinkExtractor(link, _)): Cached<EmailLinkExtractor<U>>,
+    OptionalEmailLinkExtractor(link, _): OptionalEmailLinkExtractor<U>,
     cursor: SoupCursor,
     Json(post_soup_request): Json<PostSoupRequest>,
 ) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr>
