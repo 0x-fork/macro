@@ -1,4 +1,4 @@
-import type { PreviewViewStandardLabel } from '@service-email/client';
+import type { PreviewViewStandardLabel } from '@queries';
 import type { PaginatedSearchArgs } from '@service-search/client';
 import { hashKey } from '@tanstack/solid-query';
 

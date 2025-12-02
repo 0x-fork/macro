@@ -8403,6 +8403,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
+name = "swagger_service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "authentication_service",
+ "axum",
+ "connection_gateway",
+ "contacts_service",
+ "email_service",
+ "experiment_service",
+ "macro_cors",
+ "macro_entrypoint",
+ "metering_service",
+ "tokio",
+ "tower 0.5.2",
+ "tower-http",
+ "tracing",
+ "unfurl_service",
+ "utoipa",
+ "utoipa-swagger-ui",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"

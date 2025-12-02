@@ -1,7 +1,7 @@
 import { defineBlock, type ExtractLoadType, LoadErrors } from '@core/block';
 import type { ContactInfo } from '@core/user';
 import { isErr, ok } from '@core/util/maybeResult';
-import { listContacts } from '@service-email/client';
+import { listContacts } from '@queries';
 import { UnfurlServiceClient } from '@service-unfurl/client';
 import BlockContact from './component/Block';
 

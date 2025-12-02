@@ -14,7 +14,7 @@ mod internal;
 mod mentions;
 mod middleware;
 mod preview;
-mod swagger;
+pub mod swagger;
 
 type Service = IntoMakeService<Router>;
 

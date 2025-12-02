@@ -16,7 +16,7 @@ mod convert;
 mod health;
 
 // Misc
-mod swagger;
+pub mod swagger;
 
 pub async fn setup_and_serve(state: ApiContext) -> anyhow::Result<()> {
     let cors = macro_cors::cors_layer();

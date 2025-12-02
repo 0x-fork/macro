@@ -4,7 +4,7 @@ import {
   archiveThread,
   type PreviewViewStandardLabel,
   previewsInboxCursor,
-} from '@service-email/client';
+} from '@queries';
 import { queryCollectionOptions } from '@tanstack/db-collections';
 import { type Collection, createCollection } from '@tanstack/solid-db';
 import { queryClient } from '../queries/client';

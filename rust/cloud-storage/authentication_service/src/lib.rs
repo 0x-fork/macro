@@ -1,5 +1,8 @@
+pub mod api;
 pub mod fetch_and_checksum;
 mod generate_password;
+mod config;
+mod rate_limit_config;
 mod service;
 
 /// expose auth client to be used in bin

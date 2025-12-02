@@ -6,7 +6,7 @@ import {
   type Attachment,
   type GetAttachmentResponse,
   getAttachment,
-} from '@service-email/client';
+} from '@queries';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { platformFetch } from 'core/util/platformFetch';

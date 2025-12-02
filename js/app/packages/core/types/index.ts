@@ -14,5 +14,5 @@ export type Entity = {
   type: EntityType;
 };
 
-export type { ApiPaginatedThreadCursor as ThreadPreview } from '@service-email/client';
+export type { ApiPaginatedThreadCursor as ThreadPreview } from '@queries';
 export { NotificationEventType as NotificationType } from '@service-notification/generated/schemas/notificationEventType';

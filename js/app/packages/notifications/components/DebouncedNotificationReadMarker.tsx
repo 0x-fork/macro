@@ -1,5 +1,5 @@
 import type { Entity } from '@core/types';
-import { threadSeen } from '@service-email/client';
+import { threadSeen } from '@queries';
 import { onCleanup, onMount } from 'solid-js';
 import {
   markNotificationForEntityIdAsRead,

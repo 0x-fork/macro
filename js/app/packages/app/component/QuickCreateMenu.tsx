@@ -65,7 +65,7 @@ import {
   listLinks,
   type MessageToSend,
   sendMessage as sendEmailMessage,
-} from '@service-email/client';
+} from '@queries';
 import { normalizeEnterPlugin } from 'core/component/LexicalMarkdown/plugins/normalize-enter';
 import {
   $getRoot,

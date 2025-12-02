@@ -4,7 +4,7 @@ import {
   deleteDraft,
   type MessageToSend,
   type MessageToSendDbId,
-} from '@service-email/client';
+} from '@queries';
 
 export async function saveEmailDraft(
   draft: MessageToSend

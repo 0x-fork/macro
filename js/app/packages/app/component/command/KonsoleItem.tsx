@@ -23,7 +23,7 @@ import { type ChannelWithParticipants, idToDisplayName } from '@core/user';
 import PushPin from '@phosphor-icons/core/regular/push-pin.svg?component-solid';
 import Terminal from '@phosphor-icons/core/regular/terminal.svg?component-solid';
 import type { Channel } from '@service-comms/generated/models/channel';
-import type { Attachment } from '@service-email/client';
+import type { Attachment } from '@queries';
 import { useUserId } from '@service-gql/client';
 import type { BasicDocumentFileType } from '@service-storage/generated/schemas/basicDocumentFileType';
 import type { Item } from '@service-storage/generated/schemas/item';

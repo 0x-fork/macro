@@ -105,6 +105,7 @@ members = [
   "sqs_worker",
   "static_file_service",
   "static_file_service_client",
+  "swagger_service",
   "sync_service_client",
   "teams",
   "unfurl_service",

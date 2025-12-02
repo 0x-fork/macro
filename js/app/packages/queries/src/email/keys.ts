@@ -1,0 +1,17 @@
+import { createQueryKeys } from '@lukemorales/query-key-factory';
+import type { PreviewViewStandardLabel } from './client';
+
+export const emailKeys = createQueryKeys('email', {
+  all: null,
+  threads: null,
+  thread: (threadId: string) => ({
+    queryKey: [threadId],
+  }),
+  previews: (params: {
+    view: PreviewViewStandardLabel;
+    limit?: number;
+    sort_method?: string;
+  }) => ({
+    queryKey: [{ infinite: true, ...params }],
+  }),
+});

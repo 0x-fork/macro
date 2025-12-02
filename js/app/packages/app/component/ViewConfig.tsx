@@ -16,7 +16,7 @@ import {
   markNotificationsForEntityAsDone,
   type NotificationSource,
 } from '@notifications';
-import { archiveThread } from '@service-email/client';
+import { archiveThread } from '@queries';
 import stringify from 'json-stable-stringify';
 import { queryClient } from '../../macro-entity/src/queries/client';
 import type { UnifiedListContext } from './SoupContext';

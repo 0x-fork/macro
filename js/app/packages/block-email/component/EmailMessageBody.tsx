@@ -8,7 +8,7 @@ import {
   type GetAttachmentResponse,
   getAttachment,
   type MessageWithBodyReplyless,
-} from '@service-email/client';
+} from '@queries';
 import { useEmail } from '@service-gql/client';
 import {
   type Accessor,

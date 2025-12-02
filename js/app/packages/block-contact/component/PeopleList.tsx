@@ -2,7 +2,7 @@ import { createBlockSignal } from '@core/block';
 import { CircleSpinner } from '@core/component/CircleSpinner';
 import { UserIcon } from '@core/component/UserIcon';
 import { type ContactInfo, emailToId } from '@core/user';
-import { listContacts } from '@service-email/client';
+import { listContacts } from '@queries';
 import { For, onMount, Show } from 'solid-js';
 import { useSplitLayout } from '../../app/component/split-layout/layout';
 

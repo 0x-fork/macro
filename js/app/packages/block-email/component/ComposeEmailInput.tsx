@@ -19,7 +19,7 @@ import {
   type Link as EmailAccountLink,
   type MessageToSend,
   sendMessage,
-} from '@service-email/client';
+} from '@queries';
 import { useUserId } from '@service-gql/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import type { Item } from '@service-storage/generated/schemas/item';

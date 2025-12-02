@@ -3,7 +3,7 @@ import { Tooltip } from '@core/component/Tooltip';
 import { formatDate } from '@core/util/date';
 import CaretDown from '@icon/regular/caret-down.svg';
 import CaretUp from '@icon/regular/caret-up.svg';
-import type { MessageWithBodyReplyless } from '@service-email/client';
+import type { MessageWithBodyReplyless } from '@queries';
 import { type Accessor, For, type Setter, Show } from 'solid-js';
 import type { SetStoreFunction } from 'solid-js/store';
 import { getFirstName } from '../util/name';

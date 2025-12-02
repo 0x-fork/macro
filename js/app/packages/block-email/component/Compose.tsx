@@ -15,7 +15,7 @@ import Caution from '@icon/regular/warning.svg';
 import {
   type Link as EmailAccountLink,
   listLinks,
-} from '@service-email/client';
+} from '@queries';
 import {
   createMemo,
   createSignal,

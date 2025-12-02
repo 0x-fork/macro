@@ -2,7 +2,7 @@ import {
   type ApiSortMethod,
   type PreviewViewStandardLabel,
   previewsInboxCursor,
-} from '@service-email/client';
+} from '@queries';
 import { useInfiniteQuery } from '@tanstack/solid-query';
 import { type Accessor, createMemo } from 'solid-js';
 import type { EmailEntity } from '../types/entity';

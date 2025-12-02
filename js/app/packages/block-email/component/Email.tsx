@@ -21,7 +21,7 @@ import {
   archiveThread as archiveThreadApi,
   type MessageWithBodyReplyless,
   type Thread,
-} from '@service-email/client';
+} from '@queries';
 import { createCallback } from '@solid-primitives/rootless';
 import { useSearchParams } from '@solidjs/router';
 import {

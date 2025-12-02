@@ -112,12 +112,6 @@
       "@service-email/*": [
         "./packages/service-email/*"
       ],
-      "@api-client": [
-        "./packages/api-client"
-      ],
-      "@api-client/*": [
-        "./packages/api-client/*"
-      ],
       "@service-insight/*": [
         "./packages/service-insight/*"
       ],
@@ -195,6 +189,12 @@
       ],
       "@app/*": [
         "./packages/app/*"
+      ],
+      "@queries": [
+        "./packages/queries/src/index.ts"
+      ],
+      "@queries/*": [
+        "./packages/queries/src/*"
       ]
     },
     "rootDir": ".",
@@ -227,6 +227,9 @@
     },
     {
       "path": "./packages/service-properties"
+    },
+    {
+      "path": "./packages/queries"
     }
   ]
 }

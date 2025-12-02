@@ -1,4 +1,4 @@
-import { archiveThread, threadSeen } from '@service-email/client';
+import { archiveThread, threadSeen } from '@queries';
 import { trackStore } from '@solid-primitives/deep';
 import type { UseInfiniteQueryResult } from '@tanstack/solid-query';
 import {

@@ -1,7 +1,7 @@
 import {
   type ApiPaginatedThreadCursor,
   previewsInboxCursor,
-} from '@service-email/client';
+} from '@queries';
 import { createSingletonRoot } from '@solid-primitives/rootless';
 import type { Accessor } from 'solid-js';
 import { createMemo, createResource } from 'solid-js';

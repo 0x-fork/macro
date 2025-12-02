@@ -1,4 +1,4 @@
-import type { MessageWithBodyReplyless } from '@service-email/client';
+import type { MessageWithBodyReplyless } from '@queries';
 
 /**
  * Scrolls to a message by its ID within a messages container

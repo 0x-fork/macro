@@ -15,7 +15,7 @@ mod health;
 mod user;
 
 // Misc
-mod swagger;
+pub mod swagger;
 
 pub async fn setup_and_serve(state: AppState) -> anyhow::Result<()> {
     let cors = macro_cors::cors_layer();

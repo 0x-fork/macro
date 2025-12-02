@@ -5,7 +5,7 @@ import {
   type GetThreadResponse,
   getThread,
   type Thread,
-} from '@service-email/client';
+} from '@queries';
 import { reconcile } from 'solid-js/store';
 import { updateCachedThread } from '../collections/threadCollection';
 

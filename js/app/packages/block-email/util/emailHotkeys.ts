@@ -1,5 +1,5 @@
 import { TOKENS } from '@core/hotkey/tokens';
-import type { Thread } from '@service-email/client';
+import type { Thread } from '@queries';
 import { registerHotkey } from 'core/hotkey/hotkeys';
 import type { Accessor } from 'solid-js';
 

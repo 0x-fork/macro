@@ -1,5 +1,5 @@
 import { logger } from '@observability';
-import { threadSeen } from '@service-email/client';
+import { threadSeen } from '@queries';
 
 export async function markThreadAsSeen(threadId: string) {
   const { error } = await threadSeen({

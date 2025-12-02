@@ -3,7 +3,7 @@ import {
   isConsumerEmail,
 } from '@block-contact/util/emailUtils';
 import { ENABLE_GMAIL_BASED_CONTACTS } from '@core/constant/featureFlags';
-import { listContacts } from '@service-email/client';
+import { listContacts } from '@queries';
 import { createSingletonRoot } from '@solid-primitives/rootless';
 import { createMemo, createResource } from 'solid-js';
 

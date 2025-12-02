@@ -10,7 +10,7 @@ import {
   initUser,
   type Link,
   listLinks,
-} from '@service-email/client';
+} from '@queries';
 import { updateUserInfo } from '@service-gql/client';
 import { useQuery } from '@tanstack/solid-query';
 import { err, okAsync, type Result, ResultAsync } from 'neverthrow';

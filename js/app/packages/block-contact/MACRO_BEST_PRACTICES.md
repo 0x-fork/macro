@@ -147,8 +147,8 @@ import { createSignal } from 'solid-js';
 // Core imports
 import { useBlockId } from '@core/block';
 
-// Service imports  
-import { emailClient } from '@service-email/client';
+// Service imports
+import { emailClient } from '@queries';
 
 // Local imports
 import { EmailPreviewList } from './EmailPreviewList';

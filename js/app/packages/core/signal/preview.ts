@@ -4,7 +4,7 @@ import { isErr } from '@core/util/maybeResult';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
 import { commsServiceClient } from '@service-comms/client';
-import { type GetThreadResponse, getThread } from '@service-email/client';
+import { type GetThreadResponse, getThread } from '@queries';
 import { type ItemType, storageServiceClient } from '@service-storage/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { type Accessor, createEffect, createSignal } from 'solid-js';

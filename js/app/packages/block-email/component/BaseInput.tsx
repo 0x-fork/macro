@@ -33,7 +33,7 @@ import {
   type MessageToSendDbId,
   type MessageWithBodyReplyless,
   sendMessage as sendEmailMessage,
-} from '@service-email/client';
+} from '@queries';
 import { useEmail, useUserId } from '@service-gql/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import type { Item } from '@service-storage/generated/schemas/item';

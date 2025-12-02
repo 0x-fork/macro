@@ -1,5 +1,5 @@
 import type { WithCustomUserInput } from '@core/user';
-import type { MessageWithBodyReplyless, Thread } from '@service-email/client';
+import type { MessageWithBodyReplyless, Thread } from '@queries';
 import {
   type Accessor,
   createContext,
