@@ -1,6 +1,0 @@
-{
-  "name": "service-email",
-  "scripts": {
-    "generate": "openapi-ts"
-  }
-}
