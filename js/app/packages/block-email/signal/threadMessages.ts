@@ -132,11 +132,7 @@ export const createThreadMessagesResource = (
     });
 
     // Update the thread collection cache with fresh data
-    updateCachedThread(threadId, (cached) => ({
-      ...cached,
-      ...threadData.thread,
-      _fetchedAt: Date.now(),
-    }));
+    updateCachedThread(threadId, () => threadData.thread);
   };
 
   return {

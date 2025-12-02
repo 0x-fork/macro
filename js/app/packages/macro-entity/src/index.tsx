@@ -14,7 +14,7 @@ export {
 export { UnreadIndicator } from './components/Unread';
 export * from './contexts/soup';
 export { createChannelsQuery } from './queries/channel';
-export { useQueryClient } from './queries/client';
+export { queryClient, useQueryClient } from './queries/client';
 export {
   createChatsInfiniteQuery,
   createDeleteDssItemMutation,

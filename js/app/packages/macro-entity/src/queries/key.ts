@@ -76,6 +76,11 @@ export const queryKeys = {
     { projectId: args.projectId },
   ],
   search: (args: SearchKeyOptions) => [...BASE_ENTITY.search, { ...args }],
+  thread: (args: { threadId: string }) => [
+    ...BASE_ENTITY.email,
+    'thread',
+    { threadId: args.threadId },
+  ],
 };
 
 export type DssQueryKey = [

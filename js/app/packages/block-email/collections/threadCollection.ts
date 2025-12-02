@@ -1,32 +1,51 @@
 import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
+import { queryClient, queryKeys } from '@macro-entity';
 import {
   type ApiThread,
   type GetThreadResponse,
   getThread,
 } from '@service-email/client';
 
-/**
- * Thread cache item - stores full thread data including messages
- */
-export type CachedThread = ApiThread & {
-  /** When this thread was last fetched */
-  _fetchedAt: number;
-};
+const THREAD_STALE_TIME = 5 * 60 * 1000; // 5 minutes
 
-// Simple in-memory cache for threads
-const threadCache = new Map<string, CachedThread>();
+/**
+ * Pure fetch function for a thread.
+ * This is the queryFn for TanStack Query.
+ */
+const fetchThread = async (threadId: string): Promise<GetThreadResponse> => {
+  const result = await getThread({
+    path: { id: threadId },
+    query: {
+      offset: 0,
+      limit: DEFAULT_THREAD_MESSAGES_LIMIT,
+    },
+  });
+
+  // Note: OpenAPI spec incorrectly defines this as Array<GetThreadResponse>
+  // but the actual API returns GetThreadResponse directly (single object)
+  const data = result.data as unknown as GetThreadResponse | undefined;
+
+  if (result.error || !data?.thread) {
+    throw new Error('Failed to fetch thread');
+  }
+
+  return data;
+};
 
 /**
  * Get a thread from the cache without fetching.
  * Returns undefined if not in cache.
  */
 export function getCachedThread(threadId: string): ApiThread | undefined {
-  return threadCache.get(threadId);
+  const data = queryClient.getQueryData<GetThreadResponse>(
+    queryKeys.thread({ threadId })
+  );
+  return data?.thread;
 }
 
 /**
- * Fetch a thread and add it to the cache.
- * Returns the cached version if available and not stale.
+ * Fetch a thread using TanStack Query's cache.
+ * Returns cached data if fresh, otherwise fetches from server.
  *
  * @param threadId - The thread ID to fetch
  * @param options - Fetch options
@@ -41,52 +60,26 @@ export async function fetchAndCacheThread(
     staleTime?: number;
   }
 ): Promise<GetThreadResponse | undefined> {
-  const staleTime = options?.staleTime ?? 5 * 60 * 1000; // 5 minutes default
+  const staleTime = options?.staleTime ?? THREAD_STALE_TIME;
 
-  // Check cache first
-  if (!options?.forceRefresh) {
-    const cached = threadCache.get(threadId);
-    if (cached) {
-      const age = Date.now() - cached._fetchedAt;
-      if (age < staleTime) {
-        // Return cached data
-        console.log(
-          `[ThreadCache] HIT for ${threadId} (age: ${Math.round(age / 1000)}s)`
-        );
-        return { thread: cached };
-      }
-      console.log(
-        `[ThreadCache] STALE for ${threadId} (age: ${Math.round(age / 1000)}s)`
-      );
+  try {
+    if (options?.forceRefresh) {
+      // Force refetch by invalidating first
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.thread({ threadId }),
+      });
     }
-  }
 
-  // Fetch from server
-  console.log(`[ThreadCache] MISS for ${threadId}, fetching from server...`);
-  const result = await getThread({
-    path: { id: threadId },
-    query: {
-      offset: 0,
-      limit: DEFAULT_THREAD_MESSAGES_LIMIT,
-    },
-  });
+    const data = await queryClient.fetchQuery({
+      queryKey: queryKeys.thread({ threadId }),
+      queryFn: () => fetchThread(threadId),
+      staleTime,
+    });
 
-  // Note: OpenAPI spec incorrectly defines this as Array<GetThreadResponse>
-  // but the actual API returns GetThreadResponse directly (single object)
-  const data = result.data as unknown as GetThreadResponse | undefined;
-
-  if (result.error || !data?.thread) {
+    return data;
+  } catch {
     return undefined;
   }
-
-  // Update cache
-  const cachedThread: CachedThread = {
-    ...data.thread,
-    _fetchedAt: Date.now(),
-  };
-  threadCache.set(threadId, cachedThread);
-
-  return data;
 }
 
 /**
@@ -94,34 +87,59 @@ export async function fetchAndCacheThread(
  */
 export function updateCachedThread(
   threadId: string,
-  updater: (thread: CachedThread) => CachedThread
+  updater: (thread: ApiThread) => ApiThread
 ): void {
-  const cached = threadCache.get(threadId);
-  if (cached) {
-    threadCache.set(threadId, updater(cached));
-  }
+  queryClient.setQueryData<GetThreadResponse>(
+    queryKeys.thread({ threadId }),
+    (old: GetThreadResponse | undefined) => {
+      if (!old?.thread) return old;
+      return { thread: updater(old.thread) };
+    }
+  );
 }
 
 /**
  * Invalidate a cached thread (force re-fetch on next access)
  */
 export function invalidateCachedThread(threadId: string): void {
-  threadCache.delete(threadId);
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.thread({ threadId }),
+  });
 }
 
 /**
  * Clear all cached threads
  */
 export function clearThreadCache(): void {
-  threadCache.clear();
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.all.email,
+  });
 }
 
 /**
  * Get cache stats for debugging
  */
 export function getThreadCacheStats(): { size: number; threadIds: string[] } {
+  const queries = queryClient.getQueriesData<GetThreadResponse>({
+    queryKey: queryKeys.all.email,
+  });
+
+  const threadIds = queries
+    .filter(
+      ([key]: [readonly unknown[], GetThreadResponse | undefined]) =>
+        Array.isArray(key) && key.includes('thread')
+    )
+    .map(([key]: [readonly unknown[], GetThreadResponse | undefined]) => {
+      const opts = key.find(
+        (k: unknown): k is { threadId: string } =>
+          typeof k === 'object' && k !== null && 'threadId' in k
+      );
+      return opts?.threadId;
+    })
+    .filter((id: string | undefined): id is string => !!id);
+
   return {
-    size: threadCache.size,
-    threadIds: Array.from(threadCache.keys()),
+    size: threadIds.length,
+    threadIds,
   };
 }
