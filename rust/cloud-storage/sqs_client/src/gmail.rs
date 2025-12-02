@@ -21,7 +21,7 @@ impl SQS {
         if let Some(gmail_webhook_queue) = &self.gmail_webhook_queue {
             return enqueue_webhook_notification(&self.inner, gmail_webhook_queue, message).await;
         }
-        Err(anyhow::anyhow!("gmail_webhook_queue is not configured"))
+        anyhow::bail!("gmail_webhook_queue is not configured")
     }
 
     /// Sends a notification message to the Gmail retry webhook queue
@@ -34,9 +34,7 @@ impl SQS {
             return enqueue_webhook_notification(&self.inner, gmail_webhook_retry_queue, message)
                 .await;
         }
-        Err(anyhow::anyhow!(
-            "gmail_webhook_retry_queue is not configured"
-        ))
+        anyhow::bail!("gmail_webhook_retry_queue is not configured")
     }
 }
 
