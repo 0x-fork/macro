@@ -2,7 +2,7 @@ import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { withAnalytics } from '@coparse/analytics';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { EmailDebouncedReadMarker } from '@notifications';
-import { createEffect, createMemo, onMount, Show } from 'solid-js';
+import { createEffect, createMemo, onCleanup, onMount, Show } from 'solid-js';
 import { blockDataSignal } from '../signal/emailBlockData';
 import { createThreadMessagesResource } from '../signal/threadMessages';
 import { markThreadAsSeen } from '../util/markThreadAsSeen';
@@ -13,6 +13,9 @@ const { track, TrackingEvents } = withAnalytics();
 export default function BlockEmail() {
   const blockData = blockDataSignal.get;
   const notificationSource = useGlobalNotificationSource();
+
+  // AbortController for cleanup on unmount
+  const abortController = new AbortController();
 
   const title = createMemo(() => {
     const data = blockData();
@@ -39,6 +42,11 @@ export default function BlockEmail() {
     track(TrackingEvents.BLOCKEMAIL.OPEN);
   });
 
+  // Abort pending requests on unmount
+  onCleanup(() => {
+    abortController.abort();
+  });
+
   // Mark all messages as read
   createEffect(() => {
     const data = blockData();
@@ -46,7 +54,7 @@ export default function BlockEmail() {
     let initialThreadLoad = data.thread;
     if (!initialThreadLoad.db_id) return;
 
-    markThreadAsSeen(initialThreadLoad.db_id);
+    markThreadAsSeen(initialThreadLoad.db_id, abortController.signal);
   });
 
   return (

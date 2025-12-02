@@ -212,6 +212,17 @@ export function BaseInput(props: {
   let draftSaveTimer: number | undefined;
   const DRAFT_DEBOUNCE_MS = 1000;
 
+  // AbortController for cleanup on unmount
+  const draftAbortController = new AbortController();
+
+  // Clean up timer and abort pending requests on unmount
+  onCleanup(() => {
+    if (draftSaveTimer) {
+      window.clearTimeout(draftSaveTimer);
+    }
+    draftAbortController.abort();
+  });
+
   function collectDraft(): Omit<MessageToSend, 'link_id'> | null {
     const prepared = prepareEmailBody(editor());
     if (!prepared) {
@@ -276,12 +287,15 @@ export function BaseInput(props: {
       linkId = (fallbackLinks as any).links[0].id;
     }
 
-    const draftResponse = await saveEmailDraft({
-      ...draftToSave,
-      link_id: linkId!,
-      provider_thread_id: currentThread?.provider_id,
-      thread_db_id: currentThread?.db_id,
-    });
+    const draftResponse = await saveEmailDraft(
+      {
+        ...draftToSave,
+        link_id: linkId!,
+        provider_thread_id: currentThread?.provider_id,
+        thread_db_id: currentThread?.db_id,
+      },
+      draftAbortController.signal
+    );
     if (draftResponse) {
       setSavedDraftId(draftResponse);
     }
@@ -463,7 +477,7 @@ export function BaseInput(props: {
     if (!draftId) {
       return console.error('No draft to delete');
     }
-    deleteEmailDraft(draftId).then((success) => {
+    deleteEmailDraft(draftId, draftAbortController.signal).then((success) => {
       if (success) {
         if (props.replyingTo()?.db_id) {
           ctx.setMessageDbIdToDraftChildren(

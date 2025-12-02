@@ -3,6 +3,7 @@ import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
 import { logger } from '@observability/logger';
 import {
   type GetThreadResponse,
+  getCachedThread,
   getThread,
   type Thread,
 } from '@queries';
@@ -28,6 +29,17 @@ const fetchThreadMessages = async (
     refetching && typeof refetching === 'object' && refetching.offset
       ? refetching.offset
       : 0;
+
+  // On initial load (offset 0), check TanStack Query cache first to avoid duplicate fetches
+  if (offset === 0 && !refetching) {
+    const cachedThread = getCachedThread(threadId);
+    if (cachedThread) {
+      return {
+        thread: cachedThread,
+        hasMore: cachedThread.messages.length >= DEFAULT_THREAD_MESSAGES_LIMIT,
+      };
+    }
+  }
 
   const { data, error } = await getThread({
     path: { id: threadId },

@@ -1,11 +1,9 @@
-import { logger } from '@observability';
-import { threadSeen } from '@queries';
+import { debouncedThreadSeen } from '@queries';
 
-export async function markThreadAsSeen(threadId: string) {
-  const { error } = await threadSeen({
-    path: { id: threadId },
-  });
-  if (error) {
-    logger.error('Failed to mark email thread as seen', error);
-  }
+/**
+ * Mark a thread as seen with debouncing.
+ * When scrolling through a list quickly, calls are debounced to reduce API load.
+ */
+export function markThreadAsSeen(threadId: string, signal?: AbortSignal): void {
+  debouncedThreadSeen(threadId, signal);
 }

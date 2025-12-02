@@ -3,6 +3,7 @@ import type { PreviewViewStandardLabel } from './client';
 
 export const emailKeys = createQueryKeys('email', {
   all: null,
+  links: null,
   threads: null,
   thread: (threadId: string) => ({
     queryKey: [threadId],

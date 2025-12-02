@@ -1,9 +1,14 @@
 import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
-import { useInfiniteQuery, useQuery } from '@tanstack/solid-query';
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useQuery,
+} from '@tanstack/solid-query';
 import { type Accessor, createMemo } from 'solid-js';
 import { createApiTokenQuery } from '../auth';
 import { queryClient } from '../client';
 import {
+  type ApiPaginatedThreadCursor,
   type ApiSortMethod,
   type ApiThread,
   type GetThreadResponse,
@@ -140,6 +145,33 @@ export function invalidateAllEmailQueries(): void {
   queryClient.invalidateQueries({
     queryKey: emailKeys.all.queryKey,
   });
+}
+
+/**
+ * Optimistically mark an email thread as read in the cache.
+ * Updates all email preview queries that contain this thread.
+ */
+export function optimisticMarkEmailAsRead(emailId: string): void {
+  queryClient.setQueriesData<InfiniteData<ApiPaginatedThreadCursor>>(
+    {
+      // Match all email preview queries
+      queryKey: emailKeys._def,
+    },
+    (prev) => {
+      if (!prev || !('pageParams' in prev)) return prev;
+
+      return {
+        ...prev,
+        pages: prev.pages.map((page) => ({
+          ...page,
+          items: page.items.map((item) => {
+            if (item.id !== emailId) return item;
+            return { ...item, isRead: true };
+          }),
+        })),
+      };
+    }
+  );
 }
 
 // Email previews (infinite list) queries

@@ -1,4 +1,4 @@
-import { archiveThread, threadSeen } from '@queries';
+import { archiveThread, debouncedThreadSeen } from '@queries';
 import { trackStore } from '@solid-primitives/deep';
 import type { UseInfiniteQueryResult } from '@tanstack/solid-query';
 import {
@@ -131,21 +131,10 @@ export function createEmailSource(
   };
 
   const markAsRead = async (id: string) => {
-    // Optimistically update
-    const previousValue = _store[id]?.isRead;
+    // Optimistically update - no rollback since debounced call may complete later
     setStore(id, 'isRead', true);
-
-    try {
-      // Server mutation
-      const { error } = await threadSeen({ path: { id } });
-      if (error) throw error;
-    } catch (_) {
-      // Rollback on error
-      setStore(id, 'isRead', previousValue);
-    } finally {
-      // Revalidate
-      refetch();
-    }
+    // Fire debounced seen call - errors are silently ignored
+    debouncedThreadSeen(id);
   };
 
   const refetch = async () => {

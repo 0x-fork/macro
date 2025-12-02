@@ -4,23 +4,21 @@ import {
   type TimeoutError,
 } from '@core/auth/channel';
 import { openEmailAuthPopup } from '@core/auth/email';
-import { queryKeys } from '@macro-entity';
 import {
   disableSync,
   initUser,
   listLinks,
+  queryClient,
+  queryKeys,
 } from '@queries';
 import { updateUserInfo } from '@service-gql/client';
 import { useQuery } from '@tanstack/solid-query';
-import { err, okAsync, Result, ResultAsync } from 'neverthrow';
+import { err, okAsync, ResultAsync } from 'neverthrow';
 import { createSignal } from 'solid-js';
-import { queryClient } from '../../macro-entity/src/queries/client';
 
 export const [emailRefetchInterval, setEmailRefetchInterval] = createSignal<
   number | undefined
 >();
-
-const EMAIL_LINKS_QUERY_KEY = ['email-links'];
 
 async function fetchEmailLinks() {
   const { data, error } = await listLinks();
@@ -32,7 +30,7 @@ async function fetchEmailLinks() {
 
 export function useEmailLinksQuery() {
   return useQuery(() => ({
-    queryKey: EMAIL_LINKS_QUERY_KEY,
+    ...queryKeys.email.links,
     queryFn: fetchEmailLinks,
     suspense: false,
     refetchOnMount: 'always',
@@ -50,11 +48,13 @@ export function useEmailLinksStatus() {
 }
 
 function invalidateEmailLinks() {
+  // Invalidate email links query
   queryClient.invalidateQueries({
-    queryKey: EMAIL_LINKS_QUERY_KEY,
+    queryKey: queryKeys.email.links.queryKey,
   });
-  queryClient.cancelQueries({ queryKey: queryKeys.all.email });
-  queryClient.setQueriesData({ queryKey: queryKeys.all.email }, () => ({
+  // Cancel and reset all email queries (previews, threads, etc.)
+  queryClient.cancelQueries({ queryKey: queryKeys.email._def });
+  queryClient.setQueriesData({ queryKey: queryKeys.email._def }, () => ({
     pages: [],
     pageParams: [],
   }));
@@ -70,24 +70,24 @@ type EmailInitError =
  *
  * @returns ok if syncing was started, err if syncing failed
  */
-async function initEmailLink(): Promise<Result<void, EmailInitError>> {
-  const { error } = await initUser();
-
-  if (error) {
-    // Check if it's a 400 error (already initialized) by checking the error message
+function initEmailLink(): ResultAsync<void, EmailInitError> {
+  const mapToError = (error: { message?: string } | Error | unknown): EmailInitError => {
+    const errorMessage = error instanceof Error
+      ? error.message
+      : (error as { message?: string })?.message ?? String(error);
     const isBadRequest =
-      error.message?.includes('400') || error.message?.includes('already');
-    return err(
-      isBadRequest
-        ? { tag: 'AlreadyInitialized' as const }
-        : {
-            tag: 'FailedToInitialize' as const,
-            message: error.message || 'Failed to initialize',
-          }
-    );
-  }
+      errorMessage?.includes('400') || errorMessage?.includes('already');
+    return isBadRequest
+      ? { tag: 'AlreadyInitialized' }
+      : { tag: 'FailedToInitialize', message: errorMessage || 'Failed to initialize' };
+  };
 
-  return okAsync(undefined);
+  return ResultAsync.fromPromise(initUser(), mapToError).andThen(({ error }) => {
+    if (error) {
+      return err(mapToError(error));
+    }
+    return okAsync(undefined);
+  });
 }
 
 /**

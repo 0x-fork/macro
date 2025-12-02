@@ -89,6 +89,7 @@ export {
   getCachedThread,
   invalidateAllEmailQueries,
   invalidateCachedThread,
+  optimisticMarkEmailAsRead,
   updateCachedThread,
   type EmailEntity,
   type FetchPaginatedEmailsParams,
@@ -106,3 +107,10 @@ export {
   type EmailFilterOptions,
   type EmailPreviewItem,
 } from './collection';
+
+// Debounced seen
+export {
+  cancelAllPendingSeenCalls,
+  debouncedThreadSeen,
+  immediateThreadSeen,
+} from './seen';
