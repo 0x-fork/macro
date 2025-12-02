@@ -71,23 +71,31 @@ type EmailInitError =
  * @returns ok if syncing was started, err if syncing failed
  */
 function initEmailLink(): ResultAsync<void, EmailInitError> {
-  const mapToError = (error: { message?: string } | Error | unknown): EmailInitError => {
-    const errorMessage = error instanceof Error
-      ? error.message
-      : (error as { message?: string })?.message ?? String(error);
+  const mapToError = (
+    error: { message?: string } | Error | unknown
+  ): EmailInitError => {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : ((error as { message?: string })?.message ?? String(error));
     const isBadRequest =
       errorMessage?.includes('400') || errorMessage?.includes('already');
     return isBadRequest
       ? { tag: 'AlreadyInitialized' }
-      : { tag: 'FailedToInitialize', message: errorMessage || 'Failed to initialize' };
+      : {
+          tag: 'FailedToInitialize',
+          message: errorMessage || 'Failed to initialize',
+        };
   };
 
-  return ResultAsync.fromPromise(initUser(), mapToError).andThen(({ error }) => {
-    if (error) {
-      return err(mapToError(error));
+  return ResultAsync.fromPromise(initUser(), mapToError).andThen(
+    ({ error }) => {
+      if (error) {
+        return err(mapToError(error));
+      }
+      return okAsync(undefined);
     }
-    return okAsync(undefined);
-  });
+  );
 }
 
 /**

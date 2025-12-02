@@ -1,7 +1,4 @@
-import {
-  type ApiPaginatedThreadCursor,
-  previewsInboxCursor,
-} from '@queries';
+import { type ApiPaginatedThreadCursor, previewsInboxCursor } from '@queries';
 import { createSingletonRoot } from '@solid-primitives/rootless';
 import type { Accessor } from 'solid-js';
 import { createMemo, createResource } from 'solid-js';

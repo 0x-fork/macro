@@ -12,10 +12,7 @@ import { useEmailLinks } from '@core/email-link';
 import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import { useDisplayName, type WithCustomUserInput } from '@core/user';
 import Caution from '@icon/regular/warning.svg';
-import {
-  type Link as EmailAccountLink,
-  listLinks,
-} from '@queries';
+import { type Link as EmailAccountLink, listLinks } from '@queries';
 import {
   createMemo,
   createSignal,

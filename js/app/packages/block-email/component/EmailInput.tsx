@@ -1,7 +1,4 @@
-import type {
-  MessageToSendDbId,
-  MessageWithBodyReplyless,
-} from '@queries';
+import type { MessageToSendDbId, MessageWithBodyReplyless } from '@queries';
 import { type Accessor, createMemo, type Setter, Show } from 'solid-js';
 import { produce } from 'solid-js/store';
 import { decodeBase64Utf8 } from '../util/decodeBase64';
