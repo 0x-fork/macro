@@ -8,12 +8,11 @@ import { queryKeys } from '@macro-entity';
 import {
   disableSync,
   initUser,
-  type Link,
   listLinks,
 } from '@queries';
 import { updateUserInfo } from '@service-gql/client';
 import { useQuery } from '@tanstack/solid-query';
-import { err, okAsync, type Result, ResultAsync } from 'neverthrow';
+import { err, okAsync, Result, ResultAsync } from 'neverthrow';
 import { createSignal } from 'solid-js';
 import { queryClient } from '../../macro-entity/src/queries/client';
 
@@ -61,33 +60,7 @@ function invalidateEmailLinks() {
   }));
 }
 
-/** Arbitrary threshold in ms between created_at and updated_at */
-const CREATED_UPDATED_AT_THRESHOLD = 1_000;
-
-/**
- * Try and determine if the link is the first time it was created
- * by checking if the created_at and updated_at are within the threshold
- */
-function isFirstTimeEmailLink(link: Link) {
-  const createdAt = new Date(link.created_at);
-  const updatedAt = new Date(link.updated_at);
-
-  return (
-    createdAt.getTime() - updatedAt.getTime() < CREATED_UPDATED_AT_THRESHOLD
-  );
-}
-
-/** Returns true if the link needs to be synced */
-function linkNeedsSync(link: Link) {
-  return link.is_sync_active === false && isFirstTimeEmailLink(link);
-}
-
-/** Returns true if any of the links need to be synced */
-function anyLinksNeedSync(links: Link[]) {
-  return links.some(linkNeedsSync);
-}
-
-type EmailSyncError =
+type EmailInitError =
   /** The email link has already been initialized*/
   | { tag: 'AlreadyInitialized' }
   | { tag: 'FailedToInitialize'; message: string };
@@ -97,7 +70,7 @@ type EmailSyncError =
  *
  * @returns ok if syncing was started, err if syncing failed
  */
-async function syncEmails(): Promise<Result<void, EmailSyncError>> {
+async function initEmailLink(): Promise<Result<void, EmailInitError>> {
   const { error } = await initUser();
 
   if (error) {
@@ -147,20 +120,6 @@ function stopEmailPolling() {
 }
 
 /**
- * Starts syncing and polling emails if there is a new link
- *
- * @returns true if syncing emails was started
- */
-function maybeStartEmailSync(links: Link[]): boolean {
-  if (!anyLinksNeedSync(links)) {
-    return false;
-  }
-  syncEmails();
-  startEmailPolling();
-  return true;
-}
-
-/**
  * Disconnects the email service and invalidates the email links query.
  *
  * NOTE: only to be used in development
@@ -192,7 +151,7 @@ function connectEmail(): ResultAsync<void, TimeoutError> {
  */
 export function useEmailLinks() {
   const invalidations = async () => {
-    // invalidateEmailLinks();
+    invalidateEmailLinks();
     await updateUserAuth();
     await updateUserInfo();
   };
@@ -202,9 +161,14 @@ export function useEmailLinks() {
   return {
     query: query,
     status: useEmailLinksStatus(),
-    connect: () => connectEmail().andTee(invalidations),
+    initEmailLink: () =>
+      initEmailLink().map(startEmailPolling).map(invalidations),
+    connect: () =>
+      connectEmail()
+        .andThen(initEmailLink)
+        .map(startEmailPolling)
+        .andTee(invalidations),
     disconnect: () => disconnectEmail().andTee(invalidations),
-    maybeSync: maybeStartEmailSync,
     invalidate: () => invalidateEmailLinks(),
     refetchInterval: emailRefetchInterval,
   };

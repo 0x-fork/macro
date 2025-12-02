@@ -20,7 +20,7 @@ mod users;
 
 mod middleware;
 
-pub mod swagger;
+mod swagger;
 
 // Constants
 // role based constants

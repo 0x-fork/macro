@@ -16,7 +16,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 pub(crate) mod context;
 mod health;
-pub mod swagger;
+mod swagger;
 
 pub async fn setup_and_serve(state: context::AppState) -> anyhow::Result<()> {
     let cors = macro_cors::cors_layer();

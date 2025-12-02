@@ -19,7 +19,7 @@ mod health;
 mod internal;
 mod models;
 mod preview;
-pub mod swagger;
+mod swagger;
 pub mod utils;
 mod ws;
 

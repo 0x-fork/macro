@@ -14,7 +14,7 @@ mod internal;
 
 // Misc
 pub(crate) mod context;
-pub mod swagger;
+mod swagger;
 
 pub async fn setup_and_serve(state: ApiContext) -> anyhow::Result<()> {
     let cors = macro_cors::cors_layer();

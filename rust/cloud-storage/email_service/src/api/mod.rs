@@ -16,7 +16,7 @@ pub(crate) mod context;
 pub(crate) mod gmail;
 mod internal;
 mod middleware;
-pub mod swagger;
+mod swagger;
 
 pub async fn setup_and_serve(state: ApiContext) -> anyhow::Result<()> {
     let cors = macro_cors::cors_layer();

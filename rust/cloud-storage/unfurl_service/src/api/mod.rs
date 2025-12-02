@@ -8,7 +8,7 @@ use utoipa_swagger_ui::SwaggerUi;
 pub mod context;
 mod health;
 mod proxy;
-pub mod swagger;
+mod swagger;
 mod unfurl;
 
 pub async fn setup_and_serve(config: &Config) -> anyhow::Result<()> {

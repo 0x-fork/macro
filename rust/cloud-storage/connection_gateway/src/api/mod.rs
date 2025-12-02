@@ -11,7 +11,7 @@ mod connection;
 mod entities;
 mod health;
 mod message;
-pub mod swagger;
+mod swagger;
 
 pub fn router(state: AppState) -> Router {
     Router::new()

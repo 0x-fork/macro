@@ -40,7 +40,7 @@ mod user_document_view_location;
 
 mod items;
 mod permissions;
-pub mod swagger;
+mod swagger;
 mod threads;
 
 // Constants
