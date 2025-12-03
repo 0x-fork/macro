@@ -461,7 +461,7 @@ export function createUnifiedInfiniteList<T extends EntityData>({
         ([sortedEntities, viewportItemCount, loadingCount]) => {
           if (sortedEntities.length >= viewportItemCount) return;
           if (loadingCount > 0) return;
-          debouncedFetchMore();
+          // debouncedFetchMore();
         }
       )
     );
@@ -503,11 +503,11 @@ export function createUnifiedInfiniteList<T extends EntityData>({
                   overscan={computedOverscan()}
                 >
                   {(entity, index) => {
-                    if (
-                      untrack(index) ===
-                      Math.floor(untrack(sortedEntities).length * 0.9)
-                    )
-                      debouncedFetchMore();
+                    // if (
+                    //   untrack(index) ===
+                    //   Math.floor(untrack(sortedEntities).length * 0.9)
+                    // )
+                    //   debouncedFetchMore();
                     return <EntityRenderer entity={entity} index={index()} />;
                   }}
                 </VList>
