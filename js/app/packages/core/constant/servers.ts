@@ -67,12 +67,12 @@ function selectLocalServers(): Servers {
   return servers;
 }
 
-const syncServiceSuffix =
-  import.meta.env.MODE === 'development' ? '-dev' : '-prod';
+const SYNC_SERVICE_HOSTNAME =
+  import.meta.env.MODE === 'development' ? 'sync-service-prod.macroverse.workers.dev' : 'sync-service-prod.macroverse.workers.dev';
 
-export const SYNC_SERVICE_HOSTS = {
-  worker: `https://sync-service${syncServiceSuffix}.macroverse.workers.dev`,
-  ws: `wss://sync-service${syncServiceSuffix}.macroverse.workers.dev`,
+export const SYNC_SERVICE_BASE_URLS = {
+  worker: `https://${SYNC_SERVICE_HOSTNAME}`,
+  ws: `wss://${SYNC_SERVICE_HOSTNAME}`
 } as const;
 
 /** Creates endpoint URL for accessing a static file by its ID */

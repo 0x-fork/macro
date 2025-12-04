@@ -9,7 +9,7 @@ import {
   SyncSourceStatus,
   type TimeoutError,
 } from '@core/collab/source';
-import { SYNC_SERVICE_HOSTS } from '@core/constant/servers';
+import { SYNC_SERVICE_BASE_URLS } from '@core/constant/servers';
 import { bytesEqual } from '@core/util/bytesEqual';
 import { isErr as isChaseError } from '@core/util/maybeResult';
 import { storageServiceClient } from '@service-storage/client';
@@ -38,7 +38,7 @@ import {
   type RemoteUpdateSince,
 } from './generated/schema';
 
-const SYNC_SERVICE_WS_URL = `${SYNC_SERVICE_HOSTS['ws']}/document`;
+const SYNC_SERVICE_WS_URL = `${SYNC_SERVICE_BASE_URLS['ws']}/document`;
 
 function mapToSyncStatus(status: WebsocketConnectionState): SyncSourceStatus {
   switch (status) {

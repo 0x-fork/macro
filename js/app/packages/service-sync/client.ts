@@ -1,4 +1,4 @@
-import { SYNC_SERVICE_HOSTS } from '@core/constant/servers';
+import { SYNC_SERVICE_BASE_URLS } from '@core/constant/servers';
 import { getPermissionToken } from '@core/signal/token';
 import {
   type FetchWithTokenErrorCode,
@@ -16,7 +16,7 @@ import type { SafeFetchInit } from '@core/util/safeFetch';
 import type { SerializedEditorState } from 'lexical';
 import { InitializeFromSnapshotRequest } from './generated/schema';
 
-const SYNC_SERVICE_WORKER_URL = `${SYNC_SERVICE_HOSTS['worker']}`;
+const SYNC_SERVICE_WORKER_URL = `${SYNC_SERVICE_BASE_URLS['worker']}`;
 
 const WAKEUP_TTL = 55 * 1000; // 55 seconds - cloudflare ttl is 60
 
