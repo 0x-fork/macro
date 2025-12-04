@@ -24,6 +24,8 @@ export type PanelConfig = {
   minSize?: number;
   maxSize?: number;
   target?: PanelSizeSpec;
+  /** Optional index to insert panel at specific position (0 = left/top) */
+  orderIndex?: number;
 };
 
 export type LayoutResult = {
@@ -34,7 +36,7 @@ export type LayoutResult = {
 
 export type ResizeZoneCtx = {
   direction: 'horizontal' | 'vertical';
-  register: (panel: PanelConfig) => void;
+  register: (panel: PanelConfig, orderIndex?: number) => void;
   unregister: (id: PanelId) => void;
   gutterSize: () => number;
   size: () => number;

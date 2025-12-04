@@ -10,7 +10,7 @@ import type { LayoutResult, Panel, PanelConfig, PanelId } from './types';
 
 export type ResizeSolver = {
   readonly direction: 'horizontal' | 'vertical';
-  addPanel: (panel: PanelConfig) => void;
+  addPanel: (panel: PanelConfig, orderIndex?: number) => void;
   dropPanel: (id: PanelId) => void;
   solve: () => LayoutResult;
   reset: () => void;
@@ -258,7 +258,7 @@ export function createResizeSolver(params: {
       const length = ids.length;
       const nextLength = length + 1;
 
-      let index = ndx && ndx < order().length ? ndx : order().length;
+      let index = ndx !== undefined && ndx < order().length ? ndx : order().length;
 
       // default is the "equal size" share
       let incomingShare = 1 / nextLength;

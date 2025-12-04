@@ -1,6 +1,7 @@
 import { mountGlobalFocusListener } from '@app/signal/focus';
 import { useIsAuthenticated } from '@core/auth';
 import { Resize } from '@core/component/Resize';
+import type { ResizeZoneCtx } from '@core/component/Resize/types';
 import { useABTest } from '@core/constant/ABTest';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { isMobileWidth } from '@core/mobile/mobileWidth';
@@ -10,7 +11,7 @@ import {
 } from '@core/signal/layout';
 import { type RouteSectionProps, useLocation } from '@solidjs/router';
 import { attachGlobalDOMScope } from 'core/hotkey/hotkeys';
-import { createEffect, onCleanup, onMount, Show, Suspense } from 'solid-js';
+import { createEffect, createMemo, createSignal, onCleanup, onMount, Show, Suspense } from 'solid-js';
 import { updateCookie } from '../util/updateCookie';
 import Banner from './banner/Banner';
 import { GlobalBulkEditEntityModal } from './bulk-edit-entity/BulkEditEntityModal';
@@ -21,7 +22,7 @@ import { ItemDndProvider } from './ItemDragAndDrop';
 import { createMenuOpen, Launcher, setCreateMenuOpen } from './Launcher';
 import { Paywall } from './paywall/Paywall';
 import { QuickCreateMenu } from './QuickCreateMenu';
-import { RightbarWrapper } from './rightbar/Rightbar';
+import { LeftbarWrapper } from './leftbar/Leftbar';
 import { Settings, setViewportOffset } from './settings/Settings';
 
 const AUTH_URLS = [
@@ -37,6 +38,13 @@ export function Layout(props: RouteSectionProps) {
   const isAuthenticated = useIsAuthenticated();
   const { paywallOpen, showPaywall } = usePaywallState();
   const location = useLocation();
+  const [resizeCtx, setResizeCtx] = createSignal<ResizeZoneCtx | null>(null);
+  const sidebarWidth = createMemo(() => {
+    const ctx = resizeCtx();
+    if (!ctx) return undefined;
+    const sizeAccessor = ctx.sizeOf('sidebar-chat');
+    return sizeAccessor();
+  });
 
   // save last_path to cookie
   createEffect(() => {
@@ -140,17 +148,18 @@ export function Layout(props: RouteSectionProps) {
           direction="horizontal"
           class="flex-1 w-full min-h-0 font-sans text-ink caret-accent"
           id={'main-layout'}
+          captureResizeCtx={setResizeCtx}
         >
           <ItemDndProvider>
+            <LeftbarWrapper />
             <Resize.Panel id={LAYOUT_CONTEXT_ID} minSize={250}>
               {props.children}
             </Resize.Panel>
-            <RightbarWrapper />
           </ItemDndProvider>
         </Resize.Zone>
       </div>
       <Show when={isAuthenticated() && !AUTH_URLS.includes(location.pathname)}>
-        <Dock />
+        <Dock sidebarWidth={sidebarWidth} />
         <Launcher open={createMenuOpen()} onOpenChange={setCreateMenuOpen} />
       </Show>
     </div>

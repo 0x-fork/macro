@@ -84,7 +84,10 @@ function Zone(props: ParentProps<ZoneProps>) {
   });
 
   function register(config: PanelConfig) {
-    solver.addPanel({ ...config, minSize: config?.minSize ?? minSize() });
+    solver.addPanel(
+      { ...config, minSize: config?.minSize ?? minSize() },
+      config.orderIndex
+    );
   }
 
   function unregister(id: PanelId) {
@@ -168,6 +171,8 @@ function Zone(props: ParentProps<ZoneProps>) {
  *     state from the component lifecycle.
  * @property hidden - Accessor that returns whether the panel should be hidden (temporarily
  *     removed from layout but still registered). When hidden, other panels flow around it.
+ * @property orderIndex - Optional index to insert panel at specific position (0 = left/top).
+ *     Useful for panels that register dynamically but need consistent positioning.
  */
 type PanelProps = {
   id: PanelId;
@@ -175,6 +180,7 @@ type PanelProps = {
   maxSize?: number;
   collapsed?: () => boolean;
   hidden?: () => boolean;
+  orderIndex?: number;
 };
 
 /**
@@ -213,6 +219,7 @@ function Panel(props: ParentProps<PanelProps>) {
       id: props.id,
       minSize: props.minSize,
       maxSize: props.maxSize ?? Infinity,
+      orderIndex: props.orderIndex,
     });
   });
 
@@ -226,6 +233,7 @@ function Panel(props: ParentProps<PanelProps>) {
         id: props.id,
         minSize: props.minSize,
         maxSize: props.maxSize ?? Infinity,
+        orderIndex: props.orderIndex,
       });
     }
   });
@@ -240,6 +248,7 @@ function Panel(props: ParentProps<PanelProps>) {
         id: props.id,
         minSize: props.minSize,
         maxSize: props.maxSize ?? Infinity,
+        orderIndex: props.orderIndex,
       });
     }
   });

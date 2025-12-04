@@ -1,8 +1,6 @@
-import { globalSplitManager } from '@app/signal/splitLayout';
+import MacroJump from '@app/component/MacroJump';
 import { useIsAuthenticated } from '@core/auth';
 import { AiChatEmptyState } from '@core/component/AI/component/AIChatEmptyState';
-import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
-import { useChatInput } from '@core/component/AI/component/input/useChatInput';
 import { ChatMessages } from '@core/component/AI/component/message/ChatMessages';
 import { registerToolHandler } from '@core/component/AI/signal/tool';
 import type {
@@ -22,6 +20,7 @@ import { IconButton } from '@core/component/IconButton';
 import { DropdownMenuContent, MenuItem } from '@core/component/Menu';
 import { ReferencesModal } from '@core/component/ReferencesModal';
 import { Resize } from '@core/component/Resize';
+import { TextButton } from '@core/component/TextButton';
 import { ENABLE_REFERENCES_MODAL } from '@core/constant/featureFlags';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
@@ -31,25 +30,25 @@ import {
   useBigChat,
   useToggleRightPanel,
 } from '@core/signal/layout';
-import { rightbarChatId, setRightbarChatId } from '@core/signal/rightbar';
+import {
+  rightbarChatId,
+  setRightbarChatId,
+  setRightbarOnSend,
+} from '@core/signal/rightbar';
 import { isErr } from '@core/util/maybeResult';
 import ContractIcon from '@icon/regular/arrows-in.svg';
 import ExpandIcon from '@icon/regular/arrows-out.svg';
 import ChatIcon from '@icon/regular/chat.svg';
 import HistoryIcon from '@icon/regular/clock-counter-clockwise.svg';
 import NotepadIcon from '@icon/regular/notepad.svg';
-import PlusIcon from '@icon/regular/plus.svg';
 import XIcon from '@icon/regular/x.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import { invalidateUserQuota } from '@service-auth/userQuota';
-import {
-  cognitionApiServiceClient,
-  cognitionWebsocketServiceClient,
-} from '@service-cognition/client';
+import { cognitionApiServiceClient } from '@service-cognition/client';
 import { createCognitionWebsocketEffect } from '@service-cognition/websocket';
 import { refetchHistory, useHistory } from '@service-storage/history';
+import { createElementSize } from '@solid-primitives/resize-observer';
 import { useOpenInstructionsMd } from 'core/component/AI/util/instructions';
-import type { LexicalEditor } from 'lexical';
 import {
   type Accessor,
   createEffect,
@@ -60,9 +59,9 @@ import {
   onCleanup,
   type Setter,
   Show,
-  untrack,
 } from 'solid-js';
-import { SplitlikeContainer } from '../split-layout/components/SplitContainer';
+import { SplitDrawerGroup } from '../split-layout/components/SplitDrawerContext';
+import { SplitModalProvider } from '../split-layout/components/SplitModalContext';
 
 type ChatData = {
   messages: ChatMessageWithAttachments[];
@@ -189,11 +188,10 @@ function TopBar(props: {
           }
         }}
       />
-      <IconButton
-        size="sm"
-        icon={PlusIcon}
+      <TextButton
+        theme="accent"
+        text="New chat"
         tooltip={{ label: 'Start new thread' }}
-        theme="current"
         onClick={() => {
           createNewRightbarChat();
         }}
@@ -233,7 +231,7 @@ function TopBar(props: {
   );
 }
 
-export function Rightbar(props: {
+export function Leftbar(props: {
   chatId: string | undefined;
   chatName: string | undefined;
   stream: Accessor<MessageStream | undefined>;
@@ -265,6 +263,8 @@ export function Rightbar(props: {
     }
   });
 
+  const [, setIsGenerating] = createSignal(false);
+
   createEffect(() => {
     const stream_ = props.stream();
     if (!stream_ || stream_.isDone()) {
@@ -280,111 +280,12 @@ export function Rightbar(props: {
 
   registerToolHandler(props.stream);
 
-  const stopGenerating = () => {
-    const stream_ = props.stream();
-    if (!stream_) return;
-    cognitionWebsocketServiceClient.stopChatMessage({
-      stream_id: stream_.request.stream_id,
-    });
-    stream_.close();
-  };
-
-  // NOTE: due to mount race condition in the markdown area, we need to set the initial value here
-  const {
-    ChatInput,
-    setChatId,
-    attachments,
-    chatMarkdownArea,
-    model,
-    setModel,
-    setIsGenerating,
-    uploadQueue,
-  } = useChatInput({ initialValue: props.initialState?.text });
-
-  createEffect(() => {
-    setChatId(props.chatId);
-    if (!props.initialState) return;
-    setModel(props.initialState.model);
-    attachments.setAttached(props.initialState.attachments);
-  });
-
   onCleanup(() => {
     props.onUnmount?.();
   });
 
-  createEffect(() => {
-    const input = chatMarkdownArea.markdownText();
-    const attached = attachments.attached();
-    const model_ = model();
-    props.setState.setText(input);
-    props.setState.setAttachments(attached);
-    props.setState.setModel(model_);
-  });
-
-  // gone for now may want in future - ehayes 11/17/2025
-  // const timeString = () => {
-  //   const now = new Date().getHours();
-  //   if (now < 12) {
-  //     return 'morning';
-  //   } else if (now < 18) {
-  //     return 'afternoon';
-  //   } else {
-  //     return 'evening';
-  //   }
-  // };
-  // const userId = useUserId();
-  // const [name] = useDisplayName(userId());
-
-  // let greeting = () => {
-  //   const firstName = name().split(' ').at(0);
-  //   if (!firstName || firstName.length === 0 || firstName.includes('@')) {
-  //     return ``;
-  //   } else {
-  //     return `Good ${timeString()} ${firstName}, what can I assist you with?`;
-  //   }
-  // };
-
-  const [editor, setEditor] = createSignal<LexicalEditor>();
-  let borrowedFocus: Element | null = null;
-  const returnFocus = () => {
-    if (
-      borrowedFocus &&
-      borrowedFocus.isConnected &&
-      borrowedFocus instanceof HTMLElement
-    ) {
-      borrowedFocus.focus();
-    } else {
-      globalSplitManager()?.returnFocus();
-    }
-  };
-
-  createEffect(() => {
-    if (props.isBig) {
-      borrowedFocus = document.activeElement;
-      editor()?.focus();
-    } else {
-      if (untrack(isRightPanelOpen)) {
-        return;
-      } else {
-        returnFocus();
-      }
-    }
-  });
-
-  createEffect(() => {
-    if (isRightPanelOpen()) {
-      borrowedFocus = document.activeElement;
-      editor()?.focus();
-    } else {
-      returnFocus();
-    }
-  });
-
   return (
-    <DragDropWrapper
-      class="relative flex flex-col size-full select-none"
-      uploadQueue={uploadQueue}
-    >
+    <div class="relative flex flex-col size-full select-none">
       <div class="overflow-hidden size-full flex flex-col items-center">
         <TopBar
           chatId={props.chatId}
@@ -413,26 +314,14 @@ export function Rightbar(props: {
               </div>
             </div>
           </Show>
-
-          <div class="w-full">
-            <div class="flex-shrink-0 pt-2 macro-message-width mx-auto">
-              <ChatInput
-                isPersistent
-                showActiveTabs
-                onSend={props.onSend}
-                onStop={stopGenerating}
-                captureEditor={setEditor}
-              />
-            </div>
-          </div>
         </div>
       </div>
-    </DragDropWrapper>
+    </div>
   );
 }
 
-/** Owns rightbar chat state to prevent data loss on panel close */
-export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
+/** Owns leftbar chat state to prevent data loss on panel close */
+export const LeftbarWrapper = (_props: { isBigChat?: boolean }) => {
   const [bigChatOpen, setBigChatOpen] = useBigChat();
   const isAuthenticated = useIsAuthenticated();
   const [text, setText] = createSignal<string>();
@@ -581,6 +470,11 @@ export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
     }
   };
 
+  // Register onSend handler for dock input
+  createEffect(() => {
+    setRightbarOnSend(onSend);
+  });
+
   // load chat state
   createEffect(
     on(chatId, (chatId_) => {
@@ -641,6 +535,9 @@ export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
     },
   });
 
+  const [panel, setPanel] = createSignal<HTMLDivElement | null>(null);
+  const panelSize = createElementSize(panel);
+
   return (
     <Show when={isAuthenticated()}>
       <Resize.Panel
@@ -648,6 +545,7 @@ export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
         minSize={324}
         maxSize={1000}
         hidden={() => !isRightPanelOpen()}
+        orderIndex={0}
       >
         <div
           class="size-full invisible"
@@ -658,32 +556,53 @@ export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
             attachHotkeys(r);
           }}
         >
-          <SplitlikeContainer
-            spotlight={bigChatOpen}
-            setSpotlight={setBigChatOpen}
-            tr={!bigChatOpen()}
-          >
-            <Rightbar
-              chatId={chatId()}
-              chatName={chatName()}
-              messages={messages}
-              onUnmount={getChatInputState}
-              initialState={initialChatState()}
-              onSend={onSend}
-              stream={stream}
-              setState={{
-                setChatId,
-                setModel,
-                setAttachments,
-                setText,
-                setMessages,
-                setStream,
-              }}
-              isBig={bigChatOpen()}
-            />
-          </SplitlikeContainer>
+          <SplitModalProvider>
+            <SplitDrawerGroup panelSize={panelSize} contentOffsetTop={() => 0}>
+              <Show when={bigChatOpen()}>
+                <MacroJump tabbableParent={() => panel() ?? undefined} />
+                <div
+                  class="fixed inset-0 w-screen h-screen z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted"
+                  onClick={() => setBigChatOpen(false)}
+                />
+                <div class="fixed inset-[4rem] bg-panel shadow-xl" />
+              </Show>
+
+              <div
+                class="@container/split flex flex-col min-h-0 bracket-never"
+                classList={{
+                  'fixed inset-[4rem] z-modal isolate': bigChatOpen(),
+                  'size-full': !bigChatOpen(),
+                }}
+                data-split-container
+                tabindex={-1}
+                ref={setPanel}
+              >
+                <div class="size-full">
+                  <Leftbar
+                    chatId={chatId()}
+                    chatName={chatName()}
+                    messages={messages}
+                    onUnmount={getChatInputState}
+                    initialState={initialChatState()}
+                    onSend={onSend}
+                    stream={stream}
+                    setState={{
+                      setChatId,
+                      setModel,
+                      setAttachments,
+                      setText,
+                      setMessages,
+                      setStream,
+                    }}
+                    isBig={bigChatOpen()}
+                  />
+                </div>
+              </div>
+            </SplitDrawerGroup>
+          </SplitModalProvider>
         </div>
       </Resize.Panel>
     </Show>
   );
 };
+

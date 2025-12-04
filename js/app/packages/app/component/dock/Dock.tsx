@@ -27,11 +27,11 @@ import { useHasPaidAccess } from '@core/auth';
 import { TOKENS } from '@core/hotkey/tokens';
 import { playSound } from '@app/util/sound';
 import { QuickAccess } from './QuickAccess';
+import { DockChatInput } from './DockChatInput';
 
 // import { Debug } from './Debug';
-import Hints from './Hints';
 
-export function Dock() {
+export function Dock(props: { sidebarWidth?: () => number | undefined }) {
   const activeSplitId = createMemo(() => globalSplitManager()?.activeSplitId());
   const [showGlitchEffect, setShowGlitchEffect] = createSignal(false);
   const [isPresentMode, setIsPresentMode] = createSignal(false);
@@ -160,7 +160,7 @@ export function Dock() {
       >
         <ClippedPanel bl br>
           <div style={{
-            'grid-template-columns': 'min-content 1fr min-content',
+            'grid-template-columns': '1fr min-content min-content',
             'box-sizing': 'border-box',
             'scrollbar-width': 'none',
             'align-content': 'center',
@@ -171,87 +171,25 @@ export function Dock() {
             'gap': '7px',
           }}>
 
-            <div
-              style={{
-                'border-right': '1px solid var(--color-edge-muted)',
-                'grid-auto-columns': 'min-content',
-                'grid-auto-flow': 'column',
-                'align-items': 'center',
-                'padding-right': '7px',
-                'display': 'grid',
-                'gap': '7px'
-              }}
-            >
+            <Show when={!isMobileWidth()}>
               <div
                 style={{
-                  'grid-template-columns': 'min-content min-content',
-                  'box-sizing': 'border-box',
+                  'border-right': '1px solid var(--color-edge-muted)',
                   'align-items': 'center',
-                  'padding': '0 4px',
-                  'display': 'grid',
-                  'height': '24px',
-                  'gap': '7px'
+                  'padding-right': '7px',
+                  'display': 'flex',
+                  'width': isRightPanelOpen() && props.sidebarWidth?.() ? `${props.sidebarWidth()!}px` : '100%',
+                  'min-width': '0',
+                  'max-width': isRightPanelOpen() && props.sidebarWidth?.() ? `${props.sidebarWidth()!}px` : 'none',
                 }}
-                onClick={() => { setKonsoleOpen(true) }}
-                class="dock-button-hover"
               >
-                <IconLogo
-                  style={{
-                    'display': 'block',
-                    'height': '9px'
-                  }}
-                />
-                {/*<div style={{
-                  'font-family': 'monospace',
-                  'background-color': '#f00',
-                  'font-size': '10px',
-                  'padding': '0 4px',
-                }}>
-                  <Hotkey token={TOKENS.global.createCommand}/>
-                </div>*/}
-                <div class="**:border-none! flex border border-edge-muted text-[0.625rem] rounded-xs items-center px-1.5 py-0.25">
-                  <Hotkey shortcut="cmd+k" class="flex gap-1" />
-                </div>
+                <DockChatInput />
               </div>
+            </Show>
 
-              <div style={{
-                'background-color': 'var(--color-edge-muted)',
-                'height': '38px',
-                'width': '1px',
-              }} />
-
-              <div
-                style={{
-                  'grid-template-columns': 'min-content min-content',
-                  'box-sizing': 'border-box',
-                  'align-items': 'center',
-                  'padding': '0 4px',
-                  'display': 'grid',
-                  'height': '24px',
-                  'gap': '10px'
-                }}
-                onClick={() => { setCreateMenuOpen(true) }}
-                class="dock-button-hover"
-              >
-                <MacroCreateIcon
-                  style={{
-                    'display': 'block',
-                    'height': '9px'
-                  }}
-                />
-                {/*<div style={{
-                  'background-color': '#f00',
-                  'font-family': 'monospace',
-                  'font-size': '10px',
-                  'padding': '0 4px',
-                }}>
-                  <Hotkey token={TOKENS.global.commandMenu}/>
-                </div>*/}
-                <div class="**:border-none! flex border border-edge-muted text-[0.625rem] rounded-xs items-center px-1.5 py-0.25">
-                  <Hotkey shortcut="c" />
-                </div>
-              </div>
-            </div>
+            <Show when={isMobileWidth()}>
+              <div></div>
+            </Show>
 
             <Show when={!isMobileWidth()}>
               <div style={{
@@ -267,10 +205,6 @@ export function Dock() {
               }}>
                 <Show when={!hasPaid()}>
                   <BasicTierLimit />
-                </Show>
-
-                <Show when={hasPaid()}>
-                  <Hints />
                 </Show>
 
                 <Show when={ENABLE_DOCK_NOTITIFCATIONS}>
@@ -294,6 +228,54 @@ export function Dock() {
               'height': '38px',
               'gap': '4px'
             }}>
+              <div
+                style={{
+                  'grid-template-columns': 'min-content min-content',
+                  'box-sizing': 'border-box',
+                  'align-items': 'center',
+                  'padding': '0 4px',
+                  'display': 'grid',
+                  'height': '24px',
+                  'gap': '7px'
+                }}
+                onClick={() => { setKonsoleOpen(true) }}
+                class="dock-button-hover"
+              >
+                <IconLogo
+                  style={{
+                    'display': 'block',
+                    'height': '9px'
+                  }}
+                />
+                <div class="**:border-none! flex border border-edge-muted text-[0.625rem] rounded-xs items-center px-1.5 py-0.25">
+                  <Hotkey shortcut="cmd+k" class="flex gap-1" />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  'grid-template-columns': 'min-content min-content',
+                  'box-sizing': 'border-box',
+                  'align-items': 'center',
+                  'padding': '0 4px',
+                  'display': 'grid',
+                  'height': '24px',
+                  'gap': '10px'
+                }}
+                onClick={() => { setCreateMenuOpen(true) }}
+                class="dock-button-hover"
+              >
+                <MacroCreateIcon
+                  style={{
+                    'display': 'block',
+                    'height': '9px'
+                  }}
+                />
+                <div class="**:border-none! flex border border-edge-muted text-[0.625rem] rounded-xs items-center px-1.5 py-0.25">
+                  <Hotkey shortcut="c" />
+                </div>
+              </div>
+
               <Show when={isSoupActive()}>
                 <IconButton
                   onClick={() => {
