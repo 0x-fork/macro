@@ -68,7 +68,7 @@ function selectLocalServers(): Servers {
 }
 
 const SYNC_SERVICE_HOSTNAME =
-  import.meta.env.MODE === 'development' ? 'sync-service-prod.macroverse.workers.dev' : 'sync-service-prod.macroverse.workers.dev';
+  import.meta.env.MODE === 'development' ? 'sync-service-dev.macroverse.workers.dev': 'sync-service-prod.macroverse.workers.dev';
 
 export const SYNC_SERVICE_BASE_URLS = {
   worker: `https://${SYNC_SERVICE_HOSTNAME}`,
