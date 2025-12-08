@@ -80,6 +80,11 @@
                 targets.i686-linux-android.latest.rust-std
                 targets.x86_64-linux-android.latest.rust-std
               ]
+              ++ pkgs.lib.optionals isDarwin [
+                targets.aarch64-apple-ios.latest.rust-std
+                targets.x86_64-apple-ios.latest.rust-std
+                targets.aarch64-apple-ios-sim.latest.rust-std
+              ]
             )
           )
         ];
@@ -93,7 +98,15 @@
           xdg-utils
         ];
 
-        packages = basePackages ++ pkgs.lib.optionals isLinux (linuxPackages ++ [ android_sdk ]);
+        darwinPackages = with pkgs; [
+          libimobiledevice
+          ios-deploy
+        ];
+
+        packages =
+          basePackages
+          ++ pkgs.lib.optionals isLinux (linuxPackages ++ [ android_sdk ])
+          ++ pkgs.lib.optionals isDarwin darwinPackages;
 
         linuxLibraries = with pkgs; [
           gtk3
@@ -121,6 +134,11 @@
           {
             buildInputs = packages ++ libraries;
             PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+          }
+          // pkgs.lib.optionalAttrs isDarwin {
+            # Unset nix darwin flags that conflict with iOS cross-compilation
+            NIX_CFLAGS_COMPILE = "";
+            NIX_LDFLAGS = "";
           }
           // pkgs.lib.optionalAttrs isLinux {
             LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath libraries}:$LD_LIBRARY_PATH";
