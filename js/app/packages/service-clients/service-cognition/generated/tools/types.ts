@@ -185,6 +185,24 @@ export interface ListEmailsOutput {
       itemType: string;
       messageId: string;
     }[];
+    metadata: {
+      /**
+       * if any email contains a calendar invite
+       */
+      calendar_invite: boolean;
+      /**
+       * if any sender in the thread is a generic email
+       */
+      generic_sender: boolean;
+      /**
+       * if user has previously emailed any sender in the thread
+       */
+      known_sender: boolean;
+      /**
+       * if any email contains a <table> html tag
+       */
+      tabular: boolean;
+    };
     name?: string | null;
     ownerId: string;
     providerId?: string | null;
