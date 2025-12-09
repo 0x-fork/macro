@@ -90,6 +90,7 @@ export const useGetChatAttachmentInfo = () => {
     return {
       attachmentType: 'project',
       attachmentId: item.id,
+      id: item.id,
       metadata: {
         type: 'project',
         project_name: item.name,

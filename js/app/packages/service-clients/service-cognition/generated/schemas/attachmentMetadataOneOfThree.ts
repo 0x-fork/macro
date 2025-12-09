@@ -7,6 +7,6 @@
 import type { AttachmentMetadataOneOfThreeType } from './attachmentMetadataOneOfThreeType';
 
 export type AttachmentMetadataOneOfThree = {
-  name: string;
+  project_name: string;
   type: AttachmentMetadataOneOfThreeType;
 };

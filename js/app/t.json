@@ -1,0 +1,22 @@
+{
+  "chat_id": "a431773d-e3fd-4c5e-96cd-ad849a8cfdfe",
+  "content": "what",
+  "model": "claude-haiku-4-5",
+  "attachments": [
+    {
+      "attachmentType": "project",
+      "attachmentId": "7a4bbce9-cf02-4df5-9f50-b37286905b25",
+      "metadata": {
+        "type": "project",
+        "project_name": "aoc-2025"
+      }
+    }
+  ],
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Im1hY3JvIn0.eyJleHAiOjE3NjUzMTIxMTQsImlzcyI6ImF1dGhlbnRpY2F0aW9uLXNlcnZpY2UtZGV2Lm1hY3JvLmNvbSIsImZ1c2lvbl91c2VyX2lkIjoiMzdkZmEyOGUtZDFlMS00YjE4LThmOGMtYmNmOWY5N2FjYWNkIiwibWFjcm9fdXNlcl9pZCI6Im1hY3JvfGVyaWNAbWFjcm8uY29tIiwibWFjcm9fb3JnYW5pemF0aW9uX2lkIjoxfQ.Yz-mHF0tJH6nfKAn-GIjZxVoQ5ed5wwdSnukHTwNvJ0E7SIJn8wznQGqGG4-UDOHUZNzHrJGUkKE5q9etd0HjUResDOK_l8Cyj8HwW2ZDrwPSD4--cHGwolyZKbsMHTjP1Lmo2Mjh3tgfLrChYUUtTyJuPzF73mhN-SckMaLuJHsV7lb1OO3JmfWKCbWfARjQavhLy_V3PoedxqXW2uDoi7r1KFrCO1R56CucboUd5ju0ywNzvtHJ2hIR8375WGuC_Rz-vUXMrS0GIcPe_MxPi6kwb5eCj_V3xbjbMP4fap3bxPfRAnGJZcHc79FquRZ5xgBk3kbyaA631mjpADWdg",
+  "additional_instructions": "\nMacro is an AI workspace with all the latest models and built-in editors for pdfs, docs, notes, images, diagrams, chats and more. Macro is like ChatGPT but you can do all your work inside it+\nList of support file types\n- Notes: Mention files and create bullets and to-dos.\n- PDFs: Try out AI Popups: just highlight any text and click Explain.\n- Canvas: Create diagrams, whiteboards, etc.\n- Code: We embed VS Code's editor. Write and refactor with AI.\n- Images: Reference images in AI chat.\nKeyboard shortcuts\nI've written the below shortcuts for Mac users. If you're on Windows, use ctrl key instead of cmd.\nHit CMD+K to open the quick search menu.\nStart typing to search or use your arrow keys to navigate results\nHit enter to open the file or use <- or -> to tile the file in split-screen mode\nHit CMD+. to close or open the side panel.\n\nAttach files to chats with '@'. If a user is expecting you to have context of a document and you don't, remind them to attach it to your conversation with '@'\n\nInternal terminology and knowledge\n\"Chat\" refers to conversations with AI\n\"Channels\" refers to channels of communication amongst groups of users. These are analogous to slack or teams channels.\n\"Direct Messages\" or \"DM's\" are a channel shared between two users.\n\nThe current date is: Tue Dec 09 2025 14:28:28 GMT-0500 (Eastern Standard Time)",
+  "toolset": {
+    "type": "all"
+  },
+  "type": "send_chat_message",
+  "stream_id": "9925d3f1-c47c-4c95-890b-83bae9f81107"
+}

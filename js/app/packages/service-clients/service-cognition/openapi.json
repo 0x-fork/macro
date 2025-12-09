@@ -1036,9 +1036,9 @@
           },
           {
             "type": "object",
-            "required": ["name", "type"],
+            "required": ["project_name", "type"],
             "properties": {
-              "name": { "type": "string" },
+              "project_name": { "type": "string" },
               "type": { "type": "string", "enum": ["project"] }
             }
           },
