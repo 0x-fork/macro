@@ -7,14 +7,12 @@ import CheckIcon from '@icon/regular/check.svg';
 import { tryToTypedNotification } from '@notifications';
 import { useEmail, useUserId } from '@service-gql/client';
 import { syncServiceClient } from '@service-sync/client';
-import { mergeRefs } from '@solid-primitives/refs';
 import { createDraggable, createDroppable } from '@thisbeyond/solid-dnd';
 import { getIconConfig } from 'core/component/EntityIcon';
 import { StaticMarkdown } from 'core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { unifiedListMarkdownTheme } from 'core/component/LexicalMarkdown/theme';
 import { UserIcon } from 'core/component/UserIcon';
 import { emailToId, useDisplayName } from 'core/user';
-import { onKeyDownClick, onKeyUpClick } from 'core/util/click';
 import type { ParentProps, Ref } from 'solid-js';
 import {
   createDeferred,
@@ -48,6 +46,7 @@ import type {
 } from '../types/search';
 import type { EntityClickEvent, EntityClickHandler } from './Entity';
 import { PropertyPills } from './PropertyPills';
+import { UnifiedListItem } from './unified-list-item';
 
 function UnreadIndicator(props: { active?: boolean }) {
   return (
@@ -161,9 +160,7 @@ export function EntityWithEverything(
 ) {
   const [actionButtonRef, setActionButtonRef] =
     createSignal<HTMLButtonElement | null>(null);
-  const [entityDivRef, setEntityDivRef] = createSignal<HTMLDivElement | null>(
-    null
-  );
+
   const [showRestOfNotifications, setShowRestOfNotifications] =
     createSignal(false);
 
@@ -396,21 +393,6 @@ export function EntityWithEverything(
   const droppable = createDroppable(props.entity.id, props.entity);
   false && droppable;
 
-  const { didCursorMove } = useCursorMove();
-
-  // The main click handler for the entity row should navigate to an entity
-  // without forcing focus back to the source split until after navigation.
-  // Certain buttons in the entity need to NOT Navigate AND return focus to
-  // the split. Those buttons should have a 'data-blocks-navigation'
-  function blocksNavigation(e: PointerEvent | MouseEvent): boolean {
-    const { target } = e;
-    if (target instanceof Element) {
-      const closest = target.closest('[data-blocks-navigation]');
-      if (closest && entityDivRef()?.contains(closest)) return true;
-    }
-    return false;
-  }
-
   const userId = useUserId();
   const sharedData = () => {
     if (props.entity.type === 'channel') {
@@ -436,39 +418,22 @@ export function EntityWithEverything(
   };
 
   return (
-    <div
+    <UnifiedListItem
       use:draggable
       use:droppable
       data-checked={props.checked}
-      class="everything-entity relative group/entity"
-      classList={{
-        'bg-hover/30': props.highlighted && !props.checked,
-        'bg-accent/5': props.checked,
-        'bracket outline outline-accent/20 outline-offset-[-1px]':
-          props.selected,
-      }}
-      onMouseOver={(e) => {
-        if (!didCursorMove(e)) {
-          return;
-        }
-        props.onMouseOver?.();
-      }}
-      onContextMenu={() => {
-        props.onContextMenu?.();
-      }}
+      focused={props.selected}
+      checked={props.checked}
+      highlighted={props.highlighted}
+      onChecked={props.onChecked}
+      onClick={(e) => props.onClick?.(props.entity, e)}
+      contentPlacement={props.contentPlacement}
+      onMouseOver={props.onMouseOver}
+      onContextMenu={props.onContextMenu}
     >
-      <div
+      <UnifiedListItem.Content
         data-entity
         data-entity-id={props.entity.id}
-        class="w-full min-w-0 grid flex-1 items-center suppress-css-bracket grid-cols-[2rem_1fr_auto] pr-2"
-        onClick={(e) => {
-          if (blocksNavigation(e)) return;
-          props.onClick?.(props.entity, e);
-        }}
-        onMouseDown={(e) => {
-          if (blocksNavigation(e)) return;
-          e.preventDefault();
-        }}
         // Action List is also rendered based on focus, but when focused via Shift+Tab, parent is focused due to Action List dom not present. Here we check if current browser task has captured Shift+Tab focus on Action List
         onFocusIn={(e) => {
           if (
@@ -482,46 +447,18 @@ export function EntityWithEverything(
 
           actionButtonRef()?.focus();
         }}
-        onKeyDown={onKeyDownClick((e) =>
-          props.onClick?.(props.entity, e as any)
-        )}
-        onKeyUp={onKeyUpClick((e) => props.onClick?.(props.entity, e as any))}
-        role="button"
-        tabIndex={0}
-        ref={mergeRefs(setEntityDivRef, props.ref)}
       >
-        <button
-          type="button"
-          class="col-1 size-full relative group/button flex items-center justify-center bracket-never"
-          onClick={(e) => {
-            props.onChecked?.(!props.checked, e.shiftKey);
-          }}
-          data-blocks-navigation
-        >
-          <div
-            class="size-4 p-0.5 flex items-center justify-center rounded-xs group-hover/button:border-accent group-hover/button:border pointer-events-none"
-            classList={{
-              'ring ring-edge-muted': props.selected,
-              'bg-panel': !props.checked && props.selected,
-              'bg-accent border border-accent': props.checked,
-            }}
-          >
-            <Show when={props.checked}>
-              <CheckIcon class="w-full h-full text-panel" />
-            </Show>
-          </div>
+        <UnifiedListItem.Checkbox>
           <Show when={props.showLeftColumnIndicator && !props.checked}>
             <div class="absolute inset-0 flex items-center justify-center -z-1">
               <UnreadIndicator active={props.unreadIndicatorActive} />
             </div>
           </Show>
-        </button>
+        </UnifiedListItem.Checkbox>
         {/* Left Column Indicator(s) */}
         {/* Icon and name - top left on mobile, first item on desktop */}
-        <div
-          class="min-h-10 min-w-[50px] flex flex-row items-center gap-2 col-2"
+        <UnifiedListItem.MainContent
           classList={{
-            grow: props.contentPlacement === 'bottom-row',
             'opacity-70': props.fadeIfRead && !props.unreadIndicatorActive,
           }}
         >
@@ -542,10 +479,9 @@ export function EntityWithEverything(
             </Show>
           </div>
           <EntityTitle />
-        </div>
+        </UnifiedListItem.MainContent>
         {/* Date and user - top right on mobile, end on desktop  */}
-        <div
-          class="row-1 ml-2 @md:ml-4 self-center min-w-0 col-3"
+        <UnifiedListItem.RightContent
           classList={{
             'opacity-50': props.fadeIfRead && !props.unreadIndicatorActive,
           }}
@@ -605,7 +541,7 @@ export function EntityWithEverything(
               </div>
             </Show>
           </div>
-        </div>
+        </UnifiedListItem.RightContent>
         {/* Content Hits from Search */}
         <Show when={contentHitData().length > 0}>
           <div class="relative row-2 grid gap-2 col-2 col-end-4 pb-2">
@@ -760,8 +696,8 @@ export function EntityWithEverything(
           </div> */}
           </div>
         </Show>
-      </div>
-    </div>
+      </UnifiedListItem.Content>
+    </UnifiedListItem>
   );
 }
 
@@ -990,43 +926,3 @@ const createFormattedDate = (timestamp: number) =>
       year: '2-digit',
     });
   });
-
-let lastMouseX: number | null = null;
-let lastMouseY: number | null = null;
-let initialMouseMove: boolean = false;
-let cursorInit = true;
-
-const useCursorMove = () => {
-  const didCursorMove = (event: MouseEvent) => {
-    if (!initialMouseMove) return;
-    const { clientX, clientY } = event;
-    // If the mouse hasn't moved, ignore the event
-    if (clientX === lastMouseX && clientY === lastMouseY) {
-      return false;
-    }
-
-    // Update the last known position
-    lastMouseX = clientX;
-    lastMouseY = clientY;
-
-    return true;
-  };
-
-  const moveEvent = (event: MouseEvent) => {
-    const { clientX, clientY } = event;
-    initialMouseMove = true;
-
-    setTimeout(() => {
-      lastMouseX = clientX;
-      lastMouseY = clientY;
-    });
-  };
-  onMount(() => {
-    if (!cursorInit) {
-      return;
-    }
-    cursorInit = false;
-    document.addEventListener('mousemove', moveEvent, { capture: true });
-  });
-  return { didCursorMove };
-};
