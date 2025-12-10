@@ -12,7 +12,7 @@ import { StaticMarkdown } from 'core/component/LexicalMarkdown/component/core/St
 import { unifiedListMarkdownTheme } from 'core/component/LexicalMarkdown/theme';
 import { UserIcon } from 'core/component/UserIcon';
 import { emailToId, useDisplayName } from 'core/user';
-import type { ParentProps, Ref } from 'solid-js';
+import type { Ref, VoidProps } from 'solid-js';
 import {
   createDeferred,
   createEffect,
@@ -74,14 +74,17 @@ const createFormattedDate = (timestamp: number) =>
     });
   });
 
-interface EntityProps<T extends WithNotification<EntityData>>
-  extends ParentProps {
-  entity: T;
+type SomeEntity = WithNotification<EntityData | WithSearch<EntityData>>;
+
+interface EntityWithEverythingProps {
+  entity: SomeEntity;
   focused?: boolean;
   timestamp?: number;
-  onClick?: EntityClickHandler<T>;
-  onClickRowAction?: (entity: T, type: 'done') => void;
-  onClickNotification?: EntityClickHandler<T & { notification: Notification }>;
+  onClick?: EntityClickHandler<SomeEntity>;
+  onClickRowAction?: (entity: SomeEntity) => void;
+  onClickNotification?: EntityClickHandler<
+    SomeEntity & { notification: Notification }
+  >;
   onMouseOver?: () => void;
   onMouseLeave?: () => void;
   onFocusIn?: () => void;
@@ -96,13 +99,12 @@ interface EntityProps<T extends WithNotification<EntityData>>
   showDoneButton?: boolean;
   highlighted?: boolean;
   selected?: boolean;
-  ref?: Ref<HTMLDivElement>;
   onChecked?: (checked: boolean, shiftKey?: boolean) => void;
   checked?: boolean;
 }
 
 export function EntityWithEverything(
-  props: EntityProps<WithNotification<EntityData | WithSearch<EntityData>>>
+  props: VoidProps<EntityWithEverythingProps>
 ) {
   const [showRestOfNotifications, setShowRestOfNotifications] =
     createSignal(false);
