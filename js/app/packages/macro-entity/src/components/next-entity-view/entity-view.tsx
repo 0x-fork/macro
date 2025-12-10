@@ -2,20 +2,27 @@ import { EntityIcon } from '@core/component/EntityIcon';
 import type { Property } from '@core/component/Properties/types';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import { TOKENS } from '@core/hotkey/tokens';
-import { matches } from '@core/util/match';
 import CheckIcon from '@icon/regular/check.svg';
+import {
+  type ChannelContentHitData,
+  type ContentHitData,
+  type EntityClickHandler,
+  type EntityData,
+  isSearchEntity,
+  type ProjectEntity,
+  type WithNotification,
+  type WithSearch,
+} from '@macro-entity';
 import { tryToTypedNotification } from '@notifications';
 import { useEmail, useUserId } from '@service-gql/client';
 import { syncServiceClient } from '@service-sync/client';
-import { mergeRefs } from '@solid-primitives/refs';
 import { createDraggable, createDroppable } from '@thisbeyond/solid-dnd';
 import { getIconConfig } from 'core/component/EntityIcon';
 import { StaticMarkdown } from 'core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { unifiedListMarkdownTheme } from 'core/component/LexicalMarkdown/theme';
 import { UserIcon } from 'core/component/UserIcon';
 import { emailToId, useDisplayName } from 'core/user';
-import { onKeyDownClick, onKeyUpClick } from 'core/util/click';
-import type { ParentProps, Ref } from 'solid-js';
+import type { VoidProps } from 'solid-js';
 import {
   createDeferred,
   createEffect,
@@ -28,111 +35,54 @@ import {
   Suspense,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { createProfilePictureQuery } from '../queries/auth';
+import { createProfilePictureQuery } from '../../queries/auth';
 import {
   createProjectQuery,
   isProjectContainedEntity,
   type ProjectContainedEntity,
-} from '../queries/project';
-import { isSearchEntity } from '../queries/search';
-import type { EntityData, ProjectEntity } from '../types/entity';
-import type { Notification, WithNotification } from '../types/notification';
-import type {
-  ChannelContentHitData,
-  ContentHitData,
-  WithSearch,
-} from '../types/search';
-import type { EntityClickEvent, EntityClickHandler } from './Entity';
-import { PropertyPills } from './PropertyPills';
+} from '../../queries/project';
+import type { EntityClickEvent } from '../Entity';
+import { PropertyPills } from '../PropertyPills';
+import { UnifiedListItem } from '../unified-list-item';
 
-function UnreadIndicator(props: { active?: boolean }) {
-  return (
-    <div class="flex size-4 items-center justify-center">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        classList={{
-          'fill-accent': true,
-          'opacity-0': !props.active,
-        }}
-        viewBox="0 0 8 8"
-        width="75%"
-        height="75%"
-        fill="none"
-      >
-        <path d="M3.39622 8C3.29136 8 3.23894 7.94953 3.23894 7.84858L3.33068 5.13565L0.932129 6.58675C0.836012 6.63722 0.76174 6.6204 0.709312 6.53628L0.0801831 5.56467C0.0190178 5.47213 0.0364936 5.40063 0.132611 5.35016L2.58359 4.07571L0.09329 2.88959C-0.00282696 2.83912 -0.0246717 2.77182 0.0277557 2.6877L0.59135 1.58991C0.643778 1.49737 0.71805 1.47634 0.814167 1.52681L3.31758 2.95268L3.21272 0.151421C3.21272 0.0504735 3.26515 0 3.37 0H4.57583C4.68069 0 4.73312 0.0504735 4.73312 0.151421L4.64137 2.94006L7.14478 1.40063C7.2409 1.34175 7.3108 1.35857 7.35449 1.4511L7.97051 2.46057C8.02294 2.5531 8.00546 2.6204 7.91808 2.66246L5.40157 4L7.82633 5.18612C7.91371 5.23659 7.93556 5.30389 7.89187 5.38801L7.36759 6.4858C7.32391 6.58675 7.25837 6.60778 7.17099 6.54889L4.6938 5.13565L4.78554 7.84858C4.79428 7.94953 4.74185 8 4.62826 8H3.39622Z" />
-      </svg>
-    </div>
-  );
-}
+const createFormattedDate = (timestamp: number) =>
+  createMemo(() => {
+    if (timestamp < 1e12) {
+      timestamp *= 1000;
+    }
+    const date = new Date(timestamp);
+    const currentDate = new Date();
+    if (date.getDate() === currentDate.getDate()) {
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+    if (date.getFullYear() === currentDate.getFullYear()) {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    }
 
-function SharedBadge(props: { ownerId: string }) {
-  return (
-    <div class="font-mono font-medium user-select-none uppercase flex items-center text-ink-extra-muted p-0.5 gap-1 text-[0.625rem] rounded-full border border-edge-muted pr-2">
-      <UserIcon id={props.ownerId} size="xs" />
-      shared
-    </div>
-  );
-}
+    return date.toLocaleDateString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: '2-digit',
+    });
+  });
 
-function GenericContentHit(props: { data: ContentHitData }) {
-  return (
-    <div class="text-sm text-ink-muted truncate flex items-center">
-      <StaticMarkdown
-        markdown={props.data.content}
-        theme={unifiedListMarkdownTheme}
-        singleLine={true}
-      />
-    </div>
-  );
-}
+type SomeEntity = WithNotification<EntityData | WithSearch<EntityData>>;
 
-function ChannelMessageContentHit(props: { data: ChannelContentHitData }) {
-  const [userName] = useDisplayName(props.data.senderId);
-  const formattedDate = createFormattedDate(props.data.sentAt);
-
-  return (
-    <div class="flex gap-2 items-center min-w-0">
-      <div class="flex size-5 shrink-0 items-center justify-center">
-        <UserIcon id={props.data.senderId} size="xs" />
-      </div>
-      <div class="flex gap-2 text-sm w-full min-w-0 overflow-hidden items-baseline">
-        <div class="text-sm shrink-0 truncate min-w-0 font-medium">
-          {userName()}
-        </div>
-        <div class="shrink-0 font-mono text-xs uppercase text-ink-extra-muted">
-          {formattedDate()}
-        </div>
-        <div class="text-sm text-ink-muted truncate flex items-center flex-1 min-w-0">
-          <StaticMarkdown
-            markdown={props.data.content}
-            theme={unifiedListMarkdownTheme}
-            singleLine={true}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// function ImportantBadge(props: { active?: boolean }) {
-//   return (
-//     <Show when={props.active}>
-//       <div class="font-mono font-medium user-select-none uppercase flex items-center text-accent bg-accent/10 p-0.5 px-2 text-[0.625rem] rounded-full border border-accent/10">
-//         <span class="@max-xl/split:hidden">Important</span>
-//         <span class="hidden @max-xl/split:block font-bold">!</span>
-//       </div>
-//     </Show>
-//   );
-// }
-
-interface EntityProps<T extends WithNotification<EntityData>>
-  extends ParentProps {
-  entity: T;
+interface EntityWithEverythingProps {
+  entity: SomeEntity;
   focused?: boolean;
   timestamp?: number;
-  onClick?: EntityClickHandler<T>;
-  onClickRowAction?: (entity: T, type: 'done') => void;
-  onClickNotification?: EntityClickHandler<T & { notification: Notification }>;
+  onClick?: EntityClickHandler<SomeEntity>;
+  onClickRowAction?: (entity: SomeEntity) => void;
+  onClickNotification?: EntityClickHandler<
+    SomeEntity & { notification: Notification }
+  >;
   onMouseOver?: () => void;
   onMouseLeave?: () => void;
   onFocusIn?: () => void;
@@ -147,23 +97,16 @@ interface EntityProps<T extends WithNotification<EntityData>>
   showDoneButton?: boolean;
   highlighted?: boolean;
   selected?: boolean;
-  ref?: Ref<HTMLDivElement>;
   onChecked?: (checked: boolean, shiftKey?: boolean) => void;
   checked?: boolean;
 }
 
 export function EntityWithEverything(
-  props: EntityProps<WithNotification<EntityData | WithSearch<EntityData>>>
+  props: VoidProps<EntityWithEverythingProps>
 ) {
-  const [actionButtonRef, setActionButtonRef] =
-    createSignal<HTMLButtonElement | null>(null);
-  const [entityDivRef, setEntityDivRef] = createSignal<HTMLDivElement | null>(
-    null
-  );
   const [showRestOfNotifications, setShowRestOfNotifications] =
     createSignal(false);
 
-  const { keydownDataDuringTask } = trackKeydownDuringTask();
   const userEmail = useEmail();
 
   const getIcon = createMemo(() => {
@@ -178,7 +121,9 @@ export function EntityWithEverything(
             return getIconConfig('channel');
         }
       case 'document':
-        return getIconConfig(props.entity.fileType || 'default');
+        if (isTaskEntity(props.entity)) return getIconConfig('task');
+        if (props.entity.fileType) return getIconConfig(props.entity.fileType);
+        return getIconConfig('default');
       case 'chat':
         return getIconConfig('chat');
       case 'project':
@@ -390,21 +335,6 @@ export function EntityWithEverything(
   const droppable = createDroppable(props.entity.id, props.entity);
   false && droppable;
 
-  const { didCursorMove } = useCursorMove();
-
-  // The main click handler for the entity row should navigate to an entity
-  // without forcing focus back to the source split until after navigation.
-  // Certain buttons in the entity need to NOT Navigate AND return focus to
-  // the split. Those buttons should have a 'data-blocks-navigation'
-  function blocksNavigation(e: PointerEvent | MouseEvent): boolean {
-    const { target } = e;
-    if (target instanceof Element) {
-      const closest = target.closest('[data-blocks-navigation]');
-      if (closest && entityDivRef()?.contains(closest)) return true;
-    }
-    return false;
-  }
-
   const userId = useUserId();
   const sharedData = () => {
     if (props.entity.type === 'channel') {
@@ -430,92 +360,31 @@ export function EntityWithEverything(
   };
 
   return (
-    <div
+    <UnifiedListItem
       use:draggable
       use:droppable
       data-checked={props.checked}
-      class="everything-entity relative group/entity"
-      classList={{
-        'bg-hover/30': props.highlighted && !props.checked,
-        'bg-accent/5': props.checked,
-        'bracket outline outline-accent/20 outline-offset-[-1px]':
-          props.selected,
-      }}
-      onMouseOver={(e) => {
-        if (!didCursorMove(e)) {
-          return;
-        }
-        props.onMouseOver?.();
-      }}
-      onContextMenu={() => {
-        props.onContextMenu?.();
-      }}
+      focused={props.selected}
+      checked={props.checked}
+      highlighted={props.highlighted}
+      onChecked={props.onChecked}
+      onClick={(e) => props.onClick?.(props.entity, e)}
+      contentPlacement={props.contentPlacement}
+      onMouseOver={props.onMouseOver}
+      onContextMenu={props.onContextMenu}
     >
-      <div
-        data-entity
-        data-entity-id={props.entity.id}
-        class="w-full min-w-0 grid flex-1 items-center suppress-css-bracket grid-cols-[2rem_1fr_auto] pr-2"
-        onClick={(e) => {
-          if (blocksNavigation(e)) return;
-          props.onClick?.(props.entity, e);
-        }}
-        onMouseDown={(e) => {
-          if (blocksNavigation(e)) return;
-          e.preventDefault();
-        }}
-        // Action List is also rendered based on focus, but when focused via Shift+Tab, parent is focused due to Action List dom not present. Here we check if current browser task has captured Shift+Tab focus on Action List
-        onFocusIn={(e) => {
-          if (
-            !(
-              keydownDataDuringTask().pressedShiftTab &&
-              !e.currentTarget.contains(keydownDataDuringTask().target)
-            )
-          ) {
-            return;
-          }
-
-          actionButtonRef()?.focus();
-        }}
-        onKeyDown={onKeyDownClick((e) =>
-          props.onClick?.(props.entity, e as any)
-        )}
-        onKeyUp={onKeyUpClick((e) => props.onClick?.(props.entity, e as any))}
-        role="button"
-        tabIndex={0}
-        ref={mergeRefs(setEntityDivRef, props.ref)}
-      >
-        <button
-          type="button"
-          class="col-1 size-full relative group/button flex items-center justify-center bracket-never"
-          onClick={(e) => {
-            props.onChecked?.(!props.checked, e.shiftKey);
-          }}
-          data-blocks-navigation
-        >
-          <div
-            class="size-4 p-0.5 flex items-center justify-center rounded-xs group-hover/button:border-accent group-hover/button:border pointer-events-none"
-            classList={{
-              'ring ring-edge-muted': props.selected,
-              'bg-panel': !props.checked && props.selected,
-              'bg-accent border border-accent': props.checked,
-            }}
-          >
-            <Show when={props.checked}>
-              <CheckIcon class="w-full h-full text-panel" />
-            </Show>
-          </div>
+      <UnifiedListItem.Content data-entity data-entity-id={props.entity.id}>
+        <UnifiedListItem.Checkbox>
           <Show when={props.showLeftColumnIndicator && !props.checked}>
             <div class="absolute inset-0 flex items-center justify-center -z-1">
               <UnreadIndicator active={props.unreadIndicatorActive} />
             </div>
           </Show>
-        </button>
+        </UnifiedListItem.Checkbox>
         {/* Left Column Indicator(s) */}
         {/* Icon and name - top left on mobile, first item on desktop */}
-        <div
-          class="min-h-10 min-w-[50px] flex flex-row items-center gap-2 col-2"
+        <UnifiedListItem.MainContent
           classList={{
-            grow: props.contentPlacement === 'bottom-row',
             'opacity-70': props.fadeIfRead && !props.unreadIndicatorActive,
           }}
         >
@@ -536,10 +405,9 @@ export function EntityWithEverything(
             </Show>
           </div>
           <EntityTitle />
-        </div>
+        </UnifiedListItem.MainContent>
         {/* Date and user - top right on mobile, end on desktop  */}
-        <div
-          class="row-1 ml-2 @md:ml-4 self-center min-w-0 col-3"
+        <UnifiedListItem.RightContent
           classList={{
             'opacity-50': props.fadeIfRead && !props.unreadIndicatorActive,
           }}
@@ -559,7 +427,7 @@ export function EntityWithEverything(
                 </Tooltip>
               )}
             </Show>
-            <Show when={matches(props.entity, isProjectContainedEntity)}>
+            <Show when={isProjectContainedEntity(props.entity) && props.entity}>
               {(entity) => (
                 <EntityProject entity={entity()} onClick={props.onClick} />
               )}
@@ -585,12 +453,12 @@ export function EntityWithEverything(
                   }
                 >
                   <button
+                    type="button"
                     class="bg-panel flex items-center justify-center size-8 border border-edge-muted hover:bg-accent hover:text-panel"
                     onClick={(e) => {
                       e.stopPropagation();
                       props.onClickRowAction?.(props.entity, 'done');
                     }}
-                    ref={setActionButtonRef}
                     data-blocks-navigation
                   >
                     <CheckIcon class="w-4 h-4 pointer-events-none" />
@@ -599,7 +467,7 @@ export function EntityWithEverything(
               </div>
             </Show>
           </div>
-        </div>
+        </UnifiedListItem.RightContent>
         {/* Content Hits from Search */}
         <Show when={contentHitData().length > 0}>
           <div class="relative row-2 grid gap-2 col-2 col-end-4 pb-2">
@@ -643,12 +511,7 @@ export function EntityWithEverything(
 
                   const metadata =
                     tryToTypedNotification(notification)?.notificationMetadata;
-                  if (
-                    !metadata ||
-                    !('messageContent' in metadata) ||
-                    !metadata.messageContent
-                  )
-                    return '';
+                  if (!metadata || !('messageContent' in metadata)) return '';
 
                   return 'message';
                 };
@@ -711,12 +574,6 @@ export function EntityWithEverything(
                           {ActionContent()}
                         </span>
                       </div>
-                      {/*<ImportantBadge
-                        active={
-                          notification.viewedAt === null &&
-                          notification.isImportantV0
-                        }
-                      />*/}
                       <MessageContent />
                     </div>
                     <div class="shrink-0 font-mono text-xs uppercase text-ink-extra-muted ml-2">
@@ -735,6 +592,7 @@ export function EntityWithEverything(
               <div class="relative h-5">
                 <ThreadBorder />
                 <button
+                  type="button"
                   class="block w-fit px-2 py-0.5 text-[10px] border border-edge uppercase font-mono hover:font-medium"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -751,16 +609,10 @@ export function EntityWithEverything(
                 </button>
               </div>
             </Show>
-            {/* <div class="relative h-4">
-            <ThreadBorder />
-            <button class="block p-1 py-0 text-[10px] h-4 border border-edge uppercase font-mono">
-              + 6 more
-            </button>
-          </div> */}
           </div>
         </Show>
-      </div>
-    </div>
+      </UnifiedListItem.Content>
+    </UnifiedListItem>
   );
 }
 
@@ -924,108 +776,71 @@ function EntityProject(props: {
   );
 }
 
-const trackKeydownDuringTask = () => {
-  // data captured during shift tab keydown event, data is only kept for that browser task then emptied
-  const [keydownDataDuringTask, setKeydownDataDuringTask] = createSignal<{
-    pressedShiftTab: boolean;
-    pressedAnyKey: boolean;
-    target: HTMLElement | null;
-  }>({
-    pressedShiftTab: false,
-    pressedAnyKey: false,
-    target: null,
-  });
-  const hasShiftTabbedEvent = (e: KeyboardEvent) => {
-    if (!(e.key === 'Tab' && e.shiftKey)) return;
-    setKeydownDataDuringTask({
-      pressedAnyKey: !!e.key,
-      pressedShiftTab: true,
-      target: e.target as HTMLElement,
-    });
+function UnreadIndicator(props: { active?: boolean }) {
+  return (
+    <div class="flex size-4 items-center justify-center">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        classList={{
+          'fill-accent': true,
+          'opacity-0': !props.active,
+        }}
+        viewBox="0 0 8 8"
+        width="75%"
+        height="75%"
+        fill="none"
+      >
+        <path d="M3.39622 8C3.29136 8 3.23894 7.94953 3.23894 7.84858L3.33068 5.13565L0.932129 6.58675C0.836012 6.63722 0.76174 6.6204 0.709312 6.53628L0.0801831 5.56467C0.0190178 5.47213 0.0364936 5.40063 0.132611 5.35016L2.58359 4.07571L0.09329 2.88959C-0.00282696 2.83912 -0.0246717 2.77182 0.0277557 2.6877L0.59135 1.58991C0.643778 1.49737 0.71805 1.47634 0.814167 1.52681L3.31758 2.95268L3.21272 0.151421C3.21272 0.0504735 3.26515 0 3.37 0H4.57583C4.68069 0 4.73312 0.0504735 4.73312 0.151421L4.64137 2.94006L7.14478 1.40063C7.2409 1.34175 7.3108 1.35857 7.35449 1.4511L7.97051 2.46057C8.02294 2.5531 8.00546 2.6204 7.91808 2.66246L5.40157 4L7.82633 5.18612C7.91371 5.23659 7.93556 5.30389 7.89187 5.38801L7.36759 6.4858C7.32391 6.58675 7.25837 6.60778 7.17099 6.54889L4.6938 5.13565L4.78554 7.84858C4.79428 7.94953 4.74185 8 4.62826 8H3.39622Z" />
+      </svg>
+    </div>
+  );
+}
 
-    setTimeout(() => {
-      setKeydownDataDuringTask({
-        pressedShiftTab: false,
-        target: null,
-        pressedAnyKey: false,
-      });
-    });
-  };
+function SharedBadge(props: { ownerId: string }) {
+  return (
+    <div class="font-mono font-medium user-select-none uppercase flex items-center text-ink-extra-muted p-0.5 gap-1 text-[0.625rem] rounded-full border border-edge-muted pr-2">
+      <UserIcon id={props.ownerId} size="xs" />
+      shared
+    </div>
+  );
+}
 
-  onMount(() => {
-    document.addEventListener('keydown', hasShiftTabbedEvent);
+function GenericContentHit(props: { data: ContentHitData }) {
+  return (
+    <div class="text-sm text-ink-muted truncate flex items-center">
+      <StaticMarkdown
+        markdown={props.data.content}
+        theme={unifiedListMarkdownTheme}
+        singleLine={true}
+      />
+    </div>
+  );
+}
 
-    onCleanup(() => {
-      document.removeEventListener('keydown', hasShiftTabbedEvent);
-    });
-  });
+function ChannelMessageContentHit(props: { data: ChannelContentHitData }) {
+  const [userName] = useDisplayName(props.data.senderId);
+  const formattedDate = createFormattedDate(props.data.sentAt);
 
-  return { keydownDataDuringTask };
-};
-
-const createFormattedDate = (timestamp: number) =>
-  createMemo(() => {
-    if (timestamp < 1e12) {
-      timestamp *= 1000;
-    }
-    const date = new Date(timestamp);
-    const currentDate = new Date();
-    if (date.getDate() === currentDate.getDate()) {
-      return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-    if (date.getFullYear() === currentDate.getFullYear()) {
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-    }
-
-    return date.toLocaleDateString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-      year: '2-digit',
-    });
-  });
-
-let lastMouseX: number | null = null;
-let lastMouseY: number | null = null;
-let initialMouseMove: boolean = false;
-let cursorInit = true;
-
-const useCursorMove = () => {
-  const didCursorMove = (event: MouseEvent) => {
-    if (!initialMouseMove) return;
-    const { clientX, clientY } = event;
-    // If the mouse hasn't moved, ignore the event
-    if (clientX === lastMouseX && clientY === lastMouseY) {
-      return false;
-    }
-
-    // Update the last known position
-    lastMouseX = clientX;
-    lastMouseY = clientY;
-
-    return true;
-  };
-
-  const moveEvent = (event: MouseEvent) => {
-    const { clientX, clientY } = event;
-    initialMouseMove = true;
-
-    setTimeout(() => {
-      lastMouseX = clientX;
-      lastMouseY = clientY;
-    });
-  };
-  onMount(() => {
-    if (!cursorInit) {
-      return;
-    }
-    cursorInit = false;
-    document.addEventListener('mousemove', moveEvent, { capture: true });
-  });
-  return { didCursorMove };
-};
+  return (
+    <div class="flex gap-2 items-center min-w-0">
+      <div class="flex size-5 shrink-0 items-center justify-center">
+        <UserIcon id={props.data.senderId} size="xs" />
+      </div>
+      <div class="flex gap-2 text-sm w-full min-w-0 overflow-hidden items-baseline">
+        <div class="text-sm shrink-0 truncate min-w-0 font-medium">
+          {userName()}
+        </div>
+        <div class="shrink-0 font-mono text-xs uppercase text-ink-extra-muted">
+          {formattedDate()}
+        </div>
+        <div class="text-sm text-ink-muted truncate flex items-center flex-1 min-w-0">
+          <StaticMarkdown
+            markdown={props.data.content}
+            theme={unifiedListMarkdownTheme}
+            singleLine={true}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
