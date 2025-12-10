@@ -164,7 +164,6 @@ export function EntityWithEverything(
   const [showRestOfNotifications, setShowRestOfNotifications] =
     createSignal(false);
 
-  const { keydownDataDuringTask } = trackKeydownDuringTask();
   const userEmail = useEmail();
 
   const getIcon = createMemo(() => {
@@ -431,23 +430,7 @@ export function EntityWithEverything(
       onMouseOver={props.onMouseOver}
       onContextMenu={props.onContextMenu}
     >
-      <UnifiedListItem.Content
-        data-entity
-        data-entity-id={props.entity.id}
-        // Action List is also rendered based on focus, but when focused via Shift+Tab, parent is focused due to Action List dom not present. Here we check if current browser task has captured Shift+Tab focus on Action List
-        onFocusIn={(e) => {
-          if (
-            !(
-              keydownDataDuringTask().pressedShiftTab &&
-              !e.currentTarget.contains(keydownDataDuringTask().target)
-            )
-          ) {
-            return;
-          }
-
-          actionButtonRef()?.focus();
-        }}
-      >
+      <UnifiedListItem.Content data-entity data-entity-id={props.entity.id}>
         <UnifiedListItem.Checkbox>
           <Show when={props.showLeftColumnIndicator && !props.checked}>
             <div class="absolute inset-0 flex items-center justify-center -z-1">
@@ -860,45 +843,6 @@ function EntityProject(props: {
     </div>
   );
 }
-
-const trackKeydownDuringTask = () => {
-  // data captured during shift tab keydown event, data is only kept for that browser task then emptied
-  const [keydownDataDuringTask, setKeydownDataDuringTask] = createSignal<{
-    pressedShiftTab: boolean;
-    pressedAnyKey: boolean;
-    target: HTMLElement | null;
-  }>({
-    pressedShiftTab: false,
-    pressedAnyKey: false,
-    target: null,
-  });
-  const hasShiftTabbedEvent = (e: KeyboardEvent) => {
-    if (!(e.key === 'Tab' && e.shiftKey)) return;
-    setKeydownDataDuringTask({
-      pressedAnyKey: !!e.key,
-      pressedShiftTab: true,
-      target: e.target as HTMLElement,
-    });
-
-    setTimeout(() => {
-      setKeydownDataDuringTask({
-        pressedShiftTab: false,
-        target: null,
-        pressedAnyKey: false,
-      });
-    });
-  };
-
-  onMount(() => {
-    document.addEventListener('keydown', hasShiftTabbedEvent);
-
-    onCleanup(() => {
-      document.removeEventListener('keydown', hasShiftTabbedEvent);
-    });
-  });
-
-  return { keydownDataDuringTask };
-};
 
 const createFormattedDate = (timestamp: number) =>
   createMemo(() => {
