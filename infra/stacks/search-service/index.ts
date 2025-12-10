@@ -124,24 +124,6 @@ const searchService = new SearchService(`${BASE_NAME}-${stack}`, {
       value: pulumi.interpolate`${ISSUER}`,
     },
     {
-      name: 'COMMS_SERVICE_URL',
-      value: `https://comms-service${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
-      name: 'EMAIL_SERVICE_URL',
-      value: `https://email-service${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
-      name: 'DOCUMENT_STORAGE_SERVICE_URL',
-      value: `https://cloud-storage${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
       name: 'MACRO_API_TOKEN_ISSUER',
       value: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenIssuer}`,
     },
@@ -149,6 +131,7 @@ const searchService = new SearchService(`${BASE_NAME}-${stack}`, {
       name: 'MACRO_API_TOKEN_PUBLIC_KEY',
       value: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKey}`,
     },
+    ...getMacroUrls([COMMS_SERVICE_URL, EMAIL_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL]),
   ],
   tags,
 });
