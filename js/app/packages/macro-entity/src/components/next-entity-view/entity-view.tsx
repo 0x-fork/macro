@@ -11,6 +11,7 @@ import {
   type EntityData,
   isSearchEntity,
   isTaskEntity,
+  type Notification,
   type ProjectEntity,
   type WithNotification,
   type WithSearch,
@@ -24,7 +25,7 @@ import { StaticMarkdown } from 'core/component/LexicalMarkdown/component/core/St
 import { unifiedListMarkdownTheme } from 'core/component/LexicalMarkdown/theme';
 import { UserIcon } from 'core/component/UserIcon';
 import { emailToId, useDisplayName } from 'core/user';
-import type { VoidProps } from 'solid-js';
+import type { ParentProps, VoidProps } from 'solid-js';
 import {
   createDeferred,
   createEffect,
@@ -196,7 +197,6 @@ export function EntityWithEverything(
     <UnifiedListItem
       use:draggable
       use:droppable
-      data-checked={props.checked}
       focused={props.selected}
       checked={props.checked}
       highlighted={props.highlighted}
@@ -327,104 +327,16 @@ export function EntityWithEverything(
             contentHitData().length === 0
           }
         >
-          <div class="relative col-2 col-end-4 200 pb-2 gap-2">
-            <For each={notDoneNotifications()}>
-              {(notification) => {
-                const [userName] = useDisplayName(notification.senderId);
-
-                const formattedDate = createFormattedDate(
-                  notification.createdAt
-                );
-
-                const ActionContent = () => {
-                  if (
-                    notification.notificationEventType === 'document_mention' ||
-                    notification.notificationEventType ===
-                      'channel_message_document'
-                  ) {
-                    return 'shared';
-                  }
-
-                  const metadata =
-                    tryToTypedNotification(notification)?.notificationMetadata;
-                  if (!metadata || !('messageContent' in metadata)) return '';
-
-                  return 'message';
-                };
-
-                const MessageContent = () => {
-                  if (
-                    notification.notificationEventType === 'document_mention' ||
-                    notification.notificationEventType ===
-                      'channel_message_document'
-                  ) {
-                    return '';
-                  }
-
-                  const metadata =
-                    tryToTypedNotification(notification)?.notificationMetadata;
-                  if (
-                    !metadata ||
-                    !('messageContent' in metadata) ||
-                    !metadata.messageContent
-                  )
-                    return '';
-
-                  return (
-                    <StaticMarkdown
-                      markdown={metadata.messageContent.trim()}
-                      theme={unifiedListMarkdownTheme}
-                      singleLine={true}
-                    />
-                  );
-                };
-
-                return (
-                  <div
-                    class="relative flex gap-1 items-center min-w-0 h-8"
-                    classList={{
-                      'hover:bg-hover/20 hover:opacity-70':
-                        !!props.onClickNotification,
-                      'opacity-70': notification.viewedAt !== null,
-                    }}
-                    onClick={
-                      props.onClickNotification
-                        ? [
-                            props.onClickNotification,
-                            {
-                              ...props.entity,
-                              notification,
-                            },
-                          ]
-                        : undefined
-                    }
-                  >
-                    <ThreadBorder />
-                    <div class="flex size-5 shrink-0 items-center justify-center mr-1">
-                      <NotificationUserIcon id={notification.senderId!} />
-                    </div>
-                    <div class="flex gap-2 text-sm w-full min-w-0 overflow-hidden items-baseline">
-                      <div class="text-sm w-[20cqw] shrink-0 truncate min-w-0">
-                        {userName()}{' '}
-                        <span class="opacity-70 uppercase font-mono text-[0.625rem] mx-2">
-                          {ActionContent()}
-                        </span>
-                      </div>
-                      <MessageContent />
-                    </div>
-                    <div class="shrink-0 font-mono text-xs uppercase text-ink-extra-muted ml-2">
-                      {formattedDate()}
-                    </div>
-                  </div>
-                );
-              }}
-            </For>
-            <Show
-              when={
-                hasNotifications() &&
-                (props.entity.notifications?.().length ?? 0) > 3
-              }
-            >
+          <UnrolledNotificationsView
+            notifications={notDoneNotifications()}
+            onClickNotification={(notification, event) =>
+              props.onClickNotification?.(
+                { ...props.entity, notification },
+                event
+              )
+            }
+          >
+            <Show when={(props.entity.notifications?.().length ?? 0) > 3}>
               <div class="relative h-5">
                 <ThreadBorder />
                 <button
@@ -445,12 +357,107 @@ export function EntityWithEverything(
                 </button>
               </div>
             </Show>
-          </div>
+          </UnrolledNotificationsView>
         </Show>
       </UnifiedListItem.Content>
     </UnifiedListItem>
   );
 }
+
+const UnrolledNotificationsView = (
+  props: ParentProps<{
+    notifications: Notification[];
+    onClickNotification: (
+      notification: Notification,
+      event: EntityClickEvent
+    ) => void;
+  }>
+) => {
+  return (
+    <div class="relative col-2 col-end-4 200 pb-2 gap-2">
+      <For each={props.notifications}>
+        {(notification) => {
+          const [userName] = useDisplayName(notification.senderId);
+
+          const formattedDate = createFormattedDate(notification.createdAt);
+
+          const ActionContent = () => {
+            if (
+              notification.notificationEventType === 'document_mention' ||
+              notification.notificationEventType === 'channel_message_document'
+            ) {
+              return 'shared';
+            }
+
+            const metadata =
+              tryToTypedNotification(notification)?.notificationMetadata;
+            if (!metadata || !('messageContent' in metadata)) return '';
+
+            return 'message';
+          };
+
+          const MessageContent = () => {
+            if (
+              notification.notificationEventType === 'document_mention' ||
+              notification.notificationEventType === 'channel_message_document'
+            ) {
+              return '';
+            }
+
+            const metadata =
+              tryToTypedNotification(notification)?.notificationMetadata;
+            if (
+              !metadata ||
+              !('messageContent' in metadata) ||
+              !metadata.messageContent
+            )
+              return '';
+
+            return (
+              <StaticMarkdown
+                markdown={metadata.messageContent.trim()}
+                theme={unifiedListMarkdownTheme}
+                singleLine={true}
+              />
+            );
+          };
+
+          return (
+            <div
+              class="relative flex gap-1 items-center min-w-0 h-8"
+              classList={{
+                'hover:bg-hover/20 hover:opacity-70':
+                  !!props.onClickNotification,
+                'opacity-70': notification.viewedAt !== null,
+              }}
+              onClick={(event) =>
+                props.onClickNotification(notification, event)
+              }
+            >
+              <ThreadBorder />
+              <div class="flex size-5 shrink-0 items-center justify-center mr-1">
+                <NotificationUserIcon id={notification.senderId!} />
+              </div>
+              <div class="flex gap-2 text-sm w-full min-w-0 overflow-hidden items-baseline">
+                <div class="text-sm w-[20cqw] shrink-0 truncate min-w-0">
+                  {userName()}{' '}
+                  <span class="opacity-70 uppercase font-mono text-[0.625rem] mx-2">
+                    {ActionContent()}
+                  </span>
+                </div>
+                <MessageContent />
+              </div>
+              <div class="shrink-0 font-mono text-xs uppercase text-ink-extra-muted ml-2">
+                {formattedDate()}
+              </div>
+            </div>
+          );
+        }}
+      </For>
+      {props.children}
+    </div>
+  );
+};
 
 const THREAD_GAP = 6;
 const ThreadBorder = () => (
