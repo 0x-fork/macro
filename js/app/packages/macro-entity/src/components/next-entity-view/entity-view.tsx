@@ -138,14 +138,6 @@ export function EntityWithEverything(
   const hasNotifications = () =>
     !!props.entity.notifications && props.entity.notifications().length > 0;
 
-  const threadGap = 6;
-  const ThreadBorder = () => (
-    <div
-      class="absolute left-[calc(0.5rem+1px)] w-[1px] border-l border-edge-muted -top-0.75"
-      style={{ height: `${threadGap}px` }}
-    />
-  );
-
   const notDoneNotifications = () => {
     let notifications = props.entity.notifications?.();
     if (!notifications) return [];
@@ -459,6 +451,14 @@ export function EntityWithEverything(
     </UnifiedListItem>
   );
 }
+
+const THREAD_GAP = 6;
+const ThreadBorder = () => (
+  <div
+    class="absolute left-[calc(0.5rem+1px)] w-[1px] border-l border-edge-muted -top-0.75"
+    style={{ height: `${THREAD_GAP}px` }}
+  />
+);
 
 function DirectMessageIcon(props: { entity: EntityData }) {
   const userId = useUserId();
