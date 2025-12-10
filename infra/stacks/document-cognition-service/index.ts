@@ -332,10 +332,6 @@ const documentCognitionService = new DocumentCognitionService(
           stack === 'prod' ? '' : `-${stack}`
         }.macro.com`,
       },
-      {
-        name: 'STATIC_FILE_SERVICE_URL',
-        value: `https://static-file-service${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
-      },
     ],
     isPrivate: false,
     tags,
