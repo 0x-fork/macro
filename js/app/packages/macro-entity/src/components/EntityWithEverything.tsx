@@ -2,7 +2,6 @@ import { EntityIcon } from '@core/component/EntityIcon';
 import type { Property } from '@core/component/Properties/types';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import { TOKENS } from '@core/hotkey/tokens';
-import { matches } from '@core/util/match';
 import CheckIcon from '@icon/regular/check.svg';
 import { tryToTypedNotification } from '@notifications';
 import { useEmail, useUserId } from '@service-gql/client';
@@ -158,9 +157,6 @@ interface EntityProps<T extends WithNotification<EntityData>>
 export function EntityWithEverything(
   props: EntityProps<WithNotification<EntityData | WithSearch<EntityData>>>
 ) {
-  const [actionButtonRef, setActionButtonRef] =
-    createSignal<HTMLButtonElement | null>(null);
-
   const [showRestOfNotifications, setShowRestOfNotifications] =
     createSignal(false);
 
@@ -484,7 +480,7 @@ export function EntityWithEverything(
                 </Tooltip>
               )}
             </Show>
-            <Show when={matches(props.entity, isProjectContainedEntity)}>
+            <Show when={isProjectContainedEntity(props.entity) && props.entity}>
               {(entity) => (
                 <EntityProject entity={entity()} onClick={props.onClick} />
               )}
@@ -510,12 +506,12 @@ export function EntityWithEverything(
                   }
                 >
                   <button
+                    type="button"
                     class="bg-panel flex items-center justify-center size-8 border border-edge-muted hover:bg-accent hover:text-panel"
                     onClick={(e) => {
                       e.stopPropagation();
                       props.onClickRowAction?.(props.entity, 'done');
                     }}
-                    ref={setActionButtonRef}
                     data-blocks-navigation
                   >
                     <CheckIcon class="w-4 h-4 pointer-events-none" />
@@ -631,12 +627,6 @@ export function EntityWithEverything(
                           {ActionContent()}
                         </span>
                       </div>
-                      {/*<ImportantBadge
-                        active={
-                          notification.viewedAt === null &&
-                          notification.isImportantV0
-                        }
-                      />*/}
                       <MessageContent />
                     </div>
                     <div class="shrink-0 font-mono text-xs uppercase text-ink-extra-muted ml-2">
@@ -655,6 +645,7 @@ export function EntityWithEverything(
               <div class="relative h-5">
                 <ThreadBorder />
                 <button
+                  type="button"
                   class="block w-fit px-2 py-0.5 text-[10px] border border-edge uppercase font-mono hover:font-medium"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -671,12 +662,6 @@ export function EntityWithEverything(
                 </button>
               </div>
             </Show>
-            {/* <div class="relative h-4">
-            <ThreadBorder />
-            <button class="block p-1 py-0 text-[10px] h-4 border border-edge uppercase font-mono">
-              + 6 more
-            </button>
-          </div> */}
           </div>
         </Show>
       </UnifiedListItem.Content>
