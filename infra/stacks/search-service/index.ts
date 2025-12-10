@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { config, getMacroApiToken, stack } from '@shared';
+import { COMMS_SERVICE_URL, config, DOCUMENT_STORAGE_SERVICE_URL, EMAIL_SERVICE_URL, getMacroApiToken, getMacroUrls, stack } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { SearchService } from './service';
 
