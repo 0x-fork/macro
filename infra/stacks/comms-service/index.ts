@@ -2,8 +2,11 @@ import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import {
   config,
+  AUTHENTICATION_SERVICE_URL,
+  DOCUMENT_STORAGE_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
+  getMacroUrls,
   getSearchEventQueue,
   stack,
 } from '@shared';
@@ -180,20 +183,12 @@ const commsService = new CommsService(`comms-service-${stack}`, {
       value: pulumi.interpolate`${notificationQueueName}`,
     },
     {
-      name: 'DOCUMENT_STORAGE_SERVICE_URL',
-      value: `https://cloud-storage${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
-    },
-    {
       name: 'CONTACTS_QUEUE',
       value: pulumi.interpolate`${contactsQueueName}`,
     },
     {
       name: 'AUTHENTICATION_SERVICE_SECRET_KEY',
       value: pulumi.interpolate`${AUTHENTICATION_SERVICE_SECRET_KEY}`,
-    },
-    {
-      name: 'AUTHENTICATION_SERVICE_URL',
-      value: `https://auth-service${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
     },
     {
       name: 'DOCUMENT_PERMISSION_JWT_SECRET_KEY',
@@ -215,6 +210,7 @@ const commsService = new CommsService(`comms-service-${stack}`, {
       name: 'MACRO_DB_URL',
       value: pulumi.interpolate`${MACRO_DB_URL_SECRET_NAME}`,
     },
+    ...getMacroUrls(AUTHENTICATION_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL)
   ],
   isPrivate: false,
   tags,
