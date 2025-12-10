@@ -14,6 +14,7 @@ WORKDIR /app
 
 FROM chef AS builder
 ARG SERVICE_NAME
+ARG CARGO_BUILD_FLAGS=""
 
 # COPY the pre-built dependencies from cache image
 COPY --from=cache /app/target target
@@ -22,7 +23,7 @@ COPY --from=cache /usr/local/cargo /usr/local/cargo
 COPY . .
 
 # Build the service
-RUN cargo build --release --bin ${SERVICE_NAME} && \
+RUN cargo build --release --bin ${SERVICE_NAME} ${CARGO_BUILD_FLAGS} && \
   cargo strip && \
   mv /app/target/release/${SERVICE_NAME} /app/svc
 

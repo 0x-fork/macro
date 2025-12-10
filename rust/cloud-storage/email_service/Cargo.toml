@@ -10,6 +10,11 @@ name = "email_service"
 path = "src/main.rs"
 
 [[bin]]
+name = "email_worker"
+path = "src/main.rs"
+required-features = ["worker"]
+
+[[bin]]
 name = "backfill_contacts"
 path = "src/bin/backfill_contacts/backfill_contacts.rs"
 
@@ -22,19 +27,30 @@ name = "backfill_search"
 path = "src/bin/backfill_search/backfill_search.rs"
 
 [features]
+# Individual features
+api = []
 attachment_upload = []
 connection_gateway = []
 contacts_sync = []
-default = [
+gmail_webhook_auth = []
+local_queue = []
+pubsub_workers = []
+sfs_map = []
+
+# Base features shared by both service and worker
+base = [
   "attachment_upload",
   "connection_gateway",
   "contacts_sync",
   "gmail_webhook_auth",
   "sfs_map",
 ]
-gmail_webhook_auth = []
-local_queue = []
-sfs_map = []
+
+# Service-specific (default)
+default = ["api", "base"]
+
+# Worker-specific
+worker = ["pubsub_workers", "base"]
 
 [dependencies]
 anyhow = { workspace = true }

@@ -1,15 +1,23 @@
 use crate::api::context::ApiContext;
 use crate::config::CloudfrontSignerPrivateKey;
+use crate::util::redis::RedisClient;
 use anyhow::Context;
+use authentication_service_client::AuthServiceClient;
+use aws_config::SdkConfig;
 use config::{Config, Environment};
+use connection_gateway_client::ConnectionGatewayClient;
 use document_storage_service_client::DocumentStorageServiceClient;
 use email::{domain::service::EmailServiceImpl, inbound::EmailPreviewState, outbound::EmailPgRepo};
 use frecency::{domain::services::FrecencyQueryServiceImpl, outbound::postgres::FrecencyPgStorage};
+use gmail_client::GmailClient;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_entrypoint::MacroEntrypoint;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
-use secretsmanager_client::{LocalOrRemoteSecret, SecretManager};
+use macro_notify::MacroNotifyClient;
+use s3_client::S3;
+use secretsmanager_client::{LocalOrRemoteSecret, SecretManager, SecretsManagerClient};
 use sqlx::postgres::PgPoolOptions;
+use sqs_client::SQS;
 use static_file_service_client::StaticFileServiceClient;
 use std::sync::Arc;
 use system_properties::{PgSystemPropertiesRepository, SystemPropertiesServiceImpl};
@@ -55,34 +63,6 @@ async fn main() -> anyhow::Result<()> {
             .to_string(),
     };
 
-    // limiting to max of 400 connections (25% of macrodb total) in prod. (10 service + 30 backfill) * 10 pod max
-    let (min_connections, max_connections): (u32, u32) = match config.environment {
-        Environment::Production => (3, 30),
-        Environment::Develop => (1, 10),
-        Environment::Local => (1, 10),
-    };
-
-    let (min_connections_backfill, max_connections_backfill): (u32, u32) = match config.environment
-    {
-        Environment::Production => (3, 30),
-        Environment::Develop => (1, 30),
-        Environment::Local => (1, 50),
-    };
-
-    let db = PgPoolOptions::new()
-        .min_connections(min_connections)
-        .max_connections(max_connections)
-        .connect(&config.macro_db_url)
-        .await
-        .context("could not connect to db")?;
-
-    let db_backfill = PgPoolOptions::new()
-        .min_connections(min_connections_backfill)
-        .max_connections(max_connections_backfill)
-        .connect(&config.macro_db_url)
-        .await
-        .context("could not connect to backfill db")?;
-
     let gmail_queue_aws_config = if cfg!(feature = "local_queue") {
         aws_config::defaults(aws_config::BehaviorVersion::latest())
             .region("us-east-1")
@@ -111,64 +91,6 @@ async fn main() -> anyhow::Result<()> {
         "email_service".to_string(),
     )
     .await;
-
-    let refresh_worker = sqs_worker::SQSWorker::new(
-        aws_sdk_sqs::Client::new(&gmail_queue_aws_config),
-        config.email_refresh_queue.clone(),
-        config.queue_max_messages,
-        config.queue_wait_time_seconds,
-    );
-
-    let scheduled_worker = sqs_worker::SQSWorker::new(
-        aws_sdk_sqs::Client::new(&gmail_queue_aws_config),
-        config.email_scheduled_queue.clone(),
-        config.queue_max_messages,
-        config.queue_wait_time_seconds,
-    );
-
-    let sfs_uploader_workers = (0..config.sfs_uploader_workers)
-        .map(|_| {
-            sqs_worker::SQSWorker::new(
-                aws_sdk_sqs::Client::new(&gmail_queue_aws_config),
-                config.sfs_uploader_queue.clone(),
-                config.queue_max_messages,
-                config.queue_wait_time_seconds,
-            )
-        })
-        .collect::<Vec<_>>();
-
-    let backfill_workers = (0..config.backfill_queue_workers)
-        .map(|_| {
-            sqs_worker::SQSWorker::new(
-                aws_sdk_sqs::Client::new(&gmail_queue_aws_config),
-                config.backfill_queue.clone(),
-                config.backfill_queue_max_messages,
-                config.queue_wait_time_seconds,
-            )
-        })
-        .collect::<Vec<_>>();
-
-    let webhook_workers = (0..config.webhook_queue_workers)
-        .map(|_| {
-            sqs_worker::SQSWorker::new(
-                aws_sdk_sqs::Client::new(&gmail_queue_aws_config),
-                config.gmail_webhook_queue.clone(),
-                config.webhook_queue_max_messages,
-                config.queue_wait_time_seconds,
-            )
-        })
-        .collect::<Vec<_>>();
-
-    let webhook_retry_workers = (0..config.webhook_retry_queue_workers)
-        .map(|_| {
-            sqs_worker::SQSWorker::new(
-                aws_sdk_sqs::Client::new(&gmail_queue_aws_config),
-                config.gmail_webhook_retry_queue.clone(),
-                config.webhook_retry_queue_max_messages,
-                config.queue_wait_time_seconds,
-            )
-        })
-        .collect::<Vec<_>>();
 
     let auth_service_client = authentication_service_client::AuthServiceClient::new(
         auth_service_secret_key,
@@ -212,6 +134,192 @@ async fn main() -> anyhow::Result<()> {
         config.connection_gateway_url.clone(),
     );
 
+    if cfg!(feature = "pubsub_workers") {
+        start_pubsub_workers(
+            &config,
+            &gmail_queue_aws_config,
+            &sqs_client,
+            macro_notify_client,
+            &auth_service_client,
+            &gmail_client,
+            &redis_client,
+            &sfs_client,
+            &dss_client,
+            connection_gateway_client,
+        )
+        .await?;
+    }
+
+    if cfg!(feature = "api") {
+        start_api(
+            s3_client,
+            secretsmanager_client,
+            config,
+            sqs_client,
+            auth_service_client,
+            gmail_client,
+            redis_client,
+            internal_auth_key,
+            sfs_client,
+            dss_client,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "pointless to make struct for this"
+)]
+#[cfg(feature = "api")]
+async fn start_api(
+    s3_client: S3,
+    secretsmanager_client: SecretsManagerClient,
+    config: Config,
+    sqs_client: SQS,
+    auth_service_client: AuthServiceClient,
+    gmail_client: GmailClient,
+    redis_client: RedisClient,
+    internal_auth_key: InternalApiSecretKey,
+    sfs_client: StaticFileServiceClient,
+    dss_client: DocumentStorageServiceClient,
+) -> anyhow::Result<()> {
+    tracing::info!("Starting API server");
+    let jwt_args =
+        JwtValidationArgs::new_with_secret_manager(config.environment, &secretsmanager_client)
+            .await?;
+    // limiting to max of 400 connections (25% of macrodb total) in prod. (10 service + 30 backfill) * 10 pod max
+    let (min_connections, max_connections): (u32, u32) = match config.environment {
+        Environment::Production => (3, 30),
+        Environment::Develop => (1, 10),
+        Environment::Local => (1, 10),
+    };
+
+    let db = PgPoolOptions::new()
+        .min_connections(min_connections)
+        .max_connections(max_connections)
+        .connect(&config.macro_db_url)
+        .await
+        .context("could not connect to db")?;
+
+    let system_properties_service = Arc::new(SystemPropertiesServiceImpl::new(
+        PgSystemPropertiesRepository::new(db.clone()),
+    ));
+
+    api::setup_and_serve(ApiContext {
+        db: db.clone(),
+        config: Arc::new(config),
+        auth_service_client: Arc::new(auth_service_client),
+        redis_client: Arc::new(redis_client),
+        sqs_client: Arc::new(sqs_client),
+        sfs_client: Arc::new(sfs_client),
+        gmail_client: Arc::new(gmail_client),
+        s3_client: Arc::new(s3_client),
+        dss_client: Arc::new(dss_client),
+        system_properties_service,
+        jwt_args,
+        internal_auth_key: LocalOrRemoteSecret::Local(internal_auth_key),
+        email_service: EmailPreviewState::new(EmailServiceImpl::new(
+            EmailPgRepo::new(db.clone()),
+            FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(db)),
+        )),
+    })
+    .await?;
+
+    Ok(())
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "pointless to make struct for this"
+)]
+#[cfg(feature = "pubsub_workers")]
+async fn start_pubsub_workers(
+    config: &Config,
+    gmail_queue_aws_config: &SdkConfig,
+    sqs_client: &SQS,
+    macro_notify_client: MacroNotifyClient,
+    auth_service_client: &AuthServiceClient,
+    gmail_client: &GmailClient,
+    redis_client: &RedisClient,
+    sfs_client: &StaticFileServiceClient,
+    dss_client: &DocumentStorageServiceClient,
+    connection_gateway_client: ConnectionGatewayClient,
+) -> anyhow::Result<()> {
+    tracing::info!("Starting pubsub workers");
+    let (min_connections_backfill, max_connections_backfill): (u32, u32) = match config.environment
+    {
+        Environment::Production => (3, 30),
+        Environment::Develop => (1, 30),
+        Environment::Local => (1, 50),
+    };
+
+    let db = PgPoolOptions::new()
+        .min_connections(min_connections_backfill)
+        .max_connections(max_connections_backfill)
+        .connect(&config.macro_db_url)
+        .await
+        .context("could not connect to backfill db")?;
+
+    let refresh_worker = sqs_worker::SQSWorker::new(
+        aws_sdk_sqs::Client::new(gmail_queue_aws_config),
+        config.email_refresh_queue.clone(),
+        config.queue_max_messages,
+        config.queue_wait_time_seconds,
+    );
+
+    let scheduled_worker = sqs_worker::SQSWorker::new(
+        aws_sdk_sqs::Client::new(gmail_queue_aws_config),
+        config.email_scheduled_queue.clone(),
+        config.queue_max_messages,
+        config.queue_wait_time_seconds,
+    );
+
+    let sfs_uploader_workers = (0..config.sfs_uploader_workers)
+        .map(|_| {
+            sqs_worker::SQSWorker::new(
+                aws_sdk_sqs::Client::new(gmail_queue_aws_config),
+                config.sfs_uploader_queue.clone(),
+                config.queue_max_messages,
+                config.queue_wait_time_seconds,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let backfill_workers = (0..config.backfill_queue_workers)
+        .map(|_| {
+            sqs_worker::SQSWorker::new(
+                aws_sdk_sqs::Client::new(gmail_queue_aws_config),
+                config.backfill_queue.clone(),
+                config.backfill_queue_max_messages,
+                config.queue_wait_time_seconds,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let webhook_workers = (0..config.webhook_queue_workers)
+        .map(|_| {
+            sqs_worker::SQSWorker::new(
+                aws_sdk_sqs::Client::new(gmail_queue_aws_config),
+                config.gmail_webhook_queue.clone(),
+                config.webhook_queue_max_messages,
+                config.queue_wait_time_seconds,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let webhook_retry_workers = (0..config.webhook_retry_queue_workers)
+        .map(|_| {
+            sqs_worker::SQSWorker::new(
+                aws_sdk_sqs::Client::new(gmail_queue_aws_config),
+                config.gmail_webhook_retry_queue.clone(),
+                config.webhook_retry_queue_max_messages,
+                config.queue_wait_time_seconds,
+            )
+        })
+        .collect::<Vec<_>>();
+
     let system_properties_service = Arc::new(SystemPropertiesServiceImpl::new(
         PgSystemPropertiesRepository::new(db.clone()),
     ));
@@ -228,6 +336,7 @@ async fn main() -> anyhow::Result<()> {
         let connection_gateway_client_webhook = connection_gateway_client.clone();
         let dss_client_webhook = dss_client.clone();
         let system_properties_service_webhook = system_properties_service.clone();
+        let notifications_enabled = config.notifications_enabled;
         tokio::spawn(async move {
             pubsub::webhook::worker::run_worker(
                 db_webhook,
@@ -241,16 +350,12 @@ async fn main() -> anyhow::Result<()> {
                 connection_gateway_client_webhook,
                 dss_client_webhook,
                 system_properties_service_webhook,
-                config.notifications_enabled,
+                notifications_enabled,
                 false,
             )
             .await;
         });
     }
-    tracing::info!(
-        num_workers = config.webhook_queue_workers,
-        "webhook workers started"
-    );
 
     // separate queue for retries to avoid backups for large inbox updates that hit gmail api rate limit
     for worker in webhook_retry_workers {
@@ -264,6 +369,7 @@ async fn main() -> anyhow::Result<()> {
         let connection_gateway_client_webhook = connection_gateway_client.clone();
         let dss_client_webhook = dss_client.clone();
         let system_properties_service_webhook = system_properties_service.clone();
+        let notifications_enabled = config.notifications_enabled;
         tokio::spawn(async move {
             pubsub::webhook::worker::run_worker(
                 db_webhook,
@@ -277,20 +383,16 @@ async fn main() -> anyhow::Result<()> {
                 connection_gateway_client_webhook,
                 dss_client_webhook,
                 system_properties_service_webhook,
-                config.notifications_enabled,
+                notifications_enabled,
                 true,
             )
             .await;
         });
     }
-    tracing::info!(
-        num_workers = config.webhook_queue_workers,
-        "webhook workers started"
-    );
 
     // backfill user emails upon signup
     for worker in backfill_workers {
-        let db_backfill = db_backfill.clone();
+        let db = db.clone();
         let sqs_client_backfill = sqs_client.clone();
         let gmail_client_backfill = gmail_client.clone();
         let auth_service_client_backfill = auth_service_client.clone();
@@ -300,9 +402,10 @@ async fn main() -> anyhow::Result<()> {
         let connection_gateway_client_backfill = connection_gateway_client.clone();
         let dss_client_backfill = dss_client.clone();
         let system_properties_service_backfill = system_properties_service.clone();
+        let notifications_enabled = config.notifications_enabled;
         tokio::spawn(async move {
             pubsub::backfill::worker::run_worker(
-                db_backfill,
+                db,
                 worker,
                 sqs_client_backfill,
                 gmail_client_backfill,
@@ -313,15 +416,11 @@ async fn main() -> anyhow::Result<()> {
                 connection_gateway_client_backfill,
                 dss_client_backfill,
                 system_properties_service_backfill,
-                config.notifications_enabled,
+                notifications_enabled,
             )
             .await;
         });
     }
-    tracing::info!(
-        num_workers = config.backfill_queue_workers,
-        "backfill workers started"
-    );
 
     let db_refresh = db.clone();
     let gmail_client_refresh = gmail_client.clone();
@@ -371,34 +470,8 @@ async fn main() -> anyhow::Result<()> {
                 .await;
             });
         }
-        tracing::info!(
-            num_workers = config.sfs_uploader_workers,
-            "sfs uploader workers started"
-        );
+        tracing::info!("Successfully started pubsub workers");
     }
 
-    let jwt_args =
-        JwtValidationArgs::new_with_secret_manager(config.environment, &secretsmanager_client)
-            .await?;
-
-    api::setup_and_serve(ApiContext {
-        db: db.clone(),
-        config: Arc::new(config),
-        auth_service_client: Arc::new(auth_service_client),
-        redis_client: Arc::new(redis_client),
-        sqs_client: Arc::new(sqs_client),
-        sfs_client: Arc::new(sfs_client),
-        gmail_client: Arc::new(gmail_client),
-        s3_client: Arc::new(s3_client),
-        dss_client: Arc::new(dss_client),
-        system_properties_service,
-        jwt_args,
-        internal_auth_key: LocalOrRemoteSecret::Local(internal_auth_key),
-        email_service: EmailPreviewState::new(EmailServiceImpl::new(
-            EmailPgRepo::new(db.clone()),
-            FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(db)),
-        )),
-    })
-    .await?;
     Ok(())
 }

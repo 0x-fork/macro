@@ -15,6 +15,7 @@ import { EmailAttachmentsBucket } from '@stacks/email-service/attachments-bucket
 import { getCloudfrontDistribution } from '@stacks/email-service/s3-cloudfront-distribution';
 
 const BASE_NAME = 'email-service';
+const PUBSUB_WORKER_NAME = 'email-service-pubsub-worker';
 const BASE_PATH = '../../../rust/cloud-storage';
 
 export const SERVICE_DOMAIN_NAME = `email-service${
@@ -48,7 +49,8 @@ export class EmailService extends pulumi.ComponentResource {
   public targetGroup: aws.lb.TargetGroup;
   public lb: aws.lb.LoadBalancer;
   public listener: aws.lb.Listener;
-  public service: awsx.ecs.FargateService;
+  public api_service: awsx.ecs.FargateService;
+  public worker_service: awsx.ecs.FargateService;
   public domain: string;
   public clusterName: pulumi.Output<string> | string;
   public tags: { [key: string]: string };
@@ -147,7 +149,7 @@ export class EmailService extends pulumi.ComponentResource {
     );
 
     // ecr image
-    const image = new EcrImage(
+    const serviceImage = new EcrImage(
       `${BASE_NAME}-ecr-image-${stack}`,
       {
         repositoryId: `${BASE_NAME}-ecr-${stack}`,
@@ -163,7 +165,26 @@ export class EmailService extends pulumi.ComponentResource {
       },
       { parent: this }
     );
-    this.ecr = image.ecr;
+
+    const workerImage = new EcrImage(
+      `${PUBSUB_WORKER_NAME}-ecr-image-${stack}`,
+      {
+        repositoryId: `${BASE_NAME}-ecr-${stack}`,
+        repositoryName: `${BASE_NAME}-${stack}`,
+        imageId: `${BASE_NAME}-image-${stack}`,
+        imagePath: BASE_PATH,
+        dockerfile: 'Dockerfile',
+        platform,
+        tags: this.tags,
+        buildArgs: {
+          SERVICE_NAME: 'email_service',
+          CARGO_BUILD_ARGS: '--no-default-features --features worker',
+        },
+      },
+      { parent: this }
+    );
+
+    this.ecr = serviceImage.ecr;
 
     // sg
     const sg = this.initializeSecurityGroups({
@@ -227,8 +248,8 @@ export class EmailService extends pulumi.ComponentResource {
     this.lb = lb;
     this.listener = listener;
 
-    // service
-    const service = new awsx.ecs.FargateService(
+    // api service
+    const api_service = new awsx.ecs.FargateService(
       `${BASE_NAME}`,
       {
         tags,
@@ -246,10 +267,10 @@ export class EmailService extends pulumi.ComponentResource {
             datadog_agent: datadogAgentContainer,
             service: {
               name: BASE_NAME,
-              image: image.image.imageUri,
+              image: serviceImage.image.imageUri,
               stopTimeout: 10, // 10 seconds to force kill the task
-              cpu: stack === 'prod' ? 2048 : 1024,
-              memory: stack === 'prod' ? 3742 : 1742, // 2048 minimum - 256 for datadog - 50 for log_router
+              cpu: stack === 'prod' ? 1024 : 512,
+              memory: stack === 'prod' ? 1742 : 718, // 2048 (256 for datadog - 50 for log_router)
               environment: [...containerEnvVars],
               logConfiguration: {
                 logDriver: 'awsfirelens',
@@ -283,12 +304,66 @@ export class EmailService extends pulumi.ComponentResource {
             }`,
           },
         },
+        desiredCount: stack === 'prod' ? 3 : 1,
+      },
+      { parent: this }
+    );
+
+    this.api_service = api_service;
+
+    // worker service
+    const worker_service = new awsx.ecs.FargateService(
+      `${PUBSUB_WORKER_NAME}`,
+      {
+        tags,
+        cluster: ecsClusterArn,
+        networkConfiguration: {
+          subnets: vpc.privateSubnetIds,
+          securityGroups: [this.serviceSg.id],
+        },
+        taskDefinitionArgs: {
+          taskRole: {
+            roleArn: this.role.arn,
+          },
+          containers: {
+            log_router: fargateLogRouterSidecarContainer,
+            datadog_agent: datadogAgentContainer,
+            service: {
+              name: `${PUBSUB_WORKER_NAME}`,
+              image: workerImage.image.imageUri,
+              stopTimeout: 10, // 10 seconds to force kill the task
+              cpu: stack === 'prod' ? 2048 : 1024,
+              memory: stack === 'prod' ? 3742 : 1742, // 2048 minimum - 256 for datadog - 50 for log_router
+              environment: [...containerEnvVars],
+              logConfiguration: {
+                logDriver: 'awsfirelens',
+                options: {
+                  Name: 'datadog',
+                  Host: 'http-intake.logs.us5.datadoghq.com',
+                  apikey: DATADOG_API_KEY,
+                  dd_service: `${PUBSUB_WORKER_NAME}-${stack}`,
+                  dd_source: 'fargate',
+                  dd_tags: `project:cloudstorage, env:${stack}`,
+                  provider: 'ecs',
+                },
+              },
+            },
+          },
+          runtimePlatform: {
+            operatingSystemFamily: `${platform.family.toUpperCase()}`,
+            cpuArchitecture: `${
+              platform.architecture === 'amd64'
+                ? 'X86_64'
+                : platform.architecture.toUpperCase()
+            }`,
+          },
+        },
         desiredCount: stack === 'prod' ? 5 : 1,
       },
       { parent: this }
     );
 
-    this.service = service;
+    this.worker_service = worker_service;
 
     this.setupAutoScaling();
 
@@ -316,6 +391,12 @@ export class EmailService extends pulumi.ComponentResource {
 
     this.domain = `https://${SERVICE_DOMAIN_NAME}`;
   }
+
+
+  /*********************
+   * Helper Functions *
+   ********************/
+
 
   initializeSecurityGroups({
     vpcId,
@@ -419,14 +500,46 @@ export class EmailService extends pulumi.ComponentResource {
   }
 
   setupAutoScaling() {
-    if (!this.service) return;
+    if (!this.api_service || !this.worker_service) return;
 
+    // Setup autoscaling for API service
+    this.setupServiceAutoScaling({
+      serviceName: 'api',
+      service: this.api_service,
+      maxCapacity: stack === 'prod' ? 10 : 2,
+      minCapacity: stack === 'prod' ? 3 : 1,
+      includeAlbMetrics: true,
+    });
+
+    // Setup autoscaling for Worker service
+    this.setupServiceAutoScaling({
+      serviceName: 'worker',
+      service: this.worker_service,
+      maxCapacity: stack === 'prod' ? 10 : 2,
+      minCapacity: stack === 'prod' ? 5 : 1,
+      includeAlbMetrics: false,
+    });
+  }
+
+  private setupServiceAutoScaling({
+    serviceName,
+    service,
+    maxCapacity,
+    minCapacity,
+    includeAlbMetrics,
+  }: {
+    serviceName: string;
+    service: awsx.ecs.FargateService;
+    maxCapacity: number;
+    minCapacity: number;
+    includeAlbMetrics: boolean;
+  }) {
     const serviceScalableTarget = new aws.appautoscaling.Target(
-      `${BASE_NAME}-service-scalable-target-${stack}`,
+      `${BASE_NAME}-${serviceName}-scalable-target-${stack}`,
       {
-        maxCapacity: stack === 'prod' ? 10 : 2,
-        minCapacity: stack === 'prod' ? 5 : 1,
-        resourceId: pulumi.interpolate`service/${this.clusterName}/${this.service.service.name}`,
+        maxCapacity,
+        minCapacity,
+        resourceId: pulumi.interpolate`service/${this.clusterName}/${service.service.name}`,
         scalableDimension: 'ecs:service:DesiredCount',
         serviceNamespace: 'ecs',
         tags: this.tags,
@@ -434,44 +547,46 @@ export class EmailService extends pulumi.ComponentResource {
       { parent: this }
     );
 
-    const lbPortion: pulumi.Output<string> = this.lb.arn.apply((arn) => {
-      const parts = arn.split(':loadbalancer/');
-      return parts[1];
-    });
+    // ALB request count policy (only for API service)
+    if (includeAlbMetrics) {
+      const lbPortion: pulumi.Output<string> = this.lb.arn.apply((arn) => {
+        const parts = arn.split(':loadbalancer/');
+        return parts[1];
+      });
 
-    const tgPortion: pulumi.Output<string> = this.targetGroup.arn.apply(
-      (arn) => {
-        const parts = arn.split(':');
-        return parts[parts.length - 1];
-      }
-    );
+      const tgPortion: pulumi.Output<string> = this.targetGroup.arn.apply(
+        (arn) => {
+          const parts = arn.split(':');
+          return parts[parts.length - 1];
+        }
+      );
 
-    const resourceLabel = pulumi.interpolate`${lbPortion}/${tgPortion}`;
+      const resourceLabel = pulumi.interpolate`${lbPortion}/${tgPortion}`;
 
-    // Create an Auto Scaling policy for request count.
-    new aws.appautoscaling.Policy(
-      `${BASE_NAME}-scaling-policy-request-count-${stack}`,
-      {
-        policyType: 'TargetTrackingScaling',
-        resourceId: serviceScalableTarget.resourceId,
-        scalableDimension: serviceScalableTarget.scalableDimension,
-        serviceNamespace: serviceScalableTarget.serviceNamespace,
-        targetTrackingScalingPolicyConfiguration: {
-          targetValue: 1000, // TODO: play with this
-          predefinedMetricSpecification: {
-            predefinedMetricType: 'ALBRequestCountPerTarget',
-            resourceLabel,
+      new aws.appautoscaling.Policy(
+        `${BASE_NAME}-${serviceName}-scaling-policy-request-count-${stack}`,
+        {
+          policyType: 'TargetTrackingScaling',
+          resourceId: serviceScalableTarget.resourceId,
+          scalableDimension: serviceScalableTarget.scalableDimension,
+          serviceNamespace: serviceScalableTarget.serviceNamespace,
+          targetTrackingScalingPolicyConfiguration: {
+            targetValue: 1000, // TODO: play with this
+            predefinedMetricSpecification: {
+              predefinedMetricType: 'ALBRequestCountPerTarget',
+              resourceLabel,
+            },
+            scaleInCooldown: 60,
+            scaleOutCooldown: 120,
           },
-          scaleInCooldown: 60,
-          scaleOutCooldown: 120,
         },
-      },
-      { parent: this }
-    );
+        { parent: this }
+      );
+    }
 
-    // Create an Auto Scaling policy for CPU utilization.
+    // CPU utilization policy (for both services)
     new aws.appautoscaling.Policy(
-      `${BASE_NAME}-scaling-policy-cpu-${stack}`,
+      `${BASE_NAME}-${serviceName}-scaling-policy-cpu-${stack}`,
       {
         policyType: 'TargetTrackingScaling',
         resourceId: serviceScalableTarget.resourceId,
@@ -489,8 +604,9 @@ export class EmailService extends pulumi.ComponentResource {
       { parent: this }
     );
 
+    // Memory utilization policy (for both services)
     new aws.appautoscaling.Policy(
-      `${BASE_NAME}-scaling-policy-memory-${stack}`,
+      `${BASE_NAME}-${serviceName}-scaling-policy-memory-${stack}`,
       {
         policyType: 'TargetTrackingScaling',
         resourceId: serviceScalableTarget.resourceId,
@@ -510,10 +626,36 @@ export class EmailService extends pulumi.ComponentResource {
   }
 
   setupServiceAlarms() {
+    if (!this.api_service || !this.worker_service) return;
+
+    // Setup alarms for API service
+    this.setupServiceAlarm({
+      serviceName: BASE_NAME,
+      service: this.api_service,
+      includeAlbAlarms: true,
+    });
+
+    // Setup alarms for Worker service
+    this.setupServiceAlarm({
+      serviceName: PUBSUB_WORKER_NAME,
+      service: this.worker_service,
+      includeAlbAlarms: false,
+    });
+  }
+
+  private setupServiceAlarm({
+    serviceName,
+    service,
+    includeAlbAlarms,
+  }: {
+    serviceName: string;
+    service: awsx.ecs.FargateService;
+    includeAlbAlarms: boolean;
+  }) {
     new aws.cloudwatch.MetricAlarm(
-      `${BASE_NAME}-high-cpu-alarm`,
+      `${serviceName}-high-cpu-alarm`,
       {
-        name: `${BASE_NAME}-high-cpu-alarm-${stack}`,
+        name: `${serviceName}-high-cpu-alarm-${stack}`,
         metricName: 'CPUUtilization',
         namespace: 'AWS/ECS',
         statistic: 'Average',
@@ -523,9 +665,9 @@ export class EmailService extends pulumi.ComponentResource {
         comparisonOperator: 'GreaterThanThreshold',
         dimensions: {
           ClusterName: this.clusterName,
-          ServiceName: this.service.service.name,
+          ServiceName: service.service.name,
         },
-        alarmDescription: `High CPU usage alarm for ${BASE_NAME} service.`,
+        alarmDescription: `High CPU usage alarm for ${serviceName} service.`,
         actionsEnabled: true,
         alarmActions: [CLOUD_TRAIL_SNS_TOPIC_ARN],
         tags: this.tags,
@@ -534,9 +676,9 @@ export class EmailService extends pulumi.ComponentResource {
     );
 
     new aws.cloudwatch.MetricAlarm(
-      `${BASE_NAME}-high-mem-alarm`,
+      `${serviceName}-high-mem-alarm`,
       {
-        name: `${BASE_NAME}-high-mem-alarm-${stack}`,
+        name: `${serviceName}-high-mem-alarm-${stack}`,
         metricName: 'MemoryUtilization',
         namespace: 'AWS/ECS',
         statistic: 'Average',
@@ -546,9 +688,9 @@ export class EmailService extends pulumi.ComponentResource {
         comparisonOperator: 'GreaterThanThreshold',
         dimensions: {
           ClusterName: this.clusterName,
-          ServiceName: this.service.service.name,
+          ServiceName: service.service.name,
         },
-        alarmDescription: `High Memory usage alarm for ${BASE_NAME} service.`,
+        alarmDescription: `High Memory usage alarm for ${serviceName} service.`,
         actionsEnabled: true,
         alarmActions: [CLOUD_TRAIL_SNS_TOPIC_ARN],
         tags: this.tags,
@@ -556,26 +698,29 @@ export class EmailService extends pulumi.ComponentResource {
       { parent: this }
     );
 
-    new aws.cloudwatch.MetricAlarm(
-      `${BASE_NAME}-http-5xx-alarm`,
-      {
-        name: `${BASE_NAME}-http-5xx-${stack}`,
-        metricName: 'HTTPCode_ELB_5XX_Count',
-        namespace: 'AWS/ApplicationELB',
-        statistic: 'Sum',
-        period: 180,
-        evaluationPeriods: 1,
-        threshold: 25,
-        comparisonOperator: 'GreaterThanOrEqualToThreshold',
-        dimensions: {
-          LoadBalancer: this.lb.arn,
+    // ALB 5XX alarm (only for API service)
+    if (includeAlbAlarms) {
+      new aws.cloudwatch.MetricAlarm(
+        `${serviceName}-http-5xx-alarm`,
+        {
+          name: `${serviceName}-http-5xx-${stack}`,
+          metricName: 'HTTPCode_ELB_5XX_Count',
+          namespace: 'AWS/ApplicationELB',
+          statistic: 'Sum',
+          period: 180,
+          evaluationPeriods: 1,
+          threshold: 25,
+          comparisonOperator: 'GreaterThanOrEqualToThreshold',
+          dimensions: {
+            LoadBalancer: this.lb.arn,
+          },
+          alarmDescription: `High HTTP 5XX count alarm for ${serviceName} Load Balancer.`,
+          actionsEnabled: true,
+          alarmActions: [CLOUD_TRAIL_SNS_TOPIC_ARN],
+          tags: this.tags,
         },
-        alarmDescription: `High HTTP 5XX count alarm for ${BASE_NAME} Load Balancer.`,
-        actionsEnabled: true,
-        alarmActions: [CLOUD_TRAIL_SNS_TOPIC_ARN],
-        tags: this.tags,
-      },
-      { parent: this }
-    );
+        { parent: this }
+      );
+    }
   }
 }
