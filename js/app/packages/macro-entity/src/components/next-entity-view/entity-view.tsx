@@ -9,6 +9,7 @@ import {
   type EntityClickHandler,
   type EntityData,
   isSearchEntity,
+  isTaskEntity,
   type ProjectEntity,
   type WithNotification,
   type WithSearch,
@@ -79,7 +80,7 @@ interface EntityWithEverythingProps {
   focused?: boolean;
   timestamp?: number;
   onClick?: EntityClickHandler<SomeEntity>;
-  onClickRowAction?: (entity: SomeEntity) => void;
+  onDonePress?: (entity: SomeEntity) => void;
   onClickNotification?: EntityClickHandler<
     SomeEntity & { notification: Notification }
   >;
@@ -106,8 +107,6 @@ export function EntityWithEverything(
 ) {
   const [showRestOfNotifications, setShowRestOfNotifications] =
     createSignal(false);
-
-  const userEmail = useEmail();
 
   const getIcon = createMemo(() => {
     switch (props.entity.type) {
@@ -155,9 +154,6 @@ export function EntityWithEverything(
     return notifications.filter(({ done }) => !done);
   };
 
-  const searchHighlightName = () =>
-    isSearchEntity(props.entity) && props.entity.search.nameHighlight;
-
   const contentHitData = () => {
     if (!isSearchEntity(props.entity)) return [];
     return props.entity.search.contentHitData ?? [];
@@ -171,164 +167,6 @@ export function EntityWithEverything(
       });
     }
   });
-
-  const EntityTitle = () => {
-    if (props.entity.type === 'email') {
-      const isLikelyEmail = (value?: string) =>
-        typeof value === 'string' && value.includes('@');
-
-      const combinedParticipantFirstNames = createMemo(() => {
-        if (props.entity.type !== 'email') return [];
-        const me = userEmail();
-        if (
-          props.entity.participants?.length === 1 &&
-          props.entity.participants?.[0].email === me
-        ) {
-          return ['me'];
-        }
-        const namesSet = new Set<string>();
-
-        props.entity.participants?.forEach((participant) => {
-          if (!participant.email) return;
-          if (me && participant.email === me) return;
-          const macroDisplayName = useDisplayName(
-            emailToId(participant.email)
-          )[0]?.();
-          const macroFirstName = macroDisplayName?.split(' ')[0];
-          const participantFirstName = participant.name?.split(' ')[0] ?? '';
-          if (macroFirstName && !isLikelyEmail(macroFirstName)) {
-            namesSet.add(macroFirstName);
-          } else if (
-            participantFirstName &&
-            !isLikelyEmail(participantFirstName)
-          ) {
-            namesSet.add(participantFirstName);
-          } else {
-            const emailName = participant.email.split('@')[0];
-            namesSet.add(emailName);
-          }
-        });
-        return Array.from(namesSet);
-      });
-
-      const displayedNames = () => {
-        const names = combinedParticipantFirstNames();
-        if (!names || names.length === 0) return undefined;
-        if (names.length <= 3) return names.join(', ');
-        return `${names[0]} .. ${names[names.length - 2]}, ${names[names.length - 1]}`;
-      };
-
-      return (
-        <div class="flex gap-1 items-center text-sm min-w-0 w-full truncate overflow-hidden">
-          {/* sometimes senderName and senderEmail are the same */}
-          <div class="flex w-[20cqw] gap-2 font-semibold shrink-0">
-            {/* Sender Name */}
-            <div class="truncate">
-              {displayedNames() ??
-                props.entity.senderName ??
-                props.entity.senderEmail?.split('@')[0]}
-            </div>
-            {/* Sender Email Address */}
-            {/* <Show
-              when={
-                props.entity.senderEmail
-              }
-            >
-              <div class="text-accent-ink truncate">{`<${
-                props.entity.senderEmail
-              }>`}</div>
-            </Show> */}
-          </div>
-          {/* Subject */}
-          {/*<ImportantBadge active={props.importantIndicatorActive} />*/}
-          <div class="flex items-center w-full gap-4 flex-1 min-w-0">
-            <div class="font-medium shrink-0 truncate">
-              <Show when={searchHighlightName()} fallback={props.entity.name}>
-                {(name) => (
-                  <StaticMarkdown
-                    markdown={name()}
-                    theme={unifiedListMarkdownTheme}
-                    singleLine={true}
-                  />
-                )}
-              </Show>
-            </div>
-            {/* Body  */}
-            <div class="truncate shrink grow opacity-60">
-              {props.entity.snippet}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    const channelEntity = createMemo(() =>
-      props.entity.type === 'channel' ? props.entity : null
-    );
-
-    const latestMessageContent = createMemo(
-      () => channelEntity()?.latestMessage?.content
-    );
-
-    const userNameFromSender = createMemo(() => {
-      const senderId = channelEntity()?.latestMessage?.senderId;
-      if (!senderId) return;
-      const [userName] = useDisplayName(senderId);
-      return userName();
-    });
-
-    const showLatestMessageInfo = () => {
-      return (
-        !props.showUnrollNotifications &&
-        props.entity.type === 'channel' &&
-        !isSearchEntity(props.entity) &&
-        !!props.entity.latestMessage?.content
-      );
-    };
-
-    return (
-      <div class="flex gap-2 items-center min-w-0 w-fit max-w-full overflow-hidden">
-        <span class="flex gap-1 truncate font-medium text-sm shrink-0 items-center">
-          <span
-            class="font-semibold truncate"
-            classList={{
-              'w-[20cqw]': !props.showUnrollNotifications,
-            }}
-          >
-            <Show when={searchHighlightName()} fallback={props.entity.name}>
-              {(name) => (
-                <StaticMarkdown
-                  markdown={name()}
-                  theme={unifiedListMarkdownTheme}
-                  singleLine={true}
-                />
-              )}
-            </Show>
-          </span>
-
-          <Show when={showLatestMessageInfo()}>
-            <div class="flex items-center gap-1">
-              {/*<ImportantBadge active={props.importantIndicatorActive} />*/}
-              <span class="font-medium shrink-0 truncate">
-                {userNameFromSender()}
-              </span>
-            </div>
-            <Show when={latestMessageContent()}>
-              {(lastMessageContent) => (
-                <div class="truncate shrink grow opacity-60 flex items-center">
-                  <StaticMarkdown
-                    markdown={lastMessageContent().trim()}
-                    theme={unifiedListMarkdownTheme}
-                    singleLine={true}
-                  />
-                </div>
-              )}
-            </Show>
-          </Show>
-        </span>
-      </div>
-    );
-  };
 
   const draggable = createDraggable(props.entity.id, props.entity);
   false && draggable;
@@ -404,7 +242,10 @@ export function EntityWithEverything(
               <DirectMessageIcon entity={props.entity} />
             </Show>
           </div>
-          <EntityTitle />
+          <EntityTitle
+            entity={props.entity}
+            showUnrollNotifications={props.showUnrollNotifications}
+          />
         </UnifiedListItem.MainContent>
         {/* Date and user - top right on mobile, end on desktop  */}
         <UnifiedListItem.RightContent
@@ -442,7 +283,7 @@ export function EntityWithEverything(
                 );
               }}
             </Show>
-            <Show when={props.highlighted && props.onClickRowAction}>
+            <Show when={props.highlighted && props.onDonePress}>
               <div class="absolute top-1 right-1 items-center flex">
                 <Tooltip
                   tooltip={
@@ -457,7 +298,7 @@ export function EntityWithEverything(
                     class="bg-panel flex items-center justify-center size-8 border border-edge-muted hover:bg-accent hover:text-panel"
                     onClick={(e) => {
                       e.stopPropagation();
-                      props.onClickRowAction?.(props.entity, 'done');
+                      props.onDonePress?.(props.entity);
                     }}
                     data-blocks-navigation
                   >
@@ -844,3 +685,168 @@ function ChannelMessageContentHit(props: { data: ChannelContentHitData }) {
     </div>
   );
 }
+
+const EntityTitle = (props: {
+  entity: EntityData;
+  showUnrollNotifications?: boolean;
+}) => {
+  const userEmail = useEmail();
+  const searchHighlightName = () =>
+    isSearchEntity(props.entity) && props.entity.search.nameHighlight;
+
+  if (props.entity.type === 'email') {
+    const isLikelyEmail = (value?: string) =>
+      typeof value === 'string' && value.includes('@');
+
+    const combinedParticipantFirstNames = createMemo(() => {
+      if (props.entity.type !== 'email') return [];
+      const me = userEmail();
+      if (
+        props.entity.participants?.length === 1 &&
+        props.entity.participants?.[0].email === me
+      ) {
+        return ['me'];
+      }
+      const namesSet = new Set<string>();
+
+      props.entity.participants?.forEach((participant) => {
+        if (!participant.email) return;
+        if (me && participant.email === me) return;
+        const macroDisplayName = useDisplayName(
+          emailToId(participant.email)
+        )[0]?.();
+        const macroFirstName = macroDisplayName?.split(' ')[0];
+        const participantFirstName = participant.name?.split(' ')[0] ?? '';
+        if (macroFirstName && !isLikelyEmail(macroFirstName)) {
+          namesSet.add(macroFirstName);
+        } else if (
+          participantFirstName &&
+          !isLikelyEmail(participantFirstName)
+        ) {
+          namesSet.add(participantFirstName);
+        } else {
+          const emailName = participant.email.split('@')[0];
+          namesSet.add(emailName);
+        }
+      });
+      return Array.from(namesSet);
+    });
+
+    const displayedNames = () => {
+      const names = combinedParticipantFirstNames();
+      if (!names || names.length === 0) return undefined;
+      if (names.length <= 3) return names.join(', ');
+      return `${names[0]} .. ${names[names.length - 2]}, ${names[names.length - 1]}`;
+    };
+
+    return (
+      <div class="flex gap-1 items-center text-sm min-w-0 w-full truncate overflow-hidden">
+        {/* sometimes senderName and senderEmail are the same */}
+        <div class="flex w-[20cqw] gap-2 font-semibold shrink-0">
+          {/* Sender Name */}
+          <div class="truncate">
+            {displayedNames() ??
+              props.entity.senderName ??
+              props.entity.senderEmail?.split('@')[0]}
+          </div>
+          {/* Sender Email Address */}
+          {/* <Show
+              when={
+                props.entity.senderEmail
+              }
+            >
+              <div class="text-accent-ink truncate">{`<${
+                props.entity.senderEmail
+              }>`}</div>
+            </Show> */}
+        </div>
+        {/* Subject */}
+        {/*<ImportantBadge active={props.importantIndicatorActive} />*/}
+        <div class="flex items-center w-full gap-4 flex-1 min-w-0">
+          <div class="font-medium shrink-0 truncate">
+            <Show when={searchHighlightName()} fallback={props.entity.name}>
+              {(name) => (
+                <StaticMarkdown
+                  markdown={name()}
+                  theme={unifiedListMarkdownTheme}
+                  singleLine={true}
+                />
+              )}
+            </Show>
+          </div>
+          {/* Body  */}
+          <div class="truncate shrink grow opacity-60">
+            {props.entity.snippet}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const channelEntity = createMemo(() =>
+    props.entity.type === 'channel' ? props.entity : null
+  );
+
+  const latestMessageContent = createMemo(
+    () => channelEntity()?.latestMessage?.content
+  );
+
+  const userNameFromSender = createMemo(() => {
+    const senderId = channelEntity()?.latestMessage?.senderId;
+    if (!senderId) return;
+    const [userName] = useDisplayName(senderId);
+    return userName();
+  });
+
+  const showLatestMessageInfo = () => {
+    return (
+      !props.showUnrollNotifications &&
+      props.entity.type === 'channel' &&
+      !isSearchEntity(props.entity) &&
+      !!props.entity.latestMessage?.content
+    );
+  };
+
+  return (
+    <div class="flex gap-2 items-center min-w-0 w-fit max-w-full overflow-hidden">
+      <span class="flex gap-1 truncate font-medium text-sm shrink-0 items-center">
+        <span
+          class="font-semibold truncate"
+          classList={{
+            'w-[20cqw]': !props.showUnrollNotifications,
+          }}
+        >
+          <Show when={searchHighlightName()} fallback={props.entity.name}>
+            {(name) => (
+              <StaticMarkdown
+                markdown={name()}
+                theme={unifiedListMarkdownTheme}
+                singleLine={true}
+              />
+            )}
+          </Show>
+        </span>
+
+        <Show when={showLatestMessageInfo()}>
+          <div class="flex items-center gap-1">
+            {/*<ImportantBadge active={props.importantIndicatorActive} />*/}
+            <span class="font-medium shrink-0 truncate">
+              {userNameFromSender()}
+            </span>
+          </div>
+          <Show when={latestMessageContent()}>
+            {(lastMessageContent) => (
+              <div class="truncate shrink grow opacity-60 flex items-center">
+                <StaticMarkdown
+                  markdown={lastMessageContent().trim()}
+                  theme={unifiedListMarkdownTheme}
+                  singleLine={true}
+                />
+              </div>
+            )}
+          </Show>
+        </Show>
+      </span>
+    </div>
+  );
+};
