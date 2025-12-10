@@ -15,14 +15,32 @@ pub const EMAIL_THREAD_MESSAGE_LIMIT: i64 = 20;
 pub async fn fetchium(
     scribe: Arc<DcsScribe>,
     attachments: Vec<ChatAttachmentWithName>,
+    jwt: &str,
 ) -> Result<Vec<Attachment>, anyhow::Error> {
     // --- closure to fetch single attachment ---
     #[tracing::instrument(err, skip(scribe))]
     async fn fetchington(
         attachment: ChatAttachmentWithName,
         scribe: Arc<DcsScribe>,
+        jwt: &str,
     ) -> Result<Attachment, anyhow::Error> {
         match attachment.attachment_type {
+            AttachmentType::Project => {
+                // fetch id's of stuff in folder
+                let project_items = scribe
+                    .document
+                    .fetch_project(attachment.attachment_id.clone(), jwt.to_owned())
+                    .content()
+                    .await
+                    .context("failed to fetch project")?
+                    .to_string();
+                Ok(Attachment::Text(PromptAttachment {
+                    id: attachment.attachment_id.clone(),
+                    file_type: "Project".into(),
+                    name: attachment.name().unwrap_or_default().into(),
+                    content: project_items,
+                }))
+            }
             AttachmentType::Image => {
                 let base64_image = scribe
                     .static_file
@@ -119,7 +137,8 @@ pub async fn fetchium(
 
     let handles = attachments.into_iter().map(|attachment| {
         let scribe = scribe.clone();
-        tokio::spawn(async move { fetchington(attachment, scribe).await })
+        let jwt_tua = jwt.to_owned();
+        tokio::spawn(async move { fetchington(attachment, scribe, &jwt_tua).await })
     });
 
     let results = futures::future::try_join_all(handles)
