@@ -691,7 +691,6 @@ const EntityTitle = (props: {
   entity: EntityData;
   showUnrollNotifications?: boolean;
 }) => {
-  const userEmail = useEmail();
   const searchHighlightName = () =>
     isSearchEntity(props.entity) && props.entity.search.nameHighlight;
 
@@ -744,7 +743,6 @@ const EntityTitle = (props: {
 
         <Show when={showLatestMessageInfo()}>
           <div class="flex items-center gap-1">
-            {/*<ImportantBadge active={props.importantIndicatorActive} />*/}
             <span class="font-medium shrink-0 truncate">
               {userNameFromSender()}
             </span>
@@ -776,39 +774,55 @@ const EmailEntityTitle = (props: { entity: EmailEntity }) => {
 
   const combinedParticipantFirstNames = createMemo(() => {
     if (props.entity.type !== 'email') return [];
+
     const me = userEmail();
+
     if (
       props.entity.participants?.length === 1 &&
       props.entity.participants?.[0].email === me
     ) {
       return ['me'];
     }
+
     const namesSet = new Set<string>();
 
-    props.entity.participants?.forEach((participant) => {
-      if (!participant.email) return;
-      if (me && participant.email === me) return;
-      const macroDisplayName = useDisplayName(
-        emailToId(participant.email)
-      )[0]?.();
+    for (const participant of props.entity.participants ?? []) {
+      if (!participant.email) continue;
+
+      if (me && participant.email === me) continue;
+
+      const [_macroDisplayName] = useDisplayName(emailToId(participant.email));
+
+      const macroDisplayName = _macroDisplayName();
+
       const macroFirstName = macroDisplayName?.split(' ')[0];
+
       const participantFirstName = participant.name?.split(' ')[0] ?? '';
+
       if (macroFirstName && !isLikelyEmail(macroFirstName)) {
         namesSet.add(macroFirstName);
-      } else if (participantFirstName && !isLikelyEmail(participantFirstName)) {
-        namesSet.add(participantFirstName);
-      } else {
-        const emailName = participant.email.split('@')[0];
-        namesSet.add(emailName);
+        continue;
       }
-    });
+
+      if (participantFirstName && !isLikelyEmail(participantFirstName)) {
+        namesSet.add(participantFirstName);
+        continue;
+      }
+
+      const emailName = participant.email.split('@')[0];
+      namesSet.add(emailName);
+    }
+
     return Array.from(namesSet);
   });
 
   const displayedNames = () => {
     const names = combinedParticipantFirstNames();
+
     if (!names || names.length === 0) return undefined;
+
     if (names.length <= 3) return names.join(', ');
+
     return `${names[0]} .. ${names[names.length - 2]}, ${names[names.length - 1]}`;
   };
 
@@ -834,7 +848,6 @@ const EmailEntityTitle = (props: { entity: EmailEntity }) => {
             </Show> */}
       </div>
       {/* Subject */}
-      {/*<ImportantBadge active={props.importantIndicatorActive} />*/}
       <div class="flex items-center w-full gap-4 flex-1 min-w-0">
         <div class="font-medium shrink-0 truncate">
           <Show when={searchHighlightName()} fallback={props.entity.name}>
