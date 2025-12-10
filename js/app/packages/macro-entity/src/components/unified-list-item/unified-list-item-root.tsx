@@ -66,7 +66,7 @@ export const UnifiedListItemRoot: FlowComponent<
       }}
     >
       <div
-        class="everything-entity relative group/entity"
+        class="relative"
         classList={{
           'bg-hover/30': self.highlighted && !self.checked,
           'bg-accent/5': self.checked,
