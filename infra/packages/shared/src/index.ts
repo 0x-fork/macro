@@ -42,3 +42,60 @@ export const CLOUDWATCH_KINESIS_STREAM_ROLE_ARN =
 export { getMacroApiToken } from './macro_api_token';
 export { getMacroNotify } from './macro_notify';
 export { getSearchEventQueue } from './search_event_queue';
+
+
+const STACK_DEV = 'dev';
+const STACK_PROD = 'prod';
+
+
+export const SYNC_SERVICE_URL = 'SYNC_SERVICE_HOSTNAME';
+export const COMMS_SERVICE_URL = 'COMMS_SERVICE_HOSTNAME';
+export const EMAIL_SERVICE_URL = 'EMAIL_SERVICE_HOSTNAME';
+export const PROPERTIES_SERVICE_URL = 'PROPERTIES_SERVICE_HOSTNAME';
+export const METERING_SERVICE_URL = 'METERING_SERVICE_HOSTNAME';
+export const STATIC_FILE_SERVICE_URL = 'STATIC_FILE_SERVICE_HOSTNAME';
+export const ORGANIZATION_SERVICE_URL = 'ORGANIZATION_SERVICE_HOSTNAME';
+export const NOTIFICATION_SERVICE_URL = 'NOTIFICATION_SERVICE_HOSTNAME';
+export const AUTH_SERVICE_URL = 'AUTH_SERVICE_HOSTNAME';
+export const DOCUMENT_STORAGE_SERVICE_URL = 'DOCUMENT_STORAGE_SERVICE_HOSTNAME';
+export const CONNECTION_GATEWAY_URL = 'CONNECTION_GATEWAY_HOSTNAME';
+export const DOCUMENT_COGNITION_SERVICE_URL = 'DOCUMENT_COGNITION_SERVICE_HOSTNAME';
+
+/* 
+ * for service named "foo" it can look like
+ * foo.macro.com
+ * foo-service.macro.com
+ * foo-service-prod.macro.com
+ * some-other-thing.macro.com
+ */
+
+export const PROD_HOSTNAMES = {
+  [SYNC_SERVICE_URL]: 'sync-service-prod.macroverse.workers.dev',
+  [COMMS_SERVICE_URL]: 'comms-service.macro.com',
+  [EMAIL_SERVICE_URL]: 'email-service.macro.com',
+  [PROPERTIES_SERVICE_URL]: 'properties-service.macro.com',
+  [METERING_SERVICE_URL]: 'metering.macro.com',
+  [STATIC_FILE_SERVICE_URL]: 'static-file-service.macro.com',
+  [ORGANIZATION_SERVICE_URL]: 'organization-service.macro.com',
+  [NOTIFICATION_SERVICE_URL]: 'notifications.macro.com',
+  [AUTH_SERVICE_URL]: 'auth-service.macro.com',
+  [DOCUMENT_STORAGE_SERVICE_URL]: 'cloud-storage.macro.com',
+  [CONNECTION_GATEWAY_URL]: 'connection-gateway.macro.com',
+  [DOCUMENT_COGNITION_SERVICE_URL]: 'document-cognition.macro.com',
+}
+
+export const DEV_HOSTNAMES = {
+  [SYNC_SERVICE_URL]: 'sync-service-dev3.macroverse.workers.dev',
+  [COMMS_SERVICE_URL]: 'comms-service-dev.macro.com',
+  [EMAIL_SERVICE_URL]: 'email-service-dev.macro.com',
+  [PROPERTIES_SERVICE_URL]: 'properties-service-dev.macro.com',
+  [METERING_SERVICE_URL]: 'metering-dev.macro.com',
+  [STATIC_FILE_SERVICE_URL]: 'static-file-service-dev.macro.com',
+  [ORGANIZATION_SERVICE_URL]: 'organization-service-dev.macro.com',
+  [NOTIFICATION_SERVICE_URL]: 'notifications-dev.macro.com',
+  [AUTH_SERVICE_URL]: 'auth-service-dev.macro.com',
+  [DOCUMENT_STORAGE_SERVICE_URL]: 'cloud-storage-dev.macro.com',
+  [CONNECTION_GATEWAY_URL]: 'connection-gateway-dev.macro.com',
+  [DOCUMENT_COGNITION_SERVICE_URL]: 'document-cognition-dev.macro.com',
+}
+
