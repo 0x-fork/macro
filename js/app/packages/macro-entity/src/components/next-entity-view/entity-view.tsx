@@ -6,6 +6,7 @@ import CheckIcon from '@icon/regular/check.svg';
 import {
   type ChannelContentHitData,
   type ContentHitData,
+  EmailEntity,
   type EntityClickHandler,
   type EntityData,
   isSearchEntity,
@@ -695,92 +696,6 @@ const EntityTitle = (props: {
     isSearchEntity(props.entity) && props.entity.search.nameHighlight;
 
   if (props.entity.type === 'email') {
-    const isLikelyEmail = (value?: string) =>
-      typeof value === 'string' && value.includes('@');
-
-    const combinedParticipantFirstNames = createMemo(() => {
-      if (props.entity.type !== 'email') return [];
-      const me = userEmail();
-      if (
-        props.entity.participants?.length === 1 &&
-        props.entity.participants?.[0].email === me
-      ) {
-        return ['me'];
-      }
-      const namesSet = new Set<string>();
-
-      props.entity.participants?.forEach((participant) => {
-        if (!participant.email) return;
-        if (me && participant.email === me) return;
-        const macroDisplayName = useDisplayName(
-          emailToId(participant.email)
-        )[0]?.();
-        const macroFirstName = macroDisplayName?.split(' ')[0];
-        const participantFirstName = participant.name?.split(' ')[0] ?? '';
-        if (macroFirstName && !isLikelyEmail(macroFirstName)) {
-          namesSet.add(macroFirstName);
-        } else if (
-          participantFirstName &&
-          !isLikelyEmail(participantFirstName)
-        ) {
-          namesSet.add(participantFirstName);
-        } else {
-          const emailName = participant.email.split('@')[0];
-          namesSet.add(emailName);
-        }
-      });
-      return Array.from(namesSet);
-    });
-
-    const displayedNames = () => {
-      const names = combinedParticipantFirstNames();
-      if (!names || names.length === 0) return undefined;
-      if (names.length <= 3) return names.join(', ');
-      return `${names[0]} .. ${names[names.length - 2]}, ${names[names.length - 1]}`;
-    };
-
-    return (
-      <div class="flex gap-1 items-center text-sm min-w-0 w-full truncate overflow-hidden">
-        {/* sometimes senderName and senderEmail are the same */}
-        <div class="flex w-[20cqw] gap-2 font-semibold shrink-0">
-          {/* Sender Name */}
-          <div class="truncate">
-            {displayedNames() ??
-              props.entity.senderName ??
-              props.entity.senderEmail?.split('@')[0]}
-          </div>
-          {/* Sender Email Address */}
-          {/* <Show
-              when={
-                props.entity.senderEmail
-              }
-            >
-              <div class="text-accent-ink truncate">{`<${
-                props.entity.senderEmail
-              }>`}</div>
-            </Show> */}
-        </div>
-        {/* Subject */}
-        {/*<ImportantBadge active={props.importantIndicatorActive} />*/}
-        <div class="flex items-center w-full gap-4 flex-1 min-w-0">
-          <div class="font-medium shrink-0 truncate">
-            <Show when={searchHighlightName()} fallback={props.entity.name}>
-              {(name) => (
-                <StaticMarkdown
-                  markdown={name()}
-                  theme={unifiedListMarkdownTheme}
-                  singleLine={true}
-                />
-              )}
-            </Show>
-          </div>
-          {/* Body  */}
-          <div class="truncate shrink grow opacity-60">
-            {props.entity.snippet}
-          </div>
-        </div>
-      </div>
-    );
   }
 
   const channelEntity = createMemo(() =>
@@ -847,6 +762,96 @@ const EntityTitle = (props: {
           </Show>
         </Show>
       </span>
+    </div>
+  );
+};
+
+const EmailEntityTitle = (props: { entity: EmailEntity }) => {
+  const userEmail = useEmail();
+  const searchHighlightName = () =>
+    isSearchEntity(props.entity) && props.entity.search.nameHighlight;
+
+  const isLikelyEmail = (value?: string) =>
+    typeof value === 'string' && value.includes('@');
+
+  const combinedParticipantFirstNames = createMemo(() => {
+    if (props.entity.type !== 'email') return [];
+    const me = userEmail();
+    if (
+      props.entity.participants?.length === 1 &&
+      props.entity.participants?.[0].email === me
+    ) {
+      return ['me'];
+    }
+    const namesSet = new Set<string>();
+
+    props.entity.participants?.forEach((participant) => {
+      if (!participant.email) return;
+      if (me && participant.email === me) return;
+      const macroDisplayName = useDisplayName(
+        emailToId(participant.email)
+      )[0]?.();
+      const macroFirstName = macroDisplayName?.split(' ')[0];
+      const participantFirstName = participant.name?.split(' ')[0] ?? '';
+      if (macroFirstName && !isLikelyEmail(macroFirstName)) {
+        namesSet.add(macroFirstName);
+      } else if (participantFirstName && !isLikelyEmail(participantFirstName)) {
+        namesSet.add(participantFirstName);
+      } else {
+        const emailName = participant.email.split('@')[0];
+        namesSet.add(emailName);
+      }
+    });
+    return Array.from(namesSet);
+  });
+
+  const displayedNames = () => {
+    const names = combinedParticipantFirstNames();
+    if (!names || names.length === 0) return undefined;
+    if (names.length <= 3) return names.join(', ');
+    return `${names[0]} .. ${names[names.length - 2]}, ${names[names.length - 1]}`;
+  };
+
+  return (
+    <div class="flex gap-1 items-center text-sm min-w-0 w-full truncate overflow-hidden">
+      {/* sometimes senderName and senderEmail are the same */}
+      <div class="flex w-[20cqw] gap-2 font-semibold shrink-0">
+        {/* Sender Name */}
+        <div class="truncate">
+          {displayedNames() ??
+            props.entity.senderName ??
+            props.entity.senderEmail?.split('@')[0]}
+        </div>
+        {/* Sender Email Address */}
+        {/* <Show
+              when={
+                props.entity.senderEmail
+              }
+            >
+              <div class="text-accent-ink truncate">{`<${
+                props.entity.senderEmail
+              }>`}</div>
+            </Show> */}
+      </div>
+      {/* Subject */}
+      {/*<ImportantBadge active={props.importantIndicatorActive} />*/}
+      <div class="flex items-center w-full gap-4 flex-1 min-w-0">
+        <div class="font-medium shrink-0 truncate">
+          <Show when={searchHighlightName()} fallback={props.entity.name}>
+            {(name) => (
+              <StaticMarkdown
+                markdown={name()}
+                theme={unifiedListMarkdownTheme}
+                singleLine={true}
+              />
+            )}
+          </Show>
+        </div>
+        {/* Body  */}
+        <div class="truncate shrink grow opacity-60">
+          {props.entity.snippet}
+        </div>
+      </div>
     </div>
   );
 };
