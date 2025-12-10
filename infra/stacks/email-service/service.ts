@@ -13,6 +13,7 @@ import { EcrImage } from '@service';
 import { BASE_DOMAIN, CLOUD_TRAIL_SNS_TOPIC_ARN, stack } from '@shared';
 import { EmailAttachmentsBucket } from '@stacks/email-service/attachments-bucket';
 import { getCloudfrontDistribution } from '@stacks/email-service/s3-cloudfront-distribution';
+import { createEcrRepository } from '@service/ecr';
 
 const BASE_NAME = 'email-service';
 const PUBSUB_WORKER_NAME = 'email-service-pubsub-worker';
@@ -148,12 +149,26 @@ export class EmailService extends pulumi.ComponentResource {
       { parent: this }
     );
 
-    // ecr image
+    // temporary alias
+    const oldServiceImageUrn = pulumi.interpolate`urn:pulumi:${pulumi.getStack()}::${pulumi.getProject()}::my:components:Service$my:components:EcrImage$awsx:ecr:Repository::${BASE_NAME}-ecr-${stack}`;
+
+    const ecrRepository = createEcrRepository(
+      `${BASE_NAME}-ecr-${stack}`,
+      {
+        repositoryName: `${BASE_NAME}-${stack}`,
+        tags: this.tags,
+        aliases: [
+          { urn: oldServiceImageUrn }
+        ],
+      },
+      this
+    );
+
+    // ecr images
     const serviceImage = new EcrImage(
       `${BASE_NAME}-ecr-image-${stack}`,
       {
-        repositoryId: `${BASE_NAME}-ecr-${stack}`,
-        repositoryName: `${BASE_NAME}-${stack}`,
+        repository: ecrRepository,
         imageId: `${BASE_NAME}-image-${stack}`,
         imagePath: BASE_PATH,
         dockerfile: 'Dockerfile',
@@ -169,9 +184,8 @@ export class EmailService extends pulumi.ComponentResource {
     const workerImage = new EcrImage(
       `${PUBSUB_WORKER_NAME}-ecr-image-${stack}`,
       {
-        repositoryId: `${BASE_NAME}-ecr-${stack}`,
-        repositoryName: `${BASE_NAME}-${stack}`,
-        imageId: `${BASE_NAME}-image-${stack}`,
+        repository: ecrRepository,
+        imageId: `${PUBSUB_WORKER_NAME}-image-${stack}`,
         imagePath: BASE_PATH,
         dockerfile: 'Dockerfile',
         platform,
@@ -392,11 +406,9 @@ export class EmailService extends pulumi.ComponentResource {
     this.domain = `https://${SERVICE_DOMAIN_NAME}`;
   }
 
-
   /*********************
    * Helper Functions *
    ********************/
-
 
   initializeSecurityGroups({
     vpcId,
