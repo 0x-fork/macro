@@ -48,20 +48,33 @@ const STACK_DEV = 'dev';
 const STACK_PROD = 'prod';
 
 
-export const SYNC_SERVICE_URL = 'SYNC_SERVICE_HOSTNAME';
-export const COMMS_SERVICE_URL = 'COMMS_SERVICE_HOSTNAME';
-export const EMAIL_SERVICE_URL = 'EMAIL_SERVICE_HOSTNAME';
-export const PROPERTIES_SERVICE_URL = 'PROPERTIES_SERVICE_HOSTNAME';
-export const METERING_SERVICE_URL = 'METERING_SERVICE_HOSTNAME';
-export const STATIC_FILE_SERVICE_URL = 'STATIC_FILE_SERVICE_HOSTNAME';
-export const ORGANIZATION_SERVICE_URL = 'ORGANIZATION_SERVICE_HOSTNAME';
-export const NOTIFICATION_SERVICE_URL = 'NOTIFICATION_SERVICE_HOSTNAME';
-export const AUTH_SERVICE_URL = 'AUTH_SERVICE_HOSTNAME';
-export const DOCUMENT_STORAGE_SERVICE_URL = 'DOCUMENT_STORAGE_SERVICE_HOSTNAME';
-export const CONNECTION_GATEWAY_URL = 'CONNECTION_GATEWAY_HOSTNAME';
-export const DOCUMENT_COGNITION_SERVICE_URL = 'DOCUMENT_COGNITION_SERVICE_HOSTNAME';
+export const SYNC_SERVICE_URL = 'SYNC_SERVICE_URL';
+export const COMMS_SERVICE_URL = 'COMMS_SERVICE_URL';
+export const EMAIL_SERVICE_URL = 'EMAIL_SERVICE_URL';
+export const PROPERTIES_SERVICE_URL = 'PROPERTIES_SERVICE_URL';
+export const METERING_SERVICE_URL = 'METERING_SERVICE_URL';
+export const STATIC_FILE_SERVICE_URL = 'STATIC_FILE_SERVICE_URL';
+export const ORGANIZATION_SERVICE_URL = 'ORGANIZATION_SERVICE_URL';
+export const NOTIFICATION_SERVICE_URL = 'NOTIFICATION_SERVICE_URL';
+export const AUTHENTICATION_SERVICE_URL = 'AUTHENTICATION_SERVICE_URL';
+export const DOCUMENT_STORAGE_SERVICE_URL = 'DOCUMENT_STORAGE_SERVICE_URL';
+export const CONNECTION_GATEWAY_URL = 'CONNECTION_GATEWAY_URL';
+export const DOCUMENT_COGNITION_SERVICE_URL = 'DOCUMENT_COGNITION_SERVICE_URL';
 
-/* 
+type MacroUrlName = SYNC_SERVICE_URL
+| COMMS_SERVICE_URL
+| EMAIL_SERVICE_URL
+| PROPERTIES_SERVICE_URL
+| METERING_SERVICE_URL
+| STATIC_FILE_SERVICE_URL
+| ORGANIZATION_SERVICE_URL
+| NOTIFICATION_SERVICE_URL
+| AUTHENTICATION_SERVICE_URL
+| DOCUMENT_STORAGE_SERVICE_URL
+| CONNECTION_GATEWAY_URL
+| DOCUMENT_COGNITION_SERVICE_URL;
+
+/*
  * for service named "foo" it can look like
  * foo.macro.com
  * foo-service.macro.com
@@ -69,7 +82,7 @@ export const DOCUMENT_COGNITION_SERVICE_URL = 'DOCUMENT_COGNITION_SERVICE_HOSTNA
  * some-other-thing.macro.com
  */
 
-export const PROD_HOSTNAMES = {
+const PROD_URLS = {
   [SYNC_SERVICE_URL]: 'sync-service-prod.macroverse.workers.dev',
   [COMMS_SERVICE_URL]: 'comms-service.macro.com',
   [EMAIL_SERVICE_URL]: 'email-service.macro.com',
@@ -78,13 +91,13 @@ export const PROD_HOSTNAMES = {
   [STATIC_FILE_SERVICE_URL]: 'static-file-service.macro.com',
   [ORGANIZATION_SERVICE_URL]: 'organization-service.macro.com',
   [NOTIFICATION_SERVICE_URL]: 'notifications.macro.com',
-  [AUTH_SERVICE_URL]: 'auth-service.macro.com',
+  [AUTHENTICATION_SERVICE_URL]: 'auth-service.macro.com',
   [DOCUMENT_STORAGE_SERVICE_URL]: 'cloud-storage.macro.com',
   [CONNECTION_GATEWAY_URL]: 'connection-gateway.macro.com',
   [DOCUMENT_COGNITION_SERVICE_URL]: 'document-cognition.macro.com',
 }
 
-export const DEV_HOSTNAMES = {
+const DEV_URLS = {
   [SYNC_SERVICE_URL]: 'sync-service-dev3.macroverse.workers.dev',
   [COMMS_SERVICE_URL]: 'comms-service-dev.macro.com',
   [EMAIL_SERVICE_URL]: 'email-service-dev.macro.com',
@@ -93,9 +106,20 @@ export const DEV_HOSTNAMES = {
   [STATIC_FILE_SERVICE_URL]: 'static-file-service-dev.macro.com',
   [ORGANIZATION_SERVICE_URL]: 'organization-service-dev.macro.com',
   [NOTIFICATION_SERVICE_URL]: 'notifications-dev.macro.com',
-  [AUTH_SERVICE_URL]: 'auth-service-dev.macro.com',
+  [AUTHENTICATION_SERVICE_URL]: 'auth-service-dev.macro.com',
   [DOCUMENT_STORAGE_SERVICE_URL]: 'cloud-storage-dev.macro.com',
   [CONNECTION_GATEWAY_URL]: 'connection-gateway-dev.macro.com',
   [DOCUMENT_COGNITION_SERVICE_URL]: 'document-cognition-dev.macro.com',
 }
 
+const URLS = stack === STACK_PROD ? PROD_URLS : DEV_URLS;
+
+export function getMacroUrls(names: MacroUrlName[], urls = URLS) {
+  const namesSet = new Set([...names]);
+  return Object
+    .entries(urls)
+    .filter(([k,_]) => namesSet.has(k))
+    .map(([name, value]) => {
+      return {name, value};
+    });
+}
