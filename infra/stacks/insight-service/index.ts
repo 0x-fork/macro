@@ -1,7 +1,7 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import { Queue } from '@resources';
-import { config, getMacroApiToken, stack } from '@shared';
+import { config, filterMacroUrls, getMacroApiToken, stack, DOCUMENT_STORAGE_SERVICE_URL, DOCUMENT_COGNITION_SERVICE_URL, SYNC_SERVICE_URL, EMAIL_SERVICE_URL, LEXICAL_SERVICE_URL } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { InsightService } from './service';
 
@@ -85,12 +85,6 @@ const syncServiceAuthKeyArn: pulumi.Output<string> = aws.secretsmanager
   .getSecretVersionOutput({ secretId: SYNC_SERVICE_AUTH_KEY })
   .apply((secret) => secret.arn);
 
-const DOCUMENT_STORAGE_SERVICE_URL = `https://cloud-storage${stack === 'prod' ? '' : `-${stack}`}.macro.com`;
-const DOCUMENT_COGNITION_SERVICE_URL = `https://document-cognition${stack === 'prod' ? '' : `-${stack}`}.macro.com`;
-
-// NOTE: from email-service-stack, hardcoded to avoid circular dependency
-const emailServiceUrl = `https://email-service${stack === 'prod' ? '' : `-${stack}`}.macro.com`;
-
 const MACRO_API_TOKENS = getMacroApiToken();
 
 const vars: InsightServiceEnvVars = {
@@ -103,14 +97,10 @@ const vars: InsightServiceEnvVars = {
   AUDIENCE: pulumi.interpolate`${FUSIONAUTH_CLIENT_ID}`,
   ISSUER: pulumi.interpolate`${FUSIONAUTH_ISSUER}`,
   SERVICE_INTERNAL_AUTH_KEY: pulumi.interpolate`${SERVICE_INTERNAL_AUTH_KEY}`,
-  DOCUMENT_STORAGE_SERVICE_URL,
-  DOCUMENT_COGNITION_SERVICE_URL,
   SYNC_SERVICE_AUTH_KEY: pulumi.interpolate`${SYNC_SERVICE_AUTH_KEY}`,
-  SYNC_SERVICE_URL: `https://sync-service${stack === 'prod' ? '' : `-${stack === 'dev' ? 'dev3' : stack}`}.macroverse.workers.dev`,
-  EMAIL_SERVICE_URL: pulumi.interpolate`${emailServiceUrl}`,
   MACRO_API_TOKEN_ISSUER: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenIssuer}`,
   MACRO_API_TOKEN_PUBLIC_KEY: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKey}`,
-  LEXICAL_SERVICE_URL: `https://lexical-service-${stack}.macroverse.workers.dev`,
+  ...filterMacroUrls([DOCUMENT_STORAGE_SERVICE_URL, DOCUMENT_COGNITION_SERVICE_URL, SYNC_SERVICE_URL, EMAIL_SERVICE_URL, LEXICAL_SERVICE_URL])
 };
 
 const insightGenerationServiceEnvVars = Object.entries(vars).map(([k, v]) => ({
