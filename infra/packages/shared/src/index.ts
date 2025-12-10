@@ -61,6 +61,7 @@ export const DOCUMENT_STORAGE_SERVICE_URL = 'DOCUMENT_STORAGE_SERVICE_URL';
 export const CONNECTION_GATEWAY_URL = 'CONNECTION_GATEWAY_URL';
 export const DOCUMENT_COGNITION_SERVICE_URL = 'DOCUMENT_COGNITION_SERVICE_URL';
 export const LEXICAL_SERVICE_URL = 'LEXICAL_SERVICE_URL';
+export const SEARCH_SERVICE_URL = 'SEARCH_SERVICE_URL';
 
 type MacroUrlName = SYNC_SERVICE_URL
 | COMMS_SERVICE_URL
@@ -74,7 +75,8 @@ type MacroUrlName = SYNC_SERVICE_URL
 | DOCUMENT_STORAGE_SERVICE_URL
 | CONNECTION_GATEWAY_URL
 | DOCUMENT_COGNITION_SERVICE_URL
-| LEXICAL_SERVICE_URL;
+| LEXICAL_SERVICE_URL
+| SEARCH_SERVICE_URL;
 
 /*
  * for service named "foo" it can look like
@@ -98,6 +100,7 @@ const PROD_URLS = {
   [CONNECTION_GATEWAY_URL]: 'https://connection-gateway.macro.com',
   [DOCUMENT_COGNITION_SERVICE_URL]: 'https://document-cognition.macro.com',
   [LEXICAL_SERVICE_URL]: 'https://lexical-service-prod.macroverse.workers.dev',
+  [SEARCH_SERVICE_URL]: 'https://search-service.macro.com',
 }
 
 const DEV_URLS = {
@@ -114,6 +117,7 @@ const DEV_URLS = {
   [CONNECTION_GATEWAY_URL]: 'https://connection-gateway-dev.macro.com',
   [DOCUMENT_COGNITION_SERVICE_URL]: 'https://document-cognition-dev.macro.com',
   [LEXICAL_SERVICE_URL]: 'https://lexical-service-dev.macroverse.workers.dev',
+  [SEARCH_SERVICE_URL]: 'https://search-service-dev.macro.com',
 }
 
 const URLS = stack === STACK_PROD ? PROD_URLS : DEV_URLS;
