@@ -6,7 +6,7 @@ import CheckIcon from '@icon/regular/check.svg';
 import {
   type ChannelContentHitData,
   type ContentHitData,
-  EmailEntity,
+  type EmailEntity,
   type EntityClickHandler,
   type EntityData,
   isSearchEntity,
@@ -31,10 +31,12 @@ import {
   createMemo,
   createSignal,
   For,
+  Match,
   onCleanup,
   onMount,
   Show,
   Suspense,
+  Switch,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { createProfilePictureQuery } from '../../queries/auth';
@@ -691,11 +693,27 @@ const EntityTitle = (props: {
   entity: EntityData;
   showUnrollNotifications?: boolean;
 }) => {
+  return (
+    <Switch>
+      <Match when={props.entity.type === 'email' && props.entity}>
+        {(entity) => <EmailEntityTitle entity={entity()} />}
+      </Match>
+      <Match when={true}>
+        <GeneralEntityTitle
+          entity={props.entity}
+          showUnrollNotifications={props.showUnrollNotifications}
+        />
+      </Match>
+    </Switch>
+  );
+};
+
+const GeneralEntityTitle = (props: {
+  entity: EntityData;
+  showUnrollNotifications?: boolean;
+}) => {
   const searchHighlightName = () =>
     isSearchEntity(props.entity) && props.entity.search.nameHighlight;
-
-  if (props.entity.type === 'email') {
-  }
 
   const channelEntity = createMemo(() =>
     props.entity.type === 'channel' ? props.entity : null
