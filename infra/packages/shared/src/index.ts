@@ -83,37 +83,38 @@ type MacroUrlName = SYNC_SERVICE_URL
  */
 
 const PROD_URLS = {
-  [SYNC_SERVICE_URL]: 'sync-service-prod.macroverse.workers.dev',
-  [COMMS_SERVICE_URL]: 'comms-service.macro.com',
-  [EMAIL_SERVICE_URL]: 'email-service.macro.com',
-  [PROPERTIES_SERVICE_URL]: 'properties-service.macro.com',
-  [METERING_SERVICE_URL]: 'metering.macro.com',
-  [STATIC_FILE_SERVICE_URL]: 'static-file-service.macro.com',
-  [ORGANIZATION_SERVICE_URL]: 'organization-service.macro.com',
-  [NOTIFICATION_SERVICE_URL]: 'notifications.macro.com',
-  [AUTHENTICATION_SERVICE_URL]: 'auth-service.macro.com',
-  [DOCUMENT_STORAGE_SERVICE_URL]: 'cloud-storage.macro.com',
-  [CONNECTION_GATEWAY_URL]: 'connection-gateway.macro.com',
-  [DOCUMENT_COGNITION_SERVICE_URL]: 'document-cognition.macro.com',
+  [SYNC_SERVICE_URL]: 'https://sync-service-prod.macroverse.workers.dev',
+  [COMMS_SERVICE_URL]: 'https://comms-service.macro.com',
+  [EMAIL_SERVICE_URL]: 'https://email-service.macro.com',
+  [PROPERTIES_SERVICE_URL]: 'https://properties-service.macro.com',
+  [METERING_SERVICE_URL]: 'https://metering.macro.com',
+  [STATIC_FILE_SERVICE_URL]: 'https://static-file-service.macro.com',
+  [ORGANIZATION_SERVICE_URL]: 'https://organization-service.macro.com',
+  [NOTIFICATION_SERVICE_URL]: 'https://notifications.macro.com',
+  [AUTHENTICATION_SERVICE_URL]: 'https://auth-service.macro.com',
+  [DOCUMENT_STORAGE_SERVICE_URL]: 'https://cloud-storage.macro.com',
+  [CONNECTION_GATEWAY_URL]: 'https://connection-gateway.macro.com',
+  [DOCUMENT_COGNITION_SERVICE_URL]: 'https://document-cognition.macro.com',
 }
 
 const DEV_URLS = {
-  [SYNC_SERVICE_URL]: 'sync-service-dev3.macroverse.workers.dev',
-  [COMMS_SERVICE_URL]: 'comms-service-dev.macro.com',
-  [EMAIL_SERVICE_URL]: 'email-service-dev.macro.com',
-  [PROPERTIES_SERVICE_URL]: 'properties-service-dev.macro.com',
-  [METERING_SERVICE_URL]: 'metering-dev.macro.com',
-  [STATIC_FILE_SERVICE_URL]: 'static-file-service-dev.macro.com',
-  [ORGANIZATION_SERVICE_URL]: 'organization-service-dev.macro.com',
-  [NOTIFICATION_SERVICE_URL]: 'notifications-dev.macro.com',
-  [AUTHENTICATION_SERVICE_URL]: 'auth-service-dev.macro.com',
-  [DOCUMENT_STORAGE_SERVICE_URL]: 'cloud-storage-dev.macro.com',
-  [CONNECTION_GATEWAY_URL]: 'connection-gateway-dev.macro.com',
-  [DOCUMENT_COGNITION_SERVICE_URL]: 'document-cognition-dev.macro.com',
+  [SYNC_SERVICE_URL]: 'https://sync-service-dev3.macroverse.workers.dev',
+  [COMMS_SERVICE_URL]: 'https://comms-service-dev.macro.com',
+  [EMAIL_SERVICE_URL]: 'https://email-service-dev.macro.com',
+  [PROPERTIES_SERVICE_URL]: 'https://properties-service-dev.macro.com',
+  [METERING_SERVICE_URL]: 'https://metering-dev.macro.com',
+  [STATIC_FILE_SERVICE_URL]: 'https://static-file-service-dev.macro.com',
+  [ORGANIZATION_SERVICE_URL]: 'https://organization-service-dev.macro.com',
+  [NOTIFICATION_SERVICE_URL]: 'https://notifications-dev.macro.com',
+  [AUTHENTICATION_SERVICE_URL]: 'https://auth-service-dev.macro.com',
+  [DOCUMENT_STORAGE_SERVICE_URL]: 'https://cloud-storage-dev.macro.com',
+  [CONNECTION_GATEWAY_URL]: 'https://connection-gateway-dev.macro.com',
+  [DOCUMENT_COGNITION_SERVICE_URL]: 'https://document-cognition-dev.macro.com',
 }
 
 const URLS = stack === STACK_PROD ? PROD_URLS : DEV_URLS;
 
+/// Returns urls with names in `names`, in the form [{ name: 'FOO_URL', value: 'http://foo.macro.com' }, ...]
 export function getMacroUrls(names: MacroUrlName[], urls = URLS) {
   const namesSet = new Set([...names]);
   return Object
