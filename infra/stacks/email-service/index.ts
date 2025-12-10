@@ -3,11 +3,16 @@ import * as pulumi from '@pulumi/pulumi';
 import * as tls from '@pulumi/tls';
 import { Queue, Redis } from '@resources';
 import {
+  AUTHENTICATION_SERVICE_URL,
   config,
+  CONNECTION_GATEWAY_URL,
+  DOCUMENT_STORAGE_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
+  getMacroUrls,
   getSearchEventQueue,
   stack,
+  STATIC_FILE_SERVICE_URL,
 } from '@shared';
 import { EmailRefreshHandler } from '@stacks/email-service/refresh_lambda';
 import { cloudfrontPrivateKeySecret } from '@stacks/email-service/s3-cloudfront-distribution';
@@ -318,24 +323,8 @@ const emailService = new EmailService('email-service', {
       value: pulumi.interpolate`${INTERNAL_AUTH_KEY}`,
     },
     {
-      name: 'AUTHENTICATION_SERVICE_URL',
-      value: pulumi.interpolate`https://auth-service${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
-    },
-    {
       name: 'AUTHENTICATION_SERVICE_SECRET_KEY',
       value: pulumi.interpolate`${AUTHENTICATION_SERVICE_INTERNAL_API_KEY}`,
-    },
-    {
-      name: 'STATIC_FILE_SERVICE_URL',
-      value: `https://static-file-service${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
-    },
-    {
-      name: 'DOCUMENT_STORAGE_SERVICE_URL',
-      value: `https://cloud-storage${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
-    },
-    {
-      name: 'CONNECTION_GATEWAY_URL',
-      value: `https://connection-gateway${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
     },
     {
       name: 'NOTIFICATIONS_ENABLED',
@@ -401,6 +390,7 @@ const emailService = new EmailService('email-service', {
       name: 'CONTACTS_QUEUE',
       value: pulumi.interpolate`${contactsQueueName}`,
     },
+    ...getMacroUrls([AUTHENTICATION_SERVICE_URL, STATIC_FILE_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL, CONNECTION_GATEWAY_URL])
   ],
 });
 

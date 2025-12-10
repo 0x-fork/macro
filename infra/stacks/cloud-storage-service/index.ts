@@ -2,11 +2,16 @@ import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import { createBucket } from '@resources';
 import {
+  COMMS_SERVICE_URL,
   config,
+  CONNECTION_GATEWAY_URL,
+  EMAIL_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
+  getMacroUrls,
   getSearchEventQueue,
   stack,
+  SYNC_SERVICE_URL,
 } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { CloudStorageService } from './cloud-storage-service';
@@ -305,30 +310,12 @@ const cloudStorageService = new CloudStorageService(
         value: pulumi.interpolate`${searchEventQueueName}`,
       },
       {
-        name: 'COMMS_SERVICE_URL',
-        value: `https://comms-service${
-          stack === 'prod' ? '' : `-${stack}`
-        }.macro.com`,
-      },
-      {
-        name: 'EMAIL_SERVICE_URL',
-        value: `https://email-service${
-          stack === 'prod' ? '' : `-${stack}`
-        }.macro.com`,
-      },
-      {
         name: 'DOCUMENT_PERMISSION_JWT_SECRET_KEY',
         value: pulumi.interpolate`${DOCUMENT_STORAGE_PERMISSIONS_KEY}`,
       },
       {
         name: 'INTERNAL_API_SECRET_KEY',
         value: pulumi.interpolate`${INTERNAL_API_SECRET_KEY}`,
-      },
-      {
-        name: 'CONNECTION_GATEWAY_URL',
-        value: `https://connection-gateway${
-          stack === 'prod' ? '' : `-${stack}`
-        }.macro.com`,
       },
       {
         name: 'BULK_UPLOAD_REQUESTS_TABLE',
@@ -345,10 +332,6 @@ const cloudStorageService = new CloudStorageService(
         value: pulumi.interpolate`${SYNC_SERVICE_AUTH_KEY}`,
       },
       {
-        name: 'SYNC_SERVICE_URL',
-        value: `https://sync-service-${stack === 'dev' ? 'dev3' : stack}.macroverse.workers.dev`,
-      },
-      {
         name: 'MACRO_API_TOKEN_ISSUER',
         value: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenIssuer}`,
       },
@@ -360,6 +343,7 @@ const cloudStorageService = new CloudStorageService(
         name: 'FRECENCY_TABLE_NAME',
         value: `frecency-${stack}`,
       },
+      ...getMacroUrls([COMMS_SERVICE_URL, EMAIL_SERVICE_URL, CONNECTION_GATEWAY_URL, SYNC_SERVICE_URL]),
     ],
     isPrivate: false,
     tags,

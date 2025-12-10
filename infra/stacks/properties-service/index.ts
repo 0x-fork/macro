@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { config, getMacroApiToken, stack } from '@shared';
+import { COMMS_SERVICE_URL, config, DOCUMENT_STORAGE_SERVICE_URL, getMacroApiToken, getMacroUrls, stack } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { PropertiesService } from './properties-service';
 
@@ -53,10 +53,6 @@ const internalAuthKeyArn: pulumi.Output<string> = aws.secretsmanager
 
 const MACRO_API_TOKENS = getMacroApiToken();
 
-const DOCUMENT_STORAGE_SERVICE_URL = `https://cloud-storage${stack === 'prod' ? '' : `-${stack}`}.macro.com`;
-
-const COMMS_SERVICE_URL = `https://comms-service${stack === 'prod' ? '' : `-${stack}`}.macro.com`;
-
 const cloudStorageStack = new pulumi.StackReference('cloud-storage-stack', {
   name: `macro-inc/document-storage/${stack}`,
 });
@@ -106,10 +102,6 @@ const propertiesService = new PropertiesService(`properties-service-${stack}`, {
       name: 'INTERNAL_API_SECRET_KEY',
       value: pulumi.interpolate`${INTERNAL_AUTH_KEY}`,
     },
-    {
-      name: 'COMMS_SERVICE_URL',
-      value: COMMS_SERVICE_URL,
-    },
     { name: 'ISSUER', value: pulumi.interpolate`${FUSIONAUTH_ISSUER}` },
     {
       name: 'JWT_SECRET_KEY',
@@ -128,13 +120,10 @@ const propertiesService = new PropertiesService(`properties-service-${stack}`, {
       value: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKey}`,
     },
     {
-      name: 'DOCUMENT_STORAGE_SERVICE_URL',
-      value: DOCUMENT_STORAGE_SERVICE_URL,
-    },
-    {
       name: 'DOCUMENT_STORAGE_SERVICE_AUTH_KEY',
       value: pulumi.interpolate`${INTERNAL_AUTH_KEY}`,
     },
+    ...getMacroUrls([COMMS_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL]),
   ],
   isPrivate: false,
   tags,

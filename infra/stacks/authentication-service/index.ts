@@ -1,10 +1,15 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import {
+  COMMS_SERVICE_URL,
   config,
+  DOCUMENT_STORAGE_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
+  getMacroUrls,
   getSearchEventQueue,
+  NOTIFICATION_SERVICE_URL,
+  PROPERTIES_SERVICE_URL,
   stack,
 } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
@@ -225,30 +230,6 @@ const service = new AuthenticationService('authentication-service', {
       value: pulumi.interpolate`${SERVICE_INTERNAL_AUTH_KEY}`,
     },
     {
-      name: 'COMMS_SERVICE_URL',
-      value: `https://comms-service${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
-      name: 'DOCUMENT_STORAGE_SERVICE_URL',
-      value: `https://cloud-storage${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
-      name: 'NOTIFICATION_SERVICE_URL',
-      value: `https://notifications${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
-      name: 'PROPERTIES_SERVICE_URL',
-      value: `https://properties-service${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
       name: 'NOTIFICATION_QUEUE',
       value: pulumi.interpolate`${notificationQueueName}`,
     },
@@ -276,6 +257,7 @@ const service = new AuthenticationService('authentication-service', {
       name: 'STRIPE_PRICE_ID',
       value: pulumi.interpolate`${STRIPE_PRICE_ID_KEY}`,
     },
+    ...getMacroUrls([COMMS_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL, NOTIFICATION_SERVICE_URL, PROPERTIES_SERVICE_URL])
   ],
 });
 

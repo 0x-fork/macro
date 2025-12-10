@@ -1,7 +1,7 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import { Database, Queue } from '@resources';
-import { config, getMacroApiToken, stack } from '@shared';
+import { AUTHENTICATION_SERVICE_URL, COMMS_SERVICE_URL, config, CONNECTION_GATEWAY_URL, DOCUMENT_COGNITION_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL, getMacroApiToken, getMacroUrls, ORGANIZATION_SERVICE_URL, stack } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { PushNotificationEventHandler } from './push';
 import { NotificationService } from './service';
@@ -219,36 +219,6 @@ const notificationService = new NotificationService('notification-service', {
       value: pulumi.interpolate`${pushNotificationEventHandlerQueueName}`,
     },
     {
-      name: 'DOCUMENT_STORAGE_SERVICE_URL',
-      value: `https://cloud-storage${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
-      name: 'DOCUMENT_COGNITION_SERVICE_URL',
-      value: `https://document-cognition${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
-      name: 'COMMS_SERVICE_URL',
-      value: `https://comms-service${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
-      name: 'CONNECTION_GATEWAY_URL',
-      value: `https://connection-gateway${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
-      name: 'ORGANIZATION_SERVICE_URL',
-      value: `https://organization-service${
-        stack === 'prod' ? '' : `-${stack}`
-      }.macro.com`,
-    },
-    {
       name: 'SNS_APNS_PLATFORM_ARN',
       value: pulumi.interpolate`${notificationApnsPlatform.arn}`,
     },
@@ -277,13 +247,10 @@ const notificationService = new NotificationService('notification-service', {
       value: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKey}`,
     },
     {
-      name: 'AUTHENTICATION_SERVICE_URL',
-      value: pulumi.interpolate`https://auth-service${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
-    },
-    {
       name: 'AUTHENTICATION_SERVICE_SECRET_KEY',
       value: pulumi.interpolate`${AUTHENTICATION_SERVICE_INTERNAL_API_KEY}`,
     },
+      ...getMacroUrls([DOCUMENT_STORAGE_SERVICE_URL, DOCUMENT_COGNITION_SERVICE_URL, COMMS_SERVICE_URL, CONNECTION_GATEWAY_URL, ORGANIZATION_SERVICE_URL, AUTHENTICATION_SERVICE_URL]),
   ],
 });
 
