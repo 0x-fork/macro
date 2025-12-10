@@ -60,6 +60,7 @@ export const AUTHENTICATION_SERVICE_URL = 'AUTHENTICATION_SERVICE_URL';
 export const DOCUMENT_STORAGE_SERVICE_URL = 'DOCUMENT_STORAGE_SERVICE_URL';
 export const CONNECTION_GATEWAY_URL = 'CONNECTION_GATEWAY_URL';
 export const DOCUMENT_COGNITION_SERVICE_URL = 'DOCUMENT_COGNITION_SERVICE_URL';
+export const LEXICAL_SERVICE_URL = 'LEXICAL_SERVICE_URL';
 
 type MacroUrlName = SYNC_SERVICE_URL
 | COMMS_SERVICE_URL
@@ -72,7 +73,8 @@ type MacroUrlName = SYNC_SERVICE_URL
 | AUTHENTICATION_SERVICE_URL
 | DOCUMENT_STORAGE_SERVICE_URL
 | CONNECTION_GATEWAY_URL
-| DOCUMENT_COGNITION_SERVICE_URL;
+| DOCUMENT_COGNITION_SERVICE_URL
+| LEXICAL_SERVICE_URL;
 
 /*
  * for service named "foo" it can look like
@@ -95,6 +97,7 @@ const PROD_URLS = {
   [DOCUMENT_STORAGE_SERVICE_URL]: 'https://cloud-storage.macro.com',
   [CONNECTION_GATEWAY_URL]: 'https://connection-gateway.macro.com',
   [DOCUMENT_COGNITION_SERVICE_URL]: 'https://document-cognition.macro.com',
+  [LEXICAL_SERVICE_URL]: 'https://lexical-service-prod.macroverse.workers.dev',
 }
 
 const DEV_URLS = {
@@ -110,6 +113,7 @@ const DEV_URLS = {
   [DOCUMENT_STORAGE_SERVICE_URL]: 'https://cloud-storage-dev.macro.com',
   [CONNECTION_GATEWAY_URL]: 'https://connection-gateway-dev.macro.com',
   [DOCUMENT_COGNITION_SERVICE_URL]: 'https://document-cognition-dev.macro.com',
+  [LEXICAL_SERVICE_URL]: 'https://lexical-service-dev.macroverse.workers.dev',
 }
 
 const URLS = stack === STACK_PROD ? PROD_URLS : DEV_URLS;
@@ -123,4 +127,12 @@ export function getMacroUrls(names: MacroUrlName[], urls = URLS) {
     .map(([name, value]) => {
       return {name, value};
     });
+}
+export function filterObjectKeys(keys, obj) {
+  const keySet = new Set([...keys]);
+  return Object.fromEntries(Object.entries(obj).filter(([k, _]) => keySet.has(k)))
+}
+
+export function filterMacroUrls(names: MacroUrlName[], urls = URLS) {
+  return filterObjectKeys(names, urls);
 }
