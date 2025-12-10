@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { config, getSearchEventQueue, stack } from '@shared';
+import { COMMS_SERVICE_URL, config, EMAIL_SERVICE_URL, getMacroUrls, getSearchEventQueue, LEXICAL_SERVICE_URL, stack } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { SearchProcessingService } from './service';
 
@@ -134,29 +134,13 @@ const searchProcessingService = new SearchProcessingService(
         value: SYNC_SERVICE_AUTH_KEY,
       },
       {
-        name: 'EMAIL_SERVICE_URL',
-        value: `https://email-service${
-          stack === 'prod' ? '' : `-${stack}`
-        }.macro.com`,
-      },
-      {
-        name: 'COMMS_SERVICE_URL',
-        value: `https://comms-service${
-          stack === 'prod' ? '' : `-${stack}`
-        }.macro.com`,
-      },
-      {
         name: 'WORKER_COUNT',
         value: '3', // 3 workers per instance
       },
-      {
-        name: 'LEXICAL_SERVICE_URL',
-        value: `https://lexical-service-${stack}.macroverse.workers.dev`,
-      },
+        ...getMacroUrls([EMAIL_SERVICE_URL, COMMS_SERVICE_URL, LEXICAL_SERVICE_URL]),
     ],
     tags,
   }
 );
 
-export const searchProcessingServiceUrl = pulumi.interpolate`${searchProcessingService.domain}`;
 export const searchProcessingServiceRoleArn = searchProcessingService.role.arn;
