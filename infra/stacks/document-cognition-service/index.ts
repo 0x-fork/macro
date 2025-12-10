@@ -1,11 +1,21 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import {
+  COMMS_SERVICE_URL,
   config,
+  CONNECTION_GATEWAY_URL,
+  DOCUMENT_STORAGE_SERVICE_URL,
+  EMAIL_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
+  getMacroUrls,
   getSearchEventQueue,
+  LEXICAL_SERVICE_URL,
+  METERING_SERVICE_URL,
+  SEARCH_SERVICE_URL,
   stack,
+  STATIC_FILE_SERVICE_URL,
+  SYNC_SERVICE_URL,
 } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { DocumentCognitionService } from './document-cognition-service';
@@ -100,13 +110,6 @@ const cloudStorageServiceStack = new pulumi.StackReference(
   }
 );
 
-export const documentStorageServiceUrl: pulumi.Output<string> =
-  cloudStorageServiceStack
-    .getOutput('cloudStorageServiceUrl')
-    .apply((cloudStorageServiceUrl) => cloudStorageServiceUrl as string);
-
-export const meteringServiceUrl = `https://metering${stack === 'prod' ? '' : `-${stack}`}.macro.com`;
-
 const documentTextExtractorStack = new pulumi.StackReference(
   'document-text-extractor',
   {
@@ -170,10 +173,6 @@ const { searchEventQueueName, searchEventQueueArn } = getSearchEventQueue();
 const searchServiceStack = new pulumi.StackReference('search-service-stack', {
   name: `macro-inc/search-service/${stack}`,
 });
-
-const searchServiceUrl: pulumi.Output<string> = searchServiceStack
-  .getOutput('searchServiceUrl')
-  .apply((arn) => arn as string);
 
 const MACRO_API_TOKENS = getMacroApiToken();
 
@@ -248,10 +247,6 @@ const documentCognitionService = new DocumentCognitionService(
         value: pulumi.interpolate`${documentStorageBucketId}`,
       },
       {
-        name: 'DOCUMENT_STORAGE_SERVICE_URL',
-        value: pulumi.interpolate`${documentStorageServiceUrl}`,
-      },
-      {
         name: 'GCP_SERVICE_ACCOUNT',
         value: pulumi.interpolate`${GCP_SERVICE_ACCOUNT}`,
       },
@@ -269,26 +264,8 @@ const documentCognitionService = new DocumentCognitionService(
         value: pulumi.interpolate`${notificationQueueName}`,
       },
       {
-        name: 'STATIC_FILE_SERVICE_URL',
-        value: `https://static-file-service${
-          stack === 'prod' ? '' : `-${stack}`
-        }.macro.com`,
-      },
-      {
         name: 'INSIGHT_CONTEXT_QUEUE',
         value: pulumi.interpolate`${insightContextQueueName}`,
-      },
-      {
-        name: 'COMMS_SERVICE_URL',
-        value: `https://comms-service${
-          stack === 'prod' ? '' : `-${stack}`
-        }.macro.com`,
-      },
-      {
-        name: 'CONNECTION_GATEWAY_URL',
-        value: `https://connection-gateway${
-          stack === 'prod' ? '' : `-${stack}`
-        }.macro.com`,
       },
       {
         name: 'SEARCH_EVENT_QUEUE',
@@ -299,14 +276,6 @@ const documentCognitionService = new DocumentCognitionService(
         value: pulumi.interpolate`${SYNC_SERVICE_AUTH_KEY}`,
       },
       {
-        name: 'METERING_SERVICE_URL',
-        value: pulumi.interpolate`${meteringServiceUrl}`,
-      },
-      {
-        name: 'SYNC_SERVICE_URL',
-        value: `https://sync-service-${stack === 'dev' ? 'dev3' : stack}.macroverse.workers.dev`,
-      },
-      {
         name: 'MACRO_API_TOKEN_ISSUER',
         value: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenIssuer}`,
       },
@@ -315,23 +284,10 @@ const documentCognitionService = new DocumentCognitionService(
         value: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKey}`,
       },
       {
-        name: 'SEARCH_SERVICE_URL',
-        value: pulumi.interpolate`${searchServiceUrl}`,
-      },
-      {
         name: 'PERPLEXITY_API_KEY',
         value: pulumi.interpolate`${PERPLEXITY_API_KEY}`,
       },
-      {
-        name: 'LEXICAL_SERVICE_URL',
-        value: `https://lexical-service-${stack}.macroverse.workers.dev`,
-      },
-      {
-        name: 'EMAIL_SERVICE_URL',
-        value: `https://email-service${
-          stack === 'prod' ? '' : `-${stack}`
-        }.macro.com`,
-      },
+      ...getMacroUrls([DOCUMENT_STORAGE_SERVICE_URL, STATIC_FILE_SERVICE_URL, COMMS_SERVICE_URL, CONNECTION_GATEWAY_URL, METERING_SERVICE_URL, SYNC_SERVICE_URL, SEARCH_SERVICE_URL, LEXICAL_SERVICE_URL, EMAIL_SERVICE_URL ])
     ],
     isPrivate: false,
     tags,
@@ -341,5 +297,3 @@ const documentCognitionService = new DocumentCognitionService(
 export const documentCognitionServiceSgId =
   documentCognitionService.serviceSg.id;
 export const documentCognitionServiceAlbSgId =
-  documentCognitionService.serviceAlbSg.id;
-export const documentCognitionServiceUrl = pulumi.interpolate`${documentCognitionService.domain}`;
