@@ -5,6 +5,7 @@ import * as command from '@pulumi/command';
 import * as datadog from '@pulumi/datadog';
 import * as pulumi from '@pulumi/pulumi';
 import * as datadogEntity from './datadog-entity.json';
+import { getMacroUrl, DOCUMENT_STORAGE_SERVICE_URL } from '@shared';
 
 // Import the program's configuration
 const config = new pulumi.Config();
@@ -155,7 +156,7 @@ const appRouteLambda = new aws.lambda.Function('app-route-lambda', {
   publish: true,
   environment: {
     variables: {
-      PREVIEW_URL: `https://cloud-storage${stack === 'dev' ? '-dev' : ''}.macro.com/documents/preview`,
+      PREVIEW_URL: getMacroUrl(DOCUMENT_STORAGE_SERVICE_URL),
     },
   },
 });

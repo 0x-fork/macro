@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { config, getMacroApiToken, stack } from '@shared';
+import { AUTHENTICATION_SERVICE_URL, config, getMacroApiToken, getMacroUrl, stack } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { OrganizationService } from './organization-service';
 
@@ -150,7 +150,7 @@ const organizationService = new OrganizationService(
       },
       {
         name: 'AUTH_URL',
-        value: `https://auth-service${stack === 'prod' ? '' : '-dev'}.macro.com`,
+        value: getMacroUrl(AUTHENTICATION_SERVICE_URL),
       },
       {
         name: 'AUTH_INTERNAL_AUTH_SECRET_KEY',

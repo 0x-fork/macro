@@ -122,6 +122,9 @@ const DEV_URLS = {
 
 const URLS = stack === STACK_PROD ? PROD_URLS : DEV_URLS;
 
+export function getMacroUrl(name: MacroUrlName) {
+  return URLS[name];
+}
 /// Returns urls with names in `names`, in the form [{ name: 'FOO_URL', value: 'http://foo.macro.com' }, ...]
 export function getMacroUrls(names: MacroUrlName[], urls = URLS) {
   const namesSet = new Set([...names]);
