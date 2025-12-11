@@ -78,7 +78,38 @@ type MacroUrlName =
   | LEXICAL_SERVICE_URL
   | SEARCH_SERVICE_URL;
 
-const PROD_URLS = {
+
+type MacroUrl =
+  | 'https://sync-service-prod.macroverse.workers.dev'
+  | 'https://comms-service.macro.com'
+  | 'https://email-service.macro.com'
+  | 'https://properties-service.macro.com'
+  | 'https://metering.macro.com'
+  | 'https://static-file-service.macro.com'
+  | 'https://organization-service.macro.com'
+  | 'https://notifications.macro.com'
+  | 'https://auth-service.macro.com'
+  | 'https://cloud-storage.macro.com'
+  | 'https://connection-gateway.macro.com'
+  | 'https://document-cognition.macro.com'
+  | 'https://lexical-service-prod.macroverse.workers.dev'
+  | 'https://search-service.macro.com'
+  | 'https://sync-service-dev3.macroverse.workers.dev'
+  | 'https://comms-service-dev.macro.com'
+  | 'https://email-service-dev.macro.com'
+  | 'https://properties-service-dev.macro.com'
+  | 'https://metering-dev.macro.com'
+  | 'https://static-file-service-dev.macro.com'
+  | 'https://organization-service-dev.macro.com'
+  | 'https://notifications-dev.macro.com'
+  | 'https://auth-service-dev.macro.com'
+  | 'https://cloud-storage-dev.macro.com'
+  | 'https://connection-gateway-dev.macro.com'
+  | 'https://document-cognition-dev.macro.com'
+  | 'https://lexical-service-dev.macroverse.workers.dev'
+  | 'https://search-service-dev.macro.com';
+
+const PROD_URLS: { [key in MacroUrlName]: MacroUrl } = {
   [SYNC_SERVICE_URL]: 'https://sync-service-prod.macroverse.workers.dev',
   [COMMS_SERVICE_URL]: 'https://comms-service.macro.com',
   [EMAIL_SERVICE_URL]: 'https://email-service.macro.com',
@@ -95,7 +126,7 @@ const PROD_URLS = {
   [SEARCH_SERVICE_URL]: 'https://search-service.macro.com',
 };
 
-const DEV_URLS = {
+const DEV_URLS: { [key in MacroUrlName]: MacroUrl } = {
   [SYNC_SERVICE_URL]: 'https://sync-service-dev3.macroverse.workers.dev',
   [COMMS_SERVICE_URL]: 'https://comms-service-dev.macro.com',
   [EMAIL_SERVICE_URL]: 'https://email-service-dev.macro.com',
@@ -112,9 +143,18 @@ const DEV_URLS = {
   [SEARCH_SERVICE_URL]: 'https://search-service-dev.macro.com',
 };
 
-const URLS = stack === STACK_PROD ? PROD_URLS : DEV_URLS;
+const URLS = (()=> {
+  switch (stack) {
+    case STACK_PROD:
+      return PROD_URLS;
+    case STACK_DEV:
+      return DEV_URLS;
+    default:
+      throw new Error(`Invalid stack. Expected [${STACK_DEV}] or [${STACK_PROD}]. Got [${stack}]`);
+  }
+})();
 
-export function getMacroUrl(name: MacroUrlName) {
+export function getMacroUrl(name: MacroUrlName): MacroUrl {
   return URLS[name];
 }
 /** Returns urls with names in `names`, in the form [{ name: 'FOO_URL', value: 'http://foo.macro.com' }, ...] */
