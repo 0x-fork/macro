@@ -1,7 +1,18 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import { Database, Queue } from '@resources';
-import { AUTHENTICATION_SERVICE_URL, COMMS_SERVICE_URL, config, CONNECTION_GATEWAY_URL, DOCUMENT_COGNITION_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL, getMacroApiToken, getNameValueMacroUrls, ORGANIZATION_SERVICE_URL, stack } from '@shared';
+import {
+  AUTHENTICATION_SERVICE_URL,
+  COMMS_SERVICE_URL,
+  CONNECTION_GATEWAY_URL,
+  config,
+  DOCUMENT_COGNITION_SERVICE_URL,
+  DOCUMENT_STORAGE_SERVICE_URL,
+  getMacroApiToken,
+  getNameValueMacroUrls,
+  ORGANIZATION_SERVICE_URL,
+  stack,
+} from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { PushNotificationEventHandler } from './push';
 import { NotificationService } from './service';
@@ -250,7 +261,14 @@ const notificationService = new NotificationService('notification-service', {
       name: 'AUTHENTICATION_SERVICE_SECRET_KEY',
       value: pulumi.interpolate`${AUTHENTICATION_SERVICE_INTERNAL_API_KEY}`,
     },
-      ...getNameValueMacroUrls([DOCUMENT_STORAGE_SERVICE_URL, DOCUMENT_COGNITION_SERVICE_URL, COMMS_SERVICE_URL, CONNECTION_GATEWAY_URL, ORGANIZATION_SERVICE_URL, AUTHENTICATION_SERVICE_URL]),
+    ...getNameValueMacroUrls([
+      DOCUMENT_STORAGE_SERVICE_URL,
+      DOCUMENT_COGNITION_SERVICE_URL,
+      COMMS_SERVICE_URL,
+      CONNECTION_GATEWAY_URL,
+      ORGANIZATION_SERVICE_URL,
+      AUTHENTICATION_SERVICE_URL,
+    ]),
   ],
 });
 

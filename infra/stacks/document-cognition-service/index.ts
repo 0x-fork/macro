@@ -2,8 +2,8 @@ import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import {
   COMMS_SERVICE_URL,
-  config,
   CONNECTION_GATEWAY_URL,
+  config,
   DOCUMENT_STORAGE_SERVICE_URL,
   EMAIL_SERVICE_URL,
   getMacroApiToken,
@@ -13,9 +13,9 @@ import {
   LEXICAL_SERVICE_URL,
   METERING_SERVICE_URL,
   SEARCH_SERVICE_URL,
-  stack,
   STATIC_FILE_SERVICE_URL,
   SYNC_SERVICE_URL,
+  stack,
 } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { DocumentCognitionService } from './document-cognition-service';
@@ -170,10 +170,6 @@ const insightContextQueueName: pulumi.Output<string> = insightServiceStack
 
 const { searchEventQueueName, searchEventQueueArn } = getSearchEventQueue();
 
-const searchServiceStack = new pulumi.StackReference('search-service-stack', {
-  name: `macro-inc/search-service/${stack}`,
-});
-
 const MACRO_API_TOKENS = getMacroApiToken();
 
 // Import the search text extractor queue stack
@@ -287,7 +283,17 @@ const documentCognitionService = new DocumentCognitionService(
         name: 'PERPLEXITY_API_KEY',
         value: pulumi.interpolate`${PERPLEXITY_API_KEY}`,
       },
-      ...getNameValueMacroUrls([DOCUMENT_STORAGE_SERVICE_URL, STATIC_FILE_SERVICE_URL, COMMS_SERVICE_URL, CONNECTION_GATEWAY_URL, METERING_SERVICE_URL, SYNC_SERVICE_URL, SEARCH_SERVICE_URL, LEXICAL_SERVICE_URL, EMAIL_SERVICE_URL ])
+      ...getNameValueMacroUrls([
+        DOCUMENT_STORAGE_SERVICE_URL,
+        STATIC_FILE_SERVICE_URL,
+        COMMS_SERVICE_URL,
+        CONNECTION_GATEWAY_URL,
+        METERING_SERVICE_URL,
+        SYNC_SERVICE_URL,
+        SEARCH_SERVICE_URL,
+        LEXICAL_SERVICE_URL,
+        EMAIL_SERVICE_URL,
+      ]),
     ],
     isPrivate: false,
     tags,
@@ -297,3 +303,4 @@ const documentCognitionService = new DocumentCognitionService(
 export const documentCognitionServiceSgId =
   documentCognitionService.serviceSg.id;
 export const documentCognitionServiceAlbSgId =
+  documentCognitionService.serviceAlbSg.id;

@@ -1,6 +1,13 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { COMMS_SERVICE_URL, config, getNameValueMacroUrls, PROPERTIES_SERVICE_URL, stack, SYNC_SERVICE_URL } from '@shared';
+import {
+  COMMS_SERVICE_URL,
+  config,
+  getNameValueMacroUrls,
+  PROPERTIES_SERVICE_URL,
+  SYNC_SERVICE_URL,
+  stack,
+} from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { Worker } from './worker';
 
@@ -125,8 +132,11 @@ const deleteDocumentWorker = new Worker(`delete-document-worker-${stack}`, {
       name: 'PROPERTIES_SERVICE_AUTH_KEY',
       value: PROPERTIES_SERVICE_AUTH_KEY,
     },
-    },
-    ...getNameValueMacroUrls([SYNC_SERVICE_URL, COMMS_SERVICE_URL, PROPERTIES_SERVICE_URL]),
+    ...getNameValueMacroUrls([
+      SYNC_SERVICE_URL,
+      COMMS_SERVICE_URL,
+      PROPERTIES_SERVICE_URL,
+    ]),
     // {
     //   name: 'QUEUE_MAX_MESSAGES',
     //   value: '10',

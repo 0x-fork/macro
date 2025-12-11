@@ -1,6 +1,13 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { COMMS_SERVICE_URL, config, DOCUMENT_STORAGE_SERVICE_URL, getMacroApiToken, getNameValueMacroUrls, stack } from '@shared';
+import {
+  COMMS_SERVICE_URL,
+  config,
+  DOCUMENT_STORAGE_SERVICE_URL,
+  getMacroApiToken,
+  getNameValueMacroUrls,
+  stack,
+} from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { PropertiesService } from './properties-service';
 

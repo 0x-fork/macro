@@ -4,15 +4,15 @@ import * as tls from '@pulumi/tls';
 import { Queue, Redis } from '@resources';
 import {
   AUTHENTICATION_SERVICE_URL,
-  config,
   CONNECTION_GATEWAY_URL,
+  config,
   DOCUMENT_STORAGE_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
   getNameValueMacroUrls,
   getSearchEventQueue,
-  stack,
   STATIC_FILE_SERVICE_URL,
+  stack,
 } from '@shared';
 import { EmailRefreshHandler } from '@stacks/email-service/refresh_lambda';
 import { cloudfrontPrivateKeySecret } from '@stacks/email-service/s3-cloudfront-distribution';
@@ -390,7 +390,12 @@ const emailService = new EmailService('email-service', {
       name: 'CONTACTS_QUEUE',
       value: pulumi.interpolate`${contactsQueueName}`,
     },
-    ...getNameValueMacroUrls([AUTHENTICATION_SERVICE_URL, STATIC_FILE_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL, CONNECTION_GATEWAY_URL])
+    ...getNameValueMacroUrls([
+      AUTHENTICATION_SERVICE_URL,
+      STATIC_FILE_SERVICE_URL,
+      DOCUMENT_STORAGE_SERVICE_URL,
+      CONNECTION_GATEWAY_URL,
+    ]),
   ],
 });
 

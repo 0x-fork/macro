@@ -3,15 +3,15 @@ import * as pulumi from '@pulumi/pulumi';
 import { createBucket } from '@resources';
 import {
   COMMS_SERVICE_URL,
-  config,
   CONNECTION_GATEWAY_URL,
+  config,
   EMAIL_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
   getNameValueMacroUrls,
   getSearchEventQueue,
-  stack,
   SYNC_SERVICE_URL,
+  stack,
 } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { CloudStorageService } from './cloud-storage-service';
@@ -343,7 +343,12 @@ const cloudStorageService = new CloudStorageService(
         name: 'FRECENCY_TABLE_NAME',
         value: `frecency-${stack}`,
       },
-      ...getNameValueMacroUrls([COMMS_SERVICE_URL, EMAIL_SERVICE_URL, CONNECTION_GATEWAY_URL, SYNC_SERVICE_URL]),
+      ...getNameValueMacroUrls([
+        COMMS_SERVICE_URL,
+        EMAIL_SERVICE_URL,
+        CONNECTION_GATEWAY_URL,
+        SYNC_SERVICE_URL,
+      ]),
     ],
     isPrivate: false,
     tags,

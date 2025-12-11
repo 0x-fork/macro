@@ -1,6 +1,12 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { AUTHENTICATION_SERVICE_URL, config, getMacroApiToken, getMacroUrl, stack } from '@shared';
+import {
+  AUTHENTICATION_SERVICE_URL,
+  config,
+  getMacroApiToken,
+  getMacroUrl,
+  stack,
+} from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { OrganizationService } from './organization-service';
 

@@ -1,7 +1,17 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import { Queue } from '@resources';
-import { config, filterMacroUrls, getMacroApiToken, stack, DOCUMENT_STORAGE_SERVICE_URL, DOCUMENT_COGNITION_SERVICE_URL, SYNC_SERVICE_URL, EMAIL_SERVICE_URL, LEXICAL_SERVICE_URL } from '@shared';
+import {
+  config,
+  DOCUMENT_COGNITION_SERVICE_URL,
+  DOCUMENT_STORAGE_SERVICE_URL,
+  EMAIL_SERVICE_URL,
+  filterMacroUrls,
+  getMacroApiToken,
+  LEXICAL_SERVICE_URL,
+  SYNC_SERVICE_URL,
+  stack,
+} from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { InsightService } from './service';
 
@@ -100,7 +110,13 @@ const vars: InsightServiceEnvVars = {
   SYNC_SERVICE_AUTH_KEY: pulumi.interpolate`${SYNC_SERVICE_AUTH_KEY}`,
   MACRO_API_TOKEN_ISSUER: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenIssuer}`,
   MACRO_API_TOKEN_PUBLIC_KEY: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKey}`,
-  ...filterMacroUrls([DOCUMENT_STORAGE_SERVICE_URL, DOCUMENT_COGNITION_SERVICE_URL, SYNC_SERVICE_URL, EMAIL_SERVICE_URL, LEXICAL_SERVICE_URL])
+  ...filterMacroUrls([
+    DOCUMENT_STORAGE_SERVICE_URL,
+    DOCUMENT_COGNITION_SERVICE_URL,
+    SYNC_SERVICE_URL,
+    EMAIL_SERVICE_URL,
+    LEXICAL_SERVICE_URL,
+  ]),
 };
 
 const insightGenerationServiceEnvVars = Object.entries(vars).map(([k, v]) => ({

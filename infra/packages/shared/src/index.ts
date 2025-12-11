@@ -43,10 +43,8 @@ export { getMacroApiToken } from './macro_api_token';
 export { getMacroNotify } from './macro_notify';
 export { getSearchEventQueue } from './search_event_queue';
 
-
 const STACK_DEV = 'dev';
 const STACK_PROD = 'prod';
-
 
 // TODO rename these to not have "_URL", because it seems like they are actually URL's
 export const SYNC_SERVICE_URL = 'SYNC_SERVICE_URL';
@@ -64,20 +62,21 @@ export const DOCUMENT_COGNITION_SERVICE_URL = 'DOCUMENT_COGNITION_SERVICE_URL';
 export const LEXICAL_SERVICE_URL = 'LEXICAL_SERVICE_URL';
 export const SEARCH_SERVICE_URL = 'SEARCH_SERVICE_URL';
 
-type MacroUrlName = SYNC_SERVICE_URL
-| COMMS_SERVICE_URL
-| EMAIL_SERVICE_URL
-| PROPERTIES_SERVICE_URL
-| METERING_SERVICE_URL
-| STATIC_FILE_SERVICE_URL
-| ORGANIZATION_SERVICE_URL
-| NOTIFICATION_SERVICE_URL
-| AUTHENTICATION_SERVICE_URL
-| DOCUMENT_STORAGE_SERVICE_URL
-| CONNECTION_GATEWAY_URL
-| DOCUMENT_COGNITION_SERVICE_URL
-| LEXICAL_SERVICE_URL
-| SEARCH_SERVICE_URL;
+type MacroUrlName =
+  | SYNC_SERVICE_URL
+  | COMMS_SERVICE_URL
+  | EMAIL_SERVICE_URL
+  | PROPERTIES_SERVICE_URL
+  | METERING_SERVICE_URL
+  | STATIC_FILE_SERVICE_URL
+  | ORGANIZATION_SERVICE_URL
+  | NOTIFICATION_SERVICE_URL
+  | AUTHENTICATION_SERVICE_URL
+  | DOCUMENT_STORAGE_SERVICE_URL
+  | CONNECTION_GATEWAY_URL
+  | DOCUMENT_COGNITION_SERVICE_URL
+  | LEXICAL_SERVICE_URL
+  | SEARCH_SERVICE_URL;
 
 const PROD_URLS = {
   [SYNC_SERVICE_URL]: 'https://sync-service-prod.macroverse.workers.dev',
@@ -94,7 +93,7 @@ const PROD_URLS = {
   [DOCUMENT_COGNITION_SERVICE_URL]: 'https://document-cognition.macro.com',
   [LEXICAL_SERVICE_URL]: 'https://lexical-service-prod.macroverse.workers.dev',
   [SEARCH_SERVICE_URL]: 'https://search-service.macro.com',
-}
+};
 
 const DEV_URLS = {
   [SYNC_SERVICE_URL]: 'https://sync-service-dev3.macroverse.workers.dev',
@@ -111,7 +110,7 @@ const DEV_URLS = {
   [DOCUMENT_COGNITION_SERVICE_URL]: 'https://document-cognition-dev.macro.com',
   [LEXICAL_SERVICE_URL]: 'https://lexical-service-dev.macroverse.workers.dev',
   [SEARCH_SERVICE_URL]: 'https://search-service-dev.macro.com',
-}
+};
 
 const URLS = stack === STACK_PROD ? PROD_URLS : DEV_URLS;
 
@@ -122,16 +121,17 @@ export function getMacroUrl(name: MacroUrlName) {
 /// Returns urls with names in `names`, in the form [{ name: 'FOO_URL', value: 'http://foo.macro.com' }, ...]
 export function getNameValueMacroUrls(names: MacroUrlName[], urls = URLS) {
   const namesSet = new Set([...names]);
-  return Object
-    .entries(urls)
-    .filter(([k,_]) => namesSet.has(k))
+  return Object.entries(urls)
+    .filter(([k, _]) => namesSet.has(k))
     .map(([name, value]) => {
-      return {name, value};
+      return { name, value };
     });
 }
 export function filterObjectKeys(keys, obj) {
   const keySet = new Set([...keys]);
-  return Object.fromEntries(Object.entries(obj).filter(([k, _]) => keySet.has(k)))
+  return Object.fromEntries(
+    Object.entries(obj).filter(([k, _]) => keySet.has(k))
+  );
 }
 
 export function filterMacroUrls(names: MacroUrlName[], urls = URLS) {
