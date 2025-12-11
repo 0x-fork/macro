@@ -6,7 +6,7 @@ import {
   DOCUMENT_STORAGE_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
-  getMacroUrls,
+  getNameValueMacroUrls,
   getSearchEventQueue,
   stack,
 } from '@shared';
@@ -210,7 +210,7 @@ const commsService = new CommsService(`comms-service-${stack}`, {
       name: 'MACRO_DB_URL',
       value: pulumi.interpolate`${MACRO_DB_URL_SECRET_NAME}`,
     },
-    ...getMacroUrls(AUTHENTICATION_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL)
+    ...getNameValueMacroUrls(AUTHENTICATION_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL)
   ],
   isPrivate: false,
   tags,

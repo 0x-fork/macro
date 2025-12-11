@@ -6,7 +6,7 @@ import {
   DOCUMENT_STORAGE_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
-  getMacroUrls,
+  getNameValueMacroUrls,
   getSearchEventQueue,
   NOTIFICATION_SERVICE_URL,
   PROPERTIES_SERVICE_URL,
@@ -257,7 +257,7 @@ const service = new AuthenticationService('authentication-service', {
       name: 'STRIPE_PRICE_ID',
       value: pulumi.interpolate`${STRIPE_PRICE_ID_KEY}`,
     },
-    ...getMacroUrls([COMMS_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL, NOTIFICATION_SERVICE_URL, PROPERTIES_SERVICE_URL])
+    ...getNameValueMacroUrls([COMMS_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL, NOTIFICATION_SERVICE_URL, PROPERTIES_SERVICE_URL])
   ],
 });
 

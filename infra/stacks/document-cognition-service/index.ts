@@ -8,7 +8,7 @@ import {
   EMAIL_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
-  getMacroUrls,
+  getNameValueMacroUrls,
   getSearchEventQueue,
   LEXICAL_SERVICE_URL,
   METERING_SERVICE_URL,
@@ -287,7 +287,7 @@ const documentCognitionService = new DocumentCognitionService(
         name: 'PERPLEXITY_API_KEY',
         value: pulumi.interpolate`${PERPLEXITY_API_KEY}`,
       },
-      ...getMacroUrls([DOCUMENT_STORAGE_SERVICE_URL, STATIC_FILE_SERVICE_URL, COMMS_SERVICE_URL, CONNECTION_GATEWAY_URL, METERING_SERVICE_URL, SYNC_SERVICE_URL, SEARCH_SERVICE_URL, LEXICAL_SERVICE_URL, EMAIL_SERVICE_URL ])
+      ...getNameValueMacroUrls([DOCUMENT_STORAGE_SERVICE_URL, STATIC_FILE_SERVICE_URL, COMMS_SERVICE_URL, CONNECTION_GATEWAY_URL, METERING_SERVICE_URL, SYNC_SERVICE_URL, SEARCH_SERVICE_URL, LEXICAL_SERVICE_URL, EMAIL_SERVICE_URL ])
     ],
     isPrivate: false,
     tags,

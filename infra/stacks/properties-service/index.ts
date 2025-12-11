@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { COMMS_SERVICE_URL, config, DOCUMENT_STORAGE_SERVICE_URL, getMacroApiToken, getMacroUrls, stack } from '@shared';
+import { COMMS_SERVICE_URL, config, DOCUMENT_STORAGE_SERVICE_URL, getMacroApiToken, getNameValueMacroUrls, stack } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { PropertiesService } from './properties-service';
 
@@ -123,7 +123,7 @@ const propertiesService = new PropertiesService(`properties-service-${stack}`, {
       name: 'DOCUMENT_STORAGE_SERVICE_AUTH_KEY',
       value: pulumi.interpolate`${INTERNAL_AUTH_KEY}`,
     },
-    ...getMacroUrls([COMMS_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL]),
+    ...getNameValueMacroUrls([COMMS_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL]),
   ],
   isPrivate: false,
   tags,

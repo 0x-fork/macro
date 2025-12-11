@@ -9,7 +9,7 @@ import {
   DOCUMENT_STORAGE_SERVICE_URL,
   getMacroApiToken,
   getMacroNotify,
-  getMacroUrls,
+  getNameValueMacroUrls,
   getSearchEventQueue,
   stack,
   STATIC_FILE_SERVICE_URL,
@@ -390,7 +390,7 @@ const emailService = new EmailService('email-service', {
       name: 'CONTACTS_QUEUE',
       value: pulumi.interpolate`${contactsQueueName}`,
     },
-    ...getMacroUrls([AUTHENTICATION_SERVICE_URL, STATIC_FILE_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL, CONNECTION_GATEWAY_URL])
+    ...getNameValueMacroUrls([AUTHENTICATION_SERVICE_URL, STATIC_FILE_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL, CONNECTION_GATEWAY_URL])
   ],
 });
 

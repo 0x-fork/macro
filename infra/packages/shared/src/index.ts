@@ -120,7 +120,7 @@ export function getMacroUrl(name: MacroUrlName) {
 }
 // TODO rename to getNameValueMacroUrls
 /// Returns urls with names in `names`, in the form [{ name: 'FOO_URL', value: 'http://foo.macro.com' }, ...]
-export function getMacroUrls(names: MacroUrlName[], urls = URLS) {
+export function getNameValueMacroUrls(names: MacroUrlName[], urls = URLS) {
   const namesSet = new Set([...names]);
   return Object
     .entries(urls)

@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { COMMS_SERVICE_URL, config, DOCUMENT_STORAGE_SERVICE_URL, EMAIL_SERVICE_URL, getMacroApiToken, getMacroUrls, stack } from '@shared';
+import { COMMS_SERVICE_URL, config, DOCUMENT_STORAGE_SERVICE_URL, EMAIL_SERVICE_URL, getMacroApiToken, getNameValueMacroUrls, stack } from '@shared';
 import { get_coparse_api_vpc } from '@vpc';
 import { SearchService } from './service';
 
@@ -131,7 +131,7 @@ const searchService = new SearchService(`${BASE_NAME}-${stack}`, {
       name: 'MACRO_API_TOKEN_PUBLIC_KEY',
       value: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKey}`,
     },
-    ...getMacroUrls([COMMS_SERVICE_URL, EMAIL_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL]),
+    ...getNameValueMacroUrls([COMMS_SERVICE_URL, EMAIL_SERVICE_URL, DOCUMENT_STORAGE_SERVICE_URL]),
   ],
   tags,
 });
