@@ -18,7 +18,6 @@ export function useAttachments(initial?: Attachment[]): Attachments {
   );
 
   const addAttachment = (newAttachment: Attachment) => {
-    // dedup
     if (
       attachments().some(
         (attached) => attached.attachmentId === newAttachment.attachmentId
@@ -85,6 +84,19 @@ export const useGetChatAttachmentInfo = () => {
     };
   };
 
+  const getProjectAttachment = (id: string): Attachment | undefined => {
+    const item = history().find((item) => item.id === id);
+    if (!item || item.type !== 'project') return;
+    return {
+      attachmentType: 'project',
+      attachmentId: item.id,
+      metadata: {
+        type: 'project',
+        project_name: item.name,
+      },
+    };
+  };
+
   const getChannelAttachment = ({
     itemId: id,
   }: ItemMention): Attachment | undefined => {
@@ -126,6 +138,8 @@ export const useGetChatAttachmentInfo = () => {
       return getChannelAttachment(mention);
     } else if (mention.itemType === 'email') {
       return getEmailAttachment(mention);
+    } else if (mention.itemType === 'project') {
+      return getProjectAttachment(mention.itemId);
     }
   };
 
