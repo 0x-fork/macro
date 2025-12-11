@@ -1,4 +1,5 @@
 import { useChannelsContext } from '@core/component/ChannelsProvider';
+import { blockNameToDefaultFile } from '@core/constant/allBlocks';
 import { ENABLE_SEARCH_SERVICE } from '@core/constant/featureFlags';
 import { idToDisplayName } from '@core/user';
 import { isErr } from '@core/util/maybeResult';
@@ -172,7 +173,7 @@ const useMapSearchResponseItem = () => {
         return {
           type: 'document',
           id: result.document_id,
-          name: result.document_name,
+          name: result.name || blockNameToDefaultFile(result.file_type),
           ownerId: result.owner_id,
           createdAt: result.metadata?.created_at,
           updatedAt: result.metadata?.updated_at,
@@ -188,13 +189,20 @@ const useMapSearchResponseItem = () => {
           type: 'email',
         });
 
-        // Email thread subject match
-        // TODO: make sure this looks/feels right in the unified list
+        const name = result.name ?? blockNameToDefaultFile('email');
+
+        const senderName =
+          emailResult?.sender ||
+          result.email_message_search_results.at(1)?.sender ||
+          idToDisplayName(result.user_id);
+
+        // NOTE: this shouldn't happen unless it's a name only match that doesn't produce a name highlight for some reason
+        // including this as a fallback for now
         if (!emailResult) {
           return {
             type: 'email',
             id: result.thread_id,
-            name: result.name ?? '',
+            name,
             ownerId: result.owner_id,
             createdAt: result.created_at,
             updatedAt: result.updated_at,
@@ -202,7 +210,7 @@ const useMapSearchResponseItem = () => {
             isRead: false,
             isImportant: false,
             done: false,
-            senderName: idToDisplayName(result.user_id),
+            senderName,
             search,
           };
         }
@@ -210,7 +218,7 @@ const useMapSearchResponseItem = () => {
         return {
           type: 'email',
           id: result.thread_id,
-          name: result.name ?? '',
+          name,
           ownerId: result.owner_id,
           createdAt: emailResult.sent_at ?? result.updated_at,
           updatedAt: emailResult.sent_at ?? result.updated_at,
@@ -218,7 +226,7 @@ const useMapSearchResponseItem = () => {
           isRead: !emailResult.labels.includes('UNREAD'),
           isImportant: emailResult.labels.includes('IMPORTANT'),
           done: !emailResult.labels.includes('INBOX'),
-          senderName: emailResult.sender!,
+          senderName,
           search,
         };
       }
@@ -228,7 +236,7 @@ const useMapSearchResponseItem = () => {
           results: result.chat_search_results,
         });
         let name = result.name;
-        if (!name || name === 'New Chat') {
+        if (!name || name === blockNameToDefaultFile('chat')) {
           const chat = history().find((item) => item.id === result.chat_id);
           if (chat) {
             name = chat.name;
@@ -258,7 +266,7 @@ const useMapSearchResponseItem = () => {
         return {
           type: 'channel',
           id: result.channel_id,
-          name: channelWithLatest?.name ?? '',
+          name: channelWithLatest?.name ?? blockNameToDefaultFile('channel'),
           ownerId: result.owner_id ?? '',
           createdAt: result.metadata?.created_at,
           updatedAt: result.metadata?.updated_at,

@@ -40,6 +40,7 @@ import type { Notification, WithNotification } from '../types/notification';
 import type {
   ChannelContentHitData,
   ContentHitData,
+  SearchLocation,
   WithSearch,
 } from '../types/search';
 import type { EntityClickEvent, EntityClickHandler } from './Entity';
@@ -114,6 +115,215 @@ function ChannelMessageContentHit(props: { data: ChannelContentHitData }) {
   );
 }
 
+function ThreadBorder() {
+  return (
+    <div
+      class="absolute left-[calc(0.5rem+1px)] w-[1px] border-l border-edge-muted -top-0.75"
+      style={{ height: '6px' }}
+    />
+  );
+}
+
+function CollapsibleListRow(
+  props: ParentProps<{
+    onClick?: (e: EntityClickEvent) => void;
+    classList?: Record<string, boolean>;
+    enableHover?: boolean;
+    showThreadBorder?: boolean;
+    blockNavigation?: boolean;
+  }>
+) {
+  return (
+    <div
+      class="relative flex gap-1 items-center min-w-0 h-8 transition-all"
+      classList={{
+        'hover:bg-hover/50 hover:opacity-85':
+          props.enableHover ?? !!props.onClick,
+        ...props.classList,
+      }}
+      onClick={(e) => {
+        if (props.onClick) {
+          if (props.blockNavigation) {
+            e.stopPropagation();
+          }
+          props.onClick(e);
+        }
+      }}
+      data-blocks-navigation={props.blockNavigation}
+    >
+      <Show when={props.showThreadBorder}>
+        <ThreadBorder />
+      </Show>
+      {props.children}
+    </div>
+  );
+}
+
+function CollapsibleList<T>(props: {
+  items: T[];
+  visibleCount?: number;
+  children: (item: T) => any;
+  threadBorder?: boolean;
+}) {
+  const [showAll, setShowAll] = createSignal(false);
+  const visibleCount = () => props.visibleCount ?? 3;
+
+  const visibleItems = () => {
+    if (props.items.length <= visibleCount() || showAll()) {
+      return props.items;
+    }
+    return props.items.slice(0, visibleCount());
+  };
+
+  const hasMore = () => props.items.length > visibleCount();
+
+  return (
+    <>
+      <For each={visibleItems()}>{props.children}</For>
+      <Show when={hasMore()}>
+        <div class="relative h-5">
+          <Show when={props.threadBorder}>
+            <ThreadBorder />
+          </Show>
+          <button
+            class="block w-fit px-2 py-0.5 text-[10px] border border-edge uppercase font-mono hover:font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAll((prev) => !prev);
+            }}
+            data-blocks-navigation
+          >
+            <Show when={!showAll()} fallback={<>Collapse</>}>
+              + {props.items.length - visibleCount()} More
+            </Show>
+          </button>
+        </div>
+      </Show>
+    </>
+  );
+}
+
+function NotificationRow(props: {
+  notification: Notification;
+  onClick?: NotificationClickHandler;
+  entity: EntityData;
+}) {
+  const [userName] = useDisplayName(props.notification.senderId);
+  const formattedDate = createFormattedDate(props.notification.createdAt);
+
+  const ActionContent = () => {
+    if (
+      props.notification.notificationEventType === 'document_mention' ||
+      props.notification.notificationEventType === 'channel_message_document'
+    ) {
+      return 'shared';
+    }
+
+    const metadata = tryToTypedNotification(
+      props.notification
+    )?.notificationMetadata;
+    if (!metadata || !('messageContent' in metadata)) return '';
+
+    return 'message';
+  };
+
+  const MessageContent = () => {
+    if (
+      props.notification.notificationEventType === 'document_mention' ||
+      props.notification.notificationEventType === 'channel_message_document'
+    ) {
+      return '';
+    }
+
+    const metadata = tryToTypedNotification(
+      props.notification
+    )?.notificationMetadata;
+    if (
+      !metadata ||
+      !('messageContent' in metadata) ||
+      metadata.messageContent === undefined
+    )
+      return '';
+
+    return (
+      <Show
+        when={metadata.messageContent.trim()}
+        fallback={<span class="italic text-ink-disabled">Attached items</span>}
+      >
+        {(content) => (
+          <StaticMarkdown
+            markdown={content()}
+            theme={unifiedListMarkdownTheme}
+            singleLine={true}
+          />
+        )}
+      </Show>
+    );
+  };
+
+  return (
+    <CollapsibleListRow
+      showThreadBorder
+      onClick={
+        props.onClick
+          ? (e) => {
+              props.onClick?.(
+                {
+                  ...props.entity,
+                  notification: props.notification,
+                },
+                e
+              );
+            }
+          : undefined
+      }
+      classList={{
+        'opacity-70': props.notification.viewedAt !== null,
+      }}
+    >
+      <div class="flex size-5 shrink-0 items-center justify-center mr-1">
+        <NotificationUserIcon id={props.notification.senderId!} />
+      </div>
+      <div class="flex gap-2 text-sm w-full min-w-0 overflow-hidden items-baseline">
+        <div class="text-sm w-[20cqw] shrink-0 truncate min-w-0">
+          {userName()}{' '}
+          <span class="opacity-70 uppercase font-mono text-[0.625rem] mx-2">
+            {ActionContent()}
+          </span>
+        </div>
+        <MessageContent />
+      </div>
+      <div class="shrink-0 font-mono text-xs uppercase text-ink-extra-muted ml-2">
+        {formattedDate()}
+      </div>
+    </CollapsibleListRow>
+  );
+}
+
+function ContentHitRow(props: {
+  data: ContentHitData;
+  onClick: (e: EntityClickEvent, location?: SearchLocation) => void;
+}) {
+  return (
+    <CollapsibleListRow
+      blockNavigation
+      onClick={(e) => props.onClick(e, props.data.location)}
+    >
+      <Show
+        when={props.data.type === 'channel' && props.data}
+        fallback={
+          <div class="flex gap-2 items-center min-w-0 w-full">
+            <div class="flex size-5 shrink-0 items-center justify-center opacity-0" />
+            <GenericContentHit data={props.data} />
+          </div>
+        }
+      >
+        {(data) => <ChannelMessageContentHit data={data()} />}
+      </Show>
+    </CollapsibleListRow>
+  );
+}
+
 // function ImportantBadge(props: { active?: boolean }) {
 //   return (
 //     <Show when={props.active}>
@@ -124,6 +334,10 @@ function ChannelMessageContentHit(props: { data: ChannelContentHitData }) {
 //     </Show>
 //   );
 // }
+//
+
+type NotificationClickHandler<T extends EntityData = EntityData> =
+  EntityClickHandler<T & { notification: Notification }>;
 
 interface EntityProps<T extends WithNotification<EntityData>>
   extends ParentProps {
@@ -132,7 +346,7 @@ interface EntityProps<T extends WithNotification<EntityData>>
   timestamp?: number;
   onClick?: EntityClickHandler<T>;
   onClickRowAction?: (entity: T, type: 'done') => void;
-  onClickNotification?: EntityClickHandler<T & { notification: Notification }>;
+  onClickNotification?: NotificationClickHandler<T>;
   onMouseOver?: () => void;
   onMouseLeave?: () => void;
   onFocusIn?: () => void;
@@ -160,8 +374,6 @@ export function EntityWithEverything(
   const [entityDivRef, setEntityDivRef] = createSignal<HTMLDivElement | null>(
     null
   );
-  const [showRestOfNotifications, setShowRestOfNotifications] =
-    createSignal(false);
 
   const { keydownDataDuringTask } = trackKeydownDuringTask();
   const userEmail = useEmail();
@@ -191,22 +403,9 @@ export function EntityWithEverything(
   const hasNotifications = () =>
     !!props.entity.notifications && props.entity.notifications().length > 0;
 
-  const threadGap = 6;
-  const ThreadBorder = () => (
-    <div
-      class="absolute left-[calc(0.5rem+1px)] w-[1px] border-l border-edge-muted -top-0.75"
-      style={{ height: `${threadGap}px` }}
-    />
-  );
-
   const notDoneNotifications = () => {
-    let notifications = props.entity.notifications?.();
+    const notifications = props.entity.notifications?.();
     if (!notifications) return [];
-
-    if (!showRestOfNotifications()) {
-      notifications = notifications.slice(0, 3);
-    }
-
     return notifications.filter(({ done }) => !done);
   };
 
@@ -321,9 +520,7 @@ export function EntityWithEverything(
       props.entity.type === 'channel' ? props.entity : null
     );
 
-    const latestMessageContent = createMemo(
-      () => channelEntity()?.latestMessage?.content
-    );
+    const latestMessage = createMemo(() => channelEntity()?.latestMessage);
 
     const userNameFromSender = createMemo(() => {
       const senderId = channelEntity()?.latestMessage?.senderId;
@@ -336,8 +533,7 @@ export function EntityWithEverything(
       return (
         !props.showUnrollNotifications &&
         props.entity.type === 'channel' &&
-        !isSearchEntity(props.entity) &&
-        !!props.entity.latestMessage?.content
+        !isSearchEntity(props.entity)
       );
     };
 
@@ -368,14 +564,26 @@ export function EntityWithEverything(
                 {userNameFromSender()}
               </span>
             </div>
-            <Show when={latestMessageContent()}>
-              {(lastMessageContent) => (
+            <Show when={latestMessage()}>
+              {(lastMessage) => (
                 <div class="truncate shrink grow opacity-60 flex items-center">
-                  <StaticMarkdown
-                    markdown={lastMessageContent().trim()}
-                    theme={unifiedListMarkdownTheme}
-                    singleLine={true}
-                  />
+                  {/* TODO (seamus): Channels endpoint does not return any information about attachments. If we have an empty message, assume it's attachments.*/}
+                  <Show
+                    when={lastMessage().content.trim()}
+                    fallback={
+                      <span class="italic text-ink-disabled">
+                        Attached items
+                      </span>
+                    }
+                  >
+                    {(content) => (
+                      <StaticMarkdown
+                        markdown={content()}
+                        theme={unifiedListMarkdownTheme}
+                        singleLine={true}
+                      />
+                    )}
+                  </Show>
                 </div>
               )}
             </Show>
@@ -602,17 +810,17 @@ export function EntityWithEverything(
         </div>
         {/* Content Hits from Search */}
         <Show when={contentHitData().length > 0}>
-          <div class="relative row-2 grid gap-2 col-2 col-end-4 pb-2">
-            <For each={contentHitData()}>
+          <div class="relative row-2 col-2 col-end-4 pb-2">
+            <CollapsibleList items={contentHitData()} threadBorder>
               {(data) => (
-                <Show
-                  when={data.type === 'channel' && data}
-                  fallback={<GenericContentHit data={data} />}
-                >
-                  {(data) => <ChannelMessageContentHit data={data()} />}
-                </Show>
+                <ContentHitRow
+                  data={data}
+                  onClick={(e, location) => {
+                    props.onClick?.(props.entity, e, location);
+                  }}
+                />
               )}
-            </For>
+            </CollapsibleList>
           </div>
         </Show>
         {/* Notifications */}
@@ -623,140 +831,16 @@ export function EntityWithEverything(
             contentHitData().length === 0
           }
         >
-          <div class="relative col-2 col-end-4 200 pb-2 gap-2">
-            <For each={notDoneNotifications()}>
-              {(notification) => {
-                const [userName] = useDisplayName(notification.senderId);
-
-                const formattedDate = createFormattedDate(
-                  notification.createdAt
-                );
-
-                const ActionContent = () => {
-                  if (
-                    notification.notificationEventType === 'document_mention' ||
-                    notification.notificationEventType ===
-                      'channel_message_document'
-                  ) {
-                    return 'shared';
-                  }
-
-                  const metadata =
-                    tryToTypedNotification(notification)?.notificationMetadata;
-                  if (
-                    !metadata ||
-                    !('messageContent' in metadata) ||
-                    !metadata.messageContent
-                  )
-                    return '';
-
-                  return 'message';
-                };
-
-                const MessageContent = () => {
-                  if (
-                    notification.notificationEventType === 'document_mention' ||
-                    notification.notificationEventType ===
-                      'channel_message_document'
-                  ) {
-                    return '';
-                  }
-
-                  const metadata =
-                    tryToTypedNotification(notification)?.notificationMetadata;
-                  if (
-                    !metadata ||
-                    !('messageContent' in metadata) ||
-                    !metadata.messageContent
-                  )
-                    return '';
-
-                  return (
-                    <StaticMarkdown
-                      markdown={metadata.messageContent.trim()}
-                      theme={unifiedListMarkdownTheme}
-                      singleLine={true}
-                    />
-                  );
-                };
-
-                return (
-                  <div
-                    class="relative flex gap-1 items-center min-w-0 h-8"
-                    classList={{
-                      'hover:bg-hover/20 hover:opacity-70':
-                        !!props.onClickNotification,
-                      'opacity-70': notification.viewedAt !== null,
-                    }}
-                    onClick={
-                      props.onClickNotification
-                        ? [
-                            props.onClickNotification,
-                            {
-                              ...props.entity,
-                              notification,
-                            },
-                          ]
-                        : undefined
-                    }
-                  >
-                    <ThreadBorder />
-                    <div class="flex size-5 shrink-0 items-center justify-center mr-1">
-                      <NotificationUserIcon id={notification.senderId!} />
-                    </div>
-                    <div class="flex gap-2 text-sm w-full min-w-0 overflow-hidden items-baseline">
-                      <div class="text-sm w-[20cqw] shrink-0 truncate min-w-0">
-                        {userName()}{' '}
-                        <span class="opacity-70 uppercase font-mono text-[0.625rem] mx-2">
-                          {ActionContent()}
-                        </span>
-                      </div>
-                      {/*<ImportantBadge
-                        active={
-                          notification.viewedAt === null &&
-                          notification.isImportantV0
-                        }
-                      />*/}
-                      <MessageContent />
-                    </div>
-                    <div class="shrink-0 font-mono text-xs uppercase text-ink-extra-muted ml-2">
-                      {formattedDate()}
-                    </div>
-                  </div>
-                );
-              }}
-            </For>
-            <Show
-              when={
-                hasNotifications() &&
-                (props.entity.notifications?.().length ?? 0) > 3
-              }
-            >
-              <div class="relative h-5">
-                <ThreadBorder />
-                <button
-                  class="block w-fit px-2 py-0.5 text-[10px] border border-edge uppercase font-mono hover:font-medium"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowRestOfNotifications((prev) => !prev);
-                  }}
-                  data-blocks-navigation
-                >
-                  <Show
-                    when={!showRestOfNotifications()}
-                    fallback={<>Collapse</>}
-                  >
-                    + {(props.entity.notifications?.().length ?? 0) - 3} More
-                  </Show>
-                </button>
-              </div>
-            </Show>
-            {/* <div class="relative h-4">
-            <ThreadBorder />
-            <button class="block p-1 py-0 text-[10px] h-4 border border-edge uppercase font-mono">
-              + 6 more
-            </button>
-          </div> */}
+          <div class="relative col-2 col-end-4 pb-2">
+            <CollapsibleList items={notDoneNotifications()} threadBorder>
+              {(notification) => (
+                <NotificationRow
+                  notification={notification}
+                  onClick={props.onClickNotification}
+                  entity={props.entity}
+                />
+              )}
+            </CollapsibleList>
           </div>
         </Show>
       </div>
@@ -882,7 +966,7 @@ function EntityProject(props: {
         ownerId: data.owner,
         updatedAt: data.updatedAt,
       };
-      click(projectEntity, e, { ignorePreview: true });
+      click(projectEntity, e, undefined, { ignorePreview: true });
     };
 
     projectIconRef.classList.add('hover:text-accent');
