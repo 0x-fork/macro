@@ -78,14 +78,6 @@ type MacroUrlName = SYNC_SERVICE_URL
 | LEXICAL_SERVICE_URL
 | SEARCH_SERVICE_URL;
 
-/*
- * for service named "foo" it can look like
- * foo.macro.com
- * foo-service.macro.com
- * foo-service-prod.macro.com
- * some-other-thing.macro.com
- */
-
 const PROD_URLS = {
   [SYNC_SERVICE_URL]: 'https://sync-service-prod.macroverse.workers.dev',
   [COMMS_SERVICE_URL]: 'https://comms-service.macro.com',
