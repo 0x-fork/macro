@@ -23,11 +23,16 @@ import { getDateSuggestions, type ParsedDate } from '@core/util/dateParser';
 import { createFreshSearch } from '@core/util/freshSort';
 import ClockIcon from '@icon/regular/clock.svg';
 import EmailIcon from '@icon/regular/envelope.svg';
-import type { EntityData, WithSearch } from '@macro-entity';
 import {
+  type ChannelEntity,
+  type ChatEntity,
   createUnifiedSearchInfiniteQuery,
+  type DocumentEntity,
   type EmailEntity,
+  type EntityData,
+  type ProjectEntity,
   useEmails,
+  type WithSearch,
 } from '@macro-entity';
 import type { DocumentMentionMetadata } from '@service-notification/client';
 import type { PaginatedSearchArgs } from '@service-search/client';
@@ -79,130 +84,175 @@ export type UserMentionRecord = {
   metadata: DocumentMentionMetadata;
 };
 
-type DateItem = ParsedDate & {
+// Extended types for mentions that aren't in EntityData
+type UserEntity = {
+  type: 'user';
   id: string;
+  name: string;
+  email: string;
+  ownerId: string;
 };
 
-type EntityMap = {
-  item: Item;
-  user: IUser;
-  channel: ChannelWithParticipants;
-  date: DateItem;
-  email: EmailEntity;
+type DateEntity = {
+  type: 'date';
+  id: string;
+  name: string;
+  ownerId: string;
+  date: Date;
+  displayFormat: string;
 };
 
-type Entity<T extends keyof EntityMap> = {
-  kind: T;
-  id: EntityMap[T]['id'];
-  data: EntityMap[T];
+// Union type for all mentionable entities
+type MentionEntity =
+  | ChannelEntity
+  | ChatEntity
+  | DocumentEntity
+  | EmailEntity
+  | ProjectEntity
+  | UserEntity
+  | DateEntity;
+
+// Document-like entities (items that can be mentioned as documents)
+type DocumentLikeEntity =
+  | ChannelEntity
+  | ChatEntity
+  | DocumentEntity
+  | ProjectEntity;
+
+// Converters from legacy types to new entity types
+const userToEntity = (user: IUser): UserEntity => ({
+  type: 'user',
+  id: user.id,
+  name: user.name ?? user.email,
+  email: user.email,
+  ownerId: user.id,
+});
+
+const channelToEntity = (channel: ChannelWithParticipants): ChannelEntity => ({
+  type: 'channel',
+  id: channel.id,
+  name: channel.name ?? '',
+  ownerId: channel.owner_id ?? '',
+  channelType: channel.channel_type,
+  participantIds: channel.participants?.map((p) => p.user_id),
+});
+
+const itemToEntity = (
+  item: Item
+): DocumentEntity | ChatEntity | ProjectEntity => {
+  if (item.type === 'chat') {
+    return {
+      type: 'chat',
+      id: item.id,
+      name: item.name,
+      ownerId: item.userId,
+      projectId: item.projectId ?? undefined,
+    };
+  }
+  if (item.type === 'project') {
+    return {
+      type: 'project',
+      id: item.id,
+      name: item.name,
+      ownerId: item.userId,
+      parentId: item.parentId ?? undefined,
+    };
+  }
+  return {
+    type: 'document',
+    id: item.id,
+    name: item.name,
+    ownerId: item.owner,
+    fileType: item.fileType ?? undefined,
+    subType: item.subType ?? undefined,
+    projectId: item.projectId ?? undefined,
+  };
 };
 
-type PickEntity<K extends keyof EntityMap> = {
-  [P in K]: Entity<P>;
-}[K];
+const parsedDateToEntity = (parsed: ParsedDate): DateEntity => ({
+  type: 'date',
+  id: `date-${parsed.date.toISOString()}`,
+  name: parsed.displayFormat,
+  ownerId: '',
+  date: parsed.date,
+  displayFormat: parsed.displayFormat,
+});
 
-type CombinedEntity<K extends keyof EntityMap = keyof EntityMap> =
-  PickEntity<K>;
-
-// mapper fn that converts  entity data to its entity type
-type EntityMapper<K extends keyof EntityMap> = (
-  data: EntityMap[K]
-) => PickEntity<K>;
-
-function entityMapper<K extends keyof EntityMap>(kind: K): EntityMapper<K> {
-  return (data: EntityMap[K]) => ({ kind, data, id: data.id });
-}
-
-const getUserName = (item: IUser): string => {
-  const { email, name } = item;
-  if (name === email) return email;
-  return `${name} | ${email}`;
+const getUserDisplayName = (entity: UserEntity): string => {
+  if (entity.name === entity.email) return entity.email;
+  return `${entity.name} | ${entity.email}`;
 };
 
-const getUserSearchText = (item: IUser): string => {
-  const { email, name } = item;
-  // Note: we return the email twice to make users with a display name
-  // able to rank above users without a display name.
-  if (name === email) return `${email} | ${email}`;
-  return `${name} | ${email}`;
+const getUserSearchText = (entity: UserEntity): string => {
+  if (entity.name === entity.email) return `${entity.email} | ${entity.email}`;
+  return `${entity.name} | ${entity.email}`;
 };
 
-const getCombinedEntityBlockName = (
-  item: CombinedEntity<'item' | 'channel' | 'email'>,
-  icon?: boolean
+const getEntityBlockName = (
+  entity: MentionEntity,
+  forIcon?: boolean
 ): BlockName | BlockAlias => {
-  switch (item.kind) {
-    case 'item':
-      if (item.data.type === 'document')
-        return fileTypeToBlockName(
-          item.data.subType || item.data.fileType,
-          icon
-        );
-      if (item.data.type === 'chat') return 'chat';
-      if (item.data.type === 'project') return 'project';
-      return 'unknown';
-    case 'email':
-      return 'email';
+  switch (entity.type) {
+    case 'document':
+      return fileTypeToBlockName(entity.subType || entity.fileType, forIcon);
+    case 'chat':
+      return 'chat';
+    case 'project':
+      return 'project';
     case 'channel':
       return 'channel';
+    case 'email':
+      return 'email';
+    case 'user':
+      return 'unknown';
+    case 'date':
+      return 'unknown';
+    default:
+      return 'unknown';
   }
 };
 
-const getItemName = (item: CombinedEntity): string => {
-  switch (item.kind) {
-    case 'item':
-      return item.data.name;
+const getEntityDisplayName = (entity: MentionEntity): string => {
+  switch (entity.type) {
     case 'user':
-      return getUserName(item.data);
-    case 'channel':
-      return item.data.name ?? '';
-    case 'email':
-      return item.data.name ?? 'No Subject';
+      return getUserDisplayName(entity);
     case 'date':
-      return item.data.displayFormat;
+      return entity.displayFormat;
+    case 'email':
+      return entity.name ?? 'No Subject';
+    default:
+      return entity.name ?? '';
   }
 };
 
-const getItemSearchText = (item: CombinedEntity): string => {
-  switch (item.kind) {
-    case 'item':
-      return item.data.name;
+const getEntitySearchText = (entity: MentionEntity): string => {
+  switch (entity.type) {
     case 'user':
-      return getUserSearchText(item.data);
-    case 'channel':
-      return item.data.name ?? '';
+      return getUserSearchText(entity);
     case 'date':
-      return item.data.displayFormat;
+      return entity.displayFormat;
     case 'email':
-      return item.data.name ?? 'No Subject';
+      return entity.name ?? 'No Subject';
+    default:
+      return entity.name ?? '';
   }
 };
 
 /**
- * All incoming items will be run through this filter function. PLEASE use this function
- * to ignore certain items before they make it to search.
- * @param item
- * @returns
+ * Filter function for Item objects (legacy).
  */
-function allItemFilter(item: CombinedEntity): boolean {
-  if (
-    ONLY_REAL_CHATS &&
-    item.kind === 'item' &&
-    item.data.type === 'chat' &&
-    item.data.isPersistent
-  ) {
+function allItemFilterLegacy(item: Item): boolean {
+  if (ONLY_REAL_CHATS && item.type === 'chat' && item.isPersistent) {
     return false;
   }
-  if (item.kind === 'item' && item.data.deletedAt) {
+  if (item.deletedAt) {
     return false;
   }
   return true;
 }
 
 /**
- * These are the stateful utils needed to handle an item of a given type. I have opted
- * to implement the handlers as smaller helpers rather than 1 giant function. So these
- * dependencies have to be injected via the component.
+ * Dependencies for handling mentions.
  */
 type HandlerDependencies = {
   editor: LexicalEditor;
@@ -215,12 +265,10 @@ type HandlerDependencies = {
 };
 
 /**
- * Handles user mentions by lexical inserting and potentially up-serting to the notification service.
- * @param user The user to mention.
- * @param dependencies The dependencies required to handle the user mention.
+ * Handles user mentions.
  */
 async function handleUserMention(
-  user: IUser,
+  entity: UserEntity,
   dependencies: HandlerDependencies
 ) {
   const { editor, blockName, blockId, onUserMention, disableMentionTracking } =
@@ -231,7 +279,7 @@ async function handleUserMention(
     if (blockId) {
       const record: UserMentionRecord = {
         documentId: blockId,
-        mentions: [user.id],
+        mentions: [entity.id],
         metadata: {
           mention_id: v7(),
         },
@@ -242,36 +290,37 @@ async function handleUserMention(
         storageServiceClient.upsertUserMentions(record);
       }
       if (!disableMentionTracking) {
-        mentionId = await trackMention(blockId, 'user', user.id);
+        mentionId = await trackMention(blockId, 'user', entity.id);
       }
     }
   }
 
   editor.dispatchCommand(INSERT_USER_MENTION_COMMAND, {
-    userId: user.id,
-    email: user.email,
+    userId: entity.id,
+    email: entity.email,
     mentionUuid: mentionId,
   });
 }
 
 /**
- * Inserts a date mention.
- * @param date
- * @param dependencies
+ * Handles date mentions.
  */
 async function handleDateMention(
-  date: DateItem,
+  entity: DateEntity,
   dependencies: HandlerDependencies
 ) {
   const { editor } = dependencies;
   editor.dispatchCommand(INSERT_DATE_MENTION_COMMAND, {
-    date: date.date.toISOString(),
-    displayFormat: date.displayFormat,
+    date: entity.date.toISOString(),
+    displayFormat: entity.displayFormat,
   });
 }
 
+/**
+ * Handles email mentions.
+ */
 async function handleEmailMention(
-  email: EmailEntity,
+  entity: EmailEntity,
   dependencies: HandlerDependencies
 ) {
   const {
@@ -288,14 +337,14 @@ async function handleEmailMention(
     parentBlockName !== 'chat' &&
     !disableMentionTracking
   ) {
-    mentionId = await trackMention(blockId, 'document', email.id);
+    mentionId = await trackMention(blockId, 'document', entity.id);
   }
-  const itemName = email.name ?? 'No Subject';
+  const itemName = entity.name ?? 'No Subject';
 
-  onEmailMention?.(email);
+  onEmailMention?.(entity);
 
   editor.dispatchCommand(INSERT_DOCUMENT_MENTION_COMMAND, {
-    documentId: email.id,
+    documentId: entity.id,
     documentName: itemName,
     blockName: 'email',
     mentionUuid: mentionId,
@@ -303,11 +352,10 @@ async function handleEmailMention(
 }
 
 /**
- * Insert a document mentions and track it.
- * @param item
- * @param dependencies
+ * Handles document/chat/project mentions.
  */
-async function handleBasicMention(
+async function handleDocumentMention(
+  entity: DocumentLikeEntity,
   item: Item,
   dependencies: HandlerDependencies
 ) {
@@ -325,16 +373,15 @@ async function handleBasicMention(
     parentBlockName !== 'chat' &&
     !disableMentionTracking
   ) {
-    mentionId = await trackMention(blockId, 'document', item.id);
+    mentionId = await trackMention(blockId, 'document', entity.id);
   }
-  const itemEntity = entityMapper('item')(item);
-  const itemBlock = getCombinedEntityBlockName(itemEntity);
-  const itemName = getItemName(itemEntity);
+  const itemBlock = getEntityBlockName(entity);
+  const itemName = getEntityDisplayName(entity);
 
   onDocumentMention?.(item);
 
   editor.dispatchCommand(INSERT_DOCUMENT_MENTION_COMMAND, {
-    documentId: item.id,
+    documentId: entity.id,
     documentName: itemName,
     blockName: itemBlock,
     mentionUuid: mentionId,
@@ -342,11 +389,10 @@ async function handleBasicMention(
 }
 
 /**
- * Insert a channel mention and track it.
- * @param channel
- * @param dependencies
+ * Handles channel mentions.
  */
 async function handleChannelMention(
+  entity: ChannelEntity,
   channel: ChannelWithParticipants,
   dependencies: HandlerDependencies
 ) {
@@ -364,46 +410,63 @@ async function handleChannelMention(
     parentBlockName !== 'chat' &&
     !disableMentionTracking
   ) {
-    mentionId = await trackMention(blockId, 'channel', channel.id);
+    mentionId = await trackMention(blockId, 'channel', entity.id);
   }
-  const channelEntity = entityMapper('channel')(channel);
-  const itemBlock = getCombinedEntityBlockName(channelEntity);
-  const itemName = getItemName(channelEntity);
+  const itemBlock = getEntityBlockName(entity);
+  const itemName = getEntityDisplayName(entity);
 
   onDocumentMention?.(channel);
 
   editor.dispatchCommand(INSERT_DOCUMENT_MENTION_COMMAND, {
-    documentId: channel.id,
+    documentId: entity.id,
     documentName: itemName,
     blockName: itemBlock,
     mentionUuid: mentionId,
-    channelType: channel.channel_type,
+    channelType: entity.channelType,
   });
 }
 
+// Wrapper type to carry original data for callbacks
+type MentionEntityWithSource<T extends MentionEntity = MentionEntity> = {
+  entity: T;
+  sourceItem?: Item;
+  sourceChannel?: ChannelWithParticipants;
+};
+
 /**
- * Create the universal item handler.
- * @param dependencies
- * @returns
+ * Creates the universal item handler.
  */
 function createItemHandler(dependencies: HandlerDependencies) {
-  return async (item: CombinedEntity) => {
-    if (!item) return;
+  return async (wrapper: MentionEntityWithSource) => {
+    if (!wrapper) return;
     dependencies.editor.dispatchCommand(
       REMOVE_INLINE_SEARCH_COMMAND,
       undefined
     );
-    switch (item.kind) {
+    const { entity, sourceItem, sourceChannel } = wrapper;
+    switch (entity.type) {
       case 'user':
-        return await handleUserMention(item.data, dependencies);
+        return await handleUserMention(entity, dependencies);
       case 'date':
-        return await handleDateMention(item.data, dependencies);
-      case 'item':
-        return await handleBasicMention(item.data, dependencies);
-      case 'channel':
-        return await handleChannelMention(item.data, dependencies);
+        return await handleDateMention(entity, dependencies);
       case 'email':
-        return await handleEmailMention(item.data, dependencies);
+        return await handleEmailMention(entity, dependencies);
+      case 'channel':
+        if (sourceChannel) {
+          return await handleChannelMention(
+            entity,
+            sourceChannel,
+            dependencies
+          );
+        }
+        break;
+      case 'document':
+      case 'chat':
+      case 'project':
+        if (sourceItem) {
+          return await handleDocumentMention(entity, sourceItem, dependencies);
+        }
+        break;
     }
   };
 }
@@ -411,7 +474,6 @@ function createItemHandler(dependencies: HandlerDependencies) {
 /**
  * Styled container for single category.
  */
-
 function ItemBin(
   props: ParentProps<{
     label: string;
@@ -477,11 +539,6 @@ function ItemBin(
 
 /**
  * Calculate the correct number of items for each category.
- * The logic is each incoming bin with at least 1 item gets an outgoing bin of at least 1 item.
- * The remaining items up to MAX_ITEMS are allotted proportional to the size of the incoming bin.
- * @param bins An object with keys and incoming sizes.
- * @param targetLength An object the outgoing sizes for the same keys.
- * @returns
  */
 export function computeBins<T extends string>(
   bins: Record<T, number>,
@@ -557,14 +614,12 @@ type SelectedCategory = MentionBins | null;
 
 /**
  * Styled component for a single item.
- * @param props
- * @returns
  */
 export function MentionsMenuItem(props: {
-  item: CombinedEntity;
+  item: MentionEntityWithSource;
   index: number;
   selected: boolean;
-  itemAction: (item: CombinedEntity) => void;
+  itemAction: (item: MentionEntityWithSource) => void;
   setIndex: (index: number) => void;
   setOpen: (open: boolean) => void;
 }) {
@@ -576,12 +631,13 @@ export function MentionsMenuItem(props: {
     }
   });
 
-  const name = () => getItemName(props.item);
+  const name = () => getEntityDisplayName(props.item.entity);
 
   const icon = () => {
-    switch (props.item.kind) {
+    const entity = props.item.entity;
+    switch (entity.type) {
       case 'user':
-        return <UserIcon id={props.item.id} size="sm" isDeleted={false} />;
+        return <UserIcon id={entity.id} size="sm" isDeleted={false} />;
 
       case 'date':
         return <ClockIcon class="size-4 text-ink-muted" />;
@@ -591,21 +647,20 @@ export function MentionsMenuItem(props: {
           <EntityIcon
             size="xs"
             targetType={
-              props.item.data.channel_type === 'direct_message'
+              entity.channelType === 'direct_message'
                 ? 'directMessage'
-                : props.item.data.channel_type === 'organization'
+                : entity.channelType === 'organization'
                   ? 'company'
                   : 'channel'
             }
           />
         );
 
-      case 'item':
+      case 'document':
+      case 'chat':
+      case 'project':
         return (
-          <EntityIcon
-            targetType={getCombinedEntityBlockName(props.item, true)}
-            size="xs"
-          />
+          <EntityIcon targetType={getEntityBlockName(entity, true)} size="xs" />
         );
       case 'email':
         return <EmailIcon class="size-4 text-ink-muted" />;
@@ -668,38 +723,64 @@ export function MentionsMenu(props: {
     props.menu.searchTerm()
   );
   const historyAccessor = props.history ?? useHistory();
+
+  // Convert history items to entities with source tracking
   const history = createMemo(() => {
-    return historyAccessor().map(entityMapper('item'));
+    return historyAccessor()
+      .filter(allItemFilterLegacy)
+      .map(
+        (item): MentionEntityWithSource => ({
+          entity: itemToEntity(item),
+          sourceItem: item,
+        })
+      );
   });
 
-  let emails: Accessor<Entity<'email'>[]>;
+  // Emails handling
+  let emails: Accessor<MentionEntityWithSource<EmailEntity>[]>;
   if (props.emails) {
     emails = createMemo(
       () =>
-        props.emails?.().map(entityMapper('email')).filter(allItemFilter) ?? []
+        props.emails?.().map(
+          (email): MentionEntityWithSource<EmailEntity> => ({
+            entity: email,
+          })
+        ) ?? []
     );
   } else {
     const emailsFromSource = useEmails();
-    emails = createMemo(
-      () =>
-        emailsFromSource().map(entityMapper('email')).filter(allItemFilter) ??
-        []
+    emails = createMemo(() =>
+      emailsFromSource().map(
+        (email): MentionEntityWithSource<EmailEntity> => ({
+          entity: email,
+        })
+      )
     );
   }
 
   const contacts = useContacts();
 
+  // Users handling
   const users = createMemo(() => {
     const list = props.users?.() ?? contacts();
-    return list.map(entityMapper('user')).filter(allItemFilter);
+    return list.map(
+      (user): MentionEntityWithSource<UserEntity> => ({
+        entity: userToEntity(user),
+      })
+    );
   });
 
-  let channels: Accessor<Entity<'channel'>[]>;
+  // Channels handling
+  let channels: Accessor<MentionEntityWithSource<ChannelEntity>[]>;
   if (props.channels) {
     channels = createMemo(
       () =>
-        props.channels?.().map(entityMapper('channel')).filter(allItemFilter) ??
-        []
+        props.channels?.().map(
+          (channel): MentionEntityWithSource<ChannelEntity> => ({
+            entity: channelToEntity(channel),
+            sourceChannel: channel,
+          })
+        ) ?? []
     );
   } else {
     const { channels: userChannels } = useChannelsContext();
@@ -707,15 +788,20 @@ export function MentionsMenu(props: {
       if (!ENABLE_CHAT_CHANNEL_ATTACHMENT && props.block === 'chat') {
         return [];
       }
-      return userChannels().map(entityMapper('channel')).filter(allItemFilter);
+      return userChannels().map(
+        (channel): MentionEntityWithSource<ChannelEntity> => ({
+          entity: channelToEntity(channel),
+          sourceChannel: channel,
+        })
+      );
     });
   }
 
+  // Unified search for emails
   const args = createMemo((): PaginatedSearchArgs => {
     return {
       params: {
         page: 0,
-        // small -> fast!
         page_size: 10,
       },
       request: {
@@ -730,7 +816,7 @@ export function MentionsMenu(props: {
   const emailUnifiedSearchInfiniteQuery =
     createUnifiedSearchInfiniteQuery(args);
 
-  const foundEmails = createMemo((): Entity<'email'>[] => {
+  const foundEmails = createMemo((): MentionEntityWithSource<EmailEntity>[] => {
     if (emailUnifiedSearchInfiniteQuery.status === 'success') {
       function isEmail(
         e: WithSearch<EntityData>
@@ -738,19 +824,11 @@ export function MentionsMenu(props: {
         return e.type === 'email';
       }
 
-      function entityDataToMentionEntity<T extends EmailEntity>(
-        e: T
-      ): Entity<'email'> {
-        return {
-          data: e,
-          id: e.id,
-          kind: 'email',
-        };
-      }
-
-      return emailUnifiedSearchInfiniteQuery.data
-        .filter(isEmail)
-        .map(entityDataToMentionEntity);
+      return emailUnifiedSearchInfiniteQuery.data.filter(isEmail).map(
+        (email): MentionEntityWithSource<EmailEntity> => ({
+          entity: email,
+        })
+      );
     } else {
       return [];
     }
@@ -766,8 +844,7 @@ export function MentionsMenu(props: {
     const channelList = channels();
     const emailList = emails();
 
-    const tabItems: CombinedEntity<'item' | 'channel' | 'email'>[] = [];
-
+    const tabItems: MentionEntityWithSource[] = [];
     const seenKeys = new Set<string>();
 
     for (const split of splits) {
@@ -784,18 +861,18 @@ export function MentionsMenu(props: {
       seenKeys.add(key);
 
       if (split.content.type === 'channel') {
-        // Find the channel in our channels list
-        const channel = channelList.find((ch) => ch.id === split.content.id);
+        const channel = channelList.find(
+          (ch) => ch.entity.id === split.content.id
+        );
         if (ENABLE_CHAT_CHANNEL_ATTACHMENT && channel) {
           tabItems.push(channel);
         }
       } else if (split.content.type === 'email') {
-        const e = emailList.find((e) => e.id === split.content.id);
+        const e = emailList.find((e) => e.entity.id === split.content.id);
         if (e) tabItems.push(e);
       } else {
-        // Find the document in history
         const historyItem = historyItems.find(
-          (item) => item.id === split.content.id
+          (item) => item.entity.id === split.content.id
         );
         if (historyItem) {
           tabItems.push(historyItem);
@@ -803,39 +880,33 @@ export function MentionsMenu(props: {
       }
     }
 
-    return tabItems.filter(allItemFilter);
+    return tabItems;
   });
 
+  // Combined history and channels
   const historyAndChannels = createMemo(() => {
-    const historyItems = history().filter(allItemFilter);
+    const historyItems = history();
     const channelItems = channels();
     const currentBlockId = useMaybeBlockId();
 
-    // Create a map to deduplicate by ID
-    const itemMap = new Map<string, CombinedEntity<'item' | 'channel'>>();
+    const itemMap = new Map<string, MentionEntityWithSource>();
 
-    // Add history items first (excluding current document)
     for (const item of historyItems) {
-      if (!currentBlockId || item.id !== currentBlockId) {
-        itemMap.set(item.id, item);
+      if (!currentBlockId || item.entity.id !== currentBlockId) {
+        itemMap.set(item.entity.id, item);
       }
     }
 
-    // Add channel items (excluding current channel)
     for (const item of channelItems) {
-      if (!currentBlockId || item.id !== currentBlockId) {
-        itemMap.set(item.id, item);
+      if (!currentBlockId || item.entity.id !== currentBlockId) {
+        itemMap.set(item.entity.id, item);
       }
     }
-
-    // Open tabs are already included in history/channels, so we don't need to add them separately
-    // The prioritization happens in filteredItems instead
 
     return Array.from(itemMap.values());
   });
 
   const [menuOpen, setMenuOpen] = [props.menu.isOpen, props.menu.setIsOpen];
-
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const [viewAllMode, setViewAllMode] = createSignal<ViewAllMode>(null);
 
@@ -850,47 +921,43 @@ export function MentionsMenu(props: {
 
   createEffect(() => debouncedSetSearchTerm(props.menu.searchTerm()));
 
-  const itemSearch = createFreshSearch<CombinedEntity<'item' | 'channel'>>(
-    {},
-    getItemSearchText
+  // Search for items (documents, channels)
+  const itemSearch = createFreshSearch<MentionEntityWithSource>({}, (wrapper) =>
+    getEntitySearchText(wrapper.entity)
   );
   const filteredItems = createMemo(() => {
     const allResults = itemSearch(historyAndChannels(), searchTerm()).map(
-      (result) => {
-        return result.item;
-      }
+      (result) => result.item
     );
 
-    // Separate open tabs from other items
-    const openTabsSet = new Set(openTabs().map((item) => item.id));
-    const tabResults: CombinedEntity<'item' | 'channel' | 'email'>[] = [];
-    const otherResults: CombinedEntity<'item' | 'channel' | 'email'>[] = [];
+    const openTabsSet = new Set(openTabs().map((item) => item.entity.id));
+    const tabResults: MentionEntityWithSource[] = [];
+    const otherResults: MentionEntityWithSource[] = [];
 
     for (const item of allResults) {
-      if (openTabsSet.has(item.id)) {
+      if (openTabsSet.has(item.entity.id)) {
         tabResults.push(item);
       } else {
         otherResults.push(item);
       }
     }
 
-    // Return open tabs first, then other items
     return [...tabResults, ...otherResults];
   });
 
-  const userSearch = createFreshSearch<Entity<'user'>>(
+  // Search for users
+  const userSearch = createFreshSearch<MentionEntityWithSource<UserEntity>>(
     { timeWeight: 0, brevityWeight: 0.3 },
-    getItemSearchText
+    (wrapper) => getEntitySearchText(wrapper.entity)
   );
   const filteredUsers = createMemo(() => {
-    return userSearch(users(), searchTerm()).map((result) => {
-      return result.item;
-    });
+    return userSearch(users(), searchTerm()).map((result) => result.item);
   });
 
-  const emailSearch = createFreshSearch<Entity<'email'>>(
+  // Search for emails
+  const emailSearch = createFreshSearch<MentionEntityWithSource<EmailEntity>>(
     { timeWeight: 0, brevityWeight: 0.3 },
-    getItemSearchText
+    (wrapper) => getEntitySearchText(wrapper.entity)
   );
 
   const filteredEmails = createMemo(() => {
@@ -901,28 +968,21 @@ export function MentionsMenu(props: {
     const otherMail = foundEmails();
 
     // dedup / preserve order
-    function merge<T extends keyof EntityMap>(
-      local: Entity<T>[],
-      unifiedSearch: Entity<T>[]
-    ): Entity<T>[] {
-      let ids = new Set(local.map((e) => e.id));
-      return [...local, ...unifiedSearch.filter((e) => !ids.has(e.id))];
-    }
-
-    return merge(mail, otherMail);
+    const ids = new Set(mail.map((e) => e.entity.id));
+    return [...mail, ...otherMail.filter((e) => !ids.has(e.entity.id))];
   });
 
+  // Date suggestions
   const dateSuggestions = createMemo(() => {
     const suggestions = getDateSuggestions(searchTerm());
-    return suggestions
-      .map((suggestion) => ({
-        ...suggestion,
-        id: `date-${suggestion.date.toISOString()}`,
-      }))
-      .map(entityMapper('date'));
+    return suggestions.map(
+      (suggestion): MentionEntityWithSource<DateEntity> => ({
+        entity: parsedDateToEntity(suggestion),
+      })
+    );
   });
 
-  // The raw bins store the counts for all matching items
+  // Raw bins store counts for all matching items
   const rawBins = createMemo<Record<MentionBins, number>>(() => ({
     users: filteredUsers().length,
     items: filteredItems().length,
@@ -930,14 +990,14 @@ export function MentionsMenu(props: {
     emails: filteredEmails().length,
   }));
 
-  // The bins is the limited and rounded count for each bucket
+  // Limited and rounded count for each bucket
   const bins = createMemo(() => computeBins(rawBins(), MAX_ITEMS));
 
-  const combinedItems = createMemo<CombinedEntity[]>(() => {
+  // Combined items for display
+  const combinedItems = createMemo<MentionEntityWithSource[]>(() => {
     const currentViewAllMode = viewAllMode();
 
     if (currentViewAllMode) {
-      // in view all mode, show all items for that category only
       switch (currentViewAllMode) {
         case 'users':
           return filteredUsers();
@@ -952,7 +1012,6 @@ export function MentionsMenu(props: {
       }
     }
 
-    // normal mode: show limited items from all categories
     return [
       ...filteredUsers().slice(0, bins().users),
       ...filteredItems().slice(0, bins().items),
@@ -964,6 +1023,7 @@ export function MentionsMenu(props: {
   const [escapeSpaceState, setEscapeSpaceState] = createSignal<
     'start' | 'single' | 'double' | null
   >('start');
+
   createEffect(() => {
     if (!menuOpen()) {
       setEscapeSpaceState('start');
@@ -972,7 +1032,7 @@ export function MentionsMenu(props: {
   });
 
   const selectedCategory = createMemo<SelectedCategory>(() => {
-    if (viewAllMode()) return null; // no category selection in view all mode
+    if (viewAllMode()) return null;
 
     const index = selectedIndex();
     const { users, items, dates, emails } = bins();
@@ -1208,7 +1268,7 @@ export function MentionsMenu(props: {
   const inner = createMemo(() => {
     const currentViewAllMode = viewAllMode();
 
-    // ---- SINGLE BUCKET MODE -------------------------------------------------
+    // SINGLE BUCKET MODE
     if (currentViewAllMode) {
       const allItems = combinedItems();
       const totalLength = () => allItems.length;
@@ -1276,31 +1336,27 @@ export function MentionsMenu(props: {
       );
     }
 
-    // ------ NORMAL MODE ------------------------------------------------------
-    const users = filteredUsers().slice(0, bins().users);
+    // NORMAL MODE
+    const usersList = filteredUsers().slice(0, bins().users);
     const docs = filteredItems().slice(0, bins().items);
     const dates = dateSuggestions().slice(0, bins().dates);
     const emailList = filteredEmails().slice(0, bins().emails);
     const totalLength = () =>
-      users.length +
-      docs.length +
-      contacts.length +
-      dates.length +
-      emailList.length;
+      usersList.length + docs.length + dates.length + emailList.length;
 
     const renderOptions = createMemo(() => {
       const options = [];
-      if (users.length > 0) {
+      if (usersList.length > 0) {
         options.push(
           <ItemBin
             label="People"
             binType="users"
             totalCount={filteredUsers().length}
-            showingCount={users.length}
+            showingCount={usersList.length}
             onViewAll={handleViewAll}
             isSelected={selectedCategory() === 'users'}
           >
-            <For each={users}>
+            <For each={usersList}>
               {(item, i) => (
                 <MentionsMenuItem
                   item={item}
@@ -1330,8 +1386,8 @@ export function MentionsMenu(props: {
               {(item, i) => (
                 <MentionsMenuItem
                   item={item}
-                  index={users.length + i()}
-                  selected={users.length + i() === selectedIndex()}
+                  index={usersList.length + i()}
+                  selected={usersList.length + i() === selectedIndex()}
                   itemAction={itemAction}
                   setIndex={setSelectedIndex}
                   setOpen={setMenuOpen}
@@ -1356,9 +1412,9 @@ export function MentionsMenu(props: {
               {(item, i) => (
                 <MentionsMenuItem
                   item={item}
-                  index={users.length + docs.length + i()}
+                  index={usersList.length + docs.length + i()}
                   selected={
-                    users.length + docs.length + i() === selectedIndex()
+                    usersList.length + docs.length + i() === selectedIndex()
                   }
                   itemAction={itemAction}
                   setIndex={setSelectedIndex}
@@ -1385,9 +1441,9 @@ export function MentionsMenu(props: {
               {(item, i) => (
                 <MentionsMenuItem
                   item={item}
-                  index={i()}
+                  index={usersList.length + docs.length + dates.length + i()}
                   selected={
-                    users.length + docs.length + dates.length + i() ===
+                    usersList.length + docs.length + dates.length + i() ===
                     selectedIndex()
                   }
                   itemAction={itemAction}
