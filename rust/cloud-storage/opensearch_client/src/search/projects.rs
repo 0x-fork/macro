@@ -31,7 +31,7 @@ impl SearchQueryConfig for ProjectSearchConfig {
                 Self::TITLE_KEY,
                 HighlightField::new()
                     .highlight_type("plain")
-                    .number_of_fragments(1)
+                    .number_of_fragments(0)
                     .pre_tags(vec![MacroEm::Open.to_string()])
                     .post_tags(vec![MacroEm::Close.to_string()]),
             )

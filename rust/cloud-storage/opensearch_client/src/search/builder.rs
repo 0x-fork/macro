@@ -336,7 +336,7 @@ impl<T: SearchQueryConfig> SearchQueryBuilder<T> {
                     .highlight_type("plain")
                     .pre_tags(vec![MacroEm::Open.to_string()])
                     .post_tags(vec![MacroEm::Close.to_string()])
-                    .number_of_fragments(1),
+                    .number_of_fragments(0),
             ),
             SearchOn::NameContent => Highlight::new()
                 .require_field_match(false)
@@ -346,7 +346,7 @@ impl<T: SearchQueryConfig> SearchQueryBuilder<T> {
                         .highlight_type("plain")
                         .pre_tags(vec![MacroEm::Open.to_string()])
                         .post_tags(vec![MacroEm::Close.to_string()])
-                        .number_of_fragments(1),
+                        .number_of_fragments(0),
                 )
                 .field(
                     T::CONTENT_KEY,
@@ -354,7 +354,7 @@ impl<T: SearchQueryConfig> SearchQueryBuilder<T> {
                         .highlight_type("plain")
                         .pre_tags(vec![MacroEm::Open.to_string()])
                         .post_tags(vec![MacroEm::Close.to_string()])
-                        .number_of_fragments(1),
+                        .number_of_fragments(0),
                 ),
         };
 

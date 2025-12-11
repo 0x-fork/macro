@@ -489,7 +489,7 @@ fn build_unified_search_request(args: &UnifiedSearchArgs) -> Result<SearchReques
                         .highlight_type("plain")
                         .pre_tags(vec![MacroEm::Open.to_string()])
                         .post_tags(vec![MacroEm::Close.to_string()])
-                        .number_of_fragments(1),
+                        .number_of_fragments(0),
                 );
             }
             highlight
@@ -506,7 +506,7 @@ fn build_unified_search_request(args: &UnifiedSearchArgs) -> Result<SearchReques
                         .highlight_type("plain")
                         .pre_tags(vec![MacroEm::Open.to_string()])
                         .post_tags(vec![MacroEm::Close.to_string()])
-                        .number_of_fragments(1),
+                        .number_of_fragments(0),
                 );
             }
 
@@ -516,7 +516,7 @@ fn build_unified_search_request(args: &UnifiedSearchArgs) -> Result<SearchReques
                     .highlight_type("plain")
                     .pre_tags(vec![MacroEm::Open.to_string()])
                     .post_tags(vec![MacroEm::Close.to_string()])
-                    .number_of_fragments(1),
+                    .number_of_fragments(0),
             );
 
             highlight

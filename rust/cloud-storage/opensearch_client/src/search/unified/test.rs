@@ -823,7 +823,7 @@ fn test_build_unified_search_request_name() -> anyhow::Result<()> {
       "highlight": {
         "fields": {
           "name": {
-            "number_of_fragments": 1,
+            "number_of_fragments": 0,
             "post_tags": [
               "</macro_em>"
             ],
@@ -833,7 +833,7 @@ fn test_build_unified_search_request_name() -> anyhow::Result<()> {
             "type": "plain"
           },
           "project_name": {
-            "number_of_fragments": 1,
+            "number_of_fragments": 0,
             "post_tags": [
               "</macro_em>"
             ],
@@ -1071,7 +1071,7 @@ fn test_build_unified_search_request_name_content() -> anyhow::Result<()> {
       "highlight": {
         "fields": {
           "content": {
-            "number_of_fragments": 1,
+            "number_of_fragments": 0,
             "post_tags": [
               "</macro_em>"
             ],
@@ -1081,7 +1081,7 @@ fn test_build_unified_search_request_name_content() -> anyhow::Result<()> {
             "type": "plain"
           },
           "name": {
-            "number_of_fragments": 1,
+            "number_of_fragments": 0,
             "post_tags": [
               "</macro_em>"
             ],
@@ -1091,7 +1091,7 @@ fn test_build_unified_search_request_name_content() -> anyhow::Result<()> {
             "type": "plain"
           },
           "project_name": {
-            "number_of_fragments": 1,
+            "number_of_fragments": 0,
             "post_tags": [
               "</macro_em>"
             ],
