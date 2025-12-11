@@ -62,54 +62,26 @@ export const DOCUMENT_COGNITION_SERVICE_URL = 'DOCUMENT_COGNITION_SERVICE_URL';
 export const LEXICAL_SERVICE_URL = 'LEXICAL_SERVICE_URL';
 export const SEARCH_SERVICE_URL = 'SEARCH_SERVICE_URL';
 
-type MacroUrlName =
-  | SYNC_SERVICE_URL
-  | COMMS_SERVICE_URL
-  | EMAIL_SERVICE_URL
-  | PROPERTIES_SERVICE_URL
-  | METERING_SERVICE_URL
-  | STATIC_FILE_SERVICE_URL
-  | ORGANIZATION_SERVICE_URL
-  | NOTIFICATION_SERVICE_URL
-  | AUTHENTICATION_SERVICE_URL
-  | DOCUMENT_STORAGE_SERVICE_URL
-  | CONNECTION_GATEWAY_URL
-  | DOCUMENT_COGNITION_SERVICE_URL
-  | LEXICAL_SERVICE_URL
-  | SEARCH_SERVICE_URL;
+type MacroUrlMap = {
+  [SYNC_SERVICE_URL]: string,
+  [COMMS_SERVICE_URL]: string,
+  [EMAIL_SERVICE_URL]: string,
+  [PROPERTIES_SERVICE_URL]: string,
+  [METERING_SERVICE_URL]: string,
+  [STATIC_FILE_SERVICE_URL]: string,
+  [ORGANIZATION_SERVICE_URL]: string,
+  [NOTIFICATION_SERVICE_URL]: string,
+  [AUTHENTICATION_SERVICE_URL]: string,
+  [DOCUMENT_STORAGE_SERVICE_URL]: string,
+  [CONNECTION_GATEWAY_URL]: string,
+  [DOCUMENT_COGNITION_SERVICE_URL]: string,
+  [LEXICAL_SERVICE_URL]: string,
+  [SEARCH_SERVICE_URL]: string,
+}
 
+type MacroUrlKey = keyof MacroUrlMap;
 
-type MacroUrl =
-  | 'https://sync-service-prod.macroverse.workers.dev'
-  | 'https://comms-service.macro.com'
-  | 'https://email-service.macro.com'
-  | 'https://properties-service.macro.com'
-  | 'https://metering.macro.com'
-  | 'https://static-file-service.macro.com'
-  | 'https://organization-service.macro.com'
-  | 'https://notifications.macro.com'
-  | 'https://auth-service.macro.com'
-  | 'https://cloud-storage.macro.com'
-  | 'https://connection-gateway.macro.com'
-  | 'https://document-cognition.macro.com'
-  | 'https://lexical-service-prod.macroverse.workers.dev'
-  | 'https://search-service.macro.com'
-  | 'https://sync-service-dev3.macroverse.workers.dev'
-  | 'https://comms-service-dev.macro.com'
-  | 'https://email-service-dev.macro.com'
-  | 'https://properties-service-dev.macro.com'
-  | 'https://metering-dev.macro.com'
-  | 'https://static-file-service-dev.macro.com'
-  | 'https://organization-service-dev.macro.com'
-  | 'https://notifications-dev.macro.com'
-  | 'https://auth-service-dev.macro.com'
-  | 'https://cloud-storage-dev.macro.com'
-  | 'https://connection-gateway-dev.macro.com'
-  | 'https://document-cognition-dev.macro.com'
-  | 'https://lexical-service-dev.macroverse.workers.dev'
-  | 'https://search-service-dev.macro.com';
-
-const PROD_URLS: { [key in MacroUrlName]: MacroUrl } = {
+const PROD_URLS: MacroUrlMap = {
   [SYNC_SERVICE_URL]: 'https://sync-service-prod.macroverse.workers.dev',
   [COMMS_SERVICE_URL]: 'https://comms-service.macro.com',
   [EMAIL_SERVICE_URL]: 'https://email-service.macro.com',
@@ -126,7 +98,7 @@ const PROD_URLS: { [key in MacroUrlName]: MacroUrl } = {
   [SEARCH_SERVICE_URL]: 'https://search-service.macro.com',
 };
 
-const DEV_URLS: { [key in MacroUrlName]: MacroUrl } = {
+const DEV_URLS: MacroUrlMap = {
   [SYNC_SERVICE_URL]: 'https://sync-service-dev3.macroverse.workers.dev',
   [COMMS_SERVICE_URL]: 'https://comms-service-dev.macro.com',
   [EMAIL_SERVICE_URL]: 'https://email-service-dev.macro.com',
@@ -143,7 +115,7 @@ const DEV_URLS: { [key in MacroUrlName]: MacroUrl } = {
   [SEARCH_SERVICE_URL]: 'https://search-service-dev.macro.com',
 };
 
-const URLS = (()=> {
+const URLS: MacroUrlMap = (()=> {
   switch (stack) {
     case STACK_PROD:
       return PROD_URLS;
@@ -154,11 +126,11 @@ const URLS = (()=> {
   }
 })();
 
-export function getMacroUrl(name: MacroUrlName): MacroUrl {
+export function getMacroUrl(name: MacroUrlKey): MacroUrl {
   return URLS[name];
 }
 /** Returns urls with names in `names`, in the form [{ name: 'FOO_URL', value: 'http://foo.macro.com' }, ...] */
-export function getNameValueMacroUrls(names: MacroUrlName[], urls = URLS) {
+export function getNameValueMacroUrls(names: MacroUrlKey[], urls = URLS) {
   const namesSet = new Set([...names]);
   return Object.entries(urls)
     .filter(([k, _]) => namesSet.has(k))
@@ -173,6 +145,6 @@ export function filterObjectKeys(keys, obj) {
   );
 }
 
-export function filterMacroUrls(names: MacroUrlName[], urls = URLS) {
+export function filterMacroUrls(names: MacroUrlKey[], urls = URLS) {
   return filterObjectKeys(names, urls);
 }
