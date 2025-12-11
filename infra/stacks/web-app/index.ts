@@ -145,6 +145,9 @@ const encodingLambdaEdgeFunction = new aws.lambda.Function(
 const encodingLambdaVersion: pulumi.Output<String> =
   encodingLambdaEdgeFunction.version.apply((v: string) => v);
 
+const dssUrl = new URL(getMacroUrl(DOCUMENT_STORAGE_SERVICE_URL));
+dssUrl.pathname = '/documents/preview';
+
 const appRouteLambda = new aws.lambda.Function('app-route-lambda', {
   code: new pulumi.asset.FileArchive('./appRouteLambda'),
   role: lambdaRole.arn,
@@ -156,7 +159,7 @@ const appRouteLambda = new aws.lambda.Function('app-route-lambda', {
   publish: true,
   environment: {
     variables: {
-      PREVIEW_URL: getMacroUrl(DOCUMENT_STORAGE_SERVICE_URL),
+      PREVIEW_URL: dssUrl.toString(),
     },
   },
 });
