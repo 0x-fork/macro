@@ -133,26 +133,13 @@ pub async fn fetchium(
             }
         }
     }
-    //--- end closure --
 
-    let handles = attachments.into_iter().map(|attachment| {
-        let scribe = scribe.clone();
-        let jwt_tua = jwt.to_owned();
-        tokio::spawn(async move { fetchington(attachment, scribe, &jwt_tua).await })
-    });
+    let futures = attachments
+        .into_iter()
+        .map(|attachment| fetchington(attachment, scribe.clone(), jwt));
 
-    let results = futures::future::try_join_all(handles)
-        .await
-        .context("failed to join attachment fetch tasks")?;
-
-    if results.iter().any(Result::is_err) {
-        let errors: Vec<_> = results.iter().filter_map(|r| r.as_ref().err()).collect();
-        tracing::error!(
-            error_count = errors.len(),
-            "failed to fetch one or more attachments"
-        );
-        Err(anyhow::anyhow!("failed to get one or more attachments"))
-    } else {
-        Ok(results.into_iter().flatten().collect())
-    }
+    let results = futures::future::try_join_all(futures).await.inspect_err(
+        |err| tracing::error!(error=?err, "failed to fetch one or more attachments"),
+    )?;
+    Ok(results)
 }

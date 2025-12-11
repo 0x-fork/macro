@@ -14,9 +14,11 @@ impl DocumentStorageServiceClient {
         let json = self
             .external_request(reqwest::Method::GET, path.as_str(), jwt)
             .send()
-            .await?
+            .await
+            .context("failed to fetch head")?
             .json()
-            .await?;
+            .await
+            .context("failed to fetch json")?;
 
         serde_json::from_value(json)
             .inspect_err(|err| eprintln!("jsonfail {:#?}", err))
