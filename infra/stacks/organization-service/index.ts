@@ -157,7 +157,7 @@ const organizationService = new OrganizationService(
       {
         // TODO every other service calls this AUTHENTICATION_SERVICE_URL
         name: 'AUTH_URL',
-        value: getMacroUrl(AUTHENTICATION_SERVICE_URL),
+        value: getMacroUrl(AUTHENTICATION_SERVICE_URL).toString().replace(/\/$/, ''),
       },
       {
         name: 'AUTH_INTERNAL_AUTH_SECRET_KEY',

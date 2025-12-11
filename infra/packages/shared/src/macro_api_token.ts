@@ -10,7 +10,7 @@ export function getMacroApiToken(): {
   macroApiTokenPublicKeyArn: pulumi.Output<string>;
 } {
   return {
-    macroApiTokenIssuer: getMacroUrl(AUTHENTICATION_SERVICE_URL),
+    macroApiTokenIssuer: getMacroUrl(AUTHENTICATION_SERVICE_URL).hostname,
     macroApiTokenPublicKey: MACRO_API_TOKEN_PUBLIC_KEY,
     macroApiTokenPublicKeyArn: aws.secretsmanager
       .getSecretVersionOutput({

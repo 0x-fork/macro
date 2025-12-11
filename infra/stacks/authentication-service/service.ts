@@ -8,7 +8,7 @@ import {
   serviceLoadBalancer,
 } from '@resources';
 import { EcrImage } from '@service';
-import { BASE_DOMAIN, CLOUD_TRAIL_SNS_TOPIC_ARN, stack } from '@shared';
+import { AUTHENTICATION_SERVICE_URL, BASE_DOMAIN, CLOUD_TRAIL_SNS_TOPIC_ARN, getMacroUrl, stack } from '@shared';
 
 const BASE_NAME = 'authentication-service';
 const BASE_PATH = '../../../rust/cloud-storage';

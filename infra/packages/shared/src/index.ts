@@ -127,7 +127,7 @@ const URLS: MacroUrlMap = (()=> {
 })();
 
 export function getMacroUrl(name: MacroUrlKey): MacroUrl {
-  return URLS[name];
+  return new URL(URLS[name]);
 }
 /** Returns urls with names in `names`, in the form [{ name: 'FOO_URL', value: 'http://foo.macro.com' }, ...] */
 export function getNameValueMacroUrls(names: MacroUrlKey[], urls = URLS) {
