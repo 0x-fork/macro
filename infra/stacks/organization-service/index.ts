@@ -149,6 +149,7 @@ const organizationService = new OrganizationService(
         value: pulumi.interpolate`${FUSIONAUTH_CLIENT_ID}`,
       },
       {
+        // TODO every other service calls this AUTHENTICATION_SERVICE_URL
         name: 'AUTH_URL',
         value: getMacroUrl(AUTHENTICATION_SERVICE_URL),
       },

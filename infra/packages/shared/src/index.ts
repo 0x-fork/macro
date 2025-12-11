@@ -48,6 +48,7 @@ const STACK_DEV = 'dev';
 const STACK_PROD = 'prod';
 
 
+// TODO rename these to not have "_URL", because it seems like they are actually URL's
 export const SYNC_SERVICE_URL = 'SYNC_SERVICE_URL';
 export const COMMS_SERVICE_URL = 'COMMS_SERVICE_URL';
 export const EMAIL_SERVICE_URL = 'EMAIL_SERVICE_URL';
@@ -117,6 +118,7 @@ const URLS = stack === STACK_PROD ? PROD_URLS : DEV_URLS;
 export function getMacroUrl(name: MacroUrlName) {
   return URLS[name];
 }
+// TODO rename to getNameValueMacroUrls
 /// Returns urls with names in `names`, in the form [{ name: 'FOO_URL', value: 'http://foo.macro.com' }, ...]
 export function getMacroUrls(names: MacroUrlName[], urls = URLS) {
   const namesSet = new Set([...names]);
