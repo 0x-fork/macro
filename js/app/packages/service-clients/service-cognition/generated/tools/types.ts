@@ -279,7 +279,8 @@ export interface ReadInput {
     | 'chat-thread'
     | 'chat-message'
     | 'email-thread'
-    | 'email-message';
+    | 'email-message'
+    | 'project';
   /**
    * ID(s) of the content to read. IMPORTANT: document, channel-message, chat-message, and email-message content types support MULTIPLE ids! For all other content types (channel, chat-thread, email-thread) provide a single id.
    */
@@ -360,6 +361,10 @@ export interface ReadOutput {
         subject?: string | null;
         thread_id: string;
         type: 'email';
+      }
+    | {
+        formatted_preview: string;
+        type: 'itemPreviews';
       };
 }
 

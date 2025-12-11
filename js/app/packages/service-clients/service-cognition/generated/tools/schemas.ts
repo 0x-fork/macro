@@ -22,7 +22,7 @@ export const MarkdownRewriteInputSchema = z.object({ "instructions": z.string(),
 export const MarkdownRewriteOutputSchema = z.object({ "diffs": z.array(z.object({ "markdown_text": z.string(), "node_key": z.string(), "operation": z.string() }).strict()) }).strict()
 
 
-export const ReadInputSchema = z.object({ "contentType": z.enum(["document","channel","channel-message","chat-thread","chat-message","email-thread","email-message"]), "ids": z.array(z.string()), "messagesSince": z.union([z.string().datetime({ offset: true }), z.null()]) }).strict()
+export const ReadInputSchema = z.object({ "contentType": z.enum(["document","channel","channel-message","chat-thread","chat-message","email-thread","email-message","project"]), "ids": z.array(z.string()), "messagesSince": z.union([z.string().datetime({ offset: true }), z.null()]) }).strict()
 
 
 export const ReadOutputSchema = z.object({ "content": z.any().superRefine((x, ctx) => {
@@ -44,7 +44,7 @@ export const ReadOutputSchema = z.object({ "content": z.any().superRefine((x, ct
         message: "Invalid input: Should pass single schema",
       });
     }
-  })), "content": z.string(), "date": z.string().datetime({ offset: true }) })), "title": z.string() })), "type": z.literal("chat") }), z.object({ "messages": z.array(z.object({ "bcc": z.array(z.string()), "cc": z.array(z.string()), "content": z.string(), "messageId": z.string(), "recipients": z.array(z.string()), "sender": z.string(), "sentAt": z.union([z.string().datetime({ offset: true }), z.null()]).optional() })), "subject": z.union([z.string(), z.null()]).optional(), "thread_id": z.string(), "type": z.literal("email") })];
+  })), "content": z.string(), "date": z.string().datetime({ offset: true }) })), "title": z.string() })), "type": z.literal("chat") }), z.object({ "messages": z.array(z.object({ "bcc": z.array(z.string()), "cc": z.array(z.string()), "content": z.string(), "messageId": z.string(), "recipients": z.array(z.string()), "sender": z.string(), "sentAt": z.union([z.string().datetime({ offset: true }), z.null()]).optional() })), "subject": z.union([z.string(), z.null()]).optional(), "thread_id": z.string(), "type": z.literal("email") }), z.object({ "formatted_preview": z.string(), "type": z.literal("itemPreviews") })];
     const errors = schemas.reduce<z.ZodError[]>(
       (errors, schema) =>
         ((result) =>
