@@ -18,8 +18,6 @@ impl DocumentStorageServiceClient {
             .json()
             .await?;
 
-        println!("{:#?}", json);
-
         serde_json::from_value(json)
             .inspect_err(|err| eprintln!("jsonfail {:#?}", err))
             .context("unexpected response")
