@@ -126,8 +126,31 @@ const URLS: MacroUrlMap = (()=> {
   }
 })();
 
-export function getMacroUrl(name: MacroUrlKey): MacroUrl {
-  return new URL(URLS[name]);
+const MACRO_TLD = 'macro.com';
+const MACRO_TLD_REGEX = /macro.com$/;
+
+class MacroUrl extends URL {
+  constructor(...args) {
+    super(...args)
+  }
+
+  stringWithoutTrailingSlash() {
+    return this.toString().replace(/\/$/, '');
+  }
+  subDomain() {
+    let hostname = this.hostname;
+    if (!hostname.endsWith(MACRO_TLD)) {
+      throw new Error('only applicable with macro.com domains');
+    }
+    return this.hostname.replace(MACRO_TLD_REGEX, '');
+  }
+  serviceName() {
+    let subdomain = this.subDomain();
+    return subdomain.replace(/-dev$/,'').replace(/-prod$/, '');
+  }
+}
+export function getMacroUrl(name: MacroUrlKey) {
+  return new MacroUrl(URLS[name]);
 }
 /** Returns urls with names in `names`, in the form [{ name: 'FOO_URL', value: 'http://foo.macro.com' }, ...] */
 export function getNameValueMacroUrls(names: MacroUrlKey[], urls = URLS) {

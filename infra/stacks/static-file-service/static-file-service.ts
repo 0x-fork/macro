@@ -10,13 +10,14 @@ import {
 } from '@resources';
 import { ALLOWED_ORIGINS } from '@resources/resources/cors';
 import { EcrImage } from '@service';
-import { BASE_DOMAIN, MACRO_SUBDOMAIN_CERT } from '@shared';
+import { BASE_DOMAIN, getMacroUrl, MACRO_SUBDOMAIN_CERT, STATIC_FILE_SERVICE_URL } from '@shared';
 import { StaticFileCloudFront } from './distribution';
 
 const stack = pulumi.getStack();
-export const SERVICE_NAME = 'static-file-service';
-export const SERVICE_DOMAIN_NAME = `static-file-service${stack === 'prod' ? '' : `-${stack}`}`;
-export const SERVICE_URL = `https://${SERVICE_DOMAIN_NAME}.${BASE_DOMAIN}`;
+const url = getMacroUrl(STATIC_FILE_SERVICE_URL);
+export const SERVICE_NAME = url.serviceName();
+export const SERVICE_DOMAIN_NAME = url.subDomain();
+export const SERVICE_URL = url.stringWithoutTrailingSlash();
 export const STATIC_FILE_BUCKET = `static-file-storage-${stack}`;
 
 const BASE_PATH = '../../../rust/cloud-storage';
