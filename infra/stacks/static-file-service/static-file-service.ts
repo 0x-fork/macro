@@ -147,7 +147,7 @@ export class StaticFileService extends pulumi.ComponentResource {
         api: lb,
         stackName: stack,
         customDomain: {
-          aliases: [`${SERVICE_DOMAIN_NAME}.macro.com`],
+          aliases: [url.hostname],
           certificateArn: MACRO_SUBDOMAIN_CERT,
         },
         notFoundPage: notFound,
@@ -406,7 +406,7 @@ export class StaticFileService extends pulumi.ComponentResource {
         })
       ),
     });
-    const STORAGE_LOCATION = `https://${SERVICE_DOMAIN_NAME}.macro.com`;
+    const STORAGE_LOCATION = url.stringWithoutTrailingSlash();
     // service
     const service = new awsx.ecs.FargateService(
       `${SERVICE_NAME}`,
