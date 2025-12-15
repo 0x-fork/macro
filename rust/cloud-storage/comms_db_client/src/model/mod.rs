@@ -8,10 +8,6 @@ use uuid::Uuid;
 // Re-export ChannelType from models_comms
 pub use models_comms::{ChannelMetadata, ChannelType};
 
-// ============================================================================
-// Typing & Actions
-// ============================================================================
-
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum TypingAction {
@@ -25,10 +21,6 @@ pub enum GetOrCreateAction {
     Get,
     Create,
 }
-
-// ============================================================================
-// Participant Types
-// ============================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type, ToSchema, Default)]
 #[sqlx(type_name = "comms_participant_role", rename_all = "lowercase")]
@@ -53,10 +45,6 @@ pub struct ChannelParticipant {
     /// timestamp of when the user left the channel
     pub left_at: Option<chrono::DateTime<chrono::Utc>>,
 }
-
-// ============================================================================
-// Channel Types
-// ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 pub struct Channel {
@@ -132,10 +120,6 @@ pub struct WithChannelId {
     pub channel_id: String,
 }
 
-// ============================================================================
-// Message Types
-// ============================================================================
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Message {
     /// uuid of the message
@@ -174,10 +158,6 @@ pub struct LatestMessage {
     pub latest_non_thread_message: Option<ChannelMessage>,
 }
 
-// ============================================================================
-// Attachment Types
-// ============================================================================
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Attachment {
     pub id: Uuid,
@@ -199,10 +179,6 @@ pub struct NewAttachment {
     pub height: Option<i32>,
     pub width: Option<i32>,
 }
-
-// ============================================================================
-// Mention Types
-// ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct SimpleMention {
@@ -229,10 +205,6 @@ pub struct EntityMention {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-// ============================================================================
-// Reaction Types
-// ============================================================================
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Reaction {
     pub message_id: Uuid,
@@ -246,10 +218,6 @@ pub struct CountedReaction {
     pub emoji: String,
     pub users: Vec<String>,
 }
-
-// ============================================================================
-// Activity Types
-// ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
@@ -284,10 +252,6 @@ pub struct UserActivityForChannel {
     /// notification db to determine if the user should be notified via email.
     pub updated_at: chrono::NaiveDateTime,
 }
-
-// ============================================================================
-// Request/Response Types
-// ============================================================================
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AddUserToOrgChannelsRequest {
