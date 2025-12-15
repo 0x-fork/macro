@@ -1,6 +1,6 @@
 use crate::CommsServiceClient;
 use crate::error::{ClientError, ResponseExt};
-use model::comms::ChannelParticipant;
+use comms_db_client::model::ChannelParticipant;
 
 impl CommsServiceClient {
     /// Returns the participants in a channel.

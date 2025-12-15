@@ -8,8 +8,11 @@ use anyhow::Result;
 use axum::extract::Json;
 use axum::{extract::State, http::StatusCode};
 use axum_extra::extract::Cached;
-use comms_db_client::participants::add_participant::{AddParticipantOptions, add_participant};
-use model::comms::{ChannelType, ParticipantRole};
+use comms_db_client::{
+    participants::add_participant::{AddParticipantOptions, add_participant},
+    model::ParticipantRole,
+};
+use models_comms::ChannelType;
 use model::document_storage_service_internal::UpdateUserChannelPermissionsRequest;
 use model_notifications::CommonChannelMetadata;
 use models_permissions::share_permission::channel_share_permission::UpdateOperation;

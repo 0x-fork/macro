@@ -1,6 +1,5 @@
+use crate::model::{Channel, ChannelType};
 use anyhow::{Context, Result};
-#[allow(unused_imports)]
-use model::comms::{Channel, ChannelType};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 

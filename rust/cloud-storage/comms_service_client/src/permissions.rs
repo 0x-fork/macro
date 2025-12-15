@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::error::{ClientError, ResponseExt};
-use model::comms::CheckChannelsForUserRequest;
+use comms_db_client::model::CheckChannelsForUserRequest;
 
 use super::CommsServiceClient;
 

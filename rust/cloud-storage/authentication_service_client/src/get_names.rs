@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::AuthServiceClient;
 use crate::error::{AuthServiceClientError, GenericErrorResponse};
 use anyhow::Result;
-use model::comms::ChannelWithParticipants;
+use comms_db_client::model::ChannelWithParticipants;
 use model::user::UserNames;
 
 // HACK: duplicate code, should probably move this to model at some point

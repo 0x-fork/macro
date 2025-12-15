@@ -8,3 +8,6 @@ pub mod model;
 pub mod participants;
 pub mod preview;
 pub mod reactions;
+
+// Re-export commonly used model types at crate root for convenience
+pub use model::*;

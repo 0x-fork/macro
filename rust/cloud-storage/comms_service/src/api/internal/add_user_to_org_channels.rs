@@ -1,9 +1,9 @@
 use axum::extract::{Json, State};
 use comms_db_client::{
     channels::get_channels::get_org_channels,
+    model::{AddUserToOrgChannelsRequest, ParticipantRole},
     participants::add_participant::{AddParticipantOptions, add_participant},
 };
-use model::comms::{AddUserToOrgChannelsRequest, ParticipantRole};
 use reqwest::StatusCode;
 
 use crate::api::context::AppState;

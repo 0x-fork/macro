@@ -6,6 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = { workspace = true }
+comms_db_client = { path = "../comms_db_client" }
 model = { path = "../model" }
 reqwest = { workspace = true }
 serde = { workspace = true }

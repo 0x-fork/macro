@@ -12,9 +12,12 @@ use axum::{
     response::{IntoResponse, Json, Response},
 };
 use axum_extra::extract::Cached;
-use comms_db_client::participants::get_participants::get_participants;
+use comms_db_client::{
+    participants::get_participants::get_participants,
+    model::Channel,
+};
 #[allow(unused_imports)]
-use model::comms::{Channel, ChannelType};
+use models_comms::ChannelType;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use utoipa::ToSchema;

@@ -10,7 +10,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
-use model::comms::{ChannelHistoryInfo, GetChannelsHistoryRequest};
+use comms_db_client::model::{ChannelHistoryInfo, GetChannelsHistoryRequest};
 use model::{response::ErrorResponse, user::UserContext};
 use models_search::channel::{
     ChannelSearchRequest, ChannelSearchResponse, ChannelSearchResponseItem,

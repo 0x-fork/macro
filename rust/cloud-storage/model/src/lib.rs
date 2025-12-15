@@ -5,7 +5,6 @@ pub mod annotations;
 pub mod authentication;
 pub mod chat;
 pub mod citations;
-pub mod comms;
 pub mod contacts;
 pub mod convert;
 pub mod document;

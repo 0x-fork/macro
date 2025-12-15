@@ -1,6 +1,6 @@
+use crate::model::ChannelType;
 use anyhow::Result;
 use cached::proc_macro::cached;
-use model::comms::ChannelType;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;

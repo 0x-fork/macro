@@ -1,4 +1,4 @@
-use model::comms::{ChannelMessage, ChannelType, GetChannelMessageResponse};
+use crate::model::{ChannelMessage, ChannelType, GetChannelMessageResponse};
 use uuid::Uuid;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

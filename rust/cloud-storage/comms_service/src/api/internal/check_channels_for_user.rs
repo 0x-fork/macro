@@ -5,7 +5,7 @@ use axum::{
 };
 
 use crate::api::context::AppState;
-use model::comms::CheckChannelsForUserRequest;
+use comms_db_client::model::CheckChannelsForUserRequest;
 
 #[tracing::instrument(skip(ctx))]
 pub async fn handler(

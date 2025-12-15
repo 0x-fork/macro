@@ -1,5 +1,5 @@
 use crate::error::{ClientError, ResponseExt};
-use model::comms::{AddUserToOrgChannelsRequest, RemoveUserFromOrgChannelsRequest};
+use comms_db_client::model::{AddUserToOrgChannelsRequest, RemoveUserFromOrgChannelsRequest};
 
 use super::CommsServiceClient;
 

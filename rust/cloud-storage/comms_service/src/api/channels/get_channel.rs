@@ -14,11 +14,10 @@ use comms_db_client::{
     attachments::get_attachments::get_attachments,
     channels::get_channel::get_channel,
     messages::get_messages::get_messages,
-    model::{Activity, Attachment, CountedReaction, Message},
+    model::{Activity, Attachment, CountedReaction, Message, Channel, ChannelParticipant},
     reactions::{get_reactions::get_messages_reactions, group_reactions_by_message},
 };
 use futures::try_join;
-use model::comms::{Channel, ChannelParticipant};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;

@@ -1,4 +1,4 @@
-use model::comms::GetChannelMessageResponse;
+use comms_db_client::model::GetChannelMessageResponse;
 
 use super::CommsServiceClient;
 use crate::error::{ClientError, ResponseExt};

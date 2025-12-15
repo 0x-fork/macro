@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
 };
 use comms_db_client::messages::read_message_with_context::get_messages_with_context;
-use model::comms::GetMessageWithContextResponse;
+use comms_db_client::model::GetMessageWithContextResponse;
 use serde::Deserialize;
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -61,21 +61,8 @@ pub async fn handler(
                 (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
             })?;
 
-    // Convert from comms_db_client::model::Message to model::comms::Message
-    let messages = db_messages
-        .into_iter()
-        .map(|m| model::comms::Message {
-            id: m.id,
-            channel_id: m.channel_id,
-            thread_id: m.thread_id,
-            sender_id: m.sender_id,
-            content: m.content,
-            created_at: m.created_at,
-            updated_at: m.updated_at,
-            edited_at: m.edited_at,
-            deleted_at: m.deleted_at,
-        })
-        .collect();
+    // Messages are already the correct type from comms_db_client
+    let messages = db_messages;
 
     Ok((
         StatusCode::OK,

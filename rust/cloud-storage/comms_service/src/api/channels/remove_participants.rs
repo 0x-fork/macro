@@ -7,7 +7,7 @@ use axum_extra::extract::Cached;
 use comms_db_client::participants::remove_participant::{
     RemoveParticipantOptions, remove_participant,
 };
-use model::comms::ChannelType;
+use models_comms::ChannelType;
 use model::document_storage_service_internal::UpdateUserChannelPermissionsRequest;
 use models_permissions::share_permission::channel_share_permission::UpdateOperation;
 use serde::{Deserialize, Serialize};

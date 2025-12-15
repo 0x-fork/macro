@@ -1,6 +1,6 @@
 use super::CommsServiceClient;
 use crate::error::{ClientError, ResponseExt};
-use model::comms::GetMessageWithContextResponse;
+use comms_db_client::model::GetMessageWithContextResponse;
 use uuid::Uuid;
 
 impl CommsServiceClient {

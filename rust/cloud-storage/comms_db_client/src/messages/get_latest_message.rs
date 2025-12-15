@@ -1,5 +1,5 @@
+use crate::model::{ChannelMessage, LatestMessage};
 use anyhow::Result;
-use model::comms::{ChannelMessage, LatestMessage};
 use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use uuid::Uuid;

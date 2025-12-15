@@ -1,6 +1,6 @@
+use crate::model::{ChannelParticipant, ChannelType};
 use crate::participants::get_participants::get_participants;
 use anyhow::{Context, Result};
-use model::comms::{ChannelParticipant, ChannelType};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 

@@ -6,7 +6,7 @@ use anyhow::Result;
 use axum::{Json, extract::State, http::StatusCode};
 use axum_extra::extract::Cached;
 use comms_db_client::channels::patch_channel::{self, PatchChannelOptions};
-use model::comms::ChannelType;
+use models_comms::ChannelType;
 use models_opensearch::SearchEntityType;
 use tracing::Instrument;
 

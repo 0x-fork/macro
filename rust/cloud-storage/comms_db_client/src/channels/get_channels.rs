@@ -1,6 +1,5 @@
+use crate::model::{Channel, ChannelParticipant, ChannelType, ChannelWithParticipants};
 use cached::proc_macro::cached;
-#[allow(unused_imports)]
-use model::comms::{Channel, ChannelParticipant, ChannelType, ChannelWithParticipants};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 

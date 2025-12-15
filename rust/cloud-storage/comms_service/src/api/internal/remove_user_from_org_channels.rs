@@ -1,10 +1,9 @@
 use axum::extract::{Json, State};
 use comms_db_client::{
     channels::get_channels::get_org_channels,
+    model::RemoveUserFromOrgChannelsRequest,
     participants::remove_participant::{RemoveParticipantOptions, remove_participant},
 };
-
-use model::comms::RemoveUserFromOrgChannelsRequest;
 use reqwest::StatusCode;
 
 use crate::api::context::AppState;

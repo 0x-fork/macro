@@ -1,5 +1,5 @@
 use crate::error::{ClientError, ResponseExt};
-use model::comms::CreateWelcomeMessageRequest;
+use comms_db_client::model::CreateWelcomeMessageRequest;
 
 use super::CommsServiceClient;
 

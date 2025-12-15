@@ -14,14 +14,12 @@ use axum::{
     http::StatusCode,
 };
 use axum_extra::extract::Cached;
-use comms_db_client::model::Message;
 use comms_db_client::{
     activity::upsert_activity::upsert_activity,
     channels::updated_at,
     messages::{add_attachments, create_message, create_message_mentions},
-    model::{ActivityType, NewAttachment, SimpleMention},
+    model::{ActivityType, NewAttachment, SimpleMention, Message, ChannelParticipant},
 };
-use model::comms::ChannelParticipant;
 use model::document_storage_service_internal::UpdateChannelSharePermissionRequest;
 use model_notifications::CommonChannelMetadata;
 use serde::{Deserialize, Serialize};

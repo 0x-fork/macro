@@ -1,7 +1,6 @@
+use crate::model::ParticipantRole;
 use anyhow::{Context, Result};
 use uuid::Uuid;
-
-use model::comms::ParticipantRole;
 
 pub struct AddParticipantOptions<'a> {
     pub channel_id: &'a Uuid,

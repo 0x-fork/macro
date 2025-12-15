@@ -15,10 +15,9 @@ use comms_db_client::{
 use tracing::Instrument;
 
 use crate::{api::context::AppState, service::sender::notify};
-use model::{
-    comms::{ChannelType, CreateWelcomeMessageRequest, GetOrCreateAction},
-    response::EmptyResponse,
-};
+use comms_db_client::model::{CreateWelcomeMessageRequest, GetOrCreateAction};
+use model::response::EmptyResponse;
+use models_comms::ChannelType;
 
 static WELCOME_MESSAGE: &str = "Welcome to Macro. If you have any questions, please reach out!";
 static SLEEP_TIME_SECONDS: u64 = 60;

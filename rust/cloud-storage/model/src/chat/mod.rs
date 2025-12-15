@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use strum::Display;
 use utoipa::ToSchema;
 
-use crate::comms::ChannelType;
 use crate::document::FileType;
+use models_comms::ChannelType;
 use crate::insight_context::document::DocumentSummary;
 
 #[derive(sqlx::FromRow, Serialize, Deserialize, Eq, PartialEq, Debug, Clone, ToSchema)]

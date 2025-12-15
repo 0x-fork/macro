@@ -2,7 +2,7 @@ use crate::api::context::AppState;
 use anyhow::Result;
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use comms_db_client::activity::get_activity::get_channel_history_info;
-use model::comms::{GetChannelsHistoryRequest, GetChannelsHistoryResponse};
+use comms_db_client::model::{GetChannelsHistoryRequest, GetChannelsHistoryResponse};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

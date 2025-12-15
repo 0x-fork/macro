@@ -1,5 +1,5 @@
 use super::user_name::id_to_display_name;
-use model::comms::ChannelParticipant;
+use comms_db_client::model::ChannelParticipant;
 use models_comms::ChannelType;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -74,7 +74,8 @@ pub fn resolve_direct_message_channel_name(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use model::comms::{Channel, ChannelType};
+    use comms_db_client::model::Channel;
+    use models_comms::ChannelType;
     use uuid::Uuid;
 
     fn make_participants(channel_id: &Uuid) -> Vec<ChannelParticipant> {
@@ -82,14 +83,14 @@ mod tests {
             ChannelParticipant {
                 channel_id: channel_id.to_owned(),
                 user_id: "macro|user1@macro.com".to_string(),
-                role: model::comms::ParticipantRole::Owner,
+                role: comms_db_client::model::ParticipantRole::Owner,
                 joined_at: chrono::Utc::now(),
                 left_at: None,
             },
             ChannelParticipant {
                 channel_id: channel_id.to_owned(),
                 user_id: "macro|user2@macro.com".to_string(),
-                role: model::comms::ParticipantRole::Member,
+                role: comms_db_client::model::ParticipantRole::Member,
                 joined_at: chrono::Utc::now(),
                 left_at: None,
             },

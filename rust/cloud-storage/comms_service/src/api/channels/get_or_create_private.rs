@@ -12,10 +12,9 @@ use comms_db_client::channels::{
     create_channel::{CreateChannelOptions, create_channel},
     get_private,
 };
-use model::{
-    comms::{ChannelType, GetOrCreateAction},
-    user::UserContext,
-};
+use comms_db_client::model::GetOrCreateAction;
+use model::user::UserContext;
+use models_comms::ChannelType;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

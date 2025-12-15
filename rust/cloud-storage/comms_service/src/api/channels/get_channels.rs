@@ -16,7 +16,8 @@ use comms_db_client::{
 use comms_db_client::{messages::get_latest_channel_messages_batch, model::Activity};
 use frecency::domain::ports::AggregateFrecencyStorage;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use model::{comms::ChannelWithLatest, user::UserContext};
+use comms_db_client::model::ChannelWithLatest;
+use model::user::UserContext;
 use model_entity::EntityType;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, str::FromStr};

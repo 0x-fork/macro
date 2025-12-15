@@ -8,6 +8,7 @@ version = "0.1.0"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
+comms_db_client = { path = "../comms_db_client" }
 model = { path = "../model" }
 models_comms = { path = "../models_comms" }
 reqwest.workspace = true

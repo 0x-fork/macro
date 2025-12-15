@@ -1,7 +1,6 @@
 use crate::activity;
+use crate::model::{ChannelType, ParticipantRole};
 use anyhow::{Context, Result};
-#[allow(unused_imports)]
-use model::comms::{ChannelType, ParticipantRole};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
