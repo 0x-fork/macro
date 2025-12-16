@@ -6,8 +6,8 @@ use axum::{
     http::StatusCode,
 };
 use comms_db_client::channels::create_channel::{CreateChannelOptions, create_channel};
-use models_comms::ChannelType;
 use model::user::UserContext;
+use models_comms::ChannelType;
 use models_opensearch::SearchEntityType;
 use serde::{Deserialize, Serialize};
 use sqs_client::search::{SearchQueueMessage, name::EntityName};

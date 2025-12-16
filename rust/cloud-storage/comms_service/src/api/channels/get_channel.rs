@@ -14,7 +14,7 @@ use comms_db_client::{
     attachments::get_attachments::get_attachments,
     channels::get_channel::get_channel,
     messages::get_messages::get_messages,
-    model::{Activity, Attachment, CountedReaction, Message, Channel, ChannelParticipant},
+    model::{Activity, Attachment, Channel, ChannelParticipant, CountedReaction, Message},
     reactions::{get_reactions::get_messages_reactions, group_reactions_by_message},
 };
 use futures::try_join;

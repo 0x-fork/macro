@@ -18,7 +18,7 @@ use comms_db_client::{
     activity::upsert_activity::upsert_activity,
     channels::updated_at,
     messages::{add_attachments, create_message, create_message_mentions},
-    model::{ActivityType, NewAttachment, SimpleMention, Message, ChannelParticipant},
+    model::{ActivityType, ChannelParticipant, Message, NewAttachment, SimpleMention},
 };
 use model::document_storage_service_internal::UpdateChannelSharePermissionRequest;
 use model_notifications::CommonChannelMetadata;

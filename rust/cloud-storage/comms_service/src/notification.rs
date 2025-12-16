@@ -1,7 +1,7 @@
 use crate::api::context::AppState;
 use comms_db_client::{
     messages::get_count::check_if_channel_has_messages,
-    model::{Message, SimpleMention, ChannelParticipant},
+    model::{ChannelParticipant, Message, SimpleMention},
     participants::get_participants::get_channel_participants_for_thread_id,
 };
 use model::document_storage_service_internal::DocumentMetadata;

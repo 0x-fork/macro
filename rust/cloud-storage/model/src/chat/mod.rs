@@ -10,8 +10,8 @@ use strum::Display;
 use utoipa::ToSchema;
 
 use crate::document::FileType;
-use models_comms::ChannelType;
 use crate::insight_context::document::DocumentSummary;
+use models_comms::ChannelType;
 
 #[derive(sqlx::FromRow, Serialize, Deserialize, Eq, PartialEq, Debug, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]

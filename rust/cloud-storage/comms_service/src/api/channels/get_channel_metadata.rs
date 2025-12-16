@@ -12,10 +12,7 @@ use axum::{
     response::{IntoResponse, Json, Response},
 };
 use axum_extra::extract::Cached;
-use comms_db_client::{
-    participants::get_participants::get_participants,
-    model::Channel,
-};
+use comms_db_client::{model::Channel, participants::get_participants::get_participants};
 #[allow(unused_imports)]
 use models_comms::ChannelType;
 use serde::{Deserialize, Serialize};

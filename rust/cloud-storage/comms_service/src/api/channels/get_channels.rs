@@ -9,6 +9,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use comms_db_client::model::ChannelWithLatest;
 use comms_db_client::{
     activity::get_activity::get_activities,
     channels::get_channels::get_user_channels_with_participants,
@@ -16,7 +17,6 @@ use comms_db_client::{
 use comms_db_client::{messages::get_latest_channel_messages_batch, model::Activity};
 use frecency::domain::ports::AggregateFrecencyStorage;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use comms_db_client::model::ChannelWithLatest;
 use model::user::UserContext;
 use model_entity::EntityType;
 use serde::{Deserialize, Serialize};

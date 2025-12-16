@@ -6,12 +6,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use axum_extra::extract::Cached;
+use comms_db_client::model::{ChannelParticipant, ParticipantRole};
 use comms_db_client::{
     channels::get_channel_info::{ChannelInfo, get_channel_info},
     messages::get_message_owner::get_message_owner,
     participants::get_participants::get_participants,
 };
-use comms_db_client::model::{ChannelParticipant, ParticipantRole};
 use model::user::UserContext;
 use models_comms::ChannelType;
 use serde::{Deserialize, Serialize};

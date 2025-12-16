@@ -25,9 +25,10 @@ use crate::api::{
 use crate::api::extractors::ParticipantAccess;
 use comms_db_client::channels::patch_channel::PatchChannelOptions;
 use comms_db_client::model::{
-    Activity, ActivityType, Channel, ChannelParticipant, ChannelWithLatest, ChannelWithParticipants,
-    CountedReaction, EntityMention, GetMessageWithContextResponse, GetOrCreateAction, LatestMessage,
-    Message, NewAttachment, ParticipantRole, Reaction, SimpleMention,
+    Activity, ActivityType, Channel, ChannelParticipant, ChannelWithLatest,
+    ChannelWithParticipants, CountedReaction, EntityMention, GetMessageWithContextResponse,
+    GetOrCreateAction, LatestMessage, Message, NewAttachment, ParticipantRole, Reaction,
+    SimpleMention,
 };
 use models_comms::ChannelType;
 

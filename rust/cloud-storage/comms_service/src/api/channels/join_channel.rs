@@ -6,11 +6,11 @@ use axum::{
 };
 use axum_extra::extract::Cached;
 use comms_db_client::{
-    participants::add_participant::{AddParticipantOptions, add_participant},
     model::ParticipantRole,
+    participants::add_participant::{AddParticipantOptions, add_participant},
 };
-use models_comms::ChannelType;
 use model::user::UserContext;
+use models_comms::ChannelType;
 use sqlx::PgPool;
 
 #[utoipa::path(
