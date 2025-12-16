@@ -478,6 +478,8 @@ export class StaticFileService extends pulumi.ComponentResource {
     );
 
     this.service = service;
+    // This is https://static-file-server-prod or https://static-file-server-dev
+    // which isn't a thing. But I'll keep it that way.
     this.domain = `https://${SERVICE_DOMAIN_NAME}`;
   }
 
