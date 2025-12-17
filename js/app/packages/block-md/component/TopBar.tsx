@@ -69,11 +69,13 @@ export function MockupSelect(props: {items: Array<string>, defaultVal: string, i
       onChange={setValue}
       options={props.items}
       placeholder="Set value..."
+      placement='bottom-start'
+      
       itemComponent={props => (
         <Select.Item item={props.item} class="select__item">
           <Select.ItemLabel>
-            <div class="flex items-center px-2.5 py-1 gap-2 hover:bg-panel text-ink-extra-muted hover:text-ink text-sm">
-              {iconMap.get(props.item.rawValue)({height: "0.75rem"})}
+            <div class="flex items-center px-2.5 py-1 gap-2 hover:bg-panel text-ink-extra-muted hover:text-ink text-sm truncate text-ellipsis">
+              {iconMap.get(props.item.rawValue)}
               {props.item.rawValue}
             </div>
           </Select.ItemLabel>
@@ -84,8 +86,8 @@ export function MockupSelect(props: {items: Array<string>, defaultVal: string, i
     >
       <Select.Trigger class="select__trigger" aria-label="Fruit">
         <Select.Value class="select__value">
-          {state => <div class="flex items-center px-2 py-1 gap-2 bg-page rounded-xs border-1 border-edge-muted/50 text-ink-extra-muted text-sm">
-            <div>{iconMap.get(state.selectedOption())({height: "0.75rem"})}</div>
+          {state => <div class="flex items-center px-2 py-1 gap-2 bg-page rounded-xs border-1 border-edge-muted/50 text-ink-extra-muted text-sm truncate text-ellipsis">
+            <div>{iconMap.get(state.selectedOption())}</div>
             {state.selectedOption()}
           </div>}
         </Select.Value>
@@ -98,6 +100,19 @@ export function MockupSelect(props: {items: Array<string>, defaultVal: string, i
     </Select>
   );
 }
+
+const TaskCreatedIcon = () => <TaskCreated class="h-3 fill-ink-extra-muted"/>
+const TaskInProgressIcon = () => <TaskInProgress class="h-3 fill-accent-3"/>
+const TaskInReviewIcon = () => <TaskInReview class="h-3 fill-accent"/>
+const TaskDoneIcon = () => <TaskDone class="h-3 fill-accent"/>
+const TaskCancelledIcon = () => <TaskCancelled class="h-3 fill-ink-extra-muted"/>
+
+const PriorityLowIcon = () => <PriorityLow class="h-3 fill-ink-extra-muted"/>
+const PriorityMediumIcon = () => <PriorityMedium class="h-3 fill-ink-extra-muted"/>
+const PriorityHighIcon = () => <PriorityHigh class="h-3 fill-ink-extra-muted"/>
+const PriorityUrgentIcon = () => <PriorityUrgent class="h-3 fill-accent"/>
+
+const UserIcon = () => <User class="h-3 fill-ink-extra-muted"/>
 
 export function TopBar() {
   const canEdit = useCanEdit();
@@ -142,34 +157,36 @@ export function TopBar() {
             name={name()}
             ops={ops}
           />
-          <MockupSelect
-            items={["Created", "In Progress", "In Review", "Done", "Cancelled"]}
-            defaultVal={"Created"}
-            iconMap={new Map<string, Component>([
-              ['Created', TaskCreated],
-              ['In Progress', TaskInProgress],
-              ['In Review', TaskInReview],
-              ['Done', TaskDone],
-              ['Cancelled', TaskCancelled]
-            ])}
-          />
-          <MockupSelect
-            items={["Low", "Medium", "High", "Urgent"]}
-            defaultVal={"Low"}
-            iconMap={new Map<string, Component>([
-              ['Low', PriorityLow],
-              ['Medium', PriorityMedium],
-              ['High', PriorityHigh],
-              ['Urgent', PriorityUrgent]
-            ])}
-          />
-          <MockupSelect
-            items={["No Assignee"]}
-            defaultVal={"No Assignee"}
-            iconMap={new Map<string, Component>([
-              ['No Assignee', User]
-            ])}
-          />
+          <Show when={useBlockAliasedName() === 'task'}>
+            <MockupSelect
+              items={["Created", "In Progress", "In Review", "Done", "Cancelled"]}
+              defaultVal={"Created"}
+              iconMap={new Map<string, Component>([
+                ['Created', TaskCreatedIcon],
+                ['In Progress', TaskInProgressIcon],
+                ['In Review', TaskInReviewIcon],
+                ['Done', TaskDoneIcon],
+                ['Cancelled', TaskCancelledIcon]
+              ])}
+            />
+            <MockupSelect
+              items={["Low", "Medium", "High", "Urgent"]}
+              defaultVal={"Low"}
+              iconMap={new Map<string, Component>([
+                ['Low', PriorityLowIcon],
+                ['Medium', PriorityMediumIcon],
+                ['High', PriorityHighIcon],
+                ['Urgent', PriorityUrgentIcon]
+              ])}
+            />
+            <MockupSelect
+              items={["No Assignee"]}
+              defaultVal={"No Assignee"}
+              iconMap={new Map<string, Component>([
+                ['No Assignee', UserIcon]
+              ])}
+            />
+          </Show>
         </div>
       </SplitToolbarLeft>
       <SplitToolbarRight>
