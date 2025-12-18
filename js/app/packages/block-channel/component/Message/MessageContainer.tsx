@@ -122,6 +122,8 @@ type MessageProps = {
   setMessageContainerRef?: Setter<HTMLDivElement | undefined>;
   setLastMessageRef?: Setter<HTMLDivElement | undefined>;
   isTarget: boolean;
+  threadHoverStore: Record<string, boolean>;
+  setThreadHoverStore: SetStoreFunction<Record<string, boolean>>;
 };
 
 export function MessageContainer(props: MessageProps) {
@@ -253,6 +255,18 @@ export function MessageContainer(props: MessageProps) {
       props.listContext.threadIndex === COLLAPSED_THREAD_INDEX_CUTOFF
     );
   });
+
+  const threadId = createMemo(() => {
+    return message.thread_id ?? message.id;
+  });
+
+  const threadHover = createMemo(() => {
+    return props.threadHoverStore[threadId()] ?? false;
+  });
+
+  const handleHoverChange = (hover: boolean) => {
+    props.setThreadHoverStore(threadId(), hover);
+  };
 
   const shouldShowThreadAppendInput = createMemo(() => {
     return props.threadViewStore[message.thread_id ?? '']?.hasActiveReply;
@@ -600,6 +614,8 @@ export function MessageContainer(props: MessageProps) {
                   }))
                 }
                 setMessageBodyRef={setMessageBodyRef}
+                externalHover={threadHover}
+                onHoverChange={handleHoverChange}
               >
                 <MessageComponent.TopBar
                   name={displayName()}
@@ -773,6 +789,8 @@ export function MessageContainer(props: MessageProps) {
                 replyInputMountTarget: el,
               }))
             }
+            externalHover={threadHover}
+            onHoverChange={handleHoverChange}
           >
             <MessageComponent.TopBar name={currentUserName()} />
             <div class="h-4" />

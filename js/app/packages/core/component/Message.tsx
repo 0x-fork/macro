@@ -51,6 +51,8 @@ export type MessageRootProps = {
   children: JSX.Element;
   setMessageBodyRef?: Setter<HTMLDivElement | undefined>;
   isTarget?: boolean;
+  externalHover?: Accessor<boolean>;
+  onHoverChange?: (hover: boolean) => void;
 };
 
 type MessageContextValue = {
@@ -163,6 +165,8 @@ const Body: Component<MessageBodyProps> = (props) => {
 type NestedConnectorLinesProps = {
   threadDepth?: number;
   isParentNewMessage?: boolean;
+  hover?: Accessor<boolean>;
+  onHoverChange?: (hover: boolean) => void;
 };
 
 export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
@@ -172,15 +176,26 @@ export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
   for (let i = 0; i < (props.threadDepth ?? 0); i++) {
     NestedLines.push(
       <div
-        class="absolute h-full border-l"
-        classList={{
-          'border-accent': props.isParentNewMessage,
-          'border-edge-muted': !props.isParentNewMessage,
-        }}
+        class="absolute h-full pointer-events-auto"
         style={{
-          left: `calc(${i} * var(--thread-shift) + var(--left-of-connector))`,
+          left: `calc(${i} * var(--thread-shift) + var(--left-of-connector) - 5px)`,
+          width: '11px',
         }}
-      />
+        onMouseEnter={() => props.onHoverChange?.(true)}
+        onMouseLeave={() => props.onHoverChange?.(false)}
+      >
+        <div
+          class="absolute h-full border-l"
+          classList={{
+            'border-accent': props.isParentNewMessage,
+            'border-edge-muted': !props.isParentNewMessage,
+            'border-white': props.hover?.(),
+          }}
+          style={{
+            left: '5px',
+          }}
+        />
+      </div>
     );
   }
 
@@ -194,7 +209,17 @@ export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
 /* Root */
 
 const Root: Component<MessageRootProps> = (props) => {
-  const [hover, setHover] = createSignal(false);
+  const [localHover, setLocalHover] = createSignal(false);
+  const [localBorderHover, setLocalBorderHover] = createSignal(false);
+  const internalHover = () => localHover();
+  const borderHover = () => props.externalHover?.() ?? localBorderHover();
+  const setHover = (value: boolean) => {
+    setLocalHover(value);
+  };
+  const setBorderHover = (value: boolean) => {
+    setLocalBorderHover(value);
+    props.onHoverChange?.(value);
+  };
   const [replySize, setReplySize] = createSignal<DOMRect>();
   const ctx: MessageContextValue = {
     focused: props.focused,
@@ -206,7 +231,7 @@ const Root: Component<MessageRootProps> = (props) => {
     isFirstInThread: props.isFirstInThread,
     isLastInThread: props.isLastInThread,
     isDeleted: props.isDeleted,
-    hover: hover,
+    hover: internalHover,
     setHover: setHover,
   };
 
@@ -228,6 +253,8 @@ const Root: Component<MessageRootProps> = (props) => {
           <NestedConnectorLines
             threadDepth={props.threadDepth}
             isParentNewMessage={props.isParentNewMessage}
+            hover={borderHover}
+            onHoverChange={setBorderHover}
           />
         </Show>
         <BozzyBracket
@@ -239,7 +266,7 @@ const Root: Component<MessageRootProps> = (props) => {
               ? `${replyHeight()}px`
               : '0px',
           }}
-          hover={props.shouldHover || hover()}
+          hover={props.shouldHover || internalHover()}
         >
           {/* Message Wrapper w/ Main Connector Line */}
           <div
@@ -256,9 +283,6 @@ const Root: Component<MessageRootProps> = (props) => {
             <div
               class="relative flex-1 flex flex-col justify-start w-[calc(100%-28px)] min-w-0 pl-[var(--left-of-connector)]"
               classList={{
-                'border-l': !props.hideConnectors,
-                'border-accent': props.isNewMessage ?? false,
-                'border-edge-muted': !props.isNewMessage,
                 'pt-4': !(
                   props.isConsecutive ||
                   props.isFirstMessage ||
@@ -271,6 +295,56 @@ const Root: Component<MessageRootProps> = (props) => {
                 'margin-left': `var(--left-of-connector)`,
               }}
             >
+              <Show when={!props.hideConnectors}>
+                <div
+                  class="absolute top-0"
+                  style={{
+                    left: '-5px',
+                    width: '11px',
+                    height: 'var(--user-icon-width)',
+                  }}
+                  onMouseEnter={() => setBorderHover(true)}
+                  onMouseLeave={() => setBorderHover(false)}
+                >
+                  <div
+                    class="absolute border-l"
+                    classList={{
+                      'border-accent': props.isNewMessage ?? false,
+                      'border-edge-muted': !props.isNewMessage,
+                      'border-white':
+                        borderHover() && (props.threadDepth ?? 0) > 0,
+                    }}
+                    style={{
+                      left: '5px',
+                      height: '100%',
+                    }}
+                  />
+                </div>
+                <div
+                  class="absolute"
+                  style={{
+                    left: '-5px',
+                    top: 'var(--user-icon-width)',
+                    width: '11px',
+                    height: 'calc(100% - var(--user-icon-width))',
+                  }}
+                  onMouseEnter={() => setBorderHover(true)}
+                  onMouseLeave={() => setBorderHover(false)}
+                >
+                  <div
+                    class="absolute border-l"
+                    classList={{
+                      'border-accent': props.isNewMessage ?? false,
+                      'border-edge-muted': !props.isNewMessage,
+                      'border-white': borderHover(),
+                    }}
+                    style={{
+                      left: '5px',
+                      height: '100%',
+                    }}
+                  />
+                </div>
+              </Show>
               {/* User Icon */}
               <div class="absolute -left-[.5px] -translate-x-1/2">
                 <Show when={!props.isConsecutive}>
@@ -331,8 +405,8 @@ const Root: Component<MessageRootProps> = (props) => {
           <div
             class="absolute right-2 -top-2 border border-edge bg-panel"
             classList={{
-              block: hover() || !!props.shouldHover,
-              hidden: !(hover() || !!props.shouldHover),
+              block: internalHover() || !!props.shouldHover,
+              hidden: !(internalHover() || !!props.shouldHover),
             }}
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}

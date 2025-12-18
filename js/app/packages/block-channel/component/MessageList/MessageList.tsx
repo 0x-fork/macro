@@ -111,6 +111,9 @@ export function MessageList(props: MessageListProps) {
   const [hasUserScrolled, setHasUserScrolled] = createSignal(false);
   const [messageListContext, setMessageListContext] =
     createStore<MessageListContextLookup>({});
+  const [threadHoverStore, setThreadHoverStore] = createStore<
+    Record<string, boolean>
+  >({});
 
   const userId = useUserId();
   const threads = threadsStore.get;
@@ -745,6 +748,8 @@ export function MessageList(props: MessageListProps) {
                         listContext={messageListContext[row.id]}
                         setLastMessageRef={props.setLastMessageRef}
                         isTarget={isActiveTargetMessage(row.message.id)}
+                        threadHoverStore={threadHoverStore}
+                        setThreadHoverStore={setThreadHoverStore}
                       />
                     )}
                   </Show>
