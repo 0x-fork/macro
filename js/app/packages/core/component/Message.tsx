@@ -192,7 +192,6 @@ export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
           classList={{
             'border-accent': props.isParentNewMessage,
             'border-edge-muted': !props.isParentNewMessage,
-            'border-white': props.hover?.(),
           }}
           style={{
             left: '5px',
