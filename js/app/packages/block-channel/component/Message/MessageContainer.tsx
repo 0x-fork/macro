@@ -38,6 +38,7 @@ import {
   createSignal,
   For,
   Match,
+  on,
   onMount,
   type Setter,
   Show,
@@ -280,10 +281,17 @@ export function MessageContainer(props: MessageProps) {
     props.setBorderHovered(hover);
   });
 
-  createEffect(() => {
-    if (!isThreadExpanded()) return;
-    props.setBorderHovered(false);
-  });
+  createEffect(
+    on(
+      isThreadExpanded,
+      (isThreadExpanded) => {
+        if (threadDepth() !== 0) return;
+        if (isThreadExpanded) return;
+        props.setBorderHovered(false);
+      },
+      { defer: true }
+    )
+  );
 
   const shouldShowThreadAppendInput = createMemo(() => {
     return props.threadViewStore[message.thread_id ?? '']?.hasActiveReply;

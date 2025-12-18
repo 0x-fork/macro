@@ -114,7 +114,10 @@ export function MessageList(props: MessageListProps) {
   const [hoveredThreadId, setHoveredThreadId] = createSignal<
     string | undefined
   >();
-  const isThreadHoveredSelector = createSelector(hoveredThreadId);
+  const isThreadHoveredSelector = createSelector(
+    hoveredThreadId,
+    (a, b) => !!a && !!b && a === b
+  );
 
   const userId = useUserId();
   const threads = threadsStore.get;
