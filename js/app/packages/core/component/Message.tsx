@@ -53,6 +53,7 @@ export type MessageRootProps = {
   isTarget?: boolean;
   isBorderHovered?: boolean;
   setBorderHovered?: (hover: boolean) => void;
+  onBorderClick?: () => void;
 };
 
 type MessageContextValue = {
@@ -167,6 +168,7 @@ type NestedConnectorLinesProps = {
   isParentNewMessage?: boolean;
   hover?: () => boolean;
   onHoverChange?: (hover: boolean) => void;
+  onClick?: () => void;
 };
 
 export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
@@ -183,6 +185,7 @@ export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
         }}
         onMouseEnter={() => props.onHoverChange?.(true)}
         onMouseLeave={() => props.onHoverChange?.(false)}
+        onClick={() => props.onClick?.()}
       >
         <div
           class="absolute h-full border-l"
@@ -249,6 +252,7 @@ const Root: Component<MessageRootProps> = (props) => {
             isParentNewMessage={props.isParentNewMessage}
             hover={borderHovered}
             onHoverChange={setBorderHover}
+            onClick={props.onBorderClick}
           />
         </Show>
         <BozzyBracket
@@ -299,6 +303,7 @@ const Root: Component<MessageRootProps> = (props) => {
                   }}
                   onMouseEnter={() => setBorderHover(true)}
                   onMouseLeave={() => setBorderHover(false)}
+                  onClick={() => props.onBorderClick?.()}
                 >
                   <div
                     class="absolute border-l"
@@ -324,6 +329,7 @@ const Root: Component<MessageRootProps> = (props) => {
                   }}
                   onMouseEnter={() => setBorderHover(true)}
                   onMouseLeave={() => setBorderHover(false)}
+                  onClick={() => props.onBorderClick?.()}
                 >
                   <div
                     class="absolute border-l"
@@ -354,6 +360,7 @@ const Root: Component<MessageRootProps> = (props) => {
                         }}
                         onMouseEnter={() => setBorderHover(true)}
                         onMouseLeave={() => setBorderHover(false)}
+                        onClick={() => props.onBorderClick?.()}
                       >
                         <div
                           class="absolute border-b border-l"
