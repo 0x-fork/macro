@@ -592,8 +592,6 @@ export function MessageContainer(props: MessageProps) {
                 isParentNewMessage={isParentNewMessage()}
                 onThreadAppend={onThreadAppend}
                 shouldShowThreadAppendInput={shouldShowThreadAppendInput()}
-                enableCollapseButton
-                onCollapseThread={handleThreadToggle}
                 isTarget={props.isTarget}
                 setThreadAppendMountTarget={(el) =>
                   props.setThreadViewStore(message.thread_id ?? '', (prev) => ({

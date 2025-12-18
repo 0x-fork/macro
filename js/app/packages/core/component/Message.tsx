@@ -47,8 +47,6 @@ export type MessageRootProps = {
   shouldShowThreadAppendInput?: boolean;
   setThreadAppendMountTarget?: (el: HTMLElement) => void;
   onThreadAppend?: () => void;
-  enableCollapseButton?: boolean;
-  onCollapseThread?: () => void;
   hideConnectors?: boolean;
   children: JSX.Element;
   setMessageBodyRef?: Setter<HTMLDivElement | undefined>;
@@ -393,34 +391,6 @@ const Root: Component<MessageRootProps> = (props) => {
                     'border-bottom-left-radius': `calc(var(--thread-shift) / 2)`,
                   }}
                 />
-              </div>
-            </Show>
-            <Show when={props.enableCollapseButton}>
-              <div
-                class="relative w-min -translate-x-1/2 mt-2"
-                classList={{
-                  'pb-3': props.isLastInThread && props.isLastMessage,
-                }}
-                style={{
-                  'margin-left': `calc(var(--thread-shift) + var(--left-of-connector))`,
-                }}
-              >
-                <div
-                  class="absolute left-1/2 -translate-x-[0.5px] border-l border-edge-muted"
-                  style={{
-                    bottom: '100%',
-                    height: '8px',
-                  }}
-                />
-                <button
-                  class="block w-fit px-2 py-0.5 text-[10px] border border-edge uppercase hover:font-medium"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    props.onCollapseThread?.();
-                  }}
-                >
-                  Collapse
-                </button>
               </div>
             </Show>
           </div>
