@@ -601,8 +601,8 @@ export function MessageContainer(props: MessageProps) {
                 isNewMessage={isNewMessage()}
                 isParentNewMessage={isParentNewMessage()}
                 onThreadAppend={onThreadAppend}
-                shouldShowThreadAppendInput={shouldShowThreadAppendInput}
                 shouldShowCollapseButton={isLastInExpandedThread()}
+                shouldShowThreadAppendInput={shouldShowThreadAppendInput()}
                 onCollapseThread={handleThreadToggle}
                 isTarget={props.isTarget}
                 setThreadAppendMountTarget={(el) =>
@@ -778,7 +778,7 @@ export function MessageContainer(props: MessageProps) {
             threadDepth={threadDepth() + 1}
             isFirstInThread
             isLastInThread
-            shouldShowThreadAppendInput={createSignal(true)[0]}
+            shouldShowThreadAppendInput
             setThreadAppendMountTarget={(el) =>
               props.setThreadViewStore(message.id ?? '', (prev) => ({
                 ...prev,
