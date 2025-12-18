@@ -607,8 +607,8 @@ export function MessageContainer(props: MessageProps) {
                   }))
                 }
                 setMessageBodyRef={setMessageBodyRef}
-                externalHover={() => props.isHovered}
-                onHoverChange={props.setHovered}
+                isHovered={props.isHovered}
+                setHovered={props.setHovered}
                 isThreadExpanded={isThreadExpanded()}
               >
                 <MessageComponent.TopBar
@@ -783,8 +783,8 @@ export function MessageContainer(props: MessageProps) {
                 replyInputMountTarget: el,
               }))
             }
-            externalHover={() => props.isHovered}
-            onHoverChange={props.setHovered}
+            isHovered={props.isHovered}
+            setHovered={props.setHovered}
             isThreadExpanded={isThreadExpanded()}
           >
             <MessageComponent.TopBar name={currentUserName()} />

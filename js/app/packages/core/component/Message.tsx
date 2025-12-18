@@ -51,8 +51,8 @@ export type MessageRootProps = {
   children: JSX.Element;
   setMessageBodyRef?: Setter<HTMLDivElement | undefined>;
   isTarget?: boolean;
-  externalHover?: Accessor<boolean>;
-  onHoverChange?: (hover: boolean) => void;
+  isHovered?: boolean;
+  setHovered?: Setter<boolean>;
   isThreadExpanded?: boolean;
 };
 
@@ -166,7 +166,7 @@ const Body: Component<MessageBodyProps> = (props) => {
 type NestedConnectorLinesProps = {
   threadDepth?: number;
   isParentNewMessage?: boolean;
-  hover?: Accessor<boolean>;
+  hover?: () => boolean;
   onHoverChange?: (hover: boolean) => void;
 };
 
@@ -211,9 +211,8 @@ export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
 
 const Root: Component<MessageRootProps> = (props) => {
   const [localHover, setLocalHover] = createSignal(false);
-  const [localBorderHover, setLocalBorderHover] = createSignal(false);
   const internalHover = () => localHover();
-  const borderHover = () => props.externalHover?.() ?? localBorderHover();
+  const borderHovered = () => props.isHovered ?? false;
   const setHover = (value: boolean) => {
     setLocalHover(value);
   };
@@ -222,8 +221,7 @@ const Root: Component<MessageRootProps> = (props) => {
   };
   const setBorderHover = (value: boolean) => {
     if (!canBorderHover()) return;
-    setLocalBorderHover(value);
-    props.onHoverChange?.(value);
+    props.setHovered?.(value);
   };
   const [replySize, setReplySize] = createSignal<DOMRect>();
   const ctx: MessageContextValue = {
@@ -258,7 +256,7 @@ const Root: Component<MessageRootProps> = (props) => {
           <NestedConnectorLines
             threadDepth={props.threadDepth}
             isParentNewMessage={props.isParentNewMessage}
-            hover={borderHover}
+            hover={borderHovered}
             onHoverChange={setBorderHover}
           />
         </Show>
@@ -317,7 +315,7 @@ const Root: Component<MessageRootProps> = (props) => {
                       'border-accent': props.isNewMessage ?? false,
                       'border-edge-muted': !props.isNewMessage,
                       'border-white':
-                        borderHover() && (props.threadDepth ?? 0) > 0,
+                        borderHovered() && (props.threadDepth ?? 0) > 0,
                     }}
                     style={{
                       left: '5px',
@@ -341,7 +339,7 @@ const Root: Component<MessageRootProps> = (props) => {
                     classList={{
                       'border-accent': props.isNewMessage ?? false,
                       'border-edge-muted': !props.isNewMessage,
-                      'border-white': borderHover(),
+                      'border-white': borderHovered(),
                     }}
                     style={{
                       left: '5px',

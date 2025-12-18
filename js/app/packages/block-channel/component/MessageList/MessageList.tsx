@@ -753,12 +753,12 @@ export function MessageList(props: MessageListProps) {
                         setLastMessageRef={props.setLastMessageRef}
                         isTarget={isActiveTargetMessage(row.message.id)}
                         isHovered={isThreadHoveredSelector(
-                          row.message.thread_id ?? undefined
+                          row.message.thread_id ?? row.message.id
                         )}
                         setHovered={(hovered) => {
                           setHoveredThreadId(
                             hovered
-                              ? (row.message.thread_id ?? undefined)
+                              ? (row.message.thread_id ?? row.message.id)
                               : undefined
                           );
                         }}
