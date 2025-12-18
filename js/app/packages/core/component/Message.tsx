@@ -353,9 +353,9 @@ const Root: Component<MessageRootProps> = (props) => {
                       <div
                         class="absolute"
                         style={{
-                          left: `calc((var(--thread-shift) - var(--left-of-connector) + var(--left-of-user-icon) + 0.5px) * -1 - 5px)`,
+                          left: `calc((var(--thread-shift) - var(--left-of-connector) + var(--left-of-user-icon)) * -1 - 5px)`,
                           top: '.5px',
-                          width: `calc(var(--thread-shift) - var(--left-of-connector) + var(--left-of-user-icon) + 0.5px + 10px)`,
+                          width: `calc(var(--thread-shift) - var(--left-of-connector) + var(--left-of-user-icon) + 10px)`,
                           height: 'calc(50% + 5px)',
                         }}
                         onMouseEnter={() => setBorderHover(true)}
