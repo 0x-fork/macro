@@ -400,7 +400,7 @@ const Root: Component<MessageRootProps> = (props) => {
             </Show>
             <Show when={props.shouldShowCollapseButton}>
               <div
-                class="w-min -translate-x-1/2 mt-2"
+                class="relative w-min -translate-x-1/2 mt-2"
                 classList={{
                   'pb-3': props.isLastInThread && props.isLastMessage,
                 }}
@@ -408,6 +408,13 @@ const Root: Component<MessageRootProps> = (props) => {
                   'margin-left': `calc(var(--thread-shift) + var(--left-of-connector))`,
                 }}
               >
+                <div
+                  class="absolute left-1/2 -translate-x-[0.5px] border-l border-edge-muted"
+                  style={{
+                    bottom: '100%',
+                    height: '8px',
+                  }}
+                />
                 <button
                   class="block w-fit px-2 py-0.5 text-[10px] border border-edge uppercase hover:font-medium"
                   onClick={(e) => {
