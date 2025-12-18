@@ -122,8 +122,8 @@ type MessageProps = {
   setMessageContainerRef?: Setter<HTMLDivElement | undefined>;
   setLastMessageRef?: Setter<HTMLDivElement | undefined>;
   isTarget: boolean;
-  threadHoverStore: Record<string, boolean>;
-  setThreadHoverStore: SetStoreFunction<Record<string, boolean>>;
+  isHovered: boolean;
+  setHovered: Setter<boolean>;
 };
 
 export function MessageContainer(props: MessageProps) {
@@ -256,22 +256,10 @@ export function MessageContainer(props: MessageProps) {
     );
   });
 
-  const threadId = createMemo(() => {
-    return message.thread_id ?? message.id;
-  });
-
   const isThreadExpanded = createMemo(() => {
     const id = message.thread_id ?? message.id;
     return props.threadViewStore[id]?.threadExpanded ?? false;
   });
-
-  const threadHover = createMemo(() => {
-    return props.threadHoverStore[threadId()] ?? false;
-  });
-
-  const handleHoverChange = (hover: boolean) => {
-    props.setThreadHoverStore(threadId(), hover);
-  };
 
   const shouldShowThreadAppendInput = createMemo(() => {
     return props.threadViewStore[message.thread_id ?? '']?.hasActiveReply;
@@ -619,8 +607,8 @@ export function MessageContainer(props: MessageProps) {
                   }))
                 }
                 setMessageBodyRef={setMessageBodyRef}
-                externalHover={threadHover}
-                onHoverChange={handleHoverChange}
+                externalHover={() => props.isHovered}
+                onHoverChange={props.setHovered}
                 isThreadExpanded={isThreadExpanded()}
               >
                 <MessageComponent.TopBar
@@ -795,8 +783,8 @@ export function MessageContainer(props: MessageProps) {
                 replyInputMountTarget: el,
               }))
             }
-            externalHover={threadHover}
-            onHoverChange={handleHoverChange}
+            externalHover={() => props.isHovered}
+            onHoverChange={props.setHovered}
             isThreadExpanded={isThreadExpanded()}
           >
             <MessageComponent.TopBar name={currentUserName()} />
