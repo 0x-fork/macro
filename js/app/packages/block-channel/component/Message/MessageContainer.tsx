@@ -281,6 +281,14 @@ export function MessageContainer(props: MessageProps) {
     props.setBorderHovered(hover);
   });
 
+  const onBorderClick = createCallback(() => {
+    if (!isThreadExpanded()) return;
+    const targetThreadId = isPreviousParentBorderHovered()
+      ? previousMessage()?.thread_id
+      : message.thread_id;
+    handleThreadToggle(targetThreadId);
+  });
+
   createEffect(
     on(
       isThreadExpanded,
@@ -517,19 +525,19 @@ export function MessageContainer(props: MessageProps) {
     return message.content.trim() === '';
   });
 
-  const handleThreadToggle = () => {
-    if (!message.thread_id) return;
-    if (!props.threadViewStore[message.thread_id]) {
-      props.setThreadViewStore(message.thread_id, () => ({
+  const handleThreadToggle = createCallback((threadId?: string | null) => {
+    if (!threadId) return;
+    if (!props.threadViewStore[threadId]) {
+      props.setThreadViewStore(threadId, () => ({
         threadExpanded: true,
       }));
     } else {
-      props.setThreadViewStore(message.thread_id, (prev) => ({
+      props.setThreadViewStore(threadId, (prev) => ({
         ...prev,
         threadExpanded: !prev.threadExpanded,
       }));
     }
-  };
+  });
 
   return (
     <div
@@ -642,7 +650,7 @@ export function MessageContainer(props: MessageProps) {
                 isBorderHovered={isBorderHovered()}
                 isPreviousParentBorderHovered={isPreviousParentBorderHovered()}
                 setBorderHovered={setBorderHovered}
-                onBorderClick={handleThreadToggle}
+                onBorderClick={onBorderClick}
               >
                 <MessageComponent.TopBar
                   name={displayName()}
@@ -703,7 +711,7 @@ export function MessageContainer(props: MessageProps) {
                       }
                       timestamp={lastReplyTimestamp()}
                       users={threadReplyUsers()}
-                      onClick={handleThreadToggle}
+                      onClick={() => handleThreadToggle(message.thread_id)}
                       isThreadOpen={
                         !!message.thread_id &&
                         props.threadViewStore[message.thread_id]?.threadExpanded
@@ -819,7 +827,7 @@ export function MessageContainer(props: MessageProps) {
             isBorderHovered={isBorderHovered()}
             isPreviousParentBorderHovered={false}
             setBorderHovered={setBorderHovered}
-            onBorderClick={handleThreadToggle}
+            onBorderClick={onBorderClick}
           >
             <MessageComponent.TopBar name={currentUserName()} />
             <div class="h-4" />
