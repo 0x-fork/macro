@@ -122,8 +122,8 @@ type MessageProps = {
   setMessageContainerRef?: Setter<HTMLDivElement | undefined>;
   setLastMessageRef?: Setter<HTMLDivElement | undefined>;
   isTarget: boolean;
-  isHovered: boolean;
-  setHovered: Setter<boolean>;
+  isBorderHovered: boolean;
+  setBorderHovered: Setter<boolean>;
 };
 
 export function MessageContainer(props: MessageProps) {
@@ -607,8 +607,8 @@ export function MessageContainer(props: MessageProps) {
                   }))
                 }
                 setMessageBodyRef={setMessageBodyRef}
-                isHovered={props.isHovered}
-                setHovered={props.setHovered}
+                isBorderHovered={props.isBorderHovered}
+                setBorderHovered={props.setBorderHovered}
                 isThreadExpanded={isThreadExpanded()}
               >
                 <MessageComponent.TopBar
@@ -783,8 +783,8 @@ export function MessageContainer(props: MessageProps) {
                 replyInputMountTarget: el,
               }))
             }
-            isHovered={props.isHovered}
-            setHovered={props.setHovered}
+            isBorderHovered={props.isBorderHovered}
+            setBorderHovered={props.setBorderHovered}
             isThreadExpanded={isThreadExpanded()}
           >
             <MessageComponent.TopBar name={currentUserName()} />

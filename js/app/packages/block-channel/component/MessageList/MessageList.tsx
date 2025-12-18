@@ -752,10 +752,10 @@ export function MessageList(props: MessageListProps) {
                         listContext={messageListContext[row.id]}
                         setLastMessageRef={props.setLastMessageRef}
                         isTarget={isActiveTargetMessage(row.message.id)}
-                        isHovered={isThreadHoveredSelector(
+                        isBorderHovered={isThreadHoveredSelector(
                           row.message.thread_id ?? row.message.id
                         )}
-                        setHovered={(hovered) => {
+                        setBorderHovered={(hovered) => {
                           setHoveredThreadId(
                             hovered
                               ? (row.message.thread_id ?? row.message.id)

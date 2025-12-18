@@ -51,8 +51,8 @@ export type MessageRootProps = {
   children: JSX.Element;
   setMessageBodyRef?: Setter<HTMLDivElement | undefined>;
   isTarget?: boolean;
-  isHovered?: boolean;
-  setHovered?: Setter<boolean>;
+  isBorderHovered?: boolean;
+  setBorderHovered?: Setter<boolean>;
   isThreadExpanded?: boolean;
 };
 
@@ -212,7 +212,7 @@ export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
 const Root: Component<MessageRootProps> = (props) => {
   const [localHover, setLocalHover] = createSignal(false);
   const internalHover = () => localHover();
-  const borderHovered = () => props.isHovered ?? false;
+  const borderHovered = () => props.isBorderHovered ?? false;
   const setHover = (value: boolean) => {
     setLocalHover(value);
   };
@@ -221,7 +221,7 @@ const Root: Component<MessageRootProps> = (props) => {
   };
   const setBorderHover = (value: boolean) => {
     if (!canBorderHover()) return;
-    props.setHovered?.(value);
+    props.setBorderHovered?.(value);
   };
   const [replySize, setReplySize] = createSignal<DOMRect>();
   const ctx: MessageContextValue = {
