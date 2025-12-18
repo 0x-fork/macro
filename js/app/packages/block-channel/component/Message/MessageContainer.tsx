@@ -261,6 +261,11 @@ export function MessageContainer(props: MessageProps) {
     return props.threadViewStore[id]?.threadExpanded ?? false;
   });
 
+  const setBorderHovered = createCallback((hover: boolean) => {
+    if (!isThreadExpanded()) return;
+    props.setBorderHovered(hover);
+  });
+
   const shouldShowThreadAppendInput = createMemo(() => {
     return props.threadViewStore[message.thread_id ?? '']?.hasActiveReply;
   });
@@ -608,8 +613,7 @@ export function MessageContainer(props: MessageProps) {
                 }
                 setMessageBodyRef={setMessageBodyRef}
                 isBorderHovered={props.isBorderHovered}
-                setBorderHovered={props.setBorderHovered}
-                isThreadExpanded={isThreadExpanded()}
+                setBorderHovered={setBorderHovered}
               >
                 <MessageComponent.TopBar
                   name={displayName()}
@@ -784,8 +788,7 @@ export function MessageContainer(props: MessageProps) {
               }))
             }
             isBorderHovered={props.isBorderHovered}
-            setBorderHovered={props.setBorderHovered}
-            isThreadExpanded={isThreadExpanded()}
+            setBorderHovered={setBorderHovered}
           >
             <MessageComponent.TopBar name={currentUserName()} />
             <div class="h-4" />

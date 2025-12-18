@@ -52,8 +52,7 @@ export type MessageRootProps = {
   setMessageBodyRef?: Setter<HTMLDivElement | undefined>;
   isTarget?: boolean;
   isBorderHovered?: boolean;
-  setBorderHovered?: Setter<boolean>;
-  isThreadExpanded?: boolean;
+  setBorderHovered?: (hover: boolean) => void;
 };
 
 type MessageContextValue = {
@@ -212,11 +211,7 @@ export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
 const Root: Component<MessageRootProps> = (props) => {
   const [hover, setHover] = createSignal(false);
   const borderHovered = () => props.isBorderHovered ?? false;
-  const canBorderHover = () => {
-    return props.isThreadExpanded ?? false;
-  };
   const setBorderHover = (value: boolean) => {
-    if (!canBorderHover()) return;
     props.setBorderHovered?.(value);
   };
   const [replySize, setReplySize] = createSignal<DOMRect>();
