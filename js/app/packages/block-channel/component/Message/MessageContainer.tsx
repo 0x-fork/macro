@@ -260,6 +260,11 @@ export function MessageContainer(props: MessageProps) {
     return message.thread_id ?? message.id;
   });
 
+  const isThreadExpanded = createMemo(() => {
+    const id = message.thread_id ?? message.id;
+    return props.threadViewStore[id]?.threadExpanded ?? false;
+  });
+
   const threadHover = createMemo(() => {
     return props.threadHoverStore[threadId()] ?? false;
   });
@@ -616,6 +621,7 @@ export function MessageContainer(props: MessageProps) {
                 setMessageBodyRef={setMessageBodyRef}
                 externalHover={threadHover}
                 onHoverChange={handleHoverChange}
+                isThreadExpanded={isThreadExpanded()}
               >
                 <MessageComponent.TopBar
                   name={displayName()}
@@ -791,6 +797,7 @@ export function MessageContainer(props: MessageProps) {
             }
             externalHover={threadHover}
             onHoverChange={handleHoverChange}
+            isThreadExpanded={isThreadExpanded()}
           >
             <MessageComponent.TopBar name={currentUserName()} />
             <div class="h-4" />

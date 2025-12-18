@@ -53,6 +53,7 @@ export type MessageRootProps = {
   isTarget?: boolean;
   externalHover?: Accessor<boolean>;
   onHoverChange?: (hover: boolean) => void;
+  isThreadExpanded?: boolean;
 };
 
 type MessageContextValue = {
@@ -216,7 +217,11 @@ const Root: Component<MessageRootProps> = (props) => {
   const setHover = (value: boolean) => {
     setLocalHover(value);
   };
+  const canBorderHover = () => {
+    return props.isThreadExpanded || (props.threadDepth ?? 0) > 0;
+  };
   const setBorderHover = (value: boolean) => {
+    if (!canBorderHover()) return;
     setLocalBorderHover(value);
     props.onHoverChange?.(value);
   };
