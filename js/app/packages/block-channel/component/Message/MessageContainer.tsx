@@ -270,6 +270,11 @@ export function MessageContainer(props: MessageProps) {
     props.setBorderHovered(hover);
   });
 
+  createEffect(() => {
+    if (!isThreadExpanded()) return;
+    props.setBorderHovered(false);
+  });
+
   const shouldShowThreadAppendInput = createMemo(() => {
     return props.threadViewStore[message.thread_id ?? '']?.hasActiveReply;
   });
