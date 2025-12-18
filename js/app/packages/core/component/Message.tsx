@@ -52,6 +52,7 @@ export type MessageRootProps = {
   setMessageBodyRef?: Setter<HTMLDivElement | undefined>;
   isTarget?: boolean;
   isBorderHovered?: boolean;
+  isPreviousParentBorderHovered?: boolean;
   setBorderHovered?: (hover: boolean) => void;
   onBorderClick?: () => void;
 };
@@ -311,7 +312,8 @@ const Root: Component<MessageRootProps> = (props) => {
                       'border-accent': props.isNewMessage ?? false,
                       'border-edge-muted': !props.isNewMessage,
                       'border-white':
-                        borderHovered() && (props.threadDepth ?? 0) > 0,
+                        props.isPreviousParentBorderHovered ||
+                        (borderHovered() && (props.threadDepth ?? 0) > 0),
                     }}
                     style={{
                       left: '5px',

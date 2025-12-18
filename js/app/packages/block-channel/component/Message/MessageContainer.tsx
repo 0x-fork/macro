@@ -124,6 +124,7 @@ type MessageProps = {
   isTarget: boolean;
   isBorderHovered: boolean;
   setBorderHovered: Setter<boolean>;
+  isThreadHoveredSelector: (threadId: string) => boolean;
 };
 
 export function MessageContainer(props: MessageProps) {
@@ -239,6 +240,15 @@ export function MessageContainer(props: MessageProps) {
     return (
       !!message.thread_id && previousMessage()?.thread_id !== message.thread_id
     );
+  });
+
+  // since the connector lines are drawn on both top and bottom of message
+  // we need to connect the top border of the next thread to the bottom border of the selected thread
+  const isPreviousParentBorderHovered = createMemo(() => {
+    if (threadDepth() !== 0) return false;
+    const prevThreadId = previousMessage()?.thread_id;
+    if (!prevThreadId) return false;
+    return props.isThreadHoveredSelector(prevThreadId);
   });
 
   const isLastInThread = createMemo(() => {
@@ -622,6 +632,7 @@ export function MessageContainer(props: MessageProps) {
                 }
                 setMessageBodyRef={setMessageBodyRef}
                 isBorderHovered={isBorderHovered()}
+                isPreviousParentBorderHovered={isPreviousParentBorderHovered()}
                 setBorderHovered={setBorderHovered}
                 onBorderClick={handleThreadToggle}
               >
@@ -798,6 +809,7 @@ export function MessageContainer(props: MessageProps) {
               }))
             }
             isBorderHovered={isBorderHovered()}
+            isPreviousParentBorderHovered={false}
             setBorderHovered={setBorderHovered}
             onBorderClick={handleThreadToggle}
           >
