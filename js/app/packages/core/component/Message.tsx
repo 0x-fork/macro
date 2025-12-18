@@ -47,7 +47,7 @@ export type MessageRootProps = {
   shouldShowThreadAppendInput?: boolean;
   setThreadAppendMountTarget?: (el: HTMLElement) => void;
   onThreadAppend?: () => void;
-  shouldShowCollapseButton?: boolean;
+  enableCollapseButton?: boolean;
   onCollapseThread?: () => void;
   hideConnectors?: boolean;
   children: JSX.Element;
@@ -395,7 +395,7 @@ const Root: Component<MessageRootProps> = (props) => {
                 />
               </div>
             </Show>
-            <Show when={props.shouldShowCollapseButton}>
+            <Show when={props.enableCollapseButton}>
               <div
                 class="relative w-min -translate-x-1/2 mt-2"
                 classList={{

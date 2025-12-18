@@ -272,16 +272,6 @@ export function MessageContainer(props: MessageProps) {
     return [];
   });
 
-  const isLastInExpandedThread = createMemo(() => {
-    return (
-      !!message.thread_id &&
-      props.threadViewStore[message.thread_id]?.threadExpanded &&
-      props.threadSiblings &&
-      props.threadSiblings.length > COLLAPSED_THREAD_INDEX_CUTOFF + 1 &&
-      props.threadSiblings.at(-1)?.id === message.id
-    );
-  });
-
   const lastReplyTimestamp = createMemo(() => {
     if (collapsedThreadMessages()) {
       return collapsedThreadMessages()?.at(-1)?.created_at ?? '';
@@ -601,8 +591,8 @@ export function MessageContainer(props: MessageProps) {
                 isNewMessage={isNewMessage()}
                 isParentNewMessage={isParentNewMessage()}
                 onThreadAppend={onThreadAppend}
-                shouldShowCollapseButton={isLastInExpandedThread()}
                 shouldShowThreadAppendInput={shouldShowThreadAppendInput()}
+                enableCollapseButton
                 onCollapseThread={handleThreadToggle}
                 isTarget={props.isTarget}
                 setThreadAppendMountTarget={(el) =>
