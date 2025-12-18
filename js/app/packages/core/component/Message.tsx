@@ -210,14 +210,10 @@ export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
 /* Root */
 
 const Root: Component<MessageRootProps> = (props) => {
-  const [localHover, setLocalHover] = createSignal(false);
-  const internalHover = () => localHover();
+  const [hover, setHover] = createSignal(false);
   const borderHovered = () => props.isBorderHovered ?? false;
-  const setHover = (value: boolean) => {
-    setLocalHover(value);
-  };
   const canBorderHover = () => {
-    return props.isThreadExpanded || (props.threadDepth ?? 0) > 0;
+    return props.isThreadExpanded ?? false;
   };
   const setBorderHover = (value: boolean) => {
     if (!canBorderHover()) return;
@@ -234,8 +230,8 @@ const Root: Component<MessageRootProps> = (props) => {
     isFirstInThread: props.isFirstInThread,
     isLastInThread: props.isLastInThread,
     isDeleted: props.isDeleted,
-    hover: internalHover,
-    setHover: setHover,
+    hover,
+    setHover,
   };
 
   const replyHeight = createMemo(() => {
@@ -269,7 +265,7 @@ const Root: Component<MessageRootProps> = (props) => {
               ? `${replyHeight()}px`
               : '0px',
           }}
-          hover={props.shouldHover || internalHover()}
+          hover={props.shouldHover || hover()}
         >
           {/* Message Wrapper w/ Main Connector Line */}
           <div
@@ -424,8 +420,8 @@ const Root: Component<MessageRootProps> = (props) => {
           <div
             class="absolute right-2 -top-2 border border-edge bg-panel"
             classList={{
-              block: internalHover() || !!props.shouldHover,
-              hidden: !(internalHover() || !!props.shouldHover),
+              block: hover() || !!props.shouldHover,
+              hidden: !(hover() || !!props.shouldHover),
             }}
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
