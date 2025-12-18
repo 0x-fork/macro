@@ -354,15 +354,31 @@ const Root: Component<MessageRootProps> = (props) => {
                   <div class="relative">
                     <Show when={props.isFirstInThread}>
                       <div
-                        class="absolute border-b border-l border-edge-muted"
+                        class="absolute"
                         style={{
-                          left: `calc((var(--thread-shift) - var(--left-of-connector) + var(--left-of-user-icon) + 0.5px) * -1)`,
+                          left: `calc((var(--thread-shift) - var(--left-of-connector) + var(--left-of-user-icon) + 0.5px) * -1 - 5px)`,
                           top: '.5px',
-                          width: `calc(var(--thread-shift) - var(--left-of-connector) + var(--left-of-user-icon) + 0.5px)`,
-                          height: '50%',
-                          'border-bottom-left-radius': `calc(var(--thread-shift) / 2)`,
+                          width: `calc(var(--thread-shift) - var(--left-of-connector) + var(--left-of-user-icon) + 0.5px + 10px)`,
+                          height: 'calc(50% + 5px)',
                         }}
-                      />
+                        onMouseEnter={() => setBorderHover(true)}
+                        onMouseLeave={() => setBorderHover(false)}
+                      >
+                        <div
+                          class="absolute border-b border-l"
+                          classList={{
+                            'border-edge-muted': !borderHovered(),
+                            'border-white': borderHovered(),
+                          }}
+                          style={{
+                            left: '5px',
+                            top: '0',
+                            width: `calc(100% - 10px)`,
+                            height: 'calc(100% - 5px)',
+                            'border-bottom-left-radius': `calc(var(--thread-shift) / 2)`,
+                          }}
+                        />
+                      </div>
                     </Show>
                     <Show
                       when={props.customIcon || props.customIconTargetType}
