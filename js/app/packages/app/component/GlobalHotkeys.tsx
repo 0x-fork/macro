@@ -117,6 +117,7 @@ export default function GlobalShortcuts() {
   });
 
   const { insertSplit } = useSplitLayout();
+  const { getSplitCount } = useSplitLayout();
   registerHotkey({
     hotkeyToken: TOKENS.global.createNewSplit,
     hotkey: 'cmd+\\',
@@ -139,6 +140,23 @@ export default function GlobalShortcuts() {
       insertSplit({ type: 'component', id: 'unified-list' });
       return true;
     },
+  });
+
+  registerHotkey({
+    hotkeyToken: TOKENS.split.close,
+    hotkey: 'cmd+escape',
+    scopeId: 'global',
+    description: 'Close split',
+    condition: () => getSplitCount() > 1,
+    keyDownHandler: () => {
+      const manager = globalSplitManager();
+      const activeId = manager?.activeSplitId();
+      if (manager && activeId) {
+        manager.removeSplit(activeId);
+      }
+      return true;
+    },
+    runWithInputFocused: true,
   });
 
   registerHotkey({

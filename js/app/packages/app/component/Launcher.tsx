@@ -92,13 +92,13 @@ type CreatableBlock = Omit<HotkeyRegistrationOptions, 'scopeId'> & {
 
 export const CREATABLE_BLOCKS: CreatableBlock[] = [
   {
-    label: 'Note',
+    label: 'Doc',
     icon: () => <WideFileMd />,
-    description: 'Create note',
+    description: 'Create doc',
     blockName: 'md',
     hotkeyToken: TOKENS.create.note,
     altHotkeyToken: TOKENS.create.noteNewSplit,
-    hotkey: 'n',
+    hotkey: 'd',
     keyDownHandler: () => {
       createBlock({
         blockName: 'md',
@@ -196,7 +196,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     blockName: 'canvas',
     hotkeyToken: TOKENS.create.canvas,
     altHotkeyToken: TOKENS.create.canvasNewSplit,
-    hotkey: 'd',
+    hotkey: 'v',
     keyDownHandler: () => {
       createBlock({
         blockName: 'canvas',

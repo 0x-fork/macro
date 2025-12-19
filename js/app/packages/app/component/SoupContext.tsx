@@ -296,7 +296,7 @@ export function createNavigationEntityListShortcut({
 
   registerHotkey({
     hotkey: ['shift+g', 'end'],
-    scopeId: goScope.commandScopeId,
+    scopeId: splitHotkeyScope,
     description: 'Go to bottom of list',
     condition: isViewingList,
     keyDownHandler: () => {
@@ -439,7 +439,7 @@ export function createNavigationEntityListShortcut({
   );
 
   registerEntityHotkey({
-    hotkey: ['e'],
+    hotkey: ['n'],
     hotkeyToken: TOKENS.entity.action.markDone,
     scopeId: splitHotkeyScope,
     description: 'Mark done',

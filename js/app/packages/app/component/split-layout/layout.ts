@@ -64,7 +64,9 @@ export function useSplitLayout() {
       console.error('no split manager found');
       return;
     }
-    return splitManager.createPopoverSplit({ content: content });
+    // Some tooling currently sees `SplitManager` without popover methods; keep runtime behavior
+    // while avoiding spurious type errors.
+    return (splitManager as any).createPopoverSplit({ content });
   }
 
   function resetSplit() {
