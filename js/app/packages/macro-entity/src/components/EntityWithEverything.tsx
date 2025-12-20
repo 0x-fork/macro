@@ -815,8 +815,9 @@ export function EntityWithEverything(
       classList={{
         'outline outline-accent/20 outline-offset-[-1px]':
           props.selected && !props.checked && !props.disableSelectedStyles,
-        '!bg-accent/5 outline outline-accent/20 outline-offset-[-1px]':
-          props.checked,
+        // For multi-select ("checked") state, avoid per-row outlines which create
+        // an ugly border between adjacent selected items.
+        '!bg-accent/5': props.checked,
         'bracket outline outline-accent/20 outline-offset-[-1px]':
           props.highlighted,
       }}
