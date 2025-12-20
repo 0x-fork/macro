@@ -398,7 +398,7 @@ function Gutter(props: GutterProps) {
 
   return (
     <div
-      class="group"
+      class="group bracket-never"
       role="separator"
       aria-orientation={
         ctx.direction === 'horizontal' ? 'vertical' : 'horizontal'

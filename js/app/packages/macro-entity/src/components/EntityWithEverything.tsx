@@ -385,6 +385,11 @@ interface EntityProps<T extends WithNotification<EntityData>>
   showDoneButton?: boolean;
   highlighted?: boolean;
   selected?: boolean;
+  /**
+   * When true, suppresses the per-row "selected" outline/bg styling.
+   * Useful when a parent list renders a single animated selection highlight.
+   */
+  disableSelectedStyles?: boolean;
   ref?: Ref<HTMLDivElement>;
   onChecked?: (checked: boolean, shiftKey?: boolean) => void;
   checked?: boolean;
@@ -809,7 +814,7 @@ export function EntityWithEverything(
       class="everything-entity relative group/entity hover:bg-hover/30"
       classList={{
         'outline outline-accent/20 outline-offset-[-1px]':
-          props.selected && !props.checked,
+          props.selected && !props.checked && !props.disableSelectedStyles,
         '!bg-accent/5 outline outline-accent/20 outline-offset-[-1px]':
           props.checked,
         'bracket outline outline-accent/20 outline-offset-[-1px]':

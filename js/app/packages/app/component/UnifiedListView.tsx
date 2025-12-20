@@ -16,6 +16,7 @@ import { IconButton } from '@core/component/IconButton';
 import { ContextMenuContent, MenuSeparator } from '@core/component/Menu';
 import { getSuggestedProperties } from '@core/component/Properties/utils';
 import { RecipientSelector } from '@core/component/RecipientSelector';
+import { ScopedPortal } from '@core/component/ScopedPortal';
 import {
   blockAcceptsFileExtension,
   fileTypeToBlockName,
@@ -1165,6 +1166,141 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     (a: string, b: EntityData[]) => b.find((e) => e.id === a) !== undefined
   );
 
+  type SelectionRect = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    visible: boolean;
+  };
+
+  const [unifiedListRootRef, setUnifiedListRootRef] =
+    createSignal<HTMLDivElement | null>(null);
+  const [selectionRect, setSelectionRect] = createSignal<SelectionRect>({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    visible: false,
+  });
+  const [animateSelection, setAnimateSelection] = createSignal(true);
+  let scrollEndTimeout: number | undefined;
+
+  const activeEntityId = createMemo(() => {
+    const modalOrContextSelectedId = contextAndModalState.selectedEntity?.id;
+    return modalOrContextSelectedId ?? selectedEntity()?.id;
+  });
+
+  const updateSelectionRect = (opts?: { animate?: boolean }) => {
+    const root = unifiedListRootRef();
+    const listEl = localEntityListRef();
+    const id = activeEntityId();
+
+    if (opts?.animate !== undefined) setAnimateSelection(opts.animate);
+
+    if (!root || !listEl || !id) {
+      setSelectionRect((prev) => ({ ...prev, visible: false }));
+      return;
+    }
+
+    const item = listEl.querySelector(
+      `[data-entity-id="${CSS.escape(id)}"]`
+    ) as HTMLElement | null;
+
+    const wrapper = (item?.closest('.everything-entity') ??
+      item) as HTMLElement | null;
+
+    if (!wrapper) {
+      setSelectionRect((prev) => ({ ...prev, visible: false }));
+      return;
+    }
+
+    const rootRect = root.getBoundingClientRect();
+    const rect = wrapper.getBoundingClientRect();
+
+    setSelectionRect({
+      x: rect.left - rootRect.left,
+      y: rect.top - rootRect.top,
+      width: rect.width,
+      height: rect.height,
+      visible: true,
+    });
+  };
+
+  // Convert the selection rect from unified-list-local coordinates to split-panel-local coordinates,
+  // and expand by 1px so the outline/brackets can paint on top of the split border.
+  const selectionRectInSplit = createMemo<SelectionRect>(() => {
+    const rect = selectionRect();
+    if (!rect.visible) return rect;
+
+    const root = unifiedListRootRef();
+    const panel = splitContext.panelRef();
+    if (!root || !panel) return { ...rect, visible: false };
+
+    const rootRect = root.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+
+    return {
+      x: rootRect.left - panelRect.left + rect.x - 1,
+      y: rootRect.top - panelRect.top + rect.y - 1,
+      width: rect.width + 2,
+      height: rect.height + 2,
+      visible: true,
+    };
+  });
+
+  // Animate the selection highlight when the active entity changes.
+  createEffect(
+    on(activeEntityId, () => {
+      updateSelectionRect({ animate: true });
+    })
+  );
+
+  // When layout changes (split resize, preview toggle), recompute without animation.
+  // Width changes are always layout-driven, so we never want to animate them.
+  createEffect(
+    on(
+      [
+        () => splitContext.panelSize.width,
+        () => splitContext.panelSize.height,
+        preview,
+      ],
+      () => {
+        updateSelectionRect({ animate: false });
+      }
+    )
+  );
+
+  // If refs mount after the active id is already set, ensure we still place the highlight.
+  createEffect(
+    on([unifiedListRootRef, localEntityListRef], () => {
+      updateSelectionRect({ animate: false });
+    })
+  );
+
+  // Keep the highlight aligned during scrolling/resizing (no animation to avoid lag).
+  createEffect(() => {
+    const listEl = localEntityListRef();
+    if (!listEl) return;
+
+    const onScrollOrResize = () => {
+      updateSelectionRect({ animate: false });
+      if (scrollEndTimeout) window.clearTimeout(scrollEndTimeout);
+      scrollEndTimeout = window.setTimeout(() => {
+        setAnimateSelection(true);
+      }, 80);
+    };
+
+    listEl.addEventListener('scroll', onScrollOrResize, { passive: true });
+    window.addEventListener('resize', onScrollOrResize, { passive: true });
+
+    onCleanup(() => {
+      listEl.removeEventListener('scroll', onScrollOrResize);
+      window.removeEventListener('resize', onScrollOrResize);
+      if (scrollEndTimeout) window.clearTimeout(scrollEndTimeout);
+    });
+  });
+
   const saveViewMutation = useUpsertSavedViewMutation();
 
   const isViewConfigChanged = createMemo(() => {
@@ -1515,7 +1651,44 @@ export function UnifiedListView(props: UnifiedListViewProps) {
           });
         }}
       >
-        <ContextMenu.Trigger class="size-full unified-list-root">
+        <ContextMenu.Trigger
+          class="relative size-full unified-list-root"
+          ref={setUnifiedListRootRef}
+        >
+          <ScopedPortal scope="split" show={Boolean(splitContext.panelRef())}>
+            <div
+              class="pointer-events-none absolute top-0 left-0 z-10"
+              classList={{
+                // Never animate width (layout-driven); keep transform/height/opacity for nicer row-to-row motion.
+                'transition-[transform,height,opacity] duration-150 ease-out':
+                  animateSelection(),
+                'transition-none': !animateSelection(),
+              }}
+              style={{
+                transform: `translate3d(${selectionRectInSplit().x}px, ${selectionRectInSplit().y}px, 0)`,
+                width: `${selectionRectInSplit().width}px`,
+                height: `${selectionRectInSplit().height}px`,
+                opacity: selectionRectInSplit().visible ? '1' : '0',
+              }}
+            >
+              <div
+                class="size-full relative bracket"
+                style={{
+                  // Equivalent to `bg-accent/2.5` (2.5% accent), but written in CSS so we can
+                  // use fractional opacity reliably.
+                  'background-color':
+                    'color-mix(in srgb, var(--color-accent) 2.5%, transparent)',
+                  // Equivalent to `outline-accent/10`, but rendered as an opaque color by blending
+                  // against the split panel background color. Use an inset shadow (not outline)
+                  // so it doesn't paint outside the split bounds.
+                  'box-shadow':
+                    'inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 15%, var(--color-panel))',
+                }}
+              >
+                <div class="pointer-events-none absolute inset-0 z-0 pattern-accent pattern-diagonal-4 opacity-[0.03]" />
+              </div>
+            </div>
+          </ScopedPortal>
           <UnifiedListComponent
             entityListRef={setLocalEntityListRef}
             virtualizerHandle={setVirtualizerHandle}
@@ -1543,6 +1716,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
               };
               return (
                 <EntityWithEverything
+                  disableSelectedStyles
                   onContextMenu={() => {
                     if (isPanelActive() && !preview()) {
                       setSelectedEntity(innerProps.entity);
@@ -1607,9 +1781,6 @@ export function UnifiedListView(props: UnifiedListViewProps) {
                   )}
                   unreadIndicatorActive={unreadFilterFn(innerProps.entity)}
                   showDoneButton={displayDoneButton()}
-                  highlighted={
-                    isPanelActive() && focusedSelector(innerProps.entity.id)
-                  }
                   selected={
                     focusedSelector(innerProps.entity.id) ||
                     contextAndModalState.selectedEntity?.id ===
