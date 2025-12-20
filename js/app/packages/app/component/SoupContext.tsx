@@ -247,6 +247,7 @@ export function createNavigationEntityListShortcut({
     selectedView,
     setSelectedView,
     entitiesSignal: [entities],
+    emailViewSignal: [emailView],
     actionRegistry,
   } = unifiedListContext;
   const viewData = createMemo(() => viewsData[selectedView()]);
@@ -390,10 +391,16 @@ export function createNavigationEntityListShortcut({
       );
 
       if (handler || hasSupportedEntity) {
-        if (isEntityLastItem()) {
-          navigateThroughList({ axis: 'start', mode: 'step' });
+        // NOTE: For the `e` hotkey we pre-navigate to get the "Superhuman gap" feel while mashing.
+        // In that case, skip navigation here so we don't advance twice and leave the selection wrong.
+        if (Date.now() > suppressMarkDoneNavUntil) {
+          if (isEntityLastItem()) {
+            navigateThroughList({ axis: 'start', mode: 'step' });
+          } else {
+            navigateThroughList({ axis: 'end', mode: 'step' });
+          }
         } else {
-          navigateThroughList({ axis: 'end', mode: 'step' });
+          suppressMarkDoneNavUntil = 0;
         }
 
         for (const entity of entities) {
@@ -438,6 +445,63 @@ export function createNavigationEntityListShortcut({
     }
   );
 
+  const DONE_SWIPE_MS = 200;
+  const DONE_COMMIT_DEBOUNCE_MS = 250;
+  let doneCommitTimeout: number | undefined;
+  let suppressMarkDoneNavUntil = 0;
+  const pendingDoneEntities = new Map<string, EntityData>();
+  const pendingDoneRows = new Map<string, HTMLElement>();
+
+  const shouldUseDoneSwipe = () => {
+    // Only do the Superhuman-style swipe+gaps when the current view will actually
+    // remove the entity from the list. Otherwise it looks broken (swipe out + pop back).
+    const view = viewData();
+    if (view?.filters?.notificationFilter === 'notDone') return true;
+    // Email inbox explicitly opts into optimistic exclusion on `e`
+    if (selectedView() === 'email' && emailView() === 'inbox') return true;
+    return false;
+  };
+
+  const triggerDoneSwipe = (entityId: string) => {
+    try {
+      const escaped =
+        typeof CSS !== 'undefined' && 'escape' in CSS
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (CSS as any).escape(entityId)
+          : entityId.replaceAll('"', '\\"');
+      const leaf = document.querySelector<HTMLElement>(
+        `[data-entity-id="${escaped}"]`
+      );
+      const row = leaf?.closest<HTMLElement>('.everything-entity');
+      if (!row) return;
+      if (row.dataset.doneSwipe === 'true') return;
+      row.dataset.doneSwipe = 'true';
+      pendingDoneRows.set(entityId, row);
+    } catch {
+      // noop: animation is best-effort
+    }
+  };
+
+  const scheduleCommitDone = () => {
+    if (doneCommitTimeout) window.clearTimeout(doneCommitTimeout);
+    doneCommitTimeout = window.setTimeout(() => {
+      const entities = Array.from(pendingDoneEntities.values());
+      pendingDoneEntities.clear();
+
+      // Keep rows invisible briefly while the list updates, then clean up if they remain.
+      const rows = Array.from(pendingDoneRows.values());
+      pendingDoneRows.clear();
+
+      actionRegistry.execute('mark_as_done', entities);
+
+      window.setTimeout(() => {
+        for (const row of rows) {
+          if (row.isConnected) delete row.dataset.doneSwipe;
+        }
+      }, 400);
+    }, DONE_COMMIT_DEBOUNCE_MS);
+  };
+
   registerEntityHotkey({
     hotkey: ['e'],
     hotkeyToken: TOKENS.entity.action.markDone,
@@ -449,10 +513,30 @@ export function createNavigationEntityListShortcut({
         return false;
       }
 
-      actionRegistry.execute(
-        'mark_as_done',
-        entitiesForAction.entities.map(({ entity }) => entity)
-      );
+      // If marking done won't remove the entity from the current list, don't play the swipe animation.
+      // Preserve legacy behavior: just execute and let the action handler navigate.
+      if (!shouldUseDoneSwipe()) {
+        actionRegistry.execute(
+          'mark_as_done',
+          entitiesForAction.entities.map(({ entity }) => entity)
+        );
+        return true;
+      }
+
+      // Move selection immediately (Superhuman-style), but defer the actual mutation so the
+      // swipe-out can play and gaps can accumulate while mashing.
+      if (isEntityLastItem()) {
+        navigateThroughList({ axis: 'start', mode: 'step' });
+      } else {
+        navigateThroughList({ axis: 'end', mode: 'step' });
+      }
+
+      for (const { entity } of entitiesForAction.entities) {
+        pendingDoneEntities.set(entity.id, entity);
+        triggerDoneSwipe(entity.id);
+      }
+      suppressMarkDoneNavUntil = Date.now() + DONE_COMMIT_DEBOUNCE_MS + 50;
+      scheduleCommitDone();
 
       return true;
     },

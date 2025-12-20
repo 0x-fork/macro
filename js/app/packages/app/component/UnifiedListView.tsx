@@ -1271,6 +1271,14 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     )
   );
 
+  // When the list contents change (e.g. marking done removes items above), the selected entity may
+  // move on screen without the selected id changing. Re-measure after the DOM reflows.
+  createEffect(
+    on([() => entities_()?.length], () => {
+      requestAnimationFrame(() => updateSelectionRect({ animate: false }));
+    })
+  );
+
   // If refs mount after the active id is already set, ensure we still place the highlight.
   createEffect(
     on([unifiedListRootRef, localEntityListRef], () => {
