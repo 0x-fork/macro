@@ -7,9 +7,9 @@ import { useBlockId } from '@core/block';
 import { useChannelName } from '@core/component/ChannelsProvider';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { useChannelQuery } from '@queries/channel/channel';
-import { commsServiceClient } from '@service-comms/client';
+import { useJoinChannelMutation } from '@queries/channel/join';
 import { useUserId } from '@service-gql/client';
-import { createSignal, type JSXElement, Match, Switch } from 'solid-js';
+import { createEffect, createSignal, type JSXElement, Match, Switch } from 'solid-js';
 import { Channel } from './Channel';
 import { JoinChannelDialog } from './JoinChannelDialog';
 import type { TargetMessageInfo } from './MessageList/MessageList';
@@ -38,46 +38,39 @@ export default function BlockChannel(props: BlockChannelProps) {
   const [error] = createSignal<string>();
   const [joinState, setJoinState] = createSignal<JoinState>();
 
+  const joinMutation = useJoinChannelMutation({
+    onSuccess: () => setJoinState('NOT_REQUIRED'),
+    onError: () => setJoinState('REQUIRED'),
+  });
+
   const validChannelData = () => {
     const blockData_ = channel.data;
-    const userId_ = userId();
-    if (!userId_) return;
     if (!blockData_) return;
     if (!isValidChannelData(blockData_)) return;
-
-    initializeChannelData(blockData_);
-    setJoinState(
-      doesChannelRequireJoin(blockData_, userId_) ? 'REQUIRED' : 'NOT_REQUIRED'
-    );
-
     return blockData_;
   };
+
+  createEffect(() => {
+    const data = validChannelData();
+    const userId_ = userId();
+    if (!data || !userId_) return;
+    initializeChannelData(data);
+    setJoinState(
+      doesChannelRequireJoin(data, userId_) ? 'REQUIRED' : 'NOT_REQUIRED'
+    );
+  });
 
   function handleJoinChannel(
     channelId: string,
     selection: 'ACCEPTED' | 'REJECTED'
   ) {
     if (selection === 'ACCEPTED') {
-      commsServiceClient
-        .joinChannel({
-          channel_id: channelId,
-        })
-        .then(() => {
-          setJoinState('NOT_REQUIRED');
-        });
       setJoinState('NOT_REQUIRED');
+      joinMutation.mutate({ channelID: channelId });
     } else {
       setJoinState('REQUIRED');
     }
   }
-
-  const validChannelDataWithJoinState = () => {
-    if (joinState() === 'REQUIRED' && validChannelData()) {
-      let data = validChannelData();
-      return data;
-    }
-    return undefined;
-  };
 
   const channelName = () => {
     const data = channel.data;
@@ -102,7 +95,7 @@ export default function BlockChannel(props: BlockChannelProps) {
             <h1>{error()}</h1>
           </WithTopBar>
         </Match>
-        <Match when={validChannelDataWithJoinState()}>
+        <Match when={joinState() === 'REQUIRED' && validChannelData()}>
           {(channelData) => (
             <WithTopBar>
               <JoinChannelDialog
@@ -115,7 +108,7 @@ export default function BlockChannel(props: BlockChannelProps) {
             </WithTopBar>
           )}
         </Match>
-        <Match when={validChannelData()}>
+        <Match when={joinState() === 'NOT_REQUIRED' && validChannelData()}>
           {(channelData) => (
             <Channel data={channelData()} target={props.target} />
           )}

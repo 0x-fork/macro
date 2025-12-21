@@ -13,7 +13,6 @@ import {
 } from '@block-channel/signal/attachment';
 import {
   channelStore,
-  refetchChannelData,
 } from '@block-channel/signal/channel';
 import { activeThreadIdSignal } from '@block-channel/signal/threads';
 import { handleFileUpload } from '@block-channel/utils/inputAttachments';
@@ -63,14 +62,17 @@ false && fileFolderDrop;
 /** 10 seconds threshold */
 const THRESHOLD = 10_000;
 
-export function createChannelRefetchEffect(channelId: string) {
+export function createChannelRefetchEffect(
+  channelId: string,
+  refetch: () => void | Promise<unknown>
+) {
   let lastTime = Date.now();
 
   /** Refetch channel data if the tab is focused */
   createTabFocusEffect((isTabFocused) => {
     if (isTabFocused && Date.now() - lastTime > THRESHOLD) {
       console.log('tab focused, refetching channel data');
-      refetchChannelData(channelId);
+      refetch();
       connectionGatewayClient.trackEntity({
         entity_type: 'channel',
         entity_id: channelId,
@@ -154,7 +156,7 @@ export function Channel(props: {
     track(TrackingEvents.BLOCKCHANNEL.CHANNEL.OPEN);
   });
 
-  createChannelRefetchEffect(channelId);
+  createChannelRefetchEffect(channelId, () => channel.refetch());
 
   useBeforeLeave(() => {
     updateActivityOnClose();

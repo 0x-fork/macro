@@ -25,7 +25,7 @@ type ChannelQueryOptions = UseBaseQueryOptions<
 /**
  * Shared query options for getting a channel with an ID
  */
-function channelQueryOptions(channelId: string): ChannelQueryOptions {
+export function channelQueryOptions(channelId: string): ChannelQueryOptions {
   return {
     queryKey: channelKeys.withID(channelId).queryKey,
     queryFn: async () => {
@@ -35,7 +35,6 @@ function channelQueryOptions(channelId: string): ChannelQueryOptions {
             channel_id: channelId,
           })
       );
-      console.log('fetch', result);
 
       return result;
     },
@@ -78,6 +77,24 @@ export function useChannelQuery(
       ...channelQueryOptions(channelId()),
     };
   }, queryClient);
+}
+
+/**
+ * Force-refetch a channel (ignores freshness) and update the query cache.
+ * Useful for imperative refresh flows (tab focus, manual refresh, etc.).
+ */
+export async function forceRefetchChannel(
+  channelId: string
+): Promise<MaybeResult<string, { channel: GetChannelResponse }>> {
+  const key = channelKeys.withID(channelId).queryKey;
+  await queryClient.invalidateQueries({ queryKey: key });
+
+  const result = await catchToResult(async () =>
+    queryClient.fetchQuery(channelQueryOptions(channelId))
+  );
+
+  if (isErr(result)) return result;
+  return ok({ channel: result[1] });
 }
 
 export function optimisticUpdateChannelName(

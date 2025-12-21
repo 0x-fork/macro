@@ -9,6 +9,7 @@ import {
 } from '@core/store/cacheChannelInput';
 import { isErr } from '@core/util/maybeResult';
 import { getImageDimensions, getVideoDimensions } from '@core/util/media';
+import { forceRefetchChannel } from '@queries/channel/channel';
 import { useSendMessageMutation } from '@queries/channel/message';
 import { commsServiceClient } from '@service-comms/client';
 import type { NewAttachment } from '@service-comms/generated/models';
@@ -84,18 +85,15 @@ export function doesChannelRequireJoin(
 export async function refetchChannelData(channelId: string) {
   const initialize = createCallback(initializeChannelData);
 
-  let res = await commsServiceClient.getChannel({
-    channel_id: channelId,
-  });
+  const res = await forceRefetchChannel(channelId);
+  const data = isErr(res) ? undefined : res[1].channel;
 
-  const [_, data] = res;
-
-  if (isErr(res) || !data || !isValidChannelData(data)) {
+  if (isErr(res) || !data || !isValidChannelData(data as ChannelData)) {
     toast.alert('Failed to refetch channel');
     return;
   }
 
-  initialize(data);
+  initialize(data as Required<ChannelData>);
 }
 
 /** Initializes all of the channel signals / stores

@@ -1,14 +1,16 @@
 import { withAnalytics } from '@coparse/analytics';
 import { TrackingEvents } from '@coparse/analytics/src/types/TrackingEvents';
-import { isErr } from '@core/util/maybeResult';
-import { commsServiceClient } from '@service-comms/client';
 import type { ChannelParticipant } from '@service-comms/generated/models/channelParticipant';
-import { toast } from 'core/component/Toast/Toast';
+import {
+  useAddParticipantsMutation,
+  useRemoveParticipantsMutation,
+} from '@queries/channel/participants';
 import { channelStore } from './channel';
 
 export function useAddParticipantsToChannel() {
   const [channel, setChannel] = channelStore;
   const { track } = withAnalytics();
+  const mutation = useAddParticipantsMutation();
 
   return async (participants: string[]) => {
     const channelId = channel.channel?.id;
@@ -29,15 +31,13 @@ export function useAddParticipantsToChannel() {
 
     setChannel('participants', (prev) => [...prev, ...newParticipants]);
 
-    const res = await commsServiceClient.addParticipantsToChanenl({
-      channel_id: channelId,
-      participants: participants,
-    });
-
-    if (isErr(res)) {
-      toast.failure('Failed to add participants to channel');
-      console.error(res);
-      return;
+    try {
+      await mutation.mutateAsync({
+        channelID: channelId,
+        participants,
+      });
+    } catch {
+      // Mutation already handles user-visible errors via query callbacks.
     }
 
     track(TrackingEvents.BLOCKCHANNEL.PARTICIPANT.ADD);
@@ -46,6 +46,7 @@ export function useAddParticipantsToChannel() {
 
 export function useRemoveParticipantsFromChannel() {
   const [channel, setChannel] = channelStore;
+  const mutation = useRemoveParticipantsMutation();
 
   return async (participants: string[]) => {
     const channelId = channel.channel?.id;
@@ -60,15 +61,13 @@ export function useRemoveParticipantsFromChannel() {
       prev.filter((p) => !participants.includes(p.user_id))
     );
 
-    const res = await commsServiceClient.removeParticipantsFromChannel({
-      channel_id: channelId,
-      participants: participants,
-    });
-
-    if (isErr(res)) {
-      toast.failure('Failed to remove participants from channel');
-      console.error(res);
-      return;
+    try {
+      await mutation.mutateAsync({
+        channelID: channelId,
+        participants,
+      });
+    } catch {
+      // Mutation already handles user-visible errors via query callbacks.
     }
   };
 }
