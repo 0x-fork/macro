@@ -341,6 +341,7 @@ type MenuContentProps = ParentProps<{
   class?: string;
   submenu?: boolean;
   width?: MenuWidth;
+  style?: JSX.CSSProperties;
   onOpenAutoFocus?: (event: Event) => void;
   onCloseAutoFocus?: (event: Event) => void;
   overrideStyling?: boolean;

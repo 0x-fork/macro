@@ -117,6 +117,9 @@ export const ENABLE_PROPERTY_DISPLAY_CONTROL =
 // TODO: re-enable when supported in backend
 export const ENABLE_SOUP_FROM_FILTER = false;
 
+// Saved/custom Soup views (Views dropdown, rename/delete, etc.)
+export const ENABLE_SAVED_VIEWS = false;
+
 export const ENABLE_PREVIEW = true;
 
 export const ENABLE_DOCK_NOTITIFCATIONS = DEV_MODE_ENV;
@@ -128,7 +131,7 @@ export const ENABLE_JACK_IN = false;
 export const ENABLE_WHICHKEY_OVERLAY = false;
 
 // pure css based custom cursor
-export const ENABLE_CUSTOM_CURSOR = false;
+export const ENABLE_CUSTOM_CURSOR = true;
 // uses javascript to detect selectable text to switch to "text" cursor type (ibeam)
 export const ENABLE_CUSTOM_CURSOR_TEXT_GLYPH_DETECTION = true;
 

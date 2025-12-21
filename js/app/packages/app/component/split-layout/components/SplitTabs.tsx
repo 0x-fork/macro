@@ -1,4 +1,5 @@
 import { playSound } from '@app/util/sound';
+import { ToggleButton } from '@core/component/FormControls/ToggleButton';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { ViewId } from '@core/types/view';
 import { Tabs } from '@kobalte/core';
@@ -11,6 +12,7 @@ import {
   For,
   type JSXElement,
   onMount,
+  Show,
   type Setter,
 } from 'solid-js';
 import { useSplitPanelOrThrow } from '../layoutUtils';
@@ -32,6 +34,13 @@ export function SplitTabs(props: {
   setButtonsRef?: Setter<HTMLDivElement | null>;
   newButton?: JSXElement;
   contextMenu?: (props: { value: ViewId; label: string }) => JSXElement;
+  tabAddon?: (props: {
+    value: ViewId;
+    label: string;
+    index: number;
+    active: boolean;
+    triggerEl?: HTMLElement;
+  }) => JSXElement;
 }) {
   let scrollRef!: HTMLDivElement;
   const panel = useSplitPanelOrThrow();
@@ -40,12 +49,6 @@ export function SplitTabs(props: {
 
   const [leftOpacity, setLeftOpacity] = createSignal(0);
   const [rightOpacity, setRightOpacity] = createSignal(0);
-
-  // Track the active tab's position and width for the sliding indicator
-  const [indicatorStyle, setIndicatorStyle] = createSignal({
-    left: 0,
-    width: 0,
-  });
 
   const updateClipIndicators = () => {
     if (!scrollRef) return;
@@ -58,16 +61,6 @@ export function SplitTabs(props: {
     const remainingScroll = maxScroll - scrollLeft;
     const rightAmount = Math.min(remainingScroll, SCROLL_THRESHOLD);
     setRightOpacity(rightAmount / SCROLL_THRESHOLD);
-  };
-
-  const updateIndicatorPosition = (element: HTMLElement) => {
-    if (!scrollRef || !element) return;
-    const listRect = scrollRef.getBoundingClientRect();
-    const tabRect = element.getBoundingClientRect();
-    setIndicatorStyle({
-      left: tabRect.left - listRect.left + scrollRef.scrollLeft,
-      width: tabRect.width,
-    });
   };
 
   onMount(() => {
@@ -106,38 +99,74 @@ export function SplitTabs(props: {
   });
 
   return (
-    <div class="relative isolate h-full shrink grow-2 @container-normal">
+    <div class="relative isolate h-full shrink-0 max-w-[65cqw] @container-normal">
       {/* Left clip boundary indicator */}
       <div
-        class="absolute pointer-events-none left-0 top-px bottom-px w-3 z-2 pattern-diagonal-4 pattern-edge mask-r-from-0% border-l border-edge-muted transition-opacity duration-150"
+        class="absolute pointer-events-none left-0 top-px bottom-px w-1 z-2 border-l border-edge-muted transition-opacity duration-150"
         style={{ opacity: leftOpacity() }}
       />
       {/* Right clip boundary indicator */}
       <div
-        class="absolute pointer-events-none right-0 top-px bottom-px w-3 z-2 pattern-diagonal-4 pattern-edge mask-l-from-0% border-r border-edge-muted transition-opacity duration-150"
+        class="absolute pointer-events-none right-0 top-px bottom-px w-1 z-2 border-r border-edge-muted transition-opacity duration-150"
         style={{ opacity: rightOpacity() }}
       />
 
       <Tabs.List
-        class="flex flex-row suppress-css-brackets h-full bg-panel overflow-x-scroll overscroll-none scrollbar-hidden scroll-shadows-x relative"
+        class="flex flex-row items-center suppress-css-brackets h-full bg-panel overflow-x-scroll overscroll-none scrollbar-hidden scroll-shadows-x relative px-2 gap-0"
         as="div"
         ref={(r) => {
           scrollRef = r;
           props.setButtonsRef?.(r);
         }}
       >
-        {/* Sliding indicator line */}
-        <div
-          class="absolute bottom-0 h-px bg-accent z-10 pointer-events-none transition-all duration-150 ease-out"
-          style={{
-            transform: `translateX(${indicatorStyle().left}px)`,
-            width: `${indicatorStyle().width}px`,
-          }}
-        />
-
         <For each={props.list}>
           {({ value, label, index }, i) => {
             const isActive = createMemo(() => value === props.active());
+
+            const renderMnemonicLabel = () => {
+              const mnemonicMap: Partial<Record<ViewId, string>> = {
+                files: 'd',
+                people: 'm',
+                email: 'e',
+                tasks: 't',
+                agents: 'a',
+                folders: 'f',
+                all: '/',
+              };
+              const key = mnemonicMap[value];
+              if (!key) return <span class="truncate">{label}</span>;
+
+              const strong = (ch: string) => (
+                // Use an inset shadow "underline" so it doesn't get clipped by `truncate` overflow
+                // AND doesn't change the line box height (unlike border/padding).
+                <span class="inline-block font-semibold leading-none shadow-[inset_0_-2px_0_0_currentColor]">
+                  {ch}
+                </span>
+              );
+
+              // If the mnemonic exists inside the label, underline that letter.
+              const idx = label.toLowerCase().indexOf(key.toLowerCase());
+              if (idx >= 0) {
+                return (
+                  <span class="truncate">
+                    {label.slice(0, idx)}
+                    {strong(label[idx]!)}
+                    {label.slice(idx + 1)}
+                  </span>
+                );
+              }
+
+              // Otherwise, prefix the mnemonic (e.g. "C Msg", "/ All").
+              return (
+                <span class="truncate">
+                  {strong(key)}
+                  <span class="opacity-70"> </span>
+                  {label}
+                </span>
+              );
+            };
+
+            const isAfterAll = () => i() > 0 && props.list[i() - 1]?.value === 'all';
 
             let ref: HTMLDivElement | undefined;
             createEffect(() => {
@@ -146,8 +175,6 @@ export function SplitTabs(props: {
                 ref.scrollIntoView({
                   inline: 'end',
                 });
-                // Update indicator position and clip indicators
-                updateIndicatorPosition(ref);
                 setTimeout(updateClipIndicators, 0);
               }
             });
@@ -159,15 +186,29 @@ export function SplitTabs(props: {
             });
 
             return (
+              <Show when={value !== 'all'} fallback={
+                <Tabs.Trigger value={value} class="hidden" tabIndex={-1} />
+              }>
               <Tabs.Trigger
                 value={value}
                 ref={ref}
                 tabIndex={-1}
-                class="min-w-12 max-w-[40cqw] shrink-0 text-sm relative h-full flex items-center px-2"
+                class="shrink-0 max-w-[40cqw] text-sm relative h-full flex items-center focus-bracket-within [&:focus-within]:[--focus-border-inset:-3px]"
+                onClick={(e) => {
+                  // Make type tabs toggleable: clicking the active tab clears selection to internal `all`.
+                  // This should match the hotkey toggle behavior (e.g. pressing `e` twice).
+                  if (!isActive()) return;
+                  if ('button' in e && typeof e.button === 'number' && e.button !== 0)
+                    return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  panel.unifiedListContext.setSelectedView('all');
+                }}
                 classList={{
-                  'z-1 text-accent text-glow-sm': isActive(),
-                  'text-ink-disabled hover:text-accent/70 hover-transition-text':
-                    !isActive(),
+                  // visually group Signal/Noise/All together, then all others as a second group
+                  'mr-1': value === 'all',
+                  'ml-1': isAfterAll(),
+                  'ml-[-1px]': i() > 0 && !isAfterAll(),
                 }}
                 data-hotkey-token={
                   TOKENS.soup.tabs[
@@ -175,17 +216,33 @@ export function SplitTabs(props: {
                   ]
                 }
               >
-                <span class="flex items-baseline gap-1 w-full">
-                  <span class="text-xs font-mono opacity-70 mr-0.5">
-                    {(i() + 1).toString()}
+                <ToggleButton
+                  as="div"
+                  size="SM"
+                  pressed={isActive()}
+                  tabIndex={-1}
+                  class="pointer-events-none"
+                  classList={{
+                    'max-w-[40cqw]': true,
+                  }}
+                >
+                  <span class="flex items-baseline gap-1 max-w-full">
+                    {renderMnemonicLabel()}
                   </span>
-                  <span class="truncate">{label}</span>
-                </span>
+                </ToggleButton>
+                {props.tabAddon?.({
+                  value,
+                  label,
+                  index,
+                  active: isActive(),
+                  triggerEl: ref,
+                })}
                 {/* <Show when={isActive()}>
                   <BrightJoins dots={[true, true, true, true]} />
                 </Show> */}
                 {props.contextMenu?.({ label, value })}
               </Tabs.Trigger>
+              </Show>
             );
           }}
         </For>

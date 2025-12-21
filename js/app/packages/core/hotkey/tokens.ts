@@ -109,7 +109,6 @@ export const TOKENS = {
       back: 'split.go.back',
       forward: 'split.go.forward',
     },
-    showHelpDrawer: 'split.showHelpDrawer',
   },
 
   window: {

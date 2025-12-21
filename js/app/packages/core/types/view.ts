@@ -1,12 +1,11 @@
 export const DEFAULT_VIEWS = [
-  'signal',
-  'noise',
+  'all',
+  'files',
   'people',
   'email',
-  'files',
   'tasks',
+  'agents',
   'folders',
-  'all',
 ] as const;
 
 export type DefaultView = (typeof DEFAULT_VIEWS)[number];

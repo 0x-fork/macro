@@ -9,12 +9,19 @@ import type { BlockAliasContext } from '@core/block';
 import { FileDropOverlay } from '@core/component/FileDropOverlay';
 import { Button } from '@core/component/FormControls/Button';
 import { SegmentedControl } from '@core/component/FormControls/SegmentControls';
-import { ContextMenuContent, MenuItem } from '@core/component/Menu';
+import { ToggleButton } from '@core/component/FormControls/ToggleButton';
+import {
+  ContextMenuContent,
+  MENU_CONTENT_CLASS,
+  MenuItem,
+  MenuSeparator,
+} from '@core/component/Menu';
 import { fileTypeToResolvedBlockName } from '@core/constant/allBlocks';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { RegisterHotkeyReturn } from '@core/hotkey/types';
 import type { BlockOrchestrator } from '@core/orchestrator';
+import { ENABLE_SAVED_VIEWS } from '@core/constant/featureFlags';
 import {
   DEFAULT_VIEWS,
   type DefaultView,
@@ -23,6 +30,7 @@ import {
 } from '@core/types/view';
 import { handleFileFolderDrop } from '@core/util/upload';
 import { ContextMenu } from '@kobalte/core/context-menu';
+import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import { Tabs } from '@kobalte/core/tabs';
 import type { EntityData } from '@macro-entity';
 import {
@@ -52,11 +60,9 @@ import {
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { EntityModal } from './EntityModal/EntityModal';
-import { HelpDrawer } from './HelpDrawer';
 import { SuspenseContextComp } from './SuspenseContext';
-import { SplitHeaderLeft } from './split-layout/components/SplitHeader';
 import { SplitTabs } from './split-layout/components/SplitTabs';
-import { SplitToolbarRight } from './split-layout/components/SplitToolbar';
+import { SplitHeaderLeft } from './split-layout/components/SplitHeader';
 import type { SplitPanelContextType } from './split-layout/context';
 import { SplitPanelContext } from './split-layout/context';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
@@ -64,6 +70,7 @@ import { UnifiedListView } from './UnifiedListView';
 import {
   VIEWCONFIG_BASE,
   VIEWCONFIG_DEFAULTS_IDS,
+  type DocumentTypeFilter,
   type ViewConfigBase,
 } from './ViewConfig';
 
@@ -213,11 +220,10 @@ export function Soup() {
     splitHotkeyScope,
     unifiedListContext: {
       viewsDataStore: viewsData,
+      setViewDataStore,
       selectedView,
       setSelectedView,
       entityListRefSignal: [, setEntityListRef],
-      showHelpDrawer,
-      setShowHelpDrawer,
     },
   } = splitPanelContext;
   const view = createMemo(() => viewsData[selectedView()]);
@@ -238,24 +244,6 @@ export function Soup() {
 
   hotkeyDisposers.push(
     registerHotkey({
-      hotkey: ['shift+/'],
-      scopeId: splitHotkeyScope,
-      description: () =>
-        `${showHelpDrawer().has(selectedView() as DefaultView) ? 'Hide' : 'Show'} help drawer`,
-      hotkeyToken: TOKENS.split.showHelpDrawer,
-      keyDownHandler: () => {
-        if (showHelpDrawer().has(selectedView() as DefaultView)) {
-          setShowHelpDrawer(new Set<DefaultView>());
-        } else {
-          setShowHelpDrawer(new Set(DEFAULT_VIEWS));
-        }
-        return true;
-      },
-    })
-  );
-
-  hotkeyDisposers.push(
-    registerHotkey({
       hotkey: ['p'],
       scopeId: splitHotkeyScope,
       description: 'Toggle Preview',
@@ -269,8 +257,28 @@ export function Soup() {
     })
   );
 
+  hotkeyDisposers.push(
+    ...(ENABLE_SAVED_VIEWS
+      ? [
+          registerHotkey({
+            hotkey: ['0'],
+            scopeId: splitHotkeyScope,
+            description: 'Open saved views',
+            keyDownHandler: () => {
+              setSavedViewsOpen(true);
+              setTimeout(() => savedViewsTriggerEl?.focus(), 0);
+              return true;
+            },
+            hide: true,
+          }),
+        ]
+      : [])
+  );
+
   const [isDragging, setIsDragging] = createSignal(false);
   const [isValidDrag, setIsValidDrag] = createSignal(true);
+  const [savedViewsOpen, setSavedViewsOpen] = createSignal(false);
+  let savedViewsTriggerEl: HTMLButtonElement | undefined;
 
   const droppableId = 'soup-drop-zone';
   const droppable = createDroppable(droppableId);
@@ -313,6 +321,14 @@ export function Soup() {
   const saveViewMutation = useUpsertSavedViewMutation();
 
   let tabsRef: HTMLDivElement | undefined;
+  const [filesMenuWidth, setFilesMenuWidth] = createSignal(0);
+
+  const customViews = createMemo(() => {
+    return Object.values(viewsData)
+      .filter(Boolean)
+      .filter((v) => !VIEWCONFIG_DEFAULTS_IDS.includes(v.id as DefaultView))
+      .sort((a, b) => a.view.localeCompare(b.view));
+  });
 
   onCleanup(() => {
     setEntityListRef(undefined);
@@ -404,36 +420,187 @@ export function Soup() {
             value={selectedView()}
             onChange={setSelectedView}
           >
-            <SplitHeaderLeft>
-              <SplitTabs
-                list={Object.values(viewsData).map((view, index) => ({
-                  value: view.id,
-                  label: view.view,
-                  index: index,
-                }))}
-                active={selectedView}
-                contextMenu={({ value, label }) => (
-                  <TabContextMenu value={value} label={label} />
-                )}
-                newButton={
-                  <div class="flex items-center px-2 h-full">
-                    <Button
-                      size="Base"
-                      classList={{
-                        '!border-transparent hover:!border-ink/50 px-1 !text-ink !bg-panel font-medium': true,
-                      }}
-                      onClick={() => {
-                        saveViewMutation.mutate({
-                          name: 'New View',
-                          config: VIEWCONFIG_BASE,
-                        });
-                      }}
+            <SplitHeaderLeft order={-2}>
+              <div class="flex items-center h-full">
+                <div>
+                  <Show when={ENABLE_SAVED_VIEWS}>
+                    <DropdownMenu
+                      placement="bottom-start"
+                      open={savedViewsOpen()}
+                      onOpenChange={setSavedViewsOpen}
                     >
-                      +
-                    </Button>
-                  </div>
-                }
-              />
+                      <DropdownMenu.Trigger
+                        as="button"
+                        ref={(el) => {
+                          savedViewsTriggerEl = el;
+                        }}
+                        class="border border-edge-muted min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 text-ink-muted hover:opacity-80"
+                      >
+                        <span class="opacity-70 mr-1 text-[10px]">0</span>
+                        <span class="text-[0.625rem]">Views</span>
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Portal>
+                        <DropdownMenu.Content
+                          class={`${MENU_CONTENT_CLASS} py-1 w-44`}
+                        >
+                          <Show
+                            when={customViews().length > 0}
+                            fallback={<MenuItem text="No custom views" disabled />}
+                          >
+                            <For each={customViews()}>
+                              {(v) => (
+                                <MenuItem
+                                  text={v.view}
+                                  onClick={() => setSelectedView(v.id)}
+                                />
+                              )}
+                            </For>
+                          </Show>
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Portal>
+                    </DropdownMenu>
+                  </Show>
+                </div>
+
+                <SplitTabs
+                  // Keep internal "all" in the Tabs trigger list (rendered invisibly by SplitTabs),
+                  // so the controlled Tabs value always has a corresponding trigger.
+                  list={Object.values(viewsData).map((view, index) => ({
+                    value: view.id,
+                    label: view.view,
+                    index: index,
+                  }))}
+                  active={selectedView}
+                  contextMenu={
+                    ENABLE_SAVED_VIEWS
+                      ? ({ value, label }) => (
+                          <TabContextMenu value={value} label={label} />
+                        )
+                      : undefined
+                  }
+                  tabAddon={({ value, triggerEl, active }) => {
+                    if (value !== 'files') return <></>;
+                    const docTypes = (): DocumentTypeFilter[] =>
+                      (viewsData.files?.filters?.documentTypeFilter ??
+                        []) as DocumentTypeFilter[];
+                    const setChecked = (t: DocumentTypeFilter, checked: boolean) => {
+                      setViewDataStore(
+                        'files',
+                        'filters',
+                        'documentTypeFilter',
+                        (prev) => {
+                          const set = new Set(prev ?? []);
+                          if (checked) set.add(t);
+                          else set.delete(t);
+                          return Array.from(set);
+                        }
+                      );
+                    };
+                    const clearAll = () => {
+                      setViewDataStore('files', 'filters', 'documentTypeFilter', []);
+                    };
+                    return (
+                      <div class="-ml-px">
+                        <DropdownMenu
+                          placement="bottom-start"
+                          onOpenChange={(open) => {
+                            if (!open) return;
+                            const w =
+                              triggerEl?.getBoundingClientRect().width ?? 0;
+                            setFilesMenuWidth(Math.floor(w));
+                          }}
+                        >
+                          <DropdownMenu.Trigger
+                            as="button"
+                            class="border border-edge-muted border-l-0 min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 hover:opacity-80 bg-panel"
+                            classList={{
+                              'bg-edge-muted text-ink': active,
+                              'text-ink-muted': !active,
+                            }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span
+                              class="text-[0.625rem]"
+                              classList={{
+                                'text-ink': active,
+                                'text-ink-muted': !active,
+                              }}
+                            >
+                              ▾
+                            </span>
+                          </DropdownMenu.Trigger>
+                          <DropdownMenu.Portal>
+                            <DropdownMenu.Content
+                              class={`${MENU_CONTENT_CLASS} py-1`}
+                              style={{
+                                width: filesMenuWidth()
+                                  ? `${filesMenuWidth()}px`
+                                  : undefined,
+                              }}
+                            >
+                              <MenuItem text="All" onClick={clearAll} />
+                              <MenuSeparator />
+                              <MenuItem
+                                text="Note"
+                                selectorType="checkbox"
+                                checked={docTypes().includes('md')}
+                                closeOnSelect={false}
+                                onChange={(checked) => setChecked('md', checked)}
+                              />
+                              <MenuItem
+                                text="PDF"
+                                selectorType="checkbox"
+                                checked={docTypes().includes('pdf')}
+                                closeOnSelect={false}
+                                onChange={(checked) =>
+                                  setChecked('pdf', checked)
+                                }
+                              />
+                              <MenuItem
+                                text="Canvas"
+                                selectorType="checkbox"
+                                checked={docTypes().includes('canvas')}
+                                closeOnSelect={false}
+                                onChange={(checked) =>
+                                  setChecked('canvas', checked)
+                                }
+                              />
+                              <MenuItem
+                                text="Code"
+                                selectorType="checkbox"
+                                checked={docTypes().includes('code')}
+                                closeOnSelect={false}
+                                onChange={(checked) =>
+                                  setChecked('code', checked)
+                                }
+                              />
+                              <MenuItem
+                                text="Image"
+                                selectorType="checkbox"
+                                checked={docTypes().includes('image')}
+                                closeOnSelect={false}
+                                onChange={(checked) =>
+                                  setChecked('image', checked)
+                                }
+                              />
+                              <MenuItem
+                                text="Other"
+                                selectorType="checkbox"
+                                checked={docTypes().includes('unknown')}
+                                closeOnSelect={false}
+                                onChange={(checked) =>
+                                  setChecked('unknown', checked)
+                                }
+                              />
+                            </DropdownMenu.Content>
+                          </DropdownMenu.Portal>
+                        </DropdownMenu>
+                      </div>
+                    );
+                  }}
+                />
+              </div>
             </SplitHeaderLeft>
             <For each={Object.keys(viewsData)}>
               {(viewId) => <ViewWithSearch viewId={viewId} />}
@@ -448,9 +615,6 @@ export function Soup() {
           />
         </Show>
       </div>
-      <Show when={showHelpDrawer().has(selectedView() as DefaultView)}>
-        <HelpDrawer viewId={view().id} />
-      </Show>
     </div>
   );
 }
@@ -460,30 +624,7 @@ function AllView() {
 }
 
 function EmailView() {
-  const {
-    emailViewSignal: [emailView, setEmailView],
-    viewsDataStore,
-    selectedView,
-  } = useSplitPanelOrThrow().unifiedListContext;
-  const viewData = createMemo(() => viewsDataStore[selectedView()]);
-
-  return (
-    <>
-      <UnifiedListView />
-      <SplitToolbarRight>
-        <div class="flex flex-row items-center pr-2">
-          <SegmentedControl
-            disabled={!!viewData().searchText}
-            size="SM"
-            label="View"
-            list={['inbox', 'sent', 'drafts']}
-            value={emailView()}
-            onChange={setEmailView}
-          />
-        </div>
-      </SplitToolbarRight>
-    </>
-  );
+  return <UnifiedListView />;
 }
 
 export const useUpsertSavedViewMutation = () => {

@@ -42,7 +42,7 @@ import {
 } from 'solid-js';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 
-function getRecipientOptionEmail(
+export function getRecipientOptionEmail(
   option: CombinedRecipientItem
 ): string | undefined {
   switch (option.kind) {
@@ -57,7 +57,7 @@ function getRecipientOptionEmail(
   }
 }
 
-function getRecipientOptionName(option: CombinedRecipientItem) {
+export function getRecipientOptionName(option: CombinedRecipientItem) {
   switch (option.kind) {
     case 'user':
       const name = option.data.name;
@@ -72,7 +72,7 @@ function getRecipientOptionName(option: CombinedRecipientItem) {
   }
 }
 
-function getRecipientOptionValue(option: CombinedRecipientItem) {
+export function getRecipientOptionValue(option: CombinedRecipientItem) {
   switch (option.kind) {
     case 'user':
       return `user-${option.data.id}`;
@@ -85,7 +85,7 @@ function getRecipientOptionValue(option: CombinedRecipientItem) {
   }
 }
 
-function getRecipientOptionLabel(option: CombinedRecipientItem) {
+export function getRecipientOptionLabel(option: CombinedRecipientItem) {
   switch (option.kind) {
     case 'user':
       return option.data.email;
@@ -98,7 +98,7 @@ function getRecipientOptionLabel(option: CombinedRecipientItem) {
   }
 }
 
-function getRecipientOptionTextValue(option: CombinedRecipientItem) {
+export function getRecipientOptionTextValue(option: CombinedRecipientItem) {
   const name = getRecipientOptionName(option);
   const email = getRecipientOptionEmail(option);
   switch (option.kind) {
@@ -114,7 +114,9 @@ function getRecipientOptionTextValue(option: CombinedRecipientItem) {
 
 type RecipientComboboxItemProps = CollectionNode<CombinedRecipientItem>;
 
-function RecipientComboboxItem(props: RecipientComboboxItemProps): JSX.Element {
+export function RecipientComboboxItem(
+  props: RecipientComboboxItemProps
+): JSX.Element {
   function channelTypeIcon(channel: Channel) {
     switch (channel.channel_type) {
       case 'direct_message':
@@ -149,6 +151,7 @@ function RecipientComboboxItem(props: RecipientComboboxItemProps): JSX.Element {
   return (
     <Combobox.Item
       item={props}
+      data-recipient-option-value={props.key}
       class={`flex flex-row px-2 py-1 mb-1 justify-between items-center data-highlighted:bg-hover hover-transition-bg
         ${props.disabled ? ' hover:bg-hover hover-transition-bg' : ''}`}
       onMouseEnter={props.disabled ? handleMouseEnter : undefined}

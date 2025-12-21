@@ -11,7 +11,6 @@ import { ClippedPanel } from '@core/component/ClippedPanel';
 import { isMobileWidth } from '@core/mobile/mobileWidth';
 import { PresentModeGlitch } from './PresentModeGlitch';
 import { IconButton } from '@core/component/IconButton';
-import IconQuestion from '@icon/regular/question.svg';
 import { withAnalytics } from '@coparse/analytics';
 import SplitIcon from '@macro-icons/new-split.svg';
 import IconAtom from '@macro-icons/macro-atom.svg';
@@ -19,7 +18,7 @@ import IconGear from '@macro-icons/macro-gear.svg';
 import IconLogo from '@macro-icons/macro-logo.svg';
 import { BasicTierLimit } from './BasicTierLimit';
 import { setKonsoleOpen } from '../command/state';
-import { getActiveCommandByToken, runCommand } from '@core/hotkey/utils';
+import { runCommand } from '@core/hotkey/utils';
 import { Hotkey } from '@core/component/Hotkey';
 import { setCreateMenuOpen } from '../Launcher';
 import { useHasPaidAccess } from '@core/auth';
@@ -277,24 +276,6 @@ export function Dock() {
               'height': '38px',
               'gap': '4px'
             }}>
-              <Show when={isSoupActive()}>
-                <IconButton
-                  onClick={() => {
-                    globalSplitManager()?.returnFocus();
-                    const showHelp = getActiveCommandByToken(TOKENS.split.showHelpDrawer);
-                    if (!showHelp) { return };
-                    runCommand(showHelp);
-                  }}
-                  tooltip={{
-                    hotkeyToken: TOKENS.split.showHelpDrawer,
-                    label: 'Help',
-                  }}
-                  icon={IconQuestion}
-                  theme="clear"
-                  size="sm"
-                />
-              </Show>
-
               <IconButton
                 onClick={() => {
                   if (isRightPanelCollapsed()) { track(TrackingEvents.RIGHTBAR.OPEN) }

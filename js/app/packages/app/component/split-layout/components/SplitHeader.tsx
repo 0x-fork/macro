@@ -1,16 +1,13 @@
 import EntityNavigationIndicator from '@app/component/EntityNavigationIndicator';
 import { IconButton } from '@core/component/IconButton';
-import { ENABLE_PREVIEW } from '@core/constant/featureFlags';
 import { TOKENS } from '@core/hotkey/tokens';
 import CollapseIcon from '@icon/regular/arrows-in.svg';
 import ExpandIcon from '@icon/regular/arrows-out.svg';
 import CaretLeft from '@icon/regular/caret-left.svg';
 import CaretRight from '@icon/regular/caret-right.svg';
-import SplitIcon from '@icon/regular/square-split-horizontal.svg';
 import CloseIcon from '@icon/regular/x.svg';
 import {
   createEffect,
-  createMemo,
   createSignal,
   type ParentProps,
   type Setter,
@@ -88,36 +85,6 @@ function SplitCloseButton() {
   );
 }
 
-function SplitPreviewToggle() {
-  const context = useContext(SplitPanelContext);
-  if (!ENABLE_PREVIEW || !context || !context.previewState) return null;
-
-  // Only show toggle for unified-list component, not for blocks
-  const isUnifiedList = createMemo(() => {
-    const content = context.handle.content();
-    return content.type === 'component' && content.id === 'unified-list';
-  });
-
-  const [preview, setPreview] = context.previewState;
-
-  return (
-    <Show when={isUnifiedList()}>
-      <div class="max-sm:rotate-90">
-        <IconButton
-          size="sm"
-          icon={SplitIcon}
-          theme={preview() ? 'accent' : 'current'}
-          tooltip={{
-            label: !preview() ? 'Split View (Preview)' : 'Full View (List)',
-            hotkeyToken: TOKENS.unifiedList.togglePreview,
-          }}
-          onClick={() => setPreview((prev) => !prev)}
-        />
-      </div>
-    </Show>
-  );
-}
-
 function SplitControlButtons() {
   return (
     <div class="flex flex-row items-center px-2 h-full shrink-0">
@@ -142,7 +109,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
       <div class="absolute inset-0 flex justify-start items-center bg-panel border-b border-b-edge-muted">
         <SplitControlButtons />
         <div
-          class="relative w-fit min-w-0 h-full shrink"
+          class="relative flex min-w-0 h-full flex-1"
           ref={(ref) => {
             ctx.layoutRefs.headerLeft = ref;
           }}
@@ -159,7 +126,6 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         />
         <div class="z-2 relative flex items-center bg-panel pr-2 h-full">
           <EntityNavigationIndicator />
-          <SplitPreviewToggle />
           <SplitSpotlightButton />
         </div>
       </div>

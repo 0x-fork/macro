@@ -47,7 +47,7 @@ export function SplitToolbar(props: { ref: Setter<HTMLDivElement | null> }) {
       ref={props.ref}
     >
       <div
-        class="flex h-full items-center flex-1"
+        class="flex h-full items-center flex-1 gap-1.5 px-2"
         ref={(ref) => {
           panel.layoutRefs.toolbarLeft = ref;
         }}
@@ -76,12 +76,19 @@ export function SplitToolbarLeft(
   createRenderEffect(() => {
     const ref = portalRef();
     if (!ref) return;
-    ref.style.width = '100%';
     const halfSplitState = panel.halfSplitState?.();
     if (halfSplitState?.side === 'right') {
       ref.classList.add(...halfWidthClasses());
+      // In half-split mode we need this portal to span the toolbar region.
+      ref.style.width = '100%';
+      ref.style.display = 'flex';
     } else {
       ref.classList.remove(...halfWidthClasses());
+      // Allow multiple SplitToolbarLeft portals to flow inline without forcing
+      // a full-width flex item (which creates large gaps).
+      ref.style.width = 'auto';
+      // Make the portal wrapper transparent to layout so all inserts share one flex row.
+      ref.style.display = 'contents';
     }
     if (props.class) {
       ref.classList.add(props.class);

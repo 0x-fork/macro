@@ -8,12 +8,15 @@ import { URL_PARAMS as EMAIL_PARAMS } from '@block-email/constants';
 import { URL_PARAMS as MD_PARAMS } from '@block-md/constants';
 import { URL_PARAMS as PDF_PARAMS } from '@block-pdf/signal/location';
 import { Button } from '@core/component/FormControls/Button';
-import DropdownMenu from '@core/component/FormControls/DropdownMenu';
 import { SegmentedControl } from '@core/component/FormControls/SegmentControls';
 import { ToggleButton } from '@core/component/FormControls/ToggleButton';
-import { ToggleSwitch } from '@core/component/FormControls/ToggleSwitch';
 import { IconButton } from '@core/component/IconButton';
-import { ContextMenuContent, MenuSeparator } from '@core/component/Menu';
+import {
+  ContextMenuContent,
+  MENU_CONTENT_CLASS,
+  MenuItem,
+  MenuSeparator,
+} from '@core/component/Menu';
 import { getSuggestedProperties } from '@core/component/Properties/utils';
 import { RecipientSelector } from '@core/component/RecipientSelector';
 import { ScopedPortal } from '@core/component/ScopedPortal';
@@ -23,21 +26,25 @@ import {
 } from '@core/constant/allBlocks';
 import {
   ENABLE_PROPERTY_DISPLAY_CONTROL,
+  ENABLE_PREVIEW,
   ENABLE_SOUP_FROM_FILTER,
   ENABLE_TASKS_TABS,
 } from '@core/constant/featureFlags';
+import { IS_MAC } from '@core/constant/isMac';
 import { useEmailLinksStatus } from '@core/email-link';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { isMobileWidth } from '@core/mobile/mobileWidth';
+import { RecipientTypeahead, type RecipientTypeaheadHandle } from '@core/component/RecipientTypeahead';
+import { getRecipientOptionEmail } from '@core/component/RecipientSelector';
 import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import { debouncedDependent } from '@core/util/debounce';
 import { fuzzyMatch } from '@core/util/fuzzy';
-import SearchIcon from '@icon/regular/magnifying-glass.svg?component-solid';
 import LoadingSpinner from '@icon/regular/spinner.svg?component-solid';
 import XIcon from '@icon/regular/x.svg?component-solid';
 import { ContextMenu } from '@kobalte/core/context-menu';
+import { DropdownMenu as KDropdownMenu } from '@kobalte/core/dropdown-menu';
 import { supportedExtensions } from '@lexical-core/utils';
 import {
   createChannelsQuery,
@@ -128,11 +135,7 @@ import { EntityActionsMenuItems } from './EntityActionsMenuItems';
 import { EntityModal } from './EntityModal/EntityModal';
 import { EntitySelectionToolbarModal } from './EntitySelectionToolbarModal';
 import { PropertyDisplayControl } from './PropertyDisplayControl';
-import { useUpsertSavedViewMutation } from './Soup';
-import {
-  SplitToolbarLeft,
-  SplitToolbarRight,
-} from './split-layout/components/SplitToolbar';
+import { SplitHeaderLeft } from './split-layout/components/SplitHeader';
 import { useSplitLayout } from './split-layout/layout';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
 import {
@@ -150,6 +153,7 @@ import {
   type ViewConfigBase,
   type ViewData,
 } from './ViewConfig';
+import { signalFilter } from './soupFilters';
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 200;
 const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
@@ -219,11 +223,13 @@ export function UnifiedListView(props: UnifiedListViewProps) {
   const splitContext = useSplitPanelOrThrow();
   const { isPanelActive, unifiedListContext, panelRef, previewState } =
     splitContext;
-  const [preview] = previewState;
+  const [preview, setPreview] = previewState;
   const {
     viewsDataStore: viewsData,
     setViewDataStore,
     selectedView,
+    importantModeSignal: [importantMode, setImportantMode],
+    searchTextSignal: [rawSearchText, setRawSearchText],
     virtualizerHandleSignal: [virtualizerHandle, setVirtualizerHandle],
     entityListRefSignal: [, setEntityListRef],
     entitiesSignal: [entities_, setEntities],
@@ -247,8 +253,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     virtualizerHandle()?.scrollTo(0);
   };
 
-  const rawSearchText = createMemo<string>(() => view()?.searchText ?? '');
-  const searchText = createMemo(() => rawSearchText()?.trim() ?? '');
+  const searchText = createMemo(() => rawSearchText().trim());
 
   createEffect(
     on(
@@ -666,7 +671,18 @@ export function UnifiedListView(props: UnifiedListViewProps) {
   createEffect(() => {
     const filterFns: EntityFilter<EntityData>[] = [];
 
-    if (importantFilter()) filterFns.push(importantFilterFn);
+    // Split-scoped Important mode maps to legacy Signal behavior:
+    // - always filter to not-done
+    // - apply the Signal email heuristic
+    if (importantMode()) {
+      filterFns.push(notDoneFilterFn);
+      filterFns.push((entity: WithNotification<EntityData>) => {
+        if (entity.type !== 'email') return true;
+        return signalFilter.predicate(entity, { soupContext: unifiedListContext });
+      });
+    } else if (importantFilter()) {
+      filterFns.push(importantFilterFn);
+    }
 
     if (notificationFilter() === 'unread') filterFns.push(unreadFilterFn);
 
@@ -1156,10 +1172,6 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     }
   };
 
-  const StyledTriggerLabel = (props: ParentProps) => {
-    return <span class="text-[0.625rem]">{props.children}</span>;
-  };
-
   const focusedSelector = createSelector(() => selectedEntity()?.id);
   const multiSelectSelector = createSelector(
     () => view()?.multiSelectEntities,
@@ -1185,6 +1197,64 @@ export function UnifiedListView(props: UnifiedListViewProps) {
   });
   const [animateSelection, setAnimateSelection] = createSignal(true);
   let scrollEndTimeout: number | undefined;
+  let sortMenuTriggerEl: HTMLButtonElement | undefined;
+  const [sortMenuWidth, setSortMenuWidth] = createSignal(0);
+  const [sortMenuOpen, setSortMenuOpen] = createSignal(false);
+
+  // When Important mode is enabled, temporarily override sort/display per-view to match legacy Signal defaults.
+  const overriddenViews = new Map<
+    string,
+    { sort: SortOptions; display: DisplayOptions }
+  >();
+
+  const cloneDisplay = (d: DisplayOptions): DisplayOptions => {
+    return {
+      ...(d as any),
+      displayProperties: [...(d.displayProperties ?? [])],
+    } as DisplayOptions;
+  };
+
+  const applyImportantOverridesForView = (viewId: string) => {
+    const v = viewsData[viewId];
+    if (!v) return;
+
+    if (!overriddenViews.has(viewId)) {
+      overriddenViews.set(viewId, {
+        sort: { ...(unwrap(v.sort) as any) } as SortOptions,
+        display: cloneDisplay(unwrap(v.display) as DisplayOptions),
+      });
+    }
+
+    // Match legacy Signal defaults
+    (setViewDataStore as any)(viewId, 'sort', {
+      type: 'systemSortOption',
+      sortBy: 'updated_at',
+      sortOrder: 'ascending',
+    } satisfies SortOptions);
+    setViewDataStore(viewId, 'display', 'unrollNotifications', true);
+    setViewDataStore(viewId, 'display', 'showUnreadIndicator', true);
+  };
+
+  const restoreImportantOverrides = () => {
+    for (const [viewId, prev] of overriddenViews.entries()) {
+      (setViewDataStore as any)(viewId, 'sort', prev.sort);
+      (setViewDataStore as any)(viewId, 'display', prev.display);
+    }
+    overriddenViews.clear();
+  };
+
+  createEffect(() => {
+    if (!importantMode()) return;
+    applyImportantOverridesForView(selectedView());
+  });
+
+  createEffect((prevEnabled: boolean) => {
+    const enabled = importantMode();
+    if (prevEnabled && !enabled) {
+      restoreImportantOverrides();
+    }
+    return enabled;
+  }, importantMode());
 
   const activeEntityId = createMemo(() => {
     const modalOrContextSelectedId = contextAndModalState.selectedEntity?.id;
@@ -1309,65 +1379,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     });
   });
 
-  const saveViewMutation = useUpsertSavedViewMutation();
-
-  const isViewConfigChanged = createMemo(() => {
-    const view_ = view();
-    if (!view_) return false;
-
-    const initialConfigStr = view_.initialConfig;
-    if (initialConfigStr == null || initialConfigStr === '') return false;
-
-    try {
-      const initialConfigObj = JSON.parse(initialConfigStr);
-      const currentConfigObj = currentViewConfigBase();
-
-      if (!currentConfigObj) return false;
-
-      const isEqual = isConfigEqual(initialConfigObj, currentConfigObj);
-
-      return !isEqual;
-    } catch (e) {
-      console.warn(e);
-      return false;
-    }
-  });
-
-  const onClickSaveViewConfigChanges = () => {
-    const view_ = view();
-    const config = currentViewConfigBase();
-    if (!view_ || !config) return;
-
-    saveViewMutation.mutate({
-      id: view_.id,
-      name: view_.view,
-      config,
-    });
-    // only for default views
-    if (VIEWCONFIG_DEFAULTS_IDS.includes(view_.id as any)) {
-      // Reset initialConfigSignal to current config after save
-      const currentConfig = stringifiedCurrentViewConfigBase();
-      if (currentConfig !== null && currentConfig !== undefined) {
-        setViewDataStore(selectedView(), 'initialConfig', currentConfig);
-      }
-    }
-  };
-
-  const onClickResetViewConfigChanges = () => {
-    const view_ = view();
-    if (!view_) return;
-
-    const initialConfigStr = view_.initialConfig;
-    if (initialConfigStr == null || initialConfigStr === '') return;
-
-    const initialConfigObj = JSON.parse(initialConfigStr) as ViewConfigBase;
-
-    batch(() => {
-      setViewDataStore(selectedView(), 'filters', initialConfigObj.filters);
-      setViewDataStore(selectedView(), 'sort', initialConfigObj.sort);
-      setViewDataStore(selectedView(), 'display', initialConfigObj.display);
-    });
-  };
+  // NOTE: We intentionally removed the "CLEAR / SAVE CHANGES" controls.
 
   // Set initialConfig when it's not present (on load or after save/refetch)
   createEffect(() => {
@@ -1402,243 +1414,175 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     }
   });
 
+  onMount(() => {
+    const isViewingList = () => {
+      const content = splitContext.handle.content();
+      return (
+        isPanelActive() &&
+        content.type === 'component' &&
+        content.id === 'unified-list'
+      );
+    };
+
+    const { dispose: disposeUnread } = registerHotkey({
+      hotkey: ['u'],
+      scopeId: splitContext.splitHotkeyScope,
+      description: 'Toggle unread',
+      condition: isViewingList,
+      keyDownHandler: () => {
+        const next = notificationFilter() === 'unread' ? 'all' : 'unread';
+        setNotificationFilter(next);
+        return true;
+      },
+      displayPriority: 5,
+    });
+
+    const { dispose: disposeSort } = registerHotkey({
+      hotkey: ['s'],
+      scopeId: splitContext.splitHotkeyScope,
+      description: 'Open sort',
+      condition: () => isViewingList() && !isSearchActive(),
+      keyDownHandler: () => {
+        const w = sortMenuTriggerEl?.getBoundingClientRect().width ?? 0;
+        setSortMenuWidth(Math.max(200, Math.floor(w)));
+        setSortMenuOpen(true);
+        sortMenuTriggerEl?.focus();
+        return true;
+      },
+      displayPriority: 5,
+    });
+
+    const { dispose: disposeImportant } = registerHotkey({
+      hotkey: ['i'],
+      scopeId: splitContext.splitHotkeyScope,
+      description: 'Toggle important',
+      condition: isViewingList,
+      keyDownHandler: () => {
+        setImportantMode((prev) => !prev);
+        return true;
+      },
+      displayPriority: 5,
+    });
+
+    onCleanup(() => {
+      disposeUnread();
+      disposeSort();
+      disposeImportant();
+    });
+  });
+
   return (
     <>
       <Show when={!props.hideToolbar}>
         <SearchBar
           isLoading={isSearchLoading}
           setIsLoading={setIsSearchLoading}
-        />
-        <SplitToolbarRight order={5}>
-          <div class="flex flex-row items-center gap-1 p-1 h-full select-none">
-            <Show when={isViewConfigChanged()}>
-              <Show when={preview()}>
-                <DropdownMenu
-                  size="SM"
-                  theme="secondary"
-                  triggerLabel={<span class="font-extrabold">⋮</span>}
-                >
-                  <div class="flex flex-col gap-2 p-2">
-                    <Button
-                      size="SM"
-                      classList={{
-                        '!border-ink/25 !text-ink !bg-panel hover:!text-ink font-normal': true,
-                      }}
-                      onClick={onClickResetViewConfigChanges}
-                    >
-                      CLEAR
-                    </Button>
-                    <Button
-                      size="SM"
-                      classList={{
-                        '!border-ink/25 !text-ink !bg-panel hover:!text-ink font-normal': true,
-                      }}
-                      onClick={onClickSaveViewConfigChanges}
-                    >
-                      SAVE CHANGES
-                    </Button>
-                  </div>
-                </DropdownMenu>
-              </Show>
-              <Show when={!preview()}>
-                <Button
-                  size="SM"
-                  classList={{
-                    '!border-ink/25 !text-ink !bg-panel hover:!text-ink ml-1.5 font-normal': true,
-                  }}
-                  onClick={onClickResetViewConfigChanges}
-                >
-                  CLEAR
-                </Button>
-                <Button
-                  size="SM"
-                  classList={{
-                    '!border-ink/25 !text-ink !bg-panel hover:!text-ink mx-1.5 font-normal': true,
-                  }}
-                  onClick={onClickSaveViewConfigChanges}
-                >
-                  SAVE CHANGES
-                </Button>
-              </Show>
-            </Show>
-            <DropdownMenu
+        >
+          <ToggleButton
+            size="SM"
+            pressed={importantMode()}
+            onChange={() => setImportantMode((prev) => !prev)}
+          >
+            <span>
+              <span class="font-semibold underline underline-offset-2">I</span>
+              mpt
+            </span>
+          </ToggleButton>
+          <ToggleButton
+            size="SM"
+            pressed={notificationFilter() === 'unread'}
+            onChange={(pressed) => {
+              // Binary toggle: unread vs not-unread
+              setNotificationFilter(pressed ? 'unread' : 'all');
+            }}
+          >
+            <span>
+              <span class="font-semibold underline underline-offset-2">U</span>
+              nrd
+            </span>
+          </ToggleButton>
+          <Show when={ENABLE_PREVIEW}>
+            <ToggleButton
               size="SM"
-              theme="primary"
-              triggerLabel={<StyledTriggerLabel>Filter</StyledTriggerLabel>}
+              pressed={preview()}
+              onChange={() => {
+                // Toggle like Unread: always flip the current state.
+                setPreview((prev) => !prev);
+              }}
             >
-              <div class="min-w-[10vw] max-w-md">
-                <div class="grid divide-y divide-edge">
-                  <section class="gap-1 grid p-2">
-                    <ToggleSwitch
-                      onChange={setImportantFilter}
-                      checked={importantFilter()}
-                      label="Important"
-                      size="SM"
-                    />
-                    <SegmentedControl
-                      size="SM"
-                      label="Show"
-                      list={[
-                        { value: 'all', label: 'All' },
-                        { value: 'unread', label: 'Unread' },
-                        { value: 'notDone', label: 'Not Done' },
-                      ]}
-                      value={notificationFilter()}
-                      onChange={setNotificationFilter}
-                    />
-                  </section>
-                  <section class="gap-1 p-2">
-                    <span class="font-medium text-xs">Type</span>
-                    <div class="flex flex-row flex-wrap items-center gap-1">
-                      <EntityTypeToggle
-                        filter={entityTypeFilter}
-                        setFilter={setEntityTypeFilter}
-                        setFileTypeFilter={setFileTypeFilter}
-                        type="document"
-                      />
-                      <EntityTypeToggle
-                        filter={entityTypeFilter}
-                        setFilter={setEntityTypeFilter}
-                        type="chat"
-                      />
-                      <EntityTypeToggle
-                        filter={entityTypeFilter}
-                        setFilter={setEntityTypeFilter}
-                        type="channel"
-                      />
-                      <Show when={ENABLE_TASKS_TABS}>
-                        <EntityTypeToggle
-                          filter={entityTypeFilter}
-                          setFilter={setEntityTypeFilter}
-                          type="task"
-                        />
-                      </Show>
-                      <EntityTypeToggle
-                        filter={entityTypeFilter}
-                        setFilter={setEntityTypeFilter}
-                        type="email"
-                      />
-                      <EntityTypeToggle
-                        filter={entityTypeFilter}
-                        setFilter={setEntityTypeFilter}
-                        type="project"
-                      />
-                    </div>
-                  </section>
-                  <section class="gap-1 p-2">
-                    <span class="font-medium text-xs">Filetype</span>
-                    <div class="flex flex-row flex-wrap items-center gap-1">
-                      <ToggleButton
-                        size="SM"
-                        pressed={fileTypeFilter().includes('md')}
-                        onChange={() => toggleFileTypeFilter('md')}
-                      >
-                        NOTE
-                      </ToggleButton>
-                      <ToggleButton
-                        size="SM"
-                        pressed={fileTypeFilter().includes('pdf')}
-                        onChange={() => toggleFileTypeFilter('pdf')}
-                      >
-                        PDF
-                      </ToggleButton>
-                      <ToggleButton
-                        size="SM"
-                        pressed={fileTypeFilter().includes('canvas')}
-                        onChange={() => toggleFileTypeFilter('canvas')}
-                      >
-                        CANVAS
-                      </ToggleButton>
-                      <ToggleButton
-                        size="SM"
-                        pressed={fileTypeFilter().includes('code')}
-                        onChange={() => toggleFileTypeFilter('code')}
-                      >
-                        CODE
-                      </ToggleButton>
-                      <ToggleButton
-                        size="SM"
-                        pressed={fileTypeFilter().includes('image')}
-                        onChange={() => toggleFileTypeFilter('image')}
-                      >
-                        IMAGE
-                      </ToggleButton>
-                      <ToggleButton
-                        size="SM"
-                        pressed={fileTypeFilter().includes('unknown')}
-                        onChange={() => toggleFileTypeFilter('unknown')}
-                      >
-                        Other
-                      </ToggleButton>
-                    </div>
-                  </section>
-                  <Show when={ENABLE_SOUP_FROM_FILTER && showFromFilter()}>
-                    <section class="gap-1 p-2">
-                      <span class="font-medium text-xs">From</span>
-                      <RecipientSelector<'user' | 'contact'>
-                        options={emailRecipientOptions}
-                        selectedOptions={fromFilterUsers}
-                        setSelectedOptions={setFromFilterUsers}
-                        placeholder="Filter by user..."
-                        includeSelf
-                      />
-                    </section>
-                  </Show>
-                </div>
-              </div>
-            </DropdownMenu>
-            <DropdownMenu
-              size="SM"
-              triggerLabel={<StyledTriggerLabel>Display</StyledTriggerLabel>}
+              <span>
+                <span class="font-semibold underline underline-offset-2">P</span>
+                rvw
+              </span>
+            </ToggleButton>
+          </Show>
+          <KDropdownMenu
+            placement="bottom-start"
+            open={sortMenuOpen()}
+            onOpenChange={(open) => {
+              setSortMenuOpen(open);
+              if (!open) return;
+              const w = sortMenuTriggerEl?.getBoundingClientRect().width ?? 0;
+              // Give the menu enough room for labels; don't constrain to trigger width.
+              setSortMenuWidth(Math.max(200, Math.floor(w)));
+            }}
+          >
+            <KDropdownMenu.Trigger
+              as="button"
+              ref={(el) => {
+                sortMenuTriggerEl = el;
+              }}
+              class="border border-edge-muted min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 text-ink-muted hover:opacity-80"
+              disabled={isSearchActive()}
             >
-              <div class="min-w-[10vw] max-w-md">
-                <div class="grid divide-y divide-edge">
-                  <section class="p-2">
-                    <SegmentedControl
-                      size="SM"
-                      label="Layout"
-                      // value={selectItemFromList()}
-                      list={['Compact', 'Relaxed', 'Visual']}
-                      // onChange={(newValue) => setSelectItemFromList(newValue)}
-                      disabled
-                    />
-                  </section>
-                  <section class="gap-1 grid p-2">
-                    <ToggleSwitch
-                      size="SM"
-                      label="Unroll Notifications"
-                      checked={showUnrollNotifications()}
-                      onChange={setShowUnrollNotifications}
-                    />
-                    <ToggleSwitch
-                      size="SM"
-                      label="Indicate Unread"
-                      checked={showUnreadIndicator()}
-                      onChange={setShowUnreadIndicator}
-                    />
-                  </section>
-                  <section class="p-2">
-                    <SortComponent
-                      size="SM"
-                      onSelectSystemSort={() => {
-                        entityListResetScroll();
-                      }}
-                    />
-                  </section>
-                  <Show when={ENABLE_PROPERTY_DISPLAY_CONTROL}>
-                    <section class="p-2">
-                      <PropertyDisplayControl
-                        selectedPropertyIds={displayProperties}
-                        setSelectedPropertyIds={setDisplayProperties}
-                        suggestedProperties={suggestedProperties()}
-                      />
-                    </section>
-                  </Show>
-                </div>
-              </div>
-            </DropdownMenu>
-          </div>
-        </SplitToolbarRight>
+              <span>
+                <span class="font-semibold underline underline-offset-2">S</span>
+                ort
+              </span>
+            </KDropdownMenu.Trigger>
+            <KDropdownMenu.Portal>
+              <KDropdownMenu.Content
+                class={`${MENU_CONTENT_CLASS} py-1`}
+                style={{
+                  width: sortMenuWidth() ? `${sortMenuWidth()}px` : undefined,
+                }}
+              >
+                <KDropdownMenu.RadioGroup
+                  value={sortType()}
+                  onChange={(value) => {
+                    setSortType(value as SystemSortOption);
+                    entityListResetScroll();
+                  }}
+                >
+                  <MenuItem
+                    text="Viewed"
+                    selectorType="radio"
+                    value="viewed_at"
+                    groupValue={sortType()}
+                  />
+                  <MenuItem
+                    text="Updated"
+                    selectorType="radio"
+                    value="updated_at"
+                    groupValue={sortType()}
+                  />
+                  <MenuItem
+                    text="Created"
+                    selectorType="radio"
+                    value="created_at"
+                    groupValue={sortType()}
+                  />
+                  <MenuItem
+                    text="Recent"
+                    selectorType="radio"
+                    value="frecency"
+                    groupValue={sortType()}
+                  />
+                </KDropdownMenu.RadioGroup>
+              </KDropdownMenu.Content>
+            </KDropdownMenu.Portal>
+          </KDropdownMenu>
+        </SearchBar>
       </Show>
       <ContextMenu
         forceMount={contextAndModalState.contextMenuOpen}
@@ -1702,7 +1646,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
             virtualizerHandle={setVirtualizerHandle}
             viewId={view()?.id}
             searchText={searchText()}
-            hasRefinementsFromBase={isViewConfigChanged()}
+            hasRefinementsFromBase={false}
           >
             {(innerProps) => {
               const displayDoneButton = () => {
@@ -1994,10 +1938,12 @@ const EntityTypeToggle = (props: {
   );
 };
 
-function SearchBar(props: {
-  isLoading: Accessor<boolean>;
-  setIsLoading: Setter<boolean>;
-}) {
+function SearchBar(
+  props: ParentProps<{
+    isLoading: Accessor<boolean>;
+    setIsLoading: Setter<boolean>;
+  }>
+) {
   const splitContext = useSplitPanelOrThrow();
   const {
     viewsDataStore,
@@ -2007,15 +1953,45 @@ function SearchBar(props: {
     virtualizerHandleSignal: [virtualizerHandle],
     entityListRefSignal: [entityListRef],
     navigateThroughList,
+    searchTextSignal: [rawSearchText, setRawSearchText],
+    emailViewSignal: [emailView, setEmailView],
   } = splitContext.unifiedListContext;
   const viewData = createMemo(() => viewsDataStore[selectedView()]);
   const viewName = createMemo(() => viewData().view);
 
   let inputRef: HTMLInputElement | undefined;
+  let previewHandle: RecipientTypeaheadHandle | undefined;
 
-  const searchText = createMemo<string>(() => viewData().searchText ?? '');
+  const placeholderText = createMemo(() => {
+    const shortcutHint = IS_MAC ? '⌘F' : 'Ctrl+F';
+    return `Search [${shortcutHint}] everything [/]`;
+  });
+
+  const searchText = createMemo<string>(() => rawSearchText());
   const setSearchText = (text: string) => {
-    setViewDataStore(selectedView(), 'searchText', text);
+    setRawSearchText(text);
+  };
+
+  const { all: recipientOptions } = useCombinedRecipients();
+  const [searchFocused, setSearchFocused] = createSignal(false);
+  const [previewOpen, setPreviewOpen] = createSignal(false);
+  const [didNavigateMenu, setDidNavigateMenu] = createSignal(false);
+  const [previewSuppressed, setPreviewSuppressed] = createSignal(false);
+
+  createEffect(() => {
+    const q = searchText().trim();
+    if (q.length === 0) {
+      setDidNavigateMenu(false);
+      setPreviewSuppressed(false);
+    }
+
+    setPreviewOpen(searchFocused() && q.length > 0 && !previewSuppressed());
+  });
+
+  const closePreview = () => {
+    setPreviewOpen(false);
+    setDidNavigateMenu(false);
+    setPreviewSuppressed(true);
   };
 
   const selectionClick = () => {
@@ -2066,6 +2042,9 @@ function SearchBar(props: {
         `search-input-${splitContext.handle.id}-${selectedView()}`
       ) as HTMLInputElement;
       searchInput?.focus();
+      // Select all text so typing replaces the existing query (Superhuman-style).
+      // Do this after focus to ensure the selection sticks across browsers.
+      queueMicrotask(() => searchInput?.select());
     }, 0);
   };
 
@@ -2101,75 +2080,141 @@ function SearchBar(props: {
   });
 
   return (
-    <SplitToolbarLeft>
-      <div class="flex ml-2 h-full items-center gap-1">
-        <Show
-          when={props.isLoading() && searchText()}
-          fallback={
-            <Show
-              when={searchText()}
-              fallback={
-                <IconButton
-                  size="sm"
-                  icon={SearchIcon}
-                  theme="clear"
-                  tooltip={{ label: 'Search' }}
-                  onClick={() => {
-                    inputRef?.focus();
-                  }}
-                />
-              }
-            >
+    <SplitHeaderLeft>
+      <div class="flex items-center gap-1.5 px-2 h-full w-full min-w-0">
+        <div class="flex items-center gap-1.5 min-w-0 shrink-0">
+          {props.children}
+        </div>
+
+        <div class="ml-auto flex items-center gap-2 shrink-0 min-w-0">
+          <div class="shrink-0 h-[22px] border border-edge-muted min-w-[140px] w-[20cqw] max-w-[320px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 text-ink-muted flex items-center gap-2 bg-panel relative">
+            <input
+              ref={inputRef}
+              id={`search-input-${splitContext.handle.id}-${selectedView()}`}
+              placeholder={placeholderText()}
+              value={searchText()}
+              spellcheck={false}
+              autocomplete="off"
+              autocapitalize="off"
+              onInput={(e) => {
+                setPreviewSuppressed(false);
+                setDidNavigateMenu(false);
+                setSearchText(e.target.value);
+              }}
+              onFocus={() => {
+                setSearchFocused(true);
+                // Re-open behavior on focus should be driven by current query.
+                // If the user explicitly closed the preview (Enter/Escape), we keep it closed until they type again.
+              }}
+              onBlur={() => {
+                setSearchFocused(false);
+                setPreviewSuppressed(false);
+                setPreviewOpen(false);
+                setDidNavigateMenu(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  if (previewOpen()) {
+                    closePreview();
+                    return;
+                  }
+                  e.currentTarget.blur();
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (previewOpen()) {
+                    if (!didNavigateMenu()) {
+                      closePreview();
+                      return;
+                    }
+                    const highlighted = previewHandle?.getHighlighted();
+                    const email = highlighted
+                      ? getRecipientOptionEmail(highlighted)
+                      : undefined;
+                    if (email) {
+                      setSearchText(email);
+                    }
+                    closePreview();
+                    queueMicrotask(() => inputRef?.focus());
+                    return;
+                  }
+                  e.currentTarget.blur();
+                  selectionClick();
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  if (previewOpen()) {
+                    setDidNavigateMenu(true);
+                    previewHandle?.arrowDown();
+                    return;
+                  }
+                  e.currentTarget.blur();
+                  focusNextEntity();
+                } else if (e.key === 'ArrowUp') {
+                  if (previewOpen()) {
+                    e.preventDefault();
+                    setDidNavigateMenu(true);
+                    previewHandle?.arrowUp();
+                  }
+                }
+              }}
+              class="flex-1 h-full min-w-0 min-h-0 p-0 m-0 border-0 outline-none! focus:outline-none ring-0! focus:ring-0 text-xs leading-none text-ink normal-case bg-transparent text-left placeholder:text-ink-muted/70"
+            />
+            <div class="absolute left-0 top-full w-full">
+              <RecipientTypeahead
+                options={recipientOptions as any}
+                query={searchText}
+                open={previewOpen}
+                handleRef={(h) => {
+                  previewHandle = h;
+                }}
+                onSelectEmail={(email) => {
+                  setSearchText(email);
+                  closePreview();
+                  queueMicrotask(() => inputRef?.focus());
+                }}
+              />
+            </div>
+            <Show when={props.isLoading() && searchText()}>
               <IconButton
-                size="sm"
-                icon={XIcon}
+                size="xs"
+                iconSize={12}
+                icon={LoadingSpinner}
                 theme="clear"
-                tooltip={{ label: 'Clear search' }}
+                tooltip={{ label: 'Cancel search' }}
+                class="h-3 w-3 shrink-0 [&_svg]:animate-spin"
                 onClick={() => {
                   setSearchText('');
                   inputRef?.focus();
                 }}
               />
             </Show>
-          }
-        >
-          <IconButton
-            size="sm"
-            icon={LoadingSpinner}
-            theme="clear"
-            tooltip={{ label: 'Cancel search' }}
-            class="[&_svg]:animate-spin"
-            onClick={() => {
-              setSearchText('');
-              inputRef?.focus();
-            }}
-          />
-        </Show>
-        <input
-          ref={inputRef}
-          id={`search-input-${splitContext.handle.id}-${selectedView()}`}
-          placeholder={`Search in ${viewName()}`}
-          value={searchText()}
-          onInput={(e) => {
-            setSearchText(e.target.value);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              e.currentTarget.blur();
-            } else if (e.key === 'Enter') {
-              e.preventDefault();
-              e.currentTarget.blur();
-              selectionClick();
-            } else if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              e.currentTarget.blur();
-              focusNextEntity();
-            }
-          }}
-          class="p-1 pr-0 border-0 outline-none! focus:outline-none ring-0! focus:ring-0 flex-1 text-ink text-sm truncate"
-        />
+            <Show when={!props.isLoading() && searchText()}>
+              <IconButton
+                size="xs"
+                iconSize={12}
+                icon={XIcon}
+                theme="clear"
+                tooltip={{ label: 'Clear search' }}
+                class="h-3 w-3 shrink-0"
+                onClick={() => {
+                  setSearchText('');
+                  inputRef?.focus();
+                }}
+              />
+            </Show>
+          </div>
+
+          <Show when={selectedView() === VIEWCONFIG_DEFAULTS_IDS_ENUM.email}>
+            <SegmentedControl
+              disabled={searchText().trim().length > 0}
+              size="SM"
+              list={['inbox', 'sent', 'drafts']}
+              value={emailView()}
+              onChange={setEmailView}
+            />
+          </Show>
+        </div>
       </div>
-    </SplitToolbarLeft>
+    </SplitHeaderLeft>
   );
 }

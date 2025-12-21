@@ -225,14 +225,28 @@ const ALL_VIEWCONFIG_DEFAULTS = {
       },
     },
   },
+  all: {
+    view: 'All',
+    sort: {
+      sortBy: 'viewed_at',
+    },
+    hotkeyOptions: {
+      e: (entity: EntityData) => {
+        if (entity.type === 'email') {
+          archiveEmail(entity.id, { isDone: entity.done });
+        }
+        return true;
+      },
+    },
+  },
   files: {
-    view: 'Files',
+    view: 'Doc',
     filters: {
       typeFilter: ['document'],
     },
   },
   people: {
-    view: 'People',
+    view: 'Msg',
     filters: {
       typeFilter: ['channel'],
     },
@@ -241,7 +255,7 @@ const ALL_VIEWCONFIG_DEFAULTS = {
     },
   },
   email: {
-    view: 'Email',
+    view: 'Eml',
     filters: {
       typeFilter: ['email'],
     },
@@ -275,29 +289,22 @@ const ALL_VIEWCONFIG_DEFAULTS = {
     },
   },
   tasks: {
-    view: 'Tasks',
+    view: 'Task',
     filters: {
       typeFilter: ['task'],
     },
   },
-  folders: {
-    view: 'Folders',
+  agents: {
+    view: 'AI',
     filters: {
-      typeFilter: ['project'],
+      // AI chats are stored as 'chat' entities
+      typeFilter: ['chat'],
     },
   },
-  all: {
-    view: 'All',
-    sort: {
-      sortBy: 'viewed_at',
-    },
-    hotkeyOptions: {
-      e: (entity: EntityData) => {
-        if (entity.type === 'email') {
-          archiveEmail(entity.id, { isDone: entity.done });
-        }
-        return true;
-      },
+  folders: {
+    view: 'Fldr',
+    filters: {
+      typeFilter: ['project'],
     },
   },
 } satisfies Record<DefaultView, Omit<DeepPartial<ViewConfigEnhanced>, 'id'>>;
@@ -340,11 +347,10 @@ export const VIEWCONFIG_FILTER_ENTITY_TYPE: readonly FilterOptions['typeFilter']
   ['channel', 'chat', 'document', 'email', 'project', 'task'] as const;
 
 export const VIEW_CLIENT_FILTERS: Record<ViewId, ClientFilter[]> = {
-  signal: [signalFilter],
-  noise: [noiseFilter],
   people: [],
   files: [],
   tasks: [],
+  agents: [],
   folders: [],
   all: [],
 };

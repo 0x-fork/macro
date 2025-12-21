@@ -1,7 +1,10 @@
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { useChannelsContext } from '@core/component/ChannelsProvider';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
-import { ENABLE_PROPERTIES_METADATA } from '@core/constant/featureFlags';
+import {
+  ENABLE_PROPERTIES_METADATA,
+  ENABLE_SAVED_VIEWS,
+} from '@core/constant/featureFlags';
 import { HotkeyTags } from '@core/hotkey/constants';
 import { activeScope, hotkeyScopeTree } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -17,7 +20,6 @@ import { waitForFrames } from '@core/util/sleep';
 import { type EntityData, isTaskEntity } from '@macro-entity';
 import { entityHasUnreadNotifications } from '@notifications';
 import type { PreviewViewStandardLabel } from '@service-email/generated/schemas';
-import { useTutorialCompleted } from '@service-gql/client';
 import {
   type PropertiesEntityType,
   propertiesServiceClient,
@@ -85,12 +87,19 @@ export type UnifiedListContext = {
   setViewDataStore: SetStoreFunction<Partial<ViewDataMap>>;
   selectedView: Accessor<ViewId>;
   setSelectedView: Setter<ViewId>;
+  /**
+   * Split-scoped Important mode toggle (maps to legacy Signal behavior).
+   */
+  importantModeSignal: Signal<boolean>;
+  /**
+   * Split-scoped search query shared across views/tabs within this split.
+   * (Intentionally not stored per-view so switching tabs keeps the same query.)
+   */
+  searchTextSignal: Signal<string>;
   virtualizerHandleSignal: Signal<VirtualizerHandle | undefined>;
   entityListRefSignal: Signal<HTMLDivElement | undefined>;
   entitiesSignal: Signal<EntityData[] | undefined>;
   emailViewSignal: Signal<PreviewViewStandardLabel>;
-  showHelpDrawer: Accessor<Set<DefaultView>>;
-  setShowHelpDrawer: Setter<Set<DefaultView>>;
   actionRegistry: EntityActionRegistry;
   navigateThroughList: NavigateListFn;
   // this is a private method that should be registered once by createNavigationEntityListShortcut
@@ -103,12 +112,12 @@ export function createStubSoupContext(): UnifiedListContext {
     setViewDataStore: () => {},
     selectedView: () => '',
     setSelectedView: () => {},
+    importantModeSignal: createSignal(false),
+    searchTextSignal: createSignal(''),
     virtualizerHandleSignal: createSignal(),
     entityListRefSignal: createSignal(),
     entitiesSignal: createSignal(),
     emailViewSignal: createSignal<PreviewViewStandardLabel>('all'),
-    showHelpDrawer: () => new Set(),
-    setShowHelpDrawer: () => {},
     actionRegistry: createEntityActionRegistry(),
     navigateThroughList: async () => ({
       success: false,
@@ -119,7 +128,7 @@ export function createStubSoupContext(): UnifiedListContext {
   };
 }
 
-const DEFAULT_VIEW_ID: DefaultView = 'signal';
+const DEFAULT_VIEW_ID: DefaultView = 'all';
 
 const DEFAULT_VIEW_IDS_SET = new Set(VIEWCONFIG_DEFAULTS_IDS);
 
@@ -128,14 +137,12 @@ export function createSoupContext(): UnifiedListContext {
   const [viewsDataStore, setViewDataStore] = useAllViews({
     selectedViewSignal: [selectedView, setSelectedView],
   });
+  const importantModeSignal = createSignal<boolean>(false);
+  const searchTextSignal = createSignal<string>('');
   const virtualizerHandleSignal = createSignal<VirtualizerHandle>();
   const entityListRefSignal = createSignal<HTMLDivElement>();
   const entitiesSignal = createSignal<EntityData[]>();
   const emailViewSignal = createSignal<PreviewViewStandardLabel>('inbox');
-  const tutorialCompleted = useTutorialCompleted();
-  const [showHelpDrawer, setShowHelpDrawer] = createSignal<Set<DefaultView>>(
-    !tutorialCompleted() ? new Set(DEFAULT_VIEWS) : new Set()
-  );
   let navigateThroughListFn: NavigateListFn | undefined;
 
   return {
@@ -143,12 +150,12 @@ export function createSoupContext(): UnifiedListContext {
     setViewDataStore,
     selectedView,
     setSelectedView,
+    importantModeSignal,
+    searchTextSignal,
     virtualizerHandleSignal,
     entityListRefSignal,
     entitiesSignal,
     emailViewSignal,
-    showHelpDrawer,
-    setShowHelpDrawer,
     actionRegistry: createEntityActionRegistry(),
     navigateThroughList: (input) => {
       if (!navigateThroughListFn) {
@@ -503,7 +510,7 @@ export function createNavigationEntityListShortcut({
   };
 
   registerEntityHotkey({
-    hotkey: ['e'],
+    hotkey: ['n'],
     hotkeyToken: TOKENS.entity.action.markDone,
     scopeId: splitHotkeyScope,
     description: 'Mark done',
@@ -1266,25 +1273,40 @@ export function createNavigationEntityListShortcut({
     () => splitHandle.content().id === 'unified-list'
   );
 
-  for (let i = 0; i < viewIds().length && i < 9; i++) {
-    const viewId = viewIds()[i];
-    const viewData = viewsData[viewId];
+  const viewHotkeys: Array<{
+    hotkey: ValidHotkey;
+    viewId: ViewId;
+    description: string;
+  }> = [
+    { hotkey: 'd', viewId: 'files', description: 'Doc' },
+    { hotkey: 'm', viewId: 'people', description: 'Msg' },
+    { hotkey: 'e', viewId: 'email', description: 'Eml' },
+    { hotkey: 't', viewId: 'tasks', description: 'Task' },
+    { hotkey: 'a', viewId: 'agents', description: 'AI' },
+    { hotkey: 'f', viewId: 'folders', description: 'Fldr' },
+  ];
+
+  for (const hk of viewHotkeys) {
     registerHotkey({
-      hotkeyToken:
-        TOKENS.soup.tabs[i.toString() as keyof typeof TOKENS.soup.tabs],
-      hotkey: [(i + 1).toString() as ValidHotkey],
+      hotkey: [hk.hotkey],
       scopeId: splitHotkeyScope,
-      description: viewData.view,
+      description: `Open ${hk.description}`,
       condition: splitIsUnifiedList,
       keyDownHandler: () => {
-        setSelectedView(viewData.id);
+        const nextViewId = selectedView() === hk.viewId ? 'all' : hk.viewId;
+
+        // Docs hotkey should always navigate to the base view and clear
+        // any filetype filters so it shows "all docs".
+        if (nextViewId === 'files') {
+          setViewDataStore('files', 'filters', 'documentTypeFilter', []);
+        }
+
+        setSelectedView(nextViewId);
         return true;
       },
-      // displayPriority: 0,
       hide: true,
     });
   }
-  1;
 
   registerHotkey({
     hotkey: 'tab',
@@ -1475,6 +1497,7 @@ const useAllViews = ({
   // add all default views
   const savedViews = useQuery(() => ({
     queryKey: ['savedViews'],
+    enabled: ENABLE_SAVED_VIEWS,
     queryFn: async () => {
       const resp = await storageServiceClient.views.getSavedViews();
 
