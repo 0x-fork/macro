@@ -146,9 +146,19 @@ const PreviewPanelContent: Component<{
     return id;
   }, props.selectedEntity.id);
 
+  const previewLayoutRefs: SplitPanelContextType['layoutRefs'] = {
+    ...props.splitPanelContext.layoutRefs,
+    // Don't allow preview-pane content to mount into the parent split header.
+    headerLeft: undefined,
+    headerRight: undefined,
+    // Provide preview-local toolbar mounts (wired up below).
+    toolbarLeft: undefined,
+    toolbarRight: undefined,
+  };
+
   return (
     <div
-      class="size-full"
+      class="size-full flex flex-col min-h-0"
       onFocusIn={(event) => {
         if (interactedWith()) return;
         const relatedTarget = event.relatedTarget as HTMLElement;
@@ -168,21 +178,38 @@ const PreviewPanelContent: Component<{
         setInteractedWith(true);
       }}
     >
+      {/*
+       * In unified-list preview mode we render *another* block inside the same split panel.
+       * If we allow that block to use the parent split's toolbar refs, its SplitToolbar portals
+       * will mount at the top of the unified list (full-width). Instead, give the preview pane
+       * its own toolbar mount points so toolbars render inside the preview pane.
+       */}
       <SplitPanelContext.Provider
         value={{
           ...props.splitPanelContext,
-          layoutRefs: {
-            ...props.splitPanelContext.layoutRefs,
-            headerLeft: undefined,
-            headerRight: undefined,
-          },
-          halfSplitState: () => ({
-            side: 'right',
-            percentage: 30,
-          }),
+          layoutRefs: previewLayoutRefs,
         }}
       >
-        <Dynamic component={blockInstance().element} />
+        <div
+          class="relative w-full flex items-center justify-between shrink-0 h-10 px-1 border-b border-edge-muted/50 bg-panel"
+          data-preview-pane-toolbar
+        >
+          <div
+            class="flex h-full items-center flex-1 gap-1.5 px-2"
+            ref={(ref) => {
+              previewLayoutRefs.toolbarLeft = ref;
+            }}
+          />
+          <div
+            class="flex h-full items-center"
+            ref={(ref) => {
+              previewLayoutRefs.toolbarRight = ref;
+            }}
+          />
+        </div>
+        <div class="flex-1 min-h-0">
+          <Dynamic component={blockInstance().element} />
+        </div>
       </SplitPanelContext.Provider>
     </div>
   );

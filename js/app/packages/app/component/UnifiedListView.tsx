@@ -1955,6 +1955,7 @@ function SearchBar(
     navigateThroughList,
     searchTextSignal: [rawSearchText, setRawSearchText],
     emailViewSignal: [emailView, setEmailView],
+    importantModeSignal: [, setImportantMode],
   } = splitContext.unifiedListContext;
   const viewData = createMemo(() => viewsDataStore[selectedView()]);
   const viewName = createMemo(() => viewData().view);
@@ -2056,6 +2057,13 @@ function SearchBar(
       hotkeyToken: TOKENS.soup.openSearch,
       keyDownHandler: () => {
         setSelectedView(VIEWCONFIG_DEFAULTS_IDS_ENUM.all);
+        // Clear all filters - slash means search everything
+        const viewId = VIEWCONFIG_DEFAULTS_IDS_ENUM.all;
+        setViewDataStore(viewId, 'filters', 'importantFilter', false);
+        setViewDataStore(viewId, 'filters', 'notificationFilter', 'all');
+        setViewDataStore(viewId, 'filters', 'typeFilter', []);
+        setViewDataStore(viewId, 'filters', 'documentTypeFilter', []);
+        setImportantMode(false);
         focusSearch();
         return true;
       },
@@ -2125,6 +2133,7 @@ function SearchBar(
                   if (previewOpen()) {
                     if (!didNavigateMenu()) {
                       closePreview();
+                      e.currentTarget.blur();
                       return;
                     }
                     const highlighted = previewHandle?.getHighlighted();
@@ -2135,7 +2144,7 @@ function SearchBar(
                       setSearchText(email);
                     }
                     closePreview();
-                    queueMicrotask(() => inputRef?.focus());
+                    e.currentTarget.blur();
                     return;
                   }
                   e.currentTarget.blur();
@@ -2170,7 +2179,7 @@ function SearchBar(
                 onSelectEmail={(email) => {
                   setSearchText(email);
                   closePreview();
-                  queueMicrotask(() => inputRef?.focus());
+                  queueMicrotask(() => inputRef?.blur());
                 }}
               />
             </div>

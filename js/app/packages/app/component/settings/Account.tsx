@@ -32,7 +32,6 @@ import {
     useEmailLinks,
   useEmailLinksStatus,
 } from '@core/email-link';
-import { BetaTooltip } from '../BetaTooltip';
 import {
   type SupportedNotificationSettings,
   useNotificationSettings,
@@ -232,12 +231,10 @@ export function Account() {
                   </div>
                 </Popover.Anchor>
                 <Popover.Portal>
-                  <Popover.Content class="z-modal">
-                    <BetaTooltip
-                      text={
-                        "Enabling an email address different from the current Macro user's will result in session termination"
-                      }
-                    />
+                  <Popover.Content class="z-modal border rounded border-edge p-2.5 w-44 text-xs items-center text-left bg-panel shadow-lg z-[9999]">
+                    <div class="py-1">
+                      Enabling an email address different from the current Macro user's will result in session termination
+                    </div>
                   </Popover.Content>
                 </Popover.Portal>
               </Popover.Root>

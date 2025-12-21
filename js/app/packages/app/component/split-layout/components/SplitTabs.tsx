@@ -194,10 +194,22 @@ export function SplitTabs(props: {
                 ref={ref}
                 tabIndex={-1}
                 class="shrink-0 max-w-[40cqw] text-sm relative h-full flex items-center focus-bracket-within [&:focus-within]:[--focus-border-inset:-3px]"
+                onPointerDown={(e) => {
+                  // Kobalte updates the active tab on pointerdown.
+                  // We only want "click active tab toggles back to `all`" when it was
+                  // already active *before* the interaction began.
+                  //
+                  // Stash it on the element to share with onClick without extra signals.
+                  (e.currentTarget as HTMLElement).dataset.wasActiveOnPointerDown =
+                    String(isActive());
+                }}
                 onClick={(e) => {
                   // Make type tabs toggleable: clicking the active tab clears selection to internal `all`.
                   // This should match the hotkey toggle behavior (e.g. pressing `e` twice).
-                  if (!isActive()) return;
+                  const wasActiveOnPointerDown =
+                    (e.currentTarget as HTMLElement).dataset.wasActiveOnPointerDown ===
+                    'true';
+                  if (!wasActiveOnPointerDown) return;
                   if ('button' in e && typeof e.button === 'number' && e.button !== 0)
                     return;
                   e.preventDefault();

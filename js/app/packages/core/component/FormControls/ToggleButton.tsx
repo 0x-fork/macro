@@ -79,11 +79,11 @@ export const ToggleButton: ParentComponent<
     >
       {(state) => (
         <div
-          class="border border-edge-muted min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap"
+          class="border min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap"
           classList={{
             [`${sizeClass[props.size || 'Base']}`]: true,
-            'bg-edge-muted text-ink': state.pressed(),
-            'text-ink-muted': !state.pressed(),
+            'bg-accent/20 text-ink border-accent/30 bracket bracket-offset-2': state.pressed(),
+            'text-ink-muted border-edge-muted': !state.pressed(),
             // 'animate-[flicker_50ms_3]': showFlicker(),
             'hover:opacity-80': !props.disabled,
           }}
