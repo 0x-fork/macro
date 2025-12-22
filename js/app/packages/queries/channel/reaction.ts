@@ -1,5 +1,3 @@
-import { TrackingEvents, withAnalytics } from '@coparse/analytics';
-import { toast } from '@core/component/Toast/Toast';
 import { throwOnErr } from '@core/util/maybeResult';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import { commsServiceClient } from '@service-comms/client';
@@ -11,8 +9,6 @@ import { untilMessage } from '@websocket';
 import { ws, type FromWebsocketMessage } from '@service-connection/websocket';
 import { queryClient } from '../client';
 import { channelKeys } from './keys';
-
-const { track } = withAnalytics();
 
 type ToggleReactionParams = {
   channelID: string;
@@ -144,13 +140,6 @@ export function useToggleReactionMutation(
       if (!update) {
         throw new Error('Timed out waiting for reaction update');
       }
-
-      // Track after confirmation (matches server action).
-      track(TrackingEvents.BLOCKCHANNEL.MESSAGE.REACTION, {
-        channelId: vars.channelID,
-        emoji: vars.emoji,
-        action,
-      });
     },
     ...withCallbacks<void, Error, ToggleReactionParams, ToggleReactionContext>(
       {
@@ -163,7 +152,6 @@ export function useToggleReactionMutation(
         },
         onError: (error, _vars, _context) => {
           console.error('failed to react to message', error);
-          toast.failure('Failed to react to message');
         },
       },
       callbacks

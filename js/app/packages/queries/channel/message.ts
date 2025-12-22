@@ -1,5 +1,3 @@
-import { TrackingEvents, withAnalytics } from '@coparse/analytics';
-import { toast } from '@core/component/Toast/Toast';
 import { throwOnErr } from '@core/util/maybeResult';
 import { nanoid } from 'nanoid';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
@@ -13,8 +11,6 @@ import type { PostMessageRequest } from '@service-comms/generated/models';
 import type { Message } from '@service-comms/generated/models/message';
 import { useMutation } from '@tanstack/solid-query';
 import { replaceChannelMessageIdInCache, upsertChannelMessageInCache } from './channel';
-
-const { track } = withAnalytics();
 
 type WithChannelID<T> = T & { channelID: string };
 
@@ -64,7 +60,6 @@ export function useSendMessageMutation(
         },
         onError(error) {
           console.error('failed to send message', error);
-          toast.failure('Failed to send message');
         },
         onSuccess(data, variables, context) {
           // Replace temp id with server id; websocket will reconcile canonical content.
@@ -75,12 +70,6 @@ export function useSendMessageMutation(
               data.id
             );
           }
-          track(TrackingEvents.BLOCKCHANNEL.MESSAGE.SEND, {
-            channelId: variables.channelID,
-            contentLength: variables.message.content?.length ?? 0,
-            attachmentsLength: variables.message.attachments.length,
-            inThread: variables.message.thread_id !== undefined,
-          });
         },
       },
       callbacks
@@ -110,7 +99,6 @@ export function useDeleteMessageMutation(
       {
         onError(error) {
           console.error('failed to delete message', error);
-          toast.failure('Failed to delete message');
         },
         onSettled: (_data, _error, variables) => {
           invalidateChannelWithID(variables.channelID);
@@ -148,7 +136,6 @@ export function usePatchMessageMutation(
       {
         onError(error) {
           console.error('failed to update message', error);
-          toast.failure('Failed to update message');
         },
         onSettled: (_data, _error, variables) => {
           invalidateChannelWithID(variables.channelID);
@@ -188,7 +175,6 @@ export function useDeleteMessageAttachmentMutation(
       {
         onError(error) {
           console.error('failed to delete attachment', error);
-          toast.failure('Failed to delete attachment');
         },
         onSettled: (_data, _error, variables) => {
           invalidateChannelWithID(variables.channelID);

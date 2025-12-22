@@ -1,4 +1,3 @@
-import { toast } from '@core/component/Toast/Toast';
 import { throwOnErr } from '@core/util/maybeResult';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import {
@@ -21,7 +20,6 @@ export function useCreateChannelMutation(
       {
         onError(error) {
           console.error('failed to create channel', error);
-          toast.failure('Failed to create channel');
         },
       },
       callbacks

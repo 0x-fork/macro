@@ -1,4 +1,3 @@
-import { toast } from '@core/component/Toast/Toast';
 import { throwOnErr } from '@core/util/maybeResult';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import { commsServiceClient } from '@service-comms/client';
@@ -26,7 +25,6 @@ export function useJoinChannelMutation(
       {
         onError(error) {
           console.error('failed to join channel', error);
-          toast.failure('Failed to join channel');
         },
         onSettled: (_data, _error, variables) => {
           invalidateChannelWithID(variables.channelID);

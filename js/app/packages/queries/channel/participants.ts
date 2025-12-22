@@ -1,4 +1,3 @@
-import { toast } from '@core/component/Toast/Toast';
 import { throwOnErr } from '@core/util/maybeResult';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import { commsServiceClient } from '@service-comms/client';
@@ -29,7 +28,6 @@ export function useAddParticipantsMutation(
       {
         onError(error) {
           console.error('failed to add participants', error);
-          toast.failure('Failed to add participants to channel');
         },
         onSettled: (_data, _error, variables) => {
           invalidateChannelWithID(variables.channelID);
@@ -62,7 +60,6 @@ export function useRemoveParticipantsMutation(
       {
         onError(error) {
           console.error('failed to remove participants', error);
-          toast.failure('Failed to remove participants from channel');
         },
         onSettled: (_data, _error, variables) => {
           invalidateChannelWithID(variables.channelID);
