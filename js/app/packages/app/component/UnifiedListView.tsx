@@ -268,6 +268,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
           return;
         }
 
+        if (isTouchDevice) return;
         if (!firstEntity) return;
 
         setSelectedEntity(firstEntity);

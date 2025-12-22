@@ -87,8 +87,10 @@ function SplitCloseButton() {
 
 function SplitControlButtons() {
   return (
-    <div class="flex flex-row items-center pl-2 pr-1 h-full shrink-0">
-      <SplitCloseButton />
+    <div class="flex flex-row items-center px-2 h-full shrink-0">
+      <div class="ios:hidden">
+        <SplitCloseButton />
+      </div>
       <SplitBackButton />
       <SplitForwardButton />
     </div>
@@ -116,12 +118,12 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         />
 
         <div
-          class="min-w-4 h-full shrink-0"
+          class="min-w-4 h-full shrink-0 ios:hidden"
           ref={(ref) => {
             ctx.layoutRefs.headerRight = ref;
           }}
         />
-        <div class="z-2 relative flex items-center bg-panel pr-2 h-full">
+        <div class="z-2 relative flex items-center bg-panel pr-2 h-full ios:hidden">
           <EntityNavigationIndicator />
           <SplitSpotlightButton />
         </div>
