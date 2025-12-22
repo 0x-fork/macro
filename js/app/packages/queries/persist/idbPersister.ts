@@ -1,7 +1,7 @@
 import type {
   PersistedClient,
   Persister,
-} from '@tanstack/query-persist-client-core';
+} from '@tanstack/solid-query-persist-client';
 
 type IDBPersisterOptions = Readonly<{
   dbName?: string;
@@ -41,7 +41,6 @@ async function withStore<T>(
       const req = fn(store);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
-      // If the transaction aborts for some reason, surface it.
       tx.onabort = () => reject(tx.error);
     });
   } finally {

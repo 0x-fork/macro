@@ -15,14 +15,10 @@ export const queryClient = new QueryClient({
 
 setupQueryPersistence({
   queryClient,
-  // Vite injects this (used elsewhere in the app). If it changes, persisted caches
-  // are invalidated automatically.
   buster: import.meta.env.__APP_VERSION__ ?? 'dev',
   scopes: [
     {
-      storageKey: 'channels-v1',
       persister: createIDBPersister({ key: 'channels-v1' }),
-      // Cache is mostly stable and patched by realtime; keep for a week.
       maxAgeMs: 1000 * 60 * 60 * 24 * 7,
       shouldDehydrateQuery: (q) => queryKeyHasPrefix(q.queryKey, ['channel']),
     },

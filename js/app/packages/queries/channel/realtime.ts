@@ -61,7 +61,6 @@ function isAttachmentArray(x: unknown): x is Attachment[] {
 
 function isMessage(x: unknown): x is Message {
   if (!isRecord(x)) return false;
-  // Validate required Message fields. Optional fields are allowed to be absent.
   return (
     isString(x.id) &&
     isString(x.channel_id) &&
@@ -96,7 +95,7 @@ function decodeChannelWsEvent(
   return match(msg.type)
     .with('comms_message', () => {
       if (!isMessage(raw)) return undefined;
-      return { type: 'comms_message', message: raw };
+      return { type: 'comms_message', message: raw } as const;
     })
     .with('comms_reaction', 'comms_reaction_update', () => {
       if (!isString(raw.message_id)) return undefined;
@@ -105,7 +104,7 @@ function decodeChannelWsEvent(
         type: 'comms_reaction_update',
         messageID: raw.message_id,
         reactions: raw.reactions,
-      };
+      } as const;
     })
     .with('comms_attachment', () => {
       if (!isAttachmentArray(raw.attachments)) return undefined;
@@ -114,17 +113,12 @@ function decodeChannelWsEvent(
         type: 'comms_attachment',
         messageID,
         attachments: raw.attachments,
-      };
+      } as const;
     })
     .otherwise(() => undefined);
 }
 
-/**
- * Subscribe to connection-gateway websocket events and patch the channel query cache.
- *
- * This keeps websocket/server-state logic close to the query layer, and avoids deprecated
- * block websocket effects.
- */
+/** Patch channel query cache from connection-gateway websocket events. */
 export function useChannelRealtime(channelId: Accessor<string | undefined>) {
   let currentChannelId: string | undefined = channelId();
 

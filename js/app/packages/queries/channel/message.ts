@@ -67,8 +67,7 @@ export function useSendMessageMutation(
           toast.failure('Failed to send message');
         },
         onSuccess(data, variables, context) {
-          // Replace temp id with server id. The websocket upsert will then overwrite
-          // this message with the canonical server version.
+          // Replace temp id with server id; websocket will reconcile canonical content.
           if (context?.optimisticId) {
             replaceChannelMessageIdInCache(
               variables.channelID,

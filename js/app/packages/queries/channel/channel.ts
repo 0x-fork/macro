@@ -26,8 +26,6 @@ type ChannelQueryOptions = UseBaseQueryOptions<
   getChannelResponseError
 >;
 
-// Channel data is mostly static; realtime updates patch the cache. We keep it "fresh"
-// for a long time, but still reconcile on open via `refetchOnMount: 'always'`.
 export const CHANNEL_STALE_TIME_MS = 1000 * 60 * 60 * 24; // 24 hours
 
 /**
@@ -62,7 +60,6 @@ export async function fetchAndCacheChannel(
   const key = channelKeys.withID(channelId).queryKey;
   const cached = queryClient.getQueryData<GetChannelResponse>(key);
   if (cached) {
-    // Reconcile happens on mount via `refetchOnMount: 'always'`.
     return ok({ channel: cached });
   }
 
@@ -147,7 +144,6 @@ export function invalidateChannelWithID(channelID: string) {
 
 /**
  * Update cached channel query data (source-of-truth for channel server state).
- * This is the recommended way for websocket events + optimistic UI to update channel state.
  */
 export function updateChannelCache(
   channelID: string,

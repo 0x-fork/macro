@@ -1,14 +1,9 @@
-import { persistQueryClient } from '@tanstack/query-persist-client-core';
-import type { Persister, QueryKey } from '@tanstack/query-persist-client-core';
+import { persistQueryClient } from '@tanstack/solid-query-persist-client';
+import type { Persister } from '@tanstack/solid-query-persist-client';
 import type { QueryClient } from '@tanstack/solid-query';
-import type { Query } from '@tanstack/query-core';
+import type { Query, QueryKey } from '@tanstack/query-core';
 
 export type PersistScope = Readonly<{
-  /**
-   * Storage namespace for this scope.
-   * Changing this will effectively "fork" persisted data.
-   */
-  storageKey: string;
   persister: Persister;
   maxAgeMs: number;
   shouldDehydrateQuery: (query: Query) => boolean;
@@ -32,7 +27,6 @@ export function setupQueryPersistence(params: Readonly<{
   scopes: readonly PersistScope[];
 }>) {
   if (typeof window === 'undefined') return;
-  if (!('indexedDB' in window)) return;
 
   for (const scope of params.scopes) {
     try {
@@ -47,7 +41,6 @@ export function setupQueryPersistence(params: Readonly<{
         },
       });
     } catch {
-      // Best-effort: don't break app if storage is blocked/quota'd/etc.
     }
   }
 }

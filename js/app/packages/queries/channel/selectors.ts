@@ -6,9 +6,9 @@ export type ThreadsById = Record<string, MessageWithThreadId[]>;
 export type ThreadStoreData = ThreadsById;
 
 export type GroupedChannelMessages = {
-  /** Messages that are not part of a thread (thread_id is null/undefined). */
+  /** Messages that are not part of a thread (no `thread_id`). */
   topLevel: Message[];
-  /** Thread replies grouped by their parent thread_id (usually the parent message id). */
+  /** Thread replies grouped by `thread_id`. */
   threadsById: ThreadsById;
 };
 
@@ -30,7 +30,7 @@ export function groupChannelMessages(messages: Message[]): GroupedChannelMessage
       continue;
     }
     const arr = threadsById[threadId] ?? (threadsById[threadId] = []);
-    arr.push(m as MessageWithThreadId);
+    arr.push({ ...m, thread_id: threadId });
   }
 
   return { topLevel, threadsById };

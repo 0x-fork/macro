@@ -75,7 +75,6 @@ export function createChannelRefetchEffect(
   /** Refetch channel data if the tab is focused */
   createTabFocusEffect((isTabFocused) => {
     if (isTabFocused && Date.now() - lastTime > THRESHOLD) {
-      console.log('tab focused, refetching channel data');
       refetch();
       connectionGatewayClient.trackEntity({
         entity_type: 'channel',

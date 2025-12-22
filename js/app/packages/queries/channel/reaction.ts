@@ -87,8 +87,6 @@ async function awaitReactionUpdate(params: {
       if (raw.channel_id !== params.channelID) return false;
       if (raw.message_id !== params.messageID) return false;
 
-      // Avoid consuming a stale/other update: ensure the received reactions reflect
-      // the expected post-mutation state for *this user + emoji*.
       const reacted = didUserReact(raw.reactions, params.emoji, params.userID);
       return params.expectedAction === 'Add' ? reacted : !reacted;
     }),
@@ -122,8 +120,6 @@ export function useToggleReactionMutation(
       );
       const action = computeAction(prev, vars);
 
-      // IMPORTANT: Start listening *before* we send the mutation request,
-      // otherwise the websocket update could arrive while the request is in-flight.
       const updatePromise = awaitReactionUpdate({
         channelID: vars.channelID,
         messageID: vars.messageID,

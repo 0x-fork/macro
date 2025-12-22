@@ -348,7 +348,6 @@ function MessageListImpl(props: MessageListProps) {
       ?.findIndex((m) => m.id === targetMessageId);
 
     if (index === -1) {
-      console.warn('Target message not found');
       toast.failure('Message not found.');
       scrollToBottomOrTarget({ forceBottom: true });
       return;
@@ -438,7 +437,7 @@ function MessageListImpl(props: MessageListProps) {
     })
   );
 
-  // Thread reply inputs are portaled to the correct message container. This keeps them in the correct location even as new thread replies come in, but if they are re-portaled while a user is typing, the user can momentarily lose input. To address this, we gate updates to the thread that a user is currently typing in.
+  // Freeze thread rows while typing to avoid reply input re-mounts.
   const [localTypingThreadId, setLocalTypingThreadId] = createSignal<
     string | undefined
   >();
@@ -617,7 +616,6 @@ function MessageListImpl(props: MessageListProps) {
   const [dismissJumpToLatest, setDismissJumpToLatest] = createSignal(false);
 
   // Record new unviewed messages
-  // TODO: show new reply state for threads with new messages
   createEffect(
     on(filteredTopLevelMessages, (newFilteredMessages, oldFilteredMessages) => {
       const handle = virtualHandle();
