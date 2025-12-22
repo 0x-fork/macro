@@ -26,11 +26,19 @@ import {
     createSignal,
     on,
     onCleanup,
+    onMount,
     Show,
     useContext,
 } from 'solid-js';
 import { SplitPanelContext } from '../split-layout/context';
 import { Rightbar } from './Rightbar';
+import { setEditorStateFromMarkdown } from '@core/component/LexicalMarkdown/utils';
+import type { LexicalEditor } from 'lexical';
+
+// Default fallback prompt
+const DEFAULT_PROMPT = `YOU ARE MACRO ASSISTANT. YOU WILL ALWAYS TYPE IN ALL CAPS. 
+IF YOU ARE CALLED DONKEY YOU WILL RESPOND 'HEE HAW'`;
+
 
 type ChatData = {
     messages: ChatMessageWithAttachments[];
@@ -38,6 +46,7 @@ type ChatData = {
     model: Model | undefined;
     attachments: Attachment[];
 };
+
 
 const getChatData = async (chatId: string): Promise<ChatData> => {
     if (!chatId)
@@ -74,19 +83,48 @@ export default function PromptPlayground() {
     const isAuthenticated = useIsAuthenticated();
     const { showPaywall } = usePaywallState();
 
-    const [promptDraft, setPromptDraft] = createSignal<string>(
-        [
-            'You are Macro’s assistant.',
-            '',
-            '- Be concise.',
-            '- Ask clarifying questions when needed.',
-            '- Prefer actionable outputs.',
-        ].join('\n')
-    );
+    const [promptDraft, setPromptDraft] = createSignal<string>(DEFAULT_PROMPT);
+    const [backendPrompt, setBackendPrompt] = createSignal<string | undefined>();
+
+    // Load the backend prompt in development only
+    onMount(async () => {
+        setPromptOverride(DEFAULT_PROMPT);
+        setPromptOverride(DEFAULT_PROMPT);
+
+        if (import.meta.env.DEV) {
+            try {
+                const devPromptModule = await import(
+                    '../../../../../../rust/cloud-storage/ai_tools/src/prompts/all_tools.md?raw'
+                );
+                const devPrompt = devPromptModule.default;
+                if (devPrompt) {
+                    setBackendPrompt(devPrompt);
+                }
+            } catch (e) {
+                console.warn('Failed to load dev prompt:', e);
+            }
+        }
+    });
+
+    // Prompt editor reference
+    const [promptEditor, setPromptEditor] = createSignal<LexicalEditor | undefined>();
+
+    const loadBackendPrompt = () => {
+        const backend = backendPrompt();
+        if (backend) {
+            setPromptDraft(backend);
+            // Update the editor content directly
+            const editor = promptEditor();
+            if (editor) {
+                setEditorStateFromMarkdown(editor, backend);
+            }
+        }
+    };
 
     const promptMarkdown = useChatMarkdownArea({
         initialValue: promptDraft(),
         addAttachment: (_a: Attachment) => { },
+
     });
 
     // Keep the global override in sync while this playground is mounted.
@@ -329,9 +367,21 @@ export default function PromptPlayground() {
                     maxSize={900}
                 >
                     <div class="size-full min-h-0 overflow-hidden flex flex-col bg-panel border border-edge-muted rounded-none">
-                        <div class="shrink-0 h-10 px-3 flex items-center justify-between border-b border-edge-muted">
-                            <div class="text-sm font-semibold">Prompt</div>
-                            <div class="text-xs text-ink-muted">markdown</div>
+                        <div class="shrink-0 h-10 px-3 flex items-center justify-between border-b border-edge-muted gap-2">
+                            <div class="text-sm font-semibold text-left min-w-0 flex-1 truncate">
+                                Prompt
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Show when={backendPrompt()}>
+                                    <button
+                                        type="button"
+                                        onClick={loadBackendPrompt}
+                                        class="px-2 py-1 text-xs border border-edge bg-menu hover:bg-hover font-mono whitespace-nowrap"
+                                    >
+                                        Backend prompt
+                                    </button>
+                                </Show>
+                            </div>
                         </div>
                         <div class="flex-1 min-h-0 p-3 overflow-hidden">
                             <div class="h-full w-full border border-edge-muted bg-surface overflow-hidden">
@@ -353,6 +403,7 @@ export default function PromptPlayground() {
                                                 placeholder="Write a prompt here…"
                                                 dontFocusOnMount={true}
                                                 onChange={(value) => setPromptDraft(value)}
+                                                captureEditor={(editor) => setPromptEditor(editor)}
                                             />
                                         </div>
                                     </div>
