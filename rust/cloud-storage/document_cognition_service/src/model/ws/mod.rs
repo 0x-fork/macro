@@ -31,6 +31,10 @@ pub struct SendChatMessagePayload {
     /// Additional system instructions appended to the base system prompt
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_instructions: Option<String>,
+    /// Optional full system prompt override (Prompt Playground).
+    /// When provided, the backend will use this instead of its default system prompt.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_override: Option<String>,
     /// Use citation prompt
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attachments: Option<Vec<ChatAttachmentWithName>>,

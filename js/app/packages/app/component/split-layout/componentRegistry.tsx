@@ -99,6 +99,10 @@ if (LOCAL_ONLY) {
     lazy(() => import('@core/component/AI/component/debug/Tool'))
   );
   registerComponent(
+    'prompt-playground',
+    lazy(() => import('@app/component/rightbar/PromptPlayground'))
+  );
+  registerComponent(
     'new-form-primitives',
     lazy(
       () => import('@core/component/FormControls/debug/NewFormPrimitivesDemo')

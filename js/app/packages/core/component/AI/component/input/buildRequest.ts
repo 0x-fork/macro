@@ -1,5 +1,6 @@
 import { DEFAULT_MODEL } from '@core/component/AI/constant';
 import { useAdditionalInstructions } from '@core/component/AI/constant/prompts';
+import { promptOverride } from '@core/component/AI/signal/promptOverride';
 import type {
   Attachment,
   CreateAndSend,
@@ -59,6 +60,8 @@ export function useBuildChatSendRequest() {
       token,
       additional_instructions: additional,
       toolset,
+      // Playground-only override; ignored by backend until wired up there.
+      prompt_override: promptOverride(),
     });
 
     if (chatId !== undefined) {

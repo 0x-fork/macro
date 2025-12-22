@@ -6,7 +6,10 @@ import type { MessageStream } from '@service-cognition/websocket';
 
 export type SendChatMessageArgs = Parameters<
   (typeof cognitionWebsocketServiceClient)['sendStreamChatMessage']
->[0];
+>[0] & {
+  /** Optional system prompt override (playground/debug). */
+  prompt_override?: string;
+};
 
 export type CreateMessageArgs = Parameters<
   (typeof cognitionApiServiceClient)['createChat']

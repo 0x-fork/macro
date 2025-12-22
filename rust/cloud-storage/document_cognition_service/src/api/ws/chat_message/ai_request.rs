@@ -43,12 +43,7 @@ pub async fn build_chat_completion_request(
             .build(),
     );
 
-    let additional_instructions = incoming_message
-        .additional_instructions
-        .as_deref()
-        .unwrap_or_default();
-
-    let system_prompt = format!("{}\n{}", static_system_prompt, additional_instructions);
+    let system_prompt = system_prompt(incoming_message, static_system_prompt);
 
     Ok(RequestBuilder::new()
         .attachments(attachments)
@@ -57,4 +52,24 @@ pub async fn build_chat_completion_request(
         .system_prompt(system_prompt)
         .max_tokens(DEFAULT_MAX_TOKENS)
         .build())
+}
+
+fn system_prompt(request: &SendChatMessagePayload, static_system_prompt: &str) -> String {
+    let additional_instructions = request
+        .additional_instructions
+        .as_deref()
+        .unwrap_or_default();
+
+    let base_system_prompt = if let Some(prompt_override) = request.prompt_override.as_deref() {
+        if prompt_override.is_empty() {
+            static_system_prompt
+        } else {
+            prompt_override
+        }
+    } else {
+        static_system_prompt
+    };
+    
+
+    format!("{}\n{}", base_system_prompt, additional_instructions)
 }
