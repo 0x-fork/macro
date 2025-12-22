@@ -9,7 +9,7 @@ export function useHasPaidAccess() {
   return createMemo((): boolean => {
     if (isNativeMobilePlatform()) return true;
 
-    const [erru, info] = userInfo();
+    const [erru, info] = userInfo.latest;
     if (erru) return false;
     return (
       !!organizationId() ||
