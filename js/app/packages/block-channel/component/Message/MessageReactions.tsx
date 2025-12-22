@@ -1,7 +1,7 @@
 import {
   messageToReactionStore,
-  reactToMessage,
 } from '@block-channel/signal/reactions';
+import { useBlockId } from '@core/block';
 import { EmojiButton } from '@core/component/Emoji/EmojiButton';
 import { resolveEmojiFromUnicode } from '@core/component/Emoji/emojis';
 import clickOutside from '@core/directive/clickOutside';
@@ -9,6 +9,7 @@ import { touchHandler } from '@core/directive/touchHandler';
 import { idToDisplayName } from '@core/user';
 import Tooltip from '@corvu/tooltip';
 
+import { useToggleReactionMutation } from '@queries/channel/reaction';
 import { useUserId } from '@service-gql/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { createMemo, createSignal, For, Show } from 'solid-js';
@@ -22,7 +23,9 @@ type MessageReactionsProps = {
 };
 
 export function MessageReactions(props: MessageReactionsProps) {
+  const channelId = useBlockId();
   const userId = useUserId();
+  const toggleReaction = useToggleReactionMutation();
 
   const messageToReaction = messageToReactionStore.get;
 
@@ -30,9 +33,16 @@ export function MessageReactions(props: MessageReactionsProps) {
     return messageToReaction?.[props.messageId];
   };
 
-  const react = createCallback((emoji: string) =>
-    reactToMessage(emoji, props.messageId)
-  );
+  const react = createCallback((emoji: string) => {
+    const u = userId();
+    if (!u) return;
+    toggleReaction.mutate({
+      channelID: channelId,
+      messageID: props.messageId,
+      emoji,
+      userID: u,
+    });
+  });
 
   return (
     <Show when={reactionsForMessage() && reactionsForMessage().length > 0}>

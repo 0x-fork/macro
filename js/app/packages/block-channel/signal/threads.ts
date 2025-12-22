@@ -1,13 +1,9 @@
 import { createBlockSignal, createBlockStore } from '@core/block';
-import type { Message } from '@service-comms/generated/models/message';
+import type {
+  MessageWithThreadId,
+  ThreadStoreData,
+} from '@queries/channel/selectors';
 import { useSearchParams } from '@solidjs/router';
-
-// message/thread id -> thread
-export type ThreadStoreData = Record<string, MessageWithThreadId[]>;
-
-export type MessageWithThreadId = Message & {
-  thread_id: NonNullable<Message['thread_id']>;
-};
 
 /** stores all of the threads in the channel parent_message_id -> messages */
 export const threadsStore = createBlockStore<ThreadStoreData>({});

@@ -6,7 +6,6 @@ import { openedChannelSignal } from '@block-channel/signal/activity';
 import { messageToReactionStore } from '@block-channel/signal/reactions';
 import {
   type ThreadStoreData,
-  threadsStore,
 } from '@block-channel/signal/threads';
 import type {
   ThreadView,
@@ -119,6 +118,7 @@ export type TargetMessageInfo = { messageId: string; threadId?: string };
 export type MessageListProps = {
   channelId: string;
   messages: Message[];
+  threadsById: ThreadStoreData;
   latestActivity?: ChannelActivity;
   containerRef?: HTMLDivElement;
   targetMessage: Accessor<TargetMessageInfo | undefined>;
@@ -256,7 +256,7 @@ function MessageListImpl(props: MessageListProps) {
     createStore<MessageListContextLookup>({});
 
   const userId = useUserId();
-  const threads = threadsStore.get;
+  const threads = () => props.threadsById;
   const [viewThreads, setViewThreads] = createStore<ThreadStoreData>({});
 
   const [threadInputAttachmentsStore, setThreadInputAttachmentsStore] =
@@ -442,7 +442,7 @@ function MessageListImpl(props: MessageListProps) {
 
     for (const message of baseMessages) {
       const id = message.id;
-      const threadArr = threads[id] ?? [];
+      const threadArr = threads()[id] ?? [];
       const currentView = viewThreads[id];
       const isTypingThisThread = id === activeThreadId;
 
@@ -472,7 +472,7 @@ function MessageListImpl(props: MessageListProps) {
       prevTypingId !== currentTypingId &&
       dirtyTypingThreadId === prevTypingId
     ) {
-      const threadArr = untrack(() => threads[prevTypingId] ?? []);
+      const threadArr = untrack(() => threads()[prevTypingId] ?? []);
       setViewThreads(prevTypingId, reconcile(threadArr));
       dirtyTypingThreadId = undefined;
     }

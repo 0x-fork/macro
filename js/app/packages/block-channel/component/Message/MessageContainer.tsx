@@ -1,7 +1,8 @@
 import { useMessageListContext } from '@block-channel/component/MessageList/MessageList';
 import { COLLAPSED_THREAD_INDEX_CUTOFF } from '@block-channel/constants';
 import { messageAttachmentsStore } from '@block-channel/signal/attachment';
-import { reactToMessage } from '@block-channel/signal/reactions';
+import { useBlockId } from '@core/block';
+import { useToggleReactionMutation } from '@queries/channel/reaction';
 import type { MessageListContext } from '@block-channel/utils/listContext';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { channelTheme } from '@core/component/LexicalMarkdown/theme';
@@ -318,9 +319,18 @@ export function MessageContainer(props: MessageProps) {
     attachments().filter((a) => !isStaticAttachmentType(a.entity_type))
   );
 
-  const react = createCallback((emoji: string) =>
-    reactToMessage(emoji, message.id)
-  );
+  const channelId = useBlockId();
+  const toggleReaction = useToggleReactionMutation();
+  const react = createCallback((emoji: string) => {
+    const u = userId();
+    if (!u) return;
+    toggleReaction.mutate({
+      channelID: channelId,
+      messageID: message.id,
+      emoji,
+      userID: u,
+    });
+  });
 
   const onThreadAppend = () => {
     const threadId = message.thread_id;

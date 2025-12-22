@@ -8,6 +8,9 @@ import {
 import { commsServiceClient } from '@service-comms/client';
 import type { getChannelResponseError } from '@service-comms/generated/client';
 import type { GetChannelResponse } from '@service-comms/generated/models';
+import type { Attachment } from '@service-comms/generated/models/attachment';
+import type { CountedReaction } from '@service-comms/generated/models/countedReaction';
+import type { Message } from '@service-comms/generated/models/message';
 import {
   type QueryClient,
   type UseBaseQueryOptions,
@@ -15,6 +18,7 @@ import {
 } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
 import { queryClient } from '../client';
+import { patchQueryData, upsertById } from '../cache';
 import { channelKeys } from './keys';
 
 type ChannelQueryOptions = UseBaseQueryOptions<
@@ -126,5 +130,93 @@ export function optimisticUpdateChannelName(
 export function invalidateChannelWithID(channelID: string) {
   queryClient.invalidateQueries({
     queryKey: channelKeys.withID(channelID).queryKey,
+  });
+}
+
+/**
+ * Update cached channel query data (source-of-truth for channel server state).
+ * This is the recommended way for websocket events + optimistic UI to update channel state.
+ */
+export function updateChannelCache(
+  channelID: string,
+  updater: (prev: GetChannelResponse | undefined) => GetChannelResponse | undefined
+) {
+  patchQueryData<GetChannelResponse>(channelKeys.withID(channelID).queryKey, updater);
+}
+
+/**
+ * Upsert a message into the channel's cached messages array.
+ */
+export function upsertChannelMessageInCache(channelID: string, message: Message) {
+  updateChannelCache(channelID, (prev) => {
+    if (!prev) return prev;
+    return {
+      ...prev,
+      messages: upsertById(prev.messages ?? [], message),
+    };
+  });
+}
+
+/**
+ * Merge attachments into the channel cache (add/replace by attachment.id).
+ * Use this when websocket payload is "delta" / add-only.
+ */
+export function mergeChannelAttachmentsInCache(
+  channelID: string,
+  attachments: Attachment[]
+) {
+  updateChannelCache(channelID, (prev) => {
+    if (!prev) return prev;
+    const existing = prev.attachments ?? [];
+    let next = existing;
+    for (const a of attachments) {
+      next = upsertById(next, a);
+    }
+    return { ...prev, attachments: next };
+  });
+}
+
+/**
+ * Replace attachments for a specific message in the channel cache.
+ * Use this when websocket payload is authoritative for a message's attachments.
+ */
+export function replaceChannelMessageAttachmentsInCache(
+  channelID: string,
+  messageID: string,
+  attachments: Attachment[]
+) {
+  updateChannelCache(channelID, (prev) => {
+    if (!prev) return prev;
+    const remaining = (prev.attachments ?? []).filter(
+      (a) => a.message_id !== messageID
+    );
+    const deduped: Attachment[] = [];
+    const seen = new Set<string>();
+    for (const a of attachments) {
+      if (seen.has(a.id)) continue;
+      seen.add(a.id);
+      deduped.push(a);
+    }
+    return { ...prev, attachments: [...remaining, ...deduped] };
+  });
+}
+
+/**
+ * Set reactions for a message in the channel cache.
+ */
+export function setChannelMessageReactionsInCache(
+  channelID: string,
+  messageID: string,
+  reactions: CountedReaction[]
+) {
+  updateChannelCache(channelID, (prev) => {
+    if (!prev) return prev;
+    return {
+      ...prev,
+      reactions: {
+        ...(prev.reactions ?? {}),
+        [messageID]: reactions,
+      },
+    };
   });
 }

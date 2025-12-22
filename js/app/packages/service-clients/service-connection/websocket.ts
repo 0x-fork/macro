@@ -69,5 +69,6 @@ export function createConnectionBlockWebsocketEffect(
 export function createConnectionWebsocketEffect(
   callback: (data: FromWebsocketMessage) => void
 ) {
-  createSocketEffect(ws, callback);
+  const dispose = createSocketEffect(ws, callback);
+  return dispose;
 }

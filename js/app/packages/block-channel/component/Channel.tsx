@@ -12,7 +12,6 @@ import {
   isValidChannelDragSignal,
 } from '@block-channel/signal/attachment';
 import {
-  channelStore,
 } from '@block-channel/signal/channel';
 import { activeThreadIdSignal } from '@block-channel/signal/threads';
 import { handleFileUpload } from '@block-channel/utils/inputAttachments';
@@ -34,6 +33,7 @@ import type { InputAttachment } from '@core/store/cacheChannelInput';
 import { handleFileFolderDrop } from '@core/util/upload';
 import { ChannelDebouncedNotificationReadMarker } from '@notifications';
 import { useChannelQuery } from '@queries/channel/channel';
+import { groupChannelMessages } from '@queries/channel/selectors';
 import type { Message } from '@service-comms/generated/models';
 import { connectionGatewayClient } from '@service-connection/client';
 import { createCallback } from '@solid-primitives/rootless';
@@ -87,8 +87,9 @@ export function Channel(props: {
   data: Required<ChannelData>;
   target?: TargetMessageInfo;
 }) {
-  const channelStoreData = channelStore.get;
   const channel = useChannelQuery(() => props.data.channel.id);
+
+  const grouped = () => groupChannelMessages(channel.data?.messages ?? []);
 
   const [_activeThreadId, setActiveThreadId] = activeThreadIdSignal;
   const latestActivity = latestActivitySignal.get;
@@ -360,7 +361,8 @@ export function Channel(props: {
           />
           <MessageList
             channelId={channelId}
-            messages={channelStoreData.messages}
+            messages={grouped().topLevel}
+            threadsById={grouped().threadsById}
             focusedMessageId={focusedMessageId}
             setFocusedMessageId={setFocusedMessageId}
             targetMessage={targetMessage}

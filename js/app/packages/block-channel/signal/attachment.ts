@@ -1,10 +1,7 @@
 import { createBlockSignal, createBlockStore } from '@core/block';
 import { isStaticAttachmentType } from '@core/store/cacheChannelInput';
 import type { Attachment } from '@service-comms/generated/models/attachment';
-import { createConnectionBlockWebsocketEffect } from '@service-connection/websocket';
-import { useUserId } from '@service-gql/client';
 import { isItemType } from '@service-storage/client';
-import { channelStore } from './channel';
 
 export const isDraggingOverChannelSignal = createBlockSignal(false);
 export const isValidChannelDragSignal = createBlockSignal(true);
@@ -40,29 +37,6 @@ export function initializeAttachments(attachments: Attachment[]) {
   setAttachmentsStore(grouped);
 }
 
-export function addAttachmentToMessage(attachment: Attachment) {
-  const setAttachmentsStore = messageAttachmentsStore.set;
-  setAttachmentsStore(attachment.message_id, (prev) => [
-    ...(prev ?? []),
-    attachment,
-  ]);
-}
-
-createConnectionBlockWebsocketEffect((msg) => {
-  if (msg.type === 'comms_attachment') {
-    const userId_ = useUserId();
-    const userId = userId_();
-    const channel = channelStore.get;
-    const channelId = channel?.channel?.id;
-    if (!channelId || !userId) return;
-    let value = JSON.parse(msg.data as any);
-
-    const { channel_id: targetChannelId, attachments } = value;
-
-    if (targetChannelId === channelId) {
-      for (const attachment of attachments) {
-        addAttachmentToMessage(attachment);
-      }
-    }
-  }
-});
+// Websocket-driven attachment updates now happen in the query layer (`@queries/channel/realtime`),
+// which patches the channel query cache (source of truth). This store is hydrated
+// from the query via `initializeChannelData`.

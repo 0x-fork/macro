@@ -1,6 +1,8 @@
-import { reactToMessage } from '@block-channel/signal/reactions';
+import { useBlockId } from '@core/block';
 import { IconButton } from '@core/component/IconButton';
 import clickOutside from '@core/directive/clickOutside';
+import { useToggleReactionMutation } from '@queries/channel/reaction';
+import { useUserId } from '@service-gql/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { type Component, For, type Setter } from 'solid-js';
 import { ReactionSelector } from '../ReactionSelector';
@@ -20,12 +22,22 @@ export function ActionMenu(props: {
   actions: MessageAction[];
   setReactionMenuActivated?: Setter<boolean>;
 }) {
+  const channelId = useBlockId();
+  const userId = useUserId();
+  const toggleReaction = useToggleReactionMutation();
   // default emojis
   const defaultEmojis = ['❤️', '👍', '😂'];
 
-  const react = createCallback((emoji: string) =>
-    reactToMessage(emoji, props.messageId)
-  );
+  const react = createCallback((emoji: string) => {
+    const u = userId();
+    if (!u) return;
+    toggleReaction.mutate({
+      channelID: channelId,
+      messageID: props.messageId,
+      emoji,
+      userID: u,
+    });
+  });
   return (
     <div class="flex flex-row bg-menu items-center allow-css-brackets">
       <For each={defaultEmojis}>

@@ -8,6 +8,7 @@ import { useChannelName } from '@core/component/ChannelsProvider';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { useChannelQuery } from '@queries/channel/channel';
 import { useJoinChannelMutation } from '@queries/channel/join';
+import { useChannelRealtime } from '@queries/channel/realtime';
 import { useUserId } from '@service-gql/client';
 import { createEffect, createSignal, type JSXElement, Match, Switch } from 'solid-js';
 import { Channel } from './Channel';
@@ -26,6 +27,7 @@ export type BlockChannelProps = {
 
 export default function BlockChannel(props: BlockChannelProps) {
   const channelId = useBlockId();
+  useChannelRealtime(() => channelId);
 
   const channel = useChannelQuery(
     () => channelId,
