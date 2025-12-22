@@ -285,72 +285,83 @@ export default function PromptPlayground() {
     });
 
     return (
-        <div class="relative flex flex-col justify-between w-full h-full">
-            {/* Match the way the app mounts resizable panels in `Layout.tsx` */}
-            <div class="p-[var(--gutter-size)] grow-1">
-                <Resize.Zone
-                    id="prompt-playground"
-                    gutter={8}
-                    direction="horizontal"
-                    class="flex-1 w-full min-h-0 font-sans text-ink caret-accent"
-                >
-                    <Resize.Panel id="prompt-playground-chat" minSize={440}>
-                        <div class="size-full min-h-0 overflow-hidden">
-                            <Show
-                                when={isAuthenticated()}
-                                fallback={
-                                    <div class="p-3 text-white font-mono text-sm bg-red-700">
-                                        Prompt Playground is mounted, but you are not authenticated (chat UI hidden).
-                                    </div>
-                                }
-                            >
-                                <Rightbar
-                                    showTopBar={false}
-                                    chatId={chatId()}
-                                    chatName={chatName()}
-                                    messages={messages}
-                                    onUnmount={getChatInputState}
-                                    initialState={initialChatState()}
-                                    onSend={onSend}
-                                    stream={stream}
-                                    setState={{
-                                        setChatId,
-                                        setModel,
-                                        setAttachments,
-                                        setText,
-                                        setMessages,
-                                        setStream,
-                                    }}
-                                />
-                            </Show>
-                        </div>
-                    </Resize.Panel>
+        <div class="relative flex flex-col w-full h-full">
+            <Resize.Zone
+                id="prompt-playground"
+                gutter={8}
+                direction="horizontal"
+                class="flex-1 w-full min-h-0"
+            >
+                <Resize.Panel id="prompt-playground-chat" minSize={440}>
+                    <div class="size-full min-h-0 overflow-hidden border border-edge-muted rounded-none">
+                        <Show
+                            when={isAuthenticated()}
+                            fallback={
+                                <div class="p-3 text-white font-mono text-sm bg-red-700">
+                                    Prompt Playground is mounted, but you are not authenticated (chat UI hidden).
+                                </div>
+                            }
+                        >
+                            <Rightbar
+                                chatId={chatId()}
+                                chatName={chatName()}
+                                messages={messages}
+                                onUnmount={getChatInputState}
+                                initialState={initialChatState()}
+                                onSend={onSend}
+                                stream={stream}
+                                setState={{
+                                    setChatId,
+                                    setModel,
+                                    setAttachments,
+                                    setText,
+                                    setMessages,
+                                    setStream,
+                                }}
+                            />
+                        </Show>
+                    </div>
+                </Resize.Panel>
 
-                    <Resize.Panel
-                        id="prompt-playground-prompt"
-                        minSize={360}
-                        maxSize={900}
-                    >
-                        <div class="size-full min-h-0 overflow-hidden flex flex-col bg-panel">
-                            <div class="shrink-0 h-10 px-3 flex items-center justify-between border-b border-edge-muted">
-                                <div class="text-sm font-semibold">Prompt</div>
-                                <div class="text-xs text-ink-muted">markdown</div>
-                            </div>
-                            <div class="flex-1 min-h-0 p-3 overflow-hidden">
-                                <div class="h-full w-full border border-edge-muted bg-surface overflow-hidden">
-                                    <div class="h-full w-full overflow-auto px-3 py-2 text-ink">
-                                        <promptMarkdown.MarkdownArea
-                                            placeholder="Write a prompt here…"
-                                            dontFocusOnMount={true}
-                                            onChange={(value) => setPromptDraft(value)}
-                                        />
+                <Resize.Panel
+                    id="prompt-playground-prompt"
+                    minSize={360}
+                    maxSize={900}
+                >
+                    <div class="size-full min-h-0 overflow-hidden flex flex-col bg-panel border border-edge-muted rounded-none">
+                        <div class="shrink-0 h-10 px-3 flex items-center justify-between border-b border-edge-muted">
+                            <div class="text-sm font-semibold">Prompt</div>
+                            <div class="text-xs text-ink-muted">markdown</div>
+                        </div>
+                        <div class="flex-1 min-h-0 p-3 overflow-hidden">
+                            <div class="h-full w-full border border-edge-muted bg-surface overflow-hidden">
+                                <div class="h-full w-full px-3 py-2">
+                                    <div class="h-full">
+                                        <style>
+                                            {`
+                                                #prompt-markdown-area-wrapper > div {
+                                                    height: 100% !important;
+                                                }
+                                                #prompt-markdown-area-wrapper > div > div {
+                                                    max-height: none !important;
+                                                    height: 100% !important;
+                                                }
+                                            `}
+                                        </style>
+                                        <div id="prompt-markdown-area-wrapper" class="h-full">
+                                            <promptMarkdown.MarkdownArea
+                                                placeholder="Write a prompt here…"
+                                                dontFocusOnMount={true}
+                                                onChange={(value) => setPromptDraft(value)}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </Resize.Panel>
-                </Resize.Zone>
-            </div>
+                    </div>
+                </Resize.Panel>
+            </Resize.Zone>
         </div>
     );
 }
