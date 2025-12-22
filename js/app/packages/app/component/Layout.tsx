@@ -157,8 +157,10 @@ export function Layout(props: RouteSectionProps) {
             <Resize.Panel id={LAYOUT_CONTEXT_ID} minSize={250}>
               {props.children}
             </Resize.Panel>
-            <RightbarWrapper />
-            <SettingsWrapper />
+            <Suspense>
+              <RightbarWrapper />
+              <SettingsWrapper />
+            </Suspense>
           </ItemDndProvider>
         </Resize.Zone>
       </div>
