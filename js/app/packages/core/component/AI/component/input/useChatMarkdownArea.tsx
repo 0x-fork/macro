@@ -70,6 +70,7 @@ import {
   createSignal,
   type JSXElement,
   onCleanup,
+  onMount,
   type Setter,
   Show,
 } from 'solid-js';
