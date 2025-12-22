@@ -1,6 +1,3 @@
-import {
-  messageToReactionStore,
-} from '@block-channel/signal/reactions';
 import { useBlockId } from '@core/block';
 import { EmojiButton } from '@core/component/Emoji/EmojiButton';
 import { resolveEmojiFromUnicode } from '@core/component/Emoji/emojis';
@@ -14,6 +11,7 @@ import { useUserId } from '@service-gql/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { ReactionSelector } from '../ReactionSelector';
+import { useChannelContext } from '../ChannelContext';
 
 false && clickOutside;
 false && touchHandler;
@@ -26,11 +24,10 @@ export function MessageReactions(props: MessageReactionsProps) {
   const channelId = useBlockId();
   const userId = useUserId();
   const toggleReaction = useToggleReactionMutation();
-
-  const messageToReaction = messageToReactionStore.get;
+  const { reactionsByMessageId } = useChannelContext();
 
   const reactionsForMessage = () => {
-    return messageToReaction?.[props.messageId];
+    return reactionsByMessageId()[props.messageId];
   };
 
   const react = createCallback((emoji: string) => {

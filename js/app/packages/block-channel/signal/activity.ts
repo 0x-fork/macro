@@ -3,7 +3,7 @@ import {
   useChannelsContext,
   useLatestActivityForChannel,
 } from '@core/component/ChannelsProvider';
-import { commsServiceClient } from '@service-comms/client';
+import { postChannelActivity } from '@queries/channel/activity';
 import type { Activity as ChannelActivity } from '@service-comms/generated/models/activity';
 
 import { channelStore } from './channel';
@@ -31,10 +31,7 @@ export async function updateActivityOnChannelOpen() {
 
   setOpenedChannel(new Date());
 
-  await commsServiceClient.postActivity({
-    activity_type: 'view',
-    channel_id: channelId,
-  });
+  await postChannelActivity({ channelID: channelId, activityType: 'view' });
 
   channelsContext.refetchActivity();
 }
@@ -44,10 +41,7 @@ export async function updateActivityOnChannelClose() {
   const channelId = channel?.channel?.id;
   if (!channelId) return;
 
-  await commsServiceClient.postActivity({
-    activity_type: 'view',
-    channel_id: channelId,
-  });
+  await postChannelActivity({ channelID: channelId, activityType: 'view' });
 }
 
 export async function updateActivityOnMessageReceived(

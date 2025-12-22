@@ -158,6 +158,27 @@ export function upsertChannelMessageInCache(channelID: string, message: Message)
 }
 
 /**
+ * Replace a message id in the channel cache (used for optimistic temp ids).
+ */
+export function replaceChannelMessageIdInCache(
+  channelID: string,
+  fromId: string,
+  toId: string
+) {
+  updateChannelCache(channelID, (prev) => {
+    if (!prev) return prev;
+    const msgs = prev.messages ?? [];
+    const idx = msgs.findIndex((m) => m.id === fromId);
+    if (idx === -1) return prev;
+    const existing = msgs[idx]!;
+    const nextMsg: Message = { ...existing, id: toId };
+    const nextMsgs = msgs.slice();
+    nextMsgs[idx] = nextMsg;
+    return { ...prev, messages: nextMsgs };
+  });
+}
+
+/**
  * Merge attachments into the channel cache (add/replace by attachment.id).
  * Use this when websocket payload is "delta" / add-only.
  */

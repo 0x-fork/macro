@@ -3,8 +3,7 @@ import { getDestinationFromOptions } from '@core/component/NewMessage';
 import type { InputAttachment } from '@core/store/cacheChannelInput';
 import type { WithCustomUserInput } from '@core/user';
 import { useSendMessageToPeople } from '@core/util/channels';
-import { isErr } from '@core/util/maybeResult';
-import { commsServiceClient } from '@service-comms/client';
+import { useCreateChannelMutation } from '@queries/channel/create';
 import type { SimpleMention } from '@service-comms/generated/models/simpleMention';
 import { createSignal, Show } from 'solid-js';
 import { BaseInput } from './BaseInput';
@@ -22,6 +21,7 @@ export function DraftChannelInput(props: {
 
   const [error, setError] = createSignal(false);
   const [errorMsg, setErrorMsg] = createSignal('');
+  const createChannel = useCreateChannelMutation();
 
   function failure(msg: string) {
     setError(true);
@@ -63,17 +63,12 @@ export function DraftChannelInput(props: {
         props.channelName() &&
         destination.users.length > 1
       ) {
-        const res = await commsServiceClient.createChannel({
+        const res = await createChannel.mutateAsync({
           channel_type: 'private',
           name: props.channelName() ?? null,
           participants: destination.users,
         });
-        if (isErr(res)) {
-          const e = 'Could not create channel';
-          failure(e);
-          throw new Error(e);
-        }
-        const [, { id }] = res;
+        const id = res.id;
         await sendToChannel({
           channelId: id,
           content: args.content || '',

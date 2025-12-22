@@ -4,8 +4,8 @@ import {
   type SendMessageArgs,
   useSendChannelMessageAction,
 } from '@block-channel/signal/channel';
-import type { ThreadStoreData } from '@block-channel/signal/threads';
-import { postTypingUpdate } from '@block-channel/signal/typing';
+import type { ThreadStoreData } from '@queries/channel/selectors';
+import { useChannelContext } from './ChannelContext';
 import {
   clearDraftMessage,
   loadDraftMessage,
@@ -39,8 +39,11 @@ export type ReplyInputsPortalerProps = {
 export function ReplyInputsPortaler(props: ReplyInputsPortalerProps) {
   const listContext = useMessageListContext();
   const sendMessage = useSendChannelMessageAction(() => props.channelId);
-
-  const postTypingUpdate_ = createCallback(postTypingUpdate);
+  const { postTypingUpdate } = useChannelContext();
+  const postTypingUpdate_ = createCallback(
+    (action: 'start' | 'stop', threadId?: string) =>
+      postTypingUpdate({ action, threadId })
+  );
   const blockRef = blockElementSignal.get;
 
   const channel = channelStore.get;

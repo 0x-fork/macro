@@ -1,6 +1,6 @@
 import { ImageGalleryPreview } from '@core/component/ImageGalleryPreview';
 import { ImagePreview } from '@core/component/ImagePreview';
-import { commsServiceClient } from '@service-comms/client';
+import { useDeleteMessageAttachmentMutation } from '@queries/channel/message';
 import { Match, Switch } from 'solid-js';
 
 type ImageData = {
@@ -21,13 +21,15 @@ type DynamicImageListProps = {
 
 // TODO: wip
 export function DynamicImageList(props: DynamicImageListProps) {
+  const deleteAttachment = useDeleteMessageAttachmentMutation();
+
   const handleDelete = async (attachmentId: string) => {
     if (!props.isCurrentUser || !props.channelId || !props.messageId) return;
-    await commsServiceClient.patchMessage({
-      channel_id: props.channelId,
-      message_id: props.messageId,
+    await deleteAttachment.mutateAsync({
+      channelID: props.channelId,
+      messageID: props.messageId,
+      attachmentID: attachmentId,
       content: props.content,
-      attachment_ids_to_delete: [attachmentId],
     });
   };
 

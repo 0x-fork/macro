@@ -10,7 +10,6 @@ import { useMutation } from '@tanstack/solid-query';
 import { untilMessage } from '@websocket';
 import { ws, type FromWebsocketMessage } from '@service-connection/websocket';
 import { queryClient } from '../client';
-import { setChannelMessageReactionsInCache } from './channel';
 import { channelKeys } from './keys';
 
 const { track } = withAnalytics();
@@ -36,18 +35,46 @@ function computeAction(
   return didReact ? 'Remove' : 'Add';
 }
 
-function safeParse<T = any>(data: unknown): T | undefined {
+type ReactionUpdatePayload = Readonly<{
+  channel_id: string;
+  message_id: string;
+  reactions: CountedReaction[];
+}>;
+
+function safeParseJson(data: unknown): unknown | undefined {
   if (typeof data !== 'string') return undefined;
   try {
-    return JSON.parse(data) as T;
+    return JSON.parse(data) as unknown;
   } catch {
     return undefined;
   }
 }
 
+function isReactionUpdatePayload(x: unknown): x is ReactionUpdatePayload {
+  if (!x || typeof x !== 'object') return false;
+  const v = x as Record<string, unknown>;
+  return (
+    typeof v.channel_id === 'string' &&
+    typeof v.message_id === 'string' &&
+    Array.isArray(v.reactions)
+  );
+}
+
+function didUserReact(
+  reactions: readonly CountedReaction[],
+  emoji: string,
+  userID: string
+): boolean {
+  const row = reactions.find((r) => r.emoji === emoji);
+  return !!row?.users?.includes(userID);
+}
+
 async function awaitReactionUpdate(params: {
   channelID: string;
   messageID: string;
+  emoji: string;
+  userID: string;
+  expectedAction: ReactionAction;
   timeoutMs: number;
 }): Promise<{ reactions: CountedReaction[] } | undefined> {
   const msg = await raceTimeout(
@@ -55,19 +82,23 @@ async function awaitReactionUpdate(params: {
       if (m.type !== 'comms_reaction' && m.type !== 'comms_reaction_update') {
         return false;
       }
-      const value = safeParse<any>(m.data);
-      if (!value || typeof value !== 'object') return false;
-      if (value.channel_id !== params.channelID) return false;
-      if (value.message_id !== params.messageID) return false;
-      return Array.isArray(value.reactions);
+      const raw = safeParseJson(m.data);
+      if (!isReactionUpdatePayload(raw)) return false;
+      if (raw.channel_id !== params.channelID) return false;
+      if (raw.message_id !== params.messageID) return false;
+
+      // Avoid consuming a stale/other update: ensure the received reactions reflect
+      // the expected post-mutation state for *this user + emoji*.
+      const reacted = didUserReact(raw.reactions, params.emoji, params.userID);
+      return params.expectedAction === 'Add' ? reacted : !reacted;
     }),
     params.timeoutMs
   );
 
   if (!msg) return undefined;
-  const value = safeParse<any>(msg.data);
-  if (!value || !Array.isArray(value.reactions)) return undefined;
-  return { reactions: value.reactions as CountedReaction[] };
+  const raw = safeParseJson(msg.data);
+  if (!isReactionUpdatePayload(raw)) return undefined;
+  return { reactions: raw.reactions };
 }
 
 /**
@@ -77,7 +108,12 @@ async function awaitReactionUpdate(params: {
  * - Awaits websocket confirmation (untilMessage + timeout)
  */
 export function useToggleReactionMutation(
-  callbacks?: MutationCallbacks<void, Error, ToggleReactionParams, ToggleReactionContext>
+  callbacks?: MutationCallbacks<
+    void,
+    Error,
+    ToggleReactionParams,
+    ToggleReactionContext
+  >
 ) {
   return useMutation(() => ({
     mutationFn: async (vars: ToggleReactionParams) => {
@@ -85,6 +121,18 @@ export function useToggleReactionMutation(
         channelKeys.withID(vars.channelID).queryKey
       );
       const action = computeAction(prev, vars);
+
+      // IMPORTANT: Start listening *before* we send the mutation request,
+      // otherwise the websocket update could arrive while the request is in-flight.
+      const updatePromise = awaitReactionUpdate({
+        channelID: vars.channelID,
+        messageID: vars.messageID,
+        emoji: vars.emoji,
+        userID: vars.userID,
+        expectedAction: action,
+        timeoutMs: 5000,
+      });
+
       await throwOnErr(
         async () =>
           await commsServiceClient.postReaction({
@@ -96,16 +144,10 @@ export function useToggleReactionMutation(
       );
 
       // Wait for server-confirmed reaction state via websocket update.
-      const update = await awaitReactionUpdate({
-        channelID: vars.channelID,
-        messageID: vars.messageID,
-        timeoutMs: 2500,
-      });
+      const update = await updatePromise;
       if (!update) {
         throw new Error('Timed out waiting for reaction update');
       }
-
-      setChannelMessageReactionsInCache(vars.channelID, vars.messageID, update.reactions);
 
       // Track after confirmation (matches server action).
       track(TrackingEvents.BLOCKCHANNEL.MESSAGE.REACTION, {
@@ -132,5 +174,3 @@ export function useToggleReactionMutation(
     ),
   }));
 }
-
-

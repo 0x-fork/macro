@@ -3,6 +3,9 @@ import type { FromWebsocketMessage } from '@service-connection/websocket';
 import { createEffect, onCleanup } from 'solid-js';
 import type { Accessor } from 'solid-js';
 import { match } from 'ts-pattern';
+import type { Attachment } from '@service-comms/generated/models/attachment';
+import type { CountedReaction } from '@service-comms/generated/models/countedReaction';
+import type { Message } from '@service-comms/generated/models/message';
 import {
   mergeChannelAttachmentsInCache,
   replaceChannelMessageAttachmentsInCache,
@@ -10,13 +13,110 @@ import {
   upsertChannelMessageInCache,
 } from './channel';
 
-function safeParse<T = any>(data: unknown): T | undefined {
+function safeParseJson(data: unknown): unknown | undefined {
   if (typeof data !== 'string') return undefined;
   try {
-    return JSON.parse(data) as T;
+    return JSON.parse(data) as unknown;
   } catch {
     return undefined;
   }
+}
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return !!x && typeof x === 'object';
+}
+
+function isString(x: unknown): x is string {
+  return typeof x === 'string';
+}
+
+function isStringArray(x: unknown): x is string[] {
+  return Array.isArray(x) && x.every((v) => typeof v === 'string');
+}
+
+function isCountedReaction(x: unknown): x is CountedReaction {
+  if (!isRecord(x)) return false;
+  return isString(x.emoji) && isStringArray(x.users);
+}
+
+function isCountedReactionArray(x: unknown): x is CountedReaction[] {
+  return Array.isArray(x) && x.every(isCountedReaction);
+}
+
+function isAttachment(x: unknown): x is Attachment {
+  if (!isRecord(x)) return false;
+  return (
+    isString(x.id) &&
+    isString(x.channel_id) &&
+    isString(x.message_id) &&
+    isString(x.entity_id) &&
+    isString(x.entity_type) &&
+    isString(x.created_at)
+  );
+}
+
+function isAttachmentArray(x: unknown): x is Attachment[] {
+  return Array.isArray(x) && x.every(isAttachment);
+}
+
+function isMessage(x: unknown): x is Message {
+  if (!isRecord(x)) return false;
+  // Validate required Message fields. Optional fields are allowed to be absent.
+  return (
+    isString(x.id) &&
+    isString(x.channel_id) &&
+    isString(x.sender_id) &&
+    isString(x.content) &&
+    isString(x.created_at) &&
+    isString(x.updated_at)
+  );
+}
+
+type ChannelWsEvent =
+  | Readonly<{ type: 'comms_message'; message: Message }>
+  | Readonly<{
+      type: 'comms_reaction_update';
+      messageID: string;
+      reactions: CountedReaction[];
+    }>
+  | Readonly<{
+      type: 'comms_attachment';
+      messageID?: string;
+      attachments: Attachment[];
+    }>;
+
+function decodeChannelWsEvent(
+  msg: FromWebsocketMessage,
+  activeChannelId: string
+): ChannelWsEvent | undefined {
+  const raw = safeParseJson(msg.data);
+  if (!isRecord(raw)) return undefined;
+  if (raw.channel_id !== activeChannelId) return undefined;
+
+  return match(msg.type)
+    .with('comms_message', () => {
+      if (!isMessage(raw)) return undefined;
+      return { type: 'comms_message', message: raw };
+    })
+    .with('comms_reaction', 'comms_reaction_update', () => {
+      if (!isString(raw.message_id)) return undefined;
+      if (!isCountedReactionArray(raw.reactions)) return undefined;
+      return {
+        type: 'comms_reaction_update',
+        messageID: raw.message_id,
+        reactions: raw.reactions,
+      };
+    })
+    .with('comms_attachment', () => {
+      if (!isAttachmentArray(raw.attachments)) return undefined;
+      const messageID = isString(raw.message_id) ? raw.message_id : undefined;
+      return {
+        type: 'comms_attachment',
+        messageID,
+        attachments: raw.attachments,
+      };
+    })
+    .otherwise(() => undefined);
 }
 
 /**
@@ -36,35 +136,28 @@ export function useChannelRealtime(channelId: Accessor<string | undefined>) {
     const activeId = currentChannelId;
     if (!activeId) return;
 
-    const value = safeParse<any>(msg.data);
-    if (!value || typeof value !== 'object') return;
+    const event = decodeChannelWsEvent(msg, activeId);
+    if (!event) return;
 
-    const targetChannelId = value.channel_id;
-    if (targetChannelId !== activeId) return;
-
-    match(msg.type)
-      .with('comms_message', () => {
-        upsertChannelMessageInCache(activeId, value);
+    match(event)
+      .with({ type: 'comms_message' }, (e) => {
+        upsertChannelMessageInCache(activeId, e.message);
       })
-      .with('comms_reaction', 'comms_reaction_update', () => {
-        if (!value.message_id || !Array.isArray(value.reactions)) return;
-        setChannelMessageReactionsInCache(
-          activeId,
-          value.message_id,
-          value.reactions
-        );
+      .with({ type: 'comms_reaction_update' }, (e) => {
+        setChannelMessageReactionsInCache(activeId, e.messageID, e.reactions);
       })
-      .with('comms_attachment', () => {
-        const attachments = value.attachments;
-        if (!Array.isArray(attachments)) return;
-        const messageId = value.message_id;
-        if (messageId) {
-          replaceChannelMessageAttachmentsInCache(activeId, messageId, attachments);
+      .with({ type: 'comms_attachment' }, (e) => {
+        if (e.messageID) {
+          replaceChannelMessageAttachmentsInCache(
+            activeId,
+            e.messageID,
+            e.attachments
+          );
         } else {
-          mergeChannelAttachmentsInCache(activeId, attachments);
+          mergeChannelAttachmentsInCache(activeId, e.attachments);
         }
       })
-      .otherwise(() => {});
+      .exhaustive();
   });
 
   onCleanup(() => dispose?.());

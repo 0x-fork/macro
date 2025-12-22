@@ -1,8 +1,6 @@
 import { SplitDrawer } from '@app/component/split-layout/components/SplitDrawer';
 import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
 import { messageAttachmentsStore } from '@block-channel/signal/attachment';
-import { channelStore } from '@block-channel/signal/channel';
-import { threadsStore } from '@block-channel/signal/threads';
 import { type BlockAlias, type BlockName, useBlockId } from '@core/block';
 import { InlineItemPreview } from '@core/component/ItemPreview';
 import { toast } from '@core/component/Toast/Toast';
@@ -15,14 +13,15 @@ import {
   useItemPreview,
 } from '@core/signal/preview';
 import { useDisplayName } from '@core/user';
-import { isErr } from '@core/util/maybeResult';
 import BracketLeft from '@macro-icons/macro-group-bracket-left.svg';
 import PaperclipIcon from '@phosphor-icons/core/regular/paperclip.svg?component-solid';
-import { commsServiceClient } from '@service-comms/client';
+import { useChannelQuery } from '@queries/channel/channel';
+import { useChannelMentionsQuery } from '@queries/channel/mentions';
 import type { MessageMention } from '@service-comms/generated/models';
 import type { Attachment } from '@service-comms/generated/models/attachment';
+import type { Message } from '@service-comms/generated/models/message';
 import type { ItemType } from '@service-storage/client';
-import { createMemo, createResource, Show } from 'solid-js';
+import { createMemo, Show } from 'solid-js';
 import { VList } from 'virtua/solid';
 import { useSplitLayout } from '../../app/component/split-layout/layout';
 
@@ -32,26 +31,26 @@ export function AttachmentsModal() {
   const drawerControl = useDrawerControl(DRAWER_ID);
   const currentBlockId = useBlockId();
   const { replaceOrInsertSplit } = useSplitLayout();
+  const channel = useChannelQuery(() => currentBlockId);
 
-  const [mentionsResource] = createResource(() =>
-    commsServiceClient.getMentions({ channel_id: currentBlockId })
-  );
+  const messagesById = createMemo<Record<string, Message>>(() => {
+    const msgs = channel.data?.messages ?? [];
+    const map: Record<string, Message> = {};
+    for (const m of msgs) {
+      if (m?.id) map[m.id] = m;
+    }
+    return map;
+  });
+
+  const mentionsQuery = useChannelMentionsQuery(() => currentBlockId);
 
   const attachments = createMemo(() => {
-    if (mentionsResource.loading || mentionsResource.error) return [];
-
     const mentions: Attachment[] = (() => {
-      let res = mentionsResource();
-      if (!res || isErr(res)) {
-        console.error('failed to get mentions', res);
-        return [];
-      }
-
-      const mentions = (res[1] ?? { mentions: [] }).mentions.map((m) =>
+      const data = mentionsQuery.data;
+      if (!data) return [];
+      return (data.mentions ?? []).map((m) =>
         makeAttachmentFromMention(m, currentBlockId)
       );
-
-      return mentions;
     })();
 
     const all = [...(messageAttachmentsStore.get.all || []), ...mentions];
@@ -107,6 +106,7 @@ export function AttachmentsModal() {
                   {(attachment) => (
                     <AttachmentItem
                       attachment={attachment}
+                      messagesById={messagesById}
                       onNavigate={navigateToItem}
                     />
                   )}
@@ -136,18 +136,14 @@ function makeAttachmentFromMention(
 
 type AttachmentItemProps = {
   attachment: Attachment;
+  messagesById: () => Record<string, Message>;
   onNavigate: (blockName: BlockName | BlockAlias, blockId: string) => void;
 };
 
 function AttachmentItem(props: AttachmentItemProps) {
   const message = createMemo(() => {
-    const channel = channelStore.get;
-    const threads = threadsStore.get;
-    const allMessages = [
-      ...(channel.messages || []),
-      ...Object.values(threads || {}).flat(),
-    ];
-    return allMessages.find((msg) => msg.id === props.attachment.message_id);
+    const map = props.messagesById();
+    return map[props.attachment.message_id];
   });
 
   const senderId = () => message()?.sender_id || '';

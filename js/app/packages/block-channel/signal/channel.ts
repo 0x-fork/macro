@@ -9,16 +9,11 @@ import {
 } from '@core/store/cacheChannelInput';
 import { isErr } from '@core/util/maybeResult';
 import { getImageDimensions, getVideoDimensions } from '@core/util/media';
-import {
-  forceRefetchChannel,
-  upsertChannelMessageInCache,
-} from '@queries/channel/channel';
+import { forceRefetchChannel } from '@queries/channel/channel';
 import { useSendMessageMutation } from '@queries/channel/message';
-import { commsServiceClient } from '@service-comms/client';
 import type { NewAttachment } from '@service-comms/generated/models';
 import type { Channel } from '@service-comms/generated/models/channel';
 import type { ChannelParticipant } from '@service-comms/generated/models/channelParticipant';
-import type { Message } from '@service-comms/generated/models/message';
 import type { ParticipantAccess } from '@service-comms/generated/models/participantAccess';
 import type { SimpleMention } from '@service-comms/generated/models/simpleMention';
 import { useUserId } from '@service-gql/client';
@@ -27,17 +22,12 @@ import { createCallback } from '@solid-primitives/rootless';
 import { toast } from 'core/component/Toast/Toast';
 import type { Accessor } from 'solid-js';
 import { initializeAttachments } from './attachment';
-import { messageToReactionStore } from './reactions';
 import {
-  type MessageWithThreadId,
-  type ThreadStoreData,
-  threadsStore,
 } from './threads';
 
 const { track } = withAnalytics();
 
 type ChannelStoreData = {
-  messages: Message[];
   channel: Channel | undefined;
   participants: ChannelParticipant[];
   id: string | undefined;
@@ -45,7 +35,6 @@ type ChannelStoreData = {
 };
 
 export const channelStore = createBlockStore<ChannelStoreData>({
-  messages: [],
   channel: undefined,
   participants: [],
   id: undefined,
@@ -72,13 +61,11 @@ export function isValidChannelData(
 }
 
 export function doesChannelRequireJoin(
-  data: Required<ChannelData>,
-  userId: string
+  data: Required<ChannelData>
 ) {
-  return (
-    data.channel.channel_type === 'public' &&
-    data.participants.find((p) => p.user_id === userId) === undefined
-  );
+  // Prefer the server-provided access union over scanning participants.
+  // If the user isn't a participant in a public channel, access is typically 'NoAccess'.
+  return data.channel.channel_type === 'public' && data.access === 'NoAccess';
 }
 
 export async function refetchChannelData(channelId: string) {
@@ -99,71 +86,13 @@ export async function refetchChannelData(channelId: string) {
  * based on the block data passed in */
 export function initializeChannelData(data: Required<ChannelData>) {
   const setChannelStore = channelStore.set;
-  const setThreadsStore = threadsStore.set;
-  const setMessageToReaction = messageToReactionStore.set;
 
   setChannelStore('id', data.channel.id);
   setChannelStore('participants', data.participants ?? []);
   setChannelStore('channel', data.channel);
   setChannelStore('access', data.access);
 
-  const initialMessages = data.messages ?? [];
-
-  // messages that are not a part of a thread
-  const messages = initialMessages.filter((m: Message) => !m.thread_id);
-  // All of the messages that are a part of the thread
-  let messagesInThreads: MessageWithThreadId[] = initialMessages.filter(
-    (m: Message) => !!m.thread_id
-  ) as MessageWithThreadId[];
-
-  let threads: ThreadStoreData = {};
-
-  // correlate each message to the thread it belongs to
-  for (let message of messagesInThreads) {
-    let prevChildren = threads[message.thread_id] ?? [];
-    threads[message.thread_id] = [...prevChildren, message];
-  }
-
-  setChannelStore('messages', messages);
-  // Initialize map of message id -> reactions
-  setMessageToReaction(data.reactions ?? {});
-  setThreadsStore(threads);
-
   initializeAttachments(data.attachments ?? []);
-
-  commsServiceClient.postActivity({
-    activity_type: 'view',
-    channel_id: data.channel.id,
-  });
-}
-
-function optimisticChannelMessage({
-  channelId,
-  messageId,
-  content,
-  threadId,
-  senderId,
-}: {
-  channelId: string;
-  messageId: string;
-  threadId?: string;
-  content: string;
-  senderId: string;
-}) {
-  const now = new Date().toISOString();
-
-  const message: Message = {
-    id: messageId,
-    channel_id: channelId,
-    content,
-    sender_id: senderId,
-    created_at: now,
-    updated_at: now,
-    thread_id: threadId,
-  };
-
-  // Source-of-truth is the channel query cache; block stores will follow via initializeChannelData effects.
-  upsertChannelMessageInCache(channelId, message);
 }
 
 function isMessageSendable(
@@ -181,7 +110,6 @@ export type SendMessageArgs = {
 };
 
 export function useSendChannelMessageAction(channelID: Accessor<string>) {
-  const optimisticSend = createCallback(optimisticChannelMessage);
   const channelsContext = useChannelsContext();
   const userId = useUserId();
 
@@ -249,22 +177,15 @@ export function useSendChannelMessageAction(channelID: Accessor<string>) {
       .map((r) => (r.status === 'fulfilled' ? r.value : undefined))
       .filter((r) => r !== undefined);
 
-    const data = await mutation.mutateAsync({
+    await mutation.mutateAsync({
       channelID: channelId,
+      senderID: userId()!,
       message: {
         attachments: filteredAttachements,
         content: content ?? '',
         thread_id: threadId,
         mentions: mentions ?? [],
       },
-    });
-
-    optimisticSend({
-      channelId,
-      messageId: data.id,
-      content: content ?? '',
-      threadId,
-      senderId: userId()!,
     });
   };
 }

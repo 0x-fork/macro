@@ -2,13 +2,13 @@ import {
   channelStore,
   useSendChannelMessageAction,
 } from '@block-channel/signal/channel';
-import { postTypingUpdate } from '@block-channel/signal/typing';
 import {
   clearDraftMessage,
   loadDraftMessage,
   saveDraftMessage,
 } from '@block-channel/utils/draftMessages';
 import { useBlockId } from '@core/block';
+import { useChannelContext } from './ChannelContext';
 import type {
   DraftMessage,
   InputAttachment,
@@ -35,7 +35,10 @@ export function ChannelInput(props: ChannelInputProps) {
 
   const sendMessage = useSendChannelMessageAction(() => channelId);
 
-  const postTypingUpdate_ = createCallback(postTypingUpdate);
+  const { postTypingUpdate } = useChannelContext();
+  const postTypingUpdate_ = createCallback(
+    (action: 'start' | 'stop') => postTypingUpdate({ action })
+  );
 
   const channel = channelStore.get;
   const channelUsers = createMemo<IUser[]>(() => {

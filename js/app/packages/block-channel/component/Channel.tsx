@@ -34,16 +34,20 @@ import { handleFileFolderDrop } from '@core/util/upload';
 import { ChannelDebouncedNotificationReadMarker } from '@notifications';
 import { useChannelQuery } from '@queries/channel/channel';
 import { groupChannelMessages } from '@queries/channel/selectors';
+import { useChannelTypingRealtime } from '@queries/channel/typing';
 import type { Message } from '@service-comms/generated/models';
 import { connectionGatewayClient } from '@service-connection/client';
+import { useUserId } from '@service-gql/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { useBeforeLeave, useSearchParams } from '@solidjs/router';
 import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
 import { toast } from 'core/component/Toast/Toast';
 import { registerHotkey } from 'core/hotkey/hotkeys';
 import { createMethodRegistration } from 'core/orchestrator';
+import { ChannelContextProvider } from './ChannelContext';
 import {
   createEffect,
+  createMemo,
   createRenderEffect,
   createSignal,
   on,
@@ -89,7 +93,14 @@ export function Channel(props: {
 }) {
   const channel = useChannelQuery(() => props.data.channel.id);
 
-  const grouped = () => groupChannelMessages(channel.data?.messages ?? []);
+  const grouped = createMemo(() =>
+    groupChannelMessages(channel.data?.messages ?? [])
+  );
+  const reactionsByMessageId = () => channel.data?.reactions ?? {};
+  const typing = useChannelTypingRealtime({
+    channelId: () => props.data.channel.id,
+    currentUserId: useUserId(),
+  });
 
   const [_activeThreadId, setActiveThreadId] = activeThreadIdSignal;
   const latestActivity = latestActivitySignal.get;
@@ -329,66 +340,74 @@ export function Channel(props: {
         notificationSource={notificationSource}
         channelId={channelId}
       />
-      <StaticMarkdownContext>
-        <Suspense>
-          <Top channelID={channelId} />
-        </Suspense>
-        <div
-          class="h-full flex flex-col min-h-0 flex-1 relative w-full"
-          use:fileFolderDrop={{
-            onDrop: (files, folders) => {
-              handleFileFolderDrop(files, folders, (uploadEntries) =>
-                handleFileUpload(uploadEntries, {
-                  store: channelInputAttachmentsStore,
-                  setStore: setChannelInputAttachmentsStore,
-                  key: channelId,
-                })
-              );
-            },
-            onDragStart: (valid) => {
-              setIsDraggingOverChannel(true);
-              setIsValidChannelDrag(valid);
-            },
-            onDragEnd: () => {
-              setIsDraggingOverChannel(false);
-            },
-          }}
-        >
+      <ChannelContextProvider
+        value={{
+          reactionsByMessageId,
+          usersTyping: typing.usersTyping,
+          postTypingUpdate: typing.postTypingUpdate,
+        }}
+      >
+        <StaticMarkdownContext>
+          <Suspense>
+            <Top channelID={channelId} />
+          </Suspense>
           <div
-            class="absolute pointer-events-none top-1/2 left-1/2 w-[60%] h-full -translate-x-1/2 -translate-y-1/2"
-            use:droppable
-            ref={containerRef}
-          />
-          <MessageList
-            channelId={channelId}
-            messages={grouped().topLevel}
-            threadsById={grouped().threadsById}
-            focusedMessageId={focusedMessageId}
-            setFocusedMessageId={setFocusedMessageId}
-            targetMessage={targetMessage}
-            latestActivity={latestActivity()}
-            orderedMessages={orderedMessages}
-            setOrderedMessages={setOrderedMessages}
-            setLastMessageRef={setLastMessageRef}
-          />
-          <div class="shrink-0 w-full px-4 pb-2">
-            {/* seamus: note this element is below the scroll so we translate it back to account for the scroll above */}
-            <div class="mx-auto -translate-x-1 w-full macro-message-width">
-              <Suspense>
-                <ChannelInput
-                  channelName={channel.data?.channel?.name ?? ''}
-                  inputAttachmentsStore={channelInputAttachmentsStore}
-                  setInputAttachmentsStore={setChannelInputAttachmentsStore}
-                  inputAttachmentsKey={channelId}
-                  onFocusLeaveStart={onChannelInputFocusLeaveStart}
-                  autoFocusOnMount={autoFocusOnMount()}
-                  domRef={setChannelInputRef}
-                />
-              </Suspense>
+            class="h-full flex flex-col min-h-0 flex-1 relative w-full"
+            use:fileFolderDrop={{
+              onDrop: (files, folders) => {
+                handleFileFolderDrop(files, folders, (uploadEntries) =>
+                  handleFileUpload(uploadEntries, {
+                    store: channelInputAttachmentsStore,
+                    setStore: setChannelInputAttachmentsStore,
+                    key: channelId,
+                  })
+                );
+              },
+              onDragStart: (valid) => {
+                setIsDraggingOverChannel(true);
+                setIsValidChannelDrag(valid);
+              },
+              onDragEnd: () => {
+                setIsDraggingOverChannel(false);
+              },
+            }}
+          >
+            <div
+              class="absolute pointer-events-none top-1/2 left-1/2 w-[60%] h-full -translate-x-1/2 -translate-y-1/2"
+              use:droppable
+              ref={containerRef}
+            />
+            <MessageList
+              channelId={channelId}
+              messages={grouped().topLevel}
+              threadsById={grouped().threadsById}
+              focusedMessageId={focusedMessageId}
+              setFocusedMessageId={setFocusedMessageId}
+              targetMessage={targetMessage}
+              latestActivity={latestActivity()}
+              orderedMessages={orderedMessages}
+              setOrderedMessages={setOrderedMessages}
+              setLastMessageRef={setLastMessageRef}
+            />
+            <div class="shrink-0 w-full px-4 pb-2">
+              {/* seamus: note this element is below the scroll so we translate it back to account for the scroll above */}
+              <div class="mx-auto -translate-x-1 w-full macro-message-width">
+                <Suspense>
+                  <ChannelInput
+                    channelName={channel.data?.channel?.name ?? ''}
+                    inputAttachmentsStore={channelInputAttachmentsStore}
+                    setInputAttachmentsStore={setChannelInputAttachmentsStore}
+                    inputAttachmentsKey={channelId}
+                    onFocusLeaveStart={onChannelInputFocusLeaveStart}
+                    autoFocusOnMount={autoFocusOnMount()}
+                    domRef={setChannelInputRef}
+                  />
+                </Suspense>
+              </div>
             </div>
           </div>
-        </div>
-      </StaticMarkdownContext>
+        </StaticMarkdownContext>
+      </ChannelContextProvider>
     </div>
   );
 }

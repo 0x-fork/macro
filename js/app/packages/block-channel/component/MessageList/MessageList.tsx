@@ -3,10 +3,7 @@ import {
   TARGET_MESSAGE_ACTIVE_TIME,
 } from '@block-channel/constants';
 import { openedChannelSignal } from '@block-channel/signal/activity';
-import { messageToReactionStore } from '@block-channel/signal/reactions';
-import {
-  type ThreadStoreData,
-} from '@block-channel/signal/threads';
+import type { ThreadStoreData } from '@queries/channel/selectors';
 import type {
   ThreadView,
   ThreadViewData,
@@ -16,6 +13,7 @@ import {
   createMessageListContextLookup,
   type MessageListContextLookup,
 } from '@block-channel/utils/listContext';
+import { useChannelContext } from '../ChannelContext';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { TextButton } from '@core/component/TextButton';
 import { toast } from '@core/component/Toast/Toast';
@@ -246,6 +244,7 @@ export function MessageList(props: MessageListProps) {
 
 function MessageListImpl(props: MessageListProps) {
   const listContext = useMessageListContext();
+  const { reactionsByMessageId } = useChannelContext();
 
   const [virtualHandle, setVirtualHandle] = createSignal<VirtualizerHandle>();
   const [containerRef, setContainerRef] = createSignal<HTMLDivElement>();
@@ -565,10 +564,9 @@ function MessageListImpl(props: MessageListProps) {
   };
 
   const lastMessageReaction = createMemo(() => {
-    const messageToReaction = messageToReactionStore.get;
     const list = props.orderedMessages();
     const lastMessageId = list[list.length - 1]?.id;
-    return messageToReaction[lastMessageId];
+    return reactionsByMessageId()[lastMessageId];
   });
 
   const lastMessageThread = createMemo(() => {

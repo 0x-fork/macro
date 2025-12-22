@@ -9,8 +9,14 @@ import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { useChannelQuery } from '@queries/channel/channel';
 import { useJoinChannelMutation } from '@queries/channel/join';
 import { useChannelRealtime } from '@queries/channel/realtime';
-import { useUserId } from '@service-gql/client';
-import { createEffect, createSignal, type JSXElement, Match, Switch } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  type JSXElement,
+  Match,
+  Switch,
+} from 'solid-js';
 import { Channel } from './Channel';
 import { JoinChannelDialog } from './JoinChannelDialog';
 import type { TargetMessageInfo } from './MessageList/MessageList';
@@ -35,14 +41,14 @@ export default function BlockChannel(props: BlockChannelProps) {
       placeholderData: (p) => p,
     })
   );
-  const userId = useUserId();
 
   const [error] = createSignal<string>();
-  const [joinState, setJoinState] = createSignal<JoinState>();
+  // Local override (e.g. after user accepts join, before server refetch completes).
+  const [joinStateOverride, setJoinStateOverride] = createSignal<JoinState>();
 
   const joinMutation = useJoinChannelMutation({
-    onSuccess: () => setJoinState('NOT_REQUIRED'),
-    onError: () => setJoinState('REQUIRED'),
+    onSuccess: () => setJoinStateOverride('NOT_REQUIRED'),
+    onError: () => setJoinStateOverride('REQUIRED'),
   });
 
   const validChannelData = () => {
@@ -54,23 +60,27 @@ export default function BlockChannel(props: BlockChannelProps) {
 
   createEffect(() => {
     const data = validChannelData();
-    const userId_ = userId();
-    if (!data || !userId_) return;
+    if (!data) return;
     initializeChannelData(data);
-    setJoinState(
-      doesChannelRequireJoin(data, userId_) ? 'REQUIRED' : 'NOT_REQUIRED'
-    );
   });
+
+  const computedJoinState = createMemo<JoinState | undefined>(() => {
+    const data = validChannelData();
+    if (!data) return undefined;
+    return doesChannelRequireJoin(data) ? 'REQUIRED' : 'NOT_REQUIRED';
+  });
+
+  const joinState = () => joinStateOverride() ?? computedJoinState();
 
   function handleJoinChannel(
     channelId: string,
     selection: 'ACCEPTED' | 'REJECTED'
   ) {
     if (selection === 'ACCEPTED') {
-      setJoinState('NOT_REQUIRED');
+      setJoinStateOverride('NOT_REQUIRED');
       joinMutation.mutate({ channelID: channelId });
     } else {
-      setJoinState('REQUIRED');
+      setJoinStateOverride('REQUIRED');
     }
   }
 
