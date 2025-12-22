@@ -137,9 +137,7 @@ export function SplitTabs(props: {
               if (!key) return <span class="truncate">{label}</span>;
 
               const strong = (ch: string) => (
-                // Use an inset shadow "underline" so it doesn't get clipped by `truncate` overflow
-                // AND doesn't change the line box height (unlike border/padding).
-                <span class="inline-block font-semibold leading-none shadow-[inset_0_-2px_0_0_currentColor]">
+                <span class="font-semibold underline underline-offset-2">
                   {ch}
                 </span>
               );
