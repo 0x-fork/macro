@@ -307,17 +307,6 @@ export default function PromptPlayground() {
     })
   );
 
-  const onClose = () => {
-    // Prefer closing the current split if we are inside a split panel.
-    splitPanel?.handle.close();
-  };
-
-  const onToggleSpotlight = () => {
-    splitPanel?.handle.toggleSpotlight();
-  };
-
-  const isSpotlight = () => splitPanel?.handle.isSpotLight() ?? false;
-
   // Nice-to-have: give the tab a stable display name.
   createEffect(() => {
     splitPanel?.handle.setDisplayName('Prompt Playground');
