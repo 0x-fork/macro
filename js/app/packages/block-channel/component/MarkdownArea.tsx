@@ -39,7 +39,6 @@ import {
 import type { PortalScope } from '@core/component/ScopedPortal';
 import type { IUser } from '@core/user';
 import type { Item } from '@service-storage/generated/schemas/item';
-import { onElementConnect } from '@solid-primitives/lifecycle';
 import { isMobile } from '@solid-primitives/platform';
 import { filePastePlugin } from 'core/component/LexicalMarkdown/plugins/file-paste/filePastePlugin';
 import { createAccessoryStore } from 'core/component/LexicalMarkdown/plugins/node-accessory/nodeAccessoryPlugin';
@@ -61,6 +60,7 @@ import {
   createSignal,
   type JSXElement,
   onCleanup,
+  onMount,
   type Setter,
   Show,
 } from 'solid-js';
@@ -344,7 +344,8 @@ function MarkdownArea(props: MarkdownAreaProps & ConsumableMarkdownAreaProps) {
       <div class="relative w-full min-h-8">
         <div
           ref={(el) => {
-            onElementConnect(el, () => {
+            onMount(() => {
+              console.log(el.isConnected);
               editor.setRootElement(el);
               onConnect();
               props.setMountRef(el);

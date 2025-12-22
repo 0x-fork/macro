@@ -406,7 +406,7 @@ function MarkdownArea(
       <div class="relative w-full">
         <div
           ref={(el) => {
-            onElementConnect(el, () => {
+            onMount(() => {
               editor.setRootElement(el);
               onConnect();
               props.setMountRef(el);

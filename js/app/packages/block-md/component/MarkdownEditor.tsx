@@ -1024,7 +1024,7 @@ export function MarkdownEditor(props: { autoFocusOnMount?: boolean } = {}) {
       >
         <div
           ref={(el) => {
-            onElementConnect(el, () => {
+            onMount(() => {
               onConnect(el);
             });
           }}
