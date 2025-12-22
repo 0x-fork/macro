@@ -100,7 +100,7 @@ if (LOCAL_ONLY) {
   );
   registerComponent(
     'prompt-playground',
-    lazy(() => import('@app/component/rightbar/PromptPlayground'))
+    lazy(() => import('@core/component/AI/component/debug/PromptPlayground'))
   );
   registerComponent(
     'new-form-primitives',

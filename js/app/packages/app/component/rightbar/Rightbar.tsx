@@ -425,10 +425,10 @@ export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
   const [stream, setStream] = createSignal<MessageStream>();
   const [initialChatState, setInitialChatState] = createSignal<
     | {
-      model: Model | undefined;
-      attachments: Attachment[];
-      text: string | undefined;
-    }
+        model: Model | undefined;
+        attachments: Attachment[];
+        text: string | undefined;
+      }
     | undefined
   >();
 

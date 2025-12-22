@@ -30,8 +30,8 @@ import {
     Show,
     useContext,
 } from 'solid-js';
-import { SplitPanelContext } from '../split-layout/context';
-import { Rightbar } from './Rightbar';
+import { SplitPanelContext } from '@app/component/split-layout/context';
+import { Rightbar } from '@app/component/rightbar/Rightbar';
 import { setEditorStateFromMarkdown } from '@core/component/LexicalMarkdown/utils';
 import type { LexicalEditor } from 'lexical';
 
@@ -94,7 +94,7 @@ export default function PromptPlayground() {
         if (import.meta.env.DEV) {
             try {
                 const devPromptModule = await import(
-                    '../../../../../../rust/cloud-storage/ai_tools/src/prompts/all_tools.md?raw'
+                    '../../../../../../../../rust/cloud-storage/ai_tools/src/prompts/all_tools.md?raw'
                 );
                 const devPrompt = devPromptModule.default;
                 if (devPrompt) {
