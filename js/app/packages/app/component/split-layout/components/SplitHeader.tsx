@@ -87,7 +87,7 @@ function SplitCloseButton() {
 
 function SplitControlButtons() {
   return (
-    <div class="flex flex-row items-center px-2 h-full shrink-0">
+    <div class="flex flex-row items-center pl-2 pr-1 h-full shrink-0">
       <SplitCloseButton />
       <SplitBackButton />
       <SplitForwardButton />
@@ -109,14 +109,11 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
       <div class="absolute inset-0 flex justify-start items-center bg-panel border-b border-b-edge-muted">
         <SplitControlButtons />
         <div
-          class="relative flex min-w-0 h-full flex-1"
+          class="relative flex items-center gap-1.5 pl-1 pr-2 min-w-0 h-full flex-1"
           ref={(ref) => {
             ctx.layoutRefs.headerLeft = ref;
           }}
         />
-
-        {/* space filler */}
-        <div class="h-full grow-1" />
 
         <div
           class="min-w-4 h-full shrink-0"

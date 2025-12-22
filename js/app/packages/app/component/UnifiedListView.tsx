@@ -1474,115 +1474,29 @@ export function UnifiedListView(props: UnifiedListViewProps) {
   return (
     <>
       <Show when={!props.hideToolbar}>
-        <SearchBar
-          isLoading={isSearchLoading}
-          setIsLoading={setIsSearchLoading}
-        >
-          <ToggleButton
-            size="SM"
-            pressed={importantMode()}
-            onChange={() => setImportantMode((prev) => !prev)}
-          >
-            <span>
-              <span class="font-semibold underline underline-offset-2">I</span>
-              mpt
-            </span>
-          </ToggleButton>
-          <ToggleButton
-            size="SM"
-            pressed={notificationFilter() === 'unread'}
-            onChange={(pressed) => {
-              // Binary toggle: unread vs not-unread
-              setNotificationFilter(pressed ? 'unread' : 'all');
+        <SplitHeaderLeft>
+          <UnifiedListFilterControls
+            importantMode={importantMode}
+            setImportantMode={setImportantMode}
+            notificationFilter={notificationFilter}
+            setNotificationFilter={setNotificationFilter}
+            preview={preview}
+            setPreview={setPreview}
+            sortMenuOpen={sortMenuOpen}
+            setSortMenuOpen={setSortMenuOpen}
+            sortMenuWidth={sortMenuWidth}
+            setSortMenuWidth={setSortMenuWidth}
+            getSortMenuTriggerEl={() => sortMenuTriggerEl}
+            setSortMenuTriggerEl={(el) => {
+              sortMenuTriggerEl = el;
             }}
-          >
-            <span>
-              <span class="font-semibold underline underline-offset-2">U</span>
-              nrd
-            </span>
-          </ToggleButton>
-          <Show when={ENABLE_PREVIEW}>
-            <ToggleButton
-              size="SM"
-              pressed={preview()}
-              onChange={() => {
-                // Toggle like Unread: always flip the current state.
-                setPreview((prev) => !prev);
-              }}
-            >
-              <span>
-                <span class="font-semibold underline underline-offset-2">P</span>
-                rvw
-              </span>
-            </ToggleButton>
-          </Show>
-          <KDropdownMenu
-            placement="bottom-start"
-            open={sortMenuOpen()}
-            onOpenChange={(open) => {
-              setSortMenuOpen(open);
-              if (!open) return;
-              const w = sortMenuTriggerEl?.getBoundingClientRect().width ?? 0;
-              // Give the menu enough room for labels; don't constrain to trigger width.
-              setSortMenuWidth(Math.max(200, Math.floor(w)));
-            }}
-          >
-            <KDropdownMenu.Trigger
-              as="button"
-              ref={(el) => {
-                sortMenuTriggerEl = el;
-              }}
-              class="border border-edge-muted min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 text-ink-muted hover:opacity-80"
-              disabled={isSearchActive()}
-            >
-              <span>
-                <span class="font-semibold underline underline-offset-2">S</span>
-                ort
-              </span>
-            </KDropdownMenu.Trigger>
-            <KDropdownMenu.Portal>
-              <KDropdownMenu.Content
-                class={`${MENU_CONTENT_CLASS} py-1`}
-                style={{
-                  width: sortMenuWidth() ? `${sortMenuWidth()}px` : undefined,
-                }}
-              >
-                <KDropdownMenu.RadioGroup
-                  value={sortType()}
-                  onChange={(value) => {
-                    setSortType(value as SystemSortOption);
-                    entityListResetScroll();
-                  }}
-                >
-                  <MenuItem
-                    text="Viewed"
-                    selectorType="radio"
-                    value="viewed_at"
-                    groupValue={sortType()}
-                  />
-                  <MenuItem
-                    text="Updated"
-                    selectorType="radio"
-                    value="updated_at"
-                    groupValue={sortType()}
-                  />
-                  <MenuItem
-                    text="Created"
-                    selectorType="radio"
-                    value="created_at"
-                    groupValue={sortType()}
-                  />
-                  <MenuItem
-                    text="Recent"
-                    selectorType="radio"
-                    value="frecency"
-                    groupValue={sortType()}
-                  />
-                </KDropdownMenu.RadioGroup>
-              </KDropdownMenu.Content>
-            </KDropdownMenu.Portal>
-          </KDropdownMenu>
-        </SearchBar>
+            isSearchActive={isSearchActive}
+            sortType={sortType}
+            setSortType={setSortType}
+            entityListResetScroll={entityListResetScroll}
+          />
+          <SearchBar isLoading={isSearchLoading} />
+        </SplitHeaderLeft>
       </Show>
       <ContextMenu
         forceMount={contextAndModalState.contextMenuOpen}
@@ -1938,11 +1852,138 @@ const EntityTypeToggle = (props: {
   );
 };
 
+function UnifiedListFilterControls(props: {
+  importantMode: Accessor<boolean>;
+  setImportantMode: Setter<boolean>;
+  notificationFilter: Accessor<FilterOptions['notificationFilter']>;
+  setNotificationFilter: (notificationFilter: FilterOptions['notificationFilter']) => void;
+  preview: Accessor<boolean>;
+  setPreview: Setter<boolean>;
+  sortMenuOpen: Accessor<boolean>;
+  setSortMenuOpen: Setter<boolean>;
+  sortMenuWidth: Accessor<number>;
+  setSortMenuWidth: Setter<number>;
+  getSortMenuTriggerEl: () => HTMLButtonElement | undefined;
+  setSortMenuTriggerEl: (el: HTMLButtonElement) => void;
+  isSearchActive: Accessor<boolean>;
+  sortType: Accessor<SystemSortOption>;
+  setSortType: (sortBy: SystemSortOption) => void;
+  entityListResetScroll: () => void;
+}) {
+  return (
+    <>
+      <ToggleButton
+        size="SM"
+        pressed={props.importantMode()}
+        onChange={() => props.setImportantMode((prev) => !prev)}
+      >
+        <span>
+          <span class="font-semibold underline underline-offset-2">I</span>
+          mpt
+        </span>
+      </ToggleButton>
+      <ToggleButton
+        size="SM"
+        pressed={props.notificationFilter() === 'unread'}
+        onChange={(pressed) => {
+          // Binary toggle: unread vs not-unread
+          props.setNotificationFilter(pressed ? 'unread' : 'all');
+        }}
+      >
+        <span>
+          <span class="font-semibold underline underline-offset-2">U</span>
+          nrd
+        </span>
+      </ToggleButton>
+      <Show when={ENABLE_PREVIEW}>
+        <ToggleButton
+          size="SM"
+          pressed={props.preview()}
+          onChange={() => {
+            // Toggle like Unread: always flip the current state.
+            props.setPreview((prev) => !prev);
+          }}
+        >
+          <span>
+            <span class="font-semibold underline underline-offset-2">P</span>
+            rvw
+          </span>
+        </ToggleButton>
+      </Show>
+      <KDropdownMenu
+        placement="bottom-start"
+        open={props.sortMenuOpen()}
+        onOpenChange={(open) => {
+          props.setSortMenuOpen(open);
+          if (!open) return;
+          const w = props.getSortMenuTriggerEl()?.getBoundingClientRect().width ?? 0;
+          // Give the menu enough room for labels; don't constrain to trigger width.
+          props.setSortMenuWidth(Math.max(200, Math.floor(w)));
+        }}
+      >
+        <KDropdownMenu.Trigger
+          as="button"
+          ref={(el) => {
+            props.setSortMenuTriggerEl(el);
+          }}
+          class="border border-edge-muted min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 text-ink-muted hover:opacity-80"
+          disabled={props.isSearchActive()}
+        >
+          <span>
+            <span class="font-semibold underline underline-offset-2">S</span>
+            ort
+          </span>
+        </KDropdownMenu.Trigger>
+        <KDropdownMenu.Portal>
+          <KDropdownMenu.Content
+            class={`${MENU_CONTENT_CLASS} py-1`}
+            style={{
+              width: props.sortMenuWidth() ? `${props.sortMenuWidth()}px` : undefined,
+            }}
+          >
+            <KDropdownMenu.RadioGroup
+              value={props.sortType()}
+              onChange={(value) => {
+                props.setSortType(value as SystemSortOption);
+                props.entityListResetScroll();
+              }}
+            >
+              <MenuItem
+                text="Viewed"
+                selectorType="radio"
+                value="viewed_at"
+                groupValue={props.sortType()}
+              />
+              <MenuItem
+                text="Updated"
+                selectorType="radio"
+                value="updated_at"
+                groupValue={props.sortType()}
+              />
+              <MenuItem
+                text="Created"
+                selectorType="radio"
+                value="created_at"
+                groupValue={props.sortType()}
+              />
+              <MenuItem
+                text="Recent"
+                selectorType="radio"
+                value="frecency"
+                groupValue={props.sortType()}
+              />
+            </KDropdownMenu.RadioGroup>
+          </KDropdownMenu.Content>
+        </KDropdownMenu.Portal>
+      </KDropdownMenu>
+    </>
+  );
+}
+
 function SearchBar(
-  props: ParentProps<{
+  props: {
     isLoading: Accessor<boolean>;
-    setIsLoading: Setter<boolean>;
-  }>
+  }
 ) {
   const splitContext = useSplitPanelOrThrow();
   const {
@@ -1957,8 +1998,6 @@ function SearchBar(
     emailViewSignal: [emailView, setEmailView],
     importantModeSignal: [, setImportantMode],
   } = splitContext.unifiedListContext;
-  const viewData = createMemo(() => viewsDataStore[selectedView()]);
-  const viewName = createMemo(() => viewData().view);
 
   let inputRef: HTMLInputElement | undefined;
   let previewHandle: RecipientTypeaheadHandle | undefined;
@@ -2088,142 +2127,134 @@ function SearchBar(
   });
 
   return (
-    <SplitHeaderLeft>
-      <div class="flex items-center gap-1.5 px-2 h-full w-full min-w-0">
-        <div class="flex items-center gap-1.5 min-w-0 shrink-0">
-          {props.children}
-        </div>
-
-        <div class="ml-auto flex items-center gap-2 shrink-0 min-w-0">
-          <div class="shrink-0 h-[22px] border border-edge-muted min-w-[140px] w-[20cqw] max-w-[320px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 text-ink-muted flex items-center gap-2 bg-panel relative">
-            <input
-              ref={inputRef}
-              id={`search-input-${splitContext.handle.id}-${selectedView()}`}
-              placeholder={placeholderText()}
-              value={searchText()}
-              spellcheck={false}
-              autocomplete="off"
-              autocapitalize="off"
-              onInput={(e) => {
-                setPreviewSuppressed(false);
-                setDidNavigateMenu(false);
-                setSearchText(e.target.value);
-              }}
-              onFocus={() => {
-                setSearchFocused(true);
-                // Re-open behavior on focus should be driven by current query.
-                // If the user explicitly closed the preview (Enter/Escape), we keep it closed until they type again.
-              }}
-              onBlur={() => {
-                setSearchFocused(false);
-                setPreviewSuppressed(false);
-                setPreviewOpen(false);
-                setDidNavigateMenu(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  e.preventDefault();
-                  if (previewOpen()) {
-                    closePreview();
-                    return;
-                  }
-                  e.currentTarget.blur();
-                } else if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (previewOpen()) {
-                    if (!didNavigateMenu()) {
-                      closePreview();
-                      e.currentTarget.blur();
-                      return;
-                    }
-                    const highlighted = previewHandle?.getHighlighted();
-                    const email = highlighted
-                      ? getRecipientOptionEmail(highlighted)
-                      : undefined;
-                    if (email) {
-                      setSearchText(email);
-                    }
-                    closePreview();
-                    e.currentTarget.blur();
-                    return;
-                  }
-                  e.currentTarget.blur();
-                  selectionClick();
-                } else if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  if (previewOpen()) {
-                    setDidNavigateMenu(true);
-                    previewHandle?.arrowDown();
-                    return;
-                  }
-                  e.currentTarget.blur();
-                  focusNextEntity();
-                } else if (e.key === 'ArrowUp') {
-                  if (previewOpen()) {
-                    e.preventDefault();
-                    setDidNavigateMenu(true);
-                    previewHandle?.arrowUp();
-                  }
-                }
-              }}
-              class="flex-1 h-full min-w-0 min-h-0 p-0 m-0 border-0 outline-none! focus:outline-none ring-0! focus:ring-0 text-xs leading-none text-ink normal-case bg-transparent text-left placeholder:text-ink-muted/70"
-            />
-            <div class="absolute left-0 top-full w-full">
-              <RecipientTypeahead
-                options={recipientOptions as any}
-                query={searchText}
-                open={previewOpen}
-                handleRef={(h) => {
-                  previewHandle = h;
-                }}
-                onSelectEmail={(email) => {
-                  setSearchText(email);
+    <div class="flex items-center gap-2 shrink-0 min-w-0">
+      <div class="shrink-0 h-[22px] border border-edge-muted min-w-[140px] w-[20cqw] max-w-[320px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 text-ink-muted flex items-center gap-2 bg-panel relative">
+        <input
+          ref={inputRef}
+          id={`search-input-${splitContext.handle.id}-${selectedView()}`}
+          placeholder={placeholderText()}
+          value={searchText()}
+          spellcheck={false}
+          autocomplete="off"
+          autocapitalize="off"
+          onInput={(e) => {
+            setPreviewSuppressed(false);
+            setDidNavigateMenu(false);
+            setSearchText(e.target.value);
+          }}
+          onFocus={() => {
+            setSearchFocused(true);
+            // Re-open behavior on focus should be driven by current query.
+            // If the user explicitly closed the preview (Enter/Escape), we keep it closed until they type again.
+          }}
+          onBlur={() => {
+            setSearchFocused(false);
+            setPreviewSuppressed(false);
+            setPreviewOpen(false);
+            setDidNavigateMenu(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              if (previewOpen()) {
+                closePreview();
+                return;
+              }
+              e.currentTarget.blur();
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (previewOpen()) {
+                if (!didNavigateMenu()) {
                   closePreview();
-                  queueMicrotask(() => inputRef?.blur());
-                }}
-              />
-            </div>
-            <Show when={props.isLoading() && searchText()}>
-              <IconButton
-                size="xs"
-                iconSize={12}
-                icon={LoadingSpinner}
-                theme="clear"
-                tooltip={{ label: 'Cancel search' }}
-                class="h-3 w-3 shrink-0 [&_svg]:animate-spin"
-                onClick={() => {
-                  setSearchText('');
-                  inputRef?.focus();
-                }}
-              />
-            </Show>
-            <Show when={!props.isLoading() && searchText()}>
-              <IconButton
-                size="xs"
-                iconSize={12}
-                icon={XIcon}
-                theme="clear"
-                tooltip={{ label: 'Clear search' }}
-                class="h-3 w-3 shrink-0"
-                onClick={() => {
-                  setSearchText('');
-                  inputRef?.focus();
-                }}
-              />
-            </Show>
-          </div>
-
-          <Show when={selectedView() === VIEWCONFIG_DEFAULTS_IDS_ENUM.email}>
-            <SegmentedControl
-              disabled={searchText().trim().length > 0}
-              size="SM"
-              list={['inbox', 'sent', 'drafts']}
-              value={emailView()}
-              onChange={setEmailView}
-            />
-          </Show>
+                  e.currentTarget.blur();
+                  return;
+                }
+                const highlighted = previewHandle?.getHighlighted();
+                const email = highlighted
+                  ? getRecipientOptionEmail(highlighted)
+                  : undefined;
+                if (email) {
+                  setSearchText(email);
+                }
+                closePreview();
+                e.currentTarget.blur();
+                return;
+              }
+              e.currentTarget.blur();
+              selectionClick();
+            } else if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              if (previewOpen()) {
+                setDidNavigateMenu(true);
+                previewHandle?.arrowDown();
+                return;
+              }
+              e.currentTarget.blur();
+              focusNextEntity();
+            } else if (e.key === 'ArrowUp') {
+              if (previewOpen()) {
+                e.preventDefault();
+                setDidNavigateMenu(true);
+                previewHandle?.arrowUp();
+              }
+            }
+          }}
+          class="flex-1 h-full min-w-0 min-h-0 p-0 m-0 border-0 outline-none! focus:outline-none ring-0! focus:ring-0 text-xs leading-none text-ink normal-case bg-transparent text-left placeholder:text-ink-muted/70"
+        />
+        <div class="absolute left-0 top-full w-full">
+          <RecipientTypeahead
+            options={recipientOptions as any}
+            query={searchText}
+            open={previewOpen}
+            handleRef={(h) => {
+              previewHandle = h;
+            }}
+            onSelectEmail={(email) => {
+              setSearchText(email);
+              closePreview();
+              queueMicrotask(() => inputRef?.blur());
+            }}
+          />
         </div>
+        <Show when={props.isLoading() && searchText()}>
+          <IconButton
+            size="xs"
+            iconSize={12}
+            icon={LoadingSpinner}
+            theme="clear"
+            tooltip={{ label: 'Cancel search' }}
+            class="h-3 w-3 shrink-0 [&_svg]:animate-spin"
+            onClick={() => {
+              setSearchText('');
+              inputRef?.focus();
+            }}
+          />
+        </Show>
+        <Show when={!props.isLoading() && searchText()}>
+          <IconButton
+            size="xs"
+            iconSize={12}
+            icon={XIcon}
+            theme="clear"
+            tooltip={{ label: 'Clear search' }}
+            class="h-3 w-3 shrink-0"
+            onClick={() => {
+              setSearchText('');
+              inputRef?.focus();
+            }}
+          />
+        </Show>
       </div>
-    </SplitHeaderLeft>
+
+      <Show when={selectedView() === VIEWCONFIG_DEFAULTS_IDS_ENUM.email}>
+        <SegmentedControl
+          disabled={searchText().trim().length > 0}
+          size="SM"
+          list={['inbox', 'sent', 'drafts']}
+          value={emailView()}
+          onChange={setEmailView}
+        />
+      </Show>
+    </div>
   );
 }

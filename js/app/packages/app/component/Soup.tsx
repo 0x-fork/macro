@@ -448,186 +448,173 @@ export function Soup() {
             onChange={setSelectedView}
           >
             <SplitHeaderLeft order={-2}>
-              <div class="flex items-center h-full">
-                <div>
-                  <Show when={ENABLE_SAVED_VIEWS}>
-                    <DropdownMenu
-                      placement="bottom-start"
-                      open={savedViewsOpen()}
-                      onOpenChange={setSavedViewsOpen}
+              <div class="shrink-0">
+                <Show when={ENABLE_SAVED_VIEWS}>
+                  <DropdownMenu
+                    placement="bottom-start"
+                    open={savedViewsOpen()}
+                    onOpenChange={setSavedViewsOpen}
+                  >
+                    <DropdownMenu.Trigger
+                      as="button"
+                      ref={(el) => {
+                        savedViewsTriggerEl = el;
+                      }}
+                      class="border border-edge-muted min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 text-ink-muted hover:opacity-80"
                     >
-                      <DropdownMenu.Trigger
-                        as="button"
-                        ref={(el) => {
-                          savedViewsTriggerEl = el;
-                        }}
-                        class="border border-edge-muted min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 text-ink-muted hover:opacity-80"
-                      >
-                        <span class="opacity-70 mr-1 text-[10px]">0</span>
-                        <span class="text-[0.625rem]">Views</span>
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Portal>
-                        <DropdownMenu.Content
-                          class={`${MENU_CONTENT_CLASS} py-1 w-44`}
+                      <span class="opacity-70 mr-1 text-[10px]">0</span>
+                      <span class="text-[0.625rem]">Views</span>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content class={`${MENU_CONTENT_CLASS} py-1 w-44`}>
+                        <Show
+                          when={customViews().length > 0}
+                          fallback={<MenuItem text="No custom views" disabled />}
                         >
-                          <Show
-                            when={customViews().length > 0}
-                            fallback={<MenuItem text="No custom views" disabled />}
-                          >
-                            <For each={customViews()}>
-                              {(v) => (
-                                <MenuItem
-                                  text={v.view}
-                                  onClick={() => setSelectedView(v.id)}
-                                />
-                              )}
-                            </For>
-                          </Show>
-                        </DropdownMenu.Content>
-                      </DropdownMenu.Portal>
-                    </DropdownMenu>
-                  </Show>
-                </div>
+                          <For each={customViews()}>
+                            {(v) => (
+                              <MenuItem
+                                text={v.view}
+                                onClick={() => setSelectedView(v.id)}
+                              />
+                            )}
+                          </For>
+                        </Show>
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu>
+                </Show>
+              </div>
 
-                <SplitTabs
-                  // Keep internal "all" in the Tabs trigger list (rendered invisibly by SplitTabs),
-                  // so the controlled Tabs value always has a corresponding trigger.
-                  list={Object.values(viewsData).map((view, index) => ({
-                    value: view.id,
-                    label: view.view,
-                    index: index,
-                  }))}
-                  active={selectedView}
-                  contextMenu={
-                    ENABLE_SAVED_VIEWS
-                      ? ({ value, label }) => (
-                          <TabContextMenu value={value} label={label} />
-                        )
-                      : undefined
-                  }
-                  tabAddon={({ value, triggerEl, active }) => {
-                    if (value !== 'files') return <></>;
-                    const docTypes = (): DocumentTypeFilter[] =>
-                      (viewsData.files?.filters?.documentTypeFilter ??
-                        []) as DocumentTypeFilter[];
-                    const setChecked = (t: DocumentTypeFilter, checked: boolean) => {
-                      setViewDataStore(
-                        'files',
-                        'filters',
-                        'documentTypeFilter',
-                        (prev) => {
-                          const set = new Set(prev ?? []);
-                          if (checked) set.add(t);
-                          else set.delete(t);
-                          return Array.from(set);
-                        }
-                      );
-                    };
-                    const clearAll = () => {
-                      setViewDataStore('files', 'filters', 'documentTypeFilter', []);
-                    };
-                    return (
-                      <div class="-ml-px">
-                        <DropdownMenu
-                          placement="bottom-start"
-                          onOpenChange={(open) => {
-                            if (!open) return;
-                            const w =
-                              triggerEl?.getBoundingClientRect().width ?? 0;
-                            setFilesMenuWidth(Math.floor(w));
+              <SplitTabs
+                // Keep internal "all" in the Tabs trigger list (rendered invisibly by SplitTabs),
+                // so the controlled Tabs value always has a corresponding trigger.
+                list={Object.values(viewsData).map((view, index) => ({
+                  value: view.id,
+                  label: view.view,
+                  index: index,
+                }))}
+                active={selectedView}
+                contextMenu={
+                  ENABLE_SAVED_VIEWS
+                    ? ({ value, label }) => (
+                        <TabContextMenu value={value} label={label} />
+                      )
+                    : undefined
+                }
+                tabAddon={({ value, triggerEl, active }) => {
+                  if (value !== 'files') return <></>;
+                  const docTypes = (): DocumentTypeFilter[] =>
+                    (viewsData.files?.filters?.documentTypeFilter ??
+                      []) as DocumentTypeFilter[];
+                  const setChecked = (t: DocumentTypeFilter, checked: boolean) => {
+                    setViewDataStore(
+                      'files',
+                      'filters',
+                      'documentTypeFilter',
+                      (prev) => {
+                        const set = new Set(prev ?? []);
+                        if (checked) set.add(t);
+                        else set.delete(t);
+                        return Array.from(set);
+                      }
+                    );
+                  };
+                  const clearAll = () => {
+                    setViewDataStore('files', 'filters', 'documentTypeFilter', []);
+                  };
+                  return (
+                    <div class="-ml-px">
+                      <DropdownMenu
+                        placement="bottom-start"
+                        onOpenChange={(open) => {
+                          if (!open) return;
+                          const w = triggerEl?.getBoundingClientRect().width ?? 0;
+                          setFilesMenuWidth(Math.floor(w));
+                        }}
+                      >
+                        <DropdownMenu.Trigger
+                          as="button"
+                          class="border border-edge-muted border-l-0 min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 hover:opacity-80 bg-panel"
+                          classList={{
+                            'bg-edge-muted text-ink': active,
+                            'text-ink-muted': !active,
                           }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <DropdownMenu.Trigger
-                            as="button"
-                            class="border border-edge-muted border-l-0 min-w-[22px] font-medium font-mono text-center uppercase leading-none whitespace-nowrap text-xs p-1 hover:opacity-80 bg-panel"
+                          <span
+                            class="text-[0.625rem]"
                             classList={{
-                              'bg-edge-muted text-ink': active,
+                              'text-ink': active,
                               'text-ink-muted': !active,
                             }}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
                           >
-                            <span
-                              class="text-[0.625rem]"
-                              classList={{
-                                'text-ink': active,
-                                'text-ink-muted': !active,
-                              }}
-                            >
-                              ▾
-                            </span>
-                          </DropdownMenu.Trigger>
-                          <DropdownMenu.Portal>
-                            <DropdownMenu.Content
-                              class={`${MENU_CONTENT_CLASS} py-1`}
-                              style={{
-                                width: filesMenuWidth()
-                                  ? `${filesMenuWidth()}px`
-                                  : undefined,
-                              }}
-                            >
-                              <MenuItem text="All" onClick={clearAll} />
-                              <MenuSeparator />
-                              <MenuItem
-                                text="Note"
-                                selectorType="checkbox"
-                                checked={docTypes().includes('md')}
-                                closeOnSelect={false}
-                                onChange={(checked) => setChecked('md', checked)}
-                              />
-                              <MenuItem
-                                text="PDF"
-                                selectorType="checkbox"
-                                checked={docTypes().includes('pdf')}
-                                closeOnSelect={false}
-                                onChange={(checked) =>
-                                  setChecked('pdf', checked)
-                                }
-                              />
-                              <MenuItem
-                                text="Canvas"
-                                selectorType="checkbox"
-                                checked={docTypes().includes('canvas')}
-                                closeOnSelect={false}
-                                onChange={(checked) =>
-                                  setChecked('canvas', checked)
-                                }
-                              />
-                              <MenuItem
-                                text="Code"
-                                selectorType="checkbox"
-                                checked={docTypes().includes('code')}
-                                closeOnSelect={false}
-                                onChange={(checked) =>
-                                  setChecked('code', checked)
-                                }
-                              />
-                              <MenuItem
-                                text="Image"
-                                selectorType="checkbox"
-                                checked={docTypes().includes('image')}
-                                closeOnSelect={false}
-                                onChange={(checked) =>
-                                  setChecked('image', checked)
-                                }
-                              />
-                              <MenuItem
-                                text="Other"
-                                selectorType="checkbox"
-                                checked={docTypes().includes('unknown')}
-                                closeOnSelect={false}
-                                onChange={(checked) =>
-                                  setChecked('unknown', checked)
-                                }
-                              />
-                            </DropdownMenu.Content>
-                          </DropdownMenu.Portal>
-                        </DropdownMenu>
-                      </div>
-                    );
-                  }}
-                />
-              </div>
+                            ▾
+                          </span>
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Portal>
+                          <DropdownMenu.Content
+                            class={`${MENU_CONTENT_CLASS} py-1`}
+                            style={{
+                              width: filesMenuWidth()
+                                ? `${filesMenuWidth()}px`
+                                : undefined,
+                            }}
+                          >
+                            <MenuItem text="All" onClick={clearAll} />
+                            <MenuSeparator />
+                            <MenuItem
+                              text="Note"
+                              selectorType="checkbox"
+                              checked={docTypes().includes('md')}
+                              closeOnSelect={false}
+                              onChange={(checked) => setChecked('md', checked)}
+                            />
+                            <MenuItem
+                              text="PDF"
+                              selectorType="checkbox"
+                              checked={docTypes().includes('pdf')}
+                              closeOnSelect={false}
+                              onChange={(checked) => setChecked('pdf', checked)}
+                            />
+                            <MenuItem
+                              text="Canvas"
+                              selectorType="checkbox"
+                              checked={docTypes().includes('canvas')}
+                              closeOnSelect={false}
+                              onChange={(checked) => setChecked('canvas', checked)}
+                            />
+                            <MenuItem
+                              text="Code"
+                              selectorType="checkbox"
+                              checked={docTypes().includes('code')}
+                              closeOnSelect={false}
+                              onChange={(checked) => setChecked('code', checked)}
+                            />
+                            <MenuItem
+                              text="Image"
+                              selectorType="checkbox"
+                              checked={docTypes().includes('image')}
+                              closeOnSelect={false}
+                              onChange={(checked) => setChecked('image', checked)}
+                            />
+                            <MenuItem
+                              text="Other"
+                              selectorType="checkbox"
+                              checked={docTypes().includes('unknown')}
+                              closeOnSelect={false}
+                              onChange={(checked) =>
+                                setChecked('unknown', checked)
+                              }
+                            />
+                          </DropdownMenu.Content>
+                        </DropdownMenu.Portal>
+                      </DropdownMenu>
+                    </div>
+                  );
+                }}
+              />
             </SplitHeaderLeft>
             <For each={Object.keys(viewsData)}>
               {(viewId) => <ViewWithSearch viewId={viewId} />}
