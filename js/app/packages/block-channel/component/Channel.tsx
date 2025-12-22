@@ -97,6 +97,9 @@ export function Channel(props: {
     groupChannelMessages(channel.data?.messages ?? [])
   );
   const reactionsByMessageId = () => channel.data?.reactions ?? {};
+  const isReconciling = createMemo(
+    () => !!channel.data && channel.isFetching === true
+  );
   const typing = useChannelTypingRealtime({
     channelId: () => props.data.channel.id,
     currentUserId: useUserId(),
@@ -381,6 +384,7 @@ export function Channel(props: {
               channelId={channelId}
               messages={grouped().topLevel}
               threadsById={grouped().threadsById}
+              isReconciling={isReconciling()}
               focusedMessageId={focusedMessageId}
               setFocusedMessageId={setFocusedMessageId}
               targetMessage={targetMessage}

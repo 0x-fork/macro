@@ -77,11 +77,11 @@ const toScrollHintDate = (isoDate?: string) => {
   return formatter.format(date).toUpperCase();
 };
 
-// Provide stable row models to VList so item instances are preserved across moves/insertions
-type RowModel = {
-  id: string;
-  message: Message;
-};
+// Provide stable row models to VList so item instances are preserved across moves/insertions.
+// Use a discriminated union so we don't smuggle non-messages into Message.
+type RowModel =
+  | Readonly<{ kind: 'message'; id: string; message: Message }>
+  | Readonly<{ kind: 'reconcile_skeleton'; id: 'reconcile_skeleton' }>;
 
 // The size of a message with a profile picture and a one line message
 const BASE_ITEM_SIZE = 50;
@@ -117,6 +117,7 @@ export type MessageListProps = {
   channelId: string;
   messages: Message[];
   threadsById: ThreadStoreData;
+  isReconciling?: boolean;
   latestActivity?: ChannelActivity;
   containerRef?: HTMLDivElement;
   targetMessage: Accessor<TargetMessageInfo | undefined>;
@@ -270,6 +271,16 @@ function MessageListImpl(props: MessageListProps) {
     const length = props.orderedMessages().length;
 
     return length - 1 - index;
+  };
+
+  const reconcileOffset = createMemo(() =>
+    props.isReconciling === true && props.messages.length > 0 ? 1 : 0
+  );
+
+  const virtualIndexToMessageIndex = (virtualIndex: number) => {
+    // When reconciling we inject a skeleton row at virtual index 0.
+    const idx = virtualIndex - reconcileOffset();
+    return idx;
   };
 
   const lastViewed = createMemo(() => {
@@ -479,12 +490,16 @@ function MessageListImpl(props: MessageListProps) {
     return currentTypingId;
   });
 
-  const rows = mapArray(
+  const messageRows = mapArray(
     () => props.orderedMessages().toReversed(),
-    (msg) => {
-      return { id: msg.id, message: msg } as RowModel;
-    }
+    (msg) => ({ kind: 'message', id: msg.id, message: msg } as const)
   );
+
+  const rows = createMemo<RowModel[]>(() => {
+    const base = messageRows() ?? [];
+    if (reconcileOffset() === 0) return base;
+    return [{ kind: 'reconcile_skeleton', id: 'reconcile_skeleton' }, ...base];
+  });
 
   createEffect(() => {
     rows();
@@ -501,9 +516,14 @@ function MessageListImpl(props: MessageListProps) {
 
     if (endIndex === undefined) return;
 
-    const index = clamp(endIndex, 0, list.length - 1);
-    const row = rows()[index];
-    const label = toScrollHintDate(row?.message.created_at);
+    // Map virtual indices back to message indices, skipping the skeleton row.
+    const msgIndex = clamp(
+      virtualIndexToMessageIndex(endIndex),
+      0,
+      list.length - 1
+    );
+    const row = list[msgIndex];
+    const label = toScrollHintDate(row?.created_at);
 
     return label;
   };
@@ -612,8 +632,13 @@ function MessageListImpl(props: MessageListProps) {
       if (!isNearBottom() && lastItemOffset > viewportSize) {
         const prevUnviewedMessages = unviewedMessages();
         const messages = newFilteredMessages ?? [];
+        const mappedLastIndexInView =
+          lastIndexInView === undefined
+            ? undefined
+            : virtualIndexToMessageIndex(lastIndexInView);
+
         const newUnviewedMessages = messages
-          .slice(lastIndexInView + 1)
+          .slice((mappedLastIndexInView ?? -1) + 1)
           .filter(
             (msg) =>
               msg.sender_id !== userId() &&
@@ -768,7 +793,40 @@ function MessageListImpl(props: MessageListProps) {
                 }
               }}
             >
-              {(row: { id: string; message: Message }, i) => {
+              {(row: RowModel, i) => {
+                if (row.kind === 'reconcile_skeleton') {
+                  return (
+                    <div
+                      class={`shrink-0 flex justify-center w-full
+                      [--thread-shift:23px] @sm:[--thread-shift:46px]
+                      [--user-icon-width:30px] @sm:[--user-icon-width:40px]
+                      [--left-of-connector:20px] @sm:[--left-of-connector:28px]
+                      [--left-of-user-icon:calc(var(--left-of-connector)-var(--user-icon-width)/2)]`}
+                    >
+                      <div class="macro-message-width w-full">
+                        <div class="w-full">
+                          <div
+                            class="relative flex-1 flex flex-col justify-start w-[calc(100%-28px)] min-w-0 pl-[var(--left-of-connector)] border-l border-edge-muted/40"
+                            style={{ 'margin-left': `var(--left-of-connector)` }}
+                          >
+                            <div class="absolute -left-[.5px] -translate-x-1/2">
+                              <div class="flex justify-center items-center w-[var(--user-icon-width)] h-[var(--user-icon-width)]">
+                                <div class="w-[var(--user-icon-width)] h-[var(--user-icon-width)] rounded-full bg-ink-placeholder/60 animate-pulse" />
+                              </div>
+                            </div>
+                            <div class="py-2 pr-4">
+                              <div class="inline-block rounded-md bg-edge/10 px-3 py-2">
+                                <div class="h-3 w-28 bg-ink-placeholder/60 animate-pulse rounded" />
+                                <div class="h-3 w-72 bg-ink-placeholder/50 animate-pulse rounded mt-2" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
                 const isParentless = () => !row.message.thread_id;
                 const isThreadExpanded = createMemo(() => {
                   if (!row.message.thread_id) return false;
@@ -798,7 +856,7 @@ function MessageListImpl(props: MessageListProps) {
                       message={row.message}
                       lastViewed={lastViewed}
                       isFocused={isFocused(row.id)}
-                      index={() => normalizeIndex(i())}
+                      index={() => normalizeIndex(virtualIndexToMessageIndex(i()))}
                       orderedMessages={props.orderedMessages}
                       threadSiblings={viewThreads[
                         row.message.thread_id ?? ''

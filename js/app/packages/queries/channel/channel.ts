@@ -26,12 +26,18 @@ type ChannelQueryOptions = UseBaseQueryOptions<
   getChannelResponseError
 >;
 
+// Channel data is mostly static; realtime updates patch the cache. We keep it "fresh"
+// for a long time, but still reconcile on open via `refetchOnMount: 'always'`.
+export const CHANNEL_STALE_TIME_MS = 1000 * 60 * 60 * 24; // 24 hours
+
 /**
  * Shared query options for getting a channel with an ID
  */
 export function channelQueryOptions(channelId: string): ChannelQueryOptions {
   return {
     queryKey: channelKeys.withID(channelId).queryKey,
+    staleTime: CHANNEL_STALE_TIME_MS,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const result = await throwOnErr(
         async () =>
@@ -47,13 +53,19 @@ export function channelQueryOptions(channelId: string): ChannelQueryOptions {
 
 /**
  * Imperatively fetch a channel (for use outside of components).
- * Returns cached data if fresh, otherwise fetches from server.
- * Ensures the query data will be available for the next time the query is
- * accessed if it's before the stale time period.
+ * Cache-first: returns cached data immediately if present.
+ * If missing, fetches from server and caches.
  */
 export async function fetchAndCacheChannel(
   channelId: string
 ): Promise<MaybeResult<string, { channel: GetChannelResponse }>> {
+  const key = channelKeys.withID(channelId).queryKey;
+  const cached = queryClient.getQueryData<GetChannelResponse>(key);
+  if (cached) {
+    // Reconcile happens on mount via `refetchOnMount: 'always'`.
+    return ok({ channel: cached });
+  }
+
   const result = await catchToResult(
     async () =>
       await queryClient.ensureQueryData(channelQueryOptions(channelId))
