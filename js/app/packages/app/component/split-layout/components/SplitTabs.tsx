@@ -12,8 +12,8 @@ import {
   For,
   type JSXElement,
   onMount,
-  Show,
   type Setter,
+  Show,
 } from 'solid-js';
 import { useSplitPanelOrThrow } from '../layoutUtils';
 
@@ -166,7 +166,8 @@ export function SplitTabs(props: {
               );
             };
 
-            const isAfterAll = () => i() > 0 && props.list[i() - 1]?.value === 'all';
+            const isAfterAll = () =>
+              i() > 0 && props.list[i() - 1]?.value === 'all';
 
             let ref: HTMLDivElement | undefined;
             createEffect(() => {
@@ -186,74 +187,82 @@ export function SplitTabs(props: {
             });
 
             return (
-              <Show when={value !== 'all'} fallback={
-                <Tabs.Trigger value={value} class="hidden" tabIndex={-1} />
-              }>
-              <Tabs.Trigger
-                value={value}
-                ref={ref}
-                tabIndex={-1}
-                class="shrink-0 max-w-[40cqw] text-sm relative h-full flex items-center focus-bracket-within [&:focus-within]:[--focus-border-inset:-3px]"
-                onPointerDown={(e) => {
-                  // Kobalte updates the active tab on pointerdown.
-                  // We only want "click active tab toggles back to `all`" when it was
-                  // already active *before* the interaction began.
-                  //
-                  // Stash it on the element to share with onClick without extra signals.
-                  (e.currentTarget as HTMLElement).dataset.wasActiveOnPointerDown =
-                    String(isActive());
-                }}
-                onClick={(e) => {
-                  // Make type tabs toggleable: clicking the active tab clears selection to internal `all`.
-                  // This should match the hotkey toggle behavior (e.g. pressing `e` twice).
-                  const wasActiveOnPointerDown =
-                    (e.currentTarget as HTMLElement).dataset.wasActiveOnPointerDown ===
-                    'true';
-                  if (!wasActiveOnPointerDown) return;
-                  if ('button' in e && typeof e.button === 'number' && e.button !== 0)
-                    return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  panel.unifiedListContext.setSelectedView('all');
-                }}
-                classList={{
-                  // visually group Signal/Noise/All together, then all others as a second group
-                  'mr-1': value === 'all',
-                  'ml-1': isAfterAll(),
-                  'ml-[-1px]': i() > 0 && !isAfterAll(),
-                }}
-                data-hotkey-token={
-                  TOKENS.soup.tabs[
-                    index.toString() as keyof typeof TOKENS.soup.tabs
-                  ]
+              <Show
+                when={value !== 'all'}
+                fallback={
+                  <Tabs.Trigger value={value} class="hidden" tabIndex={-1} />
                 }
               >
-                <ToggleButton
-                  as="div"
-                  size="SM"
-                  pressed={isActive()}
+                <Tabs.Trigger
+                  value={value}
+                  ref={ref}
                   tabIndex={-1}
-                  class="pointer-events-none"
-                  classList={{
-                    'max-w-[40cqw]': true,
+                  class="shrink-0 max-w-[40cqw] text-sm relative h-full flex items-center focus-bracket-within [&:focus-within]:[--focus-border-inset:-3px]"
+                  onPointerDown={(e) => {
+                    // Kobalte updates the active tab on pointerdown.
+                    // We only want "click active tab toggles back to `all`" when it was
+                    // already active *before* the interaction began.
+                    //
+                    // Stash it on the element to share with onClick without extra signals.
+                    (
+                      e.currentTarget as HTMLElement
+                    ).dataset.wasActiveOnPointerDown = String(isActive());
                   }}
+                  onClick={(e) => {
+                    // Make type tabs toggleable: clicking the active tab clears selection to internal `all`.
+                    // This should match the hotkey toggle behavior (e.g. pressing `e` twice).
+                    const wasActiveOnPointerDown =
+                      (e.currentTarget as HTMLElement).dataset
+                        .wasActiveOnPointerDown === 'true';
+                    if (!wasActiveOnPointerDown) return;
+                    if (
+                      'button' in e &&
+                      typeof e.button === 'number' &&
+                      e.button !== 0
+                    )
+                      return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    panel.unifiedListContext.setSelectedView('all');
+                  }}
+                  classList={{
+                    // visually group Signal/Noise/All together, then all others as a second group
+                    'mr-1': value === 'all',
+                    'ml-1': isAfterAll(),
+                    'ml-[-1px]': i() > 0 && !isAfterAll(),
+                  }}
+                  data-hotkey-token={
+                    TOKENS.soup.tabs[
+                      index.toString() as keyof typeof TOKENS.soup.tabs
+                    ]
+                  }
                 >
-                  <span class="flex items-baseline gap-1 max-w-full">
-                    {renderMnemonicLabel()}
-                  </span>
-                </ToggleButton>
-                {props.tabAddon?.({
-                  value,
-                  label,
-                  index,
-                  active: isActive(),
-                  triggerEl: ref,
-                })}
-                {/* <Show when={isActive()}>
+                  <ToggleButton
+                    as="div"
+                    size="SM"
+                    pressed={isActive()}
+                    tabIndex={-1}
+                    class="pointer-events-none"
+                    classList={{
+                      'max-w-[40cqw]': true,
+                    }}
+                  >
+                    <span class="flex items-baseline gap-1 max-w-full">
+                      {renderMnemonicLabel()}
+                    </span>
+                  </ToggleButton>
+                  {props.tabAddon?.({
+                    value,
+                    label,
+                    index,
+                    active: isActive(),
+                    triggerEl: ref,
+                  })}
+                  {/* <Show when={isActive()}>
                   <BrightJoins dots={[true, true, true, true]} />
                 </Show> */}
-                {props.contextMenu?.({ label, value })}
-              </Tabs.Trigger>
+                  {props.contextMenu?.({ label, value })}
+                </Tabs.Trigger>
               </Show>
             );
           }}

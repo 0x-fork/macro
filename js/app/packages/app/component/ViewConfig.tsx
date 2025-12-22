@@ -13,15 +13,11 @@ import {
   queryKeys,
   type WithNotification,
 } from '@macro-entity';
-import {
-  markNotificationsForEntityAsDone,
-  type NotificationSource,
-} from '@notifications';
+import type { NotificationSource } from '@notifications';
 import { emailClient } from '@service-email/client';
 import stringify from 'json-stable-stringify';
 import { queryClient } from '../../macro-entity/src/queries/client';
 import type { UnifiedListContext } from './SoupContext';
-import { noiseFilter, signalFilter } from './soupFilters';
 
 // for custom views that extend the unified list view
 export type ViewType = 'project';
@@ -173,58 +169,6 @@ export const PROJECT_VIEWCONFIG_BASE: ViewConfigBase = {
 };
 
 const ALL_VIEWCONFIG_DEFAULTS = {
-  signal: {
-    view: 'Signal',
-    filters: {
-      notificationFilter: 'notDone',
-    },
-    sort: {
-      sortBy: 'updated_at',
-    },
-    display: {
-      unrollNotifications: true,
-      showUnreadIndicator: true,
-    },
-    hotkeyOptions: {
-      e: (entity, extra) => {
-        if (entity.type === 'email') {
-          archiveEmail(entity.id, {
-            isDone: entity.done,
-          });
-        }
-        if (extra?.notificationSource) {
-          markNotificationsForEntityAsDone(extra.notificationSource, entity);
-        }
-        return true;
-      },
-    },
-  },
-  noise: {
-    view: 'Noise',
-    filters: {
-      notificationFilter: 'notDone',
-    },
-    sort: {
-      sortBy: 'updated_at',
-    },
-    display: {
-      unrollNotifications: true,
-      showUnreadIndicator: true,
-    },
-    hotkeyOptions: {
-      e: (entity, extra) => {
-        if (entity.type === 'email') {
-          archiveEmail(entity.id, {
-            isDone: entity.done,
-          });
-        }
-        if (extra?.notificationSource) {
-          markNotificationsForEntityAsDone(extra.notificationSource, entity);
-        }
-        return true;
-      },
-    },
-  },
   all: {
     view: 'All',
     sort: {

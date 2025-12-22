@@ -18,7 +18,6 @@ import IconGear from '@macro-icons/macro-gear.svg';
 import IconLogo from '@macro-icons/macro-logo.svg';
 import { BasicTierLimit } from './BasicTierLimit';
 import { setKonsoleOpen } from '../command/state';
-import { runCommand } from '@core/hotkey/utils';
 import { Hotkey } from '@core/component/Hotkey';
 import { setCreateMenuOpen } from '../Launcher';
 import { useHasPaidAccess } from '@core/auth';
@@ -39,7 +38,7 @@ export function Dock() {
   const { settingsOpen, toggleSettings } = useSettingsState();
   const hasPaid = useHasPaidAccess();
 
-  const isSoupActive = createMemo(() => {
+  const _isSoupActive = createMemo(() => {
     const splitId = globalSplitManager()?.activeSplitId();
     if (!splitId) { return false };
     const split = globalSplitManager()?.getSplit(splitId);

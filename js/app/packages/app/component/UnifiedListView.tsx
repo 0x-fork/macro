@@ -7,7 +7,6 @@ import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import { URL_PARAMS as EMAIL_PARAMS } from '@block-email/constants';
 import { URL_PARAMS as MD_PARAMS } from '@block-md/constants';
 import { URL_PARAMS as PDF_PARAMS } from '@block-pdf/signal/location';
-import { Button } from '@core/component/FormControls/Button';
 import { SegmentedControl } from '@core/component/FormControls/SegmentControls';
 import { ToggleButton } from '@core/component/FormControls/ToggleButton';
 import { IconButton } from '@core/component/IconButton';
@@ -18,26 +17,23 @@ import {
   MenuSeparator,
 } from '@core/component/Menu';
 import { getSuggestedProperties } from '@core/component/Properties/utils';
-import { RecipientSelector } from '@core/component/RecipientSelector';
+import { getRecipientOptionEmail } from '@core/component/RecipientSelector';
+import {
+  RecipientTypeahead,
+  type RecipientTypeaheadHandle,
+} from '@core/component/RecipientTypeahead';
 import { ScopedPortal } from '@core/component/ScopedPortal';
 import {
   blockAcceptsFileExtension,
   fileTypeToBlockName,
 } from '@core/constant/allBlocks';
-import {
-  ENABLE_PROPERTY_DISPLAY_CONTROL,
-  ENABLE_PREVIEW,
-  ENABLE_SOUP_FROM_FILTER,
-  ENABLE_TASKS_TABS,
-} from '@core/constant/featureFlags';
+import { ENABLE_PREVIEW } from '@core/constant/featureFlags';
 import { IS_MAC } from '@core/constant/isMac';
 import { useEmailLinksStatus } from '@core/email-link';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { isMobileWidth } from '@core/mobile/mobileWidth';
-import { RecipientTypeahead, type RecipientTypeaheadHandle } from '@core/component/RecipientTypeahead';
-import { getRecipientOptionEmail } from '@core/component/RecipientSelector';
 import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import { debouncedDependent } from '@core/util/debounce';
 import { fuzzyMatch } from '@core/util/fuzzy';
@@ -108,7 +104,6 @@ import {
   on,
   onCleanup,
   onMount,
-  type ParentProps,
   type Setter,
   Show,
   type Signal,
@@ -134,7 +129,7 @@ import {
 import { EntityActionsMenuItems } from './EntityActionsMenuItems';
 import { EntityModal } from './EntityModal/EntityModal';
 import { EntitySelectionToolbarModal } from './EntitySelectionToolbarModal';
-import { PropertyDisplayControl } from './PropertyDisplayControl';
+import { signalFilter } from './soupFilters';
 import { SplitHeaderLeft } from './split-layout/components/SplitHeader';
 import { useSplitLayout } from './split-layout/layout';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
@@ -143,17 +138,13 @@ import {
   type DisplayOptions,
   type DocumentTypeFilter,
   type FilterOptions,
-  isConfigEqual,
   KNOWN_FILE_TYPES,
   type SortOptions,
   type SystemSortOption,
   VIEWCONFIG_BASE,
-  VIEWCONFIG_DEFAULTS_IDS,
   VIEWCONFIG_DEFAULTS_IDS_ENUM,
-  type ViewConfigBase,
   type ViewData,
 } from './ViewConfig';
-import { signalFilter } from './soupFilters';
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 200;
 const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
@@ -229,7 +220,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     setViewDataStore,
     selectedView,
     importantModeSignal: [importantMode, setImportantMode],
-    searchTextSignal: [rawSearchText, setRawSearchText],
+    searchTextSignal: [rawSearchText, _setRawSearchText],
     virtualizerHandleSignal: [virtualizerHandle, setVirtualizerHandle],
     entityListRefSignal: [, setEntityListRef],
     entitiesSignal: [entities_, setEntities],
@@ -355,7 +346,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     () =>
       view()?.filters?.importantFilter ?? defaultFilterOptions.importantFilter
   );
-  const setImportantFilter = (importantFilter: boolean) => {
+  const _setImportantFilter = (importantFilter: boolean) => {
     setViewDataStore(
       selectedView(),
       'filters',
@@ -396,7 +387,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     () => view()?.filters?.projectFilter ?? defaultFilterOptions.projectFilter
   );
 
-  const { all: emailRecipientOptions } = useCombinedRecipients(['user']);
+  const { all: _emailRecipientOptions } = useCombinedRecipients(['user']);
   const fromFilter = createMemo(() => view()?.filters.fromFilter);
   const hasFromFilter = createMemo(() => fromFilter() !== undefined);
   const shouldFilterEmails = createMemo(() => {
@@ -409,11 +400,11 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     const types = entityTypeFilter();
     return types.length === 0 || types.some((t) => t !== 'email');
   });
-  const showFromFilter = createMemo(
+  const _showFromFilter = createMemo(
     () => shouldFilterEmails() || shouldFilterOwnedEntities()
   );
   const fromFilterUsers = createMemo(() => fromFilter() ?? []);
-  const setFromFilterUsers: SetStoreFunction<
+  const _setFromFilterUsers: SetStoreFunction<
     ViewData['filters']['fromFilter']
   > = (...args: any[]) => {
     // @ts-ignore narrowing set store function is annoying due to function overloading
@@ -480,7 +471,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
       view()?.display?.unrollNotifications ??
       defaultDisplayOptions.unrollNotifications
   );
-  const setShowUnrollNotifications = (
+  const _setShowUnrollNotifications = (
     showUnrollNotifications: DisplayOptions['unrollNotifications']
   ) => {
     setViewDataStore(
@@ -496,7 +487,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
       view()?.display?.showUnreadIndicator ??
       defaultDisplayOptions.showUnreadIndicator
   );
-  const setShowUnreadIndicator = (
+  const _setShowUnreadIndicator = (
     showUnreadIndicator: DisplayOptions['showUnreadIndicator']
   ) => {
     setViewDataStore(
@@ -507,12 +498,12 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     );
   };
 
-  const displayProperties = createMemo(
+  const _displayProperties = createMemo(
     () =>
       view()?.display?.displayProperties ??
       defaultDisplayOptions.displayProperties
   );
-  const setDisplayProperties = (
+  const _setDisplayProperties = (
     properties: DisplayOptions['displayProperties']
   ) => {
     setViewDataStore(
@@ -524,7 +515,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
   };
 
   // Suggested properties reactive to filter type
-  const suggestedProperties = createMemo(() => {
+  const _suggestedProperties = createMemo(() => {
     const types = entityTypeFilter();
     return getSuggestedProperties(types);
   });
@@ -573,7 +564,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
   const { setFilters: setRequiredFilters, filterFn: requiredFilter } =
     createFilterComposer();
 
-  const toggleFileTypeFilter = (fileType: DocumentTypeFilter) => {
+  const _toggleFileTypeFilter = (fileType: DocumentTypeFilter) => {
     batch(() => {
       if (!entityTypeFilter().includes('document'))
         setEntityTypeFilter((prev) => [...prev, 'document']);
@@ -678,7 +669,9 @@ export function UnifiedListView(props: UnifiedListViewProps) {
       filterFns.push(notDoneFilterFn);
       filterFns.push((entity: WithNotification<EntityData>) => {
         if (entity.type !== 'email') return true;
-        return signalFilter.predicate(entity, { soupContext: unifiedListContext });
+        return signalFilter.predicate(entity, {
+          soupContext: unifiedListContext,
+        });
       });
     } else if (importantFilter()) {
       filterFns.push(importantFilterFn);
@@ -981,7 +974,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
     });
   };
 
-  const { SortComponent, sortFn: entitySort } = createSort({
+  const { sortFn: entitySort } = createSort({
     sortOptions,
     defaultSortOption: getSystemSortOption(defaultSortOptions as SortOptions),
     sortTypeSignal: [sortType, setSortType] as Signal<SystemSortOption>,
@@ -1822,7 +1815,7 @@ export function UnifiedListView(props: UnifiedListViewProps) {
   );
 }
 
-const EntityTypeToggle = (props: {
+const _EntityTypeToggle = (props: {
   type: ExpandedEntityType;
   filter: Accessor<typeof VIEWCONFIG_BASE.filters.typeFilter>;
   setFilter: Setter<typeof VIEWCONFIG_BASE.filters.typeFilter>;
@@ -1856,7 +1849,9 @@ function UnifiedListFilterControls(props: {
   importantMode: Accessor<boolean>;
   setImportantMode: Setter<boolean>;
   notificationFilter: Accessor<FilterOptions['notificationFilter']>;
-  setNotificationFilter: (notificationFilter: FilterOptions['notificationFilter']) => void;
+  setNotificationFilter: (
+    notificationFilter: FilterOptions['notificationFilter']
+  ) => void;
   preview: Accessor<boolean>;
   setPreview: Setter<boolean>;
   sortMenuOpen: Accessor<boolean>;
@@ -1916,7 +1911,8 @@ function UnifiedListFilterControls(props: {
         onOpenChange={(open) => {
           props.setSortMenuOpen(open);
           if (!open) return;
-          const w = props.getSortMenuTriggerEl()?.getBoundingClientRect().width ?? 0;
+          const w =
+            props.getSortMenuTriggerEl()?.getBoundingClientRect().width ?? 0;
           // Give the menu enough room for labels; don't constrain to trigger width.
           props.setSortMenuWidth(Math.max(200, Math.floor(w)));
         }}
@@ -1938,7 +1934,9 @@ function UnifiedListFilterControls(props: {
           <KDropdownMenu.Content
             class={`${MENU_CONTENT_CLASS} py-1`}
             style={{
-              width: props.sortMenuWidth() ? `${props.sortMenuWidth()}px` : undefined,
+              width: props.sortMenuWidth()
+                ? `${props.sortMenuWidth()}px`
+                : undefined,
             }}
           >
             <KDropdownMenu.RadioGroup
@@ -1980,11 +1978,7 @@ function UnifiedListFilterControls(props: {
   );
 }
 
-function SearchBar(
-  props: {
-    isLoading: Accessor<boolean>;
-  }
-) {
+function SearchBar(props: { isLoading: Accessor<boolean> }) {
   const splitContext = useSplitPanelOrThrow();
   const {
     viewsDataStore,

@@ -1,10 +1,13 @@
 import type { CombinedRecipientItem } from '@core/user';
 import { clamp } from '@core/util/math';
+import { Combobox, type ComboboxTriggerMode } from '@kobalte/core/combobox';
 import {
-  Combobox,
-  type ComboboxTriggerMode,
-} from '@kobalte/core/combobox';
-import { type Accessor, createEffect, createMemo, createSignal, type JSX } from 'solid-js';
+  type Accessor,
+  createEffect,
+  createMemo,
+  createSignal,
+  type JSX,
+} from 'solid-js';
 import { VList } from 'virtua/solid';
 import {
   getRecipientOptionEmail,
@@ -40,7 +43,9 @@ type RecipientTypeaheadProps = {
   contentClass?: string;
 };
 
-export function RecipientTypeahead(props: RecipientTypeaheadProps): JSX.Element {
+export function RecipientTypeahead(
+  props: RecipientTypeaheadProps
+): JSX.Element {
   let hiddenInputRef: HTMLInputElement | undefined;
   const [listboxRef, setListboxRef] = createSignal<HTMLElement | undefined>();
 
@@ -65,7 +70,9 @@ export function RecipientTypeahead(props: RecipientTypeaheadProps): JSX.Element 
       | undefined;
     const value = el?.getAttribute('data-recipient-option-value');
     if (!value) return null;
-    const opt = filteredOptions().find((o) => getRecipientOptionValue(o) === value);
+    const opt = filteredOptions().find(
+      (o) => getRecipientOptionValue(o) === value
+    );
     return opt ?? null;
   };
 
@@ -167,5 +174,3 @@ export function RecipientTypeahead(props: RecipientTypeaheadProps): JSX.Element 
     </Combobox>
   );
 }
-
-

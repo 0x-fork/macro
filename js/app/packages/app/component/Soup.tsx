@@ -7,9 +7,6 @@ import { playSound } from '@app/util/sound';
 import { useIsAuthenticated } from '@core/auth';
 import type { BlockAliasContext } from '@core/block';
 import { FileDropOverlay } from '@core/component/FileDropOverlay';
-import { Button } from '@core/component/FormControls/Button';
-import { SegmentedControl } from '@core/component/FormControls/SegmentControls';
-import { ToggleButton } from '@core/component/FormControls/ToggleButton';
 import {
   ContextMenuContent,
   MENU_CONTENT_CLASS,
@@ -17,11 +14,11 @@ import {
   MenuSeparator,
 } from '@core/component/Menu';
 import { fileTypeToResolvedBlockName } from '@core/constant/allBlocks';
+import { ENABLE_SAVED_VIEWS } from '@core/constant/featureFlags';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { RegisterHotkeyReturn } from '@core/hotkey/types';
 import type { BlockOrchestrator } from '@core/orchestrator';
-import { ENABLE_SAVED_VIEWS } from '@core/constant/featureFlags';
 import {
   DEFAULT_VIEWS,
   type DefaultView,
@@ -61,16 +58,15 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { EntityModal } from './EntityModal/EntityModal';
 import { SuspenseContextComp } from './SuspenseContext';
-import { SplitTabs } from './split-layout/components/SplitTabs';
 import { SplitHeaderLeft } from './split-layout/components/SplitHeader';
+import { SplitTabs } from './split-layout/components/SplitTabs';
 import type { SplitPanelContextType } from './split-layout/context';
 import { SplitPanelContext } from './split-layout/context';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
 import { UnifiedListView } from './UnifiedListView';
 import {
-  VIEWCONFIG_BASE,
-  VIEWCONFIG_DEFAULTS_IDS,
   type DocumentTypeFilter,
+  VIEWCONFIG_DEFAULTS_IDS,
   type ViewConfigBase,
 } from './ViewConfig';
 
@@ -466,10 +462,14 @@ export function Soup() {
                       <span class="text-[0.625rem]">Views</span>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Portal>
-                      <DropdownMenu.Content class={`${MENU_CONTENT_CLASS} py-1 w-44`}>
+                      <DropdownMenu.Content
+                        class={`${MENU_CONTENT_CLASS} py-1 w-44`}
+                      >
                         <Show
                           when={customViews().length > 0}
-                          fallback={<MenuItem text="No custom views" disabled />}
+                          fallback={
+                            <MenuItem text="No custom views" disabled />
+                          }
                         >
                           <For each={customViews()}>
                             {(v) => (
@@ -503,11 +503,14 @@ export function Soup() {
                     : undefined
                 }
                 tabAddon={({ value, triggerEl, active }) => {
-                  if (value !== 'files') return <></>;
+                  if (value !== 'files') return null;
                   const docTypes = (): DocumentTypeFilter[] =>
                     (viewsData.files?.filters?.documentTypeFilter ??
                       []) as DocumentTypeFilter[];
-                  const setChecked = (t: DocumentTypeFilter, checked: boolean) => {
+                  const setChecked = (
+                    t: DocumentTypeFilter,
+                    checked: boolean
+                  ) => {
                     setViewDataStore(
                       'files',
                       'filters',
@@ -521,7 +524,12 @@ export function Soup() {
                     );
                   };
                   const clearAll = () => {
-                    setViewDataStore('files', 'filters', 'documentTypeFilter', []);
+                    setViewDataStore(
+                      'files',
+                      'filters',
+                      'documentTypeFilter',
+                      []
+                    );
                   };
                   return (
                     <div class="-ml-px">
@@ -529,7 +537,8 @@ export function Soup() {
                         placement="bottom-start"
                         onOpenChange={(open) => {
                           if (!open) return;
-                          const w = triggerEl?.getBoundingClientRect().width ?? 0;
+                          const w =
+                            triggerEl?.getBoundingClientRect().width ?? 0;
                           setFilesMenuWidth(Math.floor(w));
                         }}
                       >
@@ -583,21 +592,27 @@ export function Soup() {
                               selectorType="checkbox"
                               checked={docTypes().includes('canvas')}
                               closeOnSelect={false}
-                              onChange={(checked) => setChecked('canvas', checked)}
+                              onChange={(checked) =>
+                                setChecked('canvas', checked)
+                              }
                             />
                             <MenuItem
                               text="Code"
                               selectorType="checkbox"
                               checked={docTypes().includes('code')}
                               closeOnSelect={false}
-                              onChange={(checked) => setChecked('code', checked)}
+                              onChange={(checked) =>
+                                setChecked('code', checked)
+                              }
                             />
                             <MenuItem
                               text="Image"
                               selectorType="checkbox"
                               checked={docTypes().includes('image')}
                               closeOnSelect={false}
-                              onChange={(checked) => setChecked('image', checked)}
+                              onChange={(checked) =>
+                                setChecked('image', checked)
+                              }
                             />
                             <MenuItem
                               text="Other"

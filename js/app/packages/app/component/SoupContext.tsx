@@ -10,7 +10,7 @@ import { activeScope, hotkeyScopeTree } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { runCommand } from '@core/hotkey/utils';
-import { DEFAULT_VIEWS, type DefaultView, type ViewId } from '@core/types/view';
+import type { DefaultView, ViewId } from '@core/types/view';
 import { getActualTarget } from '@core/util/getActualTarget';
 import { isInteractiveElement } from '@core/util/isInteractiveElement';
 import { filterMap } from '@core/util/list';
@@ -452,7 +452,7 @@ export function createNavigationEntityListShortcut({
     }
   );
 
-  const DONE_SWIPE_MS = 200;
+  const _DONE_SWIPE_MS = 200;
   const DONE_COMMIT_DEBOUNCE_MS = 250;
   let doneCommitTimeout: number | undefined;
   let suppressMarkDoneNavUntil = 0;
