@@ -429,6 +429,15 @@ export function createUnifiedInfiniteList<T extends EntityData>({
       estimateSize: () => ENTITY_HEIGHT,
       getScrollElement: () => scrollParentRef() as Element,
       overscan: computedOverscan(),
+      measureElement: (element, resizeObserverEntry) => {
+        // There's an issue where cached height is used instead of live height, resulting in gap.
+        // Fix is getting height from resizeObserver entry or element's child
+        const height =
+          resizeObserverEntry?.contentRect.height ??
+          element.firstElementChild!.getBoundingClientRect().height;
+
+        return height;
+      },
     });
 
     props.virtualizerHandle?.(rowVirtualizer);
@@ -479,7 +488,6 @@ export function createUnifiedInfiniteList<T extends EntityData>({
 
     onCleanup(() => debouncedFetchMore.clear());
 
-    // const cacheKey = createMemo(() => (id ? `list-cache-${id}` : null));
     const cacheKey = `list-cache-${id}`;
 
     // compose method to cache scroll position when called
@@ -619,55 +627,65 @@ export function createUnifiedInfiniteList<T extends EntityData>({
                     position: 'relative',
                   }}
                 >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${rowVirtualizer.getVirtualItems()?.[0]?.start}px)`,
-                    }}
-                  >
-                    <For each={rowVirtualizer.getVirtualItems()}>
-                      {(virtualItem) => {
-                        if (
-                          untrack(() => virtualItem.index) >=
-                          Math.floor(untrack(sortedEntities).length * 0.9)
-                        ) {
-                          debouncedFetchMore();
-                        }
+                  <For each={rowVirtualizer.getVirtualItems()}>
+                    {(virtualItem) => {
+                      if (
+                        untrack(() => virtualItem.index) >=
+                        Math.floor(untrack(sortedEntities).length * 0.9)
+                      ) {
+                        debouncedFetchMore();
+                      }
 
-                        return (
-                          <Show
-                            when={sortedEntitiesStore[virtualItem.index]?.id}
-                            keyed
-                          >
-                            {(_) => {
-                              const entity =
-                                sortedEntitiesStore[virtualItem.index];
-                              return (
-                                <Show when={entity}>
-                                  <div
-                                    data-index={virtualItem.index}
-                                    ref={(el) =>
-                                      queueMicrotask(() =>
-                                        rowVirtualizer.measureElement(el)
+                      return (
+                        // reactive
+                        <Show
+                          when={sortedEntitiesStore[virtualItem.index]?.id}
+                          keyed
+                        >
+                          {(_) => {
+                            const entity =
+                              sortedEntitiesStore[virtualItem.index];
+                            let checkSizeCount = 0;
+                            return (
+                              // null check
+                              <Show when={entity}>
+                                <div
+                                  data-index={virtualItem.index}
+                                  ref={(el) => {
+                                    createRenderEffect(
+                                      on(
+                                        () => virtualItem.size,
+                                        () => {
+                                          if (checkSizeCount > 10) return;
+
+                                          queueMicrotask(() =>
+                                            rowVirtualizer.measureElement(el)
+                                          );
+                                        }
                                       )
-                                    }
-                                  >
-                                    <EntityRenderer
-                                      entity={entity}
-                                      index={virtualItem.index}
-                                    />
-                                  </div>
-                                </Show>
-                              );
-                            }}
-                          </Show>
-                        );
-                      }}
-                    </For>
-                  </div>
+                                    );
+                                  }}
+                                  style={{
+                                    position: 'absolute',
+                                    top: `${virtualItem.start}px`,
+                                    left: 0,
+                                    width: '100%',
+                                    'min-height': `${virtualItem.size}px`,
+                                    height: 'min-content',
+                                  }}
+                                >
+                                  <EntityRenderer
+                                    entity={entity}
+                                    index={virtualItem.index}
+                                  />
+                                </div>
+                              </Show>
+                            );
+                          }}
+                        </Show>
+                      );
+                    }}
+                  </For>
                 </div>
               </div>
             </StaticMarkdownContext>
