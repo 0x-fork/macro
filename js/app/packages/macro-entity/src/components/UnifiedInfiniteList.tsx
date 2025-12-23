@@ -604,16 +604,16 @@ export function createUnifiedInfiniteList<T extends EntityData>({
           <div class="flex size-full relative" ref={setListRef}>
             <StaticMarkdownContext>
               <div
-                class="size-full relative overflow-y-auto scrollbar-hidden"
+                class="size-full relative scrollbar-hidden"
                 data-unified-entity-list
                 ref={(el) => {
                   onElementConnect(el, () => {
                     setScrollParentRef(el as HTMLDivElement);
                   });
                 }}
-                // style={{
-                //   overflow: 'auto',
-                // }}
+                style={{
+                  overflow: 'auto',
+                }}
               >
                 <div
                   ref={(el) => {
@@ -621,11 +621,10 @@ export function createUnifiedInfiniteList<T extends EntityData>({
                       props.entityListRef?.(el as HTMLDivElement);
                     });
                   }}
-                  class="w-full relative"
                   style={{
                     height: `${rowVirtualizer.getTotalSize()}px`,
-                    // width: '100%',
-                    // position: 'relative',
+                    width: '100%',
+                    position: 'relative',
                   }}
                 >
                   <For each={rowVirtualizer.getVirtualItems()}>
@@ -666,14 +665,13 @@ export function createUnifiedInfiniteList<T extends EntityData>({
                                       )
                                     );
                                   }}
-                                  class="absolute left-0 w-full h-min"
                                   style={{
                                     position: 'absolute',
                                     top: `${virtualItem.start}px`,
-                                    // left: 0,
-                                    // width: '100%',
+                                    left: 0,
+                                    width: '100%',
                                     'min-height': `${virtualItem.size}px`,
-                                    // height: 'min-content',
+                                    height: 'min-content',
                                   }}
                                 >
                                   <EntityRenderer
