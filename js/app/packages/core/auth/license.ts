@@ -6,7 +6,7 @@ import { createMemo } from 'solid-js';
 export function useHasPaidAccess() {
   const [userInfo] = useUserInfo();
   const organizationId = useOrganizationId();
-  return createMemo((): boolean => {
+  return () => {
     if (isNativeMobilePlatform()) return true;
 
     const [erru, info] = userInfo.latest;
@@ -16,5 +16,5 @@ export function useHasPaidAccess() {
       info.licenseStatus === 'trialing' ||
       info.licenseStatus === 'active'
     );
-  });
+  };
 }
