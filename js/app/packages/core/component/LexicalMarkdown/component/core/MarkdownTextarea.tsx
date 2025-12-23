@@ -16,7 +16,6 @@ import {
   createSignal,
   type JSX,
   onCleanup,
-  onMount,
   Show,
 } from 'solid-js';
 import type { SetStoreFunction } from 'solid-js/store';
@@ -271,7 +270,7 @@ export function MarkdownTextarea(props: MarkdownTextareaProps) {
       >
         <div
           ref={(el) => {
-            onMount(() => {
+            onElementConnect(el, () => {
               editor.setRootElement(el);
               onConnect();
             });

@@ -365,7 +365,7 @@ export function InstructionsEditor() {
       <div class="relative" ref={editorContainerRef}>
         <div
           ref={(el) => {
-            onMount(() => {
+            onElementConnect(el, () => {
               onConnect(el);
             });
           }}

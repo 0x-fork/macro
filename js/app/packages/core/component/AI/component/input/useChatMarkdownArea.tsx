@@ -70,7 +70,6 @@ import {
   createSignal,
   type JSXElement,
   onCleanup,
-  onMount,
   type Setter,
   Show,
 } from 'solid-js';
@@ -407,7 +406,7 @@ function MarkdownArea(
       <div class="relative w-full">
         <div
           ref={(el) => {
-            onMount(() => {
+            onElementConnect(el, () => {
               editor.setRootElement(el);
               onConnect();
               props.setMountRef(el);
