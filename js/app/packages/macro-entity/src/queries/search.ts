@@ -20,6 +20,7 @@ import type {
 import { useHistory } from '@service-storage/history';
 import { useInfiniteQuery } from '@tanstack/solid-query';
 import { type Accessor, createMemo } from 'solid-js';
+import { useEmails } from '../source/email';
 import type { EntityData } from '../types/entity';
 import type { ContentHitData, SearchData, WithSearch } from '../types/search';
 import type { EntityInfiniteQuery } from './entity';
@@ -144,6 +145,8 @@ const useMapSearchResponseItem = () => {
 
   const history = useHistory();
 
+  const threads = useEmails();
+
   return (
     result: UnifiedSearchResponseItem,
     searchQuery: string
@@ -201,9 +204,23 @@ const useMapSearchResponseItem = () => {
         const name = result.name ?? blockNameToDefaultFile('email');
 
         // TODO: display sender for each message in the content hit list
-        const combinedSenders =
-          [...new Set(messageHits.map((m) => m.pretty_sender))].join(', ') ||
-          threadHits.at(0)?.pretty_sender;
+        let combinedSenders: string | undefined;
+        const threadMatch = threads().find(
+          (thread) => thread.id === result.thread_id
+        );
+        if (threadMatch) {
+          console.log('found thread match', result.thread_id, threadMatch);
+          combinedSenders = threadMatch.participants
+            .filter((p) => p.email)
+            .map((p) => p.email)
+            .join(', ');
+        } else {
+          console.log('no thread match', result.thread_id);
+          // TODO: make a service call to get the thread participants
+          combinedSenders =
+            [...new Set(messageHits.map((m) => m.pretty_sender))].join(', ') ||
+            threadHits.at(0)?.pretty_sender;
+        }
 
         // TODO: we probably want to get the actual latest message info on the full thread
         const messagesSentAt = messageHits
