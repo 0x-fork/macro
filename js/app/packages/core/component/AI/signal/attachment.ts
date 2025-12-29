@@ -56,7 +56,6 @@ export const useChatAttachableHistory = () => {
 export const useGetChatAttachmentInfo = () => {
   const history = useChatAttachableHistory();
   const { channels } = useChannelsContext();
-  const _emails = useEmails();
 
   const getDocumentAttachment = (id: string): Attachment | undefined => {
     const item = history().find((item) => item.id === id);
