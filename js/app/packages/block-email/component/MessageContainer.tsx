@@ -202,7 +202,7 @@ export function MessageContainer(props: MessageContainerProps) {
               message={props.message}
               focused={props.isFocused}
               setExpandedMessageBodyIds={props.setExpandedMessageBodyIds}
-              isBodyExpanded={isBodyExpanded}
+              isBodyExpanded={isBodyExpanded()}
               expandedHeader={expandedHeader}
               setExpandedHeader={setExpandedHeader}
               setFocusedMessageId={context.messages.setFocused}
@@ -218,7 +218,7 @@ export function MessageContainer(props: MessageContainerProps) {
           <Message.Body>
             <EmailMessageBody
               message={props.message}
-              isBodyExpanded={isBodyExpanded}
+              isBodyExpanded={isBodyExpanded()}
               setExpandedMessageBody={(id) =>
                 props.setExpandedMessageBodyIds(id, true)
               }

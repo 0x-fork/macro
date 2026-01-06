@@ -7,7 +7,6 @@ import DotsThree from '@icon/regular/dots-three.svg';
 import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
 import { useEmail } from '@service-gql/client';
 import {
-  type Accessor,
   createEffect,
   createMemo,
   createSignal,
@@ -23,7 +22,7 @@ import { processEmailColors } from '../util/transformEmailColors';
 
 interface EmailMessageBodyProps {
   message: MessageWithBodyReplyless;
-  isBodyExpanded: Accessor<boolean>;
+  isBodyExpanded: boolean;
   setExpandedMessageBody: (id: string) => void;
   setFocusedMessageId: (messageID: string | undefined) => void;
   isFirstMessageInThread: boolean;
@@ -120,7 +119,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
 
     let content = source()?.mainContent ?? '';
 
-    if (!props.isBodyExpanded()) {
+    if (!props.isBodyExpanded) {
       content = (props.message.body_text ?? '').slice(0, 200);
     }
 
@@ -129,7 +128,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     messageDiv.style.cursor = 'var(--cursor-auto)';
     messageDiv.style.overflow = 'auto';
 
-    if (!props.isBodyExpanded()) {
+    if (!props.isBodyExpanded) {
       messageDiv.style.display = '-webkit-box';
       messageDiv.style.overflow = 'hidden';
       messageDiv.style.webkitLineClamp = '1';
@@ -200,7 +199,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
   // Hide images when the message body is not expanded (via CSS variable)
   createEffect(() => {
     const container = host();
-    const shouldHide = !props.isBodyExpanded();
+    const shouldHide = !props.isBodyExpanded;
     container.style.setProperty(
       '--macro-email-img-display',
       shouldHide ? 'none' : 'initial'
@@ -211,7 +210,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     <div
       class="flex flex-col pt-2"
       onPointerDown={() => {
-        if (!props.isBodyExpanded() && props.message.db_id) {
+        if (!props.isBodyExpanded && props.message.db_id) {
           props.setExpandedMessageBody(props.message.db_id);
           props.setFocusedMessageId(props.message.db_id);
         } else if (props.message.db_id) {
@@ -223,7 +222,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
         class="text-sm relative py-2"
         classList={{
           isPersonal: isPersonal(),
-          hidden: props.isBodyExpanded(),
+          hidden: props.isBodyExpanded,
         }}
       >
         <Switch>
@@ -253,7 +252,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
         class="text-sm relative"
         classList={{
           isPersonal: isPersonal(),
-          hidden: !props.isBodyExpanded(),
+          hidden: !props.isBodyExpanded,
         }}
       >
         <Switch>

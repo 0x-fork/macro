@@ -13,7 +13,7 @@ interface EmailMessageTopBarProps {
   message: MessageWithBodyReplyless;
   focused: boolean;
   setExpandedMessageBodyIds: SetStoreFunction<Record<string, boolean>>;
-  isBodyExpanded: Accessor<boolean>;
+  isBodyExpanded: boolean;
   expandedHeader: Accessor<boolean>;
   setExpandedHeader: Setter<boolean>;
   setFocusedMessageId: (messageId: string | undefined) => void;
@@ -39,7 +39,7 @@ export function EmailMessageTopBar(props: EmailMessageTopBarProps) {
         ) {
           return;
         }
-        if (props.isBodyExpanded() && props.message.db_id) {
+        if (props.isBodyExpanded && props.message.db_id) {
           props.setExpandedMessageBodyIds(props.message.db_id, false);
         } else if (props.message.db_id) {
           props.setExpandedMessageBodyIds(props.message.db_id, true);
@@ -55,7 +55,7 @@ export function EmailMessageTopBar(props: EmailMessageTopBarProps) {
             {props.message.from?.name ?? props.message.from?.email}
           </div>
           {/* Sender Email */}
-          <Show when={props.isBodyExpanded() && props.message.from?.name}>
+          <Show when={props.isBodyExpanded && props.message.from?.name}>
             <div class="truncate flex-1 min-w-0 text-ink-muted text-xs">
               &lt;
               <span class="text-accent-ink select-text cursor-text">
@@ -84,7 +84,7 @@ export function EmailMessageTopBar(props: EmailMessageTopBarProps) {
         </div>
       </div>
       {/* Recipient Fields */}
-      <Show when={props.isBodyExpanded()}>
+      <Show when={props.isBodyExpanded}>
         <Show
           when={props.expandedHeader()}
           fallback={
