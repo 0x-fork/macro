@@ -15,7 +15,7 @@ import { StaticMarkdown } from 'core/component/LexicalMarkdown/component/core/St
 import { unifiedListMarkdownTheme } from 'core/component/LexicalMarkdown/theme';
 import { UserIcon } from 'core/component/UserIcon';
 import { emailToId, useDisplayName } from 'core/user';
-import type { ParentProps, Ref } from 'solid-js';
+import type { Component, ParentProps, Ref } from 'solid-js';
 import {
   createDeferred,
   createEffect,
@@ -567,11 +567,25 @@ export function EntityWithEverything(
 
       const isSearch = () => isSearchEntity(props.entity);
 
+      const ThreadCount: Component<{ entity: typeof props.entity }> = (
+        props
+      ) => {
+        return (
+          <div class="flex justify-between items-center opacity-60">
+            <div class="flex gap-[1ch] text-xs font-mono font-bold">
+              <span>{'['}</span>
+              {props.entity.participants?.length ?? 0}
+              <span>{']'}</span>
+            </div>
+          </div>
+        );
+      };
+
       return (
         <div class="flex gap-1 items-center text-sm min-w-0 w-full truncate overflow-hidden @max-md/split:flex-col @max-md/split:items-start @max-md/split:gap-1 @max-md/split:truncate-none">
           {/* sometimes senderName and senderEmail are the same */}
           <div
-            class="flex gap-2 items-center font-semibold shrink-0 @max-md/split:w-full @max-md/split:truncate"
+            class="flex gap-1 items-center font-semibold shrink-0 @max-md/split:w-full @max-md/split:truncate"
             classList={{
               'w-[20cqw]': !isSearch(),
             }}
@@ -621,6 +635,9 @@ export function EntityWithEverything(
                 props.entity.senderName ??
                 props.entity.senderEmail?.split('@')[0]}
             </div>
+            <Show when={(props.entity.participants?.length ?? 0) > 1}>
+              <ThreadCount entity={props.entity} />
+            </Show>
             {/* Sender Email Address */}
             {/* <Show
               when={
