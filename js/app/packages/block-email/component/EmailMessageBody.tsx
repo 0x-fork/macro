@@ -120,7 +120,8 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     if (!props.isBodyExpanded) {
       const content = (source()?.textContent ?? '')
         .trim()
-        .replace(/\r?\n|\r/g, '');
+        .replace(/\r?\n|\r/g, ' ')
+        .slice(0, 200);
 
       messageDiv.innerText = content;
     } else {
