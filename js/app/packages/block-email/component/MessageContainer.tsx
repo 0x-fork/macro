@@ -124,11 +124,14 @@ export function MessageContainer(props: MessageContainerProps) {
   // expand appropriate messages
   createEffect(() => {
     const id = props.message.db_id;
-    if (props.isLastMessage && id) {
-      props.setExpandedMessageBodyIds(id, true);
+    if (!id) {
+      return;
     }
-    if (isNewMessage() && id) {
+
+    if (props.isLastMessage || isNewMessage()) {
       props.setExpandedMessageBodyIds(id, true);
+    } else {
+      props.setExpandedMessageBodyIds(id, false);
     }
   });
 

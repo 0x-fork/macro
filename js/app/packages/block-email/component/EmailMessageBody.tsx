@@ -108,7 +108,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     );
   });
 
-  const host = createMemo(() => {
+  const host = () => {
     themeUpdate();
     const hostContainer = document.createElement('div');
     const shadow = hostContainer.attachShadow({ mode: 'open' });
@@ -117,13 +117,28 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     styleEl.textContent = `img{display: var(--macro-email-img-display, initial);}`;
     shadow.appendChild(styleEl);
     const messageDiv = document.createElement('div');
-    messageDiv.innerHTML = source()?.mainContent ?? '';
+
+    let content = source()?.mainContent ?? '';
+
+    if (!props.isBodyExpanded()) {
+      content = (props.message.body_text ?? '').slice(0, 200);
+    }
+
+    messageDiv.innerHTML = content;
     messageDiv.style.userSelect = 'text';
     messageDiv.style.cursor = 'var(--cursor-auto)';
     messageDiv.style.overflow = 'auto';
+
+    if (!props.isBodyExpanded()) {
+      messageDiv.style.display = '-webkit-box';
+      messageDiv.style.overflow = 'hidden';
+      messageDiv.style.webkitLineClamp = '1';
+      messageDiv.style.webkitBoxOrient = 'vertical';
+    }
+
     shadow.appendChild(messageDiv);
     return hostContainer;
-  });
+  };
 
   // Resolve inline images that reference attachments via cid: URLs
   createEffect(() => {
@@ -205,10 +220,40 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
       }}
     >
       <div
+        class="text-sm relative py-2"
+        classList={{
+          isPersonal: isPersonal(),
+          hidden: props.isBodyExpanded(),
+        }}
+      >
+        <Switch>
+          <Match when={!showFullHTML() && props.message.body_macro}>
+            {(bodyMacro) => {
+              return (
+                <StaticMarkdown
+                  markdown={bodyMacro().slice(0, 200)}
+                  theme={channelTheme}
+                  target="internal"
+                />
+              );
+            }}
+          </Match>
+
+          <Match when={isPlaintext()}>
+            <StaticMarkdown
+              markdown={props.message.body_text!}
+              theme={channelTheme}
+              target="internal"
+            />
+          </Match>
+          <Match when={true}>{host()}</Match>
+        </Switch>
+      </div>
+      <div
         class="text-sm relative"
         classList={{
           isPersonal: isPersonal(),
-          'line-clamp-3': !props.isBodyExpanded(),
+          hidden: !props.isBodyExpanded(),
         }}
       >
         <Switch>
