@@ -132,11 +132,13 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     messageDiv.style.overflow = 'auto';
 
     if (!props.isBodyExpanded) {
+      // Clamp contents to 1 line. This needs to be done here
+      // because it contains the contents. Adding it to the
+      // container in the jsx does not work.
       messageDiv.style.display = '-webkit-box';
       messageDiv.style.overflow = 'hidden';
       messageDiv.style.webkitLineClamp = '1';
       messageDiv.style.webkitBoxOrient = 'vertical';
-      messageDiv.style.color = 'var(--color-ink-extra-muted)';
 
       // Hide images when the message body is not expanded (via CSS variable)
       hostContainer.style.setProperty('--macro-email-img-display', 'none');
@@ -216,7 +218,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
       }}
     >
       <div
-        class="text-sm relative py-2"
+        class="text-sm relative pb-2 text-ink-extra-muted/70"
         classList={{
           isPersonal: isPersonal(),
           hidden: props.isBodyExpanded,
