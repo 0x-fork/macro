@@ -572,7 +572,7 @@ export function EntityWithEverything(
       ) => {
         return (
           <div class="flex justify-between items-center opacity-60">
-            <div class="flex gap-[1ch] text-xs font-mono font-bold">
+            <div class="flex text-xs font-mono font-bold">
               <span>{'['}</span>
               {props.entity.participants?.length ?? 0}
               <span>{']'}</span>
