@@ -1,7 +1,7 @@
 import { useEmailContext } from '@block-email/component/EmailContext';
 import { isScrollingToMessage } from '@block-email/signal/scrollState';
 import { CircleSpinner } from '@core/component/CircleSpinner';
-import { createMemo, createSelector, For, Show } from 'solid-js';
+import { createMemo, createSelector, createSignal, For, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { MessageContainer } from './MessageContainer';
 
@@ -56,6 +56,8 @@ export function MessageList(props: MessageListProps) {
     >
       <For each={context.messages.list().toReversed()}>
         {(message, index) => {
+          const [containerRef, setContainerRef] = createSignal<HTMLElement>();
+
           // We need the index as if the list was not reversed
           const normalizedIndex = createMemo(() => {
             const listLength = context.messages.list().length;
@@ -98,10 +100,29 @@ export function MessageList(props: MessageListProps) {
             if (!message.db_id) return;
 
             setExpandedMessageBodyIds(message.db_id, expanded);
+
+            queueMicrotask(() => {
+              const top = containerRef()?.getBoundingClientRect().top;
+              if (!top) return;
+
+              // We only need to scroll the element into view if:
+              // - the top of it is out of view. In which case the `top`
+              //   would be negative
+              // - OR we're collapsing it to maintain scroll position
+              //
+              // Otherwise, if the element is in view and we're expanding it,
+              // we do not do anything
+              if (top > 0 && expanded) {
+                return;
+              }
+
+              containerRef()?.scrollIntoView();
+            });
           };
 
           return (
             <MessageContainer
+              ref={setContainerRef}
               message={message}
               isFirstMessage={normalizedIndex() === 0}
               isLastMessage={isLastMessage()}

@@ -26,6 +26,7 @@ import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
 interface MessageContainerProps {
+  ref?: (element: HTMLDivElement) => void;
   message: MessageWithBodyReplyless;
   isExpanded: boolean;
   onToggleExpandedState: (expanded: boolean) => void;
@@ -153,7 +154,7 @@ export function MessageContainer(props: MessageContainerProps) {
   };
 
   return (
-    <div class="shrink-0 flex justify-center w-full">
+    <div ref={props.ref} class="shrink-0 flex justify-center w-full">
       <div class="macro-message-width w-full">
         <Message
           id={props.message.db_id ?? undefined}
