@@ -117,13 +117,16 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     shadow.appendChild(styleEl);
     const messageDiv = document.createElement('div');
 
-    let content = source()?.mainContent ?? '';
-
     if (!props.isBodyExpanded) {
-      content = (source()?.textContent ?? '').slice(0, 200);
+      const content = (source()?.textContent ?? '')
+        .trim()
+        .replace(/\r?\n|\r/g, '');
+
+      messageDiv.innerText = content;
+    } else {
+      messageDiv.innerHTML = source()?.mainContent ?? '';
     }
 
-    messageDiv.innerHTML = content;
     messageDiv.style.userSelect = 'text';
     messageDiv.style.cursor = 'var(--cursor-auto)';
     messageDiv.style.overflow = 'auto';
@@ -134,6 +137,9 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
       messageDiv.style.webkitLineClamp = '1';
       messageDiv.style.webkitBoxOrient = 'vertical';
       messageDiv.style.color = 'var(--color-ink-extra-muted)';
+
+      // Hide images when the message body is not expanded (via CSS variable)
+      hostContainer.style.setProperty('--macro-email-img-display', 'none');
     }
 
     shadow.appendChild(messageDiv);
@@ -195,16 +201,6 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
         }
       }
     }
-  });
-
-  // Hide images when the message body is not expanded (via CSS variable)
-  createEffect(() => {
-    const container = host();
-    const shouldHide = !props.isBodyExpanded;
-    container.style.setProperty(
-      '--macro-email-img-display',
-      shouldHide ? 'none' : 'initial'
-    );
   });
 
   return (
