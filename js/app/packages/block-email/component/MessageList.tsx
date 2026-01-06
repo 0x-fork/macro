@@ -98,25 +98,31 @@ export function MessageList(props: MessageListProps) {
 
           const onToggleMessage = (expanded: boolean) => {
             if (!message.db_id) return;
+            const listContainer = context.messagesListRef();
+
+            const lastScrollPosition = listContainer?.scrollTop;
+            const lastScrollHeight = listContainer?.scrollHeight;
 
             setExpandedMessageBodyIds(message.db_id, expanded);
 
+            if (
+              !listContainer ||
+              lastScrollPosition == null ||
+              lastScrollHeight == null
+            )
+              return;
+
+            // Maintain the scroll position when expansion changes
             queueMicrotask(() => {
-              const top = containerRef()?.getBoundingClientRect().top;
-              if (!top) return;
+              const lastPos = lastScrollHeight + lastScrollPosition;
+              const currentPos =
+                listContainer.scrollHeight + listContainer.scrollTop;
 
-              // We only need to scroll the element into view if:
-              // - the top of it is out of view. In which case the `top`
-              //   would be negative
-              // - OR we're collapsing it to maintain scroll position
-              //
-              // Otherwise, if the element is in view and we're expanding it,
-              // we do not do anything
-              if (top > 0 && expanded) {
-                return;
-              }
+              // List is reversed, we need a negative value to maintain scroll
+              // position
+              const diff = lastPos - currentPos;
 
-              containerRef()?.scrollIntoView();
+              context.messagesListRef()?.scrollBy({ top: diff });
             });
           };
 
