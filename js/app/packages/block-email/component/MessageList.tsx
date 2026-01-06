@@ -1,7 +1,7 @@
 import { useEmailContext } from '@block-email/component/EmailContext';
 import { isScrollingToMessage } from '@block-email/signal/scrollState';
 import { CircleSpinner } from '@core/component/CircleSpinner';
-import { createMemo, createSelector, createSignal, For, Show } from 'solid-js';
+import { createMemo, createSelector, For, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { MessageContainer } from './MessageContainer';
 
@@ -56,8 +56,6 @@ export function MessageList(props: MessageListProps) {
     >
       <For each={context.messages.list().toReversed()}>
         {(message, index) => {
-          const [containerRef, setContainerRef] = createSignal<HTMLElement>();
-
           // We need the index as if the list was not reversed
           const normalizedIndex = createMemo(() => {
             const listLength = context.messages.list().length;
@@ -128,7 +126,6 @@ export function MessageList(props: MessageListProps) {
 
           return (
             <MessageContainer
-              ref={setContainerRef}
               message={message}
               isFirstMessage={normalizedIndex() === 0}
               isLastMessage={isLastMessage()}
