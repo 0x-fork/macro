@@ -86,6 +86,20 @@ export function MessageList(props: MessageListProps) {
             );
           });
 
+          const isExpanded = createMemo(() => {
+            const manuallyExpanded =
+              message.db_id != null &&
+              expandedMessageBodyIds[message.db_id] === true;
+
+            return manuallyExpanded || isLastMessage() || isNewMessage();
+          });
+
+          const onToggleMessage = (expanded: boolean) => {
+            if (!message.db_id) return;
+
+            setExpandedMessageBodyIds(message.db_id, expanded);
+          };
+
           return (
             <MessageContainer
               message={message}
@@ -94,17 +108,8 @@ export function MessageList(props: MessageListProps) {
               isFocused={isFocusedSelector(message.db_id ?? undefined)}
               isTarget={isTargetSelector(message.db_id ?? undefined)}
               isNewMessage={isNewMessage()}
-              isExpanded={
-                (message.db_id != null &&
-                  expandedMessageBodyIds[message.db_id] === true) ||
-                isLastMessage() ||
-                isNewMessage()
-              }
-              onToggleExandedState={(expanded) => {
-                if (!message.db_id) return;
-
-                setExpandedMessageBodyIds(message.db_id, expanded);
-              }}
+              isExpanded={isExpanded()}
+              onToggleExandedState={onToggleMessage}
             />
           );
         }}
