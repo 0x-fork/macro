@@ -20,7 +20,7 @@ import {
   createMemo,
   createSignal,
 } from 'solid-js';
-import { createStore, reconcile, type Store, unwrap } from 'solid-js/store';
+import { createStore, produce, reconcile, type Store, unwrap } from 'solid-js/store';
 import { fetchNotificationsForEntities } from './queries/entities-notifications-query';
 import { createMutedEntitiesQuery } from './queries/muted-entities-query';
 import {
@@ -186,12 +186,51 @@ export function createNotificationSource(
   });
 
   const bulkMarkAsDone = async (notifications: UnifiedNotification[]) => {
+    // Optimistically update the store by removing the notifications
+    const notificationIds = new Set(notifications.map((n) => n.id));
+    setStore(
+      produce((state) => {
+        for (const composite in state) {
+          const notificationList = state[composite as CompositeEntity];
+          if (notificationList) {
+            const filtered = notificationList.filter(
+              (n) => !notificationIds.has(n.id)
+            );
+            if (filtered.length !== notificationList.length) {
+              state[composite as CompositeEntity] = filtered;
+            }
+          }
+        }
+      })
+    );
+
     await markNotificationsAsDoneMutation.mutateAsync({
-      notificationIds: notifications.map((n) => n.id),
+      notificationIds: Array.from(notificationIds),
     });
   };
 
   const bulkMarkAsRead = async (notifications: UnifiedNotification[]) => {
+    // Optimistically update the store
+    setStore(
+      produce((state) => {
+        notifications.forEach((notification) => {
+          const composite = compositeEntity(notificationEntity(notification));
+          const notificationList = state[composite];
+          if (notificationList) {
+            const index = notificationList.findIndex(
+              (n) => n.id === notification.id
+            );
+            if (index !== -1) {
+              notificationList[index] = {
+                ...notificationList[index],
+                viewedAt: Date.now(),
+              };
+            }
+          }
+        });
+      })
+    );
+
     await markNotificationsAsSeenMutation.mutateAsync({
       notificationIds: notifications.map((n) => n.id),
     });
