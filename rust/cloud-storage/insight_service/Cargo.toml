@@ -4,6 +4,14 @@ name = "insight_service"
 publish = false
 version = "0.1.0"
 
+[[bin]]
+name = "insight_service"
+path = "src/main.rs"
+
+[[bin]]
+name = "openapi"
+path = "src/openapi.rs"
+
 [dependencies]
 ai = { path = "../ai" }
 ai_format = { path = "../ai_format" }
