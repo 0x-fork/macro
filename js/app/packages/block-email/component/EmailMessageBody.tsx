@@ -120,7 +120,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     let content = source()?.mainContent ?? '';
 
     if (!props.isBodyExpanded) {
-      content = (props.message.body_text ?? '').slice(0, 200);
+      content = (source()?.textContent ?? '').slice(0, 200);
     }
 
     messageDiv.innerHTML = content;
@@ -226,28 +226,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
           hidden: props.isBodyExpanded,
         }}
       >
-        <Switch>
-          <Match when={!showFullHTML() && props.message.body_macro}>
-            {(bodyMacro) => {
-              return (
-                <StaticMarkdown
-                  markdown={bodyMacro().slice(0, 200)}
-                  theme={channelTheme}
-                  target="internal"
-                />
-              );
-            }}
-          </Match>
-
-          <Match when={isPlaintext()}>
-            <StaticMarkdown
-              markdown={props.message.body_text!}
-              theme={channelTheme}
-              target="internal"
-            />
-          </Match>
-          <Match when={true}>{host()}</Match>
-        </Switch>
+        <Show when={!props.isBodyExpanded}>{host()}</Show>
       </div>
       <div
         class="text-sm relative"

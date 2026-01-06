@@ -96,6 +96,7 @@ function parseGmailSignature(htmlElement: Element) {
 
 export interface ParsedEmailContent {
   mainContent: string;
+  textContent: string;
   signature: string | null;
   hasTable: boolean;
 }
@@ -140,6 +141,7 @@ export function parseEmailContent(
 
   return {
     mainContent: finalContent,
+    textContent: mainContentDiv.innerText ?? '',
     signature: signature,
     hasTable,
   };
