@@ -31,17 +31,17 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import type { SetStoreFunction } from 'solid-js/store';
 import { Portal } from 'solid-js/web';
 
 interface MessageContainerProps {
   message: MessageWithBodyReplyless;
-  expandedMessageBodyIds: Record<string, boolean>;
-  setExpandedMessageBodyIds: SetStoreFunction<Record<string, boolean>>;
+  isExpanded: boolean;
+  onToggleExandedState: (expanded: boolean) => void;
   isFirstMessage: boolean;
   isLastMessage: boolean;
   isFocused: boolean;
   isTarget: boolean;
+  isNewMessage: boolean;
 }
 
 export function MessageContainer(props: MessageContainerProps) {
@@ -61,17 +61,6 @@ export function MessageContainer(props: MessageContainerProps) {
 
   const userId = useUserId();
   const [currentUserName] = useDisplayName(userId());
-
-  const isBodyExpanded = createMemo(() => {
-    return props.expandedMessageBodyIds[props.message.db_id ?? ''];
-  });
-
-  const isNewMessage = createMemo(() => {
-    return (
-      props.message.labels.find((l) => l.provider_label_id === 'UNREAD') !==
-      undefined
-    );
-  });
 
   // Hide attachments that are referenced in inline images
   const inlineContentIds = createMemo(() => {
@@ -119,20 +108,6 @@ export function MessageContainer(props: MessageContainerProps) {
         (!a.mime_type?.startsWith('image/') &&
           !a.mime_type?.startsWith('video/'))
     );
-  });
-
-  // expand appropriate messages
-  createEffect(() => {
-    const id = props.message.db_id;
-    if (!id) {
-      return;
-    }
-
-    if (props.isLastMessage || isNewMessage()) {
-      props.setExpandedMessageBodyIds(id, true);
-    } else {
-      props.setExpandedMessageBodyIds(id, false);
-    }
   });
 
   const { replaceOrInsertSplit } = useSplitLayout();
@@ -194,15 +169,15 @@ export function MessageContainer(props: MessageContainerProps) {
           isFirstMessage={props.isFirstMessage}
           isLastMessage={props.isLastMessage}
           senderId={props.message.from?.email}
-          isNewMessage={isNewMessage()}
+          isNewMessage={props.isNewMessage}
           isTarget={props.isTarget}
         >
           <Message.TopBar>
             <EmailMessageTopBar
               message={props.message}
               focused={props.isFocused}
-              setExpandedMessageBodyIds={props.setExpandedMessageBodyIds}
-              isBodyExpanded={isBodyExpanded()}
+              onExpandBodyPress={props.onToggleExandedState}
+              isBodyExpanded={props.isExpanded}
               expandedHeader={expandedHeader}
               setExpandedHeader={setExpandedHeader}
               setFocusedMessageId={context.messages.setFocused}
@@ -218,11 +193,12 @@ export function MessageContainer(props: MessageContainerProps) {
           <Message.Body>
             <EmailMessageBody
               message={props.message}
-              isBodyExpanded={isBodyExpanded()}
-              setExpandedMessageBody={(id) =>
-                props.setExpandedMessageBodyIds(id, true)
-              }
-              setFocusedMessageId={context.messages.setFocused}
+              isBodyExpanded={props.isExpanded}
+              onExpandPress={() => props.onToggleExandedState(true)}
+              onFocus={() => {
+                if (!props.message.db_id) return;
+                context.messages.setFocused(props.message.db_id);
+              }}
               isFirstMessageInThread={props.isFirstMessage}
             />
           </Message.Body>

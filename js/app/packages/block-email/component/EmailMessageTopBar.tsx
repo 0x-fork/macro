@@ -5,15 +5,14 @@ import CaretDown from '@icon/regular/caret-down.svg';
 import CaretUp from '@icon/regular/caret-up.svg';
 import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
 import { type Accessor, For, type Setter, Show } from 'solid-js';
-import type { SetStoreFunction } from 'solid-js/store';
 import { getFirstName } from '../util/name';
 import { type EmailMessageAction, MessageActions } from './MessageActions';
 
 interface EmailMessageTopBarProps {
   message: MessageWithBodyReplyless;
   focused: boolean;
-  setExpandedMessageBodyIds: SetStoreFunction<Record<string, boolean>>;
   isBodyExpanded: boolean;
+  onExpandBodyPress: (expanded: boolean) => void;
   expandedHeader: Accessor<boolean>;
   setExpandedHeader: Setter<boolean>;
   setFocusedMessageId: (messageId: string | undefined) => void;
@@ -40,9 +39,9 @@ export function EmailMessageTopBar(props: EmailMessageTopBarProps) {
           return;
         }
         if (props.isBodyExpanded && props.message.db_id) {
-          props.setExpandedMessageBodyIds(props.message.db_id, false);
+          props.onExpandBodyPress(false);
         } else if (props.message.db_id) {
-          props.setExpandedMessageBodyIds(props.message.db_id, true);
+          props.onExpandBodyPress(true);
         }
       }}
     >

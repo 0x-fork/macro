@@ -23,8 +23,8 @@ import { processEmailColors } from '../util/transformEmailColors';
 interface EmailMessageBodyProps {
   message: MessageWithBodyReplyless;
   isBodyExpanded: boolean;
-  setExpandedMessageBody: (id: string) => void;
-  setFocusedMessageId: (messageID: string | undefined) => void;
+  onExpandPress: () => void;
+  onFocus: () => void;
   isFirstMessageInThread: boolean;
 }
 
@@ -211,10 +211,10 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
       class="flex flex-col pt-2"
       onPointerDown={() => {
         if (!props.isBodyExpanded && props.message.db_id) {
-          props.setExpandedMessageBody(props.message.db_id);
-          props.setFocusedMessageId(props.message.db_id);
+          props.onExpandPress();
+          props.onFocus();
         } else if (props.message.db_id) {
-          props.setFocusedMessageId(props.message.db_id);
+          props.onFocus();
         }
       }}
     >

@@ -12,9 +12,11 @@ interface MessageListProps {
 export function MessageList(props: MessageListProps) {
   const getIsScrollingToMessage = isScrollingToMessage.get;
   const context = useEmailContext();
+
   const [expandedMessageBodyIds, setExpandedMessageBodyIds] = createStore<
     Record<string, boolean>
   >({});
+
   const isFocusedSelector = createSelector(
     context.messages.focusedID,
     (a, b) => !!a && !!b && a === b
@@ -71,17 +73,38 @@ export function MessageList(props: MessageListProps) {
             return normalized;
           });
 
+          const isLastMessage = createMemo(() => {
+            return (
+              normalizedIndex() === (context.messages.list().length ?? 0) - 1
+            );
+          });
+
+          const isNewMessage = createMemo(() => {
+            return (
+              message.labels.find((l) => l.provider_label_id === 'UNREAD') !==
+              undefined
+            );
+          });
+
           return (
             <MessageContainer
+              message={message}
               isFirstMessage={normalizedIndex() === 0}
-              isLastMessage={
-                normalizedIndex() === (context.messages.list().length ?? 0) - 1
-              }
+              isLastMessage={isLastMessage()}
               isFocused={isFocusedSelector(message.db_id ?? undefined)}
               isTarget={isTargetSelector(message.db_id ?? undefined)}
-              message={message}
-              expandedMessageBodyIds={expandedMessageBodyIds}
-              setExpandedMessageBodyIds={setExpandedMessageBodyIds}
+              isNewMessage={isNewMessage()}
+              isExpanded={
+                (message.db_id != null &&
+                  expandedMessageBodyIds[message.db_id] === true) ||
+                isLastMessage() ||
+                isNewMessage()
+              }
+              onToggleExandedState={(expanded) => {
+                if (!message.db_id) return;
+
+                setExpandedMessageBodyIds(message.db_id, expanded);
+              }}
             />
           );
         }}
