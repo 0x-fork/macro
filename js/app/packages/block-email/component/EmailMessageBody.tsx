@@ -133,6 +133,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
       messageDiv.style.overflow = 'hidden';
       messageDiv.style.webkitLineClamp = '1';
       messageDiv.style.webkitBoxOrient = 'vertical';
+      messageDiv.style.color = 'var(--color-ink-extra-muted)';
     }
 
     shadow.appendChild(messageDiv);
