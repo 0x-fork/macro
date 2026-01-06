@@ -22,21 +22,13 @@ import type {
 import { useUserId } from '@service-gql/client';
 import { storageServiceClient } from '@service-storage/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  Match,
-  Show,
-  Switch,
-} from 'solid-js';
+import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
 interface MessageContainerProps {
   message: MessageWithBodyReplyless;
   isExpanded: boolean;
-  onToggleExandedState: (expanded: boolean) => void;
+  onToggleExpandedState: (expanded: boolean) => void;
   isFirstMessage: boolean;
   isLastMessage: boolean;
   isFocused: boolean;
@@ -176,7 +168,7 @@ export function MessageContainer(props: MessageContainerProps) {
             <EmailMessageTopBar
               message={props.message}
               focused={props.isFocused}
-              onExpandBodyPress={props.onToggleExandedState}
+              onExpandBodyPress={props.onToggleExpandedState}
               isBodyExpanded={props.isExpanded}
               expandedHeader={expandedHeader}
               setExpandedHeader={setExpandedHeader}
@@ -194,7 +186,7 @@ export function MessageContainer(props: MessageContainerProps) {
             <EmailMessageBody
               message={props.message}
               isBodyExpanded={props.isExpanded}
-              onExpandPress={() => props.onToggleExandedState(true)}
+              onExpandPress={() => props.onToggleExpandedState(true)}
               onFocus={() => {
                 if (!props.message.db_id) return;
                 context.messages.setFocused(props.message.db_id);

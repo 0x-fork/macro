@@ -109,7 +109,7 @@ export function MessageList(props: MessageListProps) {
               isTarget={isTargetSelector(message.db_id ?? undefined)}
               isNewMessage={isNewMessage()}
               isExpanded={isExpanded()}
-              onToggleExandedState={onToggleMessage}
+              onToggleExpandedState={onToggleMessage}
             />
           );
         }}
