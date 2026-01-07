@@ -17,6 +17,10 @@ path = "src/bin/backfill_search.rs"
 name = "openapi"
 path = "src/openapi.rs"
 
+[[bin]]
+name = "tooltypes"
+path = "src/tooltypes.rs"
+
 [features]
 local = []
 local_queue = []
