@@ -1,6 +1,7 @@
 import { useEmailContext } from '@block-email/component/EmailContext';
 import { isScrollingToMessage } from '@block-email/signal/scrollState';
 import { CircleSpinner } from '@core/component/CircleSpinner';
+import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { createMemo, createSelector, For, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { MessageContainer } from './MessageContainer';
@@ -54,96 +55,97 @@ export function MessageList(props: MessageListProps) {
         }
       }}
     >
-      <For each={context.messages.list().toReversed()}>
-        {(message, index) => {
-          // We need the index as if the list was not reversed
-          const normalizedIndex = createMemo(() => {
-            const listLength = context.messages.list().length;
+      <StaticMarkdownContext>
+        <For each={context.messages.list().toReversed()}>
+          {(message, index) => {
+            // We need the index as if the list was not reversed
+            const normalizedIndex = createMemo(() => {
+              const listLength = context.messages.list().length;
 
-            const normalized = listLength - 1 - index();
+              const normalized = listLength - 1 - index();
 
-            // The element at the 0th index isn't actually the first message
-            // if there is more data to load so we return -1 so that `isFirstMessage`
-            // evaluates to false. This fixes an issue with the "first" message' full
-            // html to show in `EmailMessageBody`
-            if (normalized === 0 && context.query.hasMore()) {
-              return -1;
-            }
+              // The element at the 0th index isn't actually the first message
+              // if there is more data to load so we return -1 so that `isFirstMessage`
+              // evaluates to false. This fixes an issue with the "first" message' full
+              // html to show in `EmailMessageBody`
+              if (normalized === 0 && context.query.hasMore()) {
+                return -1;
+              }
 
-            return normalized;
-          });
-
-          const isLastMessage = createMemo(() => {
-            return (
-              normalizedIndex() === (context.messages.list().length ?? 0) - 1
-            );
-          });
-
-          const isNewMessage = createMemo(() => {
-            return (
-              message.labels.find((l) => l.provider_label_id === 'UNREAD') !==
-              undefined
-            );
-          });
-
-          const isExpanded = createMemo(() => {
-            const manuallyExpanded =
-              message.db_id != null &&
-              expandedMessageBodyIds[message.db_id] === true;
-
-            return manuallyExpanded || isLastMessage() || isNewMessage();
-          });
-
-          const onToggleMessage = (expanded: boolean) => {
-            if (!message.db_id) return;
-            const listContainer = context.messagesListRef();
-
-            const lastScrollPosition = listContainer?.scrollTop;
-            const lastScrollHeight = listContainer?.scrollHeight;
-
-            setExpandedMessageBodyIds(message.db_id, expanded);
-
-            if (
-              !listContainer ||
-              lastScrollPosition == null ||
-              lastScrollHeight == null
-            )
-              return;
-
-            // Maintain the scroll position when expansion changes
-            queueMicrotask(() => {
-              const lastPos = lastScrollHeight + lastScrollPosition;
-              const currentPos =
-                listContainer.scrollHeight + listContainer.scrollTop;
-
-              // List is reversed, we need a negative value to maintain scroll
-              // position
-              const diff = lastPos - currentPos;
-
-              context.messagesListRef()?.scrollBy({ top: diff });
+              return normalized;
             });
-          };
 
-          return (
-            <MessageContainer
-              message={message}
-              isFirstMessage={normalizedIndex() === 0}
-              isLastMessage={isLastMessage()}
-              isFocused={isFocusedSelector(message.db_id ?? undefined)}
-              isTarget={isTargetSelector(message.db_id ?? undefined)}
-              isNewMessage={isNewMessage()}
-              isExpanded={isExpanded()}
-              onToggleExpandedState={onToggleMessage}
-            />
-          );
-        }}
-      </For>
+            const isLastMessage = createMemo(() => {
+              return (
+                normalizedIndex() === (context.messages.list().length ?? 0) - 1
+              );
+            });
 
-      <Show when={context.query.isFetching()}>
-        <div class="flex items-center justify-center h-16">
-          <CircleSpinner />
-        </div>
-      </Show>
+            const isNewMessage = createMemo(() => {
+              return (
+                message.labels.find((l) => l.provider_label_id === 'UNREAD') !==
+                undefined
+              );
+            });
+
+            const isExpanded = createMemo(() => {
+              const manuallyExpanded =
+                message.db_id != null &&
+                expandedMessageBodyIds[message.db_id] === true;
+
+              return manuallyExpanded || isLastMessage() || isNewMessage();
+            });
+
+            const onToggleMessage = (expanded: boolean) => {
+              if (!message.db_id) return;
+              const listContainer = context.messagesListRef();
+
+              const lastScrollPosition = listContainer?.scrollTop;
+              const lastScrollHeight = listContainer?.scrollHeight;
+
+              setExpandedMessageBodyIds(message.db_id, expanded);
+
+              if (
+                !listContainer ||
+                lastScrollPosition == null ||
+                lastScrollHeight == null
+              )
+                return;
+
+              // Maintain the scroll position when expansion changes
+              queueMicrotask(() => {
+                const lastPos = lastScrollHeight + lastScrollPosition;
+                const currentPos =
+                  listContainer.scrollHeight + listContainer.scrollTop;
+
+                // List is reversed, we need a negative value to maintain scroll
+                // position
+                const diff = lastPos - currentPos;
+
+                context.messagesListRef()?.scrollBy({ top: diff });
+              });
+            };
+
+            return (
+              <MessageContainer
+                message={message}
+                isFirstMessage={normalizedIndex() === 0}
+                isLastMessage={isLastMessage()}
+                isFocused={isFocusedSelector(message.db_id ?? undefined)}
+                isTarget={isTargetSelector(message.db_id ?? undefined)}
+                isNewMessage={isNewMessage()}
+                isExpanded={isExpanded()}
+                onToggleExpandedState={onToggleMessage}
+              />
+            );
+          }}
+        </For>
+        <Show when={context.query.isFetching()}>
+          <div class="flex items-center justify-center h-16">
+            <CircleSpinner />
+          </div>
+        </Show>
+      </StaticMarkdownContext>
     </div>
   );
 }
