@@ -219,7 +219,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
       }}
     >
       <div
-        class="text-sm relative pb-2 text-ink-extra-muted/70"
+        class="text-sm relative pb-2 text-ink-extra-muted/85"
         classList={{
           isPersonal: isPersonal(),
           hidden: props.isBodyExpanded,
