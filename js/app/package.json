@@ -36,7 +36,7 @@
     "cycles": "bunx --bun biome lint --only=nursery/noImportCycles",
     "cycles:ci": "bunx --bun biome lint --changed --only=nursery/noImportCycles",
     "pkg": "bun scripts/pkg.ts",
-    "gen-api": "bun scripts/generate-api-schema-local.ts",
+    "gen-api": "bun scripts/generate-api-schema.ts",
     "gen-dcs-types": "bun scripts/generate-dcs-types.ts",
     "gen-dcs-tools": "bun scripts/generate-dcs-tools.ts",
     "gen-dcs-models": "bun scripts/generate-dcs-models.ts",
