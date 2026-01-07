@@ -23,7 +23,7 @@ pub struct GetUnfurlResponse {
     pub favicon_url: Option<String>,
 }
 
-#[cfg_attr(feature = "mock", expect(dead_code))]
+#[cfg_attr(feature = "mock", allow(dead_code))]
 fn no_tag(tag: &str) -> Error {
     anyhow::anyhow!(format!("Missing expected tag: [{}]", tag))
 }
@@ -67,7 +67,7 @@ fn parse_document(html_content: &str, url: &Url) -> Result<HashMap<String, Strin
     Ok(meta_tags)
 }
 
-#[cfg_attr(feature = "mock", expect(dead_code))]
+#[cfg_attr(feature = "mock", allow(dead_code))]
 fn find_favicon(document: &Html, base_url: &Url) -> Option<String> {
     let links_selector = Selector::parse("link").ok()?;
 
