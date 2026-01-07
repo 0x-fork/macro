@@ -241,7 +241,7 @@ export * from './toWebSocketMessageOneOfSeven';
 export * from './toWebSocketMessageOneOfSevenAllOf';
 export * from './toWebSocketMessageOneOfSevenAllOfType';
 export * from './toolSchema';
-export * from './toolSchemasResponse';
+export * from './toolSchemas';
 export * from './toolSet';
 export * from './toolSetOneOf';
 export * from './toolSetOneOfThree';

@@ -24,6 +24,7 @@ import type {
   InitResponse,
   ListContactsResponse,
   ListLabelsResponse,
+  ListLinksParams,
   ListLinksResponse,
   ParsedMessage,
   PatchSettingsRequest,
@@ -803,17 +804,24 @@ export type listLinksResponseError = (listLinksResponse401 | listLinksResponse40
 
 export type listLinksResponse = (listLinksResponseSuccess | listLinksResponseError)
 
-export const getListLinksUrl = () => {
+export const getListLinksUrl = (params?: ListLinksParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
-  
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/email/links`
+  return stringifiedParams.length > 0 ? `/email/links?${stringifiedParams}` : `/email/links`
 }
 
-export const listLinks = async ( options?: RequestInit): Promise<listLinksResponse> => {
+export const listLinks = async (params?: ListLinksParams, options?: RequestInit): Promise<listLinksResponse> => {
   
-  const res = await fetch(getListLinksUrl(),
+  const res = await fetch(getListLinksUrl(params),
   {      
     ...options,
     method: 'GET'

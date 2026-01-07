@@ -4,7 +4,9 @@
     "title": "insight_service",
     "description": "",
     "termsOfService": "https://macro.com/terms",
-    "license": { "name": "" },
+    "license": {
+      "name": ""
+    },
     "version": "0.1.0"
   },
   "paths": {
@@ -38,7 +40,9 @@
             "name": "generated",
             "in": "query",
             "required": false,
-            "schema": { "type": ["boolean", "null"] }
+            "schema": {
+              "type": ["boolean", "null"]
+            }
           }
         ],
         "responses": {
@@ -64,11 +68,23 @@
           },
           "401": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "500": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },
@@ -79,7 +95,9 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateInsightsRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/CreateInsightsRequest"
+              }
             }
           },
           "required": true
@@ -89,21 +107,41 @@
             "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/IdList" }
+                "schema": {
+                  "$ref": "#/components/schemas/IdList"
+                }
               }
             }
           },
           "401": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "404": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "500": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },
@@ -114,7 +152,9 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/IdList" }
+              "schema": {
+                "$ref": "#/components/schemas/IdList"
+              }
             }
           },
           "required": true
@@ -124,21 +164,41 @@
             "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/IdList" }
+                "schema": {
+                  "$ref": "#/components/schemas/IdList"
+                }
               }
             }
           },
           "401": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "404": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "500": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },
@@ -149,7 +209,9 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateInsightRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInsightRequest"
+              }
             }
           },
           "required": true
@@ -159,21 +221,41 @@
             "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/UserInsightRecord" }
+                "schema": {
+                  "$ref": "#/components/schemas/UserInsightRecord"
+                }
               }
             }
           },
           "401": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "404": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "500": {
             "description": "",
-            "content": { "text/plain": { "schema": { "type": "string" } } }
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -185,7 +267,12 @@
         "type": "object",
         "required": ["insights"],
         "properties": {
-          "insights": { "type": "array", "items": { "type": "string" } }
+          "insights": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       },
       "EmailSourceLocation": {
@@ -194,16 +281,30 @@
         "properties": {
           "emailAddresses": {
             "type": ["array", "null"],
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
-          "messageIds": { "type": "array", "items": { "type": "string" } },
-          "threadIds": { "type": "array", "items": { "type": "string" } }
+          "messageIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "threadIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       },
       "GetUserInsightsParams": {
         "type": "object",
         "properties": {
-          "generated": { "type": ["boolean", "null"] },
+          "generated": {
+            "type": ["boolean", "null"]
+          },
           "limit": {
             "type": ["integer", "null"],
             "format": "int32",
@@ -222,16 +323,26 @@
         "properties": {
           "insights": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/UserInsightRecord" }
+            "items": {
+              "$ref": "#/components/schemas/UserInsightRecord"
+            }
           },
-          "total": { "type": "integer", "format": "int64" }
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
         }
       },
       "IdList": {
         "type": "object",
         "required": ["ids"],
         "properties": {
-          "ids": { "type": "array", "items": { "type": "string" } }
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       },
       "InsightProcessingResponse": {
@@ -243,8 +354,12 @@
             "format": "int32",
             "minimum": 0
           },
-          "message": { "type": "string" },
-          "status": { "type": "string" }
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
         }
       },
       "InsightType": {
@@ -252,14 +367,22 @@
         "enum": ["actionable", "informational", "warning", "trend"]
       },
       "SourceLocation": {
-        "oneOf": [{ "$ref": "#/components/schemas/EmailSourceLocation" }]
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EmailSourceLocation"
+          }
+        ]
       },
       "UpdateInsightRequest": {
         "type": "object",
         "required": ["insight_id", "content"],
         "properties": {
-          "content": { "type": "string" },
-          "insight_id": { "type": "string" }
+          "content": {
+            "type": "string"
+          },
+          "insight_id": {
+            "type": "string"
+          }
         }
       },
       "UserInsightRecord": {
@@ -273,37 +396,75 @@
           "source"
         ],
         "properties": {
-          "confidence": { "type": ["integer", "null"], "format": "int32" },
-          "content": { "type": "string" },
-          "createdAt": { "type": "integer", "format": "int64" },
-          "generated": { "type": "boolean" },
-          "id": { "type": ["string", "null"] },
+          "confidence": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "generated": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": ["string", "null"]
+          },
           "insightType": {
             "oneOf": [
-              { "type": "null" },
-              { "$ref": "#/components/schemas/InsightType" }
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/InsightType"
+              }
             ]
           },
           "relevanceKeywords": {
             "type": ["array", "null"],
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
-          "source": { "type": "string" },
+          "source": {
+            "type": "string"
+          },
           "sourceLocation": {
             "oneOf": [
-              { "type": "null" },
-              { "$ref": "#/components/schemas/SourceLocation" }
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SourceLocation"
+              }
             ]
           },
-          "spanEnd": { "type": ["string", "null"], "format": "date-time" },
-          "spanStart": { "type": ["string", "null"], "format": "date-time" },
-          "updatedAt": { "type": "integer", "format": "int64" },
-          "userId": { "type": "string" }
+          "spanEnd": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "spanStart": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userId": {
+            "type": "string"
+          }
         }
       }
     }
   },
   "tags": [
-    { "name": "macro insight service", "description": "Insight Service" }
+    {
+      "name": "macro insight service",
+      "description": "Insight Service"
+    }
   ]
 }

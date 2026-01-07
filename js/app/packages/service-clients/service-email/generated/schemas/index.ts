@@ -105,6 +105,7 @@ export * from './linkSignature';
 export * from './listContactsResponse';
 export * from './listContactsResponseContacts';
 export * from './listLabelsResponse';
+export * from './listLinksParams';
 export * from './listLinksResponse';
 export * from './message';
 export * from './messageBodyHtmlSanitized';

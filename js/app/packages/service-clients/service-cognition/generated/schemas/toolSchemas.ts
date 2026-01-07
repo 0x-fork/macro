@@ -6,6 +6,6 @@
  */
 import type { ToolSchema } from './toolSchema';
 
-export interface ToolSchemasResponse {
+export interface ToolSchemas {
   schemas: ToolSchema[];
 }
