@@ -454,7 +454,12 @@ export function createSort<
 
   const SortComponent: SortComponent = (props) => (
     <div class="flex flex-col gap-2">
-      <span class="text-xs font-medium">Sort</span>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-medium">Sort</span>
+        <span class="text-xs italic text-ink-muted">
+          (search results ranked by relevance)
+        </span>
+      </div>
       <SystemSortPills
         sortType={sortType}
         onSelect={(value) => {
