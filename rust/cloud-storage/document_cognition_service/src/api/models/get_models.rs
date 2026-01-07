@@ -4,6 +4,17 @@ use ai::types::ModelWithMetadataAndProvider;
 
 use axum::{Json, http::StatusCode, response::IntoResponse};
 
+pub fn get_ai_model_vec() -> Vec<AIModel> {
+    CHAT_MODELS
+        .iter()
+        .map(|m| AIModel {
+            name: m.to_string(),
+            provider: m.provider(),
+            metadata: m.metadata(),
+        })
+        .collect()
+}
+
 /// Gets all available models
 #[utoipa::path(
         get,
@@ -14,14 +25,7 @@ use axum::{Json, http::StatusCode, response::IntoResponse};
     )]
 #[tracing::instrument()]
 pub async fn get_models_handler() -> impl IntoResponse {
-    let models = CHAT_MODELS
-        .iter()
-        .map(|m| AIModel {
-            name: m.to_string(),
-            provider: m.provider(),
-            metadata: m.metadata(),
-        })
-        .collect::<Vec<AIModel>>();
+    let models = get_ai_model_vec();
     let data = GetModelsResponse { models };
     (StatusCode::OK, Json(data))
 }
