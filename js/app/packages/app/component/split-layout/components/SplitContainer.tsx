@@ -1,7 +1,9 @@
 import MacroJump from '@app/component/MacroJump';
 import { MobileDock } from '@app/component/mobile/MobileDock';
+import { ClippedPanel } from '@core/component/ClippedPanel';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { isMobileWidth } from '@core/mobile/mobileWidth';
+import { isRightPanelOpen, isSettingsPanelOpen } from '@core/signal/layout';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import {
   type Accessor,
@@ -13,6 +15,7 @@ import {
   type Setter,
   Show,
 } from 'solid-js';
+import { useSplitLayout } from '../layout';
 import { useSplitPanelOrThrow } from '../layoutUtils';
 import { SplitDrawerGroup } from './SplitDrawerContext';
 import { SplitHeader } from './SplitHeader';
@@ -34,6 +37,9 @@ export function SplitContainer(
   if (!panel) {
     throw new Error('<SplitContainer /> must be used within a <SplitLayout />');
   }
+
+  const { getSplitCount } = useSplitLayout();
+  const hasMultipleSplits = createMemo(() => getSplitCount() > 1);
 
   const [ref, setRef] = createSignal<HTMLDivElement>();
   createEffect(
@@ -86,19 +92,51 @@ export function SplitContainer(
           data-modal={panel.handle.isSpotLight()}
           tabindex={-1}
         >
-          <div class="flex flex-col min-h-0 size-full bg-panel">
-            <SplitHeader ref={setHeaderRef} />
-            <SplitToolbar ref={setToolbarRef} />
-            <div class="@container/split size-full overflow-hidden">
-              {props.children}
+          <ClippedPanel
+            active={
+              panel.handle.isActive() &&
+              hasMultipleSplits() &&
+              !panel.handle.isSpotLight()
+            }
+            tr={
+              hasMultipleSplits() &&
+              panel.handle.isLast() &&
+              !isRightPanelOpen() &&
+              !isSettingsPanelOpen() &&
+              !panel.handle.isSpotLight()
+            }
+            tl={
+              hasMultipleSplits() &&
+              panel.handle.isFirst() &&
+              !panel.handle.isSpotLight()
+            }
+            br={
+              hasMultipleSplits() &&
+              panel.handle.isLast() &&
+              !isRightPanelOpen() &&
+              !isSettingsPanelOpen() &&
+              !panel.handle.isSpotLight()
+            }
+            bl={
+              hasMultipleSplits() &&
+              panel.handle.isFirst() &&
+              !panel.handle.isSpotLight()
+            }
+          >
+            <div class="flex flex-col min-h-0 size-full">
+              <SplitHeader ref={setHeaderRef} />
+              <SplitToolbar ref={setToolbarRef} />
+              <div class="@container/split size-full overflow-hidden">
+                {props.children}
+              </div>
+              <Show when={panel.handle.isSpotLight()}>
+                <MacroJump tabbableParent={ref} />
+              </Show>
+              <Show when={isTouchDevice() && isMobileWidth()}>
+                <MobileDock />
+              </Show>
             </div>
-            <Show when={panel.handle.isSpotLight()}>
-              <MacroJump tabbableParent={ref} />
-            </Show>
-            <Show when={isTouchDevice() && isMobileWidth()}>
-              <MobileDock />
-            </Show>
-          </div>
+          </ClippedPanel>
         </div>
       </SplitDrawerGroup>
     </SplitModalProvider>

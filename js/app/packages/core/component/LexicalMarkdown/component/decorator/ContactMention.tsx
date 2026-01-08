@@ -33,12 +33,12 @@ export function ContactMention(props: ContactMentionDecoratorProps) {
     // The contactId is the email or @domain
     const contactId = encodeURIComponent(props.emailOrDomain);
     if (e?.altKey) {
-      insertSplit({
+      replaceOrInsertSplit({
         type: 'contact',
         id: contactId,
       });
     } else {
-      replaceOrInsertSplit({
+      insertSplit({
         type: 'contact',
         id: contactId,
       });

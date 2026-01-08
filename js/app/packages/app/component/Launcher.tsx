@@ -109,7 +109,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
             content: '',
             projectId: undefined,
           }),
-        shouldInsert: pressedKeys().has('opt'),
+        shouldInsert: !pressedKeys().has('opt'),
       });
       return true;
     },
@@ -145,7 +145,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     keyDownHandler: () => {
       createComponent({
         componentId: 'email-compose',
-        shouldInsert: pressedKeys().has('opt'),
+        shouldInsert: !pressedKeys().has('opt'),
       });
       return true;
     },
@@ -161,7 +161,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     keyDownHandler: () => {
       createComponent({
         componentId: 'channel-compose',
-        shouldInsert: pressedKeys().has('opt'),
+        shouldInsert: !pressedKeys().has('opt'),
       });
       return true;
     },
@@ -184,7 +184,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
           }
           return result.chatId;
         },
-        shouldInsert: pressedKeys().has('opt'),
+        shouldInsert: !pressedKeys().has('opt'),
       });
       return true;
     },
@@ -210,7 +210,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
           const [_, id] = ok(result.documentId);
           return id;
         },
-        shouldInsert: pressedKeys().has('opt'),
+        shouldInsert: !pressedKeys().has('opt'),
       });
       return true;
     },
@@ -230,7 +230,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
           const createProject = useCreateProject();
           return createProject({ name: 'New Folder' });
         },
-        shouldInsert: pressedKeys().has('opt'),
+        shouldInsert: !pressedKeys().has('opt'),
       });
       return true;
     },
@@ -257,7 +257,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
           const [, id] = ok(result[1]?.documentId);
           return id;
         },
-        shouldInsert: pressedKeys().has('opt'),
+        shouldInsert: !pressedKeys().has('opt'),
       });
       return true;
     },
@@ -555,7 +555,7 @@ const LauncherInner = (props: LauncherInnerProps) => {
         </For>
       </div>
       <div class="col-span-full text-sm text-ink-muted text-center pt-4">
-        Hold option to open in a new split view
+        Hold option to open in place
       </div>
     </div>
   );

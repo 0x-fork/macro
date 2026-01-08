@@ -251,7 +251,7 @@ export function DocumentMention(props: DocumentMentionDecoratorProps) {
       props.blockName,
       props.documentId,
       props.blockParams,
-      e?.altKey ?? false
+      !(e?.altKey ?? false)
     );
   });
 

@@ -1,5 +1,6 @@
 import { useGlobalBlockOrchestrator } from '@app/component/GlobalAppState';
 import { activeElement } from '@app/signal/focus';
+import { gutterSize } from '../../../block-theme/signals/themeSignals';
 import { Resize } from '@core/component/Resize';
 import { tabTitleSignal } from '@core/signal/tabTitle';
 import { createElementSize } from '@solid-primitives/resize-observer';
@@ -306,7 +307,7 @@ export function SplitLayoutContainer(props: SplitLayoutContainerProps) {
     <SplitLayoutContext.Provider value={{ manager: splitManager }}>
       <Resize.Zone
         direction="horizontal"
-        gutter={4}
+        gutter={gutterSize()}
         captureResizeCtx={splitManager.setResizeContext}
       >
         <For each={ids()}>

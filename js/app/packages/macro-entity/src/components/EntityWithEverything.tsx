@@ -868,16 +868,16 @@ export function EntityWithEverything(
       use:draggable
       use:droppable
       data-checked={props.checked}
-      class="everything-entity w-full relative group/entity hover:bg-hover/30"
+      class="everything-entity w-full relative group/entity hover:bg-hover/30 mx-1"
       style={{
         'min-height': `${ENTITY_HEIGHT}px`,
       }}
       classList={{
-        'outline outline-accent/20 outline-offset-[-1px]':
+        'outline outline-accent/20 outline-offset-[-1px] bg-accent/2':
           !isTouchDevice() && props.selected && !props.checked,
         '!bg-accent/5 outline outline-accent/20 outline-offset-[-1px]':
           props.checked,
-        'bracket outline outline-accent/20 outline-offset-[-1px]':
+        'bracket outline outline-accent/20 outline-offset-[-1px] bg-accent/2':
           !isTouchDevice() && props.selected,
         'active:bracket active:outline active:outline-accent/20 active:outline-offset-[-1px]':
           isTouchDevice() && !props.checked,

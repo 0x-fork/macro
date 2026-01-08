@@ -1,8 +1,10 @@
 import { mountGlobalFocusListener } from '@app/signal/focus';
+import { globalSplitManager } from '@app/signal/splitLayout';
 import { useIsAuthenticated } from '@core/auth';
 import { Resize } from '@core/component/Resize';
 import { useABTest } from '@core/constant/ABTest';
 import { usePaywallState } from '@core/constant/PaywallState';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { isMobileWidth } from '@core/mobile/mobileWidth';
 import {
   LAYOUT_CONTEXT_ID,
@@ -10,7 +12,7 @@ import {
 } from '@core/signal/layout';
 import { type RouteSectionProps, useLocation } from '@solidjs/router';
 import { attachGlobalDOMScope } from 'core/hotkey/hotkeys';
-import { createEffect, onCleanup, onMount, Show, Suspense } from 'solid-js';
+import { createEffect, createMemo, onCleanup, onMount, Show, Suspense } from 'solid-js';
 import { updateCookie } from '../util/updateCookie';
 import Banner from './banner/Banner';
 import { GlobalBulkEditEntityModal } from './bulk-edit-entity/BulkEditEntityModal';
@@ -109,6 +111,11 @@ export function Layout(props: RouteSectionProps) {
 
   attachGlobalDOMScope(document.body);
 
+  const hasMultipleSplits = createMemo(() => {
+    const manager = globalSplitManager();
+    return manager ? manager.splits().length > 1 : false;
+  });
+
   return (
     <div
       class="relative flex flex-col justify-between w-dvw h-dvh"
@@ -145,9 +152,14 @@ export function Layout(props: RouteSectionProps) {
       <Show when={paywallOpen()}>
         <Paywall />
       </Show>
-      <div class="grow-1">
+      <div
+        class="grow-1"
+        classList={{
+          'p-[var(--gutter-size)]': hasMultipleSplits() && (!isTouchDevice() || !isMobileWidth()),
+        }}
+      >
         <Resize.Zone
-          gutter={4}
+          gutter={8}
           direction="horizontal"
           class="flex-1 w-full min-h-0 font-sans text-ink caret-accent"
           id={'main-layout'}

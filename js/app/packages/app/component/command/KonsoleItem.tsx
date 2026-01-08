@@ -556,7 +556,7 @@ export function CommandItemCard(props: CommandItemProps) {
         onMouseDown={() =>
           props.itemAction(
             props.item,
-            optionKeyPressed() ? 'new-split' : 'open'
+            optionKeyPressed() ? 'open' : 'new-split'
           )
         }
         onMouseEnter={props.mouseEnter}

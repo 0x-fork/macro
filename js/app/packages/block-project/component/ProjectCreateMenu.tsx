@@ -52,7 +52,7 @@ function MenuContent(props: { projectId: string }) {
   }) => {
     const { blockName, createFn, loading } = spec;
 
-    const shouldInsert = pressedKeys().has('opt');
+    const shouldInsert = !pressedKeys().has('opt');
 
     const tryCreate = async () => {
       try {

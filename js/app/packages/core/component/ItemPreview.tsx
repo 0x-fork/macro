@@ -219,7 +219,7 @@ export function ItemPreview(props: ItemPreviewProps) {
                       itemData.id,
                       fileType,
                       subType,
-                      e.altKey
+                      !e.altKey
                     )
                   );
                 return (
