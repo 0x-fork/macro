@@ -71,7 +71,7 @@ export const Button: ParentComponent<ButtonProps> = (props) => {
         classList={{
           'bg-ink border-ink text-panel hover:bg-accent! hover:opacity-80 active:opacity-100':
             'primary' === local.variant,
-          'border-ink!': 'secondary' === local.variant,
+          'border-edge-muted!': 'secondary' === local.variant,
           'border-failure! text-failure active:bg-failure hover:bg-failure-bg!':
             'destructive' === local.variant,
           'p-0! gap-0! items-stretch': !!local.showChevron,

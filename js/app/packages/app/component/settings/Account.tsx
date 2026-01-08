@@ -1,8 +1,6 @@
-import { uploadProfilePicture } from '@core/component/ProfilePicture';
 import { TabContentRow } from '@core/component/TabContent';
 import EditableField from '@core/component/EditableField';
 import { capitalize } from '@block-pdf/util/StringUtils';
-import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
 import { useHasPaidAccess } from '@core/auth/license';
 import { UserIcon } from '@core/component/UserIcon';
 import { useLogout } from '@core/auth/logout';
@@ -23,7 +21,6 @@ import {
 } from '@core/signal/profilePicture';
 import { useOrganizationName } from '@core/user';
 import Logout from '@icon/regular/sign-out.svg';
-import { Popover } from '@kobalte/core';
 import IconUpload from '@macro-icons/macro-upload.svg';
 import { authServiceClient } from '@service-auth/client';
 import { useEmail, useLicenseStatus, useUserId } from '@service-gql/client';
@@ -32,14 +29,38 @@ import {
     useEmailLinks,
   useEmailLinksStatus,
 } from '@core/email-link';
-import { BetaTooltip } from '../BetaTooltip';
 import {
   type SupportedNotificationSettings,
   useNotificationSettings,
 } from '@notifications';
+import { toast } from '@core/component/Toast/Toast';
+import { staticFileIdEndpoint } from '@core/constant/servers';
+import { createStaticFile } from '@core/util/create';
+import { Button } from '@ui/components/Button';
+import { BetaBadge } from '@core/component/BetaBadge';
 
 // NOTE: solid directives
 false && fileSelector;
+
+// 16 megabytes
+const MAX_FILE_SIZE = 16 * 1000 * 1000;
+
+async function uploadProfilePicture(
+  file: File
+): Promise<{ id: string; url: string } | void> {
+  if (file.size > MAX_FILE_SIZE) {
+    return toast.failure('Image size too large');
+  }
+
+  try {
+    const id = await createStaticFile(file);
+    const url = staticFileIdEndpoint(id);
+    await authServiceClient.putProfilePicture({ url });
+    return { id, url };
+  } catch (_error) {
+    return toast.failure('Failed to upload profile picture');
+  }
+}
 
 function useUserName() {
   const fetchUserName = async () => {
@@ -83,7 +104,6 @@ export function Account() {
   >(undefined);
 
   const emailActive = useEmailLinksStatus();
-  const [showTooltip, setShowTooltip] = createSignal<boolean>(false);
 
   const firstName = () => {
     // Display any updated first name immediately without having to refetch
@@ -144,7 +164,9 @@ export function Account() {
                     },
                   }}
                 >
-                  <DeprecatedTextButton text="Upload" icon={IconUpload} theme="accent" />
+                  <Button class="bg-accent/10 hover:bg-accent/20 text-accent-ink border-accent/30 text-xs p-2">
+                    <IconUpload class="h-[1lh]" /> Upload
+                  </Button>
                 </div>
               </div>
             </Show>
@@ -188,59 +210,46 @@ export function Account() {
             subtext={capitalize(licenseStatus() ?? '')}
           />
           <Show when={!hasPaidAccess()}>
-            <DeprecatedTextButton
-              theme="accent"
-              text="Upgrade"
+            <Button
+              variant="primary"
               onClick={() => showPaywall()}
               class="mb-[18px]"
-            />
+            >
+              Upgrade
+            </Button>
           </Show>
         </div>
         <Show when={ENABLE_EMAIL && (!emailActive() || DEV_MODE_ENV)}>
           <div
-            class={`flex items-center justify-between ${!showEmailModal() && 'mb-[18px]'}`}
+            class={`flex items-center text-sm justify-between ${!showEmailModal() && 'mb-[18px]'}`}
           >
             <div class="text-sm">Email</div>
             <Show
               when={!emailActive() && DEV_MODE_ENV}
               fallback={
-                <DeprecatedTextButton
-                  theme="base"
-                  text="Disable"
+                <Button 
+                  variant="secondary" 
                   onClick={() => {
-                    setShowEmailModal(true);
-                  }}
-                />
+                  setShowEmailModal(true);
+                }}>
+                  Disable
+                </Button>
               }
             >
-              <Popover.Root open={showTooltip()} gutter={10} placement={'left'}>
-                <Popover.Anchor>
-                  <div
-                    class="flex flex-col items-center"
-                    onPointerEnter={() => {
-                      setShowTooltip(true);
-                    }}
-                    onPointerLeave={() => {
-                      setShowTooltip(false);
-                    }}
-                  >
-                    <DeprecatedTextButton
-                      theme="base"
-                      text="Enable"
-                      onClick={connectEmail}
-                    />
-                  </div>
-                </Popover.Anchor>
-                <Popover.Portal>
-                  <Popover.Content class="z-modal">
-                    <BetaTooltip
-                      text={
-                        "Enabling an email address different from the current Macro user's will result in session termination"
-                      }
-                    />
-                  </Popover.Content>
-                </Popover.Portal>
-              </Popover.Root>
+                 
+              <Button 
+                variant="secondary" 
+                onClick={connectEmail}
+                tooltip={
+                  <div>
+                    <div class="w-min bg-surface-0 rounded-lg mb-2">
+                      <BetaBadge />
+                    </div>
+                    <p class="max-w-40">Enabling an email address different from the current Macro user's will result in session termination.</p>
+                  </div>}
+              >
+                Enable
+              </Button>
             </Show>
           </div>
         </Show>
@@ -249,22 +258,15 @@ export function Account() {
             <div class="mb-[18px] text-sm pt-4">
               Disabling will clear all email data from Macro
             </div>
-            <div class="ml-auto flex flex-row">
-              <DeprecatedTextButton
-                theme="clear"
-                text="Confirm"
+            <div class="ml-auto flex flex-row text-xs gap-1">
+              <Button 
+                variant="destructive"
                 onClick={() => {
                   disconnectEmail();
                   setShowEmailModal(false);
-                }}
-              />
-              <DeprecatedTextButton
-                theme="clear"
-                text="Cancel"
-                onClick={() => {
-                  setShowEmailModal(false);
-                }}
-              />
+                }}>Confirm</Button>
+
+              <Button onClick={() => setShowEmailModal(false)}>Cancel</Button>
             </div>
           </div>
         </Show>
@@ -301,13 +303,14 @@ function NotificationSettings(props: {
   settings: SupportedNotificationSettings;
 }) {
   return (
-    <div class="flex items-center justify-between mb-[18px]">
+    <div class="flex items-center justify-between mb-[18px] text-sm">
       <div class="text-sm">Notifications</div>
-      <DeprecatedTextButton
-        theme="base"
-        text={props.settings.isEnabled() ? "Disable" : "Enable"}
+      <Button
+        variant="secondary"
         onClick={() => props.settings.toggle(!props.settings.isEnabled())}
-      />
+      >
+        {props.settings.isEnabled() ? "Disable" : "Enable"}
+      </Button>
     </div>
   );
 }

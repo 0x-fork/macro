@@ -1,10 +1,7 @@
-import { toast } from '@core/component/Toast/Toast';
 import { ENABLE_PROFILE_PICTURES } from '@core/constant/featureFlags';
-import { staticFileIdEndpoint } from '@core/constant/servers';
+
 import { useProfilePictureUrl } from '@core/signal/profilePicture';
 import { idToEmail } from '@core/user';
-import { createStaticFile } from '@core/util/create';
-import { authServiceClient } from '@service-auth/client';
 import { createMemo, Show } from 'solid-js';
 import type { SizeClass } from './UserIcon';
 
@@ -16,26 +13,6 @@ type ProfilePictureProps = {
   imageUrl?: string;
   fetchUrl?: boolean;
 };
-
-// 16 megabytes
-const MAX_FILE_SIZE = 16 * 1000 * 1000;
-
-export async function uploadProfilePicture(
-  file: File
-): Promise<{ id: string; url: string } | void> {
-  if (file.size > MAX_FILE_SIZE) {
-    return toast.failure('Image size too large');
-  }
-
-  try {
-    const id = await createStaticFile(file);
-    const url = staticFileIdEndpoint(id);
-    await authServiceClient.putProfilePicture({ url });
-    return { id, url };
-  } catch (_error) {
-    return toast.failure('Failed to upload profile picture');
-  }
-}
 
 export function ProfilePicture(props: ProfilePictureProps) {
   const email = createMemo(() => {
