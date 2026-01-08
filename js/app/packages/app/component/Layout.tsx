@@ -12,7 +12,14 @@ import {
 } from '@core/signal/layout';
 import { type RouteSectionProps, useLocation } from '@solidjs/router';
 import { attachGlobalDOMScope } from 'core/hotkey/hotkeys';
-import { createEffect, createMemo, onCleanup, onMount, Show, Suspense } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  onCleanup,
+  onMount,
+  Show,
+  Suspense,
+} from 'solid-js';
 import { updateCookie } from '../util/updateCookie';
 import Banner from './banner/Banner';
 import { GlobalBulkEditEntityModal } from './bulk-edit-entity/BulkEditEntityModal';
@@ -155,7 +162,8 @@ export function Layout(props: RouteSectionProps) {
       <div
         class="grow-1"
         classList={{
-          'p-[var(--gutter-size)]': hasMultipleSplits() && (!isTouchDevice() || !isMobileWidth()),
+          'p-[var(--gutter-size)]':
+            hasMultipleSplits() && (!isTouchDevice() || !isMobileWidth()),
         }}
       >
         <Resize.Zone
