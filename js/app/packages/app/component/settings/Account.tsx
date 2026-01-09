@@ -2,7 +2,6 @@ import { TabContentRow } from '@core/component/TabContent';
 import EditableField from '@core/component/EditableField';
 import { capitalize } from '@block-pdf/util/StringUtils';
 import { useHasPaidAccess } from '@core/auth/license';
-import { UserIcon } from '@core/component/UserIcon';
 import { useLogout } from '@core/auth/logout';
 import {
   blockNameToFileExtensions,
@@ -38,6 +37,7 @@ import { staticFileIdEndpoint } from '@core/constant/servers';
 import { createStaticFile } from '@core/util/create';
 import { Button } from '@ui/components/Button';
 import { BetaBadge } from '@core/component/BetaBadge';
+import { Avatar } from '@ui/components/Avatar';
 
 // NOTE: solid directives
 false && fileSelector;
@@ -104,6 +104,7 @@ export function Account() {
   >(undefined);
 
   const emailActive = useEmailLinksStatus();
+  const [profilePicUrl] = useProfilePictureUrl(userId());
 
   const firstName = () => {
     // Display any updated first name immediately without having to refetch
@@ -125,6 +126,10 @@ export function Account() {
     return undefined;
   };
 
+  const nameOrEmail = () => {
+    return [firstName(), lastName()].filter(Boolean).join(' ') || email() || 'User';
+  };
+
   const logoutHandler = () => {
     let redirectUrl = window.location.origin;
     logout(redirectUrl);
@@ -142,7 +147,12 @@ export function Account() {
           >
             <Show when={userId()}>
               <div class="flex items-center">
-                <UserIcon id={userId() as string} isDeleted={false} size="lg" />
+                <Avatar 
+                  for={nameOrEmail()} 
+                  src={profilePicUrl()} 
+                  class="text-lg leading-loose"
+                />
+
                 <div
                   class="ml-2"
                   use:fileSelector={{
