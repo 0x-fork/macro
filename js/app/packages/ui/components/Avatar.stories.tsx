@@ -1,7 +1,6 @@
+import IconAI from '@macro-icons/wide/star.svg';
 import type { Meta, StoryObj } from 'storybook-solidjs-vite';
 import { Avatar, Initials } from './Avatar';
-import IconAI from '@macro-icons/wide/star.svg';
-import { div } from 'three/src/nodes/TSL.js';
 
 const meta = {
   component: Avatar,
@@ -33,18 +32,16 @@ export const Default: Story = {
   },
 };
 
+/** Avatars will display an image if a `src` is provided, falling back to initials (or children if present). */
 export const WithImage: Story = {
-  description:
-    'Avatars will display the image if provided, falling back to initials (or children if provided).',
   args: {
-    for: 'Mr. Kitty',
-    src: 'https://placekittens.com/128/128',
+    for: 'Chad G. Petty',
+    src: 'https://i.pravatar.cc/300',
   },
 };
 
+/** Avatars can also display anything passed as children, eg icons, logos, etc. */
 export const WithIcon: Story = {
-  description:
-    'Avatars can also display anything passed as children, eg icons, logos, etc.',
   args: {
     for: 'Some Document',
     children: <IconAI class="size-full" />,
@@ -52,6 +49,7 @@ export const WithIcon: Story = {
   },
 };
 
+/** Avatars get their sizing from the line-height of the parent element. */
 export const NextToText: Story = {
   args: {
     for: 'Jacob Beckerman',
@@ -73,9 +71,8 @@ export const NextToText: Story = {
   ),
 };
 
+/** Initials can be customized by passing a custom component as children. Either directly as a string, or with the Initials component: `<Initials of="Donkey Boy" />`. */
 export const CustomInitials: Story = {
-  description:
-    'Initials can be customized by passing a custom component as children. Either directly as a string, or with the Initials component: `<Initials of="Donkey Boy" />`.',
   args: {
     for: 'Claude Code',
     children: <Initials of="Donkey Boy" />,

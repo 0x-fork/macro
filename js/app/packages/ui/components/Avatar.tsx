@@ -1,4 +1,4 @@
-import { JSX, Show } from 'solid-js';
+import { type JSX, Show } from 'solid-js';
 import { twMerge } from 'tailwind-merge';
 
 type AvatarProps = {
@@ -37,7 +37,7 @@ export function Avatar(props: AvatarProps) {
         <img
           src={props.src}
           alt={props.for}
-          class="object-cover rounded-full w-full h-full overflow-hidden"
+          class="rounded-full w-full h-full object-cover overflow-hidden"
         />
       </Show>
     </figure>
