@@ -20,7 +20,7 @@ type AvatarProps = {
 
 export function Avatar(props: AvatarProps) {
   const classes = twMerge(
-    'h-[1lh] aspect-square uppercase rounded-full font-medium font-mono text-surface-0 bg-ink-extra-muted flex justify-center items-center text-center shrink-0',
+    'h-[1lh] leading-normal! max-h-full aspect-square uppercase rounded-full font-medium font-mono text-surface-0 bg-ink-extra-muted flex justify-center items-center text-center shrink-0',
     props.class
   );
 
@@ -29,7 +29,12 @@ export function Avatar(props: AvatarProps) {
       <Show
         when={props.src}
         fallback={
-          <div class="p-[0.16em] h-full flex items-center justify-center">
+          <div
+            class="w-full h-min flex items-center justify-center"
+            classList={{
+              'p-[16%]': !!props.children,
+            }}
+          >
             {props.children ?? <Initials of={props.for} />}
           </div>
         }
@@ -61,7 +66,10 @@ export function Initials(props: { of: string }) {
   ).toUpperCase();
 
   return (
-    <abbr title={props.of} class="text-center no-underline">
+    <abbr
+      title={props.of}
+      class="max-h-min text-center no-underline font-mono font-medium leading-none text-[calc(1em-10%)]"
+    >
       {initials}
     </abbr>
   );

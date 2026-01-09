@@ -1,4 +1,5 @@
 import IconAI from '@macro-icons/wide/star.svg';
+import { For } from 'solid-js';
 import type { Meta, StoryObj } from 'storybook-solidjs-vite';
 import { Avatar, Initials } from './Avatar';
 
@@ -68,6 +69,38 @@ export const NextToText: Story = {
         <p>Jarvis</p>
       </li>
     </ul>
+  ),
+};
+
+/** Avatars can be sized and shaped to fit different contexts. */
+export const SizesAndShapes: Story = {
+  args: {
+    for: 'Walter White',
+  },
+  render: (args: Story['args']) => (
+    <div class="flex flex-col items-center gap-8">
+      <For each={['', 'rounded-xs']}>
+        {(shape) => (
+          <div class="flex items-center gap-1">
+            <For
+              each={[
+                '[8px]',
+                'xs',
+                'sm',
+                'md',
+                'lg',
+                'xl',
+                '2xl',
+                '3xl',
+                '4xl',
+              ]}
+            >
+              {(size) => <Avatar {...args} class={`${shape} text-${size}`} />}
+            </For>
+          </div>
+        )}
+      </For>
+    </div>
   ),
 };
 
