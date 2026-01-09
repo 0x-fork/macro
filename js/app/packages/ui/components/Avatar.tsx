@@ -20,7 +20,7 @@ type AvatarProps = {
 
 export function Avatar(props: AvatarProps) {
   const classes = twMerge(
-    'h-[1lh] aspect-square text-sm uppercase rounded-full font-medium font-mono text-surface-0 bg-ink-extra-muted flex justify-center items-center text-center shrink-0',
+    'h-[1lh] aspect-square uppercase rounded-full font-medium font-mono text-surface-0 bg-ink-extra-muted flex justify-center items-center text-center shrink-0',
     props.class
   );
 
@@ -28,9 +28,17 @@ export function Avatar(props: AvatarProps) {
     <figure class={classes}>
       <Show
         when={props.src}
-        fallback={props.children ?? <Initials of={props.for} />}
+        fallback={
+          <div class="p-[0.16em] h-full flex items-center justify-center">
+            {props.children ?? <Initials of={props.for} />}
+          </div>
+        }
       >
-        <img src={props.src} alt={props.for} />
+        <img
+          src={props.src}
+          alt={props.for}
+          class="object-cover rounded-full w-full h-full overflow-hidden"
+        />
       </Show>
     </figure>
   );
@@ -41,20 +49,19 @@ export function Avatar(props: AvatarProps) {
  *
  * @component
  * @param {string} props.of - The name to display the initials of.
- * @param {number} [props.max=2] - The maximum number of initials to display. Default is 2.
  */
-export function Initials(props: { of: string; max?: number }) {
-  const maxLength = props.max ?? 2;
-  const initials = props.of
-    .trim()
-    .split(' ')
-    .map((name) => name[0])
-    .slice(0, maxLength)
-    .join('')
-    .toUpperCase();
+export function Initials(props: { of: string }) {
+  const names = props.of.trim().split(' ').filter(Boolean);
+  if (names.length === 0) return '';
+
+  const initials = (
+    names.length > 1
+      ? `${names[0][0]}${names[names.length - 1][0]}` // First and Last, regardless of what's in the middle
+      : names[0][0]
+  ).toUpperCase();
 
   return (
-    <abbr title={props.of} class="no-underline">
+    <abbr title={props.of} class="text-center no-underline">
       {initials}
     </abbr>
   );

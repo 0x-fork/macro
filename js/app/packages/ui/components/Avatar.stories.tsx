@@ -1,8 +1,26 @@
 import type { Meta, StoryObj } from 'storybook-solidjs-vite';
-import { Avatar } from './Avatar';
+import { Avatar, Initials } from './Avatar';
+import IconAI from '@macro-icons/wide/star.svg';
+import { div } from 'three/src/nodes/TSL.js';
 
 const meta = {
   component: Avatar,
+  argTypes: {
+    for: {
+      control: { type: 'text' },
+    },
+    src: {
+      control: { type: 'text' },
+    },
+    children: {
+      disable: true,
+    },
+  },
+  render: (args) => (
+    <div class="text-3xl leading-normal">
+      <Avatar {...args} />
+    </div>
+  ),
 } satisfies Meta<typeof Avatar>;
 
 export default meta;
@@ -13,4 +31,59 @@ export const Default: Story = {
   args: {
     for: 'Jacob Beckerman',
   },
+};
+
+export const WithImage: Story = {
+  description:
+    'Avatars will display the image if provided, falling back to initials (or children if provided).',
+  args: {
+    for: 'Mr. Kitty',
+    src: 'https://placekittens.com/128/128',
+  },
+};
+
+export const WithIcon: Story = {
+  description:
+    'Avatars can also display anything passed as children, eg icons, logos, etc.',
+  args: {
+    for: 'Some Document',
+    children: <IconAI class="size-full" />,
+    class: 'text-surface-0 bg-accent',
+  },
+};
+
+export const NextToText: Story = {
+  args: {
+    for: 'Jacob Beckerman',
+    class: undefined,
+  },
+  render: (args: Story['args']) => (
+    <ul class="space-y-6">
+      <li class="flex items-center gap-1">
+        <Avatar {...args} />
+        <p>{args.for}</p>
+      </li>
+      <li class="flex items-center gap-1">
+        <Avatar for="Jarvis" class="text-surface-0 bg-accent">
+          <IconAI class="size-full" />
+        </Avatar>
+        <p>Jarvis</p>
+      </li>
+    </ul>
+  ),
+};
+
+export const CustomInitials: Story = {
+  description:
+    'Initials can be customized by passing a custom component as children. Either directly as a string, or with the Initials component: `<Initials of="Donkey Boy" />`.',
+  args: {
+    for: 'Claude Code',
+    children: <Initials of="Donkey Boy" />,
+  },
+  render: (args: Story['args']) => (
+    <div class="flex items-center gap-1">
+      <Avatar {...args} />
+      <p>{args.for}</p>
+    </div>
+  ),
 };
