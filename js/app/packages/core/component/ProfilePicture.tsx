@@ -14,6 +14,11 @@ type ProfilePictureProps = {
   fetchUrl?: boolean;
 };
 
+/**
+ * ProfilePicture renders a profile picture for a user.
+ *
+ * @deprecated Use the Avatar component instead.
+ */
 export function ProfilePicture(props: ProfilePictureProps) {
   const email = createMemo(() => {
     const id = props.id;
