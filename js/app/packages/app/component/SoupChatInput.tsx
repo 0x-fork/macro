@@ -77,29 +77,31 @@ export function SoupChatInput() {
   }
 
   return (
-    <div class="w-full px-3 pb-3 pt-1">
-      <div class="flex items-center gap-2 bg-input border border-edge-muted rounded-md px-3 py-2">
-        <button
-          class="flex-shrink-0 text-ink-muted hover:text-ink transition-colors"
-          onClick={() => {
-            // Focus the input when plus is clicked
-            chatMarkdownArea.focus();
-          }}
-        >
-          <PlusIcon class="size-5" />
-        </button>
-        <div class="flex-1 min-w-0 text-sm">
-          <chatMarkdownArea.MarkdownArea
-            placeholder="Ask AI - @mention anything"
-            onEnter={handleEnter}
-            dontFocusOnMount={true}
-          />
-        </div>
-        <div class="flex-shrink-0">
-          <SendMessageButton
-            isDisabled={() => !canSendMessage()}
-            onClick={sendMessage}
-          />
+    <div class="flex w-full justify-center px-4">
+      <div class="w-full max-w-3xl">
+        <div class="flex items-center gap-2 bg-input border border-edge-muted border-b-0 rounded-t-md px-3 py-2">
+          <button
+            class="flex-shrink-0 text-ink-muted hover:text-ink transition-colors"
+            onClick={() => {
+              // Focus the input when plus is clicked
+              chatMarkdownArea.focus();
+            }}
+          >
+            <PlusIcon class="size-5" />
+          </button>
+          <div class="flex-1 min-w-0 text-sm">
+            <chatMarkdownArea.MarkdownArea
+              placeholder="Ask AI - @mention anything"
+              onEnter={handleEnter}
+              dontFocusOnMount={true}
+            />
+          </div>
+          <div class="flex-shrink-0">
+            <SendMessageButton
+              isDisabled={() => !canSendMessage()}
+              onClick={sendMessage}
+            />
+          </div>
         </div>
       </div>
     </div>
