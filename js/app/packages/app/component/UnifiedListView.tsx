@@ -1769,14 +1769,16 @@ export function UnifiedListView(props: UnifiedListViewProps) {
                 };
 
                 return (
-                  <EntityRow
-                    entityId={innerProps.entity.id}
-                    swipeLeftColor="bg-success"
-                    swipeLeftRevealedComponent={
-                      <CheckIcon class="size-8 text-panel" />
-                    }
-                  >
-                    <EntityWithEverything
+                  <div class="flex w-full justify-center">
+                    <div class="w-full max-w-3xl">
+                      <EntityRow
+                        entityId={innerProps.entity.id}
+                        swipeLeftColor="bg-success"
+                        swipeLeftRevealedComponent={
+                          <CheckIcon class="size-8 text-panel" />
+                        }
+                      >
+                        <EntityWithEverything
                       onContextMenu={() => {
                         if (isPanelActive() && !preview()) {
                           setSelectedEntity(innerProps.entity);
@@ -1855,8 +1857,10 @@ export function UnifiedListView(props: UnifiedListViewProps) {
                           shiftKey: shiftKey ?? false,
                         })
                       }
-                    />
-                  </EntityRow>
+                      />
+                    </EntityRow>
+                    </div>
+                  </div>
                 );
               }}
             </UnifiedListComponent>
