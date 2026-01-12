@@ -4,7 +4,7 @@ test:
     cargo test --all-features
 
 build:
-	cargo lambda build --release --bin {{lambda_name}} --output-format zip
+	cargo lambda build --release --x86-64 --bin {{lambda_name}} --output-format zip
 
 watch:
     cargo lambda watch -F local
