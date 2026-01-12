@@ -6,6 +6,7 @@ import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import { useBuildChatSendRequest } from '@core/component/AI/component/input/buildRequest';
 import { useChatInput } from '@core/component/AI/component/input/useChatInput';
 import { useChatMessages } from '@core/component/AI/component/message';
+import { getPendingSend } from '@core/component/AI/signal/pendingSend';
 import { registerToolHandler } from '@core/component/AI/signal/tool';
 import type {
   CreateAndSend,
@@ -31,7 +32,7 @@ import { invalidateUserQuota } from '@service-auth/userQuota';
 import { cognitionWebsocketServiceClient } from '@service-cognition/client';
 import { createCallback } from '@solid-primitives/rootless';
 import type { LexicalEditor } from 'lexical';
-import { createEffect, createSignal, Show } from 'solid-js';
+import { createEffect, createSignal, onMount, Show } from 'solid-js';
 import { pendingLocationParamsSignal } from '../signal/pendingLocationParams';
 
 export function Chat(props: { data: ChatData }) {
@@ -146,6 +147,21 @@ export function Chat(props: { data: ChatData }) {
     goToLocationFromParams: (params: Record<string, string>) => {
       setPendingLocation(params);
     },
+  });
+
+  // Check for pending sends from Soup chat input
+  onMount(async () => {
+    const pending = getPendingSend(props.data.chat.id);
+    if (pending) {
+      const send = await buildChatSendRequest({
+        chatId: pending.chatId,
+        userRequest: pending.content,
+        attachments: pending.attachments,
+        model: pending.model,
+        isPersistent: true,
+      });
+      onSend(send);
+    }
   });
 
   registerScopeSignalHotkey(scopeId, {
