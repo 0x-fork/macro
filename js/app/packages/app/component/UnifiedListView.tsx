@@ -3,6 +3,7 @@ import {
   useGlobalNotificationSource,
 } from '@app/component/GlobalAppState';
 import { noiseFilter, signalFilter } from '@app/component/soupFilters';
+import { SoupChatInput } from '@app/component/SoupChatInput';
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import { codeFileExtensions } from '@block-code/util/languageSupport';
 import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
@@ -1694,26 +1695,27 @@ export function UnifiedListView(props: UnifiedListViewProps) {
           </div>
         </SplitToolbarRight>
       </Show>
-      <ContextMenu
-        forceMount={contextAndModalState.contextMenuOpen}
-        onOpenChange={(open) => {
-          setContextAndModalState((prev) => {
-            if (open) {
+      <div class="flex flex-col size-full">
+        <ContextMenu
+          forceMount={contextAndModalState.contextMenuOpen}
+          onOpenChange={(open) => {
+            setContextAndModalState((prev) => {
+              if (open) {
+                return {
+                  ...prev,
+                  contextMenuOpen: open,
+                  prevSelectedEntity: prev.selectedEntity,
+                };
+              }
               return {
                 ...prev,
                 contextMenuOpen: open,
-                prevSelectedEntity: prev.selectedEntity,
+                selectedEntity: undefined,
               };
-            }
-            return {
-              ...prev,
-              contextMenuOpen: open,
-              selectedEntity: undefined,
-            };
-          });
-        }}
-      >
-        <ContextMenu.Trigger class="size-full unified-list-root">
+            });
+          }}
+        >
+          <ContextMenu.Trigger class="flex-1 min-h-0 unified-list-root">
           <EntityRowProvider
             container={localEntityListRef}
             canSwipeLeft={(entityId) => {
@@ -1948,7 +1950,9 @@ export function UnifiedListView(props: UnifiedListViewProps) {
             }}
           />
         </Show>{' '}
-      </ContextMenu>
+        </ContextMenu>
+        <SoupChatInput />
+      </div>
     </>
   );
 }
