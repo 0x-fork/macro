@@ -5,14 +5,7 @@ import { Tooltip } from '@core/component/Tooltip';
 import { UserIcon } from '@core/component/UserIcon';
 import type { EntityReference } from '@service-properties/generated/schemas/entityReference';
 import type { EntityType } from '@service-properties/generated/schemas/entityType';
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  type JSX,
-  Show,
-} from 'solid-js';
+import { createMemo, For, Show } from 'solid-js';
 import { match } from 'ts-pattern';
 import { PropertyPillTooltip } from './PropertyPillTooltip';
 
@@ -68,28 +61,20 @@ type SingleEntityPillProps = {
 };
 
 const SingleEntityPill = (props: SingleEntityPillProps) => {
-  const [entityName, setEntityName] = createSignal<string | undefined>();
-  const [entityIcon, setEntityIcon] = createSignal<JSX.Element | undefined>();
-
-  createEffect(() => {
-    const { name, icon } = usePropertyEntityDisplay(
-      props.entity.entity_id,
-      props.entity.entity_type as EntityType,
-      {
-        fallbackIcon: (
-          <PropertyDataTypeIcon
-            property={{
-              data_type: 'ENTITY',
-              specific_entity_type: props.property.specificEntityType,
-            }}
-          />
-        ),
-      }
-    );
-
-    setEntityName(name());
-    setEntityIcon(icon());
-  });
+  const { name, icon } = usePropertyEntityDisplay(
+    props.entity.entity_id,
+    props.entity.entity_type as EntityType,
+    {
+      fallbackIcon: (
+        <PropertyDataTypeIcon
+          property={{
+            data_type: 'ENTITY',
+            specific_entity_type: props.property.specificEntityType,
+          }}
+        />
+      ),
+    }
+  );
 
   return (
     <Tooltip
@@ -112,19 +97,15 @@ const SingleEntityPill = (props: SingleEntityPillProps) => {
           '@3xl/soup:px-2 @3xl/soup:py-1': !props.compressed,
         }}
       >
-        <Show when={entityIcon()}>{(icon) => icon()}</Show>
-        <Show when={entityName()}>
-          {(name) => (
-            <span
-              class="truncate max-w-[120px] hidden"
-              classList={{
-                '@3xl/soup:inline': !props.compressed,
-              }}
-            >
-              {name()}
-            </span>
-          )}
-        </Show>
+        <Show when={icon()}>{icon()}</Show>
+        <span
+          class="truncate max-w-[120px] hidden"
+          classList={{
+            '@3xl/soup:inline': !props.compressed,
+          }}
+        >
+          {name()}
+        </span>
       </div>
     </Tooltip>
   );
