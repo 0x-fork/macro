@@ -2,7 +2,11 @@ import { useChannelName } from '@core/component/ChannelsProvider';
 import { EntityIcon as CoreEntityIcon } from '@core/component/EntityIcon';
 import { UserIcon } from '@core/component/UserIcon';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
-import { isAccessiblePreviewItem, useItemPreview } from '@core/signal/preview';
+import {
+  isAccessiblePreviewItem,
+  type PreviewItem,
+  useItemPreview,
+} from '@core/signal/preview';
 import { idToDisplayName } from '@core/user';
 import ChannelBuildingIcon from '@icon/duotone/building-office-duotone.svg';
 import GlobeIcon from '@icon/duotone/globe-duotone.svg';
@@ -10,7 +14,13 @@ import ChannelIcon from '@icon/duotone/hash-duotone.svg';
 import UserDuotoneIcon from '@icon/duotone/user-duotone.svg';
 import ThreeUsersIcon from '@icon/duotone/users-three-duotone.svg';
 import type { EntityType } from '@service-properties/generated/schemas/entityType';
-import { type Accessor, createMemo, type JSX } from 'solid-js';
+import {
+  type Accessor,
+  createMemo,
+  type JSX,
+  createSignal,
+  createEffect,
+} from 'solid-js';
 
 const ICON_CLASSES = 'size-4 text-ink-muted';
 
@@ -67,9 +77,16 @@ export function usePropertyEntityDisplay(
     return type.toLowerCase() as 'document' | 'project' | 'chat' | 'channel';
   };
 
-  const [preview] = useItemPreview({
-    id: needsPreview() ? entityId() : '',
-    type: needsPreview() ? getPreviewType() : undefined,
+  const [preview, setPreview] = createSignal<PreviewItem>();
+
+  createEffect(() => {
+    setPreview(undefined);
+    if (!needsPreview()) return;
+    const [item] = useItemPreview({
+      id: entityId(),
+      type: getPreviewType(),
+    });
+    setPreview(item());
   });
 
   const channelName = useChannelName(
