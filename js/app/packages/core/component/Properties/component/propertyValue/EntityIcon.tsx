@@ -24,8 +24,8 @@ export const EntityIcon: Component<EntityValueDisplayProps> = (props) => {
   let containerRef: HTMLDivElement | undefined;
 
   const { name, icon, blockOrFileType, linkParams } = usePropertyEntityDisplay(
-    props.entityId,
-    props.entityType,
+    () => props.entityId,
+    () => props.entityType,
     {
       specificMessageId: () => props.specificMessageId,
     }

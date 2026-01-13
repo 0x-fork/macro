@@ -44,8 +44,8 @@ const EntityPill: Component<{
   onRemove: () => void;
 }> = (props) => {
   const { name, icon, isLoading } = usePropertyEntityDisplay(
-    props.value.entityId,
-    props.value.entityType
+    () => props.value.entityId,
+    () => props.value.entityType
   );
 
   return (
@@ -333,8 +333,8 @@ const DropdownEntityRow: Component<{
   onSelect: () => void;
 }> = (props) => {
   const { icon } = usePropertyEntityDisplay(
-    props.entity.id,
-    getEntityType(props.entity)
+    () => props.entity.id,
+    () => getEntityType(props.entity)
   );
 
   return (

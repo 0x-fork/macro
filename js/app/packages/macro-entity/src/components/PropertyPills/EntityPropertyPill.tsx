@@ -62,8 +62,8 @@ type SingleEntityPillProps = {
 
 const SingleEntityPill = (props: SingleEntityPillProps) => {
   const { name, icon } = usePropertyEntityDisplay(
-    props.entity.entity_id,
-    props.entity.entity_type as EntityType,
+    () => props.entity.entity_id,
+    () => props.entity.entity_type as EntityType,
     {
       fallbackIcon: (
         <PropertyDataTypeIcon
@@ -197,8 +197,8 @@ type EntityValuePillProps = {
 
 const EntityValuePill = (props: EntityValuePillProps) => {
   const { name, icon } = usePropertyEntityDisplay(
-    props.entity.entity_id,
-    props.entity.entity_type as EntityType,
+    () => props.entity.entity_id,
+    () => props.entity.entity_type as EntityType,
     { fallbackIcon: null }
   );
 
@@ -287,8 +287,8 @@ type UserEntityTooltipItemProps = {
 
 const UserEntityTooltipItem = (props: UserEntityTooltipItemProps) => {
   const { name } = usePropertyEntityDisplay(
-    props.entity.entity_id,
-    props.entity.entity_type as EntityType,
+    () => props.entity.entity_id,
+    () => props.entity.entity_type as EntityType,
     { fallbackIcon: null }
   );
 
