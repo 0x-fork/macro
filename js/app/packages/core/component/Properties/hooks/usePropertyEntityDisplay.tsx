@@ -47,8 +47,8 @@ type PropertyEntityDisplayResult = {
  * @returns Object with name, icon, isLoading, and blockOrFileType accessors
  */
 export function usePropertyEntityDisplay(
-  entityId: Accessor<string>,
-  entityType: Accessor<EntityType>,
+  entityId: string,
+  entityType: EntityType,
   options?: {
     /** Custom fallback icon for unknown entity types (null to show nothing) */
     fallbackIcon?: JSX.Element | null;
@@ -56,38 +56,39 @@ export function usePropertyEntityDisplay(
     specificMessageId?: Accessor<string | null | undefined>;
   }
 ): PropertyEntityDisplayResult {
-  const needsPreview = () =>
-    PREVIEWABLE_ENTITY_TYPES.includes(entityType().toUpperCase() as EntityType);
+  const needsPreview = PREVIEWABLE_ENTITY_TYPES.includes(
+    entityType.toUpperCase() as EntityType
+  );
 
   // Map entity type to preview type
   const getPreviewType = () => {
-    const type = entityType().toUpperCase();
+    const type = entityType.toUpperCase();
     if (type === 'TASK') return 'document';
     if (type === 'THREAD') return 'email';
     return type.toLowerCase() as 'document' | 'project' | 'chat' | 'channel';
   };
 
   const [preview] = useItemPreview({
-    id: needsPreview() ? entityId() : '',
-    type: needsPreview() ? getPreviewType() : undefined,
+    id: needsPreview ? entityId : '',
+    type: needsPreview ? getPreviewType() : undefined,
   });
 
   const channelName = useChannelName(
-    entityType().toUpperCase() === 'CHANNEL' ? entityId() : '',
+    entityType.toUpperCase() === 'CHANNEL' ? entityId : '',
     'Unknown Channel'
   );
 
   const isLoading = createMemo(() => {
-    if (!needsPreview()) return false;
+    if (!needsPreview) return false;
     const previewItem = preview();
     return !previewItem || previewItem.loading;
   });
 
   const name = createMemo(() => {
-    const type = entityType().toUpperCase();
+    const type = entityType.toUpperCase();
     switch (type) {
       case 'USER': {
-        const displayName = idToDisplayName(entityId());
+        const displayName = idToDisplayName(entityId);
         return displayName.replace('macro|', '');
       }
       case 'CHANNEL':
@@ -103,17 +104,17 @@ export function usePropertyEntityDisplay(
         return previewItem.name || `Unknown ${type.toLowerCase()}`;
       }
       case 'COMPANY':
-        return entityId() ?? 'Company';
+        return entityId ?? 'Company';
       default:
-        return entityId();
+        return entityId;
     }
   });
 
   const icon = createMemo(() => {
-    const type = entityType().toUpperCase();
+    const type = entityType.toUpperCase();
     switch (type) {
       case 'USER':
-        return <UserIcon id={entityId()} size="xs" />;
+        return <UserIcon id={entityId} size="xs" />;
 
       case 'CHANNEL': {
         const previewItem = preview();
@@ -186,7 +187,7 @@ export function usePropertyEntityDisplay(
   });
 
   const blockOrFileType = createMemo(() => {
-    const type = entityType().toUpperCase();
+    const type = entityType.toUpperCase();
     // For channels and chats, use the entity type directly (lowercase for BlockLink)
     const linkableTypes: EntityType[] = ['CHANNEL', 'CHAT', 'PROJECT'];
     if (linkableTypes.includes(type as EntityType)) {
@@ -227,7 +228,7 @@ export function usePropertyEntityDisplay(
     const messageId = options?.specificMessageId?.();
     if (!messageId) return undefined;
 
-    const type = entityType().toUpperCase();
+    const type = entityType.toUpperCase();
     switch (type) {
       case 'THREAD':
         return { email_message_id: messageId };
