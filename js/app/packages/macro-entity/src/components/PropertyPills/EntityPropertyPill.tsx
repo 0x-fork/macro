@@ -6,6 +6,7 @@ import { UserIcon } from '@core/component/UserIcon';
 import type { EntityReference } from '@service-properties/generated/schemas/entityReference';
 import type { EntityType } from '@service-properties/generated/schemas/entityType';
 import { createMemo, For, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 import { PropertyPillTooltip } from './PropertyPillTooltip';
 
 type EntityPropertyPillProps = {
@@ -19,40 +20,37 @@ type EntityPropertyPillProps = {
  * Multi value: shows "Property Name (N)" with tooltip
  */
 export const EntityPropertyPill = (props: EntityPropertyPillProps) => {
-  const entities = () => props.property.value ?? [];
-  const count = () => entities().length;
+  const entities = createMemo(() => props.property.value ?? []);
+  const count = createMemo(() => entities().length);
 
-  if (count() === 0) return null;
-
-  // Show user avatars for multiselect user entity properties
-  if (props.property.specificEntityType === 'USER') {
-    return (
-      <UserEntityPill
-        property={props.property}
-        entities={entities()}
-        compressed={props.compressed}
-      />
-    );
-  }
-
-  // Single entity - show name directly in pill
-  if (count() === 1) {
-    return (
-      <SingleEntityPill
-        property={props.property}
-        entity={entities()[0]}
-        compressed={props.compressed}
-      />
-    );
-  }
-
-  // Multiple entities - show count with tooltip
   return (
-    <MultiEntityPill
-      property={props.property}
-      entities={entities()}
-      compressed={props.compressed}
-    />
+    <Show when={count() > 0}>
+      {match({
+        specificType: props.property.specificEntityType,
+        count: count(),
+      })
+        .with({ specificType: 'USER' }, () => (
+          <UserEntityPill
+            property={props.property}
+            entities={entities()}
+            compressed={props.compressed}
+          />
+        ))
+        .with({ count: 1 }, () => (
+          <SingleEntityPill
+            property={props.property}
+            entity={entities()[0]}
+            compressed={props.compressed}
+          />
+        ))
+        .otherwise(() => (
+          <MultiEntityPill
+            property={props.property}
+            entities={entities()}
+            compressed={props.compressed}
+          />
+        ))}
+    </Show>
   );
 };
 
