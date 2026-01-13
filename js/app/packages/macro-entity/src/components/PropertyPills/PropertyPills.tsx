@@ -110,36 +110,37 @@ const PropertyPill = (props: PropertyPillProps) => {
 const TextPropertyPill = (props: PropertyPillProps) => {
   const displayValue = () => formatPillValue(props.property);
 
-  const value = displayValue();
-  if (!value) return null;
-
   return (
-    <Tooltip
-      unstyled
-      tooltip={<TextTooltipContent property={props.property} />}
-      floatingOptions={{
-        offset: 4,
-        flip: true,
-        shift: { padding: 8 },
-      }}
-    >
-      <div
-        class="inline-flex items-center gap-1.5 text-xs leading-none text-ink-muted border border-edge-muted/50 h-fit shrink-0 p-1.5"
-        classList={{
-          '@3xl/soup:px-2 @3xl/soup:py-1': !props.compressed,
-        }}
-      >
-        <PillIcon property={props.property} />
-        <span
-          class="truncate max-w-[100px] hidden"
-          classList={{
-            '@3xl/soup:inline': !props.compressed,
+    <Show when={displayValue()}>
+      {(value) => (
+        <Tooltip
+          unstyled
+          tooltip={<TextTooltipContent property={props.property} />}
+          floatingOptions={{
+            offset: 4,
+            flip: true,
+            shift: { padding: 8 },
           }}
         >
-          {value}
-        </span>
-      </div>
-    </Tooltip>
+          <div
+            class="inline-flex items-center gap-1.5 text-xs leading-none text-ink-muted border border-edge-muted/50 h-fit shrink-0 p-1.5"
+            classList={{
+              '@3xl/soup:px-2 @3xl/soup:py-1': !props.compressed,
+            }}
+          >
+            <PillIcon property={props.property} />
+            <span
+              class="truncate max-w-[100px] hidden"
+              classList={{
+                '@3xl/soup:inline': !props.compressed,
+              }}
+            >
+              {value()}
+            </span>
+          </div>
+        </Tooltip>
+      )}
+    </Show>
   );
 };
 
@@ -233,25 +234,33 @@ const formatPillValue = (property: Property): string | null => {
  */
 const PillIcon = (props: { property: Property }) => {
   // For SELECT_STRING and SELECT_NUMBER with single value, try to use special icon
-  if (
-    (props.property.valueType === 'SELECT_STRING' ||
-      props.property.valueType === 'SELECT_NUMBER') &&
-    props.property.value &&
-    props.property.value.length === 1
-  ) {
-    const optionId = props.property.value[0];
-    return <PropertyValueIcon optionId={optionId} class="size-3.5 shrink-0" />;
-  }
+  const optionId = () => {
+    if (
+      (props.property.valueType === 'SELECT_STRING' ||
+        props.property.valueType === 'SELECT_NUMBER') &&
+      Array.isArray(props.property.value) &&
+      props.property.value.length === 1
+    ) {
+      return props.property.value[0];
+    }
+    return null;
+  };
 
-  // Default to data type icon
   return (
-    <PropertyDataTypeIcon
-      property={{
-        data_type: props.property.valueType,
-        specific_entity_type: props.property.specificEntityType,
-      }}
-      class="size-3.5 shrink-0"
-    />
+    <Show
+      when={optionId()}
+      fallback={
+        <PropertyDataTypeIcon
+          property={{
+            data_type: props.property.valueType,
+            specific_entity_type: props.property.specificEntityType,
+          }}
+          class="size-3.5 shrink-0"
+        />
+      }
+    >
+      {(id) => <PropertyValueIcon optionId={id()} class="size-3.5 shrink-0" />}
+    </Show>
   );
 };
 
@@ -262,16 +271,21 @@ const TooltipValueIcon = (props: {
   property: Property;
   valueIndex: number;
 }) => {
-  // For SELECT_STRING and SELECT_NUMBER, try to use special icon for the specific value
-  if (
-    (props.property.valueType === 'SELECT_STRING' ||
-      props.property.valueType === 'SELECT_NUMBER') &&
-    props.property.value &&
-    props.property.value[props.valueIndex]
-  ) {
-    const optionId = props.property.value[props.valueIndex];
-    return <PropertyValueIcon optionId={optionId} class="size-3 shrink-0" />;
-  }
+  const optionId = () => {
+    if (
+      (props.property.valueType === 'SELECT_STRING' ||
+        props.property.valueType === 'SELECT_NUMBER') &&
+      Array.isArray(props.property.value) &&
+      props.property.value[props.valueIndex]
+    ) {
+      return props.property.value[props.valueIndex];
+    }
+    return null;
+  };
 
-  return null;
+  return (
+    <Show when={optionId()}>
+      {(id) => <PropertyValueIcon optionId={id()} class="size-3 shrink-0" />}
+    </Show>
+  );
 };

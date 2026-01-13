@@ -8,7 +8,8 @@ import { useUnfurl } from '@core/signal/unfurl';
 
 import LinkIcon from '@icon/regular/link.svg';
 import { proxyResource } from '@service-unfurl/client';
-import { createSignal, For, Show } from 'solid-js';
+import { createMemo, createSignal, For, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 import { PropertyPillTooltip } from './PropertyPillTooltip';
 
 type LinkPropertyPillProps = {
@@ -22,29 +23,27 @@ type LinkPropertyPillProps = {
  * Multi value: shows "Links (N)" with tooltip
  */
 export const LinkPropertyPill = (props: LinkPropertyPillProps) => {
-  const links = () => props.property.value ?? [];
-  const count = () => links().length;
+  const links = createMemo(() => props.property.value ?? []);
+  const count = createMemo(() => links().length);
 
-  if (count() === 0) return null;
-
-  // Single link - show title/domain directly in pill
-  if (count() === 1) {
-    return (
-      <SingleLinkPill
-        property={props.property}
-        url={links()[0]}
-        compressed={props.compressed}
-      />
-    );
-  }
-
-  // Multiple links - show count with tooltip
   return (
-    <MultiLinkPill
-      property={props.property}
-      urls={links()}
-      compressed={props.compressed}
-    />
+    <Show when={count() > 0}>
+      {match(count())
+        .with(1, () => (
+          <SingleLinkPill
+            property={props.property}
+            url={links()[0]}
+            compressed={props.compressed}
+          />
+        ))
+        .otherwise(() => (
+          <MultiLinkPill
+            property={props.property}
+            urls={links()}
+            compressed={props.compressed}
+          />
+        ))}
+    </Show>
   );
 };
 
