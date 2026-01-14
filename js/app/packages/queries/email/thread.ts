@@ -1,5 +1,6 @@
 import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
 import { catchToResult, isErr, ok, throwOnErr } from '@core/util/maybeResult';
+import { logEmailSent } from '@macro/activity-logger';
 import { queryKeys } from '@macro-entity';
 import { emailClient } from '@service-email/client';
 import type {
@@ -317,6 +318,12 @@ export function useSendMessageMutation(
     ...withCallbacks<SendMessageResponse, Error, SendMessageParams>(
       {
         onSuccess: (_data, params) => {
+          // Log activity for productivity tracking
+          logEmailSent({
+            subject: params.message.subject,
+            recipients: (params.message.to?.length ?? 0) + (params.message.cc?.length ?? 0),
+          });
+
           if (params.message.thread_db_id) {
             queryClient.invalidateQueries({
               queryKey: emailKeys.threadMessages(params.message.thread_db_id)

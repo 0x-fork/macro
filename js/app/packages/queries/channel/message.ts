@@ -1,6 +1,7 @@
 import { TrackingEvents, withAnalytics } from '@coparse/analytics';
 import { toast } from '@core/component/Toast/Toast';
 import { throwOnErr } from '@core/util/maybeResult';
+import { logMessageSent } from '@macro/activity-logger';
 import { invalidateChannelWithID } from '@queries/channel/channel';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import {
@@ -40,6 +41,9 @@ export function useSendMessageMutation(
           toast.failure('Failed to send message');
         },
         onSuccess(_data, variables) {
+          // Log activity for productivity tracking
+          logMessageSent({ channel: variables.channelID });
+
           track(TrackingEvents.BLOCKCHANNEL.MESSAGE.SEND, {
             channelId: variables.channelID,
             contentLength: variables.message.content?.length ?? 0,

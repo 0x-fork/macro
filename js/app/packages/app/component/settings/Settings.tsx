@@ -17,6 +17,7 @@ import { Tabs } from '@kobalte/core/tabs';
 import { Account } from './Account';
 import { Inbox } from './Inbox';
 import { Shortcuts } from './Shortcuts';
+import { Activity } from './Activity';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { isMobileWidth } from '@core/mobile/mobileWidth';
 
@@ -116,7 +117,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
     const tabs: {value: string; label: string }[] = [
       {value: 'Appearance', label: 'Appearance'},
       {value: 'Account', label: 'Account'},
-      {value: 'Shortcuts', label: 'Shortcuts'}
+      {value: 'Shortcuts', label: 'Shortcuts'},
+      {value: 'Activity', label: 'Activity'}
     ];
 
     if(!orgName() && !isNativeMobilePlatform()){tabs.push({value: 'Subscription', label: 'Subscription'})}
@@ -143,7 +145,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <Tabs
               value={activeTabId()}
               onChange={(value: string | undefined) => {
-                if(value && (value === 'Account' || value === 'Subscription' || value === 'Organization' || value === 'Appearance' || value === 'Mobile' || value === 'AI Memory' || value === 'Inbox' || value === 'Shortcuts')){
+                if(value && (value === 'Account' || value === 'Subscription' || value === 'Organization' || value === 'Appearance' || value === 'Mobile' || value === 'AI Memory' || value === 'Inbox' || value === 'Shortcuts' || value === 'Activity')){
                   setActiveTabId(value as SettingsTab);
                   track(TrackingEvents.SETTINGS.CHANGETAB, { tab: value });
                 }
@@ -270,6 +272,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 </Tabs.Content>
                 <Tabs.Content value="Shortcuts" class="absolute inset-0">
                   <Shortcuts />
+                </Tabs.Content>
+                <Tabs.Content value="Activity" class="absolute inset-0">
+                  <Activity />
                 </Tabs.Content>
                 <Show when={DEV_MODE_ENV}>
                   <Tabs.Content value="Inbox" class="absolute inset-0">

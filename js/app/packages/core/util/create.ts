@@ -3,6 +3,7 @@ import { MARKDOWN_LORO_SCHEMA } from '@block-md/definition';
 import { rawStateToLoroSnapshot } from '@core/collab/utils';
 import { createMarkdownStateFromContent } from '@core/component/LexicalMarkdown/collaboration/utils';
 import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
+import { logFileCreated } from '@macro/activity-logger';
 import { invalidateUserQuota } from '@service-auth/userQuota';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import type { CreateChatRequest } from '@service-cognition/generated/schemas';
@@ -78,6 +79,10 @@ export async function createMarkdownFile(
   if (isErr(res)) {
     return;
   }
+
+  // Log activity for productivity tracking
+  logFileCreated({ title: args?.title, type: args?.isTask ? 'task' : 'markdown' });
+
   return documentId;
 }
 
@@ -128,6 +133,9 @@ export async function createTask(
     // Task was created, just without content - still return the id
   }
 
+  // Log activity for productivity tracking
+  logFileCreated({ title: args?.title, type: 'task' });
+
   return documentId;
 }
 
@@ -173,6 +181,10 @@ export async function createCodeFileFromText({
   });
   if (isErr(uploadResult)) return err('SERVER_ERROR', 'Failed to upload file');
   postNewHistoryItem('document', document.metadata.documentId);
+
+  // Log activity for productivity tracking
+  logFileCreated({ title, type: 'code' });
+
   return ok({ documentId: document.metadata.documentId });
 }
 
@@ -226,6 +238,10 @@ export async function createCodeFileFromTextWithLanguage({
   });
   if (isErr(uploadResult)) return err('SERVER_ERROR', 'Failed to upload file');
   postNewHistoryItem('document', document.metadata.documentId);
+
+  // Log activity for productivity tracking
+  logFileCreated({ title, type: 'code' });
+
   return ok({ documentId: document.metadata.documentId });
 }
 
@@ -259,6 +275,10 @@ export async function createCanvasFileFromJsonString(args: {
   if (isErr(uploadResult)) return { error: 'Failed to upload file.' };
 
   postNewHistoryItem('document', canvas.metadata.documentId);
+
+  // Log activity for productivity tracking
+  logFileCreated({ title, type: 'canvas' });
+
   return { documentId: canvas.metadata.documentId };
 }
 
@@ -275,6 +295,10 @@ export async function createChat(args?: CreateChatRequest) {
   }
   const [, chat] = maybeChat;
   postNewHistoryItem('chat', chat.id);
+
+  // Log activity for productivity tracking
+  logFileCreated({ title: args?.title, type: 'chat' });
+
   return { chatId: chat.id };
 }
 

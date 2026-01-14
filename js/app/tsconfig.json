@@ -201,6 +201,12 @@
       ],
       "@ui/*": [
         "./packages/ui/*"
+      ],
+      "@macro/activity-logger": [
+        "./packages/activity-logger/src"
+      ],
+      "@macro/activity-logger/*": [
+        "./packages/activity-logger/src/*"
       ]
     },
     "rootDir": ".",

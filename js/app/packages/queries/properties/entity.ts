@@ -1,5 +1,6 @@
 import { toast } from '@core/component/Toast/Toast';
 import { throwOnErr } from '@core/util/maybeResult';
+import { logTaskCompleted } from '@macro/activity-logger';
 import { type QueryKey, useMutation, useQuery } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
 import {
@@ -224,6 +225,10 @@ export function useSetPropertyStatusCompleteMutation(
       {
         onError(error) {
           console.error('Failed to set status complete', error);
+        },
+        onSuccess(_data, variables) {
+          // Log activity for productivity tracking
+          logTaskCompleted({ title: variables.entityId });
         },
         onSettled: (_data, _error, variables) => {
           invalidatePropertiesForEntity(

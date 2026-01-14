@@ -1,0 +1,12 @@
+{
+  "name": "@macro/activity-logger",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit -p ./"
+  },
+  "dependencies": {
+    "solid-js": "^1.9.7"
+  }
+}
