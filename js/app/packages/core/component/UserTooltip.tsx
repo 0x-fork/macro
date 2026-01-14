@@ -12,6 +12,7 @@ import WideTask from '@macro-icons/wide/task.svg'
 import RightTriangle from '@macro-icons/shape/right-triangle.svg';
 import Square from '@macro-icons/shape/square.svg';
 import Trash from '@phosphor-icons/core/regular/trash.svg?component-solid';
+import UserIcon from '@macro-icons/square/user.svg';
 import { commsServiceClient } from '@service-comms/client';
 import { createTask } from '@core/util/create';
 import { useUserId } from '@service-gql/client';
@@ -89,33 +90,29 @@ export function UserTooltip(props: UserTooltipProps) {
   };
 
   const fiducialSquares = () => {
-    return (<div class="flex flex-col justify-between h-full">
-      <div class="flex-col py-2 space-y-4">
-        <Square class="size-1 text-accent border-1"/>
-        <Square class="size-1 text-accent border-1"/>
+    return (
+      <div class="flex flex-col text-edge/20 justify-between h-full">
+        <div class="flex-col py-2 space-y-4">
+          <Square class="size-1 border-1 fill-none"/>
+          <Square class="size-1 border-1 fill-none"/>
+        </div>
+        <Square class="size-1 border-1 fill-none"/>
+        <div class="flex-col py-2 space-y-4">
+          <Square class="size-1 border-1 fill-none"/>
+          <Square class="size-1 border-1 fill-none"/>
+        </div>
       </div>
-      <Square class="size-1 text-accent border-1"/>
-      <div class="flex-col py-2 space-y-4">
-        <Square class="size-1 text-accent border-1"/>
-        <Square class="size-1 text-accent border-1"/>
-      </div>
-    </div>);
+    );
   };
 
   return (
     <div class="h-40 w-64">
-      <div class="flex">
-        <div class="px-2 font-mono bg-accent text-panel text-xs">
-          USER INFO
-        </div>
-        <RightTriangle class="text-accent size-4"/>
-      </div>
-      <div class="bg-panel/90 text-ink border-t-1 border-b-1 border-accent overflow-hidden h-full w-full">
+      <div class="bg-panel text-ink border-t-1 border-b-1 border-edge overflow-hidden h-full w-full">
         <div class="flex justify-between h-full w-full">
-          {fiducialSquares()}
+          {/* {fiducialSquares()} */}
           <div class="w-full">
             <div class="flex items-center gap-2 p-2 w-full">
-              <div class="size-8 shrink-0 rounded-full bg-ink-extra-muted text-accent pointer-events-none">
+              <div class="size-8 shrink-0 rounded-full bg-ink-extra-muted pointer-events-none">
                 <Switch>
                   <Match when={props.isDeleted}>
                     <div class="size-8 shrink-0 rounded-full bg-ink-extra-muted/50 flex items-center justify-center">
@@ -128,7 +125,7 @@ export function UserTooltip(props: UserTooltipProps) {
                       sizeClass={{
                         container: 'size-8',
                         icon: 'w-4 h-4',
-                        text: 'text-lg leading-none',
+                        text: 'text-lg text-panel leading-none',
                       }}
                     />
                   </Match>
@@ -147,11 +144,11 @@ export function UserTooltip(props: UserTooltipProps) {
               </div>
 
               <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium text-accent truncate">
+                <div class="text-sm font-medium truncate">
                   {props.displayName}
                 </div>
                 <Show when={props.email && props.email !== props.displayName}>
-                  <div class="text-xs text-accent opacity-60 mt-0.5 truncate">
+                  <div class="text-xs opacity-60 mt-0.5 truncate">
                     {props.email}
                   </div>
                 </Show>
@@ -159,12 +156,12 @@ export function UserTooltip(props: UserTooltipProps) {
             </div>
 
             <Show when={props.email || props.id}>
-              <div class="border-t border-accent/20"></div>
-              <div class="p-2 flex flex-col gap-0">
+              <div class="border-t border-edge/20"></div>
+              <div class="pt-2 flex flex-col gap-0">
                 <Show when={props.email}>
                   <Button
                     onClick={props.onCopyEmail}
-                    class="text-xs text-accent w-full justify-start hover:bg-accent/20"
+                    class="text-xs w-full justify-start"
                   >
                     {props.copied ? (
                       <IconCheck class="w-3.5 h-3.5" />
@@ -179,7 +176,7 @@ export function UserTooltip(props: UserTooltipProps) {
                 >
                   <Button
                     onClick={openDM}
-                    class="text-xs text-accent w-full justify-start hover:bg-accent/20"
+                    class="text-xs w-full justify-start"
                   >
                     <WideChat class="w-3.5 h-3.5" />
                     DM
@@ -190,7 +187,7 @@ export function UserTooltip(props: UserTooltipProps) {
                 >
                   <Button
                     onClick={createAndOpenTask}
-                    class="text-xs text-accent w-full justify-start hover:bg-accent/20"
+                    class="text-xs w-full justify-start"
                   >
                     <WideTask class="w-3.5 h-3.5" />
                     Assign Task
@@ -198,22 +195,20 @@ export function UserTooltip(props: UserTooltipProps) {
                 </Show>
               </div>
             </Show>
-          </div>
-        {fiducialSquares()}
-        </div>
-        <div class="isolate relative opacity-5 pointer-events-none">
-          <div class="-right-12 -bottom-16 absolute h-56 w-56 rounded-full bg-accent">
-          </div>
-          <div class="-right-12 -bottom-16 absolute grayscale mix-blend-multiply">
+                    <div class="isolate relative opacity-20 pointer-events-none">
+          <div class="-right-6 -bottom-8 absolute mix-blend-multiply">
             <ProfilePicture
               id={props.id}
               sizeClass={{
-                container: 'size-56',
+                container: 'size-32',
                 icon: 'w-16 h-16 bg-panel',
-                text: 'text-lg leading-none',
+                text: 'text-lg text-panel leading-none',
               }}
             />
           </div>
+        </div>
+          </div>
+        {/* {fiducialSquares()} */}
         </div>
       </div>
     </div>
