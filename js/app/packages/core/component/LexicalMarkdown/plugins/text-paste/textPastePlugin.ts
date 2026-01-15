@@ -1,8 +1,13 @@
 import type { BlockAlias, BlockName } from '@core/block';
+import { $createGithubMentionNode } from '@lexical-core';
 import { mergeRegister } from '@lexical/utils';
 import {
+  $createParagraphNode,
   $getSelection,
+  $insertNodes,
   $isRangeSelection,
+  $isRootOrShadowRoot,
+  $wrapNodeInElement,
   COMMAND_PRIORITY_HIGH,
   type LexicalEditor,
   PASTE_COMMAND,
@@ -15,11 +20,19 @@ type MacroAppUrlParsed = {
   block: BlockName | BlockAlias | undefined;
   params: Record<string, string> | undefined;
 };
+
+type GithubUrlParsed = {
+  isValid: boolean;
+  url: string | undefined;
+  slug: string | undefined;
+};
+
 const Hosts = {
   Prod: 'macro.com',
   Dev: 'dev.macro.com',
   Staging: 'staging.macro.com',
   Localhost: 'localhost',
+  Github: 'github.com',
 } as const;
 
 function cleanHostname(hostname: string): string {
@@ -123,24 +136,49 @@ export function parseMacroAppUrl(text: string): MacroAppUrlParsed {
   }
 }
 
+function parseGithubPullUrl(text: string): GithubUrlParsed {
+  try {
+    const url = new URL(text);
+    if (cleanHostname(url.hostname) !== Hosts.Github) {
+      return { isValid: false, url: undefined, slug: undefined };
+    }
+
+    const pathParts = url.pathname.split('/').filter((part) => part);
+    if (pathParts.length < 4) {
+      return { isValid: false, url: undefined, slug: undefined };
+    }
+
+    const [owner, repo, type, number] = pathParts;
+    if (type !== 'pull' || !owner || !repo || !number) {
+      return { isValid: false, url: undefined, slug: undefined };
+    }
+
+    return {
+      isValid: true,
+      url: url.toString(),
+      slug: `${owner}/${repo}/pull/${number}`,
+    };
+  } catch {
+    return { isValid: false, url: undefined, slug: undefined };
+  }
+}
+
 function registerTextPastePlugin(editor: LexicalEditor) {
   return mergeRegister(
     editor.registerCommand(
       PASTE_COMMAND,
       (event: InputEvent | ClipboardEvent) => {
-        if (event instanceof ClipboardEvent) {
-          const pastedText: string =
-            event.clipboardData?.getData('text/plain') || '';
+        if (!(event instanceof ClipboardEvent)) return false;
 
-          const parsedMacroAppUrl = parseMacroAppUrl(pastedText);
-          if (
-            !parsedMacroAppUrl.isValid ||
-            !parsedMacroAppUrl.id ||
-            !parsedMacroAppUrl.block
-          ) {
-            return false;
-          }
+        const pastedText: string =
+          event.clipboardData?.getData('text/plain')?.trim() || '';
 
+        const parsedMacroAppUrl = parseMacroAppUrl(pastedText);
+        if (
+          parsedMacroAppUrl.isValid &&
+          parsedMacroAppUrl.id &&
+          parsedMacroAppUrl.block
+        ) {
           const selection = $getSelection();
           if ($isRangeSelection(selection) && !selection.isCollapsed())
             return false;
@@ -151,6 +189,32 @@ function registerTextPastePlugin(editor: LexicalEditor) {
             documentName: '',
             blockName: parsedMacroAppUrl.block,
             blockParams: parsedMacroAppUrl.params || {},
+          });
+          return true;
+        }
+
+        const parsedGithubUrl = parseGithubPullUrl(pastedText);
+        if (
+          parsedGithubUrl.isValid &&
+          parsedGithubUrl.url &&
+          parsedGithubUrl.slug
+        ) {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection) && !selection.isCollapsed())
+            return false;
+
+          event.preventDefault();
+          editor.update(() => {
+            const mentionNode = $createGithubMentionNode({
+              url: parsedGithubUrl.url,
+              slug: parsedGithubUrl.slug,
+            });
+
+            $insertNodes([mentionNode]);
+            if ($isRootOrShadowRoot(mentionNode.getParentOrThrow())) {
+              $wrapNodeInElement(mentionNode, $createParagraphNode);
+            }
+            mentionNode.selectEnd();
           });
           return true;
         }

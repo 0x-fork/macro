@@ -86,6 +86,7 @@ export {
   parseContactMentions,
   parseDateMentions,
   parseDocumentMentions,
+  parseGithubMentions,
   parseGroupMentions,
   parseLinks,
   parseUserMentions,

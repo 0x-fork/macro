@@ -4,6 +4,7 @@ import {
   parseContactMentions,
   parseDateMentions,
   parseDocumentMentions,
+  parseGithubMentions,
   parseGroupMentions,
   parseLinks,
   parseUserMentions,
@@ -128,6 +129,31 @@ describe('parseLinks', () => {
   });
 });
 
+describe('parseGithubMentions', () => {
+  it('extracts title from github mention', () => {
+    const input =
+      '<m-github-mention>{"url":"https://github.com/org/repo/pull/1","slug":"org/repo/pull/1","title":"Fix bugs"}</m-github-mention>';
+    expect(parseGithubMentions(input)).toBe('Fix bugs');
+  });
+
+  it('falls back to slug when title is missing', () => {
+    const input =
+      '<m-github-mention>{"url":"https://github.com/org/repo/pull/1","slug":"org/repo/pull/1"}</m-github-mention>';
+    expect(parseGithubMentions(input)).toBe('org/repo/pull/1');
+  });
+
+  it('falls back to url when slug is missing', () => {
+    const input =
+      '<m-github-mention>{"url":"https://github.com/org/repo/pull/1"}</m-github-mention>';
+    expect(parseGithubMentions(input)).toBe('https://github.com/org/repo/pull/1');
+  });
+
+  it('returns empty string for invalid JSON', () => {
+    const input = '<m-github-mention>invalid</m-github-mention>';
+    expect(parseGithubMentions(input)).toBe('');
+  });
+});
+
 describe('parseGroupMentions', () => {
   it('extracts @alias from group mention', () => {
     const input = '<m-group-mention>{"groupAlias":"here"}</m-group-mention>';
@@ -173,6 +199,12 @@ describe('markdownToPlainText', () => {
     expect(markdownToPlainText(input)).toBe(
       'Check out this link for more info.'
     );
+  });
+
+  it('handles text with github mentions', () => {
+    const input =
+      'See <m-github-mention>{"url":"https://github.com/org/repo/pull/1","slug":"org/repo/pull/1","title":"Fix bugs"}</m-github-mention> when ready.';
+    expect(markdownToPlainText(input)).toBe('See Fix bugs when ready.');
   });
 
   it('handles text with group mentions', () => {

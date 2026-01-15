@@ -17,6 +17,7 @@ import {
   DEFAULT_LANGUAGE,
   type DocumentMentionNode,
   type EquationNode,
+  type GithubMentionNode,
   type GroupMentionNode,
   type HorizontalRuleNode,
   type ImageNode,
@@ -63,6 +64,7 @@ import { StaticCodeBoxAccessory } from '../accessory/CodeBoxAccessory';
 import { ContactMention as ContactMentionDecorator } from '../decorator/ContactMention';
 import { DateMention as DateMentionDecorator } from '../decorator/DateMention';
 import { DocumentMention as DocumentMentionDecorator } from '../decorator/DocumentMention';
+import { GithubMention as GithubMentionDecorator } from '../decorator/GithubMention';
 import { GroupMention as GroupMentionDecorator } from '../decorator/GroupMention';
 import { Equation as EquationDecorator } from '../decorator/Equation';
 import { MarkdownImage as ImageDecorator } from '../decorator/MarkdownImage';
@@ -262,6 +264,20 @@ const DocumentMention: RenderableEntity<DocumentMentionNode> = {
   render: (props) => (
     <span class={getTextClassName(props.node, props.theme)}>
       {DocumentMentionDecorator({
+        ...props.node.exportComponentProps(),
+        key: props.node.getKey(),
+        theme: props.theme,
+      })}
+    </span>
+  ),
+};
+
+const GithubMention: RenderableEntity<GithubMentionNode> = {
+  guard: (node: LexicalNode): node is GithubMentionNode =>
+    node.__type === 'github-mention',
+  render: (props) => (
+    <span class={getTextClassName(props.node, props.theme)}>
+      {GithubMentionDecorator({
         ...props.node.exportComponentProps(),
         key: props.node.getKey(),
         theme: props.theme,
@@ -610,6 +626,7 @@ const InlineEntities: Array<RenderableEntity> = [
   LineBreak,
   UserMention,
   DocumentMention,
+  GithubMention,
   ContactMention,
   DateMention,
   GroupMention,

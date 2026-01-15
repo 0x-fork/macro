@@ -6,6 +6,7 @@ import type { ElementNode, LexicalNode, TextNode } from 'lexical';
 import { ContactMentionNode } from '../nodes/ContactMentionNode';
 import { DateMentionNode } from '../nodes/DateMentionNode';
 import { DocumentMentionNode } from '../nodes/DocumentMentionNode';
+import { GithubMentionNode } from '../nodes/GithubMentionNode';
 import { GroupMentionNode } from '../nodes/GroupMentionNode';
 import { UserMentionNode } from '../nodes/UserMentionNode';
 
@@ -225,6 +226,38 @@ export const I_DOCUMENT_MENTION: TextMatchTransformer = {
   },
 };
 
+export const I_GITHUB_MENTION: TextMatchTransformer = {
+  dependencies: [GithubMentionNode],
+  type: 'text-match',
+  regExp: /<m-github-mention>(.*?)<\/m-github-mention>/,
+  importRegExp: /<m-github-mention>(.*?)<\/m-github-mention>/,
+  export: (node) => {
+    if (!(node instanceof GithubMentionNode)) return null;
+    const data = JSON.stringify({
+      url: node.getUrl(),
+      slug: node.getSlug(),
+      title: node.getTitle(),
+    });
+    return `<m-github-mention>${data}</m-github-mention>`;
+  },
+  replace: (node: TextNode, match: RegExpMatchArray) => {
+    try {
+      const data = JSON.parse(match[1]);
+      for (const field of ['url', 'slug']) {
+        if (!(field in data)) throw new Error(`Missing field ${field}`);
+      }
+      const githubMentionNode = new GithubMentionNode(
+        data.url,
+        data.slug,
+        data.title
+      );
+      node.replace(githubMentionNode);
+    } catch (e) {
+      console.error('Error in I_GITHUB_MENTION replace:', e);
+    }
+  },
+};
+
 // External Document Mentions
 
 function cleanHostname(rawHostname: string): string {
@@ -253,6 +286,26 @@ export const E_DOCUMENT_MENTION: ElementTransformer = {
     const hostname = cleanHostname(window.location.hostname);
     const documentUrl = `https://${hostname}/app/${blockType}/${documentId}`;
     return `[${documentName}](${documentUrl})`;
+  },
+  replace: (
+    _parentNode: ElementNode,
+    _children: Array<LexicalNode>,
+    _match: Array<string>,
+    _isImport: boolean
+  ) => {
+    return false;
+  },
+};
+
+export const E_GITHUB_MENTION: ElementTransformer = {
+  dependencies: [GithubMentionNode],
+  type: 'element',
+  regExp: /$^/,
+  export: (node) => {
+    if (!(node instanceof GithubMentionNode)) return null;
+    const url = node.getUrl();
+    if (!url) return null;
+    return url;
   },
   replace: (
     _parentNode: ElementNode,

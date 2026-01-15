@@ -48,6 +48,20 @@ export function parseDocumentMentions(text: string): string {
   );
 }
 
+export function parseGithubMentions(text: string): string {
+  return text.replace(
+    /<m-github-mention>(.*?)<\/m-github-mention>/g,
+    (_, json) => {
+      try {
+        const data = JSON.parse(json);
+        return data.title || data.slug || data.url || '';
+      } catch {
+        return '';
+      }
+    }
+  );
+}
+
 export function parseLinks(text: string): string {
   return text.replace(/<m-link>(.*?)<\/m-link>/g, (_, json) => {
     try {
@@ -80,14 +94,17 @@ export function parseGroupMentions(text: string): string {
  * - Contact mentions: name (fallback to emailOrDomain)
  * - Date mentions: displayFormat
  * - Document mentions: documentName
+ * - GitHub mentions: title (fallback to slug or url)
  * - Group mentions: @groupAlias (e.g., @here)
  * - Links: text (fallback to url)
  */
 export function markdownToPlainText(markdown: string): string {
   return parseLinks(
-    parseDocumentMentions(
-      parseGroupMentions(
-        parseDateMentions(parseContactMentions(parseUserMentions(markdown)))
+    parseGithubMentions(
+      parseDocumentMentions(
+        parseGroupMentions(
+          parseDateMentions(parseContactMentions(parseUserMentions(markdown)))
+        )
       )
     )
   );
