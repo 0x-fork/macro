@@ -1955,8 +1955,8 @@ export function UnifiedListView(props: UnifiedListViewProps) {
           />
         </Show>{' '}
         </ContextMenu>
-        <SoupChatInput />
       </div>
+      <SoupChatInput />
     </>
   );
 }

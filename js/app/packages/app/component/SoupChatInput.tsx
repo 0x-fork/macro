@@ -1,10 +1,16 @@
 import { useChatInput } from '@core/component/AI/component/input/useChatInput';
 import { setPendingSendForChat } from '@core/component/AI/signal/pendingSend';
 import type { CreateAndSend, Send } from '@core/component/AI/types';
+import { registerHotkey } from '@core/hotkey/hotkeys';
+import type { LexicalEditor } from 'lexical';
+import { createSignal, onCleanup, onMount } from 'solid-js';
 import { useSplitLayout } from './split-layout/layout';
+import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
 
 export function SoupChatInput() {
   const { replaceSplit } = useSplitLayout();
+  const splitContext = useSplitPanelOrThrow();
+  const [chatEditor, setChatEditor] = createSignal<LexicalEditor>();
 
   const {
     ChatInput,
@@ -47,13 +53,36 @@ export function SoupChatInput() {
     }
   };
 
+  // Register keyboard shortcut to focus the chat input
+  onMount(() => {
+    const { dispose } = registerHotkey({
+      hotkey: ['cmd+i', 'ctrl+i'],
+      scopeId: splitContext.splitHotkeyScope,
+      description: 'Focus chat input',
+      keyDownHandler: () => {
+        const editor = chatEditor();
+        if (editor) {
+          editor.focus(undefined, { defaultSelection: 'rootStart' });
+          return true;
+        }
+        return false;
+      },
+      displayPriority: 5,
+    });
+
+    onCleanup(() => {
+      dispose();
+    });
+  });
+
   return (
-    <div class="flex w-full justify-center">
-      <div class="w-full max-w-3xl">
+    <div class="fixed bottom-0 left-0 right-0 flex w-full justify-center pointer-events-none z-10">
+      <div class="w-full max-w-3xl pointer-events-auto">
         <ChatInput
           onSend={handleSend}
           isPersistent={true}
           autoFocusOnMount={false}
+          captureEditor={setChatEditor}
         />
       </div>
     </div>

@@ -204,7 +204,7 @@ export function Chat(props: { data: ChatData }) {
       </div>
       <Show when={!disabled()}>
         <div class="flex w-full justify-center pb-2 px-4">
-          <div class="w-3xl">
+          <div class="w-full max-w-3xl">
             <ChatInput
               onSend={onSend}
               onStop={cancelStream}
