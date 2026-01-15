@@ -931,6 +931,12 @@ export function EntityWithEverything(
     return props.properties ?? [];
   };
 
+  const shouldShowUnreadIndicator = () =>
+    props.showLeftColumnIndicator &&
+    !props.checked &&
+    !props.highlighted &&
+    (!props.fadeIfRead || props.unreadIndicatorActive);
+
   return (
     <div
       use:draggable
@@ -1053,13 +1059,7 @@ export function EntityWithEverything(
         >
           {/* When the left checkbox column is hidden in narrow split containers, we still want
               unread indicators to be visible. */}
-          <Show
-            when={
-              props.showLeftColumnIndicator &&
-              !props.checked &&
-              !props.highlighted
-            }
-          >
+          <Show when={shouldShowUnreadIndicator()}>
             <div class="flex size-4 items-center justify-center @min-md/split:hidden">
               <UnreadIndicator active={props.unreadIndicatorActive} />
             </div>
