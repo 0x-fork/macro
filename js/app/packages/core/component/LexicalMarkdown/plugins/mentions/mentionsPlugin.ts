@@ -15,6 +15,7 @@ import {
   $isContactMentionNode,
   $isDateMentionNode,
   $isDocumentMentionNode,
+  $isGithubMentionNode,
   $isGroupMentionNode,
   $isUserMentionNode,
   $removeInlineSearch,
@@ -209,8 +210,11 @@ function $deleteSelectedMentions(sourceDocumentId?: string) {
   if (!$isNodeSelection(sel)) return false;
   const nodes = sel.getNodes();
   for (const node of nodes) {
-    if ($isMentionNode(node) && node.isKeyboardSelectable()) {
-      if (!$isGroupMentionNode(node)) {
+    if (
+      ($isMentionNode(node) || $isGithubMentionNode(node)) &&
+      node.isKeyboardSelectable()
+    ) {
+      if ($isMentionNode(node) && !$isGroupMentionNode(node)) {
         const mentionUuid = node.getMentionUuid();
         if (mentionUuid && sourceDocumentId) {
           untrackMention(sourceDocumentId, mentionUuid);

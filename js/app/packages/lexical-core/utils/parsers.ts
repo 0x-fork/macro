@@ -1,3 +1,5 @@
+import { getGithubSlug } from '../nodes/GithubMentionNode';
+
 export function parseUserMentions(text: string): string {
   return text.replace(/<m-user-mention>(.*?)<\/m-user-mention>/g, (_, json) => {
     try {
@@ -73,6 +75,20 @@ export function parseGroupMentions(text: string): string {
   );
 }
 
+export function parseGithubMentions(text: string): string {
+  return text.replace(
+    /<m-github-mention>(.*?)<\/m-github-mention>/g,
+    (_, json) => {
+      try {
+        const data = JSON.parse(json);
+        return getGithubSlug(data.url || '');
+      } catch {
+        return '';
+      }
+    }
+  );
+}
+
 /**
  * Converts markdown text with XML mention tags to plain text.
  * Extracts the readable text from mention nodes:
@@ -81,13 +97,16 @@ export function parseGroupMentions(text: string): string {
  * - Date mentions: displayFormat
  * - Document mentions: documentName
  * - Group mentions: @groupAlias (e.g., @here)
+ * - GitHub mentions: repo slug
  * - Links: text (fallback to url)
  */
 export function markdownToPlainText(markdown: string): string {
   return parseLinks(
-    parseDocumentMentions(
-      parseGroupMentions(
-        parseDateMentions(parseContactMentions(parseUserMentions(markdown)))
+    parseGithubMentions(
+      parseDocumentMentions(
+        parseGroupMentions(
+          parseDateMentions(parseContactMentions(parseUserMentions(markdown)))
+        )
       )
     )
   );

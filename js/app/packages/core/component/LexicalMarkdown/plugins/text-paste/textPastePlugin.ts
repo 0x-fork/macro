@@ -1,12 +1,16 @@
 import type { BlockAlias, BlockName } from '@core/block';
-import { mergeRegister } from '@lexical/utils';
+import { $wrapNodeInElement, mergeRegister } from '@lexical/utils';
 import {
+  $createParagraphNode,
   $getSelection,
+  $insertNodes,
   $isRangeSelection,
+  $isRootOrShadowRoot,
   COMMAND_PRIORITY_HIGH,
   type LexicalEditor,
   PASTE_COMMAND,
 } from 'lexical';
+import { $createGithubMentionNode } from '@lexical-core';
 import { INSERT_DOCUMENT_MENTION_COMMAND } from '../mentions';
 
 type MacroAppUrlParsed = {
@@ -21,6 +25,7 @@ const Hosts = {
   Staging: 'staging.macro.com',
   Localhost: 'localhost',
 } as const;
+const GithubHosts = new Set(['github.com', 'www.github.com']);
 
 function cleanHostname(hostname: string): string {
   return hostname.replace('www.', '').toLowerCase();
@@ -123,6 +128,31 @@ export function parseMacroAppUrl(text: string): MacroAppUrlParsed {
   }
 }
 
+type GithubPullRequestUrlParsed = {
+  isValid: boolean;
+  url: string | undefined;
+};
+
+function parseGithubPullRequestUrl(text: string): GithubPullRequestUrlParsed {
+  try {
+    const url: URL = new URL(text);
+    if (!GithubHosts.has(url.hostname)) {
+      return { isValid: false, url: undefined };
+    }
+    const pathParts: string[] = url.pathname.split('/').filter((part) => part);
+    if (pathParts.length < 4 || pathParts[2] !== 'pull') {
+      return { isValid: false, url: undefined };
+    }
+    const prNumber = Number(pathParts[3]);
+    if (!Number.isInteger(prNumber)) {
+      return { isValid: false, url: undefined };
+    }
+    return { isValid: true, url: url.toString() };
+  } catch {
+    return { isValid: false, url: undefined };
+  }
+}
+
 function registerTextPastePlugin(editor: LexicalEditor) {
   return mergeRegister(
     editor.registerCommand(
@@ -138,7 +168,27 @@ function registerTextPastePlugin(editor: LexicalEditor) {
             !parsedMacroAppUrl.id ||
             !parsedMacroAppUrl.block
           ) {
-            return false;
+            const parsedGithubUrl = parseGithubPullRequestUrl(pastedText);
+            if (!parsedGithubUrl.isValid || !parsedGithubUrl.url) {
+              return false;
+            }
+
+            const selection = $getSelection();
+            if ($isRangeSelection(selection) && !selection.isCollapsed())
+              return false;
+
+            event.preventDefault();
+            editor.update(() => {
+              const mentionNode = $createGithubMentionNode({
+                url: parsedGithubUrl.url,
+              });
+              $insertNodes([mentionNode]);
+              if ($isRootOrShadowRoot(mentionNode.getParentOrThrow())) {
+                $wrapNodeInElement(mentionNode, $createParagraphNode);
+              }
+              mentionNode.selectEnd();
+            });
+            return true;
           }
 
           const selection = $getSelection();

@@ -73,6 +73,7 @@ function shouldIgnoreNodeType(type: string) {
   const ignoredTypes = [
     'document-mention',
     'user-mention',
+    'github-mention',
     'horizontalrule',
     'equation',
   ];

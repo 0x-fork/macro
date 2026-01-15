@@ -4,6 +4,7 @@ import {
   parseContactMentions,
   parseDateMentions,
   parseDocumentMentions,
+  parseGithubMentions,
   parseGroupMentions,
   parseLinks,
   parseUserMentions,
@@ -156,6 +157,19 @@ describe('parseGroupMentions', () => {
   });
 });
 
+describe('parseGithubMentions', () => {
+  it('extracts slug from GitHub mention', () => {
+    const input =
+      '<m-github-mention>{"url":"https://github.com/macro-inc/sync-service/pull/86"}</m-github-mention>';
+    expect(parseGithubMentions(input)).toBe('macro-inc/sync-service/pull/86');
+  });
+
+  it('returns empty string for invalid JSON', () => {
+    const input = '<m-github-mention>broken</m-github-mention>';
+    expect(parseGithubMentions(input)).toBe('');
+  });
+});
+
 describe('markdownToPlainText', () => {
   it('converts mixed content to plain text', () => {
     const input =
@@ -179,6 +193,14 @@ describe('markdownToPlainText', () => {
     const input =
       'Hey <m-group-mention>{"groupAlias":"here"}</m-group-mention>, check this out!';
     expect(markdownToPlainText(input)).toBe('Hey @here, check this out!');
+  });
+
+  it('handles text with GitHub mentions', () => {
+    const input =
+      'Review <m-github-mention>{"url":"https://github.com/macro-inc/sync-service/pull/86"}</m-github-mention> soon.';
+    expect(markdownToPlainText(input)).toBe(
+      'Review macro-inc/sync-service/pull/86 soon.'
+    );
   });
 
   it('returns original text when no mentions present', () => {

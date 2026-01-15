@@ -15,6 +15,7 @@ export * from './nodes/DiffNode';
 export * from './nodes/DocumentCardNode';
 export * from './nodes/DocumentMentionNode';
 export * from './nodes/EquationNode';
+export * from './nodes/GithubMentionNode';
 export * from './nodes/GroupMentionNode';
 export * from './nodes/HorizontalRuleNode';
 export * from './nodes/HtmlRenderNode';

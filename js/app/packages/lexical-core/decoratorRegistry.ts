@@ -28,6 +28,10 @@ import type {
   GroupMentionNode,
 } from './nodes/GroupMentionNode';
 import type {
+  GithubMentionDecoratorProps,
+  GithubMentionNode,
+} from './nodes/GithubMentionNode';
+import type {
   HorizontalRuleDecoratorProps,
   HorizontalRuleNode,
 } from './nodes/HorizontalRuleNode';
@@ -66,6 +70,10 @@ export interface NodeDecoratorMap {
   GroupMentionNode: {
     klass: typeof GroupMentionNode;
     props: GroupMentionDecoratorProps;
+  };
+  GithubMentionNode: {
+    klass: typeof GithubMentionNode;
+    props: GithubMentionDecoratorProps;
   };
   DocumentMentionNode: {
     klass: typeof DocumentMentionNode;

@@ -6,6 +6,7 @@ import type { ElementNode, LexicalNode, TextNode } from 'lexical';
 import { ContactMentionNode } from '../nodes/ContactMentionNode';
 import { DateMentionNode } from '../nodes/DateMentionNode';
 import { DocumentMentionNode } from '../nodes/DocumentMentionNode';
+import { GithubMentionNode, getGithubSlug } from '../nodes/GithubMentionNode';
 import { GroupMentionNode } from '../nodes/GroupMentionNode';
 import { UserMentionNode } from '../nodes/UserMentionNode';
 
@@ -175,6 +176,56 @@ export const E_DATE_MENTION: ElementTransformer = {
 
     // For external representation, just show the display format
     return displayFormat;
+  },
+  replace: (
+    _parentNode: ElementNode,
+    _children: Array<LexicalNode>,
+    _match: Array<string>,
+    _isImport: boolean
+  ) => {
+    return false;
+  },
+};
+
+// Internal Github Mentions
+export const I_GITHUB_MENTION: TextMatchTransformer = {
+  dependencies: [GithubMentionNode],
+  type: 'text-match',
+  regExp: /<m-github-mention>(.*?)<\/m-github-mention>/,
+  importRegExp: /<m-github-mention>(.*?)<\/m-github-mention>/,
+  export: (node) => {
+    if (!(node instanceof GithubMentionNode)) return null;
+    const data = JSON.stringify({
+      url: node.getUrl(),
+    });
+    return `<m-github-mention>${data}</m-github-mention>`;
+  },
+  replace: (node: TextNode, match: RegExpMatchArray) => {
+    try {
+      const data = JSON.parse(match[1]);
+      if (!('url' in data)) throw new Error('Missing field url');
+      const githubMentionNode = new GithubMentionNode(data.url);
+      node.replace(githubMentionNode);
+    } catch (e) {
+      console.error('Error in I_GITHUB_MENTION replace:', e);
+    }
+  },
+};
+
+// External Github Mentions
+export const E_GITHUB_MENTION: ElementTransformer = {
+  dependencies: [GithubMentionNode],
+  type: 'element',
+  regExp: /$^/,
+  export: (node) => {
+    if (!(node instanceof GithubMentionNode)) return null;
+
+    const url = node.getUrl();
+    if (!url) {
+      return null;
+    }
+    const label = getGithubSlug(url);
+    return `[${label}](${url})`;
   },
   replace: (
     _parentNode: ElementNode,
