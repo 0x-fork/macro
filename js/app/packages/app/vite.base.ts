@@ -117,6 +117,16 @@ export const createAppViteConfig = ({
         },
       },
       resolve: {
+        alias: [
+          {
+            find: /^@macro\/activity-logger$/,
+            replacement: resolve(__dirname, '../activity-logger/src'),
+          },
+          {
+            find: /^@macro\/activity-logger\//,
+            replacement: resolve(__dirname, '../activity-logger/src/'),
+          },
+        ],
         dedupe: [
           '@codingame/monaco-vscode-api',
           '@codingame/monaco-vscode-*-common',
