@@ -5,6 +5,7 @@ import {
   DocumentCardNode,
   DocumentMentionNode,
   EquationNode,
+  GithubMentionNode,
   GroupMentionNode,
   HorizontalRuleNode,
   HtmlRenderNode,
@@ -20,6 +21,7 @@ import { DiffInsert } from './component/decorator/DiffInsert';
 import { DocumentCard } from './component/decorator/DocumentCard';
 import { DocumentMention } from './component/decorator/DocumentMention';
 import { Equation } from './component/decorator/Equation';
+import { GithubMention } from './component/decorator/GithubMention';
 import { GroupMention } from './component/decorator/GroupMention';
 import { HorizontalRule } from './component/decorator/HorizontalRule';
 import { HtmlRender } from './component/decorator/HtmlRender';
@@ -37,6 +39,7 @@ export function initializeLexical() {
   setDecorator(HorizontalRuleNode, HorizontalRule);
   setDecorator(UserMentionNode, UserMention);
   setDecorator(GroupMentionNode, GroupMention);
+  setDecorator(GithubMentionNode, GithubMention);
   setDecorator(DocumentMentionNode, DocumentMention);
   setDecorator(DocumentCardNode, DocumentCard);
   setDecorator(ContactMentionNode, ContactMention);

@@ -20,6 +20,7 @@ import { ContactMentionNode } from './nodes/ContactMentionNode';
 import { CustomCodeNode } from './nodes/CustomCodeNode';
 import { DateMentionNode } from './nodes/DateMentionNode';
 import { DiffDeleteNode } from './nodes/DiffDeleteNode';
+import { GithubMentionNode } from './nodes/GithubMentionNode';
 import { GroupMentionNode } from './nodes/GroupMentionNode';
 import { DiffInsertNode } from './nodes/DiffInsertNode';
 import { DiffNode } from './nodes/DiffNode';
@@ -70,6 +71,7 @@ export const SupportedNodeTypes = [
   ContactMentionNode,
   DateMentionNode,
   GroupMentionNode,
+  GithubMentionNode,
   InlineSearchNode,
   UnlinkedTextNode,
   CodeHighlightNode,

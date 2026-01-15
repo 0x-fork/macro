@@ -1,4 +1,5 @@
 import type { BlockAlias, BlockName } from '@core/block';
+import type { GithubLinkType } from '@lexical-core';
 import { mergeRegister } from '@lexical/utils';
 import {
   $getSelection,
@@ -7,7 +8,7 @@ import {
   type LexicalEditor,
   PASTE_COMMAND,
 } from 'lexical';
-import { INSERT_DOCUMENT_MENTION_COMMAND } from '../mentions';
+import { INSERT_DOCUMENT_MENTION_COMMAND, INSERT_GITHUB_MENTION_COMMAND } from '../mentions';
 
 type MacroAppUrlParsed = {
   isValid: boolean;
@@ -123,6 +124,86 @@ export function parseMacroAppUrl(text: string): MacroAppUrlParsed {
   }
 }
 
+type GithubUrlParsed = {
+  isValid: boolean;
+  url: string;
+  owner: string;
+  repo: string;
+  linkType: GithubLinkType;
+  number?: number;
+};
+
+const GITHUB_HOSTS = ['github.com', 'www.github.com'] as const;
+
+export function parseGithubUrl(text: string): GithubUrlParsed {
+  const invalid: GithubUrlParsed = {
+    isValid: false,
+    url: '',
+    owner: '',
+    repo: '',
+    linkType: 'unknown',
+  };
+
+  try {
+    const url = new URL(text);
+    const hostname = url.hostname.toLowerCase();
+
+    if (!GITHUB_HOSTS.includes(hostname as any)) {
+      return invalid;
+    }
+
+    // Parse path: /{owner}/{repo}[/pull|issues/{number}]
+    const pathParts = url.pathname.split('/').filter((part) => part);
+
+    if (pathParts.length < 2) {
+      return invalid;
+    }
+
+    const owner = pathParts[0];
+    const repo = pathParts[1];
+
+    // Validate owner and repo names (basic validation)
+    const validNameRegex = /^[a-zA-Z0-9_.-]+$/;
+    if (!validNameRegex.test(owner) || !validNameRegex.test(repo)) {
+      return invalid;
+    }
+
+    let linkType: GithubLinkType = 'repo';
+    let number: number | undefined;
+
+    // Check for PR or issue
+    if (pathParts.length >= 4) {
+      const typeSegment = pathParts[2];
+      const numberStr = pathParts[3];
+
+      if (typeSegment === 'pull') {
+        linkType = 'pull';
+        const parsed = parseInt(numberStr, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          number = parsed;
+        }
+      } else if (typeSegment === 'issues') {
+        linkType = 'issue';
+        const parsed = parseInt(numberStr, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          number = parsed;
+        }
+      }
+    }
+
+    return {
+      isValid: true,
+      url: text,
+      owner,
+      repo,
+      linkType,
+      number,
+    };
+  } catch {
+    return invalid;
+  }
+}
+
 function registerTextPastePlugin(editor: LexicalEditor) {
   return mergeRegister(
     editor.registerCommand(
@@ -132,6 +213,25 @@ function registerTextPastePlugin(editor: LexicalEditor) {
           const pastedText: string =
             event.clipboardData?.getData('text/plain') || '';
 
+          const selection = $getSelection();
+          if ($isRangeSelection(selection) && !selection.isCollapsed())
+            return false;
+
+          // Try GitHub URL first
+          const parsedGithubUrl = parseGithubUrl(pastedText);
+          if (parsedGithubUrl.isValid) {
+            event.preventDefault();
+            editor.dispatchCommand(INSERT_GITHUB_MENTION_COMMAND, {
+              url: parsedGithubUrl.url,
+              owner: parsedGithubUrl.owner,
+              repo: parsedGithubUrl.repo,
+              linkType: parsedGithubUrl.linkType,
+              number: parsedGithubUrl.number,
+            });
+            return true;
+          }
+
+          // Try Macro app URL
           const parsedMacroAppUrl = parseMacroAppUrl(pastedText);
           if (
             !parsedMacroAppUrl.isValid ||
@@ -140,10 +240,6 @@ function registerTextPastePlugin(editor: LexicalEditor) {
           ) {
             return false;
           }
-
-          const selection = $getSelection();
-          if ($isRangeSelection(selection) && !selection.isCollapsed())
-            return false;
 
           event.preventDefault();
           editor.dispatchCommand(INSERT_DOCUMENT_MENTION_COMMAND, {

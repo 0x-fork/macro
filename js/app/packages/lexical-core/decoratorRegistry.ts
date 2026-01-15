@@ -24,6 +24,10 @@ import type {
   EquationNode,
 } from './nodes/EquationNode';
 import type {
+  GithubMentionDecoratorProps,
+  GithubMentionNode,
+} from './nodes/GithubMentionNode';
+import type {
   GroupMentionDecoratorProps,
   GroupMentionNode,
 } from './nodes/GroupMentionNode';
@@ -66,6 +70,10 @@ export interface NodeDecoratorMap {
   GroupMentionNode: {
     klass: typeof GroupMentionNode;
     props: GroupMentionDecoratorProps;
+  };
+  GithubMentionNode: {
+    klass: typeof GithubMentionNode;
+    props: GithubMentionDecoratorProps;
   };
   DocumentMentionNode: {
     klass: typeof DocumentMentionNode;
