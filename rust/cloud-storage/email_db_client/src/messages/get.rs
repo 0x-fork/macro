@@ -548,7 +548,11 @@ pub async fn convert_db_messages_to_service_concurrent(
         .map(|m| m.id)
         .collect();
 
-    // Fetch all data concurrently using bulk functions
+    // Fetch all data concurrently using bulk functions (with timing)
+    let num_messages = message_ids.len();
+    let num_with_attachments = message_ids_with_attachments.len();
+    let num_drafts = draft_message_ids.len();
+
     let (
         senders_map,
         recipients_map,
@@ -558,13 +562,84 @@ pub async fn convert_db_messages_to_service_concurrent(
         macro_attachments_map,
         draft_attachments_map,
     ) = tokio::try_join!(
-        contacts::get::fetch_senders_by_message_ids(pool, &message_ids),
-        contacts::get::fetch_db_recipients_in_bulk(pool, &message_ids),
-        messages::scheduled::get::get_scheduled_messages_in_bulk(pool, &message_ids),
-        labels::get::fetch_message_labels_in_bulk(pool, &message_ids),
-        attachments::provider::fetch_db_attachments_in_bulk(pool, &message_ids_with_attachments),
-        attachments::marco::fetch_db_macro_attachments_in_bulk(pool, &message_ids),
-        attachments::draft::fetch_db_draft_attachments_in_bulk(pool, &draft_message_ids),
+        async {
+            let start = std::time::Instant::now();
+            let result = contacts::get::fetch_senders_by_message_ids(pool, &message_ids).await;
+            println!(
+                "[NEW] fetch_senders_by_message_ids ({} messages): {}ms",
+                num_messages,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result = contacts::get::fetch_db_recipients_in_bulk(pool, &message_ids).await;
+            println!(
+                "[NEW] fetch_db_recipients_in_bulk ({} messages): {}ms",
+                num_messages,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result =
+                messages::scheduled::get::get_scheduled_messages_in_bulk(pool, &message_ids).await;
+            println!(
+                "[NEW] get_scheduled_messages_in_bulk ({} messages): {}ms",
+                num_messages,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result = labels::get::fetch_message_labels_in_bulk(pool, &message_ids).await;
+            println!(
+                "[NEW] fetch_message_labels_in_bulk ({} messages): {}ms",
+                num_messages,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result = attachments::provider::fetch_db_attachments_in_bulk(
+                pool,
+                &message_ids_with_attachments,
+            )
+            .await;
+            println!(
+                "[NEW] fetch_db_attachments_in_bulk ({} messages): {}ms",
+                num_with_attachments,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result =
+                attachments::marco::fetch_db_macro_attachments_in_bulk(pool, &message_ids).await;
+            println!(
+                "[NEW] fetch_db_macro_attachments_in_bulk ({} messages): {}ms",
+                num_messages,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result =
+                attachments::draft::fetch_db_draft_attachments_in_bulk(pool, &draft_message_ids)
+                    .await;
+            println!(
+                "[NEW] fetch_db_draft_attachments_in_bulk ({} drafts): {}ms",
+                num_drafts,
+                start.elapsed().as_millis()
+            );
+            result
+        },
     )?;
 
     // Build service messages concurrently by looking up data from the hashmaps
@@ -616,7 +691,11 @@ pub async fn get_service_message_data(
     pool: &PgPool,
     db_message: db::message::Message,
 ) -> anyhow::Result<service::message::Message> {
-    // fetch data from each table concurrently
+    let message_id = db_message.id;
+    let has_attachments = db_message.has_attachments;
+    let is_macro_draft = db_message.is_draft && db_message.provider_id.is_none();
+
+    // fetch data from each table concurrently (with timing)
     let (
         sender_res,
         recipients_res,
@@ -626,25 +705,86 @@ pub async fn get_service_message_data(
         macro_attachments_res,
         draft_attachments_res,
     ) = tokio::try_join!(
-        contacts::get::get_sender_by_message_id(pool, db_message.id),
-        contacts::get::fetch_db_recipients(pool, db_message.id),
-        messages::scheduled::get::get_scheduled_message_no_auth(pool, db_message.id),
-        labels::get::fetch_message_labels(pool, db_message.id),
         async {
-            if db_message.has_attachments {
-                attachments::provider::fetch_db_attachments(pool, db_message.id).await
-            } else {
-                Ok(Vec::new())
-            }
+            let start = std::time::Instant::now();
+            let result = contacts::get::get_sender_by_message_id(pool, message_id).await;
+            println!(
+                "[OLD] get_sender_by_message_id (msg {}): {}ms",
+                message_id,
+                start.elapsed().as_millis()
+            );
+            result
         },
-        async { attachments::marco::fetch_db_macro_attachments(pool, db_message.id).await },
         async {
-            // only need to check if the message is a draft created in Macro
-            if db_message.is_draft && db_message.provider_id.is_none() {
-                attachments::draft::fetch_db_draft_attachments(pool, db_message.id).await
+            let start = std::time::Instant::now();
+            let result = contacts::get::fetch_db_recipients(pool, message_id).await;
+            println!(
+                "[OLD] fetch_db_recipients (msg {}): {}ms",
+                message_id,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result =
+                messages::scheduled::get::get_scheduled_message_no_auth(pool, message_id).await;
+            println!(
+                "[OLD] get_scheduled_message_no_auth (msg {}): {}ms",
+                message_id,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result = labels::get::fetch_message_labels(pool, message_id).await;
+            println!(
+                "[OLD] fetch_message_labels (msg {}): {}ms",
+                message_id,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result = if has_attachments {
+                attachments::provider::fetch_db_attachments(pool, message_id).await
             } else {
                 Ok(Vec::new())
-            }
+            };
+            println!(
+                "[OLD] fetch_db_attachments (msg {}, has_attachments={}): {}ms",
+                message_id,
+                has_attachments,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result = attachments::marco::fetch_db_macro_attachments(pool, message_id).await;
+            println!(
+                "[OLD] fetch_db_macro_attachments (msg {}): {}ms",
+                message_id,
+                start.elapsed().as_millis()
+            );
+            result
+        },
+        async {
+            let start = std::time::Instant::now();
+            let result = if is_macro_draft {
+                attachments::draft::fetch_db_draft_attachments(pool, message_id).await
+            } else {
+                Ok(Vec::new())
+            };
+            println!(
+                "[OLD] fetch_db_draft_attachments (msg {}, is_macro_draft={}): {}ms",
+                message_id,
+                is_macro_draft,
+                start.elapsed().as_millis()
+            );
+            result
         },
     )?;
 

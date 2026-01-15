@@ -46,6 +46,7 @@ pub async fn fetch_thread_with_messages_paginated(
     thread_db_id: Uuid,
     offset: i64,
     limit: i64,
+    use_bulk: bool,
 ) -> anyhow::Result<Option<thread::Thread>> {
     if offset < 0 || limit <= 0 {
         anyhow::bail!("Offset must be non-negative and limit must be positive");
@@ -72,7 +73,25 @@ pub async fn fetch_thread_with_messages_paginated(
 
     let db_messages = get_messages_by_thread_id(pool, thread_db_id, offset, limit).await?;
 
-    let processed_messages = convert_db_messages_to_service_concurrent(pool, db_messages).await?;
+    let processed_messages = if use_bulk {
+        println!("\n=== Using BULK method (use_bulk=true) ===");
+        let start = std::time::Instant::now();
+        let result = convert_db_messages_to_service_concurrent(pool, db_messages).await;
+        println!(
+            "=== BULK method completed: {}ms ===\n",
+            start.elapsed().as_millis()
+        );
+        result
+    } else {
+        println!("\n=== Using PER-MESSAGE method (use_bulk=false) ===");
+        let start = std::time::Instant::now();
+        let result = convert_db_messages_to_service(pool, db_messages).await;
+        println!(
+            "=== PER-MESSAGE method completed: {}ms ===\n",
+            start.elapsed().as_millis()
+        );
+        result
+    }?;
 
     let full_thread = db_to_service::map_db_thread_to_service(db_thread, processed_messages);
 

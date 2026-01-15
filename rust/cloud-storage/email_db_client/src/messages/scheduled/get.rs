@@ -1,6 +1,4 @@
-use crate::messages::get::{
-    convert_db_messages_to_service, convert_db_messages_to_service_concurrent,
-};
+use crate::messages::get::convert_db_messages_to_service_concurrent;
 use models_email::{db, service};
 use sqlx::PgPool;
 use sqlx::types::Uuid;

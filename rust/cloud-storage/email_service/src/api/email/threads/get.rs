@@ -82,6 +82,8 @@ impl IntoResponse for GetThreadError {
 pub struct GetThreadParams {
     pub offset: Option<i64>,
     pub limit: Option<i64>,
+    /// If true, use the new bulk query method. If false, use the old per-message method.
+    pub use_bulk: Option<bool>,
 }
 
 /// The response returned from the get thread endpoint
@@ -96,6 +98,7 @@ pub struct GetThreadResponse {
 struct GetThreadPaginationParams {
     offset: i64,
     limit: i64,
+    use_bulk: bool,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
@@ -118,6 +121,7 @@ const MESSAGE_MAX: i64 = 100;
         ("id" = Uuid, Path, description = "Thread ID."),
         ("offset" = i64, Query, description = "Offset for message pagination. Default is 0."),
         ("limit" = i64, Query, description = "Limit for message pagination. Default is 5."),
+        ("use_bulk" = bool, Query, description = "If true, use bulk query method. Default is true."),
     ),
 
 
@@ -153,7 +157,7 @@ async fn get_thread_handler_inner<U: EmailService>(
     let p = process_get_thread_params(&query_params)?;
 
     let mut thread = email_db_client::threads::get::fetch_thread_with_messages_paginated(
-        &ctx.db, thread_id, p.offset, p.limit,
+        &ctx.db, thread_id, p.offset, p.limit, p.use_bulk,
     )
     .await
     .context("Failed to fetch thread with messages")?
@@ -281,5 +285,6 @@ fn process_get_thread_params(
     Ok(GetThreadPaginationParams {
         offset: params.offset.unwrap_or(0),
         limit: params.limit.unwrap_or(DEFAULT_MESSAGE_LIMIT),
+        use_bulk: params.use_bulk.unwrap_or(true),
     })
 }
