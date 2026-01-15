@@ -63,7 +63,9 @@ const createBlock = async (spec: {
 
     const id = await createFn();
     if (!id) {
-      split?.goBack();
+      // If we created a new split and creation failed, close it
+      // If we replaced existing split, go back to previous content
+      spec.shouldInsert ? split?.close() : split?.goBack();
       return;
     }
 
