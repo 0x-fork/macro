@@ -11,16 +11,17 @@ pub async fn handler(
     ctx: context::Context,
     _event: LambdaEvent<EventBridgeEvent>,
 ) -> Result<(), Error> {
-    // grab all messages with passed send_time that have not been sent already
+    // grab all messages with passed send_time that have not been sent/fetched already
     let notifications = sqlx::query_as!(
         ScheduledPubsubMessage,
         r#"
-        SELECT
-            link_id, message_id
-        FROM email_scheduled_messages
+        UPDATE email_scheduled_messages
+        SET fetched_to_send = TRUE
         WHERE
             send_time < now()
             AND sent = FALSE
+            AND fetched_to_send = FALSE
+        RETURNING link_id, message_id
         "#,
     )
     .fetch_all(&ctx.db)

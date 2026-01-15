@@ -1,6 +1,8 @@
 use crate::attachments::{marco, provider};
 use crate::messages::replying_to_id;
-use crate::messages::scheduled::delete::delete_scheduled_message;
+use crate::messages::scheduled::delete::{
+    delete_scheduled_message, delete_unsent_scheduled_message,
+};
 use crate::messages::scheduled::upsert::upsert_scheduled_message;
 use crate::parse::service_to_db::{addresses_from_message, map_message_to_send_to_db};
 use crate::{contacts, labels, parse, threads};
@@ -337,7 +339,7 @@ async fn process_scheduled_message(
     }
 
     if delete_scheduled {
-        delete_scheduled_message(tx, service_message.link_id, message_db_id)
+        delete_unsent_scheduled_message(tx, service_message.link_id, message_db_id)
             .await
             .context("Failed to delete scheduled message")?;
     }
