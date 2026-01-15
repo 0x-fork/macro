@@ -144,3 +144,38 @@ pub async fn fetch_db_draft_attachments(
 
     Ok(db_attachments)
 }
+
+/// Fetches draft attachments for multiple draft/message IDs and returns a map keyed by draft_id
+#[tracing::instrument(skip(pool), err)]
+pub async fn fetch_db_draft_attachments_in_bulk(
+    pool: &PgPool,
+    draft_ids: &[Uuid],
+) -> anyhow::Result<std::collections::HashMap<Uuid, Vec<db::attachment::AttachmentDraft>>> {
+    if draft_ids.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    let results = sqlx::query_as!(
+        db::attachment::AttachmentDraft,
+        r#"
+            SELECT id, draft_id, file_name, content_type, sha, size, s3_key
+            FROM email_attachments_drafts
+            WHERE draft_id = ANY($1)
+            ORDER BY draft_id, file_name ASC
+            "#,
+        draft_ids,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let mut attachments_map: std::collections::HashMap<Uuid, Vec<db::attachment::AttachmentDraft>> =
+        std::collections::HashMap::new();
+    for attachment in results {
+        attachments_map
+            .entry(attachment.draft_id)
+            .or_default()
+            .push(attachment);
+    }
+
+    Ok(attachments_map)
+}

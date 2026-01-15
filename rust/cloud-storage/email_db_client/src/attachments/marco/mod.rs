@@ -155,6 +155,41 @@ pub async fn fetch_db_macro_attachments(
     .context("Failed to fetch attachments")
 }
 
+/// Fetches macro attachments for multiple messages and returns a map keyed by message_id
+#[tracing::instrument(skip(pool))]
+pub async fn fetch_db_macro_attachments_in_bulk(
+    pool: &PgPool,
+    message_ids: &[Uuid],
+) -> anyhow::Result<HashMap<Uuid, Vec<attachment::AttachmentMacro>>> {
+    if message_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let results = sqlx::query_as!(
+        db::attachment::AttachmentMacro,
+        r#"
+        SELECT id, message_id, item_id, item_type, created_at
+        FROM email_attachments_macro
+        WHERE message_id = ANY($1)
+        ORDER BY message_id, id DESC
+        "#,
+        message_ids
+    )
+    .fetch_all(pool)
+    .await
+    .context("Failed to fetch macro attachments in bulk")?;
+
+    let mut attachments_map: HashMap<Uuid, Vec<attachment::AttachmentMacro>> = HashMap::new();
+    for attachment in results {
+        attachments_map
+            .entry(attachment.message_id)
+            .or_default()
+            .push(attachment);
+    }
+
+    Ok(attachments_map)
+}
+
 #[tracing::instrument(skip(db), err)]
 pub async fn get_macro_attachments_by_thread_ids(
     db: &Pool<Postgres>,
