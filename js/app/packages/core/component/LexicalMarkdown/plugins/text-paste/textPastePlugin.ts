@@ -8,7 +8,10 @@ import {
   type LexicalEditor,
   PASTE_COMMAND,
 } from 'lexical';
-import { INSERT_DOCUMENT_MENTION_COMMAND, INSERT_GITHUB_MENTION_COMMAND } from '../mentions';
+import {
+  INSERT_DOCUMENT_MENTION_COMMAND,
+  INSERT_GITHUB_MENTION_COMMAND,
+} from '../mentions';
 
 type MacroAppUrlParsed = {
   isValid: boolean;
