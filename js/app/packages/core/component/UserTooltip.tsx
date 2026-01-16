@@ -4,8 +4,8 @@ import { beveledCorners } from '../../block-theme/signals/themeSignals';
 import { toast } from '@core/component/Toast/Toast';
 import { isOk } from '@core/util/maybeResult';
 import IconCheck from '@icon/regular/check.svg';
-import WideCopy from '@macro-icons/wide/copy.svg';
-import WideChat from '@macro-icons/wide/chat.svg';
+import WideCopyBold from '@macro-icons/wide/copy-bold.svg';
+import WideChatBold from '@macro-icons/wide/chat-bold.svg';
 import Trash from '@phosphor-icons/core/regular/trash.svg?component-solid';
 import { commsServiceClient } from '@service-comms/client';
 import { useUserId } from '@service-gql/client';
@@ -105,7 +105,7 @@ export function UserTooltip(props: UserTooltipProps) {
                 {props.copied ? (
                   <IconCheck class="w-3.5 h-3.5" />
                 ) : (
-                  <WideCopy class="w-3.5 h-3.5" />
+                  <WideCopyBold class="w-3.5 h-3.5" />
                 )}
                 Copy email
               </Button>
@@ -116,7 +116,7 @@ export function UserTooltip(props: UserTooltipProps) {
               }
             >
               <Button onClick={openDM} class={buttonStyle}>
-                <WideChat class="w-3.5 h-3.5" />
+                <WideChatBold class="w-3.5 h-3.5" />
                 DM
               </Button>
             </Show>

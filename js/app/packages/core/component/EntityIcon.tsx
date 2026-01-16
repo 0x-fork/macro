@@ -46,22 +46,30 @@ import PixelUser from '@macro-icons/pixel/user.svg';
 import PixelUsers from '@macro-icons/pixel/users.svg';
 import PixelVideo from '@macro-icons/pixel/video.svg';
 import PixelWord from '@macro-icons/pixel/write.svg';
-import WideBook from '@macro-icons/wide/book.svg';
-import WideChannel from '@macro-icons/wide/channel.svg';
-import WideChat from '@macro-icons/wide/chat.svg';
-import WideCsv from '@macro-icons/wide/csv.svg';
-import WideDiagram from '@macro-icons/wide/diagram.svg';
-import WideDocx from '@macro-icons/wide/docx.svg';
-import WideEmail from '@macro-icons/wide/email.svg';
-import WideFileCode from '@macro-icons/wide/file-code.svg';
-import WideFileImage from '@macro-icons/wide/file-image.svg';
-import WideFileMd from '@macro-icons/wide/file-md.svg';
-import WideFolder from '@macro-icons/wide/folder.svg';
-import WideStar from '@macro-icons/wide/star.svg';
-import WideTask from '@macro-icons/wide/task.svg';
-import WideUnknown from '@macro-icons/wide/unknown.svg';
-import WideUser from '@macro-icons/wide/user.svg';
-import WideVideo from '@macro-icons/wide/video.svg';
+import WideBookBold from '@macro-icons/wide/book-bold.svg';
+import WideChannelBold from '@macro-icons/wide/channel-bold.svg';
+import WideChannelRegular from '@macro-icons/wide/channel-regular.svg';
+import WideChatBold from '@macro-icons/wide/chat-bold.svg';
+import WideChatRegular from '@macro-icons/wide/chat-regular.svg';
+import WideCsvBold from '@macro-icons/wide/csv-bold.svg';
+import WideDiagramRegular from '@macro-icons/wide/diagram-bold.svg';
+import WideDocxBold from '@macro-icons/wide/docx-bold.svg';
+import WideEmailBold from '@macro-icons/wide/email-bold.svg';
+import WideEmailRegular from '@macro-icons/wide/email-regular.svg';
+import WideFileCodeBold from '@macro-icons/wide/file-code-bold.svg';
+import WideFileImageBold from '@macro-icons/wide/file-image-bold.svg';
+import WideFileMdBold from '@macro-icons/wide/file-md-bold.svg';
+import WideFileMdRegular from '@macro-icons/wide/file-md-regular.svg';
+import WideFolderBold from '@macro-icons/wide/folder-bold.svg';
+import WideFolderRegular from '@macro-icons/wide/folder-regular.svg';
+import WideStarBold from '@macro-icons/wide/star-bold.svg';
+import WideStarRegular from '@macro-icons/wide/star-regular.svg';
+import WideTaskBold from '@macro-icons/wide/task-bold.svg';
+import WideTaskRegular from '@macro-icons/wide/task-regular.svg';
+import WideUnknownBold from '@macro-icons/wide/unknown-bold.svg';
+import WideUnknownRegular from '@macro-icons/wide/unknown-regular.svg';
+import WideUserBold from '@macro-icons/wide/user-bold.svg';
+import WideVideoBold from '@macro-icons/wide/video-bold.svg';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import type { Component, JSX } from 'solid-js';
@@ -130,7 +138,7 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     prettyName: 'Code',
   },
   csv: {
-    icon: WideCsv,
+    icon: WideCsvBold,
     foreground: 'text-code',
     background: 'bg-code-bg',
     prettyName: 'CSV',
@@ -284,30 +292,56 @@ export const PIXEL_ICONS: Record<EntityWithValidIcon, Component> = {
   task: Check,
 };
 
-export const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
-  canvas: WideDiagram,
-  html: WideFileCode,
-  channel: WideChannel,
+export const WIDE_ICONS_BOLD: Record<EntityWithValidIcon, Component> = {
+  canvas: WideDiagramRegular,
+  html: WideFileCodeBold,
+  channel: WideChannelBold,
   company: Building,
-  email: WideEmail,
-  code: WideFileCode,
-  csv: WideCsv,
-  pdf: WideBook,
-  md: WideFileMd,
-  image: WideFileImage,
-  write: WideDocx,
-  chat: WideStar,
-  project: WideFolder,
-  sharedProject: WideFolder,
-  unknown: WideUnknown,
-  archive: WideUnknown,
-  video: WideVideo,
-  contact: WideUser,
-  default: WideUnknown,
-  directMessage: WideChat,
-  user: WideUser,
-  emailRead: WideEmail,
-  task: WideTask,
+  email: WideEmailBold,
+  code: WideFileCodeBold,
+  csv: WideCsvBold,
+  pdf: WideBookBold,
+  md: WideFileMdBold,
+  image: WideFileImageBold,
+  write: WideDocxBold,
+  chat: WideStarBold,
+  project: WideFolderBold,
+  sharedProject: WideFolderBold,
+  unknown: WideUnknownBold,
+  archive: WideUnknownBold,
+  video: WideVideoBold,
+  contact: WideUserBold,
+  default: WideUnknownBold,
+  directMessage: WideChatBold,
+  user: WideUserBold,
+  emailRead: WideEmailBold,
+  task: WideTaskBold,
+};
+
+export const WIDE_ICONS_REGULAR: Record<EntityWithValidIcon, Component> = {
+  canvas: WideDiagramRegular,
+  html: WideUnknownRegular,
+  channel: WideChannelRegular,
+  company: WideUnknownRegular,
+  email: WideEmailRegular,
+  code: WideUnknownRegular,
+  csv: WideUnknownRegular,
+  pdf: WideUnknownRegular,
+  md: WideFileMdRegular,
+  image: WideUnknownRegular,
+  write: WideUnknownRegular,
+  chat: WideStarRegular,
+  project: WideFolderRegular,
+  sharedProject: WideFolderRegular,
+  unknown: WideUnknownRegular,
+  archive: WideUnknownRegular,
+  video: WideUnknownRegular,
+  contact: WideUnknownRegular,
+  default: WideUnknownRegular,
+  directMessage: WideChatRegular,
+  user: WideUnknownRegular,
+  emailRead: WideEmailRegular,
+  task: WideTaskRegular,
 };
 
 export const ICON_SIZES = {
@@ -345,6 +379,10 @@ export type EntityIconProps = {
    * fill = "w-fill h-fill"
    */
   size?: keyof typeof ICON_SIZE_CLASSES;
+  /**
+   * The weight of the icon. Only applies when USE_WIDE_ICONS is enabled.
+   */
+  weight?: 'regular' | 'bold';
   theme?: 'monochrome';
   /**
    * Whether the item is shared. If true, certain icons will be rendered differently.
@@ -375,7 +413,7 @@ export function EntityIcon(props: EntityIconProps) {
     if (USE_PIXEL_BLOCK_ICONS) {
       return PIXEL_ICONS[getName()];
     } else if (USE_WIDE_ICONS) {
-      return WIDE_ICONS[getName()];
+      return (props.weight === 'regular'? WIDE_ICONS_REGULAR[getName()] : WIDE_ICONS_BOLD[getName()]);
     } else {
       return config().icon;
     }
@@ -426,14 +464,15 @@ export function CustomEntityIcon(
 }
 
 export function getIconConfig(
-  targetType: EntityWithValidIcon | FileType | string
+  targetType: EntityWithValidIcon | FileType | string,
+  iconWeight?: 'regular' | 'bold'
 ) {
   const key = validateEntity(targetType);
   const config = { ...ENTITY_ICON_CONFIGS[key] };
   if (USE_PIXEL_BLOCK_ICONS) {
     config.icon = PIXEL_ICONS[key];
   } else if (USE_WIDE_ICONS) {
-    config.icon = WIDE_ICONS[key];
+    config.icon = (iconWeight === 'regular'? WIDE_ICONS_REGULAR[key] : WIDE_ICONS_BOLD[key]);
   }
   return config;
 }

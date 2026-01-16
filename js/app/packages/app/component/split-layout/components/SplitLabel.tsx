@@ -26,6 +26,7 @@ import { useRenameSplit } from './SplitModalContext';
 export function StaticSplitLabel(props: {
   label: string;
   iconType?: EntityIconSelector;
+  iconWeight?: 'regular' | 'bold';
   icon?: JSX.Element;
   badges?: JSX.Element;
 }) {
@@ -39,6 +40,7 @@ export function StaticSplitLabel(props: {
         <EntityIcon
           class="shrink-0"
           targetType={props.iconType}
+          weight={props.iconWeight}
           size="xs"
           theme="monochrome"
         />

@@ -369,7 +369,7 @@ function EntityTypeIconFilter() {
         <div class="flex items-center shrink-0">
           <For each={ENTITY_TYPE_FILTERS.filter((f) => f.enabled)}>
             {(filter) => {
-              const iconConfig = () => getIconConfig(filter.iconType);
+              const iconConfig = () => getIconConfig(filter.iconType, filter.iconWeight);
               return (
                 <FilterButton
                   icon={iconConfig().icon}

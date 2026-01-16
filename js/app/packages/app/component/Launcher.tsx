@@ -20,14 +20,14 @@ import { createControlledOpenSignal } from '@core/util/createControlledOpenSigna
 import { isErr, ok } from '@core/util/maybeResult';
 import { Dialog } from '@kobalte/core/dialog';
 import PixelArrowRight from '@macro-icons/pixel/arrow-right.svg';
-import WideChat from '@macro-icons/wide/chat.svg';
-import WideDiagram from '@macro-icons/wide/diagram.svg';
-import WideEmail from '@macro-icons/wide/email.svg';
-import WideFileCode from '@macro-icons/wide/file-code.svg';
-import WideFileMd from '@macro-icons/wide/file-md.svg';
-import WideFolder from '@macro-icons/wide/folder.svg';
-import WideStar from '@macro-icons/wide/star.svg';
-import WideTask from '@macro-icons/wide/task.svg';
+import WideChatBold from '@macro-icons/wide/chat-bold.svg';
+import WideDiagramBold from '@macro-icons/wide/diagram-bold.svg';
+import WideEmailBold from '@macro-icons/wide/email-bold.svg';
+import WideFileCodeBold from '@macro-icons/wide/file-code-bold.svg';
+import WideFileMdBold from '@macro-icons/wide/file-md-bold.svg';
+import WideFolderBold from '@macro-icons/wide/folder-bold.svg';
+import WideStarBold from '@macro-icons/wide/star-bold.svg';
+import WideTaskBold from '@macro-icons/wide/task-bold.svg';
 import { useCreateProject } from '@service-storage/projects';
 import { createEffect, createSignal, For, onMount, Show } from 'solid-js';
 import { type FocusableElement, tabbable } from 'tabbable';
@@ -106,7 +106,7 @@ type CreatableBlock = Omit<HotkeyRegistrationOptions, 'scopeId'> & {
 export const CREATABLE_BLOCKS: CreatableBlock[] = [
   {
     label: 'Docs',
-    icon: () => <WideFileMd />,
+    icon: () => <WideFileMdBold />,
     description: 'Create doc',
     blockName: 'md',
     hotkeyToken: TOKENS.create.note,
@@ -131,7 +131,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     ? [
         {
           label: 'Task',
-          icon: () => <WideTask />,
+          icon: () => <WideTaskBold />,
           description: 'Create task',
           blockName: 'task' as BlockName,
           hotkeyToken: TOKENS.create.task,
@@ -149,7 +149,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     : []),
   {
     label: 'Email',
-    icon: () => <WideEmail />,
+    icon: () => <WideEmailBold />,
     description: 'Create email',
     blockName: 'email',
     hotkeyToken: TOKENS.create.email,
@@ -165,7 +165,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
   },
   {
     label: 'Message',
-    icon: () => <WideChat />,
+    icon: () => <WideChatBold />,
     description: 'Create message',
     blockName: 'channel',
     hotkeyToken: TOKENS.create.message,
@@ -181,7 +181,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
   },
   {
     label: 'AI',
-    icon: () => <WideStar />,
+    icon: () => <WideStarBold />,
     description: 'Create AI chat',
     blockName: 'chat' as BlockName,
     hotkeyToken: TOKENS.create.chat,
@@ -204,7 +204,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
   },
   {
     label: 'Canvas',
-    icon: () => <WideDiagram />,
+    icon: () => <WideDiagramBold />,
     description: 'Create canvas',
     blockName: 'canvas',
     hotkeyToken: TOKENS.create.canvas,
@@ -230,7 +230,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
   },
   {
     label: 'Folder',
-    icon: () => <WideFolder />,
+    icon: () => <WideFolderBold />,
     description: 'Create folder',
     blockName: 'project',
     hotkeyToken: TOKENS.create.project,
@@ -250,7 +250,7 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
   },
   {
     label: 'Code',
-    icon: () => <WideFileCode />,
+    icon: () => <WideFileCodeBold />,
     description: 'Create code file',
     blockName: 'code',
     hotkeyToken: TOKENS.create.code,

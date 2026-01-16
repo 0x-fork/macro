@@ -1,8 +1,8 @@
-import WideChannel from '@macro-icons/wide/channel.svg';
-import WideEmail from '@macro-icons/wide/email.svg';
-import WideCode from '@macro-icons/wide/file-code.svg';
-import WidePlus from '@macro-icons/wide/plus.svg';
-import WideTask from '@macro-icons/wide/task.svg';
+import WideChannelBold from '@macro-icons/wide/channel-bold.svg';
+import WideEmailBold from '@macro-icons/wide/email-bold.svg';
+import WideCodeBold from '@macro-icons/wide/file-code-bold.svg';
+import WidePlusBold from '@macro-icons/wide/plus-bold.svg';
+import WideTaskBold from '@macro-icons/wide/task-bold.svg';
 import type { Component, JSX } from 'solid-js';
 import { setCreateMenuOpen } from '../Launcher';
 import { useSplitPanelOrThrow } from '../split-layout/layoutUtils';
@@ -59,7 +59,7 @@ export function MobileDock() {
   return (
     <div class="flex flex-row justify-between bg-linear-to-t from-page to-panel border-t border-edge-muted">
       <MobileDockButton
-        icon={WideCode}
+        icon={WideCodeBold}
         label="Search"
         active={selectedView() === VIEWCONFIG_DEFAULTS_IDS_ENUM.all}
         onClick={() => {
@@ -69,7 +69,7 @@ export function MobileDock() {
         }}
       />
       <MobileDockButton
-        icon={WideEmail}
+        icon={WideEmailBold}
         label="Inbox"
         active={selectedView() === VIEWCONFIG_DEFAULTS_IDS_ENUM.signal}
         onClick={() => {
@@ -78,7 +78,7 @@ export function MobileDock() {
         }}
       />
       <MobileDockButton
-        icon={WideChannel}
+        icon={WideChannelBold}
         label="People"
         active={selectedView() === VIEWCONFIG_DEFAULTS_IDS_ENUM.people}
         onClick={() => {
@@ -87,7 +87,7 @@ export function MobileDock() {
         }}
       />
       <MobileDockButton
-        icon={WideTask}
+        icon={WideTaskBold}
         label="Tasks"
         active={selectedView() === VIEWCONFIG_DEFAULTS_IDS_ENUM.tasks}
         onClick={() => {
@@ -96,7 +96,7 @@ export function MobileDock() {
         }}
       />
       <MobileDockButton
-        icon={WidePlus}
+        icon={WidePlusBold}
         label="Create"
         onClick={() => {
           setCreateMenuOpen(true);

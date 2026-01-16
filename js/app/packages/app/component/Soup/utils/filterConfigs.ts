@@ -12,6 +12,7 @@ export type EntityTypeFilterConfig =
       type: ExpandedEntityType;
       label: string;
       iconType: string;
+      iconWeight: 'regular' | 'bold';
       enabled: boolean;
       shortcut: string;
     }
@@ -20,6 +21,7 @@ export type EntityTypeFilterConfig =
       channelCategory: 'people' | 'groups';
       label: string;
       iconType: string;
+      iconWeight: 'regular' | 'bold';
       enabled: boolean;
       shortcut: string;
     }
@@ -29,6 +31,7 @@ export type EntityTypeFilterConfig =
       documentTypes: DocumentTypeFilter[];
       label: string;
       iconType: string;
+      iconWeight: 'regular' | 'bold';
       enabled: boolean;
       shortcut: string;
     };
@@ -44,6 +47,7 @@ export const ENTITY_TYPE_FILTERS: EntityTypeFilterConfig[] = [
     documentTypes: ['md', 'canvas'],
     label: 'Docs',
     iconType: 'md',
+    iconWeight: 'regular',
     enabled: true,
     shortcut: 'd',
   },
@@ -52,6 +56,7 @@ export const ENTITY_TYPE_FILTERS: EntityTypeFilterConfig[] = [
     type: 'chat',
     label: 'Agents',
     iconType: 'chat',
+    iconWeight: 'regular',
     enabled: true,
     shortcut: 'a',
   },
@@ -60,6 +65,7 @@ export const ENTITY_TYPE_FILTERS: EntityTypeFilterConfig[] = [
     channelCategory: 'people',
     label: 'People',
     iconType: 'channel',
+    iconWeight: 'regular',
     enabled: true,
     shortcut: 'p',
   },
@@ -68,6 +74,7 @@ export const ENTITY_TYPE_FILTERS: EntityTypeFilterConfig[] = [
     channelCategory: 'groups',
     label: 'Teams',
     iconType: 'directMessage',
+    iconWeight: 'regular',
     enabled: true,
     shortcut: 'm',
   },
@@ -76,6 +83,7 @@ export const ENTITY_TYPE_FILTERS: EntityTypeFilterConfig[] = [
     type: 'task',
     label: 'Tasks',
     iconType: 'task',
+    iconWeight: 'regular',
     enabled: ENABLE_TASKS_TABS,
     shortcut: 't',
   },
@@ -84,6 +92,7 @@ export const ENTITY_TYPE_FILTERS: EntityTypeFilterConfig[] = [
     type: 'email',
     label: 'Mail',
     iconType: 'email',
+    iconWeight: 'regular',
     enabled: true,
     shortcut: 'l',
   },
@@ -93,6 +102,7 @@ export const ENTITY_TYPE_FILTERS: EntityTypeFilterConfig[] = [
     documentTypes: ['code', 'image', 'pdf', 'unknown'],
     label: 'Files',
     iconType: 'project',
+    iconWeight: 'regular',
     enabled: true,
     shortcut: 'f',
   },
