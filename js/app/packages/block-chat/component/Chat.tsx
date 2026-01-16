@@ -1,6 +1,6 @@
 import { useNavigatedFromJK } from '@app/component/useNavigatedFromJK';
 import type { SendBuilder } from '@block-chat/blockClient';
-import { TopBar } from '@block-chat/component/TopBar';
+import { HeaderControls } from '@block-chat/component/HeaderControls';
 import type { ChatData } from '@block-chat/definition';
 import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import { useBuildChatSendRequest } from '@core/component/AI/component/input/buildRequest';
@@ -178,7 +178,7 @@ export function Chat(props: { data: ChatData }) {
       class="size-full bg-panel overscroll-none overflow-hidden flex flex-col"
       uploadQueue={uploadQueue}
     >
-      <TopBar />
+      <HeaderControls />
       <div class="size-full flex-1 min-h-0 p-2">
         <div data-chat-scroll class="h-full min-h-0 overflow-auto">
           <div class="mx-auto w-full max-w-3xl">

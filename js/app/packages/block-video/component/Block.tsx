@@ -3,7 +3,7 @@ import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { toast } from 'core/component/Toast/Toast';
 import { createEffect, createSignal, Show } from 'solid-js';
 import { blockData } from '../signal/blockData';
-import { TopBar } from './TopBar';
+import { HeaderControls } from './HeaderControls';
 
 const { track, TrackingEvents } = withAnalytics();
 
@@ -12,7 +12,7 @@ export default function BlockVideo() {
     <DocumentBlockContainer>
       <div class="w-full h-full bg-panel select-none overscroll-none overflow-hidden flex flex-col relative">
         <div class="relative">
-          <TopBar />
+          <HeaderControls />
         </div>
         <div class="w-full grow-1 relative overflow-hidden">
           <Video />

@@ -3,7 +3,7 @@ import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { Show } from 'solid-js';
 import { CodeMarkdown } from './CodeMarkdown';
 import { CodeMirror } from './CodeMirror';
-import { TopBar } from './TopBar';
+import { HeaderControls } from './HeaderControls';
 
 export default function BlockCode() {
   const isNestedBlock = useIsNestedBlock();
@@ -12,7 +12,7 @@ export default function BlockCode() {
     <DocumentBlockContainer usesCenterBar>
       <Show when={!isNestedBlock} fallback={<CodeMarkdown />}>
         <div class="size-full bg-panel select-none overscroll-none overflow-hidden flex flex-col items-end relative">
-          <TopBar />
+          <HeaderControls />
           <CodeMirror />
         </div>
       </Show>

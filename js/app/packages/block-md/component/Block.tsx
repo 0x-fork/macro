@@ -9,7 +9,10 @@ import { createEffect, createSignal, onMount, Show, Suspense } from 'solid-js';
 import { mdStore } from '../signal/markdownBlockData';
 import { FindAndReplace } from './FindAndReplace';
 import { InstructionsNotebook, Notebook } from './Notebook';
-import { InstructionsTopBar, TopBar } from './TopBar';
+import {
+  HeaderControls,
+  InstructionsHeaderControls,
+} from './HeaderControls';
 
 const { track, TrackingEvents } = withAnalytics();
 
@@ -42,8 +45,11 @@ export default function BlockMarkdown() {
       >
         <div class="relative">
           <Suspense>
-            <Show when={!isInstructionsMd()} fallback={<InstructionsTopBar />}>
-              <TopBar />
+            <Show
+              when={!isInstructionsMd()}
+              fallback={<InstructionsHeaderControls />}
+            >
+              <HeaderControls />
             </Show>
           </Suspense>
           {/* off until - https://linear.app/macro-eng/issue/M-5203/markdown-unloads-completely-after-find */}

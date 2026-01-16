@@ -7,10 +7,6 @@ import {
   BlockItemSplitLabel,
   SplitPermissionsBadge,
 } from '@app/component/split-layout/components/SplitLabel';
-import {
-  SplitToolbarLeft,
-  SplitToolbarRight,
-} from '@app/component/split-layout/components/SplitToolbar';
 import { DEFAULT_CHAT_NAME } from '@block-chat/definition';
 import { useBlockId } from '@core/block';
 import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
@@ -24,7 +20,7 @@ import { refetchHistory } from '@service-storage/history';
 import { useOpenInstructionsMd } from 'core/component/AI/util/instructions';
 import { onCleanup, onMount } from 'solid-js';
 
-export function TopBar() {
+export function HeaderControls() {
   const blockId = useBlockId();
 
   const name = useBlockDocumentName(DEFAULT_CHAT_NAME);
@@ -59,46 +55,42 @@ export function TopBar() {
   return (
     <>
       <SplitHeaderLeft>
-        <BlockItemSplitLabel
-          fallbackName={DEFAULT_CHAT_NAME}
-          lockRename={false}
-        />
-      </SplitHeaderLeft>
-      <SplitToolbarLeft>
-        <div class="p-1">
-          <SplitFileMenu
-            id={blockId}
-            itemType="chat"
-            name={chatName()}
-            ops={ops}
+        <div class="flex items-center gap-2 min-w-0">
+          <BlockItemSplitLabel
+            fallbackName={DEFAULT_CHAT_NAME}
+            lockRename={false}
           />
-        </div>
-      </SplitToolbarLeft>
-      <SplitToolbarRight>
-        <div class="flex items-center p-1 h-full">
-          <DeprecatedIconButton
-            icon={Notepad}
-            size="sm"
-            theme="clear"
-            tooltip={{ label: 'Edit AI Instructions' }}
-            onClick={openInstructions}
-          />
-          <ReferencesModal
-            documentId={blockId}
-            documentName={chatName()}
-            buttonSize="sm"
-          />
-          <div class="flex items-center">
-            <SplitPermissionsBadge />
-            <ShareButton
+          <div class="flex items-center gap-2 shrink-0">
+            <SplitFileMenu
               id={blockId}
-              name={chatName()}
-              userPermissions={userPermissions()}
               itemType="chat"
+              name={chatName()}
+              ops={ops}
             />
+            <DeprecatedIconButton
+              icon={Notepad}
+              size="sm"
+              theme="clear"
+              tooltip={{ label: 'Edit AI Instructions' }}
+              onClick={openInstructions}
+            />
+            <ReferencesModal
+              documentId={blockId}
+              documentName={chatName()}
+              buttonSize="sm"
+            />
+            <div class="flex items-center">
+              <SplitPermissionsBadge />
+              <ShareButton
+                id={blockId}
+                name={chatName()}
+                userPermissions={userPermissions()}
+                itemType="chat"
+              />
+            </div>
           </div>
         </div>
-      </SplitToolbarRight>
+      </SplitHeaderLeft>
     </>
   );
 }

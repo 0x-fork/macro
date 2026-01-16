@@ -45,7 +45,7 @@ import {
 import { preprocess } from '../websocket/preprocess';
 import { Document } from './Document';
 import { Tabs } from './Tabs';
-import { TopBar } from './TopBar';
+import { HeaderControls } from './HeaderControls';
 
 const { track, TrackingEvents } = withAnalytics();
 
@@ -195,7 +195,7 @@ export default function BlockPdf() {
         data-tut="App"
       >
         <Show when={!isNestedBlock}>
-          <TopBar />
+          <HeaderControls />
           <Show when={showTabBar()}>
             <div class="flex px-2 justify-between min-h-11 items-center gap-2">
               <div

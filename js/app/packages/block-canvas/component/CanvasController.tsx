@@ -94,7 +94,7 @@ import {
 import { useRenderState } from '../store/RenderState';
 import { type Vector2, vec2 } from '../util/vector2';
 import { createContextMenu } from './ContextMenu';
-import { connectorTypeMenuTriggerSignal } from './TopBar';
+import { connectorTypeMenuTriggerSignal } from './HeaderControls';
 
 false && observedSize;
 false && fileDrop;

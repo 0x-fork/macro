@@ -7,10 +7,6 @@ import {
   BlockItemSplitLabel,
   SplitPermissionsBadge,
 } from '@app/component/split-layout/components/SplitLabel';
-import {
-  SplitToolbarLeft,
-  SplitToolbarRight,
-} from '@app/component/split-layout/components/SplitToolbar';
 import { withAnalytics } from '@coparse/analytics';
 import { useBlockId } from '@core/block';
 import { DocumentPropertiesModal } from '@core/component/DocumentPropertiesModal';
@@ -29,7 +25,7 @@ import type { Component } from 'solid-js';
 
 const { track, TrackingEvents } = withAnalytics();
 
-export const TopBar: Component = () => {
+export const HeaderControls: Component = () => {
   const blockId = useBlockId();
   const text = blockTextSignal.get;
   const name = useBlockDocumentName();
@@ -61,42 +57,38 @@ export const TopBar: Component = () => {
   return (
     <>
       <SplitHeaderLeft>
-        <BlockItemSplitLabel />
-      </SplitHeaderLeft>
-      <SplitToolbarLeft>
-        <div class="p-1">
-          <SplitFileMenu
-            id={blockId}
-            itemType="document"
-            name={name()}
-            ops={ops}
-          />
-        </div>
-      </SplitToolbarLeft>
-      <SplitToolbarRight>
-        <div class="flex items-center p-1">
-          <ReferencesModal
-            documentId={blockId}
-            documentName={name()}
-            buttonSize="sm"
-          />
-          <DocumentPropertiesModal
-            documentId={blockId}
-            blockType="code"
-            buttonSize="sm"
-          />
-          <div class="flex items-center">
-            <SplitPermissionsBadge />
-            <ShareButton
+        <div class="flex items-center gap-2 min-w-0">
+          <BlockItemSplitLabel />
+          <div class="flex items-center gap-2 shrink-0">
+            <SplitFileMenu
               id={blockId}
-              name={name()}
-              userPermissions={userPermissions()}
               itemType="document"
-              owner={blockMetadataSignal()?.owner}
+              name={name()}
+              ops={ops}
             />
+            <ReferencesModal
+              documentId={blockId}
+              documentName={name()}
+              buttonSize="sm"
+            />
+            <DocumentPropertiesModal
+              documentId={blockId}
+              blockType="code"
+              buttonSize="sm"
+            />
+            <div class="flex items-center">
+              <SplitPermissionsBadge />
+              <ShareButton
+                id={blockId}
+                name={name()}
+                userPermissions={userPermissions()}
+                itemType="document"
+                owner={blockMetadataSignal()?.owner}
+              />
+            </div>
           </div>
         </div>
-      </SplitToolbarRight>
+      </SplitHeaderLeft>
     </>
   );
 };

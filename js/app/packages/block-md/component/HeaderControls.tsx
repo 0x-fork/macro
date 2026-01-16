@@ -13,10 +13,6 @@ import {
   StaticSplitLabel,
 } from '@app/component/split-layout/components/SplitLabel';
 import {
-  SplitToolbarLeft,
-  SplitToolbarRight,
-} from '@app/component/split-layout/components/SplitToolbar';
-import {
   setShowCommentsPreference,
   showCommentsPreference,
 } from '@block-md/comments/commentStore';
@@ -42,7 +38,7 @@ import { Show } from 'solid-js';
 import { HistoryModal } from './History';
 import { MarkdownPropertiesModal } from './MarkdownPropertiesModal';
 
-export function TopBar() {
+export function HeaderControls() {
   const canEdit = useCanEdit();
   const blockName = useBlockName();
   const blockId = useBlockId();
@@ -72,86 +68,88 @@ export function TopBar() {
   return (
     <>
       <SplitHeaderLeft>
-        <BlockItemSplitLabel />
+        <div class="flex items-center gap-2 min-w-0">
+          <BlockItemSplitLabel />
+          <div class="flex items-center gap-2 shrink-0">
+            <SplitFileMenu
+              id={blockId}
+              itemType={itemType}
+              name={name()}
+              ops={ops}
+            />
+            <Show
+              when={
+                ENABLE_MARKDOWN_LIVE_COLLABORATION &&
+                ENABLE_HISTORY_COMPONENT &&
+                canEdit()
+              }
+            >
+              <HistoryModal documentId={blockId} />
+            </Show>
+            <NotificationsModal
+              entity={{ id: blockId, type: itemType as EntityType }}
+              notificationSource={notificationSource}
+              buttonSize="sm"
+            />
+            <ReferencesModal
+              documentId={blockId}
+              documentName={name()}
+              buttonSize="sm"
+            />
+            <DeprecatedIconButton
+              size="sm"
+              icon={showCommentsPreference() ? HideComments : ShowComments}
+              theme="clear"
+              onClick={() =>
+                setShowCommentsPreference(!showCommentsPreference())
+              }
+              tooltip={{
+                label: `${
+                  showCommentsPreference() ? 'Hide' : 'Show'
+                } Comments`,
+              }}
+            />
+            <MarkdownPropertiesModal documentId={blockId} buttonSize="sm" />
+            <div class="flex items-center">
+              <SplitPermissionsBadge />
+              <ShareButton
+                id={blockId}
+                name={name()}
+                userPermissions={permissions()}
+                itemType={itemType}
+              />
+            </div>
+          </div>
+        </div>
       </SplitHeaderLeft>
       <SplitHeaderRight>
         <BlockLiveIndicators />
       </SplitHeaderRight>
-      <SplitToolbarLeft>
-        <SplitFileMenu
-          id={blockId}
-          itemType={itemType}
-          name={name()}
-          ops={ops}
-        />
-      </SplitToolbarLeft>
-      <SplitToolbarRight>
-        <div class="flex items-center p-1">
-          <Show
-            when={
-              ENABLE_MARKDOWN_LIVE_COLLABORATION &&
-              ENABLE_HISTORY_COMPONENT &&
-              canEdit()
-            }
-          >
-            <HistoryModal documentId={blockId} />
-          </Show>
-          <NotificationsModal
-            entity={{ id: blockId, type: itemType as EntityType }}
-            notificationSource={notificationSource}
-            buttonSize="sm"
-          />
-          <ReferencesModal
-            documentId={blockId}
-            documentName={name()}
-            buttonSize="sm"
-          />
-          <DeprecatedIconButton
-            size="sm"
-            icon={showCommentsPreference() ? HideComments : ShowComments}
-            theme="clear"
-            onClick={() => setShowCommentsPreference(!showCommentsPreference())}
-            tooltip={{
-              label: `${showCommentsPreference() ? 'Hide' : 'Show'} Comments`,
-            }}
-          />
-          <MarkdownPropertiesModal documentId={blockId} buttonSize="sm" />
-          <div class="flex items-center">
-            <SplitPermissionsBadge />
-            <ShareButton
-              id={blockId}
-              name={name()}
-              userPermissions={permissions()}
-              itemType={itemType}
-            />
-          </div>
-        </div>
-      </SplitToolbarRight>
     </>
   );
 }
 
-export function InstructionsTopBar() {
+export function InstructionsHeaderControls() {
   const canEdit = useCanEdit();
   const blockId = useBlockId();
   return (
     <>
       <SplitHeaderLeft>
-        <StaticSplitLabel label="AI Instructions" iconType="md" />
-      </SplitHeaderLeft>
-      <SplitToolbarRight>
-        <div class="flex items-center p-1">
-          <Show
-            when={
-              ENABLE_MARKDOWN_LIVE_COLLABORATION &&
-              ENABLE_HISTORY_COMPONENT &&
-              canEdit()
-            }
-          >
-            <HistoryModal documentId={blockId} />
-          </Show>
+        <div class="flex items-center gap-2 min-w-0">
+          <StaticSplitLabel label="AI Instructions" iconType="md" />
+          <div class="flex items-center gap-2 shrink-0">
+            <Show
+              when={
+                ENABLE_MARKDOWN_LIVE_COLLABORATION &&
+                ENABLE_HISTORY_COMPONENT &&
+                canEdit()
+              }
+            >
+              <HistoryModal documentId={blockId} />
+            </Show>
+          </div>
         </div>
-      </SplitToolbarRight>
+      </SplitHeaderLeft>
     </>
   );
 }

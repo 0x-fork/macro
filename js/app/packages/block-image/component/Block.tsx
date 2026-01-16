@@ -5,7 +5,7 @@ import { blockAcceptedFileExtensionToMimeType } from '@core/constant/allBlocks';
 import { blockFileSignal, blockMetadataSignal } from '@core/signal/load';
 import { setCopiedItem } from '@core/state/clipboard';
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { TopBar } from './TopBar';
+import { HeaderControls } from './HeaderControls';
 
 const { track, TrackingEvents } = withAnalytics();
 
@@ -64,7 +64,7 @@ export default function BlockImage() {
   return (
     <DocumentBlockContainer>
       <div class="w-full h-full bg-panel select-none overscroll-none overflow-hidden flex flex-col">
-        <TopBar />
+        <HeaderControls />
         <Show
           when={imageUrl()}
           fallback={

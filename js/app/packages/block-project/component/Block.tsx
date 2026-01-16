@@ -35,7 +35,7 @@ import {
   untrack,
 } from 'solid-js';
 import { projectBlockDataSignal } from '../signal/projectBlockData';
-import { TopBar } from './TopBar';
+import { HeaderControls } from './HeaderControls';
 
 // HACK: prevent lint error on custom directive
 false && fileFolderDrop;
@@ -157,7 +157,7 @@ const Block: Component = () => {
         <Show when={isDragging() && !isSpecialProject}>
           <FileDropOverlay>Upload to this folder</FileDropOverlay>
         </Show>
-        <TopBar />
+        <HeaderControls />
         <Show when={ENABLE_PROJECT_VIEW_PREVIEW} fallback={<UnifiedListView />}>
           <div class="flex size-full">
             <SplitPanelContext.Provider

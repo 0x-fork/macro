@@ -37,7 +37,7 @@ import { CanvasRenderer } from './CanvasRenderer';
 import { Loading } from './Loading';
 import { LoadingMindMap } from './LoadingMindMap';
 import { ToolBar } from './ToolBar';
-import { TopBar } from './TopBar';
+import { HeaderControls } from './HeaderControls';
 
 const { track, TrackingEvents } = withAnalytics();
 
@@ -298,7 +298,7 @@ export default function BlockCanvas(props: BlockCanvasProps) {
         }}
       >
         <Show when={!isNestedBlock}>
-          <TopBar />
+          <HeaderControls />
         </Show>
         <Show when={dataState() === 'initialized'} fallback={<LoadingView />}>
           <CanvasController>

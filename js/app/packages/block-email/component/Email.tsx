@@ -28,7 +28,7 @@ import { scrollToMessage } from '../util/scrollToMessage';
 import { EmailFormContextProvider } from './EmailFormContext';
 import { EmailInput } from './EmailInput';
 import { MessageList } from './MessageList';
-import { TopBar } from './TopBar';
+import { HeaderControls } from './HeaderControls';
 import { EmailCompose } from '@block-email/component/Compose';
 
 const TARGET_MESSAGE_HIGHLIGHT_MS = 800;
@@ -446,7 +446,7 @@ function EmailContent(props: EmailViewProps) {
           }}
         >
           <div class="w-full h-full bg-panel select-none overscroll-none overflow-hidden flex flex-col">
-            <TopBar
+            <HeaderControls
               id={props.threadId()}
               title={props.title}
               isDraft={

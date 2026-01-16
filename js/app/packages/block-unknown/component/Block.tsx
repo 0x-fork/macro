@@ -14,14 +14,14 @@ import { createCallback } from '@solid-primitives/rootless';
 import { toast } from 'core/component/Toast/Toast';
 import { createSignal } from 'solid-js';
 import { blockData, useGetFileBlob } from '../signal/blockData';
-import { TopBar } from './TopBar';
+import { HeaderControls } from './HeaderControls';
 
 export default function BlockUnknown() {
   return (
     <DocumentBlockContainer>
       <div class="w-full h-full bg-panel select-none overscroll-none overflow-hidden flex flex-col relative">
         <div class="relative">
-          <TopBar />
+          <HeaderControls />
         </div>
         <div class="w-full grow-1 relative overflow-hidden">
           <Unknown />

@@ -10,10 +10,6 @@ import {
   BlockItemSplitLabel,
   SplitPermissionsBadge,
 } from '@app/component/split-layout/components/SplitLabel';
-import {
-  SplitToolbarLeft,
-  SplitToolbarRight,
-} from '@app/component/split-layout/components/SplitToolbar';
 import { withAnalytics } from '@coparse/analytics';
 import { createBlockSignal, useBlockId } from '@core/block';
 import { DocumentPropertiesModal } from '@core/component/DocumentPropertiesModal';
@@ -42,7 +38,7 @@ const { track, TrackingEvents } = withAnalytics();
 
 export const connectorTypeMenuTriggerSignal = createBlockSignal(false);
 
-export function TopBar() {
+export function HeaderControls() {
   const toolManager = useToolManager();
   const { getLocation } = useRenderState();
   const getCurrentSavedFile = currentSavedFile.get;
@@ -105,50 +101,46 @@ export function TopBar() {
   return (
     <div ref={ref}>
       <SplitHeaderLeft>
-        <BlockItemSplitLabel />
+        <div class="flex items-center gap-2 min-w-0">
+          <BlockItemSplitLabel />
+          <div class="flex items-center gap-2 shrink-0">
+            <SplitFileMenu
+              id={documentId}
+              itemType="document"
+              name={fileName()}
+              ops={ops}
+            />
+            <Show when={ENABLE_REFERENCES_MODAL}>
+              <ReferencesModal
+                documentId={documentId}
+                documentName={fileName()}
+                buttonSize="sm"
+              />
+            </Show>
+            <DocumentPropertiesModal
+              documentId={documentId}
+              blockType="canvas"
+              buttonSize="sm"
+            />
+            <div class="flex items-center">
+              <SplitPermissionsBadge />
+              <Show when={canvasFile()} keyed>
+                <ShareButton
+                  id={documentId}
+                  name={fileName()}
+                  userPermissions={userPermissions()}
+                  copyLink={copyLink}
+                  itemType="document"
+                  owner={blockMetadataSignal()?.owner}
+                />
+              </Show>
+            </div>
+          </div>
+        </div>
       </SplitHeaderLeft>
       <SplitHeaderRight>
         <BlockLiveIndicators />
       </SplitHeaderRight>
-      <SplitToolbarLeft>
-        <div class="p-1">
-          <SplitFileMenu
-            id={documentId}
-            itemType="document"
-            name={fileName()}
-            ops={ops}
-          />
-        </div>
-      </SplitToolbarLeft>
-      <SplitToolbarRight>
-        <div class="flex items-center p-1">
-          <Show when={ENABLE_REFERENCES_MODAL}>
-            <ReferencesModal
-              documentId={documentId}
-              documentName={fileName()}
-              buttonSize="sm"
-            />
-          </Show>
-          <DocumentPropertiesModal
-            documentId={documentId}
-            blockType="canvas"
-            buttonSize="sm"
-          />
-          <div class="flex items-center">
-            <SplitPermissionsBadge />
-            <Show when={canvasFile()} keyed>
-              <ShareButton
-                id={documentId}
-                name={fileName()}
-                userPermissions={userPermissions()}
-                copyLink={copyLink}
-                itemType="document"
-                owner={blockMetadataSignal()?.owner}
-              />
-            </Show>
-          </div>
-        </div>
-      </SplitToolbarRight>
     </div>
   );
 }
