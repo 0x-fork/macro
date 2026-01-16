@@ -226,6 +226,20 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
           <SplitBackButton />
           <SplitForwardButton />
         </div>
+        {/* Toolbar left - file menu and other left-side controls */}
+        <div
+          class="flex h-full items-center shrink-0"
+          ref={(ref) => {
+            ctx.layoutRefs.toolbarLeft = ref;
+          }}
+        />
+        {/* Toolbar right - share button, references, etc */}
+        <div
+          class="flex h-full items-center shrink-0"
+          ref={(ref) => {
+            ctx.layoutRefs.toolbarRight = ref;
+          }}
+        />
         <div
           class="relative w-fit min-w-0 h-full shrink pl-2"
           ref={(ref) => {

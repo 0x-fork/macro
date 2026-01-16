@@ -17,7 +17,6 @@ import { useSplitPanelOrThrow } from '../layoutUtils';
 import { SplitDrawerGroup } from './SplitDrawerContext';
 import { SplitHeader } from './SplitHeader';
 import { SplitModalProvider } from './SplitModalContext';
-import { SplitToolbar } from './SplitToolbar';
 import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
 import { ClippedPanel } from '@core/component/ClippedPanel';
 import { globalSplitManager } from '@app/signal/splitLayout';
@@ -45,13 +44,11 @@ export function SplitContainer(
     })
   );
 
-  const [toolbarRef, setToolbarRef] = createSignal<HTMLDivElement | null>(null);
   const [headerRef, setHeaderRef] = createSignal<HTMLDivElement | null>(null);
 
   const headerSize = createElementSize(headerRef);
-  const toolbarSize = createElementSize(toolbarRef);
   const offsetTop = createMemo(() => {
-    const offset = (headerSize.height ?? 0) + (toolbarSize.height ?? 0);
+    const offset = headerSize.height ?? 0;
     panel.setContentOffsetTop(offset);
     return offset;
   });
@@ -104,7 +101,6 @@ export function SplitContainer(
           >
             <div class="flex flex-col min-h-0 size-full bg-panel">
               <SplitHeader ref={setHeaderRef} />
-              <SplitToolbar ref={setToolbarRef} />
               <div class="@container/split size-full overflow-hidden">
                 {props.children}
               </div>

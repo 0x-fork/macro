@@ -1,3 +1,19 @@
+import {
+  type FileOperation,
+  SplitFileMenu,
+} from '@app/component/split-layout/components/SplitFileMenu';
+import {
+  SplitHeaderLeft,
+  SplitHeaderRight,
+} from '@app/component/split-layout/components/SplitHeader';
+import {
+  BlockItemSplitLabel,
+  SplitPermissionsBadge,
+} from '@app/component/split-layout/components/SplitLabel';
+import {
+  SplitToolbarLeft,
+  SplitToolbarRight,
+} from '@app/component/split-layout/components/SplitToolbar';
 import { createNumericParser } from '@block-canvas/util/parse';
 import { withAnalytics } from '@coparse/analytics';
 import {
@@ -6,9 +22,26 @@ import {
   useIsNestedBlock,
 } from '@core/block';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
-import { blockFileSignal, blockHandleSignal } from '@core/signal/load';
+import { DocumentPropertiesModal } from '@core/component/DocumentPropertiesModal';
+import { BlockLiveIndicators } from '@core/component/LiveIndicators';
+import { ReferencesModal } from '@core/component/ReferencesModal';
+import { ShareButton } from '@core/component/TopBar/ShareButton';
+import { ENABLE_REFERENCES_MODAL } from '@core/constant/featureFlags';
+import {
+  blockFileSignal,
+  blockHandleSignal,
+  blockMetadataSignal,
+} from '@core/signal/load';
+import { useGetPermissions } from '@core/signal/permissions';
+import {
+  useBlockDocumentDownloadName,
+  useBlockDocumentName,
+} from '@core/util/currentBlockDocumentName';
+import { buildSimpleEntityUrl } from '@core/util/url';
 import { isErr } from '@core/util/maybeResult';
+import { downloadFile } from '@filesystem/download';
 import type { IDocumentStorageServiceFile } from '@filesystem/file';
+import DownloadSimple from '@icon/regular/download-simple.svg';
 import { storageServiceClient } from '@service-storage/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { debounce } from '@solid-primitives/scheduled';
@@ -23,21 +56,24 @@ import {
   createSignal,
   on,
   onCleanup,
+  onMount,
   Show,
 } from 'solid-js';
+import { URL_PARAMS } from '../constants';
 import { blockDataSignal } from '../signal/canvasBlockData';
+import { useToolManager } from '../signal/toolManager';
 import {
+  currentSavedFile,
   pendingUpdates,
   useLoadCanvasData,
   useSaveCanvasDataImmediate,
 } from '../store/canvasData';
-import { isAnimating, renderStateStore } from '../store/RenderState';
+import { isAnimating, renderStateStore, useRenderState } from '../store/RenderState';
 import { CanvasController } from './CanvasController';
 import { CanvasRenderer } from './CanvasRenderer';
 import { Loading } from './Loading';
 import { LoadingMindMap } from './LoadingMindMap';
 import { ToolBar } from './ToolBar';
-import { TopBar } from './TopBar';
 
 const { track, TrackingEvents } = withAnalytics();
 
@@ -46,6 +82,117 @@ const LoadingView = () => (
     <Loading />
   </div>
 );
+
+function CanvasTopBar() {
+  const toolManager = useToolManager();
+  const { getLocation } = useRenderState();
+  const getCurrentSavedFile = currentSavedFile.get;
+  const documentId = useBlockId();
+  const fileName = useBlockDocumentName('Unknown Filename');
+  const downloadName = useBlockDocumentDownloadName('Unknown Filename');
+  const canvasFile = blockFileSignal.get;
+  const userPermissions = useGetPermissions();
+
+  let ref!: HTMLDivElement;
+  onMount(() => {
+    toolManager.ignoreMouseEvents(ref);
+  });
+
+  const downloadDocument = createCallback(async () => {
+    const file = getCurrentSavedFile() ?? canvasFile();
+    if (!file) return;
+
+    downloadFile(file, downloadName());
+    track(TrackingEvents.BLOCKCANVAS.FILEMENU.DOWNLOAD);
+  });
+
+  const copyLink = () => {
+    const location = getLocation();
+    const params = {
+      [URL_PARAMS.x]: location.x.toString(),
+      [URL_PARAMS.y]: location.y.toString(),
+      [URL_PARAMS.s]: location.s.toString(),
+    };
+    const url = buildSimpleEntityUrl(
+      {
+        type: 'canvas',
+        id: documentId,
+      },
+      params
+    );
+    if (!url) {
+      toast.failure('failed to copy url');
+      return;
+    }
+    navigator.clipboard.writeText(url);
+    toast.success('Link copied to clipboard');
+    track(TrackingEvents.BLOCKCANVAS.FILEMENU.SHARE);
+  };
+
+  const ops: FileOperation[] = [
+    { op: 'pin' },
+    { op: 'copy' },
+    { op: 'rename' },
+    { op: 'moveToProject' },
+    {
+      label: 'Download',
+      icon: DownloadSimple,
+      action: downloadDocument,
+      divideAbove: true,
+    },
+    { op: 'delete', divideAbove: true },
+  ];
+
+  return (
+    <div ref={ref}>
+      <SplitHeaderLeft>
+        <BlockItemSplitLabel />
+      </SplitHeaderLeft>
+      <SplitHeaderRight>
+        <BlockLiveIndicators />
+      </SplitHeaderRight>
+      <SplitToolbarLeft>
+        <div class="p-1">
+          <SplitFileMenu
+            id={documentId}
+            itemType="document"
+            name={fileName()}
+            ops={ops}
+          />
+        </div>
+      </SplitToolbarLeft>
+      <SplitToolbarRight>
+        <div class="flex items-center p-1">
+          <Show when={ENABLE_REFERENCES_MODAL}>
+            <ReferencesModal
+              documentId={documentId}
+              documentName={fileName()}
+              buttonSize="sm"
+            />
+          </Show>
+          <DocumentPropertiesModal
+            documentId={documentId}
+            blockType="canvas"
+            buttonSize="sm"
+          />
+          <div class="flex items-center">
+            <SplitPermissionsBadge />
+            <Show when={canvasFile()} keyed>
+              <ShareButton
+                id={documentId}
+                name={fileName()}
+                userPermissions={userPermissions()}
+                copyLink={copyLink}
+                itemType="document"
+                owner={blockMetadataSignal()?.owner}
+              />
+            </Show>
+          </div>
+        </div>
+      </SplitToolbarRight>
+    </div>
+  );
+}
 
 const parseParams = createNumericParser<{
   x?: number;
@@ -298,7 +445,7 @@ export default function BlockCanvas(props: BlockCanvasProps) {
         }}
       >
         <Show when={!isNestedBlock}>
-          <TopBar />
+          <CanvasTopBar />
         </Show>
         <Show when={dataState() === 'initialized'} fallback={<LoadingView />}>
           <CanvasController>

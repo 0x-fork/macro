@@ -1,9 +1,18 @@
+import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
+import {
+  SplitHeaderBadge,
+  StaticSplitLabel,
+} from '@app/component/split-layout/components/SplitLabel';
+import { SplitToolbarRight } from '@app/component/split-layout/components/SplitToolbar';
 import {
   EmailProvider,
   useEmailContext,
 } from '@block-email/component/EmailContext';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { FloatingInputLoader } from '@core/component/FloatingInputLoader';
+import { hasPermissions, Permissions } from '@core/component/SharePermissions';
+import { ShareButton } from '@core/component/TopBar/ShareButton';
+import { ENABLE_EMAIL_SHARING } from '@core/constant/featureFlags';
 import { TOKENS } from '@core/hotkey/tokens';
 import { registerScopeSignalHotkey } from '@core/hotkey/utils';
 import {
@@ -27,13 +36,59 @@ import { registerEmailHotkeys } from '../util/emailHotkeys';
 import { scrollToMessage } from '../util/scrollToMessage';
 import { EmailFormContextProvider } from './EmailFormContext';
 import { EmailInput } from './EmailInput';
+import { EmailPropertiesModal } from './EmailPropertiesModal';
 import { MessageList } from './MessageList';
-import { TopBar } from './TopBar';
 import { EmailCompose } from '@block-email/component/Compose';
 
 const TARGET_MESSAGE_HIGHLIGHT_MS = 800;
 const SCROLL_ANIMATION_MS = 1000;
 const SCROLL_AFTER_SEND_DELAY_MS = 100;
+
+function EmailTopBar(props: { id: string; title: string; isDraft?: boolean }) {
+  const email = useEmailContext();
+
+  return (
+    <>
+      <SplitHeaderLeft>
+        <StaticSplitLabel
+          iconType="email"
+          label={props.title}
+          badges={
+            props.isDraft
+              ? [
+                  <SplitHeaderBadge
+                    text="draft"
+                    tooltip="This is a Draft Email"
+                  />,
+                ]
+              : undefined
+          }
+        />
+      </SplitHeaderLeft>
+
+      <SplitToolbarRight>
+        <div class="flex items-center gap-2">
+          <EmailPropertiesModal
+            buttonSize="sm"
+            subject={props.title}
+            canEdit={hasPermissions(
+              email.permissions().type,
+              Permissions.CAN_EDIT
+            )}
+          />
+          <Show when={ENABLE_EMAIL_SHARING}>
+            <ShareButton
+              id={props.id}
+              name={props.title}
+              itemType="email"
+              userPermissions={email.permissions().type}
+            />
+          </Show>
+        </div>
+      </SplitToolbarRight>
+    </>
+  );
+}
 
 type EmailViewProps = {
   title: string;
@@ -446,7 +501,7 @@ function EmailContent(props: EmailViewProps) {
           }}
         >
           <div class="w-full h-full bg-panel select-none overscroll-none overflow-hidden flex flex-col">
-            <TopBar
+            <EmailTopBar
               id={props.threadId()}
               title={props.title}
               isDraft={

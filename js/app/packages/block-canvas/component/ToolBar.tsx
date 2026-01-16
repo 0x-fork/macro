@@ -36,7 +36,7 @@ import {
   ConnectorStraightArrows,
 } from './icons-custom/ArrowIcons';
 import { MediaSelector } from './MediaSelector';
-import { connectorTypeMenuTriggerSignal } from './TopBar';
+import { connectorTypeMenuTriggerSignal } from '../signal/topBarSignals';
 
 const ConnectorTypeSubMenu = (props: {
   onSelect: (connectionStye: EdgeConnectionStyle) => void;

@@ -1,7 +1,27 @@
+import {
+  type FileOperation,
+  SplitFileMenu,
+} from '@app/component/split-layout/components/SplitFileMenu';
+import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
+import {
+  BlockItemSplitLabel,
+  SplitPermissionsBadge,
+} from '@app/component/split-layout/components/SplitLabel';
+import {
+  SplitToolbarLeft,
+  SplitToolbarRight,
+} from '@app/component/split-layout/components/SplitToolbar';
 import { useNavigatedFromJK } from '@app/component/useNavigatedFromJK';
 import type { SendBuilder } from '@block-chat/blockClient';
-import { TopBar } from '@block-chat/component/TopBar';
+import { DEFAULT_CHAT_NAME } from '@block-chat/definition';
 import type { ChatData } from '@block-chat/definition';
+import { useBlockId } from '@core/block';
+import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
+import { ReferencesModal } from '@core/component/ReferencesModal';
+import { ShareButton } from '@core/component/TopBar/ShareButton';
+import { useGetPermissions } from '@core/signal/permissions';
+import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
+import Notepad from '@icon/regular/notepad.svg';
 import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import { useBuildChatSendRequest } from '@core/component/AI/component/input/buildRequest';
 import { useChatInput } from '@core/component/AI/component/input/useChatInput';
@@ -31,8 +51,89 @@ import { invalidateUserQuota } from '@service-auth/userQuota';
 import { cognitionWebsocketServiceClient } from '@service-cognition/client';
 import { createCallback } from '@solid-primitives/rootless';
 import type { LexicalEditor } from 'lexical';
-import { createEffect, createSignal, Show } from 'solid-js';
+import { createCognitionWebsocketEffect } from '@service-cognition/websocket';
+import { refetchHistory } from '@service-storage/history';
+import { useOpenInstructionsMd } from 'core/component/AI/util/instructions';
+import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { pendingLocationParamsSignal } from '../signal/pendingLocationParams';
+
+function ChatTopBar() {
+  const blockId = useBlockId();
+  const name = useBlockDocumentName(DEFAULT_CHAT_NAME);
+  const chatName = () => name();
+
+  onMount(() => {
+    if (!name() || name() === DEFAULT_CHAT_NAME) {
+      const dispose = createCognitionWebsocketEffect('chat_renamed', (data) => {
+        if (data.chat_id === blockId) {
+          refetchHistory();
+          dispose();
+        }
+      });
+
+      onCleanup(() => {
+        dispose();
+      });
+    }
+  });
+
+  const userPermissions = useGetPermissions();
+  const openInstructions = useOpenInstructionsMd();
+
+  const ops: FileOperation[] = [
+    { op: 'pin' },
+    { op: 'rename' },
+    { op: 'copy' },
+    { op: 'moveToProject' },
+    { op: 'delete', divideAbove: true },
+  ];
+
+  return (
+    <>
+      <SplitHeaderLeft>
+        <BlockItemSplitLabel
+          fallbackName={DEFAULT_CHAT_NAME}
+          lockRename={false}
+        />
+      </SplitHeaderLeft>
+      <SplitToolbarLeft>
+        <div class="p-1">
+          <SplitFileMenu
+            id={blockId}
+            itemType="chat"
+            name={chatName()}
+            ops={ops}
+          />
+        </div>
+      </SplitToolbarLeft>
+      <SplitToolbarRight>
+        <div class="flex items-center p-1 h-full">
+          <DeprecatedIconButton
+            icon={Notepad}
+            size="sm"
+            theme="clear"
+            tooltip={{ label: 'Edit AI Instructions' }}
+            onClick={openInstructions}
+          />
+          <ReferencesModal
+            documentId={blockId}
+            documentName={chatName()}
+            buttonSize="sm"
+          />
+          <div class="flex items-center">
+            <SplitPermissionsBadge />
+            <ShareButton
+              id={blockId}
+              name={chatName()}
+              userPermissions={userPermissions()}
+              itemType="chat"
+            />
+          </div>
+        </div>
+      </SplitToolbarRight>
+    </>
+  );
+}
 
 export function Chat(props: { data: ChatData }) {
   const canEdit = useCanEdit();
@@ -178,7 +279,7 @@ export function Chat(props: { data: ChatData }) {
       class="size-full bg-panel overscroll-none overflow-hidden flex flex-col"
       uploadQueue={uploadQueue}
     >
-      <TopBar />
+      <ChatTopBar />
       <div class="size-full flex-1 min-h-0 p-2">
         <div data-chat-scroll class="h-full min-h-0 overflow-auto">
           <div class="mx-auto w-full max-w-3xl">
