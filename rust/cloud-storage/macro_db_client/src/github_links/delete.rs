@@ -14,8 +14,7 @@ pub async fn delete_link_by_id(pool: &PgPool, link_id: Uuid) -> anyhow::Result<u
         link_id
     )
     .execute(pool)
-    .await
-    .with_context(|| format!("Failed to delete GitHub link with ID {}", link_id))?;
+    .await?;
 
     Ok(result.rows_affected())
 }
@@ -35,13 +34,7 @@ pub async fn delete_link_by_fusionauth_user_id(
         fusionauth_user_id
     )
     .execute(pool)
-    .await
-    .with_context(|| {
-        format!(
-            "Failed to delete GitHub link for fusionauth_user_id {}",
-            fusionauth_user_id
-        )
-    })?;
+    .await?;
 
     Ok(result.rows_affected())
 }

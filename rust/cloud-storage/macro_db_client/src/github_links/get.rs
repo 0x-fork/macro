@@ -32,13 +32,7 @@ pub async fn get_link_by_fusionauth_user_id(
         fusionauth_user_id
     )
     .fetch_optional(pool)
-    .await
-    .with_context(|| {
-        format!(
-            "Failed to fetch GitHub link for fusionauth_user_id {}",
-            fusionauth_user_id
-        )
-    })?;
+    .await?;
 
     Ok(link)
 }
@@ -57,8 +51,7 @@ pub async fn get_link_by_id(pool: &PgPool, link_id: Uuid) -> anyhow::Result<Opti
         link_id
     )
     .fetch_optional(pool)
-    .await
-    .with_context(|| format!("Failed to fetch GitHub link with ID {}", link_id))?;
+    .await?;
 
     Ok(link)
 }
@@ -80,13 +73,7 @@ pub async fn get_link_by_github_user_id(
         github_user_id
     )
     .fetch_optional(pool)
-    .await
-    .with_context(|| {
-        format!(
-            "Failed to fetch GitHub link for github_user_id {}",
-            github_user_id
-        )
-    })?;
+    .await?;
 
     Ok(link)
 }

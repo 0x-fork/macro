@@ -62,7 +62,7 @@ pub async fn create_github_link(
                 error_msg=%e.to_string(),
                 "github_links INSERT query failed"
             );
-            Err(e).with_context(|| format!("Failed to create GitHub link for user {}", link.fusionauth_user_id))
+            Err(e)
         }
     }
 }
