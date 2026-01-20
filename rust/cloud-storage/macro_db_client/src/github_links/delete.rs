@@ -1,4 +1,3 @@
-use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
 
