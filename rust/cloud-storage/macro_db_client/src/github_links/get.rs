@@ -44,7 +44,7 @@ pub async fn get_link_by_id(pool: &PgPool, link_id: Uuid) -> anyhow::Result<Opti
     let link = sqlx::query_as!(
         GitHubLink,
         r#"
-        SELECT id, macro_id, fusionauth_user_id as "fusionauth_user_id: Uuid", github_username, github_user_id, created_at, updated_at
+        SELECT id, macro_id, fusionauth_user_id, github_username, github_user_id, created_at, updated_at
         FROM github_links
         WHERE id = $1
         "#,
@@ -66,7 +66,7 @@ pub async fn get_link_by_github_user_id(
     let link = sqlx::query_as!(
         GitHubLink,
         r#"
-        SELECT id, macro_id, fusionauth_user_id as "fusionauth_user_id: Uuid", github_username, github_user_id, created_at, updated_at
+        SELECT id, macro_id, fusionauth_user_id, github_username, github_user_id, created_at, updated_at
         FROM github_links
         WHERE github_user_id = $1
         "#,
