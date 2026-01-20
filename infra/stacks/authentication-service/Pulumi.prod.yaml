@@ -13,6 +13,8 @@ config:
   authentication-service:fusionauth_issuer: auth.macro.com
   authentication-service:google_client_id: google-client-id-prod
   authentication-service:google_client_secret_key: google-client-secret-prod
+  authentication-service:github_client_id: github-client-id-prod
+  authentication-service:github_client_secret_key: github-client-secret-prod
   authentication-service:macro_api_token_private_secret_key: macro-api-token-private-key-prod
   authentication-service:macro_api_token_expiry_seconds: 3600
   authentication-service:stripe_webhook_secret_key: stripe-webhook-secret-prod
