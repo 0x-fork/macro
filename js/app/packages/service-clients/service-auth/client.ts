@@ -327,6 +327,21 @@ export const authServiceClient = {
       (result) => result
     );
   },
+  async initGithub() {
+    return fetchWithAuth(`${authHost}/github/init`, {
+      method: 'POST',
+    });
+  },
+  async listGithubLinks() {
+    return fetchWithAuth(`${authHost}/github/links`, {
+      method: 'GET',
+    });
+  },
+  async disconnectGithub() {
+    return fetchWithAuth(`${authHost}/github/link`, {
+      method: 'DELETE',
+    });
+  },
 
   // HTTP methods (migrated from RPC)
   async getLegacyUserPermissions() {

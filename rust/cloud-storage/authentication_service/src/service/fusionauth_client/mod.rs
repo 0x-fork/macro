@@ -1,5 +1,6 @@
 pub mod apple;
 pub mod error;
+pub mod github;
 pub mod google;
 pub mod identity_provider;
 pub mod jwt;
@@ -74,6 +75,10 @@ pub struct FusionAuthClient {
     google_client_id: String,
     /// The client secret for Google identity provider
     google_client_secret: String,
+    /// The client ID for GitHub identity provider
+    github_client_id: String,
+    /// The client secret for GitHub identity provider
+    github_client_secret: String,
 }
 
 impl FusionAuthClient {
@@ -87,6 +92,8 @@ impl FusionAuthClient {
         oauth_redirect_uri: String,
         google_client_id: String,
         google_client_secret: String,
+        github_client_id: String,
+        github_client_secret: String,
     ) -> Self {
         let auth_client = AuthedClient::new(api_key);
         let unauth_client = UnauthedClient::new();
@@ -101,6 +108,8 @@ impl FusionAuthClient {
             unauth_client,
             google_client_id,
             google_client_secret,
+            github_client_id,
+            github_client_secret,
         }
     }
 

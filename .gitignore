@@ -4,3 +4,5 @@
 .idea/
 **/.DS_Store
 .run/
+.claude/settings.local.json
+.claude/anthropic_key.sh

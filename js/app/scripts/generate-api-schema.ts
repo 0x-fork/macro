@@ -118,7 +118,13 @@ const processService = async (service: Service, { serviceClientsDir }: { service
     console.log(`[${service.name}] Saved OpenAPI spec`);
 
     // Run orval to generate types
-    await $`cd ${serviceClientsDir} && bun run orval --config orval.config.ts --project ${service.orvalKey}`.quiet();
+    await $`cd ${serviceClientsDir} && bun run orval --config orval.config.ts --project ${service.orvalKey}`;
+
+    // Organize imports in generated files to ensure deterministic ordering
+    // Use relative path to work around biome bug where absolute Windows paths with spaces
+    // are incorrectly split (https://github.com/biomejs/biome - Windows path parsing bug)
+    const relativeOutputDir = path.relative(process.cwd(), outputDir);
+    await $`bunx biome check --write --unsafe ${relativeOutputDir}`;
 
     // Special handling for document-cognition
     if (service.name === 'document-cognition') {

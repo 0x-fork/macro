@@ -9,6 +9,10 @@ use utoipa::OpenApi;
 use crate::api::email::generate_email_link::GenerateEmailLinkRequest;
 use crate::api::email::resend_fusionauth_verify_user_email::ResendFusionauthVerifyUserEmailRequest;
 use crate::api::jwt::macro_api_token::MacroApiTokenResponse;
+// TODO: Temporarily disabled for other developer's migration
+// use crate::api::github::get::*;
+// use crate::api::github::init::*;
+// use crate::api::github::list::*;
 use crate::api::link::create_in_progress_link::CreateInProgressLinkResponse;
 use crate::api::merge::create_merge_request::CreateAccountMergeRequest;
 use crate::api::team::create_team::CreateTeamRequest;
@@ -103,6 +107,13 @@ use model::user::{
                 email::generate_email_link::handler,
                 email::verify_email_link::handler,
 
+                // TODO: Temporarily disabled for other developer's migration
+                // /// /github
+                // github::init::handler,
+                // github::list::handler,
+                // github::get::handler,
+                // github::disconnect::handler,
+
                 /// /team
                 team::create_team::handler,
                 team::delete_team::handler,
@@ -146,6 +157,14 @@ use model::user::{
                         ResendFusionauthVerifyUserEmailRequest,
                         GenerateEmailLinkRequest,
                         CreateInProgressLinkResponse,
+
+                        // TODO: Temporarily disabled for other developer's migration
+                        // // GitHub
+                        // InitGitHubResponse,
+                        // ListGitHubLinksResponse,
+                        // GitHubLinkInfo,
+                        // GitHubCredentialsResponse,
+
                         UserQuota,
                         UserOrganizationResponse,
                         GetLegacyUserPermissionsResponse,

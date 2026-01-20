@@ -37,6 +37,12 @@ pub struct Config {
     pub google_client_id: String,
     /// Google client secret key
     pub google_client_secret_key: String,
+    /// GitHub client id
+    pub github_client_id: String,
+    /// GitHub client secret key
+    pub github_client_secret_key: String,
+    /// GitHub identity provider ID in FusionAuth
+    pub github_idp_id: String,
 
     /// Stripe secret key
     pub stripe_secret_key: String,
@@ -93,6 +99,12 @@ impl Config {
             std::env::var("GOOGLE_CLIENT_ID").context("GOOGLE_CLIENT_ID must be provided")?;
         let google_client_secret_key = std::env::var("GOOGLE_CLIENT_SECRET_KEY")
             .context("GOOGLE_CLIENT_SECRET_KEY must be provided")?;
+        let github_client_id =
+            std::env::var("GITHUB_CLIENT_ID").context("GITHUB_CLIENT_ID must be provided")?;
+        let github_client_secret_key = std::env::var("GITHUB_CLIENT_SECRET_KEY")
+            .context("GITHUB_CLIENT_SECRET_KEY must be provided")?;
+        let github_idp_id =
+            std::env::var("GITHUB_IDP_ID").context("GITHUB_IDP_ID must be provided")?;
 
         let stripe_secret_key =
             std::env::var("STRIPE_SECRET_KEY").context("STRIPE_SECRET_KEY must be provided")?;
@@ -136,6 +148,9 @@ impl Config {
             fusionauth_oauth_redirect_uri,
             google_client_id,
             google_client_secret_key,
+            github_client_id,
+            github_client_secret_key,
+            github_idp_id,
             stripe_secret_key,
             port,
             comms_service_url,

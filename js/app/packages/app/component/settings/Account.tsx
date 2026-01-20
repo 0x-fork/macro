@@ -32,6 +32,10 @@ import {
     useEmailLinks,
   useEmailLinksStatus,
 } from '@core/email-link';
+import {
+  useGitHubLinks,
+  useGitHubLinksStatus,
+} from '@core/github-link';
 import { BetaTooltip } from '../BetaTooltip';
 import {
   type SupportedNotificationSettings,
@@ -71,8 +75,10 @@ export function Account() {
   const { showPaywall } = usePaywallState();
   const hasPaidAccess = useHasPaidAccess();
   const [showEmailModal, setShowEmailModal] = createSignal<boolean>(false);
+  const [showGitHubModal, setShowGitHubModal] = createSignal<boolean>(false);
 
   const { connect: connectEmail, disconnect: disconnectEmail } = useEmailLinks();
+  const { connect: connectGitHub, disconnect: disconnectGitHub } = useGitHubLinks();
 
   const userName = useUserName();
   const [updatedFirstName, setUpdatedFirstName] = createSignal<
@@ -83,6 +89,7 @@ export function Account() {
   >(undefined);
 
   const emailActive = useEmailLinksStatus();
+  const githubActive = useGitHubLinksStatus();
   const [showTooltip, setShowTooltip] = createSignal<boolean>(false);
 
   const firstName = () => {
@@ -263,6 +270,54 @@ export function Account() {
                 text="Cancel"
                 onClick={() => {
                   setShowEmailModal(false);
+                }}
+              />
+            </div>
+          </div>
+        </Show>
+        <Show when={!githubActive()}>
+          <div class="flex items-center justify-between mb-[18px]">
+            <div class="text-sm">GitHub</div>
+            <DeprecatedTextButton
+              theme="base"
+              text="Connect"
+              onClick={connectGitHub}
+            />
+          </div>
+        </Show>
+        <Show when={githubActive()}>
+          <div
+            class={`flex items-center justify-between ${!showGitHubModal() && 'mb-[18px]'}`}
+          >
+            <div class="text-sm">GitHub</div>
+            <DeprecatedTextButton
+              theme="base"
+              text="Disconnect"
+              onClick={() => {
+                setShowGitHubModal(true);
+              }}
+            />
+          </div>
+        </Show>
+        <Show when={showGitHubModal()}>
+          <div class="flex flex-row items-center">
+            <div class="mb-[18px] text-sm pt-4">
+              Disconnecting will remove GitHub integration
+            </div>
+            <div class="ml-auto flex flex-row">
+              <DeprecatedTextButton
+                theme="clear"
+                text="Confirm"
+                onClick={() => {
+                  disconnectGitHub();
+                  setShowGitHubModal(false);
+                }}
+              />
+              <DeprecatedTextButton
+                theme="clear"
+                text="Cancel"
+                onClick={() => {
+                  setShowGitHubModal(false);
                 }}
               />
             </div>

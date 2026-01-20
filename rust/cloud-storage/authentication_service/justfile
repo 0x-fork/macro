@@ -28,3 +28,16 @@ create_queue:
 
 run-local:
     SQLX_OFFLINE=true cargo run --features macro_middleware/local_auth
+
+# Fetch secrets from AWS Secrets Manager and create .env file
+fetch-secrets env="dev":
+    python fetch-secrets.py --env {{env}}
+
+# Fetch secrets and run the service
+run-with-aws-secrets env="dev":
+    python fetch-secrets.py --env {{env}}
+    just run
+
+# List available secrets in AWS
+list-secrets env="dev":
+    python fetch-secrets.py --env {{env}} --list

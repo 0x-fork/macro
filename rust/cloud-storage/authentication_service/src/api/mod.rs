@@ -18,6 +18,7 @@ pub(crate) mod context;
 // Routes
 #[allow(unused_imports)]
 mod email;
+mod github;
 #[allow(unused_imports)]
 mod link;
 #[allow(unused_imports)]
@@ -81,6 +82,7 @@ fn api_router(state: ApiContext) -> Router<ApiContext> {
         .nest("/logout", logout::router(state.jwt_args.clone()))
         .nest("/oauth", oauth::router(state.clone()))
         .nest("/oauth2", oauth2::router())
+        .nest("/github", github::router(state.jwt_args.clone()))
         .nest("/user", user::router(state.clone(), state.jwt_args.clone()))
         .nest(
             "/team",

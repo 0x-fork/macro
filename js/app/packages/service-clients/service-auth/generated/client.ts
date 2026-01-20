@@ -21,7 +21,10 @@ import type {
   GetProfilePicturesRequestBody,
   GetUserInfo,
   GetUserLinkExistsParams,
+  GitHubCredentialsResponse,
+  InitGitHubResponse,
   InviteToTeamRequest,
+  ListGitHubLinksResponse,
   MacroApiTokenParams,
   MacroApiTokenResponse,
   PasswordlessCallbackParams,
@@ -257,6 +260,249 @@ export const verifyEmailLink = async (
     status: res.status,
     headers: res.headers,
   } as verifyEmailLinkResponse;
+};
+
+/**
+ * @summary Gets GitHub access token and credentials for the authenticated user
+ */
+export type getGithubCredentialsResponse200 = {
+  data: GitHubCredentialsResponse;
+  status: 200;
+};
+
+export type getGithubCredentialsResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type getGithubCredentialsResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type getGithubCredentialsResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type getGithubCredentialsResponseSuccess =
+  getGithubCredentialsResponse200 & {
+    headers: Headers;
+  };
+export type getGithubCredentialsResponseError = (
+  | getGithubCredentialsResponse401
+  | getGithubCredentialsResponse404
+  | getGithubCredentialsResponse500
+) & {
+  headers: Headers;
+};
+
+export type getGithubCredentialsResponse =
+  | getGithubCredentialsResponseSuccess
+  | getGithubCredentialsResponseError;
+
+export const getGetGithubCredentialsUrl = () => {
+  return `/github/credentials`;
+};
+
+export const getGithubCredentials = async (
+  options?: RequestInit
+): Promise<getGithubCredentialsResponse> => {
+  const res = await fetch(getGetGithubCredentialsUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getGithubCredentialsResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getGithubCredentialsResponse;
+};
+
+/**
+ * @summary Initiates GitHub OAuth flow for integration
+ */
+export type initGithubResponse200 = {
+  data: InitGitHubResponse;
+  status: 200;
+};
+
+export type initGithubResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type initGithubResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type initGithubResponse429 = {
+  data: ErrorResponse;
+  status: 429;
+};
+
+export type initGithubResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type initGithubResponseSuccess = initGithubResponse200 & {
+  headers: Headers;
+};
+export type initGithubResponseError = (
+  | initGithubResponse400
+  | initGithubResponse401
+  | initGithubResponse429
+  | initGithubResponse500
+) & {
+  headers: Headers;
+};
+
+export type initGithubResponse =
+  | initGithubResponseSuccess
+  | initGithubResponseError;
+
+export const getInitGithubUrl = () => {
+  return `/github/init`;
+};
+
+export const initGithub = async (
+  options?: RequestInit
+): Promise<initGithubResponse> => {
+  const res = await fetch(getInitGithubUrl(), {
+    ...options,
+    method: 'POST',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: initGithubResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as initGithubResponse;
+};
+
+/**
+ * @summary Disconnects GitHub account for the authenticated user
+ */
+export type disconnectGithubResponse204 = {
+  data: void;
+  status: 204;
+};
+
+export type disconnectGithubResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type disconnectGithubResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type disconnectGithubResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type disconnectGithubResponseSuccess = disconnectGithubResponse204 & {
+  headers: Headers;
+};
+export type disconnectGithubResponseError = (
+  | disconnectGithubResponse401
+  | disconnectGithubResponse404
+  | disconnectGithubResponse500
+) & {
+  headers: Headers;
+};
+
+export type disconnectGithubResponse =
+  | disconnectGithubResponseSuccess
+  | disconnectGithubResponseError;
+
+export const getDisconnectGithubUrl = () => {
+  return `/github/link`;
+};
+
+export const disconnectGithub = async (
+  options?: RequestInit
+): Promise<disconnectGithubResponse> => {
+  const res = await fetch(getDisconnectGithubUrl(), {
+    ...options,
+    method: 'DELETE',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: disconnectGithubResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as disconnectGithubResponse;
+};
+
+/**
+ * @summary Lists GitHub links for the authenticated user (returns 0 or 1 link due to single account constraint)
+ */
+export type listGithubLinksResponse200 = {
+  data: ListGitHubLinksResponse;
+  status: 200;
+};
+
+export type listGithubLinksResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type listGithubLinksResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type listGithubLinksResponseSuccess = listGithubLinksResponse200 & {
+  headers: Headers;
+};
+export type listGithubLinksResponseError = (
+  | listGithubLinksResponse401
+  | listGithubLinksResponse500
+) & {
+  headers: Headers;
+};
+
+export type listGithubLinksResponse =
+  | listGithubLinksResponseSuccess
+  | listGithubLinksResponseError;
+
+export const getListGithubLinksUrl = () => {
+  return `/github/links`;
+};
+
+export const listGithubLinks = async (
+  options?: RequestInit
+): Promise<listGithubLinksResponse> => {
+  const res = await fetch(getListGithubLinksUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: listGithubLinksResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listGithubLinksResponse;
 };
 
 /**

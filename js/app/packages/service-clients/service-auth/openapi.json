@@ -178,6 +178,195 @@
         }
       }
     },
+    "/github/credentials": {
+      "get": {
+        "tags": ["github::get"],
+        "summary": "Gets GitHub access token and credentials for the authenticated user",
+        "operationId": "get_github_credentials",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubCredentialsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/init": {
+      "post": {
+        "tags": ["github::init"],
+        "summary": "Initiates GitHub OAuth flow for integration",
+        "operationId": "init_github",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitGitHubResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/link": {
+      "delete": {
+        "tags": ["github::disconnect"],
+        "summary": "Disconnects GitHub account for the authenticated user",
+        "operationId": "disconnect_github",
+        "responses": {
+          "204": {
+            "description": "GitHub account disconnected successfully"
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/links": {
+      "get": {
+        "tags": ["github::list"],
+        "summary": "Lists GitHub links for the authenticated user (returns 0 or 1 link due to single account constraint)",
+        "operationId": "list_github_links",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListGitHubLinksResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["health"],
@@ -3042,6 +3231,54 @@
           }
         }
       },
+      "GitHubCredentialsResponse": {
+        "type": "object",
+        "required": ["access_token", "github_username", "github_user_id"],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "github_user_id": {
+            "type": "string"
+          },
+          "github_username": {
+            "type": "string"
+          }
+        }
+      },
+      "GitHubLinkInfo": {
+        "type": "object",
+        "required": ["id", "github_username", "github_user_id", "created_at"],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "github_user_id": {
+            "type": "string"
+          },
+          "github_username": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "InitGitHubResponse": {
+        "type": "object",
+        "required": ["authorization_url", "link_id"],
+        "properties": {
+          "authorization_url": {
+            "type": "string",
+            "description": "The OAuth authorization URL to redirect the user to"
+          },
+          "link_id": {
+            "type": "string",
+            "description": "The link ID for tracking the OAuth flow"
+          }
+        }
+      },
       "InviteToTeamRequest": {
         "type": "object",
         "description": "The request body to invite a user to a team",
@@ -3053,6 +3290,18 @@
               "type": "string"
             },
             "description": "The emails of the users you want to invite to the team"
+          }
+        }
+      },
+      "ListGitHubLinksResponse": {
+        "type": "object",
+        "required": ["links"],
+        "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GitHubLinkInfo"
+            }
           }
         }
       },

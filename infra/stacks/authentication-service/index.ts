@@ -61,6 +61,13 @@ const GOOGLE_CLIENT_ID = aws.secretsmanager
     secretId: googleClientId,
   })
   .apply((secret) => secret.secretString);
+const GITHUB_CLIENT_SECRET_KEY = config.require(`github_client_secret_key`);
+const githubClientId = config.require(`github_client_id`);
+const GITHUB_CLIENT_ID = aws.secretsmanager
+  .getSecretVersionOutput({
+    secretId: githubClientId,
+  })
+  .apply((secret) => secret.secretString);
 
 // Using the 5 secret names
 // We need to grab their arns so we can create a policy to allow them to be retrieved by service
@@ -95,6 +102,10 @@ const googleClientSecretKeyArn: pulumi.Output<string> = aws.secretsmanager
   .getSecretVersionOutput({ secretId: GOOGLE_CLIENT_SECRET_KEY })
   .apply((secret) => secret.arn);
 
+const githubClientSecretKeyArn: pulumi.Output<string> = aws.secretsmanager
+  .getSecretVersionOutput({ secretId: GITHUB_CLIENT_SECRET_KEY })
+  .apply((secret) => secret.arn);
+
 const STRIPE_PRICE_ID_KEY = config.require(`stripe_price_id`);
 
 const stripePriceIdArn: pulumi.Output<string> = aws.secretsmanager
@@ -127,6 +138,7 @@ const secretKeyArns = [
   pulumi.interpolate`${fusionauthClientSecretKeyArn}`,
   pulumi.interpolate`${stripeSecretKeyArn}`,
   pulumi.interpolate`${googleClientSecretKeyArn}`,
+  pulumi.interpolate`${githubClientSecretKeyArn}`,
   pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKeyArn}`,
   pulumi.interpolate`${macroApiTokenSecretPrivateKeyArn}`,
   pulumi.interpolate`${stripeWebhookSecretKeyArn}`,
@@ -219,6 +231,14 @@ const service = new AuthenticationService('authentication-service', {
     {
       name: 'GOOGLE_CLIENT_SECRET_KEY',
       value: pulumi.interpolate`${GOOGLE_CLIENT_SECRET_KEY}`,
+    },
+    {
+      name: 'GITHUB_CLIENT_ID',
+      value: pulumi.interpolate`${GITHUB_CLIENT_ID}`,
+    },
+    {
+      name: 'GITHUB_CLIENT_SECRET_KEY',
+      value: pulumi.interpolate`${GITHUB_CLIENT_SECRET_KEY}`,
     },
     {
       name: 'AUDIENCE',
