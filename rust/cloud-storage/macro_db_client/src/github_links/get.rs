@@ -17,7 +17,7 @@ pub struct GitHubLink {
 
 /// Fetches a GitHub link by FusionAuth user ID.
 /// Returns None if no link exists for the user.
-#[tracing::instrument(skip(pool), level = "info")]
+#[tracing::instrument(skip(pool), level = "err")]
 pub async fn get_link_by_fusionauth_user_id(
     pool: &PgPool,
     fusionauth_user_id: Uuid,
@@ -39,7 +39,7 @@ pub async fn get_link_by_fusionauth_user_id(
 
 /// Fetches a GitHub link by its ID.
 /// Returns None if no link with the given ID exists.
-#[tracing::instrument(skip(pool), level = "info")]
+#[tracing::instrument(skip(pool), level = "err")]
 pub async fn get_link_by_id(pool: &PgPool, link_id: Uuid) -> anyhow::Result<Option<GitHubLink>> {
     let link = sqlx::query_as!(
         GitHubLink,
@@ -58,7 +58,7 @@ pub async fn get_link_by_id(pool: &PgPool, link_id: Uuid) -> anyhow::Result<Opti
 
 /// Fetches a GitHub link by GitHub user ID.
 /// Returns None if no link exists for the GitHub user.
-#[tracing::instrument(skip(pool), level = "info")]
+#[tracing::instrument(skip(pool), level = "err")]
 pub async fn get_link_by_github_user_id(
     pool: &PgPool,
     github_user_id: &str,

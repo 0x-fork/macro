@@ -24,11 +24,6 @@ pub async fn create_github_link(
     link: GitHubLink,
 ) -> anyhow::Result<GitHubLink> {
     tracing::info!(
-        id=%link.id,
-        macro_id=%link.macro_id,
-        fusionauth_user_id=%link.fusionauth_user_id,
-        github_username=%link.github_username,
-        github_user_id=%link.github_user_id,
         "executing INSERT query for github_links"
     );
 
@@ -50,7 +45,7 @@ pub async fn create_github_link(
 
     match result {
         Ok(query_result) => {
-            tracing::info!(
+            tracing::trace!(
                 rows_affected=%query_result.rows_affected(),
                 "github_links INSERT query succeeded"
             );
