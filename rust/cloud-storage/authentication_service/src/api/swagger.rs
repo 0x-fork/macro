@@ -29,7 +29,7 @@ use crate::api::user::stripe::{
     CreateCheckoutSessionRequest, CreatePortalSessionRequest, StripeSessionResponse,
 };
 use crate::api::{
-    email, health, jwt, link, login, logout, merge, oauth, oauth2, permissions, session, team, user,
+    email, github, health, jwt, link, login, logout, merge, oauth, oauth2, permissions, session, team, user,
 };
 use model::authentication::login::response::SsoRequiredResponse;
 use model::authentication::{
