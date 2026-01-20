@@ -52,12 +52,8 @@ pub async fn create_github_link(
             Ok(link)
         }
         Err(e) => {
-            tracing::error!(
-                error=?e,
-                error_msg=%e.to_string(),
-                "github_links INSERT query failed"
-            );
-            Err(e)
+            tracing::error!(error=?e, "github_links INSERT query failed");
+            anyhow::bail!("github_links INSERT query failed: {}", e);
         }
     }
 }
