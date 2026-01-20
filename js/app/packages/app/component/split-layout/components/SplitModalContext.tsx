@@ -57,6 +57,8 @@ const itemTypeToEntityType = (itemType: ItemType): EntityData['type'] => {
       return 'chat';
     case 'project':
       return 'project';
+    case 'channel':
+      return 'channel';
     default:
       return 'document'; // fallback
   }

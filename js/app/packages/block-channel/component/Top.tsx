@@ -1,10 +1,17 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import {
+  type FileOperation,
+  SplitFileMenu,
+} from '@app/component/split-layout/components/SplitFileMenu';
+import {
   SplitHeaderLeft,
   SplitHeaderRight,
 } from '@app/component/split-layout/components/SplitHeader';
 import { SplitLabel } from '@app/component/split-layout/components/SplitLabel';
-import { SplitToolbarRight } from '@app/component/split-layout/components/SplitToolbar';
+import {
+  SplitToolbarLeft,
+  SplitToolbarRight,
+} from '@app/component/split-layout/components/SplitToolbar';
 import { useBlockId } from '@core/block';
 import { useChannelName } from '@core/context/channels';
 import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
@@ -78,6 +85,10 @@ export function Top(props: { channelID: string }) {
     return channel.data?.channel?.name ?? _channelName() ?? 'New Channel';
   };
 
+  const ops: FileOperation[] = [
+    { op: 'rename' },
+  ];
+
   return (
     <>
       <SplitHeaderLeft>
@@ -98,6 +109,16 @@ export function Top(props: { channelID: string }) {
       <SplitHeaderRight>
         <BlockLiveIndicators />
       </SplitHeaderRight>
+      <SplitToolbarLeft>
+        <div class="p-1">
+          <SplitFileMenu
+            id={blockId}
+            itemType="channel"
+            name={channelName()}
+            ops={ops}
+          />
+        </div>
+      </SplitToolbarLeft>
       <SplitToolbarRight>
         <div class="p-1 flex flex-row gap-1 items-center h-full">
           <Show when={channelType() === 'public'}>
