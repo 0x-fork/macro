@@ -36,6 +36,7 @@ pub(crate) struct ApiContext {
     pub internal_api_key: LocalOrRemoteSecret<InternalApiSecretKey>,
     pub stripe_webhook_secret: LocalOrRemoteSecret<StripeWebhookSecretKey>,
     pub github_idp_id: String,
+    pub github_config: github_integration::GitHubConfig,
     pub user_roles_and_permissions_service:
         Arc<UserRolesAndPermissionsServiceImpl<MacroDB, MacroDB>>, // Note: since FromRef doesn't support generics we have to specify the concrete types here
     pub teams_service: Arc<

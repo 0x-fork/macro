@@ -1,9 +1,8 @@
-use std::borrow::Cow;
-
 use axum::{
     Json,
     response::{Html, IntoResponse, Response},
 };
+use github_integration::{GitHubOAuthClient, link_github_account};
 use model::response::ErrorResponse;
 use reqwest::StatusCode;
 use tower_cookies::Cookies;
@@ -15,13 +14,9 @@ use crate::api::{
         login::{self},
     },
 };
-use authentication_service::service::fusionauth_client::identity_provider::{
-    IdentityProviderLink, LinkUserRequest,
-};
 
 async fn link_user(
     ctx: &ApiContext,
-    identity_provider_id: &str,
     code: &str,
     link_id: &str,
 ) -> Result<(), (StatusCode, String)> {
@@ -31,94 +26,56 @@ async fn link_user(
             .await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // Exchange code for GitHub tokens
-    let token_response = ctx
-        .auth_client
-        .exchange_github_code_for_tokens(code, &format_redirect_uri("github"))
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("unable to exchange code for tokens {e}"),
-            )
-        })?;
+    // Use github_integration to link the account
+    let oauth_client = GitHubOAuthClient::new();
+    let user_info = link_github_account(
+        &ctx.db,
+        &*ctx.auth_client,
+        &oauth_client,
+        &ctx.github_config,
+        &format_redirect_uri("github"),
+        code,
+        macro_user_id,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(error=?e, "failed to link GitHub account");
 
-    // Get GitHub user info
-    let user_info = ctx
-        .auth_client
-        .get_github_user_info(&token_response.access_token)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!("unable to get github user info: {e}"),
-            )
-        })?;
+        let (status_code, message) = match e {
+            github_integration::GitHubIntegrationError::AccountAlreadyLinked => {
+                (StatusCode::CONFLICT, "This GitHub account is already linked to another Macro account")
+            }
+            github_integration::GitHubIntegrationError::TokenExchangeFailed(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "OAuth token exchange failed")
+            }
+            github_integration::GitHubIntegrationError::UserInfoFailed(ref msg)
+                if msg.contains("verify") || msg.contains("email") => {
+                (StatusCode::BAD_REQUEST, msg.as_str())
+            }
+            github_integration::GitHubIntegrationError::UserInfoFailed(_) => {
+                (StatusCode::BAD_REQUEST, "failed to retrieve GitHub user information")
+            }
+            github_integration::GitHubIntegrationError::FusionAuthLinkingFailed(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "unable to link GitHub account")
+            }
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, "unable to link GitHub account"),
+        };
 
-    // Link the GitHub account to the existing Macro user in FusionAuth
-    ctx.auth_client
-        .link_user(LinkUserRequest {
-            identity_provider_link: IdentityProviderLink {
-                display_name: Cow::Borrowed(&user_info.login),
-                identity_provider_id: Cow::Borrowed(identity_provider_id),
-                identity_provider_user_id: Cow::Borrowed(&user_info.id.to_string()),
-                user_id: Cow::Borrowed(&macro_user_id.to_string()),
-                token: Cow::Borrowed(&token_response.access_token),
-            },
-        })
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("unable to link GitHub account to user: {e}"),
-            )
-        })?;
-
-    // Create github_links database record
-    let github_link = macro_db_client::github_links::insert::GitHubLink {
-        id: macro_uuid::generate_uuid_v7(),
-        macro_id: macro_user_id.to_string(),
-        fusionauth_user_id: macro_user_id,
-        github_username: user_info.login.clone(),
-        github_user_id: user_info.id.to_string(),
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
-    };
-
-    macro_db_client::github_links::insert::create_github_link(&ctx.db, github_link)
-        .await
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to create github_links record");
-            // Try to clean up FusionAuth link
-            let cleanup_ctx = ctx.clone();
-            let cleanup_user_id = macro_user_id.to_string();
-            let cleanup_github_id = user_info.id.to_string();
-            let cleanup_github_idp_id = identity_provider_id.to_string();
-            tokio::spawn(async move {
-                let _ = cleanup_ctx
-                    .auth_client
-                    .unlink_user(&cleanup_user_id, &cleanup_github_idp_id, &cleanup_github_id)
-                    .await;
-            });
-
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("unable to save GitHub link: {e}"),
-            )
-        })?;
+        (status_code, message.to_string())
+    })?;
 
     tracing::info!(
         fusionauth_user_id=%macro_user_id,
         github_user_id=%user_info.id,
         github_username=%user_info.login,
-        "successfully created GitHub link"
+        "successfully linked GitHub account"
     );
 
-    // delete in_progress_user_link once complete
+    // Delete in_progress_user_link
     let _ = macro_db_client::in_progress_user_link::delete_in_progress_user_link(&ctx.db, link_id)
         .await
         .inspect_err(|e| {
-            tracing::error!(error=?e, "unable to delete in progress user link");
+            tracing::error!(error=?e, "failed to delete in_progress_user_link");
         });
 
     Ok(())
@@ -133,7 +90,7 @@ pub(in crate::api::oauth2) async fn handler(
     // if the link id is provided, this user is already logged in to an account. therefore, we
     // don't need to handle completing the login through fusionauth
     if let Some(link_id) = state.link_id.as_ref() {
-        link_user(ctx, &state.identity_provider_id, code, link_id)
+        link_user(ctx, code, link_id)
             .await
             .map_err(|(status_code, error)| {
                 tracing::error!(error=?error, "unable to link user");

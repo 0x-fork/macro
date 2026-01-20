@@ -7,14 +7,10 @@ use axum::{
 use uuid::Uuid;
 
 use crate::api::context::ApiContext;
+use github_integration::get_github_credentials;
 use model::{response::ErrorResponse, user::UserContext};
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, utoipa::ToSchema)]
-pub struct GitHubCredentialsResponse {
-    pub access_token: String,
-    pub github_username: String,
-    pub github_user_id: String,
-}
+pub use github_integration::GitHubCredentialsResponse;
 
 /// Gets GitHub access token and credentials for the authenticated user
 #[utoipa::path(
@@ -47,64 +43,28 @@ pub async fn handler(
             .into_response()
     })?;
 
-    // Fetch GitHub link from database
-    let link = macro_db_client::github_links::get::get_link_by_fusionauth_user_id(
+    // Use github_integration to get credentials
+    let credentials = get_github_credentials(
         &ctx.db,
+        &*ctx.auth_client,
+        &ctx.github_config,
         fusion_user_id,
     )
     .await
     .map_err(|e| {
-        tracing::error!(error=?e, "failed to fetch GitHub link");
+        tracing::error!(error=?e, "failed to get GitHub credentials");
+
+        let (status_code, message) = match e {
+            github_integration::GitHubIntegrationError::NotLinked => {
+                (StatusCode::NOT_FOUND, "GitHub account not linked")
+            }
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, "unable to retrieve GitHub credentials"),
+        };
+
         (
-            StatusCode::INTERNAL_SERVER_ERROR,
+            status_code,
             Json(ErrorResponse {
-                message: "unable to fetch GitHub link",
-            }),
-        )
-            .into_response()
-    })?;
-
-    let link = link.ok_or_else(|| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                message: "GitHub account not linked",
-            }),
-        )
-            .into_response()
-    })?;
-
-    // Get GitHub integration identity provider ID from context
-    let github_idp_id = &ctx.github_idp_id;
-
-    // Retrieve identity provider links from FusionAuth
-    let links = ctx
-        .auth_client
-        .get_links(&user_context.fusion_user_id, Some(github_idp_id.to_string()))
-        .await
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to get FusionAuth links");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    message: "unable to retrieve GitHub credentials",
-                }),
-            )
-                .into_response()
-        })?;
-
-    // Find the GitHub link
-    let fusionauth_link = links.into_iter().find(|l| {
-        l.identity_provider_id == *github_idp_id
-            && l.identity_provider_user_id == link.github_user_id
-    });
-
-    let fusionauth_link = fusionauth_link.ok_or_else(|| {
-        tracing::error!("GitHub link exists in database but not in FusionAuth");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                message: "GitHub credentials not found",
+                message,
             }),
         )
             .into_response()
@@ -112,11 +72,7 @@ pub async fn handler(
 
     Ok((
         StatusCode::OK,
-        Json(GitHubCredentialsResponse {
-            access_token: fusionauth_link.token,
-            github_username: link.github_username,
-            github_user_id: link.github_user_id,
-        }),
+        Json(credentials),
     )
         .into_response())
 }

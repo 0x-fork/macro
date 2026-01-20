@@ -41,6 +41,7 @@ members = [
   "entity_access",
   "experiment_service",
   "frecency",
+  "github_integration",
   "gmail_client",
   "integration_tests/*",
   "lambda_client",

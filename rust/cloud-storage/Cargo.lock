@@ -511,6 +511,7 @@ dependencies = [
  "anyhow",
  "async-stripe",
  "async-stripe-webhook",
+ "async-trait",
  "aws-config",
  "aws-sdk-secretsmanager",
  "aws-sdk-sesv2",
@@ -525,6 +526,7 @@ dependencies = [
  "doppleganger",
  "email_validator",
  "futures",
+ "github_integration",
  "http-body-util",
  "jsonwebtoken",
  "macro_auth",
@@ -3845,6 +3847,27 @@ checksum = "f954a9e9159ec994f73a30a12b96a702dde78f5547bcb561174597924f7d4162"
 dependencies = [
  "color_quant",
  "weezl",
+]
+
+[[package]]
+name = "github_integration"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "macro_uuid",
+ "model",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "urlencoding",
+ "utoipa",
+ "uuid",
 ]
 
 [[package]]

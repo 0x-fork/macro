@@ -8,6 +8,7 @@ use axum::{
 use uuid::Uuid;
 
 use crate::api::context::ApiContext;
+use github_integration::unlink_github_account;
 use model::{response::ErrorResponse, user::UserContext};
 
 /// Disconnects GitHub account for the authenticated user
@@ -41,68 +42,32 @@ pub async fn handler(
             .into_response()
     })?;
 
-    // Fetch GitHub link from database
-    let link = macro_db_client::github_links::get::get_link_by_fusionauth_user_id(
+    // Use github_integration to unlink the account
+    unlink_github_account(
         &ctx.db,
+        &*ctx.auth_client,
+        &ctx.github_config,
         fusion_user_id,
     )
     .await
     .map_err(|e| {
-        tracing::error!(error=?e, "failed to fetch GitHub link");
+        tracing::error!(error=?e, "failed to unlink GitHub account");
+
+        let (status_code, message) = match e {
+            github_integration::GitHubIntegrationError::NotLinked => {
+                (StatusCode::NOT_FOUND, "GitHub account not linked")
+            }
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, "unable to disconnect GitHub account"),
+        };
+
         (
-            StatusCode::INTERNAL_SERVER_ERROR,
+            status_code,
             Json(ErrorResponse {
-                message: "unable to fetch GitHub link",
+                message,
             }),
         )
             .into_response()
     })?;
-
-    let link = link.ok_or_else(|| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(ErrorResponse {
-                message: "GitHub account not linked",
-            }),
-        )
-            .into_response()
-    })?;
-
-    // Get GitHub integration identity provider ID from context
-    let github_idp_id = &ctx.github_idp_id;
-
-    // Unlink from FusionAuth
-    ctx.auth_client
-        .unlink_user(
-            &user_context.fusion_user_id,
-            github_idp_id,
-            &link.github_user_id,
-        )
-        .await
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to unlink from FusionAuth");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    message: "unable to disconnect GitHub account",
-                }),
-            )
-                .into_response()
-        })?;
-
-    // Delete link from database
-    macro_db_client::github_links::delete::delete_link_by_id(&ctx.db, link.id)
-        .await
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to delete GitHub link from database");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    message: "unable to delete GitHub link",
-                }),
-            )
-                .into_response()
-        })?;
 
     Ok(StatusCode::NO_CONTENT.into_response())
 }

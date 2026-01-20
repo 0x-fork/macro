@@ -40,8 +40,6 @@ pub async fn main() -> anyhow::Result<()> {
         "FUSIONAUTH_OAUTH_REDIRECT_URI".to_string(), // not used in script so can be ignored
         "GOOGLE_CLIENT_ID".to_string(),              // not used in script so can be ignored
         "GOOGLE_CLIENT_SECRET".to_string(),          // not used in script so can be ignored
-        "GITHUB_CLIENT_ID".to_string(),              // not used in script so can be ignored
-        "GITHUB_CLIENT_SECRET".to_string(),          // not used in script so can be ignored
     );
 
     loop {

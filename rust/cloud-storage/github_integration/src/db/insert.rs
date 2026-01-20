@@ -1,30 +1,13 @@
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use uuid::Uuid;
 
-/// Represents a GitHub link record to be inserted
-#[derive(Debug, Clone)]
-pub struct GitHubLink {
-    pub id: Uuid,
-    pub macro_id: String,
-    pub fusionauth_user_id: Uuid,
-    pub github_username: String,
-    pub github_user_id: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
+use crate::models::GitHubLink;
 
 /// Creates a new GitHub link record in the database.
 /// Returns an error if the user already has a GitHub link or if the GitHub account
 /// is already linked to another user (enforced by unique constraints).
 #[tracing::instrument(skip(pool), err)]
-pub async fn create_github_link(
-    pool: &PgPool,
-    link: GitHubLink,
-) -> anyhow::Result<GitHubLink> {
-    tracing::info!(
-        "executing INSERT query for github_links"
-    );
+pub async fn create_github_link(pool: &PgPool, link: GitHubLink) -> anyhow::Result<GitHubLink> {
+    tracing::info!("executing INSERT query for github_links");
 
     let result = sqlx::query!(
         r#"

@@ -4,19 +4,12 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::api::context::ApiContext;
 use model::{response::ErrorResponse, user::UserContext};
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, utoipa::ToSchema)]
-pub struct GitHubLinkInfo {
-    pub id: String,
-    pub github_username: String,
-    pub github_user_id: String,
-    pub created_at: DateTime<Utc>,
-}
+pub use github_integration::GitHubLinkInfo;
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, utoipa::ToSchema)]
 pub struct ListGitHubLinksResponse {
@@ -53,7 +46,7 @@ pub async fn handler(
             .into_response()
     })?;
 
-    let link = macro_db_client::github_links::get::get_link_by_fusionauth_user_id(
+    let link = github_integration::db::get_link_by_fusionauth_user_id(
         &ctx.db,
         fusion_user_id,
     )

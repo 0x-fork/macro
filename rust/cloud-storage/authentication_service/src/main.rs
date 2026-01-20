@@ -128,6 +128,13 @@ async fn main() -> anyhow::Result<()> {
             .to_string(),
     };
 
+    // Create GitHub configuration for github_integration crate
+    let github_config = github_integration::GitHubConfig::new(
+        config.github_client_id.clone(),
+        github_client_secret.clone(),
+        config.github_idp_id.clone(),
+    );
+
     let stripe_price_id = match config.environment {
         Environment::Local => config.stripe_price_id.clone(),
         _ => secretsmanager_client
@@ -146,8 +153,6 @@ async fn main() -> anyhow::Result<()> {
         config.fusionauth_oauth_redirect_uri.clone(),
         config.google_client_id.clone(),
         google_client_secret,
-        config.github_client_id.clone(),
-        github_client_secret,
     );
     tracing::trace!("initialized auth client");
 
@@ -246,6 +251,7 @@ async fn main() -> anyhow::Result<()> {
             internal_api_key,
             stripe_webhook_secret,
             github_idp_id: config.github_idp_id,
+            github_config,
             user_roles_and_permissions_service: Arc::new(user_roles_and_permissions_service),
             teams_service: Arc::new(teams_service_impl),
             native_app_service: Arc::new(NativeAppServiceImpl {

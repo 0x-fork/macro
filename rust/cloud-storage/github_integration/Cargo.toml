@@ -1,0 +1,24 @@
+[package]
+edition = "2024"
+name = "github_integration"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+
+# Path dependencies
+macro_uuid = { path = "../macro_uuid" }
+model = { path = "../model" }

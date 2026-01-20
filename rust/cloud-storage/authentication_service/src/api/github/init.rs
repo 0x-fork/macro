@@ -9,6 +9,7 @@ use uuid::Uuid;
 use crate::api::context::ApiContext;
 use crate::api::oauth2::OAuthState;
 use model::{response::ErrorResponse, user::UserContext};
+use github_integration::GitHubOAuthClient;
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, utoipa::ToSchema)]
 pub struct InitGitHubResponse {
@@ -51,7 +52,7 @@ pub async fn handler(
     })?;
 
     // Check if user already has a GitHub link
-    let existing_link = macro_db_client::github_links::get::get_link_by_fusionauth_user_id(
+    let existing_link = github_integration::db::get_link_by_fusionauth_user_id(
         &ctx.db,
         fusion_user_id,
     )
@@ -135,9 +136,9 @@ pub async fn handler(
 
     // Build GitHub OAuth URL
     let redirect_uri = crate::api::oauth2::format_redirect_uri("github");
-    let authorization_url = ctx
-        .auth_client
-        .construct_github_authorize_url(&redirect_uri, state)
+    let oauth_client = GitHubOAuthClient::new();
+    let authorization_url = oauth_client
+        .construct_authorize_url(&ctx.github_config, &redirect_uri, state)
         .map_err(|e| {
             tracing::error!(error=?e, "failed to construct GitHub OAuth URL");
             (

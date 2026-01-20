@@ -1,22 +1,12 @@
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-/// Represents a GitHub link record from the database
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub struct GitHubLink {
-    pub id: Uuid,
-    pub macro_id: String,
-    pub fusionauth_user_id: Uuid,
-    pub github_username: String,
-    pub github_user_id: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
+// Re-export from models
+pub use crate::models::GitHubLink;
 
 /// Fetches a GitHub link by FusionAuth user ID.
 /// Returns None if no link exists for the user.
-#[tracing::instrument(skip(pool), level = "error")]
+#[tracing::instrument(skip(pool), err)]
 pub async fn get_link_by_fusionauth_user_id(
     pool: &PgPool,
     fusionauth_user_id: Uuid,
@@ -38,7 +28,7 @@ pub async fn get_link_by_fusionauth_user_id(
 
 /// Fetches a GitHub link by its ID.
 /// Returns None if no link with the given ID exists.
-#[tracing::instrument(skip(pool), level = "error")]
+#[tracing::instrument(skip(pool), err)]
 pub async fn get_link_by_id(pool: &PgPool, link_id: Uuid) -> anyhow::Result<Option<GitHubLink>> {
     let link = sqlx::query_as!(
         GitHubLink,
@@ -57,7 +47,7 @@ pub async fn get_link_by_id(pool: &PgPool, link_id: Uuid) -> anyhow::Result<Opti
 
 /// Fetches a GitHub link by GitHub user ID.
 /// Returns None if no link exists for the GitHub user.
-#[tracing::instrument(skip(pool), level = "error")]
+#[tracing::instrument(skip(pool), err)]
 pub async fn get_link_by_github_user_id(
     pool: &PgPool,
     github_user_id: &str,
