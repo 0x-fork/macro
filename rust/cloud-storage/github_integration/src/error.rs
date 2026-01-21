@@ -27,29 +27,15 @@ pub enum GitHubIntegrationError {
 
     /// Database operation failed
     #[error("database operation failed: {0}")]
-    DatabaseError(String),
+    DatabaseError(#[from] sqlx::Error),
+
+    /// Network error during HTTP requests
+    #[error("network error: {0}")]
+    NetworkError(#[from] reqwest::Error),
 
     /// Generic error
     #[error("{0}")]
-    Generic(String),
-}
-
-impl From<anyhow::Error> for GitHubIntegrationError {
-    fn from(err: anyhow::Error) -> Self {
-        GitHubIntegrationError::Generic(err.to_string())
-    }
-}
-
-impl From<sqlx::Error> for GitHubIntegrationError {
-    fn from(err: sqlx::Error) -> Self {
-        GitHubIntegrationError::DatabaseError(err.to_string())
-    }
-}
-
-impl From<reqwest::Error> for GitHubIntegrationError {
-    fn from(err: reqwest::Error) -> Self {
-        GitHubIntegrationError::Generic(err.to_string())
-    }
+    Generic(#[from] anyhow::Error),
 }
 
 /// Result type for GitHub integration operations
