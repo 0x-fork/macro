@@ -8,10 +8,10 @@ use utoipa::OpenApi;
 
 use crate::api::email::generate_email_link::GenerateEmailLinkRequest;
 use crate::api::email::resend_fusionauth_verify_user_email::ResendFusionauthVerifyUserEmailRequest;
-use crate::api::github::get::*;
 use crate::api::github::init::*;
 use crate::api::github::list::*;
 use crate::api::jwt::macro_api_token::MacroApiTokenResponse;
+use github_integration::GitHubCredentialsResponse;
 use crate::api::link::create_in_progress_link::CreateInProgressLinkResponse;
 use crate::api::merge::create_merge_request::CreateAccountMergeRequest;
 use crate::api::team::create_team::CreateTeamRequest;
@@ -109,7 +109,7 @@ use model::user::{
                 /// /github
                 github::init::handler,
                 github::list::handler,
-                github::get::handler,
+                github::get_credentials::handler,
                 github::disconnect::handler,
 
                 /// /team

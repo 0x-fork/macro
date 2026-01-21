@@ -33,7 +33,7 @@ impl GitHubOAuthClient {
         T: serde::Serialize + std::fmt::Debug,
     {
         let state_str = serde_json::to_string(&state)
-            .map_err(|e| GitHubIntegrationError::Generic(format!("failed to serialize state: {}", e)))?;
+            .map_err(|e| GitHubIntegrationError::Generic(anyhow::anyhow!("failed to serialize state: {}", e)))?;
 
         let url = format!(
             "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope={}&state={}",

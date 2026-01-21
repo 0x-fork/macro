@@ -128,14 +128,14 @@ where
         "creating github_links record"
     );
 
-    db::create_github_link(pool, link).await.map_err(|e| {
-        tracing::error!(error=?e, "failed to create github_links record");
+    db::create_github_link(pool, link)
+        .await
+        .inspect_err(|e| {
+            tracing::error!(error=?e, "failed to create github_links record");
 
-        // Note: Cleanup of FusionAuth link should be handled by caller
-        // if they want to implement async cleanup on failure
-
-        GitHubIntegrationError::DatabaseError(e.to_string())
-    })?;
+            // Note: Cleanup of FusionAuth link should be handled by caller
+            // if they want to implement async cleanup on failure
+        })?;
 
     tracing::info!("successfully linked GitHub account");
 
@@ -208,14 +208,14 @@ where
     let idp_links = fusionauth_client
         .get_links(&fusionauth_user_id.to_string(), Some(&config.idp_id))
         .await
-        .map_err(|e| GitHubIntegrationError::Generic(e.to_string()))?;
+        .map_err(|e| GitHubIntegrationError::Generic(e))?;
 
     // Find matching link
     let idp_link = idp_links
         .into_iter()
         .find(|l| l.identity_provider_user_id == link.github_user_id)
         .ok_or_else(|| {
-            GitHubIntegrationError::Generic("GitHub link not found in FusionAuth".to_string())
+            GitHubIntegrationError::Generic(anyhow::anyhow!("GitHub link not found in FusionAuth"))
         })?;
 
     Ok(GitHubCredentialsResponse {

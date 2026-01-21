@@ -1,6 +1,6 @@
 pub mod callback;
 pub mod disconnect;
-pub mod get;
+pub mod get_credentials;
 pub mod init;
 pub mod list;
 
@@ -18,7 +18,7 @@ pub fn router(jwt_args: JwtValidationArgs) -> Router<ApiContext> {
     Router::new()
         .route("/init", post(init::handler))
         .route("/callback", get(callback::handler))
-        .route("/credentials", get(get::handler))
+        .route("/credentials", get(get_credentials::handler))
         .route("/links", get(list::handler))
         .route("/link", delete(disconnect::handler))
         .layer(

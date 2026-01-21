@@ -2,11 +2,12 @@ use axum::{
     Extension, Json,
     extract::State,
     http::StatusCode,
-    response::{IntoResponse, Response},
+    response::IntoResponse,
 };
 use uuid::Uuid;
 
 use crate::api::context::ApiContext;
+use github_integration::GitHubIntegrationError;
 use model::{response::ErrorResponse, user::UserContext};
 
 pub use github_integration::GitHubLinkInfo;
@@ -31,35 +32,22 @@ pub struct ListGitHubLinksResponse {
 pub async fn handler(
     State(ctx): State<ApiContext>,
     user_context: Extension<UserContext>,
-) -> Result<Response, Response> {
+) -> Result<impl IntoResponse, GitHubIntegrationError> {
     tracing::info!("list_github_links called");
 
     // Parse fusion_user_id to UUID
-    let fusion_user_id = Uuid::parse_str(&user_context.fusion_user_id).map_err(|e| {
-        tracing::error!(error=?e, "invalid fusion_user_id format");
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                message: "invalid user ID format",
-            }),
-        )
-            .into_response()
-    })?;
+    let fusion_user_id = Uuid::parse_str(&user_context.fusion_user_id)
+        .inspect_err(|e| {
+            tracing::error!(error=?e, "invalid fusion_user_id format");
+        })?;
 
     let link = github_integration::db::get_link_by_fusionauth_user_id(
         &ctx.db,
         fusion_user_id,
     )
     .await
-    .map_err(|e| {
+    .inspect_err(|e| {
         tracing::error!(error=?e, "failed to fetch GitHub link");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                message: "unable to fetch GitHub link",
-            }),
-        )
-            .into_response()
     })?;
 
     let links = if let Some(link) = link {
