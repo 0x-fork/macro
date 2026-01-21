@@ -5,6 +5,7 @@ import {
   DocumentCardNode,
   DocumentMentionNode,
   EquationNode,
+  GitHubRepoMentionNode,
   GroupMentionNode,
   HorizontalRuleNode,
   HtmlRenderNode,
@@ -20,6 +21,7 @@ import { DiffInsert } from './component/decorator/DiffInsert';
 import { DocumentCard } from './component/decorator/DocumentCard';
 import { DocumentMention } from './component/decorator/DocumentMention';
 import { Equation } from './component/decorator/Equation';
+import { GitHubRepoMention } from './component/decorator/GitHubRepoMention';
 import { GroupMention } from './component/decorator/GroupMention';
 import { HorizontalRule } from './component/decorator/HorizontalRule';
 import { HtmlRender } from './component/decorator/HtmlRender';
@@ -41,6 +43,7 @@ export function initializeLexical() {
   setDecorator(DocumentCardNode, DocumentCard);
   setDecorator(ContactMentionNode, ContactMention);
   setDecorator(DateMentionNode, DateMention);
+  setDecorator(GitHubRepoMentionNode, GitHubRepoMention);
   setDecorator(DiffInsertNode, DiffInsert);
   setDecorator(ImageNode, MarkdownImage);
   setDecorator(VideoNode, MarkdownVideo);

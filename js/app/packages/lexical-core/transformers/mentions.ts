@@ -6,6 +6,7 @@ import type { ElementNode, LexicalNode, TextNode } from 'lexical';
 import { ContactMentionNode } from '../nodes/ContactMentionNode';
 import { DateMentionNode } from '../nodes/DateMentionNode';
 import { DocumentMentionNode } from '../nodes/DocumentMentionNode';
+import { GitHubRepoMentionNode } from '../nodes/GitHubRepoMentionNode';
 import { GroupMentionNode } from '../nodes/GroupMentionNode';
 import { UserMentionNode } from '../nodes/UserMentionNode';
 
@@ -303,6 +304,73 @@ export const E_GROUP_MENTION: ElementTransformer = {
     }
 
     return `@${groupAlias}`;
+  },
+  replace: (
+    _parentNode: ElementNode,
+    _children: Array<LexicalNode>,
+    _match: Array<string>,
+    _isImport: boolean
+  ) => {
+    return false;
+  },
+};
+
+// Internal GitHub Repo Mentions
+export const I_GITHUB_REPO_MENTION: TextMatchTransformer = {
+  dependencies: [GitHubRepoMentionNode],
+  type: 'text-match',
+  regExp: /<m-github-repo-mention>(.*?)<\/m-github-repo-mention>/,
+  importRegExp: /<m-github-repo-mention>(.*?)<\/m-github-repo-mention>/,
+  export: (node) => {
+    if (!(node instanceof GitHubRepoMentionNode)) return null;
+    const data = JSON.stringify({
+      repoId: node.getRepoId(),
+      fullName: node.getFullName(),
+      owner: node.getOwner(),
+      avatarUrl: node.getAvatarUrl(),
+      url: node.getUrl(),
+      mentionUuid: node.getMentionUuid(),
+    });
+    return `<m-github-repo-mention>${data}</m-github-repo-mention>`;
+  },
+  replace: (node: TextNode, match: RegExpMatchArray) => {
+    try {
+      const data = JSON.parse(match[1]);
+      for (const field of ['repoId', 'fullName', 'owner', 'avatarUrl', 'url']) {
+        if (!(field in data)) throw new Error(`Missing field ${field}`);
+      }
+      const gitHubRepoMentionNode = new GitHubRepoMentionNode(
+        data.repoId,
+        data.fullName,
+        data.owner,
+        data.avatarUrl,
+        data.url,
+        data.mentionUuid
+      );
+      node.replace(gitHubRepoMentionNode);
+    } catch (e) {
+      console.error('Error in I_GITHUB_REPO_MENTION replace:', e);
+    }
+  },
+};
+
+// External GitHub Repo Mentions
+export const E_GITHUB_REPO_MENTION: ElementTransformer = {
+  dependencies: [GitHubRepoMentionNode],
+  type: 'element',
+  regExp: /$^/,
+  export: (node) => {
+    if (!(node instanceof GitHubRepoMentionNode)) return null;
+
+    const fullName = node.getFullName();
+    const url = node.getUrl();
+
+    if (!fullName || !url) {
+      return null;
+    }
+
+    // For external representation, create a markdown link
+    return `[${fullName}](${url})`;
   },
   replace: (
     _parentNode: ElementNode,

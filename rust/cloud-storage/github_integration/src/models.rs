@@ -34,6 +34,38 @@ pub(crate) struct GitHubEmail {
     pub verified: bool,
 }
 
+/// GitHub repository owner information
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GitHubOwner {
+    /// GitHub username
+    pub login: String,
+    /// Avatar URL
+    pub avatar_url: String,
+}
+
+/// GitHub repository information from GitHub API
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GitHubRepository {
+    /// GitHub repository ID (numeric)
+    pub id: i64,
+    /// Repository name (without owner)
+    pub name: String,
+    /// Full repository name (owner/repo)
+    pub full_name: String,
+    /// Repository owner
+    pub owner: GitHubOwner,
+    /// Repository description
+    pub description: Option<String>,
+    /// Whether the repository is private
+    pub private: bool,
+    /// HTML URL to the repository
+    pub html_url: String,
+    /// When the repository was last updated
+    pub updated_at: String,
+    /// Number of stars
+    pub stargazers_count: i32,
+}
+
 /// Response returned when retrieving GitHub credentials
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]

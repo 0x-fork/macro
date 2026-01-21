@@ -13,6 +13,9 @@ use utoipa::ToSchema;
 mod tests;
 
 pub mod as_owned;
+pub mod namespaced_identifier;
+
+pub use namespaced_identifier::{NamespacedIdentifier, NamespacedIdentifierError};
 
 /// The type of an entity in Macro
 #[derive(
@@ -48,6 +51,8 @@ pub enum EntityType {
     EmailThread,
     /// The entity is a team
     Team,
+    /// The entity is a foreign entity from an external system
+    ForeignEntity,
 }
 
 impl EntityType {

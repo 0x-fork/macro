@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::{
     config::GitHubConfig,
     error::{GitHubIntegrationError, Result},
-    models::{GitHubEmail, GitHubExchangeTokenResponse, GitHubUserInfo},
+    models::{GitHubEmail, GitHubExchangeTokenResponse, GitHubRepository, GitHubUserInfo},
 };
 
 /// Low-level GitHub OAuth client
@@ -187,6 +187,58 @@ impl GitHubOAuthClient {
         }
 
         Ok(user_info)
+    }
+
+    /// Lists repositories accessible to the authenticated user
+    ///
+    /// See: <https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user>
+    #[tracing::instrument(skip(self, access_token), err)]
+    pub async fn list_user_repositories(
+        &self,
+        access_token: &str,
+        per_page: Option<u8>,
+        sort: Option<&str>,
+    ) -> Result<Vec<GitHubRepository>> {
+        let mut url = "https://api.github.com/user/repos?".to_string();
+
+        // Add query parameters
+        if let Some(per_page) = per_page {
+            url.push_str(&format!("per_page={}&", per_page));
+        }
+        if let Some(sort) = sort {
+            url.push_str(&format!("sort={}&", sort));
+        }
+
+        // Remove trailing '&' or '?'
+        url = url.trim_end_matches('&').trim_end_matches('?').to_string();
+
+        let response = self
+            .http_client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header("User-Agent", "Macro-Auth-Service")
+            .timeout(Duration::from_secs(30))
+            .send()
+            .await
+            .map_err(|e| GitHubIntegrationError::UserInfoFailed(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown error".to_string());
+            return Err(GitHubIntegrationError::UserInfoFailed(format!(
+                "failed to list repositories: {}",
+                error_body
+            )));
+        }
+
+        let repositories: Vec<GitHubRepository> = response
+            .json()
+            .await
+            .map_err(|e| GitHubIntegrationError::UserInfoFailed(e.to_string()))?;
+
+        Ok(repositories)
     }
 }
 

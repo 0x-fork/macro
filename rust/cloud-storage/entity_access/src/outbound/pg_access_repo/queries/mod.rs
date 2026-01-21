@@ -5,5 +5,6 @@
 pub mod channel_membership;
 pub mod chat_access;
 pub mod document_access;
+pub mod foreign_entity_access;
 pub mod project_access;
 pub mod thread_access;

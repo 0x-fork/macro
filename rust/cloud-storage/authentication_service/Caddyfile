@@ -1,0 +1,15 @@
+# Caddy reverse proxy configuration for local development
+# This proxies https://auth-service-dev.macro.com to http://localhost:8084
+{
+	# Disable auto HTTPS since we'll use mkcert
+	auto_https off
+}
+
+https://auth-service-dev.macro.com {
+	# Use mkcert certificate
+	tls ../../../certs/auth-service-dev.macro.com.pem ../../../certs/auth-service-dev.macro.com-key.pem
+
+	# Reverse proxy to local auth service
+	# CORS is handled by the auth service itself via macro_cors layer
+	reverse_proxy localhost:8084
+}

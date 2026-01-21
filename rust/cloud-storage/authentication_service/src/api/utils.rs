@@ -49,6 +49,13 @@ pub fn default_redirect_url() -> Url {
 }
 
 fn domain<'a>() -> Option<&'a str> {
+    // Check for override env var for local dev with domain
+    if let Ok(domain) = std::env::var("COOKIE_DOMAIN") {
+        if !domain.is_empty() {
+            return Some(Box::leak(domain.into_boxed_str()));
+        }
+    }
+
     match Environment::new_or_prod() {
         Environment::Local => None,
         Environment::Production | Environment::Develop => Some("macro.com"),

@@ -75,4 +75,10 @@ impl AccessRepository for PgAccessRepository {
         )
         .await?)
     }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn check_foreign_entity_exists(&self, entity_id: &str) -> Result<bool, AccessError> {
+        Ok(queries::foreign_entity_access::check_foreign_entity_exists(&self.pool, entity_id)
+            .await?)
+    }
 }

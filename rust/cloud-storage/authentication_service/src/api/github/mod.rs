@@ -3,6 +3,7 @@ pub mod disconnect;
 pub mod get_credentials;
 pub mod init;
 pub mod list;
+pub mod repos;
 
 use axum::{
     Router,
@@ -21,6 +22,7 @@ pub fn router(jwt_args: JwtValidationArgs) -> Router<ApiContext> {
         .route("/credentials", get(get_credentials::handler))
         .route("/links", get(list::handler))
         .route("/link", delete(disconnect::handler))
+        .route("/repos", get(repos::handler))
         .layer(
             ServiceBuilder::new()
                 .layer(CookieManagerLayer::new())

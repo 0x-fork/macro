@@ -15,6 +15,7 @@ import { v7 } from 'uuid';
 import {
   INSERT_DATE_MENTION_COMMAND,
   INSERT_DOCUMENT_MENTION_COMMAND,
+  INSERT_GITHUB_REPO_MENTION_COMMAND,
   INSERT_GROUP_MENTION_COMMAND,
   INSERT_USER_MENTION_COMMAND,
 } from '../plugins/mentions';
@@ -39,6 +40,16 @@ export function createGroupAlias(alias: string): Entity<'group'> {
   };
 }
 
+export type GitHubRepoItem = {
+  id: string;
+  name: string;
+  fullName: string;
+  owner: string;
+  avatarUrl: string;
+  description: string | null;
+  url: string;
+};
+
 export type EntityMap = {
   item: Item;
   user: IUser;
@@ -46,6 +57,7 @@ export type EntityMap = {
   date: DateItem;
   email: EmailEntity;
   group: GroupItem;
+  githubRepo: GitHubRepoItem;
 };
 
 export type Entity<T extends keyof EntityMap> = {
@@ -83,7 +95,7 @@ export type UserMentionRecord = {
 };
 
 export const getCombinedEntityBlockName = (
-  item: CombinedEntity<'item' | 'channel' | 'email'>,
+  item: CombinedEntity<'item' | 'channel' | 'email' | 'githubRepo'>,
   icon?: boolean
 ): BlockName | BlockAlias => {
   switch (item.kind) {
@@ -100,6 +112,8 @@ export const getCombinedEntityBlockName = (
       return 'email';
     case 'channel':
       return 'channel';
+    case 'githubRepo':
+      return 'github';
   }
 };
 
@@ -123,6 +137,8 @@ export const getItemName = (item: CombinedEntity): string => {
       return item.data.displayFormat;
     case 'group':
       return `@${item.data.groupAlias}`;
+    case 'githubRepo':
+      return item.data.fullName;
   }
 };
 
@@ -233,6 +249,65 @@ export async function handleEmailMention(
     documentId: email.id,
     documentName: itemName,
     blockName: 'email',
+    mentionUuid: mentionId,
+  });
+}
+
+/**
+ * Handles GitHub repository mentions by inserting them into the editor
+ * and creating foreign entity records.
+ * @param repo The GitHub repository to mention
+ * @param dependencies The dependencies required to handle the mention
+ */
+export async function handleGitHubRepoMention(
+  repo: GitHubRepoItem,
+  dependencies: HandlerDependencies
+) {
+  const {
+    editor,
+    blockName: parentBlockName,
+    blockId,
+    disableMentionTracking,
+  } = dependencies;
+
+  let mentionId: string | undefined;
+
+  // Create foreign entity and track mention (if enabled)
+  if (
+    blockId &&
+    parentBlockName !== 'channel' &&
+    parentBlockName !== 'chat' &&
+    !disableMentionTracking
+  ) {
+    try {
+      // Create/get foreign entity via API
+      const response = await fetch('/api/foreign-entities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          namespaced_identifier: repo.id,
+        }),
+      });
+
+      if (response.ok) {
+        const foreignEntity = await response.json();
+        // Track the mention using the foreign entity type
+        mentionId = await trackMention(blockId, 'foreign', foreignEntity.id);
+      }
+    } catch (error) {
+      console.error('Failed to create foreign entity:', error);
+      // Continue without tracking - mention will still be created
+    }
+  }
+
+  // Insert the mention node
+  editor.dispatchCommand(INSERT_GITHUB_REPO_MENTION_COMMAND, {
+    repoId: repo.id,
+    fullName: repo.fullName,
+    owner: repo.owner,
+    avatarUrl: repo.avatarUrl,
+    url: repo.url,
     mentionUuid: mentionId,
   });
 }

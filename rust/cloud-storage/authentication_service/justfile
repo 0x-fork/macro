@@ -8,6 +8,20 @@ deploy-dev:
 run:
     cargo run
 
+# Run auth service with Caddy reverse proxy for dev domain (https://auth-service-dev.macro.com)
+# Note: Run 'just stop-proxy' when done to stop Caddy
+run-proxied:
+    echo "Starting Caddy reverse proxy on https://auth-service-dev.macro.com..."
+    caddy start --config Caddyfile --adapter caddyfile
+    echo "Caddy started. Starting auth service with cookie domain=macro.com..."
+    echo "When done, run 'just stop-proxy' to stop Caddy"
+    COOKIE_DOMAIN=macro.com cargo run
+
+# Stop the Caddy reverse proxy
+stop-proxy:
+    @echo "Stopping Caddy..."
+    caddy stop
+
 check:
     SQLX_OFFLINE=true cargo check
 

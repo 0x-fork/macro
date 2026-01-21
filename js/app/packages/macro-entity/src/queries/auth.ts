@@ -163,3 +163,53 @@ export function createProfilePictureQuery(id: string) {
     retryOnMount: false,
   }));
 }
+
+export interface GitHubRepoEntity {
+  id: string; // github::repo:owner/name
+  name: string;
+  fullName: string;
+  owner: string;
+  avatarUrl: string;
+  description: string | null;
+  private: boolean;
+  url: string;
+  updatedAt: string;
+}
+
+const fetchGitHubRepos = async (perPage?: number) => {
+  const params = new URLSearchParams();
+  if (perPage) {
+    params.set('per_page', perPage.toString());
+  }
+
+  const url = `${authHost}/github/repos${params.toString() ? `?${params}` : ''}`;
+  const response = await platformFetch(url, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('GITHUB_NOT_LINKED');
+    }
+    throw new Error(`Failed to fetch GitHub repos: ${response.statusText}`);
+  }
+
+  const repos: GitHubRepoEntity[] = await response.json();
+  return repos;
+};
+
+export function createGitHubReposQuery() {
+  return useQuery(() => ({
+    queryKey: queryKeys.auth.githubRepos,
+    queryFn: () => fetchGitHubRepos(50),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: (failureCount, error) => {
+      // Don't retry if not linked
+      if (error instanceof Error && error.message === 'GITHUB_NOT_LINKED') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+  }));
+}

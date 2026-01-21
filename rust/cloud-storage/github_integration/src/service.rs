@@ -6,7 +6,7 @@ use crate::{
     config::GitHubConfig,
     db,
     error::{GitHubIntegrationError, Result},
-    models::{GitHubCredentialsResponse, GitHubUserInfo},
+    models::{GitHubCredentialsResponse, GitHubRepository, GitHubUserInfo},
     oauth_client::GitHubOAuthClient,
 };
 
@@ -223,4 +223,38 @@ where
         github_username: link.github_username,
         github_user_id: link.github_user_id,
     })
+}
+
+/// Retrieves GitHub repositories for a user
+#[tracing::instrument(
+    skip(pool, fusionauth_client, oauth_client, config),
+    fields(fusionauth_user_id=%fusionauth_user_id),
+    err
+)]
+pub async fn get_user_repositories<F>(
+    pool: &PgPool,
+    fusionauth_client: &F,
+    oauth_client: &GitHubOAuthClient,
+    config: &GitHubConfig,
+    fusionauth_user_id: Uuid,
+    per_page: Option<u8>,
+) -> Result<Vec<GitHubRepository>>
+where
+    F: FusionAuthLinking,
+{
+    tracing::info!("retrieving GitHub repositories");
+
+    // Get credentials
+    let credentials = get_github_credentials(
+        pool,
+        fusionauth_client,
+        config,
+        fusionauth_user_id,
+    )
+    .await?;
+
+    // Fetch repositories
+    oauth_client
+        .list_user_repositories(&credentials.access_token, per_page, Some("updated"))
+        .await
 }

@@ -89,6 +89,15 @@ where
                     .await
             }
             EntityType::Channel => self.get_channel_access(entity_id, user_id).await,
+            EntityType::ForeignEntity => {
+                // Foreign entities have no access control - if they exist, everyone has View access
+                let exists = self.repo.check_foreign_entity_exists(entity_id).await?;
+                if exists {
+                    Ok(Some(AccessLevel::View))
+                } else {
+                    Ok(None)
+                }
+            }
             // These entity types don't have access checks implemented yet
             EntityType::Email | EntityType::Team | EntityType::User => Ok(None),
         }

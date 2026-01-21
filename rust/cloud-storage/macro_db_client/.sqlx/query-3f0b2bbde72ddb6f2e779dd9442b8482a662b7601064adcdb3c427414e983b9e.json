@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, macro_id, fusionauth_user_id, github_username, github_user_id, created_at, updated_at\n        FROM github_links\n        WHERE github_user_id = $1\n        ",
+  "query": "\n        SELECT\n            id,\n            \"namespacedIdentifier\" as \"namespaced_identifier\",\n            path,\n            identifier,\n            \"createdAt\" as \"created_at\",\n            \"updatedAt\" as \"updated_at\"\n        FROM foreign_entities\n        WHERE id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -10,38 +10,33 @@
       },
       {
         "ordinal": 1,
-        "name": "macro_id",
+        "name": "namespaced_identifier",
         "type_info": "Text"
       },
       {
         "ordinal": 2,
-        "name": "fusionauth_user_id",
-        "type_info": "Uuid"
+        "name": "path",
+        "type_info": "TextArray"
       },
       {
         "ordinal": 3,
-        "name": "github_username",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 4,
-        "name": "github_user_id",
+        "name": "identifier",
         "type_info": "Text"
       },
       {
-        "ordinal": 5,
+        "ordinal": 4,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 6,
+        "ordinal": 5,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -50,9 +45,8 @@
       false,
       false,
       false,
-      false,
       false
     ]
   },
-  "hash": "68aec494d14b19cd7184f192907030c28781b69a44dd778925b466f32efd9fd3"
+  "hash": "3f0b2bbde72ddb6f2e779dd9442b8482a662b7601064adcdb3c427414e983b9e"
 }

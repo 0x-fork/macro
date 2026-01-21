@@ -104,18 +104,26 @@ export function floatWithSelection(
     let current = currentAnchor();
     if (!current || !decidedPlacement) return;
 
-    const { x, y, middlewareData } = await computePosition(
+    const { x, y, middlewareData, placement } = await computePosition(
       current,
       floatingEl,
       {
         placement: decidedPlacement,
         middleware: [
+          flip({
+            fallbackPlacements: ['bottom-start', 'top-start'],
+            boundary,
+            padding: accessor()?.spacing ?? DEFAULT_SPACING,
+          }),
           offset(accessor()?.spacing ?? DEFAULT_SPACING),
           shift({ padding: accessor()?.spacing ?? DEFAULT_SPACING, boundary }),
           hide(),
         ],
       }
     );
+
+    // Update decided placement in case content size changed and flip occurred
+    decidedPlacement = placement;
 
     style(floatingEl, {
       left: `${x}px`,

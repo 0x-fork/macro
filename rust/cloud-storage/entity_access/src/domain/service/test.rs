@@ -92,6 +92,11 @@ impl AccessRepository for MockRepo {
     ) -> Result<Vec<Uuid>, AccessError> {
         Ok(self.channel_membership.lock().await.clone())
     }
+
+    async fn check_foreign_entity_exists(&self, _entity_id: &str) -> Result<bool, AccessError> {
+        // Mock implementation - always return false (entity doesn't exist)
+        Ok(false)
+    }
 }
 
 fn test_user_id() -> MacroUserIdStr<'static> {

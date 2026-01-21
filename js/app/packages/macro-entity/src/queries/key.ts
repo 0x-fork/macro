@@ -43,6 +43,7 @@ export const queryKeys = {
       'profile-picture',
       { ...args },
     ],
+    githubRepos: [...BASE_AUTH, 'github-repos'],
   },
   channel: (args: KeyOptions) => [...BASE_ENTITY.channel, { ...args }],
   chat: (args?: InfiniteKeyOptions) => [

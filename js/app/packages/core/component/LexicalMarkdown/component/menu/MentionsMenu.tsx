@@ -20,9 +20,11 @@ import { getDateSuggestions } from '@core/util/dateParser';
 import { createFreshSearch } from '@core/util/freshSort';
 import ClockIcon from '@icon/regular/clock.svg';
 import EmailIcon from '@icon/regular/envelope.svg';
+import GitHubIcon from '@icon/regular/github-logo.svg';
 import UsersIcon from '@icon/regular/users.svg';
 import type { EntityData, WithSearch } from '@macro-entity';
 import {
+  createGitHubReposQuery,
   createUnifiedSearchInfiniteQuery,
   type EmailEntity,
   useEmails,
@@ -69,6 +71,7 @@ import {
   handleChannelMention,
   handleDateMention,
   handleEmailMention,
+  handleGitHubRepoMention,
   handleGroupMention,
   handleUserMention,
   type UserMentionRecord,
@@ -107,6 +110,8 @@ const getItemSearchText = (item: CombinedEntity): string => {
       return item.data.name ?? 'No Subject';
     case 'group':
       return item.data.groupAlias;
+    case 'githubRepo':
+      return `${item.data.fullName} ${item.data.description ?? ''}`;
   }
 };
 
@@ -156,6 +161,8 @@ function createItemHandler(dependencies: HandlerDependencies) {
         return await handleEmailMention(item.data, dependencies);
       case 'group':
         return await handleGroupMention(item.data, dependencies);
+      case 'githubRepo':
+        return await handleGitHubRepoMention(item.data, dependencies);
     }
   };
 }
@@ -299,7 +306,7 @@ export function computeBins<T extends string>(
 }
 
 /** The current bins enum */
-export type MentionBins = 'items' | 'users' | 'dates' | 'emails';
+export type MentionBins = 'items' | 'users' | 'dates' | 'emails' | 'githubRepos';
 
 /** View all mode type */
 type ViewAllMode = MentionBins | null;
@@ -364,6 +371,17 @@ export function MentionsMenuItem(props: {
         );
       case 'email':
         return <EmailIcon class="size-4 text-ink-muted" />;
+      case 'githubRepo':
+        return (
+          <div class="flex items-center gap-1">
+            <GitHubIcon class="size-3.5 text-ink-muted" />
+            <img
+              src={props.item.data.avatarUrl}
+              class="size-3.5 rounded-full"
+              alt={props.item.data.owner}
+            />
+          </div>
+        );
     }
   };
 
@@ -494,6 +512,25 @@ function MentionsMenuInner(props: {
 
   const emailUnifiedSearchInfiniteQuery =
     createUnifiedSearchInfiniteQuery(args);
+
+  // GitHub repos - conditional fetching based on search term
+  const shouldFetchGitHub = createMemo(() => {
+    const term = searchTerm();
+    return term.startsWith('gh:') || term.length >= 3;
+  });
+
+  const gitHubReposQuery = createGitHubReposQuery();
+
+  const gitHubRepos = createMemo((): Entity<'githubRepo'>[] => {
+    if (!shouldFetchGitHub()) return [];
+    if (gitHubReposQuery.status === 'success') {
+      return gitHubReposQuery.data.map(entityMapper('githubRepo'));
+    }
+    if (gitHubReposQuery.error instanceof Error && gitHubReposQuery.error.message === 'GITHUB_NOT_LINKED') {
+      return [];
+    }
+    return [];
+  });
 
   const foundEmails = createMemo((): Entity<'email'>[] => {
     if (emailUnifiedSearchInfiniteQuery.status === 'success') {
@@ -702,6 +739,17 @@ function MentionsMenuInner(props: {
     return merge(mail, otherMail);
   });
 
+  const gitHubRepoSearch = createFreshSearch<Entity<'githubRepo'>>(
+    { timeWeight: 0, brevityWeight: 0.3 },
+    getItemSearchText
+  );
+
+  const filteredGitHubRepos = createMemo(() => {
+    const term = searchTerm();
+    const searchText = term.startsWith('gh:') ? term.slice(3) : term;
+    return gitHubRepoSearch(gitHubRepos(), searchText).map((result) => result.item);
+  });
+
   const dateSuggestions = createMemo(() => {
     const suggestions = getDateSuggestions(searchTerm());
     return suggestions
@@ -718,6 +766,7 @@ function MentionsMenuInner(props: {
     items: filteredItems().length,
     dates: dateSuggestions().length,
     emails: filteredEmails().length,
+    githubRepos: filteredGitHubRepos().length,
   }));
 
   // The bins is the limited and rounded count for each bucket
@@ -737,6 +786,8 @@ function MentionsMenuInner(props: {
           return dateSuggestions();
         case 'emails':
           return filteredEmails();
+        case 'githubRepos':
+          return filteredGitHubRepos();
         default:
           return [];
       }
@@ -748,6 +799,7 @@ function MentionsMenuInner(props: {
       ...filteredItems().slice(0, bins().items),
       ...dateSuggestions().slice(0, bins().dates),
       ...filteredEmails().slice(0, bins().emails),
+      ...filteredGitHubRepos().slice(0, bins().githubRepos),
     ];
   });
 
@@ -765,7 +817,7 @@ function MentionsMenuInner(props: {
     if (viewAllMode()) return null; // no category selection in view all mode
 
     const index = selectedIndex();
-    const { users, items, dates, emails } = bins();
+    const { users, items, dates, emails, githubRepos } = bins();
 
     let currentIndex = 0;
 
@@ -793,6 +845,13 @@ function MentionsMenuInner(props: {
     if (emails > 0) {
       if (index < currentIndex + emails) {
         return 'emails';
+      }
+      currentIndex += emails;
+    }
+
+    if (githubRepos > 0) {
+      if (index < currentIndex + githubRepos) {
+        return 'githubRepos';
       }
     }
 
@@ -1009,6 +1068,7 @@ function MentionsMenuInner(props: {
           items: 'Documents & Channels',
           dates: 'Dates',
           emails: 'Emails',
+          githubRepos: 'GitHub Repositories',
         }[currentViewAllMode];
 
         return (
@@ -1071,12 +1131,14 @@ function MentionsMenuInner(props: {
     const docs = filteredItems().slice(0, bins().items);
     const dates = dateSuggestions().slice(0, bins().dates);
     const emailList = filteredEmails().slice(0, bins().emails);
+    const githubReposList = filteredGitHubRepos().slice(0, bins().githubRepos);
     const totalLength = () =>
       users.length +
       docs.length +
       contacts.length +
       dates.length +
-      emailList.length;
+      emailList.length +
+      githubReposList.length;
 
     const RenderOptions = () => {
       const options = [];
@@ -1175,9 +1237,44 @@ function MentionsMenuInner(props: {
               {(item, i) => (
                 <MentionsMenuItem
                   item={item}
-                  index={i()}
+                  index={users.length + docs.length + dates.length + i()}
                   selected={
                     users.length + docs.length + dates.length + i() ===
+                    selectedIndex()
+                  }
+                  itemAction={itemAction}
+                  setIndex={setSelectedIndexFromMouse}
+                  setOpen={setMenuOpen}
+                />
+              )}
+            </For>
+          </ItemBin>
+        );
+      }
+
+      if (githubReposList.length > 0) {
+        options.push(
+          <ItemBin
+            label="GitHub Repositories"
+            binType="githubRepos"
+            totalCount={filteredGitHubRepos().length}
+            showingCount={githubReposList.length}
+            onViewAll={handleViewAll}
+            isSelected={selectedCategory() === 'githubRepos'}
+          >
+            <For each={githubReposList}>
+              {(item, i) => (
+                <MentionsMenuItem
+                  item={item}
+                  index={
+                    users.length + docs.length + dates.length + emailList.length + i()
+                  }
+                  selected={
+                    users.length +
+                      docs.length +
+                      dates.length +
+                      emailList.length +
+                      i() ===
                     selectedIndex()
                   }
                   itemAction={itemAction}

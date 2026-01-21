@@ -10,6 +10,7 @@ use crate::api::email::generate_email_link::GenerateEmailLinkRequest;
 use crate::api::email::resend_fusionauth_verify_user_email::ResendFusionauthVerifyUserEmailRequest;
 use crate::api::github::init::*;
 use crate::api::github::list::*;
+use crate::api::github::repos::*;
 use crate::api::jwt::macro_api_token::MacroApiTokenResponse;
 use github_integration::GitHubCredentialsResponse;
 use crate::api::link::create_in_progress_link::CreateInProgressLinkResponse;
@@ -111,6 +112,7 @@ use model::user::{
                 github::list::handler,
                 github::get_credentials::handler,
                 github::disconnect::handler,
+                github::repos::handler,
 
                 /// /team
                 team::create_team::handler,
@@ -161,6 +163,7 @@ use model::user::{
                         ListGitHubLinksResponse,
                         GitHubLinkInfo,
                         GitHubCredentialsResponse,
+                        GitHubRepoResponse,
 
                         UserQuota,
                         UserOrganizationResponse,

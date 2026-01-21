@@ -61,6 +61,14 @@ pub trait AccessRepository: Clone + Send + Sync + 'static {
         user_id: &MacroUserId<Lowercase<'_>>,
         channel_ids: &[Uuid],
     ) -> impl Future<Output = Result<Vec<Uuid>, AccessError>> + Send;
+
+    /// Check if a foreign entity exists.
+    ///
+    /// Foreign entities have no access control - if they exist, everyone has View access.
+    fn check_foreign_entity_exists(
+        &self,
+        entity_id: &str,
+    ) -> impl Future<Output = Result<bool, AccessError>> + Send;
 }
 
 /// Service for checking entity access levels.

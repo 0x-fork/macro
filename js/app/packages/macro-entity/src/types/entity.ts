@@ -92,6 +92,11 @@ export type ProjectEntity = EntityBase & {
   projectId?: string;
 };
 
+export type ForeignEntityEntity = EntityBase & {
+  type: 'foreign_entity';
+  namespacedIdentifier: string;
+};
+
 // Create new entity types above this comment
 // Then add it to the EntityData union below
 
@@ -101,7 +106,8 @@ export type EntityData =
   | DocumentEntity
   | TaskEntity
   | EmailEntity
-  | ProjectEntity;
+  | ProjectEntity
+  | ForeignEntityEntity;
 
 export const isEntityData = (item: unknown): item is EntityData => {
   if (typeof item !== 'object') return false;

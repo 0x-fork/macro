@@ -6,3 +6,4 @@
 .run/
 .claude/settings.local.json
 .claude/anthropic_key.sh
+certs
