@@ -2,9 +2,16 @@ import {
   getFullNameFromRepoId,
   type GitHubRepoMentionDecoratorProps,
 } from '@lexical-core';
-import GitHubIcon from '@macro-icons/macro-github.svg';
+import GitHubIcon from '@icon/regular/github-logo.svg';
+import LoadingSpinner from '@icon/regular/spinner.svg';
 import { createGitHubRepoQuery } from '@macro-entity';
-import { createEffect, createSignal, onCleanup, type ParentProps } from 'solid-js';
+import {
+  createEffect,
+  createSignal,
+  onCleanup,
+  Show,
+  type ParentProps,
+} from 'solid-js';
 
 type GitHubRepoMentionProps = ParentProps<GitHubRepoMentionDecoratorProps>;
 
@@ -63,33 +70,46 @@ export function GitHubRepoMention(props: GitHubRepoMentionProps) {
 
   return (
     <span
-      class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm"
-      classList={{
-        'bg-primary-hover cursor-pointer hover:bg-primary-active transition-colors': !isError(),
-        'bg-error-subtle': isError(),
-      }}
+      class="py-0.5 cursor-default rounded-xs hover:bg-hover focus:bg-active"
       onClick={!isError() ? handleClick : undefined}
       data-github-repo-mention="true"
       data-repo-id={props.repoId}
       data-mention-uuid={props.mentionUuid || ''}
       title={titleText()}
     >
-      <GitHubIcon
-        class="h-3.5 w-3.5"
-        classList={{ 'animate-pulse': loading() }}
-      />
-      {avatarUrl() && (
-        <img
-          src={avatarUrl()}
-          alt={owner()}
-          class="h-3.5 w-3.5 rounded-full"
-        />
-      )}
-      {isError() ? (
-        <span class="text-error">{errorMessage()}</span>
-      ) : (
-        <span class="font-medium">{displayName()}</span>
-      )}
+      <span class="pointer-events-auto">
+        {/* Icon */}
+        <span class="relative top-[0.125em] size-[1em] inline-flex mx-1">
+          <Show
+            when={!loading()}
+            fallback={
+              <div class="animate-spin">
+                <LoadingSpinner />
+              </div>
+            }
+          >
+            <GitHubIcon class="size-full" />
+          </Show>
+        </span>
+
+        {/* Text */}
+        <Show
+          when={!isError()}
+          fallback={
+            <span class="underline decoration-error/20 decoration-[max(1px,0.1em)] underline-offset-2 text-error">
+              {errorMessage()}
+            </span>
+          }
+        >
+          <span
+            class="underline decoration-current/20 decoration-[max(1px,0.1em)] underline-offset-2"
+            data-github-repo-mention="true"
+            data-repo-id={props.repoId}
+          >
+            {displayName()}
+          </span>
+        </Show>
+      </span>
     </span>
   );
 }
