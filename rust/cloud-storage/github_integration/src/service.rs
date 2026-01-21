@@ -258,3 +258,38 @@ where
         .list_user_repositories(&credentials.access_token, per_page, Some("updated"))
         .await
 }
+
+/// Retrieves a specific GitHub repository for a user
+#[tracing::instrument(
+    skip(pool, fusionauth_client, oauth_client, config),
+    fields(fusionauth_user_id=%fusionauth_user_id, owner=%owner, repo=%repo),
+    err
+)]
+pub async fn get_user_repository<F>(
+    pool: &PgPool,
+    fusionauth_client: &F,
+    oauth_client: &GitHubOAuthClient,
+    config: &GitHubConfig,
+    fusionauth_user_id: Uuid,
+    owner: &str,
+    repo: &str,
+) -> Result<GitHubRepository>
+where
+    F: FusionAuthLinking,
+{
+    tracing::info!("retrieving GitHub repository");
+
+    // Get credentials
+    let credentials = get_github_credentials(
+        pool,
+        fusionauth_client,
+        config,
+        fusionauth_user_id,
+    )
+    .await?;
+
+    // Fetch the specific repository
+    oauth_client
+        .get_repository(&credentials.access_token, owner, repo)
+        .await
+}

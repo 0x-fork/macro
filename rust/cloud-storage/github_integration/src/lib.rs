@@ -19,6 +19,6 @@ pub use models::{
 };
 pub use oauth_client::GitHubOAuthClient;
 pub use service::{
-    get_github_credentials, get_user_repositories, link_github_account, unlink_github_account,
-    FusionAuthLinking, IdentityProviderLink,
+    get_github_credentials, get_user_repositories, get_user_repository, link_github_account,
+    unlink_github_account, FusionAuthLinking, IdentityProviderLink,
 };

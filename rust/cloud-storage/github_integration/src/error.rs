@@ -24,6 +24,10 @@ pub enum GitHubIntegrationError {
     #[error("GitHub account not linked")]
     NotLinked,
 
+    /// GitHub repository not found
+    #[error("GitHub repository not found")]
+    RepositoryNotFound,
+
     /// Failed to link user in FusionAuth
     #[error("failed to link GitHub account in FusionAuth: {0}")]
     FusionAuthLinkingFailed(String),
@@ -68,7 +72,10 @@ impl IntoResponse for GitHubIntegrationError {
                 (StatusCode::CONFLICT, "This GitHub account is already linked to another Macro account")
             }
             GitHubIntegrationError::NotLinked => {
-                (StatusCode::NOT_FOUND, "GitHub account not linked")
+                (StatusCode::FORBIDDEN, "GitHub account not linked")
+            }
+            GitHubIntegrationError::RepositoryNotFound => {
+                (StatusCode::NOT_FOUND, "GitHub repository not found")
             }
             GitHubIntegrationError::InvalidOAuthState(_) => {
                 (StatusCode::BAD_REQUEST, "invalid OAuth state")

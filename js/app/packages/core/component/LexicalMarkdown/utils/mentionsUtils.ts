@@ -1,9 +1,12 @@
 import type { BlockAlias, BlockName } from '@core/block';
+import type { EntityWithValidIcon } from '@core/component/EntityIcon';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { trackMention } from '@core/signal/mention';
 import type { ChannelWithParticipants, IUser } from '@core/user';
 import type { ParsedDate } from '@core/util/dateParser';
+import { isOk } from '@core/util/maybeResult';
 import type { EmailEntity } from '@macro-entity';
+import { authServiceClient } from '@service-auth/client';
 import { waitBulkUploadStatus } from '@service-connection/bulkUpload';
 import type { DocumentMentionMetadata } from '@service-notification/client';
 import type { BasicDocument } from '@service-storage/generated/schemas/basicDocument';
@@ -97,7 +100,7 @@ export type UserMentionRecord = {
 export const getCombinedEntityBlockName = (
   item: CombinedEntity<'item' | 'channel' | 'email' | 'githubRepo'>,
   icon?: boolean
-): BlockName | BlockAlias => {
+): EntityWithValidIcon => {
   switch (item.kind) {
     case 'item':
       if (item.data.type === 'document')
@@ -281,19 +284,16 @@ export async function handleGitHubRepoMention(
   ) {
     try {
       // Create/get foreign entity via API
-      const response = await fetch('/api/foreign-entities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          namespaced_identifier: repo.id,
-        }),
+      const result = await authServiceClient.createForeignEntity({
+        namespacedIdentifier: repo.id,
       });
 
-      if (response.ok) {
-        const foreignEntity = await response.json();
+      if (isOk(result)) {
         // Track the mention using the foreign entity type
-        mentionId = await trackMention(blockId, 'foreign', foreignEntity.id);
+        mentionId = await trackMention(blockId, 'foreign', result[1].id);
+      } else {
+        // API returned error response - log and continue without tracking
+        console.warn('Failed to create foreign entity:', result[1]);
       }
     } catch (error) {
       console.error('Failed to create foreign entity:', error);
@@ -301,13 +301,9 @@ export async function handleGitHubRepoMention(
     }
   }
 
-  // Insert the mention node
+  // Insert the mention node with only repoId and mentionUuid
   editor.dispatchCommand(INSERT_GITHUB_REPO_MENTION_COMMAND, {
     repoId: repo.id,
-    fullName: repo.fullName,
-    owner: repo.owner,
-    avatarUrl: repo.avatarUrl,
-    url: repo.url,
     mentionUuid: mentionId,
   });
 }

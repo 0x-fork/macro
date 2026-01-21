@@ -8,6 +8,9 @@ use utoipa::OpenApi;
 
 use crate::api::email::generate_email_link::GenerateEmailLinkRequest;
 use crate::api::email::resend_fusionauth_verify_user_email::ResendFusionauthVerifyUserEmailRequest;
+use crate::api::foreign_entities::create::{CreateForeignEntityRequest, ForeignEntityResponse as CreateForeignEntityResponse};
+use crate::api::foreign_entities::get::ForeignEntityResponse as GetForeignEntityResponse;
+use crate::api::github::get_repo::GitHubRepoResponse as SingleGitHubRepoResponse;
 use crate::api::github::init::*;
 use crate::api::github::list::*;
 use crate::api::github::repos::*;
@@ -30,7 +33,7 @@ use crate::api::user::stripe::{
     CreateCheckoutSessionRequest, CreatePortalSessionRequest, StripeSessionResponse,
 };
 use crate::api::{
-    email, github, health, jwt, link, login, logout, merge, oauth, oauth2, permissions, session, team, user,
+    email, foreign_entities, github, health, jwt, link, login, logout, merge, oauth, oauth2, permissions, session, team, user,
 };
 use model::authentication::login::response::SsoRequiredResponse;
 use model::authentication::{
@@ -107,12 +110,17 @@ use model::user::{
                 email::generate_email_link::handler,
                 email::verify_email_link::handler,
 
+                /// /foreign-entities
+                foreign_entities::create::handler,
+                foreign_entities::get::handler,
+
                 /// /github
                 github::init::handler,
                 github::list::handler,
                 github::get_credentials::handler,
                 github::disconnect::handler,
                 github::repos::handler,
+                github::get_repo::handler,
 
                 /// /team
                 team::create_team::handler,
@@ -158,12 +166,18 @@ use model::user::{
                         GenerateEmailLinkRequest,
                         CreateInProgressLinkResponse,
 
+                        // Foreign Entities
+                        CreateForeignEntityRequest,
+                        CreateForeignEntityResponse,
+                        GetForeignEntityResponse,
+
                         // GitHub
                         InitGitHubResponse,
                         ListGitHubLinksResponse,
                         GitHubLinkInfo,
                         GitHubCredentialsResponse,
                         GitHubRepoResponse,
+                        SingleGitHubRepoResponse,
 
                         UserQuota,
                         UserOrganizationResponse,

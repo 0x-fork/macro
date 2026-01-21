@@ -1,6 +1,7 @@
 pub mod callback;
 pub mod disconnect;
 pub mod get_credentials;
+pub mod get_repo;
 pub mod init;
 pub mod list;
 pub mod repos;
@@ -23,6 +24,7 @@ pub fn router(jwt_args: JwtValidationArgs) -> Router<ApiContext> {
         .route("/links", get(list::handler))
         .route("/link", delete(disconnect::handler))
         .route("/repos", get(repos::handler))
+        .route("/repos/:owner/:repo", get(get_repo::handler))
         .layer(
             ServiceBuilder::new()
                 .layer(CookieManagerLayer::new())

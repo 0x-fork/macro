@@ -343,6 +343,16 @@ export const authServiceClient = {
     });
   },
 
+  async createForeignEntity(args: { namespacedIdentifier: string }) {
+    return fetchWithAuth<{ id: string; namespacedIdentifier: string }>(
+      `${authHost}/foreign-entities`,
+      {
+        method: 'POST',
+        body: JSON.stringify(args),
+      }
+    );
+  },
+
   // HTTP methods (migrated from RPC)
   async getLegacyUserPermissions() {
     const result = await fetchWithAuth<GetLegacyUserPermissionsResponse>(

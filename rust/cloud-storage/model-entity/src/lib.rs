@@ -13,6 +13,7 @@ use utoipa::ToSchema;
 mod tests;
 
 pub mod as_owned;
+pub mod github;
 pub mod namespaced_identifier;
 
 pub use namespaced_identifier::{NamespacedIdentifier, NamespacedIdentifierError};

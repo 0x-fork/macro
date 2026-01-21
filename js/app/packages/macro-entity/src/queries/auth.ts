@@ -213,3 +213,63 @@ export function createGitHubReposQuery() {
     },
   }));
 }
+
+const fetchGitHubRepo = async (owner: string, repo: string): Promise<GitHubRepoEntity> => {
+  const url = `${authHost}/github/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  const response = await platformFetch(url, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error('GITHUB_NOT_LINKED');
+    }
+    if (response.status === 404) {
+      throw new Error('REPO_NOT_FOUND');
+    }
+    throw new Error(`Failed to fetch GitHub repo: ${response.statusText}`);
+  }
+
+  const repoData: GitHubRepoEntity = await response.json();
+  return repoData;
+};
+
+/**
+ * Parses a GitHub repo ID (e.g., "github::repo:owner/name") to extract owner and repo name
+ */
+function parseGitHubRepoId(repoId: string): { owner: string; repo: string } | null {
+  const parts = repoId.split(':');
+  if (parts.length < 2) return null;
+
+  const fullName = parts[parts.length - 1];
+  if (!fullName) return null;
+
+  const [owner, repo] = fullName.split('/');
+  if (!owner || !repo) return null;
+
+  return { owner, repo };
+}
+
+export function createGitHubRepoQuery(repoId: string) {
+  const parsed = parseGitHubRepoId(repoId);
+
+  return useQuery(() => ({
+    queryKey: queryKeys.auth.githubRepo({ id: repoId }),
+    queryFn: () => {
+      if (!parsed) {
+        throw new Error('Invalid GitHub repo ID format');
+      }
+      return fetchGitHubRepo(parsed.owner, parsed.repo);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    enabled: !!parsed,
+    retry: (failureCount, error) => {
+      // Don't retry if not linked or not found
+      if (error instanceof Error && (error.message === 'GITHUB_NOT_LINKED' || error.message === 'REPO_NOT_FOUND')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+  }));
+}

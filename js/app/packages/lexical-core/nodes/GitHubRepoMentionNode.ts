@@ -16,12 +16,18 @@ import { $applyIdFromSerialized } from '../plugins/nodeIdPlugin';
 
 const VERSION = 1;
 
+/**
+ * Extracts the full repository name (owner/repo) from a GitHub repo ID.
+ * @param repoId - The namespaced identifier (e.g., "github::repo:owner/name")
+ * @returns The full repository name (e.g., "owner/name")
+ */
+export function getFullNameFromRepoId(repoId: string): string {
+  const parts = repoId.split(':');
+  return parts[parts.length - 1] || repoId;
+}
+
 export type GitHubRepoMentionInfo = {
   repoId: string; // github::repo:owner/name
-  fullName: string; // owner/name
-  owner: string;
-  avatarUrl: string;
-  url: string;
   mentionUuid?: string;
 };
 
@@ -39,10 +45,6 @@ export class GitHubRepoMentionNode extends DecoratorNode<
   DecoratorComponent<GitHubRepoMentionDecoratorProps> | undefined
 > {
   __repoId: string;
-  __fullName: string;
-  __owner: string;
-  __avatarUrl: string;
-  __url: string;
   __mentionUuid: string | undefined;
 
   static getType() {
@@ -60,10 +62,6 @@ export class GitHubRepoMentionNode extends DecoratorNode<
   static clone(node: GitHubRepoMentionNode) {
     return new GitHubRepoMentionNode(
       node.__repoId,
-      node.__fullName,
-      node.__owner,
-      node.__avatarUrl,
-      node.__url,
       node.__mentionUuid,
       node.__key
     );
@@ -71,29 +69,17 @@ export class GitHubRepoMentionNode extends DecoratorNode<
 
   constructor(
     repoId: string,
-    fullName: string,
-    owner: string,
-    avatarUrl: string,
-    url: string,
     mentionUuid?: string,
     key?: NodeKey
   ) {
     super(key);
     this.__repoId = repoId;
-    this.__fullName = fullName;
-    this.__owner = owner;
-    this.__avatarUrl = avatarUrl;
-    this.__url = url;
     this.__mentionUuid = mentionUuid;
   }
 
   static importJSON(serializedNode: SerializedGitHubRepoMentionNode) {
     const node = $createGitHubRepoMentionNode({
       repoId: serializedNode.repoId,
-      fullName: serializedNode.fullName,
-      owner: serializedNode.owner,
-      avatarUrl: serializedNode.avatarUrl,
-      url: serializedNode.url,
       mentionUuid: serializedNode.mentionUuid,
     });
     $applyIdFromSerialized(node, serializedNode);
@@ -104,10 +90,6 @@ export class GitHubRepoMentionNode extends DecoratorNode<
     return {
       ...super.exportJSON(),
       repoId: this.__repoId,
-      fullName: this.__fullName,
-      owner: this.__owner,
-      avatarUrl: this.__avatarUrl,
-      url: this.__url,
       mentionUuid: this.__mentionUuid,
       type: GitHubRepoMentionNode.getType(),
       version: VERSION,
@@ -117,10 +99,6 @@ export class GitHubRepoMentionNode extends DecoratorNode<
   exportComponentProps(): GitHubRepoMentionInfo {
     return {
       repoId: this.__repoId,
-      fullName: this.__fullName,
-      owner: this.__owner,
-      avatarUrl: this.__avatarUrl,
-      url: this.__url,
       mentionUuid: this.__mentionUuid,
     };
   }
@@ -138,20 +116,12 @@ export class GitHubRepoMentionNode extends DecoratorNode<
   static importDOM(): DOMConversionMap<HTMLElement> | null {
     const convert = (domNode: HTMLElement) => {
       const repoId = domNode.getAttribute('data-repo-id');
-      const fullName = domNode.getAttribute('data-full-name') || '';
-      const owner = domNode.getAttribute('data-owner') || '';
-      const avatarUrl = domNode.getAttribute('data-avatar-url') || '';
-      const url = domNode.getAttribute('data-url') || '';
       const mentionUuid =
         domNode.getAttribute('data-mention-uuid') || undefined;
 
-      if (repoId && fullName) {
+      if (repoId) {
         const node = $createGitHubRepoMentionNode({
           repoId,
-          fullName,
-          owner,
-          avatarUrl,
-          url,
           mentionUuid,
         });
         return { node };
@@ -176,10 +146,6 @@ export class GitHubRepoMentionNode extends DecoratorNode<
     return {
       'data-github-repo-mention': 'true',
       'data-repo-id': this.__repoId,
-      'data-full-name': this.__fullName,
-      'data-owner': this.__owner,
-      'data-avatar-url': this.__avatarUrl,
-      'data-url': this.__url,
       'data-mention-uuid': this.__mentionUuid || '',
     };
   }
@@ -192,12 +158,12 @@ export class GitHubRepoMentionNode extends DecoratorNode<
         element.setAttribute(k, v);
       }
     }
-    element.textContent = this.__fullName;
+    element.textContent = getFullNameFromRepoId(this.__repoId);
     return { element };
   }
 
   getTextContent(): string {
-    return this.__fullName;
+    return getFullNameFromRepoId(this.__repoId);
   }
 
   getSearchText(): string {
@@ -206,22 +172,6 @@ export class GitHubRepoMentionNode extends DecoratorNode<
 
   getRepoId(): string {
     return this.__repoId;
-  }
-
-  getFullName(): string {
-    return this.__fullName;
-  }
-
-  getOwner(): string {
-    return this.__owner;
-  }
-
-  getAvatarUrl(): string {
-    return this.__avatarUrl;
-  }
-
-  getUrl(): string {
-    return this.__url;
   }
 
   getMentionUuid(): string | undefined {
@@ -240,10 +190,6 @@ export class GitHubRepoMentionNode extends DecoratorNode<
       return () =>
         decorator({
           repoId: this.__repoId,
-          fullName: this.__fullName,
-          owner: this.__owner,
-          avatarUrl: this.__avatarUrl,
-          url: this.__url,
           mentionUuid: this.__mentionUuid,
           key: this.getKey(),
           theme: config.theme,
@@ -257,10 +203,6 @@ export function $createGitHubRepoMentionNode(
 ): GitHubRepoMentionNode {
   const node = new GitHubRepoMentionNode(
     params.repoId,
-    params.fullName,
-    params.owner,
-    params.avatarUrl,
-    params.url,
     params.mentionUuid
   );
   return $applyNodeReplacement(node);

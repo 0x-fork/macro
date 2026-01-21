@@ -130,7 +130,7 @@ export type Success = {
 };
 type SuccessResponse = { data: Success };
 
-export type ItemType = CloudStorageItemType | 'channel' | 'email';
+export type ItemType = CloudStorageItemType | 'channel' | 'email' | 'foreign';
 
 const itemTypeSet = new Set([
   'document',
@@ -139,6 +139,7 @@ const itemTypeSet = new Set([
   'chat',
   'project',
   'thread',
+  'foreign',
 ]);
 
 export function isItemType(str: string): str is ItemType {

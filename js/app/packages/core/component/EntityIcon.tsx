@@ -28,6 +28,7 @@ import Users from '@icon/duotone/users-duotone.svg';
 import Folder from '@icon/fill/folder-simple-fill.svg';
 import FolderUser from '@icon/fill/folder-user-fill.svg';
 import Check from '@icon/regular/check-fat.svg';
+import GitHubIcon from '@macro-icons/macro-github.svg';
 import PixelChat from '@macro-icons/pixel/ai.svg';
 import PixelBuilding from '@macro-icons/pixel/building.svg';
 import PixelCanvas from '@macro-icons/pixel/canvas.svg';
@@ -84,7 +85,8 @@ export type EntityWithValidIcon =
   | 'directMessage'
   | 'emailRead'
   | 'archive'
-  | 'html';
+  | 'html'
+  | 'github';
 
 const ARCHIVE_EXTENSIONS = new Set(
   Object.values(FileTypeMap)
@@ -231,6 +233,12 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-task-bg',
     prettyName: 'Task',
   },
+  github: {
+    icon: GitHubIcon,
+    foreground: 'text-default',
+    background: 'bg-default-bg',
+    prettyName: 'GitHub Repository',
+  },
 };
 
 // this will match fall-through cases like code files which match multiple extensions
@@ -282,6 +290,7 @@ export const PIXEL_ICONS: Record<EntityWithValidIcon, Component> = {
   user: PixelUser,
   emailRead: PixelEmailRead,
   task: Check,
+  github: GitHubIcon,
 };
 
 export const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
@@ -308,6 +317,7 @@ export const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
   user: WideUser,
   emailRead: WideEmail,
   task: WideTask,
+  github: GitHubIcon,
 };
 
 export const ICON_SIZES = {

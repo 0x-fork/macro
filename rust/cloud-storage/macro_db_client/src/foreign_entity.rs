@@ -111,8 +111,7 @@ pub async fn get_or_create(
             identifier
         )
         VALUES ($1, $2, $3)
-        ON CONFLICT ("namespacedIdentifier") DO UPDATE
-        SET "namespacedIdentifier" = EXCLUDED."namespacedIdentifier"
+        ON CONFLICT ("namespacedIdentifier") DO NOTHING
         RETURNING
             id,
             "namespacedIdentifier" as "namespaced_identifier",
@@ -126,9 +125,19 @@ pub async fn get_or_create(
         identifier
     )
     .fetch_one(db)
-    .await?;
+    .await;
 
-    Ok(result)
+    // If conflict occurred, fetch the existing record
+    match result {
+        Ok(entity) => Ok(entity),
+        Err(sqlx::Error::RowNotFound) => {
+            // The INSERT was skipped due to conflict, fetch the existing record
+            get_by_namespaced_identifier(db, &NamespacedIdentifier::new(path, identifier)?)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("Foreign entity should exist after conflict"))
+        }
+        Err(e) => Err(e.into()),
+    }
 }
 
 /// List foreign entities by path prefix

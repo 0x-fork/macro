@@ -44,6 +44,11 @@ export const queryKeys = {
       { ...args },
     ],
     githubRepos: [...BASE_AUTH, 'github-repos'],
+    githubRepo: (args: KeyOptions) => [
+      ...BASE_AUTH,
+      'github-repo',
+      { ...args },
+    ],
   },
   channel: (args: KeyOptions) => [...BASE_ENTITY.channel, { ...args }],
   chat: (args?: InfiniteKeyOptions) => [

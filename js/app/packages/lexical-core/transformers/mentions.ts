@@ -6,7 +6,10 @@ import type { ElementNode, LexicalNode, TextNode } from 'lexical';
 import { ContactMentionNode } from '../nodes/ContactMentionNode';
 import { DateMentionNode } from '../nodes/DateMentionNode';
 import { DocumentMentionNode } from '../nodes/DocumentMentionNode';
-import { GitHubRepoMentionNode } from '../nodes/GitHubRepoMentionNode';
+import {
+  getFullNameFromRepoId,
+  GitHubRepoMentionNode,
+} from '../nodes/GitHubRepoMentionNode';
 import { GroupMentionNode } from '../nodes/GroupMentionNode';
 import { UserMentionNode } from '../nodes/UserMentionNode';
 
@@ -325,10 +328,6 @@ export const I_GITHUB_REPO_MENTION: TextMatchTransformer = {
     if (!(node instanceof GitHubRepoMentionNode)) return null;
     const data = JSON.stringify({
       repoId: node.getRepoId(),
-      fullName: node.getFullName(),
-      owner: node.getOwner(),
-      avatarUrl: node.getAvatarUrl(),
-      url: node.getUrl(),
       mentionUuid: node.getMentionUuid(),
     });
     return `<m-github-repo-mention>${data}</m-github-repo-mention>`;
@@ -336,15 +335,9 @@ export const I_GITHUB_REPO_MENTION: TextMatchTransformer = {
   replace: (node: TextNode, match: RegExpMatchArray) => {
     try {
       const data = JSON.parse(match[1]);
-      for (const field of ['repoId', 'fullName', 'owner', 'avatarUrl', 'url']) {
-        if (!(field in data)) throw new Error(`Missing field ${field}`);
-      }
+      if (!('repoId' in data)) throw new Error('Missing field repoId');
       const gitHubRepoMentionNode = new GitHubRepoMentionNode(
         data.repoId,
-        data.fullName,
-        data.owner,
-        data.avatarUrl,
-        data.url,
         data.mentionUuid
       );
       node.replace(gitHubRepoMentionNode);
@@ -362,12 +355,13 @@ export const E_GITHUB_REPO_MENTION: ElementTransformer = {
   export: (node) => {
     if (!(node instanceof GitHubRepoMentionNode)) return null;
 
-    const fullName = node.getFullName();
-    const url = node.getUrl();
-
-    if (!fullName || !url) {
+    const repoId = node.getRepoId();
+    if (!repoId) {
       return null;
     }
+
+    const fullName = getFullNameFromRepoId(repoId);
+    const url = `https://github.com/${fullName}`;
 
     // For external representation, create a markdown link
     return `[${fullName}](${url})`;

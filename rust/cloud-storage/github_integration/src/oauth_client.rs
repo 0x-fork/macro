@@ -240,6 +240,55 @@ impl GitHubOAuthClient {
 
         Ok(repositories)
     }
+
+    /// Gets a specific repository by owner and name
+    ///
+    /// See: <https://docs.github.com/en/rest/repos/repos#get-a-repository>
+    #[tracing::instrument(skip(self, access_token), err)]
+    pub async fn get_repository(
+        &self,
+        access_token: &str,
+        owner: &str,
+        repo: &str,
+    ) -> Result<GitHubRepository> {
+        let url = format!("https://api.github.com/repos/{}/{}", owner, repo);
+
+        let response = self
+            .http_client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header("User-Agent", "Macro-Auth-Service")
+            .timeout(Duration::from_secs(30))
+            .send()
+            .await
+            .map_err(|e| GitHubIntegrationError::UserInfoFailed(e.to_string()))?;
+
+        let status = response.status();
+
+        if !status.is_success() {
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown error".to_string());
+
+            // Return specific error for 404
+            if status.as_u16() == 404 {
+                return Err(GitHubIntegrationError::RepositoryNotFound);
+            }
+
+            return Err(GitHubIntegrationError::UserInfoFailed(format!(
+                "failed to get repository: {}",
+                error_body
+            )));
+        }
+
+        let repository: GitHubRepository = response
+            .json()
+            .await
+            .map_err(|e| GitHubIntegrationError::UserInfoFailed(e.to_string()))?;
+
+        Ok(repository)
+    }
 }
 
 impl Default for GitHubOAuthClient {

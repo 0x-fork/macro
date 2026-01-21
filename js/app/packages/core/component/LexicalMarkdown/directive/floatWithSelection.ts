@@ -110,12 +110,12 @@ export function floatWithSelection(
       {
         placement: decidedPlacement,
         middleware: [
+          offset(accessor()?.spacing ?? DEFAULT_SPACING),
           flip({
             fallbackPlacements: ['bottom-start', 'top-start'],
             boundary,
             padding: accessor()?.spacing ?? DEFAULT_SPACING,
           }),
-          offset(accessor()?.spacing ?? DEFAULT_SPACING),
           shift({ padding: accessor()?.spacing ?? DEFAULT_SPACING, boundary }),
           hide(),
         ],
