@@ -103,8 +103,7 @@ async fn test_list_by_path_prefix(pool: Pool<Postgres>) -> anyhow::Result<()> {
     get_or_create(&pool, NamespacedIdentifier::parse("github::user:abc")?).await?;
 
     // List all discord entities
-    let discord_entities =
-        list_by_path_prefix(&pool, &[String::from("discord")]).await?;
+    let discord_entities = list_by_path_prefix(&pool, &[String::from("discord")]).await?;
     assert_eq!(discord_entities.len(), 3);
 
     // List discord channel entities
@@ -190,6 +189,20 @@ async fn test_identifier_with_special_characters(pool: Pool<Postgres>) -> anyhow
         let retrieved = get_by_namespaced_identifier(&pool, &ns_id).await?;
         assert!(retrieved.is_some());
     }
+
+    Ok(())
+}
+
+#[sqlx::test]
+async fn test_exists(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let ns_id = NamespacedIdentifier::parse("github::user:test")?;
+    let created = get_or_create(&pool, ns_id).await?;
+
+    // Entity exists
+    assert!(exists(&pool, created.id).await?);
+
+    // Random entity doesn't exist
+    assert!(!exists(&pool, Uuid::new_v4()).await?);
 
     Ok(())
 }

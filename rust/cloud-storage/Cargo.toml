@@ -39,6 +39,7 @@ members = [
   "email_utils",
   "email_validator",
   "entity_access",
+  "foreign_entity_db_client",
   "experiment_service",
   "frecency",
   "github_integration",

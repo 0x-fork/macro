@@ -14,7 +14,6 @@ pub mod docx_unzip;
 pub mod entity_name;
 pub mod experiment;
 pub mod experiment_log;
-pub mod foreign_entity;
 pub mod history;
 pub mod in_progress_email_link;
 pub mod in_progress_user_link;

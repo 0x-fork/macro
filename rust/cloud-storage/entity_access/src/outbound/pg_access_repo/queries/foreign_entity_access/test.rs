@@ -3,26 +3,12 @@ use model_entity::NamespacedIdentifier;
 
 #[sqlx::test]
 async fn test_check_foreign_entity_exists_true(pool: PgPool) -> anyhow::Result<()> {
-    // Create a foreign entity
+    // Create a foreign entity using the new crate
     let ns_id = NamespacedIdentifier::parse("discord::channel:123")?;
-    let ns_id_str = ns_id.to_string();
-    let (path, identifier) = ns_id.into_parts();
-
-    let entity_id = sqlx::query_scalar!(
-        r#"
-        INSERT INTO foreign_entities ("namespacedIdentifier", path, identifier)
-        VALUES ($1, $2, $3)
-        RETURNING id
-        "#,
-        ns_id_str,
-        &path,
-        identifier
-    )
-    .fetch_one(&pool)
-    .await?;
+    let entity = foreign_entity_db_client::get_or_create(&pool, ns_id).await?;
 
     // Check it exists
-    let exists = check_foreign_entity_exists(&pool, &entity_id.to_string()).await?;
+    let exists = check_foreign_entity_exists(&pool, &entity.id.to_string()).await?;
     assert!(exists);
 
     Ok(())

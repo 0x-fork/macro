@@ -1,0 +1,15 @@
+[package]
+edition = "2024"
+name = "foreign_entity_db_client"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+model-entity = { path = "../model-entity" }
+macro_uuid = { path = "../macro_uuid" }
+serde = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }

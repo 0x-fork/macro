@@ -44,6 +44,9 @@ model-error-response = { path = "../model-error-response", optional = true }
 # Database
 sqlx = { workspace = true }
 
+# Foreign entity DB client
+foreign_entity_db_client = { path = "../foreign_entity_db_client" }
+
 [dev-dependencies]
 mockall = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

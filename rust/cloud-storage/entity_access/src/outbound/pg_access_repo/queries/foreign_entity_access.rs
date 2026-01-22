@@ -20,20 +20,14 @@ pub async fn check_foreign_entity_exists(
         Err(_) => return Ok(false), // Invalid UUID means entity doesn't exist
     };
 
-    let exists = sqlx::query_scalar!(
-        r#"
-        SELECT EXISTS(
-            SELECT 1
-            FROM foreign_entities
-            WHERE id = $1
-        ) as "exists!"
-        "#,
-        entity_uuid
-    )
-    .fetch_one(pool)
-    .await?;
-
-    Ok(exists)
+    foreign_entity_db_client::exists(pool, entity_uuid)
+        .await
+        .map_err(|e| {
+            // Convert anyhow::Error to sqlx::Error
+            // The underlying error is always a sqlx::Error from the DB query
+            tracing::error!(error=?e, "foreign entity exists check failed");
+            sqlx::Error::Protocol(e.to_string())
+        })
 }
 
 #[cfg(test)]

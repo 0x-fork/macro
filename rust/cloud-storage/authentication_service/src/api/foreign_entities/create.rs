@@ -7,7 +7,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::api::context::ApiContext;
-use macro_db_client::foreign_entity;
+use foreign_entity_db_client;
 use model::response::ErrorResponse;
 use model::user::UserContext;
 use model_entity::{NamespacedIdentifier, NamespacedIdentifierError};
@@ -86,7 +86,7 @@ pub async fn handler(
     let ns_id = NamespacedIdentifier::parse(&payload.namespaced_identifier)?;
 
     // Get or create the foreign entity
-    let entity = foreign_entity::get_or_create(&ctx.db, ns_id).await?;
+    let entity = foreign_entity_db_client::get_or_create(&ctx.db, ns_id).await?;
 
     Ok(Json(ForeignEntityResponse {
         id: entity.id.to_string(),

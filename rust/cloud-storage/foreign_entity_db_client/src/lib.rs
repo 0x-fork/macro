@@ -2,6 +2,8 @@
 //!
 //! Foreign entities represent references to external system entities using namespaced identifiers.
 
+#![deny(missing_docs)]
+
 use macro_uuid::generate_uuid_v7;
 use model_entity::NamespacedIdentifier;
 use sqlx::{Pool, Postgres};
@@ -34,10 +36,7 @@ impl ForeignEntity {
 
 /// Get a foreign entity by its UUID
 #[tracing::instrument(skip(db), err)]
-pub async fn get_by_id(
-    db: &Pool<Postgres>,
-    id: Uuid,
-) -> anyhow::Result<Option<ForeignEntity>> {
+pub async fn get_by_id(db: &Pool<Postgres>, id: Uuid) -> anyhow::Result<Option<ForeignEntity>> {
     let result = sqlx::query_as!(
         ForeignEntity,
         r#"
@@ -189,6 +188,25 @@ pub async fn delete(db: &Pool<Postgres>, id: Uuid) -> anyhow::Result<bool> {
     .await?;
 
     Ok(result.rows_affected() > 0)
+}
+
+/// Check if a foreign entity exists by its UUID
+#[tracing::instrument(skip(db), err)]
+pub async fn exists(db: &Pool<Postgres>, id: Uuid) -> anyhow::Result<bool> {
+    let exists = sqlx::query_scalar!(
+        r#"
+        SELECT EXISTS(
+            SELECT 1
+            FROM foreign_entities
+            WHERE id = $1
+        ) as "exists!"
+        "#,
+        id
+    )
+    .fetch_one(db)
+    .await?;
+
+    Ok(exists)
 }
 
 #[cfg(test)]
