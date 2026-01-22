@@ -94,6 +94,7 @@ pub(in crate::api) async fn handler(
         "google" => google::handler(&ctx, cookies, &params.code, &state).await,
         "github" => github::handler(&ctx, cookies, &params.code, &state)
             .await
+            .map(|success| success.into_response())
             .map_err(|e| e.into_response()),
         _ => Err((
             StatusCode::NOT_IMPLEMENTED,

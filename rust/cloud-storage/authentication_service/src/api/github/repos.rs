@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::api::context::ApiContext;
 use github_integration::{GitHubIntegrationError, GitHubOAuthClient, get_user_repositories};
+use model::response::ErrorResponse;
 use model::user::UserContext;
 use model_entity::github::github_repo_id;
 

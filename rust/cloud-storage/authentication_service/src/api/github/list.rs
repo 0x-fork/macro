@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::api::context::ApiContext;
 use github_integration::GitHubIntegrationError;
+use model::response::ErrorResponse;
 use model::user::UserContext;
 
 pub use github_integration::GitHubLinkInfo;

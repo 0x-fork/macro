@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::api::context::ApiContext;
 use github_integration::{GitHubIntegrationError, unlink_github_account};
+use model::response::ErrorResponse;
 use model::user::UserContext;
 
 /// Disconnects GitHub account for the authenticated user

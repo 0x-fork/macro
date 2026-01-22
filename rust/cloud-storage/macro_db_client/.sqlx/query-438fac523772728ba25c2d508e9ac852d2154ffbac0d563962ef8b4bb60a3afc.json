@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO foreign_entities (\n            \"namespacedIdentifier\",\n            path,\n            identifier\n        )\n        VALUES ($1, $2, $3)\n        ON CONFLICT (\"namespacedIdentifier\") DO UPDATE\n        SET \"namespacedIdentifier\" = EXCLUDED.\"namespacedIdentifier\"\n        RETURNING\n            id,\n            \"namespacedIdentifier\" as \"namespaced_identifier\",\n            path,\n            identifier,\n            \"createdAt\" as \"created_at\",\n            \"updatedAt\" as \"updated_at\"\n        ",
+  "query": "\n        INSERT INTO foreign_entities (\n            id,\n            namespaced_identifier,\n            path,\n            identifier\n        )\n        VALUES ($1, $2, $3, $4)\n        ON CONFLICT (namespaced_identifier) DO NOTHING\n        RETURNING\n            id,\n            namespaced_identifier,\n            path,\n            identifier,\n            created_at,\n            updated_at\n        ",
   "describe": {
     "columns": [
       {
@@ -36,6 +36,7 @@
     ],
     "parameters": {
       "Left": [
+        "Uuid",
         "Text",
         "TextArray",
         "Text"
@@ -50,5 +51,5 @@
       false
     ]
   },
-  "hash": "acaaa3d2cee6df351c44870d4e7ef69ed9a4ff5ece5bb9a7df9cec9b4baf88d4"
+  "hash": "438fac523772728ba25c2d508e9ac852d2154ffbac0d563962ef8b4bb60a3afc"
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id,\n            \"namespacedIdentifier\" as \"namespaced_identifier\",\n            path,\n            identifier,\n            \"createdAt\" as \"created_at\",\n            \"updatedAt\" as \"updated_at\"\n        FROM foreign_entities\n        WHERE path[1:$1] = $2\n        ORDER BY \"createdAt\" DESC\n        ",
+  "query": "\n        SELECT\n            id,\n            namespaced_identifier,\n            path,\n            identifier,\n            created_at,\n            updated_at\n        FROM foreign_entities\n        WHERE id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -36,8 +36,7 @@
     ],
     "parameters": {
       "Left": [
-        "Int4",
-        "TextArray"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -49,5 +48,5 @@
       false
     ]
   },
-  "hash": "082703ed3e19387419d3ec6ef3afab1839b585eef39171b6aea1fac3d8e77a76"
+  "hash": "cf50fbbc7d65910502123b03cbfa23a5908c05791ad2ac1bad3b2edf01c54263"
 }

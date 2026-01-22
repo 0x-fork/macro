@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::api::context::ApiContext;
 use crate::api::oauth2::OAuthState;
-use github_integration::GitHubOAuthClient;
+use github_integration::{GitHubIntegrationError, GitHubOAuthClient};
 use model::response::ErrorResponse;
 use model::user::UserContext;
 
@@ -34,7 +34,7 @@ pub enum InitGitHubError {
     TooManyInProgressLinks,
     /// Failed to construct OAuth URL
     #[error("failed to construct OAuth URL: {0}")]
-    OAuthUrlError(#[from] serde_json::Error),
+    OAuthUrlError(#[from] GitHubIntegrationError),
     /// Database error
     #[error("database error: {0}")]
     DatabaseError(#[from] anyhow::Error),
