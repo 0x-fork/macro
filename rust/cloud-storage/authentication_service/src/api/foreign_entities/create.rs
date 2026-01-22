@@ -10,7 +10,7 @@ use crate::api::context::ApiContext;
 use macro_db_client::foreign_entity;
 use model::response::ErrorResponse;
 use model::user::UserContext;
-use model_entity::NamespacedIdentifier;
+use model_entity::{NamespacedIdentifier, NamespacedIdentifierError};
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -26,6 +26,36 @@ pub struct ForeignEntityResponse {
     pub id: String,
     /// The full namespaced identifier
     pub namespaced_identifier: String,
+}
+
+/// Error type for create foreign entity operations
+#[derive(thiserror::Error, Debug)]
+pub enum CreateForeignEntityError {
+    /// Invalid namespaced identifier format
+    #[error("invalid namespaced identifier: {0}")]
+    InvalidNamespacedIdentifier(#[from] NamespacedIdentifierError),
+    /// Database operation failed
+    #[error("database error: {0}")]
+    DatabaseError(#[from] anyhow::Error),
+}
+
+impl IntoResponse for CreateForeignEntityError {
+    fn into_response(self) -> Response {
+        let (status_code, message): (StatusCode, &str) = match &self {
+            CreateForeignEntityError::InvalidNamespacedIdentifier(_) => {
+                (StatusCode::BAD_REQUEST, "invalid namespaced identifier")
+            }
+            CreateForeignEntityError::DatabaseError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "failed to create foreign entity")
+            }
+        };
+
+        (
+            status_code,
+            Json(ErrorResponse { message }),
+        )
+            .into_response()
+    }
 }
 
 /// Create or get a foreign entity
@@ -44,46 +74,22 @@ pub struct ForeignEntityResponse {
         (status = 500, body=ErrorResponse, description = "Server error"),
     )
 )]
-#[tracing::instrument(skip(ctx, user_context), fields(user_id=%user_context.user_id))]
+#[tracing::instrument(skip(ctx, user_context), err, fields(user_id=%user_context.user_id))]
 pub async fn handler(
     State(ctx): State<ApiContext>,
     Extension(user_context): Extension<UserContext>,
     Json(payload): Json<CreateForeignEntityRequest>,
-) -> Result<Response, Response> {
+) -> Result<Json<ForeignEntityResponse>, CreateForeignEntityError> {
     tracing::info!("create_foreign_entity called");
 
     // Parse the namespaced identifier
-    let ns_id = NamespacedIdentifier::parse(&payload.namespaced_identifier).map_err(|e| {
-        tracing::error!(error=?e, "invalid namespaced identifier");
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                message: &format!("invalid namespaced identifier: {}", e),
-            }),
-        )
-            .into_response()
-    })?;
+    let ns_id = NamespacedIdentifier::parse(&payload.namespaced_identifier)?;
 
     // Get or create the foreign entity
-    let entity = foreign_entity::get_or_create(&ctx.db, ns_id)
-        .await
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to create foreign entity");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    message: "failed to create foreign entity",
-                }),
-            )
-                .into_response()
-        })?;
+    let entity = foreign_entity::get_or_create(&ctx.db, ns_id).await?;
 
-    Ok((
-        StatusCode::OK,
-        Json(ForeignEntityResponse {
-            id: entity.id.to_string(),
-            namespaced_identifier: entity.namespaced_identifier,
-        }),
-    )
-        .into_response())
+    Ok(Json(ForeignEntityResponse {
+        id: entity.id.to_string(),
+        namespaced_identifier: entity.namespaced_identifier,
+    }))
 }

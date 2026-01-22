@@ -21,40 +21,27 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Error type for namespaced identifier parsing
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
 pub enum NamespacedIdentifierError {
     /// The input string was empty
+    #[error("input string is empty")]
     EmptyInput,
     /// No identifier portion found (missing final `:`)
+    #[error("missing identifier portion (expected format: path:identifier)")]
     MissingIdentifier,
     /// The identifier portion was empty
+    #[error("identifier portion is empty")]
     EmptyIdentifier,
     /// The path portion was empty or invalid
+    #[error("path portion is empty")]
     EmptyPath,
     /// A path segment was empty
+    #[error("path contains empty segment")]
     EmptyPathSegment,
     /// A path segment contained invalid characters (`:` or `::`)
+    #[error("path segment '{0}' contains invalid characters")]
     InvalidPathSegment(String),
 }
-
-impl fmt::Display for NamespacedIdentifierError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::EmptyInput => write!(f, "input string is empty"),
-            Self::MissingIdentifier => {
-                write!(f, "missing identifier portion (expected format: path:identifier)")
-            }
-            Self::EmptyIdentifier => write!(f, "identifier portion is empty"),
-            Self::EmptyPath => write!(f, "path portion is empty"),
-            Self::EmptyPathSegment => write!(f, "path contains empty segment"),
-            Self::InvalidPathSegment(segment) => {
-                write!(f, "path segment '{}' contains invalid characters", segment)
-            }
-        }
-    }
-}
-
-impl std::error::Error for NamespacedIdentifierError {}
 
 /// A namespaced identifier for foreign entities
 ///

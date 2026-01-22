@@ -10,6 +10,23 @@ use crate::api::{
     },
 };
 
+/// Success response for GitHub OAuth handler
+pub enum GitHubOAuthSuccess {
+    /// HTML response for account linking flow
+    Html(Html<&'static str>),
+    /// Response for login flow (redirect or status)
+    Login(Response),
+}
+
+impl IntoResponse for GitHubOAuthSuccess {
+    fn into_response(self) -> Response {
+        match self {
+            GitHubOAuthSuccess::Html(html) => html.into_response(),
+            GitHubOAuthSuccess::Login(response) => response,
+        }
+    }
+}
+
 async fn link_user(
     ctx: &ApiContext,
     code: &str,
@@ -31,10 +48,7 @@ async fn link_user(
         code,
         macro_user_id,
     )
-    .await
-    .inspect_err(|e| {
-        tracing::error!(error=?e, "failed to link GitHub account");
-    })?;
+    .await?;
 
     tracing::info!(
         fusionauth_user_id=%macro_user_id,
@@ -58,14 +72,14 @@ pub(in crate::api::oauth2) async fn handler(
     cookies: Cookies,
     code: &str,
     state: &OAuthState,
-) -> Result<Response, GitHubIntegrationError> {
+) -> Result<GitHubOAuthSuccess, GitHubIntegrationError> {
     // if the link id is provided, this user is already logged in to an account. therefore, we
     // don't need to handle completing the login through fusionauth
     if let Some(link_id) = state.link_id.as_ref() {
         link_user(ctx, code, link_id).await?;
 
         // Return HTML that notifies the opener window and closes the popup
-        let html = r#"
+        let html = Html(r#"
             <!DOCTYPE html>
             <html>
             <head><title>GitHub Connected</title></head>
@@ -87,15 +101,17 @@ pub(in crate::api::oauth2) async fn handler(
                 <p>GitHub account connected successfully. This window will close automatically...</p>
             </body>
             </html>
-        "#;
-        return Ok(Html(html).into_response());
+        "#);
+        return Ok(GitHubOAuthSuccess::Html(html));
     }
 
     // The user does not need a link, complete the standard idp login
-    login::handler(ctx, cookies, code, "github", state)
+    let response = login::handler(ctx, cookies, code, "github", state)
         .await
         .map_err(|_response| {
             // Convert Response error to GitHubIntegrationError
             GitHubIntegrationError::Generic(anyhow::anyhow!("login handler failed"))
-        })
+        })?;
+
+    Ok(GitHubOAuthSuccess::Login(response))
 }

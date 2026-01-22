@@ -8,8 +8,9 @@ use uuid::Uuid;
 
 use crate::api::context::ApiContext;
 use crate::api::oauth2::OAuthState;
-use model::{response::ErrorResponse, user::UserContext};
 use github_integration::GitHubOAuthClient;
+use model::response::ErrorResponse;
+use model::user::UserContext;
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, utoipa::ToSchema)]
 pub struct InitGitHubResponse {
@@ -17,6 +18,54 @@ pub struct InitGitHubResponse {
     pub authorization_url: String,
     /// The link ID for tracking the OAuth flow
     pub link_id: String,
+}
+
+/// Error type for init GitHub operations
+#[derive(thiserror::Error, Debug)]
+pub enum InitGitHubError {
+    /// Invalid user ID format
+    #[error("invalid user ID format")]
+    InvalidUserId(#[from] uuid::Error),
+    /// GitHub account already linked
+    #[error("GitHub account already linked")]
+    AlreadyLinked,
+    /// Too many in-progress links
+    #[error("too many in progress links")]
+    TooManyInProgressLinks,
+    /// Failed to construct OAuth URL
+    #[error("failed to construct OAuth URL: {0}")]
+    OAuthUrlError(#[from] serde_json::Error),
+    /// Database error
+    #[error("database error: {0}")]
+    DatabaseError(#[from] anyhow::Error),
+}
+
+impl IntoResponse for InitGitHubError {
+    fn into_response(self) -> Response {
+        let (status_code, message): (StatusCode, &str) = match &self {
+            InitGitHubError::InvalidUserId(_) => {
+                (StatusCode::BAD_REQUEST, "invalid user ID format")
+            }
+            InitGitHubError::AlreadyLinked => {
+                (StatusCode::BAD_REQUEST, "GitHub account already linked")
+            }
+            InitGitHubError::TooManyInProgressLinks => {
+                (StatusCode::TOO_MANY_REQUESTS, "too many in progress links. resolve them or wait 24 hours")
+            }
+            InitGitHubError::OAuthUrlError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "unable to construct OAuth URL")
+            }
+            InitGitHubError::DatabaseError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "internal server error")
+            }
+        };
+
+        (
+            status_code,
+            Json(ErrorResponse { message }),
+        )
+            .into_response()
+    }
 }
 
 /// Initiates GitHub OAuth flow for integration
@@ -32,50 +81,25 @@ pub struct InitGitHubResponse {
         (status = 500, body=ErrorResponse),
     )
 )]
-#[tracing::instrument(skip(ctx, user_context), fields(user_id=%user_context.user_id, fusion_user_id=%user_context.fusion_user_id))]
+#[tracing::instrument(skip(ctx, user_context), err, fields(user_id=%user_context.user_id, fusion_user_id=%user_context.fusion_user_id))]
 pub async fn handler(
     State(ctx): State<ApiContext>,
     user_context: Extension<UserContext>,
-) -> Result<Response, Response> {
+) -> Result<Json<InitGitHubResponse>, InitGitHubError> {
     tracing::info!("init_github called");
 
     // Parse fusion_user_id to UUID
-    let fusion_user_id = Uuid::parse_str(&user_context.fusion_user_id).map_err(|e| {
-        tracing::error!(error=?e, "invalid fusion_user_id format");
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                message: "invalid user ID format",
-            }),
-        )
-            .into_response()
-    })?;
+    let fusion_user_id = Uuid::parse_str(&user_context.fusion_user_id)?;
 
     // Check if user already has a GitHub link
     let existing_link = github_integration::db::get_link_by_fusionauth_user_id(
         &ctx.db,
         fusion_user_id,
     )
-    .await
-    .map_err(|e| {
-        tracing::error!(error=?e, "failed to check existing GitHub link");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                message: "unable to check existing GitHub link",
-            }),
-        )
-            .into_response()
-    })?;
+    .await?;
 
     if existing_link.is_some() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                message: "GitHub account already linked",
-            }),
-        )
-            .into_response());
+        return Err(InitGitHubError::AlreadyLinked);
     }
 
     // Check count of in-progress links
@@ -84,26 +108,10 @@ pub async fn handler(
             &ctx.db,
             &user_context.fusion_user_id,
         )
-        .await
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to count in progress user links");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    message: "unable to get current link count",
-                }),
-            )
-                .into_response()
-        })?;
+        .await?;
 
     if count >= 5 {
-        return Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            Json(ErrorResponse {
-                message: "too many in progress links. resolve them or wait 24 hours",
-            }),
-        )
-            .into_response());
+        return Err(InitGitHubError::TooManyInProgressLinks);
     }
 
     // Create in-progress link
@@ -111,17 +119,7 @@ pub async fn handler(
         &ctx.db,
         &user_context.fusion_user_id,
     )
-    .await
-    .map_err(|e| {
-        tracing::error!(error=?e, "failed to create in progress user link");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse {
-                message: "unable to create in progress user link",
-            }),
-        )
-            .into_response()
-    })?;
+    .await?;
 
     // Get GitHub integration identity provider ID from context
     let github_idp_id = &ctx.github_idp_id;
@@ -138,24 +136,10 @@ pub async fn handler(
     let redirect_uri = crate::api::oauth2::format_redirect_uri("github");
     let oauth_client = GitHubOAuthClient::new();
     let authorization_url = oauth_client
-        .construct_authorize_url(&ctx.github_config, &redirect_uri, state)
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to construct GitHub OAuth URL");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    message: "unable to construct OAuth URL",
-                }),
-            )
-                .into_response()
-        })?;
+        .construct_authorize_url(&ctx.github_config, &redirect_uri, state)?;
 
-    Ok((
-        StatusCode::OK,
-        Json(InitGitHubResponse {
-            authorization_url,
-            link_id: link_id.to_string(),
-        }),
-    )
-        .into_response())
+    Ok(Json(InitGitHubResponse {
+        authorization_url,
+        link_id: link_id.to_string(),
+    }))
 }

@@ -11,7 +11,7 @@ use crate::api::context::ApiContext;
 use macro_db_client::foreign_entity;
 use model::response::ErrorResponse;
 use model::user::UserContext;
-use model_entity::NamespacedIdentifier;
+use model_entity::{NamespacedIdentifier, NamespacedIdentifierError};
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -20,6 +20,48 @@ pub struct ForeignEntityResponse {
     pub id: String,
     /// The full namespaced identifier
     pub namespaced_identifier: String,
+}
+
+/// Error type for get foreign entity operations
+#[derive(thiserror::Error, Debug)]
+pub enum GetForeignEntityError {
+    /// Invalid URL encoding
+    #[error("invalid URL encoding")]
+    InvalidUrlEncoding,
+    /// Invalid namespaced identifier format
+    #[error("invalid namespaced identifier: {0}")]
+    InvalidNamespacedIdentifier(#[from] NamespacedIdentifierError),
+    /// Foreign entity not found
+    #[error("foreign entity not found")]
+    NotFound,
+    /// Database operation failed
+    #[error("database error: {0}")]
+    DatabaseError(#[from] anyhow::Error),
+}
+
+impl IntoResponse for GetForeignEntityError {
+    fn into_response(self) -> Response {
+        let (status_code, message): (StatusCode, &str) = match &self {
+            GetForeignEntityError::InvalidUrlEncoding => {
+                (StatusCode::BAD_REQUEST, "invalid URL encoding")
+            }
+            GetForeignEntityError::InvalidNamespacedIdentifier(_) => {
+                (StatusCode::BAD_REQUEST, "invalid namespaced identifier")
+            }
+            GetForeignEntityError::NotFound => {
+                (StatusCode::NOT_FOUND, "foreign entity not found")
+            }
+            GetForeignEntityError::DatabaseError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "failed to query foreign entity")
+            }
+        };
+
+        (
+            status_code,
+            Json(ErrorResponse { message }),
+        )
+            .into_response()
+    }
 }
 
 /// Get a foreign entity by namespaced identifier
@@ -38,69 +80,29 @@ pub struct ForeignEntityResponse {
         (status = 500, body=ErrorResponse, description = "Server error"),
     )
 )]
-#[tracing::instrument(skip(ctx, user_context), fields(user_id=%user_context.user_id))]
+#[tracing::instrument(skip(ctx, user_context), err, fields(user_id=%user_context.user_id))]
 pub async fn handler(
     State(ctx): State<ApiContext>,
     Extension(user_context): Extension<UserContext>,
     Path(namespaced_id): Path<String>,
-) -> Result<Response, Response> {
+) -> Result<Json<ForeignEntityResponse>, GetForeignEntityError> {
     tracing::info!(namespaced_id=%namespaced_id, "get_foreign_entity called");
 
     // URL decode the namespaced identifier
     let decoded = decode(&namespaced_id)
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to decode namespaced identifier");
-            (
-                StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    message: "invalid URL encoding",
-                }),
-            )
-                .into_response()
-        })?
+        .map_err(|_| GetForeignEntityError::InvalidUrlEncoding)?
         .to_string();
 
     // Parse the namespaced identifier
-    let ns_id = NamespacedIdentifier::parse(&decoded).map_err(|e| {
-        tracing::error!(error=?e, "invalid namespaced identifier");
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                message: &format!("invalid namespaced identifier: {}", e),
-            }),
-        )
-            .into_response()
-    })?;
+    let ns_id = NamespacedIdentifier::parse(&decoded)?;
 
     // Get the foreign entity
     let entity = foreign_entity::get_by_namespaced_identifier(&ctx.db, &ns_id)
-        .await
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to query foreign entity");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    message: "failed to query foreign entity",
-                }),
-            )
-                .into_response()
-        })?
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    message: "foreign entity not found",
-                }),
-            )
-                .into_response()
-        })?;
+        .await?
+        .ok_or(GetForeignEntityError::NotFound)?;
 
-    Ok((
-        StatusCode::OK,
-        Json(ForeignEntityResponse {
-            id: entity.id.to_string(),
-            namespaced_identifier: entity.namespaced_identifier,
-        }),
-    )
-        .into_response())
+    Ok(Json(ForeignEntityResponse {
+        id: entity.id.to_string(),
+        namespaced_identifier: entity.namespaced_identifier,
+    }))
 }

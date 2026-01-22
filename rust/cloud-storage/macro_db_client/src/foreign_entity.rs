@@ -2,6 +2,7 @@
 //!
 //! Foreign entities represent references to external system entities using namespaced identifiers.
 
+use macro_uuid::generate_uuid_v7;
 use model_entity::NamespacedIdentifier;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
@@ -12,17 +13,14 @@ pub struct ForeignEntity {
     /// Unique identifier
     pub id: Uuid,
     /// The full namespaced identifier
-    #[sqlx(rename = "namespacedIdentifier")]
     pub namespaced_identifier: String,
     /// The path segments
     pub path: Vec<String>,
     /// The identifier portion
     pub identifier: String,
     /// Creation timestamp
-    #[sqlx(rename = "createdAt")]
     pub created_at: chrono::DateTime<chrono::Utc>,
     /// Last update timestamp
-    #[sqlx(rename = "updatedAt")]
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -45,11 +43,11 @@ pub async fn get_by_id(
         r#"
         SELECT
             id,
-            "namespacedIdentifier" as "namespaced_identifier",
+            namespaced_identifier,
             path,
             identifier,
-            "createdAt" as "created_at",
-            "updatedAt" as "updated_at"
+            created_at,
+            updated_at
         FROM foreign_entities
         WHERE id = $1
         "#,
@@ -74,13 +72,13 @@ pub async fn get_by_namespaced_identifier(
         r#"
         SELECT
             id,
-            "namespacedIdentifier" as "namespaced_identifier",
+            namespaced_identifier,
             path,
             identifier,
-            "createdAt" as "created_at",
-            "updatedAt" as "updated_at"
+            created_at,
+            updated_at
         FROM foreign_entities
-        WHERE "namespacedIdentifier" = $1
+        WHERE namespaced_identifier = $1
         "#,
         ns_id_str
     )
@@ -101,25 +99,28 @@ pub async fn get_or_create(
 ) -> anyhow::Result<ForeignEntity> {
     let ns_id_str = ns_id.to_string();
     let (path, identifier) = ns_id.into_parts();
+    let id = generate_uuid_v7();
 
     let result = sqlx::query_as!(
         ForeignEntity,
         r#"
         INSERT INTO foreign_entities (
-            "namespacedIdentifier",
+            id,
+            namespaced_identifier,
             path,
             identifier
         )
-        VALUES ($1, $2, $3)
-        ON CONFLICT ("namespacedIdentifier") DO NOTHING
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (namespaced_identifier) DO NOTHING
         RETURNING
             id,
-            "namespacedIdentifier" as "namespaced_identifier",
+            namespaced_identifier,
             path,
             identifier,
-            "createdAt" as "created_at",
-            "updatedAt" as "updated_at"
+            created_at,
+            updated_at
         "#,
+        id,
         ns_id_str,
         &path,
         identifier
@@ -156,14 +157,14 @@ pub async fn list_by_path_prefix(
         r#"
         SELECT
             id,
-            "namespacedIdentifier" as "namespaced_identifier",
+            namespaced_identifier,
             path,
             identifier,
-            "createdAt" as "created_at",
-            "updatedAt" as "updated_at"
+            created_at,
+            updated_at
         FROM foreign_entities
         WHERE path[1:$1] = $2
-        ORDER BY "createdAt" DESC
+        ORDER BY created_at DESC
         "#,
         prefix_len,
         prefix

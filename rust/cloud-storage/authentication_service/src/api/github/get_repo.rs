@@ -1,15 +1,12 @@
 use axum::{
     Extension, Json,
     extract::{Path, State},
-    http::StatusCode,
-    response::{IntoResponse, Response},
 };
 use serde::Serialize;
 use uuid::Uuid;
 
 use crate::api::context::ApiContext;
-use github_integration::{get_user_repository, GitHubOAuthClient};
-use model::response::ErrorResponse;
+use github_integration::{GitHubIntegrationError, GitHubOAuthClient, get_user_repository};
 use model::user::UserContext;
 use model_entity::github::github_repo_id;
 
@@ -53,25 +50,16 @@ pub struct GitHubRepoResponse {
         (status = 500, body=ErrorResponse, description = "Server error"),
     )
 )]
-#[tracing::instrument(skip(ctx, user_context), fields(user_id=%user_context.user_id, fusion_user_id=%user_context.fusion_user_id))]
+#[tracing::instrument(skip(ctx, user_context), err, fields(user_id=%user_context.user_id, fusion_user_id=%user_context.fusion_user_id))]
 pub async fn handler(
     State(ctx): State<ApiContext>,
     Extension(user_context): Extension<UserContext>,
     Path((owner, repo)): Path<(String, String)>,
-) -> Result<Response, Response> {
+) -> Result<Json<GitHubRepoResponse>, GitHubIntegrationError> {
     tracing::info!(owner=%owner, repo=%repo, "get_github_repo called");
 
     // Parse fusion_user_id to UUID
-    let fusion_user_id = Uuid::parse_str(&user_context.fusion_user_id).map_err(|e| {
-        tracing::error!(error=?e, "invalid fusion_user_id format");
-        (
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                message: "invalid user ID format",
-            }),
-        )
-            .into_response()
-    })?;
+    let fusion_user_id = Uuid::parse_str(&user_context.fusion_user_id)?;
 
     // Create OAuth client
     let oauth_client = GitHubOAuthClient::new();
@@ -86,28 +74,7 @@ pub async fn handler(
         &owner,
         &repo,
     )
-    .await
-    .map_err(|e| {
-        tracing::error!(error=?e, owner=%owner, repo=%repo, "failed to get GitHub repository");
-
-        let (status_code, message) = match e {
-            github_integration::GitHubIntegrationError::NotLinked => {
-                (StatusCode::FORBIDDEN, "GitHub account not linked")
-            }
-            github_integration::GitHubIntegrationError::RepositoryNotFound => {
-                (StatusCode::NOT_FOUND, "repository not found or not accessible")
-            }
-            _ => (StatusCode::INTERNAL_SERVER_ERROR, "unable to retrieve GitHub repository"),
-        };
-
-        (
-            status_code,
-            Json(ErrorResponse {
-                message,
-            }),
-        )
-            .into_response()
-    })?;
+    .await?;
 
     // Convert to response format
     let repo_id = github_repo_id(&repository.owner.login, &repository.name)
@@ -126,5 +93,5 @@ pub async fn handler(
         updated_at: repository.updated_at,
     };
 
-    Ok((StatusCode::OK, Json(response)).into_response())
+    Ok(Json(response))
 }
