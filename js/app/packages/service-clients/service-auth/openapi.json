@@ -178,9 +178,139 @@
         }
       }
     },
+    "/foreign-entities": {
+      "post": {
+        "tags": ["foreign_entities::create"],
+        "summary": "Create or get a foreign entity",
+        "description": "This endpoint is idempotent - if the foreign entity already exists,\nit returns the existing one. Otherwise, it creates a new one.",
+        "operationId": "create_foreign_entity",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateForeignEntityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Foreign entity created or already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForeignEntityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid namespaced identifier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/foreign-entities/{namespaced_id}": {
+      "get": {
+        "tags": ["foreign_entities::get"],
+        "summary": "Get a foreign entity by namespaced identifier",
+        "operationId": "get_foreign_entity",
+        "parameters": [
+          {
+            "name": "namespaced_id",
+            "in": "path",
+            "description": "URL-encoded namespaced identifier (e.g., github::repo:owner/name)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Foreign entity found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForeignEntityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid namespaced identifier",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Foreign entity not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/github/credentials": {
       "get": {
-        "tags": ["github::get"],
+        "tags": ["github::get_credentials"],
         "summary": "Gets GitHub access token and credentials for the authenticated user",
         "operationId": "get_github_credentials",
         "responses": {
@@ -356,6 +486,149 @@
           },
           "500": {
             "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/repos": {
+      "get": {
+        "tags": ["github::repos"],
+        "summary": "Lists GitHub repositories accessible to the authenticated user",
+        "operationId": "list_github_repos",
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GitHubRepoResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GitHub account not linked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/repos/{owner}/{repo}": {
+      "get": {
+        "tags": ["github::get_repo"],
+        "summary": "Get a specific GitHub repository by owner and name",
+        "operationId": "get_github_repo",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "description": "Repository owner (username or organization)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "description": "Repository name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repository found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubRepoResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "GitHub account not linked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Repository not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -3039,6 +3312,16 @@
           }
         }
       },
+      "CreateForeignEntityRequest": {
+        "type": "object",
+        "required": ["namespacedIdentifier"],
+        "properties": {
+          "namespacedIdentifier": {
+            "type": "string",
+            "description": "The namespaced identifier (e.g., \"github::repo:owner/name\")"
+          }
+        }
+      },
       "CreateInProgressLinkResponse": {
         "type": "object",
         "required": ["link_id"],
@@ -3102,6 +3385,20 @@
           "message": {
             "type": "string",
             "description": "Message to explain failure"
+          }
+        }
+      },
+      "ForeignEntityResponse": {
+        "type": "object",
+        "required": ["id", "namespacedIdentifier"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the foreign entity"
+          },
+          "namespacedIdentifier": {
+            "type": "string",
+            "description": "The full namespaced identifier"
           }
         }
       },
@@ -3233,35 +3530,95 @@
       },
       "GitHubCredentialsResponse": {
         "type": "object",
-        "required": ["access_token", "github_username", "github_user_id"],
+        "description": "Response returned when retrieving GitHub credentials",
+        "required": ["accessToken", "githubUsername", "githubUserId"],
         "properties": {
-          "access_token": {
-            "type": "string"
+          "accessToken": {
+            "type": "string",
+            "description": "The OAuth access token"
           },
-          "github_user_id": {
-            "type": "string"
+          "githubUserId": {
+            "type": "string",
+            "description": "GitHub user ID"
           },
-          "github_username": {
-            "type": "string"
+          "githubUsername": {
+            "type": "string",
+            "description": "GitHub username"
           }
         }
       },
       "GitHubLinkInfo": {
         "type": "object",
-        "required": ["id", "github_username", "github_user_id", "created_at"],
+        "description": "GitHub link information for listing",
+        "required": ["id", "githubUsername", "githubUserId", "createdAt"],
         "properties": {
-          "created_at": {
+          "createdAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "When the link was created"
           },
-          "github_user_id": {
-            "type": "string"
+          "githubUserId": {
+            "type": "string",
+            "description": "GitHub user ID"
           },
-          "github_username": {
-            "type": "string"
+          "githubUsername": {
+            "type": "string",
+            "description": "GitHub username"
           },
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "The link ID"
+          }
+        }
+      },
+      "GitHubRepoResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "fullName",
+          "owner",
+          "avatarUrl",
+          "private",
+          "url",
+          "updatedAt"
+        ],
+        "properties": {
+          "avatarUrl": {
+            "type": "string",
+            "description": "Owner avatar URL"
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Repository description"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Full repository name (owner/repo)"
+          },
+          "id": {
+            "type": "string",
+            "description": "Foreign entity ID: github::repo:owner/name"
+          },
+          "name": {
+            "type": "string",
+            "description": "Repository name (without owner)"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Repository owner username"
+          },
+          "private": {
+            "type": "boolean",
+            "description": "Whether the repository is private"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When the repository was last updated"
+          },
+          "url": {
+            "type": "string",
+            "description": "HTML URL to the repository"
           }
         }
       },

@@ -1,4 +1,4 @@
-import type { BlockAlias, BlockName } from '@core/block';
+import type { BlockName } from '@core/block';
 import type { EntityWithValidIcon } from '@core/component/EntityIcon';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { trackMention } from '@core/signal/mention';

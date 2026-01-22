@@ -5,8 +5,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Response returned when retrieving GitHub credentials
+ */
 export interface GitHubCredentialsResponse {
-  access_token: string;
-  github_user_id: string;
-  github_username: string;
+  /** The OAuth access token */
+  accessToken: string;
+  /** GitHub user ID */
+  githubUserId: string;
+  /** GitHub username */
+  githubUsername: string;
 }

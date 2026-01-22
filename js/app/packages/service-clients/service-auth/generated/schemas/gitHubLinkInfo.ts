@@ -5,9 +5,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * GitHub link information for listing
+ */
 export interface GitHubLinkInfo {
-  created_at: string;
-  github_user_id: string;
-  github_username: string;
+  /** When the link was created */
+  createdAt: string;
+  /** GitHub user ID */
+  githubUserId: string;
+  /** GitHub username */
+  githubUsername: string;
+  /** The link ID */
   id: string;
 }

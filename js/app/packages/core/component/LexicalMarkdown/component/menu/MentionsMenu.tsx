@@ -306,7 +306,12 @@ export function computeBins<T extends string>(
 }
 
 /** The current bins enum */
-export type MentionBins = 'items' | 'users' | 'dates' | 'emails' | 'githubRepos';
+export type MentionBins =
+  | 'items'
+  | 'users'
+  | 'dates'
+  | 'emails'
+  | 'githubRepos';
 
 /** View all mode type */
 type ViewAllMode = MentionBins | null;
@@ -526,7 +531,10 @@ function MentionsMenuInner(props: {
     if (gitHubReposQuery.status === 'success') {
       return gitHubReposQuery.data.map(entityMapper('githubRepo'));
     }
-    if (gitHubReposQuery.error instanceof Error && gitHubReposQuery.error.message === 'GITHUB_NOT_LINKED') {
+    if (
+      gitHubReposQuery.error instanceof Error &&
+      gitHubReposQuery.error.message === 'GITHUB_NOT_LINKED'
+    ) {
       return [];
     }
     return [];
@@ -747,7 +755,9 @@ function MentionsMenuInner(props: {
   const filteredGitHubRepos = createMemo(() => {
     const term = searchTerm();
     const searchText = term.startsWith('gh:') ? term.slice(3) : term;
-    return gitHubRepoSearch(gitHubRepos(), searchText).map((result) => result.item);
+    return gitHubRepoSearch(gitHubRepos(), searchText).map(
+      (result) => result.item
+    );
   });
 
   const dateSuggestions = createMemo(() => {
@@ -1267,7 +1277,11 @@ function MentionsMenuInner(props: {
                 <MentionsMenuItem
                   item={item}
                   index={
-                    users.length + docs.length + dates.length + emailList.length + i()
+                    users.length +
+                    docs.length +
+                    dates.length +
+                    emailList.length +
+                    i()
                   }
                   selected={
                     users.length +

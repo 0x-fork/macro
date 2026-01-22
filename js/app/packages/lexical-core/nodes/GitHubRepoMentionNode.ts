@@ -67,11 +67,7 @@ export class GitHubRepoMentionNode extends DecoratorNode<
     );
   }
 
-  constructor(
-    repoId: string,
-    mentionUuid?: string,
-    key?: NodeKey
-  ) {
+  constructor(repoId: string, mentionUuid?: string, key?: NodeKey) {
     super(key);
     this.__repoId = repoId;
     this.__mentionUuid = mentionUuid;
@@ -185,7 +181,9 @@ export class GitHubRepoMentionNode extends DecoratorNode<
   }
 
   decorate(_: LexicalEditor, config: EditorConfig) {
-    const decorator = getDecorator<GitHubRepoMentionNode>(GitHubRepoMentionNode);
+    const decorator = getDecorator<GitHubRepoMentionNode>(
+      GitHubRepoMentionNode
+    );
     if (decorator) {
       return () =>
         decorator({
@@ -201,10 +199,7 @@ export class GitHubRepoMentionNode extends DecoratorNode<
 export function $createGitHubRepoMentionNode(
   params: GitHubRepoMentionInfo
 ): GitHubRepoMentionNode {
-  const node = new GitHubRepoMentionNode(
-    params.repoId,
-    params.mentionUuid
-  );
+  const node = new GitHubRepoMentionNode(params.repoId, params.mentionUuid);
   return $applyNodeReplacement(node);
 }
 

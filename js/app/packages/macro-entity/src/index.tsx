@@ -11,7 +11,11 @@ export {
 } from './components/UnifiedList';
 export { UnreadIndicator } from './components/Unread';
 export * from './contexts/soup';
-export { createGitHubReposQuery, createGitHubRepoQuery, type GitHubRepoEntity } from './queries/auth';
+export {
+  createGitHubReposQuery,
+  createGitHubRepoQuery,
+  type GitHubRepoEntity,
+} from './queries/auth';
 export { createChannelsQuery } from './queries/channel';
 export { useQueryClient } from './queries/client';
 export {

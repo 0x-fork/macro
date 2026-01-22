@@ -214,7 +214,10 @@ export function createGitHubReposQuery() {
   }));
 }
 
-const fetchGitHubRepo = async (owner: string, repo: string): Promise<GitHubRepoEntity> => {
+const fetchGitHubRepo = async (
+  owner: string,
+  repo: string
+): Promise<GitHubRepoEntity> => {
   const url = `${authHost}/github/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
   const response = await platformFetch(url, {
     credentials: 'include',
@@ -237,7 +240,9 @@ const fetchGitHubRepo = async (owner: string, repo: string): Promise<GitHubRepoE
 /**
  * Parses a GitHub repo ID (e.g., "github::repo:owner/name") to extract owner and repo name
  */
-function parseGitHubRepoId(repoId: string): { owner: string; repo: string } | null {
+function parseGitHubRepoId(
+  repoId: string
+): { owner: string; repo: string } | null {
   const parts = repoId.split(':');
   if (parts.length < 2) return null;
 
@@ -266,7 +271,11 @@ export function createGitHubRepoQuery(repoId: string) {
     enabled: !!parsed,
     retry: (failureCount, error) => {
       // Don't retry if not linked or not found
-      if (error instanceof Error && (error.message === 'GITHUB_NOT_LINKED' || error.message === 'REPO_NOT_FOUND')) {
+      if (
+        error instanceof Error &&
+        (error.message === 'GITHUB_NOT_LINKED' ||
+          error.message === 'REPO_NOT_FOUND')
+      ) {
         return false;
       }
       return failureCount < 2;

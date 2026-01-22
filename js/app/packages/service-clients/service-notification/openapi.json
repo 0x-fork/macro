@@ -1144,7 +1144,8 @@
           "project",
           "email",
           "email_thread",
-          "team"
+          "team",
+          "foreign_entity"
         ]
       },
       "ErrorResponse": {

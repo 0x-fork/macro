@@ -8,12 +8,14 @@ import type {
   AppleLoginRequest,
   CreateAccountMergeRequest,
   CreateCheckoutSessionRequest,
+  CreateForeignEntityRequest,
   CreateInProgressLinkResponse,
   CreatePortalSessionRequest,
   CreateTeamRequest,
   CreateUserRequest,
   EmptyResponse,
   ErrorResponse,
+  ForeignEntityResponse,
   GenerateEmailLinkRequest,
   GenericSuccessResponse,
   GetLegacyUserPermissionsResponse,
@@ -22,9 +24,11 @@ import type {
   GetUserInfo,
   GetUserLinkExistsParams,
   GitHubCredentialsResponse,
+  GitHubRepoResponse,
   InitGitHubResponse,
   InviteToTeamRequest,
   ListGitHubLinksResponse,
+  ListGithubReposParams,
   MacroApiTokenParams,
   MacroApiTokenResponse,
   PasswordlessCallbackParams,
@@ -260,6 +264,141 @@ export const verifyEmailLink = async (
     status: res.status,
     headers: res.headers,
   } as verifyEmailLinkResponse;
+};
+
+/**
+ * This endpoint is idempotent - if the foreign entity already exists,
+it returns the existing one. Otherwise, it creates a new one.
+ * @summary Create or get a foreign entity
+ */
+export type createForeignEntityResponse200 = {
+  data: ForeignEntityResponse;
+  status: 200;
+};
+
+export type createForeignEntityResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type createForeignEntityResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type createForeignEntityResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type createForeignEntityResponseSuccess =
+  createForeignEntityResponse200 & {
+    headers: Headers;
+  };
+export type createForeignEntityResponseError = (
+  | createForeignEntityResponse400
+  | createForeignEntityResponse401
+  | createForeignEntityResponse500
+) & {
+  headers: Headers;
+};
+
+export type createForeignEntityResponse =
+  | createForeignEntityResponseSuccess
+  | createForeignEntityResponseError;
+
+export const getCreateForeignEntityUrl = () => {
+  return `/foreign-entities`;
+};
+
+export const createForeignEntity = async (
+  createForeignEntityRequest: CreateForeignEntityRequest,
+  options?: RequestInit
+): Promise<createForeignEntityResponse> => {
+  const res = await fetch(getCreateForeignEntityUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createForeignEntityRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createForeignEntityResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createForeignEntityResponse;
+};
+
+/**
+ * @summary Get a foreign entity by namespaced identifier
+ */
+export type getForeignEntityResponse200 = {
+  data: ForeignEntityResponse;
+  status: 200;
+};
+
+export type getForeignEntityResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type getForeignEntityResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type getForeignEntityResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type getForeignEntityResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type getForeignEntityResponseSuccess = getForeignEntityResponse200 & {
+  headers: Headers;
+};
+export type getForeignEntityResponseError = (
+  | getForeignEntityResponse400
+  | getForeignEntityResponse401
+  | getForeignEntityResponse404
+  | getForeignEntityResponse500
+) & {
+  headers: Headers;
+};
+
+export type getForeignEntityResponse =
+  | getForeignEntityResponseSuccess
+  | getForeignEntityResponseError;
+
+export const getGetForeignEntityUrl = (namespacedId: string) => {
+  return `/foreign-entities/${namespacedId}`;
+};
+
+export const getForeignEntity = async (
+  namespacedId: string,
+  options?: RequestInit
+): Promise<getForeignEntityResponse> => {
+  const res = await fetch(getGetForeignEntityUrl(namespacedId), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getForeignEntityResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getForeignEntityResponse;
 };
 
 /**
@@ -503,6 +642,147 @@ export const listGithubLinks = async (
     status: res.status,
     headers: res.headers,
   } as listGithubLinksResponse;
+};
+
+/**
+ * @summary Lists GitHub repositories accessible to the authenticated user
+ */
+export type listGithubReposResponse200 = {
+  data: GitHubRepoResponse[];
+  status: 200;
+};
+
+export type listGithubReposResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type listGithubReposResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type listGithubReposResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type listGithubReposResponseSuccess = listGithubReposResponse200 & {
+  headers: Headers;
+};
+export type listGithubReposResponseError = (
+  | listGithubReposResponse401
+  | listGithubReposResponse404
+  | listGithubReposResponse500
+) & {
+  headers: Headers;
+};
+
+export type listGithubReposResponse =
+  | listGithubReposResponseSuccess
+  | listGithubReposResponseError;
+
+export const getListGithubReposUrl = (params?: ListGithubReposParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/github/repos?${stringifiedParams}`
+    : `/github/repos`;
+};
+
+export const listGithubRepos = async (
+  params?: ListGithubReposParams,
+  options?: RequestInit
+): Promise<listGithubReposResponse> => {
+  const res = await fetch(getListGithubReposUrl(params), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: listGithubReposResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listGithubReposResponse;
+};
+
+/**
+ * @summary Get a specific GitHub repository by owner and name
+ */
+export type getGithubRepoResponse200 = {
+  data: GitHubRepoResponse;
+  status: 200;
+};
+
+export type getGithubRepoResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type getGithubRepoResponse403 = {
+  data: ErrorResponse;
+  status: 403;
+};
+
+export type getGithubRepoResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type getGithubRepoResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type getGithubRepoResponseSuccess = getGithubRepoResponse200 & {
+  headers: Headers;
+};
+export type getGithubRepoResponseError = (
+  | getGithubRepoResponse401
+  | getGithubRepoResponse403
+  | getGithubRepoResponse404
+  | getGithubRepoResponse500
+) & {
+  headers: Headers;
+};
+
+export type getGithubRepoResponse =
+  | getGithubRepoResponseSuccess
+  | getGithubRepoResponseError;
+
+export const getGetGithubRepoUrl = (owner: string, repo: string) => {
+  return `/github/repos/${owner}/${repo}`;
+};
+
+export const getGithubRepo = async (
+  owner: string,
+  repo: string,
+  options?: RequestInit
+): Promise<getGithubRepoResponse> => {
+  const res = await fetch(getGetGithubRepoUrl(owner, repo), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getGithubRepoResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getGithubRepoResponse;
 };
 
 /**

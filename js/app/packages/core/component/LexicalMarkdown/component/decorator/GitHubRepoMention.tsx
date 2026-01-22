@@ -49,13 +49,15 @@ export function GitHubRepoMention(props: GitHubRepoMentionProps) {
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     } else {
-      window.open(`https://github.com/${fullName}`, '_blank', 'noopener,noreferrer');
+      window.open(
+        `https://github.com/${fullName}`,
+        '_blank',
+        'noopener,noreferrer'
+      );
     }
   };
 
   const displayName = () => data()?.fullName ?? fullName;
-  const avatarUrl = () => data()?.avatarUrl;
-  const owner = () => data()?.owner ?? '';
   const titleText = () => data()?.description || displayName();
   const isError = () => !!error();
 

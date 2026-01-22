@@ -1,5 +1,8 @@
-import { isErr, isOk } from '@core/util/maybeResult';
-import { invalidateGitHubLinks, useGitHubLinksQuery } from '@queries/github/link';
+import { isOk } from '@core/util/maybeResult';
+import {
+  invalidateGitHubLinks,
+  useGitHubLinksQuery,
+} from '@queries/github/link';
 import { authServiceClient } from '@service-auth/client';
 import type { InitGitHubResponse } from '@service-auth/generated/schemas';
 import { err, okAsync, ResultAsync } from 'neverthrow';
@@ -60,9 +63,10 @@ function connectGitHub(): ResultAsync<void, GitHubInitError> {
  * @returns ok if disconnected successfully, err if disconnection failed
  */
 function disconnectGitHubAccount(): ResultAsync<void, 'failed-to-disconnect'> {
-  return ResultAsync.fromSafePromise(authServiceClient.disconnectGithub()).andThen(
-    (response) =>
-      isOk(response) ? okAsync(void 0) : err('failed-to-disconnect')
+  return ResultAsync.fromSafePromise(
+    authServiceClient.disconnectGithub()
+  ).andThen((response) =>
+    isOk(response) ? okAsync(void 0) : err('failed-to-disconnect')
   );
 }
 
