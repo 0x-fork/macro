@@ -1,2 +1,5 @@
+# Ensure consistent LF line endings across all platforms
+* text=auto eol=lf
+
 # Mark .sqlx files as generated so they're excluded from PR diff stats
 **/.sqlx/** linguist-generated=true
