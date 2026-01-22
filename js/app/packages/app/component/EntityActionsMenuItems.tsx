@@ -97,7 +97,7 @@ export const EntityActionsMenuItems = (props: EntityActionsMenuItemsProps) => {
               },
               referredFrom: 'entity-actions-menu',
             });
-          } else {
+          } else if (props.entity.type !== 'foreign_entity') {
             const { id, type } = props.entity;
             splitManager.createNewSplit({
               content: {

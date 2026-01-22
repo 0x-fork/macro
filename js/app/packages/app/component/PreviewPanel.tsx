@@ -89,10 +89,14 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
           baseType: 'md',
         } as BlockAliasContext)
       : undefined;
-    return props.orchestrator.createBlockInstance(
+    const blockType =
       props.selectedEntity.type === 'document'
         ? fileTypeToResolvedBlockName(props.selectedEntity.fileType)
-        : props.selectedEntity.type,
+        : props.selectedEntity.type === 'foreign_entity'
+          ? 'unknown'
+          : props.selectedEntity.type;
+    return props.orchestrator.createBlockInstance(
+      blockType,
       props.selectedEntity.id,
       { aliasContext }
     );

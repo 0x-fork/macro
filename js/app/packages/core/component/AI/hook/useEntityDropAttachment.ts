@@ -125,6 +125,7 @@ export function useEntityDropAttachment(
         } satisfies Attachment;
       })
       .with('chat', () => undefined)
+      .with('foreign_entity', () => undefined)
       .exhaustive() satisfies Attachment | undefined;
 
     if (attachment) {

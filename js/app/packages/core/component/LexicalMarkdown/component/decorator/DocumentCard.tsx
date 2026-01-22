@@ -342,7 +342,10 @@ export function DocumentCard(props: DocumentCardDecoratorProps) {
                   targetType={
                     props.item.type === 'document'
                       ? (props.item.subType?.type ?? props.item.fileType)
-                      : props.item.type
+                      : props.item.type === 'foreign' ||
+                          props.item.type === 'foreign_entity'
+                        ? 'default'
+                        : props.item.type
                   }
                   size="sm"
                 />

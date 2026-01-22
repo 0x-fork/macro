@@ -69,6 +69,12 @@ export const openEntityInSplitFromUnifiedList = async (
     });
   }
 
+  // Foreign entities cannot be opened in splits
+  if (entity.type === 'foreign_entity') {
+    console.warn('Cannot open foreign_entity in split');
+    return;
+  }
+
   // Build params for channel entities with location
   const params =
     entity.type === 'channel' && location?.type === 'channel'

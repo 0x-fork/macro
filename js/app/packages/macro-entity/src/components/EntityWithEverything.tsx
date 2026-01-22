@@ -512,6 +512,8 @@ export function EntityWithEverything(
         return getIconConfig('project');
       case 'email':
         return getIconConfig(props.entity.isRead ? 'emailRead' : 'email');
+      case 'foreign_entity':
+        return getIconConfig('default');
     }
   });
 

@@ -195,6 +195,11 @@ export function $mentionItemFromNode(node: MentionNode): ItemMention {
       itemId: node.getGroupAlias(),
       groupAlias: node.getGroupAlias(),
     };
+  } else if ($isGitHubRepoMentionNode(node)) {
+    return {
+      itemType: 'unknown',
+      itemId: node.getRepoId(),
+    };
   } else {
     return {
       itemType: 'date',

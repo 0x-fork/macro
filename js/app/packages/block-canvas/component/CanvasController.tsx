@@ -894,6 +894,9 @@ export function CanvasController(props: ParentProps) {
 
     const entityType = event.draggable.data.type;
 
+    // Foreign entities cannot be added to canvas
+    if (entityType === 'foreign_entity') return;
+
     // Track document mention and get UUID
     let mentionUuid: string | undefined;
     if (blockId && entityType === 'document') {

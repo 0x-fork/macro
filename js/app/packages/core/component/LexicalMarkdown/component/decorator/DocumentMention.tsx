@@ -132,7 +132,11 @@ function InlinePreview(props: {
                   fallback={
                     <EntityIcon
                       targetType={
-                        type === 'document' ? (subType?.type ?? fileType) : type
+                        type === 'document'
+                          ? (subType?.type ?? fileType)
+                          : type === 'foreign' || type === 'foreign_entity'
+                            ? 'default'
+                            : type
                       }
                       size="fill"
                       theme={

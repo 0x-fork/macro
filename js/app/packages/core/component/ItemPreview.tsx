@@ -243,7 +243,10 @@ export function ItemPreview(props: ItemPreviewProps) {
                           targetType={
                             itemData.type === 'document'
                               ? (subType ?? fileType)
-                              : itemData.type
+                              : itemData.type === 'foreign' ||
+                                  itemData.type === 'foreign_entity'
+                                ? 'default'
+                                : itemData.type
                           }
                           size="xs"
                         />
@@ -299,7 +302,10 @@ export function InlineItemPreview(props: ItemPreviewProps) {
                           targetType={
                             itemData.type === 'document'
                               ? (subType ?? fileType)
-                              : itemData.type
+                              : itemData.type === 'foreign' ||
+                                  itemData.type === 'foreign_entity'
+                                ? 'default'
+                                : itemData.type
                           }
                           size="xs"
                         />

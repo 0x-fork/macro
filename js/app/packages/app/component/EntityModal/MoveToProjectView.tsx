@@ -385,6 +385,8 @@ export const MoveToProjectView = (props: {
         return getIconConfig('project');
       case 'email':
         return getIconConfig(props.entity.isRead ? 'emailRead' : 'email');
+      case 'foreign_entity':
+        return getIconConfig('default');
     }
   });
 

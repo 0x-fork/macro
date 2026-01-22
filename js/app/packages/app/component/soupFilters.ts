@@ -276,6 +276,9 @@ export const signalFilter: ClientFilter = {
       case 'project': {
         return hasRecentlyViewed(entity);
       }
+      case 'foreign_entity': {
+        return false;
+      }
     }
   },
 };

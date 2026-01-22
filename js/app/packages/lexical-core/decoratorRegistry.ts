@@ -45,6 +45,10 @@ import type {
   WatermarkDecoratorProps,
   WatermarkNode,
 } from './nodes/WatermarkNode';
+import type {
+  GitHubRepoMentionDecoratorProps,
+  GitHubRepoMentionNode,
+} from './nodes/GitHubRepoMentionNode';
 
 // Generic component type to be overridden by solid-js on the front end
 // and nothing on the backend.
@@ -102,6 +106,10 @@ export interface NodeDecoratorMap {
   WatermarkNode: {
     klass: typeof WatermarkNode;
     props: WatermarkDecoratorProps;
+  };
+  GitHubRepoMentionNode: {
+    klass: typeof GitHubRepoMentionNode;
+    props: GitHubRepoMentionDecoratorProps;
   };
 }
 

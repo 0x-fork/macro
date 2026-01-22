@@ -5,7 +5,7 @@ import {
 } from '@queries/github/link';
 import { authServiceClient } from '@service-auth/client';
 import type { InitGitHubResponse } from '@service-auth/generated/schemas';
-import { err, okAsync, ResultAsync } from 'neverthrow';
+import { err, errAsync, okAsync, ResultAsync } from 'neverthrow';
 import { createMemo, onCleanup, onMount } from 'solid-js';
 
 function hasGitHubLinks(query: ReturnType<typeof useGitHubLinksQuery>) {
@@ -44,12 +44,14 @@ function connectGitHub(): ResultAsync<void, GitHubInitError> {
 
       // Handle errors
       const errors = response[0];
-      const alreadyLinkedError = errors.find((e) => e.code === 'BAD_REQUEST');
+      const alreadyLinkedError = errors.find(
+        (e) => (e.code as string) === 'CONFLICT'
+      );
       if (alreadyLinkedError) {
-        return err({ tag: 'AlreadyLinked' as const });
+        return errAsync({ tag: 'AlreadyLinked' as const });
       }
 
-      return err({
+      return errAsync({
         tag: 'FailedToInit' as const,
         message: 'Failed to initialize GitHub connection',
       });

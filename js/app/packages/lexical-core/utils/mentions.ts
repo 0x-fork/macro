@@ -15,6 +15,10 @@ import {
   type DocumentMentionNode,
 } from '@lexical-core/nodes/DocumentMentionNode';
 import {
+  $isGitHubRepoMentionNode,
+  type GitHubRepoMentionNode,
+} from '@lexical-core/nodes/GitHubRepoMentionNode';
+import {
   $isGroupMentionNode,
   type GroupMentionNode,
 } from '@lexical-core/nodes/GroupMentionNode';
@@ -39,7 +43,8 @@ export type MentionNode =
   | DocumentMentionNode
   | ContactMentionNode
   | DateMentionNode
-  | GroupMentionNode;
+  | GroupMentionNode
+  | GitHubRepoMentionNode;
 
 export function $isMentionNode(node: LexicalNode): node is MentionNode {
   return (
@@ -47,7 +52,8 @@ export function $isMentionNode(node: LexicalNode): node is MentionNode {
     $isDocumentMentionNode(node) ||
     $isContactMentionNode(node) ||
     $isDateMentionNode(node) ||
-    $isGroupMentionNode(node)
+    $isGroupMentionNode(node) ||
+    $isGitHubRepoMentionNode(node)
   );
 }
 
