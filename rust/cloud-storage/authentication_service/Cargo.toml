@@ -24,6 +24,7 @@ path = "src/openapi.rs"
 [features]
 default = ["rate_limit"]
 local = []
+local_macro_domain = []
 rate_limit = []
 
 [dependencies]

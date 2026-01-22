@@ -15,7 +15,7 @@ run-proxied:
     caddy start --config Caddyfile --adapter caddyfile
     echo "Caddy started. Starting auth service with cookie domain=macro.com..."
     echo "When done, run 'just stop-proxy' to stop Caddy"
-    COOKIE_DOMAIN=macro.com cargo run
+    cargo run --features local_macro_domain
 
 # Stop the Caddy reverse proxy
 stop-proxy:
