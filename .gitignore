@@ -4,7 +4,7 @@
 .idea/
 **/.DS_Store
 .run/
-.claude/.local
+**/.local
 .claude/settings.local.json
 .claude/anthropic_key.sh
 certs
