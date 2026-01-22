@@ -66,9 +66,9 @@ import {
 } from '../../block-theme/utils/themeUtils';
 import { TauriRouteListener } from '../../tauri/src/TauriProvider';
 import { useSoundHover } from '../util/soundHover';
-import { updateCookie } from '../util/updateCookie';
+import { getLoginCookieOptions, updateCookie } from '@core/util/cookies';
 import { Login } from './auth/Login';
-import { LOGIN_COOKIE_AGE, setCookie } from './auth/Shared';
+import { setCookie } from './auth/Shared';
 import { makeEmailAuthComponents } from './EmailAuth';
 import { GlobalAppStateProvider } from './GlobalAppState';
 import { Layout } from './Layout';
@@ -78,8 +78,23 @@ import { SuspenseContextComp } from './SuspenseContext';
 import { LAYOUT_ROUTE } from './split-layout/SplitLayoutRoute';
 import Visor from './Visor';
 import { setOpenWhichKey, WhichKey } from './WhichKey';
+import { ReactiveFavicon } from './ReactiveFavicon';
 
 const { track, identify, TrackingEvents } = withAnalytics();
+
+/** Syncs login cookie with auth state. Only updates on successful query (not errors/loading). */
+function useSyncLoginCookie() {
+  const userInfoQuery = useUserInfoQuery();
+
+  createEffect(() => {
+    if (!userInfoQuery.isSuccess) return;
+
+    const { value, ...options } = getLoginCookieOptions(
+      userInfoQuery.data.authenticated ?? false
+    );
+    updateCookie('login', value, options);
+  });
+}
 
 const rootPreload: RoutePreloadFunc = async (args) => {
   useObserveRouting();
@@ -134,6 +149,8 @@ function BasePathComponent() {
     track(TrackingEvents.SUBSCRIPTION.SUCCESS, {
       type: type ?? undefined,
     });
+    // Invalidate user info to refresh trial status and subscription data
+    invalidateUserInfo();
   }
 
   if (searchParams.upgrade === 'true') {
@@ -288,36 +305,10 @@ export function ConfiguredGlobalAppStateProvider(props: ParentProps) {
 
 /** Sets user info for observability, analytics, and login cookie. Must be inside QueryClientProvider. */
 function UserInfoSideEffects() {
-  const userInfoQuery = useUserInfoQuery();
-
-  // Set login cookie based on auth state
-  createEffect(() => {
-    if (userInfoQuery.isLoading) return;
-    const isAuth = userInfoQuery.data?.authenticated ?? false;
-
-    if (isAuth) {
-      const currentDate = new Date();
-      const oneMonthFromNow = new Date(
-        currentDate.setMonth(currentDate.getMonth() + 1)
-      );
-
-      updateCookie('login', 'true', {
-        expires: oneMonthFromNow,
-        maxAge: LOGIN_COOKIE_AGE,
-        path: '/',
-        sameSite: 'Lax',
-      });
-    } else {
-      updateCookie('login', 'false', {
-        expires: new Date(0),
-        maxAge: 0,
-        path: '/',
-        sameSite: 'Lax',
-      });
-    }
-  });
+  useSyncLoginCookie();
 
   // Set user info for observability and analytics
+  const userInfoQuery = useUserInfoQuery();
   createEffect(() => {
     if (userInfoQuery.isLoading) return;
     const data = userInfoQuery.data;
@@ -412,6 +403,7 @@ export function Root() {
             <UserInfoSideEffects />
             <ConfiguredGlobalAppStateProvider>
               <ChannelsContextProvider>
+                <ReactiveFavicon />
                 <Title>{tabTitle()}</Title>
                 <MacroJump />
                 <Visor />

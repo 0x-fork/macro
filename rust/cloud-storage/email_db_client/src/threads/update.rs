@@ -3,11 +3,12 @@ use anyhow::Context;
 use chrono::{DateTime, Utc};
 use models_email::email::service::message::{is_inbound, is_outbound, is_spam_or_trash};
 use models_email::service;
+use models_email::service::message::is_macro_draft;
 use sqlx::types::Uuid;
 
 /// Updates a thread's metadata
 #[expect(clippy::too_many_arguments, reason = "too annoying to fix right now")]
-#[tracing::instrument(skip(tx), level = "debug")]
+#[tracing::instrument(skip(tx), err)]
 async fn update_db_thread_metadata(
     tx: &mut sqlx::PgConnection,
     thread_id: Uuid,
@@ -51,7 +52,7 @@ async fn update_db_thread_metadata(
 }
 
 // updates a thread's archived status to the passed boolean without performing checks
-#[tracing::instrument(skip(conn))]
+#[tracing::instrument(skip(conn), err)]
 pub async fn update_inbox_visible_status(
     conn: &mut sqlx::PgConnection,
     thread_id: Uuid,
@@ -113,7 +114,7 @@ where
 }
 
 /// Updates a thread's provider_id
-#[tracing::instrument(skip(conn))]
+#[tracing::instrument(skip(conn), err)]
 pub async fn update_thread_provider_id(
     conn: &mut sqlx::PgConnection,
     thread_id: Uuid,
@@ -145,7 +146,7 @@ pub async fn update_thread_provider_id(
 }
 
 // Updates a thread's metadata (archived status, latest_timestamps)
-#[tracing::instrument(skip(tx), level = "debug")]
+#[tracing::instrument(skip(tx), err)]
 pub async fn update_thread_metadata(
     tx: &mut sqlx::PgConnection,
     thread_db_id: Uuid,
@@ -161,10 +162,17 @@ pub async fn update_thread_metadata(
             .labels
             .iter()
             .any(|label| label.provider_label_id == service::label::system_labels::INBOX)
+            || (is_macro_draft(message))
     });
 
     // if any message in the thread is unread, the thread is considered unread in the FE
     let is_read = !messages.iter().any(|message| !message.is_read);
+
+    let latest_draft_ts = messages
+        .iter()
+        .filter(|msg| is_macro_draft(msg))
+        .map(|msg| msg.updated_at)
+        .max();
 
     let latest_inbound_timestamp_ts = messages
         .iter()
@@ -172,17 +180,28 @@ pub async fn update_thread_metadata(
         .map(|msg| msg.internal_date_ts)
         .unwrap_or_else(|| None);
 
+    let latest_inbound_or_draft_ts = [latest_inbound_timestamp_ts, latest_draft_ts]
+        .into_iter()
+        .flatten()
+        .max();
+
     let latest_outbound_message_ts = messages
         .iter()
         .find(|msg| is_outbound(msg))
         .map(|msg| msg.internal_date_ts)
         .unwrap_or_else(|| None);
 
-    let latest_non_spam_message_ts = messages
+    // latest non-spam message timestamp is the latest macro draft or provider message
+    let latest_provider_message_ts = messages
         .iter()
         .find(|msg| !is_spam_or_trash(msg))
         .map(|msg| msg.internal_date_ts)
         .unwrap_or_else(|| None);
+
+    let latest_non_spam_message_ts = [latest_provider_message_ts, latest_draft_ts]
+        .into_iter()
+        .flatten()
+        .max();
 
     update_db_thread_metadata(
         &mut *tx,
@@ -190,7 +209,7 @@ pub async fn update_thread_metadata(
         link_id,
         inbox_visible,
         is_read,
-        latest_inbound_timestamp_ts,
+        latest_inbound_or_draft_ts,
         latest_outbound_message_ts,
         latest_non_spam_message_ts,
     )

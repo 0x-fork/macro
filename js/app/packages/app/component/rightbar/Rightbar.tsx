@@ -5,6 +5,7 @@ import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import { useBuildChatSendRequest } from '@core/component/AI/component/input/buildRequest';
 import { useChatInput } from '@core/component/AI/component/input/useChatInput';
 import { ChatMessages } from '@core/component/AI/component/message/ChatMessages';
+import { useEntityDropAttachment } from '@core/component/AI/hook/useEntityDropAttachment';
 import { getPendingSend } from '@core/component/AI/signal/pendingSend';
 import { registerToolHandler } from '@core/component/AI/signal/tool';
 import type {
@@ -45,13 +46,13 @@ import NotepadIcon from '@icon/regular/notepad.svg';
 import PlusIcon from '@icon/regular/plus.svg';
 import XIcon from '@icon/regular/x.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import { invalidateUserQuota } from '@service-auth/userQuota';
+import { invalidateUserQuota } from '@queries/auth';
 import {
   cognitionApiServiceClient,
   cognitionWebsocketServiceClient,
 } from '@service-cognition/client';
 import { createCognitionWebsocketEffect } from '@service-cognition/websocket';
-import { refetchHistory, useHistory } from '@service-storage/history';
+import { invalidateHistory, useHistoryQuery } from '@queries/history/history';
 import { useOpenInstructionsMd } from 'core/component/AI/util/instructions';
 import type { LexicalEditor } from 'lexical';
 import {
@@ -112,9 +113,11 @@ const getChatData = async (chatId: string): Promise<ChatData> => {
 };
 
 const usePersistentChats = () => {
-  const history = useHistory();
+  const historyQuery = useHistoryQuery();
   return createMemo(() =>
-    history().filter((item) => item.type === 'chat' && item.isPersistent)
+    (historyQuery.data ?? []).filter(
+      (item) => item.type === 'chat' && item.isPersistent
+    )
   );
 };
 
@@ -307,6 +310,13 @@ export function Rightbar(props: {
     uploadQueue,
   } = useChatInput({ initialValue: props.initialState?.text });
 
+  // Entity drag-and-drop support
+  const { droppable, isDraggingOver } = useEntityDropAttachment(
+    'rightbar-chat-input',
+    attachments
+  );
+  false && droppable;
+
   createEffect(() => {
     setChatId(props.chatId);
     if (!props.initialState) return;
@@ -367,8 +377,10 @@ export function Rightbar(props: {
     <DragDropWrapper
       class="relative flex flex-col size-full select-none"
       uploadQueue={uploadQueue}
+      isEntityDraggingOver={isDraggingOver}
     >
-      <div class="overflow-hidden size-full flex flex-col items-center">
+      <div class="overflow-hidden size-full flex flex-col items-center relative">
+        <div class="absolute inset-0 pointer-events-none" use:droppable />
         <TopBar
           chatId={props.chatId}
           setChatId={props.setState.setChatId}
@@ -541,9 +553,9 @@ export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
       // TODO: move this into a separate resource so we don't have to refetch history
       // refetch history immediately to have the new chat id
       // then rename again when the server provides a default name
-      refetchHistory();
+      invalidateHistory();
       waitChatRename(newChatId).then((_name) => {
-        refetchHistory();
+        invalidateHistory();
       });
       return await onSend(response);
     } else if (request.type === 'send') {

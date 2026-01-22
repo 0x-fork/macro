@@ -3,16 +3,39 @@ import { useMaybeBlockId, useMaybeBlockName } from '@core/block';
 import { fileSelector } from '@core/directive/fileSelector';
 import { folderSelector } from '@core/directive/folderSelector';
 import { useEmailLinksStatus } from '@core/email-link';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { isMobileWidth } from '@core/mobile/mobileWidth';
+import { isMobile } from '@core/mobile/isMobile';
 import type { ViewId } from '@core/types/view';
 import { handleFolderSelect } from '@core/util/upload';
 import { createMemo, Match, Show, Switch } from 'solid-js';
+import Arcanum001 from '@macro-icons/arcanum/arcanum-001.svg';
+import Arcanum002 from '@macro-icons/arcanum/arcanum-002.svg';
+import Arcanum003 from '@macro-icons/arcanum/arcanum-003.svg';
+import Arcanum004 from '@macro-icons/arcanum/arcanum-004.svg';
+import Arcanum005 from '@macro-icons/arcanum/arcanum-005.svg';
+import Arcanum006 from '@macro-icons/arcanum/arcanum-006.svg';
+import Arcanum007 from '@macro-icons/arcanum/arcanum-007.svg';
+import Arcanum0010 from '@macro-icons/arcanum/arcanum-010.svg';
 
 false && fileSelector;
 false && folderSelector;
 
 const DEFAULT_EMPTY_MESSAGE = 'No items to show.';
+
+function getRandomArcanumGraphic() {
+  const graphicStyle = 'h-72 m-8 mt-32 opacity-60';
+  const arcanumGraphics = [
+    <Arcanum001 class={graphicStyle} />,
+    <Arcanum002 class={graphicStyle} />,
+    <Arcanum003 class={graphicStyle} />,
+    <Arcanum004 class={graphicStyle} />,
+    <Arcanum005 class={graphicStyle} />,
+    <Arcanum006 class={graphicStyle} />,
+    <Arcanum007 class={graphicStyle} />,
+    <Arcanum0010 class={graphicStyle} />,
+  ];
+  const randomIndex = Math.floor(Math.random() * arcanumGraphics.length);
+  return arcanumGraphics[randomIndex];
+}
 
 export function EmptyState(props: {
   viewId?: ViewId;
@@ -93,7 +116,8 @@ export function EmptyStateInner(props: EmptyStateInnerProps) {
 
   return (
     <div class="size-full flex items-center justify-center p-4 text-ink-muted">
-      <div class="panel w-full flex flex-col size-full">
+      <div class="panel w-full flex flex-col items-center size-full">
+        {getRandomArcanumGraphic()}
         <p class="text-ink-muted font-mono">
           {props.message ?? DEFAULT_EMPTY_MESSAGE}
         </p>
@@ -109,9 +133,7 @@ export function EmptyStateInner(props: EmptyStateInnerProps) {
             </div>
           )}
         </Show>
-        <Show
-          when={props.showDropZone && !(isTouchDevice() && isMobileWidth())}
-        >
+        <Show when={props.showDropZone && !isMobile()}>
           <div class="drop-zone flex flex-col items-center justify-center w-full py-8 border border-dashed border-edge-muted bg-hover">
             <p class="text-ink-muted">Drag & drop files and folders here</p>
             <p class="text-ink-muted">

@@ -17,8 +17,9 @@ import { Tabs } from '@kobalte/core/tabs';
 import { Account } from './Account';
 import { Inbox } from './Inbox';
 import { Shortcuts } from './Shortcuts';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { isMobileWidth } from '@core/mobile/mobileWidth';
+import { isMobile } from '@core/mobile/isMobile';
+import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import type { ValidHotkey } from '@core/hotkey/types';
 
 const SCROLL_THRESHOLD = 10;
 
@@ -33,6 +34,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const permissions = usePermissions();
   const orgName = useOrganizationName();
   const [spotlight, setSpotlight] = createSignal(false);
+
+  // Set up hotkey scope for settings panel
+  const [attachHotkeys, settingsHotkeyScope] = useHotkeyDOMScope('settings');
+  let settingsContainerRef: HTMLDivElement | undefined;
 
   let scrollRef!: HTMLDivElement;
   let scrollCleanup: (() => void) | undefined;
@@ -104,6 +109,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
           updateIndicatorPosition(activeTab);
           updateClipIndicators();
         }
+        // Focus the settings container to activate the hotkey scope
+        settingsContainerRef?.focus();
       }, 10);
     }
   });
@@ -127,12 +134,91 @@ export function SettingsPanel(props: SettingsPanelProps) {
     return tabs;
   });
 
+  // Attach hotkeys to the settings container
+  onMount(() => {
+    if (settingsContainerRef) {
+      attachHotkeys(settingsContainerRef);
+    }
+  });
+
+  // Register Escape key to close settings
+  registerHotkey({
+    hotkey: 'escape',
+    scopeId: settingsHotkeyScope,
+    description: 'Close settings',
+    keyDownHandler: () => {
+      closeSettings();
+      return true;
+    },
+  });
+
+  // Helper to navigate to a tab by index
+  const navigateToTabIndex = (index: number): boolean => {
+    const tabs = settingsTabs();
+    if (index >= 0 && index < tabs.length) {
+      const tab = tabs[index];
+      if (tab) {
+        setActiveTabId(tab.value as SettingsTab);
+        track(TrackingEvents.SETTINGS.CHANGETAB, { tab: tab.value });
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const getCurrentTabIndex = () => {
+    const tabs = settingsTabs();
+    return tabs.findIndex(tab => tab.value === activeTabId());
+  };
+
+  // Register Tab key for next tab navigation
+  registerHotkey({
+    hotkey: 'tab',
+    scopeId: settingsHotkeyScope,
+    description: 'Next settings tab',
+    keyDownHandler: () => {
+      const tabs = settingsTabs();
+      const nextIndex = getCurrentTabIndex() >= tabs.length - 1 ? 0 : getCurrentTabIndex() + 1;
+      navigateToTabIndex(nextIndex);
+      return true;
+    },
+    hide: true,
+  });
+
+  // Register Shift+Tab for previous tab navigation
+  registerHotkey({
+    hotkey: 'shift+tab',
+    scopeId: settingsHotkeyScope,
+    description: 'Previous settings tab',
+    keyDownHandler: () => {
+      const tabs = settingsTabs();
+      const nextIndex = getCurrentTabIndex() <= 0 ? tabs.length - 1 : getCurrentTabIndex() - 1;
+      navigateToTabIndex(nextIndex);
+      return true;
+    },
+    hide: true,
+  });
+
+  // Register number keys 1-9 for direct tab navigation
+  for (let i = 1; i <= 9; i++) {
+    const keyNum = i;
+    registerHotkey({
+      hotkey: `${keyNum}` as ValidHotkey,
+      scopeId: settingsHotkeyScope,
+      description: `Go to settings tab ${keyNum}`,
+      keyDownHandler: () => navigateToTabIndex(keyNum - 1),
+      hide: true,
+    });
+  }
+
   return (
     <div
-      class="size-full"
+      class="size-full outline-none"
       classList={{
         invisible: props.hide,
       }}
+      tabIndex={0}
+      ref={settingsContainerRef}
     >
       <SplitlikeContainer
         setSpotlight={setSpotlight}
@@ -153,7 +239,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               {/* Header with tabs */}
               <div class="relative isolate shrink-0 border-b border-edge-muted">
                 <div class="flex items-center px-2">
-                  <Show when={!isTouchDevice() || !isMobileWidth()}>
+                  <Show when={!isMobile()}>
                     <DeprecatedIconButton
                       icon={CloseIcon}
                       onClick={closeSettings}
@@ -234,7 +320,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
                   <div class="flex-1" />
 
-                  <Show when={!isTouchDevice() || !isMobileWidth()}>
+                  <Show when={!isMobile()}>
                     <DeprecatedIconButton
                       icon={spotlight() ? ContractIcon : ExpandIcon}
                       onClick={() => setSpotlight(!spotlight())}

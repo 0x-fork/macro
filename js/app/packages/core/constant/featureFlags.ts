@@ -77,7 +77,9 @@ export const ENABLE_SEARCH_SERVICE = true;
 
 export const ENABLE_MARKDOWN_DIFF = true;
 
-export const ENABLE_HISTORY_COMPONENT = true;
+// TODO (seamus): markdown history is causing a quiet crash on some documents.
+// once I have a document that can consistently repro, i can debug and fix.
+export const ENABLE_HISTORY_COMPONENT = false;
 
 export const ENABLE_BEARER_TOKEN_AUTH = false;
 
@@ -139,3 +141,5 @@ export const ENABLE_TASKS_TABS = true;
 export const ENABLE_EMAIL_SHARING = true;
 
 export const ENABLE_FRECENCY = false;
+
+export const ENABLE_UNIFIED_LIST_AI_INPUT = false;

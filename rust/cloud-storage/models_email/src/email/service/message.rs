@@ -2,7 +2,7 @@ use crate::db;
 use crate::email::service::address::ContactInfo;
 use crate::email::service::attachment::Attachment;
 use crate::email::service::label::{LabelInfo, system_labels};
-use crate::service::attachment::{AttachmentDraft, AttachmentMacro, AttachmentToSend};
+use crate::service::attachment::{AttachmentDraft, AttachmentToSend};
 use crate::service::body_parsing::body_parsed::{
     get_body_parsed_for_message, get_body_parsed_linkless_for_message,
 };
@@ -86,7 +86,6 @@ pub struct Message {
     pub body_html_sanitized: Option<String>,
     pub body_macro: Option<String>,
     pub attachments: Vec<Attachment>,
-    pub attachments_macro: Vec<AttachmentMacro>,
     /// Uploaded file attachments for the message, if it is a draft
     pub attachments_draft: Vec<AttachmentDraft>,
     pub headers_json: Option<JsonValue>,
@@ -212,6 +211,12 @@ pub fn is_outbound(msg: &Message) -> bool {
     msg.is_sent
 }
 
+/// determine if a message is a draft created in macro
+pub fn is_macro_draft(msg: &Message) -> bool {
+    // we don't send drafts to the provider before sending the message, so it won't have a provider id
+    msg.is_draft && msg.provider_id.is_none()
+}
+
 /// determine if a message is spam/trash for use in latest_non_spam_message_ts
 /// - for thread ordering purposes in the FE. (all mail view)
 pub fn is_spam_or_trash(msg: &Message) -> bool {
@@ -278,7 +283,6 @@ pub struct MessageToSend {
     pub body_html: Option<String>,
     pub body_macro: Option<String>,
     pub attachments: Option<Vec<AttachmentToSend>>,
-    pub attachments_macro: Option<Vec<AttachmentMacro>>,
     pub headers_json: Option<JsonValue>,
     pub send_time: Option<DateTime<Utc>>,
 }

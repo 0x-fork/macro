@@ -1,4 +1,4 @@
-use crate::attachments::{marco, provider};
+use crate::attachments::provider;
 use crate::messages::replying_to_id;
 use crate::messages::scheduled::delete::delete_scheduled_message;
 use crate::messages::scheduled::upsert::upsert_scheduled_message;
@@ -82,7 +82,7 @@ pub async fn insert_message_with_tx(
 }
 
 /// inserts message object into the database
-#[tracing::instrument(skip(tx, message))]
+#[tracing::instrument(skip(tx, message), err)]
 async fn insert_db_message(
     tx: &mut sqlx::PgConnection,
     message: &mut message::Message,
@@ -167,7 +167,7 @@ async fn insert_db_message(
 }
 
 /// Inserts a single message into the database with transaction handling
-#[tracing::instrument(skip(pool, message), fields(link_id = %message.link_id), level = "info")]
+#[tracing::instrument(skip(pool, message), fields(link_id = %message.link_id), err)]
 pub async fn insert_message(
     pool: &PgPool,
     thread_id: Uuid,
@@ -277,9 +277,7 @@ pub async fn insert_message_to_send_db(
         db_message_to_send.subject,
         from_contact_id,
         Utc::now(),
-        service_message
-            .attachments_macro.clone()
-            .is_some_and(|x| !x.is_empty()),
+        false,
         true,
         false,
         false,
@@ -298,11 +296,9 @@ pub async fn insert_message_to_send_db(
 
     process_scheduled_message(tx, service_message, send_time, message_db_id).await?;
 
-    if let Some(mut attachments) = service_message.attachments_macro.clone() {
-        marco::insert_macro_attachments(tx, message_db_id, &mut attachments).await?;
-    }
-
     contacts::upsert_message::upsert_message_recipients(tx, message_db_id, &recipients).await?;
+
+    threads::update::update_thread_metadata(tx, thread_id, db_message_to_send.link_id).await?;
 
     Ok(())
 }
@@ -314,13 +310,13 @@ async fn process_scheduled_message(
     send_time: Option<chrono::DateTime<Utc>>,
     message_db_id: Uuid,
 ) -> anyhow::Result<()> {
-    if send_time.is_some() {
+    if let Some(send_time) = send_time {
         upsert_scheduled_message(
             tx,
             ScheduledMessage {
                 link_id: service_message.link_id,
                 message_id: message_db_id,
-                send_time: send_time.unwrap(),
+                send_time,
                 sent: false,
                 processing: false,
             },

@@ -15,7 +15,7 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import { updateCookie } from '../../util/updateCookie';
+import { updateCookie } from '@core/util/cookies';
 import { EmailForm } from './EmailForm';
 import { LoginOptions } from './LoginOptions';
 import { Input, identifyUser, Stage } from './Shared';
@@ -46,7 +46,6 @@ export function Login() {
       const session_code = searchParams.session_code;
       console.log({ session_code });
       unsetTokenPromise();
-      authServiceClient.getUserInfo.invalidate();
       invalidateUserInfo();
       authServiceClient.sessionLogin({ session_code }).then((res) => {
         console.log({ res });
@@ -65,8 +64,6 @@ export function Login() {
     setActiveModal();
     unsetTokenPromise();
     invalidateUserInfo();
-    authServiceClient.getUserInfo.invalidate();
-
     const userInfo = await fetchUserInfo();
     if (
       userInfo?.authenticated &&

@@ -21,7 +21,7 @@ import {
 } from '@macro-entity';
 import { useUserId } from '@core/context/user';
 import type { EntityType } from '@service-properties/generated/schemas/entityType';
-import { useHistory } from '@service-storage/history';
+import { useHistoryQuery } from '@queries/history/history';
 import { debounce } from '@solid-primitives/scheduled';
 import {
   createEffect,
@@ -46,6 +46,7 @@ import {
   threadMapper,
 } from './entityUtils';
 import { OptionCheckBox } from './OptionCheckBox';
+import { useKeyPressed } from '@core/util/useKeyPressed';
 
 type EntityInputProps = {
   property: Property;
@@ -136,8 +137,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
   const [inputValue, setInputValue] = createSignal('');
   const [searchTerm, setSearchTerm] = createSignal('');
   const [selectedIndex, setSelectedIndex] = createSignal(0);
-  const [keyboardNavigationTimeout, setKeyboardNavigationTimeout] =
-    createSignal<number | null>(null);
+  const keyboardMode = useKeyPressed(100);
 
   // Debounce search term updates (60ms like MentionsMenu)
   const debouncedSetSearchTerm = debounce(
@@ -152,7 +152,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
   const blockId = useMaybeBlockId();
   const { entityType: currentEntityType } = usePropertiesContext();
 
-  const history = useHistory();
+  const historyQuery = useHistoryQuery();
   const contacts = useContacts();
   const channelsContext = useChannelsContext();
   const channels = channelsContext.channels;
@@ -241,7 +241,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
     if (!specificEntityType) {
       return [
         ...contactsWithCurrentUser().map(entityMapper('user')),
-        ...history().map(entityMapper('item')),
+        ...(historyQuery.data ?? []).map(entityMapper('item')),
         ...channels().map(entityMapper('channel')),
         ...emails().map(threadMapper),
       ];
@@ -265,7 +265,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
     }
 
     if (specificEntityType === 'TASK') {
-      return history()
+      return (historyQuery.data ?? [])
         .filter(
           (item) =>
             item.type === 'document' &&
@@ -278,7 +278,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
 
     const itemTypes: EntityType[] = ['DOCUMENT', 'PROJECT', 'CHAT'];
     if (itemTypes.includes(specificEntityType)) {
-      return history()
+      return (historyQuery.data ?? [])
         .filter(
           (item) =>
             item.type.toUpperCase() === specificEntityType &&
@@ -430,11 +430,6 @@ export function PropertyEntitySelector(props: EntityInputProps) {
     }
   });
 
-  const isKeyboardNavigating = () => {
-    const timeout = keyboardNavigationTimeout();
-    return timeout !== null && Date.now() - timeout < 150;
-  };
-
   const scrollSelectedIntoView = () => {
     const entities = sortedEntities();
     const currentIndex = selectedIndex();
@@ -454,12 +449,10 @@ export function PropertyEntitySelector(props: EntityInputProps) {
 
     if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'j')) {
       e.preventDefault();
-      setKeyboardNavigationTimeout(Date.now());
       setSelectedIndex((prev) => (prev + 1) % entities.length);
       scrollSelectedIntoView();
     } else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
       e.preventDefault();
-      setKeyboardNavigationTimeout(Date.now());
       setSelectedIndex(
         (prev) => (prev - 1 + entities.length) % entities.length
       );
@@ -527,7 +520,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
                     onClick={() => toggleEntity(entity)}
                     onKeyDown={(e) => e.key === 'Enter' && toggleEntity(entity)}
                     onMouseEnter={() => {
-                      if (!isKeyboardNavigating()) {
+                      if (!keyboardMode()) {
                         setSelectedIndex(index());
                       }
                     }}
