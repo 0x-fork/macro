@@ -6,7 +6,8 @@
 use super::models::{DocumentText, GetDocumentOutput, Result};
 use macro_user_id::user_id::MacroUserIdStr;
 use model::document::{
-    DocumentBasic, DocumentMetadata, DocumentPreviewV2, response::GetDocumentListResult,
+    DocumentBasic, DocumentMetadata, DocumentPreviewV2,
+    response::{GetDocumentListResult, LocationResponseV3},
 };
 use std::future::Future;
 
@@ -55,6 +56,7 @@ pub trait DocumentMetadataRepo: Send + Sync + 'static + Sized {
     fn get_document_metadata(
         &self,
         document_id: &str,
+        user_id: MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<DocumentMetadata>> + Send;
 
     /// Retrieves basic document information by document ID.
@@ -73,20 +75,45 @@ pub trait DocumentMetadataRepo: Send + Sync + 'static + Sized {
     fn get_user_view_location(
         &self,
         document_id: &str,
+        user_id: MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<Option<String>>> + Send;
 
-    fn get_document_text(&self, document_id: &str) -> impl Future<Output = Result<String>> + Send;
-}
-
-#[cfg_attr(test, mockall::automock(type Err = anyhow::Error;))]
-pub trait DocumentStorageRepo: Send + Sync + 'static + Sized {
     /// Retrieves the extracted text content of a document.
-    ///
-    fn get_document_text(&self, document_id: &str) -> impl Future<Output = Result<String>> + Send;
+    fn get_extracted_text(
+        &self,
+        user_id: MacroUserIdStr<'_>,
+        document_id: &str,
+    ) -> impl Future<Output = Result<Option<String>>> + Send;
 
     /// Retrieves preview information for multiple documents.
     fn get_batch_document_previews(
         &self,
         document_ids: &[String],
     ) -> impl Future<Output = Result<Vec<DocumentPreviewV2>>> + Send;
+}
+
+/// Request parameters for getting a document's storage location.
+#[derive(Debug, Clone)]
+pub struct GetLocationRequest {
+    /// The document basic metadata (includes id, owner, file_type).
+    pub document: DocumentBasic,
+    /// Optional specific version ID.
+    pub document_version_id: Option<i64>,
+    /// If true, return the converted PDF URL for DOCX files.
+    pub get_converted_docx_url: bool,
+}
+
+#[cfg_attr(test, mockall::automock(type Err = anyhow::Error;))]
+pub trait DocumentStorageRepo: Send + Sync + 'static + Sized {
+    /// Retrieves presigned URL(s) for accessing document content in storage.
+    ///
+    /// Returns either a single presigned URL or multiple URLs (for DOCX BOM parts),
+    /// along with document metadata and optionally sync service content for markdown files.
+    fn get_document_location(
+        &self,
+        request: GetLocationRequest,
+    ) -> impl Future<Output = Result<LocationResponseV3>> + Send;
+
+    /// Retrieves markdown content from the sync service.
+    fn get_md_text(&self, document_id: &str) -> impl Future<Output = Result<String>> + Send;
 }

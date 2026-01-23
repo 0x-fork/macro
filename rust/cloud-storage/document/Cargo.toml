@@ -14,11 +14,13 @@ anyhow = { workspace = true }
 chrono = { workspace = true }
 cloudfront_sign = { workspace = true }
 document_sub_type = { path = "../document_sub_type" }
+macro_db_client = { path = "../macro_db_client" }
 macro_user_id = { path = "../macro_user_id" }
 model = { path = "../model" }
 models_permissions = { path = "../models_permissions" }
 models_properties = { path = "../models_properties" }
 properties_db_client = { path = "../properties_db_client" }
+rayon = "1"
 s3_client = { path = "../s3_client" }
 serde = { workspace = true }
 sqlx = { workspace = true }
