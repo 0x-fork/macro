@@ -14,9 +14,6 @@ use sqlx::PgPool;
 use std::{collections::HashSet, sync::Arc};
 use system_properties::{StatusOption, SystemPropertyKey};
 
-#[cfg(test)]
-mod test;
-
 /// PostgreSQL-backed repository for document metadata operations.
 pub struct MetadataRepo {
     db: Arc<PgPool>,

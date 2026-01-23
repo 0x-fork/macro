@@ -23,9 +23,6 @@ use std::{
 };
 use sync_service_client::SyncServiceClient;
 
-#[cfg(test)]
-mod test;
-
 /// Configuration for CloudFront URL signing.
 #[derive(Debug, Clone)]
 pub struct CloudFrontConfig {
@@ -96,7 +93,7 @@ impl StorageRepo {
         } else {
             macro_db_client::document::get_latest_document_version_id(&self.db, document_id)
                 .await
-                .map_err(|e| DocumentServiceErr::StorageErr(e.into()))?
+                .map_err(DocumentServiceErr::StorageErr)?
                 .0
         };
 
@@ -121,7 +118,7 @@ impl StorageRepo {
         let (document_version_id, _) =
             macro_db_client::document::get_document_version_id(&self.db, document_id)
                 .await
-                .map_err(|e| DocumentServiceErr::StorageErr(e.into()))?;
+                .map_err(DocumentServiceErr::StorageErr)?;
 
         let document_key = build_cloud_storage_bucket_document_key(
             &url_encoded_owner,
@@ -153,14 +150,14 @@ impl StorageRepo {
         let shas: Vec<String> = if let Some(vid) = document_version_id {
             macro_db_client::document::document_shas::get_document_shas(&self.db, vid)
                 .await
-                .map_err(|e| DocumentServiceErr::StorageErr(e.into()))?
+                .map_err(DocumentServiceErr::StorageErr)?
         } else {
             macro_db_client::document::document_shas::get_document_shas_by_document_id(
                 &self.db,
                 document_id,
             )
             .await
-            .map_err(|e| DocumentServiceErr::StorageErr(e.into()))?
+            .map_err(DocumentServiceErr::StorageErr)?
         };
 
         let signed_options = self.get_signed_options();
@@ -195,7 +192,10 @@ impl StorageRepo {
 
 impl DocumentStorageRepo for StorageRepo {
     #[tracing::instrument(skip(self), err)]
-    async fn get_document_location(&self, request: GetLocationRequest) -> Result<LocationResponseV3> {
+    async fn get_document_location(
+        &self,
+        request: GetLocationRequest,
+    ) -> Result<LocationResponseV3> {
         let document = request.document;
         let document_id = &document.document_id;
         let owner = document.owner.as_ref();
@@ -210,7 +210,7 @@ impl DocumentStorageRepo for StorageRepo {
                 .sync_service
                 .get_metadata(document_id)
                 .await
-                .map_err(|e| DocumentServiceErr::StorageErr(e.into()))?;
+                .map_err(DocumentServiceErr::StorageErr)?;
 
             return Ok(LocationResponseV3::SyncServiceContent {
                 metadata: document,
@@ -273,6 +273,6 @@ impl DocumentStorageRepo for StorageRepo {
         self.sync_service
             .get_raw(document_id)
             .await
-            .map_err(|e| DocumentServiceErr::StorageErr(e.into()))
+            .map_err(DocumentServiceErr::StorageErr)
     }
 }

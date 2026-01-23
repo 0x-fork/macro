@@ -27,7 +27,7 @@ pub enum DocumentText {
 impl std::fmt::Debug for DocumentText {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::LexicalJson(json) => write!(f, "LexicalJson({} bytes)", json.bytes().len()),
+            Self::LexicalJson(json) => write!(f, "LexicalJson({} bytes)", json.len()),
             Self::PlainText(text) => write!(f, "PlainText({} chars)", text.len()),
         }
     }
@@ -39,6 +39,14 @@ pub enum DocumentServiceErr {
     /// The requested document was not found.
     #[error("document not found")]
     NotFound,
+
+    /// User does not have access to the document.
+    #[error("unauthorized")]
+    Unauthorized,
+
+    /// User does not have access with a specific message.
+    #[error("unauthorized: {0}")]
+    UnauthorizedWithMsg(&'static str),
 
     /// A database or storage error occurred.
     #[error("storage error: {0}")]

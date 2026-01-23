@@ -20,43 +20,43 @@ pub trait DocumentService: Send + Sync + 'static {
     ///
     /// This method combines document metadata retrieval with authorization
     /// context, returning the user's access level and view location.
-    fn get_document(
+    fn get_document<'a>(
         &self,
         document_id: &str,
-        user_id: MacroUserIdStr<'_>,
+        user_id: MacroUserIdStr<'a>,
     ) -> impl Future<Output = Result<GetDocumentOutput>> + Send;
 
     /// Retrieves the extracted text content of a document.
-    fn get_document_text(
+    fn get_document_text<'a>(
         &self,
         document_id: &str,
-        user_id: MacroUserIdStr<'_>,
+        user_id: MacroUserIdStr<'a>,
     ) -> impl Future<Output = Result<DocumentText>> + Send;
 
     /// Retrieves all documents accessible to a user.
-    fn get_document_list(
+    fn get_document_list<'a>(
         &self,
-        user_id: MacroUserIdStr<'_>,
+        user_id: MacroUserIdStr<'a>,
     ) -> impl Future<Output = Result<Vec<GetDocumentListResult>>> + Send;
 
     /// Retrieves preview information for multiple documents.
     ///
     /// Returns preview data for documents the user can access,
     /// and appropriate status for documents that don't exist or aren't accessible.
-    fn get_batch_previews(
+    fn get_batch_previews<'a>(
         &self,
         document_ids: &[String],
-        user_id: MacroUserIdStr<'_>,
+        user_id: MacroUserIdStr<'a>,
     ) -> impl Future<Output = Result<Vec<DocumentPreviewV2>>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock(type Err = anyhow::Error;))]
 pub trait DocumentMetadataRepo: Send + Sync + 'static + Sized {
     /// Retrieves full document metadata by document ID.
-    fn get_document_metadata(
+    fn get_document_metadata<'a>(
         &self,
         document_id: &str,
-        user_id: MacroUserIdStr<'_>,
+        user_id: MacroUserIdStr<'a>,
     ) -> impl Future<Output = Result<DocumentMetadata>> + Send;
 
     /// Retrieves basic document information by document ID.
@@ -66,22 +66,22 @@ pub trait DocumentMetadataRepo: Send + Sync + 'static + Sized {
     ) -> impl Future<Output = Result<DocumentBasic>> + Send;
 
     /// Retrieves all documents for a given user (for search indexing).
-    fn get_document_list(
+    fn get_document_list<'a>(
         &self,
-        user_id: MacroUserIdStr<'_>,
+        user_id: MacroUserIdStr<'a>,
     ) -> impl Future<Output = Result<Vec<GetDocumentListResult>>> + Send;
 
     /// Retrieves the user's last view location within a document.
-    fn get_user_view_location(
+    fn get_user_view_location<'a>(
         &self,
         document_id: &str,
-        user_id: MacroUserIdStr<'_>,
+        user_id: MacroUserIdStr<'a>,
     ) -> impl Future<Output = Result<Option<String>>> + Send;
 
     /// Retrieves the extracted text content of a document.
-    fn get_extracted_text(
+    fn get_extracted_text<'a>(
         &self,
-        user_id: MacroUserIdStr<'_>,
+        user_id: MacroUserIdStr<'a>,
         document_id: &str,
     ) -> impl Future<Output = Result<Option<String>>> + Send;
 
