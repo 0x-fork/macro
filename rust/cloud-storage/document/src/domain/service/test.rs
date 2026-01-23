@@ -6,7 +6,9 @@ use chrono::Utc;
 use entity_access::domain::models::AccessError;
 use macro_user_id::lowercased::Lowercase;
 use macro_user_id::user_id::MacroUserId;
-use model::document::{DocumentMetadata, DocumentPreviewData, response::GetDocumentListResult};
+use model::document::{
+    DocumentBasic, DocumentMetadata, DocumentPreviewData, response::GetDocumentListResult,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -68,11 +70,7 @@ fn make_document_basic(owner: &str, deleted: bool) -> DocumentBasic {
         branched_from_version_id: None,
         document_family_id: None,
         project_id: None,
-        deleted_at: if deleted {
-            Some(Utc::now())
-        } else {
-            None
-        },
+        deleted_at: if deleted { Some(Utc::now()) } else { None },
     }
 }
 
@@ -104,15 +102,8 @@ fn make_document_metadata() -> DocumentMetadata {
 #[tokio::test]
 async fn test_get_document_owner_has_full_access() {
     let user_id = test_user_id();
-    let user_str = user_id.as_ref().to_string();
 
     let mut mock_metadata = MockDocumentMetadataRepo::new();
-    mock_metadata
-        .expect_get_document_basic()
-        .returning(move |_| {
-            let owner = user_str.clone();
-            Box::pin(async move { Ok(make_document_basic(&owner, false)) })
-        });
     mock_metadata
         .expect_get_document_metadata()
         .returning(|_, _| Box::pin(async { Ok(make_document_metadata()) }));
@@ -121,7 +112,7 @@ async fn test_get_document_owner_has_full_access() {
         .returning(|_, _| Box::pin(async { Ok(Some("page-5".to_string())) }));
 
     let mock_storage = MockDocumentStorageRepo::new();
-    let mock_access = MockEntityAccess::new();
+    let mock_access = MockEntityAccess::new().with_access(AccessLevel::Owner);
 
     let service = DocumentServiceImpl::new(
         Arc::new(mock_access),
@@ -142,9 +133,6 @@ async fn test_get_document_non_owner_with_view_access() {
     let user_id = test_user_id();
 
     let mut mock_metadata = MockDocumentMetadataRepo::new();
-    mock_metadata
-        .expect_get_document_basic()
-        .returning(|_| Box::pin(async { Ok(make_document_basic("macro|other@test.com", false)) }));
     mock_metadata
         .expect_get_document_metadata()
         .returning(|_, _| Box::pin(async { Ok(make_document_metadata()) }));
@@ -172,11 +160,7 @@ async fn test_get_document_non_owner_with_view_access() {
 async fn test_get_document_non_owner_no_access() {
     let user_id = test_user_id();
 
-    let mut mock_metadata = MockDocumentMetadataRepo::new();
-    mock_metadata
-        .expect_get_document_basic()
-        .returning(|_| Box::pin(async { Ok(make_document_basic("macro|other@test.com", false)) }));
-
+    let mock_metadata = MockDocumentMetadataRepo::new();
     let mock_storage = MockDocumentStorageRepo::new();
     let mock_access = MockEntityAccess::new(); // No access configured
 
@@ -192,15 +176,13 @@ async fn test_get_document_non_owner_no_access() {
 
 #[tokio::test]
 async fn test_get_document_deleted_non_owner_unauthorized() {
+    // Deleted document access for non-owners is now handled by entity_access service
     let user_id = test_user_id();
 
-    let mut mock_metadata = MockDocumentMetadataRepo::new();
-    mock_metadata
-        .expect_get_document_basic()
-        .returning(|_| Box::pin(async { Ok(make_document_basic("macro|other@test.com", true)) }));
-
+    let mock_metadata = MockDocumentMetadataRepo::new();
     let mock_storage = MockDocumentStorageRepo::new();
-    let mock_access = MockEntityAccess::new().with_access(AccessLevel::Edit);
+    // Entity access service denies access to deleted documents for non-owners
+    let mock_access = MockEntityAccess::new(); // No access - simulates deleted doc denial
 
     let service = DocumentServiceImpl::new(
         Arc::new(mock_access),
@@ -209,22 +191,14 @@ async fn test_get_document_deleted_non_owner_unauthorized() {
     );
 
     let result = service.get_document("doc-123", user_id).await;
-    assert!(matches!(
-        result,
-        Err(DocumentServiceErr::UnauthorizedWithMsg(_))
-    ));
+    assert!(matches!(result, Err(DocumentServiceErr::Unauthorized)));
 }
 
 #[tokio::test]
 async fn test_get_document_deleted_owner_has_access() {
     let user_id = test_user_id();
-    let user_str = user_id.as_ref().to_string();
 
     let mut mock_metadata = MockDocumentMetadataRepo::new();
-    mock_metadata.expect_get_document_basic().returning(move |_| {
-        let owner = user_str.clone();
-        Box::pin(async move { Ok(make_document_basic(&owner, true)) })
-    });
     mock_metadata
         .expect_get_document_metadata()
         .returning(|_, _| Box::pin(async { Ok(make_document_metadata()) }));
@@ -233,7 +207,8 @@ async fn test_get_document_deleted_owner_has_access() {
         .returning(|_, _| Box::pin(async { Ok(None) }));
 
     let mock_storage = MockDocumentStorageRepo::new();
-    let mock_access = MockEntityAccess::new();
+    // Entity access service grants owner access even for deleted documents
+    let mock_access = MockEntityAccess::new().with_access(AccessLevel::Owner);
 
     let service = DocumentServiceImpl::new(
         Arc::new(mock_access),
@@ -251,12 +226,13 @@ async fn test_get_document_not_found() {
     let user_id = test_user_id();
 
     let mut mock_metadata = MockDocumentMetadataRepo::new();
+    // Access check passes, but document metadata not found
     mock_metadata
-        .expect_get_document_basic()
-        .returning(|_| Box::pin(async { Err(DocumentServiceErr::NotFound) }));
+        .expect_get_document_metadata()
+        .returning(|_, _| Box::pin(async { Err(DocumentServiceErr::NotFound) }));
 
     let mock_storage = MockDocumentStorageRepo::new();
-    let mock_access = MockEntityAccess::new();
+    let mock_access = MockEntityAccess::new().with_access(AccessLevel::View);
 
     let service = DocumentServiceImpl::new(
         Arc::new(mock_access),
@@ -275,19 +251,17 @@ async fn test_get_document_not_found() {
 #[tokio::test]
 async fn test_get_document_text_pdf_returns_plaintext() {
     let user_id = test_user_id();
-    let user_str = user_id.as_ref().to_string();
 
     let mut mock_metadata = MockDocumentMetadataRepo::new();
-    mock_metadata.expect_get_document_basic().returning(move |_| {
-        let owner = user_str.clone();
-        Box::pin(async move { Ok(make_document_basic(&owner, false)) })
-    });
+    mock_metadata
+        .expect_get_document_basic()
+        .returning(|_| Box::pin(async { Ok(make_document_basic("macro|test@test.com", false)) }));
     mock_metadata
         .expect_get_extracted_text()
         .returning(|_, _| Box::pin(async { Ok(Some("Extracted PDF text content".to_string())) }));
 
     let mock_storage = MockDocumentStorageRepo::new();
-    let mock_access = MockEntityAccess::new();
+    let mock_access = MockEntityAccess::new().with_access(AccessLevel::View);
 
     let service = DocumentServiceImpl::new(
         Arc::new(mock_access),
@@ -307,13 +281,11 @@ async fn test_get_document_text_pdf_returns_plaintext() {
 #[tokio::test]
 async fn test_get_document_text_markdown_returns_lexical_json() {
     let user_id = test_user_id();
-    let user_str = user_id.as_ref().to_string();
 
     let mut mock_metadata = MockDocumentMetadataRepo::new();
-    mock_metadata.expect_get_document_basic().returning(move |_| {
-        let owner = user_str.clone();
-        Box::pin(async move {
-            let mut doc = make_document_basic(&owner, false);
+    mock_metadata.expect_get_document_basic().returning(|_| {
+        Box::pin(async {
+            let mut doc = make_document_basic("macro|test@test.com", false);
             doc.file_type = Some("md".to_string());
             Ok(doc)
         })
@@ -324,7 +296,7 @@ async fn test_get_document_text_markdown_returns_lexical_json() {
         .expect_get_md_text()
         .returning(|_| Box::pin(async { Ok(r#"{"root":{"children":[]}}"#.to_string()) }));
 
-    let mock_access = MockEntityAccess::new();
+    let mock_access = MockEntityAccess::new().with_access(AccessLevel::View);
 
     let service = DocumentServiceImpl::new(
         Arc::new(mock_access),
@@ -344,19 +316,17 @@ async fn test_get_document_text_markdown_returns_lexical_json() {
 #[tokio::test]
 async fn test_get_document_text_no_extracted_text_returns_not_found() {
     let user_id = test_user_id();
-    let user_str = user_id.as_ref().to_string();
 
     let mut mock_metadata = MockDocumentMetadataRepo::new();
-    mock_metadata.expect_get_document_basic().returning(move |_| {
-        let owner = user_str.clone();
-        Box::pin(async move { Ok(make_document_basic(&owner, false)) })
-    });
+    mock_metadata
+        .expect_get_document_basic()
+        .returning(|_| Box::pin(async { Ok(make_document_basic("macro|test@test.com", false)) }));
     mock_metadata
         .expect_get_extracted_text()
         .returning(|_, _| Box::pin(async { Ok(None) }));
 
     let mock_storage = MockDocumentStorageRepo::new();
-    let mock_access = MockEntityAccess::new();
+    let mock_access = MockEntityAccess::new().with_access(AccessLevel::View);
 
     let service = DocumentServiceImpl::new(
         Arc::new(mock_access),
@@ -372,11 +342,7 @@ async fn test_get_document_text_no_extracted_text_returns_not_found() {
 async fn test_get_document_text_unauthorized() {
     let user_id = test_user_id();
 
-    let mut mock_metadata = MockDocumentMetadataRepo::new();
-    mock_metadata
-        .expect_get_document_basic()
-        .returning(|_| Box::pin(async { Ok(make_document_basic("macro|other@test.com", false)) }));
-
+    let mock_metadata = MockDocumentMetadataRepo::new();
     let mock_storage = MockDocumentStorageRepo::new();
     let mock_access = MockEntityAccess::new(); // No access
 

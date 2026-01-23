@@ -12,9 +12,7 @@ use super::{
 };
 use entity_access::domain::{models::EntityType, ports::EntityAccessService};
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use model::document::{
-    DocumentBasic, DocumentPreviewV2, FileType, response::GetDocumentListResult,
-};
+use model::document::{DocumentPreviewV2, FileType, response::GetDocumentListResult};
 use models_permissions::share_permission::access_level::AccessLevel;
 use std::{str::FromStr, sync::Arc};
 
@@ -52,45 +50,6 @@ where
             metadata,
         }
     }
-
-    /// Check authorization for a document.
-    ///
-    /// Returns the user's access level if authorized.
-    /// Logic mirrors DocumentAccessExtractor:
-    /// 1. If user is owner → Owner access
-    /// 2. If document is deleted and user is not owner → Unauthorized
-    /// 3. Otherwise, check access level via entity_access service
-    #[tracing::instrument(skip(self), err)]
-    async fn check_document_access(
-        &self,
-        document: &DocumentBasic,
-        user_id: MacroUserIdStr<'_>,
-        required_level: AccessLevel,
-    ) -> Result<AccessLevel> {
-        // Owner always has full access
-        if document.owner == user_id {
-            return Ok(AccessLevel::Owner);
-        }
-
-        // Only owners can access deleted documents
-        if document.deleted_at.is_some() {
-            return Err(DocumentServiceErr::UnauthorizedWithMsg(
-                "only owner can access deleted resource",
-            ));
-        }
-
-        // Check access level via entity_access service
-        let access_level = self
-            .entity_access
-            .get_access_level(&user_id.0, &document.document_id, EntityType::Document)
-            .await
-            .map_err(|e| DocumentServiceErr::StorageErr(e.into()))?;
-
-        match access_level {
-            Some(level) if level >= required_level => Ok(level),
-            _ => Err(DocumentServiceErr::Unauthorized),
-        }
-    }
 }
 
 impl<EntityAccess, Storage, Metadata> DocumentService
@@ -106,13 +65,16 @@ where
         document_id: &str,
         user_id: MacroUserIdStr<'_>,
     ) -> Result<GetDocumentOutput> {
-        // Get document basic info for authorization check
-        let document_basic = self.metadata.get_document_basic(document_id).await?;
-
-        // Check authorization (requires View access)
         let access_level = self
-            .check_document_access(&document_basic, user_id.copied(), AccessLevel::View)
-            .await?;
+            .entity_access
+            .check_access(
+                &user_id,
+                document_id,
+                EntityType::Document,
+                AccessLevel::View,
+            )
+            .await
+            .map_err(|_| DocumentServiceErr::Unauthorized)?;
 
         // Get full metadata
         let document_metadata = self
@@ -139,12 +101,17 @@ where
         document_id: &str,
         user_id: MacroUserIdStr<'_>,
     ) -> Result<DocumentText> {
-        // Get document basic info for authorization check
-        let document_basic = self.metadata.get_document_basic(document_id).await?;
+        self.entity_access
+            .check_access(
+                &user_id,
+                document_id,
+                EntityType::Document,
+                AccessLevel::View,
+            )
+            .await
+            .map_err(|_| DocumentServiceErr::Unauthorized)?;
 
-        // Check authorization (requires View access)
-        self.check_document_access(&document_basic, user_id.copied(), AccessLevel::View)
-            .await?;
+        let document_basic = self.metadata.get_document_basic(document_id).await?;
 
         // Determine if this is a markdown file (sync service) or extracted text
         let file_type = document_basic
