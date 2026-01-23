@@ -2594,6 +2594,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "document"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "cloudfront_sign",
+ "cool_asserts",
+ "document_sub_type",
+ "entity_access",
+ "macro_db_client",
+ "macro_user_id",
+ "mockall",
+ "model",
+ "models_permissions",
+ "models_properties",
+ "properties_db_client",
+ "s3_client",
+ "serde",
+ "sqlx",
+ "sync_service_client",
+ "system_properties",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "urlencoding",
+ "uuid",
+]
+
+[[package]]
 name = "document_cognition_service"
 version = "0.1.0"
 dependencies = [

@@ -21,6 +21,7 @@ members = [
   "delete_document_worker",
   "deleted_item_poller",
   "document_cognition_service",
+  "document",
   "document_cognition_service_client",
   "document_storage_service",
   "document_storage_service_client",

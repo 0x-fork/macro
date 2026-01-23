@@ -1,0 +1,38 @@
+[package]
+edition = "2024"
+name = "document"
+publish = false
+version = "0.1.0"
+
+[features]
+default = ["outbound", "ports"]
+outbound = ["ports"]
+ports = ["dep:tokio"]
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+cloudfront_sign = { workspace = true }
+document_sub_type = { path = "../document_sub_type" }
+macro_db_client = { path = "../macro_db_client" }
+macro_user_id = { path = "../macro_user_id" }
+model = { path = "../model" }
+models_permissions = { path = "../models_permissions" }
+models_properties = { path = "../models_properties" }
+properties_db_client = { path = "../properties_db_client" }
+s3_client = { path = "../s3_client" }
+serde = { workspace = true }
+sqlx = { workspace = true }
+sync_service_client = { path = "../sync_service_client" }
+system_properties = { path = "../system_properties" }
+entity_access = { path = "../entity_access" }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros"], optional = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+cool_asserts = "2"
+mockall = { workspace = true }
+tokio = { workspace = true }

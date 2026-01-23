@@ -79,7 +79,7 @@ pub trait AccessRepository: Clone + Send + Sync + 'static {
 /// Service for checking entity access levels.
 ///
 /// This service orchestrates access checks using the repository.
-pub trait EntityAccessService: Clone + Send + Sync + 'static {
+pub trait EntityAccessService: Clone + Send + Sync + 'static + Sized {
     /// Get the access level a user has for an entity.
     ///
     /// Returns `None` if the user has no access to the entity.
