@@ -49,12 +49,8 @@ pub trait DocumentService: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Vec<DocumentPreviewV2>>> + Send;
 }
 
-/// Repository trait for document storage operations.
-///
-/// This trait abstracts the underlying storage mechanism for documents,
-/// allowing for different implementations (e.g., PostgreSQL, mock for testing).
 #[cfg_attr(test, mockall::automock(type Err = anyhow::Error;))]
-pub trait DocumentRepo: Send + Sync + 'static {
+pub trait DocumentMetadataRepo: Send + Sync + 'static + Sized {
     /// Retrieves full document metadata by document ID.
     fn get_document_metadata(
         &self,
@@ -67,25 +63,30 @@ pub trait DocumentRepo: Send + Sync + 'static {
         document_id: &str,
     ) -> impl Future<Output = Result<DocumentBasic>> + Send;
 
-    /// Retrieves the extracted text content of a document.
-    ///
-    fn get_document_text(&self, document_id: &str) -> impl Future<Output = Result<String>> + Send;
-
     /// Retrieves all documents for a given user (for search indexing).
     fn get_document_list(
         &self,
         user_id: MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<Vec<GetDocumentListResult>>> + Send;
 
-    /// Retrieves preview information for multiple documents.
-    fn get_batch_document_previews(
-        &self,
-        document_ids: &[String],
-    ) -> impl Future<Output = Result<Vec<DocumentPreviewV2>>> + Send;
-
     /// Retrieves the user's last view location within a document.
     fn get_user_view_location(
         &self,
         document_id: &str,
     ) -> impl Future<Output = Result<Option<String>>> + Send;
+
+    fn get_document_text(&self, document_id: &str) -> impl Future<Output = Result<String>> + Send;
+}
+
+#[cfg_attr(test, mockall::automock(type Err = anyhow::Error;))]
+pub trait DocumentStorageRepo: Send + Sync + 'static + Sized {
+    /// Retrieves the extracted text content of a document.
+    ///
+    fn get_document_text(&self, document_id: &str) -> impl Future<Output = Result<String>> + Send;
+
+    /// Retrieves preview information for multiple documents.
+    fn get_batch_document_previews(
+        &self,
+        document_ids: &[String],
+    ) -> impl Future<Output = Result<Vec<DocumentPreviewV2>>> + Send;
 }

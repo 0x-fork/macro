@@ -2603,7 +2603,6 @@ dependencies = [
  "cool_asserts",
  "document_sub_type",
  "entity_access",
- "macro_db_client",
  "macro_user_id",
  "mockall",
  "model",

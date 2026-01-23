@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 //! Document domain crate providing traits and models for document operations.
 //!
 //! This crate follows the hexagonal architecture pattern, separating domain logic

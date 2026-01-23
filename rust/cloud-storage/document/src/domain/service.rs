@@ -1,14 +1,16 @@
 //! why do you need a comment
-use super::ports::DocumentRepo;
+use super::ports::{DocumentMetadataRepo, DocumentStorageRepo};
 use entity_access::domain::ports::EntityAccessService;
 use std::sync::Arc;
 
 /// an impl
-pub struct DocumentServiceImpl<EntityAccess, DocStorage>
+pub struct DocumentServiceImpl<EntityAccess, Storage, Metadata>
 where
     EntityAccess: EntityAccessService,
-    DocStorage: DocumentRepo,
+    Storage: DocumentStorageRepo,
+    Metadata: DocumentMetadataRepo,
 {
     entity_access: Arc<EntityAccess>,
-    repo: Arc<DocStorage>,
+    storage: Arc<Storage>,
+    metadata: Arc<Metadata>,
 }
