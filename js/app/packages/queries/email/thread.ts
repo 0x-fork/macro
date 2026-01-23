@@ -254,6 +254,35 @@ async function threadArchiveOnMutate(params: ArchiveThreadParams) {
       }
   );
 
+  // Update soup query to reflect archive status change
+  queryClient.setQueriesData<InfiniteData<SoupPage, unknown>>(
+    { queryKey: queryKeys.all.dss },
+    (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          items: page.items.map((item) => {
+            if (
+              item.tag === 'emailThread' &&
+              item.data.id === params.threadId
+            ) {
+              return {
+                ...item,
+                data: {
+                  ...item.data,
+                  inboxVisible: !params.archive,
+                },
+              };
+            }
+            return item;
+          }),
+        })),
+      };
+    }
+  );
+
   return { previousData };
 }
 
@@ -294,6 +323,7 @@ export function useArchiveThreadMutation(
             queryKey: emailKeys.threadMessages(params.threadId).queryKey,
           });
           queryClient.invalidateQueries({ queryKey: emailKeys.previews._def });
+          queryClient.invalidateQueries({ queryKey: queryKeys.all.dss });
         },
       },
       callbacks
