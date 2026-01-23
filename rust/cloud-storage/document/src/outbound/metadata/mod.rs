@@ -1,5 +1,8 @@
 //! PostgreSQL implementation of the DocumentMetadataRepo trait.
 
+#[cfg(test)]
+mod test;
+
 use crate::domain::{
     models::{DocumentServiceErr, Result},
     ports::DocumentMetadataRepo,

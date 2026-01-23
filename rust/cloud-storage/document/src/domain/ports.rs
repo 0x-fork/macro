@@ -15,6 +15,7 @@ use std::future::Future;
 ///
 /// This trait defines the high-level operations for working with documents,
 /// including authorization-aware fetching of documents and their metadata.
+#[cfg_attr(test, mockall::automock())]
 pub trait DocumentService: Send + Sync + 'static {
     /// Retrieves a document with its metadata and the user's access level.
     ///
@@ -50,7 +51,7 @@ pub trait DocumentService: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Vec<DocumentPreviewV2>>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock(type Err = anyhow::Error;))]
+#[cfg_attr(test, mockall::automock())]
 pub trait DocumentMetadataRepo: Send + Sync + 'static + Sized {
     /// Retrieves full document metadata by document ID.
     fn get_document_metadata<'a>(
@@ -103,7 +104,7 @@ pub struct GetLocationRequest {
     pub get_converted_docx_url: bool,
 }
 
-#[cfg_attr(test, mockall::automock(type Err = anyhow::Error;))]
+#[cfg_attr(test, mockall::automock())]
 pub trait DocumentStorageRepo: Send + Sync + 'static + Sized {
     /// Retrieves presigned URL(s) for accessing document content in storage.
     ///

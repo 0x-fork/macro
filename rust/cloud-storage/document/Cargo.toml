@@ -35,5 +35,6 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 cool_asserts = "2"
+macro_db_migrator = { path = "../macro_db_migrator" }
 mockall = { workspace = true }
 tokio = { workspace = true }

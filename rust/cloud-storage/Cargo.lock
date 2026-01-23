@@ -2604,6 +2604,7 @@ dependencies = [
  "document_sub_type",
  "entity_access",
  "macro_db_client",
+ "macro_db_migrator",
  "macro_user_id",
  "mockall",
  "model",

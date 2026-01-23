@@ -3,6 +3,9 @@
 //! This module contains the core business logic for document operations,
 //! including authorization checks before accessing document data.
 
+#[cfg(test)]
+mod test;
+
 use super::{
     models::{DocumentServiceErr, DocumentText, GetDocumentOutput, Result},
     ports::{DocumentMetadataRepo, DocumentService, DocumentStorageRepo},
