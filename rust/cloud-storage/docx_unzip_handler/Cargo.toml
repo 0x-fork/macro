@@ -24,6 +24,7 @@ macro_entrypoint = { path = "../macro_entrypoint" }
 macro_env = { path = "../macro_env" }
 macro_sha_count_client = { path = "../macro_sha_count_client" }
 macro_uuid = { path = "../macro_uuid" }
+document = { path = "../document", default-features = false }
 model = { path = "../model" }
 openssl = { workspace = true }
 redis = { workspace = true, features = [

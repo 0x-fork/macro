@@ -5,7 +5,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use model::document::DocumentBasic;
+use document::models::DocumentBasic;
 use serde::Deserialize;
 use sqlx::{PgPool, Pool, Postgres};
 

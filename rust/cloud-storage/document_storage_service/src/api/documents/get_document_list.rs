@@ -1,11 +1,9 @@
 use crate::{api::context::ApiContext, model::response::documents::get::GetDocumentSearchResponse};
 use axum::extract::State;
 use axum::{Extension, http::StatusCode, response::IntoResponse};
+use document::models::response::GetDocumentListResult;
+use model::response::{GenericErrorResponse, GenericResponse};
 use model::user::UserContext;
-use model::{
-    document::response::GetDocumentListResult,
-    response::{GenericErrorResponse, GenericResponse},
-};
 
 /// Gets a list of all the user's documents so they are able to be searched on
 #[utoipa::path(

@@ -1,8 +1,8 @@
 use crate::api::context::ApiContext;
 use ai::tokens::count_tokens;
 use anyhow::{Context, Error};
+use document::models::FileType;
 use macro_db_client::dcs::get_document_text::get_pdf_docx_token_count;
-use model::document::FileType;
 
 #[tracing::instrument(err, skip(ctx))]
 pub async fn get_document_token_count(ctx: &ApiContext, document_id: &str) -> Result<i64, Error> {

@@ -12,15 +12,13 @@ use axum::{
 };
 use connection_gateway_client::ConnectionGatewayClient;
 use macro_db_client::annotations::create_comment::create_document_comment;
-use model::{
-    annotations::{
-        AnnotationIncrementalUpdate, Mentions,
-        create::{CreateCommentRequest, CreateCommentResponse},
-    },
-    document::DocumentBasic,
-    response::ErrorResponse,
-    user::UserContext,
+use model::annotations::{
+    AnnotationIncrementalUpdate, Mentions,
+    create::{CreateCommentRequest, CreateCommentResponse},
 };
+use model::document::DocumentBasic;
+use model::response::ErrorResponse;
+use model::user::UserContext;
 use notification::domain::service::{NotificationIngress, NotificationIngressService};
 use notification::outbound::{queue::SqsNotificationQueue, repository::DbNotificationRepository};
 use sqlx::PgPool;

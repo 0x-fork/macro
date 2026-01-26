@@ -1,4 +1,4 @@
-use model::sync_service::SyncServiceVersionID;
+use sync_service_client::models::SyncServiceVersionID;
 use utoipa::ToSchema;
 
 #[derive(serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug, ToSchema)]

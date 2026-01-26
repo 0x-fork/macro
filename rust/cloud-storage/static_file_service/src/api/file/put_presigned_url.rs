@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Extension, response::Response};
 use chrono::Utc;
-use model::document::FileType;
+use document::models::FileType;
 use model::user::UserContext;
 use uuid::Uuid;
 

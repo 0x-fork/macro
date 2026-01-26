@@ -2,9 +2,9 @@ use crate::constants::MACRO_INTERNAL_USER_ID_HEADER_KEY;
 
 use super::DocumentStorageServiceClient;
 use anyhow::Result;
-use model::document::list::ListDocumentsWithAccessResponse;
-use model::document::response::{CreateDocumentRequest, CreateDocumentResponse};
-use model::document::{
+use document::models::list::ListDocumentsWithAccessResponse;
+use document::models::response::{CreateDocumentRequest, CreateDocumentResponse};
+use document::models::{
     DocumentBasic,
     response::{GetDocumentResponse, LocationResponseData, LocationResponseV3},
 };

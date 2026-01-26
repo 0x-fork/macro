@@ -1,6 +1,5 @@
-use model::sync_service::DocumentMetadata;
-
 use super::SyncServiceClient;
+use super::models::DocumentMetadata;
 use anyhow::Result;
 
 impl SyncServiceClient {

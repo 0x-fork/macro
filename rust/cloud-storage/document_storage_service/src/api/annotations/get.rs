@@ -10,13 +10,13 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use document::models::FileType;
 use macro_db_client::annotations::get::{get_document_comments, get_pdf_anchors};
 use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
-use model::{
-    annotations::Anchor,
-    document::{DocumentBasic, FileType},
-    response::ErrorResponse,
-};
+use model::annotations::Anchor;
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::ErrorResponse;
 use models_permissions::share_permission::access_level::ViewAccessLevel;
 use sqlx::PgPool;
 

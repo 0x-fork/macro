@@ -28,6 +28,7 @@ macro_middleware = { path = "../macro_middleware", default-features = false, fea
   "auth",
 ] }
 macro_uuid = { path = "../macro_uuid" }
+document = { path = "../document", default-features = false }
 model = { path = "../model" }
 nix = { version = "0.29.0", features = ["process", "signal"] }
 remote_env_var = { path = "../remote_env_var" }

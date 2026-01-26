@@ -4,6 +4,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use document::models::build_cloud_storage_bucket_document_key;
 use macro_db_client::{
     dcs::get_documents::{
         DocWithOwnerAndType, PaginatedResponse, get_paginated_documents,
@@ -11,7 +12,6 @@ use macro_db_client::{
     },
     dcs::get_documents_count::get_documents_count,
 };
-use model::document::build_cloud_storage_bucket_document_key;
 
 #[tracing::instrument(skip(state))]
 pub async fn extract_text_from_all_documents_handler(

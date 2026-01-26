@@ -10,15 +10,14 @@ use axum::{
 use connection_gateway_client::ConnectionGatewayClient;
 use macro_db_client::annotations::create_anchor::create_unthreaded_anchor;
 use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
-use model::{
-    annotations::{
-        AnnotationIncrementalUpdate,
-        create::{CreateUnthreadedAnchorRequest, CreateUnthreadedAnchorResponse},
-    },
-    document::DocumentBasic,
-    response::ErrorResponse,
-    user::UserContext,
+use model::annotations::{
+    AnnotationIncrementalUpdate,
+    create::{CreateUnthreadedAnchorRequest, CreateUnthreadedAnchorResponse},
 };
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::ErrorResponse;
+use model::user::UserContext;
 use models_permissions::share_permission::access_level::CommentAccessLevel;
 use sqlx::PgPool;
 

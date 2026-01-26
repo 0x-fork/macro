@@ -10,11 +10,10 @@ use axum::{
 use macro_middleware::cloud_storage::ensure_access::{
     document::DocumentAccessExtractor, project::ProjectBodyAccessLevelExtractor,
 };
-use model::{
-    document::DocumentBasic,
-    response::{ErrorResponse, GenericErrorResponse, SuccessResponse},
-    user::UserContext,
-};
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::{ErrorResponse, GenericErrorResponse, SuccessResponse};
+use model::user::UserContext;
 use models_permissions::share_permission::access_level::EditAccessLevel;
 
 #[derive(serde::Deserialize)]

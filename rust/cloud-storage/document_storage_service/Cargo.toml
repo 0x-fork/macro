@@ -46,6 +46,7 @@ clap = { workspace = true }
 cloudfront_sign = { workspace = true }
 comms = { path = "../comms", features = ["outbound"] }
 connection_gateway = { path = "../connection_gateway" }
+document = { path = "../document", default-features = false }
 document_sub_type = { path = "../document_sub_type" }
 dynamodb_client = { path = "../dynamodb_client" }
 entity_access = { path = "../entity_access", features = ["schema"] }

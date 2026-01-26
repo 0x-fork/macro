@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use anyhow::Context;
 use chrono::Utc;
-use model::document::{
+use document::models::{
     CONVERTED_DOCUMENT_FILE_NAME, DocumentMetadata, FileType,
     build_cloud_storage_bucket_document_key,
 };

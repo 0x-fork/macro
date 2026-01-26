@@ -14,22 +14,22 @@ anyhow = { workspace = true }
 chrono = { workspace = true }
 cloudfront_sign = { workspace = true }
 document_sub_type = { path = "../document_sub_type" }
-macro_db_client = { path = "../macro_db_client" }
+# NOTE: macro_db_client is NOT included here to avoid cyclic dependency
+# macro_db_client depends on document::models, so document cannot depend on macro_db_client
 macro_user_id = { path = "../macro_user_id" }
-# model is kept only for sync_service types which are returned by sync_service_client
-model = { path = "../model" }
 model_file_type = { path = "../model_file_type", features = ["utoipa"] }
 models_permissions = { path = "../models_permissions" }
 models_properties = { path = "../models_properties" }
 properties_db_client = { path = "../properties_db_client" }
 rayon = "1"
+schemars = { workspace = true }
 s3_client = { path = "../s3_client" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 sync_service_client = { path = "../sync_service_client" }
 system_properties = { path = "../system_properties" }
-entity_access = { path = "../entity_access" }
+entity_access = { path = "../entity_access", default-features = false, features = ["outbound"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros"], optional = true }
 tracing = { workspace = true }

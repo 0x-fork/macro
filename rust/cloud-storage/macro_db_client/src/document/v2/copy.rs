@@ -3,7 +3,7 @@ use crate::{
     share_permission::create::create_document_permission,
 };
 use macro_user_id::user_id::MacroUserIdStr;
-use model::document::{DocumentMetadata, FileType};
+use document::models::{DocumentMetadata, FileType};
 use models_permissions::share_permission::SharePermissionV2;
 use models_permissions::share_permission::access_level::AccessLevel;
 use sqlx::{Pool, Postgres};

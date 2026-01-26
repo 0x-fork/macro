@@ -1,6 +1,6 @@
 use ai::types::ImageData;
 use anyhow::{Error, bail};
-use model::document::{ContentType, ContentTypeExt};
+use document::models::{ContentType, ContentTypeExt};
 
 use models_sfs::FileMetadata;
 

@@ -11,7 +11,7 @@ mod document_family;
 pub mod document_key;
 mod docx;
 mod file_type;
-mod list;
+pub mod list;
 pub mod response;
 
 pub use basic::*;

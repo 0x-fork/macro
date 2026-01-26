@@ -1,6 +1,6 @@
 use super::SyncServiceClient;
+use super::models::SyncServiceVersionID;
 use anyhow::Result;
-use model::sync_service::SyncServiceVersionID;
 
 #[derive(serde::Serialize)]
 struct CopyDocumentRequest {

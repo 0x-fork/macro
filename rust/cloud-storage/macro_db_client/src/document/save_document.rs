@@ -1,10 +1,10 @@
 use document_sub_type::DocumentSubType;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use model::document::{
+use document::models::{
     BomPart, DocumentBasic, DocumentMetadata, FileType, SaveBomPart, VersionIDWithTimeStamps,
     VersionIDWithTimeStampsNoSha, VersionIDWithTimeStampsOptionalSha,
-    modification_data::{PdfModificationData, ThreadPlaceable},
 };
+use model::document::modification_data::{PdfModificationData, ThreadPlaceable};
 use sqlx::{PgPool, Postgres, Transaction, types::Uuid};
 
 // A comprehensive function that inserts both comment and highlight data

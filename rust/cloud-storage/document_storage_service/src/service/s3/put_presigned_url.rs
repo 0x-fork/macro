@@ -4,9 +4,8 @@ use base64::Engine;
 use std::time::Duration;
 use tracing::instrument;
 
+use document::models::ContentType;
 use s3::presigning::PresigningConfig;
-
-use model::document::ContentType;
 
 #[instrument(skip(client))]
 pub(in crate::service::s3) async fn put_presigned_url(

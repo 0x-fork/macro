@@ -1,5 +1,5 @@
 use anyhow::Context;
-use model::document::FileType;
+use document::models::FileType;
 
 /// Cleanup the folder of the job
 pub fn cleanup_folder(job_id: &str) -> anyhow::Result<()> {

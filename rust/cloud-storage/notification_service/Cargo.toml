@@ -41,6 +41,7 @@ macro_middleware = { path = "../macro_middleware", default-features = false, fea
 macro_user_id = { path = "../macro_user_id" }
 macro_uuid = { path = "../macro_uuid" }
 mention_utils = { path = "../mention_utils" }
+document = { path = "../document", default-features = false }
 model = { path = "../model" }
 model-entity = { path = "../model-entity" }
 model-error-response = { path = "../model-error-response" }

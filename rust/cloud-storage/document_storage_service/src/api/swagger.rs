@@ -65,22 +65,19 @@ use crate::{
         },
     },
 };
-use document_sub_type::DocumentSubType;
-use model::document::response::{
-    CreateDocumentRequest, CreateDocumentResponse, CreateDocumentResponseData,
-    DocumentResponseMetadata,
+use document::models::{
+    BasicDocument, BomPart, DocumentMetadata, DocumentPermissionsToken, FileType, SaveBomPart,
+    response::{
+        CreateDocumentRequest, CreateDocumentResponse, CreateDocumentResponseData,
+        DocumentResponseMetadata, GetDocumentListResult, GetDocumentResponse,
+        GetDocumentResponseData, LocationResponseData,
+    },
 };
+use document_sub_type::DocumentSubType;
 use model::{
     activity::Activity,
     annotations::AnnotationIncrementalUpdate,
     chat::Chat,
-    document::{
-        BasicDocument, BomPart, DocumentMetadata, DocumentPermissionsToken, FileType, SaveBomPart,
-        response::{
-            GetDocumentListResult, GetDocumentResponse, GetDocumentResponseData,
-            LocationResponseData,
-        },
-    },
     item::{CloudStorageItemType, Item, ItemWithUserAccessLevel},
     pin::{PinnedItem, request::ReorderPinRequest},
     project::{

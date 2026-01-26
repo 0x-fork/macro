@@ -1,7 +1,7 @@
 use macro_user_id::cowlike::CowLike;
 use macro_user_id::user_id::MacroUserIdStr;
-use model::document::FileType;
-use model::document::SaveBomPart;
+use document::models::FileType;
+use document::models::SaveBomPart;
 use models_permissions::share_permission::SharePermissionV2;
 use sqlx::{Pool, Postgres};
 
@@ -9,10 +9,10 @@ use crate::document::insert_bom_parts;
 use crate::history::upsert_item_last_accessed;
 use crate::history::upsert_user_history;
 use crate::share_permission::create::create_document_permission;
-use model::document::DocumentMetadata;
-use model::document::ID;
-use model::document::VersionID;
-use model::document::VersionIDWithTimeStamps;
+use document::models::DocumentMetadata;
+use document::models::ID;
+use document::models::VersionID;
+use document::models::VersionIDWithTimeStamps;
 use tracing::instrument;
 
 /// Creates a blank docx document

@@ -17,6 +17,7 @@ email_service_client = { path = "../email_service_client" }
 frecency = { path = "../frecency", features = ["outbound", "postgres"] }
 lazy_static.workspace = true
 macro_db_client = { path = "../macro_db_client" }
+document = { path = "../document", default-features = false }
 model = { path = "../model" }
 models_dcs = { path = "../models_dcs" }
 models_email = { path = "../models_email" }

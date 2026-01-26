@@ -4,8 +4,10 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use document::models::DocumentPermissionsToken;
 use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
-use model::{document::DocumentPermissionsToken, response::ErrorResponse, user::UserContext};
+use model::response::ErrorResponse;
+use model::user::UserContext;
 use models_permissions::share_permission::access_level::ViewAccessLevel;
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};

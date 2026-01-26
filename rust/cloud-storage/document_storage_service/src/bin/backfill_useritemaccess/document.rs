@@ -1,8 +1,8 @@
 use crate::{CONCURRENT_PROCESSING_LIMIT, DB_FETCH_SIZE, INSERT_BATCH_SIZE};
 use anyhow::Context;
 use chrono::Utc;
+use document::models::DocumentMetadata;
 use futures::future::join_all;
-use model::document::DocumentMetadata;
 use models_permissions::share_permission::access_level::AccessLevel;
 use models_permissions::user_item_access::UserItemAccess;
 use sqlx::PgPool;

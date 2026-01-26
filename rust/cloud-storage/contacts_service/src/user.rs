@@ -1,7 +1,7 @@
 use crate::graph;
 use crate::graph::{Edge, Vertex};
+use document::models::ID;
 use model::contacts::ConnectionsMessage;
-use model::document::ID;
 use std::collections::{HashMap, HashSet};
 
 pub type User = ID;

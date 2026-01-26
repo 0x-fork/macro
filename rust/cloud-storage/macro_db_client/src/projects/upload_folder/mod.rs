@@ -6,11 +6,21 @@ use crate::{
 };
 use async_recursion::async_recursion;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
+use document::models::{DocumentMetadata, FileType, FileTypeExt};
 use model::{
-    document::{DocumentMetadata, FileType, FileTypeExt},
-    folder::{FileSystemNode, FileSystemNodeWithIds, UploadFolderWithIdsResponse},
+    folder::{FileSystemNode, FileSystemNodeWithIds},
     project::Project,
 };
+
+/// Response from uploading a folder with IDs
+pub struct UploadFolderWithIdsResponse {
+    /// The file system structure with assigned IDs
+    pub file_system: FileSystemNodeWithIds,
+    /// The list of project IDs created
+    pub project_ids: Vec<String>,
+    /// The list of documents created
+    pub documents: Vec<DocumentMetadata>,
+}
 use models_permissions::share_permission::SharePermissionV2;
 use models_permissions::share_permission::access_level::AccessLevel;
 use sqlx::{Pool, Postgres, Transaction};
@@ -264,10 +274,8 @@ pub async fn mark_projects_uploaded(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use model::{
-        document::FileType,
-        folder::{FileSystemNode, FolderItem},
-    };
+    use document::models::FileType;
+    use model::folder::{FileSystemNode, FolderItem};
     use models_permissions::share_permission::SharePermissionV2;
     use sqlx::{Pool, Postgres};
     use std::collections::HashMap;

@@ -1,6 +1,6 @@
 use utoipa::ToSchema;
 
-use model::document::SaveBomPart;
+use document::models::SaveBomPart;
 
 #[derive(serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]

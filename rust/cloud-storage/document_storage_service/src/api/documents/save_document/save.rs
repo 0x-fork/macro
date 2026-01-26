@@ -1,12 +1,13 @@
 use anyhow::Context;
 use axum::http::StatusCode;
+use document::models::{DocumentMetadata, FileType};
+use document::models::response::DocumentResponseMetadata;
 use macro_sha_count_client::Redis;
+use model::document::DocumentBasic;
 use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
 use crate::{model::request::documents::save::SaveDocumentRequest, service};
-use model::document::response::DocumentResponseMetadata;
-use model::document::{DocumentBasic, DocumentMetadata, FileType};
 
 /// Saves a document to the database and updates all other necessary items with the new document
 /// In the event of an error, returns status code, error message and optional document id/document

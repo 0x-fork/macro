@@ -1,5 +1,5 @@
 use anyhow::Context;
-use model::document::FileTypeExt;
+use document::models::FileTypeExt;
 use models_opensearch::SearchEntityType;
 use opensearch_client::OpensearchClient;
 use sqs_client::search::document::{DocumentId, SearchExtractorMessage};

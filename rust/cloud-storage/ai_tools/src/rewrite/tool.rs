@@ -6,7 +6,7 @@ use ai_format::document::Document;
 use ai_toolset::{AsyncTool, RequestContext, ServiceContext, ToolCallError, ToolResult};
 use anyhow::Error;
 use async_trait::async_trait;
-use model::document::FileType;
+use document::models::FileType;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;

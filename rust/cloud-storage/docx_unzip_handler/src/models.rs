@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use anyhow::Context;
+use document::models::SaveBomPart;
 use lambda_runtime::tracing;
-use model::document::SaveBomPart;
 
 #[derive(serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug)]
 pub struct DocumentKeyParts {

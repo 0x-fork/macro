@@ -1,6 +1,6 @@
 use sqlx::{Pool, Postgres};
 
-use model::document::{DocumentMetadata, FileType};
+use document::models::{DocumentMetadata, FileType};
 
 /// Gets the document ids for a user.
 /// TODO: needs to be cached

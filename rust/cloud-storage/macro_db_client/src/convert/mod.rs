@@ -1,5 +1,5 @@
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use model::document::DocumentMetadata;
+use document::models::DocumentMetadata;
 
 /// Gets all docx files
 #[tracing::instrument(skip(db))]

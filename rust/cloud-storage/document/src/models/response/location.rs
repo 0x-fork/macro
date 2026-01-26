@@ -3,9 +3,9 @@
 use super::PresignedUrl;
 use crate::models::{DocumentBasic, FileType};
 use anyhow::Result;
-use model::sync_service::DocumentMetadata as SyncServiceMetadata;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use sync_service_client::models::DocumentMetadata as SyncServiceMetadata;
 use utoipa::ToSchema;
 
 /// V3 location response with multiple variants.

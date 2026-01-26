@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use sqlx::{Pool, Postgres};
 
-use model::document::{BackfillSearchDocumentInformation, FileType};
+use document::models::{BackfillSearchDocumentInformation, FileType};
 
 /// Used to get all documents in a paginated format
 /// This will get the latest version of the document for non-pdf documents

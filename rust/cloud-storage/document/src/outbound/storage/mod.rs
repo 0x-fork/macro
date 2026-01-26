@@ -14,13 +14,26 @@ use crate::models::{
 use anyhow::anyhow;
 use cloudfront_sign::{SignedOptions, get_signed_url};
 use rayon::prelude::*;
-use sqlx::PgPool;
+use sqlx::{FromRow, PgPool, Row};
 use std::{
     str::FromStr,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 use sync_service_client::SyncServiceClient;
+
+// Database query result types - defined here to avoid dependency on macro_db_client
+#[derive(FromRow)]
+struct DocumentVersionResult {
+    id: i64,
+    uploaded: bool,
+}
+
+#[derive(FromRow)]
+struct DocumentVersionIdResult {
+    id: i64,
+    uploaded: bool,
+}
 
 /// Configuration for CloudFront URL signing.
 #[derive(Debug, Clone)]
@@ -78,6 +91,105 @@ impl StorageRepo {
             .map_err(|e| DocumentServiceErr::StorageErr(e.into()))
     }
 
+    // Database helper methods - inlined to avoid cyclic dependency with macro_db_client
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_latest_document_version_id(&self, document_id: &str) -> anyhow::Result<i64> {
+        let row = sqlx::query_as::<_, DocumentVersionResult>(
+            r#"
+            SELECT
+                di.id,
+                d.uploaded
+            FROM "DocumentInstance" di
+            JOIN "Document" d ON di."documentId" = d.id
+            WHERE di."documentId" = $1
+            ORDER BY di."createdAt" DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(document_id)
+        .fetch_one(self.db.as_ref())
+        .await?;
+
+        Ok(row.id)
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_document_version_id(&self, document_id: &str) -> anyhow::Result<i64> {
+        let row = sqlx::query_as::<_, DocumentVersionIdResult>(
+            r#"
+            SELECT
+                COALESCE(db.id, di.id) as "id!",
+                d.uploaded
+            FROM
+                "Document" d
+            LEFT JOIN LATERAL (
+                SELECT i.id
+                FROM "DocumentInstance" i
+                WHERE i."documentId" = d.id
+                ORDER BY i."createdAt" ASC
+                LIMIT 1
+            ) di ON d."fileType" IS DISTINCT FROM 'docx'
+            LEFT JOIN LATERAL (
+                SELECT b.id
+                FROM "DocumentBom" b
+                WHERE b."documentId" = d.id
+                ORDER BY b."updatedAt" DESC
+                LIMIT 1
+            ) db ON d."fileType" = 'docx'
+            WHERE d.id = $1
+            "#,
+        )
+        .bind(document_id)
+        .fetch_one(self.db.as_ref())
+        .await?;
+
+        Ok(row.id)
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_document_shas(&self, document_version_id: i64) -> anyhow::Result<Vec<String>> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            r#"
+            SELECT bp.sha
+            FROM "BomPart" bp
+            WHERE bp."documentBomId" = $1
+            "#,
+        )
+        .bind(document_version_id)
+        .fetch_all(self.db.as_ref())
+        .await?;
+
+        Ok(rows.into_iter().map(|r| r.0).collect())
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_document_shas_by_document_id(
+        &self,
+        document_id: &str,
+    ) -> anyhow::Result<Vec<String>> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            r#"
+            SELECT bp.sha
+            FROM "BomPart" bp
+            JOIN "DocumentBom" db ON bp."documentBomId" = db.id
+            WHERE db."documentId" = $1
+            AND db.id = (
+                SELECT db_inner.id
+                FROM "DocumentBom" db_inner
+                WHERE db_inner."documentId" = $1
+                ORDER BY db_inner."updatedAt" DESC
+                LIMIT 1
+            )
+            "#,
+        )
+        .bind(document_id)
+        .fetch_all(self.db.as_ref())
+        .await?;
+
+        Ok(rows.into_iter().map(|r| r.0).collect())
+    }
+
     #[tracing::instrument(skip(self), err)]
     async fn get_editable_url(
         &self,
@@ -90,10 +202,9 @@ impl StorageRepo {
         let document_version_id = if let Some(vid) = document_version_id {
             vid
         } else {
-            macro_db_client::document::get_latest_document_version_id(&self.db, document_id)
+            self.get_latest_document_version_id(document_id)
                 .await
                 .map_err(DocumentServiceErr::StorageErr)?
-                .0
         };
 
         let document_key = build_cloud_storage_bucket_document_key(
@@ -114,10 +225,10 @@ impl StorageRepo {
         file_type: Option<&str>,
     ) -> Result<String> {
         let url_encoded_owner = urlencoding::encode(owner);
-        let (document_version_id, _) =
-            macro_db_client::document::get_document_version_id(&self.db, document_id)
-                .await
-                .map_err(DocumentServiceErr::StorageErr)?;
+        let document_version_id = self
+            .get_document_version_id(document_id)
+            .await
+            .map_err(DocumentServiceErr::StorageErr)?;
 
         let document_key = build_cloud_storage_bucket_document_key(
             &url_encoded_owner,
@@ -147,16 +258,13 @@ impl StorageRepo {
         document_version_id: Option<i64>,
     ) -> Result<Vec<PresignedUrl>> {
         let shas: Vec<String> = if let Some(vid) = document_version_id {
-            macro_db_client::document::document_shas::get_document_shas(&self.db, vid)
+            self.get_document_shas(vid)
                 .await
                 .map_err(DocumentServiceErr::StorageErr)?
         } else {
-            macro_db_client::document::document_shas::get_document_shas_by_document_id(
-                &self.db,
-                document_id,
-            )
-            .await
-            .map_err(DocumentServiceErr::StorageErr)?
+            self.get_document_shas_by_document_id(document_id)
+                .await
+                .map_err(DocumentServiceErr::StorageErr)?
         };
 
         let signed_options = self.get_signed_options();

@@ -13,15 +13,17 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use document::models::{
+    FileType, FileTypeExt, build_cloud_storage_bucket_document_key,
+    response::DocumentResponseMetadata,
+};
 use macro_middleware::cloud_storage::ensure_access::{
     document::DocumentAccessExtractor, project::ProjectBodyAccessLevelExtractor,
 };
-use model::document::response::DocumentResponseMetadata;
-use model::{
-    document::{DocumentBasic, FileType, FileTypeExt, build_cloud_storage_bucket_document_key},
-    response::{ErrorResponse, GenericErrorResponse, GenericResponse},
-    user::UserContext,
-};
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::{ErrorResponse, GenericErrorResponse, GenericResponse};
+use model::user::UserContext;
 use models_permissions::share_permission::access_level::EditAccessLevel;
 
 use super::save::save_document;

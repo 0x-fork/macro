@@ -1,8 +1,7 @@
 use utoipa::ToSchema;
 
+use document::models::response::DocumentResponseMetadata;
 use model::response::PresignedUrl;
-
-use model::document::response::DocumentResponseMetadata;
 
 #[derive(serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SaveDocumentResponse {

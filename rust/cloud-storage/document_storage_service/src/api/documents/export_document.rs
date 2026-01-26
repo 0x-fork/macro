@@ -10,13 +10,13 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use document::models::{FileType, response::LocationResponseData};
 use futures::StreamExt;
 use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
-use model::{
-    document::{DocumentBasic, FileType, response::LocationResponseData},
-    response::{ErrorResponse, GenericErrorResponse},
-    user::UserContext,
-};
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::{ErrorResponse, GenericErrorResponse};
+use model::user::UserContext;
 
 use models_permissions::share_permission::access_level::ViewAccessLevel;
 use serde::{Deserialize, Serialize};

@@ -1,6 +1,6 @@
 use crate::static_file::types::{Data, StaticFileContent};
 use anyhow::{Context, Error};
-use model::document::{ContentType, ContentTypeExt};
+use document::models::{ContentType, ContentTypeExt};
 use models_sfs::FileMetadata;
 use static_file_service_client::StaticFileServiceClient;
 use std::fmt::Debug;

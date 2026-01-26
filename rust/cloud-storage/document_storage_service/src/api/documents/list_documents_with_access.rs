@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json},
 };
-use model::document::list::{DocumentListFilters, ListDocumentsWithAccessResponse};
+use document::models::{DocumentListFilters, ListDocumentsWithAccessResponse};
 use model::response::GenericErrorResponse;
 use model::user::UserContext;
 use models_permissions::share_permission::access_level::AccessLevel;

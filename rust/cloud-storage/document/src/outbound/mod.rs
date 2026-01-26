@@ -4,4 +4,5 @@
 //! concrete infrastructure like PostgreSQL, S3, and external services.
 //!
 pub mod metadata;
+#[cfg(feature = "outbound")]
 pub mod storage;

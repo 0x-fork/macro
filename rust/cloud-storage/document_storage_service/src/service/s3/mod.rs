@@ -9,6 +9,7 @@ mod upload_document;
 use std::sync::Arc;
 
 use aws_sdk_s3::{self as s3, primitives::ByteStream};
+use document::models::{ContentType, FileType};
 #[allow(unused_imports)]
 use mockall::automock;
 
@@ -17,8 +18,6 @@ pub use MockS3Client as S3;
 #[cfg(not(test))]
 pub use S3Client as S3;
 use tokio::sync::Semaphore;
-
-use model::document::{ContentType, FileType};
 
 pub static TEMP_FILE_PREFIX: &str = "temp_files/";
 

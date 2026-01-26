@@ -1,12 +1,11 @@
 use crate::api::context::ApiContext;
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
+use document::models::{ContentType, FileType, build_cloud_storage_bucket_document_key};
+use document::models::response::{CreateDocumentResponseData, DocumentResponse, DocumentResponseMetadata};
 use document_sub_type::DocumentSubType;
 use macro_user_id::cowlike::CowLike;
 use macro_user_id::user_id::MacroUserIdStr;
-use model::document::response::CreateDocumentResponseData;
-use model::document::response::{DocumentResponse, DocumentResponseMetadata};
-use model::document::{ContentType, FileType, build_cloud_storage_bucket_document_key};
 use models_permissions::share_permission::SharePermissionV2;
 use system_properties::SystemPropertiesService;
 use uuid::Uuid;

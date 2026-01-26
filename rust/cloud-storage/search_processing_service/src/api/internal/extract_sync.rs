@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use model::document::FileType;
+use document::models::FileType;
 use sqs_client::search::{SearchQueueMessage, document::SearchExtractorMessage};
 use uuid::Uuid;
 

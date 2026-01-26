@@ -3,6 +3,7 @@ use axum::{Extension, extract::Path, http::StatusCode, response::IntoResponse};
 #[allow(unused_imports)]
 use futures::stream::TryStreamExt;
 use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
+// DocumentBasic comes from middleware Extension
 use model::document::DocumentBasic;
 use model::response::{
     GenericErrorResponse, GenericResponse, GenericSuccessResponse, SuccessResponse,

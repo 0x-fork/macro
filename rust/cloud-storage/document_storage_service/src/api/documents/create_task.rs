@@ -1,6 +1,6 @@
 use axum::{Json, extract::State, http::StatusCode};
+use document::models::FileType;
 use macro_middleware::cloud_storage::ensure_access::project::ProjectBodyAccessLevelExtractor;
-use model::document::FileType;
 use model::response::ErrorResponse;
 use model_user::axum_extractor::MacroUserExtractor;
 use models_permissions::share_permission::access_level::EditAccessLevel;

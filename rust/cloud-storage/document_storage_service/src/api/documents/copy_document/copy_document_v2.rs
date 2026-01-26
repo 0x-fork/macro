@@ -4,15 +4,13 @@ use document_sub_type::DocumentSubType;
 use macro_db_client::history::upsert_user_history;
 use macro_user_id::cowlike::CowLike;
 use macro_user_id::user_id::MacroUserIdStr;
-use model::document::response::{DocumentResponse, DocumentResponseMetadata};
-use model::{document::FileTypeExt, sync_service::SyncServiceVersionID};
-use model::{
-    document::{
-        BomPart, CONVERTED_DOCUMENT_FILE_NAME, DocumentMetadata, FileType,
-        build_cloud_storage_bucket_document_key,
-    },
-    response::GenericResponse,
+use document::models::{
+    BomPart, CONVERTED_DOCUMENT_FILE_NAME, DocumentMetadata, FileType, FileTypeExt,
+    build_cloud_storage_bucket_document_key,
+    response::{DocumentResponse, DocumentResponseMetadata},
 };
+use model::response::GenericResponse;
+use sync_service_client::models::SyncServiceVersionID;
 use models_permissions::share_permission::SharePermissionV2;
 use system_properties::SystemPropertiesService;
 

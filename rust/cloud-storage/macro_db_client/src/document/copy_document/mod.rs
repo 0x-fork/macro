@@ -3,7 +3,7 @@ use crate::{
 };
 use document_sub_type::DocumentSubType;
 use macro_user_id::user_id::MacroUserIdStr;
-use model::document::{
+use document::models::{
     BomPart, DocumentMetadata, FileType, IDWithTimeStamps, VersionIDWithTimeStamps,
     VersionIDWithTimeStampsNoSha,
 };

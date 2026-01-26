@@ -4,12 +4,12 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
+use document::models::{FileType, FileTypeExt};
 use macro_share_permissions::user_item_access::update_user_item_access;
-use model::{
-    document::{DocumentBasic, FileType, FileTypeExt},
-    response::{ErrorResponse, GenericSuccessResponse, SuccessResponse},
-    user::UserContext,
-};
+// DocumentBasic comes from handler which receives it from middleware
+use model::document::DocumentBasic;
+use model::response::{ErrorResponse, GenericSuccessResponse, SuccessResponse};
+use model::user::UserContext;
 use models_permissions::share_permission::UpdateSharePermissionRequestV2;
 use models_permissions::share_permission::access_level::AccessLevel;
 

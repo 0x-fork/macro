@@ -1,4 +1,4 @@
-use model::document::FileType;
+use document::models::FileType;
 use sqlx::{Pool, Postgres};
 use std::str::FromStr;
 

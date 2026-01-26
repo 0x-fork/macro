@@ -6,7 +6,7 @@ use model::chat::{
     AttachmentMetadata, AttachmentType, Chat, ChatAttachment, ChatAttachmentWithName,
     ChatMessageWithAttachments,
 };
-use model::document::FileType;
+use document::models::FileType;
 use sqlx::{Executor, Pool, Postgres};
 use std::collections::HashMap;
 

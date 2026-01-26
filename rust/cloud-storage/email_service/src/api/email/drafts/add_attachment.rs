@@ -4,7 +4,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
-use model::document::FileTypeExt;
+use document::models::FileTypeExt;
 use model::response::ErrorResponse;
 use model_file_type::{ContentType, FileType};
 use models_email::service;

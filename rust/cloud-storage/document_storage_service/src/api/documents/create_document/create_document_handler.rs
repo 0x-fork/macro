@@ -7,13 +7,10 @@ use crate::api::{
     },
 };
 use axum::{Extension, extract::State, http::StatusCode, response::IntoResponse};
+use document::models::{FileType, FileTypeExt};
+use document::models::response::{CreateDocumentRequest, CreateDocumentResponse};
 use macro_middleware::cloud_storage::ensure_access::project::ProjectBodyAccessLevelExtractor;
-use model::document::FileTypeExt;
-use model::document::response::{CreateDocumentRequest, CreateDocumentResponse};
-use model::{
-    document::FileType,
-    response::{GenericErrorResponse, GenericResponse},
-};
+use model::response::{GenericErrorResponse, GenericResponse};
 use model_user::axum_extractor::MacroUserExtractor;
 use models_permissions::share_permission::access_level::EditAccessLevel;
 use std::str::FromStr;

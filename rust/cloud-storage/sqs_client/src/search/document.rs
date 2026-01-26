@@ -1,5 +1,4 @@
-// TODO: remove dependency on model crate
-use model::document::{BackfillSearchDocumentInformation, CONVERTED_DOCUMENT_FILE_NAME, FileType};
+use document::models::{BackfillSearchDocumentInformation, CONVERTED_DOCUMENT_FILE_NAME, FileType};
 
 #[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq, Debug)]
 pub struct DocumentId {

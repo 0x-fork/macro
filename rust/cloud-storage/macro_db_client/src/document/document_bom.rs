@@ -1,6 +1,6 @@
 use sqlx::{Postgres, Transaction};
 
-use model::document::{BomPart, SaveBomPart};
+use document::models::{BomPart, SaveBomPart};
 
 pub(in crate::document) async fn create_bom_parts(
     transaction: &mut Transaction<'_, Postgres>,

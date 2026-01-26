@@ -6,7 +6,10 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
-use model::{document::DocumentBasic, response::GenericErrorResponse, user::UserContext};
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::GenericErrorResponse;
+use model::user::UserContext;
 
 use models_permissions::share_permission::access_level::ViewAccessLevel;
 use serde::Deserialize;

@@ -69,6 +69,7 @@ macro_project_utils = { path = "../macro_project_utils" }
 macro_share_permissions = { path = "../macro_share_permissions" }
 macro_user_id = { path = "../macro_user_id" }
 macro_uuid = { path = "../macro_uuid" }
+document = { path = "../document", default-features = false }
 model = { path = "../model" }
 models_dcs = { path = "../models_dcs" }
 models_opensearch = { path = "../models_opensearch" }

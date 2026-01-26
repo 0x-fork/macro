@@ -1,7 +1,7 @@
 /* This is misnamed - this is a pdf completion only for the "generalized popup" */
 use aho_corasick::AhoCorasick;
 use anyhow::{Context, Result};
-use model::document::FileType;
+use document::models::FileType;
 use regex::Regex;
 use std::{str::FromStr, sync::Arc};
 use tracing::instrument;

@@ -4,18 +4,15 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use document::models::response::{GetDocumentResponse, GetDocumentResponseData};
 use macro_db_client::{
     document::get_document, user_document_view_location::get::get_user_document_view_location,
 };
 use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
-use model::{
-    document::{
-        DocumentBasic,
-        response::{GetDocumentResponse, GetDocumentResponseData},
-    },
-    response::GenericErrorResponse,
-    user::UserContext,
-};
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::GenericErrorResponse;
+use model::user::UserContext;
 use models_permissions::share_permission::access_level::ViewAccessLevel;
 use serde::Deserialize;
 use sqlx::PgPool;

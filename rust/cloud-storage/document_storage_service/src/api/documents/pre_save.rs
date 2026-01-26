@@ -16,13 +16,12 @@ use axum::{
 
 #[allow(unused_imports)]
 use futures::stream::StreamExt;
+use document::models::{ContentType, FileType};
 use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
-use model::{response::GenericErrorResponse, user::UserContext};
-
-use model::{
-    document::{ContentType, DocumentBasic, FileType},
-    response::{GenericResponse, PresignedUrl},
-};
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::{GenericErrorResponse, GenericResponse, PresignedUrl};
+use model::user::UserContext;
 
 use models_permissions::share_permission::access_level::EditAccessLevel;
 use serde::Deserialize;

@@ -4,8 +4,8 @@
 /// - SEARCH_EVENT_QUEUE
 use anyhow::Context;
 use clap::Parser;
+use document::models::FileType;
 use macro_entrypoint::MacroEntrypoint;
-use model::document::FileType;
 use sqlx::postgres::PgPoolOptions;
 
 #[derive(clap::Parser, Debug)]

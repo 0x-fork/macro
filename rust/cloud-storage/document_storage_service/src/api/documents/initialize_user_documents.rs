@@ -3,12 +3,10 @@ use axum::{
     extract::State,
     response::{IntoResponse, Json, Response},
 };
+use document::models::{BasicDocument, build_cloud_storage_bucket_document_key};
 use futures::StreamExt;
 use macro_user_id::cowlike::CowLike;
-use model::{
-    document::{BasicDocument, build_cloud_storage_bucket_document_key},
-    response::{ErrorResponse, GenericErrorResponse, GenericSuccessResponse},
-};
+use model::response::{ErrorResponse, GenericErrorResponse, GenericSuccessResponse};
 use model_user::axum_extractor::MacroUserExtractor;
 use models_permissions::share_permission::SharePermissionV2;
 use reqwest::StatusCode;

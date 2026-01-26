@@ -1,4 +1,4 @@
-use model::document::DocumentMetadata;
+use document::models::DocumentMetadata;
 
 use super::SearchExtractorMessage;
 

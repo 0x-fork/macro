@@ -1,6 +1,6 @@
 use utoipa::ToSchema;
 
-use model::document::{DocumentMetadata, response::GetDocumentListResult};
+use document::models::{DocumentMetadata, response::GetDocumentListResult};
 use models_permissions::share_permission::access_level::AccessLevel;
 
 #[derive(serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug, ToSchema)]

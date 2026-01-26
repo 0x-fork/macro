@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use aws_lambda_events::{event::sqs::SqsEvent, sqs::SqsMessage};
 use aws_sdk_s3::{Client as S3Client, primitives::ByteStream};
 use connection_gateway_client::client::ConnectionGatewayClient;
+use document::models::{FileType, FileTypeExt};
 use document_storage_service_client::DocumentStorageServiceClient;
 use dynamodb_client::DynamodbClient;
 use futures::{
@@ -13,10 +14,7 @@ use lambda_runtime::{
     tracing::{self},
 };
 use macro_entrypoint::MacroEntrypoint;
-use model::{
-    document::{FileType, FileTypeExt},
-    folder::{FileSystemNodeWithIds, FolderItem, S3Destination, S3DestinationMap},
-};
+use model::folder::{FileSystemNodeWithIds, FolderItem, S3Destination, S3DestinationMap};
 use model_entity::EntityType;
 use models_bulk_upload::{UploadDocumentStatus, UploadFolderStatus, UploadFolderStatusUpdate};
 use sha2::{Digest, Sha256};
@@ -617,7 +615,7 @@ async fn main() -> Result<(), Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use model::document::FileType;
+    use document::models::FileType;
     use model::folder::FolderItem;
     use std::fs::{self, File};
     use std::io::Write;

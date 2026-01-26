@@ -1,4 +1,4 @@
-use model::document::DocumentPreview;
+use document::models::DocumentPreview;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

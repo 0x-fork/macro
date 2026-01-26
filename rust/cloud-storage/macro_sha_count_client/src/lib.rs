@@ -2,7 +2,7 @@ mod decrement_count;
 mod exists;
 mod increment_count;
 
-use model::document::SaveBomPart;
+use document::models::SaveBomPart;
 
 #[derive(Clone)]
 pub struct Redis {

@@ -2,11 +2,12 @@
 
 use chrono::{DateTime, Utc};
 use models_permissions::share_permission::access_level::AccessLevel;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 /// A document item in a list response.
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, JsonSchema)]
 pub struct DocumentListItem {
     /// The document id
     pub document_id: String,

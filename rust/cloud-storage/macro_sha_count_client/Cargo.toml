@@ -9,6 +9,7 @@ redis_test = []
 
 [dependencies]
 anyhow = { workspace = true }
+document = { path = "../document", default-features = false }
 model = { path = "../model" }
 redis = { workspace = true, features = [
   "aio",

@@ -1,9 +1,7 @@
 use anyhow::Context;
+use document::models::{CONVERTED_DOCUMENT_FILE_NAME, SaveBomPart};
 use lambda_runtime::tracing::{self, Level};
-use model::{
-    convert::ConvertQueueMessage,
-    document::{CONVERTED_DOCUMENT_FILE_NAME, SaveBomPart},
-};
+use model::convert::ConvertQueueMessage;
 
 use crate::{
     context::{self},

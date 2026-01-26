@@ -1,6 +1,6 @@
 use sqlx::{Pool, Postgres};
 
-use model::document::response::GetDocumentListResult;
+use document::models::response::GetDocumentListResult;
 
 #[tracing::instrument(skip(db))]
 pub async fn get_document_list(

@@ -36,6 +36,7 @@ upload_extractor = []
 anyhow = { workspace = true }
 aws-sdk-sqs = { workspace = true }
 chrono = { workspace = true, optional = true }
+document = { path = "../document", default-features = false }
 model = { path = "../model", optional = true }
 models_email = { path = "../models_email", optional = true }
 serde = { workspace = true }

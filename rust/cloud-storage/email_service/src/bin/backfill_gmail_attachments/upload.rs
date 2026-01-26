@@ -1,6 +1,6 @@
 use anyhow::{Context, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use model::document::response::CreateDocumentRequest;
+use document::models::response::CreateDocumentRequest;
 use models_email::service::attachment::AttachmentUploadMetadata;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;

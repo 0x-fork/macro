@@ -1,9 +1,9 @@
 use ai::types::ImageData;
 use anyhow::{Error, bail};
 use bytes::Bytes;
+use document::models::response::LocationResponseV3;
+use document::models::{DocumentBasic, FileType, FileTypeExt};
 use lexical_client::types::CognitionResponseData;
-use model::document::response::LocationResponseV3;
-use model::document::{DocumentBasic, FileType, FileTypeExt};
 use models_properties::service::entity_property_with_definition::EntityPropertyWithDefinition;
 
 #[derive(Debug, Clone)]

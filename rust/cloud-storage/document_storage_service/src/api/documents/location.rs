@@ -20,16 +20,19 @@ use axum::{
     response::{IntoResponse, Response as AxumResponse},
 };
 use cloudfront_sign::{SignedOptions, get_signed_url};
-use futures::{FutureExt, pin_mut, select};
-use model::{
-    document::{
-        CONVERTED_DOCUMENT_FILE_NAME, DocumentBasic, FileType, FileTypeExt,
-        build_cloud_storage_bucket_document_key,
-        response::{LocationResponseData, LocationResponseV3},
-    },
-    response::{GenericErrorResponse, GenericResponse, PresignedUrl},
-    user::UserContext,
+use document::models::{
+    CONVERTED_DOCUMENT_FILE_NAME, FileType, FileTypeExt,
+    build_cloud_storage_bucket_document_key,
+    // DocumentBasic for response types
+    DocumentBasic as ResponseDocumentBasic,
+    response::{LocationResponseData, LocationResponseV3, PresignedUrl},
 };
+use futures::{FutureExt, pin_mut, select};
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::{GenericErrorResponse, GenericResponse};
+use model::user::UserContext;
+use sync_service_client::models::DocumentMetadata as SyncServiceDocumentMetadata;
 
 #[derive(serde::Deserialize)]
 pub struct Params {
@@ -38,11 +41,26 @@ pub struct Params {
 
 static DOCUMENT_DOES_NOT_EXIST: &str = "document does not exist in s3";
 
+/// Converts model::document::DocumentBasic to document::models::DocumentBasic
+fn to_response_document_basic(doc: DocumentBasic) -> ResponseDocumentBasic {
+    ResponseDocumentBasic {
+        document_id: doc.document_id,
+        document_name: doc.document_name,
+        owner: doc.owner,
+        file_type: doc.file_type,
+        branched_from_id: doc.branched_from_id,
+        branched_from_version_id: doc.branched_from_version_id,
+        document_family_id: doc.document_family_id,
+        project_id: doc.project_id,
+        deleted_at: doc.deleted_at,
+    }
+}
+
 /// Attempts to retrieve metadata from sync service using optimized concurrent exists/metadata checks
 async fn try_get_from_sync_service(
     sync_service_client: &sync_service_client::SyncServiceClient,
     document_id: &str,
-) -> Result<Option<model::sync_service::DocumentMetadata>, anyhow::Error> {
+) -> Result<Option<SyncServiceDocumentMetadata>, anyhow::Error> {
     let exists_fut = sync_service_client.exists(document_id).fuse();
     let metadata_fut = sync_service_client.get_metadata(document_id).fuse();
 
@@ -99,6 +117,10 @@ pub async fn get_location_handler_v3(
     Query(params): Query<LocationQueryParams>,
 ) -> AxumResponse {
     let file_type = document_context.try_file_type();
+    // Extract owner before converting to response type
+    let owner = document_context.owner.to_string();
+    // Convert to response type for use in LocationResponseV3
+    let response_metadata = to_response_document_basic(document_context);
 
     let make_result = |response: anyhow::Result<LocationResponseV3>| {
         let response_data: LocationResponseV3 = match response {
@@ -139,7 +161,7 @@ pub async fn get_location_handler_v3(
         match try_get_from_sync_service(&state.sync_service_client, &document_id).await {
             Ok(Some(sync_service_metadata)) => {
                 let data = LocationResponseV3::SyncServiceContent {
-                    metadata: document_context,
+                    metadata: response_metadata,
                     sync_service_metadata,
                 };
                 return make_result(Ok(data)).into_response();
@@ -156,7 +178,7 @@ pub async fn get_location_handler_v3(
 
     let response_data = get_presigned_url_by_type(
         &state,
-        document_context.owner.as_ref(),
+        &owner,
         &document_id,
         file_type,
         params.document_version_id,
@@ -166,11 +188,11 @@ pub async fn get_location_handler_v3(
     .map(|response| match response {
         LocationResponseData::PresignedUrl(url) => LocationResponseV3::PresignedUrl {
             presigned_url: url,
-            metadata: document_context,
+            metadata: response_metadata.clone(),
         },
         LocationResponseData::PresignedUrls(urls) => LocationResponseV3::PresignedUrls {
             presigned_urls: urls,
-            metadata: document_context,
+            metadata: response_metadata,
         },
     });
     make_result(response_data).into_response()

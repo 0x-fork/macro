@@ -11,13 +11,15 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
-use model::document::response::DocumentResponseMetadata;
-use model::{
-    document::{DocumentBasic, FileType, FileTypeExt, build_cloud_storage_bucket_document_key},
-    response::{GenericErrorResponse, GenericResponse},
-    user::UserContext,
+use document::models::{
+    FileType, FileTypeExt, build_cloud_storage_bucket_document_key,
+    response::DocumentResponseMetadata,
 };
+use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::{GenericErrorResponse, GenericResponse};
+use model::user::UserContext;
 use models_permissions::share_permission::access_level::EditAccessLevel;
 use serde::Deserialize;
 

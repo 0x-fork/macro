@@ -9,19 +9,18 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use macro_user_id::user_id::MacroUserIdStr;
-use model::{
-    document::{
-        ContentType, DocumentMetadata, FileType, build_cloud_storage_bucket_document_key,
-        build_docx_staging_bucket_document_key,
-    },
-    folder::{
-        FileSystemNode, S3Destination, S3DestinationMap, UploadFolderRequest,
-        UploadFolderResponseData, UploadFolderWithIdsResponse,
-    },
-    response::{GenericErrorResponse, GenericResponse, PresignedUrl, TypedSuccessResponse},
-    user::{UserContext, axum_extractor::MacroUserExtractor},
+use document::models::{
+    ContentType, DocumentMetadata, FileType, build_cloud_storage_bucket_document_key,
+    build_docx_staging_bucket_document_key,
 };
+use macro_db_client::projects::upload_folder::UploadFolderWithIdsResponse;
+use macro_user_id::user_id::MacroUserIdStr;
+use model::folder::{
+    FileSystemNode, S3Destination, S3DestinationMap, UploadFolderRequest,
+    UploadFolderResponseData,
+};
+use model::response::{GenericErrorResponse, GenericResponse, PresignedUrl, TypedSuccessResponse};
+use model::user::{UserContext, axum_extractor::MacroUserExtractor};
 use models_bulk_upload::{
     MarkProjectUploadedRequest, MarkProjectUploadedResponse, S3ObjectInfo,
     UploadExtractFolderRequest, UploadExtractFolderResponseData,

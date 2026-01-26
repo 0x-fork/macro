@@ -2,11 +2,11 @@ use crate::util::redis::RedisClient;
 use crate::util::redis::rate_limit::RateLimitArgs;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use document::models::response::{CreateDocumentRequest, CreateDocumentResponse};
 use document_storage_service_client::DocumentStorageServiceClient;
 use gmail_client::GmailClient;
 use macro_user_id::cowlike::ArcCowStr;
 use macro_user_id::user_id::MacroUserId;
-use model::document::response::{CreateDocumentRequest, CreateDocumentResponse};
 use models_email::gmail::operations::GmailApiOperation;
 use models_email::service::attachment::{
     AttachmentSfs, AttachmentUploadArgs, AttachmentUploadMetadata,

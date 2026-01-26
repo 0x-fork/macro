@@ -8,14 +8,14 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use document::models::FileType;
 use macro_db_client::document::build_pdf_modification_data::{
     get_complete_pdf_modification_data, get_pdf_modification_data_for_document,
 };
-use model::{
-    document::{DocumentBasic, FileType},
-    response::{GenericErrorResponse, GenericResponse},
-    user::UserContext,
-};
+// DocumentBasic comes from middleware Extension
+use model::document::DocumentBasic;
+use model::response::{GenericErrorResponse, GenericResponse};
+use model::user::UserContext;
 use serde::Deserialize;
 
 #[derive(Deserialize)]

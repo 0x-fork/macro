@@ -6,8 +6,10 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use document::models::DocumentPermissionsToken;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
-use model::{document::DocumentPermissionsToken, response::ErrorResponse, user::UserContext};
+use model::response::ErrorResponse;
+use model::user::UserContext;
 use utoipa::ToSchema;
 
 use crate::config::Config;
