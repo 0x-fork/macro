@@ -21,7 +21,7 @@ model_file_type = { path = "../model_file_type", features = ["utoipa"] }
 models_permissions = { path = "../models_permissions" }
 models_properties = { path = "../models_properties" }
 properties_db_client = { path = "../properties_db_client" }
-rayon = "1"
+rayon = {workspace = true}
 schemars = { workspace = true }
 s3_client = { path = "../s3_client" }
 serde = { workspace = true }

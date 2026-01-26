@@ -90,8 +90,8 @@ models_soup = { path = "../models_soup", features = ["schema"] }
 opensearch_client = { path = "../opensearch_client" }
 properties = { path = "../properties" }
 properties_service = { path = "../properties_service" }
+rayon = { workspace = true }
 search_service = { path = "../search_service" }
-rayon = "1.10.0"
 redis = { workspace = true, features = [
   "aio",
   "cluster-async",
