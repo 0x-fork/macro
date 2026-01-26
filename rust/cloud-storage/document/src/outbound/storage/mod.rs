@@ -7,13 +7,12 @@ use crate::domain::{
     models::{DocumentServiceErr, Result},
     ports::{DocumentStorageRepo, GetLocationRequest},
 };
+use crate::models::{
+    CONVERTED_DOCUMENT_FILE_NAME, FileType, FileTypeExt, build_cloud_storage_bucket_document_key,
+    response::{LocationResponseV3, PresignedUrl},
+};
 use anyhow::anyhow;
 use cloudfront_sign::{SignedOptions, get_signed_url};
-use model::document::{
-    CONVERTED_DOCUMENT_FILE_NAME, FileType, FileTypeExt, build_cloud_storage_bucket_document_key,
-    response::LocationResponseV3,
-};
-use model::response::PresignedUrl;
 use rayon::prelude::*;
 use sqlx::PgPool;
 use std::{

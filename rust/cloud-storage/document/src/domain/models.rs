@@ -1,6 +1,6 @@
 //! Domain models for document operations.
 
-use model::document::DocumentMetadata;
+use crate::models::DocumentMetadata;
 use models_permissions::share_permission::access_level::AccessLevel;
 use thiserror::Error;
 

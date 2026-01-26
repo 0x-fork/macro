@@ -7,12 +7,12 @@ use crate::domain::{
     models::{DocumentServiceErr, Result},
     ports::DocumentMetadataRepo,
 };
-use document_sub_type::DocumentSubType;
-use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use model::document::{
+use crate::models::{
     DocumentBasic, DocumentMetadata, DocumentPreviewData, DocumentPreviewDataSubType,
     DocumentPreviewV2, WithDocumentId, response::GetDocumentListResult,
 };
+use document_sub_type::DocumentSubType;
+use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 use sqlx::PgPool;
 use std::{collections::HashSet, sync::Arc};
 use system_properties::{StatusOption, SystemPropertyKey};

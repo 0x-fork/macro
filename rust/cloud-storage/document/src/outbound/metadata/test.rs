@@ -11,10 +11,7 @@ fn test_user_id() -> MacroUserIdStr<'static> {
 }
 
 #[sqlx::test(
-    fixtures(
-        path = "../../../fixtures",
-        scripts("basic_user_with_document")
-    ),
+    fixtures(path = "../../../fixtures", scripts("basic_user_with_document")),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
 async fn test_get_document_basic_returns_document(pool: Pool<Postgres>) {
@@ -31,10 +28,7 @@ async fn test_get_document_basic_returns_document(pool: Pool<Postgres>) {
 }
 
 #[sqlx::test(
-    fixtures(
-        path = "../../../fixtures",
-        scripts("basic_user_with_document")
-    ),
+    fixtures(path = "../../../fixtures", scripts("basic_user_with_document")),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
 async fn test_get_document_basic_not_found(pool: Pool<Postgres>) {
@@ -45,10 +39,7 @@ async fn test_get_document_basic_not_found(pool: Pool<Postgres>) {
 }
 
 #[sqlx::test(
-    fixtures(
-        path = "../../../fixtures",
-        scripts("basic_user_with_document")
-    ),
+    fixtures(path = "../../../fixtures", scripts("basic_user_with_document")),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
 async fn test_get_document_list_returns_user_documents(pool: Pool<Postgres>) {
@@ -56,7 +47,11 @@ async fn test_get_document_list_returns_user_documents(pool: Pool<Postgres>) {
     let user_id = test_user_id();
 
     let result = repo.get_document_list(user_id).await;
-    assert!(result.is_ok(), "Should get document list: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should get document list: {:?}",
+        result.err()
+    );
 
     let docs = result.unwrap();
     assert!(!docs.is_empty(), "User should have at least one document");
@@ -64,16 +59,12 @@ async fn test_get_document_list_returns_user_documents(pool: Pool<Postgres>) {
 }
 
 #[sqlx::test(
-    fixtures(
-        path = "../../../fixtures",
-        scripts("basic_user_with_document")
-    ),
+    fixtures(path = "../../../fixtures", scripts("basic_user_with_document")),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
 async fn test_get_document_list_empty_for_unknown_user(pool: Pool<Postgres>) {
     let repo = MetadataRepo::new(Arc::new(pool));
-    let unknown_user =
-        MacroUserIdStr::try_from("macro|unknown@test.com".to_string()).unwrap();
+    let unknown_user = MacroUserIdStr::try_from("macro|unknown@test.com".to_string()).unwrap();
 
     let result = repo.get_document_list(unknown_user).await;
     assert!(result.is_ok());
@@ -83,10 +74,7 @@ async fn test_get_document_list_empty_for_unknown_user(pool: Pool<Postgres>) {
 }
 
 #[sqlx::test(
-    fixtures(
-        path = "../../../fixtures",
-        scripts("basic_user_with_document")
-    ),
+    fixtures(path = "../../../fixtures", scripts("basic_user_with_document")),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
 async fn test_get_user_view_location_returns_none_when_not_set(pool: Pool<Postgres>) {
@@ -99,10 +87,7 @@ async fn test_get_user_view_location_returns_none_when_not_set(pool: Pool<Postgr
 }
 
 #[sqlx::test(
-    fixtures(
-        path = "../../../fixtures",
-        scripts("basic_user_with_document")
-    ),
+    fixtures(path = "../../../fixtures", scripts("basic_user_with_document")),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
 async fn test_get_batch_document_previews(pool: Pool<Postgres>) {
@@ -114,7 +99,11 @@ async fn test_get_batch_document_previews(pool: Pool<Postgres>) {
     assert!(result.is_ok(), "Should get previews: {:?}", result.err());
 
     let previews = result.unwrap();
-    assert_eq!(previews.len(), 2, "Should return result for each requested ID");
+    assert_eq!(
+        previews.len(),
+        2,
+        "Should return result for each requested ID"
+    );
 
     // Check that document-one was found
     let found_count = previews
@@ -128,5 +117,8 @@ async fn test_get_batch_document_previews(pool: Pool<Postgres>) {
         .iter()
         .filter(|p| matches!(p, DocumentPreviewV2::DoesNotExist(_)))
         .count();
-    assert_eq!(not_found_count, 1, "Should mark nonexistent as DoesNotExist");
+    assert_eq!(
+        not_found_count, 1,
+        "Should mark nonexistent as DoesNotExist"
+    );
 }

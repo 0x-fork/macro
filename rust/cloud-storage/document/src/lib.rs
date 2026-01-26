@@ -4,5 +4,6 @@
 //! from infrastructure concerns like HTTP handlers and database implementations.
 
 pub mod domain;
+pub mod models;
 #[cfg(feature = "outbound")]
 pub mod outbound;

@@ -10,9 +10,9 @@ use super::{
     models::{DocumentServiceErr, DocumentText, GetDocumentOutput, Result},
     ports::{DocumentMetadataRepo, DocumentService, DocumentStorageRepo},
 };
+use crate::models::{DocumentPreviewV2, FileType, response::GetDocumentListResult};
 use entity_access::domain::{models::EntityType, ports::EntityAccessService};
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use model::document::{DocumentPreviewV2, FileType, response::GetDocumentListResult};
 use models_permissions::share_permission::access_level::AccessLevel;
 use std::{str::FromStr, sync::Arc};
 

@@ -2,13 +2,13 @@
 
 use super::*;
 use crate::domain::ports::{MockDocumentMetadataRepo, MockDocumentStorageRepo};
+use crate::models::{
+    DocumentBasic, DocumentMetadata, DocumentPreviewData, response::GetDocumentListResult,
+};
 use chrono::Utc;
 use entity_access::domain::models::AccessError;
 use macro_user_id::lowercased::Lowercase;
 use macro_user_id::user_id::MacroUserId;
-use model::document::{
-    DocumentBasic, DocumentMetadata, DocumentPreviewData, response::GetDocumentListResult,
-};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

@@ -4,11 +4,11 @@
 //! infrastructure like databases, storage systems, and HTTP handlers.
 
 use super::models::{DocumentText, GetDocumentOutput, Result};
-use macro_user_id::user_id::MacroUserIdStr;
-use model::document::{
+use crate::models::{
     DocumentBasic, DocumentMetadata, DocumentPreviewV2,
     response::{GetDocumentListResult, LocationResponseV3},
 };
+use macro_user_id::user_id::MacroUserIdStr;
 use std::future::Future;
 
 /// Service trait for document operations.
