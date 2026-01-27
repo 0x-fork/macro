@@ -9,7 +9,9 @@ const DEFAULT_ITEM_SIZE = 50;
 const DEFAULT_OVERSCAN = 5;
 
 interface TableContentProps<TData extends TableData> {
+  virtualizerRef?: (handle: VirtualizerHandle) => void;
   class?: string;
+  virtualizerClass?: string;
   itemSize?: number;
   overscan?: number;
   children: (row: Row<TData>, index: Accessor<number>) => JSX.Element;
@@ -44,15 +46,21 @@ export function TableContent<TData extends TableData>(
     }
   };
 
+  const registerVirtualizerHandler = (
+    handle: VirtualizerHandle | undefined
+  ) => {
+    setVirtualizerHandle(handle);
+
+    if (handle) {
+      props.virtualizerRef?.(handle);
+    }
+  };
+
   return (
-    <div
-      class={cn(
-        'unified-table-body overflow-hidden size-full relative',
-        props.class
-      )}
-    >
+    <div class={cn('unified-table-body size-full relative', props.class)}>
       <VList
-        ref={setVirtualizerHandle}
+        ref={registerVirtualizerHandler}
+        class={props.virtualizerClass}
         data={rows()}
         itemSize={itemSize()}
         bufferSize={overscan() * itemSize()}
