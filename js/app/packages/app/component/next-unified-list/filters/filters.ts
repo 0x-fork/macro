@@ -7,6 +7,7 @@
 
 import type { EntityData, WithNotification } from '@macro-entity';
 import { signalFilter, noiseFilter } from './signal-filters';
+import { EntityWithValidIcon, getIconConfig } from '@core/component/EntityIcon';
 
 /**
  * Unread filter - entity has unread content.
@@ -185,7 +186,7 @@ const SOUP_FILTERS = [
 
 export type FilterID = (typeof SOUP_FILTERS)[number]['id'];
 
-const ENTITY_TYPE_FILTERS = [
+export const ENTITY_TYPE_FILTERS = [
   'document',
   'task',
   'email',
@@ -194,7 +195,25 @@ const ENTITY_TYPE_FILTERS = [
   'project',
   'agent',
   'file',
-];
+] as const;
+
+type EntityTypeFilters = (typeof ENTITY_TYPE_FILTERS)[number];
+
+const ENTITY_TYPE_TO_ICON_TYPE: Record<EntityTypeFilters, EntityWithValidIcon> =
+  {
+    document: 'md',
+    email: 'email',
+    project: 'project',
+    task: 'task',
+    people: 'channel',
+    teams: 'directMessage',
+    agent: 'chat',
+    file: 'project',
+  };
+
+export const getEntityTypeFilterIcon = (filter: EntityTypeFilters) => {
+  return getIconConfig(ENTITY_TYPE_TO_ICON_TYPE[filter]);
+};
 
 export const getFilterWithID = (filterID: FilterID) => {
   const found = SOUP_FILTERS.find((f) => f.id === filterID);
@@ -204,11 +223,14 @@ export const getFilterWithID = (filterID: FilterID) => {
   return found;
 };
 
+export const isEntityTypeFilter = (filter: FilterID) =>
+  ENTITY_TYPE_FILTERS.includes(filter as EntityTypeFilters);
+
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 export const buildDssFiltersRequest = (filters: FilterConfig<EntityData>[]) => {
   const entityTypes = filters
-    .filter((f) => ENTITY_TYPE_FILTERS.includes(f.id))
+    .filter((f) => ENTITY_TYPE_FILTERS.includes(f.id as EntityTypeFilters))
     .map((f) => f.id);
 
   return {
