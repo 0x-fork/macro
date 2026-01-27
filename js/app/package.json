@@ -56,6 +56,7 @@
 		"@normy/query-core": "^0.21.0",
 		"@phosphor-icons/core": "^2.1.1",
 		"@solid-primitives/broadcast-channel": "^0.1.1",
+		"@sentry/solid": "^10.36.0",
 		"@solid-primitives/context": "^0.3.2",
 		"@solid-primitives/event-bus": "^1.1.2",
 		"@solid-primitives/lifecycle": "^0.1.2",
