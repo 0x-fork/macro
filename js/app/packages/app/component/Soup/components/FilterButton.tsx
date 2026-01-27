@@ -38,7 +38,7 @@ export interface FilterButtonProps {
   icon: Component<{ class?: string }>;
   label: string;
   shortcut: string;
-  isActive: () => boolean;
+  isActive: (() => boolean) | boolean;
   onClick: () => void;
   paddingClass?: string;
 }
@@ -52,9 +52,14 @@ export const FilterButton: Component<FilterButtonProps> = (props) => (
         type="button"
         class={`flex items-center gap-1 h-[22px] touch:mobile-width:h-9 ${props.paddingClass ?? 'pl-2 pr-2.5'} active:bg-accent active:text-panel rounded-full`}
         classList={{
-          'bg-accent text-panel': props.isActive(),
+          'bg-accent text-panel':
+            typeof props.isActive === 'function'
+              ? props.isActive()
+              : props.isActive,
           'text-ink-muted hover:text-accent hover:bg-accent/20':
-            !props.isActive(),
+            !(typeof props.isActive === 'function'
+              ? props.isActive()
+              : props.isActive),
         }}
         onClick={props.onClick}
       >
