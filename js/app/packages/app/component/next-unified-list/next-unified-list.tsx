@@ -414,7 +414,10 @@ const Soup = () => {
                       when={!row.getIsGrouped()}
                       fallback={
                         <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
-                          <button onClick={row.getToggleExpandedHandler()}>
+                          <button
+                            type="button"
+                            onClick={row.getToggleExpandedHandler()}
+                          >
                             {row.getIsExpanded() ? 'Close' : 'Open'}
                           </button>
                           <span>{row.groupingValue}</span>
