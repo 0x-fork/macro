@@ -88,27 +88,27 @@ const Soup = () => {
     }
   };
 
-  let invalidated = false;
-  let initial = true;
+  let invalidatedFocus = false;
+  let initialLoad = true;
   createEffect(
     on(
       () => dssInfiniteQuery.data,
       (data) => {
         // If we didn't manually invalidate AND it's not the
         // initial load AND there's no data, do nothing
-        if (!invalidated && !initial && !data) {
+        if (!invalidatedFocus && !initialLoad && !data) {
           return;
         }
 
         focusFirstEntity();
-        invalidated = false;
-        initial = false;
+        invalidatedFocus = false;
+        initialLoad = false;
       }
     )
   );
 
-  const resetFocusOnQueryUpdate = () => {
-    invalidated = true;
+  const invalidateFocus = () => {
+    invalidatedFocus = true;
   };
 
   const [virtualizerHandle, setVirtualizerHandle] =
@@ -157,7 +157,7 @@ const Soup = () => {
     batch(() => {
       filters.toggle(filter);
       controller.setFilters(filters.active());
-      resetFocusOnQueryUpdate();
+      invalidateFocus();
     });
   };
 
@@ -177,7 +177,7 @@ const Soup = () => {
           desc: true,
         },
       ]);
-      resetFocusOnQueryUpdate();
+      invalidateFocus();
     });
   };
 
