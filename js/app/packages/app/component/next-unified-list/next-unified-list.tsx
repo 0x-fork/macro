@@ -80,18 +80,29 @@ const Soup = () => {
     },
   });
 
+  const focusFirstEntity = () => {
+    const next = controller.navigateTo(0);
+
+    if (next) {
+      virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
+    }
+  };
+
   let invalidated = false;
+  let initial = true;
   createEffect(
     on(
       () => dssInfiniteQuery.data,
-      () => {
-        if (!invalidated) return;
-        const next = controller.navigateTo(0);
-
-        if (next) {
-          virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
+      (data) => {
+        // If we didn't manually invalidate AND it's not the
+        // initial load AND there's no data, do nothing
+        if (!invalidated && !initial && !data) {
+          return;
         }
+
+        focusFirstEntity();
         invalidated = false;
+        initial = false;
       }
     )
   );
