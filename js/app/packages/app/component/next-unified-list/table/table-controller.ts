@@ -6,7 +6,6 @@ import type {
 import {
   type ColumnDef,
   createSolidTable,
-  type ExpandedState,
   getCoreRowModel,
   getExpandedRowModel,
   getFilteredRowModel,
@@ -15,7 +14,11 @@ import {
 } from '@tanstack/solid-table';
 import { createSignal, createMemo, type Accessor } from 'solid-js';
 
-type SortColumn<TData extends TableData> = { id: keyof TData; desc: boolean };
+type SortColumn<TData extends TableData> = {
+  id: keyof TData | (string & {});
+  sortingFn: (a: TData, b: TData) => number;
+  desc?: boolean;
+};
 
 export interface TableControllerOptions<
   TData extends TableData,
@@ -29,6 +32,7 @@ export interface TableControllerOptions<
     selection?: Record<TData['id'], boolean>;
   };
   wrapNavigation?: boolean;
+  disableFiltering?: boolean;
   onNavigate?: (next: TData['id'], index: number) => void;
 }
 
@@ -42,9 +46,6 @@ export const createTableController = <
   const [sort, setSort] = createSignal<SortColumn<TData>[]>(
     options.initialState?.sort ?? []
   );
-
-  // Expanded state for groups
-  const [expanded, setExpanded] = createSignal<ExpandedState>(true); // Start all expanded
 
   // Grouping
   const [grouping, setGrouping] = createSignal<GroupByObj<TData>[]>(
@@ -66,7 +67,19 @@ export const createTableController = <
   );
 
   const columns = createMemo(() => {
-    const columnsList: ColumnDef<TData>[] = [{ accessorKey: 'id' }];
+    const columnsList: ColumnDef<TData>[] = [
+      {
+        accessorKey: 'id',
+        sortingFn: (a, b) => {
+          const value = sort().reduce(
+            (_, c) => c.sortingFn(a.original, b.original),
+            0
+          );
+
+          return value;
+        },
+      },
+    ];
 
     for (const group of grouping()) {
       columnsList.push({
@@ -76,19 +89,12 @@ export const createTableController = <
       });
     }
 
-    for (const option of sort()) {
-      columnsList.push({
-        id: option.id.toString(),
-        sortingFn: 'datetime',
-      });
-    }
-
     return columnsList;
   });
 
-  const sortingState = createMemo(() => {
-    return sort().map((s) => ({ id: s.id.toString(), desc: s.desc }));
-  });
+  const [sortingState, setSortingState] = createSignal([
+    { id: 'id', desc: true },
+  ]);
 
   const table = createSolidTable({
     get data() {
@@ -116,6 +122,7 @@ export const createTableController = <
         return globalFilter();
       },
     },
+    manualFiltering: options.disableFiltering,
     onSortingChange: setSort,
     onRowSelectionChange: setRowSelection,
     onGroupingChange: setGrouping,
@@ -196,7 +203,10 @@ export const createTableController = <
     setGroupBy: (grouping: GroupByObj<TData>[]) => {
       setGrouping(grouping);
     },
-    setSort,
+    setSort: (sort: SortColumn<TData>[]) => {
+      setSortingState((p) => [...p]);
+      setSort(sort);
+    },
   };
 };
 

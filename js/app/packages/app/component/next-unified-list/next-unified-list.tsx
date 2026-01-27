@@ -52,6 +52,37 @@ export default function SoupV2() {
   );
 }
 
+const timeSort = (
+  key: keyof Pick<
+    EntityData,
+    'updatedAt' | 'createdAt' | 'viewedAt' | 'frecencyScore'
+  >
+) => {
+  return (a: EntityData, b: EntityData) => (a[key] ?? 0) - (b[key] ?? 0);
+};
+
+const SORT_CONFIGS: Record<
+  SystemSortOption,
+  { id: string; sortingFn: (a: EntityData, b: EntityData) => number }
+> = {
+  updated_at: {
+    id: 'updatedAt',
+    sortingFn: timeSort('updatedAt'),
+  },
+  created_at: {
+    id: 'createdAt',
+    sortingFn: timeSort('createdAt'),
+  },
+  viewed_at: {
+    id: 'viewedAt',
+    sortingFn: timeSort('viewedAt'),
+  },
+  frecency: {
+    id: 'frecencyScore',
+    sortingFn: timeSort('frecencyScore'),
+  },
+};
+
 const Soup = () => {
   const panel = useSplitPanelOrThrow();
 
@@ -76,7 +107,7 @@ const Soup = () => {
   >({
     data: () => dssInfiniteQuery.data ?? [],
     initialState: {
-      sort: [{ id: 'updatedAt', desc: true }],
+      sort: [SORT_CONFIGS.updated_at],
     },
   });
 
@@ -164,19 +195,7 @@ const Soup = () => {
   const onSortChange = (sort: SystemSortOption) => {
     batch(() => {
       setSort(sort);
-      controller.setSort([
-        {
-          id:
-            sort === 'frecency'
-              ? 'frecencyScore'
-              : sort === 'viewed_at'
-                ? 'viewedAt'
-                : sort === 'created_at'
-                  ? 'createdAt'
-                  : 'updatedAt',
-          desc: true,
-        },
-      ]);
+      controller.setSort([SORT_CONFIGS[sort]]);
       invalidateFocus();
     });
   };
