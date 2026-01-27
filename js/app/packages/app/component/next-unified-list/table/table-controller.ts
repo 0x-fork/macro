@@ -27,6 +27,7 @@ export interface TableControllerOptions<
     focusedRow?: TData['id'];
     selection?: Record<TData['id'], boolean>;
   };
+  wrapNavigation?: boolean;
   onNavigate?: (next: TData['id'], index: number) => void;
 }
 
@@ -115,6 +116,7 @@ export const createTableController = <
     globalFilterFn: (row, _, filterValue: TableFilter<TData>[]) => {
       return filterValue.every((f) => f.predicate(row.original, row));
     },
+    getRowId: (r) => r.id,
   });
 
   const navigateBy = (offset: number) => {
@@ -122,7 +124,9 @@ export const createTableController = <
 
     if (!currentFocused) {
       // TODO: Focus first or last
-      return;
+      const nextRow = table.getRowModel().flatRows[0];
+      setFocusedRowID(nextRow?.id);
+      return nextRow ? { id: nextRow.id, index: 0 } : undefined;
     }
 
     const row = table.getRow(currentFocused);
@@ -133,10 +137,10 @@ export const createTableController = <
 
     let next = row.index + offset;
 
-    if (next > total) {
-      next = 0;
+    if (next > total - 1) {
+      next = options.wrapNavigation ? 0 : total - 1;
     } else if (next < 0) {
-      next = total - 1;
+      next = options.wrapNavigation ? total - 1 : 0;
     }
 
     const nextRow = table.getRowModel().flatRows[next];
@@ -147,15 +151,17 @@ export const createTableController = <
 
     setFocusedRowID(nextRow?.id);
 
+    return nextRow ? { id: nextRow.id, index: next } : undefined;
+
     // TODO: Auto scroll
   };
 
   const navigateDown = () => {
-    navigateBy(1);
+    return navigateBy(1);
   };
 
   const navigateUp = () => {
-    navigateBy(-1);
+    return navigateBy(-1);
   };
 
   return {
