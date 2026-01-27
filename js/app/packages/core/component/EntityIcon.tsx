@@ -426,7 +426,7 @@ export function CustomEntityIcon(
 }
 
 export function getIconConfig(
-  targetType: EntityWithValidIcon | FileType | string
+  targetType: EntityWithValidIcon | FileType | (string & {})
 ) {
   const key = validateEntity(targetType);
   const config = { ...ENTITY_ICON_CONFIGS[key] };
