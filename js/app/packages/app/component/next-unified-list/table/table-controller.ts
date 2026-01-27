@@ -106,9 +106,6 @@ export const createTableController = <
       get sorting() {
         return sortingState();
       },
-      get expanded() {
-        return expanded();
-      },
       get rowSelection() {
         return rowSelection();
       },
@@ -120,7 +117,6 @@ export const createTableController = <
       },
     },
     onSortingChange: setSort,
-    onExpandedChange: setExpanded,
     onRowSelectionChange: setRowSelection,
     onGroupingChange: setGrouping,
     onGlobalFilterChange: setGlobalFilter,
