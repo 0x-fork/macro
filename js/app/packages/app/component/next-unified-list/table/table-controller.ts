@@ -134,6 +134,28 @@ export const createTableController = <
     getRowId: (r) => r.id,
   });
 
+  const getRowDataIndex = (rowID: string) => {
+    const rowIndex = table.getRowModel().rows.findIndex((r) => r.id === rowID);
+
+    return rowIndex;
+  };
+
+  const calculateNavigationIndex = (index: number, offset: number) => {
+    const total = table.getRowCount();
+
+    if (total === 0) return 0;
+
+    let next = index + offset;
+
+    if (next > total - 1) {
+      next = options.wrapNavigation ? 0 : total - 1;
+    } else if (next < 0) {
+      next = options.wrapNavigation ? total - 1 : 0;
+    }
+
+    return next;
+  };
+
   const navigateBy = (offset: number) => {
     const currentFocused = focusedRowID();
 
@@ -141,25 +163,13 @@ export const createTableController = <
       return navigateTo(0);
     }
 
-    const rowIndex = table
-      .getRowModel()
-      .rows.findIndex((r) => r.id === currentFocused);
+    const rowIndex = getRowDataIndex(currentFocused);
 
     if (rowIndex === -1) {
       return navigateTo(0);
     }
 
-    const total = table.getRowCount();
-
-    if (total === 0) return;
-
-    let next = rowIndex + offset;
-
-    if (next > total - 1) {
-      next = options.wrapNavigation ? 0 : total - 1;
-    } else if (next < 0) {
-      next = options.wrapNavigation ? total - 1 : 0;
-    }
+    const next = calculateNavigationIndex(rowIndex, offset);
 
     const nextRow = table.getRowModel().rows[next];
 
@@ -190,6 +200,8 @@ export const createTableController = <
 
   return {
     table,
+    getRowDataIndex,
+    calculateNavigationIndex,
     navigateDown,
     navigateUp,
     navigateBy,

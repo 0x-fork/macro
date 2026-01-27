@@ -43,6 +43,7 @@ import type { VirtualizerHandle } from 'virtua/solid';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
 import type { SystemSortOption } from '@app/component/ViewConfig';
+import { createSelectionState } from '@app/component/next-unified-list/selection-state';
 
 export default function SoupV2() {
   return (
@@ -91,6 +92,12 @@ const Soup = () => {
   });
 
   const [sort, setSort] = createSignal<SystemSortOption>('updated_at');
+
+  const selection = createSelectionState<EntityData>({
+    getItemId(item) {
+      return item.id;
+    },
+  });
 
   const dssInfiniteQuery = createDssInfiniteQuery(
     () => ({}),
@@ -177,6 +184,81 @@ const Soup = () => {
 
       return true;
     },
+    hide: true,
+  });
+
+  const isEntitySelected = (id: string) => selection.isSelected(id);
+
+  const toggleEntity = (id: string) => {
+    selection.select(controller.table.getRow(id).original);
+  };
+
+  const navigateAndSelectEntity = (offset: number) => {
+    const nextRow = controller.navigateBy(offset);
+    if (!nextRow) return true;
+    selection.select(controller.table.getRow(nextRow.id).original);
+  };
+
+  const handleNavigationSelection = (offset: number) => {
+    const focusedEntity = controller.focusedRowID();
+    const currentIndex = focusedEntity
+      ? controller.getRowDataIndex(focusedEntity)
+      : -1;
+    const nextIndex = controller.calculateNavigationIndex(currentIndex, offset);
+
+    const nextRow = controller.table.getRowModel().rows[nextIndex];
+    if (!nextRow) return true;
+
+    if (!focusedEntity) {
+      navigateAndSelectEntity(offset);
+      return true;
+    }
+
+    if (selection.count() === 0) {
+      selection.select(controller.table.getRow(nextRow.id).original);
+      toggleEntity(focusedEntity);
+      return true;
+    }
+
+    if (!isEntitySelected(focusedEntity) && !isEntitySelected(nextRow.id)) {
+      toggleEntity(focusedEntity);
+      navigateAndSelectEntity(offset);
+
+      return true;
+    }
+
+    if (isEntitySelected(nextRow.id)) {
+      toggleEntity(focusedEntity);
+      controller.navigateBy(offset);
+      return true;
+    }
+
+    navigateAndSelectEntity(offset);
+
+    return true;
+  };
+
+  registerEntityHotkey({
+    hotkey: ['shift+arrowup', 'shift+k'],
+    scopeId: panel.splitHotkeyScope,
+    description: 'Select up',
+    hotkeyToken: TOKENS.entity.select.start,
+    keyDownHandler: () => {
+      return handleNavigationSelection(-1);
+    },
+    // canExecuteKeyDownHandler: () => canAccessEntityList(),
+    hide: true,
+  });
+
+  registerEntityHotkey({
+    hotkey: ['shift+arrowdown', 'shift+j'],
+    scopeId: panel.splitHotkeyScope,
+    description: 'Select down',
+    hotkeyToken: TOKENS.entity.select.end,
+    keyDownHandler: () => {
+      return handleNavigationSelection(1);
+    },
+    // canExecuteKeyDownHandler: () => canAccessEntityList(),
     hide: true,
   });
 
@@ -351,6 +433,7 @@ const Soup = () => {
                         showDoneButton={false}
                         highlighted={false}
                         splitId="demo"
+                        checked={selection.isSelected(row.id)}
                       />
                     </Show>
                   </div>
