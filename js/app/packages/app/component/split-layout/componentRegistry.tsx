@@ -8,6 +8,7 @@ import { EmailCompose } from '../../../block-email/component/Compose';
 import { Soup } from '../Soup';
 import { SettingsPanel } from '../settings/Settings';
 import NotificationRoute from '@notifications/components/NotificationRoute';
+import SoupV2 from '@app/component/next-unified-list/next-unified-list';
 
 export type ComponentFactory = (params?: Record<string, any>) => JSXElement;
 
@@ -55,6 +56,7 @@ export function resolveComponent(
   };
 }
 
+registerComponent('soup-v2', () => <SoupV2 />);
 registerComponent('unified-list', () => <Soup />, { viewId: 'signal' });
 registerComponent('loading', () => <LoadingBlock />);
 registerComponent('channel-compose', () => <ChannelCompose />);

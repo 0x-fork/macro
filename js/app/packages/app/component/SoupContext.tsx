@@ -1654,7 +1654,7 @@ type ExecuteKeyDownHandlerCallback = (props: {
  * Registers entity hotkeys to global scope and split panel scope. When global hotkey is fired, runs hotkey command from active split panel scope.
  *
  */
-function registerEntityHotkey(
+export function registerEntityHotkey(
   opts: Omit<Parameters<typeof registerHotkey>[0], 'condition'> & {
     canExecuteKeyDownHandler?: ExecuteKeyDownHandlerCallback;
     globalCommandScope?: string;
