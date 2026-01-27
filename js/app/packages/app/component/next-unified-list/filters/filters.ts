@@ -111,7 +111,7 @@ export function fileFilter(entity: EntityData): boolean {
 // Filter Configurations
 // ============================================================================
 
-const SOUP_FILTERS = [
+export const SOUP_FILTERS = [
   // Focus filters (mutually exclusive)
   {
     id: 'signal',

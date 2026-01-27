@@ -1,6 +1,5 @@
 export {
   agentFilter,
-  createSoupFilterConfigs,
   documentFilter,
   emailFilter,
   fileFilter,
@@ -19,3 +18,5 @@ export {
   signalFilter,
   explicitNoiseFilter,
 } from './signal-filters';
+
+export { createFilterState } from './create-filter-state';

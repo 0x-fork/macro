@@ -3,6 +3,7 @@ import NoiseIcon from '@macro-icons/wide/noise.svg';
 import SignalIcon from '@macro-icons/wide/signal.svg';
 import { createDssInfiniteQuery, type EntityData } from '@macro-entity';
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -16,14 +17,17 @@ import { TableContent } from '@app/component/next-unified-list/table/table-conte
 import { TableRoot } from '@app/component/next-unified-list/table/table-root';
 import { TableRow } from '@app/component/next-unified-list/table/table-row';
 import { createTableController } from '@app/component/next-unified-list/table/table-controller';
-import type { FilterConfig } from '@app/component/next-unified-list/filters';
+import {
+  createFilterState,
+  type FilterConfig,
+} from '@app/component/next-unified-list/filters';
 import {
   buildDssFiltersRequest,
   ENTITY_TYPE_FILTERS,
   type FilterID,
   getEntityTypeFilterIcon,
   getFilterWithID,
-  isEntityTypeFilter,
+  SOUP_FILTERS,
 } from '@app/component/next-unified-list/filters/filters';
 import { debounce } from '@solid-primitives/scheduled';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
@@ -37,6 +41,8 @@ import { registerEntityHotkey } from '@app/component/SoupContext';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { VirtualizerHandle } from 'virtua/solid';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
+import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
+import type { SystemSortOption } from '@app/component/ViewConfig';
 
 export default function SoupV2() {
   return (
@@ -49,14 +55,18 @@ export default function SoupV2() {
 const Soup = () => {
   const panel = useSplitPanelOrThrow();
 
-  const [filters, setFilters] = createSignal<FilterConfig<EntityData>[]>([]);
+  const filters = createFilterState({
+    filters: [...SOUP_FILTERS],
+  });
+
+  const [sort, setSort] = createSignal<SystemSortOption>('updated_at');
 
   const dssInfiniteQuery = createDssInfiniteQuery(
     () => ({}),
     () => ({
-      ...buildDssFiltersRequest(filters()),
+      ...buildDssFiltersRequest(filters.active()),
       limit: 100,
-      sort_method: 'updated_at',
+      sort_method: sort(),
     })
   );
 
@@ -65,19 +75,30 @@ const Soup = () => {
     FilterConfig<EntityData>
   >({
     data: () => dssInfiniteQuery.data ?? [],
+    initialState: {
+      sort: [{ id: 'updatedAt', desc: true }],
+    },
   });
 
-  let init = false;
+  let invalidated = false;
   createEffect(
     on(
       () => dssInfiniteQuery.data,
-      (data) => {
-        if (init || !data) return;
-        init = true;
-        controller.navigateBy(0);
+      () => {
+        if (!invalidated) return;
+        const next = controller.navigateTo(0);
+
+        if (next) {
+          virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
+        }
+        invalidated = false;
       }
     )
   );
+
+  const resetFocusOnQueryUpdate = () => {
+    invalidated = true;
+  };
 
   const [virtualizerHandle, setVirtualizerHandle] =
     createSignal<VirtualizerHandle>();
@@ -122,34 +143,31 @@ const Soup = () => {
   });
 
   const toggleFilter = (filter: FilterID) => {
-    const currentlyActive = activeFilters().includes(filter);
+    batch(() => {
+      filters.toggle(filter);
+      controller.setFilters(filters.active());
+      resetFocusOnQueryUpdate();
+    });
+  };
 
-    let next = controller.filters();
-
-    if (currentlyActive) {
-      next = next.filter((f) => f.id !== filter);
-    } else {
-      const config = getFilterWithID(filter);
-      if (!config) {
-        console.error(
-          `Expected a filter config to exist for filter id: ${filter} `
-        );
-        return;
-      }
-
-      if (isEntityTypeFilter(filter)) {
-        const withoutEntityTypes = next.filter(
-          (f) => !isEntityTypeFilter(f.id as FilterID)
-        );
-
-        next = [...withoutEntityTypes, config];
-      } else {
-        next = [...next, config];
-      }
-    }
-
-    setFilters(next);
-    controller.setFilters(next);
+  const onSortChange = (sort: SystemSortOption) => {
+    batch(() => {
+      setSort(sort);
+      controller.setSort([
+        {
+          id:
+            sort === 'frecency'
+              ? 'frecencyScore'
+              : sort === 'viewed_at'
+                ? 'viewedAt'
+                : sort === 'created_at'
+                  ? 'createdAt'
+                  : 'updatedAt',
+          desc: true,
+        },
+      ]);
+      resetFocusOnQueryUpdate();
+    });
   };
 
   const debouncedFetchMore = debounce(() => {
@@ -257,12 +275,7 @@ const Soup = () => {
           </Tooltip>
           <FilterDivider />
           {/* Sort dropdown */}
-          {/* <SortDropdown */}
-          {/*   value={sortType} */}
-          {/*   onChange={setSortType} */}
-          {/*   open={sortDropdownOpen} */}
-          {/*   onOpenChange={setSortDropdownOpen} */}
-          {/* /> */}
+          <SortDropdown value={sort} onChange={onSortChange} />
           <div class="touch:mobile-width:-order-1">
             <FilterDivider />
           </div>

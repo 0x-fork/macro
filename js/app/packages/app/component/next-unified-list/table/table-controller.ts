@@ -5,7 +5,6 @@ import type {
 } from '@app/component/next-unified-list/table/types';
 import {
   type ColumnDef,
-  type ColumnSort,
   createSolidTable,
   type ExpandedState,
   getCoreRowModel,
@@ -16,6 +15,8 @@ import {
 } from '@tanstack/solid-table';
 import { createSignal, createMemo, type Accessor } from 'solid-js';
 
+type SortColumn<TData extends TableData> = { id: keyof TData; desc: boolean };
+
 export interface TableControllerOptions<
   TData extends TableData,
   TFilter extends TableFilter<TData>,
@@ -23,7 +24,7 @@ export interface TableControllerOptions<
   initialState?: {
     filters?: TFilter[];
     groupBy?: GroupByObj<TData>[];
-    sort?: ColumnSort[];
+    sort?: SortColumn<TData>[];
     focusedRow?: TData['id'];
     selection?: Record<TData['id'], boolean>;
   };
@@ -38,7 +39,7 @@ export const createTableController = <
   options: TableControllerOptions<TData, TFilter> & { data: Accessor<TData[]> }
 ) => {
   // Sorting state
-  const [sortingState, setSortingState] = createSignal<ColumnSort[]>(
+  const [sort, setSort] = createSignal<SortColumn<TData>[]>(
     options.initialState?.sort ?? []
   );
 
@@ -75,7 +76,18 @@ export const createTableController = <
       });
     }
 
+    for (const option of sort()) {
+      columnsList.push({
+        id: option.id.toString(),
+        sortingFn: 'datetime',
+      });
+    }
+
     return columnsList;
+  });
+
+  const sortingState = createMemo(() => {
+    return sort().map((s) => ({ id: s.id.toString(), desc: s.desc }));
   });
 
   const table = createSolidTable({
@@ -107,7 +119,7 @@ export const createTableController = <
         return globalFilter();
       },
     },
-    onSortingChange: setSortingState,
+    onSortingChange: setSort,
     onExpandedChange: setExpanded,
     onRowSelectionChange: setRowSelection,
     onGroupingChange: setGrouping,
@@ -123,19 +135,22 @@ export const createTableController = <
     const currentFocused = focusedRowID();
 
     if (!currentFocused) {
-      // TODO: Focus first or last
-      const nextRow = table.getRowModel().flatRows[0];
-      setFocusedRowID(nextRow?.id);
-      return nextRow ? { id: nextRow.id, index: 0 } : undefined;
+      return navigateTo(0);
     }
 
-    const row = table.getRow(currentFocused);
+    const rowIndex = table
+      .getRowModel()
+      .rows.findIndex((r) => r.id === currentFocused);
+
+    if (rowIndex === -1) {
+      return navigateTo(0);
+    }
 
     const total = table.getRowCount();
 
     if (total === 0) return;
 
-    let next = row.index + offset;
+    let next = rowIndex + offset;
 
     if (next > total - 1) {
       next = options.wrapNavigation ? 0 : total - 1;
@@ -143,7 +158,7 @@ export const createTableController = <
       next = options.wrapNavigation ? total - 1 : 0;
     }
 
-    const nextRow = table.getRowModel().flatRows[next];
+    const nextRow = table.getRowModel().rows[next];
 
     if (nextRow) {
       options.onNavigate?.(nextRow.id, next);
@@ -152,8 +167,14 @@ export const createTableController = <
     setFocusedRowID(nextRow?.id);
 
     return nextRow ? { id: nextRow.id, index: next } : undefined;
+  };
 
-    // TODO: Auto scroll
+  const navigateTo = (index: number) => {
+    const nextRow = table.getRowModel().rows[index];
+
+    setFocusedRowID(nextRow?.id);
+
+    return nextRow ? { id: nextRow.id, index } : undefined;
   };
 
   const navigateDown = () => {
@@ -169,6 +190,7 @@ export const createTableController = <
     navigateDown,
     navigateUp,
     navigateBy,
+    navigateTo,
     focusedRowID,
     focusRow: (rowID: string) => setFocusedRowID(rowID),
     filters: globalFilter,
@@ -178,6 +200,7 @@ export const createTableController = <
     setGroupBy: (grouping: GroupByObj<TData>[]) => {
       setGrouping(grouping);
     },
+    setSort,
   };
 };
 
