@@ -110,78 +110,145 @@ export function fileFilter(entity: EntityData): boolean {
 // Filter Configurations
 // ============================================================================
 
-/** Create filter configs for Soup's filter plugin */
-export function createSoupFilterConfigs(): FilterConfig<EnhancedEntity>[] {
-  return [
-    // Focus filters (mutually exclusive)
-    {
-      id: 'signal',
-      label: 'Inbox',
-      predicate: signalFilter,
-      group: 'focus',
-    },
-    {
-      id: 'noise',
-      label: 'Other',
-      predicate: noiseFilter,
-      group: 'focus',
-    },
+const SOUP_FILTERS = [
+  // Focus filters (mutually exclusive)
+  {
+    id: 'signal',
+    label: 'Inbox',
+    predicate: signalFilter,
+    group: 'focus',
+  },
+  {
+    id: 'noise',
+    label: 'Other',
+    predicate: noiseFilter,
+    group: 'focus',
+  },
 
-    // Notification filters
-    {
-      id: 'unread',
-      label: 'Unread',
-      predicate: unreadFilter,
-    },
+  // Notification filters
+  {
+    id: 'unread',
+    label: 'Unread',
+    predicate: unreadFilter,
+  },
 
-    // Entity type filters (mutually exclusive)
-    {
-      id: 'document',
-      label: 'Docs',
-      predicate: documentFilter,
-      group: 'type',
+  // Entity type filters (mutually exclusive)
+  {
+    id: 'document',
+    label: 'Docs',
+    predicate: documentFilter,
+    group: 'type',
+  },
+  {
+    id: 'task',
+    label: 'Tasks',
+    predicate: taskFilter,
+    group: 'type',
+  },
+  {
+    id: 'email',
+    label: 'Mail',
+    predicate: emailFilter,
+    group: 'type',
+  },
+  {
+    id: 'people',
+    label: 'People',
+    predicate: peopleFilter,
+    group: 'type',
+  },
+  {
+    id: 'teams',
+    label: 'Teams',
+    predicate: teamsFilter,
+    group: 'type',
+  },
+  {
+    id: 'agent',
+    label: 'Agents',
+    predicate: agentFilter,
+    group: 'type',
+  },
+  {
+    id: 'project',
+    label: 'Folders',
+    predicate: projectFilter,
+    group: 'type',
+  },
+  {
+    id: 'file',
+    label: 'Files',
+    predicate: fileFilter,
+    group: 'type',
+  },
+] as const;
+
+export type FilterID = (typeof SOUP_FILTERS)[number]['id'];
+
+const ENTITY_TYPE_FILTERS = [
+  'document',
+  'task',
+  'email',
+  'people',
+  'teams',
+  'project',
+  'agent',
+  'file',
+];
+
+export const getFilterWithID = (filterID: FilterID) => {
+  const found = SOUP_FILTERS.find((f) => f.id === filterID);
+
+  if (!found) return;
+
+  return found;
+};
+
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+
+export const buildDssFiltersRequest = (filters: FilterConfig<EntityData>[]) => {
+  const entityTypes = filters
+    .filter((f) => ENTITY_TYPE_FILTERS.includes(f.id))
+    .map((f) => f.id);
+
+  return {
+    channel_filters: {
+      channel_ids:
+        entityTypes.includes('teams') ||
+        entityTypes.includes('people') ||
+        entityTypes.length === 0
+          ? []
+          : [NIL_UUID],
     },
-    {
-      id: 'task',
-      label: 'Tasks',
-      predicate: taskFilter,
-      group: 'type',
+    document_filters: {
+      document_ids:
+        entityTypes.includes('document') ||
+        entityTypes.includes('task') ||
+        entityTypes.length === 0
+          ? []
+          : [NIL_UUID],
+      project_ids: [],
+      file_types: [],
     },
-    {
-      id: 'email',
-      label: 'Mail',
-      predicate: emailFilter,
-      group: 'type',
+    chat_filters: {
+      chat_ids:
+        entityTypes.includes('chat') || entityTypes.length === 0
+          ? []
+          : [NIL_UUID],
+      project_ids: [],
     },
-    {
-      id: 'people',
-      label: 'People',
-      predicate: peopleFilter,
-      group: 'type',
+    email_filters: {
+      recipients:
+        entityTypes.includes('email') || entityTypes.length === 0
+          ? []
+          : [NIL_UUID],
     },
-    {
-      id: 'teams',
-      label: 'Teams',
-      predicate: teamsFilter,
-      group: 'type',
+    project_filters: {
+      project_ids:
+        entityTypes.includes('project') || entityTypes.length === 0
+          ? []
+          : [NIL_UUID],
     },
-    {
-      id: 'agent',
-      label: 'Agents',
-      predicate: agentFilter,
-      group: 'type',
-    },
-    {
-      id: 'project',
-      label: 'Folders',
-      predicate: projectFilter,
-      group: 'type',
-    },
-    {
-      id: 'file',
-      label: 'Files',
-      predicate: fileFilter,
-      group: 'type',
-    },
-  ];
-}
+    emailView: undefined,
+  };
+};
