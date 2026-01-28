@@ -1,3 +1,5 @@
+import IconGear from '@macro-icons/macro-gear.svg';
+import XIcon from '@icon/regular/x.svg?component-solid';
 import PreviewIcon from '@macro-icons/wide/preview.svg';
 import NoiseIcon from '@macro-icons/wide/noise.svg';
 import SignalIcon from '@macro-icons/wide/signal.svg';
@@ -40,7 +42,10 @@ import {
   createSoupState,
   type SoupState,
 } from '@app/component/next-unified-list/soup-context';
-import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
+import {
+  SplitHeaderLeft,
+  SplitHeaderRight,
+} from '@app/component/split-layout/components/SplitHeader';
 import type { SearchArgs } from '@service-search/client';
 import { debouncedDependent } from '@core/util/debounce';
 import type { UnifiedSearchIndex } from '@service-search/generated/models';
@@ -48,6 +53,8 @@ import { arrayEquals } from '@core/util/compareUtils';
 import { fuzzyMatch } from '@core/util/fuzzy';
 import { deduplicateEntities } from '@app/component/next-unified-list/utils';
 import { useSoupQuery } from '@app/component/next-unified-list/soup-query/use-soup-query';
+import { useSplitLayout } from '@app/component/split-layout/layout';
+import { useSettingsState } from '@core/constant/SettingsState';
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 300;
 const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
@@ -328,6 +335,27 @@ const Soup = () => {
           />
         </div>
       </SplitHeaderLeft>
+      <SplitHeaderRight>
+        <div class="flex items-center h-full gap-0.5">
+          <Tooltip
+            tooltip={<LabelAndHotKey label="Clear filters" shortcut="/" />}
+          >
+            <button
+              type="button"
+              class="flex items-center gap-1.5 px-2.5 rounded-full text-ink-muted hover:text-accent hover:bg-accent/20 active:bg-accent active:text-panel"
+              onClick={soup.filters.clear}
+            >
+              <XIcon class="size-4.5" />
+              <span class="text-xs touch:mobile-width:text-sm leading-none">
+                Clear
+                <span class="ml-1 font-mono opacity-70">/</span>
+              </span>
+            </button>
+          </Tooltip>
+          <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
+          <SettingsButton />
+        </div>
+      </SplitHeaderRight>
       <div class="flex flex-col size-full">
         <StaticMarkdownContext>
           <SoupList
@@ -563,3 +591,37 @@ const SoupToolbar = (props: SoupToolbarProps) => {
     </div>
   );
 };
+
+function SettingsButton() {
+  const { settingsOpen, toggleSettings } = useSettingsState();
+  const { getSplitCount } = useSplitLayout();
+
+  // Hide settings button when there are multiple splits
+  const isSingleSplit = () => getSplitCount() <= 1;
+
+  return (
+    <Show when={isSingleSplit()}>
+      <Tooltip
+        tooltip={
+          <LabelAndHotKey
+            label={settingsOpen() ? 'Close Settings' : 'Open Settings'}
+            hotkeyToken={TOKENS.global.toggleSettings}
+          />
+        }
+      >
+        <button
+          type="button"
+          class="relative flex items-center justify-center size-[22px] rounded-full active:bg-accent active:text-panel"
+          classList={{
+            'bg-hover text-ink': settingsOpen(),
+            'text-ink-muted hover:text-accent hover:bg-accent/20':
+              !settingsOpen(),
+          }}
+          onClick={() => toggleSettings()}
+        >
+          <IconGear class="size-4.5" />
+        </button>
+      </Tooltip>
+    </Show>
+  );
+}
