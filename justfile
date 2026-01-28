@@ -15,7 +15,7 @@ fix_environment *ARGS:
 get_environment *ARGS:
   sops --input-type dotenv --output-type dotenv -d .env-local{{ ARGS }}.enc > .env
 
-# Creates the docker networks then runs the databases 
+# Creates the docker networks then runs the databases
 # This is used when initializing your databases
 run_dbs *ARGS:
   just create_networks
@@ -36,7 +36,7 @@ run_local *ARGS:
 # after
 build_run_local *ARGS:
   just rust/cloud-storage/build_dev_service_images
-  just run_local {{ ARGS }} 
+  just run_local {{ ARGS }}
 
 # Stop all local services
 stop-local:
