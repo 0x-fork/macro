@@ -77,6 +77,12 @@ pub async fn upsert_message(
 
     let is_sent = message.is_sent;
 
+    let sender_email = message
+        .from
+        .as_ref()
+        .map(|from| from.email.clone())
+        .filter(|e| !email_utils::is_generic_email(e));
+
     // deduped list of all non-generic emails the message was sent to
     let recipient_emails = dedupe_emails(
         message
@@ -174,8 +180,8 @@ pub async fn upsert_message(
         ctx,
         link,
         &recipient_emails,
+        sender_email.as_deref(),
         is_sent,
-        &payload.provider_message_id,
     )
     .await?;
 
@@ -303,34 +309,42 @@ async fn handle_attachment_upload(
     Ok(())
 }
 
-#[tracing::instrument(skip(ctx, link, recipient_emails))]
+#[tracing::instrument(skip(ctx, link, recipient_emails, sender_email))]
 async fn handle_contacts_sync(
     ctx: &PubSubContext,
     link: &link::Link,
     recipient_emails: &[String],
+    sender_email: Option<&str>,
     is_sent: bool,
-    provider_message_id: &str,
 ) -> result::Result<(), ProcessingError> {
-    // if the user sent the message, upsert contacts for its recipients in contacts-service.
-    if cfg!(not(feature = "contacts_sync")) || !is_sent || recipient_emails.is_empty() {
+    if cfg!(not(feature = "contacts_sync")) {
         return Ok(());
     }
 
-    // Create users list starting with the sender, then all recipients
+    // Determine which emails to create connections to based on message direction
+    let connection_emails: Vec<&str> = if is_sent {
+        recipient_emails.iter().map(String::as_str).collect()
+    } else {
+        sender_email.into_iter().collect()
+    };
+
+    if connection_emails.is_empty() {
+        return Ok(());
+    }
+
+    // Build users list: current user at index 0, connection targets after
     let mut users = vec![link.macro_id.to_string()];
     users.extend(
-        recipient_emails
+        connection_emails
             .iter()
-            .map(|email| format!("macro|{}", email)),
+            .map(|email| format!("macro|{email}")),
     );
 
-    // Create connections from sender (index 0) to each recipient
-    let connections = (1..users.len()).map(|i| (0, i)).collect::<Vec<_>>();
-
-    let connections_message = ConnectionsMessage { users, connections };
+    // Create connections from current user (index 0) to each other user
+    let connections = (1..users.len()).map(|i| (0, i)).collect();
 
     ctx.sqs_client
-        .enqueue_contacts_add_connection(connections_message)
+        .enqueue_contacts_add_connection(ConnectionsMessage { users, connections })
         .await
         .map_err(|e| {
             ProcessingError::NonRetryable(DetailedError {

@@ -93,6 +93,10 @@ let containerEnvVars = [
     name: 'MACRO_API_TOKEN_PUBLIC_KEY',
     value: pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKey}`,
   },
+  {
+    name: 'CONNECTION_GATEWAY_URL',
+    value: `https://connection-gateway${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
+  },
 ];
 
 const cloudStorageStack = new pulumi.StackReference('cloud-storage-stack', {
