@@ -16,7 +16,6 @@ import {
   Suspense,
 } from 'solid-js';
 import { EntityWithEverything } from '../../../macro-entity/src/components/EntityWithEverything';
-import { TableRow } from '@app/component/next-unified-list/table/table-row';
 import {
   buildDssFiltersRequest,
   ENTITY_TYPE_FILTERS,
@@ -369,7 +368,13 @@ const Soup = () => {
             rows={soup.items.rows()}
           >
             {(row) => (
-              <TableRow row={row}>
+              <div
+                class={'unified-table-row'}
+                data-row-id={row.id}
+                data-row
+                role="row"
+                tabIndex={0}
+              >
                 <div
                   class="flex flex-col"
                   style={{
@@ -407,7 +412,7 @@ const Soup = () => {
                     />
                   </Show>
                 </div>
-              </TableRow>
+              </div>
             )}
           </SoupList>
         </StaticMarkdownContext>
