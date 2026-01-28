@@ -4,7 +4,6 @@ import SignalIcon from '@macro-icons/wide/signal.svg';
 import type { WithSearch, EntityData } from '@macro-entity';
 import {
   type Accessor,
-  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -35,7 +34,6 @@ import { registerEntityHotkey } from '@app/component/SoupContext';
 import { TOKENS } from '@core/hotkey/tokens';
 import { VList, type VirtualizerHandle } from 'virtua/solid';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import type { SystemSortOption } from '@app/component/ViewConfig';
 import type { Row } from '@tanstack/solid-table';
 import { cn } from '@ui/utils/classname';
 import {
@@ -47,11 +45,12 @@ import type { SearchArgs } from '@service-search/client';
 import { debouncedDependent } from '@core/util/debounce';
 import type { UnifiedSearchIndex } from '@service-search/generated/models';
 import { arrayEquals } from '@core/util/compareUtils';
-import {
-  createEntitiesQuery,
-  isSearchEntity,
-} from '@app/component/next-unified-list/create-entities-query';
 import { fuzzyMatch } from '@core/util/fuzzy';
+import { deduplicateEntities } from '@app/component/next-unified-list/utils';
+import { useSoupQuery } from '@app/component/next-unified-list/soup-query/use-soup-query';
+
+const SEARCH_SERVICE_DEBOUNCE_MS = 300;
+const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
 
 export default function SoupV2() {
   return (
@@ -60,40 +59,6 @@ export default function SoupV2() {
     </Suspense>
   );
 }
-
-const SEARCH_SERVICE_DEBOUNCE_MS = 300;
-const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
-
-const timeSort = (
-  key: keyof Pick<
-    EntityData,
-    'updatedAt' | 'createdAt' | 'viewedAt' | 'frecencyScore'
-  >
-) => {
-  return (a: EntityData, b: EntityData) => (a[key] ?? 0) - (b[key] ?? 0);
-};
-
-const SORT_CONFIGS: Record<
-  SystemSortOption,
-  { id: string; fn: (a: EntityData, b: EntityData) => number }
-> = {
-  updated_at: {
-    id: 'updatedAt',
-    fn: timeSort('updatedAt'),
-  },
-  created_at: {
-    id: 'createdAt',
-    fn: timeSort('createdAt'),
-  },
-  viewed_at: {
-    id: 'viewedAt',
-    fn: timeSort('viewedAt'),
-  },
-  frecency: {
-    id: 'frecencyScore',
-    fn: timeSort('frecencyScore'),
-  },
-};
 
 const Soup = () => {
   const panel = useSplitPanelOrThrow();
@@ -169,7 +134,7 @@ const Soup = () => {
     })
   );
 
-  const query = createEntitiesQuery(() => ({
+  const query = useSoupQuery(() => ({
     params: {},
     body: {
       ...buildDssFiltersRequest(soup.filters.active()),
@@ -597,114 +562,4 @@ const SoupToolbar = (props: SoupToolbarProps) => {
       </div>
     </div>
   );
-};
-
-const mergeSearchEntities = <T extends EntityData>(
-  first: WithSearch<T>,
-  second: WithSearch<T>
-): WithSearch<T> => {
-  const serviceEntity = first.search.source === 'service' ? first : second;
-  const localEntity = first.search.source === 'local' ? first : second;
-  const hasLocal =
-    first.search.source === 'local' || second.search.source === 'local';
-
-  // NOTE: we that the longer name highlight is more relevant since it will contain a macro highlight tag
-  let nameHighlight;
-  if (serviceEntity.search.nameHighlight && localEntity.search.nameHighlight) {
-    nameHighlight =
-      serviceEntity.search.nameHighlight.length >=
-      localEntity.search.nameHighlight.length
-        ? serviceEntity.search.nameHighlight
-        : localEntity.search.nameHighlight;
-  } else {
-    nameHighlight =
-      serviceEntity.search.nameHighlight || localEntity.search.nameHighlight;
-  }
-
-  return {
-    ...serviceEntity,
-    search: {
-      ...serviceEntity.search,
-      source: hasLocal ? 'local' : 'service',
-      nameHighlight,
-      contentHitData: serviceEntity.search.contentHitData?.length
-        ? serviceEntity.search.contentHitData
-        : localEntity.search.contentHitData,
-    },
-  };
-};
-
-/**
- * Gets the timestamp of an entity (updatedAt or createdAt)
- */
-const getEntityTimestamp = (entity: EntityData): number => {
-  return entity.updatedAt ?? entity.createdAt ?? 0;
-};
-
-/**
- * Returns true if the new entity should replace the existing one based on timestamp. If the timestamp is the same, prefer to use the newer entity to handle optimistic updates
- */
-const isNewerEntity = (
-  newEntity: EntityData,
-  existing: EntityData
-): boolean => {
-  return getEntityTimestamp(newEntity) >= getEntityTimestamp(existing);
-};
-
-/**
- * Deduplicates entities by id, preferring entities with search data from 'service' source
- * over 'local' source, and using latest timestamp as a tiebreaker.
- * When preferring service results, merges local nameHighlight if service doesn't have one.
- */
-const deduplicateEntities = <T extends EntityData>(entities: T[]): T[] => {
-  const entityMap = new Map<string, T>();
-
-  for (const entity of entities) {
-    const existing = entityMap.get(entity.id);
-
-    if (!existing) {
-      entityMap.set(entity.id, entity);
-      continue;
-    }
-
-    const existingHasSearch = isSearchEntity(existing);
-    const newHasSearch = isSearchEntity(entity);
-
-    // Prefer entities with search data
-    if (newHasSearch && !existingHasSearch) {
-      entityMap.set(entity.id, entity);
-      continue;
-    }
-
-    // If both have search data, prefer 'service' over 'local'
-    if (existingHasSearch && newHasSearch) {
-      const existingSource = existing.search.source;
-      const newSource = entity.search.source;
-
-      if (
-        (newSource === 'service' && existingSource === 'local') ||
-        (existingSource === 'service' && newSource === 'local')
-      ) {
-        // Merge service and local search data
-        entityMap.set(entity.id, mergeSearchEntities(entity, existing));
-        continue;
-      }
-
-      // If both are the same source, keep the one with latest timestamp
-      if (isNewerEntity(entity, existing)) {
-        entityMap.set(entity.id, entity);
-      }
-      continue;
-    }
-
-    // If neither has search, keep the one with latest timestamp
-    if (!existingHasSearch && !newHasSearch) {
-      if (isNewerEntity(entity, existing)) {
-        entityMap.set(entity.id, entity);
-      }
-    }
-    // Otherwise keep existing (it has search and new doesn't)
-  }
-
-  return Array.from(entityMap.values());
 };

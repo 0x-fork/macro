@@ -86,3 +86,7 @@ export type SearchData = {
 export type WithSearch<T extends EntityData> = T & {
   search: SearchData;
 };
+
+export const isSearchEntity = <T extends EntityData>(
+  entity: T
+): entity is WithSearch<T> => 'search' in entity;
