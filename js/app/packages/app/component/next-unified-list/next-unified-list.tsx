@@ -269,7 +269,6 @@ const Soup = () => {
     }
 
     if (selection.count() === 0) {
-      selection.select(nextRow);
       selection.toggle(focusedEntity);
       return true;
     }
