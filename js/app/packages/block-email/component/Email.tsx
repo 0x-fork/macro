@@ -206,6 +206,9 @@ function EmailContent(props: EmailViewProps) {
     )?.db_id;
   });
 
+  // ============================================
+  // PHASE 2: HANDLE TARGET MESSAGE SCROLLING
+  // ============================================
   // Effect to re-apply scroll when container remounts (e.g., after Suspense)
   createEffect(() => {
     const container = context.messagesListRef();
@@ -296,6 +299,7 @@ function EmailContent(props: EmailViewProps) {
       handleTargetMessage(targetMessageId_);
     } else {
       const lastUnreadMessageId_ = untrack(firstUnreadMessageId);
+      // Check if there is an unread message
       if (lastUnreadMessageId_) {
         setPendingScrollTarget({
           messageId: lastUnreadMessageId_,
@@ -306,6 +310,7 @@ function EmailContent(props: EmailViewProps) {
         );
         context.messages.setFocused(lastUnreadMessageId_!);
       } else {
+        // No unread message, scroll to last message
         scrollToLastMessage('instant', true);
       }
     }
@@ -321,10 +326,12 @@ function EmailContent(props: EmailViewProps) {
     if (!messages) return;
     const targetIndex = messages.findIndex((m) => m.db_id === messageId);
 
+    // Case 1: Message not in current loaded batch - need to load more
     if (targetIndex < 0) {
       try {
         const found = await loadMessagesUntilFound(messageId);
         if (found) {
+          // Load one more batch for scroll context
           fetchNextPage();
           await waitForQueryLoad();
           // Scroll to the message after DOM updates
@@ -332,12 +339,16 @@ function EmailContent(props: EmailViewProps) {
             performScrollToMessage(messageId, { behavior: 'instant' })
           );
         } else {
+          // Message not found, fallback to last message
           setTimeout(() => scrollToLastMessage('instant', true));
         }
-      } catch {
+      } catch (error) {
+        console.error('Error loading target message:', error);
         setTimeout(() => scrollToLastMessage('instant', true));
       }
-    } else if (targetIndex === 0) {
+    }
+    // Case 2: Message is first in current batch - load more for context
+    else if (targetIndex === 0) {
       fetchNextPage();
       await waitForQueryLoad();
       setTimeout(() =>
@@ -345,6 +356,7 @@ function EmailContent(props: EmailViewProps) {
       );
     }
 
+    // Case 3: Message is in current batch with sufficient context
     setTimeout(() =>
       performScrollToMessage(messageId, { behavior: 'instant' })
     );
