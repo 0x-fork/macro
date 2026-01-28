@@ -55,6 +55,8 @@ import { deduplicateEntities } from '@app/component/next-unified-list/utils';
 import { useSoupQuery } from '@app/component/next-unified-list/soup-query/use-soup-query';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useSettingsState } from '@core/constant/SettingsState';
+import { PreviewPanel } from '@app/component/PreviewPanel';
+import { useGlobalBlockOrchestrator } from '@app/component/GlobalAppState';
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 300;
 const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
@@ -322,8 +324,10 @@ const Soup = () => {
     query.fetchNextPage();
   });
 
+  const orchestrator = useGlobalBlockOrchestrator();
+
   return (
-    <div class="size-full flex flex-col">
+    <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
       <SplitHeaderLeft>
         <div class="flex">
           <SoupToolbar soup={soup} />
@@ -408,6 +412,13 @@ const Soup = () => {
           </SoupList>
         </StaticMarkdownContext>
       </div>
+      <Show when={soup.previewEntity()}>
+        <PreviewPanel
+          selectedEntity={soup.focus.item()}
+          orchestrator={orchestrator}
+          splitPanelContext={panel}
+        />
+      </Show>
     </div>
   );
 };
@@ -564,14 +575,24 @@ const SoupToolbar = (props: SoupToolbarProps) => {
           <button
             type="button"
             class="flex items-center gap-1.5 h-[22px] touch:mobile-width:h-9 px-2.5 active:bg-accent active:text-panel rounded-full"
-            // classList={{
-            //   'bg-accent text-panel': preview(),
-            //   'text-ink-muted hover:text-accent hover:bg-accent/20':
-            //     !preview(),
-            // }}
+            classList={{
+              'bg-accent text-panel': !!props.soup.previewEntity(),
+              'text-ink-muted hover:text-accent hover:bg-accent/20':
+                !props.soup.previewEntity(),
+            }}
+            disabled={!props.soup.focus.id()}
             onClick={() => {
-              // playSound('open');
-              // setPreview((prev) => !prev);
+              const currentPreview = props.soup.previewEntity();
+              if (currentPreview) {
+                props.soup.setPreviewEntity(undefined);
+                return;
+              }
+
+              const focused = props.soup.focus.id();
+
+              if (!focused) return;
+
+              props.soup.setPreviewEntity(focused);
             }}
           >
             <PreviewIcon class="size-4.5" />

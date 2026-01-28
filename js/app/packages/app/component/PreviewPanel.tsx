@@ -23,6 +23,7 @@ import {
 } from './split-layout/context';
 import { useSplitLayout } from './split-layout/layout';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
+import { Suspense } from 'solid-js';
 
 type PreviewPanel = {
   selectedEntity: EntityData | undefined;
@@ -178,7 +179,9 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
             halfSplitState: undefined,
           }}
         >
-          <Dynamic component={blockInstance().element} />
+          <Suspense>
+            <Dynamic component={blockInstance().element} />
+          </Suspense>
         </SplitPanelContext.Provider>
       </div>
     </div>
