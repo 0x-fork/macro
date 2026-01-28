@@ -3,7 +3,7 @@ import XIcon from '@icon/regular/x.svg?component-solid';
 import PreviewIcon from '@macro-icons/wide/preview.svg';
 import NoiseIcon from '@macro-icons/wide/noise.svg';
 import SignalIcon from '@macro-icons/wide/signal.svg';
-import type { WithSearch, EntityData } from '@macro-entity';
+import { type WithSearch, type EntityData, isTaskEntity } from '@macro-entity';
 import {
   type Accessor,
   createEffect,
@@ -56,6 +56,8 @@ import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { PreviewPanel } from '@app/component/PreviewPanel';
 import { useGlobalBlockOrchestrator } from '@app/component/GlobalAppState';
+import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
+import { useTaskProperties } from '@core/component/Properties/hooks';
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 300;
 const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
@@ -71,6 +73,7 @@ export default function SoupV2() {
 const Soup = () => {
   const panel = useSplitPanelOrThrow();
   const soup = createSoupState();
+  const { isKeypressActive } = useIsKeyPressActive();
 
   const [searchText, setSearchText] = createSignal('');
 
@@ -325,6 +328,8 @@ const Soup = () => {
 
   const orchestrator = useGlobalBlockOrchestrator();
 
+  const taskPropertiesStore = useTaskProperties(soup.data);
+
   return (
     <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
       <SplitHeaderLeft>
@@ -367,53 +372,86 @@ const Soup = () => {
             onScrollBottom={debouncedFetchMore}
             rows={soup.items.rows()}
           >
-            {(row) => (
-              <div
-                class={'unified-table-row'}
-                data-row-id={row.id}
-                data-row
-                role="row"
-                tabIndex={0}
-              >
+            {(row) => {
+              const timestamp = () => {
+                const sort_ = soup.sort();
+                if (!sort_.length) return;
+
+                switch (sort_[0].id) {
+                  case 'viewed_at':
+                    return row.original.viewedAt;
+                  case 'created_at':
+                    return row.original.createdAt;
+                  case 'updated_at':
+                    return row.original.updatedAt;
+                }
+              };
+
+              const properties = () => {
+                if (isTaskEntity(row.original)) {
+                  return taskPropertiesStore()[row.original.id] ?? [];
+                }
+                return undefined;
+              };
+              return (
                 <div
-                  class="flex flex-col"
-                  style={{
-                    'padding-left': `${row.depth * 8}px`,
-                  }}
+                  class={'unified-table-row'}
+                  data-row-id={row.id}
+                  data-row
+                  role="row"
+                  tabIndex={0}
                 >
-                  <Show
-                    when={!row.getIsGrouped()}
-                    fallback={
-                      <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
-                        <button
-                          type="button"
-                          onClick={row.getToggleExpandedHandler()}
-                        >
-                          {row.getIsExpanded() ? 'Close' : 'Open'}
-                        </button>
-                        <span>{row.groupingValue}</span>
-                      </div>
-                    }
+                  <div
+                    class="flex flex-col"
+                    style={{
+                      'padding-left': `${row.depth * 8}px`,
+                    }}
                   >
-                    <EntityWithEverything
-                      searchActive={!!searchText()}
-                      entity={row.original}
-                      selected={{
-                        active: soup.focus.id() === row.original.id,
-                        muted: false,
-                      }}
-                      showLeftColumnIndicator={false}
-                      fadeIfRead={false}
-                      showUnrollNotifications={false}
-                      showDoneButton={false}
-                      highlighted={false}
-                      splitId="demo"
-                      checked={soup.selection.isSelected(row.id)}
-                    />
-                  </Show>
+                    <Show
+                      when={!row.getIsGrouped()}
+                      fallback={
+                        <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
+                          <button
+                            type="button"
+                            onClick={row.getToggleExpandedHandler()}
+                          >
+                            {row.getIsExpanded() ? 'Close' : 'Open'}
+                          </button>
+                          <span>{row.groupingValue}</span>
+                        </div>
+                      }
+                    >
+                      <EntityWithEverything
+                        entity={row.original}
+                        timestamp={timestamp()}
+                        properties={properties()}
+                        searchActive={!!searchText()}
+                        selected={{
+                          active: soup.focus.id() === row.original.id,
+                          muted: false,
+                        }}
+                        onMouseOver={() => {
+                          if (soup.previewEntity() || isKeypressActive())
+                            return;
+                          soup.focus.set(row.original.id);
+                        }}
+                        onFocusIn={() => {
+                          if (soup.previewEntity()) return;
+                          soup.focus.set(row.original.id);
+                        }}
+                        showLeftColumnIndicator={false}
+                        fadeIfRead={false}
+                        showUnrollNotifications={false}
+                        showDoneButton={false}
+                        highlighted={soup.focus.id() === row.original.id}
+                        splitId={panel.handle.id}
+                        checked={soup.selection.isSelected(row.id)}
+                      />
+                    </Show>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            }}
           </SoupList>
         </StaticMarkdownContext>
       </div>
