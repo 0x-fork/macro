@@ -251,6 +251,7 @@ const Soup = () => {
     const nextRow = soup.navigate.by(offset);
     if (!nextRow) return true;
     soup.selection.select(nextRow.item);
+    virtualizerHandle()?.scrollToIndex(nextRow.index, { align: 'nearest' });
   };
 
   const handleNavigationSelection = (offset: number) => {
