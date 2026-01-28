@@ -505,7 +505,10 @@ const Soup = () => {
                         fadeIfRead={false}
                         showUnrollNotifications={false}
                         showDoneButton={false}
-                        highlighted={soup.focus.id() === row.original.id}
+                        highlighted={
+                          panel.isPanelActive() &&
+                          soup.focus.id() === row.original.id
+                        }
                         splitId={panel.handle.id}
                         checked={soup.selection.isSelected(row.id)}
                         onClick={onEntityClick}
