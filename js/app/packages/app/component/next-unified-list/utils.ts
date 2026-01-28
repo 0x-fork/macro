@@ -1,6 +1,8 @@
+import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import {
   type EntityData,
   isSearchEntity,
+  type SearchLocation,
   type WithSearch,
 } from '@macro-entity';
 
@@ -114,4 +116,73 @@ export const isNewerEntity = (
   existing: EntityData
 ): boolean => {
   return getEntityTimestamp(newEntity) >= getEntityTimestamp(existing);
+};
+
+export const openEntityInNewTab = ({
+  entity,
+  location,
+}: {
+  entity: EntityData;
+  location?: SearchLocation;
+}) => {
+  // Build URL for the entity
+  let entityPath: string;
+  if (entity.type === 'document') {
+    const { fileType, subType } = entity;
+    const blockName = fileTypeToBlockName(subType?.type ?? fileType);
+    entityPath = `/app/${blockName}/${entity.id}`;
+  } else {
+    entityPath = `/app/${entity.type}/${entity.id}`;
+  }
+
+  // Add location params if present
+  const entityUrl = new URL(entityPath, window.location.origin);
+  if (location) {
+    switch (location.type) {
+      case 'channel':
+        if (location.messageId) {
+          entityUrl.searchParams.set('channel_message_id', location.messageId);
+        }
+        if (location.threadId) {
+          entityUrl.searchParams.set('thread', location.threadId);
+        }
+        break;
+      case 'email':
+        if (location.messageId) {
+          entityUrl.searchParams.set('email_message_id', location.messageId);
+        }
+
+        break;
+      case 'md':
+        if (location.nodeId) {
+          entityUrl.searchParams.set('node_id', location.nodeId);
+        }
+        break;
+      case 'pdf':
+        if (location.searchPage !== undefined) {
+          entityUrl.searchParams.set(
+            'search_page',
+            location.searchPage.toString()
+          );
+        }
+        if (location.searchRawQuery) {
+          entityUrl.searchParams.set(
+            'search_raw_query',
+            location.searchRawQuery
+          );
+        }
+        if (location.highlightTerms) {
+          entityUrl.searchParams.set(
+            'search_highlight_terms',
+            JSON.stringify(location.highlightTerms)
+          );
+        }
+        if (location.searchSnippet) {
+          entityUrl.searchParams.set('search_snippet', location.searchSnippet);
+        }
+        break;
+    }
+  }
+
+  window.open(entityUrl.toString(), '_blank', 'noopener');
 };

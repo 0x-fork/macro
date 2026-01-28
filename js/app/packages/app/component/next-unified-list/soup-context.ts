@@ -192,6 +192,7 @@ export const createSoupState = (
       id: focusedId,
       index: focusedIndex,
       clear: clearFocus,
+      set: (id: string | undefined) => setFocusedId(id),
     },
 
     navigate: {

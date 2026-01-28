@@ -15,7 +15,11 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
-import { EntityWithEverything } from '../../../macro-entity/src/components/EntityWithEverything';
+import {
+  type EntityClickHandler,
+  type EntityPointerDownHandler,
+  EntityWithEverything,
+} from '../../../macro-entity/src/components/EntityWithEverything';
 import {
   buildDssFiltersRequest,
   ENTITY_TYPE_FILTERS,
@@ -50,7 +54,10 @@ import { debouncedDependent } from '@core/util/debounce';
 import type { UnifiedSearchIndex } from '@service-search/generated/models';
 import { arrayEquals } from '@core/util/compareUtils';
 import { fuzzyMatch } from '@core/util/fuzzy';
-import { deduplicateEntities } from '@app/component/next-unified-list/utils';
+import {
+  deduplicateEntities,
+  openEntityInNewTab,
+} from '@app/component/next-unified-list/utils';
 import { useSoupQuery } from '@app/component/next-unified-list/soup-query/use-soup-query';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useSettingsState } from '@core/constant/SettingsState';
@@ -58,6 +65,7 @@ import { PreviewPanel } from '@app/component/PreviewPanel';
 import { useGlobalBlockOrchestrator } from '@app/component/GlobalAppState';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import { useTaskProperties } from '@core/component/Properties/hooks';
+import { openEntityInSplitFromUnifiedList } from '@app/component/soupContextHelpers';
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 300;
 const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
@@ -330,6 +338,60 @@ const Soup = () => {
 
   const taskPropertiesStore = useTaskProperties(soup.data);
 
+  const onEntityClick: EntityClickHandler<EntityData> = async (args) => {
+    const { type, event, location } = args;
+
+    const entity = (
+      type === 'entity' ? args.entity : args.projectEntity
+    ) as EntityData;
+
+    if (event.metaKey || event.ctrlKey) {
+      openEntityInNewTab({ entity, location });
+      return;
+    }
+
+    if (soup.previewEntity() && type === 'entity') {
+      soup.focus.set(entity.id);
+      return;
+    }
+
+    await openEntityInSplitFromUnifiedList(entity, {
+      openInNewSplit: event.altKey,
+      location,
+      splitHandle: panel.handle,
+    });
+  };
+
+  const onEntityDoubleClick: EntityClickHandler<EntityData> = async (args) => {
+    const { entity, event, location } = args;
+
+    if (!soup.previewEntity()) {
+      return;
+    }
+
+    await openEntityInSplitFromUnifiedList(entity, {
+      openInNewSplit: event.altKey,
+      location,
+      splitHandle: panel.handle,
+    });
+  };
+
+  const onEntityPointerDown: EntityPointerDownHandler<EntityData> = async (
+    args
+  ) => {
+    const { type, location, event } = args;
+
+    const entity = (
+      type === 'entity' ? args.entity : args.projectEntity
+    ) as EntityData;
+
+    // middle mouse button pressed
+    if (event.button === 1 && event.pointerType === 'mouse') {
+      // TODO: current page should remain focused after opening new tab
+      openEntityInNewTab({ entity, location });
+    }
+  };
+
   return (
     <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
       <SplitHeaderLeft>
@@ -446,6 +508,9 @@ const Soup = () => {
                         highlighted={soup.focus.id() === row.original.id}
                         splitId={panel.handle.id}
                         checked={soup.selection.isSelected(row.id)}
+                        onClick={onEntityClick}
+                        onDblClick={onEntityDoubleClick}
+                        onPointerDown={onEntityPointerDown}
                       />
                     </Show>
                   </div>
