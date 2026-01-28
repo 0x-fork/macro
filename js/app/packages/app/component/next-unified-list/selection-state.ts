@@ -88,16 +88,21 @@ export function createSelectionState<T>(
   options: CreateSelectionStateOptions<T>
 ): SelectionState<T> {
   const { getItemId, initial = [], onChange } = options;
+
   // Separate signals for mode and version (to trigger reactivity on mutations)
   const [modeType, setModeType] = createSignal<SelectionModeType>('inclusive');
   const [version, setVersion] = createSignal(0);
+
   // Mutable data structures (not in signals)
   const inclusiveItems = new Map<string, T>(
     initial.map((item) => [getItemId(item), item])
   );
+
   const excludedIds = new Set<string>();
+
   // Trigger reactivity after mutation
   const touch = () => setVersion((v) => v + 1);
+
   // Helper to get current mode snapshot (for onChange)
   const getModeSnapshot = (): SelectionMode<T> => {
     if (modeType() === 'exclusive') {
@@ -105,6 +110,7 @@ export function createSelectionState<T>(
     }
     return { type: 'inclusive', items: new Map(inclusiveItems) };
   };
+
   // Notify onChange (creates snapshot only when needed)
   const notify = () => {
     if (!onChange) return;
@@ -112,23 +118,28 @@ export function createSelectionState<T>(
       modeType() === 'inclusive' ? Array.from(inclusiveItems.values()) : [];
     onChange(sel, getModeSnapshot());
   };
+
   // Derived state - reads version to track mutations
   const selected = createMemo(() => {
     version(); // Subscribe to mutations
     if (modeType() === 'exclusive') return [];
     return Array.from(inclusiveItems.values());
   });
+
   const selectedIds = createMemo(() => {
     version();
     if (modeType() === 'exclusive') return new Set<string>();
     return new Set(inclusiveItems.keys());
   });
+
   const count = createMemo(() => {
     version();
     if (modeType() === 'exclusive') return Infinity;
     return inclusiveItems.size;
   });
+
   const isAllSelected = createMemo(() => modeType() === 'exclusive');
+
   // Methods
   const isSelected = (id: string): boolean => {
     version(); // Subscribe to mutations for reactivity
@@ -137,11 +148,13 @@ export function createSelectionState<T>(
     }
     return inclusiveItems.has(id);
   };
+
   const getItem = (id: string): T | undefined => {
     version();
     if (modeType() === 'exclusive') return undefined;
     return inclusiveItems.get(id);
   };
+
   const select = (item: T) => {
     const id = getItemId(item);
     if (modeType() === 'exclusive') {
@@ -158,6 +171,7 @@ export function createSelectionState<T>(
       }
     }
   };
+
   const deselect = (id: string) => {
     if (modeType() === 'exclusive') {
       if (!excludedIds.has(id)) {
@@ -173,6 +187,7 @@ export function createSelectionState<T>(
       }
     }
   };
+
   const toggle = (item: T) => {
     const id = getItemId(item);
     if (isSelected(id)) {
@@ -181,6 +196,7 @@ export function createSelectionState<T>(
       select(item);
     }
   };
+
   const selectRange = (items: T[], rangeMode: 'add' | 'replace' = 'add') => {
     batch(() => {
       if (rangeMode === 'replace') {
@@ -205,6 +221,7 @@ export function createSelectionState<T>(
     });
     notify();
   };
+
   const selectAll = () => {
     batch(() => {
       excludedIds.clear();
@@ -213,6 +230,7 @@ export function createSelectionState<T>(
     });
     notify();
   };
+
   const clear = () => {
     batch(() => {
       inclusiveItems.clear();
@@ -222,6 +240,7 @@ export function createSelectionState<T>(
     });
     notify();
   };
+
   const set = (items: T[]) => {
     batch(() => {
       inclusiveItems.clear();
@@ -233,6 +252,7 @@ export function createSelectionState<T>(
     });
     notify();
   };
+
   const resolveAll = (allItems: T[]) => {
     if (modeType() !== 'exclusive') return;
     batch(() => {
@@ -248,6 +268,7 @@ export function createSelectionState<T>(
     });
     notify();
   };
+
   return {
     selected,
     selectedIds,
