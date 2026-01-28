@@ -61,6 +61,15 @@ function EmailContent(props: EmailViewProps) {
 
   const [isScrolled, setIsScrolled] = createSignal(false);
 
+  // Track pending scroll target to re-apply after Suspense remounts the container
+  const [pendingScrollTarget, setPendingScrollTarget] = createSignal<{
+    messageId: string;
+    behavior: ScrollBehavior;
+  } | null>(null);
+
+  // Track which container we've scrolled on to detect remounts
+  let lastScrolledContainer: HTMLElement | null = null;
+
   const handleScrollPositionChange = (scrollFromTop: number) => {
     setIsScrolled(scrollFromTop > 1);
   };
@@ -136,24 +145,32 @@ function EmailContent(props: EmailViewProps) {
 
     setIsScrollingToMessage(true);
 
-    const success = scrollToMessage(messageId, messages, container, {
-      behavior: opts.behavior,
-      reversed: true,
+    // Use double RAF to ensure DOM is fully laid out before scrolling
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const success = scrollToMessage(messageId, messages, container, {
+          behavior: opts.behavior,
+          reversed: true,
+        });
+
+        if (!success) {
+          setIsScrollingToMessage(false);
+          return;
+        }
+
+        // Track that we've scrolled on this container
+        lastScrolledContainer = container;
+
+        if (context.messages.targetMessageID() === messageId) {
+          setTimeout(() => {
+            context.messages.setTargetMessageID(undefined);
+          }, TARGET_MESSAGE_HIGHLIGHT_MS);
+        }
+
+        // Clear scrolling flag after animation
+        setTimeout(() => setIsScrollingToMessage(false), SCROLL_ANIMATION_MS);
+      });
     });
-
-    if (!success) {
-      setIsScrollingToMessage(false);
-      return false;
-    }
-
-    if (context.messages.targetMessageID() === messageId) {
-      setTimeout(() => {
-        context.messages.setTargetMessageID(undefined);
-      }, TARGET_MESSAGE_HIGHLIGHT_MS);
-    }
-
-    // Clear scrolling flag after animation
-    setTimeout(() => setIsScrollingToMessage(false), SCROLL_ANIMATION_MS);
 
     return true;
   };
@@ -189,9 +206,80 @@ function EmailContent(props: EmailViewProps) {
     )?.db_id;
   });
 
-  // ============================================
-  // PHASE 2: HANDLE TARGET MESSAGE SCROLLING
-  // ============================================
+  // Effect to re-apply scroll when container remounts (e.g., after Suspense)
+  createEffect(() => {
+    const container = context.messagesListRef();
+    const target = pendingScrollTarget();
+
+    if (!container || !target) return;
+
+    // Only set up observer if container has changed (remounted)
+    if (container === lastScrolledContainer) return;
+
+    let hasScrolledOnce = false;
+    let lastScrollTop = 0;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry || entry.contentRect.height === 0) return;
+
+      const messages = untrack(context.messages.list);
+      if (!messages || !container) return;
+
+      const currentScrollTop = container.scrollTop;
+      const wasReset =
+        hasScrolledOnce && currentScrollTop === 0 && lastScrollTop < -100;
+
+      if (wasReset) {
+        container.scrollTop = lastScrollTop;
+      } else if (!hasScrolledOnce) {
+        scrollToMessage(target.messageId, messages, container, {
+          behavior: target.behavior,
+          reversed: true,
+        });
+        hasScrolledOnce = true;
+        lastScrollTop = container.scrollTop;
+        lastScrolledContainer = container;
+      }
+    });
+
+    observer.observe(container);
+
+    const onScroll = () => {
+      if (!hasScrolledOnce) return;
+
+      const currentScrollTop = container.scrollTop;
+      if (currentScrollTop === 0 && lastScrollTop < -100) {
+        container.scrollTop = lastScrollTop;
+      } else {
+        lastScrollTop = currentScrollTop;
+      }
+    };
+
+    container.addEventListener('scroll', onScroll);
+
+    const pollInterval = setInterval(() => {
+      const currentScrollTop = container.scrollTop;
+      if (currentScrollTop === 0 && lastScrollTop < -100) {
+        container.scrollTop = lastScrollTop;
+      } else if (currentScrollTop !== 0) {
+        lastScrollTop = currentScrollTop;
+      }
+    }, 500);
+
+    const timeout = setTimeout(() => {
+      observer.disconnect();
+      container.removeEventListener('scroll', onScroll);
+      clearInterval(pollInterval);
+    }, 20000);
+
+    return () => {
+      observer.disconnect();
+      container.removeEventListener('scroll', onScroll);
+      clearTimeout(timeout);
+    };
+  });
+
   // This effect handles scrolling to a specific message (if provided via URL) or scrolling to the last message by default
   // This effect should only run once.
   context.onInitialDataLoad(() => {
@@ -201,17 +289,23 @@ function EmailContent(props: EmailViewProps) {
     if (targetMessageId_ && typeof targetMessageId_ !== 'string') return true;
 
     if (targetMessageId_) {
+      setPendingScrollTarget({
+        messageId: targetMessageId_,
+        behavior: 'instant',
+      });
       handleTargetMessage(targetMessageId_);
     } else {
       const lastUnreadMessageId_ = untrack(firstUnreadMessageId);
-      // Check if there is an unread message
       if (lastUnreadMessageId_) {
+        setPendingScrollTarget({
+          messageId: lastUnreadMessageId_,
+          behavior: 'instant',
+        });
         setTimeout(() =>
           performScrollToMessage(lastUnreadMessageId_!, { behavior: 'instant' })
         );
         context.messages.setFocused(lastUnreadMessageId_!);
       } else {
-        // No unread message, scroll to last message
         scrollToLastMessage('instant', true);
       }
     }
@@ -227,12 +321,10 @@ function EmailContent(props: EmailViewProps) {
     if (!messages) return;
     const targetIndex = messages.findIndex((m) => m.db_id === messageId);
 
-    // Case 1: Message not in current loaded batch - need to load more
     if (targetIndex < 0) {
       try {
         const found = await loadMessagesUntilFound(messageId);
         if (found) {
-          // Load one more batch for scroll context
           fetchNextPage();
           await waitForQueryLoad();
           // Scroll to the message after DOM updates
@@ -240,16 +332,12 @@ function EmailContent(props: EmailViewProps) {
             performScrollToMessage(messageId, { behavior: 'instant' })
           );
         } else {
-          // Message not found, fallback to last message
           setTimeout(() => scrollToLastMessage('instant', true));
         }
-      } catch (error) {
-        console.error('Error loading target message:', error);
+      } catch {
         setTimeout(() => scrollToLastMessage('instant', true));
       }
-    }
-    // Case 2: Message is first in current batch - load more for context
-    else if (targetIndex === 0) {
+    } else if (targetIndex === 0) {
       fetchNextPage();
       await waitForQueryLoad();
       setTimeout(() =>
@@ -257,7 +345,6 @@ function EmailContent(props: EmailViewProps) {
       );
     }
 
-    // Case 3: Message is in current batch with sufficient context
     setTimeout(() =>
       performScrollToMessage(messageId, { behavior: 'instant' })
     );
@@ -316,6 +403,11 @@ function EmailContent(props: EmailViewProps) {
   const navigateToNextMessage = () => navigateMessage('next');
 
   onMount(() => {
+    // Disable browser scroll restoration to prevent it from overriding our programmatic scroll
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+
     registerEmailHotkeys(scopeId(), context.thread, {
       archiveThread: context.archiveThread,
       navigateToPreviousMessage,
