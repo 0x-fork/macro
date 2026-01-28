@@ -10,12 +10,11 @@
 import { createMemo, createSignal, type Accessor } from 'solid-js';
 
 /** Filter predicate function */
-export type FilterPredicate<T> = (entity: T) => boolean;
+export type FilterPredicate<T> = (entity: T, ...args: any[]) => boolean;
 
 /** Filter configuration */
 export type FilterConfig<T> = {
   readonly id: string;
-  readonly label: string;
   readonly predicate: FilterPredicate<T>;
   readonly group?: string;
 };
@@ -94,7 +93,8 @@ export function createFilterState<T, TFilter extends FilterConfig<T>>(
     .map((id) => filterMap.get(id))
     .filter((f): f is TFilter => f !== undefined);
 
-  const [activeFilters, setActiveFilters] = createSignal<TFilter[]>(initialActiveFilters);
+  const [activeFilters, setActiveFilters] =
+    createSignal<TFilter[]>(initialActiveFilters);
 
   // Computed: active filter IDs
   const activeIds = createMemo(() => activeFilters().map((f) => f.id));
@@ -126,9 +126,7 @@ export function createFilterState<T, TFilter extends FilterConfig<T>>(
 
     // If filter has a group, remove other filters in same group
     if (config.group) {
-      const withoutSameGroup = current.filter(
-        (f) => f.group !== config.group
-      );
+      const withoutSameGroup = current.filter((f) => f.group !== config.group);
       updateFilters([...withoutSameGroup, config]);
     } else {
       // No group, just add
