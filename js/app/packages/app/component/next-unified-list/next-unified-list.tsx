@@ -1,33 +1,27 @@
 import PreviewIcon from '@macro-icons/wide/preview.svg';
 import NoiseIcon from '@macro-icons/wide/noise.svg';
 import SignalIcon from '@macro-icons/wide/signal.svg';
-import { createDssInfiniteQuery, type EntityData } from '@macro-entity';
+import type { WithSearch, EntityData } from '@macro-entity';
 import {
+  type Accessor,
   batch,
   createEffect,
   createMemo,
   createSignal,
   For,
+  type JSX,
   on,
   Show,
   Suspense,
 } from 'solid-js';
 import { EntityWithEverything } from '../../../macro-entity/src/components/EntityWithEverything';
-import { TableContent } from '@app/component/next-unified-list/table/table-content';
-import { TableRoot } from '@app/component/next-unified-list/table/table-root';
 import { TableRow } from '@app/component/next-unified-list/table/table-row';
-import { createTableController } from '@app/component/next-unified-list/table/table-controller';
-import {
-  createFilterState,
-  type FilterConfig,
-} from '@app/component/next-unified-list/filters';
 import {
   buildDssFiltersRequest,
   ENTITY_TYPE_FILTERS,
   type FilterID,
   getEntityTypeFilterIcon,
   getFilterWithID,
-  SOUP_FILTERS,
 } from '@app/component/next-unified-list/filters/filters';
 import { debounce } from '@solid-primitives/scheduled';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
@@ -39,11 +33,25 @@ import {
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import { registerEntityHotkey } from '@app/component/SoupContext';
 import { TOKENS } from '@core/hotkey/tokens';
-import type { VirtualizerHandle } from 'virtua/solid';
+import { VList, type VirtualizerHandle } from 'virtua/solid';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
 import type { SystemSortOption } from '@app/component/ViewConfig';
-import { createSelectionState } from '@app/component/next-unified-list/selection-state';
+import type { Row } from '@tanstack/solid-table';
+import { cn } from '@ui/utils/classname';
+import {
+  createSoupState,
+  type SoupState,
+} from '@app/component/next-unified-list/soup-context';
+import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
+import type { SearchArgs } from '@service-search/client';
+import { debouncedDependent } from '@core/util/debounce';
+import type { UnifiedSearchIndex } from '@service-search/generated/models';
+import { arrayEquals } from '@core/util/compareUtils';
+import {
+  createEntitiesQuery,
+  isSearchEntity,
+} from '@app/component/next-unified-list/create-entities-query';
+import { fuzzyMatch } from '@core/util/fuzzy';
 
 export default function SoupV2() {
   return (
@@ -52,6 +60,9 @@ export default function SoupV2() {
     </Suspense>
   );
 }
+
+const SEARCH_SERVICE_DEBOUNCE_MS = 300;
+const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
 
 const timeSort = (
   key: keyof Pick<
@@ -64,90 +75,165 @@ const timeSort = (
 
 const SORT_CONFIGS: Record<
   SystemSortOption,
-  { id: string; sortingFn: (a: EntityData, b: EntityData) => number }
+  { id: string; fn: (a: EntityData, b: EntityData) => number }
 > = {
   updated_at: {
     id: 'updatedAt',
-    sortingFn: timeSort('updatedAt'),
+    fn: timeSort('updatedAt'),
   },
   created_at: {
     id: 'createdAt',
-    sortingFn: timeSort('createdAt'),
+    fn: timeSort('createdAt'),
   },
   viewed_at: {
     id: 'viewedAt',
-    sortingFn: timeSort('viewedAt'),
+    fn: timeSort('viewedAt'),
   },
   frecency: {
     id: 'frecencyScore',
-    sortingFn: timeSort('frecencyScore'),
+    fn: timeSort('frecencyScore'),
   },
 };
 
 const Soup = () => {
   const panel = useSplitPanelOrThrow();
+  const soup = createSoupState();
 
-  const filters = createFilterState({
-    filters: [...SOUP_FILTERS],
-  });
+  const [searchText, setSearchText] = createSignal('');
 
-  const [sort, setSort] = createSignal<SystemSortOption>('updated_at');
+  const debouncedSearchForLocal = debouncedDependent(
+    searchText,
+    LOCAL_FUZZY_SEARCH_DEBOUNCE_MS
+  );
+  const debouncedSearchForService = debouncedDependent(
+    searchText,
+    SEARCH_SERVICE_DEBOUNCE_MS
+  );
 
-  const selection = createSelectionState<EntityData>({
-    getItemId(item) {
-      return item.id;
+  const unifiedSearchIncludeArray = createMemo<UnifiedSearchIndex[]>(
+    () => {
+      let types = soup.filters.activeIds();
+      // NOTE: empty array means search all
+      if (types.length === 0) types = [];
+      const includeArray: UnifiedSearchIndex[] = [];
+      for (const type of types) {
+        switch (type) {
+          case 'document':
+          case 'task':
+            includeArray.push('documents');
+            break;
+          case 'chat':
+            includeArray.push('chats');
+            break;
+          case 'channel':
+            includeArray.push('channels');
+            break;
+          case 'email':
+            includeArray.push('emails');
+            break;
+          case 'project':
+            includeArray.push('projects');
+            break;
+        }
+      }
+      return Array.from(new Set(includeArray));
     },
+    [],
+    { equals: arrayEquals }
+  );
+
+  const validSearchTerms = createMemo(
+    () => debouncedSearchForService().length >= 3
+  );
+  const isSearchActive = createMemo(() => validSearchTerms());
+  const disableSearchService = createMemo(() => {
+    return !isSearchActive();
   });
 
-  const dssInfiniteQuery = createDssInfiniteQuery(
-    () => ({}),
-    () => ({
-      ...buildDssFiltersRequest(filters.active()),
-      limit: 100,
-      sort_method: sort(),
+  const searchUnifiedNameContentQueryParams = createMemo(
+    (): SearchArgs => ({
+      params: {
+        cursor: null,
+        page_size: 100,
+      },
+      request: {
+        search_on: 'name_content',
+        match_type: 'partial',
+        terms:
+          debouncedSearchForService().length > 0
+            ? [debouncedSearchForService()]
+            : undefined,
+        // filters: unifiedSearchFilters(),
+        include: unifiedSearchIncludeArray(),
+      },
     })
   );
 
-  const controller = createTableController<
-    EntityData,
-    FilterConfig<EntityData>
-  >({
-    data: () => dssInfiniteQuery.data ?? [],
-    initialState: {
-      sort: [SORT_CONFIGS.updated_at],
+  const query = createEntitiesQuery(() => ({
+    params: {},
+    body: {
+      ...buildDssFiltersRequest(soup.filters.active()),
+      limit: 100,
+      search: {
+        ...searchUnifiedNameContentQueryParams().request,
+      },
     },
-  });
+  }));
+
+  const nameFuzzySearchFilter = createMemo(() =>
+    searchText()
+      ? (items: EntityData[]) => {
+          const query = debouncedSearchForLocal();
+          if (!query || query.length === 0) return items;
+
+          const matchResults = fuzzyMatch(query, items, (item) => item.name);
+
+          return matchResults.map((result) => {
+            return {
+              ...result.item,
+              search: {
+                nameHighlight: result.nameHighlight,
+                contentHitData: null,
+                source: 'local',
+              },
+            } as WithSearch<EntityData>;
+          });
+        }
+      : undefined
+  );
 
   const focusFirstEntity = () => {
-    const next = controller.navigateTo(0);
+    const next = soup.navigate.toFirst();
 
     if (next) {
       virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
     }
   };
 
-  let invalidatedFocus = false;
   let initialLoad = true;
   createEffect(
     on(
-      () => dssInfiniteQuery.data,
+      () => query.data,
       (data) => {
+        if (data) {
+          const localSearch = nameFuzzySearchFilter();
+          soup.setData(
+            searchText()
+              ? deduplicateEntities([...data, ...(localSearch?.(data) ?? [])])
+              : data
+          );
+        }
         // If we didn't manually invalidate AND it's not the
         // initial load AND there's no data, do nothing
-        if (!invalidatedFocus && !initialLoad && !data) {
+        if (!initialLoad || !data) {
           return;
         }
 
         focusFirstEntity();
-        invalidatedFocus = false;
         initialLoad = false;
       }
     )
   );
-
-  const invalidateFocus = () => {
-    invalidatedFocus = true;
-  };
 
   const [virtualizerHandle, setVirtualizerHandle] =
     createSignal<VirtualizerHandle>();
@@ -158,7 +244,7 @@ const Soup = () => {
     description: 'Down',
     hotkeyToken: TOKENS.entity.step.end,
     keyDownHandler: () => {
-      const next = controller.navigateDown();
+      const next = soup.navigate.down();
 
       if (!next) return true;
 
@@ -176,7 +262,7 @@ const Soup = () => {
     hotkeyToken: TOKENS.entity.step.start,
     description: 'Up',
     keyDownHandler: () => {
-      const next = controller.navigateUp();
+      const next = soup.navigate.up();
 
       if (!next) return true;
 
@@ -187,26 +273,19 @@ const Soup = () => {
     hide: true,
   });
 
-  const isEntitySelected = (id: string) => selection.isSelected(id);
-
-  const toggleEntity = (id: string) => {
-    selection.select(controller.table.getRow(id).original);
-  };
-
   const navigateAndSelectEntity = (offset: number) => {
-    const nextRow = controller.navigateBy(offset);
+    const nextRow = soup.navigate.by(offset);
     if (!nextRow) return true;
-    selection.select(controller.table.getRow(nextRow.id).original);
+    soup.selection.select(nextRow.item);
   };
 
   const handleNavigationSelection = (offset: number) => {
-    const focusedEntity = controller.focusedRowID();
-    const currentIndex = focusedEntity
-      ? controller.getRowDataIndex(focusedEntity)
-      : -1;
-    const nextIndex = controller.calculateNavigationIndex(currentIndex, offset);
+    const focusedEntity = soup.focus.item();
+    const nextIndex = soup.navigate.peekOffset(offset);
 
-    const nextRow = controller.table.getRowModel().rows[nextIndex];
+    const selection = soup.selection;
+
+    const nextRow = nextIndex?.item;
     if (!nextRow) return true;
 
     if (!focusedEntity) {
@@ -215,21 +294,24 @@ const Soup = () => {
     }
 
     if (selection.count() === 0) {
-      selection.select(controller.table.getRow(nextRow.id).original);
-      toggleEntity(focusedEntity);
+      selection.select(nextRow);
+      selection.toggle(focusedEntity);
       return true;
     }
 
-    if (!isEntitySelected(focusedEntity) && !isEntitySelected(nextRow.id)) {
-      toggleEntity(focusedEntity);
+    if (
+      !selection.isSelected(focusedEntity.id) &&
+      !selection.isSelected(nextRow.id)
+    ) {
+      selection.toggle(focusedEntity);
       navigateAndSelectEntity(offset);
 
       return true;
     }
 
-    if (isEntitySelected(nextRow.id)) {
-      toggleEntity(focusedEntity);
-      controller.navigateBy(offset);
+    if (selection.isSelected(nextRow.id)) {
+      selection.toggle(focusedEntity);
+      soup.navigate.by(offset);
       return true;
     }
 
@@ -262,190 +344,367 @@ const Soup = () => {
     hide: true,
   });
 
-  const activeFilters = createMemo(() => {
-    return controller.filters().map((f) => f.id);
-  });
-
-  const toggleFilter = (filter: FilterID) => {
-    batch(() => {
-      filters.toggle(filter);
-      controller.setFilters(filters.active());
-      invalidateFocus();
-    });
-  };
-
-  const onSortChange = (sort: SystemSortOption) => {
-    batch(() => {
-      setSort(sort);
-      controller.setSort([SORT_CONFIGS[sort]]);
-      invalidateFocus();
-    });
-  };
-
   const debouncedFetchMore = debounce(() => {
-    if (dssInfiniteQuery.isFetchingNextPage || !dssInfiniteQuery.hasNextPage)
-      return;
+    if (query.isFetchingNextPage || !query.hasNextPage) return;
 
-    dssInfiniteQuery.fetchNextPage();
+    query.fetchNextPage();
   });
 
   return (
     <div class="size-full flex flex-col">
-      <div class="relative">
-        <div class="flex items-center h-full overflow-x-auto scrollbar-hidden overscroll-none text-xs touch:mobile-width:text-sm">
-          {/* Inbox toggle */}
-          <FilterButton
-            icon={SignalIcon}
-            label="Inbox"
-            shortcut="i"
-            isActive={activeFilters().includes('signal')}
-            onClick={() => toggleFilter('signal')}
+      <SplitHeaderLeft>
+        <div class="flex">
+          <SoupToolbar soup={soup} />
+          <input
+            type="text"
+            onInput={(e) => {
+              setSearchText(e.currentTarget.value);
+            }}
           />
-          {/* Other toggle */}
-          <FilterButton
-            icon={NoiseIcon}
-            label="Other"
-            shortcut="o"
-            isActive={activeFilters().includes('noise')}
-            onClick={() => toggleFilter('noise')}
-          />
-          <FilterDivider />
-          {/* Unread filter */}
-          <div class="flex items-center mr-0.5 shrink-0">
-            <Tooltip
-              tooltip={<LabelAndHotKey label="Unread Only" shortcut="u" />}
-            >
-              <button
-                type="button"
-                class="flex items-center gap-1 h-[22px] touch:mobile-width:h-9 pr-2.5 pl-1 active:bg-accent active:text-panel rounded-full"
-                // classList={{
-                //   'bg-accent text-panel': isUnreadFilterActive(),
-                //   'text-ink-muted hover:text-accent hover:bg-accent/20':
-                //     !isUnreadFilterActive(),
-                // }}
-                // onClick={() => toggleUnreadFilter()}
-              >
-                <svg
-                  class="size-4"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  stroke="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <circle cx="12" cy="12" r="4" />
-                </svg>
-                <span class="leading-none">
-                  <ShortcutLabel label="Unread" shortcut="u" />
-                </span>
-              </button>
-            </Tooltip>
-          </div>
-          <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
-          {/* Entity type icons */}
-          <div class="flex items-center shrink-0">
-            <For each={ENTITY_TYPE_FILTERS}>
-              {(filter) => {
-                const iconConfig = () => getEntityTypeFilterIcon(filter);
-                const details = createMemo(() => getFilterWithID(filter));
-
-                return (
-                  <FilterButton
-                    icon={iconConfig().icon}
-                    label={details()?.label ?? ''}
-                    shortcut={''}
-                    isActive={() => activeFilters().includes(filter)}
-                    onClick={() => toggleFilter(filter)}
-                    paddingClass="px-2.5"
-                  />
-                );
-              }}
-            </For>
-          </div>
-          <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
-          {/* Preview toggle */}
-          <Tooltip
-            tooltip={<LabelAndHotKey label="Toggle Preview" shortcut="space" />}
-          >
-            <button
-              type="button"
-              class="flex items-center gap-1.5 h-[22px] touch:mobile-width:h-9 px-2.5 active:bg-accent active:text-panel rounded-full"
-              // classList={{
-              //   'bg-accent text-panel': preview(),
-              //   'text-ink-muted hover:text-accent hover:bg-accent/20':
-              //     !preview(),
-              // }}
-              onClick={() => {
-                // playSound('open');
-                // setPreview((prev) => !prev);
-              }}
-            >
-              <PreviewIcon class="size-4.5" />
-              <span class="leading-none">
-                <ShortcutLabel label="Preview" shortcut="space" />
-              </span>
-            </button>
-          </Tooltip>
-          <FilterDivider />
-          {/* Sort dropdown */}
-          <SortDropdown value={sort} onChange={onSortChange} />
-          <div class="touch:mobile-width:-order-1">
-            <FilterDivider />
-          </div>
-          {/* Filter search bar */}
         </div>
-      </div>
+      </SplitHeaderLeft>
       <div class="flex flex-col size-full">
-        <TableRoot<EntityData, never> controller={controller}>
-          <StaticMarkdownContext>
-            <TableContent<EntityData>
-              virtualizerClass="scrollbar-hidden"
-              virtualizerRef={setVirtualizerHandle}
-              onScrollBottom={debouncedFetchMore}
-            >
-              {(row) => (
-                <TableRow row={row}>
-                  <div
-                    class="flex flex-col"
-                    style={{
-                      'padding-left': `${row.depth * 8}px`,
-                    }}
+        <StaticMarkdownContext>
+          <SoupList
+            virtualizerClass="scrollbar-hidden"
+            virtualizerRef={setVirtualizerHandle}
+            onScrollBottom={debouncedFetchMore}
+            rows={soup.items.rows()}
+          >
+            {(row) => (
+              <TableRow row={row}>
+                <div
+                  class="flex flex-col"
+                  style={{
+                    'padding-left': `${row.depth * 8}px`,
+                  }}
+                >
+                  <Show
+                    when={!row.getIsGrouped()}
+                    fallback={
+                      <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
+                        <button
+                          type="button"
+                          onClick={row.getToggleExpandedHandler()}
+                        >
+                          {row.getIsExpanded() ? 'Close' : 'Open'}
+                        </button>
+                        <span>{row.groupingValue}</span>
+                      </div>
+                    }
                   >
-                    <Show
-                      when={!row.getIsGrouped()}
-                      fallback={
-                        <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
-                          <button
-                            type="button"
-                            onClick={row.getToggleExpandedHandler()}
-                          >
-                            {row.getIsExpanded() ? 'Close' : 'Open'}
-                          </button>
-                          <span>{row.groupingValue}</span>
-                        </div>
-                      }
-                    >
-                      <EntityWithEverything
-                        entity={row.original}
-                        selected={{
-                          active: controller.focusedRowID() === row.original.id,
-                          muted: false,
-                        }}
-                        showLeftColumnIndicator={false}
-                        fadeIfRead={false}
-                        showUnrollNotifications={false}
-                        showDoneButton={false}
-                        highlighted={false}
-                        splitId="demo"
-                        checked={selection.isSelected(row.id)}
-                      />
-                    </Show>
-                  </div>
-                </TableRow>
-              )}
-            </TableContent>
-          </StaticMarkdownContext>
-        </TableRoot>
+                    <EntityWithEverything
+                      searchActive={!!searchText()}
+                      entity={row.original}
+                      selected={{
+                        active: soup.focus.id() === row.original.id,
+                        muted: false,
+                      }}
+                      showLeftColumnIndicator={false}
+                      fadeIfRead={false}
+                      showUnrollNotifications={false}
+                      showDoneButton={false}
+                      highlighted={false}
+                      splitId="demo"
+                      checked={soup.selection.isSelected(row.id)}
+                    />
+                  </Show>
+                </div>
+              </TableRow>
+            )}
+          </SoupList>
+        </StaticMarkdownContext>
       </div>
     </div>
   );
+};
+
+const DEFAULT_ITEM_SIZE = 50;
+const DEFAULT_OVERSCAN = 5;
+
+interface SoupListProps {
+  virtualizerRef?: (handle: VirtualizerHandle) => void;
+  class?: string;
+  virtualizerClass?: string;
+  itemSize?: number;
+  overscan?: number;
+  children: (row: Row<EntityData>, index: Accessor<number>) => JSX.Element;
+  onScrollBottom?: VoidFunction;
+  scrollBottomOffset?: number;
+  rows: Row<EntityData>[];
+}
+
+const SoupList = (props: SoupListProps) => {
+  // TODO: Handle fallback states?
+
+  const [virtualizerHandle, setVirtualizerHandle] =
+    createSignal<VirtualizerHandle>();
+
+  const rows = createMemo(() => props.rows);
+
+  const itemSize = createMemo(() => props.itemSize ?? DEFAULT_ITEM_SIZE);
+  const overscan = createMemo(() => props.overscan ?? DEFAULT_OVERSCAN);
+
+  const handleScroll = (offset: number) => {
+    const handle = virtualizerHandle();
+
+    if (!handle) return;
+
+    if (
+      handle.scrollSize - handle.viewportSize - offset <=
+      (props.scrollBottomOffset ?? 100)
+    ) {
+      props.onScrollBottom?.();
+    }
+  };
+
+  const registerVirtualizerHandler = (
+    handle: VirtualizerHandle | undefined
+  ) => {
+    setVirtualizerHandle(handle);
+
+    if (handle) {
+      props.virtualizerRef?.(handle);
+    }
+  };
+
+  return (
+    <div class={cn('unified-table-body size-full relative', props.class)}>
+      <VList
+        ref={registerVirtualizerHandler}
+        class={props.virtualizerClass}
+        data={rows()}
+        itemSize={itemSize()}
+        bufferSize={overscan() * itemSize()}
+        onScroll={handleScroll}
+      >
+        {(row, i) => props.children(row, i)}
+      </VList>
+    </div>
+  );
+};
+
+interface SoupToolbarProps {
+  soup: SoupState;
+}
+
+const SoupToolbar = (props: SoupToolbarProps) => {
+  const toggleFilter = (filter: FilterID) => {
+    props.soup.filters.toggle(filter);
+  };
+  return (
+    <div class="relative">
+      <div class="flex items-center h-full overflow-x-auto scrollbar-hidden overscroll-none text-xs touch:mobile-width:text-sm">
+        {/* Inbox toggle */}
+        <FilterButton
+          icon={SignalIcon}
+          label="Inbox"
+          shortcut="i"
+          isActive={props.soup.filters.isActive('signal')}
+          onClick={() => toggleFilter('signal')}
+        />
+        {/* Other toggle */}
+        <FilterButton
+          icon={NoiseIcon}
+          label="Other"
+          shortcut="o"
+          isActive={props.soup.filters.isActive('noise')}
+          onClick={() => toggleFilter('noise')}
+        />
+        <FilterDivider />
+        {/* Unread filter */}
+        <div class="flex items-center mr-0.5 shrink-0">
+          <Tooltip
+            tooltip={<LabelAndHotKey label="Unread Only" shortcut="u" />}
+          >
+            <button
+              type="button"
+              class="flex items-center gap-1 h-[22px] touch:mobile-width:h-9 pr-2.5 pl-1 active:bg-accent active:text-panel rounded-full"
+              // classList={{
+              //   'bg-accent text-panel': isUnreadFilterActive(),
+              //   'text-ink-muted hover:text-accent hover:bg-accent/20':
+              //     !isUnreadFilterActive(),
+              // }}
+              // onClick={() => toggleUnreadFilter()}
+            >
+              <svg
+                class="size-4"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle cx="12" cy="12" r="4" />
+              </svg>
+              <span class="leading-none">
+                <ShortcutLabel label="Unread" shortcut="u" />
+              </span>
+            </button>
+          </Tooltip>
+        </div>
+        <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
+        {/* Entity type icons */}
+        <div class="flex items-center shrink-0">
+          <For each={ENTITY_TYPE_FILTERS}>
+            {(filter) => {
+              const iconConfig = () => getEntityTypeFilterIcon(filter);
+              const details = createMemo(() => getFilterWithID(filter));
+
+              return (
+                <FilterButton
+                  icon={iconConfig().icon}
+                  label={details()?.label ?? ''}
+                  shortcut={''}
+                  isActive={() => props.soup.filters.isActive(filter)}
+                  onClick={() => toggleFilter(filter)}
+                  paddingClass="px-2.5"
+                />
+              );
+            }}
+          </For>
+        </div>
+        <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
+        {/* Preview toggle */}
+        <Tooltip
+          tooltip={<LabelAndHotKey label="Toggle Preview" shortcut="space" />}
+        >
+          <button
+            type="button"
+            class="flex items-center gap-1.5 h-[22px] touch:mobile-width:h-9 px-2.5 active:bg-accent active:text-panel rounded-full"
+            // classList={{
+            //   'bg-accent text-panel': preview(),
+            //   'text-ink-muted hover:text-accent hover:bg-accent/20':
+            //     !preview(),
+            // }}
+            onClick={() => {
+              // playSound('open');
+              // setPreview((prev) => !prev);
+            }}
+          >
+            <PreviewIcon class="size-4.5" />
+            <span class="leading-none">
+              <ShortcutLabel label="Preview" shortcut="space" />
+            </span>
+          </button>
+        </Tooltip>
+        <FilterDivider />
+        {/* Sort dropdown */}
+        {/* <SortDropdown value={soup.sort()} onChange={onSortChange} /> */}
+        <div class="touch:mobile-width:-order-1">
+          <FilterDivider />
+        </div>
+        {/* Filter search bar */}
+      </div>
+    </div>
+  );
+};
+
+const mergeSearchEntities = <T extends EntityData>(
+  first: WithSearch<T>,
+  second: WithSearch<T>
+): WithSearch<T> => {
+  const serviceEntity = first.search.source === 'service' ? first : second;
+  const localEntity = first.search.source === 'local' ? first : second;
+  const hasLocal =
+    first.search.source === 'local' || second.search.source === 'local';
+
+  // NOTE: we that the longer name highlight is more relevant since it will contain a macro highlight tag
+  let nameHighlight;
+  if (serviceEntity.search.nameHighlight && localEntity.search.nameHighlight) {
+    nameHighlight =
+      serviceEntity.search.nameHighlight.length >=
+      localEntity.search.nameHighlight.length
+        ? serviceEntity.search.nameHighlight
+        : localEntity.search.nameHighlight;
+  } else {
+    nameHighlight =
+      serviceEntity.search.nameHighlight || localEntity.search.nameHighlight;
+  }
+
+  return {
+    ...serviceEntity,
+    search: {
+      ...serviceEntity.search,
+      source: hasLocal ? 'local' : 'service',
+      nameHighlight,
+      contentHitData: serviceEntity.search.contentHitData?.length
+        ? serviceEntity.search.contentHitData
+        : localEntity.search.contentHitData,
+    },
+  };
+};
+
+/**
+ * Gets the timestamp of an entity (updatedAt or createdAt)
+ */
+const getEntityTimestamp = (entity: EntityData): number => {
+  return entity.updatedAt ?? entity.createdAt ?? 0;
+};
+
+/**
+ * Returns true if the new entity should replace the existing one based on timestamp. If the timestamp is the same, prefer to use the newer entity to handle optimistic updates
+ */
+const isNewerEntity = (
+  newEntity: EntityData,
+  existing: EntityData
+): boolean => {
+  return getEntityTimestamp(newEntity) >= getEntityTimestamp(existing);
+};
+
+/**
+ * Deduplicates entities by id, preferring entities with search data from 'service' source
+ * over 'local' source, and using latest timestamp as a tiebreaker.
+ * When preferring service results, merges local nameHighlight if service doesn't have one.
+ */
+const deduplicateEntities = <T extends EntityData>(entities: T[]): T[] => {
+  const entityMap = new Map<string, T>();
+
+  for (const entity of entities) {
+    const existing = entityMap.get(entity.id);
+
+    if (!existing) {
+      entityMap.set(entity.id, entity);
+      continue;
+    }
+
+    const existingHasSearch = isSearchEntity(existing);
+    const newHasSearch = isSearchEntity(entity);
+
+    // Prefer entities with search data
+    if (newHasSearch && !existingHasSearch) {
+      entityMap.set(entity.id, entity);
+      continue;
+    }
+
+    // If both have search data, prefer 'service' over 'local'
+    if (existingHasSearch && newHasSearch) {
+      const existingSource = existing.search.source;
+      const newSource = entity.search.source;
+
+      if (
+        (newSource === 'service' && existingSource === 'local') ||
+        (existingSource === 'service' && newSource === 'local')
+      ) {
+        // Merge service and local search data
+        entityMap.set(entity.id, mergeSearchEntities(entity, existing));
+        continue;
+      }
+
+      // If both are the same source, keep the one with latest timestamp
+      if (isNewerEntity(entity, existing)) {
+        entityMap.set(entity.id, entity);
+      }
+      continue;
+    }
+
+    // If neither has search, keep the one with latest timestamp
+    if (!existingHasSearch && !newHasSearch) {
+      if (isNewerEntity(entity, existing)) {
+        entityMap.set(entity.id, entity);
+      }
+    }
+    // Otherwise keep existing (it has search and new doesn't)
+  }
+
+  return Array.from(entityMap.values());
 };
