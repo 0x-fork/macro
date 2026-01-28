@@ -11,9 +11,11 @@ import {
   createSignal,
   For,
   type JSX,
+  Match,
   on,
   Show,
   Suspense,
+  Switch,
 } from 'solid-js';
 import {
   type EntityClickHandler,
@@ -66,6 +68,7 @@ import { useGlobalBlockOrchestrator } from '@app/component/GlobalAppState';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import { useTaskProperties } from '@core/component/Properties/hooks';
 import { openEntityInSplitFromUnifiedList } from '@app/component/soupContextHelpers';
+import { EmptyState } from '@app/component/UnifiedListEmptyState';
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 300;
 const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
@@ -428,99 +431,106 @@ const Soup = () => {
       </SplitHeaderRight>
       <div class="flex flex-col size-full">
         <StaticMarkdownContext>
-          <SoupList
-            virtualizerClass="scrollbar-hidden"
-            virtualizerRef={setVirtualizerHandle}
-            onScrollBottom={debouncedFetchMore}
-            rows={soup.items.rows()}
-          >
-            {(row) => {
-              const timestamp = () => {
-                const sort_ = soup.sort();
-                if (!sort_.length) return;
+          <Switch>
+            <Match when={!query.data?.length && !query.isLoading}>
+              <EmptyState search={!!searchText()} />
+            </Match>
+            <Match when={!query.isLoading && query.data}>
+              <SoupList
+                virtualizerClass="scrollbar-hidden"
+                virtualizerRef={setVirtualizerHandle}
+                onScrollBottom={debouncedFetchMore}
+                rows={soup.items.rows()}
+              >
+                {(row) => {
+                  const timestamp = () => {
+                    const sort_ = soup.sort();
+                    if (!sort_.length) return;
 
-                switch (sort_[0].id) {
-                  case 'viewed_at':
-                    return row.original.viewedAt;
-                  case 'created_at':
-                    return row.original.createdAt;
-                  case 'updated_at':
-                    return row.original.updatedAt;
-                }
-              };
+                    switch (sort_[0].id) {
+                      case 'viewed_at':
+                        return row.original.viewedAt;
+                      case 'created_at':
+                        return row.original.createdAt;
+                      case 'updated_at':
+                        return row.original.updatedAt;
+                    }
+                  };
 
-              const properties = () => {
-                if (isTaskEntity(row.original)) {
-                  return taskPropertiesStore()[row.original.id] ?? [];
-                }
-                return undefined;
-              };
-              return (
-                <div
-                  class={'unified-table-row'}
-                  data-row-id={row.id}
-                  data-row
-                  role="row"
-                  tabIndex={0}
-                >
-                  <div
-                    class="flex flex-col"
-                    style={{
-                      'padding-left': `${row.depth * 8}px`,
-                    }}
-                  >
-                    <Show
-                      when={!row.getIsGrouped()}
-                      fallback={
-                        <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
-                          <button
-                            type="button"
-                            onClick={row.getToggleExpandedHandler()}
-                          >
-                            {row.getIsExpanded() ? 'Close' : 'Open'}
-                          </button>
-                          <span>{row.groupingValue}</span>
-                        </div>
-                      }
+                  const properties = () => {
+                    if (isTaskEntity(row.original)) {
+                      return taskPropertiesStore()[row.original.id] ?? [];
+                    }
+                    return undefined;
+                  };
+                  return (
+                    <div
+                      class={'unified-table-row'}
+                      data-row-id={row.id}
+                      data-row
+                      role="row"
+                      tabIndex={0}
                     >
-                      <EntityWithEverything
-                        entity={row.original}
-                        timestamp={timestamp()}
-                        properties={properties()}
-                        searchActive={!!searchText()}
-                        selected={{
-                          active: soup.focus.id() === row.original.id,
-                          muted: false,
+                      <div
+                        class="flex flex-col"
+                        style={{
+                          'padding-left': `${row.depth * 8}px`,
                         }}
-                        onMouseOver={() => {
-                          if (soup.previewEntity() || isKeypressActive())
-                            return;
-                          soup.focus.set(row.original.id);
-                        }}
-                        onFocusIn={() => {
-                          if (soup.previewEntity()) return;
-                          soup.focus.set(row.original.id);
-                        }}
-                        showLeftColumnIndicator={false}
-                        fadeIfRead={false}
-                        showUnrollNotifications={false}
-                        showDoneButton={false}
-                        highlighted={
-                          panel.isPanelActive() &&
-                          soup.focus.id() === row.original.id
-                        }
-                        splitId={panel.handle.id}
-                        checked={soup.selection.isSelected(row.id)}
-                        onClick={onEntityClick}
-                        onDblClick={onEntityDoubleClick}
-                        onPointerDown={onEntityPointerDown}
-                      />
-                    </Show>
-                  </div>
-                </div>
-              );
-            }}
-          </SoupList>
+                      >
+                        <Show
+                          when={!row.getIsGrouped()}
+                          fallback={
+                            <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
+                              <button
+                                type="button"
+                                onClick={row.getToggleExpandedHandler()}
+                              >
+                                {row.getIsExpanded() ? 'Close' : 'Open'}
+                              </button>
+                              <span>{row.groupingValue}</span>
+                            </div>
+                          }
+                        >
+                          <EntityWithEverything
+                            entity={row.original}
+                            timestamp={timestamp()}
+                            properties={properties()}
+                            searchActive={!!searchText()}
+                            selected={{
+                              active: soup.focus.id() === row.original.id,
+                              muted: false,
+                            }}
+                            onMouseOver={() => {
+                              if (soup.previewEntity() || isKeypressActive())
+                                return;
+                              soup.focus.set(row.original.id);
+                            }}
+                            onFocusIn={() => {
+                              if (soup.previewEntity()) return;
+                              soup.focus.set(row.original.id);
+                            }}
+                            showLeftColumnIndicator={false}
+                            fadeIfRead={false}
+                            showUnrollNotifications={false}
+                            showDoneButton={false}
+                            highlighted={
+                              panel.isPanelActive() &&
+                              soup.focus.id() === row.original.id
+                            }
+                            splitId={panel.handle.id}
+                            checked={soup.selection.isSelected(row.id)}
+                            onClick={onEntityClick}
+                            onDblClick={onEntityDoubleClick}
+                            onPointerDown={onEntityPointerDown}
+                          />
+                        </Show>
+                      </div>
+                    </div>
+                  );
+                }}
+              </SoupList>
+            </Match>
+          </Switch>
         </StaticMarkdownContext>
       </div>
       <Show when={soup.previewEntity()}>
