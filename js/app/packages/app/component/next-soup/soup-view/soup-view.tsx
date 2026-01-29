@@ -39,16 +39,26 @@ import {
 import { useElementItemCount } from '@app/component/next-soup/use-element-item-count';
 import { debounce } from '@solid-primitives/scheduled';
 import { LoadingBlock } from '@core/component/LoadingBlock';
+import { SplitPanelContext } from '@app/component/split-layout/context';
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
 export const SoupView = () => {
   const soup = useSoup();
+  const panel = useSplitPanelOrThrow();
   return (
-    <SoupViewContextProvider soup={soup}>
-      <SoupViewImpl />
-    </SoupViewContextProvider>
+    <SplitPanelContext.Provider
+      value={{
+        ...panel,
+        halfSplitState: () =>
+          soup.previewEntity() ? { side: 'left', percentage: 30 } : undefined,
+      }}
+    >
+      <SoupViewContextProvider soup={soup}>
+        <SoupViewImpl />
+      </SoupViewContextProvider>
+    </SplitPanelContext.Provider>
   );
 };
 
