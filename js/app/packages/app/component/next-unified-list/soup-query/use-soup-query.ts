@@ -151,7 +151,11 @@ export const useSoupQuery = (
     return false;
   });
 
-  const enabled = createMemo(() => ENABLE_SEARCH_SERVICE);
+  const enabled = createMemo(() => {
+    if (!terms().length) return true;
+
+    return ENABLE_SEARCH_SERVICE && validSearchTerms();
+  });
 
   const mapSearchResponseItem = useSearchResponseItemMapper();
   const authQuery = createApiTokenQuery();
