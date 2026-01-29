@@ -83,7 +83,6 @@ const SoupViewImpl = () => {
 
       return true;
     },
-    // canExecuteKeyDownHandler: () => canAccessEntityList(),
     hide: true,
   });
 
@@ -394,8 +393,6 @@ const SoupList = (props: SoupListProps) => {
   const [virtualizerHandle, setVirtualizerHandle] =
     createSignal<VirtualizerHandle>();
 
-  const rows = createMemo(() => props.rows);
-
   const itemSize = createMemo(() => props.itemSize ?? DEFAULT_ITEM_SIZE);
   const overscan = createMemo(() => props.overscan ?? DEFAULT_OVERSCAN);
 
@@ -427,7 +424,7 @@ const SoupList = (props: SoupListProps) => {
       <VList
         ref={registerVirtualizerHandler}
         class={props.virtualizerClass}
-        data={rows()}
+        data={props.rows}
         itemSize={itemSize()}
         bufferSize={overscan() * itemSize()}
         onScroll={handleScroll}
