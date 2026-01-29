@@ -68,14 +68,13 @@ const SoupViewImpl = () => {
     }
   };
 
-  let initialLoad = true;
   createEffect(
-    on(rows, () => {
-      if (query.isLoading || !initialLoad) return;
-
-      focusFirstEntity();
-      initialLoad = false;
-    })
+    on(
+      () => [soup.filters.activeIds(), searchText()] as const,
+      () => {
+        focusFirstEntity();
+      }
+    )
   );
 
   registerEntityHotkey({
