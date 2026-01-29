@@ -190,24 +190,35 @@ export const SOUP_FILTERS = [
 
 export type FilterID = (typeof SOUP_FILTERS)[number]['id'];
 
-export const ENTITY_TYPE_FILTERS = [
+const ENTITY_TYPE_FILTERS = [
   'document',
   'task',
   'email',
   'people',
   'teams',
-  'project',
   'agent',
   'file',
 ] as const;
 
 type EntityTypeFilters = (typeof ENTITY_TYPE_FILTERS)[number];
 
+export const isEntityTypeFilter = (
+  filter: FilterConfig<EntityData>
+): filter is Extract<
+  (typeof SOUP_FILTERS)[number],
+  { readonly id: EntityTypeFilters }
+> => {
+  return ENTITY_TYPE_FILTERS.includes(filter.id as EntityTypeFilters);
+};
+
+export const ENTITY_TYPE_FILTER_CONFIGS = SOUP_FILTERS.filter((f) =>
+  isEntityTypeFilter(f)
+);
+
 const ENTITY_TYPE_TO_ICON_TYPE: Record<EntityTypeFilters, EntityWithValidIcon> =
   {
     document: 'md',
     email: 'email',
-    project: 'project',
     task: 'task',
     people: 'channel',
     teams: 'directMessage',
@@ -226,9 +237,6 @@ export const getFilterWithID = (filterID: FilterID) => {
 
   return found;
 };
-
-export const isEntityTypeFilter = (filter: FilterID) =>
-  ENTITY_TYPE_FILTERS.includes(filter as EntityTypeFilters);
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 

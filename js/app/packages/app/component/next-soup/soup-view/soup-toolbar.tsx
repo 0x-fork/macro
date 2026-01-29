@@ -5,11 +5,6 @@ import PreviewIcon from '@macro-icons/wide/preview.svg';
 import NoiseIcon from '@macro-icons/wide/noise.svg';
 import SignalIcon from '@macro-icons/wide/signal.svg';
 import {
-  type FilterID,
-  getEntityTypeFilterIcon,
-  getFilterWithID,
-} from '@app/component/next-unified-list/filters/filters';
-import {
   FilterButton,
   FilterDivider,
   ShortcutLabel,
@@ -24,7 +19,6 @@ import { useSettingsState } from '@core/constant/SettingsState';
 import { TOKENS } from '@core/hotkey/tokens';
 import {
   For,
-  createMemo,
   Show,
   onCleanup,
   createSignal,
@@ -32,15 +26,14 @@ import {
   createEffect,
 } from 'solid-js';
 import {
-  ENTITY_TYPE_FILTERS,
-  isEntityTypeFilter,
-  SOUP_FILTERS,
+  ENTITY_TYPE_FILTER_CONFIGS,
+  FilterID,
+  getEntityTypeFilterIcon,
 } from '@app/component/next-soup/filters/filters';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { ValidHotkey } from '@core/hotkey/types';
-import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { IS_MAC } from '@core/constant/isMac';
 
@@ -131,7 +124,7 @@ const SoupFilters = () => {
       description: 'Toggle Other',
       handler: () => toggleFilter('noise'),
     },
-    ...SOUP_FILTERS.filter((f) => isEntityTypeFilter(f.id)).map((f) => ({
+    ...ENTITY_TYPE_FILTER_CONFIGS.map((f) => ({
       hotkey: f.shortcut as ValidHotkey,
       description: `Filter by ${f.label}`,
       handler: () => toggleFilter(f.id),
@@ -230,18 +223,17 @@ const SoupFilters = () => {
       <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
       {/* Entity type icons */}
       <div class="flex items-center shrink-0">
-        <For each={ENTITY_TYPE_FILTERS}>
+        <For each={ENTITY_TYPE_FILTER_CONFIGS}>
           {(filter) => {
-            const iconConfig = () => getEntityTypeFilterIcon(filter);
-            const details = createMemo(() => getFilterWithID(filter));
+            const iconConfig = () => getEntityTypeFilterIcon(filter.id);
 
             return (
               <FilterButton
                 icon={iconConfig().icon}
-                label={details()?.label ?? ''}
-                shortcut={''}
-                isActive={() => soup.filters.isActive(filter)}
-                onClick={() => toggleFilter(filter)}
+                label={filter.label ?? ''}
+                shortcut={filter.shortcut}
+                isActive={() => soup.filters.isActive(filter.id)}
+                onClick={() => toggleFilter(filter.id)}
                 paddingClass="px-2.5"
               />
             );
