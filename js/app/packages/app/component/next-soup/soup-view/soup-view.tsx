@@ -53,7 +53,9 @@ export const SoupView = () => {
 
 const SoupViewImpl = () => {
   const panel = useSplitPanelOrThrow();
-  const { soup, query, rows, searchText } = useSoupView();
+  const { soup, query, rows: _rows, searchText } = useSoupView();
+
+  const rows = createMemo(() => _rows());
 
   const { isKeypressActive } = useIsKeyPressActive();
 
