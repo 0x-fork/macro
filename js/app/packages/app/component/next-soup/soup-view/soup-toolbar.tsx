@@ -13,7 +13,6 @@ import {
   FilterDivider,
   ShortcutLabel,
 } from '@app/component/Soup/components/FilterButton';
-import { ENTITY_TYPE_FILTERS } from '@app/component/Soup/utils/filterConfigs';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -24,6 +23,7 @@ import { useSettingsState } from '@core/constant/SettingsState';
 import { TOKENS } from '@core/hotkey/tokens';
 import { For, createMemo, Show } from 'solid-js';
 import { useSoup } from '@app/component/next-soup/soup-context';
+import { ENTITY_TYPE_FILTERS } from '@app/component/next-soup/filters/filters';
 
 interface SoupToolbarProps {
   onSearchChange: (value: string) => void;
