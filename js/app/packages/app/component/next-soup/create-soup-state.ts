@@ -1,13 +1,17 @@
+import { createSortState } from '@app/component/next-soup/create-sort-state';
 import {
   createFilterState,
-  FilterConfig,
+  type FilterConfig,
 } from '@app/component/next-soup/filters';
 import { SOUP_FILTERS } from '@app/component/next-soup/filters/filters';
 import { createSelectionState } from '@app/component/next-soup/selection-state';
+import { SORT_CONFIGS } from '@app/component/next-soup/soup-view/sort-options';
 import type { EntityData, WithSearch } from '@macro-entity';
 import { createMemo, createSignal } from 'solid-js';
 
 type SoupEntity = EntityData | WithSearch<EntityData>;
+
+export type NavigationResult<T> = { item: T; index: number } | undefined;
 
 export type GroupConfig<T> = {
   id: string;
@@ -20,14 +24,9 @@ export type SortConfig<T> = {
   desc?: boolean;
 };
 
-export type NavigationResult<T> = { item: T; index: number } | undefined;
-
-export type EntityTransformer = (entity: SoupEntity[]) => SoupEntity[];
-
 interface SoupContextOptions {
   initialData?: SoupEntity[];
   wrapNavigation?: boolean;
-  transformers?: EntityTransformer[];
 }
 
 export const createSoupState = (
@@ -43,17 +42,7 @@ export const createSoupState = (
     filters: SOUP_FILTERS,
   });
 
-  const [sort, setSort] = createSignal<SortConfig<SoupEntity>[]>([
-    {
-      id: 'updated_at',
-      fn(a, b) {
-        const aUpdatedAt = a.updatedAt ?? 0;
-        const bUpdatedAt = b.updatedAt ?? 0;
-
-        return bUpdatedAt - aUpdatedAt;
-      },
-    },
-  ]);
+  const sort = createSortState(SORT_CONFIGS);
 
   const [groups, setGroups] = createSignal<GroupConfig<SoupEntity>[]>([]);
 
@@ -123,7 +112,6 @@ export const createSoupState = (
     filters,
     selection,
     sort,
-    setSort,
     groups,
     setGroups,
 

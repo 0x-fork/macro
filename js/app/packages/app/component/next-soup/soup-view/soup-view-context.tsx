@@ -223,10 +223,16 @@ export const SoupViewContextProvider: FlowComponent<
       transformed = nameFuzzySearchFilter(transformed);
     }
 
-    const sort = soup.sort()[0];
+    const sorts = soup.sort.active();
 
-    if (sort) {
-      transformed = transformed.toSorted(sort.fn);
+    if (sorts.length > 0) {
+      transformed = transformed.toSorted((a, b) => {
+        for (const sort of sorts) {
+          const result = sort.fn(a, b);
+          if (result !== 0) return result;
+        }
+        return 0;
+      });
     }
 
     return deduplicateEntities(transformed);
