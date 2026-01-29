@@ -115,10 +115,6 @@
       "name": "email-suppression-stack",
       "version": "0.0.0",
     },
-    "stacks/experiment-service": {
-      "name": "experiment-service-stack",
-      "version": "0.0.0",
-    },
     "stacks/fusion-auth": {
       "name": "fusion-auth",
       "version": "0.0.0",
@@ -144,10 +140,6 @@
     },
     "stacks/organization-retention": {
       "name": "organization-retention-stack",
-      "version": "0.0.0",
-    },
-    "stacks/organization-service": {
-      "name": "organization-service-stack",
       "version": "0.0.0",
     },
     "stacks/properties-service": {
@@ -654,8 +646,6 @@
 
     "execa": ["execa@5.1.1", "", { "dependencies": { "cross-spawn": "^7.0.3", "get-stream": "^6.0.0", "human-signals": "^2.1.0", "is-stream": "^2.0.0", "merge-stream": "^2.0.0", "npm-run-path": "^4.0.1", "onetime": "^5.1.2", "signal-exit": "^3.0.3", "strip-final-newline": "^2.0.0" } }, "sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg=="],
 
-    "experiment-service-stack": ["experiment-service-stack@workspace:stacks/experiment-service"],
-
     "exponential-backoff": ["exponential-backoff@3.1.1", "", {}, "sha512-dX7e/LHVJ6W3DE1MHWi9S1EYzDESENfLrYohG2G++ovZrYOkm4Knwa0mc1cn84xJOR4KEU0WSchhLbd0UklbHw=="],
 
     "fast-xml-parser": ["fast-xml-parser@4.4.1", "", { "dependencies": { "strnum": "^1.0.5" }, "bin": { "fxparser": "src/cli/cli.js" } }, "sha512-xkjOecfnKGkSsOwtZ5Pz7Us/T6mrbPQrq0nh+aCO5V9nk5NLWmasAHumTKjiPJPWANe+kAZ84Jc8ooJkzZ88Sw=="],
@@ -831,8 +821,6 @@
     "opensearch-stack": ["opensearch-stack@workspace:stacks/opensearch"],
 
     "organization-retention-stack": ["organization-retention-stack@workspace:stacks/organization-retention"],
-
-    "organization-service-stack": ["organization-service-stack@workspace:stacks/organization-service"],
 
     "p-cancelable": ["p-cancelable@2.1.1", "", {}, "sha512-BZOr3nRQHOntUjTrH8+Lh54smKHoHyur8We1V8DSMVrl5A2malOOwuJRnKRDjSnkoeBh4at6BwEnb5I7Jl31wg=="],
 

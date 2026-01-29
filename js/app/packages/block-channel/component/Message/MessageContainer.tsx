@@ -21,6 +21,7 @@ import {
   STATIC_VIDEO,
 } from '@core/store/cacheChannelInput';
 import { tryMacroId, useDisplayName } from '@core/user';
+import { isEmojiOnly } from '@core/util/string';
 import { formatRelativeDate, isSameDay } from '@core/util/time';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import { usePatchMessageMutation } from '@queries/channel/message';
@@ -53,6 +54,7 @@ import { EditMessageInput } from './EditMessageInput';
 import { MessageAttachments } from './MessageAttachments';
 import { MessageReactions } from './MessageReactions';
 import { ThreadReplyIndicator } from './ThreadReplyIndicator';
+import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 
 type MessageFlagProps = {
   text: string;
@@ -109,7 +111,6 @@ type MessageProps = {
   container?: HTMLDivElement;
   listContext: MessageListContext;
   setMessageContainerRef?: Setter<HTMLDivElement | undefined>;
-  setLastMessageRef?: Setter<HTMLDivElement | undefined>;
   isTarget: boolean;
 };
 
@@ -122,20 +123,7 @@ export function MessageContainer(props: MessageProps) {
   const [contextMenuOpen, setContextMenuOpen] = createSignal(false);
   const [reactionSearchOpen, setReactionSearchOpen] = createSignal(false);
   const [topBarEmojiMenuOpen, setTopBarEmojiMenuOpen] = createSignal(false);
-  const [messageBodyRef, setMessageBodyRefInner] =
-    createSignal<HTMLDivElement>();
-
-  const setMessageBodyRef = ((
-    value?:
-      | HTMLDivElement
-      | ((prev?: HTMLDivElement) => HTMLDivElement | undefined)
-  ): undefined => {
-    setMessageBodyRefInner(value);
-    if (isLastMessage()) {
-      props.setLastMessageRef?.(value);
-    }
-    return undefined;
-  }) satisfies typeof setMessageBodyRefInner;
+  const [messageBodyRef, setMessageBodyRef] = createSignal<HTMLDivElement>();
 
   const editMessageMutation = usePatchMessageMutation();
 
@@ -463,6 +451,10 @@ export function MessageContainer(props: MessageProps) {
     return message.content.trim() === '';
   });
 
+  const isEmojiOnlyMessage = createMemo(() => {
+    return isEmojiOnly(message.content ?? '');
+  });
+
   const handleThreadToggle = () => {
     if (!message.thread_id) return;
     const threadState_ = threadState();
@@ -475,12 +467,30 @@ export function MessageContainer(props: MessageProps) {
     listContext.toggleThread(message.thread_id);
   };
 
+  const { isKeypressActive } = useIsKeyPressActive();
+
+  const setSelectedMessage = () => {
+    listContext.setFocusedMessageId(message.id);
+  };
+
+  const setSelectedMessageFromMouse = () => {
+    if (isKeypressActive()) return;
+    listContext.setFocusedMessageId(message.id);
+  };
+
   return (
     <div
       class={`shrink-0 flex justify-center w-full ${isTouchDevice() ? 'no-select-children' : ''}`}
       ref={(el) => {
         props.setMessageContainerRef?.(el);
         messageContainerRef = el;
+      }}
+      onFocusIn={() => {
+        setSelectedMessage();
+      }}
+      onMouseMove={() => {
+        if (isTouchDevice()) return;
+        setSelectedMessageFromMouse();
       }}
       data-message-id={message.id}
     >
@@ -570,11 +580,13 @@ export function MessageContainer(props: MessageProps) {
               >
                 <MessageComponent.Body isDeleted={!!message.deleted_at}>
                   <Show when={!isEmptyMessage()}>
-                    <StaticMarkdown
-                      markdown={message.content ?? ''}
-                      theme={channelTheme}
-                      target="internal"
-                    />
+                    <div classList={{ 'text-3xl': isEmojiOnlyMessage() }}>
+                      <StaticMarkdown
+                        markdown={message.content ?? ''}
+                        theme={channelTheme}
+                        target="internal"
+                      />
+                    </div>
                   </Show>
                 </MessageComponent.Body>
               </Show>

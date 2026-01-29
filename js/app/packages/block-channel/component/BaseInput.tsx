@@ -5,6 +5,7 @@ import {
 import type { SendMessageArgs } from '@block-channel/signal/channel';
 import { handleFileUpload } from '@block-channel/utils/inputAttachments';
 import {
+  $convertSingleMentionToCard,
   expandGroupParticipants,
   toSimpleMention,
 } from '@block-channel/utils/mentionExpansion';
@@ -16,7 +17,11 @@ import { useTaskMode } from '@block-channel/utils/useTaskMode';
 import { isInBlock } from '@core/block';
 import { LabelAndHotKey } from '@core/component/Tooltip';
 import { FileDropOverlay } from '@core/component/FileDropOverlay';
-import { setEditorStateFromMarkdown } from '@core/component/LexicalMarkdown/utils';
+import {
+  pendingEditorState,
+  editorStateAsMarkdown,
+  setEditorStateFromMarkdown,
+} from '@core/component/LexicalMarkdown/utils';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
@@ -36,6 +41,7 @@ import PlusIcon from '@icon/regular/plus.svg';
 import FormatIcon from '@icon/regular/text-aa.svg';
 import Trash from '@icon/regular/trash.svg';
 import XIcon from '@icon/regular/x.svg';
+import { $getRoot } from 'lexical';
 import { logger } from '@observability';
 import type { SimpleMention } from '@service-comms/generated/models/simpleMention';
 import { staticFileClient } from '@service-static-files/client';
@@ -66,6 +72,7 @@ import { useChannelMarkdownArea } from './MarkdownArea';
 import { TaskPreviewPanel } from './TaskPreviewPanel';
 import { useUserId } from '@core/context/user';
 import { isMobile } from '@core/mobile/isMobile';
+import { ENABLE_STATIC_DOCUMENT_CARDS } from '@core/constant/featureFlags';
 
 false && fileFolderDrop;
 
@@ -361,7 +368,20 @@ export function BaseInput(props: BaseInputProps) {
   async function handleSend() {
     if (isPendingSend()) return false;
     setIsPendingSend(true);
-    let content = markdownState();
+
+    const statePromise = pendingEditorState(editor);
+    editor.update(
+      () => {
+        $getRoot().markDirty();
+        if (ENABLE_STATIC_DOCUMENT_CARDS) {
+          $convertSingleMentionToCard();
+        }
+      },
+      { discrete: true }
+    );
+
+    const state = await statePromise;
+    let content = editorStateAsMarkdown(state);
     const originalContent = content;
 
     if (taskModeEnabled() && potentialTasks().length > 0) {
@@ -631,7 +651,8 @@ export function BaseInput(props: BaseInputProps) {
         </div>
         <Button
           disabled={hasPendingAttachments()}
-          onClick={() => {
+          onPointerDown={(e) => {
+            e.preventDefault();
             handleSend();
           }}
           class="group transition ease-in-out hover:bg-transparent"
