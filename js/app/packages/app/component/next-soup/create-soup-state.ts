@@ -42,7 +42,7 @@ export const createSoupState = (
     filters: SOUP_FILTERS,
   });
 
-  const sort = createSortState(SORT_CONFIGS);
+  const sort = createSortState(SORT_CONFIGS, ['updated_at']);
 
   const [groups, setGroups] = createSignal<GroupConfig<SoupEntity>[]>([]);
 

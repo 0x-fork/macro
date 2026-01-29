@@ -36,6 +36,8 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { ValidHotkey } from '@core/hotkey/types';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { IS_MAC } from '@core/constant/isMac';
+import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
+import { SystemSortOption } from '@app/component/ViewConfig';
 
 export const SoupToolbar = () => {
   const { soup } = useSoupView();
@@ -264,12 +266,14 @@ const SoupFilters = () => {
       </Tooltip>
       <FilterDivider />
       {/* Sort dropdown */}
-      {/* <SortDropdown */}
-      {/*   open={sortDropdownOpen} */}
-      {/*   onOpenChange={setSortDropdownOpen} */}
-      {/*   value={soup.sort()[0]?.id} */}
-      {/*   onChange={onSortChange} */}
-      {/* /> */}
+      <SortDropdown
+        open={sortDropdownOpen}
+        onOpenChange={setSortDropdownOpen}
+        value={() => soup.sort.active()[0].id as SystemSortOption}
+        onChange={(value) => {
+          soup.sort.setAll([value]);
+        }}
+      />
       <div class="touch:mobile-width:-order-1">
         <FilterDivider />
       </div>

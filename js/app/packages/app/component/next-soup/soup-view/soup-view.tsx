@@ -467,7 +467,7 @@ const SoupViewImpl = () => {
               >
                 {(row, i) => {
                   const timestamp = () => {
-                    const sort_ = soup.sort();
+                    const sort_ = soup.sort.active();
                     if (!sort_.length) return;
 
                     switch (sort_[0].id) {
