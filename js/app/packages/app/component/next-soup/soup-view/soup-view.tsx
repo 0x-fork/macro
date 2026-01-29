@@ -38,6 +38,7 @@ import {
 } from '../../../../macro-entity/src/components/EntityWithEverything';
 import { useElementItemCount } from '@app/component/next-soup/use-element-item-count';
 import { debounce } from '@solid-primitives/scheduled';
+import { LoadingBlock } from '@core/component/LoadingBlock';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -262,10 +263,13 @@ const SoupViewImpl = () => {
       <div ref={setListRef} class="flex flex-col size-full">
         <StaticMarkdownContext>
           <Switch>
-            <Match when={!query.data?.length && !query.isFetching}>
+            <Match when={query.isLoading}>
+              <LoadingBlock />
+            </Match>
+            <Match when={!rows().length}>
               <EmptyState search={!!searchText()} />
             </Match>
-            <Match when={!query.isLoading && query.data}>
+            <Match when={!query.isLoading && rows().length}>
               <SoupList
                 virtualizerClass="scrollbar-hidden"
                 virtualizerRef={setVirtualizerHandle}
