@@ -59,6 +59,16 @@ const SoupViewImpl = () => {
   const [virtualizerHandle, setVirtualizerHandle] =
     createSignal<VirtualizerHandle>();
 
+  const focusFirstEntity = () => {
+    const next = soup.navigate.toFirst();
+
+    if (next) {
+      virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
+    }
+  };
+
+  createEffect(on(rows, focusFirstEntity));
+
   registerEntityHotkey({
     hotkey: ['j', 'arrowdown'],
     scopeId: panel.splitHotkeyScope,
