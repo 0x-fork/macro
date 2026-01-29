@@ -11,6 +11,9 @@ import {
   createMemo,
   createSignal,
   type JSX,
+  onCleanup,
+  createEffect,
+  on,
 } from 'solid-js';
 import { SoupToolbar } from '@app/component/next-soup/soup-view/soup-toolbar';
 import { cn } from '@ui/utils/classname';
@@ -28,12 +31,15 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { useTaskProperties } from '@core/component/Properties/hooks';
 import { TOKENS } from '@core/hotkey/tokens';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
-import { debounce } from 'lodash';
 import {
   EntityWithEverything,
   type EntityClickHandler,
   type EntityPointerDownHandler,
 } from '../../../../macro-entity/src/components/EntityWithEverything';
+import { useElementItemCount } from '@app/component/next-soup/use-element-item-count';
+import { debounce } from '@solid-primitives/scheduled';
+
+const DEFAULT_ENTITY_HEIGHT = 40;
 
 export const SoupView = () => {
   const soup = useSoup();
@@ -223,10 +229,28 @@ const SoupViewImpl = () => {
     }
   };
 
+  const [listRef, setListRef] = createSignal<HTMLDivElement>();
+
+  const viewportItemCount = useElementItemCount({
+    element: listRef,
+    itemHeight: DEFAULT_ENTITY_HEIGHT,
+  });
+
+  // Fetch more data if we filter out more items than the viewport can display
+  // because it's possible that the match exists on the server
+  createEffect(
+    on([rows, viewportItemCount], ([rows, viewportItemCount]) => {
+      if (rows.length >= viewportItemCount || query.isLoading) return;
+      debouncedFetchMore();
+    })
+  );
+
+  onCleanup(() => debouncedFetchMore.clear());
+
   return (
     <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
       <SoupToolbar onSearchChange={setSearchText} />
-      <div class="flex flex-col size-full">
+      <div ref={setListRef} class="flex flex-col size-full">
         <StaticMarkdownContext>
           <Switch>
             <Match when={!query.data?.length && !query.isFetching}>
