@@ -39,6 +39,7 @@ import {
 } from './layoutManager';
 import { decodePairs } from './layoutUtils';
 import { registerSplitHotkeys } from './registerSplitHotkeys';
+import { SoupContextProvider } from '@app/component/next-soup/soup-context';
 
 type SplitLayoutContainerProps = {
   pairs: string[];
@@ -422,9 +423,11 @@ function SplitPanel(props: SplitPanelProps) {
           attachHotKeys(ref);
         }}
       >
-        <Suspense>
-          <Dynamic component={props.split.mount.element} />
-        </Suspense>
+        <SoupContextProvider>
+          <Suspense>
+            <Dynamic component={props.split.mount.element} />
+          </Suspense>
+        </SoupContextProvider>
       </SplitContainer>
     </SplitPanelContext.Provider>
   );
