@@ -104,12 +104,12 @@ const SoupFilters = () => {
             <button
               type="button"
               class="flex items-center gap-1 h-[22px] touch:mobile-width:h-9 pr-2.5 pl-1 active:bg-accent active:text-panel rounded-full"
-              // classList={{
-              //   'bg-accent text-panel': isUnreadFilterActive(),
-              //   'text-ink-muted hover:text-accent hover:bg-accent/20':
-              //     !isUnreadFilterActive(),
-              // }}
-              // onClick={() => toggleUnreadFilter()}
+              classList={{
+                'bg-accent text-panel': soup.filters.isActive('unread'),
+                'text-ink-muted hover:text-accent hover:bg-accent/20':
+                  !soup.filters.isActive('unread'),
+              }}
+              onClick={() => soup.filters.toggle('unread')}
             >
               <svg
                 class="size-4"
