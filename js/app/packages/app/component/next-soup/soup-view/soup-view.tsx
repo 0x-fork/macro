@@ -68,6 +68,16 @@ const SoupViewImpl = () => {
     }
   };
 
+  let initialLoad = true;
+
+  createEffect(
+    on(rows, () => {
+      if (!initialLoad || query.isLoading) return;
+      focusFirstEntity();
+      initialLoad = false;
+    })
+  );
+
   createEffect(
     on(
       () => [soup.filters.activeIds(), searchText()] as const,
