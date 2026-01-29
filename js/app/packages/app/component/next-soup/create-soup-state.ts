@@ -43,7 +43,17 @@ export const createSoupState = (
     filters: SOUP_FILTERS,
   });
 
-  const [sort, setSort] = createSignal<SortConfig<SoupEntity>[]>([]);
+  const [sort, setSort] = createSignal<SortConfig<SoupEntity>[]>([
+    {
+      id: 'updated_at',
+      fn(a, b) {
+        const aUpdatedAt = a.updatedAt ?? 0;
+        const bUpdatedAt = b.updatedAt ?? 0;
+
+        return bUpdatedAt - aUpdatedAt;
+      },
+    },
+  ]);
 
   const [groups, setGroups] = createSignal<GroupConfig<SoupEntity>[]>([]);
 
