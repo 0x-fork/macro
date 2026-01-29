@@ -256,6 +256,89 @@ const SoupViewImpl = () => {
     }
   };
 
+  let lastClickedEntityId = -1;
+
+  const getSelectionAnchorIndex = (params: {
+    entities: SoupRow[];
+    lastClickedIndex: number;
+  }) => {
+    // Try to grab the last clicked item and fall back on the highest currently
+    // selected index.
+    let anchorIndex = params.lastClickedIndex;
+    if (anchorIndex === -1) {
+      for (let i = 0; i < params.entities.length; i++) {
+        if (params.entities[i].isSelected()) {
+          anchorIndex = i;
+        }
+      }
+    }
+    return anchorIndex;
+  };
+
+  const handleMultiSelectChecked = (params: {
+    entity: EntityData;
+    entityIndex: number;
+    next: boolean;
+    shiftKey: boolean;
+  }) => {
+    if (!params.shiftKey) {
+      soup.selection.toggle(params.entity);
+      lastClickedEntityId = params.entityIndex;
+      return;
+    }
+
+    const entityList = rows();
+
+    const anchorIndex = getSelectionAnchorIndex({
+      entities: entityList,
+      lastClickedIndex: lastClickedEntityId,
+    });
+
+    if (anchorIndex === -1) {
+      soup.selection.toggle(params.entity);
+      lastClickedEntityId = params.entityIndex;
+      return;
+    }
+
+    const newEntitiesForSelection = [];
+    const sign = Math.sign(params.entityIndex - anchorIndex);
+
+    for (
+      let i = anchorIndex;
+      sign > 0 ? i <= params.entityIndex : i >= params.entityIndex;
+      i += sign
+    ) {
+      const entity = entityList[i];
+      if (!entity.isSelected()) {
+        newEntitiesForSelection.push(entity.original);
+      }
+    }
+
+    soup.selection.selectRange(newEntitiesForSelection, 'add');
+
+    lastClickedEntityId = params.entityIndex;
+  };
+
+  // reset last clicked on reset multi-selection.
+  createEffect(() => {
+    if (soup.selection.count() === 0) {
+      lastClickedEntityId = -1;
+    }
+  });
+
+  createEffect(
+    on(panel.isPanelActive, () => {
+      if (!panel.isPanelActive()) {
+        return;
+      }
+      // if (activeSoupContext() !== soupContext) return;
+      // const domEl = activeSoupContext()?.domRef();
+      // setTimeout(() => {
+      //   domEl?.focus();
+      // });
+    })
+  );
+
   const [listRef, setListRef] = createSignal<HTMLDivElement>();
 
   const viewportItemCount = useElementItemCount({
@@ -293,7 +376,7 @@ const SoupViewImpl = () => {
                 onScrollBottom={debouncedFetchMore}
                 rows={rows()}
               >
-                {(row) => {
+                {(row, i) => {
                   const timestamp = () => {
                     const sort_ = soup.sort();
                     if (!sort_.length) return;
@@ -343,6 +426,7 @@ const SoupViewImpl = () => {
                           }
                         >
                           <EntityWithEverything
+                            splitId={panel.handle.id}
                             entity={row.original}
                             timestamp={timestamp()}
                             properties={properties()}
@@ -368,8 +452,15 @@ const SoupViewImpl = () => {
                               panel.isPanelActive() &&
                               soup.focus.id() === row.original.id
                             }
-                            splitId={panel.handle.id}
                             checked={row.isSelected()}
+                            onChecked={(next, shiftKey) =>
+                              handleMultiSelectChecked({
+                                entity: row.original,
+                                entityIndex: i(),
+                                next,
+                                shiftKey: shiftKey ?? false,
+                              })
+                            }
                             onClick={onEntityClick}
                             onDblClick={onEntityDoubleClick}
                             onPointerDown={onEntityPointerDown}
