@@ -34,7 +34,6 @@ import {
   useGlobalBlockOrchestrator,
   useGlobalNotificationSource,
 } from '@app/component/GlobalAppState';
-import { openEntityInNewTab } from '@app/component/next-unified-list/utils';
 import { registerEntityHotkey } from '@app/component/SoupContext';
 import { openEntityInSplitFromUnifiedList } from '@app/component/soupContextHelpers';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
@@ -58,6 +57,7 @@ import {
   tryToTypedNotification,
   type UnifiedNotification,
 } from '@notifications';
+import { openEntityInNewTab } from '@app/component/next-soup/utils';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 

@@ -1,9 +1,9 @@
 import {
   createFilterState,
-  type FilterConfig,
-} from '@app/component/next-unified-list/filters';
-import { SOUP_FILTERS } from '@app/component/next-unified-list/filters/filters';
-import { createSelectionState } from '@app/component/next-unified-list/selection-state';
+  FilterConfig,
+} from '@app/component/next-soup/filters';
+import { SOUP_FILTERS } from '@app/component/next-soup/filters/filters';
+import { createSelectionState } from '@app/component/next-soup/selection-state';
 import type { EntityData, WithSearch } from '@macro-entity';
 import { createMemo, createSignal } from 'solid-js';
 

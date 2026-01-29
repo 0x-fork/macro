@@ -8,7 +8,6 @@ import { EmailCompose } from '../../../block-email/component/Compose';
 import { Soup } from '../Soup';
 import { SettingsPanel } from '../settings/Settings';
 import NotificationRoute from '@notifications/components/NotificationRoute';
-import SoupV2 from '@app/component/next-unified-list/next-unified-list';
 import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
 
 export type ComponentFactory = (params?: Record<string, any>) => JSXElement;

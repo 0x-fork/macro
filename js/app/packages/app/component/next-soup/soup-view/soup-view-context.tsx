@@ -3,8 +3,8 @@ import {
   createSoupState,
   type SoupState,
 } from '@app/component/next-soup/create-soup-state';
-import { buildDssFiltersRequest } from '@app/component/next-unified-list/filters/filters';
-import { deduplicateEntities } from '@app/component/next-unified-list/utils';
+import { buildDssFiltersRequest } from '@app/component/next-soup/filters/filters';
+import { deduplicateEntities } from '@app/component/next-soup/utils';
 import { arrayEquals } from '@core/util/compareUtils';
 import { debouncedDependent } from '@core/util/debounce';
 import { fuzzyMatch } from '@core/util/fuzzy';
