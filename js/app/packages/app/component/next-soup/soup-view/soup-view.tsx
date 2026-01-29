@@ -1,8 +1,14 @@
+import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { PreviewPanel } from '@app/component/PreviewPanel';
 import { EmptyState } from '@app/component/UnifiedListEmptyState';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
-import { type EntityData, isTaskEntity, unreadFilterFn } from '@macro-entity';
+import {
+  type EntityData,
+  isTaskEntity,
+  type Notification,
+  unreadFilterFn,
+} from '@macro-entity';
 import {
   Switch,
   Match,
@@ -19,11 +25,15 @@ import { SoupToolbar } from '@app/component/next-soup/soup-view/soup-toolbar';
 import { cn } from '@ui/utils/classname';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import {
+  type SoupEntity,
   type SoupRow,
   SoupViewContextProvider,
   useSoupView,
 } from '@app/component/next-soup/soup-view/soup-view-context';
-import { useGlobalBlockOrchestrator } from '@app/component/GlobalAppState';
+import {
+  useGlobalBlockOrchestrator,
+  useGlobalNotificationSource,
+} from '@app/component/GlobalAppState';
 import { openEntityInNewTab } from '@app/component/next-unified-list/utils';
 import { registerEntityHotkey } from '@app/component/SoupContext';
 import { openEntityInSplitFromUnifiedList } from '@app/component/soupContextHelpers';
@@ -41,6 +51,13 @@ import { debounce } from '@solid-primitives/scheduled';
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import { SplitPanelContext } from '@app/component/split-layout/context';
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
+import {
+  isChannelMention,
+  isChannelMessageReply,
+  isChannelMessageSend,
+  tryToTypedNotification,
+  type UnifiedNotification,
+} from '@notifications';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -269,6 +286,61 @@ const SoupViewImpl = () => {
     }
   };
 
+  const onClickEntityAction = (entity: EntityData) => {
+    //
+    // soupContext.actionRegistry.isActionEnabled(
+    //   'mark_as_done',
+    //   innerProps.entity
+    // )
+    //   ? (entity, type) => {
+    //       if (type === 'done') {
+    //         markEntityAsDone?.(entity);
+    //       }
+    //     }
+    //   : undefined
+  };
+
+  const blockOrchestrator = useGlobalBlockOrchestrator();
+  const notificationSource = useGlobalNotificationSource();
+  const gotoChannelNotification = async (notification: UnifiedNotification) => {
+    if (
+      !isChannelMention(notification) &&
+      !isChannelMessageReply(notification) &&
+      !isChannelMessageSend(notification)
+    )
+      return;
+
+    const message_id = notification.notificationMetadata.messageId;
+    let thread_id: string | null | undefined;
+
+    const blockHandle = await blockOrchestrator.getBlockHandle(
+      notification.entity_id,
+      'channel'
+    );
+    if (!blockHandle) return;
+
+    if (!isChannelMessageSend(notification))
+      thread_id = notification.notificationMetadata.threadId;
+
+    notificationSource.markAsRead(notification);
+
+    return blockHandle?.goToLocationFromParams({
+      [CHANNEL_PARAMS.message]: message_id,
+      [CHANNEL_PARAMS.thread]: thread_id,
+    });
+  };
+
+  const onClickNotification = ({
+    entity,
+  }: {
+    entity: SoupEntity & { notification: Notification };
+  }) => {
+    const notification = tryToTypedNotification(entity.notification);
+    if (!notification || entity.type !== 'channel') return;
+
+    gotoChannelNotification(notification);
+  };
+
   let lastClickedEntityId = -1;
 
   const getSelectionAnchorIndex = (params: {
@@ -420,7 +492,7 @@ const SoupViewImpl = () => {
                       return !row.original.done;
                     }
 
-                    return row.original.notifications?.().length ?? 0 > 0;
+                    return (row.original.notifications?.().length ?? 0) > 0;
                   };
 
                   return (
@@ -504,6 +576,8 @@ const SoupViewImpl = () => {
                               onClick={onEntityClick}
                               onDblClick={onEntityDoubleClick}
                               onPointerDown={onEntityPointerDown}
+                              onClickRowAction={onClickEntityAction}
+                              onClickNotification={onClickNotification}
                             />
                           </Show>
                         </div>
