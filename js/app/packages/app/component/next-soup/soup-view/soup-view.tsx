@@ -591,7 +591,13 @@ const SoupViewImpl = () => {
           </Switch>
         </StaticMarkdownContext>
       </div>
-      <SoupEntitySelectionToolbar />
+      <Show when={soup.selection.count() > 0}>
+        <SoupEntitySelectionToolbar
+          selected={soup.selection.selected()}
+          onClose={soup.selection.clear}
+          onClear={soup.selection.clear}
+        />
+      </Show>
       <Show when={soup.previewEntity()}>
         <PreviewPanel
           selectedEntity={soup.focus.item()}

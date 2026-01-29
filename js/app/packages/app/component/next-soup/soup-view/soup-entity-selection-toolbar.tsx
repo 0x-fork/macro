@@ -10,43 +10,47 @@ import {
   toggleKonsoleVisibility,
 } from '@app/component/command/state';
 import { EntitySelectionToolbarModal } from '@app/component/EntitySelectionToolbarModal';
-import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
-import { Show } from 'solid-js';
+import type { EntityData } from '@macro-entity';
 
-export const SoupEntitySelectionToolbar = () => {
-  const { soup } = useSoupView();
+interface SoupEntitySelectionToolbarProps {
+  selected: EntityData[];
+  onClose: VoidFunction;
+  onClear: VoidFunction;
+}
+
+export const SoupEntitySelectionToolbar = (
+  props: SoupEntitySelectionToolbarProps
+) => {
   return (
-    <Show when={soup.selection.count()}>
-      <EntitySelectionToolbarModal
-        multiSelectEntities={soup.selection.selected()}
-        onClose={soup.selection.clear}
-        onAction={() => {
-          const selected = soup.selection.selected();
-          const hasSelection = selected.length > 0;
-          if (!hasSelection) {
-            searchCategories.hideCategory('Selection');
-            resetCommandCategoryIndex();
-            resetKonsoleMode();
-            return;
-          }
+    <EntitySelectionToolbarModal
+      multiSelectEntities={props.selected}
+      onClose={props.onClose}
+      onAction={() => {
+        const selected = props.selected;
+        const hasSelection = selected.length > 0;
+        if (!hasSelection) {
+          searchCategories.hideCategory('Selection');
+          resetCommandCategoryIndex();
+          resetKonsoleMode();
+          return;
+        }
 
-          setKonsoleMode('SELECTION_MODIFICATION');
-          const selectionIndex = searchCategories.getCategoryIndex('Selection');
+        setKonsoleMode('SELECTION_MODIFICATION');
+        const selectionIndex = searchCategories.getCategoryIndex('Selection');
 
-          if (selectionIndex === undefined) return false;
+        if (selectionIndex === undefined) return false;
 
-          setCommandCategoryIndex(selectionIndex);
+        setCommandCategoryIndex(selectionIndex);
 
-          searchCategories.showCategory('Selection');
+        searchCategories.showCategory('Selection');
 
-          setKonsoleContextInformation({
-            selectedEntities: selected.slice(),
-            clearSelection: soup.selection.clear,
-          });
+        setKonsoleContextInformation({
+          selectedEntities: selected.slice(),
+          clearSelection: props.onClear,
+        });
 
-          toggleKonsoleVisibility();
-        }}
-      />
-    </Show>
+        toggleKonsoleVisibility();
+      }}
+    />
   );
 };
