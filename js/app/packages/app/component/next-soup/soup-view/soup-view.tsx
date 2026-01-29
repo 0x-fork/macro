@@ -357,8 +357,6 @@ interface SoupListProps {
 }
 
 const SoupList = (props: SoupListProps) => {
-  // TODO: Handle fallback states?
-
   const [virtualizerHandle, setVirtualizerHandle] =
     createSignal<VirtualizerHandle>();
 
