@@ -136,24 +136,37 @@ function EmailContent(props: EmailViewProps) {
 
     setIsScrollingToMessage(true);
 
-    const success = scrollToMessage(messageId, messages, container, {
-      behavior: opts.behavior,
-      reversed: true,
-    });
+    // Wait for layout to complete before scrolling
+    // Double rAF ensures the browser has painted and layout is stable
+    const doScroll = () => {
+      // Check if container has been laid out
+      if (container.scrollHeight === 0) {
+        requestAnimationFrame(doScroll);
+        return;
+      }
 
-    if (!success) {
-      setIsScrollingToMessage(false);
-      return false;
-    }
+      const success = scrollToMessage(messageId, messages, container, {
+        behavior: opts.behavior,
+        reversed: true,
+      });
 
-    if (context.messages.targetMessageID() === messageId) {
-      setTimeout(() => {
-        context.messages.setTargetMessageID(undefined);
-      }, TARGET_MESSAGE_HIGHLIGHT_MS);
-    }
+      if (!success) {
+        setIsScrollingToMessage(false);
+        return;
+      }
 
-    // Clear scrolling flag after animation
-    setTimeout(() => setIsScrollingToMessage(false), SCROLL_ANIMATION_MS);
+      if (context.messages.targetMessageID() === messageId) {
+        setTimeout(() => {
+          context.messages.setTargetMessageID(undefined);
+        }, TARGET_MESSAGE_HIGHLIGHT_MS);
+      }
+
+      // Clear scrolling flag after animation
+      setTimeout(() => setIsScrollingToMessage(false), SCROLL_ANIMATION_MS);
+    };
+
+    // Use double requestAnimationFrame to ensure layout is complete
+    requestAnimationFrame(() => requestAnimationFrame(doScroll));
 
     return true;
   };
