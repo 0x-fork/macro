@@ -21,9 +21,18 @@ import { useSplitLayout } from '@app/component/split-layout/layout';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { TOKENS } from '@core/hotkey/tokens';
-import { For, createMemo, Show } from 'solid-js';
+import { For, createMemo, Show, onCleanup, createSignal } from 'solid-js';
 import { useSoup } from '@app/component/next-soup/soup-context';
-import { ENTITY_TYPE_FILTERS } from '@app/component/next-soup/filters/filters';
+import {
+  ENTITY_TYPE_FILTERS,
+  isEntityTypeFilter,
+  SOUP_FILTERS,
+} from '@app/component/next-soup/filters/filters';
+import { registerHotkey } from '@core/hotkey/hotkeys';
+import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
+import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
+import { ValidHotkey } from '@core/hotkey/types';
+import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
 
 interface SoupToolbarProps {
   onSearchChange: (value: string) => void;
@@ -71,11 +80,72 @@ export const SoupToolbar = (props: SoupToolbarProps) => {
 };
 
 const SoupFilters = () => {
-  const soup = useSoup();
+  const { soup, setSearchText } = useSoupView();
+  const panel = useSplitPanelOrThrow();
+
+  const [sortDropdownOpen, setSortDropdownOpen] = createSignal(false);
 
   const toggleFilter = (filter: FilterID) => {
     soup.filters.toggle(filter);
   };
+
+  const hotkeyConfigs: {
+    hotkey: ValidHotkey;
+    description: string;
+    handler: () => void;
+  }[] = [
+    {
+      hotkey: 'i',
+      description: 'Toggle Inbox',
+      handler: () => toggleFilter('signal'),
+    },
+    {
+      hotkey: 'o',
+      description: 'Toggle Other',
+      handler: () => toggleFilter('noise'),
+    },
+    ...SOUP_FILTERS.filter((f) => isEntityTypeFilter(f.id)).map((f) => ({
+      hotkey: f.shortcut as ValidHotkey,
+      description: `Filter by ${f.label}`,
+      handler: () => toggleFilter(f.id),
+    })),
+    {
+      hotkey: 'u',
+      description: 'Filter by Unread',
+      handler: () => toggleFilter('unread'),
+    },
+    {
+      hotkey: 's',
+      description: 'Open sort menu',
+      handler: () => setSortDropdownOpen((prev) => !prev),
+    },
+    {
+      hotkey: '/',
+      description: 'Clear filters',
+      handler: () => {
+        soup.filters.clear();
+        setSearchText('');
+      },
+    },
+  ];
+
+  const hotkeyDisposers = hotkeyConfigs.map((config) =>
+    registerHotkey({
+      hotkey: [config.hotkey],
+      scopeId: panel.splitHotkeyScope,
+      description: config.description,
+      keyDownHandler: () => {
+        config.handler();
+        return true;
+      },
+      registrationType: 'add',
+    })
+  );
+
+  onCleanup(() => {
+    hotkeyDisposers.forEach((d) => d.dispose());
+  });
+
   return (
     <div class="relative">
       <div class="flex items-center h-full overflow-x-auto scrollbar-hidden overscroll-none text-xs touch:mobile-width:text-sm">

@@ -118,12 +118,14 @@ export const SOUP_FILTERS = [
     label: 'Inbox',
     predicate: signalFilter,
     group: 'focus',
+    shortcut: 'i',
   },
   {
     id: 'noise',
     label: 'Other',
     predicate: noiseFilter,
     group: 'focus',
+    shortcut: 'i',
   },
 
   // Notification filters
@@ -131,6 +133,7 @@ export const SOUP_FILTERS = [
     id: 'unread',
     label: 'Unread',
     predicate: unreadFilter,
+    shortcut: 'u',
   },
 
   // Entity type filters (mutually exclusive)
@@ -139,48 +142,49 @@ export const SOUP_FILTERS = [
     label: 'Docs',
     predicate: documentFilter,
     group: 'type',
+    shortcut: 'd',
   },
   {
     id: 'task',
     label: 'Tasks',
     predicate: taskFilter,
     group: 'type',
+    shortcut: 't',
   },
   {
     id: 'email',
     label: 'Mail',
     predicate: emailFilter,
     group: 'type',
+    shortcut: 'l',
   },
   {
     id: 'people',
     label: 'People',
     predicate: peopleFilter,
     group: 'type',
+    shortcut: 'p',
   },
   {
     id: 'teams',
     label: 'Teams',
     predicate: teamsFilter,
     group: 'type',
+    shortcut: 'm',
   },
   {
     id: 'agent',
     label: 'Agents',
     predicate: agentFilter,
     group: 'type',
-  },
-  {
-    id: 'project',
-    label: 'Folders',
-    predicate: projectFilter,
-    group: 'type',
+    shortcut: 'a',
   },
   {
     id: 'file',
     label: 'Files',
     predicate: fileFilter,
     group: 'type',
+    shortcut: 'f',
   },
 ] as const;
 
