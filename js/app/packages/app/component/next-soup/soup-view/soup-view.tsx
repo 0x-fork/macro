@@ -58,6 +58,7 @@ import {
   type UnifiedNotification,
 } from '@notifications';
 import { openEntityInNewTab } from '@app/component/next-soup/utils';
+import { SoupEntitySelectionToolbar } from '@app/component/next-soup/soup-view/soup-entity-selection-toolbar';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -590,6 +591,7 @@ const SoupViewImpl = () => {
           </Switch>
         </StaticMarkdownContext>
       </div>
+      <SoupEntitySelectionToolbar />
       <Show when={soup.previewEntity()}>
         <PreviewPanel
           selectedEntity={soup.focus.item()}
