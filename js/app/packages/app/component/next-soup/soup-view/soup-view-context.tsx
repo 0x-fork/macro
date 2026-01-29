@@ -211,7 +211,7 @@ export const SoupViewContextProvider: FlowComponent<
       transformed = transformed.filter(filter.predicate);
     }
 
-    if (searchText()) {
+    if (searchText().length > 0 && searchText().length < 3) {
       transformed = nameFuzzySearchFilter(transformed);
     }
 
