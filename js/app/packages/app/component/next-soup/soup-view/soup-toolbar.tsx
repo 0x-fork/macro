@@ -8,7 +8,6 @@ import {
   getEntityTypeFilterIcon,
   getFilterWithID,
 } from '@app/component/next-unified-list/filters/filters';
-import { useSoup } from '@app/component/next-unified-list/soup-context-v1';
 import {
   FilterButton,
   FilterDivider,
@@ -24,6 +23,7 @@ import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { TOKENS } from '@core/hotkey/tokens';
 import { For, createMemo, Show } from 'solid-js';
+import { useSoup } from '@app/component/next-soup/soup-context';
 
 interface SoupToolbarProps {
   onSearchChange: (value: string) => void;
