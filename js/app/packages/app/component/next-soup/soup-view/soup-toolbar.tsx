@@ -1,3 +1,4 @@
+import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
 import IconGear from '@macro-icons/macro-gear.svg';
 import XIcon from '@icon/regular/x.svg?component-solid';
 import PreviewIcon from '@macro-icons/wide/preview.svg';
@@ -42,6 +43,7 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { ValidHotkey } from '@core/hotkey/types';
 import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
 import { createElementSize } from '@solid-primitives/resize-observer';
+import { IS_MAC } from '@core/constant/isMac';
 
 interface SoupToolbarProps {
   onSearchChange: (value: string) => void;
@@ -65,12 +67,7 @@ export const SoupToolbar = (props: SoupToolbarProps) => {
             class="flex items-center h-full overflow-x-auto scrollbar-hidden overscroll-none text-xs touch:mobile-width:text-sm"
           >
             <SoupFilters />
-            <input
-              type="text"
-              onInput={(e) => {
-                props.onSearchChange(e.currentTarget.value);
-              }}
-            />
+            <SearchBar />
           </div>
         </div>
       </SplitHeaderLeft>
@@ -367,5 +364,79 @@ const ScrollIndicators = (props: { scrollRef: HTMLElement | undefined }) => {
         style={{ opacity: rightOpacity() }}
       />
     </>
+  );
+};
+
+const SearchBar = () => {
+  const { searchText, setSearchText } = useSoupView();
+  const panel = useSplitPanelOrThrow();
+
+  const [ref, setRef] = createSignal<HTMLInputElement | undefined>();
+
+  const [searchFocused, setSearchFocused] = createSignal(false);
+
+  const searchHotkey = registerHotkey({
+    hotkey: ['cmd+f'],
+    scopeId: panel.splitHotkeyScope,
+    description: 'Search',
+    keyDownHandler: () => {
+      ref()?.focus();
+      if (ref()?.value) ref()?.select();
+      return true;
+    },
+    registrationType: 'add',
+  });
+
+  onCleanup(searchHotkey.dispose);
+
+  return (
+    <div class="flex items-center shrink-0 touch:mobile-width:-order-2">
+      <Tooltip tooltip={<LabelAndHotKey label="Filter" shortcut="⌘F" />}>
+        <div
+          class="relative flex items-center gap-1.5 h-[22px] touch:mobile-width:h-9 px-2.5 rounded-full touch:mobile-width:min-w-35"
+          classList={{
+            'bg-accent text-panel': !!searchText() && !searchFocused(),
+            'text-ink-muted hover:text-accent hover:bg-accent/20':
+              !searchText() || searchFocused(),
+          }}
+          onClick={() => ref()?.focus()}
+        >
+          <SearchIcon class="size-4.5 shrink-0" />
+          <Show when={!searchText() && !searchFocused()}>
+            <span class="leading-none pointer-events-none">
+              <span class="underline underline-offset-2 decoration-current/60">
+                {IS_MAC ? '⌘' : '^'}F
+              </span>
+              <span>ilter</span>
+            </span>
+          </Show>
+          <input
+            ref={setRef}
+            type="text"
+            value={searchText()}
+            onInput={(e) => setSearchText(e.currentTarget.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Escape' ||
+                e.key === 'Enter' ||
+                e.key === 'ArrowDown'
+              ) {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+            }}
+            class="p-0 bg-transparent border-none outline-none ring-0 focus:outline-none focus:ring-0 cursor-default"
+            style={{
+              width:
+                !searchText() && !searchFocused()
+                  ? '0'
+                  : `${Math.max(5, searchText().length + 1)}ch`,
+            }}
+          />
+        </div>
+      </Tooltip>
+    </div>
   );
 };
