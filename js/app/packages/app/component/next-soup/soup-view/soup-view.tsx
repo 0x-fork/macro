@@ -2,7 +2,7 @@ import { useSoup } from '@app/component/next-soup/soup-context';
 import { PreviewPanel } from '@app/component/PreviewPanel';
 import { EmptyState } from '@app/component/UnifiedListEmptyState';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
-import { type EntityData, isTaskEntity } from '@macro-entity';
+import { type EntityData, isTaskEntity, unreadFilterFn } from '@macro-entity';
 import {
   Switch,
   Match,
@@ -370,6 +370,10 @@ const SoupViewImpl = () => {
 
   onCleanup(() => debouncedFetchMore.clear());
 
+  const [entityContextMenuOpen, setEntityContextMenuOpen] = createSignal<
+    string | undefined
+  >(undefined);
+
   return (
     <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
       <SoupToolbar />
@@ -410,10 +414,24 @@ const SoupViewImpl = () => {
                     }
                     return undefined;
                   };
+
+                  const shouldDisplayDoneButton = () => {
+                    if (row.original.type === 'email') {
+                      return !row.original.done;
+                    }
+
+                    return row.original.notifications?.().length ?? 0 > 0;
+                  };
+
                   return (
                     <SoupEntityContextMenu
                       entity={row.original}
                       entityTimestamp={timestamp()}
+                      onOpenChange={(open) => {
+                        setEntityContextMenuOpen(
+                          open ? row.original.id : undefined
+                        );
+                      }}
                     >
                       <div
                         class={'unified-table-row'}
@@ -449,9 +467,14 @@ const SoupViewImpl = () => {
                               properties={properties()}
                               searchActive={!!searchText()}
                               selected={{
-                                active: soup.focus.id() === row.original.id,
-                                muted: false,
+                                active:
+                                  row.isFocused() ||
+                                  entityContextMenuOpen() === row.original.id,
+                                muted: row.isFocused(),
                               }}
+                              highlighted={
+                                panel.isPanelActive() && row.isFocused()
+                              }
                               onMouseOver={() => {
                                 if (soup.previewEntity() || isKeypressActive())
                                   return;
@@ -461,14 +484,14 @@ const SoupViewImpl = () => {
                                 if (soup.previewEntity()) return;
                                 soup.focus.set(row.original.id);
                               }}
-                              showLeftColumnIndicator={false}
-                              fadeIfRead={false}
-                              showUnrollNotifications={false}
-                              showDoneButton={false}
-                              highlighted={
-                                panel.isPanelActive() &&
-                                soup.focus.id() === row.original.id
+                              showUnrollNotifications={
+                                soup.filters.isActive('signal') &&
+                                !soup.filters.isActive('noise')
                               }
+                              unreadIndicatorActive={unreadFilterFn(
+                                row.original
+                              )}
+                              showDoneButton={shouldDisplayDoneButton()}
                               checked={row.isSelected()}
                               onChecked={(next, shiftKey) =>
                                 handleMultiSelectChecked({

@@ -8,13 +8,14 @@ import { type FlowComponent, Show } from 'solid-js';
 interface SoupEntityContextMenuProps {
   entity: EntityData;
   entityTimestamp?: number;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const SoupEntityContextMenu: FlowComponent<
   SoupEntityContextMenuProps
 > = (props) => {
   return (
-    <ContextMenu>
+    <ContextMenu onOpenChange={props.onOpenChange}>
       <ContextMenu.Trigger class="@container/uList size-full unified-list-root">
         {props.children}
       </ContextMenu.Trigger>
