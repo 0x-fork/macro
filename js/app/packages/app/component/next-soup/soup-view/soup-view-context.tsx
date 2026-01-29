@@ -1,3 +1,4 @@
+import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import {
   createSoupState,
   type SoupState,
@@ -8,7 +9,8 @@ import { deduplicateEntities } from '@app/component/next-unified-list/utils';
 import { arrayEquals } from '@core/util/compareUtils';
 import { debouncedDependent } from '@core/util/debounce';
 import { fuzzyMatch } from '@core/util/fuzzy';
-import type { EntityData, WithSearch } from '@macro-entity';
+import type { EntityData, WithNotification, WithSearch } from '@macro-entity';
+import { useNotificationsForEntity } from '@notifications';
 import type { SearchArgs } from '@service-search/client';
 import type { UnifiedSearchIndex } from '@service-search/generated/models';
 import {
@@ -38,7 +40,7 @@ type Row<T> = {
 
 export type SoupRow = Row<SoupEntity>;
 
-export type SoupEntity = EntityData | WithSearch<EntityData>;
+export type SoupEntity = WithNotification<EntityData | WithSearch<EntityData>>;
 
 interface SoupViewContextValues {
   soup: SoupState;
@@ -177,9 +179,14 @@ export const SoupViewContextProvider: FlowComponent<
     });
   };
 
+  const notificationSource = useGlobalNotificationSource();
+
   const attachMethods = (entity: EntityData, depth = 0): SoupRow => {
     return {
-      original: entity,
+      original: {
+        ...entity,
+        notifications: useNotificationsForEntity(notificationSource, entity),
+      },
       depth,
       isFocused() {
         return soup.focus.id() === entity.id;
