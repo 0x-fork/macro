@@ -187,7 +187,7 @@ export const SoupViewContextProvider: FlowComponent<
         return soup.selection.isSelected(entity.id);
       },
       isGrouped() {
-        return soup.selection.isSelected(entity.id);
+        return false;
       },
       isExpanded() {
         return soup.selection.isSelected(entity.id);
