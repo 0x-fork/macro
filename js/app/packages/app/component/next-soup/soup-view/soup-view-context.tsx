@@ -4,6 +4,7 @@ import {
 } from '@app/component/next-soup/create-soup-state';
 import { buildDssFiltersRequest } from '@app/component/next-unified-list/filters/filters';
 import { useSoupQuery } from '@app/component/next-unified-list/soup-query/use-soup-query';
+import { deduplicateEntities } from '@app/component/next-unified-list/utils';
 import { arrayEquals } from '@core/util/compareUtils';
 import { debouncedDependent } from '@core/util/debounce';
 import { fuzzyMatch } from '@core/util/fuzzy';
@@ -221,7 +222,7 @@ export const SoupViewContextProvider: FlowComponent<
       transformed = transformed.toSorted(sort.fn);
     }
 
-    return transformed;
+    return deduplicateEntities(transformed);
   };
 
   const rows = () => {
