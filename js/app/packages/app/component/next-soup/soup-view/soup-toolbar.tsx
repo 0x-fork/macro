@@ -31,7 +31,6 @@ import {
   onMount,
   createEffect,
 } from 'solid-js';
-import { useSoup } from '@app/component/next-soup/soup-context';
 import {
   ENTITY_TYPE_FILTERS,
   isEntityTypeFilter,
@@ -45,25 +44,21 @@ import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { IS_MAC } from '@core/constant/isMac';
 
-interface SoupToolbarProps {
-  onSearchChange: (value: string) => void;
-}
+export const SoupToolbar = () => {
+  const { soup } = useSoupView();
 
-export const SoupToolbar = (props: SoupToolbarProps) => {
-  const soup = useSoup();
-
-  const [scrollRef, setScrollRef] = createSignal<HTMLDivElement | undefined>(
-    undefined
-  );
+  const [scrollContainerRef, setScrollContainerRef] = createSignal<
+    HTMLDivElement | undefined
+  >(undefined);
 
   return (
     <>
       <SplitHeaderLeft>
         <div class="relative h-full">
-          <ScrollIndicators scrollRef={scrollRef()} />
+          <ScrollIndicators scrollRef={scrollContainerRef()} />
 
           <div
-            ref={setScrollRef}
+            ref={setScrollContainerRef}
             class="flex items-center h-full overflow-x-auto scrollbar-hidden overscroll-none text-xs touch:mobile-width:text-sm"
           >
             <SoupFilters />
@@ -107,6 +102,20 @@ const SoupFilters = () => {
     soup.filters.toggle(filter);
   };
 
+  const togglePreview = () => {
+    const currentPreview = soup.previewEntity();
+    if (currentPreview) {
+      soup.setPreviewEntity(undefined);
+      return;
+    }
+
+    const focused = soup.focus.id();
+
+    if (!focused) return;
+
+    soup.setPreviewEntity(focused);
+  };
+
   const hotkeyConfigs: {
     hotkey: ValidHotkey;
     description: string;
@@ -143,6 +152,13 @@ const SoupFilters = () => {
       handler: () => {
         soup.filters.clear();
         setSearchText('');
+      },
+    },
+    {
+      hotkey: 'space',
+      description: 'Toggle preview',
+      handler: () => {
+        togglePreview();
       },
     },
   ];
@@ -246,19 +262,7 @@ const SoupFilters = () => {
               !soup.previewEntity(),
           }}
           disabled={!soup.focus.id()}
-          onClick={() => {
-            const currentPreview = soup.previewEntity();
-            if (currentPreview) {
-              soup.setPreviewEntity(undefined);
-              return;
-            }
-
-            const focused = soup.focus.id();
-
-            if (!focused) return;
-
-            soup.setPreviewEntity(focused);
-          }}
+          onClick={togglePreview}
         >
           <PreviewIcon class="size-4.5" />
           <span class="leading-none">

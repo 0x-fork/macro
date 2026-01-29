@@ -53,7 +53,7 @@ export const SoupView = () => {
 
 const SoupViewImpl = () => {
   const panel = useSplitPanelOrThrow();
-  const { soup, query, rows, searchText, setSearchText } = useSoupView();
+  const { soup, query, rows, searchText } = useSoupView();
 
   const { isKeypressActive } = useIsKeyPressActive();
 
@@ -266,7 +266,7 @@ const SoupViewImpl = () => {
 
   return (
     <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
-      <SoupToolbar onSearchChange={setSearchText} />
+      <SoupToolbar />
       <div ref={setListRef} class="flex flex-col size-full">
         <StaticMarkdownContext>
           <Switch>
