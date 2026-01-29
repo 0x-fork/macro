@@ -198,7 +198,7 @@ export const SoupViewContextProvider: FlowComponent<
     };
   };
 
-  const rows = () => {
+  const entities = () => {
     const data = query.data;
 
     if (!data) return [];
@@ -215,9 +215,17 @@ export const SoupViewContextProvider: FlowComponent<
       transformed = nameFuzzySearchFilter(transformed);
     }
 
-    transformed = transformed.toSorted(soup.sort()[0].fn);
+    const sort = soup.sort()[0];
 
-    return transformed.map(attachMethods);
+    if (sort) {
+      transformed = transformed.toSorted(sort.fn);
+    }
+
+    return transformed;
+  };
+
+  const rows = () => {
+    return entities().map((e) => attachMethods(e));
   };
 
   const context = {
@@ -232,24 +240,20 @@ export const SoupViewContextProvider: FlowComponent<
   return (
     <SoupViewContext.Provider value={context}>
       {props.children}
-
       <Suspense>
-        <SyncWithSoup soup={soup} query={query} />
+        <SyncWithSoup soup={soup} entities={entities()} />
       </Suspense>
     </SoupViewContext.Provider>
   );
 };
 
-const SyncWithSoup = (props) => {
-  createRenderEffect(
-    on(
-      () => props.query.data,
-      (data) => {
-        if (!data) return;
-        props.soup.setData(data);
-      }
-    )
-  );
+interface SyncWithSoupProps {
+  soup: SoupState;
+  entities: SoupEntity[];
+}
+
+const SyncWithSoup = (props: SyncWithSoupProps) => {
+  createRenderEffect(on(() => props.entities, props.soup.setData));
 
   return null;
 };
