@@ -39,6 +39,7 @@ import {
 import { useElementItemCount } from '@app/component/next-soup/use-element-item-count';
 import { debounce } from '@solid-primitives/scheduled';
 import { LoadingBlock } from '@core/component/LoadingBlock';
+import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -400,76 +401,81 @@ const SoupViewImpl = () => {
                     return undefined;
                   };
                   return (
-                    <div
-                      class={'unified-table-row'}
-                      data-row-id={row.original.id}
-                      data-row
-                      role="row"
-                      tabIndex={0}
+                    <SoupEntityContextMenu
+                      entity={row.original}
+                      entityTimestamp={timestamp()}
                     >
                       <div
-                        class="flex flex-col"
-                        style={{
-                          'padding-left': `${row.depth * 8}px`,
-                        }}
+                        class={'unified-table-row'}
+                        data-row-id={row.original.id}
+                        data-row
+                        role="row"
+                        tabIndex={0}
                       >
-                        <Show
-                          when={!row.isGrouped()}
-                          fallback={
-                            <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
-                              <button
-                                type="button"
-                                onClick={() => row.toggleExpanded()}
-                              >
-                                {row.isExpanded() ? 'Close' : 'Open'}
-                              </button>
-                              <span>{row.original.name}</span>
-                            </div>
-                          }
+                        <div
+                          class="flex flex-col"
+                          style={{
+                            'padding-left': `${row.depth * 8}px`,
+                          }}
                         >
-                          <EntityWithEverything
-                            splitId={panel.handle.id}
-                            entity={row.original}
-                            timestamp={timestamp()}
-                            properties={properties()}
-                            searchActive={!!searchText()}
-                            selected={{
-                              active: soup.focus.id() === row.original.id,
-                              muted: false,
-                            }}
-                            onMouseOver={() => {
-                              if (soup.previewEntity() || isKeypressActive())
-                                return;
-                              soup.focus.set(row.original.id);
-                            }}
-                            onFocusIn={() => {
-                              if (soup.previewEntity()) return;
-                              soup.focus.set(row.original.id);
-                            }}
-                            showLeftColumnIndicator={false}
-                            fadeIfRead={false}
-                            showUnrollNotifications={false}
-                            showDoneButton={false}
-                            highlighted={
-                              panel.isPanelActive() &&
-                              soup.focus.id() === row.original.id
+                          <Show
+                            when={!row.isGrouped()}
+                            fallback={
+                              <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
+                                <button
+                                  type="button"
+                                  onClick={() => row.toggleExpanded()}
+                                >
+                                  {row.isExpanded() ? 'Close' : 'Open'}
+                                </button>
+                                <span>{row.original.name}</span>
+                              </div>
                             }
-                            checked={row.isSelected()}
-                            onChecked={(next, shiftKey) =>
-                              handleMultiSelectChecked({
-                                entity: row.original,
-                                entityIndex: i(),
-                                next,
-                                shiftKey: shiftKey ?? false,
-                              })
-                            }
-                            onClick={onEntityClick}
-                            onDblClick={onEntityDoubleClick}
-                            onPointerDown={onEntityPointerDown}
-                          />
-                        </Show>
+                          >
+                            <EntityWithEverything
+                              splitId={panel.handle.id}
+                              entity={row.original}
+                              timestamp={timestamp()}
+                              properties={properties()}
+                              searchActive={!!searchText()}
+                              selected={{
+                                active: soup.focus.id() === row.original.id,
+                                muted: false,
+                              }}
+                              onMouseOver={() => {
+                                if (soup.previewEntity() || isKeypressActive())
+                                  return;
+                                soup.focus.set(row.original.id);
+                              }}
+                              onFocusIn={() => {
+                                if (soup.previewEntity()) return;
+                                soup.focus.set(row.original.id);
+                              }}
+                              showLeftColumnIndicator={false}
+                              fadeIfRead={false}
+                              showUnrollNotifications={false}
+                              showDoneButton={false}
+                              highlighted={
+                                panel.isPanelActive() &&
+                                soup.focus.id() === row.original.id
+                              }
+                              checked={row.isSelected()}
+                              onChecked={(next, shiftKey) =>
+                                handleMultiSelectChecked({
+                                  entity: row.original,
+                                  entityIndex: i(),
+                                  next,
+                                  shiftKey: shiftKey ?? false,
+                                })
+                              }
+                              onClick={onEntityClick}
+                              onDblClick={onEntityDoubleClick}
+                              onPointerDown={onEntityPointerDown}
+                            />
+                          </Show>
+                        </div>
                       </div>
-                    </div>
+                    </SoupEntityContextMenu>
                   );
                 }}
               </SoupList>
