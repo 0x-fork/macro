@@ -68,7 +68,15 @@ const SoupViewImpl = () => {
     }
   };
 
-  createEffect(on(rows, focusFirstEntity));
+  let initialLoad = true;
+  createEffect(
+    on(rows, () => {
+      if (query.isLoading || !initialLoad) return;
+
+      focusFirstEntity();
+      initialLoad = false;
+    })
+  );
 
   registerEntityHotkey({
     hotkey: ['j', 'arrowdown'],
