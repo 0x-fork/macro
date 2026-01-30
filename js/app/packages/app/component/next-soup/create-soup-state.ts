@@ -3,7 +3,10 @@ import {
   createFilterState,
   type FilterConfig,
 } from '@app/component/next-soup/filters';
-import { SOUP_FILTERS } from '@app/component/next-soup/filters/filters';
+import {
+  FilterID,
+  SOUP_FILTERS,
+} from '@app/component/next-soup/filters/filters';
 import { createSelectionState } from '@app/component/next-soup/selection-state';
 import { SORT_CONFIGS } from '@app/component/next-soup/soup-view/sort-options';
 import type { EntityData, WithSearch } from '@macro-entity';
@@ -26,11 +29,12 @@ export type SortConfig<T> = {
 
 interface SoupContextOptions {
   initialData?: SoupEntity[];
+  initialFilters?: FilterID[];
   wrapNavigation?: boolean;
 }
 
 export const createSoupState = (
-  { wrapNavigation, initialData }: SoupContextOptions = {
+  { wrapNavigation, initialData, initialFilters }: SoupContextOptions = {
     wrapNavigation: false,
   }
 ) => {
@@ -40,6 +44,7 @@ export const createSoupState = (
 
   const filters = createFilterState<SoupEntity, FilterConfig<SoupEntity>>({
     filters: SOUP_FILTERS,
+    initialFilters,
   });
 
   const sort = createSortState(SORT_CONFIGS, ['updated_at']);
