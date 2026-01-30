@@ -348,7 +348,6 @@ mod tests {
             created_at: None,
             updated_at: None,
             sub_type: None,
-            deleted_at: None,
         };
 
         let markdown_result = vec![

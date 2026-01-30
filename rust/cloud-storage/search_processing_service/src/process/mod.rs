@@ -106,7 +106,7 @@ pub async fn process_message(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use document::models::FileType;
+    use ::document::models::FileType;
     use sqs_client::search::document::SearchExtractorMessage;
 
     #[test]
