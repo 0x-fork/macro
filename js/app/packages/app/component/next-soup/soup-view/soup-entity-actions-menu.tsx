@@ -3,7 +3,6 @@ import { globalSplitManager } from '@app/signal/splitLayout';
 import { MenuItem } from '@core/component/Menu';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import type { EntityData } from '@macro-entity';
-import { Show } from 'solid-js';
 import {
   makeCopyAction,
   makeDeleteAction,
@@ -54,8 +53,6 @@ export const SoupEntityActionsMenu = (props: SoupEntityActionsMenuProps) => {
     props.onActionComplete?.();
   };
 
-  const Divider = () => <div class="border-b border-edge-muted w-full my-1" />;
-
   const canOpenInSplit = () => {
     if (props.entities.length !== 1) return false;
     const entity = props.entities[0];
@@ -93,13 +90,11 @@ export const SoupEntityActionsMenu = (props: SoupEntityActionsMenuProps) => {
 
   return (
     <>
-      <Show when={canExecuteAny(markDone.canExecute)}>
-        <MenuItem
-          text="Mark Done"
-          disabled={!canExecuteAny(markDone.canExecute)}
-          onClick={() => handleAction(markDone.executeWithSoup)}
-        />
-      </Show>
+      <MenuItem
+        text="Mark Done"
+        disabled={!canExecuteAny(markDone.canExecute)}
+        onClick={() => handleAction(markDone.executeWithSoup)}
+      />
 
       <MenuItem
         text="Open in new split"
@@ -109,41 +104,35 @@ export const SoupEntityActionsMenu = (props: SoupEntityActionsMenuProps) => {
 
       <Divider />
 
-      <Show when={canExecuteAll(renameAction.canExecute)}>
-        <MenuItem
-          text="Rename"
-          disabled={!canExecuteAll(renameAction.canExecute)}
-          onClick={() => handleAction(renameAction.executeWithSoup)}
-        />
-      </Show>
+      <MenuItem
+        text="Rename"
+        disabled={!canExecuteAll(renameAction.canExecute)}
+        onClick={() => handleAction(renameAction.executeWithSoup)}
+      />
 
-      <Show when={canExecuteAny(moveToProjectAction.canExecute)}>
-        <MenuItem
-          text="Move to folder"
-          disabled={!canExecuteAny(moveToProjectAction.canExecute)}
-          onClick={() => handleAction(moveToProjectAction.executeWithSoup)}
-        />
-      </Show>
+      <MenuItem
+        text="Move to folder"
+        disabled={!canExecuteAny(moveToProjectAction.canExecute)}
+        onClick={() => handleAction(moveToProjectAction.executeWithSoup)}
+      />
 
-      <Show when={canExecuteAny(copyAction.canExecute)}>
-        <MenuItem
-          text="Copy"
-          disabled={!canExecuteAny(copyAction.canExecute)}
-          onClick={() => handleAction(copyAction.executeWithSoup)}
-        />
-      </Show>
+      <MenuItem
+        text="Copy"
+        disabled={!canExecuteAny(copyAction.canExecute)}
+        onClick={() => handleAction(copyAction.executeWithSoup)}
+      />
 
       <Divider />
 
-      <Show when={canExecuteAll(deleteAction.canExecute)}>
-        <div class="text-failure-ink w-full">
-          <MenuItem
-            text="Delete"
-            disabled={!canExecuteAll(deleteAction.canExecute)}
-            onClick={() => handleAction(deleteAction.executeWithSoup)}
-          />
-        </div>
-      </Show>
+      <div class="text-failure-ink w-full">
+        <MenuItem
+          text="Delete"
+          disabled={!canExecuteAll(deleteAction.canExecute)}
+          onClick={() => handleAction(deleteAction.executeWithSoup)}
+        />
+      </div>
     </>
   );
 };
+
+const Divider = () => <div class="border-b border-edge-muted w-full my-1" />;
