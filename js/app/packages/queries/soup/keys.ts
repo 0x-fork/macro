@@ -4,9 +4,9 @@ import type { SearchSoupQueryArgs } from './search';
 
 export const soupKeys = createQueryKeys('soup', {
   items: (args: SoupItemsQueryArgs) => ({
-    queryKey: [args],
+    queryKey: [args.params, args.body],
   }),
   search: (args: SearchSoupQueryArgs) => ({
-    queryKey: [args],
+    queryKey: [args.params, args.body],
   }),
 });

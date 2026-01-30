@@ -44,6 +44,7 @@ import {
 } from './auth';
 import { queryClient } from './client';
 import { type DssQueryKey, dssQueryKeyHashFn, queryKeys } from './key';
+import { soupKeys } from '@queries/soup/keys';
 
 const resolveDocumentEntityName = (
   entity: DocumentEntity | SoupDocument
@@ -419,6 +420,9 @@ export function createDeleteDssItemMutation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.all.dss,
       });
+      queryClient.invalidateQueries({
+        queryKey: soupKeys.items._def,
+      });
     },
   }));
 }
@@ -624,6 +628,10 @@ export function createRenameDssEntityMutation(
           queryClient.invalidateQueries({
             queryKey: queryKeys.all.dss,
           });
+
+          queryClient.invalidateQueries({
+            queryKey: soupKeys.items._def,
+          });
         },
       },
       callbacks
@@ -700,6 +708,9 @@ export function createBulkRenameDssEntityMutation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.all.dss,
       });
+      queryClient.invalidateQueries({
+        queryKey: soupKeys.items._def,
+      });
     },
   }));
 }
@@ -729,6 +740,9 @@ function invalidateAfterMove(hasProjects: boolean, failed?: boolean) {
 
   queryClient.invalidateQueries({
     queryKey: queryKeys.all.dss,
+  });
+  queryClient.invalidateQueries({
+    queryKey: soupKeys.items._def,
   });
   queryClient.invalidateQueries({ queryKey: ['entity'] });
   // If moving a project, invalidate all project queries since nested projects' breadcrumbs change too
@@ -821,6 +835,9 @@ export function createCopyDssEntityMutation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.all.dss,
       });
+      queryClient.invalidateQueries({
+        queryKey: soupKeys.items._def,
+      });
       queryClient.invalidateQueries({ queryKey: ['entity'] });
     },
   }));
@@ -878,6 +895,9 @@ export function createBulkCopyDssEntityMutation() {
       // Trigger refetch so new items appear
       queryClient.invalidateQueries({
         queryKey: queryKeys.all.dss,
+      });
+      queryClient.invalidateQueries({
+        queryKey: soupKeys.items._def,
       });
       queryClient.invalidateQueries({ queryKey: ['entity'] });
     },
