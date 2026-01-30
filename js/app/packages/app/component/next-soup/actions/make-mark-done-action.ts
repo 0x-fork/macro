@@ -100,6 +100,14 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     const nextEntity =
       soup.items.at(currentIndex + 1) ?? soup.items.at(currentIndex - 1);
 
+    // Run collapse animation if conditions are met (touch modality + not-done filter active)
+    if (soup.collapseEntity.shouldCollapse()) {
+      const collapse = soup.collapseEntity.callback();
+      if (collapse) {
+        await Promise.all(entities.map((entity) => collapse(entity.id)));
+      }
+    }
+
     await execute(entities);
 
     soup.selection.clear();

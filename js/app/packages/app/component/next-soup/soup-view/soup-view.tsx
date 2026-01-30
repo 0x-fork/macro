@@ -400,10 +400,6 @@ const SoupViewImpl = () => {
     }
   );
 
-  const [collapseEntityCallback, setCollapseEntityCallback] = createSignal<
-    ((entityID: string) => Promise<void>) | undefined
-  >();
-
   return (
     <div
       ref={setSoupViewRef}
@@ -433,7 +429,7 @@ const SoupViewImpl = () => {
                   if (!entity) return;
                   markDoneAction.executeWithSoup([entity.original], soup);
                 }}
-                setCollapseEntity={setCollapseEntityCallback}
+                setCollapseEntity={soup.collapseEntity.set}
               >
                 <SoupList
                   ref={setLocalEntityListRef}

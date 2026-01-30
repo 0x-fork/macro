@@ -9,6 +9,7 @@ import {
 } from '@app/component/next-soup/filters/filters';
 import { createSelectionState } from '@app/component/next-soup/selection-state';
 import { SORT_CONFIGS } from '@app/component/next-soup/soup-view/sort-options';
+import { isModality } from '@core/mobile/inputModality';
 import type { EntityData, WithSearch } from '@macro-entity';
 import { createMemo, createSignal } from 'solid-js';
 
@@ -58,6 +59,10 @@ export const createSoupState = (
   };
 
   const [previewEntity, setPreviewEntity] = createSignal<string | undefined>();
+
+  const [collapseEntityCallback, setCollapseEntityCallback] = createSignal<
+    ((entityId: string) => Promise<void>) | undefined
+  >(undefined);
 
   const [focusedId, setFocusedId] = createSignal<string | undefined>();
 
@@ -158,6 +163,18 @@ export const createSoupState = (
 
     previewEntity,
     setPreviewEntity,
+
+    collapseEntity: {
+      callback: collapseEntityCallback,
+      set: setCollapseEntityCallback,
+      shouldCollapse: () => {
+        return (
+          filters.isActive('not-done') &&
+          collapseEntityCallback() !== undefined &&
+          isModality('touch')
+        );
+      },
+    },
   };
 };
 
