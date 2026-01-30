@@ -39,6 +39,24 @@ import { IS_MAC } from '@core/constant/isMac';
 import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
 import type { SystemSortOption } from '@app/component/ViewConfig';
 
+/**
+ * Keyboard shortcuts for entity type filters.
+ * This object is the single source of truth for filter shortcuts,
+ * used by both the filter buttons and hotkey registrations.
+ */
+const ENTITY_TYPE_SHORTCUTS: Record<
+  (typeof ENTITY_TYPE_FILTER_CONFIGS)[number]['id'],
+  ValidHotkey
+> = {
+  document: 'd',
+  task: 't',
+  email: 'l',
+  people: 'p',
+  teams: 'm',
+  agent: 'a',
+  file: 'f',
+};
+
 export const SoupToolbar = () => {
   const { soup } = useSoupView();
 
@@ -150,11 +168,42 @@ const SoupFilters = () => {
       description: 'Toggle Other',
       handler: toggleNoiseFilter,
     },
-    ...ENTITY_TYPE_FILTER_CONFIGS.map((f) => ({
-      hotkey: f.shortcut as ValidHotkey,
-      description: `Filter by ${f.label}`,
-      handler: () => toggleFilter(f.id),
-    })),
+    // Entity type filter hotkeys
+    {
+      hotkey: ENTITY_TYPE_SHORTCUTS.document,
+      description: 'Filter by Docs',
+      handler: () => toggleFilter('document'),
+    },
+    {
+      hotkey: ENTITY_TYPE_SHORTCUTS.task,
+      description: 'Filter by Tasks',
+      handler: () => toggleFilter('task'),
+    },
+    {
+      hotkey: ENTITY_TYPE_SHORTCUTS.email,
+      description: 'Filter by Mail',
+      handler: () => toggleFilter('email'),
+    },
+    {
+      hotkey: ENTITY_TYPE_SHORTCUTS.people,
+      description: 'Filter by People',
+      handler: () => toggleFilter('people'),
+    },
+    {
+      hotkey: ENTITY_TYPE_SHORTCUTS.teams,
+      description: 'Filter by Teams',
+      handler: () => toggleFilter('teams'),
+    },
+    {
+      hotkey: ENTITY_TYPE_SHORTCUTS.agent,
+      description: 'Filter by Agents',
+      handler: () => toggleFilter('agent'),
+    },
+    {
+      hotkey: ENTITY_TYPE_SHORTCUTS.file,
+      description: 'Filter by Files',
+      handler: () => toggleFilter('file'),
+    },
     {
       hotkey: 'u',
       description: 'Filter by Unread',
@@ -252,12 +301,13 @@ const SoupFilters = () => {
         <For each={ENTITY_TYPE_FILTER_CONFIGS}>
           {(filter) => {
             const iconConfig = () => getEntityTypeFilterIcon(filter.id);
+            const shortcut = ENTITY_TYPE_SHORTCUTS[filter.id];
 
             return (
               <FilterButton
                 icon={iconConfig().icon}
                 label={filter.label ?? ''}
-                shortcut={filter.shortcut}
+                shortcut={shortcut}
                 isActive={() => soup.filters.isActive(filter.id)}
                 onClick={() => toggleFilter(filter.id)}
                 paddingClass="px-2.5"
