@@ -19,7 +19,7 @@ export const SoupEntityContextMenu: FlowComponent<
 
   return (
     <ContextMenu onOpenChange={props.onOpenChange}>
-      <ContextMenu.Trigger class="@container/uList size-full unified-list-root">
+      <ContextMenu.Trigger class="size-full">
         {props.children}
       </ContextMenu.Trigger>
       <ContextMenu.Portal>

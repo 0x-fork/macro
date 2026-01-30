@@ -67,6 +67,7 @@ import {
   type EntityPointerDownHandler,
   EntityWithEverything,
 } from '../../../../macro-entity/src/components/EntityWithEverything';
+import { CustomScrollbar } from '@core/component/CustomScrollbar';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -407,7 +408,13 @@ const SoupViewImpl = () => {
       data-hotkey-scope={panel.splitHotkeyScope}
     >
       <SoupToolbar />
-      <div ref={setListRef} class="flex flex-col size-full">
+      <div
+        ref={setListRef}
+        class="@container/uList size-full unified-list-root flex flex-col"
+        classList={{
+          'border-r border-edge-muted': soup.previewEntity() !== undefined,
+        }}
+      >
         <StaticMarkdownContext>
           <Switch>
             <Match when={source.isLoading()}>
@@ -434,6 +441,7 @@ const SoupViewImpl = () => {
                 <SoupList
                   ref={setLocalEntityListRef}
                   virtualizerClass="scrollbar-hidden"
+                  class="overflow-hidden flex min-w-0"
                   virtualizerRef={setVirtualizerHandle}
                   onScrollBottom={debouncedFetchMore}
                   rows={rows()}
@@ -486,85 +494,79 @@ const SoupViewImpl = () => {
                           }}
                         >
                           <div
-                            class={'unified-table-row'}
-                            data-row-id={row.original.id}
-                            data-row
-                            role="row"
-                            tabIndex={0}
+                            class="flex flex-col w-full min-w-0"
+                            style={{
+                              'padding-left': `${row.depth * 8}px`,
+                            }}
                           >
-                            <div
-                              class="flex flex-col"
-                              style={{
-                                'padding-left': `${row.depth * 8}px`,
-                              }}
+                            <Show
+                              when={!row.isGrouped()}
+                              fallback={
+                                <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
+                                  <button
+                                    type="button"
+                                    onClick={() => row.toggleExpanded()}
+                                  >
+                                    {row.isExpanded() ? 'Close' : 'Open'}
+                                  </button>
+                                  <span>{row.original.name}</span>
+                                </div>
+                              }
                             >
-                              <Show
-                                when={!row.isGrouped()}
-                                fallback={
-                                  <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
-                                    <button
-                                      type="button"
-                                      onClick={() => row.toggleExpanded()}
-                                    >
-                                      {row.isExpanded() ? 'Close' : 'Open'}
-                                    </button>
-                                    <span>{row.original.name}</span>
-                                  </div>
+                              <EntityWithEverything
+                                splitId={panel.handle.id}
+                                entity={row.original}
+                                timestamp={timestamp()}
+                                properties={properties()}
+                                searchActive={!!searchText()}
+                                selected={{
+                                  active:
+                                    row.isFocused() ||
+                                    entityContextMenuOpen() === row.original.id,
+                                  // TODO: Update this to take into account when this is used within a nested
+                                  // view like the preview panel
+                                  muted:
+                                    row.isFocused() && !panel.isPanelActive(),
+                                }}
+                                highlighted={
+                                  panel.isPanelActive() && row.isFocused()
                                 }
-                              >
-                                <EntityWithEverything
-                                  splitId={panel.handle.id}
-                                  entity={row.original}
-                                  timestamp={timestamp()}
-                                  properties={properties()}
-                                  searchActive={!!searchText()}
-                                  selected={{
-                                    active:
-                                      row.isFocused() ||
-                                      entityContextMenuOpen() ===
-                                        row.original.id,
-                                    muted: row.isFocused(),
-                                  }}
-                                  highlighted={
-                                    panel.isPanelActive() && row.isFocused()
-                                  }
-                                  onMouseOver={() => {
-                                    if (
-                                      soup.previewEntity() ||
-                                      isKeypressActive()
-                                    )
-                                      return;
-                                    soup.focus.set(row.original.id);
-                                  }}
-                                  onFocusIn={() => {
-                                    if (soup.previewEntity()) return;
-                                    soup.focus.set(row.original.id);
-                                  }}
-                                  showUnrollNotifications={
-                                    soup.filters.isActive('signal') &&
-                                    !soup.filters.isActive('noise')
-                                  }
-                                  unreadIndicatorActive={unreadFilterFn(
-                                    row.original
-                                  )}
-                                  showDoneButton={shouldDisplayDoneButton()}
-                                  checked={row.isSelected()}
-                                  onChecked={(next, shiftKey) =>
-                                    handleMultiSelectChecked({
-                                      entity: row.original,
-                                      entityIndex: i(),
-                                      next,
-                                      shiftKey: shiftKey ?? false,
-                                    })
-                                  }
-                                  onClick={onEntityClick}
-                                  onDblClick={onEntityDoubleClick}
-                                  onPointerDown={onEntityPointerDown}
-                                  onClickRowAction={onClickEntityAction}
-                                  onClickNotification={onClickNotification}
-                                />
-                              </Show>
-                            </div>
+                                onMouseOver={() => {
+                                  if (
+                                    soup.previewEntity() ||
+                                    isKeypressActive()
+                                  )
+                                    return;
+                                  soup.focus.set(row.original.id);
+                                }}
+                                onFocusIn={() => {
+                                  if (soup.previewEntity()) return;
+                                  soup.focus.set(row.original.id);
+                                }}
+                                showUnrollNotifications={
+                                  soup.filters.isActive('signal') &&
+                                  !soup.filters.isActive('noise')
+                                }
+                                unreadIndicatorActive={unreadFilterFn(
+                                  row.original
+                                )}
+                                showDoneButton={shouldDisplayDoneButton()}
+                                checked={row.isSelected()}
+                                onChecked={(next, shiftKey) =>
+                                  handleMultiSelectChecked({
+                                    entity: row.original,
+                                    entityIndex: i(),
+                                    next,
+                                    shiftKey: shiftKey ?? false,
+                                  })
+                                }
+                                onClick={onEntityClick}
+                                onDblClick={onEntityDoubleClick}
+                                onPointerDown={onEntityPointerDown}
+                                onClickRowAction={onClickEntityAction}
+                                onClickNotification={onClickNotification}
+                              />
+                            </Show>
                           </div>
                         </SoupEntityContextMenu>
                       </EntityRow>
@@ -572,6 +574,18 @@ const SoupViewImpl = () => {
                   }}
                 </SoupList>
               </EntityRowProvider>
+
+              <CustomScrollbar
+                scrollContainer={() => {
+                  // Find the actual scroll container (VList creates its own scroll container)
+                  const listEl = localEntityListRef();
+                  if (!listEl) return undefined;
+                  const scrollContainer = listEl.querySelector(
+                    '[data-soup-list-container]'
+                  ) as HTMLElement;
+                  return scrollContainer || undefined;
+                }}
+              />
             </Match>
           </Switch>
         </StaticMarkdownContext>
@@ -652,6 +666,7 @@ const SoupList = (props: SoupListProps) => {
         itemSize={itemSize()}
         bufferSize={overscan() * itemSize()}
         onScroll={handleScroll}
+        data-soup-list-container
       >
         {(row, i) => props.children(row, i)}
       </VList>

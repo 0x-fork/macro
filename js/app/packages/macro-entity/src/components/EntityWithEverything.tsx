@@ -1208,7 +1208,7 @@ export function EntityWithEverything(
     <div
       use:draggable
       data-checked={props.checked}
-      class="everything-entity w-full relative group/entity hover:bg-hover/30 text-sm touch:mobile-width:text-base mx-[1px]"
+      class="everything-entity w-full relative group/entity hover:bg-hover/30 text-sm touch:mobile-width:text-base"
       style={{
         'min-height': `${ENTITY_HEIGHT}px`,
       }}
