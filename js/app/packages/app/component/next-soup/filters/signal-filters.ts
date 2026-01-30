@@ -11,7 +11,11 @@
  * - Projects: Signal if recently viewed
  */
 
-import type { EntityData } from '@macro-entity';
+import {
+  isTaskEntity,
+  TaskEntityWithProperties,
+  type EntityData,
+} from '@macro-entity';
 import {
   PRIORITY_LABELS,
   DEPRIORITY_LABELS,
@@ -19,6 +23,11 @@ import {
   DEPRIORITY_METADATA,
   type EmailMetadataKey,
 } from './signal-config';
+import {
+  getTaskAssigneeIds,
+  isTaskClosed,
+} from '@app/component/Soup/utils/filterHelpers';
+import { useUserId } from '@core/context/user';
 
 // ============================================================================
 // Helper Functions
@@ -143,6 +152,43 @@ function isNoiseEmail(entity: EmailEntity): boolean {
   return hasDepriority && !hasPriority;
 }
 
+/**
+ * checks if the current user is assigned to the task.
+ */
+export const isCurrentUserAssigned = (
+  entity: TaskEntityWithProperties,
+  currentUserId: string | undefined
+): boolean => {
+  if (!currentUserId) return false;
+  const assigneeIds = getTaskAssigneeIds(entity);
+  if (assigneeIds.length === 0) return true;
+  return assigneeIds.includes(currentUserId);
+};
+
+/**
+ * determines if a task should appear in the signal tab.
+ * tasks appear in signal if:
+ * - they are not completed or canceled
+ * - the current user is an assignee (or the task has no assignees)
+ */
+export const isSignalTask = (
+  entity: TaskEntityWithProperties,
+  currentUserId: string | undefined
+): boolean => {
+  if (isTaskClosed(entity)) {
+    return false;
+  }
+  return isCurrentUserAssigned(entity, currentUserId);
+};
+
+const getCurrentUserId = () => {
+  try {
+    return useUserId()();
+  } catch {
+    return undefined;
+  }
+};
+
 // ============================================================================
 // Filter Predicates
 // ============================================================================
@@ -163,18 +209,18 @@ export function signalFilter(entity: EntityData): boolean {
       return true;
     case 'chat':
       return hasRecentlyViewed(entity);
-    case 'document':
-      if (entity.subType?.type === 'task') {
-        return true;
+    case 'document': {
+      if (isTaskEntity(entity)) {
+        const currentUserId = getCurrentUserId();
+        return isSignalTask(entity as TaskEntityWithProperties, currentUserId);
       }
+
       return hasRecentlyViewed(entity);
+    }
     case 'email':
-      return isSignalEmail(entity);
+      return isSignalEmail(entity) || entity.isDraft;
     case 'project':
       return hasRecentlyViewed(entity);
-    default:
-      // Unknown entity types default to signal
-      return true;
   }
 }
 

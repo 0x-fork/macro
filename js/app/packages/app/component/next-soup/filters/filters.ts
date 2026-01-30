@@ -145,6 +145,11 @@ export const SOUP_FILTERS = [
     predicate: unreadFilter,
     shortcut: 'u',
   },
+  {
+    id: 'not-done',
+    label: 'Not done',
+    predicate: notDoneFilter,
+  },
 
   // Entity type filters (mutually exclusive)
   {

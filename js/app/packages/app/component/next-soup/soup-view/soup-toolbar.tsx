@@ -97,6 +97,30 @@ const SoupFilters = () => {
     soup.filters.toggle(filter);
   };
 
+  const toggleSignalFilter = () => {
+    // If we're going to be removing the signal filter,
+    // we should replace it with the explicit-noise filter
+    if (soup.filters.isActive('signal')) {
+      toggleFilter('explicit-noise');
+    } else {
+      toggleFilter('signal');
+    }
+
+    toggleFilter('not-done');
+  };
+
+  const toggleNoiseFilter = () => {
+    // If we're going to be removing the noise filter,
+    // we should replace it with the explicit-noise filter
+    if (soup.filters.isActive('noise')) {
+      toggleFilter('explicit-noise');
+    } else {
+      toggleFilter('noise');
+    }
+
+    toggleFilter('not-done');
+  };
+
   const togglePreview = () => {
     const currentPreview = soup.previewEntity();
     if (currentPreview) {
@@ -119,28 +143,12 @@ const SoupFilters = () => {
     {
       hotkey: 'i',
       description: 'Toggle Inbox',
-      handler: () => {
-        // If we're going to be removing the signal filter,
-        // we should replace it with the explicit-noise filter
-        if (soup.filters.isActive('signal')) {
-          toggleFilter('explicit-noise');
-        } else {
-          toggleFilter('signal');
-        }
-      },
+      handler: toggleSignalFilter,
     },
     {
       hotkey: 'o',
       description: 'Toggle Other',
-      handler: () => {
-        // If we're going to be removing the noise filter,
-        // we should replace it with the explicit-noise filter
-        if (soup.filters.isActive('noise')) {
-          toggleFilter('explicit-noise');
-        } else {
-          toggleFilter('noise');
-        }
-      },
+      handler: toggleNoiseFilter,
     },
     ...ENTITY_TYPE_FILTER_CONFIGS.map((f) => ({
       hotkey: f.shortcut as ValidHotkey,
@@ -199,7 +207,7 @@ const SoupFilters = () => {
         label="Inbox"
         shortcut="i"
         isActive={soup.filters.isActive('signal')}
-        onClick={() => toggleFilter('signal')}
+        onClick={toggleSignalFilter}
       />
       {/* Other toggle */}
       <FilterButton
@@ -207,7 +215,7 @@ const SoupFilters = () => {
         label="Other"
         shortcut="o"
         isActive={soup.filters.isActive('noise')}
-        onClick={() => toggleFilter('noise')}
+        onClick={toggleNoiseFilter}
       />
       <FilterDivider />
       {/* Unread filter */}
