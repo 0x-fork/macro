@@ -3,18 +3,9 @@ import { useNavigatedFromJK } from '@app/component/useNavigatedFromJK';
 import { URL_PARAMS } from '@block-channel/constants';
 import type { ChannelData } from '@block-channel/definition';
 import {
-  latestActivitySignal,
-  updateActivityOnChannelClose,
-  updateActivityOnChannelOpen,
-} from '@block-channel/signal/activity';
-import {
   isDraggingOverChannelSignal,
   isValidChannelDragSignal,
 } from '@block-channel/signal/attachment';
-import {
-  channelStore,
-  refetchChannelData,
-} from '@block-channel/signal/channel';
 import { activeThreadIdSignal } from '@block-channel/signal/threads';
 import { handleFileUpload } from '@block-channel/utils/inputAttachments';
 import { withAnalytics } from '@coparse/analytics';
@@ -23,6 +14,7 @@ import { useBlockId } from '@core/block';
 import type { EntityDragEvent } from '@macro-entity';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
+import { useChannelActivity } from '@core/context/channels';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { TOKENS } from '@core/hotkey/tokens';
 import {
@@ -39,10 +31,14 @@ import {
   createEffectOnEntityTypeNotification,
   useEntityHasUnreadNotifications,
 } from '@notifications';
+import { useUpdateChannelsActivityMutation } from '@queries/channel/activity';
 import { useChannelQuery } from '@queries/channel/channel';
+import {
+  getTopLevelMessages,
+  getThreadMessages,
+} from '@queries/channel/derived';
 import type { Message } from '@service-comms/generated/models';
 import { connectionGatewayClient } from '@service-connection/client';
-import { createCallback } from '@solid-primitives/rootless';
 import { useBeforeLeave, useSearchParams } from '@solidjs/router';
 import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
 import { toast } from 'core/component/Toast/Toast';
@@ -69,23 +65,19 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 
 false && fileFolderDrop;
 
-/** 10 seconds threshold */
-const THRESHOLD = 10_000;
+/** Tracks channel entity when tab regains focus (throttled to 10s) */
+function createChannelTrackingEffect(channelId: string) {
+  let lastTrackTime = Date.now();
+  const TRACK_THROTTLE_MS = 10_000;
 
-export function createChannelRefetchEffect(channelId: string) {
-  let lastTime = Date.now();
-
-  /** Refetch channel data if the tab is focused */
   createTabFocusEffect((isTabFocused) => {
-    if (isTabFocused && Date.now() - lastTime > THRESHOLD) {
-      console.log('tab focused, refetching channel data');
-      refetchChannelData(channelId);
+    if (isTabFocused && Date.now() - lastTrackTime > TRACK_THROTTLE_MS) {
       connectionGatewayClient.trackEntity({
         entity_type: 'channel',
         entity_id: channelId,
         action: 'open',
       });
-      lastTime = Date.now();
+      lastTrackTime = Date.now();
     }
   });
 }
@@ -94,14 +86,34 @@ export function Channel(props: {
   data: Required<ChannelData>;
   target?: TargetMessageInfo;
 }) {
-  const channelStoreData = channelStore.get;
-  const channel = useChannelQuery(() => props.data.channel.id);
-
   const [_activeThreadId, setActiveThreadId] = activeThreadIdSignal;
-  const latestActivity = latestActivitySignal.get;
-  const updateActivityOnOpen = createCallback(updateActivityOnChannelOpen);
-  const updateActivityOnClose = createCallback(updateActivityOnChannelClose);
+  const channel = useChannelQuery(
+    () => props.data.channel.id,
+    () => ({ refetchOnWindowFocus: true })
+  );
+
+  // Derive messages and threads from query data
+  const messages = () => getTopLevelMessages(channel.data);
+  const threads = () => getThreadMessages(channel.data);
+  const reactions = () => channel.data?.reactions ?? {};
+  const attachments = () => channel.data?.attachments ?? [];
+
   const channelId = useBlockId();
+
+  const latestActivity = useChannelActivity(channelId);
+
+  const [openedChannel, setOpenedChannel] = createSignal<Date>();
+
+  const updateActivityMutation = useUpdateChannelsActivityMutation();
+
+  const updateActivityOnOpen = () => {
+    setOpenedChannel(new Date());
+    updateActivityMutation.mutate({ channelId, activityType: 'view' });
+  };
+
+  const updateActivityOnClose = () =>
+    updateActivityMutation.mutate({ channelId, activityType: 'view' });
+
   const { track } = withAnalytics();
   let containerRef!: HTMLDivElement;
   const [searchParams] = useSearchParams();
@@ -138,9 +150,9 @@ export function Channel(props: {
   >(initialTargetMessage());
 
   createMethodRegistration(blockHandle, {
-    goToLocationFromParams: async (params: Record<string, any>) => {
-      const threadId = params[URL_PARAMS.thread];
-      const messageId = params[URL_PARAMS.message];
+    goToLocationFromParams: async (params: Record<string, unknown>) => {
+      const threadId = params[URL_PARAMS.thread] as string | undefined;
+      const messageId = params[URL_PARAMS.message] as string | undefined;
       if (threadId) {
         setActiveThreadId(threadId);
       }
@@ -166,7 +178,7 @@ export function Channel(props: {
     track(TrackingEvents.BLOCKCHANNEL.CHANNEL.OPEN);
   });
 
-  createChannelRefetchEffect(channelId);
+  createChannelTrackingEffect(channelId);
 
   useBeforeLeave(() => {
     updateActivityOnClose();
@@ -403,11 +415,16 @@ export function Channel(props: {
           />
           <MessageList
             channelId={channelId}
-            messages={channelStoreData.messages}
+            messages={messages()}
+            threads={threads()}
+            reactions={reactions()}
+            attachments={attachments()}
+            participants={channel.data?.participants ?? []}
             focusedMessageId={selectedMessageId}
             setFocusedMessageId={setSelectedMessageId}
             targetMessage={targetMessage}
             latestActivity={latestActivity()}
+            openedChannel={openedChannel()}
             orderedMessages={orderedMessages}
             setOrderedMessages={setOrderedMessages}
             onNavigationReady={setMessageListNav}
@@ -417,7 +434,9 @@ export function Channel(props: {
             <div class="mx-auto -translate-x-1 w-full macro-message-width">
               <Suspense>
                 <ChannelInput
+                  channelId={channelId}
                   channelName={channel.data?.channel?.name ?? ''}
+                  participants={channel.data?.participants ?? []}
                   inputAttachmentsStore={channelInputAttachmentsStore}
                   setInputAttachmentsStore={setChannelInputAttachmentsStore}
                   inputAttachmentsKey={channelId}

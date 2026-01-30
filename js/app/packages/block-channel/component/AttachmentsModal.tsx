@@ -1,8 +1,6 @@
 import { SplitDrawer } from '@app/component/split-layout/components/SplitDrawer';
 import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
-import { messageAttachmentsStore } from '@block-channel/signal/attachment';
-import { channelStore } from '@block-channel/signal/channel';
-import { threadsStore } from '@block-channel/signal/threads';
+import { filterSafeAttachments } from '@block-channel/utils/attachments';
 import { type BlockAlias, type BlockName, useBlockId } from '@core/block';
 import { InlineItemPreview } from '@core/component/ItemPreview';
 import { toast } from '@core/component/Toast/Toast';
@@ -10,6 +8,11 @@ import { Tooltip } from '@core/component/Tooltip';
 import { UserIcon } from '@core/component/UserIcon';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { isAccessiblePreviewItem, useItemPreview } from '@queries/preview';
+import { useChannelQuery } from '@queries/channel/channel';
+import {
+  getTopLevelMessages,
+  getThreadMessages,
+} from '@queries/channel/derived';
 import { tryMacroId, useDisplayName } from '@core/user';
 import { isErr } from '@core/util/maybeResult';
 import BracketLeft from '@macro-icons/macro-group-bracket-left.svg';
@@ -28,6 +31,8 @@ export function AttachmentsModal() {
   const drawerControl = useDrawerControl(DRAWER_ID);
   const currentBlockId = useBlockId();
   const { replaceOrInsertSplit } = useSplitLayout();
+
+  const channel = useChannelQuery(() => currentBlockId);
 
   const [mentionsResource] = createResource(() =>
     commsServiceClient.getMentions({ channel_id: currentBlockId })
@@ -50,7 +55,9 @@ export function AttachmentsModal() {
       return mentions;
     })();
 
-    const all = [...(messageAttachmentsStore.get.all || []), ...mentions];
+    const channelAttachments = channel.data?.attachments ?? [];
+    const safeAttachments = filterSafeAttachments(channelAttachments);
+    const all = [...safeAttachments, ...mentions];
     return all
       .filter(
         (a) => !a.entity_type.startsWith('static/') && a.entity_type !== 'user'
@@ -65,6 +72,15 @@ export function AttachmentsModal() {
   const navigateToItem = (blockName: BlockName, blockId: string) => {
     replaceOrInsertSplit({ type: blockName, id: blockId });
   };
+
+  const messageSenderMap = createMemo(() => {
+    const data = channel.data;
+    if (!data) return new Map<string, string>();
+    const topLevel = getTopLevelMessages(data);
+    const threads = getThreadMessages(data);
+    const all = [...topLevel, ...Object.values(threads).flat()];
+    return new Map(all.map((m) => [m.id, m.sender_id]));
+  });
 
   return (
     <>
@@ -105,6 +121,7 @@ export function AttachmentsModal() {
                       <AttachmentItem
                         attachment={attachment}
                         onNavigate={navigateToItem}
+                        senderId={messageSenderMap().get(attachment.message_id)}
                       />
                     </Suspense>
                   )}
@@ -135,20 +152,11 @@ function makeAttachmentFromMention(
 type AttachmentItemProps = {
   attachment: Attachment;
   onNavigate: (blockName: BlockName | BlockAlias, blockId: string) => void;
+  senderId: string | undefined;
 };
 
 function AttachmentItem(props: AttachmentItemProps) {
-  const message = createMemo(() => {
-    const channel = channelStore.get;
-    const threads = threadsStore.get;
-    const allMessages = [
-      ...(channel.messages || []),
-      ...Object.values(threads || {}).flat(),
-    ];
-    return allMessages.find((msg) => msg.id === props.attachment.message_id);
-  });
-
-  const senderId = () => message()?.sender_id || '';
+  const senderId = () => props.senderId ?? '';
   const [userName] = useDisplayName(tryMacroId(senderId()));
 
   const [preview] = useItemPreview(() => ({
@@ -185,7 +193,7 @@ function AttachmentItem(props: AttachmentItemProps) {
         <span class="text-ink-extra-muted">attached</span>
         <InlineItemPreview
           itemId={props.attachment.entity_id}
-          itemType={props.attachment.entity_type as any}
+          itemType={props.attachment.entity_type as ItemType}
         />
       </span>
     </button>
