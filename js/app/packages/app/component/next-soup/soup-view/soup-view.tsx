@@ -1,9 +1,36 @@
 import CheckIcon from '@icon/bold/check-bold.svg';
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
+import {
+  useGlobalBlockOrchestrator,
+  useGlobalNotificationSource,
+} from '@app/component/GlobalAppState';
+import { EntityRow, EntityRowProvider } from '@app/component/mobile/EntityRow';
+import {
+  makeMarkDoneAction,
+  useEntityActionHotkeys,
+} from '@app/component/next-soup/actions';
 import { useSoup } from '@app/component/next-soup/soup-context';
+import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
+import {
+  type SoupEntity,
+  type SoupRow,
+  SoupViewContextProvider,
+  useSoupView,
+} from '@app/component/next-soup/soup-view/soup-view-context';
+import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
+import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
+import { useElementItemCount } from '@app/component/next-soup/use-element-item-count';
+import { useSplitLayout } from '@app/component/split-layout/layout';
+import { openEntityInNewTab } from '@app/component/next-soup/utils';
 import { PreviewPanel } from '@app/component/PreviewPanel';
+import { openEntityInSplitFromUnifiedList } from '@app/component/soupContextHelpers';
+import { SplitPanelContext } from '@app/component/split-layout/context';
+import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { EmptyState } from '@app/component/UnifiedListEmptyState';
+import { LoadingBlock } from '@core/component/LoadingBlock';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+import { useTaskProperties } from '@core/component/Properties/hooks';
+import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import {
   type EntityData,
   isTaskEntity,
@@ -11,56 +38,35 @@ import {
   unreadFilterFn,
 } from '@macro-entity';
 import {
-  Switch,
-  Match,
-  Show,
-  type Accessor,
-  createMemo,
-  createSignal,
-  type JSX,
-  onCleanup,
-  createEffect,
-  on,
-} from 'solid-js';
-import { SoupToolbar } from '@app/component/next-soup/soup-view/soup-toolbar';
-import { cn } from '@ui/utils/classname';
-import { type VirtualizerHandle, VList } from 'virtua/solid';
-import {
-  type SoupEntity,
-  type SoupRow,
-  SoupViewContextProvider,
-  useSoupView,
-} from '@app/component/next-soup/soup-view/soup-view-context';
-import {
-  useGlobalBlockOrchestrator,
-  useGlobalNotificationSource,
-} from '@app/component/GlobalAppState';
-import { registerEntityHotkey } from '@app/component/SoupContext';
-import { openEntityInSplitFromUnifiedList } from '@app/component/soupContextHelpers';
-import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { useTaskProperties } from '@core/component/Properties/hooks';
-import { TOKENS } from '@core/hotkey/tokens';
-import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
-import {
-  EntityWithEverything,
-  type EntityClickHandler,
-  type EntityPointerDownHandler,
-} from '../../../../macro-entity/src/components/EntityWithEverything';
-import { useElementItemCount } from '@app/component/next-soup/use-element-item-count';
-import { debounce } from '@solid-primitives/scheduled';
-import { LoadingBlock } from '@core/component/LoadingBlock';
-import { SplitPanelContext } from '@app/component/split-layout/context';
-import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
-import {
   isChannelMention,
   isChannelMessageReply,
   isChannelMessageSend,
   tryToTypedNotification,
   type UnifiedNotification,
 } from '@notifications';
-import { openEntityInNewTab } from '@app/component/next-soup/utils';
-import { SoupEntitySelectionToolbar } from '@app/component/next-soup/soup-view/soup-entity-selection-toolbar';
-import { EntityRow, EntityRowProvider } from '@app/component/mobile/EntityRow';
+import { debounce } from '@solid-primitives/scheduled';
+import { cn } from '@ui/utils/classname';
+import {
+  type Accessor,
+  createEffect,
+  createMemo,
+  createSignal,
+  type JSX,
+  Match,
+  on,
+  onCleanup,
+  Show,
+  Switch,
+} from 'solid-js';
+import { type VirtualizerHandle, VList } from 'virtua/solid';
+import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
+import { SoupToolbar } from './soup-toolbar';
+import { useUserId } from '@core/context/user';
+import {
+  type EntityClickHandler,
+  type EntityPointerDownHandler,
+  EntityWithEverything,
+} from '../../../../macro-entity/src/components/EntityWithEverything';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -85,6 +91,7 @@ export const SoupView = () => {
 const SoupViewImpl = () => {
   const panel = useSplitPanelOrThrow();
   const { soup, source, rows: _rows, searchText } = useSoupView();
+  const { getSplitCount } = useSplitLayout();
 
   const rows = createMemo(() => _rows());
 
@@ -92,6 +99,9 @@ const SoupViewImpl = () => {
 
   const [virtualizerHandle, setVirtualizerHandle] =
     createSignal<VirtualizerHandle>();
+
+  // DOM ref for the soup view (used for hotkey scoping)
+  const [soupViewRef, setSoupViewRef] = createSignal<HTMLElement | undefined>();
 
   const focusFirstEntity = () => {
     const next = soup.navigate.toFirst();
@@ -120,109 +130,38 @@ const SoupViewImpl = () => {
     )
   );
 
-  registerEntityHotkey({
-    hotkey: ['j', 'arrowdown'],
+  // Register navigation hotkeys
+  useSoupNavigationHotkeys({
     scopeId: panel.splitHotkeyScope,
-    description: 'Down',
-    hotkeyToken: TOKENS.entity.step.end,
-    keyDownHandler: () => {
-      const next = soup.navigate.down();
-
-      if (!next) return true;
-
-      virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
-
-      return true;
-    },
-    hide: true,
+    soup,
+    virtualizerHandle,
   });
 
-  registerEntityHotkey({
-    hotkey: ['k', 'arrowup'],
+  // Register entity action hotkeys
+  useEntityActionHotkeys({
     scopeId: panel.splitHotkeyScope,
-    hotkeyToken: TOKENS.entity.step.start,
-    description: 'Up',
-    keyDownHandler: () => {
-      const next = soup.navigate.up();
-
-      if (!next) return true;
-
-      virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
-
-      return true;
-    },
-    hide: true,
+    soup,
   });
 
-  const navigateAndSelectEntity = (offset: number) => {
-    const nextRow = soup.navigate.by(offset);
-    if (!nextRow) return true;
-    soup.selection.select(nextRow.item);
-    virtualizerHandle()?.scrollToIndex(nextRow.index, { align: 'nearest' });
-  };
-
-  const handleNavigationSelection = (offset: number) => {
-    const focusedEntity = soup.focus.item();
-    const nextIndex = soup.navigate.peekOffset(offset);
-
-    const selection = soup.selection;
-
-    const nextRow = nextIndex?.item;
-    if (!nextRow) return true;
-
-    if (!focusedEntity) {
-      navigateAndSelectEntity(offset);
-      return true;
-    }
-
-    if (selection.count() === 0) {
-      selection.toggle(focusedEntity);
-      return true;
-    }
-
-    if (
-      !selection.isSelected(focusedEntity.id) &&
-      !selection.isSelected(nextRow.id)
-    ) {
-      selection.toggle(focusedEntity);
-      navigateAndSelectEntity(offset);
-
-      return true;
-    }
-
-    if (selection.isSelected(nextRow.id)) {
-      selection.toggle(focusedEntity);
-      soup.navigate.by(offset);
-      return true;
-    }
-
-    navigateAndSelectEntity(offset);
-
-    return true;
-  };
-
-  registerEntityHotkey({
-    hotkey: ['shift+arrowup', 'shift+k'],
+  // Register soup view hotkeys (jump navigation, enter, escape, cmd+k, etc.)
+  useSoupViewHotkeys({
+    splitId: panel.handle.id,
     scopeId: panel.splitHotkeyScope,
-    description: 'Select up',
-    hotkeyToken: TOKENS.entity.select.start,
-    keyDownHandler: () => {
-      return handleNavigationSelection(-1);
-    },
-    // canExecuteKeyDownHandler: () => canAccessEntityList(),
-    hide: true,
+    domRef: soupViewRef,
+    soup,
+    splitHandle: panel.handle,
+    virtualizerHandle,
+    previewState: () => !!soup.previewEntity(),
+    getSplitCount,
   });
 
-  registerEntityHotkey({
-    hotkey: ['shift+arrowdown', 'shift+j'],
-    scopeId: panel.splitHotkeyScope,
-    description: 'Select down',
-    hotkeyToken: TOKENS.entity.select.end,
-    keyDownHandler: () => {
-      return handleNavigationSelection(1);
-    },
-    // canExecuteKeyDownHandler: () => canAccessEntityList(),
-    hide: true,
+  // Create markDone action for swipe/click handlers
+  const userId = useUserId();
+  const notificationSource = useGlobalNotificationSource();
+
+  const markDoneAction = makeMarkDoneAction({
+    userId,
+    notificationSource: () => notificationSource,
   });
 
   const debouncedFetchMore = debounce(() => {
@@ -290,21 +229,12 @@ const SoupViewImpl = () => {
   };
 
   const onClickEntityAction = (entity: EntityData) => {
-    //
-    // soupContext.actionRegistry.isActionEnabled(
-    //   'mark_as_done',
-    //   innerProps.entity
-    // )
-    //   ? (entity, type) => {
-    //       if (type === 'done') {
-    //         markEntityAsDone?.(entity);
-    //       }
-    //     }
-    //   : undefined
+    if (markDoneAction.canExecute(entity)) {
+      markDoneAction.executeWithSoup([entity], soup);
+    }
   };
 
   const blockOrchestrator = useGlobalBlockOrchestrator();
-  const notificationSource = useGlobalNotificationSource();
   const gotoChannelNotification = async (notification: UnifiedNotification) => {
     if (
       !isChannelMention(notification) &&
@@ -475,7 +405,11 @@ const SoupViewImpl = () => {
   >();
 
   return (
-    <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
+    <div
+      ref={setSoupViewRef}
+      class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full"
+      data-hotkey-scope={panel.splitHotkeyScope}
+    >
       <SoupToolbar />
       <div ref={setListRef} class="flex flex-col size-full">
         <StaticMarkdownContext>
@@ -492,17 +426,12 @@ const SoupViewImpl = () => {
                 canSwipeLeft={(entityId) => {
                   const entity = entityById().get(entityId);
                   if (!entity) return false;
-                  // Return if mark as done is enabled
-                  // return soupContext.actionRegistry.isActionEnabled(
-                  //   'mark_as_done',
-                  //   entity
-                  // );
+                  return markDoneAction.canExecute(entity.original);
                 }}
                 onSwipeLeft={(entityId) => {
                   const entity = entityById().get(entityId);
-                  if (!entity) return false;
-
-                  // soupContext.actionRegistry.execute('mark_as_done', entity);
+                  if (!entity) return;
+                  markDoneAction.executeWithSoup([entity.original], soup);
                 }}
                 setCollapseEntity={setCollapseEntityCallback}
               >
