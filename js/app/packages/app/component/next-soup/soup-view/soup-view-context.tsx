@@ -222,12 +222,19 @@ export const SoupViewContextProvider: FlowComponent<
 
   const notificationSource = useGlobalNotificationSource();
 
-  const attachMethods = (entity: EntityData, depth = 0): SoupRow => {
+  const attachNotifications = (entity: EntityData) => {
     return {
-      original: {
-        ...entity,
-        notifications: useNotificationsForEntity(notificationSource, entity),
-      },
+      ...entity,
+      notifications: useNotificationsForEntity(notificationSource, entity),
+    };
+  };
+
+  const attachMethods = (
+    entity: WithNotification<EntityData>,
+    depth = 0
+  ): SoupRow => {
+    return {
+      original: entity,
       depth,
       isFocused() {
         return soup.focus.id() === entity.id;
@@ -255,10 +262,10 @@ export const SoupViewContextProvider: FlowComponent<
 
     const filters = soup.filters.active();
 
-    const items = itemsData ?? [];
-    const searchItems = searchData ?? [];
-
     const isSearching = searchText().length > 0;
+
+    const items = itemsData ?? [];
+    const searchItems = isSearching ? (searchData ?? []) : [];
 
     let transformed: SoupEntity[] = [...searchItems];
 
@@ -267,6 +274,8 @@ export const SoupViewContextProvider: FlowComponent<
     } else {
       transformed.push(...items);
     }
+
+    transformed = transformed.map(attachNotifications);
 
     for (const filter of filters) {
       transformed = transformed.filter(filter.predicate);

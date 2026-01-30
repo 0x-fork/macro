@@ -5,13 +5,20 @@
  * Uses signal/noise filters from @soup/filters for focus classification.
  */
 
-import type { EntityData, WithNotification } from '@macro-entity';
+import {
+  isTaskEntity,
+  type EntityData,
+  type WithNotification,
+} from '@macro-entity';
 import {
   signalFilter,
   noiseFilter,
   explicitNoiseFilter,
 } from './signal-filters';
-import { EntityWithValidIcon, getIconConfig } from '@core/component/EntityIcon';
+import {
+  type EntityWithValidIcon,
+  getIconConfig,
+} from '@core/component/EntityIcon';
 
 /**
  * Unread filter - entity has unread content.
@@ -34,11 +41,14 @@ export function unreadFilter(entity: EnhancedEntity): boolean {
  * - Emails: Uses `done` field (derived from !inboxVisible - email is "not done" when in inbox)
  * - Everything else: Has at least one notification with done === false
  */
-export function notDoneFilter(entity: EnhancedEntity): boolean {
-  if (entity.type === 'email') {
-    return !entity.done;
-  }
-  return !!entity.notifications && entity.notifications().some((n) => !n.done);
+export function notDoneFilter(entity: WithNotification<EntityData>) {
+  if (entity.type === 'email') return !entity.done;
+  // Tasks are handled by signalFilter based on assignee/status, not notifications
+  if (isTaskEntity(entity)) return true;
+
+  return (
+    !!entity.notifications && entity.notifications().some(({ done }) => !done)
+  );
 }
 
 /** Filter predicate function */
