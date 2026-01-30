@@ -250,7 +250,13 @@ export const getFilterWithID = (filterID: FilterID) => {
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
-export const buildDssFiltersRequest = (filters: FilterConfig<EntityData>[]) => {
+export const buildDssFiltersRequest = (
+  filters: FilterConfig<EntityData>[],
+  context?: {
+    isSearchActive?: boolean;
+    emailActive?: boolean;
+  }
+) => {
   const entityTypes = filters
     .filter((f) => ENTITY_TYPE_FILTERS.includes(f.id as EntityTypeFilters))
     .map((f) => f.id);
@@ -283,7 +289,9 @@ export const buildDssFiltersRequest = (filters: FilterConfig<EntityData>[]) => {
     },
     email_filters: {
       recipients:
-        entityTypes.includes('email') || entityTypes.length === 0
+        context?.emailActive &&
+        !context.isSearchActive &&
+        (entityTypes.includes('email') || entityTypes.length === 0)
           ? []
           : [NIL_UUID],
     },
@@ -293,6 +301,6 @@ export const buildDssFiltersRequest = (filters: FilterConfig<EntityData>[]) => {
           ? []
           : [NIL_UUID],
     },
-    emailView: undefined,
+    emailView: 'all',
   };
 };
