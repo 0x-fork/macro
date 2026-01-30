@@ -14,7 +14,7 @@ use crate::models::{
 use anyhow::anyhow;
 use cloudfront_sign::{SignedOptions, get_signed_url};
 use rayon::prelude::*;
-use sqlx::{FromRow, PgPool, Row};
+use sqlx::{FromRow, PgPool};
 use std::{
     str::FromStr,
     sync::Arc,
@@ -26,12 +26,14 @@ use sync_service_client::SyncServiceClient;
 #[derive(FromRow)]
 struct DocumentVersionResult {
     id: i64,
+    #[allow(dead_code)]
     uploaded: bool,
 }
 
 #[derive(FromRow)]
 struct DocumentVersionIdResult {
     id: i64,
+    #[allow(dead_code)]
     uploaded: bool,
 }
 
