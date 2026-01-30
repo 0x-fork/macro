@@ -40,6 +40,7 @@ import {
 import { decodePairs } from './layoutUtils';
 import { registerSplitHotkeys } from './registerSplitHotkeys';
 import { SoupContextProvider } from '@app/component/next-soup/soup-context';
+import { createSoupState } from '@app/component/next-soup/create-soup-state';
 
 type SplitLayoutContainerProps = {
   pairs: string[];
@@ -400,6 +401,10 @@ function SplitPanel(props: SplitPanelProps) {
     getSplitCount: () => splitLayoutHelpers.getSplitCount(),
   });
 
+  const nextSoup = createSoupState({
+    initialFilters: ['explicit-noise'],
+  });
+
   return (
     <SplitPanelContext.Provider
       value={{
@@ -423,7 +428,7 @@ function SplitPanel(props: SplitPanelProps) {
           attachHotKeys(ref);
         }}
       >
-        <SoupContextProvider>
+        <SoupContextProvider soup={nextSoup}>
           <Suspense>
             <Dynamic component={props.split.mount.element} />
           </Suspense>

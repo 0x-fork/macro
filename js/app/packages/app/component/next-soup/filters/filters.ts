@@ -6,7 +6,11 @@
  */
 
 import type { EntityData, WithNotification } from '@macro-entity';
-import { signalFilter, noiseFilter } from './signal-filters';
+import {
+  signalFilter,
+  noiseFilter,
+  explicitNoiseFilter,
+} from './signal-filters';
 import { EntityWithValidIcon, getIconConfig } from '@core/component/EntityIcon';
 
 /**
@@ -126,6 +130,12 @@ export const SOUP_FILTERS = [
     predicate: noiseFilter,
     group: 'focus',
     shortcut: 'i',
+  },
+  {
+    id: 'explicit-noise',
+    label: 'Explicit Noise',
+    predicate: (entity: EntityData) => !explicitNoiseFilter(entity),
+    group: 'focus',
   },
 
   // Notification filters
