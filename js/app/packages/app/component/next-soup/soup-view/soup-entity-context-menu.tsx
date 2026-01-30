@@ -1,9 +1,10 @@
-import { EntityActionsMenuItems } from '@app/component/EntityActionsMenuItems';
 import { ContextMenuContent, MenuSeparator } from '@core/component/Menu';
 import { isMobile } from '@core/mobile/isMobile';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import { Entity, type EntityData } from '@macro-entity';
 import { type FlowComponent, Show } from 'solid-js';
+import { useSoupView } from './soup-view-context';
+import { SoupEntityActionsMenu } from './soup-entity-actions-menu';
 
 interface SoupEntityContextMenuProps {
   entity: EntityData;
@@ -14,6 +15,8 @@ interface SoupEntityContextMenuProps {
 export const SoupEntityContextMenu: FlowComponent<
   SoupEntityContextMenuProps
 > = (props) => {
+  const { soup } = useSoupView();
+
   return (
     <ContextMenu onOpenChange={props.onOpenChange}>
       <ContextMenu.Trigger class="@container/uList size-full unified-list-root">
@@ -30,14 +33,14 @@ export const SoupEntityContextMenu: FlowComponent<
                 />
                 <MenuSeparator />
               </Show>
-              <EntityActionsMenuItems
-                entity={selectedEntity()}
-                onSelectAction={() => {}}
+              <SoupEntityActionsMenu
+                entities={[selectedEntity()]}
+                soup={soup}
               />
             </ContextMenuContent>
           )}
         </Show>
-      </ContextMenu.Portal>{' '}
+      </ContextMenu.Portal>
     </ContextMenu>
   );
 };
