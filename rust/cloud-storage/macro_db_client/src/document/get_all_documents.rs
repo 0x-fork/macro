@@ -1,6 +1,6 @@
+use document::models::DocumentMetadata;
 use document_sub_type::DocumentSubType;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use document::models::DocumentMetadata;
 use sqlx::{Pool, Postgres};
 
 /// Used to get all documents in a paginated format

@@ -21,10 +21,12 @@ use axum::{
 };
 use cloudfront_sign::{SignedOptions, get_signed_url};
 use document::models::{
-    CONVERTED_DOCUMENT_FILE_NAME, FileType, FileTypeExt,
-    build_cloud_storage_bucket_document_key,
+    CONVERTED_DOCUMENT_FILE_NAME,
     // DocumentBasic for response types
     DocumentBasic as ResponseDocumentBasic,
+    FileType,
+    FileTypeExt,
+    build_cloud_storage_bucket_document_key,
     response::{LocationResponseData, LocationResponseV3, PresignedUrl},
 };
 use futures::{FutureExt, pin_mut, select};

@@ -1,6 +1,6 @@
 use crate::{document::v2::create::create_document, instructions::get::get_instructions_document};
-use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 use document::models::FileType;
+use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 use models_dcs::constants::INSTRUCTIONS_FILE_NAME;
 use models_permissions::share_permission::SharePermissionV2;
 use tracing::instrument;

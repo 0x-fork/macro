@@ -2,8 +2,8 @@ use crate::{
     document::copy_document::{copy_docx_document, copy_non_docx_document},
     share_permission::create::create_document_permission,
 };
-use macro_user_id::user_id::MacroUserIdStr;
 use document::models::{DocumentMetadata, FileType};
+use macro_user_id::user_id::MacroUserIdStr;
 use models_permissions::share_permission::SharePermissionV2;
 use models_permissions::share_permission::access_level::AccessLevel;
 use sqlx::{Pool, Postgres};

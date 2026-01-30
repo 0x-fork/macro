@@ -1,12 +1,12 @@
 use crate::{
     document::document_bom::create_bom_parts, share_permission::create::create_document_permission,
 };
-use document_sub_type::DocumentSubType;
-use macro_user_id::user_id::MacroUserIdStr;
 use document::models::{
     BomPart, DocumentMetadata, FileType, IDWithTimeStamps, VersionIDWithTimeStamps,
     VersionIDWithTimeStampsNoSha,
 };
+use document_sub_type::DocumentSubType;
+use macro_user_id::user_id::MacroUserIdStr;
 use models_permissions::share_permission::SharePermissionV2;
 use sqlx::{Pool, Postgres, Transaction};
 

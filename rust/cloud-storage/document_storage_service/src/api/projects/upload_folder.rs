@@ -16,8 +16,7 @@ use document::models::{
 use macro_db_client::projects::upload_folder::UploadFolderWithIdsResponse;
 use macro_user_id::user_id::MacroUserIdStr;
 use model::folder::{
-    FileSystemNode, S3Destination, S3DestinationMap, UploadFolderRequest,
-    UploadFolderResponseData,
+    FileSystemNode, S3Destination, S3DestinationMap, UploadFolderRequest, UploadFolderResponseData,
 };
 use model::response::{GenericErrorResponse, GenericResponse, PresignedUrl, TypedSuccessResponse};
 use model::user::{UserContext, axum_extractor::MacroUserExtractor};

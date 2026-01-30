@@ -2,11 +2,11 @@
 use ai::types::ChatMessageContent;
 use ai::types::Role;
 use anyhow::{Error, Result};
+use document::models::FileType;
 use model::chat::{
     AttachmentMetadata, AttachmentType, Chat, ChatAttachment, ChatAttachmentWithName,
     ChatMessageWithAttachments,
 };
-use document::models::FileType;
 use sqlx::{Executor, Pool, Postgres};
 use std::collections::HashMap;
 

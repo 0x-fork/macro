@@ -1,8 +1,8 @@
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 use sqlx::{Pool, Postgres, Transaction};
 
-use document_sub_type::DocumentSubType;
 use document::models::{BomPart, DocumentBasic, DocumentMetadata};
+use document_sub_type::DocumentSubType;
 
 /// Gets the documents name
 #[tracing::instrument(skip(db))]

@@ -14,9 +14,9 @@ use axum::{
     response::IntoResponse,
 };
 
+use document::models::{ContentType, FileType};
 #[allow(unused_imports)]
 use futures::stream::StreamExt;
-use document::models::{ContentType, FileType};
 use macro_middleware::cloud_storage::ensure_access::document::DocumentAccessExtractor;
 // DocumentBasic comes from middleware Extension
 use model::document::DocumentBasic;

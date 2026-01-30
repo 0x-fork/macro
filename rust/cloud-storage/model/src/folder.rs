@@ -1,8 +1,8 @@
-use crate::response::PresignedUrl;
 use crate::document::{DocumentMetadata, FileType};
-use std::collections::HashMap;
+use crate::response::PresignedUrl;
 use models_bulk_upload::S3ObjectInfo;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, ToSchema, Clone)]

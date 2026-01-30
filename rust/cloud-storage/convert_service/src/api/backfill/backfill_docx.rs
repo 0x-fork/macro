@@ -10,7 +10,9 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use document::models::{BomPart, BomPartWithContent, CONVERTED_DOCUMENT_FILE_NAME, DocumentMetadata};
+use document::models::{
+    BomPart, BomPartWithContent, CONVERTED_DOCUMENT_FILE_NAME, DocumentMetadata,
+};
 use futures::StreamExt;
 use model::{
     convert::ConvertQueueMessage,

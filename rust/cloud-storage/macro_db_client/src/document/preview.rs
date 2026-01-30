@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use document_sub_type::DocumentSubType;
 use document::models::{
     DocumentPreviewData, DocumentPreviewDataSubType, DocumentPreviewV2, WithDocumentId,
 };
+use document_sub_type::DocumentSubType;
 use system_properties::{StatusOption, SystemPropertyKey};
 
 /// Intermediate struct for SQL row mapping with compile-time validation.
