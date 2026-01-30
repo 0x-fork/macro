@@ -2743,6 +2743,7 @@ dependencies = [
  "macro_user_id",
  "mockall",
  "model_file_type",
+ "models_document",
  "models_permissions",
  "models_properties",
  "properties_db_client",
@@ -5682,6 +5683,27 @@ dependencies = [
  "sqlx",
  "unfurl_service",
  "utoipa",
+]
+
+[[package]]
+name = "models_document"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "cool_asserts",
+ "document_sub_type",
+ "macro_user_id",
+ "model_file_type",
+ "models_permissions",
+ "schemars 1.2.0",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "sync_service_client",
+ "tracing",
+ "utoipa",
+ "uuid",
 ]
 
 [[package]]

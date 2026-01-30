@@ -7,7 +7,7 @@ pub use location::*;
 use macro_user_id::user_id::MacroUserIdStr;
 use std::str::FromStr;
 
-use crate::models::{BomPart, DocumentMetadata, FileType};
+use crate::{BomPart, DocumentMetadata, FileType};
 use chrono::serde::ts_seconds_option;
 use models_permissions::share_permission::access_level::AccessLevel;
 use serde::{Deserialize, Serialize};

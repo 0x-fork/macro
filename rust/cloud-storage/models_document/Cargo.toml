@@ -1,0 +1,24 @@
+[package]
+edition = "2024"
+name = "models_document"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+document_sub_type = { path = "../document_sub_type" }
+macro_user_id = { path = "../macro_user_id" }
+model_file_type = { path = "../model_file_type", features = ["utoipa"] }
+models_permissions = { path = "../models_permissions" }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+sync_service_client = { path = "../sync_service_client" }
+tracing = { workspace = true }
+utoipa = { workspace = true, features = ["chrono"] }
+uuid = { workspace = true }
+
+[dev-dependencies]
+cool_asserts = "2"

@@ -66,6 +66,7 @@ members = [
   "model_notifications",
   "model_user",
   "models_dcs",
+  "models_document",
   "models_email",
   "models_opensearch",
   "models_pagination",

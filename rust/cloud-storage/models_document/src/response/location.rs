@@ -1,7 +1,7 @@
 //! Location response types.
 
 use super::PresignedUrl;
-use crate::models::{DocumentBasic, FileType};
+use crate::{DocumentBasic, FileType};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;

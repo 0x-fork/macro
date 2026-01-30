@@ -1,7 +1,7 @@
-//! Document models moved from the model crate.
+//! Document models crate providing types for document operations.
 //!
-//! This module contains all the document-related types that were previously
-//! in the model crate's document module.
+//! This crate contains all the document-related types used across the
+//! document storage system.
 
 #[cfg(test)]
 mod test;

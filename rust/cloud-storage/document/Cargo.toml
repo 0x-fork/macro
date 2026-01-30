@@ -18,6 +18,7 @@ document_sub_type = { path = "../document_sub_type" }
 # macro_db_client depends on document::models, so document cannot depend on macro_db_client
 macro_user_id = { path = "../macro_user_id" }
 model_file_type = { path = "../model_file_type", features = ["utoipa"] }
+models_document = { path = "../models_document" }
 models_permissions = { path = "../models_permissions" }
 models_properties = { path = "../models_properties" }
 properties_db_client = { path = "../properties_db_client" }

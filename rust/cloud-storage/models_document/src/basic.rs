@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use super::file_type::FileType;
-use crate::models::FileTypeExt;
+use crate::FileTypeExt;
 use chrono::serde::ts_seconds_option;
 use macro_user_id::user_id::MacroUserIdStr;
 use serde::{Deserialize, Serialize};
