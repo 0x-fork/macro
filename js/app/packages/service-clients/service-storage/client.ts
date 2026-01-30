@@ -262,7 +262,12 @@ export const storageServiceClient = {
     params: { cursor?: string | null };
     body: PostSoupRequest;
   }) {
-    return await dssFetch<SoupPage>(`/items/soup?cursor${args.params.cursor}`, {
+    // Could use URLSearchParams?
+    const searchParams = args.params.cursor
+      ? `?cursor=${args.params.cursor}`
+      : '';
+
+    return await dssFetch<SoupPage>(`/items/soup${searchParams}`, {
       method: 'POST',
       body: JSON.stringify(args.body),
     });
