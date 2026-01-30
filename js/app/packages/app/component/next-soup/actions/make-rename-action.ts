@@ -2,6 +2,7 @@ import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@macro-entity';
 import { openBulkEditModal } from '@app/component/bulk-edit-entity/BulkEditEntityModal';
 import type { SoupState } from '../create-soup-state';
+import { restoreSoupFocus } from '../utils';
 
 type MakeRenameOptions = {
   userId: () => string | undefined;
@@ -43,11 +44,16 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
         toast.success(
           entities.length > 1 ? `Renamed ${entities.length} items` : 'Renamed'
         );
+        if (firstEntity) {
+          soup.focus.set(firstEntity.id);
+        }
+        restoreSoupFocus(firstEntity?.id);
       },
       onCancel: () => {
         if (firstEntity) {
           soup.focus.set(firstEntity.id);
         }
+        restoreSoupFocus(firstEntity?.id);
       },
     });
   };

@@ -2,6 +2,7 @@ import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@macro-entity';
 import { openBulkEditModal } from '@app/component/bulk-edit-entity/BulkEditEntityModal';
 import type { SoupState } from '../create-soup-state';
+import { restoreSoupFocus } from '../utils';
 
 export const makeMoveToProjectAction = () => {
   const canExecute = (entity: EntityData): boolean => {
@@ -40,12 +41,14 @@ export const makeMoveToProjectAction = () => {
             ? `Moved ${entities.length} items`
             : 'Moved to folder'
         );
+        restoreSoupFocus(nextEntity?.id);
       },
       onCancel: () => {
         const firstEntity = entities[0];
         if (firstEntity) {
           soup.focus.set(firstEntity.id);
         }
+        restoreSoupFocus(firstEntity?.id);
       },
     });
   };

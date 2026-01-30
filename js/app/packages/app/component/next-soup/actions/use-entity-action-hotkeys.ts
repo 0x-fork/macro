@@ -1,5 +1,5 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
-import { registerEntityHotkey } from '@app/component/next-soup/soup-view/use-soup-view-hotkeys';
+import { registerEntityHotkey } from '../utils';
 import { HotkeyTags } from '@core/hotkey/constants';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { EntityData } from '@macro-entity';

@@ -2,7 +2,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { Accessor } from 'solid-js';
 import type { SoupState } from '../create-soup-state';
-import { registerEntityHotkey } from './use-soup-view-hotkeys';
+import { registerEntityHotkey } from '../utils';
 
 type UseSoupNavigationHotkeysOptions = {
   scopeId: string;

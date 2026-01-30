@@ -12,7 +12,6 @@ import {
 } from '@app/component/command/KonsoleItem';
 import { openEntityInSplitFromUnifiedList } from '@app/component/soupContextHelpers';
 import type { SplitHandle } from '@app/component/split-layout/layoutManager';
-import { globalSplitManager } from '@app/signal/splitLayout';
 import { activeScope, hotkeyScopeTree } from '@core/hotkey/state';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -24,125 +23,10 @@ import type { Accessor } from 'solid-js';
 import { onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { SoupState } from '../create-soup-state';
-
-// Map to track soup view references by split ID for global hotkey forwarding
-type SoupViewRef = {
-  domRef: Accessor<HTMLElement | undefined>;
-  soup: SoupState;
-};
-
-export const splitIdToSoupViewRef = new Map<string, SoupViewRef>();
-
-let globalKeyboardEvent: KeyboardEvent | undefined;
-
-type ExecuteKeyDownHandlerCallback = (props: {
-  keyboardEvent?: KeyboardEvent;
-}) => boolean;
-
-/**
- *
- * Registers entity hotkeys to global scope and split panel scope. When global hotkey is fired, runs hotkey command from active split panel scope.
- *
- */
-export function registerEntityHotkey(
-  opts: Omit<Parameters<typeof registerHotkey>[0], 'condition'> & {
-    canExecuteKeyDownHandler?: ExecuteKeyDownHandlerCallback;
-    globalCommandScope?: string;
-  }
-): {
-  registerHotkeyReturn: {
-    commandScopeId: string;
-  };
-  globalRegisterHotkeyReturn: {
-    commandScopeId: string;
-  };
-} {
-  onCleanup(() => {
-    globalKeyboardEvent = undefined;
-  });
-
-  // scoped hotkey
-  const registerHotkeyReturn = registerHotkey({
-    ...opts,
-    keyDownHandler: (e) => {
-      const canExecuteKeyDownHandler = () => {
-        if (!opts.canExecuteKeyDownHandler) return true;
-        return opts.canExecuteKeyDownHandler({
-          keyboardEvent: e ?? globalKeyboardEvent,
-        });
-      };
-
-      if (canExecuteKeyDownHandler()) {
-        return opts.keyDownHandler(e);
-      }
-
-      return false;
-    },
-    condition: undefined,
-  });
-  // global hotkey to run active split scope command
-  const globalRegisterHotkeyReturn = registerHotkey({
-    ...opts,
-    scopeId: opts.globalCommandScope ? opts.globalCommandScope : 'global',
-    hotkeyToken: undefined,
-    tags: undefined,
-    condition: undefined,
-    registrationType: undefined,
-    handlerPriority: undefined,
-    keyDownHandler: (event) => {
-      globalKeyboardEvent = event;
-      queueMicrotask(() => {
-        globalKeyboardEvent = undefined;
-      });
-
-      if (event) {
-        const target = event.target as HTMLElement;
-        if (
-          target.closest(
-            `
-            [role="dialog"],
-            [role="alertdialog"],
-            [data-modal="true"],
-            .z-modal,
-            .z-modal-overlay
-            `
-          )
-        ) {
-          return false;
-        }
-      }
-
-      const currentActiveSplitId = globalSplitManager()?.activeSplitId();
-
-      const getCommand = () => {
-        const soupViewRef = splitIdToSoupViewRef.get(currentActiveSplitId!);
-        const splitScope = soupViewRef?.domRef();
-        if (!splitScope || !(splitScope instanceof HTMLElement)) return;
-        const scopeId = splitScope.dataset.hotkeyScope;
-        if (!scopeId || !opts.hotkey) return undefined;
-
-        return getHotkeyCommand(
-          scopeId,
-          // @ts-expect-error hotkey type mismatch
-          opts.hotkey[0]
-        );
-      };
-      const command = getCommand();
-      if (!command) return false;
-
-      runCommand(command);
-      return false;
-    },
-  });
-
-  return {
-    registerHotkeyReturn,
-    globalRegisterHotkeyReturn,
-  } as {
-    registerHotkeyReturn: { commandScopeId: string };
-    globalRegisterHotkeyReturn: { commandScopeId: string };
-  };
-}
+import {
+  registerEntityHotkey,
+  splitIdToSoupViewRef,
+} from '../utils';
 
 type UseSoupViewHotkeysOptions = {
   splitId: string;

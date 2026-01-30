@@ -4,6 +4,7 @@ import { openBulkEditModal } from '@app/component/bulk-edit-entity/BulkEditEntit
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { globalRemoveFromSplitHistory } from '@app/component/split-layout/layoutUtils';
 import type { SoupState } from '../create-soup-state';
+import { restoreSoupFocus } from '../utils';
 
 type MakeDeleteOptions = {
   userId: () => string | undefined;
@@ -63,12 +64,15 @@ export const makeDeleteAction = (options: MakeDeleteOptions) => {
         toast.success(
           entities.length > 1 ? `Deleted ${entities.length} items` : 'Deleted'
         );
+
+        restoreSoupFocus(nextEntity?.id);
       },
       onCancel: () => {
         const firstEntity = entities[0];
         if (firstEntity) {
           soup.focus.set(firstEntity.id);
         }
+        restoreSoupFocus(firstEntity?.id);
       },
     });
   };
