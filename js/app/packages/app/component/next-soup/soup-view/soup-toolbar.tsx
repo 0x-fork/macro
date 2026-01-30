@@ -119,12 +119,28 @@ const SoupFilters = () => {
     {
       hotkey: 'i',
       description: 'Toggle Inbox',
-      handler: () => toggleFilter('signal'),
+      handler: () => {
+        // If we're going to be removing the signal filter,
+        // we should replace it with the explicit-noise filter
+        if (soup.filters.isActive('signal')) {
+          toggleFilter('explicit-noise');
+        } else {
+          toggleFilter('signal');
+        }
+      },
     },
     {
       hotkey: 'o',
       description: 'Toggle Other',
-      handler: () => toggleFilter('noise'),
+      handler: () => {
+        // If we're going to be removing the noise filter,
+        // we should replace it with the explicit-noise filter
+        if (soup.filters.isActive('noise')) {
+          toggleFilter('explicit-noise');
+        } else {
+          toggleFilter('noise');
+        }
+      },
     },
     ...ENTITY_TYPE_FILTER_CONFIGS.map((f) => ({
       hotkey: f.shortcut as ValidHotkey,
