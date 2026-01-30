@@ -1,3 +1,4 @@
+import CheckIcon from '@icon/bold/check-bold.svg';
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { PreviewPanel } from '@app/component/PreviewPanel';
@@ -59,6 +60,7 @@ import {
 } from '@notifications';
 import { openEntityInNewTab } from '@app/component/next-soup/utils';
 import { SoupEntitySelectionToolbar } from '@app/component/next-soup/soup-view/soup-entity-selection-toolbar';
+import { EntityRow, EntityRowProvider } from '@app/component/mobile/EntityRow';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -82,7 +84,7 @@ export const SoupView = () => {
 
 const SoupViewImpl = () => {
   const panel = useSplitPanelOrThrow();
-  const { soup, query, rows: _rows, searchText } = useSoupView();
+  const { soup, source, rows: _rows, searchText } = useSoupView();
 
   const rows = createMemo(() => _rows());
 
@@ -103,7 +105,7 @@ const SoupViewImpl = () => {
 
   createEffect(
     on(rows, () => {
-      if (!initialLoad || query.isLoading) return;
+      if (!initialLoad || source.isLoading()) return;
       focusFirstEntity();
       initialLoad = false;
     })
@@ -224,9 +226,9 @@ const SoupViewImpl = () => {
   });
 
   const debouncedFetchMore = debounce(() => {
-    if (query.isFetchingNextPage || !query.hasNextPage) return;
+    if (source.isFetchingNextPage() || !source.hasNextPage()) return;
 
-    query.fetchNextPage();
+    source.fetchNextPage();
   });
 
   const orchestrator = useGlobalBlockOrchestrator();
@@ -436,7 +438,7 @@ const SoupViewImpl = () => {
   // because it's possible that the match exists on the server
   createEffect(
     on([rows, viewportItemCount], ([rows, viewportItemCount]) => {
-      if (rows.length >= viewportItemCount || query.isLoading) return;
+      if (rows.length >= viewportItemCount || source.isFetching()) return;
       debouncedFetchMore();
     })
   );
@@ -447,146 +449,204 @@ const SoupViewImpl = () => {
     string | undefined
   >(undefined);
 
+  const [localEntityListRef, setLocalEntityListRef] = createSignal<
+    HTMLDivElement | undefined
+  >();
+
+  const entityById = createMemo(
+    () => {
+      const list = rows() ?? [];
+      const map = new Map<string, SoupRow>();
+      for (const entity of list) {
+        map.set(entity.original.id, entity);
+      }
+      return map;
+    },
+    new Map<string, SoupRow>(),
+    {
+      equals(prev, next) {
+        return prev.size === next.size;
+      },
+    }
+  );
+
+  const [collapseEntityCallback, setCollapseEntityCallback] = createSignal<
+    ((entityID: string) => Promise<void>) | undefined
+  >();
+
   return (
     <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
       <SoupToolbar />
       <div ref={setListRef} class="flex flex-col size-full">
         <StaticMarkdownContext>
           <Switch>
-            <Match when={query.isLoading}>
+            <Match when={source.isLoading()}>
               <LoadingBlock />
             </Match>
             <Match when={!rows().length}>
               <EmptyState search={!!searchText()} />
             </Match>
-            <Match when={!query.isLoading && rows().length}>
-              <SoupList
-                virtualizerClass="scrollbar-hidden"
-                virtualizerRef={setVirtualizerHandle}
-                onScrollBottom={debouncedFetchMore}
-                rows={rows()}
+            <Match when={!source.isLoading() && rows().length}>
+              <EntityRowProvider
+                container={localEntityListRef}
+                canSwipeLeft={(entityId) => {
+                  const entity = entityById().get(entityId);
+                  if (!entity) return false;
+                  // Return if mark as done is enabled
+                  // return soupContext.actionRegistry.isActionEnabled(
+                  //   'mark_as_done',
+                  //   entity
+                  // );
+                }}
+                onSwipeLeft={(entityId) => {
+                  const entity = entityById().get(entityId);
+                  if (!entity) return false;
+
+                  // soupContext.actionRegistry.execute('mark_as_done', entity);
+                }}
+                setCollapseEntity={setCollapseEntityCallback}
               >
-                {(row, i) => {
-                  const timestamp = () => {
-                    const sort_ = soup.sort.active();
-                    if (!sort_.length) return;
+                <SoupList
+                  ref={setLocalEntityListRef}
+                  virtualizerClass="scrollbar-hidden"
+                  virtualizerRef={setVirtualizerHandle}
+                  onScrollBottom={debouncedFetchMore}
+                  rows={rows()}
+                >
+                  {(row, i) => {
+                    const timestamp = () => {
+                      const sort_ = soup.sort.active();
+                      if (!sort_.length) return;
 
-                    switch (sort_[0].id) {
-                      case 'viewed_at':
-                        return row.original.viewedAt;
-                      case 'created_at':
-                        return row.original.createdAt;
-                      case 'updated_at':
-                        return row.original.updatedAt;
-                    }
-                  };
+                      switch (sort_[0].id) {
+                        case 'viewed_at':
+                          return row.original.viewedAt;
+                        case 'created_at':
+                          return row.original.createdAt;
+                        case 'updated_at':
+                          return row.original.updatedAt;
+                      }
+                    };
 
-                  const properties = () => {
-                    if (isTaskEntity(row.original)) {
-                      return taskPropertiesStore()[row.original.id] ?? [];
-                    }
-                    return undefined;
-                  };
+                    const properties = () => {
+                      if (isTaskEntity(row.original)) {
+                        return taskPropertiesStore()[row.original.id] ?? [];
+                      }
+                      return undefined;
+                    };
 
-                  const shouldDisplayDoneButton = () => {
-                    if (row.original.type === 'email') {
-                      return !row.original.done;
-                    }
+                    const shouldDisplayDoneButton = () => {
+                      if (row.original.type === 'email') {
+                        return !row.original.done;
+                      }
 
-                    return (row.original.notifications?.().length ?? 0) > 0;
-                  };
+                      return (row.original.notifications?.().length ?? 0) > 0;
+                    };
 
-                  return (
-                    <SoupEntityContextMenu
-                      entity={row.original}
-                      entityTimestamp={timestamp()}
-                      onOpenChange={(open) => {
-                        setEntityContextMenuOpen(
-                          open ? row.original.id : undefined
-                        );
-                      }}
-                    >
-                      <div
-                        class={'unified-table-row'}
-                        data-row-id={row.original.id}
-                        data-row
-                        role="row"
-                        tabIndex={0}
+                    return (
+                      <EntityRow
+                        entityId={row.original.id}
+                        swipeLeftColor="bg-success"
+                        swipeLeftRevealedComponent={
+                          <CheckIcon class="size-8 text-panel" />
+                        }
                       >
-                        <div
-                          class="flex flex-col"
-                          style={{
-                            'padding-left': `${row.depth * 8}px`,
+                        <SoupEntityContextMenu
+                          entity={row.original}
+                          entityTimestamp={timestamp()}
+                          onOpenChange={(open) => {
+                            setEntityContextMenuOpen(
+                              open ? row.original.id : undefined
+                            );
                           }}
                         >
-                          <Show
-                            when={!row.isGrouped()}
-                            fallback={
-                              <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
-                                <button
-                                  type="button"
-                                  onClick={() => row.toggleExpanded()}
-                                >
-                                  {row.isExpanded() ? 'Close' : 'Open'}
-                                </button>
-                                <span>{row.original.name}</span>
-                              </div>
-                            }
+                          <div
+                            class={'unified-table-row'}
+                            data-row-id={row.original.id}
+                            data-row
+                            role="row"
+                            tabIndex={0}
                           >
-                            <EntityWithEverything
-                              splitId={panel.handle.id}
-                              entity={row.original}
-                              timestamp={timestamp()}
-                              properties={properties()}
-                              searchActive={!!searchText()}
-                              selected={{
-                                active:
-                                  row.isFocused() ||
-                                  entityContextMenuOpen() === row.original.id,
-                                muted: row.isFocused(),
+                            <div
+                              class="flex flex-col"
+                              style={{
+                                'padding-left': `${row.depth * 8}px`,
                               }}
-                              highlighted={
-                                panel.isPanelActive() && row.isFocused()
-                              }
-                              onMouseOver={() => {
-                                if (soup.previewEntity() || isKeypressActive())
-                                  return;
-                                soup.focus.set(row.original.id);
-                              }}
-                              onFocusIn={() => {
-                                if (soup.previewEntity()) return;
-                                soup.focus.set(row.original.id);
-                              }}
-                              showUnrollNotifications={
-                                soup.filters.isActive('signal') &&
-                                !soup.filters.isActive('noise')
-                              }
-                              unreadIndicatorActive={unreadFilterFn(
-                                row.original
-                              )}
-                              showDoneButton={shouldDisplayDoneButton()}
-                              checked={row.isSelected()}
-                              onChecked={(next, shiftKey) =>
-                                handleMultiSelectChecked({
-                                  entity: row.original,
-                                  entityIndex: i(),
-                                  next,
-                                  shiftKey: shiftKey ?? false,
-                                })
-                              }
-                              onClick={onEntityClick}
-                              onDblClick={onEntityDoubleClick}
-                              onPointerDown={onEntityPointerDown}
-                              onClickRowAction={onClickEntityAction}
-                              onClickNotification={onClickNotification}
-                            />
-                          </Show>
-                        </div>
-                      </div>
-                    </SoupEntityContextMenu>
-                  );
-                }}
-              </SoupList>
+                            >
+                              <Show
+                                when={!row.isGrouped()}
+                                fallback={
+                                  <div class="bg-accent flex gap-2 items-center px-2 py-1 text-input font-medium">
+                                    <button
+                                      type="button"
+                                      onClick={() => row.toggleExpanded()}
+                                    >
+                                      {row.isExpanded() ? 'Close' : 'Open'}
+                                    </button>
+                                    <span>{row.original.name}</span>
+                                  </div>
+                                }
+                              >
+                                <EntityWithEverything
+                                  splitId={panel.handle.id}
+                                  entity={row.original}
+                                  timestamp={timestamp()}
+                                  properties={properties()}
+                                  searchActive={!!searchText()}
+                                  selected={{
+                                    active:
+                                      row.isFocused() ||
+                                      entityContextMenuOpen() ===
+                                        row.original.id,
+                                    muted: row.isFocused(),
+                                  }}
+                                  highlighted={
+                                    panel.isPanelActive() && row.isFocused()
+                                  }
+                                  onMouseOver={() => {
+                                    if (
+                                      soup.previewEntity() ||
+                                      isKeypressActive()
+                                    )
+                                      return;
+                                    soup.focus.set(row.original.id);
+                                  }}
+                                  onFocusIn={() => {
+                                    if (soup.previewEntity()) return;
+                                    soup.focus.set(row.original.id);
+                                  }}
+                                  showUnrollNotifications={
+                                    soup.filters.isActive('signal') &&
+                                    !soup.filters.isActive('noise')
+                                  }
+                                  unreadIndicatorActive={unreadFilterFn(
+                                    row.original
+                                  )}
+                                  showDoneButton={shouldDisplayDoneButton()}
+                                  checked={row.isSelected()}
+                                  onChecked={(next, shiftKey) =>
+                                    handleMultiSelectChecked({
+                                      entity: row.original,
+                                      entityIndex: i(),
+                                      next,
+                                      shiftKey: shiftKey ?? false,
+                                    })
+                                  }
+                                  onClick={onEntityClick}
+                                  onDblClick={onEntityDoubleClick}
+                                  onPointerDown={onEntityPointerDown}
+                                  onClickRowAction={onClickEntityAction}
+                                  onClickNotification={onClickNotification}
+                                />
+                              </Show>
+                            </div>
+                          </div>
+                        </SoupEntityContextMenu>
+                      </EntityRow>
+                    );
+                  }}
+                </SoupList>
+              </EntityRowProvider>
             </Match>
           </Switch>
         </StaticMarkdownContext>
@@ -613,6 +673,7 @@ const DEFAULT_ITEM_SIZE = 10;
 const DEFAULT_OVERSCAN = 5;
 
 interface SoupListProps {
+  ref?: (el: HTMLElement) => void;
   virtualizerRef?: (handle: VirtualizerHandle) => void;
   class?: string;
   virtualizerClass?: string;
@@ -655,7 +716,10 @@ const SoupList = (props: SoupListProps) => {
   };
 
   return (
-    <div class={cn('unified-table-body size-full relative', props.class)}>
+    <div
+      ref={props.ref}
+      class={cn('unified-table-body size-full relative', props.class)}
+    >
       <VList
         ref={registerVirtualizerHandler}
         class={props.virtualizerClass}

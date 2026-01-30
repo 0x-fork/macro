@@ -1,8 +1,12 @@
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { SoupQueryArgs } from '@queries/soup/soup';
+import type { SoupItemsQueryArgs } from './items';
+import type { SearchSoupQueryArgs } from './search';
 
 export const soupKeys = createQueryKeys('soup', {
-  items: (args: SoupQueryArgs) => ({
+  items: (args: SoupItemsQueryArgs) => ({
+    queryKey: [args],
+  }),
+  search: (args: SearchSoupQueryArgs) => ({
     queryKey: [args],
   }),
 });

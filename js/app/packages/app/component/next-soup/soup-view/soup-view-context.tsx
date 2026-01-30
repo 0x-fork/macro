@@ -4,13 +4,15 @@ import {
   type SoupState,
 } from '@app/component/next-soup/create-soup-state';
 import { buildDssFiltersRequest } from '@app/component/next-soup/filters/filters';
+import { sortEntitiesForSearch } from '@app/component/next-soup/soup-view/sort-options';
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import { arrayEquals } from '@core/util/compareUtils';
 import { debouncedDependent } from '@core/util/debounce';
 import { fuzzyMatch } from '@core/util/fuzzy';
 import type { EntityData, WithNotification, WithSearch } from '@macro-entity';
 import { useNotificationsForEntity } from '@notifications';
-import { useSoupQuery } from '@queries/soup/items';
+import { useSoupItemsQuery } from '@queries/soup/items';
+import { useSearchSoupQuery } from '@queries/soup/search';
 import type { SearchArgs } from '@service-search/client';
 import type { UnifiedSearchIndex } from '@service-search/generated/models';
 import {
@@ -42,9 +44,18 @@ export type SoupRow = Row<SoupEntity>;
 
 export type SoupEntity = WithNotification<EntityData | WithSearch<EntityData>>;
 
+type DataSource<T> = {
+  data: Accessor<T[]>;
+  isLoading: Accessor<boolean>;
+  isFetching: Accessor<boolean>;
+  isFetchingNextPage: Accessor<boolean>;
+  hasNextPage: Accessor<boolean>;
+  fetchNextPage: VoidFunction;
+};
+
 interface SoupViewContextValues {
   soup: SoupState;
-  query: any;
+  source: DataSource<EntityData>;
   searchText: Accessor<string>;
   setSearchText: (value: string) => void;
   isSearchDisabled: Accessor<boolean>;
@@ -150,16 +161,40 @@ export const SoupViewContextProvider: FlowComponent<
     }
   );
 
-  const query = useSoupQuery(() => ({
-    params: {},
-    body: {
-      ...buildDssFiltersRequest(soup.filters.active()),
-      limit: 100,
-      search: {
-        ...searchUnifiedNameContentQueryParams().request,
+  const queryFilters = createMemo(() => {
+    return buildDssFiltersRequest(soup.filters.active());
+  });
+
+  const itemsQuery = useSoupItemsQuery(
+    () => ({
+      params: {
+        limit: 100,
+        sort_method:
+          (soup.sort.active()[0]?.id as 'updated_at') ?? 'updated_at',
       },
-    },
-  }));
+      body: queryFilters(),
+    }),
+    () => ({
+      enabled: isSearchDisabled(),
+    })
+  );
+
+  const searchQuery = useSearchSoupQuery(
+    () => ({
+      params: {
+        page_size: 100,
+      },
+      body: {
+        ...queryFilters(),
+        search: {
+          ...searchUnifiedNameContentQueryParams().request,
+        },
+      },
+    }),
+    () => ({
+      enabled: !isSearchDisabled(),
+    })
+  );
 
   const nameFuzzySearchFilter = (items: EntityData[]) => {
     const query = debouncedSearchForLocal();
@@ -207,25 +242,33 @@ export const SoupViewContextProvider: FlowComponent<
   };
 
   const entities = () => {
-    const data = query.data;
+    const itemsData = itemsQuery.data;
+    const searchData = searchQuery.data;
 
-    if (!data) return [];
+    if (!itemsData && !searchData) return [];
 
     const filters = soup.filters.active();
 
-    let transformed = data;
+    const items = itemsData ?? [];
+    const searchItems = searchData ?? [];
+
+    const isSearching = searchText().length > 0;
+
+    let transformed: SoupEntity[] = [...searchItems];
+
+    if (isSearching) {
+      transformed.push(...nameFuzzySearchFilter(items));
+    } else {
+      transformed.push(...items);
+    }
 
     for (const filter of filters) {
       transformed = transformed.filter(filter.predicate);
     }
 
-    if (searchText().length > 0 && searchText().length < 3) {
-      transformed = nameFuzzySearchFilter(transformed);
-    }
-
     const sorts = soup.sort.active();
 
-    if (sorts.length > 0) {
+    if (sorts.length > 0 && !isSearching) {
       transformed = transformed.toSorted((a, b) => {
         for (const sort of sorts) {
           const result = sort.fn(a, b);
@@ -233,6 +276,10 @@ export const SoupViewContextProvider: FlowComponent<
         }
         return 0;
       });
+    }
+
+    if (isSearching) {
+      transformed = transformed.toSorted(sortEntitiesForSearch);
     }
 
     return deduplicateEntities(transformed);
@@ -244,7 +291,28 @@ export const SoupViewContextProvider: FlowComponent<
 
   const context = {
     soup,
-    query,
+    source: {
+      data: entities,
+      isLoading: () => searchQuery.isLoading || itemsQuery.isLoading,
+      isFetching: () => searchQuery.isFetching || itemsQuery.isFetching,
+      isFetchingNextPage: () =>
+        searchQuery.isFetchingNextPage || itemsQuery.isFetchingNextPage,
+      hasNextPage: () => {
+        return (
+          (searchQuery.isEnabled && searchQuery.hasNextPage) ||
+          (itemsQuery.isEnabled && itemsQuery.hasNextPage)
+        );
+      },
+      fetchNextPage: () => {
+        if (searchQuery.isEnabled) {
+          searchQuery.fetchNextPage();
+        }
+
+        if (itemsQuery.isEnabled) {
+          itemsQuery.fetchNextPage();
+        }
+      },
+    },
     rows,
     searchText,
     setSearchText,
