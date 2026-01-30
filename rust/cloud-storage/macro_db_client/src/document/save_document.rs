@@ -609,7 +609,6 @@ pub async fn save_document(
         created_at: document_version.created_at,
         updated_at: document_version.updated_at,
         sub_type,
-        deleted_at: None,
     })
 }
 

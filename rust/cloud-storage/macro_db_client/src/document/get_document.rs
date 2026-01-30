@@ -372,7 +372,6 @@ pub async fn get_document(
             created_at: row.created_at,
             updated_at: row.updated_at,
             sub_type: row.sub_type,
-            deleted_at: row.deleted_at,
         })
     })
     .fetch_one(db)
@@ -488,7 +487,6 @@ pub async fn get_document_version(
             created_at: row.created_at,
             updated_at: row.updated_at,
             sub_type: row.sub_type,
-            deleted_at: row.deleted_at,
         })
     })
     .fetch_one(db)

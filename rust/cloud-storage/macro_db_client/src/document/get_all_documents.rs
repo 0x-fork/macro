@@ -126,7 +126,6 @@ pub async fn get_all_documents(
             created_at: row.created_at,
             updated_at: row.updated_at,
             sub_type: row.sub_type,
-            deleted_at: row.deleted_at,
         })
     })
     .fetch_all(db)

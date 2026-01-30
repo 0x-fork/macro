@@ -159,7 +159,6 @@ pub async fn create_blank_docx(
         created_at: document_version.created_at,
         updated_at: document_version.updated_at,
         sub_type: None,
-        deleted_at: None,
     })
 }
 
