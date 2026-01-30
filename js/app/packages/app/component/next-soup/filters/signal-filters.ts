@@ -1,19 +1,6 @@
-/**
- * Signal/Noise Filter Predicates
- *
- * Pure filter functions for classifying entities as signal (important) or noise (less important).
- *
- * Signal/Noise Logic:
- * - Channels: Always signal (they require explicit joining)
- * - Chats: Signal if recently viewed
- * - Documents: Tasks always signal, others if recently viewed
- * - Emails: Based on priority/depriority labels and metadata
- * - Projects: Signal if recently viewed
- */
-
 import {
   isTaskEntity,
-  TaskEntityWithProperties,
+  type TaskEntityWithProperties,
   type EntityData,
 } from '@macro-entity';
 import {
@@ -28,10 +15,6 @@ import {
   isTaskClosed,
 } from '@app/component/Soup/utils/filterHelpers';
 import { useUserId } from '@core/context/user';
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
 
 /** Extract label tokens from email labels for matching */
 const getLabelTokens = (
@@ -95,10 +78,6 @@ const hasRecentlyViewed = (entity: EntityData): boolean => {
 
   return now - viewedAt < oneDayMs;
 };
-
-// ============================================================================
-// Email Signal Analysis
-// ============================================================================
 
 type EmailEntity = Extract<EntityData, { type: 'email' }>;
 
@@ -188,10 +167,6 @@ const getCurrentUserId = () => {
     return undefined;
   }
 };
-
-// ============================================================================
-// Filter Predicates
-// ============================================================================
 
 /**
  * Signal filter - important/prioritized items.

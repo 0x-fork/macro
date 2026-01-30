@@ -1,10 +1,3 @@
-/**
- * Soup Filter Configurations
- *
- * Filter configs for the Soup component's filter plugin.
- * Uses signal/noise filters from @soup/filters for focus classification.
- */
-
 import {
   isTaskEntity,
   type EntityData,
@@ -72,10 +65,6 @@ export type FilterGroup = {
 
 type EnhancedEntity = WithNotification<EntityData>;
 
-// ============================================================================
-// Entity Type Filters
-// ============================================================================
-
 /** Document filter (markdown, canvas) - excludes tasks */
 export function documentFilter(entity: EntityData): boolean {
   if (entity.type !== 'document') return false;
@@ -120,10 +109,6 @@ export function fileFilter(entity: EntityData): boolean {
   const fileType = entity.fileType ?? '';
   return !['md', 'canvas'].includes(fileType);
 }
-
-// ============================================================================
-// Filter Configurations
-// ============================================================================
 
 export const SOUP_FILTERS = [
   // Focus filters (mutually exclusive)

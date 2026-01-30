@@ -27,17 +27,17 @@ import {
 } from 'solid-js';
 import {
   ENTITY_TYPE_FILTER_CONFIGS,
-  FilterID,
+  type FilterID,
   getEntityTypeFilterIcon,
 } from '@app/component/next-soup/filters/filters';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { ValidHotkey } from '@core/hotkey/types';
+import type { ValidHotkey } from '@core/hotkey/types';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { IS_MAC } from '@core/constant/isMac';
 import { SortDropdown } from '@app/component/Soup/components/SortDropdown';
-import { SystemSortOption } from '@app/component/ViewConfig';
+import type { SystemSortOption } from '@app/component/ViewConfig';
 
 export const SoupToolbar = () => {
   const { soup } = useSoupView();
