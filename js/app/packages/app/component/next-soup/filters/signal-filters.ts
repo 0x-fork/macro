@@ -4,17 +4,37 @@ import {
   type EntityData,
 } from '@macro-entity';
 import {
-  PRIORITY_LABELS,
-  DEPRIORITY_LABELS,
-  PRIORITY_METADATA,
-  DEPRIORITY_METADATA,
-  type EmailMetadataKey,
-} from './signal-config';
-import {
   getTaskAssigneeIds,
   isTaskClosed,
 } from '@app/component/Soup/utils/filterHelpers';
 import { useUserId } from '@core/context/user';
+
+// ============================================================================
+// Signal/Noise Configuration
+// ============================================================================
+
+/** Labels that indicate priority emails (signal) */
+const PRIORITY_LABELS = new Set(['CATEGORY_PERSONAL', 'SENT', 'IMPORTANT']);
+
+/** Labels that indicate depriority emails (noise) */
+const DEPRIORITY_LABELS = new Set([
+  'CATEGORY_UPDATES',
+  'CATEGORY_PROMOTIONS',
+  'CATEGORY_SOCIAL',
+  'CATEGORY_FORUMS',
+]);
+
+/** Metadata keys for email classification */
+type EmailMetadataKey = 'knownSender' | 'tabular' | 'genericSender';
+
+/** Metadata that indicates priority emails (signal) */
+const PRIORITY_METADATA = new Set<EmailMetadataKey>(['knownSender']);
+
+/** Metadata that indicates depriority emails (noise) */
+const DEPRIORITY_METADATA = new Set<EmailMetadataKey>([
+  'tabular',
+  'genericSender',
+]);
 
 /** Extract label tokens from email labels for matching */
 const getLabelTokens = (
@@ -87,26 +107,22 @@ function getEmailSignalInfo(entity: EmailEntity): {
   hasDepriority: boolean;
 } {
   const labelTokens = getLabelTokens(entity.labels);
-  const priorityLabels = PRIORITY_LABELS();
-  const depriorityLabels = DEPRIORITY_LABELS();
-  const priorityMetadata = PRIORITY_METADATA();
-  const depriorityMetadata = DEPRIORITY_METADATA();
 
   const hasPriorityLabel = labelTokens.some((label) =>
-    priorityLabels.has(label)
+    PRIORITY_LABELS.has(label)
   );
   const hasDeprioritizingLabel = labelTokens.some((label) =>
-    depriorityLabels.has(label)
+    DEPRIORITY_LABELS.has(label)
   );
 
   const metadata = entity.metadata as EmailMetadata | undefined;
   const hasPriorityMetadata = metadata
-    ? Array.from(priorityMetadata).some(
+    ? Array.from(PRIORITY_METADATA).some(
         (key) => getMetadataValue(metadata, key) === true
       )
     : false;
   const hasDeprioritizingMetadata = metadata
-    ? Array.from(depriorityMetadata).some(
+    ? Array.from(DEPRIORITY_METADATA).some(
         (key) => getMetadataValue(metadata, key) === true
       )
     : false;
