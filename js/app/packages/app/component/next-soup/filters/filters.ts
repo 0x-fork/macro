@@ -151,15 +151,9 @@ export const SOUP_FILTERS = [
     group: 'type',
   },
   {
-    id: 'task',
-    label: 'Tasks',
-    predicate: taskFilter,
-    group: 'type',
-  },
-  {
-    id: 'email',
-    label: 'Mail',
-    predicate: emailFilter,
+    id: 'agent',
+    label: 'Agents',
+    predicate: agentFilter,
     group: 'type',
   },
   {
@@ -175,9 +169,15 @@ export const SOUP_FILTERS = [
     group: 'type',
   },
   {
-    id: 'agent',
-    label: 'Agents',
-    predicate: agentFilter,
+    id: 'task',
+    label: 'Tasks',
+    predicate: taskFilter,
+    group: 'type',
+  },
+  {
+    id: 'email',
+    label: 'Mail',
+    predicate: emailFilter,
     group: 'type',
   },
   {
