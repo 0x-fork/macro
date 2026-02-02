@@ -27,6 +27,7 @@ import {
   Suspense,
   useContext,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 300;
 const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
@@ -109,24 +110,22 @@ export const SoupViewContextProvider: FlowComponent<
       if (types.length === 0) types = [];
       const includeArray: UnifiedSearchIndex[] = [];
       for (const type of types) {
-        switch (type) {
-          case 'document':
-          case 'task':
+        match(type)
+          .with('document', () => {
             includeArray.push('documents');
-            break;
-          case 'chat':
+          })
+          .with('chat', () => {
             includeArray.push('chats');
-            break;
-          case 'channel':
+          })
+          .with('channels', () => {
             includeArray.push('channels');
-            break;
-          case 'email':
+          })
+          .with('email', () => {
             includeArray.push('emails');
-            break;
-          case 'project':
+          })
+          .with('project', () => {
             includeArray.push('projects');
-            break;
-        }
+          });
       }
       return Array.from(new Set(includeArray));
     },
