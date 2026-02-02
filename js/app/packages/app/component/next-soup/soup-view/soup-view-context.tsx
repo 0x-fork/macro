@@ -298,15 +298,19 @@ export const SoupViewContextProvider: FlowComponent<
       transformed.push(...items);
     }
 
-    transformed = transformed.map(attachNotifications);
-
     for (const filter of filters) {
       transformed = transformed.filter(filter.predicate);
     }
 
+    transformed = deduplicateEntities(transformed);
+
+    if (isSearching) {
+      transformed = transformed.toSorted(sortEntitiesForSearch);
+    }
+
     const sorts = soup.sort.active();
 
-    if (sorts.length > 0 && !isSearching) {
+    if (sorts.length > 0) {
       transformed = transformed.toSorted((a, b) => {
         for (const sort of sorts) {
           const result = sort.fn(a, b);
@@ -316,11 +320,9 @@ export const SoupViewContextProvider: FlowComponent<
       });
     }
 
-    if (isSearching) {
-      transformed = transformed.toSorted(sortEntitiesForSearch);
-    }
+    transformed = transformed.map(attachNotifications);
 
-    return deduplicateEntities(transformed);
+    return transformed;
   };
 
   const rows = () => {
