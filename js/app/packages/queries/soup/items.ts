@@ -2,10 +2,16 @@ import { throwOnErr } from '@core/util/maybeResult';
 import type { EntityData } from '@macro-entity';
 import { soupKeys } from '@queries/soup/keys';
 import { mapSoupPageToEntityList } from '@queries/soup/transform-utils';
-import type { SoupQueryFilters } from '@queries/soup/types';
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
 import { storageServiceClient } from '@service-storage/client';
-import type { ParamsSortMethod } from '@service-storage/generated/schemas';
+import type {
+  ChannelFilters,
+  ChatFilters,
+  DocumentFilters,
+  EmailFilters,
+  ParamsSortMethod,
+  ProjectFilters,
+} from '@service-storage/generated/schemas';
 import {
   useInfiniteQuery,
   type UseInfiniteQueryResult,
@@ -17,7 +23,18 @@ export type SoupItemsQueryArgs = {
     limit?: number;
     sort_method?: ParamsSortMethod;
   };
-  body: SoupQueryFilters;
+  body: {
+    /** the bundled [ChannelFilters] */
+    channel_filters?: ChannelFilters;
+    /** the bundled [ChatFilters] */
+    chat_filters?: ChatFilters;
+    /** the bundled [DocumentFilters] */
+    document_filters?: DocumentFilters;
+    /** the bundled [EmailFilters] */
+    email_filters?: EmailFilters;
+    /** the bundled [ProjectFilters] */
+    project_filters?: ProjectFilters;
+  };
 };
 
 export type UseSoupQueyResult = UseInfiniteQueryResult<EntityData[], Error>;

@@ -170,6 +170,32 @@ export const SoupViewContextProvider: FlowComponent<
     });
   });
 
+  const searchFilters = createMemo(() => {
+    const {
+      channel_filters,
+      chat_filters,
+      document_filters,
+      email_filters,
+      project_filters,
+    } = queryFilters();
+
+    return {
+      channel: channel_filters.channel_ids.length ? channel_filters : null,
+      chat:
+        chat_filters.chat_ids.length || chat_filters.project_ids.length
+          ? chat_filters
+          : null,
+      document:
+        document_filters.document_ids.length ||
+        document_filters.project_ids.length ||
+        document_filters.file_types.length
+          ? document_filters
+          : null,
+      email: email_filters.recipients.length ? email_filters : null,
+      project: project_filters.project_ids.length ? project_filters : null,
+    };
+  });
+
   const itemsQuery = useSoupItemsQuery(
     () => ({
       params: {
@@ -190,10 +216,8 @@ export const SoupViewContextProvider: FlowComponent<
         page_size: 100,
       },
       body: {
-        ...queryFilters(),
-        search: {
-          ...searchUnifiedNameContentQueryParams().request,
-        },
+        ...searchFilters(),
+        ...searchUnifiedNameContentQueryParams().request,
       },
     }),
     () => ({
