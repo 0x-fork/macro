@@ -1,3 +1,4 @@
+import type { SoupState } from '@app/component/next-soup/create-soup-state';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { registerHotkey } from '@core/hotkey/hotkeys';
