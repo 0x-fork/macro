@@ -264,24 +264,21 @@ function EmailContent(props: EmailViewProps) {
     );
   }
 
-  // If there is a focused message id, but it does not currently exist in the message list, it is because the user has just sent a message. When it does come into existence, we want to scroll to the bottom.
-  createEffect((prev: boolean | undefined) => {
-    const currentFocusedId = context.messages.focusedID();
+  // When a message is sent, we set pendingSentMessageId. Once that message
+  // appears in the list, scroll to show it and clear the pending state.
+  createEffect(() => {
+    const pendingId = context.messages.pendingSentMessageId();
+    if (!pendingId) return;
+
     const messages = context.messages.list();
+    const found = messages.some((m) => m.db_id === pendingId);
 
-    if (!currentFocusedId || !messages) return true;
-
-    const currentIndex = messages.findIndex(
-      (m) => m.db_id === currentFocusedId
-    );
-    if (currentIndex < 0) return false;
-
-    if (prev === false) {
+    if (found) {
       setTimeout(() => {
         scrollToLastMessage('smooth');
       }, SCROLL_AFTER_SEND_DELAY_MS);
+      context.messages.setPendingSentMessageId(undefined);
     }
-    return true;
   });
 
   const navigateMessage = createCallback((dir: 'prev' | 'next') => {

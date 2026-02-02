@@ -149,26 +149,13 @@ export function useThreadQuery<Options extends UseThreadQueryOptions>(
 type MarkThreadAsSeenParams = { threadId: string };
 
 /**
- * Optimistically update thread and soup queries when marking as seen.
- * Does not await cancelQueries to avoid triggering suspense boundaries.
+ * Optimistically update soup queries when marking as seen.
+ * Note: We intentionally don't update the thread messages cache here.
+ * Doing so creates new object references that trigger re-renders in the
+ * email view, causing scroll position issues in the flex-col-reverse container.
+ * The is_read property isn't used in the email view anyway.
  */
 function threadSeenOnMutate(params: MarkThreadAsSeenParams): void {
-  queryClient.cancelQueries({
-    queryKey: emailKeys.threadMessages(params.threadId).queryKey,
-  });
-
-  queryClient.setQueryData<InfiniteData<Thread, number>>(
-    emailKeys.threadMessages(params.threadId).queryKey,
-    (old) =>
-      old && {
-        ...old,
-        pages: old.pages.map((page) => ({
-          ...page,
-          is_read: true,
-        })),
-      }
-  );
-
   queryClient.setQueriesData<InfiniteData<SoupPage, unknown>>(
     { queryKey: queryKeys.all.dss },
     (old) => {
@@ -213,14 +200,10 @@ export function useMarkThreadAsSeenMutation(
     ...withCallbacks<void, Error, MarkThreadAsSeenParams>(
       {
         onMutate: threadSeenOnMutate,
-        onSuccess: (_, params) => {
-          queryClient.invalidateQueries({
-            queryKey: emailKeys.threadMessages(params.threadId).queryKey,
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.all.dss,
-          });
-        },
+        // Note: We intentionally don't invalidate queries in onSuccess.
+        // The optimistic update in onMutate already sets is_read: true.
+        // Invalidating would trigger a refetch that causes scroll position
+        // issues due to re-renders from UNREAD label changes on messages.
       },
       callbacks
     ),

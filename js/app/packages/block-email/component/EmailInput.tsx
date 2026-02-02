@@ -28,8 +28,12 @@ export function EmailInput(props: EmailInputProps) {
     // Refresh to get the new message
     ctx.query.refetch();
 
-    // Set focus to new message if provided
-    if (newMessageId) ctx.messages.setFocused(newMessageId);
+    // Set focus to new message if provided, and mark it as pending
+    // so the scroll effect knows to scroll when it appears
+    if (newMessageId) {
+      ctx.messages.setPendingSentMessageId(newMessageId);
+      ctx.messages.setFocused(newMessageId);
+    }
   }
 
   return (
