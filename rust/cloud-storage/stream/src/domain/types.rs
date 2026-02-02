@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, StreamServiceError>;
@@ -7,4 +6,6 @@ pub type Result<T> = std::result::Result<T, StreamServiceError>;
 pub enum StreamServiceError {
     #[error("storage error {0}")]
     StorageError(Box<dyn std::error::Error>),
+    #[error("serde error {0}")]
+    SerdeError(serde_json::error::Error),
 }

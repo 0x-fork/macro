@@ -3,6 +3,9 @@ name = "stream"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+redis-test=[]
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -24,3 +27,4 @@ async-stream = { workspace = true }
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tokio-test = "0.4"
+serial_test = "3.3.1"
