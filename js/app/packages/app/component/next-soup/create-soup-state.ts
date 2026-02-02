@@ -4,7 +4,7 @@ import {
   type FilterConfig,
 } from '@app/component/next-soup/filters';
 import {
-  FilterID,
+  type FilterID,
   SOUP_FILTERS,
 } from '@app/component/next-soup/filters/filters';
 import { createSelectionState } from '@app/component/next-soup/selection-state';

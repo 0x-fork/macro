@@ -2,7 +2,7 @@ import type { SortConfig } from '@app/component/next-soup/create-soup-state';
 import type { SoupEntity } from '@app/component/next-soup/soup-view/soup-view-context';
 import {
   isSearchEntity,
-  WithSearch,
+  type WithSearch,
   type EntityData,
   type WithNotification,
 } from '@macro-entity';

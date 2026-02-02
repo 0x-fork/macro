@@ -23,10 +23,7 @@ import type { Accessor } from 'solid-js';
 import { onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { SoupState } from '../create-soup-state';
-import {
-  registerEntityHotkey,
-  splitIdToSoupViewRef,
-} from '../utils';
+import { registerEntityHotkey, splitIdToSoupViewRef } from '../utils';
 
 type UseSoupViewHotkeysOptions = {
   splitId: string;
