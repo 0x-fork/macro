@@ -4,6 +4,7 @@ import {
   type FilterConfig,
 } from '@app/component/next-soup/filters';
 import {
+  FILTER_GROUPS,
   type FilterID,
   SOUP_FILTERS,
 } from '@app/component/next-soup/filters/filters';
@@ -45,6 +46,7 @@ export const createSoupState = (
 
   const filters = createFilterState<SoupEntity, FilterConfig<SoupEntity>>({
     filters: SOUP_FILTERS,
+    groups: FILTER_GROUPS,
     initialFilters,
   });
 

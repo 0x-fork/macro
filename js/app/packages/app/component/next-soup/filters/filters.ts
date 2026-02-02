@@ -55,13 +55,17 @@ export type FilterConfig<T> = {
   readonly group?: string;
 };
 
-/** Filter group for mutual exclusivity */
+/** Filter group configuration */
 export type FilterGroup = {
   readonly id: string;
-  readonly label: string;
-  readonly filterIds: readonly string[];
   readonly allowMultiple?: boolean;
 };
+
+/** Filter group configurations */
+export const FILTER_GROUPS: readonly FilterGroup[] = [
+  { id: 'focus', allowMultiple: false },
+  { id: 'type', allowMultiple: false },
+];
 
 type EnhancedEntity = WithNotification<EntityData>;
 
