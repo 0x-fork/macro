@@ -48,9 +48,8 @@ export const useSoupItemsQuery = (
           })
       );
     },
-    initialPageParam: null,
+    initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => {
-      if (!lastPage.next_cursor) return;
       return lastPage.next_cursor;
     },
     select: (data) => {
