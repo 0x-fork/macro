@@ -1,9 +1,10 @@
 import { useGlobalBlockOrchestrator } from '@app/component/GlobalAppState';
-import { PreviewPanel } from '@app/component/PreviewPanel';
+import {
+  PreviewPanel,
+  useMaybePreviewPanel,
+} from '@app/component/PreviewPanel';
 import { SplitPanelContext } from '@app/component/split-layout/context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { UnifiedListView } from '@app/component/UnifiedListView';
-import { PROJECT_VIEWCONFIG_BASE } from '@app/component/ViewConfig';
 import { getIsSpecialProject } from '@block-project/isSpecial';
 import { useBlockId } from '@core/block';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
@@ -24,27 +25,29 @@ import {
 } from '@macro-entity';
 import { refetchResources } from '@service-storage/util/refetchResources';
 import { toast } from 'core/component/Toast/Toast';
-import {
-  type Component,
-  createMemo,
-  createRenderEffect,
-  createSignal,
-  onCleanup,
-  Show,
-  untrack,
-} from 'solid-js';
-import { projectBlockDataSignal } from '../signal/projectBlockData';
+import { type Component, createSignal, Show } from 'solid-js';
 import { TopBar } from './TopBar';
+import {
+  SoupContextProvider,
+  useSoup,
+} from '@app/component/next-soup/soup-context';
+import {
+  createSoupState,
+  type SoupState,
+} from '@app/component/next-soup/create-soup-state';
+import { SoupViewContextProvider } from '@app/component/next-soup/soup-view/soup-view-context';
+import { SoupViewList } from '@app/component/next-soup/soup-view/soup-view';
 
 // HACK: prevent lint error on custom directive
 false && fileFolderDrop;
 false && fileSelector;
 
+const PROJECT_ENTITY_TYPES = ['document', 'agent', 'file', 'task'];
+
 const Block: Component = () => {
   const [isDragging, setIsDragging] = createSignal(false);
   const projectId = useBlockId();
   const isSpecialProject = getIsSpecialProject(projectId);
-  const name = () => projectBlockDataSignal()?.projectMetadata.name;
   const entityQueryClient = useEntityQueryClient();
 
   const handleFileUpload = async (files: UploadInput[]) => {
@@ -91,19 +94,17 @@ const Block: Component = () => {
   };
 
   const orchestrator = useGlobalBlockOrchestrator();
-  const splitPanelContext = useSplitPanelOrThrow();
-  const {
-    selectedView,
-    setSelectedView,
-    setViewDataStore,
-    isRenderedFromPreview,
-    viewsDataStore: viewsData,
-  } = splitPanelContext.soupContext;
-  const [preview, setPreview] = splitPanelContext.previewState;
-  const view = createMemo(() => viewsData[selectedView()]);
-  const selectedEntity = () => view().selectedEntity;
 
-  if (!isRenderedFromPreview) {
+  const soup = useSoup();
+
+  const previewPanel = useMaybePreviewPanel();
+
+  const splitPanelContext = useSplitPanelOrThrow();
+
+  const [preview, setPreview] = splitPanelContext.previewState;
+  const selectedEntity = () => soup.focus.item();
+
+  if (!previewPanel) {
     registerHotkey({
       hotkey: ['space'],
       scopeId: splitPanelContext.splitHotkeyScope,
@@ -117,26 +118,16 @@ const Block: Component = () => {
     });
   }
 
-  createRenderEffect(() => {
-    const previousView = untrack(selectedView);
-
-    setSelectedView(projectId);
-
-    setViewDataStore(projectId, {
-      ...PROJECT_VIEWCONFIG_BASE,
-      id: projectId,
-      view: name() ?? 'folder',
-      multiSelectEntities: [],
-      filters: {
-        ...PROJECT_VIEWCONFIG_BASE.filters,
-        projectFilter: projectId,
+  const projectSoup = createSoupState({
+    initialFilters: ['project-content'],
+    filterConfigs: [
+      {
+        id: 'project-content',
+        label: 'Project content',
+        predicate: (entity) => PROJECT_ENTITY_TYPES.includes(entity.type),
       },
-    });
-
-    onCleanup(() => {
-      setSelectedView(previousView);
-      setViewDataStore(projectId, undefined);
-    });
+    ],
+    filterGroups: [],
   });
 
   return (
@@ -156,7 +147,10 @@ const Block: Component = () => {
           <FileDropOverlay>Upload to this folder</FileDropOverlay>
         </Show>
         <TopBar />
-        <Show when={ENABLE_PROJECT_VIEW_PREVIEW} fallback={<UnifiedListView />}>
+        <Show
+          when={ENABLE_PROJECT_VIEW_PREVIEW}
+          fallback={<ProjectEntityList soup={projectSoup} />}
+        >
           <div class="flex size-full">
             <SplitPanelContext.Provider
               value={{
@@ -165,7 +159,7 @@ const Block: Component = () => {
                   preview() ? { side: 'left', percentage: 30 } : undefined,
               }}
             >
-              <UnifiedListView hideToolbar={isRenderedFromPreview} />
+              <ProjectEntityList soup={projectSoup} />
             </SplitPanelContext.Provider>
             <Show when={preview()}>
               <PreviewPanel
@@ -178,6 +172,16 @@ const Block: Component = () => {
         </Show>
       </div>
     </DocumentBlockContainer>
+  );
+};
+
+const ProjectEntityList = (props: { soup: SoupState }) => {
+  return (
+    <SoupContextProvider soup={props.soup}>
+      <SoupViewContextProvider soup={props.soup}>
+        <SoupViewList customScrollbarHidden={true} />
+      </SoupViewContextProvider>
+    </SoupContextProvider>
   );
 };
 
