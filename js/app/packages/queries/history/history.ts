@@ -149,6 +149,9 @@ export function useUpsertToHistoryMutation(
             }
           },
           onSettled: () => {
+            // NOTE: the history refetch will invalidate the optimistic update viewed at
+            // since only soup items have viewed at timestamp. this is (mostly) fine for mentions menu
+            // since it will sort all items without viewed at timestamps to the top in arbitary order.
             queryClient.invalidateQueries({
               queryKey: historyKeys.list.queryKey,
             });
