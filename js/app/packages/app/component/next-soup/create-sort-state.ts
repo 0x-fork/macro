@@ -52,7 +52,11 @@ export const createSortState = <
   };
 
   const toggle = (id: TId, value?: boolean) => {
-    if (isActive(id) || value === false) {
+    if (value === true) {
+      add(id);
+    } else if (value === false) {
+      remove(id);
+    } else if (isActive(id)) {
       remove(id);
     } else {
       add(id);
