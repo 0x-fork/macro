@@ -16,7 +16,7 @@ import {
   type HistoryItem,
   type HistoryQueryResponse,
   transformHistoryResponse,
-  updateItemViewedAt,
+  updateViewedAtAndMoveItemToFront,
 } from './transforms';
 
 export { historyKeys } from './keys';
@@ -25,7 +25,6 @@ export {
   filterInstructionsMd,
   transformHistoryItem,
   transformHistoryResponse,
-  updateItemViewedAt,
 } from './transforms';
 
 const HISTORY_STALE_TIME = 5 * 60 * 1000;
@@ -84,21 +83,9 @@ export function optimisticUpdateViewedAt(itemId: string) {
     (old) => {
       if (!old) return old;
 
-      // Find the item and move it to the front with updated viewedAt
-      const itemIndex = old.data.findIndex((item) => item.id === itemId);
-      if (itemIndex === -1) return old;
-
-      const item = old.data[itemIndex];
-      const updatedItem = { ...item, viewedAt: now };
-      const newData = [
-        updatedItem,
-        ...old.data.slice(0, itemIndex),
-        ...old.data.slice(itemIndex + 1),
-      ];
-
       return {
         ...old,
-        data: newData,
+        data: updateViewedAtAndMoveItemToFront(old.data, itemId, now),
       };
     }
   );
@@ -149,29 +136,7 @@ export function useUpsertToHistoryMutation(
               historyKeys.list.queryKey
             );
 
-            queryClient.setQueryData<HistoryQueryResponse>(
-              historyKeys.list.queryKey,
-              (old) => {
-                if (!old) return old;
-                const existsIndex = old.data.findIndex(
-                  (item) => item.id === params.itemId
-                );
-                if (existsIndex >= 0) {
-                  const updatedData = updateItemViewedAt(
-                    old.data,
-                    params.itemId,
-                    Date.now()
-                  );
-                  const [updatedItem] = updatedData.splice(existsIndex, 1);
-                  return {
-                    ...old,
-                    data: [updatedItem, ...updatedData],
-                  };
-                } else {
-                  return old;
-                }
-              }
-            );
+            optimisticUpdateViewedAt(params.itemId);
 
             return { previousData };
           },

@@ -37,12 +37,27 @@ export function transformHistoryResponse(
   );
 }
 
-export function updateItemViewedAt(
-  items: Item[],
+/**
+ * Pure function: Updates an item's viewedAt timestamp and moves it to the front.
+ * Returns a new array without mutating the input.
+ */
+export function updateViewedAtAndMoveItemToFront(
+  items: ItemWithViewedAt[],
   itemId: string,
   timestamp: number
-): Item[] {
-  return items.map((item) =>
-    item.id === itemId ? { ...item, viewedAt: timestamp } : item
-  );
+): ItemWithViewedAt[] {
+  const itemIndex = items.findIndex((item) => item.id === itemId);
+
+  // Item not found, return original array
+  if (itemIndex === -1) return items;
+
+  const item = items[itemIndex];
+  const updatedItem: ItemWithViewedAt = { ...item, viewedAt: timestamp };
+
+  // Return new array with updated item at front
+  return [
+    updatedItem,
+    ...items.slice(0, itemIndex),
+    ...items.slice(itemIndex + 1),
+  ];
 }

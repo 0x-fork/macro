@@ -5,7 +5,10 @@ vi.mock('@core/constant/allBlocks', () => ({
 }));
 
 import type { Item } from '@service-storage/generated/schemas/item';
-import { transformHistoryResponse, updateItemViewedAt } from '../transforms';
+import {
+  transformHistoryResponse,
+  updateViewedAtAndMoveItemToFront,
+} from '../transforms';
 
 function createItem(overrides: Partial<Item> = {}): Item {
   return {
@@ -35,12 +38,72 @@ describe('history transforms', () => {
     expect(result[0].name).toBe('My Doc');
   });
 
-  it('updateItemViewedAt sets timestamp for optimistic updates', () => {
-    const items = [createItem({ id: 'doc-1' }), createItem({ id: 'doc-2' })];
+  describe('updateViewedAtAndMoveItemToFront', () => {
+    it('moves item to front and updates viewedAt', () => {
+      const items: Item[] = [
+        createItem({ id: 'item-1' }),
+        createItem({ id: 'item-2' }),
+        createItem({ id: 'item-3' }),
+      ];
+      const timestamp = Date.now();
 
-    const result = updateItemViewedAt(items, 'doc-1', 1704067200000);
+      const result = updateViewedAtAndMoveItemToFront(
+        items,
+        'item-2',
+        timestamp
+      );
 
-    expect(result[0]).toHaveProperty('viewedAt', 1704067200000);
-    expect(items[0]).not.toHaveProperty('viewedAt'); // doesn't mutate
+      expect(result[0].id).toBe('item-2');
+      expect(result[0].viewedAt).toBe(timestamp);
+      expect(result[1].id).toBe('item-1');
+      expect(result[2].id).toBe('item-3');
+    });
+
+    it('returns original array if item not found', () => {
+      const items: Item[] = [
+        createItem({ id: 'item-1' }),
+        createItem({ id: 'item-2' }),
+      ];
+
+      const result = updateViewedAtAndMoveItemToFront(
+        items,
+        'nonexistent',
+        Date.now()
+      );
+
+      expect(result).toBe(items);
+      expect(result.length).toBe(2);
+    });
+
+    it('keeps item at front if already first', () => {
+      const items: Item[] = [
+        createItem({ id: 'item-1' }),
+        createItem({ id: 'item-2' }),
+      ];
+      const timestamp = Date.now();
+
+      const result = updateViewedAtAndMoveItemToFront(
+        items,
+        'item-1',
+        timestamp
+      );
+
+      expect(result[0].id).toBe('item-1');
+      expect(result[0].viewedAt).toBe(timestamp);
+      expect(result[1].id).toBe('item-2');
+    });
+
+    it('does not mutate original array', () => {
+      const items: Item[] = [
+        createItem({ id: 'item-1' }),
+        createItem({ id: 'item-2' }),
+      ];
+      const originalLength = items.length;
+
+      updateViewedAtAndMoveItemToFront(items, 'item-2', Date.now());
+
+      expect(items.length).toBe(originalLength);
+      expect(items[0].id).toBe('item-1');
+    });
   });
 });
