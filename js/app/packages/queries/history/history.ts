@@ -1,10 +1,6 @@
 import { isOk, throwOnErr, catchToResult } from '@core/util/maybeResult';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
-import {
-  storageServiceClient,
-  type ItemType,
-  isCloudStorageItem,
-} from '@service-storage/client';
+import { storageServiceClient, type ItemType } from '@service-storage/client';
 import type { CloudStorageItemType } from '@service-storage/generated/schemas/cloudStorageItemType';
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
 import {
