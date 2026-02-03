@@ -75,7 +75,9 @@ export function refetchHistory() {
   });
 }
 
-export function optimisticUpdateViewedAt(itemId: string) {
+// @ts-ignore
+// biome-ignore lint/correctness/noUnusedVariables: we may use this eventually
+function optimisticUpdateViewedAt(itemId: string) {
   const now = Date.now();
 
   queryClient.setQueryData<HistoryQueryResponse>(
