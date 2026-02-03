@@ -1,6 +1,10 @@
 import { isOk, throwOnErr, catchToResult } from '@core/util/maybeResult';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
-import { storageServiceClient } from '@service-storage/client';
+import {
+  storageServiceClient,
+  type ItemType,
+  isCloudStorageItem,
+} from '@service-storage/client';
 import type { CloudStorageItemType } from '@service-storage/generated/schemas/cloudStorageItemType';
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
 import {
@@ -105,7 +109,7 @@ export function optimisticUpdateViewedAt(itemId: string) {
 
 type TrackViewedParams = {
   itemId: string;
-  itemType: CloudStorageItemType;
+  itemType: ItemType;
 };
 
 type TrackViewedContext = {
@@ -113,29 +117,13 @@ type TrackViewedContext = {
 };
 
 async function trackViewedOnServer(params: TrackViewedParams): Promise<void> {
-  if (params.itemType === 'document') {
-    await throwOnErr(
-      async () =>
-        await storageServiceClient.trackOpenedDocument({
-          documentId: params.itemId,
-        })
-    );
-  } else if (params.itemType === 'chat') {
-    await throwOnErr(
-      async () =>
-        await storageServiceClient.trackOpenedChat({
-          chatId: params.itemId,
-        })
-    );
-  } else {
-    await throwOnErr(
-      async () =>
-        await storageServiceClient.upsertItemToUserHistory({
-          itemId: params.itemId,
-          itemType: params.itemType,
-        })
-    );
-  }
+  await throwOnErr(
+    async () =>
+      await storageServiceClient.upsertItemToUserHistory({
+        itemId: params.itemId,
+        itemType: params.itemType,
+      })
+  );
 }
 
 export function useTrackViewedMutation(
