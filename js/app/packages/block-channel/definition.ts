@@ -4,7 +4,6 @@ import {
   fetchAndCacheChannel,
   optimisticUpdateChannelViewedAt,
 } from '@queries/channel/channel';
-import { optimisticUpdateViewedAt } from '@queries/history/history';
 import ChannelBlock from './component/Block';
 
 export const definition = defineBlock({
@@ -30,7 +29,6 @@ export const definition = defineBlock({
 
       const [, channelData] = channel;
 
-      optimisticUpdateViewedAt(source.id);
       optimisticUpdateChannelViewedAt(source.id);
 
       return ok({
