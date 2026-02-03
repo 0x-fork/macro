@@ -333,7 +333,7 @@ const SoupViewImpl = () => {
       }
     }
 
-    soup.selection.selectRange(newEntitiesForSelection, 'add');
+    soup.selection.selectRange(newEntitiesForSelection);
 
     lastClickedEntityId = params.entityIndex;
   };
