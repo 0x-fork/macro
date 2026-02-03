@@ -83,13 +83,20 @@ export const SoupView = () => {
       }}
     >
       <SoupViewContextProvider soup={soup}>
-        <SoupViewImpl />
+        <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
+          <SoupToolbar />
+          <SoupViewList />
+        </div>
       </SoupViewContextProvider>
     </SplitPanelContext.Provider>
   );
 };
 
-const SoupViewImpl = () => {
+interface SoupViewListProps {
+  customScrollbarHidden?: boolean;
+}
+
+export const SoupViewList = (props: SoupViewListProps) => {
   const panel = useSplitPanelOrThrow();
   const { soup, source, rows: _rows, searchText } = useSoupView();
   const { getSplitCount } = useSplitLayout();
@@ -403,11 +410,10 @@ const SoupViewImpl = () => {
 
   return (
     <div
+      class="contents"
       ref={setSoupViewRef}
-      class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full"
       data-hotkey-scope={panel.splitHotkeyScope}
     >
-      <SoupToolbar />
       <div
         ref={setListRef}
         class="@container/uList size-full unified-list-root flex flex-col"
@@ -575,17 +581,19 @@ const SoupViewImpl = () => {
                 </SoupList>
               </EntityRowProvider>
 
-              <CustomScrollbar
-                scrollContainer={() => {
-                  // Find the actual scroll container (VList creates its own scroll container)
-                  const listEl = localEntityListRef();
-                  if (!listEl) return undefined;
-                  const scrollContainer = listEl.querySelector(
-                    '[data-soup-list-container]'
-                  ) as HTMLElement;
-                  return scrollContainer || undefined;
-                }}
-              />
+              <Show when={!props.customScrollbarHidden}>
+                <CustomScrollbar
+                  scrollContainer={() => {
+                    // Find the actual scroll container (VList creates its own scroll container)
+                    const listEl = localEntityListRef();
+                    if (!listEl) return undefined;
+                    const scrollContainer = listEl.querySelector(
+                      '[data-soup-list-container]'
+                    ) as HTMLElement;
+                    return scrollContainer || undefined;
+                  }}
+                />
+              </Show>
             </Match>
           </Switch>
         </StaticMarkdownContext>
