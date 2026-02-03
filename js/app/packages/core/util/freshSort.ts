@@ -30,6 +30,9 @@ export interface FreshSortConfig {
   boostFn?: <T extends TimestampedItem>(item: T) => number;
 }
 
+// TODO: fix this type since [key: string]: any is too loose
+// for example, CombinedEntity in mentions menu only includes timestamp info under the data field
+// but this assumed a flattened object so fresh search isn't working
 export interface TimestampedItem {
   updatedAt?: number | string;
   updated_at?: number | string;

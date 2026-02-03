@@ -195,6 +195,9 @@
       ],
       "@ui/*": [
         "./packages/ui/*"
+      ],
+      "@block-theme/*": [
+        "./packages/block-theme/*"
       ]
     },
     "rootDir": ".",
