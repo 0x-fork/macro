@@ -1,12 +1,13 @@
 import { isOk, throwOnErr, catchToResult } from '@core/util/maybeResult';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
-import { storageServiceClient, type ItemType } from '@service-storage/client';
+import { storageServiceClient } from '@service-storage/client';
 import type { CloudStorageItemType } from '@service-storage/generated/schemas/cloudStorageItemType';
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
 import {
   type UseQueryResult,
   useMutation,
   useQuery,
+  type QueryClient,
 } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
 import { queryClient } from '../client';
@@ -103,69 +104,6 @@ export function optimisticUpdateViewedAt(itemId: string) {
   );
 }
 
-type TrackViewedParams = {
-  itemId: string;
-  itemType: ItemType;
-};
-
-type TrackViewedContext = {
-  previousData: HistoryQueryResponse | undefined;
-};
-
-async function trackViewedOnServer(params: TrackViewedParams): Promise<void> {
-  await throwOnErr(
-    async () =>
-      await storageServiceClient.upsertItemToUserHistory({
-        itemId: params.itemId,
-        itemType: params.itemType,
-      })
-  );
-}
-
-export function useTrackViewedMutation(
-  callbacks?: MutationCallbacks<
-    void,
-    Error,
-    TrackViewedParams,
-    TrackViewedContext
-  >
-) {
-  return useMutation(() => ({
-    mutationFn: trackViewedOnServer,
-    ...withCallbacks<void, Error, TrackViewedParams, TrackViewedContext>(
-      {
-        onMutate: async (params) => {
-          await queryClient.cancelQueries({
-            queryKey: historyKeys.list.queryKey,
-          });
-
-          const previousData = queryClient.getQueryData<HistoryQueryResponse>(
-            historyKeys.list.queryKey
-          );
-
-          optimisticUpdateViewedAt(params.itemId);
-
-          return { previousData };
-        },
-        onError: (_err, _params, context) => {
-          if (context?.previousData) {
-            queryClient.setQueryData(
-              historyKeys.list.queryKey,
-              context.previousData
-            );
-          }
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({
-            queryKey: historyKeys.list.queryKey,
-          });
-        },
-      },
-      callbacks
-    ),
-  }));
-}
-
 type UpsertToHistoryParams = {
   itemId: string;
   itemType: CloudStorageItemType;
@@ -181,77 +119,81 @@ export function useUpsertToHistoryMutation(
     Error,
     UpsertToHistoryParams,
     UpsertToHistoryContext
-  >
+  >,
+  client?: Accessor<QueryClient>
 ) {
-  return useMutation(() => ({
-    mutationFn: async (params: UpsertToHistoryParams) => {
-      await throwOnErr(
-        async () =>
-          await storageServiceClient.upsertItemToUserHistory({
-            itemId: params.itemId,
-            itemType: params.itemType,
-          })
-      );
-    },
-    ...withCallbacks<
-      void,
-      Error,
-      UpsertToHistoryParams,
-      UpsertToHistoryContext
-    >(
-      {
-        onMutate: async (params) => {
-          await queryClient.cancelQueries({
-            queryKey: historyKeys.list.queryKey,
-          });
-
-          const previousData = queryClient.getQueryData<HistoryQueryResponse>(
-            historyKeys.list.queryKey
-          );
-
-          queryClient.setQueryData<HistoryQueryResponse>(
-            historyKeys.list.queryKey,
-            (old) => {
-              if (!old) return old;
-              const existsIndex = old.data.findIndex(
-                (item) => item.id === params.itemId
-              );
-              if (existsIndex >= 0) {
-                const updatedData = updateItemViewedAt(
-                  old.data,
-                  params.itemId,
-                  Date.now()
-                );
-                const [updatedItem] = updatedData.splice(existsIndex, 1);
-                return {
-                  ...old,
-                  data: [updatedItem, ...updatedData],
-                };
-              } else {
-                return old;
-              }
-            }
-          );
-
-          return { previousData };
-        },
-        onError: (_err, _params, context) => {
-          if (context?.previousData) {
-            queryClient.setQueryData(
-              historyKeys.list.queryKey,
-              context.previousData
-            );
-          }
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({
-            queryKey: historyKeys.list.queryKey,
-          });
-        },
+  return useMutation(
+    () => ({
+      mutationFn: async (params: UpsertToHistoryParams) => {
+        await throwOnErr(
+          async () =>
+            await storageServiceClient.upsertItemToUserHistory({
+              itemId: params.itemId,
+              itemType: params.itemType,
+            })
+        );
       },
-      callbacks
-    ),
-  }));
+      ...withCallbacks<
+        void,
+        Error,
+        UpsertToHistoryParams,
+        UpsertToHistoryContext
+      >(
+        {
+          onMutate: async (params) => {
+            await queryClient.cancelQueries({
+              queryKey: historyKeys.list.queryKey,
+            });
+
+            const previousData = queryClient.getQueryData<HistoryQueryResponse>(
+              historyKeys.list.queryKey
+            );
+
+            queryClient.setQueryData<HistoryQueryResponse>(
+              historyKeys.list.queryKey,
+              (old) => {
+                if (!old) return old;
+                const existsIndex = old.data.findIndex(
+                  (item) => item.id === params.itemId
+                );
+                if (existsIndex >= 0) {
+                  const updatedData = updateItemViewedAt(
+                    old.data,
+                    params.itemId,
+                    Date.now()
+                  );
+                  const [updatedItem] = updatedData.splice(existsIndex, 1);
+                  return {
+                    ...old,
+                    data: [updatedItem, ...updatedData],
+                  };
+                } else {
+                  return old;
+                }
+              }
+            );
+
+            return { previousData };
+          },
+          onError: (_err, _params, context) => {
+            if (context?.previousData) {
+              queryClient.setQueryData(
+                historyKeys.list.queryKey,
+                context.previousData
+              );
+            }
+          },
+          onSettled: () => {
+            queryClient.invalidateQueries({
+              queryKey: historyKeys.list.queryKey,
+            });
+          },
+        },
+        callbacks
+      ),
+    }),
+    client
+  );
 }
 
 /**

@@ -25,6 +25,7 @@ import {
 } from '../signal/load';
 import type { Source, SourcePreload } from '../source';
 import { err, isErr, type ObjectLike, ok } from '../util/maybeResult';
+import { useQueryClient } from '@queries/client';
 
 export const blockDataSignal = createBlockSignal<unknown>();
 export const blockLiveTrackingEnabledSignal = createBlockSignal<boolean>();
@@ -133,8 +134,9 @@ Check that the load function does not return a preload source when the intent is
     });
 
     if (!isNested && data) {
-      import('./trackViewed').then(({ trackViewed }) => {
-        trackViewed(props.id, data.__block);
+      // we need to pass in a client accessor since the mutation is dynamically imported outside a query context provider
+      import('./trackBlockOpened').then(({ track }) => {
+        track(props.id, data.__block, useQueryClient);
       });
 
       // for analytics
