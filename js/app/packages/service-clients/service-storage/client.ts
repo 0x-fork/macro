@@ -350,27 +350,6 @@ export const storageServiceClient = {
     );
   },
 
-  async trackOpenedDocument(params: { documentId: string }) {
-    return mapOk(
-      await dssFetch<SuccessResponse>(
-        `/history/document/${params.documentId}`,
-        {
-          method: 'POST',
-        }
-      ),
-      (result) => result.data
-    );
-  },
-
-  async trackOpenedChat(params: { chatId: string }) {
-    return mapOk(
-      await dssFetch<SuccessResponse>(`/history/chat/${params.chatId}`, {
-        method: 'POST',
-      }),
-      (result) => result.data
-    );
-  },
-
   async getPins(params?: { limit?: number; offset?: number }) {
     return mapOk(
       await dssFetch<{ data: UserPins }>(
