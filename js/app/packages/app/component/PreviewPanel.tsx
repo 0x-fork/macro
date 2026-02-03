@@ -24,6 +24,14 @@ import {
 import { useSplitLayout } from './split-layout/layout';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
 import { Suspense } from 'solid-js';
+import { createContextProvider } from '@solid-primitives/context';
+
+export const [PreviewPanelContext, useMaybePreviewPanel] =
+  createContextProvider((props: { previewEntity: EntityData }) => {
+    return {
+      previewEntity: () => props.previewEntity,
+    };
+  });
 
 type PreviewPanel = {
   selectedEntity: EntityData | undefined;
@@ -179,9 +187,11 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
             halfSplitState: undefined,
           }}
         >
-          <Suspense>
-            <Dynamic component={blockInstance().element} />
-          </Suspense>
+          <PreviewPanelContext previewEntity={props.selectedEntity}>
+            <Suspense>
+              <Dynamic component={blockInstance().element} />
+            </Suspense>
+          </PreviewPanelContext>
         </SplitPanelContext.Provider>
       </div>
     </div>
