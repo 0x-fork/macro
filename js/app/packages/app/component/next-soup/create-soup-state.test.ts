@@ -434,7 +434,10 @@ describe('createSoupState', () => {
 
         expect(state.groups()).toEqual([]);
 
-        const groupConfig = { id: 'type', getValue: (item: unknown) => 'test' };
+        const groupConfig = {
+          id: 'type',
+          getValue: (_item: unknown) => 'test',
+        };
         state.setGroups([groupConfig]);
 
         expect(state.groups()).toEqual([groupConfig]);
