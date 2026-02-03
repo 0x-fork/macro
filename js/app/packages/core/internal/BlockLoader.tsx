@@ -25,8 +25,6 @@ import {
 } from '../signal/load';
 import type { Source, SourcePreload } from '../source';
 import { err, isErr, type ObjectLike, ok } from '../util/maybeResult';
-import { useTrackViewedMutation } from '@queries/history/history';
-import { blockNameToItemType } from '@service-storage/client';
 
 export const blockDataSignal = createBlockSignal<unknown>();
 export const blockLiveTrackingEnabledSignal = createBlockSignal<boolean>();
@@ -75,7 +73,6 @@ export function BlockLoader<
   const setEditPermissionEnabled = blockEditPermissionEnabledSignal.set;
   const setHandle = blockHandleSignal.set;
   const isNested = useIsNestedBlock();
-  const trackViewed = useTrackViewedMutation();
 
   setLiveTrackingEnabled(props.definition.liveTrackingEnabled ?? false);
   setEditPermissionEnabled(props.definition.editPermissionEnabled ?? false);
@@ -136,9 +133,8 @@ Check that the load function does not return a preload source when the intent is
     });
 
     if (!isNested && data) {
-      trackViewed.mutate({
-        itemId: props.id,
-        itemType: blockNameToItemType(data.__block),
+      import('./trackViewed').then(({ trackViewed }) => {
+        trackViewed(props.id, data.__block);
       });
 
       // for analytics
