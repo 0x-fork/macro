@@ -149,9 +149,14 @@ export function useUpsertToHistoryMutation(
             }
           },
           onSettled: () => {
-            queryClient.invalidateQueries({
-              queryKey: historyKeys.list.queryKey,
-            });
+            // NOTE: we want to preserve the viewed at timestamps which the history endopint does not return
+            // since we already optimistically update and roll back this isn't necessary. The mentions menu
+            // will still sort items with no viewed at timestamps to the top but the order won't be correct
+            // if multiple items have been opened in succession.
+            //
+            // queryClient.invalidateQueries({
+            //   queryKey: historyKeys.list.queryKey,
+            // });
           },
         },
         callbacks
