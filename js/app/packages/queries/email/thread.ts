@@ -1,6 +1,7 @@
 import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
 import { catchToResult, isErr, ok, throwOnErr } from '@core/util/maybeResult';
 import { queryKeys } from '@macro-entity';
+import { soupKeys } from '../soup/keys';
 import { emailClient } from '@service-email/client';
 import type {
   MessageToSend,
@@ -218,7 +219,7 @@ export function useMarkThreadAsSeenMutation(
             queryKey: emailKeys.threadMessages(params.threadId).queryKey,
           });
           queryClient.invalidateQueries({
-            queryKey: queryKeys.all.dss,
+            queryKey: soupKeys.items._def,
           });
         },
       },

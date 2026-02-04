@@ -30,6 +30,7 @@ import { queryClient } from '../client';
 import { type MutationCallbacks, withCallbacks } from '../utils';
 import { propertiesKeys } from './keys';
 import { queryKeys } from '../../macro-entity/src/queries/key';
+import { soupKeys } from '../soup/keys';
 import type { BulkEntityPropertiesData } from './bulk';
 
 export function useEntityPropertiesQuery(
@@ -136,7 +137,7 @@ export function useSaveEntityPropertyMutation(
             variables.property.propertyDefinitionId ===
             SYSTEM_PROPERTY_IDS.STATUS
           ) {
-            queryClient.invalidateQueries({ queryKey: queryKeys.all.dss });
+            queryClient.invalidateQueries({ queryKey: soupKeys.items._def });
           }
         },
       },
@@ -428,8 +429,8 @@ export function useSetPropertyStatusCompleteMutation(
     },
     onSettled: (_data, _error, variables) => {
       invalidatePropertiesForEntity(variables.entityType, variables.entityId);
-      // Also invalidate DSS to ensure consistency
-      queryClient.invalidateQueries({ queryKey: queryKeys.all.dss });
+      // Also invalidate soup items to ensure consistency
+      queryClient.invalidateQueries({ queryKey: soupKeys.items._def });
     },
     ...(callbacks
       ? withCallbacks<

@@ -418,9 +418,6 @@ export function createDeleteDssItemMutation() {
       }
 
       queryClient.invalidateQueries({
-        queryKey: queryKeys.all.dss,
-      });
-      queryClient.invalidateQueries({
         queryKey: soupKeys.items._def,
       });
     },
@@ -535,7 +532,7 @@ export function createBulkDeleteDssItemsMutation() {
       toast.failure('Failed to delete items');
       // Rollback on error - restore the deleted items
       queryClient.invalidateQueries({
-        queryKey: queryKeys.all.dss,
+        queryKey: soupKeys.items._def,
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.all.search,
@@ -626,10 +623,6 @@ export function createRenameDssEntityMutation(
           }
 
           queryClient.invalidateQueries({
-            queryKey: queryKeys.all.dss,
-          });
-
-          queryClient.invalidateQueries({
             queryKey: soupKeys.items._def,
           });
         },
@@ -706,9 +699,6 @@ export function createBulkRenameDssEntityMutation() {
       }
 
       queryClient.invalidateQueries({
-        queryKey: queryKeys.all.dss,
-      });
-      queryClient.invalidateQueries({
         queryKey: soupKeys.items._def,
       });
     },
@@ -738,9 +728,6 @@ function invalidateAfterMove(hasProjects: boolean, failed?: boolean) {
     toast.failure('Failed to move item');
   }
 
-  queryClient.invalidateQueries({
-    queryKey: queryKeys.all.dss,
-  });
   queryClient.invalidateQueries({
     queryKey: soupKeys.items._def,
   });
@@ -833,9 +820,6 @@ export function createCopyDssEntityMutation() {
         toast.failure('Failed to copy item');
       }
       queryClient.invalidateQueries({
-        queryKey: queryKeys.all.dss,
-      });
-      queryClient.invalidateQueries({
         queryKey: soupKeys.items._def,
       });
       queryClient.invalidateQueries({ queryKey: ['entity'] });
@@ -893,9 +877,6 @@ export function createBulkCopyDssEntityMutation() {
       }
 
       // Trigger refetch so new items appear
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.all.dss,
-      });
       queryClient.invalidateQueries({
         queryKey: soupKeys.items._def,
       });

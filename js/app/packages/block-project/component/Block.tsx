@@ -19,10 +19,8 @@ import {
   type UploadInput,
   uploadFiles,
 } from '@core/util/upload';
-import {
-  queryKeys,
-  useQueryClient as useEntityQueryClient,
-} from '@macro-entity';
+import { useQueryClient } from '@queries/client';
+import { soupKeys } from '@queries/soup/keys';
 import { refetchResources } from '@service-storage/util/refetchResources';
 import { toast } from 'core/component/Toast/Toast';
 import { type Component, createSignal, Show } from 'solid-js';
@@ -48,7 +46,7 @@ const Block: Component = () => {
   const [isDragging, setIsDragging] = createSignal(false);
   const projectId = useBlockId();
   const isSpecialProject = getIsSpecialProject(projectId);
-  const entityQueryClient = useEntityQueryClient();
+  const queryClient = useQueryClient();
 
   const handleFileUpload = async (files: UploadInput[]) => {
     if (files.length === 0) return;
@@ -69,8 +67,8 @@ const Block: Component = () => {
       // show documents that were immediately uploaded
       const successfulUploads = uploads.filter((result) => !result.pending);
       if (successfulUploads.length > 0) {
-        entityQueryClient.invalidateQueries({
-          queryKey: queryKeys.all.dss,
+        queryClient.invalidateQueries({
+          queryKey: soupKeys.items._def,
         });
         refetchResources();
       }
@@ -82,8 +80,8 @@ const Block: Component = () => {
         .map((result) => result.projectId);
       if (pendingFolderUploads.length > 0) {
         await Promise.all(pendingFolderUploads);
-        entityQueryClient.invalidateQueries({
-          queryKey: queryKeys.all.dss,
+        queryClient.invalidateQueries({
+          queryKey: soupKeys.items._def,
         });
         refetchResources();
       }
