@@ -115,6 +115,12 @@ export function fileFilter(entity: EntityData): boolean {
   return !['md', 'canvas'].includes(fileType);
 }
 
+export function teamsAndPeopleFilter(entity: EntityData): boolean {
+  if (entity.type !== 'channel') return false;
+
+  return true;
+}
+
 export const SOUP_FILTERS = [
   // Focus filters (mutually exclusive)
   {
@@ -189,6 +195,12 @@ export const SOUP_FILTERS = [
     id: 'file',
     label: 'Files',
     predicate: fileFilter,
+    group: 'type',
+  },
+  {
+    id: 'teams-and-people',
+    label: 'Groups',
+    predicate: teamsAndPeopleFilter,
     group: 'type',
   },
 ] as const;
