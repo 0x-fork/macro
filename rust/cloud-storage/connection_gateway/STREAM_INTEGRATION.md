@@ -33,7 +33,20 @@ Stream Starts:
     - stream_from_start
 
 Q: how does connection_gateway know when a new stream starts?
-A: polling thread to listen for new keyspaces?
+A: redis pub/sub thread to listen for new keyspaces. 
+^ StreamService::notify creates returns a broadcast channel to that notifies on new keyspace
+
+Q: What happens when a stream starts
+A: 
+- All active connections get sent the same stream
+- If a connection becomes inactive it's removed from the stream consumer group
+- A record of the active stream is kept so people can join late
+
+Q: What happens when a user joins late?
+  
+Q: This means that there could be a thread per user to consume the stream. Can this be
+done with fewer threads?
+
 
 Q: What is the synchronization model
 
@@ -41,7 +54,7 @@ A stream is a view into the creation of a message. When a stream completes it be
 It is important that the message exists only as a stream _or_ a message. It would be wrong to see a stream and a message.
 There needs to be a strong guarantee that a user will see either a message or a stream.
 
-> In an ideal world a steram and message may be the same type. Where fetching a messages is fetching the 
+> In an ideal world a stream and message may be the same type. Where fetching a messages is fetching the 
 > completed datastream. In theory this sounds simplifying, but doesn't solve the main problem if an 
 > external database (redis streams) is used to support high bandwidth streaming.
 
