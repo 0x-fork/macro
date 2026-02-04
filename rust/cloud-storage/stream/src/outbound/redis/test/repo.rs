@@ -1,5 +1,5 @@
 use super::util::StreamGuard;
-use super::*;
+use crate::domain::StreamManagerExt;
 use futures::StreamExt;
 use serial_test::serial;
 use std::time::Duration;
@@ -58,16 +58,15 @@ async fn test_redis_stream_service_append_and_read() {
 #[tokio::test]
 #[serial]
 async fn test_from_async_stream() {
+    // Use StreamGuard for cleanup, but get the concrete service for extension trait
     let (service, stream_id, _guard) = StreamGuard::new("from_async_stream").await;
 
     let items: Vec<serde_json::Value> = (1..=5).map(|i| serde_json::json!({"index": i})).collect();
 
     let input_stream = futures::stream::iter(items.clone());
-    let handle = service
+    service
         .clone()
         .from_async_stream(stream_id.clone(), Box::pin(input_stream), None);
-
-    handle.await.expect("from_async_stream task failed");
 
     let mut output_stream = service
         .stream_from_beginning(&stream_id)

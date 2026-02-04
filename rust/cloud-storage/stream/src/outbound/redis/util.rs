@@ -4,43 +4,28 @@ use uuid::Uuid;
 
 // A tokio::task wrapper that's hashabe + abort on drop
 #[derive(Debug)]
-pub struct Task {
-    id: Uuid,
+pub struct StreamTask {
     task: JoinHandle<()>,
 }
 
-impl Task {
-    pub fn spawn<F>(task: F) -> Self
+impl StreamTask {
+    pub fn spawn<F, Fut>(task: F) -> (Self, Uuid)
     where
-        F: Future + Send + 'static,
+        F: FnOnce(Uuid) -> Fut,
+        Fut: Future<Output = ()> + Send + 'static,
     {
-        let handle = tokio::task::spawn(async move {
-            task.await;
-        });
-
         let id = Uuid::new_v4();
-        Self { task: handle, id }
+        let handle = tokio::task::spawn(task(id.clone()));
+
+        (Self { task: handle }, id)
     }
+    
     pub fn kill(&self) {
         self.task.abort();
     }
 }
 
-impl std::hash::Hash for Task {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
-    }
-}
-
-impl std::cmp::PartialEq for Task {
-    fn eq(&self, other: &Self) -> bool {
-        self.id.eq(&other.id)
-    }
-}
-
-impl std::cmp::Eq for Task {}
-
-impl Drop for Task {
+impl Drop for StreamTask {
     fn drop(&mut self) {
         self.kill();
     }

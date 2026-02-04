@@ -1,11 +1,12 @@
 use crate::domain::StreamRepo;
 use crate::outbound::redis::*;
 use redis::Client;
+use std::cell::RefCell;
 use std::sync::Arc;
 
 pub struct StreamGuard {
     pub service: RedisStreamService,
-    pub stream_id: StreamId,
+    stream_ids: RefCell<Vec<StreamId>>,
 }
 
 impl StreamGuard {
@@ -22,30 +23,43 @@ impl StreamGuard {
         let stream_id = test_stream_id(entity_id, stream_id);
 
         let guard = Self {
-            service: service,
-            stream_id: stream_id.clone(),
+            service,
+            stream_ids: RefCell::new(vec![stream_id.clone()]),
         };
 
         (service_external.obj(), stream_id, guard)
+    }
+
+    /// Add a stream ID to be cleaned up when this guard is dropped
+    pub fn add_stream_id(&self, stream_id: StreamId) {
+        self.stream_ids.borrow_mut().push(stream_id);
+    }
+
+    /// Create a new stream ID and add it to the cleanup list
+    pub fn track_stream(&self, entity_id: &str, stream_id: &str) -> StreamId {
+        let id = test_stream_id(entity_id, stream_id);
+        self.add_stream_id(id.clone());
+        id
     }
 }
 
 impl Drop for StreamGuard {
     fn drop(&mut self) {
         let service = self.service.clone();
-        let stream_id = self.stream_id.clone();
+        let stream_ids = self.stream_ids.take();
         let _ = std::thread::spawn(move || {
             tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .unwrap()
                 .block_on(async {
-                    let _ = tokio::time::timeout(
-                        std::time::Duration::from_millis(500),
-                        service.cleanup_stream(&stream_id),
-                    )
-                    .await
-                    .expect("timed out cleaning up stream");
+                    for stream_id in stream_ids {
+                        let _ = tokio::time::timeout(
+                            std::time::Duration::from_millis(100),
+                            service.cleanup_stream(&stream_id),
+                        )
+                        .await;
+                    }
                 });
         })
         .join();

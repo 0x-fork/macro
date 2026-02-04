@@ -1,4 +1,4 @@
-use super::util::Task;
+use super::util::StreamTask;
 use crate::domain::*;
 use async_stream::stream;
 use async_trait::async_trait;
@@ -20,7 +20,7 @@ enum StreamItem<T> {
 }
 
 struct StreamNotifier {
-    _listener: Task,
+    _listener: StreamTask,
     tx: broadcast::Sender<StreamId>,
 }
 
@@ -28,9 +28,7 @@ impl StreamNotifier {
     pub async fn new(client: &Client) -> Self {
         // redis blocks the whole connection on pubsub so we need a new one
         // https://redis.io/docs/latest/develop/pubsub/
-        let connection_info = client.get_connection_info().to_owned();
-        // stinky
-        let new_connection = Client::open(connection_info).expect("create notifier connection");
+        let new_connection = client.clone();
         let (tx, _) = broadcast::channel(NOTIFY_CHANNEL_BUFFER);
         let listener = Self::spawn_subscriber(new_connection, tx.clone());
         Self {
@@ -43,9 +41,9 @@ impl StreamNotifier {
         self.tx.subscribe()
     }
 
-    fn spawn_subscriber(client: Client, tx: broadcast::Sender<StreamId>) -> Task {
+    fn spawn_subscriber(client: Client, tx: broadcast::Sender<StreamId>) -> StreamTask {
         tracing::info!("Start notification subscriber");
-        Task::spawn(async move {
+        let task = |_| async move {
             loop {
                 match client.get_async_pubsub().await {
                     Ok(mut pubsub) => {
@@ -55,18 +53,18 @@ impl StreamNotifier {
                         let mut stream = pubsub.on_message();
                         while let Some(msg) = stream.next().await {
                             if let Ok(stream_id) = msg
-                            .get_payload::<String>()
-                            .map_err(StreamServiceError::from)
-                            .and_then(|payload| {
-                                serde_json::from_str::<StreamId>(&payload).map_err(Into::into)
-                            })
-                            .inspect_err(|err| tracing::error!(error=?err, "failed to get notification payload"))
-                        {
-                            tracing::debug!(stream_id=?stream_id, "notify new stream");
-                            let _ = tx.send(stream_id).inspect_err(
-                                |err| tracing::error!(error=?err, "failed to forward notification"),
-                            );
-                        }
+                                        .get_payload::<String>()
+                                        .map_err(StreamServiceError::from)
+                                        .and_then(|payload| {
+                                            serde_json::from_str::<StreamId>(&payload).map_err(Into::into)
+                                        })
+                                        .inspect_err(|err| tracing::error!(error=?err, "failed to get notification payload"))
+                                    {
+                                        tracing::debug!(stream_id=?stream_id, "notify new stream");
+                                        let _ = tx.send(stream_id).inspect_err(
+                                            |err| tracing::error!(error=?err, "failed to forward notification"),
+                                        );
+                                    }
                         }
                     }
                     Err(e) => {
@@ -75,7 +73,8 @@ impl StreamNotifier {
                     }
                 }
             }
-        })
+        };
+        StreamTask::spawn(task).0
     }
 }
 
@@ -166,12 +165,11 @@ where
         let stream = stream! {
             let mut last_id = "0".to_string();
 
-            loop {
+            'stream_loop: loop {
                 let opts = redis::streams::StreamReadOptions::default().block(MAX_BLOCK_MS);
-                // this is blocking and monopolizes the redis connection
+
                 let result: RedisResult<StreamReadReply> = connection
-                    .xread_options(&[&stream_key], &[&last_id], &opts)
-                    .await;
+                    .xread_options(&[&stream_key], &[&last_id], &opts).await;
 
                 match result {
                     Ok(reply) => {
@@ -184,12 +182,17 @@ where
                                         if let Value::BulkString(bytes) = value {
                                             match String::from_utf8(bytes) {
                                                 Ok(json_str) => {
+                                                    println!("receieved stream item {}", json_str);
                                                     match serde_json::from_str::<StreamItem<T>>(&json_str) {
                                                         Ok(item) => match item {
                                                            StreamItem::Value(t)  => yield t,
-                                                           StreamItem::End => return
+                                                           StreamItem::End => {
+                                                               println!("end item received");
+                                                               break 'stream_loop;
+                                                           }
                                                         }
                                                         Err(e) => {
+
                                                             tracing::error!(error=?e, "failed to deserialize stream item");
                                                         }
                                                     }
@@ -210,6 +213,7 @@ where
                     }
                 }
             }
+            println!("STREAM ENDED");
         };
         Ok(Box::pin(stream))
     }
