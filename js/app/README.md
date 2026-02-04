@@ -12,6 +12,14 @@ If you have the [nix](https://nixos.org/learn/) package manager installed on you
 
 `nix develop`
 
+### Installing dependencies (GitHub Packages)
+
+This repo depends on private packages under the `@macro-inc/*` scope hosted on GitHub Packages.
+
+- **Set `GITHUB_TOKEN`**: Create a GitHub token with **`read:packages`** (and ensure SSO is enabled if your org requires it), then export it:
+  - `export GITHUB_TOKEN=...`
+- **Install**: `bun install`
+
 
 ## Tauri 🤝 Macro
 

@@ -170,17 +170,13 @@ We're hiring! If you're interested in working on macro, please email teo@macro.c
 
 # License
 
-All rights reserved.
-The contents of this repository are provided for viewing purposes only.
-You may not use, copy, modify, distribute, or create derivative works from this code without explicit written permission from Macro.
+"Get paid to contribute" (GPTC) license. See LICENSE for full details. Projects will be posted soon. Current Standard Contribution scale is reproduced below:
 
-## PROJECT DIRECTION
 
-We intend to open-source most of the codebase under a copy-left license in the future, with a separate Enterprise Edition (EE) component. We’re actively exploring the best way to do this while preserving a high-quality commercial product and a sustainable ecosystem.
-
-## CONTRIBUTIONS
-
-We’re not accepting external contributions yet.
-Feel free to explore the code and follow progress, but please do not submit PRs or attempt to reuse the code at this time.
-
-See [LICENSE](https://github.com/macro-inc/macro/blob/main/LICENSE) for details.
+| Tier | Amount | Description |
+| --- | --- | --- |
+| **Tier 0 —&#32;**Minor contributions | $0 | Typo fixes, documentation updates, dependency bumps, linting corrections. Much appreciated, and will be noticed! |
+| **Tier 1** — Small bug fixes and features | $5 | \~several minutes of work by a talented developer or quick fixes by an AI agent. Small styling or consistency improvements, small nit fixes or bug-fixes. Low-effort changes requiring minimal judgment. |
+| **Tier 2** — Moderate bug fixes and features | $50 | Bug fixes or features that should take \~1-2 hours of work by a talented developer and/or tens of dollars of AI agent spend. This is inclusive of any comments requested by the reviewers. |
+| **Tier 3** — Significant bug fixes and features | $250 | Meaningful changes not possible with unmonitored AI agent development, requiring multiple hours of human work, human taste/intuition/investigation and meaningful functionality, refactors for clarity or speed, or bug-fixes. This is inclusive of any comments requested by the reviewers. |
+| **Tier 4** — Obvious security vulnerabilities | $500+ | Please do not submit a PR. Email [contact@macro.com](mailto:contact@macro.com) and we will resolve the issue and then, upon mutual agreement, publish our findings and fixes alongside a Correction of Error (COE) report. |
