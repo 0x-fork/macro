@@ -201,20 +201,27 @@ function ChatInput(props: ChatInputInternalProps) {
   });
 
   function handleEnter(e: KeyboardEvent): boolean {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-
-      if (canSendMessage()) {
-        if (e.metaKey) {
-          sendMessage(SMART_MODE_MODEL);
-        } else {
-          sendMessage();
-        }
-      }
-      return true;
-    } else {
+    if (e.key !== 'Enter' || e.shiftKey) {
       return false;
     }
+
+    if (e.metaKey) {
+      e.preventDefault();
+      if (canSendMessage()) {
+        sendMessage(SMART_MODE_MODEL);
+      }
+      return true;
+    }
+
+    if (e.ctrlKey) {
+      e.preventDefault();
+      if (canSendMessage()) {
+        sendMessage(DEFAULT_MODEL);
+      }
+      return true;
+    }
+
+    return false;
   }
 
   const availableAttachments = useChatAttachableHistory();
@@ -252,10 +259,18 @@ function ChatInput(props: ChatInputInternalProps) {
               </div>
             </Tooltip>
           </Show>
-          <Tooltip tooltip="Enter to send with Haiku" placement="top">
-            <div class="flex items-center gap-1">
+          <Tooltip
+            tooltip={`${modifierMap.ctrl} + Enter to send with Haiku`}
+            placement="top"
+          >
+            <div
+              class="flex items-center gap-1"
+              classList={{
+                'text-accent': pressedKeys().has('ctrl'),
+              }}
+            >
               <div class="flex border border-edge-muted text-[0.625rem] rounded-xs items-center px-1 py-0.5">
-                <Hotkey shortcut="Enter" />
+                <Hotkey shortcut="ctrl+Enter" />
               </div>
               <span>Haiku</span>
             </div>
@@ -306,7 +321,7 @@ function ChatInput(props: ChatInputInternalProps) {
     <div
       id="chat-input"
       ref={containerRef}
-      class="relative flex flex-col bg-input border border-edge-muted rounded-md transition-all duration-150"
+      class="relative flex flex-col bg-input shadow-lg shadow-neutral-500/10 ring ring-edge-muted/50 rounded-t transition-all duration-150"
     >
       <Show when={hasAttachments()}>
         <div class="px-2 pt-2 w-full">

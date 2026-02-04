@@ -219,7 +219,7 @@ export function Chat(props: { data: ChatData }) {
         <CustomScrollbar scrollContainer={scrollRef} />
       </div>
       <Show when={!disabled()}>
-        <div class="flex w-full justify-center pb-2 px-4">
+        <div class="flex w-full justify-center px-4">
           <div class="w-3xl">
             <ChatInput
               onSend={onSend}

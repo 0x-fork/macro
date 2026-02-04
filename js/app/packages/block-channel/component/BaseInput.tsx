@@ -15,6 +15,7 @@ import {
 } from '@block-channel/utils/taskModeConversion';
 import { useTaskMode } from '@block-channel/hooks/taskmode';
 import { isInBlock } from '@core/block';
+import { Hotkey } from '@core/component/Hotkey';
 import { LabelAndHotKey } from '@core/component/Tooltip';
 import { FileDropOverlay } from '@core/component/FileDropOverlay';
 import {
@@ -82,7 +83,7 @@ type InputAttachmentsStore = {
 
 type BaseInputProps = {
   /** callback to be executed when the user clicks the send button
-   * or presses enter */
+   * or presses cmd+enter */
   onSend: (args: SendMessageArgs) => Promise<void>;
   /** callback to be executed when the user changes the input */
   onChange: (content: string) => void;
@@ -291,7 +292,7 @@ export function BaseInput(props: BaseInputProps) {
   };
 
   registerHotkey({
-    hotkey: ['enter'],
+    hotkey: ['cmd+enter'],
     scopeId: scopeId,
     description: 'Send message',
     condition: () => {
@@ -302,9 +303,14 @@ export function BaseInput(props: BaseInputProps) {
       );
     },
     keyDownHandler: () => {
+      if (hasPendingAttachments() || isPendingSend()) {
+        return true;
+      }
+      handleSend();
       return true;
     },
     hotkeyToken: TOKENS.channel.sendMessage,
+    runWithInputFocused: true,
   });
 
   // Focus when external shouldFocus signal is set to true
@@ -458,11 +464,22 @@ export function BaseInput(props: BaseInputProps) {
   const documentAttachments = () =>
     attachments().filter((a) => !isStaticAttachmentType(a.blockName));
 
+  const sendHint = () => (
+    <div class="flex flex-row items-center gap-3 text-xs text-ink-disabled opacity-70 shrink-0">
+      <div class="flex items-center gap-1">
+        <div class="flex border border-edge-muted text-[0.625rem] rounded-xs items-center px-1 py-0.5">
+          <Hotkey shortcut="meta+Enter" />
+        </div>
+        <span>Send</span>
+      </div>
+    </div>
+  );
+
   return (
     <div
-      class="relative flex flex-col flex-1 items-center justify-between bg-input border-t border-x border-edge-muted rounded-t-[5px] -mb-[7px]"
+      class="relative flex flex-col flex-1 items-center justify-between bg-input shadow-lg ring ring-edge-muted/50 rounded-t-xl transition-all duration-150 -mb-[15px]"
       classList={{
-        'rounded-b-[5px] border-b mb-4': props.isReplyInput,
+        'rounded-b mb-4': props.isReplyInput,
       }}
       ref={containerRef}
       use:fileFolderDrop={{
@@ -514,20 +531,8 @@ export function BaseInput(props: BaseInputProps) {
           focusMarkdownArea();
         }}
       >
-        {/* Disable enter to submit on mobile */}
         <MarkdownArea
           placeholder={props.placeholder}
-          onEnter={
-            isMobile()
-              ? (_e) => false
-              : (_e) => {
-                  if (hasPendingAttachments() || isPendingSend()) {
-                    return true;
-                  }
-                  handleSend();
-                  return true;
-                }
-          }
           onBlur={() => {
             props.onBlur?.();
             stopTyping();
@@ -658,9 +663,16 @@ export function BaseInput(props: BaseInputProps) {
             when={!hasPendingAttachments() && !isPendingSend()}
             fallback={<Spinner class="size-6 animate-spin cursor-disabled" />}
           >
-            <div class="group-hover:scale-115 group-hover:bg-accent transition ease-in-out size-6 touch:size-8 border border-accent rounded-full flex items-center justify-center">
-              <ArrowUp class="group-hover:!text-input group-hover:!fill-input !text-accent-ink !fill-accent size-4 transition ease-in-out" />
-            </div>
+            <Show
+              when={!isTouchDevice()}
+              fallback={
+                <div class="group-hover:scale-115 group-hover:bg-accent transition ease-in-out size-6 touch:size-8 border border-accent rounded-full flex items-center justify-center">
+                  <ArrowUp class="group-hover:!text-input group-hover:!fill-input !text-accent-ink !fill-accent size-4 transition ease-in-out" />
+                </div>
+              }
+            >
+              {sendHint()}
+            </Show>
           </Show>
         </Button>
       </div>

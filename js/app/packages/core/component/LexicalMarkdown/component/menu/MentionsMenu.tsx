@@ -4,7 +4,7 @@ import {
   useMaybeBlockName,
 } from '@core/block';
 import { SUPPORTED_CHAT_ATTACHMENT_BLOCKS } from '@core/component/AI/constant/fileType';
-import { BozzyBracketInnerSibling } from '@core/component/BozzyBracket';
+import { ClippedPanel } from '@core/component/ClippedPanel';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { type PortalScope, ScopedPortal } from '@core/component/ScopedPortal';
 import { UserIcon } from '@core/component/UserIcon';
@@ -54,6 +54,7 @@ import {
   untrack,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { beveledCorners } from '../../../../../block-theme/signals/themeSignals';
 import { floatWithElement } from '../../directive/floatWithElement';
 import { floatWithSelection } from '../../directive/floatWithSelection';
 import {
@@ -389,8 +390,8 @@ export function MentionsMenuItem(props: {
         e.stopPropagation();
       }}
       on:mousemove={() => props.setIndex(props.index)}
-      class="group flex items-center p-1.5 mx-1.5"
-      classList={{ 'bg-active bracket': props.selected }}
+      class="group flex items-center p-1.5 mx-1.5 rounded-md"
+      classList={{ 'bg-active': props.selected }}
     >
       <div class="mr-2">{icon()}</div>
       <span
@@ -1274,16 +1275,17 @@ function MentionsMenuInner(props: {
     <Show when={menuOpen()}>
       <ScopedPortal scope={props.portalScope}>
         <div
-          class="w-96 cursor-default select-none z-modal-content"
+          class="w-96 cursor-default select-none z-modal-content shadow-lg"
           use:floatWithElement={floatWithElementProps()}
           use:floatWithSelection={floatWithSelectionProps()}
           use:clickOutside={clickOutsideHandler}
           ref={menuRef}
         >
-          <div class="relative overflow-hidden ring-1 ring-edge bg-menu shadow-xl py-2">
-            {inner()}
-          </div>
-          <BozzyBracketInnerSibling animOnOpen={true} />
+          <ClippedPanel tl={!beveledCorners()} active>
+            <div class="relative overflow-hidden bg-panel text-ink py-2">
+              {inner()}
+            </div>
+          </ClippedPanel>
         </div>
       </ScopedPortal>
     </Show>

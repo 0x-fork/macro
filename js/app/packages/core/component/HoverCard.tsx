@@ -2,6 +2,7 @@ import {
   type HoverCardRootProps,
   HoverCard as KobalteHoverCard,
 } from '@kobalte/core/hover-card';
+import { ClippedPanel } from '@core/component/ClippedPanel';
 import type { JSX, Setter } from 'solid-js';
 import {
   createContext,
@@ -10,6 +11,7 @@ import {
   onCleanup,
   useContext,
 } from 'solid-js';
+import { beveledCorners } from '../../block-theme/signals/themeSignals';
 
 type NestedHoverCardContext = {
   count: () => number;
@@ -54,6 +56,8 @@ export function HoverCard(props: HoverCardComponentProps) {
 
   const [nestedOpenCount, setNestedOpenCount] = createSignal(0);
   const [isHoverCardOpen, setIsHoverCardOpen] = createSignal(false);
+  const contentClass = () =>
+    props.contentClass ? `shadow-lg ${props.contentClass}` : 'shadow-lg';
 
   createEffect(() => {
     if (isHoverCardOpen()) {
@@ -90,12 +94,16 @@ export function HoverCard(props: HoverCardComponentProps) {
       </KobalteHoverCard.Trigger>
 
       <KobalteHoverCard.Portal>
-        <KobalteHoverCard.Content class={props.contentClass}>
-          <HoverCardPortalNestedPreviewOpenContext.Provider
-            value={{ count: nestedOpenCount, setCount: setNestedOpenCount }}
-          >
-            {props.content}
-          </HoverCardPortalNestedPreviewOpenContext.Provider>
+        <KobalteHoverCard.Content class={contentClass()}>
+          <ClippedPanel tl={!beveledCorners()} active>
+            <div class="bg-panel text-ink">
+              <HoverCardPortalNestedPreviewOpenContext.Provider
+                value={{ count: nestedOpenCount, setCount: setNestedOpenCount }}
+              >
+                {props.content}
+              </HoverCardPortalNestedPreviewOpenContext.Provider>
+            </div>
+          </ClippedPanel>
         </KobalteHoverCard.Content>
       </KobalteHoverCard.Portal>
     </KobalteHoverCard>

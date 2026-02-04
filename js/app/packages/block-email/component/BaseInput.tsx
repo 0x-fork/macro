@@ -15,6 +15,7 @@ import {
 } from '@core/component/LexicalMarkdown/utils/fileUploadUtils';
 import type { UserMentionRecord } from '@core/component/LexicalMarkdown/utils/mentionsUtils';
 import { DropdownMenuContent, MenuItem } from '@core/component/Menu';
+import { Hotkey } from '@core/component/Hotkey';
 import { RecipientSelector } from '@core/component/RecipientSelector';
 import { toast } from '@core/component/Toast/Toast';
 import { Tooltip } from '@core/component/Tooltip';
@@ -888,12 +889,23 @@ export function BaseInput(props: {
     });
   };
 
+  const sendHint = () => (
+    <div class="flex flex-row items-center gap-3 text-xs text-ink-disabled opacity-70 shrink-0">
+      <div class="flex items-center gap-1">
+        <div class="flex border border-edge-muted text-[0.625rem] rounded-xs items-center px-1 py-0.5">
+          <Hotkey shortcut="meta+Enter" />
+        </div>
+        <span>Send</span>
+      </div>
+    </div>
+  );
+
   return (
     <div
       ref={(el) => {
         composeContainerRef = el;
       }}
-      class="relative flex flex-col flex-1 bg-input border-t border-x border-edge-muted rounded-t-[5px] -mb-[7px] max-w-full"
+      class="relative flex flex-col flex-1 bg-input shadow-xl shadow-neutral-50/10 ring ring-edge-muted rounded-t transition-all duration-150 -mb-[10px] max-w-full"
     >
       {/* Top Bar */}
       <div class="flex items-start gap-2 p-2">
@@ -1264,9 +1276,16 @@ export function BaseInput(props: {
               when={!sendMutation.isPending}
               fallback={<Spinner class="size-6 animate-spin cursor-disabled" />}
             >
-              <div class="group hover:bg-accent transition ease-in-out size-6 border border-accent rounded-full flex items-center justify-center p-0">
-                <ArrowUp class="group-hover:!text-input group-hover:!fill-input !text-accent-ink !fill-accent size-4 transition ease-in-out" />
-              </div>
+              <Show
+                when={!isMobile()}
+                fallback={
+                  <div class="group hover:bg-accent transition ease-in-out size-6 border border-accent rounded-full flex items-center justify-center p-0">
+                    <ArrowUp class="group-hover:!text-input group-hover:!fill-input !text-accent-ink !fill-accent size-4 transition ease-in-out" />
+                  </div>
+                }
+              >
+                {sendHint()}
+              </Show>
             </Show>
           </Button>
         </div>
