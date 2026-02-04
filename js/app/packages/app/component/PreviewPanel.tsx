@@ -1,27 +1,19 @@
 import type { BlockAliasContext } from '@core/block';
 import { fileTypeToResolvedBlockName } from '@core/constant/allBlocks';
-import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import type { BlockOrchestrator } from '@core/orchestrator';
 import type { NonNullableFields } from '@core/util/withRequired';
 import { type EntityData, isTaskEntity } from '@macro-entity';
 import {
   type Component,
-  createMemo,
   createRenderEffect,
   createSignal,
-  onMount,
   Show,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import {
-  createNavigationEntityListShortcut,
-  createSoupContext,
-} from './SoupContext';
-import {
   SplitPanelContext,
   type SplitPanelContextType,
 } from './split-layout/context';
-import { useSplitLayout } from './split-layout/layout';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
 import { Suspense } from 'solid-js';
 import { createContextProvider } from '@solid-primitives/context';
