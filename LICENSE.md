@@ -142,7 +142,7 @@ The following schedule applies to Standard Contributions accepted into the Softw
 
 | Tier | Amount | Description |
 | --- | --- | --- |
-| **Tier 0 —&#32;**Minor contributions | $0 | Typo fixes, documentation updates, dependency bumps, linting corrections. Much appreciated, and will be noticed! |
+| **Tier 0** — Minor contributions | $0 | Typo fixes, documentation updates, dependency bumps, linting corrections. Much appreciated, and will be noticed! |
 | **Tier 1** — Small bug fixes and features | $5 | \~several minutes of work by a talented developer or quick fixes by an AI agent. Small styling or consistency improvements, small nit fixes or bug-fixes. Low-effort changes requiring minimal judgment. |
 | **Tier 2** — Moderate bug fixes and features | $50 | Bug fixes or features that should take \~1-2 hours of work by a talented developer and/or tens of dollars of AI agent spend. This is inclusive of any comments requested by the reviewers. |
 | **Tier 3** — Significant bug fixes and features | $250 | Meaningful changes not possible with unmonitored AI agent development, requiring multiple hours of human work, human taste/intuition/investigation and meaningful functionality, refactors for clarity or speed, or bug-fixes. This is inclusive of any comments requested by the reviewers. |
