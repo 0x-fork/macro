@@ -80,7 +80,7 @@ impl StreamNotifier {
 
 /// Redis-backed stream service using Redis Streams for storage and Pub/Sub for notifications.
 #[derive(Clone)]
-pub struct RedisStreamService {
+pub struct RedisStreamRepo {
     client: Arc<Client>,
     notifier: Arc<OnceCell<StreamNotifier>>,
 }
@@ -89,7 +89,7 @@ pub struct RedisStreamService {
 const MAX_BLOCK_MS: usize = 1000 * 60 * 5;
 const KEY: &str = "item";
 
-impl RedisStreamService {
+impl RedisStreamRepo {
     /// Create a new Redis stream service.
     pub async fn new(client: Client) -> Result<Self> {
         Ok(Self {
@@ -131,7 +131,7 @@ impl RedisStreamService {
 }
 
 #[async_trait]
-impl<T> StreamRepo<T> for RedisStreamService
+impl<T> StreamRepo<T> for RedisStreamRepo
 where
     T: Serialize + DeserializeOwned + std::fmt::Debug + Send + Sync + 'static,
 {
@@ -226,7 +226,7 @@ where
         let mut conn = self.client.get_multiplexed_async_connection().await?;
         let pattern = format!("*:{}:*", entity_id);
         let iter = conn.scan_match::<&str, String>(&pattern).await?;
-        let keys: Vec<String> = iter.try_collect().await?;
+        let keys = iter.collect::<Vec<_>>().await;
         Ok(keys
             .into_iter()
             .filter_map(|s| StreamId::try_from(s).ok())

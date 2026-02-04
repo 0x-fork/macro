@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 pub struct StreamGuard {
-    pub service: RedisStreamService,
+    pub service: RedisStreamRepo,
     stream_ids: RefCell<Vec<StreamId>>,
 }
 
@@ -66,10 +66,10 @@ impl Drop for StreamGuard {
     }
 }
 
-pub async fn connect_from_env() -> RedisStreamService {
+pub async fn connect_from_env() -> RedisStreamRepo {
     let redis_url = std::env::var("REDIS_URL").expect("redis url");
     let client = Client::open(redis_url).expect("Failed to create Redis client");
-    let service = RedisStreamService::new(client)
+    let service = RedisStreamRepo::new(client)
         .await
         .expect("Failed to create service");
     service

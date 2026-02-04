@@ -1,7 +1,7 @@
 use model_entity::EntityType;
 use std::io::{self, BufRead};
 use stream::domain::StreamId;
-use stream::outbound::redis::RedisStreamService;
+use stream::outbound::redis::RedisStreamRepo;
 
 const ENTITY_TYPE: EntityType = EntityType::Channel;
 // battlefield channel
@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
 
     rt.block_on(async move {
         let client = redis::Client::open(db_url)?;
-        let service = RedisStreamService::new(client).await?;
+        let service = RedisStreamRepo::new(client).await?;
         let _ = service.cleanup_stream(&stream_id).await;
         let stream_service = service.obj::<serde_json::Value>();
 
