@@ -12,9 +12,6 @@ If you have the [nix](https://nixos.org/learn/) package manager installed on you
 
 `nix develop`
 
-## Using Claude/Playwright
-To setup the authentication please make sure you create a `.env` file with **REFRESH_TOKEN** environment variable set to your dev macro refresh token. This can be found in your cookies.
-
 ## Tauri 🤝 Macro
 
 We are currently in the process of bundling the frontend javascript application as a [Tauri](https://tauri.app/) app.
