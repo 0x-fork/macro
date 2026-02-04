@@ -104,6 +104,7 @@ members = [
   "sha_cleanup_worker",
   "sns_client",
   "soup",
+  "stream",
   "sqs_client",
   "sqs_worker",
   "static_file_service",
@@ -116,7 +117,7 @@ members = [
   "upload_extractor_lambda_trigger",
   "user_link_cleanup_handler",
   "user_quota",
-  "worker_trigger", "stream",
+  "worker_trigger",
 ]
 
 [workspace.dependencies]
