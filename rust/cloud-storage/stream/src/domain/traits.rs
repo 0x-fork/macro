@@ -15,7 +15,7 @@ pub const DEFAULT_STREAM_TIMEOUT: Duration = Duration::from_secs(300);
 /// A boxed stream that yields items with their offsets.
 pub type ItemStream = Pin<Box<dyn Stream<Item = StreamItem> + Send>>;
 /// A boxed stream of payloads to append.
-pub type PayloadStream = Pin<Box<dyn Stream<Item = String> + Send>>;
+pub type PayloadStream = Pin<Box<dyn Stream<Item = serde_json::Value> + Send>>;
 pub type ItemId = String;
 
 #[derive(Debug, Clone)]
@@ -30,7 +30,7 @@ pub enum Offset {
 #[async_trait]
 pub trait StreamRepo: Send + Sync + 'static {
     /// Append an item to an existing stream or create a new stream and append an item to it
-    async fn append(&self, id: &StreamId, payload: String) -> Result<ItemId>;
+    async fn append(&self, id: &StreamId, payload: serde_json::Value) -> Result<ItemId>;
     /// Get an async stream that will stream from the beginning of a stream and continue to
     /// listen for new items
     async fn stream_from_beginning(&self, id: &StreamId) -> Result<ItemStream>;
@@ -46,7 +46,7 @@ pub trait StreamRepo: Send + Sync + 'static {
 pub trait StreamManager<T>: Send + Sync + 'static
 where
     T: Send + Sync + 'static,
-    T: From<StreamItem>,
+    T: TryFrom<StreamItem>,
 {
     /// subscribe a sender (intended to be a websocket) to
     /// all streams on an entity

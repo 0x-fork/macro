@@ -14,11 +14,11 @@ pub type Result<T> = std::result::Result<T, StreamServiceError>;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StreamItem {
     pub id: StreamId,
-    pub payload: String,
+    pub payload: serde_json::Value,
 }
 
 impl StreamItem {
-    pub fn new(id: StreamId, payload: String) -> Self {
+    pub fn new(id: StreamId, payload: serde_json::Value) -> Self {
         Self { id, payload }
     }
 }

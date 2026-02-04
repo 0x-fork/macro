@@ -6,10 +6,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
-fn payload_json(item: &StreamItem) -> serde_json::Value {
-    serde_json::from_str(&item.payload).expect("payload should be valid json")
-}
-
 #[tokio::test(flavor = "multi_thread")]
 #[serial]
 async fn test_no_streams() {
@@ -61,7 +57,7 @@ async fn test_sub_then_start_related() {
         .expect("subscribe should succeed");
 
     // Now create a stream by appending to it
-    let item = serde_json::json!({"message": "hello from stream"}).to_string();
+    let item = serde_json::json!({"message": "hello from stream"});
     service
         .append(&stream_id, item.clone())
         .await
@@ -96,7 +92,7 @@ async fn test_sub_then_start_unrelated() {
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Create a stream on the original entity (not the one we subscribed to)
-    let item = serde_json::json!({"message": "should not receive"}).to_string();
+    let item = serde_json::json!({"message": "should not receive"});
     service
         .append(&stream_id, item)
         .await
@@ -124,11 +120,11 @@ async fn test_start_then_sub() {
     let item2 = serde_json::json!({"message": "second"});
 
     service
-        .append(&stream_id, item1.to_string())
+        .append(&stream_id, item1.clone())
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id, item2.to_string())
+        .append(&stream_id, item2.clone())
         .await
         .expect("append should succeed");
 
@@ -147,13 +143,13 @@ async fn test_start_then_sub() {
         .await
         .expect("should receive first message")
         .expect("channel should not be closed");
-    assert_eq!(payload_json(&received1), item1);
+    assert_eq!(received1.payload, item1);
 
     let received2 = tokio::time::timeout(Duration::from_secs(2), rx.recv())
         .await
         .expect("should receive second message")
         .expect("channel should not be closed");
-    assert_eq!(payload_json(&received2), item2);
+    assert_eq!(received2.payload, item2);
 }
 
 // =============================================================================
@@ -174,7 +170,7 @@ async fn test_late_join_multiple_subscribers() {
 
     for item in &items {
         service
-            .append(&stream_id, item.to_string())
+            .append(&stream_id, item.clone())
             .await
             .expect("append should succeed");
     }
@@ -208,7 +204,7 @@ async fn test_late_join_multiple_subscribers() {
         let mut received = Vec::new();
         while let Ok(Some(item)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await
         {
-            received.push(payload_json(&item));
+            received.push(item.payload.clone());
         }
         received
     }
@@ -247,33 +243,21 @@ async fn test_late_join_multiple_streams_same_entity() {
 
     // Add items to first stream
     service
-        .append(
-            &stream_id_1,
-            serde_json::json!({"stream": 1, "seq": 1}).to_string(),
-        )
+        .append(&stream_id_1, serde_json::json!({"stream": 1, "seq": 1}))
         .await
         .expect("append should succeed");
     service
-        .append(
-            &stream_id_1,
-            serde_json::json!({"stream": 1, "seq": 2}).to_string(),
-        )
+        .append(&stream_id_1, serde_json::json!({"stream": 1, "seq": 2}))
         .await
         .expect("append should succeed");
 
     // Add items to second stream
     service
-        .append(
-            &stream_id_2,
-            serde_json::json!({"stream": 2, "seq": 1}).to_string(),
-        )
+        .append(&stream_id_2, serde_json::json!({"stream": 2, "seq": 1}))
         .await
         .expect("append should succeed");
     service
-        .append(
-            &stream_id_2,
-            serde_json::json!({"stream": 2, "seq": 2}).to_string(),
-        )
+        .append(&stream_id_2, serde_json::json!({"stream": 2, "seq": 2}))
         .await
         .expect("append should succeed");
 
@@ -290,7 +274,7 @@ async fn test_late_join_multiple_streams_same_entity() {
     // Collect all received items
     let mut received = Vec::new();
     while let Ok(Some(item)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
-        received.push(payload_json(&item));
+        received.push(item.payload.clone());
     }
 
     // Should receive items from both streams (4 total)
@@ -319,17 +303,11 @@ async fn test_late_join_during_active_streaming() {
 
     // Add initial items before any subscriber
     service
-        .append(
-            &stream_id,
-            serde_json::json!({"phase": "before", "seq": 1}).to_string(),
-        )
+        .append(&stream_id, serde_json::json!({"phase": "before", "seq": 1}))
         .await
         .expect("append should succeed");
     service
-        .append(
-            &stream_id,
-            serde_json::json!({"phase": "before", "seq": 2}).to_string(),
-        )
+        .append(&stream_id, serde_json::json!({"phase": "before", "seq": 2}))
         .await
         .expect("append should succeed");
 
@@ -348,10 +326,7 @@ async fn test_late_join_during_active_streaming() {
 
     // Add more items while early joiner is connected
     service
-        .append(
-            &stream_id,
-            serde_json::json!({"phase": "during", "seq": 3}).to_string(),
-        )
+        .append(&stream_id, serde_json::json!({"phase": "during", "seq": 3}))
         .await
         .expect("append should succeed");
 
@@ -365,17 +340,11 @@ async fn test_late_join_during_active_streaming() {
 
     // Add more items after late joiner
     service
-        .append(
-            &stream_id,
-            serde_json::json!({"phase": "after", "seq": 4}).to_string(),
-        )
+        .append(&stream_id, serde_json::json!({"phase": "after", "seq": 4}))
         .await
         .expect("append should succeed");
     service
-        .append(
-            &stream_id,
-            serde_json::json!({"phase": "after", "seq": 5}).to_string(),
-        )
+        .append(&stream_id, serde_json::json!({"phase": "after", "seq": 5}))
         .await
         .expect("append should succeed");
 
@@ -384,7 +353,7 @@ async fn test_late_join_during_active_streaming() {
         let mut received = Vec::new();
         while let Ok(Some(item)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await
         {
-            received.push(payload_json(&item));
+            received.push(item.payload.clone());
         }
         received
     }
@@ -436,7 +405,7 @@ async fn test_connection_closed() {
 
     // Append to trigger a send attempt to the closed channel
     service
-        .append(&stream_id, serde_json::json!({"test": "data"}).to_string())
+        .append(&stream_id, serde_json::json!({"test": "data"}))
         .await
         .expect("append should succeed");
 
@@ -455,7 +424,7 @@ async fn test_connection_closed() {
     // Append another item
     let item = serde_json::json!({"test": "after_cleanup"});
     service
-        .append(&stream_id, item.to_string())
+        .append(&stream_id, item.clone())
         .await
         .expect("append should succeed");
 
@@ -466,8 +435,7 @@ async fn test_connection_closed() {
         .expect("channel should not be closed");
 
     // Should receive either the first item (from stream_from_beginning) or the new one
-    let received_payload = payload_json(&received);
-    assert!(received_payload == serde_json::json!({"test": "data"}) || received_payload == item);
+    assert!(received.payload == serde_json::json!({"test": "data"}) || received.payload == item);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -484,7 +452,7 @@ async fn test_unsub_during_stream() {
     // Create stream with initial item
     let item1 = serde_json::json!({"seq": 1});
     service
-        .append(&stream_id, item1.to_string())
+        .append(&stream_id, item1.clone())
         .await
         .expect("append should succeed");
 
@@ -500,7 +468,7 @@ async fn test_unsub_during_stream() {
         .await
         .expect("should receive message")
         .expect("channel should not be closed");
-    assert_eq!(payload_json(&received), item1);
+    assert_eq!(received.payload, item1);
 
     // Unsubscribe while stream is still active
     manager
@@ -511,7 +479,7 @@ async fn test_unsub_during_stream() {
 
     // Append more items
     service
-        .append(&stream_id, serde_json::json!({"seq": 2}).to_string())
+        .append(&stream_id, serde_json::json!({"seq": 2}))
         .await
         .expect("append should succeed");
 
@@ -718,7 +686,7 @@ async fn test_stream_then_subscribe_state() {
     // Create stream first by appending to it
     let item = serde_json::json!({"message": "first"});
     service
-        .append(&stream_id, item.to_string())
+        .append(&stream_id, item)
         .await
         .expect("append should succeed");
 
@@ -774,7 +742,7 @@ async fn test_unsub_mid_stream_state() {
 
     // Create stream first
     service
-        .append(&stream_id, serde_json::json!({"seq": 1}).to_string())
+        .append(&stream_id, serde_json::json!({"seq": 1}))
         .await
         .expect("append should succeed");
 
@@ -855,10 +823,7 @@ async fn test_sub_stream_unrelated_state() {
 
     // Start stream on entity_b (unrelated)
     service
-        .append(
-            &stream_id_b,
-            serde_json::json!({"unrelated": true}).to_string(),
-        )
+        .append(&stream_id_b, serde_json::json!({"unrelated": true}))
         .await
         .expect("append should succeed");
 
@@ -888,7 +853,7 @@ async fn test_stream_ends_close_state() {
 
     // Create stream first
     service
-        .append(&stream_id, serde_json::json!({"seq": 1}).to_string())
+        .append(&stream_id, serde_json::json!({"seq": 1}))
         .await
         .expect("append should succeed");
 
@@ -927,11 +892,11 @@ async fn test_stream_ends_close_state() {
 
     // Emit a few more items
     service
-        .append(&stream_id, serde_json::json!({"seq": 2}).to_string())
+        .append(&stream_id, serde_json::json!({"seq": 2}))
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id, serde_json::json!({"seq": 3}).to_string())
+        .append(&stream_id, serde_json::json!({"seq": 3}))
         .await
         .expect("append should succeed");
 
@@ -1015,9 +980,7 @@ async fn util_test_stream_ends_state_exhausted(
     );
 
     // Create a finite stream with 3 items using from_async_stream
-    let items: Vec<String> = (1..=3)
-        .map(|i| serde_json::json!({"seq": i}).to_string())
-        .collect();
+    let items: Vec<serde_json::Value> = (1..=3).map(|i| serde_json::json!({"seq": i})).collect();
     let input_stream = futures::stream::iter(items.clone());
 
     service.from_async_stream(stream_id.clone(), Box::pin(input_stream), None);
@@ -1071,7 +1034,7 @@ async fn test_disconnect_behavior_state() {
 
     // Create stream first
     service
-        .append(&stream_id, serde_json::json!({"seq": 1}).to_string())
+        .append(&stream_id, serde_json::json!({"seq": 1}))
         .await
         .expect("append should succeed");
 
@@ -1103,11 +1066,11 @@ async fn test_disconnect_behavior_state() {
 
     // Append more items to trigger send failure
     service
-        .append(&stream_id, serde_json::json!({"seq": 2}).to_string())
+        .append(&stream_id, serde_json::json!({"seq": 2}))
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id, serde_json::json!({"seq": 3}).to_string())
+        .append(&stream_id, serde_json::json!({"seq": 3}))
         .await
         .expect("append should succeed");
 

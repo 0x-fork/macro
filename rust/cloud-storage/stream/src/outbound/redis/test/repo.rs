@@ -11,8 +11,8 @@ use std::time::Duration;
 async fn test_redis_stream_service_append_and_read() {
     let (service, stream_id, _guard) = StreamGuard::new("append_and_read").await;
 
-    let item1 = serde_json::json!({"message": "hello", "count": 1}).to_string();
-    let item2 = serde_json::json!({"message": "world", "count": 2}).to_string();
+    let item1 = serde_json::json!({"message": "hello", "count": 1});
+    let item2 = serde_json::json!({"message": "world", "count": 2});
 
     service
         .append(&stream_id, item1.clone())
@@ -64,7 +64,7 @@ async fn test_from_async_stream() {
     let (service, stream_id, _guard) = StreamGuard::new("from_async_stream").await;
 
     let items = (1..=5)
-        .map(|i| serde_json::json!({"index": i}).to_string())
+        .map(|i| serde_json::json!({"index": i}))
         .collect::<Vec<_>>();
 
     let input_stream = futures::stream::iter(items.clone());
@@ -103,7 +103,7 @@ async fn test_notify_on_multiple_new_streams() {
 
     // First stream creation - should notify
     service
-        .append(&stream_id1, serde_json::json!({"stream": 1}).to_string())
+        .append(&stream_id1, serde_json::json!({"stream": 1}))
         .await
         .expect("Failed to append to stream 1");
 
@@ -115,7 +115,7 @@ async fn test_notify_on_multiple_new_streams() {
 
     // Second stream creation - should notify
     service
-        .append(&stream_id2, serde_json::json!({"stream": 2}).to_string())
+        .append(&stream_id2, serde_json::json!({"stream": 2}))
         .await
         .expect("Failed to append to stream 2");
 
@@ -135,7 +135,7 @@ async fn test_notify_only_on_new_stream() {
 
     // First append creates a new stream - should notify
     service
-        .append(&stream_id, serde_json::json!({"item": 1}).to_string())
+        .append(&stream_id, serde_json::json!({"item": 1}))
         .await
         .expect("Failed to append first item");
 
@@ -150,7 +150,7 @@ async fn test_notify_only_on_new_stream() {
     // Additional appends to same stream - should NOT notify
     for i in 2..=5 {
         service
-            .append(&stream_id, serde_json::json!({"item": i}).to_string())
+            .append(&stream_id, serde_json::json!({"item": i}))
             .await
             .unwrap_or_else(|_| panic!("Failed to append item {}", i));
     }
@@ -174,19 +174,13 @@ async fn test_active_streams() {
 
     // Append to first stream
     service
-        .append(
-            &stream_id1,
-            serde_json::json!({"test": "stream1"}).to_string(),
-        )
+        .append(&stream_id1, serde_json::json!({"test": "stream1"}))
         .await
         .expect("Failed to append to stream 1");
 
     // Append to second stream
     service
-        .append(
-            &stream_id2,
-            serde_json::json!({"test": "stream2"}).to_string(),
-        )
+        .append(&stream_id2, serde_json::json!({"test": "stream2"}))
         .await
         .expect("Failed to append to stream 2");
 

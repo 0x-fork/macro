@@ -36,7 +36,9 @@ fn main() -> anyhow::Result<()> {
             if line.is_empty() {
                 continue;
             }
-            stream_service.append(&stream_id, line).await?;
+            stream_service
+                .append(&stream_id, serde_json::Value::String(line))
+                .await?;
         }
 
         Ok::<(), anyhow::Error>(())

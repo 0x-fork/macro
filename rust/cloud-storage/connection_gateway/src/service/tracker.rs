@@ -24,11 +24,38 @@ pub async fn track_entity(ctx: ConnectionContext<'_>, data: TrackingData<'_>) ->
                 .add_connection_entity(data.entity.clone())
                 .await
                 .ok();
+
+            // Subscribe to streams for this entity
+            if let Some(connection) = ctx
+                .api_context
+                .connection_manager
+                .connections
+                .get(ctx.connection_id)
+            {
+                ctx.api_context
+                    .stream_manager
+                    .clone()
+                    .subscribe(
+                        data.entity.extra.extra.entity_id.to_string(),
+                        ctx.connection_id.to_string(),
+                        connection.sender.clone(),
+                    )
+                    .await
+                    .ok();
+            }
         }
         TrackAction::Close => {
             ctx.api_context
                 .connection_manager
                 .remove_connection_entity(&data.entity.extra)
+                .await
+                .ok();
+
+            // Unsubscribe from streams for this entity
+            ctx.api_context
+                .stream_manager
+                .clone()
+                .unsubscribe(&data.entity.extra.extra.entity_id, ctx.connection_id)
                 .await
                 .ok();
         }

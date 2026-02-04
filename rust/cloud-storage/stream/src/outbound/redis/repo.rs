@@ -15,7 +15,7 @@ const NOTIFY_CHANNEL_BUFFER: usize = 1024;
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
 enum StoredStreamItem {
-    Value(String),
+    Value(serde_json::Value),
     End,
 }
 
@@ -127,7 +127,7 @@ impl RedisStreamRepo {
 #[async_trait]
 impl StreamRepo for RedisStreamRepo {
     /// create and append to stream or append to stream
-    async fn append(&self, id: &StreamId, payload: String) -> Result<ItemId> {
+    async fn append(&self, id: &StreamId, payload: serde_json::Value) -> Result<ItemId> {
         let mut conn = self.client.get_multiplexed_async_connection().await?;
 
         let is_new: bool = !conn
@@ -177,6 +177,7 @@ impl StreamRepo for RedisStreamRepo {
                                                     match serde_json::from_str::<StoredStreamItem>(&json_str) {
                                                         Ok(item) => match item {
                                                            StoredStreamItem::Value(payload)  => {
+
                                                                yield StreamItem::new(stream_id_for_item.clone(), payload)
                                                            }
                                                            StoredStreamItem::End => {
@@ -184,7 +185,6 @@ impl StreamRepo for RedisStreamRepo {
                                                            }
                                                         }
                                                         Err(e) => {
-
                                                             tracing::error!(error=?e, "failed to deserialize stream item");
                                                         }
                                                     }

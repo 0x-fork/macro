@@ -47,7 +47,7 @@ pub struct RedisStreamManager<T> {
 impl<T> RedisStreamManager<T>
 where
     T: Send + Sync + 'static,
-    T: From<StreamItem>,
+    T: TryFrom<StreamItem>,
 {
     pub fn new(service: Arc<dyn StreamRepo>) -> Arc<Self> {
         // Use Arc::new_cyclic to avoid the chicken-and-egg problem
@@ -135,7 +135,11 @@ where
         let (task, task_id) = TaskBuilder::delay(|task_id| async move {
             while let Some(item) = stream.next().await {
                 // full channel error may need to be handled
-                if connection.1.send(item.into()).await.is_err() {
+                let Ok(stream_item) = item.try_into() else {
+                    tracing::warn!("Stream item conversion failed,item skipped");
+                    continue;
+                };
+                if connection.1.send(stream_item).await.is_err() {
                     if let Some(this) = weak_manager.upgrade() {
                         this.handle_disconnect(&connection).await;
                         break;
@@ -190,7 +194,7 @@ where
 impl<T> StreamManager<T> for RedisStreamManager<T>
 where
     T: Send + Sync + 'static,
-    T: From<StreamItem>,
+    T: TryFrom<StreamItem>,
 {
     async fn subscribe(
         self: Arc<Self>,
