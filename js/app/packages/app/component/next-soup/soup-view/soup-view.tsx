@@ -35,9 +35,12 @@ import {
   type EntityData,
   isTaskEntity,
   type Notification,
+  queryKeys,
   unreadFilterFn,
+  useQueryClient,
 } from '@macro-entity';
 import {
+  createEffectOnEntityTypeNotification,
   isChannelMention,
   isChannelMessageReply,
   isChannelMessageSend,
@@ -72,9 +75,52 @@ import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-vi
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
+const useSoupNotificationInvalidators = () => {
+  const notificationSource = useGlobalNotificationSource();
+  const entityQueryClient = useQueryClient();
+
+  createEffectOnEntityTypeNotification(
+    notificationSource,
+    'channel',
+    (notification) => {
+      entityQueryClient.invalidateQueries({
+        queryKey: queryKeys.all.channel,
+      });
+      entityQueryClient.invalidateQueries({
+        queryKey: soupKeys._def,
+      });
+      invalidateEntityNotifications(notification.entity_id);
+    }
+  );
+
+  createEffectOnEntityTypeNotification(notificationSource, 'email', () => {
+    entityQueryClient.invalidateQueries({
+      // HACK: this needs to be improved, since we use a single query, per entity invalidations
+      // become a little more complicated.
+      queryKey: queryKeys.all.entity,
+    });
+  });
+
+  createEffectOnEntityTypeNotification(
+    notificationSource,
+    'document',
+    (notification) => {
+      if (notification.notificationEventType === 'task_assigned') {
+        entityQueryClient.invalidateQueries({
+          queryKey: soupKeys._def,
+        });
+        invalidateEntityNotifications(notification.entity_id);
+      }
+    }
+  );
+};
+
 export const SoupView = () => {
   const soup = useSoup();
   const panel = useSplitPanelOrThrow();
+
+  useSoupNotificationInvalidators();
+
   return (
     <SplitPanelContext.Provider
       value={{
