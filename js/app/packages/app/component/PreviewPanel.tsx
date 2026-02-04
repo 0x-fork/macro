@@ -42,9 +42,6 @@ type PreviewPanel = {
 const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
   props
 ) => {
-  const [containerRef, setContainerRef] = createSignal<HTMLDivElement | null>(
-    null
-  );
   let scopedSplitPanelContextType: SplitPanelContextType = {} as any;
   const splitPanelContext = useSplitPanelOrThrow();
   const scopedLayoutRefs: SplitPanelContextType['layoutRefs'] = {
@@ -56,39 +53,8 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
   scopedLayoutRefs.headerRight = undefined;
 
   if (props.selectedEntity.type === 'project') {
-    const { getSplitCount } = useSplitLayout();
-    const soupContext = createSoupContext({
-      isRenderedFromPreview: true,
-      parentContext: splitPanelContext.soupContext,
-      domRef: containerRef,
-    });
-
-    const [attachHotKeys, splitHotkeyScope] = useHotkeyDOMScope(
-      `split=${splitPanelContext.splitHotkeyScope}`
-    );
-
     const [previewState, setPreviewState] = createSignal(false);
-    const splitName = createMemo(() => {
-      const { type, id } = splitPanelContext.handle.content();
-      if (type === 'component') return id;
-
-      return type;
-    });
-
-    createNavigationEntityListShortcut({
-      splitName,
-      splitHandle: splitPanelContext.handle,
-      splitHotkeyScope,
-      soupContext,
-      previewState: [previewState, setPreviewState],
-      getSplitCount: getSplitCount,
-    });
-    scopedSplitPanelContextType.soupContext = soupContext;
     scopedSplitPanelContextType.previewState = [previewState, setPreviewState];
-
-    onMount(() => {
-      attachHotKeys(containerRef()!);
-    });
   }
 
   const blockInstance = () => {
@@ -147,7 +113,6 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
         setInteractedWith(true);
       }}
       tabIndex={-1}
-      ref={setContainerRef}
     >
       {/* Preview-specific toolbar slots so blocks can render the "share" bar (via SplitToolbarLeft/Right) */}
       <div

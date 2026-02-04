@@ -149,7 +149,9 @@ const Block: Component = () => {
         <TopBar />
         <Show
           when={ENABLE_PROJECT_VIEW_PREVIEW}
-          fallback={<ProjectEntityList soup={projectSoup} />}
+          fallback={
+            <ProjectEntityList projectId={projectId} soup={projectSoup} />
+          }
         >
           <div class="flex size-full">
             <SplitPanelContext.Provider
@@ -159,7 +161,7 @@ const Block: Component = () => {
                   preview() ? { side: 'left', percentage: 30 } : undefined,
               }}
             >
-              <ProjectEntityList soup={projectSoup} />
+              <ProjectEntityList projectId={projectId} soup={projectSoup} />
             </SplitPanelContext.Provider>
             <Show when={preview()}>
               <PreviewPanel
@@ -175,10 +177,23 @@ const Block: Component = () => {
   );
 };
 
-const ProjectEntityList = (props: { soup: SoupState }) => {
+const ProjectEntityList = (props: { projectId: string; soup: SoupState }) => {
   return (
     <SoupContextProvider soup={props.soup}>
-      <SoupViewContextProvider soup={props.soup}>
+      <SoupViewContextProvider
+        soup={props.soup}
+        queryFilters={{
+          chat_filters: {
+            project_ids: [props.projectId],
+          },
+          project_filters: {
+            project_ids: [props.projectId],
+          },
+          document_filters: {
+            project_ids: [props.projectId],
+          },
+        }}
+      >
         <SoupViewList customScrollbarHidden={true} />
       </SoupViewContextProvider>
     </SoupContextProvider>
