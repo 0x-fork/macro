@@ -152,6 +152,243 @@ async fn test_start_then_sub() {
     assert_eq!(received2, item2);
 }
 
+// =============================================================================
+// Late join tests
+// =============================================================================
+
+#[tokio::test(flavor = "multi_thread")]
+#[serial]
+async fn test_late_join_multiple_subscribers() {
+    // Multiple subscribers join after stream already has data
+    // All should receive all items from the beginning
+
+    let entity_id = "late_join_multi";
+    let (service, stream_id, _guard) = StreamGuard::new(entity_id).await;
+
+    // Create stream with items BEFORE any subscribers
+    let items: Vec<serde_json::Value> = (1..=5)
+        .map(|i| serde_json::json!({"seq": i}))
+        .collect();
+
+    for item in &items {
+        service
+            .append(&stream_id, item.clone())
+            .await
+            .expect("append should succeed");
+    }
+
+    // Now create manager and subscribe multiple connections
+    let manager = RedisStreamManager::new(service.clone());
+
+    let (tx1, mut rx1) = mpsc::channel::<serde_json::Value>(10);
+    let (tx2, mut rx2) = mpsc::channel::<serde_json::Value>(10);
+    let (tx3, mut rx3) = mpsc::channel::<serde_json::Value>(10);
+
+    // All subscribe after stream exists
+    manager
+        .clone()
+        .subscribe(entity_id.into(), "sender_1".into(), tx1)
+        .await
+        .expect("subscribe should succeed");
+    manager
+        .clone()
+        .subscribe(entity_id.into(), "sender_2".into(), tx2)
+        .await
+        .expect("subscribe should succeed");
+    manager
+        .clone()
+        .subscribe(entity_id.into(), "sender_3".into(), tx3)
+        .await
+        .expect("subscribe should succeed");
+
+    // Helper to collect all items from a receiver
+    async fn collect_items(rx: &mut mpsc::Receiver<serde_json::Value>) -> Vec<serde_json::Value> {
+        let mut received = Vec::new();
+        while let Ok(Some(item)) =
+            tokio::time::timeout(Duration::from_millis(500), rx.recv()).await
+        {
+            received.push(item);
+        }
+        received
+    }
+
+    let received1 = collect_items(&mut rx1).await;
+    let received2 = collect_items(&mut rx2).await;
+    let received3 = collect_items(&mut rx3).await;
+
+    // All subscribers should receive all 5 items
+    assert_eq!(received1.len(), 5, "subscriber 1 should get all 5 items");
+    assert_eq!(received2.len(), 5, "subscriber 2 should get all 5 items");
+    assert_eq!(received3.len(), 5, "subscriber 3 should get all 5 items");
+
+    // Verify correct order
+    for (i, item) in received1.iter().enumerate() {
+        assert_eq!(item["seq"], i + 1, "items should be in order");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[serial]
+async fn test_late_join_multiple_streams_same_entity() {
+    // Entity has multiple active streams
+    // Late joiner should receive data from all streams
+
+    let entity_id = "late_join_multi_streams";
+    let (service, stream_id_1, guard) = StreamGuard::new(entity_id).await;
+
+    // Create a second stream for the same entity
+    let stream_id_2 = StreamId {
+        entity_id: entity_id.into(),
+        entity_type: model_entity::EntityType::Chat,
+        stream_id: format!("{}_stream_2", entity_id),
+    };
+    guard.add_stream_id(stream_id_2.clone());
+
+    // Add items to first stream
+    service
+        .append(&stream_id_1, serde_json::json!({"stream": 1, "seq": 1}))
+        .await
+        .expect("append should succeed");
+    service
+        .append(&stream_id_1, serde_json::json!({"stream": 1, "seq": 2}))
+        .await
+        .expect("append should succeed");
+
+    // Add items to second stream
+    service
+        .append(&stream_id_2, serde_json::json!({"stream": 2, "seq": 1}))
+        .await
+        .expect("append should succeed");
+    service
+        .append(&stream_id_2, serde_json::json!({"stream": 2, "seq": 2}))
+        .await
+        .expect("append should succeed");
+
+    // Late join - subscribe after both streams have data
+    let manager = RedisStreamManager::new(service.clone());
+    let (tx, mut rx) = mpsc::channel::<serde_json::Value>(20);
+
+    manager
+        .clone()
+        .subscribe(entity_id.into(), "sender_1".into(), tx)
+        .await
+        .expect("subscribe should succeed");
+
+    // Collect all received items
+    let mut received = Vec::new();
+    while let Ok(Some(item)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
+        received.push(item);
+    }
+
+    // Should receive items from both streams (4 total)
+    assert_eq!(
+        received.len(),
+        4,
+        "should receive all items from both streams"
+    );
+
+    // Count items per stream
+    let stream1_count = received.iter().filter(|i| i["stream"] == 1).count();
+    let stream2_count = received.iter().filter(|i| i["stream"] == 2).count();
+
+    assert_eq!(stream1_count, 2, "should get 2 items from stream 1");
+    assert_eq!(stream2_count, 2, "should get 2 items from stream 2");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[serial]
+async fn test_late_join_during_active_streaming() {
+    // Stream is actively receiving new items
+    // Late joiner should get historical items AND new items
+
+    let entity_id = "late_join_active";
+    let (service, stream_id, _guard) = StreamGuard::new(entity_id).await;
+
+    // Add initial items before any subscriber
+    service
+        .append(&stream_id, serde_json::json!({"phase": "before", "seq": 1}))
+        .await
+        .expect("append should succeed");
+    service
+        .append(&stream_id, serde_json::json!({"phase": "before", "seq": 2}))
+        .await
+        .expect("append should succeed");
+
+    let manager = RedisStreamManager::new(service.clone());
+
+    // First subscriber joins (early joiner for comparison)
+    let (tx1, mut rx1) = mpsc::channel::<serde_json::Value>(20);
+    manager
+        .clone()
+        .subscribe(entity_id.into(), "early_joiner".into(), tx1)
+        .await
+        .expect("subscribe should succeed");
+
+    // Wait for early joiner to receive initial items
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Add more items while early joiner is connected
+    service
+        .append(&stream_id, serde_json::json!({"phase": "during", "seq": 3}))
+        .await
+        .expect("append should succeed");
+
+    // Late joiner subscribes mid-stream
+    let (tx2, mut rx2) = mpsc::channel::<serde_json::Value>(20);
+    manager
+        .clone()
+        .subscribe(entity_id.into(), "late_joiner".into(), tx2)
+        .await
+        .expect("subscribe should succeed");
+
+    // Add more items after late joiner
+    service
+        .append(&stream_id, serde_json::json!({"phase": "after", "seq": 4}))
+        .await
+        .expect("append should succeed");
+    service
+        .append(&stream_id, serde_json::json!({"phase": "after", "seq": 5}))
+        .await
+        .expect("append should succeed");
+
+    // Collect items from both receivers
+    async fn collect_items(rx: &mut mpsc::Receiver<serde_json::Value>) -> Vec<serde_json::Value> {
+        let mut received = Vec::new();
+        while let Ok(Some(item)) =
+            tokio::time::timeout(Duration::from_millis(500), rx.recv()).await
+        {
+            received.push(item);
+        }
+        received
+    }
+
+    let early_received = collect_items(&mut rx1).await;
+    let late_received = collect_items(&mut rx2).await;
+
+    // Early joiner should get all 5 items
+    assert_eq!(
+        early_received.len(),
+        5,
+        "early joiner should get all 5 items"
+    );
+
+    // Late joiner should also get all 5 items (stream_from_beginning)
+    assert_eq!(
+        late_received.len(),
+        5,
+        "late joiner should get all 5 items from beginning"
+    );
+
+    // Verify late joiner got items in correct order
+    for (i, item) in late_received.iter().enumerate() {
+        assert_eq!(
+            item["seq"],
+            i + 1,
+            "late joiner items should be in order"
+        );
+    }
+}
+
 #[tokio::test(flavor = "multi_thread")]
 #[serial]
 async fn test_connection_closed() {
