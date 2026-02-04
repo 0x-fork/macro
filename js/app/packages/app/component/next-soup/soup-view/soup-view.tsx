@@ -68,6 +68,7 @@ import {
   EntityWithEverything,
 } from '../../../../macro-entity/src/components/EntityWithEverything';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
+import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -85,7 +86,9 @@ export const SoupView = () => {
       <SoupViewContextProvider soup={soup}>
         <div class="relative flex-grow min-h-0 flex max-sm:flex-col flex-row size-full">
           <SoupToolbar />
-          <SoupViewList />
+          <SoupViewFileDropzone>
+            <SoupViewList />
+          </SoupViewFileDropzone>
         </div>
       </SoupViewContextProvider>
     </SplitPanelContext.Provider>
