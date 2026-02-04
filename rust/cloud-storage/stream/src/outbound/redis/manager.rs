@@ -49,25 +49,29 @@ where
         // Use Arc::new_cyclic to avoid the chicken-and-egg problem
         Arc::new_cyclic(|weak: &Weak<Self>| {
             let this = weak.clone();
-            let service_clone = service.clone();
+            let weak_repo = Arc::downgrade(&service);
 
-            let task = Task::spawn(async move {
-                // Upgrade the weak ref once the Arc exists
-                let mut notification_receiver = service_clone.notify().await;
+            let notification_handler = Task::spawn(async move {
+                let mut notification_receiver = match weak_repo.upgrade() {
+                    Some(repo) => repo.notify().await,
+                    None => panic!("Expected to be able to get strong reference to stream repo"),
+                };
 
                 while let Ok(stream_id) = notification_receiver.recv().await {
-                    let Some(manager) = this.upgrade() else { break };
+                    let Some(manager) = this.upgrade() else {
+                        // manager dropped
+                        break;
+                    };
                     manager.handle_stream_created(stream_id).await;
                 }
-
-                tracing::warn!("notification handler exited");
+                tracing::warn!("Notification handler exited");
             });
 
             Self {
                 service,
                 subscribed_connections: Arc::new(DashMap::new()),
                 streaming_connections: Arc::new(DashMap::new()),
-                _notification_handler: Arc::new(task),
+                _notification_handler: Arc::new(notification_handler),
             }
         })
     }
@@ -76,12 +80,13 @@ where
         let Some(subscribers) = self.subscribed_connections.get(&stream_id.entity_id) else {
             return;
         };
+
         join_all(
             subscribers
                 .iter()
                 .map(|connection| {
                     self.clone()
-                        .handle_subscribe(stream_id.entity_id.clone(), connection.clone())
+                        .handle_stream_to_connection(&stream_id, connection.to_owned())
                 })
                 .collect::<Vec<_>>(),
         )
@@ -122,13 +127,17 @@ where
     ) -> Result<()> {
         let mut stream = self.service.stream_from_beginning(stream_id).await?;
         let sender_id = connection.0.clone();
-        let task_self = self.clone();
+        let weak_manager = Arc::downgrade(&self);
         let task = Task::spawn(async move {
             while let Some(item) = stream.next().await {
                 // full channel error may need to be handled
                 if let Err(_) = connection.1.send(item).await {
-                    task_self.handle_disconnect(&connection).await;
-                    break;
+                    if let Some(this) = weak_manager.upgrade() {
+                        this.handle_disconnect(&connection).await;
+                        break;
+                    } else {
+                        break;
+                    }
                 };
             }
         });

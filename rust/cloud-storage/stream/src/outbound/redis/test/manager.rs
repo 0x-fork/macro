@@ -1,5 +1,6 @@
 use super::util::StreamGuard;
 use crate::domain::{StreamManager, StreamRepo};
+use crate::outbound::redis::test::util::{connect_from_env, test_stream_id};
 use crate::outbound::redis::*;
 use serial_test::serial;
 use std::time::Duration;
@@ -39,7 +40,7 @@ async fn test_no_streams() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[serial]
-async fn test_sub_then_start() {
+async fn test_sub_then_start_related() {
     // test subscribers subing to an entity then a stream starting on that entity
 
     let entity_id = "manager_sub_then_start";
@@ -54,9 +55,6 @@ async fn test_sub_then_start() {
         .subscribe(entity_id.into(), "sender_1".into(), tx)
         .await
         .expect("subscribe should succeed");
-
-    // Give the notification listener time to start
-    tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Now create a stream by appending to it
     let item = serde_json::json!({"message": "hello from stream"});
@@ -264,13 +262,4 @@ async fn test_unsub_during_stream() {
         Ok(None) => {} // Channel closed - also acceptable
         Ok(Some(_)) => panic!("should not receive messages after unsubscribe"),
     }
-}
-
-#[tokio::test(flavor = "multi_thread")]
-#[serial]
-async fn test_unsub_concurrent_create() {
-    // IGNORE for now
-    // not sure how to test this yet, but there's an edge case where a stream
-    // starts at the same instant as a connection unsubs. this should have same
-    // behavior as test_unsub_during_stream
 }

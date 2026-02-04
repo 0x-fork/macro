@@ -29,7 +29,7 @@ impl StreamNotifier {
         // redis blocks the whole connection on pubsub so we need a new one
         // https://redis.io/docs/latest/develop/pubsub/
         let connection_info = client.get_connection_info().to_owned();
-        //stinky
+        // stinky
         let new_connection = Client::open(connection_info).expect("create notifier connection");
         let (tx, _) = broadcast::channel(NOTIFY_CHANNEL_BUFFER);
         let listener = Self::spawn_subscriber(new_connection, tx.clone());

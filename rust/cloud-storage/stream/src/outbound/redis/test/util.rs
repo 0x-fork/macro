@@ -4,7 +4,7 @@ use redis::Client;
 use std::sync::Arc;
 
 pub struct StreamGuard {
-    pub service: Arc<RedisStreamService>,
+    pub service: RedisStreamService,
     pub stream_id: StreamId,
 }
 
@@ -17,24 +17,16 @@ impl StreamGuard {
         entity_id: &str,
         stream_id: &str,
     ) -> (Arc<dyn StreamRepo<serde_json::Value>>, StreamId, Self) {
-        let redis_url = std::env::var("REDIS_URL").expect("redis url");
-        let client = Client::open(redis_url).expect("Failed to create Redis client");
-        let service = Arc::new(
-            RedisStreamService::new(client)
-                .await
-                .expect("Failed to create service"),
-        );
+        let service = connect_from_env().await;
+        let service_external = connect_from_env().await;
+        let stream_id = test_stream_id(entity_id, stream_id);
 
-        let stream_id = StreamId {
-            entity_type: model_entity::EntityType::Chat,
-            entity_id: entity_id.into(),
-            stream_id: stream_id.into(),
-        };
         let guard = Self {
-            service: service.clone(),
+            service: service,
             stream_id: stream_id.clone(),
         };
-        (service, stream_id, guard)
+
+        (service_external.obj(), stream_id, guard)
     }
 }
 
@@ -48,9 +40,31 @@ impl Drop for StreamGuard {
                 .build()
                 .unwrap()
                 .block_on(async {
-                    let _ = service.cleanup_stream(&stream_id).await;
+                    let _ = tokio::time::timeout(
+                        std::time::Duration::from_millis(500),
+                        service.cleanup_stream(&stream_id),
+                    )
+                    .await
+                    .expect("timed out cleaning up stream");
                 });
         })
         .join();
+    }
+}
+
+pub async fn connect_from_env() -> RedisStreamService {
+    let redis_url = std::env::var("REDIS_URL").expect("redis url");
+    let client = Client::open(redis_url).expect("Failed to create Redis client");
+    let service = RedisStreamService::new(client)
+        .await
+        .expect("Failed to create service");
+    service
+}
+
+pub fn test_stream_id(entity_id: &str, stream_id: &str) -> StreamId {
+    StreamId {
+        entity_type: model_entity::EntityType::Chat,
+        entity_id: entity_id.into(),
+        stream_id: stream_id.into(),
     }
 }

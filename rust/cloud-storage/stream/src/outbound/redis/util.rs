@@ -3,6 +3,7 @@ use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 // A tokio::task wrapper that's hashabe + abort on drop
+#[derive(Debug)]
 pub struct Task {
     id: Uuid,
     task: JoinHandle<()>,
@@ -41,7 +42,6 @@ impl std::cmp::Eq for Task {}
 
 impl Drop for Task {
     fn drop(&mut self) {
-        // :)
         self.kill();
     }
 }
