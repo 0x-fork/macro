@@ -170,7 +170,11 @@ We're hiring! If you're interested in working on macro, please email teo@macro.c
 
 # License
 
-"Get paid to contribute" (GPTC) license. See LICENSE for full details. Projects will be posted soon. Current Standard Contribution scale is reproduced below:
+"Get paid to contribute" (GPTC) license. See LICENSE for full details. We are currently using [GitHub Sponsors](https://github.com/open-source/sponsors) as our exlusive system for payouts to simplify paperwork and compliance.
+
+Larger projects will be posted soon.
+
+Current Standard Contribution scale is reproduced below:
 
 
 | Tier | Amount | Description |
