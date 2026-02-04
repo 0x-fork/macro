@@ -12,7 +12,7 @@ import { debouncedDependent } from '@core/util/debounce';
 import { fuzzyMatch } from '@core/util/fuzzy';
 import type { EntityData, WithNotification, WithSearch } from '@macro-entity';
 import { useNotificationsForEntity } from '@notifications';
-import { useSoupItemsQuery } from '@queries/soup/items';
+import { SoupItemsQueryFilters, useSoupItemsQuery } from '@queries/soup/items';
 import { useSearchSoupQuery } from '@queries/soup/search';
 import type { SearchArgs } from '@service-search/client';
 import type { UnifiedSearchIndex } from '@service-search/generated/models';
@@ -82,6 +82,7 @@ export const useMaybeSoupView = () => useContext(SoupViewContext);
 
 interface SoupViewContextProviderProps {
   soup?: SoupState;
+  queryFilters?: SoupItemsQueryFilters;
 }
 
 export const SoupViewContextProvider: FlowComponent<
@@ -165,6 +166,7 @@ export const SoupViewContextProvider: FlowComponent<
 
   const queryFilters = createMemo(() => {
     return buildDssFiltersRequest(soup.filters.active(), {
+      extra: props.queryFilters,
       isSearchActive: !isSearchDisabled(),
       emailActive: emailActive(),
     });
@@ -180,19 +182,19 @@ export const SoupViewContextProvider: FlowComponent<
     } = queryFilters();
 
     return {
-      channel: channel_filters.channel_ids.length ? channel_filters : null,
+      channel: channel_filters?.channel_ids?.length ? channel_filters : null,
       chat:
-        chat_filters.chat_ids.length || chat_filters.project_ids.length
+        chat_filters?.chat_ids?.length || chat_filters?.project_ids?.length
           ? chat_filters
           : null,
       document:
-        document_filters.document_ids.length ||
-        document_filters.project_ids.length ||
-        document_filters.file_types.length
+        document_filters?.document_ids?.length ||
+        document_filters?.project_ids?.length ||
+        document_filters?.file_types?.length
           ? document_filters
           : null,
-      email: email_filters.recipients.length ? email_filters : null,
-      project: project_filters.project_ids.length ? project_filters : null,
+      email: email_filters?.recipients?.length ? email_filters : null,
+      project: project_filters?.project_ids?.length ? project_filters : null,
     };
   });
 
