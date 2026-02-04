@@ -406,34 +406,34 @@ function SplitPanel(props: SplitPanelProps) {
   });
 
   return (
-    <SplitPanelContext.Provider
-      value={{
-        handle: props.handle,
-        splitHotkeyScope,
-        soupContext,
-        isPanelActive: () => props.active,
-        panelRef,
-        panelSize,
-        layoutRefs: {},
-        contentOffsetTop,
-        setContentOffsetTop,
-        previewState: [previewState, setPreviewState],
-      }}
-    >
-      <SplitContainer
-        id={props.split.id}
-        ref={(ref) => {
-          setPanelRef(ref);
-          props.setPanelRef(ref);
-          attachHotKeys(ref);
+    <SoupContextProvider soup={nextSoup}>
+      <SplitPanelContext.Provider
+        value={{
+          handle: props.handle,
+          splitHotkeyScope,
+          soupContext,
+          isPanelActive: () => props.active,
+          panelRef,
+          panelSize,
+          layoutRefs: {},
+          contentOffsetTop,
+          setContentOffsetTop,
+          previewState: [previewState, setPreviewState],
         }}
       >
-        <SoupContextProvider soup={nextSoup}>
+        <SplitContainer
+          id={props.split.id}
+          ref={(ref) => {
+            setPanelRef(ref);
+            props.setPanelRef(ref);
+            attachHotKeys(ref);
+          }}
+        >
           <Suspense>
             <Dynamic component={props.split.mount.element} />
           </Suspense>
-        </SoupContextProvider>
-      </SplitContainer>
-    </SplitPanelContext.Provider>
+        </SplitContainer>
+      </SplitPanelContext.Provider>
+    </SoupContextProvider>
   );
 }
