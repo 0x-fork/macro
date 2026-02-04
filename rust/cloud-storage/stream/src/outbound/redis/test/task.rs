@@ -1,4 +1,4 @@
-use crate::outbound::redis::util::StreamTask;
+use crate::outbound::redis::util::TaskBuilder;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -9,7 +9,7 @@ use tokio::sync::{mpsc, oneshot};
 async fn test_task_runs_to_completion() {
     let (tx, rx) = oneshot::channel();
 
-    let (_task, _id) = StreamTask::spawn(|_| async move {
+    let (_task, _id) = TaskBuilder::spawn(async move {
         tx.send(42).unwrap();
     });
 
@@ -26,7 +26,7 @@ async fn test_task_kill_aborts_running_task() {
     let (started_tx, started_rx) = oneshot::channel();
     let (abort_detected_tx, abort_detected_rx) = oneshot::channel();
 
-    let (task, _id) = StreamTask::spawn(|_| async move {
+    let (task, _id) = TaskBuilder::spawn(async move {
         started_tx.send(()).unwrap();
 
         // This will run forever unless aborted
@@ -64,7 +64,7 @@ async fn test_task_drop_aborts_task() {
     let completed_clone = completed.clone();
 
     {
-        let (_task, _id) = StreamTask::spawn(|_| async move {
+        let (_task, _id) = TaskBuilder::spawn(async move {
             started_tx.send(()).unwrap();
 
             // Long-running task
@@ -98,7 +98,7 @@ async fn test_drop_does_not_hang() {
 
     let handle = tokio::spawn(async move {
         {
-            let (_task, _id) = StreamTask::spawn(|_| async move {
+            let (_task, _id) = TaskBuilder::spawn(async move {
                 started_tx.send(()).unwrap();
                 // Simulate infinite task
                 loop {
@@ -128,7 +128,7 @@ async fn test_drop_does_not_hang() {
 async fn test_task_with_mpsc_channel() {
     let (tx, mut rx) = mpsc::channel(10);
 
-    let (task, _id) = StreamTask::spawn(|_| async move {
+    let (task, _id) = TaskBuilder::spawn(async move {
         for i in 0..5 {
             tx.send(i).await.unwrap();
         }
@@ -147,7 +147,7 @@ async fn test_task_with_mpsc_channel() {
 async fn test_task_kill_closes_channels() {
     let (tx, mut rx) = mpsc::channel::<i32>(10);
 
-    let (task, _id) = StreamTask::spawn(|_| async move {
+    let (task, _id) = TaskBuilder::spawn(async move {
         loop {
             tx.send(1).await.unwrap();
             tokio::time::sleep(Duration::from_millis(10)).await;
@@ -179,7 +179,9 @@ async fn test_task_kill_closes_channels() {
 #[tokio::test]
 async fn test_task_unique_ids() {
     let results: Vec<_> = (0..100)
-        .map(|_| StreamTask::spawn(|_| async { tokio::time::sleep(Duration::from_secs(1)).await }))
+        .map(|_| {
+            TaskBuilder::spawn(async move { tokio::time::sleep(Duration::from_secs(1)).await })
+        })
         .collect();
 
     let mut id_set = HashSet::new();
@@ -192,8 +194,8 @@ async fn test_task_unique_ids() {
 
 #[tokio::test]
 async fn test_task_equality() {
-    let (task1, id1) = StreamTask::spawn(|_| async {});
-    let (task2, id2) = StreamTask::spawn(|_| async {});
+    let (task1, id1) = TaskBuilder::spawn(async {});
+    let (task2, id2) = TaskBuilder::spawn(async {});
 
     // Different tasks should have different ids
     assert_ne!(id1, id2);
@@ -207,7 +209,7 @@ async fn test_task_equality() {
 
 #[tokio::test]
 async fn test_multiple_kills_safe() {
-    let (task, _id) = StreamTask::spawn(|_| async {
+    let (task, _id) = TaskBuilder::spawn(async {
         loop {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
@@ -225,7 +227,7 @@ async fn test_multiple_kills_safe() {
 async fn test_kill_already_completed_task() {
     let (tx, rx) = oneshot::channel();
 
-    let (task, _id) = StreamTask::spawn(|_| async move {
+    let (task, _id) = TaskBuilder::spawn(async move {
         tx.send(()).unwrap();
     });
 
@@ -250,7 +252,7 @@ async fn test_concurrent_task_spawning() {
         let counter = counter.clone();
         let done_tx = done_tx.clone();
 
-        let (task, _id) = StreamTask::spawn(|_| async move {
+        let (task, _id) = TaskBuilder::spawn(async move {
             counter.fetch_add(1, Ordering::SeqCst);
             done_tx.send(()).await.unwrap();
         });
@@ -273,7 +275,7 @@ async fn test_concurrent_task_spawning() {
 async fn test_task_panic_handling() {
     let (started_tx, started_rx) = oneshot::channel();
 
-    let (task, _id) = StreamTask::spawn(|_| async move {
+    let (task, _id) = TaskBuilder::spawn(async move {
         started_tx.send(()).unwrap();
         panic!("intentional panic");
     });

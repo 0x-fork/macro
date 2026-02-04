@@ -1,4 +1,4 @@
-use super::util::StreamTask;
+use super::util::{ActiveTask, TaskBuilder};
 use crate::domain::*;
 use async_stream::stream;
 use async_trait::async_trait;
@@ -20,7 +20,7 @@ enum StreamItem<T> {
 }
 
 struct StreamNotifier {
-    _listener: StreamTask,
+    _listener: ActiveTask,
     tx: broadcast::Sender<StreamId>,
 }
 
@@ -41,9 +41,9 @@ impl StreamNotifier {
         self.tx.subscribe()
     }
 
-    fn spawn_subscriber(client: Client, tx: broadcast::Sender<StreamId>) -> StreamTask {
+    fn spawn_subscriber(client: Client, tx: broadcast::Sender<StreamId>) -> ActiveTask {
         tracing::info!("Start notification subscriber");
-        let task = |_| async move {
+        let task = async move {
             loop {
                 match client.get_async_pubsub().await {
                     Ok(mut pubsub) => {
@@ -74,7 +74,7 @@ impl StreamNotifier {
                 }
             }
         };
-        StreamTask::spawn(task).0
+        TaskBuilder::spawn(task).0
     }
 }
 
@@ -182,12 +182,10 @@ where
                                         if let Value::BulkString(bytes) = value {
                                             match String::from_utf8(bytes) {
                                                 Ok(json_str) => {
-                                                    println!("receieved stream item {}", json_str);
                                                     match serde_json::from_str::<StreamItem<T>>(&json_str) {
                                                         Ok(item) => match item {
                                                            StreamItem::Value(t)  => yield t,
                                                            StreamItem::End => {
-                                                               println!("end item received");
                                                                break 'stream_loop;
                                                            }
                                                         }
@@ -213,7 +211,6 @@ where
                     }
                 }
             }
-            println!("STREAM ENDED");
         };
         Ok(Box::pin(stream))
     }

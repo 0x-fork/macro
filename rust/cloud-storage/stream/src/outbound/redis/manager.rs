@@ -1,4 +1,4 @@
-use super::util::StreamTask;
+use super::util::{ActiveTask, TaskBuilder};
 pub use crate::domain::{ItemStream, Result, StreamId, StreamManager, StreamRepo};
 use async_trait::async_trait;
 use dashmap::{DashMap, DashSet};
@@ -40,8 +40,8 @@ pub struct RedisStreamManager<T> {
     /// subscriptions waiting for stream to start
     pub(crate) subscribed_connections: Arc<DashMap<EntityId, DashSet<Connection<T>>>>,
     /// connections actively receiving stream data
-    pub(crate) streaming_connections: Arc<DashMap<SenderId, DashMap<Uuid, StreamTask>>>,
-    _notification_handler: Arc<StreamTask>,
+    pub(crate) streaming_connections: Arc<DashMap<SenderId, DashMap<Uuid, ActiveTask>>>,
+    _notification_handler: Arc<ActiveTask>,
 }
 
 impl<T> RedisStreamManager<T>
@@ -54,7 +54,7 @@ where
             let this = weak.clone();
             let weak_repo = Arc::downgrade(&service);
 
-            let notification_handler = StreamTask::spawn(|_| async move {
+            let (notification_handler, _) = TaskBuilder::spawn(async move {
                 let mut notification_receiver = match weak_repo.upgrade() {
                     Some(repo) => repo.notify().await,
                     None => panic!("Expected to be able to get strong reference to stream repo"),
@@ -68,8 +68,7 @@ where
                     manager.handle_stream_created(stream_id).await;
                 }
                 tracing::warn!("Notification handler exited");
-            })
-            .0;
+            });
 
             Self {
                 repo: service,
@@ -132,7 +131,7 @@ where
         let mut stream = self.repo.stream_from_beginning(stream_id).await?;
         let sender_id = connection.0.clone();
         let weak_manager = Arc::downgrade(&self);
-        let task = StreamTask::spawn(|task_id| async move {
+        let (task, task_id) = TaskBuilder::delay(|task_id| async move {
             while let Some(item) = stream.next().await {
                 // full channel error may need to be handled
                 if let Err(_) = connection.1.send(item).await {
@@ -163,7 +162,7 @@ where
         self.streaming_connections
             .entry(sender_id.to_string())
             .or_insert_with(|| DashMap::new())
-            .insert(task.1, task.0);
+            .insert(task_id, task.begin());
 
         Ok(())
     }
@@ -202,7 +201,6 @@ where
     }
 
     async fn unsubscribe(self: Arc<Self>, entity_id: &str, sender_id: &str) -> Result<()> {
-        println!("unsubscribe");
         // Remove from subscribed_connections for this entity
         if let Some(subscribers) = self.subscribed_connections.get(entity_id) {
             subscribers.retain(|conn| conn.0.as_str() != sender_id);

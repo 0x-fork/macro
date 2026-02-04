@@ -37,13 +37,11 @@ where
                 let _ =
                     tokio::time::timeout(timeout.unwrap_or(DEFAULT_STREAM_TIMEOUT), async move {
                         while let Some(item) = stream.next().await {
-                            println!("Streamed item");
                             if let Err(e) = self.append(&id, item).await {
                                 tracing::error!(error=?e,"failed to append to stream");
                                 return;
                             }
                         }
-                        println!("done");
                         let _ = self.close(&id).await.inspect_err(
                             |e| tracing::error!(error=?e, "failed to mark stream as closed stream"),
                         );

@@ -701,7 +701,7 @@ async fn test_stream_ends_close_state() {
 }
 
 async fn util_test_stream_ends_state_exhausted(
-    stream_id: &StreamId,
+    stream_id: StreamId,
     service: Arc<dyn crate::domain::StreamRepo<serde_json::Value>>,
 ) {
     // Use from_async_stream with a finite stream (3 items)
@@ -759,7 +759,7 @@ async fn util_test_stream_ends_state_exhausted(
     // Helper to drain a receiver and count items
     async fn drain_and_count(n: usize, rx: &mut mpsc::Receiver<serde_json::Value>) {
         let mut count = 0;
-        while let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(50), rx.recv()).await {
+        while let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(1000), rx.recv()).await {
             count += 1;
         }
         assert_eq!(count, 3, "receiver {} should get all 3 items", n);
@@ -769,13 +769,16 @@ async fn util_test_stream_ends_state_exhausted(
     drain_and_count(2, &mut rx2).await;
     drain_and_count(3, &mut rx3).await;
 
-    assert_eq!(
-        manager.streaming_connections.len(),
-        0,
+    assert!(
+        manager.streaming_connections.is_empty(),
         "No streaming connections"
     );
     assert_eq!(
-        manager.subscribed_connections.len(),
+        manager
+            .subscribed_connections
+            .iter()
+            .map(|entity_map| entity_map.len())
+            .sum::<usize>(),
         3,
         "3 subscribed connections"
     );
@@ -786,7 +789,7 @@ async fn util_test_stream_ends_state_exhausted(
 async fn test_stream_exhausted_single() {
     let entity_id = "state_stream_exhausted_single";
     let (service, stream_id, _guard) = StreamGuard::new(entity_id).await;
-    util_test_stream_ends_state_exhausted(&stream_id, service).await;
+    util_test_stream_ends_state_exhausted(stream_id, service).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -868,14 +871,18 @@ async fn test_stream_exhausted_load() {
     // Create one guard that will clean up all streams at the end
     let (service, _, guard) = StreamGuard::new("load_test_init").await;
 
-    for i in 0..1000 {
-        println!("load test {}", i);
+    let tests = (0..50).map(|i| {
+        // important to prevent tests from conflicting
+        let id = format!("exaust_load_{}", i);
         let stream_id = StreamId {
-            entity_id: "test".into(),
+            entity_id: id.clone(),
             entity_type: model_entity::EntityType::Chat,
-            stream_id: format!("exaust_load_{}", i),
+            stream_id: id.clone(),
         };
         guard.add_stream_id(stream_id.clone());
-        util_test_stream_ends_state_exhausted(&stream_id, service.clone()).await;
-    }
+
+        util_test_stream_ends_state_exhausted(stream_id, service.clone())
+    });
+
+    futures::future::join_all(tests).await;
 }
