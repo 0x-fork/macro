@@ -1,43 +1,40 @@
 //! Extension traits for StreamRepo.
 
 use super::traits::*;
+use super::StreamId;
 use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub trait StreamManagerExt<T>: StreamRepo<T>
-where
-    T: Send + Sync + 'static,
-{
+pub trait StreamManagerExt: StreamRepo {
     /// Create a durable stream from an async stream.
     /// Consumes the async stream and closes the durable stream when it ends.
     fn from_async_stream(
         self: Arc<Self>,
         id: StreamId,
-        stream: ItemStream<T>,
+        stream: PayloadStream,
         timeout: Option<Duration>,
     ) -> tokio::task::JoinHandle<()>;
 }
 
-impl<S, T> StreamManagerExt<T> for S
+impl<S> StreamManagerExt for S
 where
-    S: StreamRepo<T> + ?Sized,
-    T: Send + Sync + 'static,
+    S: StreamRepo + ?Sized,
 {
     /// Create a durable stream from an async stream
     /// Consume async stream and close the durable stream when it ends
     fn from_async_stream(
         self: Arc<Self>,
         id: StreamId,
-        mut stream: ItemStream<T>,
+        mut stream: PayloadStream,
         timeout: Option<Duration>,
     ) -> tokio::task::JoinHandle<()> {
         tokio::spawn({
             async move {
                 let _ =
                     tokio::time::timeout(timeout.unwrap_or(DEFAULT_STREAM_TIMEOUT), async move {
-                        while let Some(item) = stream.next().await {
-                            if let Err(e) = self.append(&id, item).await {
+                        while let Some(payload) = stream.next().await {
+                            if let Err(e) = self.append(&id, payload).await {
                                 tracing::error!(error=?e,"failed to append to stream");
                                 return;
                             }

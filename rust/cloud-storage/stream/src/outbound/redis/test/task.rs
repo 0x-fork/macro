@@ -1,4 +1,4 @@
-use crate::outbound::redis::util::TaskBuilder;
+use crate::outbound::redis::task_util::TaskBuilder;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;

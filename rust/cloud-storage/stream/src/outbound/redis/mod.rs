@@ -1,7 +1,7 @@
 mod ext;
 mod manager;
 mod repo;
-pub(crate) mod util;
+pub(crate) mod task_util;
 
 #[cfg(test)]
 mod test;

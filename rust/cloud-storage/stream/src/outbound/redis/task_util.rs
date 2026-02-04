@@ -20,13 +20,7 @@ impl TaskBuilder {
         Fut: Future<Output = ()> + Send + 'static,
     {
         let id = Uuid::new_v4();
-        (
-            PendingTask {
-                task,
-                id: id.clone(),
-            },
-            id,
-        )
+        (PendingTask { task, id }, id)
     }
 }
 

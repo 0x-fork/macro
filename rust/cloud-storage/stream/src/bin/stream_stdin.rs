@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
         let client = redis::Client::open(db_url)?;
         let service = RedisStreamRepo::new(client).await?;
         let _ = service.cleanup_stream(&stream_id).await;
-        let stream_service = service.obj::<serde_json::Value>();
+        let stream_service = service.obj();
 
         let stdin = io::stdin();
         for line in stdin.lock().lines() {
@@ -36,8 +36,7 @@ fn main() -> anyhow::Result<()> {
             if line.is_empty() {
                 continue;
             }
-            let item = serde_json::from_str(&line).unwrap_or(serde_json::Value::String(line));
-            stream_service.append(&stream_id, item).await?;
+            stream_service.append(&stream_id, line).await?;
         }
 
         Ok::<(), anyhow::Error>(())

@@ -1,5 +1,5 @@
-use super::util::{ActiveTask, TaskBuilder};
-pub use crate::domain::{ItemStream, Result, StreamId, StreamManager, StreamRepo};
+use super::task_util::{ActiveTask, TaskBuilder};
+pub use crate::domain::{ItemStream, Result, StreamId, StreamItem, StreamManager, StreamRepo};
 use async_trait::async_trait;
 use dashmap::{DashMap, DashSet};
 use futures::future::join_all;
@@ -36,7 +36,7 @@ pub(crate) type EntityId = String;
 pub(crate) type SenderId = String;
 
 pub struct RedisStreamManager<T> {
-    pub(crate) repo: Arc<dyn StreamRepo<T>>,
+    pub(crate) repo: Arc<dyn StreamRepo>,
     /// subscriptions waiting for stream to start
     pub(crate) subscribed_connections: Arc<DashMap<EntityId, DashSet<Connection<T>>>>,
     /// connections actively receiving stream data
@@ -47,8 +47,9 @@ pub struct RedisStreamManager<T> {
 impl<T> RedisStreamManager<T>
 where
     T: Send + Sync + 'static,
+    T: From<StreamItem>,
 {
-    pub fn new(service: Arc<dyn StreamRepo<T>>) -> Arc<Self> {
+    pub fn new(service: Arc<dyn StreamRepo>) -> Arc<Self> {
         // Use Arc::new_cyclic to avoid the chicken-and-egg problem
         Arc::new_cyclic(|weak: &Weak<Self>| {
             let this = weak.clone();
@@ -104,7 +105,7 @@ where
     ) -> Result<()> {
         self.subscribed_connections
             .entry(entity_id.clone())
-            .or_insert_with(|| DashSet::new())
+            .or_default()
             .insert(connection.clone());
 
         for stream_id in self
@@ -134,7 +135,7 @@ where
         let (task, task_id) = TaskBuilder::delay(|task_id| async move {
             while let Some(item) = stream.next().await {
                 // full channel error may need to be handled
-                if let Err(_) = connection.1.send(item).await {
+                if connection.1.send(item.into()).await.is_err() {
                     if let Some(this) = weak_manager.upgrade() {
                         this.handle_disconnect(&connection).await;
                         break;
@@ -161,7 +162,7 @@ where
 
         self.streaming_connections
             .entry(sender_id.to_string())
-            .or_insert_with(|| DashMap::new())
+            .or_default()
             .insert(task_id, task.begin());
 
         Ok(())
@@ -189,6 +190,7 @@ where
 impl<T> StreamManager<T> for RedisStreamManager<T>
 where
     T: Send + Sync + 'static,
+    T: From<StreamItem>,
 {
     async fn subscribe(
         self: Arc<Self>,

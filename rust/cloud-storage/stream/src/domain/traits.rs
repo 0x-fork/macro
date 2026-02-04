@@ -1,8 +1,8 @@
 //! Core traits and types for the stream service.
 use super::types::*;
+use super::{StreamId, StreamItem};
 use async_trait::async_trait;
-use futures::stream::{Stream, StreamExt};
-use model_entity::EntityType;
+use futures::stream::Stream;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,7 +13,9 @@ use tokio::sync::mpsc::Sender;
 pub const DEFAULT_STREAM_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// A boxed stream that yields items with their offsets.
-pub type ItemStream<T> = Pin<Box<dyn Stream<Item = T> + Send>>;
+pub type ItemStream = Pin<Box<dyn Stream<Item = StreamItem> + Send>>;
+/// A boxed stream of payloads to append.
+pub type PayloadStream = Pin<Box<dyn Stream<Item = String> + Send>>;
 pub type ItemId = String;
 
 #[derive(Debug, Clone)]
@@ -22,26 +24,16 @@ pub enum Offset {
     Location(String),
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct StreamId {
-    pub entity_type: EntityType,
-    pub entity_id: String,
-    pub stream_id: String,
-}
-
 /// A stream service provides durable stream storage
 /// This is the base trait of this crate and should be
 /// used by consumers through the StreamManager
 #[async_trait]
-pub trait StreamRepo<T>: Send + Sync + 'static
-where
-    T: Send + Sync + 'static,
-{
+pub trait StreamRepo: Send + Sync + 'static {
     /// Append an item to an existing stream or create a new stream and append an item to it
-    async fn append(&self, id: &StreamId, item: T) -> Result<ItemId>;
+    async fn append(&self, id: &StreamId, payload: String) -> Result<ItemId>;
     /// Get an async stream that will stream from the beginning of a stream and continue to
     /// listen for new items
-    async fn stream_from_beginning(&self, id: &StreamId) -> Result<ItemStream<T>>;
+    async fn stream_from_beginning(&self, id: &StreamId) -> Result<ItemStream>;
     /// Mark a stream as closed
     async fn close(&self, id: &StreamId) -> Result<()>;
     /// List active streams for an entity (implementations may treat all streams as active).
@@ -51,9 +43,10 @@ where
 }
 
 #[async_trait]
-pub trait StreamManager<T>
+pub trait StreamManager<T>: Send + Sync + 'static
 where
     T: Send + Sync + 'static,
+    T: From<StreamItem>,
 {
     /// subscribe a sender (intended to be a websocket) to
     /// all streams on an entity

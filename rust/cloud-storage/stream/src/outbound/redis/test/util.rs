@@ -10,14 +10,14 @@ pub struct StreamGuard {
 }
 
 impl StreamGuard {
-    pub async fn new(name: &str) -> (Arc<dyn StreamRepo<serde_json::Value>>, StreamId, Self) {
+    pub async fn new(name: &str) -> (Arc<dyn StreamRepo>, StreamId, Self) {
         Self::new_with_stream_id(name, "stream").await
     }
 
     pub async fn new_with_stream_id(
         entity_id: &str,
         stream_id: &str,
-    ) -> (Arc<dyn StreamRepo<serde_json::Value>>, StreamId, Self) {
+    ) -> (Arc<dyn StreamRepo>, StreamId, Self) {
         let service = connect_from_env().await;
         let service_external = connect_from_env().await;
         let stream_id = test_stream_id(entity_id, stream_id);
@@ -33,13 +33,6 @@ impl StreamGuard {
     /// Add a stream ID to be cleaned up when this guard is dropped
     pub fn add_stream_id(&self, stream_id: StreamId) {
         self.stream_ids.borrow_mut().push(stream_id);
-    }
-
-    /// Create a new stream ID and add it to the cleanup list
-    pub fn track_stream(&self, entity_id: &str, stream_id: &str) -> StreamId {
-        let id = test_stream_id(entity_id, stream_id);
-        self.add_stream_id(id.clone());
-        id
     }
 }
 

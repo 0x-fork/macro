@@ -1,10 +1,10 @@
-use super::util::{ActiveTask, TaskBuilder};
+use super::task_util::{ActiveTask, TaskBuilder};
 use crate::domain::*;
 use async_stream::stream;
 use async_trait::async_trait;
-use futures::{StreamExt, TryStreamExt};
+use futures::StreamExt;
 use redis::{streams::StreamReadReply, AsyncCommands, Client, RedisResult, Value};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Receiver};
 use tokio::sync::OnceCell;
@@ -14,8 +14,8 @@ const NOTIFY_CHANNEL_BUFFER: usize = 1024;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
-enum StreamItem<T> {
-    Value(T),
+enum StoredStreamItem {
+    Value(String),
     End,
 }
 
@@ -98,10 +98,7 @@ impl RedisStreamRepo {
         })
     }
 
-    pub fn obj<T>(self) -> Arc<dyn StreamRepo<T>>
-    where
-        T: Serialize + DeserializeOwned + std::fmt::Debug + Send + Sync + 'static,
-    {
+    pub fn obj(self) -> Arc<dyn StreamRepo> {
         Arc::new(self)
     }
 
@@ -115,14 +112,11 @@ impl RedisStreamRepo {
             .map_err(|e| StreamServiceError::StorageError(e.to_string()))
     }
 
-    async fn publish_item<T>(
+    async fn publish_item(
         conn: &mut redis::aio::MultiplexedConnection,
         id: &StreamId,
-        item: &StreamItem<T>,
-    ) -> Result<ItemId>
-    where
-        T: Serialize + DeserializeOwned + std::fmt::Debug + Send + Sync + 'static,
-    {
+        item: &StoredStreamItem,
+    ) -> Result<ItemId> {
         let json = serde_json::to_string(item).map_err(StreamServiceError::SerdeError)?;
         conn.xadd(id.to_string(), "*", &[(KEY, json)])
             .await
@@ -131,12 +125,9 @@ impl RedisStreamRepo {
 }
 
 #[async_trait]
-impl<T> StreamRepo<T> for RedisStreamRepo
-where
-    T: Serialize + DeserializeOwned + std::fmt::Debug + Send + Sync + 'static,
-{
+impl StreamRepo for RedisStreamRepo {
     /// create and append to stream or append to stream
-    async fn append(&self, id: &StreamId, item: T) -> Result<ItemId> {
+    async fn append(&self, id: &StreamId, payload: String) -> Result<ItemId> {
         let mut conn = self.client.get_multiplexed_async_connection().await?;
 
         let is_new: bool = !conn
@@ -144,7 +135,7 @@ where
             .await
             .map_err(|e| StreamServiceError::StorageError(e.to_string()))?;
 
-        let item_id = Self::publish_item(&mut conn, id, &StreamItem::Value(item)).await?;
+        let item_id = Self::publish_item(&mut conn, id, &StoredStreamItem::Value(payload)).await?;
 
         if is_new {
             tracing::debug!(stream_id=?id, "New stream detected publishing notification");
@@ -158,9 +149,10 @@ where
         Ok(item_id)
     }
 
-    async fn stream_from_beginning(&self, id: &StreamId) -> Result<ItemStream<T>> {
+    async fn stream_from_beginning(&self, id: &StreamId) -> Result<ItemStream> {
         let mut connection = self.client.get_multiplexed_async_connection().await?;
         let stream_key = id.to_string();
+        let stream_id_for_item = id.clone();
 
         let stream = stream! {
             let mut last_id = "0".to_string();
@@ -174,18 +166,20 @@ where
                 match result {
                     Ok(reply) => {
                         for stream_key in reply.keys {
-                            for stream_id in stream_key.ids {
-                                last_id = stream_id.id.clone();
+                            for entry in stream_key.ids {
+                                last_id = entry.id.clone();
 
-                                for (key, value) in stream_id.map {
+                                for (key, value) in entry.map {
                                     if key == KEY {
                                         if let Value::BulkString(bytes) = value {
                                             match String::from_utf8(bytes) {
                                                 Ok(json_str) => {
-                                                    match serde_json::from_str::<StreamItem<T>>(&json_str) {
+                                                    match serde_json::from_str::<StoredStreamItem>(&json_str) {
                                                         Ok(item) => match item {
-                                                           StreamItem::Value(t)  => yield t,
-                                                           StreamItem::End => {
+                                                           StoredStreamItem::Value(payload)  => {
+                                                               yield StreamItem::new(stream_id_for_item.clone(), payload)
+                                                           }
+                                                           StoredStreamItem::End => {
                                                                break 'stream_loop;
                                                            }
                                                         }
@@ -217,7 +211,7 @@ where
 
     async fn close(&self, id: &StreamId) -> Result<()> {
         let mut conn = self.client.get_multiplexed_async_connection().await?;
-        Self::publish_item(&mut conn, id, &StreamItem::<()>::End).await?;
+        Self::publish_item(&mut conn, id, &StoredStreamItem::End).await?;
         Ok(())
     }
 

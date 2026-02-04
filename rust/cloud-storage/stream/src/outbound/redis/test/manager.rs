@@ -6,6 +6,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
+fn payload_json(item: &StreamItem) -> serde_json::Value {
+    serde_json::from_str(&item.payload).expect("payload should be valid json")
+}
+
 #[tokio::test(flavor = "multi_thread")]
 #[serial]
 async fn test_no_streams() {
@@ -17,7 +21,7 @@ async fn test_no_streams() {
     let (service, _stream_id, _guard) = StreamGuard::new("manager_no_streams").await;
     let manager = RedisStreamManager::new(service);
 
-    let (tx, mut rx) = mpsc::channel::<serde_json::Value>(10);
+    let (tx, mut rx) = mpsc::channel::<StreamItem>(10);
 
     // Subscribe to an entity with no active streams
     manager
@@ -47,7 +51,7 @@ async fn test_sub_then_start_related() {
     let (service, stream_id, _guard) = StreamGuard::new(entity_id).await;
     let manager = RedisStreamManager::new(service.clone());
 
-    let (tx, mut rx) = mpsc::channel::<serde_json::Value>(10);
+    let (tx, mut rx) = mpsc::channel::<StreamItem>(10);
 
     // Subscribe before any stream exists
     manager
@@ -57,7 +61,7 @@ async fn test_sub_then_start_related() {
         .expect("subscribe should succeed");
 
     // Now create a stream by appending to it
-    let item = serde_json::json!({"message": "hello from stream"});
+    let item = serde_json::json!({"message": "hello from stream"}).to_string();
     service
         .append(&stream_id, item.clone())
         .await
@@ -69,7 +73,7 @@ async fn test_sub_then_start_related() {
         .expect("should receive message")
         .expect("channel should not be closed");
 
-    assert_eq!(received, item);
+    assert_eq!(received.payload, item);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -80,7 +84,7 @@ async fn test_sub_then_start_unrelated() {
     let (service, stream_id, _guard) = StreamGuard::new("manager_unrelated_entity").await;
     let manager = RedisStreamManager::new(service.clone());
 
-    let (tx, mut rx) = mpsc::channel::<serde_json::Value>(10);
+    let (tx, mut rx) = mpsc::channel::<StreamItem>(10);
 
     // Subscribe to a DIFFERENT entity than the stream
     manager
@@ -92,7 +96,7 @@ async fn test_sub_then_start_unrelated() {
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Create a stream on the original entity (not the one we subscribed to)
-    let item = serde_json::json!({"message": "should not receive"});
+    let item = serde_json::json!({"message": "should not receive"}).to_string();
     service
         .append(&stream_id, item)
         .await
@@ -120,17 +124,17 @@ async fn test_start_then_sub() {
     let item2 = serde_json::json!({"message": "second"});
 
     service
-        .append(&stream_id, item1.clone())
+        .append(&stream_id, item1.to_string())
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id, item2.clone())
+        .append(&stream_id, item2.to_string())
         .await
         .expect("append should succeed");
 
     // Now create manager and subscribe
     let manager = RedisStreamManager::new(service.clone());
-    let (tx, mut rx) = mpsc::channel::<serde_json::Value>(10);
+    let (tx, mut rx) = mpsc::channel::<StreamItem>(10);
 
     manager
         .clone()
@@ -143,13 +147,13 @@ async fn test_start_then_sub() {
         .await
         .expect("should receive first message")
         .expect("channel should not be closed");
-    assert_eq!(received1, item1);
+    assert_eq!(payload_json(&received1), item1);
 
     let received2 = tokio::time::timeout(Duration::from_secs(2), rx.recv())
         .await
         .expect("should receive second message")
         .expect("channel should not be closed");
-    assert_eq!(received2, item2);
+    assert_eq!(payload_json(&received2), item2);
 }
 
 // =============================================================================
@@ -166,13 +170,11 @@ async fn test_late_join_multiple_subscribers() {
     let (service, stream_id, _guard) = StreamGuard::new(entity_id).await;
 
     // Create stream with items BEFORE any subscribers
-    let items: Vec<serde_json::Value> = (1..=5)
-        .map(|i| serde_json::json!({"seq": i}))
-        .collect();
+    let items: Vec<serde_json::Value> = (1..=5).map(|i| serde_json::json!({"seq": i})).collect();
 
     for item in &items {
         service
-            .append(&stream_id, item.clone())
+            .append(&stream_id, item.to_string())
             .await
             .expect("append should succeed");
     }
@@ -180,9 +182,9 @@ async fn test_late_join_multiple_subscribers() {
     // Now create manager and subscribe multiple connections
     let manager = RedisStreamManager::new(service.clone());
 
-    let (tx1, mut rx1) = mpsc::channel::<serde_json::Value>(10);
-    let (tx2, mut rx2) = mpsc::channel::<serde_json::Value>(10);
-    let (tx3, mut rx3) = mpsc::channel::<serde_json::Value>(10);
+    let (tx1, mut rx1) = mpsc::channel::<StreamItem>(10);
+    let (tx2, mut rx2) = mpsc::channel::<StreamItem>(10);
+    let (tx3, mut rx3) = mpsc::channel::<StreamItem>(10);
 
     // All subscribe after stream exists
     manager
@@ -202,12 +204,11 @@ async fn test_late_join_multiple_subscribers() {
         .expect("subscribe should succeed");
 
     // Helper to collect all items from a receiver
-    async fn collect_items(rx: &mut mpsc::Receiver<serde_json::Value>) -> Vec<serde_json::Value> {
+    async fn collect_items(rx: &mut mpsc::Receiver<StreamItem>) -> Vec<serde_json::Value> {
         let mut received = Vec::new();
-        while let Ok(Some(item)) =
-            tokio::time::timeout(Duration::from_millis(500), rx.recv()).await
+        while let Ok(Some(item)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await
         {
-            received.push(item);
+            received.push(payload_json(&item));
         }
         received
     }
@@ -246,27 +247,39 @@ async fn test_late_join_multiple_streams_same_entity() {
 
     // Add items to first stream
     service
-        .append(&stream_id_1, serde_json::json!({"stream": 1, "seq": 1}))
+        .append(
+            &stream_id_1,
+            serde_json::json!({"stream": 1, "seq": 1}).to_string(),
+        )
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id_1, serde_json::json!({"stream": 1, "seq": 2}))
+        .append(
+            &stream_id_1,
+            serde_json::json!({"stream": 1, "seq": 2}).to_string(),
+        )
         .await
         .expect("append should succeed");
 
     // Add items to second stream
     service
-        .append(&stream_id_2, serde_json::json!({"stream": 2, "seq": 1}))
+        .append(
+            &stream_id_2,
+            serde_json::json!({"stream": 2, "seq": 1}).to_string(),
+        )
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id_2, serde_json::json!({"stream": 2, "seq": 2}))
+        .append(
+            &stream_id_2,
+            serde_json::json!({"stream": 2, "seq": 2}).to_string(),
+        )
         .await
         .expect("append should succeed");
 
     // Late join - subscribe after both streams have data
     let manager = RedisStreamManager::new(service.clone());
-    let (tx, mut rx) = mpsc::channel::<serde_json::Value>(20);
+    let (tx, mut rx) = mpsc::channel::<StreamItem>(20);
 
     manager
         .clone()
@@ -277,7 +290,7 @@ async fn test_late_join_multiple_streams_same_entity() {
     // Collect all received items
     let mut received = Vec::new();
     while let Ok(Some(item)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
-        received.push(item);
+        received.push(payload_json(&item));
     }
 
     // Should receive items from both streams (4 total)
@@ -306,18 +319,24 @@ async fn test_late_join_during_active_streaming() {
 
     // Add initial items before any subscriber
     service
-        .append(&stream_id, serde_json::json!({"phase": "before", "seq": 1}))
+        .append(
+            &stream_id,
+            serde_json::json!({"phase": "before", "seq": 1}).to_string(),
+        )
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id, serde_json::json!({"phase": "before", "seq": 2}))
+        .append(
+            &stream_id,
+            serde_json::json!({"phase": "before", "seq": 2}).to_string(),
+        )
         .await
         .expect("append should succeed");
 
     let manager = RedisStreamManager::new(service.clone());
 
     // First subscriber joins (early joiner for comparison)
-    let (tx1, mut rx1) = mpsc::channel::<serde_json::Value>(20);
+    let (tx1, mut rx1) = mpsc::channel::<StreamItem>(20);
     manager
         .clone()
         .subscribe(entity_id.into(), "early_joiner".into(), tx1)
@@ -329,12 +348,15 @@ async fn test_late_join_during_active_streaming() {
 
     // Add more items while early joiner is connected
     service
-        .append(&stream_id, serde_json::json!({"phase": "during", "seq": 3}))
+        .append(
+            &stream_id,
+            serde_json::json!({"phase": "during", "seq": 3}).to_string(),
+        )
         .await
         .expect("append should succeed");
 
     // Late joiner subscribes mid-stream
-    let (tx2, mut rx2) = mpsc::channel::<serde_json::Value>(20);
+    let (tx2, mut rx2) = mpsc::channel::<StreamItem>(20);
     manager
         .clone()
         .subscribe(entity_id.into(), "late_joiner".into(), tx2)
@@ -343,21 +365,26 @@ async fn test_late_join_during_active_streaming() {
 
     // Add more items after late joiner
     service
-        .append(&stream_id, serde_json::json!({"phase": "after", "seq": 4}))
+        .append(
+            &stream_id,
+            serde_json::json!({"phase": "after", "seq": 4}).to_string(),
+        )
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id, serde_json::json!({"phase": "after", "seq": 5}))
+        .append(
+            &stream_id,
+            serde_json::json!({"phase": "after", "seq": 5}).to_string(),
+        )
         .await
         .expect("append should succeed");
 
     // Collect items from both receivers
-    async fn collect_items(rx: &mut mpsc::Receiver<serde_json::Value>) -> Vec<serde_json::Value> {
+    async fn collect_items(rx: &mut mpsc::Receiver<StreamItem>) -> Vec<serde_json::Value> {
         let mut received = Vec::new();
-        while let Ok(Some(item)) =
-            tokio::time::timeout(Duration::from_millis(500), rx.recv()).await
+        while let Ok(Some(item)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await
         {
-            received.push(item);
+            received.push(payload_json(&item));
         }
         received
     }
@@ -381,11 +408,7 @@ async fn test_late_join_during_active_streaming() {
 
     // Verify late joiner got items in correct order
     for (i, item) in late_received.iter().enumerate() {
-        assert_eq!(
-            item["seq"],
-            i + 1,
-            "late joiner items should be in order"
-        );
+        assert_eq!(item["seq"], i + 1, "late joiner items should be in order");
     }
 }
 
@@ -400,7 +423,7 @@ async fn test_connection_closed() {
     let manager = RedisStreamManager::new(service.clone());
 
     // Create a channel and immediately drop the receiver to simulate closed connection
-    let (tx, rx) = mpsc::channel::<serde_json::Value>(1);
+    let (tx, rx) = mpsc::channel::<StreamItem>(1);
     drop(rx);
 
     manager
@@ -413,7 +436,7 @@ async fn test_connection_closed() {
 
     // Append to trigger a send attempt to the closed channel
     service
-        .append(&stream_id, serde_json::json!({"test": "data"}))
+        .append(&stream_id, serde_json::json!({"test": "data"}).to_string())
         .await
         .expect("append should succeed");
 
@@ -422,7 +445,7 @@ async fn test_connection_closed() {
 
     // The manager should have cleaned up internally
     // We can verify by subscribing a new connection - it should work fine
-    let (tx2, mut rx2) = mpsc::channel::<serde_json::Value>(10);
+    let (tx2, mut rx2) = mpsc::channel::<StreamItem>(10);
     manager
         .clone()
         .subscribe(entity_id.into(), "sender_2".into(), tx2)
@@ -432,7 +455,7 @@ async fn test_connection_closed() {
     // Append another item
     let item = serde_json::json!({"test": "after_cleanup"});
     service
-        .append(&stream_id, item.clone())
+        .append(&stream_id, item.to_string())
         .await
         .expect("append should succeed");
 
@@ -443,7 +466,8 @@ async fn test_connection_closed() {
         .expect("channel should not be closed");
 
     // Should receive either the first item (from stream_from_beginning) or the new one
-    assert!(received == serde_json::json!({"test": "data"}) || received == item);
+    let received_payload = payload_json(&received);
+    assert!(received_payload == serde_json::json!({"test": "data"}) || received_payload == item);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -455,12 +479,12 @@ async fn test_unsub_during_stream() {
     let (service, stream_id, _guard) = StreamGuard::new(entity_id).await;
     let manager = RedisStreamManager::new(service.clone());
 
-    let (tx, mut rx) = mpsc::channel::<serde_json::Value>(10);
+    let (tx, mut rx) = mpsc::channel::<StreamItem>(10);
 
     // Create stream with initial item
     let item1 = serde_json::json!({"seq": 1});
     service
-        .append(&stream_id, item1.clone())
+        .append(&stream_id, item1.to_string())
         .await
         .expect("append should succeed");
 
@@ -476,7 +500,7 @@ async fn test_unsub_during_stream() {
         .await
         .expect("should receive message")
         .expect("channel should not be closed");
-    assert_eq!(received, item1);
+    assert_eq!(payload_json(&received), item1);
 
     // Unsubscribe while stream is still active
     manager
@@ -487,7 +511,7 @@ async fn test_unsub_during_stream() {
 
     // Append more items
     service
-        .append(&stream_id, serde_json::json!({"seq": 2}))
+        .append(&stream_id, serde_json::json!({"seq": 2}).to_string())
         .await
         .expect("append should succeed");
 
@@ -516,7 +540,7 @@ async fn test_subscribe_unsubscribe_state() {
     let (service, _stream_id, _guard) = StreamGuard::new(entity_id).await;
     let manager = RedisStreamManager::new(service);
 
-    let (tx, _rx) = mpsc::channel::<serde_json::Value>(10);
+    let (tx, _rx) = mpsc::channel::<StreamItem>(10);
 
     // Initially both maps should be empty
     assert!(
@@ -587,9 +611,9 @@ async fn test_subscribe_unsubscribe_multi_state() {
     let (service, _stream_id, _guard) = StreamGuard::new(entity_a).await;
     let manager = RedisStreamManager::new(service);
 
-    let (tx1, _rx1) = mpsc::channel::<serde_json::Value>(10);
-    let (tx2, _rx2) = mpsc::channel::<serde_json::Value>(10);
-    let (tx3, _rx3) = mpsc::channel::<serde_json::Value>(10);
+    let (tx1, _rx1) = mpsc::channel::<StreamItem>(10);
+    let (tx2, _rx2) = mpsc::channel::<StreamItem>(10);
+    let (tx3, _rx3) = mpsc::channel::<StreamItem>(10);
 
     // Subscribe two connections to entity_a
     manager
@@ -694,13 +718,13 @@ async fn test_stream_then_subscribe_state() {
     // Create stream first by appending to it
     let item = serde_json::json!({"message": "first"});
     service
-        .append(&stream_id, item)
+        .append(&stream_id, item.to_string())
         .await
         .expect("append should succeed");
 
     // Now create manager and subscribe
     let manager = RedisStreamManager::new(service.clone());
-    let (tx, mut rx) = mpsc::channel::<serde_json::Value>(10);
+    let (tx, mut rx) = mpsc::channel::<StreamItem>(10);
 
     manager
         .clone()
@@ -750,12 +774,12 @@ async fn test_unsub_mid_stream_state() {
 
     // Create stream first
     service
-        .append(&stream_id, serde_json::json!({"seq": 1}))
+        .append(&stream_id, serde_json::json!({"seq": 1}).to_string())
         .await
         .expect("append should succeed");
 
     let manager = RedisStreamManager::new(service.clone());
-    let (tx, mut rx) = mpsc::channel::<serde_json::Value>(10);
+    let (tx, mut rx) = mpsc::channel::<StreamItem>(10);
 
     manager
         .clone()
@@ -820,7 +844,7 @@ async fn test_sub_stream_unrelated_state() {
     let (_service_b, stream_id_b, _guard_b) = StreamGuard::new(entity_b).await;
 
     let manager = RedisStreamManager::new(service.clone());
-    let (tx, _rx) = mpsc::channel::<serde_json::Value>(10);
+    let (tx, _rx) = mpsc::channel::<StreamItem>(10);
 
     // Subscribe to entity_a
     manager
@@ -831,7 +855,10 @@ async fn test_sub_stream_unrelated_state() {
 
     // Start stream on entity_b (unrelated)
     service
-        .append(&stream_id_b, serde_json::json!({"unrelated": true}))
+        .append(
+            &stream_id_b,
+            serde_json::json!({"unrelated": true}).to_string(),
+        )
         .await
         .expect("append should succeed");
 
@@ -861,15 +888,15 @@ async fn test_stream_ends_close_state() {
 
     // Create stream first
     service
-        .append(&stream_id, serde_json::json!({"seq": 1}))
+        .append(&stream_id, serde_json::json!({"seq": 1}).to_string())
         .await
         .expect("append should succeed");
 
     let manager = RedisStreamManager::new(service.clone());
 
-    let (tx1, mut rx1) = mpsc::channel::<serde_json::Value>(10);
-    let (tx2, mut rx2) = mpsc::channel::<serde_json::Value>(10);
-    let (tx3, mut rx3) = mpsc::channel::<serde_json::Value>(10);
+    let (tx1, mut rx1) = mpsc::channel::<StreamItem>(10);
+    let (tx2, mut rx2) = mpsc::channel::<StreamItem>(10);
+    let (tx3, mut rx3) = mpsc::channel::<StreamItem>(10);
 
     // Subscribe all 3 connections
     manager
@@ -900,11 +927,11 @@ async fn test_stream_ends_close_state() {
 
     // Emit a few more items
     service
-        .append(&stream_id, serde_json::json!({"seq": 2}))
+        .append(&stream_id, serde_json::json!({"seq": 2}).to_string())
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id, serde_json::json!({"seq": 3}))
+        .append(&stream_id, serde_json::json!({"seq": 3}).to_string())
         .await
         .expect("append should succeed");
 
@@ -915,7 +942,7 @@ async fn test_stream_ends_close_state() {
         .expect("close should succeed");
 
     // Helper to drain a receiver and count items
-    async fn drain_and_count(rx: &mut mpsc::Receiver<serde_json::Value>) -> usize {
+    async fn drain_and_count(rx: &mut mpsc::Receiver<StreamItem>) -> usize {
         let mut count = 0;
         while let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
             count += 1;
@@ -939,7 +966,7 @@ async fn test_stream_ends_close_state() {
 
 async fn util_test_stream_ends_state_exhausted(
     stream_id: StreamId,
-    service: Arc<dyn crate::domain::StreamRepo<serde_json::Value>>,
+    service: Arc<dyn crate::domain::StreamRepo>,
 ) {
     // Use from_async_stream with a finite stream (3 items)
     // This should have the same behavior as calling close explicitly
@@ -951,9 +978,9 @@ async fn util_test_stream_ends_state_exhausted(
 
     let manager = RedisStreamManager::new(service.clone());
 
-    let (tx1, mut rx1) = mpsc::channel::<serde_json::Value>(10);
-    let (tx2, mut rx2) = mpsc::channel::<serde_json::Value>(10);
-    let (tx3, mut rx3) = mpsc::channel::<serde_json::Value>(10);
+    let (tx1, mut rx1) = mpsc::channel::<StreamItem>(10);
+    let (tx2, mut rx2) = mpsc::channel::<StreamItem>(10);
+    let (tx3, mut rx3) = mpsc::channel::<StreamItem>(10);
 
     // Subscribe all 3 connections before stream exists
     manager
@@ -988,13 +1015,15 @@ async fn util_test_stream_ends_state_exhausted(
     );
 
     // Create a finite stream with 3 items using from_async_stream
-    let items: Vec<serde_json::Value> = (1..=3).map(|i| serde_json::json!({"seq": i})).collect();
+    let items: Vec<String> = (1..=3)
+        .map(|i| serde_json::json!({"seq": i}).to_string())
+        .collect();
     let input_stream = futures::stream::iter(items.clone());
 
     service.from_async_stream(stream_id.clone(), Box::pin(input_stream), None);
 
     // Helper to drain a receiver and count items
-    async fn drain_and_count(n: usize, rx: &mut mpsc::Receiver<serde_json::Value>) {
+    async fn drain_and_count(n: usize, rx: &mut mpsc::Receiver<StreamItem>) {
         let mut count = 0;
         while let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(1000), rx.recv()).await {
             count += 1;
@@ -1042,12 +1071,12 @@ async fn test_disconnect_behavior_state() {
 
     // Create stream first
     service
-        .append(&stream_id, serde_json::json!({"seq": 1}))
+        .append(&stream_id, serde_json::json!({"seq": 1}).to_string())
         .await
         .expect("append should succeed");
 
     let manager = RedisStreamManager::new(service.clone());
-    let (tx, rx) = mpsc::channel::<serde_json::Value>(1); // Small buffer to test backpressure
+    let (tx, rx) = mpsc::channel::<StreamItem>(1); // Small buffer to test backpressure
 
     manager
         .clone()
@@ -1074,11 +1103,11 @@ async fn test_disconnect_behavior_state() {
 
     // Append more items to trigger send failure
     service
-        .append(&stream_id, serde_json::json!({"seq": 2}))
+        .append(&stream_id, serde_json::json!({"seq": 2}).to_string())
         .await
         .expect("append should succeed");
     service
-        .append(&stream_id, serde_json::json!({"seq": 3}))
+        .append(&stream_id, serde_json::json!({"seq": 3}).to_string())
         .await
         .expect("append should succeed");
 
