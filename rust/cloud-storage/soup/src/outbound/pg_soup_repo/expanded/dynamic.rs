@@ -40,17 +40,24 @@ static PREFIX: &str = r#"
         SELECT item_id, item_type, access_level 
         FROM "UserItemAccess" 
         WHERE user_id = $1
+
         UNION ALL
-        SELECT d.id AS item_id, 'document' AS item_type, ph.access_level
-        FROM "Document" d 
-        JOIN ProjectHierarchy ph ON d."projectId" = ph.id
-        WHERE d."projectId" IS NOT NULL AND d."deletedAt" IS NULL
+
+        SELECT d.id AS item_id, 'document' AS item_type,
+               (SELECT ph.access_level FROM ProjectHierarchy ph WHERE ph.id = d."projectId" LIMIT 1) as access_level
+        FROM "Document" d
+        WHERE d."projectId" = ANY(ARRAY(SELECT id FROM ProjectHierarchy))
+          AND d."deletedAt" IS NULL
+
         UNION ALL
+
         SELECT c.id AS item_id, 'chat' AS item_type, ph.access_level
-        FROM "Chat" c 
+        FROM "Chat" c
         JOIN ProjectHierarchy ph ON c."projectId" = ph.id
         WHERE c."projectId" IS NOT NULL AND c."deletedAt" IS NULL
+
         UNION ALL
+
         SELECT ph.id AS item_id, 'project' AS item_type, ph.access_level 
         FROM ProjectHierarchy ph
     ),
