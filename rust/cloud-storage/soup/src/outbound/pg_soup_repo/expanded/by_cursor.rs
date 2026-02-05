@@ -33,49 +33,114 @@ pub async fn expanded_generic_cursor_soup(
     let completed_option_id = StatusOption::COMPLETED_UUID.to_string();
 
     let mut items: Vec<SoupItem> = sqlx::query!(
-r#"        
+r#"
         WITH RECURSIVE ProjectHierarchy AS (
-            SELECT p.id, uia.access_level 
+            SELECT p.id, uia.access_level
             FROM "Project" p
             JOIN "UserItemAccess" uia ON p.id = uia.item_id AND uia.item_type = 'project'
             WHERE uia.user_id = $1 AND p."deletedAt" IS NULL
             UNION ALL
             SELECT p.id, ph.access_level
-            FROM "Project" p 
+            FROM "Project" p
             JOIN ProjectHierarchy ph ON p."parentId" = ph.id
             WHERE p."deletedAt" IS NULL
         ),
         AllAccessGrants AS (
-            SELECT item_id, item_type, access_level 
-            FROM "UserItemAccess" 
+            SELECT item_id, item_type, access_level
+            FROM "UserItemAccess"
             WHERE user_id = $1
+
             UNION ALL
-            SELECT d.id AS item_id, 'document' AS item_type, ph.access_level
-            FROM "Document" d 
-            JOIN ProjectHierarchy ph ON d."projectId" = ph.id
-            WHERE d."projectId" IS NOT NULL AND d."deletedAt" IS NULL
+
+            SELECT d.id AS item_id, 'document' AS item_type,
+                   (SELECT ph.access_level FROM ProjectHierarchy ph WHERE ph.id = d."projectId" LIMIT 1) as access_level
+            FROM "Document" d
+            WHERE d."projectId" = ANY(ARRAY(SELECT id FROM ProjectHierarchy))
+              AND d."deletedAt" IS NULL
+
             UNION ALL
+
             SELECT c.id AS item_id, 'chat' AS item_type, ph.access_level
-            FROM "Chat" c 
+            FROM "Chat" c
             JOIN ProjectHierarchy ph ON c."projectId" = ph.id
             WHERE c."projectId" IS NOT NULL AND c."deletedAt" IS NULL
+
             UNION ALL
-            SELECT ph.id AS item_id, 'project' AS item_type, ph.access_level 
+
+            SELECT ph.id AS item_id, 'project' AS item_type, ph.access_level
             FROM ProjectHierarchy ph
         ),
         UserAccessibleItems AS (
             SELECT DISTINCT ON (item_id, item_type) item_id, item_type
             FROM AllAccessGrants
-            ORDER BY item_id, item_type, 
+            ORDER BY item_id, item_type,
                 CASE access_level
                     WHEN 'owner' THEN 4
-                    WHEN 'edit' THEN 3 
+                    WHEN 'edit' THEN 3
                     WHEN 'comment' THEN 2
                     WHEN 'view' THEN 1
                     ELSE 0
                 END DESC
         ),
-        Combined AS (
+        TopItems AS (
+            SELECT item_type, id, sort_ts, updated_at FROM (
+                SELECT
+                    'document'::text as item_type,
+                    d.id,
+                    CASE $2
+                        WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", d."updatedAt")
+                        WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
+                        WHEN 'created_at' THEN d."createdAt"
+                        ELSE d."updatedAt"
+                    END::timestamptz as sort_ts,
+                    d."updatedAt"::timestamptz as updated_at
+                FROM "Document" d
+                INNER JOIN UserAccessibleItems uai ON uai.item_id = d.id AND uai.item_type = 'document'
+                LEFT JOIN "UserHistory" uh ON uh."itemId" = d.id AND uh."itemType" = 'document' AND uh."userId" = $1
+                WHERE d."deletedAt" IS NULL
+
+                UNION ALL
+
+                SELECT
+                    'chat'::text,
+                    c.id,
+                    CASE $2
+                        WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", c."updatedAt")
+                        WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
+                        WHEN 'created_at' THEN c."createdAt"
+                        ELSE c."updatedAt"
+                    END::timestamptz,
+                    c."updatedAt"::timestamptz
+                FROM "Chat" c
+                INNER JOIN UserAccessibleItems uai ON uai.item_id = c.id AND uai.item_type = 'chat'
+                LEFT JOIN "UserHistory" uh ON uh."itemId" = c.id AND uh."itemType" = 'chat' AND uh."userId" = $1
+                WHERE c."deletedAt" IS NULL
+
+                UNION ALL
+
+                SELECT
+                    'project'::text,
+                    p.id,
+                    CASE $2
+                        WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", p."updatedAt")
+                        WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
+                        WHEN 'created_at' THEN p."createdAt"
+                        ELSE p."updatedAt"
+                    END::timestamptz,
+                    p."updatedAt"::timestamptz
+                FROM "Project" p
+                INNER JOIN UserAccessibleItems uai ON uai.item_id = p.id AND uai.item_type = 'project'
+                LEFT JOIN "UserHistory" uh ON uh."itemId" = p.id AND uh."itemType" = 'project' AND uh."userId" = $1
+                WHERE p."deletedAt" IS NULL
+            ) all_items
+            WHERE
+                ($4::timestamptz IS NULL)
+                OR
+                (sort_ts, id::text) < ($4, $5)
+            ORDER BY sort_ts DESC, updated_at DESC
+            LIMIT $3
+        )
+        SELECT * FROM (
             SELECT
                 'document' as "item_type!",
                 d.id as "id!",
@@ -93,12 +158,7 @@ r#"
                 di.sha as "sha",
                 dt.sub_type as "sub_type?: DocumentSubType",
                 uh."updatedAt"::timestamptz as "viewed_at",
-                CASE $2
-                    WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", d."updatedAt")
-                    WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
-                    WHEN 'created_at' THEN d."createdAt"
-                    ELSE d."updatedAt"
-                END::timestamptz as "sort_ts!",
+                t.sort_ts as "sort_ts!",
                 CASE
                     WHEN dt.sub_type = 'task'
                         AND ep_status.values->'value' ? $6
@@ -108,16 +168,16 @@ r#"
                     ELSE NULL
                 END as "is_completed",
                 d."deletedAt"::timestamptz as "deleted_at"
-            FROM "Document" d
+            FROM TopItems t
+            INNER JOIN "Document" d ON d.id = t.id
             LEFT JOIN document_sub_type dt ON dt.document_id = d.id
             LEFT JOIN entity_properties ep_status
                 ON dt.sub_type = 'task'
                 AND ep_status.entity_id = d.id
                 AND ep_status.entity_type = 'TASK'
                 AND ep_status.property_definition_id = $7
-            INNER JOIN UserAccessibleItems uai ON uai.item_id = d.id AND uai.item_type = 'document'
-            -- This MUST be a LEFT JOIN to support all three sort methods
-            LEFT JOIN "UserHistory" uh ON uh."itemId" = d.id AND uh."itemType" = 'document' AND uh."userId" = $1
+            LEFT JOIN "UserHistory" uh
+                ON uh."itemId" = d.id AND uh."itemType" = 'document' AND uh."userId" = $1
             LEFT JOIN LATERAL (
                 SELECT b.id
                 FROM "DocumentBom" b
@@ -132,7 +192,7 @@ r#"
                 ORDER BY i."updatedAt" DESC
                 LIMIT 1
             ) di ON true
-            WHERE d."deletedAt" IS NULL
+            WHERE t.item_type = 'document'
 
             UNION ALL
 
@@ -153,18 +213,14 @@ r#"
                 NULL as "sha",
                 NULL as "sub_type",
                 uh."updatedAt"::timestamptz as "viewed_at",
-                CASE $2
-                    WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", c."updatedAt")
-                    WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
-                    WHEN 'created_at' THEN c."createdAt"
-                    ELSE c."updatedAt"
-                END::timestamptz as "sort_ts!",
+                t.sort_ts as "sort_ts!",
                 NULL as "is_completed",
                 c."deletedAt"::timestamptz as "deleted_at"
-            FROM "Chat" c
-            INNER JOIN UserAccessibleItems uai ON uai.item_id = c.id AND uai.item_type = 'chat'
-            LEFT JOIN "UserHistory" uh ON uh."itemId" = c.id AND uh."itemType" = 'chat' AND uh."userId" = $1
-            WHERE c."deletedAt" IS NULL
+            FROM TopItems t
+            INNER JOIN "Chat" c ON c.id = t.id
+            LEFT JOIN "UserHistory" uh
+                ON uh."itemId" = c.id AND uh."itemType" = 'chat' AND uh."userId" = $1
+            WHERE t.item_type = 'chat'
 
             UNION ALL
 
@@ -185,30 +241,16 @@ r#"
                 NULL as "sha",
                 NULL as "sub_type",
                 uh."updatedAt"::timestamptz as "viewed_at",
-                CASE $2
-                    WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", p."updatedAt")
-                    WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
-                    WHEN 'created_at'  THEN p."createdAt"
-                    ELSE p."updatedAt"
-                END::timestamptz as "sort_ts!",
+                t.sort_ts as "sort_ts!",
                 NULL as "is_completed",
                 p."deletedAt"::timestamptz as "deleted_at"
-            FROM "Project" p
-            INNER JOIN UserAccessibleItems uai
-                ON uai.item_id = p.id
-                AND uai.item_type = 'project'
+            FROM TopItems t
+            INNER JOIN "Project" p ON p.id = t.id
             LEFT JOIN "UserHistory" uh
-                ON uh."itemId" = p.id
-                AND uh."itemType" = 'project'
-                AND uh."userId" = $1
-            WHERE p."deletedAt" IS NULL
-        )
-        SELECT * FROM Combined
-        WHERE
-            ($4::timestamptz IS NULL)
-            OR
-            ("sort_ts!", "id!"::text) < ($4, $5)
-        ORDER BY "sort_ts!" DESC, "updated_at!" DESC
+                ON uh."itemId" = p.id AND uh."itemType" = 'project' AND uh."userId" = $1
+            WHERE t.item_type = 'project'
+        ) Combined
+        ORDER BY "sort_ts!" DESC, "id!" DESC
         LIMIT $3
 "#,
         user_id.as_ref(),    // $1
@@ -427,7 +469,7 @@ r#"
               OR
               (Combined."sort_ts!", Combined."id!"::text) < ($4, $5)
           )
-      ORDER BY Combined."sort_ts!" DESC, Combined."updated_at!" DESC
+      ORDER BY Combined."sort_ts!" DESC, Combined."id!" DESC
       LIMIT $3
   "#,
         user_id.as_ref(),    // $1
