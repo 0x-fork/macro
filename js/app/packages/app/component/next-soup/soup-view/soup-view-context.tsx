@@ -3,7 +3,10 @@ import {
   createSoupState,
   type SoupState,
 } from '@app/component/next-soup/create-soup-state';
-import { buildDssFiltersRequest } from '@app/component/next-soup/filters/filters';
+import {
+  buildDssFiltersRequest,
+  getFolderFileTypes,
+} from '@app/component/next-soup/filters/filters';
 import { sortEntitiesForSearch } from '@app/component/next-soup/soup-view/sort-options';
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import { useEmailLinksStatus } from '@core/email-link';
@@ -12,7 +15,10 @@ import { debouncedDependent } from '@core/util/debounce';
 import { fuzzyMatch } from '@core/util/fuzzy';
 import type { EntityData, WithNotification, WithSearch } from '@macro-entity';
 import { useNotificationsForEntity } from '@notifications';
-import { SoupItemsQueryFilters, useSoupItemsQuery } from '@queries/soup/items';
+import {
+  type SoupItemsQueryFilters,
+  useSoupItemsQuery,
+} from '@queries/soup/items';
 import { useSearchSoupQuery } from '@queries/soup/search';
 import type { SearchArgs } from '@service-search/client';
 import type { UnifiedSearchIndex } from '@service-search/generated/models';
@@ -165,11 +171,25 @@ export const SoupViewContextProvider: FlowComponent<
   );
 
   const queryFilters = createMemo(() => {
-    return buildDssFiltersRequest(soup.filters.active(), {
+    const base = buildDssFiltersRequest(soup.filters.active(), {
       extra: props.queryFilters,
       isSearchActive: !isSearchDisabled(),
       emailActive: emailActive(),
     });
+
+    if (soup.filters.isActive('file')) {
+      if (base.document_filters?.file_types) {
+        base.document_filters.file_types = getFolderFileTypes('soup');
+      }
+    }
+
+    if (soup.filters.isActive('task')) {
+      if (base.document_filters?.file_types) {
+        base.document_filters.file_types = ['md'];
+      }
+    }
+
+    return base;
   });
 
   const searchFilters = createMemo(() => {
@@ -181,6 +201,12 @@ export const SoupViewContextProvider: FlowComponent<
       project_filters,
     } = queryFilters();
 
+    let fileTypes = document_filters?.file_types;
+
+    if (soup.filters.isActive('file')) {
+      fileTypes = getFolderFileTypes('search');
+    }
+
     return {
       channel: channel_filters?.channel_ids?.length ? channel_filters : null,
       chat:
@@ -191,7 +217,7 @@ export const SoupViewContextProvider: FlowComponent<
         document_filters?.document_ids?.length ||
         document_filters?.project_ids?.length ||
         document_filters?.file_types?.length
-          ? document_filters
+          ? { ...document_filters, file_types: fileTypes }
           : null,
       email: email_filters?.recipients?.length ? email_filters : null,
       project: project_filters?.project_ids?.length ? project_filters : null,
@@ -300,6 +326,8 @@ export const SoupViewContextProvider: FlowComponent<
       transformed.push(...items);
     }
 
+    transformed = transformed.map(attachNotifications);
+
     for (const filter of filters) {
       transformed = transformed.filter(filter.predicate);
     }
@@ -321,8 +349,6 @@ export const SoupViewContextProvider: FlowComponent<
         return 0;
       });
     }
-
-    transformed = transformed.map(attachNotifications);
 
     return transformed;
   };

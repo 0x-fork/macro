@@ -12,7 +12,11 @@ import {
   type EntityWithValidIcon,
   getIconConfig,
 } from '@core/component/EntityIcon';
-import { SoupItemsQueryArgs, SoupItemsQueryFilters } from '@queries/soup/items';
+import type {
+  SoupItemsQueryArgs,
+  SoupItemsQueryFilters,
+} from '@queries/soup/items';
+import { codeFileExtensions } from '@block-code/util/languageSupport';
 
 /**
  * Unread filter - entity has unread content.
@@ -255,6 +259,25 @@ export const getFilterWithID = (filterID: FilterID) => {
   return found;
 };
 
+export const FOLDER_DOCUMENT_TYPES = [
+  'code',
+  'image',
+  'pdf',
+  'unknown',
+] as const;
+
+export const getFolderFileTypes = (type: 'soup' | 'search') => {
+  return FOLDER_DOCUMENT_TYPES.flatMap((fileType) => {
+    if (fileType === 'code')
+      return type === 'soup' ? ['assoc:code'] : codeFileExtensions;
+    if (fileType === 'image')
+      return type === 'soup' ? ['assoc:image'] : [NIL_UUID];
+    if (fileType === 'unknown')
+      return type === 'soup' ? ['assoc:other'] : [NIL_UUID];
+    return [fileType];
+  });
+};
+
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 const buildDefaultValue = (entityTypes: string[], required: string[]) => {
@@ -300,14 +323,14 @@ export const buildDssFiltersRequest = (
       ...document_filters,
       document_ids:
         document_filters?.document_ids ??
-        buildDefaultValue(entityTypes, ['document', 'task']),
+        buildDefaultValue(entityTypes, ['file', 'document', 'task']),
       project_ids: document_filters?.project_ids ?? [],
       file_types: document_filters?.file_types ?? [],
     },
     chat_filters: {
       ...chat_filters,
       chat_ids:
-        chat_filters?.chat_ids ?? buildDefaultValue(entityTypes, ['chat']),
+        chat_filters?.chat_ids ?? buildDefaultValue(entityTypes, ['agent']),
       project_ids: chat_filters?.project_ids ?? [],
     },
     email_filters: {
@@ -324,7 +347,7 @@ export const buildDssFiltersRequest = (
       ...project_filters,
       project_ids:
         project_filters?.project_ids ??
-        buildDefaultValue(entityTypes, ['project']),
+        buildDefaultValue(entityTypes, ['file']),
     },
     emailView: 'all',
   };
