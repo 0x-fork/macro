@@ -148,12 +148,18 @@ export const useSoupNavigationHotkeys = (
     hotkeyToken: TOKENS.unifiedList.navigation.child,
     keyDownHandler: () => {
       const previewPanelContent = options.previewPanelRef();
-      if (!previewPanelContent) return false;
+      // If there is no preview or the preview already contains focus, skip
+      if (
+        !previewPanelContent ||
+        previewPanelContent.contains(document.activeElement)
+      )
+        return false;
 
       const previewPanelSoup = previewPanelContent?.querySelector(
         'div[data-soup-view]'
       );
 
+      // If it doesn't contain soup, skip
       if (!previewPanelSoup || !(previewPanelSoup instanceof HTMLElement))
         return false;
 
