@@ -19,16 +19,21 @@ import { Suspense } from 'solid-js';
 import { createContextProvider } from '@solid-primitives/context';
 
 export const [PreviewPanelContext, useMaybePreviewPanel] =
-  createContextProvider((props: { previewEntity: EntityData }) => {
-    return {
-      previewEntity: () => props.previewEntity,
-    };
-  });
+  createContextProvider(
+    (props: { previewEntity: EntityData; onFocusOut?: VoidFunction }) => {
+      return {
+        previewEntity: () => props.previewEntity,
+        onFocusOut: () => props.onFocusOut?.(),
+      };
+    }
+  );
 
 type PreviewPanel = {
   selectedEntity: EntityData | undefined;
   orchestrator: BlockOrchestrator;
   splitPanelContext: SplitPanelContextType;
+  onFocusOut?: VoidFunction;
+  ref?: (el: HTMLElement) => void;
 };
 
 const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
@@ -83,6 +88,7 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
 
   return (
     <div
+      ref={props.ref}
       class="flex flex-col size-full"
       onFocusIn={(event) => {
         if (interactedWith()) return;
@@ -144,7 +150,10 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
             halfSplitState: undefined,
           }}
         >
-          <PreviewPanelContext previewEntity={props.selectedEntity}>
+          <PreviewPanelContext
+            previewEntity={props.selectedEntity}
+            onFocusOut={props.onFocusOut}
+          >
             <Suspense>
               <Dynamic component={blockInstance().element} />
             </Suspense>
@@ -161,9 +170,11 @@ export const PreviewPanel: Component<PreviewPanel> = (props) => {
       <Show when={props.selectedEntity}>
         {(selectedEntity) => (
           <PreviewPanelContent
+            ref={props.ref}
             selectedEntity={selectedEntity()}
             orchestrator={props.orchestrator}
             splitPanelContext={props.splitPanelContext}
+            onFocusOut={props.onFocusOut}
           />
         )}
       </Show>
