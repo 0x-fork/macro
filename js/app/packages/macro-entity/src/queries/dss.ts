@@ -445,7 +445,7 @@ export function createBulkDeleteDssItemsMutation() {
       const deletedIDs = entities.map((e) => e.id);
 
       queryClient.cancelQueries({
-        queryKey: queryKeys.all.dss,
+        queryKey: soupKeys.items._def,
       });
       queryClient.cancelQueries({
         queryKey: queryKeys.all.search,
@@ -513,7 +513,7 @@ export function createBulkDeleteDssItemsMutation() {
         };
       }
 
-      queryClient.setQueriesData({ queryKey: queryKeys.all.dss }, (prev) =>
+      queryClient.setQueriesData({ queryKey: soupKeys.items._def }, (prev) =>
         removeEntitiesFromQueryData(
           prev as InfiniteData<SoupPage, unknown> | undefined
         )
@@ -772,7 +772,7 @@ export function createMoveToProjectDssEntityMutation() {
       // Projects have complex path data that we can't compute client-side
       if (type !== 'project') {
         queryClient.setQueriesData(
-          { queryKey: queryKeys.all.dss },
+          { queryKey: soupKeys.items._def },
           createMoveOptimisticUpdate([id], projectId)
         );
       }

@@ -171,7 +171,7 @@ function threadSeenOnMutate(params: MarkThreadAsSeenParams): void {
   );
 
   queryClient.setQueriesData<InfiniteData<SoupPage, unknown>>(
-    { queryKey: queryKeys.all.dss },
+    { queryKey: soupKeys.items._def },
     (old) => {
       if (!old) return old;
       return {

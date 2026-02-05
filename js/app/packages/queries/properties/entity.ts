@@ -344,7 +344,7 @@ export function useSetPropertyStatusCompleteMutation(
           predicate: ({ queryKey }) =>
             bulkIncludesEntityPredicate(queryKey, vars.entityId),
         }),
-        queryClient.cancelQueries({ queryKey: queryKeys.all.dss }),
+        queryClient.cancelQueries({ queryKey: soupKeys.items._def }),
       ]);
 
       // Snapshot previous data for rollback
@@ -364,7 +364,7 @@ export function useSetPropertyStatusCompleteMutation(
       const previousDss = queryClient.getQueriesData<
         InfiniteData<SoupPage, unknown>
       >({
-        queryKey: queryKeys.all.dss,
+        queryKey: soupKeys.items._def,
       });
 
       // Optimistically update entity properties query
@@ -395,9 +395,9 @@ export function useSetPropertyStatusCompleteMutation(
         }
       );
 
-      // Optimistically update DSS queries (embedded properties on entities)
+      // Optimistically update soup queries (embedded properties on entities)
       queryClient.setQueriesData<InfiniteData<SoupPage, unknown>>(
-        { queryKey: queryKeys.all.dss },
+        { queryKey: soupKeys.items._def },
         (old) => updateDssStatusToCompleted(old, vars.entityId)
       );
 
