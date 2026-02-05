@@ -61,7 +61,6 @@ import {
   Match,
   on,
   onCleanup,
-  onMount,
   Show,
   Switch,
 } from 'solid-js';
