@@ -22,7 +22,10 @@ import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
 import { useElementItemCount } from '@app/component/next-soup/use-element-item-count';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { openEntityInNewTab } from '@app/component/next-soup/utils';
-import { PreviewPanel } from '@app/component/PreviewPanel';
+import {
+  PreviewPanel,
+  useMaybePreviewPanel,
+} from '@app/component/PreviewPanel';
 import { openEntityInSplitFromUnifiedList } from '@app/component/soupContextHelpers';
 import { SplitPanelContext } from '@app/component/split-layout/context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
@@ -72,6 +75,7 @@ import {
 } from '../../../../macro-entity/src/components/EntityWithEverything';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
+import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { invalidateEntityNotifications } from '@queries/notification/user-notifications';
 import { soupKeys } from '@queries/soup/keys';
 
@@ -159,8 +163,11 @@ export const SoupViewList = (props: SoupViewListProps) => {
   const [virtualizerHandle, setVirtualizerHandle] =
     createSignal<VirtualizerHandle>();
 
-  // DOM ref for the soup view (used for hotkey scoping)
   const [soupViewRef, setSoupViewRef] = createSignal<HTMLElement | undefined>();
+
+  const [previewPanelRef, setPreviewPanelRef] = createSignal<
+    HTMLElement | undefined
+  >();
 
   const focusFirstEntity = () => {
     const next = soup.navigate.toFirst();
@@ -189,9 +196,20 @@ export const SoupViewList = (props: SoupViewListProps) => {
     )
   );
 
+  const previewPanel = useMaybePreviewPanel();
+
+  // Auto focus the soup on mount except when it's in a preview panel
+  createEffect(() => {
+    if (previewPanel) return;
+
+    soupViewRef()?.focus();
+  });
+
+  const [attachHotkeys, soupViewScope] = useHotkeyDOMScope('soup-view');
+
   // Register navigation hotkeys
   useSoupNavigationHotkeys({
-    scopeId: panel.splitHotkeyScope,
+    scopeId: soupViewScope,
     soup,
     virtualizerHandle,
   });
@@ -461,9 +479,17 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
   return (
     <div
-      class="contents"
-      ref={setSoupViewRef}
-      data-hotkey-scope={panel.splitHotkeyScope}
+      class="size-full flex"
+      ref={(el) => {
+        setSoupViewRef(el);
+        attachHotkeys(el);
+      }}
+      tabIndex={-1}
+      onFocusIn={(e) => {
+        e.stopPropagation();
+      }}
+      data-hotkey-scope={soupViewScope}
+      data-soup-view
     >
       <div
         ref={setListRef}
@@ -658,9 +684,13 @@ export const SoupViewList = (props: SoupViewListProps) => {
       </Show>
       <Show when={soup.previewEntity()}>
         <PreviewPanel
+          ref={setPreviewPanelRef}
           selectedEntity={soup.focus.item()}
           orchestrator={orchestrator}
           splitPanelContext={panel}
+          onFocusOut={() => {
+            soupViewRef()?.focus();
+          }}
         />
       </Show>
     </div>
