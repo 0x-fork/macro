@@ -212,6 +212,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     scopeId: soupViewScope,
     soup,
     virtualizerHandle,
+    previewPanelRef,
   });
 
   // Register entity action hotkeys
