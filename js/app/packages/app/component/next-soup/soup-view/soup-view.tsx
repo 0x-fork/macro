@@ -72,6 +72,8 @@ import {
 } from '../../../../macro-entity/src/components/EntityWithEverything';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
+import { invalidateEntityNotifications } from '@queries/notification/user-notifications';
+import { soupKeys } from '@queries/soup/keys';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
