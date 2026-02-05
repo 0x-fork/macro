@@ -2,13 +2,10 @@ import {
   copyItem,
   deleteItem,
   moveToFolder,
-  renameItem,
 } from '@core/component/FileList/itemOperations';
 import { itemToSafeName } from '@core/constant/allBlocks';
 import { toast } from '@core/component/Toast/Toast';
-import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import type { UnifiedSearchResponseItem } from '@service-search/generated/models';
-import type { ItemType } from '@service-storage/client';
 import type {
   PostItemsSoupParams,
   PostSoupRequest,
@@ -45,6 +42,15 @@ import {
 import { queryClient } from './client';
 import { type DssQueryKey, dssQueryKeyHashFn, queryKeys } from './key';
 import { soupKeys } from '@queries/soup/keys';
+
+const getSoupItemId = (item: SoupApiItem): string => {
+  switch (item.tag) {
+    case 'channel':
+      return item.data.channel.id;
+    default:
+      return item.data.id;
+  }
+};
 
 const resolveDocumentEntityName = (
   entity: DocumentEntity | SoupDocument
@@ -451,15 +457,6 @@ export function createBulkDeleteDssItemsMutation() {
         queryKey: queryKeys.all.search,
       });
 
-      function getSoupItemId(item: SoupApiItem): string {
-        switch (item.tag) {
-          case 'channel':
-            return item.data.channel.id;
-          default:
-            return item.data.id;
-        }
-      }
-
       function removeEntitiesFromQueryData(
         prev: InfiniteData<SoupPage, unknown> | undefined
       ): InfiniteData<SoupPage, unknown> | undefined {
@@ -536,170 +533,6 @@ export function createBulkDeleteDssItemsMutation() {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.all.search,
-      });
-    },
-  }));
-}
-
-type RenameDssEntityMutationVariables = {
-  entity: EntityData & { name: string };
-  newName: string;
-};
-
-type RenameDssEntityMutationData = {
-  success: boolean;
-};
-
-const isEntityRenameSupported = (entity: EntityData) => {
-  const type = entity.type;
-  if (entity.type === 'channel') {
-    return entity.channelType !== 'direct_message';
-  }
-  return type !== 'email';
-};
-
-/**
- * Mutation to rename a DSS entity.
- */
-export function createRenameDssEntityMutation(
-  callbacks?: MutationCallbacks<
-    RenameDssEntityMutationData,
-    Error,
-    RenameDssEntityMutationVariables
-  >
-) {
-  return useMutation(() => ({
-    mutationFn: async (params: RenameDssEntityMutationVariables) => {
-      if (!isEntityRenameSupported(params.entity)) {
-        throw new Error('Unsupported entity type provided');
-      }
-
-      const success = await renameItem({
-        id: params.entity.id,
-        itemType: params.entity.type,
-        newName: params.newName,
-      });
-
-      return { success };
-    },
-    ...withCallbacks<
-      RenameDssEntityMutationData,
-      Error,
-      RenameDssEntityMutationVariables
-    >(
-      {
-        onMutate: async ({ entity: { id }, newName }) => {
-          queryClient.cancelQueries({
-            queryKey: queryKeys.dss({ infinite: true }),
-          });
-          function updateEntityNameInQueryData(
-            prev: { pages: { items: EntityData[] }[] } | undefined,
-            id: string,
-            newName: string
-          ) {
-            if (!prev) return prev;
-            const pages = prev.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) =>
-                item.id === id ? { ...item, name: newName } : item
-              ),
-            }));
-            return {
-              ...prev,
-              pages,
-            };
-          }
-
-          queryClient.setQueriesData(
-            { queryKey: queryKeys.dss({ infinite: true }) },
-            (prev: { pages: { items: EntityData[] }[] } | undefined) =>
-              updateEntityNameInQueryData(prev, id, newName)
-          );
-        },
-        onSettled: (data, error, { entity: { id } }) => {
-          if (data?.success === false || error) {
-            console.error(`Failed to rename dss item ${id}`, data, error);
-            toast.failure('Failed to rename item');
-          }
-
-          queryClient.invalidateQueries({
-            queryKey: soupKeys.items._def,
-          });
-        },
-      },
-      callbacks
-    ),
-  }));
-}
-
-export function createBulkRenameDssEntityMutation() {
-  return useMutation(() => ({
-    mutationFn: async ({
-      entities,
-      name,
-    }: {
-      entities: (EntityData & { name: string })[];
-      name: (oldName: string) => string | string;
-    }) => {
-      if (!entities.every(isEntityRenameSupported)) {
-        throw new Error(`Unsupported entity type provided`);
-      }
-      return await Promise.all(
-        entities.map((e) => {
-          return renameItem({
-            itemType: e.type as ItemType,
-            id: e.id,
-            newName: typeof name === 'function' ? name(e.name) : name,
-          });
-        })
-      );
-    },
-
-    onMutate: async ({
-      entities,
-      name,
-    }: {
-      entities: (EntityData & { name: string })[];
-      name: (oldName: string) => string | string;
-    }) => {
-      const ids = new Set(entities.map((e) => e.id));
-
-      queryClient.cancelQueries({
-        queryKey: queryKeys.dss({ infinite: true }),
-      });
-
-      function update(prev: { pages: { items: EntityData[] }[] } | undefined) {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          pages: prev.pages.map((page) => ({
-            ...page,
-            items: page.items.map((item) =>
-              ids.has(item.id)
-                ? {
-                    ...item,
-                    name: typeof name === 'function' ? name(item.name) : name,
-                  }
-                : item
-            ),
-          })),
-        };
-      }
-
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.dss({ infinite: true }) },
-        (prev) => update(prev as any)
-      );
-    },
-
-    onSettled: (data, error, { entities }) => {
-      if (error) {
-        console.error(`Failed bulk rename`, entities, data, error);
-        toast.failure('Failed to rename items');
-      }
-
-      queryClient.invalidateQueries({
-        queryKey: soupKeys.items._def,
       });
     },
   }));
@@ -957,4 +790,48 @@ export function createBulkMoveToProjectDssEntityMutation() {
       );
     },
   }));
+}
+
+/**
+ * Optimistically update the viewedAt timestamp for a DSS item.
+ * Updates the item across all DSS queries.
+ */
+export function optimisticUpdateDssItemViewedAt(itemId: string): void {
+  const now = new Date().toISOString();
+
+  queryClient.setQueriesData(
+    { queryKey: queryKeys.all.dss },
+    (prev: InfiniteData<SoupPage, unknown> | undefined) => {
+      if (!prev) return prev;
+
+      const pages = prev.pages.map((page) => ({
+        ...page,
+        items: page.items.map((item): SoupApiItem => {
+          // Get the item ID based on its type
+          const currentItemId = getSoupItemId(item);
+
+          if (currentItemId !== itemId) return item;
+
+          switch (item.tag) {
+            case 'document':
+            case 'chat':
+            case 'project':
+            case 'emailThread':
+              item.data.viewedAt = Date.parse(now);
+              break;
+            case 'channel':
+              item.data.viewed_at = now;
+              break;
+          }
+
+          return item;
+        }),
+      }));
+
+      return {
+        ...prev,
+        pages,
+      };
+    }
+  );
 }

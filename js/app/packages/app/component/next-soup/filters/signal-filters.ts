@@ -24,18 +24,6 @@ const DEPRIORITY_LABELS = new Set([
   'CATEGORY_FORUMS',
 ]);
 
-/** Metadata keys for email classification */
-type EmailMetadataKey = 'knownSender' | 'tabular' | 'genericSender';
-
-/** Metadata that indicates priority emails (signal) */
-const PRIORITY_METADATA = new Set<EmailMetadataKey>(['knownSender']);
-
-/** Metadata that indicates depriority emails (noise) */
-const DEPRIORITY_METADATA = new Set<EmailMetadataKey>([
-  'tabular',
-  'genericSender',
-]);
-
 /** Extract label tokens from email labels for matching */
 const getLabelTokens = (
   labels?: Array<{ id?: string; providerLabelId?: string; name?: string }>
@@ -50,42 +38,6 @@ const getLabelTokens = (
   }
 
   return tokens.map((token) => token.toUpperCase());
-};
-
-/** Email metadata type (simplified for our needs) */
-type EmailMetadata = {
-  knownSender?: boolean;
-  tabular?: boolean;
-  genericSender?: boolean;
-  // snake_case versions
-  known_sender?: boolean;
-  generic_sender?: boolean;
-};
-
-/**
- * Safely get metadata value handling both camelCase and snake_case formats.
- * This handles the difference between API formats.
- */
-const getMetadataValue = (
-  metadata: EmailMetadata | undefined,
-  key: EmailMetadataKey
-): boolean | undefined => {
-  if (!metadata) return undefined;
-
-  // Check camelCase format
-  if (key in metadata) {
-    return metadata[key as keyof EmailMetadata] as boolean | undefined;
-  }
-
-  // Check snake_case format
-  const snakeCaseKey = key
-    .replace(/([A-Z])/g, '_$1')
-    .toLowerCase() as keyof EmailMetadata;
-  if (snakeCaseKey in metadata) {
-    return metadata[snakeCaseKey] as boolean | undefined;
-  }
-
-  return undefined;
 };
 
 /** Check if entity was recently viewed (within last 24 hours) */
@@ -115,21 +67,9 @@ function getEmailSignalInfo(entity: EmailEntity): {
     DEPRIORITY_LABELS.has(label)
   );
 
-  const metadata = entity.metadata as EmailMetadata | undefined;
-  const hasPriorityMetadata = metadata
-    ? Array.from(PRIORITY_METADATA).some(
-        (key) => getMetadataValue(metadata, key) === true
-      )
-    : false;
-  const hasDeprioritizingMetadata = metadata
-    ? Array.from(DEPRIORITY_METADATA).some(
-        (key) => getMetadataValue(metadata, key) === true
-      )
-    : false;
-
   return {
-    hasPriority: hasPriorityMetadata || hasPriorityLabel,
-    hasDepriority: hasDeprioritizingLabel || hasDeprioritizingMetadata,
+    hasPriority: hasPriorityLabel,
+    hasDepriority: hasDeprioritizingLabel,
   };
 }
 

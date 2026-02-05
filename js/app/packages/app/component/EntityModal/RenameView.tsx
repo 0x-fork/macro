@@ -1,10 +1,3 @@
-import {
-  optimisticUpdateChannelName,
-  rollbackUpdateChannelName,
-  type UpdateChannelNameContext,
-} from '@queries/channel/channel';
-import { channelKeys } from '@queries/channel/keys';
-import { queryClient } from '@queries/client';
 import { createSignal, onMount } from 'solid-js';
 import { createRenameDssEntityMutation } from '../../../macro-entity/src/queries/dss';
 import type { EntityData } from '../../../macro-entity/src/types/entity';
@@ -16,38 +9,7 @@ export const RenameView = (props: {
   onFinish: () => void;
   onCancel: () => void;
 }) => {
-  const renameMutation = createRenameDssEntityMutation({
-    onMutate(variables) {
-      if (variables.entity.type !== 'channel') return;
-
-      const context = optimisticUpdateChannelName({
-        channelId: variables.entity.id,
-        name: variables.newName,
-      });
-      return { context, channelId: variables.entity.id };
-    },
-    onError(
-      _,
-      _variables,
-      onMutateResult: {
-        context: UpdateChannelNameContext | undefined;
-        channelId: string;
-      }
-    ) {
-      if (onMutateResult?.context) {
-        rollbackUpdateChannelName(
-          onMutateResult.channelId,
-          onMutateResult.context
-        );
-      }
-    },
-    onSettled(_, __, variables) {
-      // TODO: fix the backend so that the /channels/{id} endpoint returns the updated name
-      queryClient.prefetchQuery({
-        queryKey: channelKeys.withID(variables.entity.id).queryKey,
-      });
-    },
-  });
+  const renameMutation = createRenameDssEntityMutation();
   let inputRef: HTMLInputElement | undefined;
 
   const [editValue, setEditValue] = createSignal(props.entity?.name || '');

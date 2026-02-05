@@ -8,22 +8,17 @@ import { Tooltip } from '@core/component/Tooltip';
 import { UserIcon } from '@core/component/UserIcon';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { isAccessiblePreviewItem, useItemPreview } from '@queries/preview';
-import { useChannelQuery } from '@queries/channel/channel';
-import {
-  getTopLevelMessages,
-  getThreadMessages,
-} from '@queries/channel/derived';
 import { tryMacroId, useDisplayName } from '@core/user';
-import { isErr } from '@core/util/maybeResult';
 import BracketLeft from '@macro-icons/macro-group-bracket-left.svg';
 import PaperclipIcon from '@phosphor-icons/core/regular/paperclip.svg?component-solid';
-import { commsServiceClient } from '@service-comms/client';
 import type { MessageMention } from '@service-comms/generated/models';
 import type { Attachment } from '@service-comms/generated/models/attachment';
 import type { ItemType } from '@service-storage/client';
-import { createMemo, createResource, Show, Suspense } from 'solid-js';
+import { useMentionsQuery } from '@queries/channel/mentions';
+import { createMemo, Show, Suspense } from 'solid-js';
 import { VList } from 'virtua/solid';
 import { useSplitLayout } from '../../app/component/split-layout/layout';
+import { useChannelContext } from '@block-channel/hooks/channel';
 
 const DRAWER_ID = 'attachments';
 
@@ -31,31 +26,18 @@ export function AttachmentsModal() {
   const drawerControl = useDrawerControl(DRAWER_ID);
   const currentBlockId = useBlockId();
   const { replaceOrInsertSplit } = useSplitLayout();
+  const channelContext = useChannelContext();
 
-  const channel = useChannelQuery(() => currentBlockId);
-
-  const [mentionsResource] = createResource(() =>
-    commsServiceClient.getMentions({ channel_id: currentBlockId })
-  );
+  const mentionsQuery = useMentionsQuery(() => currentBlockId);
 
   const attachments = createMemo(() => {
-    if (mentionsResource.loading || mentionsResource.error) return [];
+    const mentions: Attachment[] = !mentionsQuery.isSuccess
+      ? []
+      : (mentionsQuery.data?.mentions ?? []).map((m) =>
+          makeAttachmentFromMention(m, currentBlockId)
+        );
 
-    const mentions: Attachment[] = (() => {
-      let res = mentionsResource();
-      if (!res || isErr(res)) {
-        console.error('failed to get mentions', res);
-        return [];
-      }
-
-      const mentions = (res[1] ?? { mentions: [] }).mentions.map((m) =>
-        makeAttachmentFromMention(m, currentBlockId)
-      );
-
-      return mentions;
-    })();
-
-    const channelAttachments = channel.data?.attachments ?? [];
+    const channelAttachments = channelContext.attachments() ?? [];
     const safeAttachments = filterSafeAttachments(channelAttachments);
     const all = [...safeAttachments, ...mentions];
     return all
@@ -72,15 +54,6 @@ export function AttachmentsModal() {
   const navigateToItem = (blockName: BlockName, blockId: string) => {
     replaceOrInsertSplit({ type: blockName, id: blockId });
   };
-
-  const messageSenderMap = createMemo(() => {
-    const data = channel.data;
-    if (!data) return new Map<string, string>();
-    const topLevel = getTopLevelMessages(data);
-    const threads = getThreadMessages(data);
-    const all = [...topLevel, ...Object.values(threads).flat()];
-    return new Map(all.map((m) => [m.id, m.sender_id]));
-  });
 
   return (
     <>
@@ -121,7 +94,9 @@ export function AttachmentsModal() {
                       <AttachmentItem
                         attachment={attachment}
                         onNavigate={navigateToItem}
-                        senderId={messageSenderMap().get(attachment.message_id)}
+                        senderId={channelContext
+                          .messageSenderMap()
+                          .get(attachment.message_id)}
                       />
                     </Suspense>
                   )}

@@ -21,6 +21,7 @@ import {
 } from '@core/util/upload';
 import { useQueryClient } from '@queries/client';
 import { soupKeys } from '@queries/soup/keys';
+import { throttledDependent } from '@core/util/debounce';
 import { refetchResources } from '@service-storage/util/refetchResources';
 import { toast } from 'core/component/Toast/Toast';
 import { type Component, createSignal, Show } from 'solid-js';
@@ -101,6 +102,7 @@ const Block: Component = () => {
 
   const [preview, setPreview] = splitPanelContext.previewState;
   const selectedEntity = () => soup.focus.item();
+  const throttledSelectedEntity = throttledDependent(selectedEntity, 150);
 
   if (!previewPanel) {
     registerHotkey({
@@ -163,7 +165,7 @@ const Block: Component = () => {
             </SplitPanelContext.Provider>
             <Show when={preview()}>
               <PreviewPanel
-                selectedEntity={selectedEntity()}
+                selectedEntity={throttledSelectedEntity()}
                 orchestrator={orchestrator}
                 splitPanelContext={splitPanelContext}
               />

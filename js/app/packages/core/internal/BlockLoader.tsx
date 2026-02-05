@@ -9,7 +9,6 @@ import {
   createBlockSignal,
   type FileOrTextLike,
   type LoadFunction,
-  NonDocumentBlockTypes,
   useIsNestedBlock,
 } from '../block';
 import {
@@ -26,6 +25,7 @@ import {
 } from '../signal/load';
 import type { Source, SourcePreload } from '../source';
 import { err, isErr, type ObjectLike, ok } from '../util/maybeResult';
+import { useQueryClient } from '@queries/client';
 
 export const blockDataSignal = createBlockSignal<unknown>();
 export const blockLiveTrackingEnabledSignal = createBlockSignal<boolean>();
@@ -134,12 +134,10 @@ Check that the load function does not return a preload source when the intent is
     });
 
     if (!isNested && data) {
-      // NOTE: refetch history causing full page reload so I am disabling it
-      if (!NonDocumentBlockTypes.includes(data.__block)) {
-        import('./trackAndReload').then(({ trackOpenAndRefetchHistory }) => {
-          trackOpenAndRefetchHistory(props.id, false);
-        });
-      }
+      // we need to pass in a client accessor since the mutation is dynamically imported outside a query context provider
+      import('./trackBlockOpened').then(({ track }) => {
+        track(props.id, data.__block, useQueryClient);
+      });
 
       // for analytics
       const blockOpenEvent = blockOpenEvents[data.__block];

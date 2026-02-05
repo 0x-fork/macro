@@ -56,7 +56,6 @@ import type { DeleteCommentResponse } from './generated/schemas/deleteCommentRes
 import type { DeleteUnthreadedAnchorResponse } from './generated/schemas/deleteUnthreadedAnchorResponse';
 import type { DocumentMetadata } from './generated/schemas/documentMetadata';
 import type { DocumentPreview } from './generated/schemas/documentPreview';
-import { DocumentStorageServiceApiVersion } from './generated/schemas/documentStorageServiceApiVersion';
 import type { EditAnchorResponse } from './generated/schemas/editAnchorResponse';
 import type { EditCommentResponse } from './generated/schemas/editCommentResponse';
 import type { ExportDocumentResponse } from './generated/schemas/exportDocumentResponse';
@@ -101,18 +100,6 @@ const MINUTES_BEFORE_PRESIGNED_EXPIRES = 14;
 
 const dssHost = SERVER_HOSTS['document-storage-service'];
 
-const apiVersions = Object.values(
-  DocumentStorageServiceApiVersion
-) satisfies string[];
-const latestApiVersion = apiVersions[apiVersions.length - 1];
-
-// NOTE: change this to the version you want to use, defaults to latest
-// TODO: @whutchinson98 will update this back to undefined once we've made it so v2 is the default version
-const overrideApiVersion: string | undefined = 'v2';
-
-const apiVersion = overrideApiVersion ?? latestApiVersion;
-console.log('DSS API version:', apiVersion);
-
 export function dssFetch(
   url: string,
   init?: SafeFetchInit
@@ -127,7 +114,7 @@ export function dssFetch<T extends Record<string, any> = never>(
 ):
   | Promise<MaybeResult<FetchWithTokenErrorCode, T>>
   | Promise<MaybeError<FetchWithTokenErrorCode>> {
-  return fetchWithToken<T>(`${dssHost}/${apiVersion}${url}`, init);
+  return fetchWithToken<T>(`${dssHost}${url}`, init);
 }
 
 export type Success = {
@@ -366,27 +353,6 @@ export const storageServiceClient = {
     return mapOk(
       await dssFetch<SuccessResponse>(`/documents/${params.documentId}`, {
         method: 'DELETE',
-      }),
-      (result) => result.data
-    );
-  },
-
-  async trackOpenedDocument(params: { documentId: string }) {
-    return mapOk(
-      await dssFetch<SuccessResponse>(
-        `/history/document/${params.documentId}`,
-        {
-          method: 'POST',
-        }
-      ),
-      (result) => result.data
-    );
-  },
-
-  async trackOpenedChat(params: { chatId: string }) {
-    return mapOk(
-      await dssFetch<SuccessResponse>(`/history/chat/${params.chatId}`, {
-        method: 'POST',
       }),
       (result) => result.data
     );

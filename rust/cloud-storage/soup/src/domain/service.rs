@@ -1,7 +1,7 @@
 use crate::domain::{
     models::{
-        AdvancedSortParams, FrecencySoupItem, SimpleSortQuery, SimpleSortRequest, SoupErr,
-        SoupQuery, SoupRequest, SoupType,
+        AdvancedSortParams, FrecencyQueryInner, FrecencySoupItem, SimpleQueryInner,
+        SimpleSortQuery, SimpleSortRequest, SoupErr, SoupQuery, SoupRequest, SoupType,
     },
     ports::{SoupOutput, SoupRepo, SoupService},
 };
@@ -16,7 +16,7 @@ use frecency::domain::{
     models::{AggregateId, FrecencyPageRequest, JoinFrecency},
     ports::FrecencyQueryService,
 };
-use item_filters::ast::EntityFilterAst;
+use item_filters::{EntityFilters, ast::EntityFilterAst};
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 use model_entity::as_owned::ShallowClone;
 use models_pagination::{
@@ -25,8 +25,8 @@ use models_pagination::{
 use models_soup::{
     comms::SoupChannel,
     email_thread::{
-        SoupAttachment, SoupContact, SoupEmailThreadPreview, SoupEmailThreadPreviewMetadata,
-        SoupEnrichedEmailThreadPreview, SoupLabel,
+        SoupAttachment, SoupContact, SoupEmailThreadPreview, SoupEnrichedEmailThreadPreview,
+        SoupLabel,
     },
     item::SoupItem,
 };
@@ -275,7 +275,6 @@ where
                      thread,
                      attachments,
                      labels,
-                     metadata,
                      mut frecency_score,
                      participants,
                      ..
@@ -285,7 +284,6 @@ where
                         thread: SoupEmailThreadPreview::mirror(thread),
                         attachments: Vec::<SoupAttachment>::mirror(attachments),
                         participants: Vec::<SoupContact>::mirror(participants),
-                        metadata: SoupEmailThreadPreviewMetadata::mirror(metadata),
                         labels: Vec::<SoupLabel>::mirror(labels),
                         properties: Default::default(),
                     };
@@ -347,15 +345,16 @@ where
     C: ChannelsService,
 {
     #[tracing::instrument(err, skip(self))]
-    async fn get_user_soup(&self, req: SoupRequest) -> Result<SoupOutput, SoupErr> {
+    async fn get_user_soup(&self, req: SoupRequest<EntityFilters>) -> Result<SoupOutput, SoupErr> {
+        let entity_filter = req.filters().clone();
+        let req = req.into_ast()?;
         let limit = req.limit.clamp(20, 500);
-        let paginate_filter = req.cursor.filter().cloned();
 
         let email_request = req.build_email_request();
         let comms_request = req.build_comms_request();
 
         match req.cursor {
-            SoupQuery::Simple(cursor) => {
+            SoupQuery::Simple(SimpleQueryInner(cursor)) => {
                 let sort_method = *cursor.sort_method();
 
                 let main_soup_fut = self.handle_simple_request(
@@ -379,16 +378,16 @@ where
                         .chain(email_soup?)
                         .chain(comms_soup?)
                         .paginate_on(limit.into(), sort_method)
-                        .filter_on(paginate_filter)
+                        .filter_on(entity_filter)
                         .sort_desc()
                         .into_page(),
                 ))
             }
-            SoupQuery::Frecency(cursor) => Ok(Either::Right(
+            SoupQuery::Frecency(FrecencyQueryInner(cursor)) => Ok(Either::Right(
                 self.handle_advanced_sort(cursor, req.soup_type, req.user, limit)
                     .await?
                     .paginate_on(limit.into(), Frecency)
-                    .filter_on(paginate_filter)
+                    .filter_on(entity_filter)
                     .into_page(),
             )),
         }

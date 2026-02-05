@@ -15,7 +15,11 @@ import type { SplitHandle } from '@app/component/split-layout/layoutManager';
 import { activeScope, hotkeyScopeTree } from '@core/hotkey/state';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
-import { getHotkeyCommand, runCommand } from '@core/hotkey/utils';
+import {
+  getHotkeyCommand,
+  getScopeElement,
+  runCommand,
+} from '@core/hotkey/utils';
 import { isSearchEntity } from '@macro-entity';
 import type { Accessor } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
@@ -150,17 +154,18 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
             const activeScopeNode = hotkeyScopeTree.get(currentActiveScope);
             if (!activeScopeNode) return undefined;
             if (activeScopeNode?.type !== 'dom') return;
-            const dom = activeScopeNode.element;
+            const dom = getScopeElement(currentActiveScope);
+            if (!dom) return undefined;
             const closestBlockScope = dom.closest(`[id="block-${entity.id}"]`);
             if (
               !closestBlockScope ||
               !(closestBlockScope instanceof HTMLElement)
             )
               return;
-            const blockScopeId = closestBlockScope.dataset.hotkeyScope;
-            if (!blockScopeId) return undefined;
+            const scopeId = closestBlockScope.dataset.hotkeyScope;
+            if (!scopeId) return undefined;
 
-            return getHotkeyCommand(blockScopeId, 'enter');
+            return getHotkeyCommand(scopeId, 'enter');
           };
           const command = getEnterCommand();
           if (command) {

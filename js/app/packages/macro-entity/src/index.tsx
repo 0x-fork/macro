@@ -11,7 +11,6 @@ export {
 } from './components/UnifiedList';
 export { UnreadIndicator } from './components/Unread';
 export * from './contexts/soup';
-export { createChannelsQuery } from './queries/channel';
 export { useQueryClient } from './queries/client';
 export {
   createChatsInfiniteQuery,
@@ -19,6 +18,7 @@ export {
   createDssInfiniteQuery,
   createMoveToProjectDssEntityMutation,
   createCopyDssEntityMutation,
+  optimisticUpdateDssItemViewedAt,
 } from './queries/dss';
 export { createEmailsInfiniteQuery } from './queries/email';
 export type { EntityInfiniteQuery, EntityQuery } from './queries/entity';

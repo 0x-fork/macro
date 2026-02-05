@@ -2,6 +2,7 @@ import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { makeMarkDoneAction } from '@app/component/next-soup/actions';
 import { useMaybeSoup } from '@app/component/next-soup/soup-context';
 import { URL_PARAMS } from '@block-email/constants';
+import { convertContactInfoToEmailRecipient } from '@block-email/util/recipientConversion';
 import {
   getPermissions,
   hasPermissions,
@@ -19,6 +20,7 @@ import {
 import { whenSettled } from '@core/util/whenSettled';
 import {
   createEffectOnEntityTypeNotification,
+  getMetadata,
   isNewEmail,
 } from '@notifications';
 import {
@@ -157,7 +159,8 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
     'email',
     (notification) => {
       if (!isNewEmail(notification)) return;
-      const notificationThreadId = notification.notificationMetadata.threadId;
+      const metadata = getMetadata(notification);
+      const notificationThreadId = metadata.threadId;
       if (notificationThreadId === threadQuery.data?.db_id) {
         threadQuery.refetch();
       }
@@ -253,7 +256,12 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
     const optionsMap = new Map<string, EmailRecipient>();
 
     for (const contact of contacts()) {
-      const mapped = recipientEntityMapper('user')(contact);
+      const mapped = recipientEntityMapper('contact')({
+        type: 'extracted',
+        email: contact.email,
+        id: contact.id,
+        name: contact.name,
+      });
       optionsMap.set(mapped.data.email, mapped);
     }
 
@@ -278,11 +286,7 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
       });
 
       for (const value of seen.values()) {
-        const mapped = recipientEntityMapper('contact')({
-          ...value,
-          type: 'extracted',
-          id: value.email,
-        });
+        const mapped = convertContactInfoToEmailRecipient(value);
         optionsMap.set(mapped.data.email, mapped);
       }
     }
