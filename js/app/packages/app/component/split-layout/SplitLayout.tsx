@@ -19,10 +19,7 @@ import {
   Suspense,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import {
-  createNavigationEntityListShortcut,
-  createSoupContext,
-} from '../SoupContext';
+import { createSoupContext } from '../SoupContext';
 import { PopoverSplitRenderer } from './components/PopoverSplitRenderer';
 import { SplitContainer } from './components/SplitContainer';
 import { SplitLayoutContext, SplitPanelContext } from './context';
@@ -383,22 +380,6 @@ function SplitPanel(props: SplitPanelProps) {
       const content = props.handle.content();
       return !(content.type === 'component' && content.id === 'unified-list');
     },
-  });
-
-  const splitName = createMemo(() => {
-    const { type, id } = props.split.content;
-    if (type === 'component') return id;
-
-    return type;
-  });
-
-  createNavigationEntityListShortcut({
-    splitName,
-    splitHandle: props.handle,
-    splitHotkeyScope,
-    soupContext,
-    previewState: [previewState, setPreviewState],
-    getSplitCount: () => splitLayoutHelpers.getSplitCount(),
   });
 
   const nextSoup = createSoupState({
