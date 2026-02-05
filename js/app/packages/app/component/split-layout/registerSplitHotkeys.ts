@@ -38,10 +38,8 @@ export function registerSplitHotkeys(args: {
     goBack,
     canGoForward,
     goForward,
-    replaceSplit,
     splitName,
     getSplitCount,
-    isNotUnifiedList,
   } = args;
   const splitManager = globalSplitManager();
   registerHotkey({
@@ -71,23 +69,6 @@ export function registerSplitHotkeys(args: {
       return true;
     },
     runWithInputFocused: true,
-  });
-
-  registerHotkey({
-    scopeId: splitHotkeyScope,
-    hotkey: 'h',
-    description: 'Go home',
-    condition: isNotUnifiedList,
-    keyDownHandler: () => {
-      replaceSplit({
-        content: { type: 'component', id: 'unified-list' },
-        referredFrom: 'hotkey',
-      });
-      return true;
-    },
-    registrationType: 'add',
-    hotkeyToken: TOKENS.split.goHome,
-    displayPriority: 8,
   });
 
   // History back/forward - legacy bindings.
@@ -151,7 +132,7 @@ export function registerSplitHotkeys(args: {
 
   registerHotkey({
     hotkeyToken: TOKENS.window.focusSplitRight,
-    hotkey: ['arrowright'],
+    hotkey: ['l', 'arrowright'],
     scopeId: splitHotkeyScope,
     description: 'Focus split right',
     condition: () => getSplitCount() > 1,
@@ -159,12 +140,11 @@ export function registerSplitHotkeys(args: {
       focusAdjacentSplit('right');
       return true;
     },
-    registrationType: 'add',
   });
 
   registerHotkey({
     hotkeyToken: TOKENS.window.focusSplitLeft,
-    hotkey: ['arrowleft'],
+    hotkey: ['h', 'arrowleft'],
     scopeId: splitHotkeyScope,
     description: 'Focus split left',
     condition: () => getSplitCount() > 1,
@@ -172,7 +152,6 @@ export function registerSplitHotkeys(args: {
       focusAdjacentSplit('left');
       return true;
     },
-    registrationType: 'add',
   });
 
   return {};
