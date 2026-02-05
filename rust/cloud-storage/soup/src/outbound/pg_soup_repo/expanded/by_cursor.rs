@@ -34,24 +34,45 @@ pub async fn expanded_generic_cursor_soup(
 
     let mut items: Vec<SoupItem> = sqlx::query!(
 r#"
+        -- =============================================================================
+        -- EXPANDED GENERIC CURSOR SOUP QUERY
+        -- =============================================================================
+        -- Retrieves all items (documents, chats, projects) that a user has access to,
+        -- including both explicit permissions and inherited permissions through the
+        -- project hierarchy.
+        -- =============================================================================
+
+        -- Build the project hierarchy tree using recursive CTE.
+        -- Starting from projects the user has explicit access to, recursively find
+        -- all child projects. This enables inherited access - if you can access a
+        -- parent project, you can access all its descendants.
         WITH RECURSIVE ProjectHierarchy AS (
+            -- Base case: projects the user has direct access to
             SELECT p.id, uia.access_level
             FROM "Project" p
             JOIN "UserItemAccess" uia ON p.id = uia.item_id AND uia.item_type = 'project'
             WHERE uia.user_id = $1 AND p."deletedAt" IS NULL
             UNION ALL
+            -- Recursive case: find child projects, inheriting parent's access level
             SELECT p.id, ph.access_level
             FROM "Project" p
             JOIN ProjectHierarchy ph ON p."parentId" = ph.id
             WHERE p."deletedAt" IS NULL
         ),
+
+        -- Collect all access grants from multiple sources.
+        -- Aggregates explicit permissions AND implicit permissions inherited
+        -- through project membership.
         AllAccessGrants AS (
+            -- Direct/explicit access grants to any item type
             SELECT item_id, item_type, access_level
             FROM "UserItemAccess"
             WHERE user_id = $1
 
             UNION ALL
 
+            -- Documents within accessible projects (inherited access).
+            -- Uses ANY(ARRAY(...)) pattern to reduce intermediate result set size.
             SELECT d.id AS item_id, 'document' AS item_type,
                    (SELECT ph.access_level FROM ProjectHierarchy ph WHERE ph.id = d."projectId" LIMIT 1) as access_level
             FROM "Document" d
@@ -60,6 +81,7 @@ r#"
 
             UNION ALL
 
+            -- Chats within accessible projects (inherited access)
             SELECT c.id AS item_id, 'chat' AS item_type, ph.access_level
             FROM "Chat" c
             JOIN ProjectHierarchy ph ON c."projectId" = ph.id
@@ -67,13 +89,19 @@ r#"
 
             UNION ALL
 
+            -- The projects themselves from the hierarchy
             SELECT ph.id AS item_id, 'project' AS item_type, ph.access_level
             FROM ProjectHierarchy ph
         ),
+
+        -- Deduplicate access grants, keeping the highest permission level.
+        -- When a user has multiple access paths to the same item (e.g., direct + inherited),
+        -- we keep only one row with the highest privilege level.
         UserAccessibleItems AS (
             SELECT DISTINCT ON (item_id, item_type) item_id, item_type
             FROM AllAccessGrants
             ORDER BY item_id, item_type,
+                -- Priority: owner > edit > comment > view
                 CASE access_level
                     WHEN 'owner' THEN 4
                     WHEN 'edit' THEN 3
@@ -82,11 +110,16 @@ r#"
                     ELSE 0
                 END DESC
         ),
+
+        -- Identify the top N items with minimal columns before joining full details.
+        -- Performs early filtering and sorting to reduce the data processed in
+        -- subsequent joins.
         TopItems AS (
             SELECT item_type, id, sort_ts, updated_at FROM (
                 SELECT
                     'document'::text as item_type,
                     d.id,
+                    -- Dynamic sort column based on user's selected sort method
                     CASE $2
                         WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", d."updatedAt")
                         WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
@@ -134,12 +167,18 @@ r#"
                 WHERE p."deletedAt" IS NULL
             ) all_items
             WHERE
+                -- Cursor-based pagination: skip items we've already seen.
+                -- NULL cursor means first page (no items to skip).
                 ($4::timestamptz IS NULL)
                 OR
+                -- Seek method: find items "before" the cursor position
+                -- using (sort_ts, id) tuple comparison for deterministic ordering
                 (sort_ts, id::text) < ($4, $5)
             ORDER BY sort_ts DESC, updated_at DESC
             LIMIT $3
         )
+
+        -- Join full item details only for the filtered top items.
         SELECT * FROM (
             SELECT
                 'document' as "item_type!",
@@ -159,6 +198,7 @@ r#"
                 dt.sub_type as "sub_type?: DocumentSubType",
                 uh."updatedAt"::timestamptz as "viewed_at",
                 t.sort_ts as "sort_ts!",
+                -- Task completion status: check if status property matches "completed"
                 CASE
                     WHEN dt.sub_type = 'task'
                         AND ep_status.values->'value' ? $6
@@ -178,6 +218,7 @@ r#"
                 AND ep_status.property_definition_id = $7
             LEFT JOIN "UserHistory" uh
                 ON uh."itemId" = d.id AND uh."itemType" = 'document' AND uh."userId" = $1
+            -- LATERAL joins to get the latest version info
             LEFT JOIN LATERAL (
                 SELECT b.id
                 FROM "DocumentBom" b
@@ -250,6 +291,9 @@ r#"
                 ON uh."itemId" = p.id AND uh."itemType" = 'project' AND uh."userId" = $1
             WHERE t.item_type = 'project'
         ) Combined
+        -- Sort by timestamp descending, with ID as tiebreaker for deterministic pagination.
+        -- This ensures consistent ordering when multiple items share the same timestamp,
+        -- preventing items from being skipped or duplicated across pages.
         ORDER BY "sort_ts!" DESC, "id!" DESC
         LIMIT $3
 "#,

@@ -34,7 +34,7 @@ impl EmailPgRepo {
 impl EmailRepo for EmailPgRepo {
     type Err = sqlx::Error;
 
-    #[tracing::instrument(err, skip(self, query))]
+    #[tracing::instrument(err, skip(self, query), fields(link_id = %query.link_id, view = %query.view))]
     async fn previews_for_view_cursor(
         &self,
         query: PreviewCursorQuery,
