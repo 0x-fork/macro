@@ -3,7 +3,6 @@ import {
   useEmailContext,
 } from '@block-email/component/EmailContext';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
-import { FloatingInputLoader } from '@core/component/FloatingInputLoader';
 import { TOKENS } from '@core/hotkey/tokens';
 import { registerScopeSignalHotkey } from '@core/hotkey/utils';
 import {
@@ -24,14 +23,16 @@ import {
   Switch,
   untrack,
 } from 'solid-js';
+import { isMobile } from '@core/mobile/isMobile';
 import { isScrollingToMessage } from '../signal/scrollState';
 import { registerEmailHotkeys } from '../util/emailHotkeys';
 import { scrollToMessage } from '../util/scrollToMessage';
 import { EmailFormContextProvider } from './EmailFormContext';
-import { EmailInput } from './EmailInput';
 import { MessageList } from './MessageList';
 import { TopBar } from './TopBar';
 import { EmailCompose } from '@block-email/component/Compose';
+import { EmailInput } from '@block-email/component/EmailInput';
+import { FloatingInputLoader } from '@core/component/FloatingInputLoader';
 
 const TARGET_MESSAGE_HIGHLIGHT_MS = 800;
 const SCROLL_ANIMATION_MS = 1000;
@@ -468,22 +469,25 @@ function EmailContent(props: EmailViewProps) {
                 class="w-full flex-1 flex flex-col items-center overflow-hidden"
                 ref={context.registerMessagesContainer}
               >
-                <div class="shrink-0 w-full flex justify-center">
-                  <div
-                    class="macro-message-width w-full border-b"
-                    classList={{
-                      'border-edge-muted/50': isScrolled(),
-                      'border-transparent': !isScrolled(),
-                    }}
-                  >
-                    <h1 class="text-3xl font-semibold text-ink pt-3 pb-4">
-                      {props.title}
-                    </h1>
+                <Show when={!isMobile()}>
+                  <div class="shrink-0 w-full flex justify-center">
+                    <div
+                      class="macro-message-width w-full border-b"
+                      classList={{
+                        'border-edge-muted/50': isScrolled(),
+                        'border-transparent': !isScrolled(),
+                      }}
+                    >
+                      <h1 class="text-3xl font-semibold text-ink pt-3 pb-4">
+                        {props.title}
+                      </h1>
+                    </div>
                   </div>
-                </div>
+                </Show>
                 <MessageList
                   initialLoadComplete={context.initialLoadComplete()}
                   onScrollPositionChange={handleScrollPositionChange}
+                  title={props.title}
                 />
                 <CustomScrollbar
                   reverse

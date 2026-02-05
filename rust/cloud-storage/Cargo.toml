@@ -57,7 +57,7 @@ members = [
   "macro_notify",
   "macro_project_utils",
   "macro_redis",
-  "macro_redis_cluster_client",
+  "macro_sha_count_client",
   "macro_service_client",
   "macro_share_permissions",
   "macro_uuid",
@@ -102,7 +102,6 @@ members = [
   "secretsmanager_client",
   "ses_client",
   "sha_cleanup_worker",
-  "sha_ref_count_resetter",
   "sns_client",
   "soup",
   "sqs_client",
@@ -125,13 +124,13 @@ anyhow = "1.0.93"
 async-openai = { version = "0.28.3", features = ["byot"] }
 async-stream = "0.3.6"
 async-trait = "0.1.86"
-aws-config = { version = "1.5.17", features = ["behavior-version-latest"] }
+aws-config = { version = "1.8.12", features = ["behavior-version-latest"] }
 aws-sdk-dynamodb = "1.98.0"
 aws-sdk-lambda = "1.104.0"
-aws-sdk-s3 = "1.119.0"
+aws-sdk-s3 = "1.121.0"
 aws-sdk-secretsmanager = "1.93.0"
 aws-sdk-sesv2 = "1.103.0"
-aws-sdk-sns = "1.61.0"
+aws-sdk-sns = "1.90.0"
 aws-sdk-sqs = "1.91.0"
 aws-smithy-types = "1.2.13"
 aws_lambda_events = { version = "0.16.0", default-features = false }
@@ -154,7 +153,7 @@ hex = "0.4.3"
 http = "1"
 http-body-util = "0.1.2"
 itertools = "0.14"
-jsonwebtoken = "9.3.1"
+jsonwebtoken = { version = "9.3.1" }
 lambda_runtime = "0.13.0"
 lazy_static = "1.5.0"
 log = "0.4.26"
@@ -197,7 +196,11 @@ tower-http = { version = "0.6.1", features = [
   "cors",
   "trace",
 ] }
+opentelemetry = "0.31.0"
+opentelemetry_sdk = { version = "0.31.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.31.0", features = ["grpc-tonic"] }
 tracing = "0.1.44"
+tracing-opentelemetry = "0.32.1"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
 tracing-tree = "0.4.0"
 unsynn = "0.3"
@@ -217,7 +220,7 @@ async-stripe = { version = "0.41", default-features = false, features = [
   "runtime-tokio-hyper",
 ] }
 axum-macros = "0.4.2"
-bytes = "1.10.1"
+bytes = "1.11.1"
 bzip2 = { version = "0.5.1", default-features = false, features = [
   "libbz2-rs-sys",
 ] }

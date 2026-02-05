@@ -356,24 +356,6 @@ export const StorageService = new Svc('Document++ Storage Service API')
     access: { exclude: ['ai'] },
     throws: withFetchErrors(),
   })
-  .fn('trackOpenedDocument', {
-    description: schemas.upsertHistoryHandlerResponse.description!,
-    args: {
-      documentId: schemas.upsertHistoryHandlerParams.shape.item_id,
-    },
-    result: schemas.upsertHistoryHandlerResponse.shape.data.shape,
-    modifies: true,
-    throws: withFetchErrors(),
-  })
-  .fn('trackOpenedChat', {
-    description: schemas.upsertHistoryHandlerResponse.description!,
-    args: {
-      chatId: schemas.upsertHistoryHandlerParams.shape.item_id,
-    },
-    result: schemas.upsertHistoryHandlerResponse.shape.data.shape,
-    modifies: true,
-    throws: withFetchErrors(),
-  })
   .fn('getPins', {
     description: schemas.getPinsHandlerResponse.description!,
     args: schemas.getRecentActivityHandlerQueryParams.shape,
