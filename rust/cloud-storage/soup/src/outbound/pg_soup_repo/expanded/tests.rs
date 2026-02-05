@@ -95,12 +95,13 @@ async fn test_viewed_at_orders_nulls_last(pool: Pool<Postgres>) -> anyhow::Resul
         Uuid::parse_str("11111111-0000-0000-0000-000000000000").unwrap(), // doc-standalone - 2024-01-06
         Uuid::parse_str("11111111-dddd-dddd-dddd-dddddddddddd").unwrap(), // doc-in-D - 2023-01-05
         Uuid::parse_str("22222222-cccc-cccc-cccc-cccccccccccc").unwrap(), // chat-in-C - 2023-01-04
-        Uuid::parse_str("22222222-bbbb-bbbb-bbbb-bbbbbbbbbbbb").unwrap(), // chat-in-B - null
-        Uuid::parse_str("11111111-cccc-cccc-cccc-cccccccccccc").unwrap(), // doc-in-C - null
+        // Null viewed_at items, tiebroken by id DESC:
         Uuid::parse_str("dddddddd-ffff-ffff-ffff-ffffffffffff").unwrap(), // project-D - null
         Uuid::parse_str("cccccccc-ffff-ffff-ffff-ffffffffffff").unwrap(), // project-C - null
         Uuid::parse_str("bbbbbbbb-ffff-ffff-ffff-ffffffffffff").unwrap(), // project-B - null
         Uuid::parse_str("aaaaaaaa-ffff-ffff-ffff-ffffffffffff").unwrap(), // project-A - null
+        Uuid::parse_str("22222222-bbbb-bbbb-bbbb-bbbbbbbbbbbb").unwrap(), // chat-in-B - null
+        Uuid::parse_str("11111111-cccc-cccc-cccc-cccccccccccc").unwrap(), // doc-in-C - null
     ];
     assert_eq!(
         ordered_ids, expected_order,
@@ -243,9 +244,9 @@ async fn test_expanded_generic_sorting_methods(pool: Pool<Postgres>) -> anyhow::
             "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", // doc-A
             "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", // doc-B
             "aaaaaaaa-cccc-cccc-cccc-cccccccccccc", // chat-A
-            "bbbbbbbb-cccc-cccc-cccc-cccccccccccc", // chat-B
-            "bbbbbbbb-ffff-ffff-ffff-ffffffffffff", // project-B
-            "aaaaaaaa-ffff-ffff-ffff-ffffffffffff", // project-A
+            "bbbbbbbb-ffff-ffff-ffff-ffffffffffff", // project-B (epoch, tiebroken by id DESC)
+            "bbbbbbbb-cccc-cccc-cccc-cccccccccccc", // chat-B (epoch, tiebroken by id DESC)
+            "aaaaaaaa-ffff-ffff-ffff-ffffffffffff", // project-A (epoch, tiebroken by id DESC)
         ]
         .iter()
         .map(|&s| Uuid::parse_str(s).unwrap())
@@ -2517,6 +2518,886 @@ async fn test_expanded_dynamic_cursor_populates_properties(
     // Project B has no properties in the fixture, so it should be empty or None
     let props_count = proj.properties.len();
     assert_eq!(props_count, 0, "Project B should have 0 properties");
+
+    Ok(())
+}
+
+// ============================================================================
+// Exhaustive expanded_generic_cursor_soup tests
+// ============================================================================
+
+// Fixture constants for expanded_cursor_soup_exhaustive
+const EX_PROJECT_ROOT: &str = "aa000001-ffff-ffff-ffff-ffffffffffff";
+const EX_PROJECT_MID: &str = "aa000002-ffff-ffff-ffff-ffffffffffff";
+const EX_PROJECT_DEEP: &str = "aa000003-ffff-ffff-ffff-ffffffffffff";
+const EX_PROJECT_ISOLATED: &str = "aa000004-ffff-ffff-ffff-ffffffffffff";
+const EX_DOC_ROOT: &str = "bb000001-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_DOC_MID: &str = "bb000002-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_DOC_DEEP: &str = "bb000003-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_DOC_STANDALONE: &str = "bb000004-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_DOC_DELETED: &str = "bb000005-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_DOC_TASK_COMPLETED: &str = "bb000006-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_DOC_TASK_INCOMPLETE: &str = "bb000007-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_DOC_TASK_NO_STATUS: &str = "bb000008-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_DOC_ISOLATED: &str = "bb000009-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_CHAT_ROOT: &str = "cc000001-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_CHAT_STANDALONE: &str = "cc000002-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_CHAT_DELETED: &str = "cc000003-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const EX_CHAT_ISOLATED: &str = "cc000004-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+fn uuid(s: &str) -> Uuid {
+    Uuid::parse_str(s).unwrap()
+}
+
+/// Deleted documents and chats must not appear in results
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_deleted_items_excluded(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let ids: HashSet<Uuid> = items.iter().map(|i| i.id()).collect();
+
+    assert!(
+        !ids.contains(&uuid(EX_DOC_DELETED)),
+        "Deleted document must not appear"
+    );
+    assert!(
+        !ids.contains(&uuid(EX_CHAT_DELETED)),
+        "Deleted chat must not appear"
+    );
+
+    Ok(())
+}
+
+/// Items in isolated project must not appear for user-1.
+/// Isolated project, doc, and chat should all be excluded.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_access_control_excludes_isolated(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let ids: HashSet<Uuid> = items.iter().map(|i| i.id()).collect();
+
+    assert!(
+        !ids.contains(&uuid(EX_PROJECT_ISOLATED)),
+        "Isolated project must not appear for user-1"
+    );
+    assert!(
+        !ids.contains(&uuid(EX_DOC_ISOLATED)),
+        "Isolated doc must not appear for user-1"
+    );
+    assert!(
+        !ids.contains(&uuid(EX_CHAT_ISOLATED)),
+        "Isolated chat must not appear for user-1"
+    );
+
+    Ok(())
+}
+
+/// User-2 only has access to the isolated project and its children.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_user_isolation(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-2@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let ids: HashSet<Uuid> = items.iter().map(|i| i.id()).collect();
+
+    let expected: HashSet<Uuid> = [EX_PROJECT_ISOLATED, EX_DOC_ISOLATED, EX_CHAT_ISOLATED]
+        .iter()
+        .map(|s| uuid(s))
+        .collect();
+
+    assert_eq!(
+        ids, expected,
+        "User-2 should only see isolated project, its doc, and its chat"
+    );
+
+    Ok(())
+}
+
+/// Documents 3 levels deep in the hierarchy (root -> mid -> deep) are accessible
+/// through inherited project permissions.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_deep_hierarchy_access(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let ids: HashSet<Uuid> = items.iter().map(|i| i.id()).collect();
+
+    // All hierarchy items should be present
+    assert!(ids.contains(&uuid(EX_PROJECT_ROOT)), "project-root");
+    assert!(ids.contains(&uuid(EX_PROJECT_MID)), "project-mid");
+    assert!(ids.contains(&uuid(EX_PROJECT_DEEP)), "project-deep");
+    assert!(ids.contains(&uuid(EX_DOC_ROOT)), "doc-in-root");
+    assert!(ids.contains(&uuid(EX_DOC_MID)), "doc-in-mid");
+    assert!(ids.contains(&uuid(EX_DOC_DEEP)), "doc-in-deep (3 levels)");
+    assert!(ids.contains(&uuid(EX_CHAT_ROOT)), "chat-in-root");
+
+    // Standalone items with direct access
+    assert!(ids.contains(&uuid(EX_DOC_STANDALONE)), "doc-standalone");
+    assert!(ids.contains(&uuid(EX_CHAT_STANDALONE)), "chat-standalone");
+
+    // Task documents in root
+    assert!(
+        ids.contains(&uuid(EX_DOC_TASK_COMPLETED)),
+        "doc-task-completed"
+    );
+    assert!(
+        ids.contains(&uuid(EX_DOC_TASK_INCOMPLETE)),
+        "doc-task-incomplete"
+    );
+    assert!(
+        ids.contains(&uuid(EX_DOC_TASK_NO_STATUS)),
+        "doc-task-no-status"
+    );
+
+    // Total should be 12: 3 projects + 7 docs + 2 chats
+    assert_eq!(items.len(), 12, "User-1 should see exactly 12 items");
+
+    Ok(())
+}
+
+/// Task documents should have correct is_completed values:
+/// - Completed task -> Some(Task { is_completed: true })
+/// - Incomplete task -> Some(Task { is_completed: false })
+/// - Task with no status property -> Some(Task { is_completed: false })
+/// - Non-task documents -> sub_type is None
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_task_completion_status(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    use models_soup::document::SoupDocumentSubType;
+
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let items_map: std::collections::HashMap<Uuid, &SoupItem> =
+        items.iter().map(|i| (i.id(), i)).collect();
+
+    // Completed task
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_TASK_COMPLETED)], SoupItem::Document);
+    match &doc.sub_type {
+        Some(SoupDocumentSubType::Task { is_completed }) => {
+            assert!(is_completed, "Completed task should have is_completed=true");
+        }
+        other => panic!("Expected Task sub_type, got {:?}", other),
+    }
+
+    // Incomplete task (status = In Progress)
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_TASK_INCOMPLETE)], SoupItem::Document);
+    match &doc.sub_type {
+        Some(SoupDocumentSubType::Task { is_completed }) => {
+            assert!(
+                !is_completed,
+                "Incomplete task should have is_completed=false"
+            );
+        }
+        other => panic!("Expected Task sub_type, got {:?}", other),
+    }
+
+    // Task with no status property
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_TASK_NO_STATUS)], SoupItem::Document);
+    match &doc.sub_type {
+        Some(SoupDocumentSubType::Task { is_completed }) => {
+            assert!(
+                !is_completed,
+                "Task with no status should have is_completed=false"
+            );
+        }
+        other => panic!("Expected Task sub_type, got {:?}", other),
+    }
+
+    // Non-task document
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_ROOT)], SoupItem::Document);
+    assert!(
+        doc.sub_type.is_none(),
+        "Non-task document should have sub_type=None"
+    );
+
+    Ok(())
+}
+
+/// Test UpdatedAt sort ordering.
+/// Items sorted by updatedAt DESC, tiebreaker by updatedAt DESC.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_sort_updated_at(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let ids: Vec<Uuid> = items.iter().map(|i| i.id()).collect();
+
+    // updatedAt DESC:
+    // chat-standalone    2024-03-11
+    // doc-in-deep        2024-03-10
+    // project-deep       2024-02-12
+    // project-mid        2024-02-11
+    // project-root       2024-02-10
+    // chat-in-root       2024-02-08
+    // doc-task-no-status 2024-02-07
+    // doc-task-incomplete 2024-02-06
+    // doc-task-completed 2024-02-05
+    // doc-standalone     2024-02-04
+    // doc-in-mid         2024-02-02
+    // doc-in-root        2024-02-01
+    let expected: Vec<Uuid> = [
+        EX_CHAT_STANDALONE,
+        EX_DOC_DEEP,
+        EX_PROJECT_DEEP,
+        EX_PROJECT_MID,
+        EX_PROJECT_ROOT,
+        EX_CHAT_ROOT,
+        EX_DOC_TASK_NO_STATUS,
+        EX_DOC_TASK_INCOMPLETE,
+        EX_DOC_TASK_COMPLETED,
+        EX_DOC_STANDALONE,
+        EX_DOC_MID,
+        EX_DOC_ROOT,
+    ]
+    .iter()
+    .map(|s| uuid(s))
+    .collect();
+
+    assert_eq!(ids, expected, "UpdatedAt sort order is wrong");
+
+    Ok(())
+}
+
+/// Test CreatedAt sort ordering.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_sort_created_at(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::CreatedAt, ()),
+    )
+    .await?;
+
+    let ids: Vec<Uuid> = items.iter().map(|i| i.id()).collect();
+
+    // createdAt DESC:
+    // project-deep       2024-01-12
+    // project-mid        2024-01-11
+    // project-root       2024-01-10
+    // chat-standalone    2024-01-09
+    // chat-in-root       2024-01-08
+    // doc-task-no-status 2024-01-07
+    // doc-task-incomplete 2024-01-06
+    // doc-task-completed 2024-01-05
+    // doc-standalone     2024-01-04
+    // doc-in-deep        2024-01-03
+    // doc-in-mid         2024-01-02
+    // doc-in-root        2024-01-01
+    let expected: Vec<Uuid> = [
+        EX_PROJECT_DEEP,
+        EX_PROJECT_MID,
+        EX_PROJECT_ROOT,
+        EX_CHAT_STANDALONE,
+        EX_CHAT_ROOT,
+        EX_DOC_TASK_NO_STATUS,
+        EX_DOC_TASK_INCOMPLETE,
+        EX_DOC_TASK_COMPLETED,
+        EX_DOC_STANDALONE,
+        EX_DOC_DEEP,
+        EX_DOC_MID,
+        EX_DOC_ROOT,
+    ]
+    .iter()
+    .map(|s| uuid(s))
+    .collect();
+
+    assert_eq!(ids, expected, "CreatedAt sort order is wrong");
+
+    Ok(())
+}
+
+/// Test ViewedAt sort ordering.
+/// Items with history sorted by UserHistory.updatedAt DESC.
+/// Items without history get sort_ts = epoch, tiebroken by id DESC.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_sort_viewed_at(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::ViewedAt, ()),
+    )
+    .await?;
+
+    let ids: Vec<Uuid> = items.iter().map(|i| i.id()).collect();
+
+    // With history (by UserHistory.updatedAt DESC):
+    //   doc-in-mid         2024-03-08
+    //   doc-task-no-status 2024-03-07
+    //   doc-standalone     2024-03-06
+    //   doc-in-root        2024-03-05
+    //   doc-task-completed 2024-03-04
+    //   chat-in-root       2024-03-03
+    //   project-root       2024-03-02
+    //   project-deep       2024-03-01
+    // Without history (sort_ts = epoch, tiebroken by id DESC):
+    //   chat-standalone     (epoch, id cc000002)
+    //   doc-task-incomplete (epoch, id bb000007)
+    //   doc-in-deep         (epoch, id bb000003)
+    //   project-mid         (epoch, id aa000002)
+    let expected: Vec<Uuid> = [
+        EX_DOC_MID,
+        EX_DOC_TASK_NO_STATUS,
+        EX_DOC_STANDALONE,
+        EX_DOC_ROOT,
+        EX_DOC_TASK_COMPLETED,
+        EX_CHAT_ROOT,
+        EX_PROJECT_ROOT,
+        EX_PROJECT_DEEP,
+        EX_CHAT_STANDALONE,
+        EX_DOC_TASK_INCOMPLETE,
+        EX_DOC_DEEP,
+        EX_PROJECT_MID,
+    ]
+    .iter()
+    .map(|s| uuid(s))
+    .collect();
+
+    assert_eq!(ids, expected, "ViewedAt sort order is wrong");
+
+    Ok(())
+}
+
+/// Test ViewedUpdated sort ordering.
+/// Uses COALESCE(uh.updatedAt, item.updatedAt) instead of falling back to epoch.
+/// This means items without history use their updatedAt, which produces a
+/// different ordering than ViewedAt for items with high updatedAt but no history.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_sort_viewed_updated(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::ViewedUpdated, ()),
+    )
+    .await?;
+
+    let ids: Vec<Uuid> = items.iter().map(|i| i.id()).collect();
+
+    // COALESCE(uh.updatedAt, item.updatedAt) DESC:
+    //   chat-standalone      no history -> updatedAt 2024-03-11
+    //   doc-in-deep          no history -> updatedAt 2024-03-10
+    //   doc-in-mid           history 2024-03-08
+    //   doc-task-no-status   history 2024-03-07
+    //   doc-standalone       history 2024-03-06
+    //   doc-in-root          history 2024-03-05
+    //   doc-task-completed   history 2024-03-04
+    //   chat-in-root         history 2024-03-03
+    //   project-root         history 2024-03-02
+    //   project-deep         history 2024-03-01
+    //   project-mid          no history -> updatedAt 2024-02-11
+    //   doc-task-incomplete  no history -> updatedAt 2024-02-06
+    let expected: Vec<Uuid> = [
+        EX_CHAT_STANDALONE,
+        EX_DOC_DEEP,
+        EX_DOC_MID,
+        EX_DOC_TASK_NO_STATUS,
+        EX_DOC_STANDALONE,
+        EX_DOC_ROOT,
+        EX_DOC_TASK_COMPLETED,
+        EX_CHAT_ROOT,
+        EX_PROJECT_ROOT,
+        EX_PROJECT_DEEP,
+        EX_PROJECT_MID,
+        EX_DOC_TASK_INCOMPLETE,
+    ]
+    .iter()
+    .map(|s| uuid(s))
+    .collect();
+
+    assert_eq!(ids, expected, "ViewedUpdated sort order is wrong");
+
+    // Verify viewed_updated produces a DIFFERENT order than viewed_at
+    let viewed_at_items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::ViewedAt, ()),
+    )
+    .await?;
+    let viewed_at_ids: Vec<Uuid> = viewed_at_items.iter().map(|i| i.id()).collect();
+
+    assert_ne!(
+        ids, viewed_at_ids,
+        "ViewedUpdated and ViewedAt should produce different orderings"
+    );
+
+    Ok(())
+}
+
+/// Walking through all items one at a time with limit=1 should yield every item
+/// exactly once, in the correct order, with no duplicates.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_paginate_one_at_a_time(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let sort = SimpleSortMethod::UpdatedAt;
+
+    let mut all_ids: Vec<Uuid> = Vec::new();
+    let mut current_query: Query<Uuid, SimpleSortMethod, ()> = Query::Sort(sort, ());
+
+    loop {
+        let result = expanded_generic_cursor_soup(&pool, user_id.copied(), 1, current_query)
+            .await?
+            .into_iter()
+            .paginate_on(1, sort)
+            .into_page();
+
+        all_ids.extend(result.items.iter().map(|i| i.id()));
+
+        match result.next_cursor {
+            Some(cursor) => {
+                let decoded = cursor.decode_json().unwrap();
+                current_query = Query::new(
+                    Some(models_pagination::Cursor {
+                        id: decoded.id,
+                        limit: decoded.limit,
+                        val: decoded.val,
+                        filter: decoded.filter,
+                    }),
+                    sort,
+                    (),
+                );
+            }
+            None => break,
+        }
+    }
+
+    assert_eq!(all_ids.len(), 12, "Should walk through all 12 items");
+
+    let unique: HashSet<Uuid> = all_ids.iter().copied().collect();
+    assert_eq!(
+        unique.len(),
+        12,
+        "No duplicates when paginating one at a time"
+    );
+
+    // Verify order matches a single large fetch
+    let all_at_once =
+        expanded_generic_cursor_soup(&pool, user_id.copied(), 50, Query::Sort(sort, ())).await?;
+    let expected_ids: Vec<Uuid> = all_at_once.iter().map(|i| i.id()).collect();
+    assert_eq!(
+        all_ids, expected_ids,
+        "Paginated order should match single-fetch order"
+    );
+
+    Ok(())
+}
+
+/// Full pagination walk with page size of 3. Verifies no duplicates
+/// and correct total count across all pages for each sort method.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_paginate_all_sort_methods(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let page_size: u16 = 3;
+
+    for sort in [
+        SimpleSortMethod::ViewedAt,
+        SimpleSortMethod::UpdatedAt,
+        SimpleSortMethod::CreatedAt,
+        SimpleSortMethod::ViewedUpdated,
+    ] {
+        let mut all_ids: Vec<Uuid> = Vec::new();
+        let mut current_query: Query<Uuid, SimpleSortMethod, ()> = Query::Sort(sort, ());
+        let mut page_count = 0;
+
+        loop {
+            let result =
+                expanded_generic_cursor_soup(&pool, user_id.copied(), page_size, current_query)
+                    .await?
+                    .into_iter()
+                    .paginate_on(page_size as usize, sort)
+                    .into_page();
+
+            all_ids.extend(result.items.iter().map(|i| i.id()));
+            page_count += 1;
+
+            match result.next_cursor {
+                Some(cursor) => {
+                    let decoded = cursor.decode_json().unwrap();
+                    current_query = Query::new(
+                        Some(models_pagination::Cursor {
+                            id: decoded.id,
+                            limit: decoded.limit,
+                            val: decoded.val,
+                            filter: decoded.filter,
+                        }),
+                        sort,
+                        (),
+                    );
+                }
+                None => break,
+            }
+        }
+
+        assert_eq!(
+            all_ids.len(),
+            12,
+            "Sort {:?}: should get all 12 items across pages",
+            sort
+        );
+
+        let unique: HashSet<Uuid> = all_ids.iter().copied().collect();
+        assert_eq!(
+            unique.len(),
+            12,
+            "Sort {:?}: no duplicates across pages",
+            sort
+        );
+    }
+
+    Ok(())
+}
+
+/// Limit larger than total items returns everything in one page.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_limit_larger_than_total(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        1000,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    assert_eq!(
+        items.len(),
+        12,
+        "Should return all 12 items with large limit"
+    );
+
+    Ok(())
+}
+
+/// Standalone items (no project) are correctly returned with project_id = None.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_standalone_items_have_no_project(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let items_map: std::collections::HashMap<Uuid, &SoupItem> =
+        items.iter().map(|i| (i.id(), i)).collect();
+
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_STANDALONE)], SoupItem::Document);
+    assert_eq!(
+        doc.project_id, None,
+        "Standalone doc should have no project"
+    );
+    assert_eq!(doc.name, "Doc Standalone");
+
+    let chat = unwrap_enum!(items_map[&uuid(EX_CHAT_STANDALONE)], SoupItem::Chat);
+    assert_eq!(
+        chat.project_id, None,
+        "Standalone chat should have no project"
+    );
+    assert_eq!(chat.name, "Chat Standalone");
+
+    Ok(())
+}
+
+/// Documents in projects should carry the correct project_id, and projects
+/// in the hierarchy should carry the correct parent_id.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_hierarchy_project_ids(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let items_map: std::collections::HashMap<Uuid, &SoupItem> =
+        items.iter().map(|i| (i.id(), i)).collect();
+
+    // doc-in-deep should reference project-deep
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_DEEP)], SoupItem::Document);
+    assert_eq!(doc.project_id, Some(uuid(EX_PROJECT_DEEP)));
+
+    // doc-in-mid should reference project-mid
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_MID)], SoupItem::Document);
+    assert_eq!(doc.project_id, Some(uuid(EX_PROJECT_MID)));
+
+    // project-deep should have parent_id = project-mid
+    let proj = unwrap_enum!(items_map[&uuid(EX_PROJECT_DEEP)], SoupItem::Project);
+    assert_eq!(proj.parent_id, Some(uuid(EX_PROJECT_MID)));
+
+    // project-mid should have parent_id = project-root
+    let proj = unwrap_enum!(items_map[&uuid(EX_PROJECT_MID)], SoupItem::Project);
+    assert_eq!(proj.parent_id, Some(uuid(EX_PROJECT_ROOT)));
+
+    // project-root should have parent_id = None
+    let proj = unwrap_enum!(items_map[&uuid(EX_PROJECT_ROOT)], SoupItem::Project);
+    assert_eq!(proj.parent_id, None);
+
+    Ok(())
+}
+
+/// Items correctly report their viewed_at from UserHistory.
+/// Items without history should have viewed_at = None.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_viewed_at_values(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let items_map: std::collections::HashMap<Uuid, &SoupItem> =
+        items.iter().map(|i| (i.id(), i)).collect();
+
+    // Items WITH history should have Some(viewed_at)
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_MID)], SoupItem::Document);
+    assert!(
+        doc.viewed_at.is_some(),
+        "doc-in-mid has history and should have viewed_at"
+    );
+
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_ROOT)], SoupItem::Document);
+    assert!(
+        doc.viewed_at.is_some(),
+        "doc-in-root has history and should have viewed_at"
+    );
+
+    // Items WITHOUT history should have None
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_DEEP)], SoupItem::Document);
+    assert!(
+        doc.viewed_at.is_none(),
+        "doc-in-deep has no history and should have viewed_at=None"
+    );
+
+    let chat = unwrap_enum!(items_map[&uuid(EX_CHAT_STANDALONE)], SoupItem::Chat);
+    assert!(
+        chat.viewed_at.is_none(),
+        "chat-standalone has no history and should have viewed_at=None"
+    );
+
+    let proj = unwrap_enum!(items_map[&uuid(EX_PROJECT_MID)], SoupItem::Project);
+    assert!(
+        proj.viewed_at.is_none(),
+        "project-mid has no history and should have viewed_at=None"
+    );
+
+    Ok(())
+}
+
+/// Documents should carry their file_type and sha from the latest DocumentInstance.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_document_fields(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let items_map: std::collections::HashMap<Uuid, &SoupItem> =
+        items.iter().map(|i| (i.id(), i)).collect();
+
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_ROOT)], SoupItem::Document);
+    assert_eq!(doc.file_type.as_deref(), Some("pdf"));
+    assert_eq!(doc.sha.as_deref(), Some("sha-root"));
+    assert_eq!(doc.name, "Doc In Root");
+
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_MID)], SoupItem::Document);
+    assert_eq!(doc.file_type.as_deref(), Some("docx"));
+    assert_eq!(doc.sha.as_deref(), Some("sha-mid"));
+
+    let doc = unwrap_enum!(items_map[&uuid(EX_DOC_STANDALONE)], SoupItem::Document);
+    assert_eq!(doc.file_type.as_deref(), Some("txt"));
+    assert_eq!(doc.sha.as_deref(), Some("sha-standalone"));
+
+    Ok(())
+}
+
+/// All returned items should have the correct entity type variant.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("expanded_cursor_soup_exhaustive")
+    )
+)]
+async fn test_exhaustive_entity_type_counts(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let user_id = MacroUserIdStr::parse_from_str("macro|user-1@test.com").unwrap();
+    let items = expanded_generic_cursor_soup(
+        &pool,
+        user_id.copied(),
+        50,
+        Query::Sort(SimpleSortMethod::UpdatedAt, ()),
+    )
+    .await?;
+
+    let mut doc_count = 0;
+    let mut chat_count = 0;
+    let mut project_count = 0;
+
+    for item in &items {
+        match item {
+            SoupItem::Document(_) => doc_count += 1,
+            SoupItem::Chat(_) => chat_count += 1,
+            SoupItem::Project(_) => project_count += 1,
+            _ => panic!("Unexpected entity type"),
+        }
+    }
+
+    assert_eq!(doc_count, 7, "Should have 7 documents");
+    assert_eq!(chat_count, 2, "Should have 2 chats");
+    assert_eq!(project_count, 3, "Should have 3 projects");
 
     Ok(())
 }

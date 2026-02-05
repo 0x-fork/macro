@@ -208,7 +208,7 @@ static SUFFIX: &str = r#"
         ($4::timestamptz IS NULL)
         OR
         ("sort_ts", "id"::text) < ($4, $5)
-    ORDER BY "sort_ts" DESC, "updated_at" DESC
+    ORDER BY "sort_ts" DESC, "id" DESC
     LIMIT $3
 "#;
 
@@ -224,7 +224,7 @@ static SUFFIX_NO_FRECENCY: &str = r#"
             OR
             (Combined."sort_ts", Combined."id"::text) < ($4, $5)
         )
-    ORDER BY Combined."sort_ts" DESC, Combined."updated_at" DESC
+    ORDER BY Combined."sort_ts" DESC, Combined."id" DESC
     LIMIT $3
 "#;
 

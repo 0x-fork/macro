@@ -24,11 +24,12 @@ async fn get_names_for_ids(
     let rows = sqlx::query!(
         r#"
         SELECT
-            u.id as user_profile_id,
-            mui.first_name,
-            mui.last_name
+          u.id AS user_profile_id,
+          mui.first_name,
+          mui.last_name
         FROM macro_user_info mui
-        JOIN "User" u ON mui.macro_user_id = u.macro_user_id
+        JOIN "User" u
+          ON u.macro_user_id = mui.macro_user_id
         WHERE u.id = ANY($1)
         "#,
         &ids.iter().map(|s| s.to_string()).collect::<Vec<String>>()
