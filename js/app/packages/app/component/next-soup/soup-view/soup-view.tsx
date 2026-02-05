@@ -61,6 +61,7 @@ import {
   Match,
   on,
   onCleanup,
+  onMount,
   Show,
   Switch,
 } from 'solid-js';
@@ -78,6 +79,7 @@ import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-vi
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { invalidateEntityNotifications } from '@queries/notification/user-notifications';
 import { soupKeys } from '@queries/soup/keys';
+import type { CacheSnapshot } from 'virtua/unstable_core';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -120,6 +122,14 @@ const useSoupNotificationInvalidators = () => {
     }
   );
 };
+
+const cacheMap = new Map<
+  string,
+  {
+    virtualCache: CacheSnapshot;
+    scrollOffset: number;
+  }
+>();
 
 export const SoupView = () => {
   const soup = useSoup();
@@ -478,6 +488,39 @@ export const SoupViewList = (props: SoupViewListProps) => {
     }
   );
 
+  const getCacheKey = () => {
+    let key = `soup-view-${panel.handle.id}`;
+
+    if (previewPanel) {
+      key += '-preview';
+    }
+
+    return key;
+  };
+
+  onCleanup(() => {
+    const virtualHandle = virtualizerHandle();
+
+    if (!virtualHandle) return;
+
+    cacheMap.set(getCacheKey(), {
+      virtualCache: virtualHandle.cache,
+      scrollOffset: virtualHandle.scrollOffset,
+    });
+  });
+
+  const registerVirtualizerHandler = (
+    handle: VirtualizerHandle | undefined
+  ) => {
+    setVirtualizerHandle(handle);
+
+    const cached = cacheMap.get(getCacheKey());
+
+    if (!cached) return;
+
+    handle?.scrollTo(cached.scrollOffset);
+  };
+
   return (
     <div
       class="size-full flex"
@@ -523,10 +566,11 @@ export const SoupViewList = (props: SoupViewListProps) => {
                 setCollapseEntity={soup.collapseEntity.set}
               >
                 <SoupList
+                  cache={cacheMap.get(getCacheKey())?.virtualCache}
                   ref={setLocalEntityListRef}
                   virtualizerClass="scrollbar-hidden"
                   class="overflow-hidden flex min-w-0"
-                  virtualizerRef={setVirtualizerHandle}
+                  virtualizerRef={registerVirtualizerHandler}
                   onScrollBottom={debouncedFetchMore}
                   rows={rows()}
                 >
@@ -712,6 +756,7 @@ interface SoupListProps {
   onScrollBottom?: VoidFunction;
   scrollBottomOffset?: number;
   rows: SoupRow[];
+  cache?: CacheSnapshot;
 }
 
 const SoupList = (props: SoupListProps) => {
@@ -750,6 +795,7 @@ const SoupList = (props: SoupListProps) => {
       class={cn('unified-table-body size-full relative', props.class)}
     >
       <VList
+        cache={props.cache}
         ref={registerVirtualizerHandler}
         class={props.virtualizerClass}
         data={props.rows}
