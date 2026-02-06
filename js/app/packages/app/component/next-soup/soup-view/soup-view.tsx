@@ -38,6 +38,7 @@ import {
   unreadFilterFn,
 } from '@macro-entity';
 import {
+  getMetadata,
   isChannelMention,
   isChannelMessageReply,
   isChannelMessageSend,
@@ -237,24 +238,28 @@ const SoupViewImpl = () => {
 
   const blockOrchestrator = useGlobalBlockOrchestrator();
   const gotoChannelNotification = async (notification: UnifiedNotification) => {
-    if (
-      !isChannelMention(notification) &&
-      !isChannelMessageReply(notification) &&
-      !isChannelMessageSend(notification)
-    )
-      return;
+    let message_id: string | undefined;
+    let thread_id: string | undefined;
 
-    const message_id = notification.notificationMetadata.messageId;
-    let thread_id: string | null | undefined;
+    if (isChannelMention(notification)) {
+      const metadata = getMetadata(notification);
+      message_id = metadata.messageId;
+    } else if (isChannelMessageReply(notification)) {
+      const metadata = getMetadata(notification);
+      message_id = metadata.messageId;
+      thread_id = metadata.threadId;
+    } else if (isChannelMessageSend(notification)) {
+      const metadata = getMetadata(notification);
+      message_id = metadata.messageId;
+    } else {
+      return;
+    }
 
     const blockHandle = await blockOrchestrator.getBlockHandle(
       notification.entity_id,
       'channel'
     );
     if (!blockHandle) return;
-
-    if (!isChannelMessageSend(notification))
-      thread_id = notification.notificationMetadata.threadId;
 
     notificationSource.markAsRead(notification);
 
