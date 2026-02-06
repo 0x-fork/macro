@@ -167,8 +167,8 @@ pub trait WebSocketSender: Send + Sync + 'static {
     /// (i.e., they were online and the message was delivered).
     fn send_notifications<'a, T: Serialize + Send + Sync>(
         &self,
-        message_type: &str,
-        notifications: Vec<(MacroUserIdStr<'a>, &T)>,
+        recipients: &[MacroUserIdStr<'a>],
+        notification: &T,
     ) -> impl Future<Output = Result<HashSet<MacroUserIdStr<'static>>, Report>> + Send;
 }
 
