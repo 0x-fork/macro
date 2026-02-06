@@ -114,10 +114,10 @@ export const SoupViewContextProvider: FlowComponent<
           .with('document', () => {
             includeArray.push('documents');
           })
-          .with('chat', () => {
+          .with('agent', () => {
             includeArray.push('chats');
           })
-          .with('channels', () => {
+          .with('people', 'teams', () => {
             includeArray.push('channels');
           })
           .with('email', () => {

@@ -276,7 +276,7 @@ export const buildDssFiltersRequest = (
     },
     chat_filters: {
       chat_ids:
-        entityTypes.includes('chat') || entityTypes.length === 0
+        entityTypes.includes('agent') || entityTypes.length === 0
           ? []
           : [NIL_UUID],
       project_ids: [],
