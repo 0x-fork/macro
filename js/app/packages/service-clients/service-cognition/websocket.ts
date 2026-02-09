@@ -1,4 +1,5 @@
 import { createBlockEffect, inBlock } from '@core/block';
+import { toast } from '@core/component/Toast/Toast';
 import { ENABLE_BEARER_TOKEN_AUTH } from '@core/constant/featureFlags';
 import { SERVER_HOSTS } from '@core/constant/servers';
 import { fetchToken, unsetTokenPromise } from '@core/util/fetchWithToken';
@@ -17,7 +18,6 @@ import { createRoot, createSignal } from 'solid-js';
 import type { StreamError } from './generated/schemas';
 import type { FromWebSocketMessage } from './generated/schemas/fromWebSocketMessage';
 import type { ToWebSocketMessage } from './generated/schemas/toWebSocketMessage';
-import { toast } from '@core/component/Toast/Toast';
 
 export type CognitionWebsocket = Websocket<
   ToWebSocketMessage,

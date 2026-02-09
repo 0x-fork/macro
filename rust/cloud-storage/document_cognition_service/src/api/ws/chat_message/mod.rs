@@ -1,5 +1,5 @@
-mod ai_request;
-mod toolset;
+pub mod ai_request;
+pub mod toolset;
 
 use crate::api::ws::connection::{MESSAGE_ABORT_MAP, ws_send};
 use crate::core::model::FALLBACK_MODEL;

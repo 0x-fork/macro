@@ -20,7 +20,7 @@ pub enum ToolSet {
 
 #[derive(Deserialize, Serialize, ToSchema, Debug, Clone)]
 pub struct SendChatMessagePayload {
-    /// you give me id, i give you id
+    /// Stream ID for tracking the response
     pub stream_id: String,
     /// The content of the message
     pub content: String,

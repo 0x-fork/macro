@@ -50,7 +50,6 @@ where
     T: TryFrom<StreamItem>,
 {
     pub fn new(service: Arc<dyn StreamRepo>) -> Arc<Self> {
-        // Use Arc::new_cyclic to avoid the chicken-and-egg problem
         Arc::new_cyclic(|weak: &Weak<Self>| {
             let this = weak.clone();
             let weak_repo = Arc::downgrade(&service);
