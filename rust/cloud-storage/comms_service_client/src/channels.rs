@@ -1,6 +1,7 @@
 use super::CommsServiceClient;
 use crate::error::{ClientError, ResponseExt};
 use model::comms::{ChannelMessage, ChannelParticipant, ChannelType};
+use model::comms::{GetChannelsHistoryRequest, GetChannelsHistoryResponse};
 use models_comms::channel::{ChannelId, OrganizationId};
 use serde::{Deserialize, Serialize};
 use urlencoding;
