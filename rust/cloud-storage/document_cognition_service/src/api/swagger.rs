@@ -20,6 +20,8 @@ use crate::{
         health,
         models::get_models,
         preview::get_batch_preview,
+        stream::chat_message::{self, ChatMessageError, HttpSendChatMessageRequest, SendChatMessageResponse},
+        stream::simple_completion::{self, SimpleCompletionError, SimpleCompletionResponse},
         ws::{self},
     },
     model::{
@@ -36,9 +38,9 @@ use crate::{
             models::AIModel,
         },
         ws::{
-            ExtractionStatusPayload, FromWebSocketMessage, SelectModelPayload,
-            SendChatMessagePayload, SendCompletionPayload, StopChatMessagePayload,
-            ToWebSocketMessage, WebSocketError,
+            ExtractionStatusPayload, ChatStream, GetSimpleCompletionStreamPayload,
+            SelectModelPayload, SendChatMessagePayload, SendCompletionPayload,
+            StopChatMessagePayload, StreamError, ToWebSocketMessage, ToolSet, WebSocketError,
         },
     },
 };
@@ -95,6 +97,8 @@ use utoipa::OpenApi;
             revert_delete_chat::handler,
             chat_history::get_chat_history_handler,
             chat_history_batch_messages::get_chat_history_batch_messages_handler,
+            chat_message::send_chat_message,
+            simple_completion::simple_completion,
         ),
         components(
             schemas(
@@ -153,7 +157,7 @@ use utoipa::OpenApi;
 
                 // WebSocket
                 ToWebSocketMessage,
-                FromWebSocketMessage,
+                ChatStream,
                 SendChatMessagePayload,
                 StopChatMessagePayload,
                 WebSocketError,
@@ -178,6 +182,16 @@ use utoipa::OpenApi;
                 StructedOutputCompletionResponse,
                 GetCompletionRequest,
                 GetCompletionResponse,
+
+                // Stream HTTP API
+                HttpSendChatMessageRequest,
+                SendChatMessageResponse,
+                ChatMessageError,
+                SimpleCompletionResponse,
+                SimpleCompletionError,
+                GetSimpleCompletionStreamPayload,
+                StreamError,
+                ToolSet,
 
                 // Tools
                 ai::tool::schema::ToolSchema,

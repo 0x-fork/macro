@@ -148,7 +148,7 @@ impl From<macro_db_client::dcs::get_document_text::ExtractionStatusEnum> for Ext
 
 #[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum FromWebSocketMessage {
+pub enum ChatStream {
     /// Misc error
     Error(WebSocketError),
 
@@ -243,10 +243,10 @@ impl TryInto<ToWebSocketMessage> for Message {
     }
 }
 
-impl From<FromWebSocketMessage> for Message {
-    fn from(val: FromWebSocketMessage) -> Self {
+impl From<ChatStream> for Message {
+    fn from(val: ChatStream) -> Self {
         match val {
-            FromWebSocketMessage::Pong => Message::Text("pong".to_string()),
+            ChatStream::Pong => Message::Text("pong".to_string()),
             _ => {
                 let payload = serde_json::to_string(&val).unwrap();
                 Message::Text(payload)

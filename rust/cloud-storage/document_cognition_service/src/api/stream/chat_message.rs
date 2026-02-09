@@ -10,7 +10,7 @@ use crate::api::ws::connection::MESSAGE_ABORT_MAP;
 use crate::core::constants::DEFAULT_CHAT_NAME;
 use crate::core::model::FALLBACK_MODEL;
 use crate::model::ws::{
-    FromWebSocketMessage, JwtPayload, SendChatMessagePayload, StreamError, ToolSet,
+    ChatStream, JwtPayload, SendChatMessagePayload, StreamError, ToolSet,
 };
 use crate::service::ai::name::maybe_rename_chat;
 use crate::service::get_chat::get_chat;
@@ -400,7 +400,7 @@ fn create_chat_payload_stream(
                         stream_id: stream_id.clone(),
                     },
                 };
-                let error_msg = FromWebSocketMessage::Error(
+                let error_msg = ChatStream::Error(
                     crate::model::ws::WebSocketError::StreamError(stream_error),
                 );
                 if let Ok(json) = serde_json::to_value(&error_msg) {
@@ -463,7 +463,7 @@ fn create_chat_payload_stream(
                         },
                     };
 
-                    let response = FromWebSocketMessage::ChatMessageResponse {
+                    let response = ChatStream::ChatMessageResponse {
                         stream_id: stream_id.clone(),
                         chat_id: chat_id.clone(),
                         message_id: message_id.clone(),
@@ -487,7 +487,7 @@ fn create_chat_payload_stream(
                             stream_id: stream_id.clone(),
                         },
                     };
-                    let error_msg = FromWebSocketMessage::Error(
+                    let error_msg = ChatStream::Error(
                         crate::model::ws::WebSocketError::StreamError(stream_error),
                     );
                     if let Ok(json) = serde_json::to_value(&error_msg) {
@@ -503,7 +503,7 @@ fn create_chat_payload_stream(
         drop(ai_stream);
 
         // Send stream end message
-        let end_msg = FromWebSocketMessage::StreamEnd {
+        let end_msg = ChatStream::StreamEnd {
             stream_id: stream_id.clone(),
         };
         if let Ok(json) = serde_json::to_value(&end_msg) {

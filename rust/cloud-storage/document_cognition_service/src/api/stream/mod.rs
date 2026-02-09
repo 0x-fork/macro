@@ -3,8 +3,8 @@
 //! These endpoints replace the WebSocket-based streaming with HTTP POST requests
 //! that publish to a durable stream. The connection_gateway handles delivery to clients.
 
-mod chat_message;
-mod simple_completion;
+pub mod chat_message;
+pub mod simple_completion;
 
 use axum::{Router, routing::post};
 use tower::ServiceBuilder;

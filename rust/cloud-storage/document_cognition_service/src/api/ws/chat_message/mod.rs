@@ -10,7 +10,7 @@ use crate::{
         context::ApiContext,
         utils::{log, search},
     },
-    model::ws::{FromWebSocketMessage, SendChatMessagePayload},
+    model::ws::{ChatStream, SendChatMessagePayload},
     service::{ai::name::maybe_rename_chat, get_chat::get_chat},
 };
 
@@ -91,7 +91,7 @@ pub async fn stream_chat_response(
     user_id: Arc<MacroUserIdStr<'static>>,
     request: ChatCompletionRequest,
     toolset: AiToolSet,
-    sender: &UnboundedSender<FromWebSocketMessage>,
+    sender: &UnboundedSender<ChatStream>,
     chat_id: &str,
     message_id: &str,
     connection_id: &str,
@@ -154,7 +154,7 @@ pub async fn stream_chat_response(
                 let message_part = AssistantMessagePart::Text { text: content };
 
                 // Send to websocket
-                let response = FromWebSocketMessage::ChatMessageResponse {
+                let response = ChatStream::ChatMessageResponse {
                     stream_id: stream_id.to_string(),
                     chat_id: chat_id.to_string(),
                     message_id: message_id.to_string(),
@@ -169,7 +169,7 @@ pub async fn stream_chat_response(
                     id: call.id,
                 };
 
-                let response = FromWebSocketMessage::ChatMessageResponse {
+                let response = ChatStream::ChatMessageResponse {
                     stream_id: stream_id.to_string(),
                     chat_id: chat_id.to_string(),
                     message_id: message_id.to_string(),
@@ -185,7 +185,7 @@ pub async fn stream_chat_response(
 
                 ws_send(
                     sender,
-                    FromWebSocketMessage::ChatMessageResponse {
+                    ChatStream::ChatMessageResponse {
                         stream_id: stream_id.to_string(),
                         message_id: message_id.to_string(),
                         chat_id: chat_id.to_string(),
@@ -206,7 +206,7 @@ pub async fn stream_chat_response(
 
                 ws_send(
                     sender,
-                    FromWebSocketMessage::ChatMessageResponse {
+                    ChatStream::ChatMessageResponse {
                         stream_id: stream_id.to_string(),
                         message_id: message_id.to_string(),
                         chat_id: chat_id.to_string(),
@@ -276,7 +276,7 @@ pub async fn store_conversation_messages(
 /// Handles incoming messages of type `send_message`
 #[tracing::instrument(skip(ctx, sender, incoming_message, jwt_token, user_id), fields(chat_id=?incoming_message.chat_id, stream_id=?incoming_message.stream_id))]
 pub async fn handle_send_chat_message(
-    sender: &UnboundedSender<FromWebSocketMessage>,
+    sender: &UnboundedSender<ChatStream>,
     ctx: Arc<ApiContext>,
     message_id: String,
     incoming_message: SendChatMessagePayload,
@@ -359,7 +359,7 @@ pub async fn handle_send_chat_message(
 
     ws_send(
         sender,
-        FromWebSocketMessage::StreamEnd {
+        ChatStream::StreamEnd {
             stream_id: incoming_message.stream_id.clone(),
         },
     )
@@ -390,7 +390,7 @@ pub async fn handle_send_chat_message(
     {
         ws_send(
             sender,
-            FromWebSocketMessage::ChatRenamed {
+            ChatStream::ChatRenamed {
                 chat_id: incoming_message.chat_id.clone(),
                 stream_id: incoming_message.stream_id.clone(),
                 name: new_name,

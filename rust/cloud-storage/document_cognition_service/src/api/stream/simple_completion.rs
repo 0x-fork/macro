@@ -2,7 +2,7 @@
 
 use crate::api::context::ApiContext;
 use crate::core::constants::DEFAULT_MAX_TOKENS;
-use crate::model::ws::{FromWebSocketMessage, GetSimpleCompletionStreamPayload};
+use crate::model::ws::{ChatStream, GetSimpleCompletionStreamPayload};
 use crate::service::attachment::document::get_document_plaintext_content;
 use ai::chat_stream::get_chat_stream;
 use ai::types::{ChatStreamCompletionResponse, MessageBuilder, Model, RequestBuilder};
@@ -169,7 +169,7 @@ pub async fn simple_completion(
                                 let ChatStreamCompletionResponse::Content(content) = part;
                                 cumulative_content.push_str(&content.content);
 
-                                let message = FromWebSocketMessage::CompletionStreamChunk {
+                                let message = ChatStream::CompletionStreamChunk {
                                     completion_id: completion_id_for_stream.clone(),
                                     content: cumulative_content.clone(),
                                     done: false,
@@ -182,7 +182,7 @@ pub async fn simple_completion(
                         }
                         Err(e) => {
                             tracing::error!(error=?e, "error in AI stream");
-                            let error_msg = FromWebSocketMessage::CompletionStreamChunk {
+                            let error_msg = ChatStream::CompletionStreamChunk {
                                 completion_id: completion_id_for_stream.clone(),
                                 content: format!("Error: {}", e),
                                 done: true,
@@ -196,7 +196,7 @@ pub async fn simple_completion(
                 }
 
                 // Send final message with done: true
-                let final_message = FromWebSocketMessage::CompletionStreamChunk {
+                let final_message = ChatStream::CompletionStreamChunk {
                     completion_id: completion_id_for_stream.clone(),
                     content: cumulative_content,
                     done: true,
@@ -207,7 +207,7 @@ pub async fn simple_completion(
             }
             Err(e) => {
                 tracing::error!(error=?e, "failed to create AI stream");
-                let error_msg = FromWebSocketMessage::CompletionStreamChunk {
+                let error_msg = ChatStream::CompletionStreamChunk {
                     completion_id: completion_id_for_stream.clone(),
                     content: format!("Error: {}", e),
                     done: true,
