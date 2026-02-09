@@ -1,3 +1,3 @@
-We're going to move away from the document_cognition_service ws server. the new stream crate adds support for streaming from connection_gateway. Instead of sending ws messages 
-to document_cognition service we're going to send a post request to the new post endpoint that document_cognition_service exposes and expect to get a response from 
-connection_gateway. The type of the connection gateway message is defined by the stream api in document_cognition_service. I want you to start by adding type-gen for this stream type. the document_cognition_service type binary already exposes openapi types. You should be able to add the enum for the stream type into the swagger.rs to generate types for streaming with the same binary. Update the binary and generate the types.
+Now we're going to update servie_cognition to support the new http endpoints exposed by the new 
+stream api in document_cognition service. These are simple http endpoints and should be 
+well-typed using the generated types
