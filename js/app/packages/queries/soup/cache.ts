@@ -10,14 +10,9 @@ import type {
 } from '@service-storage/generated/schemas';
 import type { SoupPage } from '@service-storage/generated/schemas/soupPage';
 import type { UnifiedSearchResponseItem } from '@service-search/generated/models';
-import { storageServiceClient } from '@service-storage/client';
 import { isErr } from '@core/util/maybeResult';
 import { queryClient } from '../client';
 import { soupKeys } from './keys';
-
-// ---------------------------------------------------------------------------
-// ID extraction for SoupApiItem discriminated union
-// ---------------------------------------------------------------------------
 
 /**
  * Extracts a normalization key from SoupApiItem wrappers.
@@ -37,10 +32,6 @@ const getNormalizationObjectKey = (
   }
   return undefined;
 };
-
-// ---------------------------------------------------------------------------
-// Singleton normalizer — lazily initialized to avoid circular imports
-// ---------------------------------------------------------------------------
 
 let _normalizer: ReturnType<typeof createQueryNormalizer> | undefined;
 let _queryClient: QueryClient | undefined;
@@ -88,8 +79,11 @@ export function optimisticUpdateSoupEntity(
  * Retrieve a cached soup entity by its ID.
  * Returns the normalized object or undefined if not found.
  */
-export function getSoupEntityById(entityId: string) {
-  return getSoupNormalizer().getObjectById(`soup:${entityId}`);
+export function getSoupEntityById(
+  entityId: string
+): Record<string, unknown> | undefined {
+  const obj = getSoupNormalizer().getObjectById(`soup:${entityId}`);
+  return (obj as Record<string, unknown> | undefined) ?? undefined;
 }
 
 /**
@@ -116,10 +110,6 @@ export function invalidateAllSoup(): void {
 export function hasSoupEntity(entityId: string): boolean {
   return getSoupNormalizer().getObjectById(`soup:${entityId}`) != null;
 }
-
-// ---------------------------------------------------------------------------
-// Cache snapshot helpers
-// ---------------------------------------------------------------------------
 
 export interface SoupCacheSnapshot {
   rollback(): void;
@@ -225,10 +215,6 @@ export function removeSearchEntities(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Fetch & upsert a single entity into the soup cache
-// ---------------------------------------------------------------------------
-
 export type SoupEntityTag =
   | 'document'
   | 'chat'
@@ -259,9 +245,12 @@ export async function refetchSoupEntity(
   entityId: string,
   entityType: SoupEntityTag
 ): Promise<void> {
+  const { storageServiceClient } = await import('@service-storage/client');
+
   const filter = buildSingleEntityFilter(entityType, entityId);
+
   if (!filter) {
-    invalidateAllSoup();
+    invalidateSoupEntity(entityId);
     return;
   }
 

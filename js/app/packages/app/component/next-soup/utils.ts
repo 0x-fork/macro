@@ -26,6 +26,7 @@ import {
   getSoupEntityById,
   optimisticUpdateSoupEntity,
   invalidateSoupEntity,
+  refetchSoupEntity,
 } from '@queries/soup/cache';
 import { match } from 'ts-pattern';
 
@@ -395,8 +396,7 @@ export async function archiveEmail(
       frecency_score: 0,
     });
     soupRollback = previousEntity
-      ? () =>
-          optimisticUpdateSoupEntity(previousEntity as Record<string, unknown>)
+      ? () => optimisticUpdateSoupEntity(previousEntity)
       : undefined;
   }
 

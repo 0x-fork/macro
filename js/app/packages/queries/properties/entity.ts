@@ -168,17 +168,18 @@ export function useSaveEntityPropertyMutation(
     onMutate: async (
       vars: SaveEntityPropertyParams
     ): Promise<SaveEntityPropertyContext> => {
-      const current = getSoupEntityById(vars.entityId) as
-        | { data: { properties?: SoupProperty[] } }
+      const current = getSoupEntityById(vars.entityId);
+      const currentData = current?.data as
+        | { properties?: SoupProperty[] }
         | undefined;
 
-      if (current?.data.properties) {
+      if (current && currentData?.properties) {
         const soupValue = apiValuesToSoupPropertyValue(vars.apiValues);
         optimisticUpdateSoupEntity({
-          ...(current as unknown as Record<string, unknown>),
+          ...current,
           data: {
-            ...current.data,
-            properties: current.data.properties.map((prop) =>
+            ...currentData,
+            properties: currentData.properties.map((prop) =>
               prop.definition.id === vars.property.propertyDefinitionId
                 ? { ...prop, value: soupValue }
                 : prop
@@ -409,18 +410,17 @@ export function useSetPropertyStatusCompleteMutation(
       );
 
       // Optimistically update soup queries (embedded properties on entities)
-      const current = getSoupEntityById(vars.entityId) as
-        | { data: { properties?: SoupProperty[] } }
+      const current = getSoupEntityById(vars.entityId);
+      const currentData = current?.data as
+        | { properties?: SoupProperty[] }
         | undefined;
 
-      if (current?.data.properties) {
+      if (current && currentData?.properties) {
         optimisticUpdateSoupEntity({
-          ...(current as unknown as Record<string, unknown>),
+          ...current,
           data: {
-            ...current.data,
-            properties: updateStatusPropertyToCompleted(
-              current.data.properties
-            ),
+            ...currentData,
+            properties: updateStatusPropertyToCompleted(currentData.properties),
           },
         });
       }
