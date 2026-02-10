@@ -42,6 +42,7 @@ pub async fn store_incoming_message(
 ) -> Result<String> {
     let created_at = chrono::Utc::now();
     let new_chat_message = NewChatMessage {
+        id: None,
         content: ChatMessageContent::Text(incoming_message.content.clone()),
         role: Role::User,
         // Attach the current chat attachments to the user message
@@ -226,7 +227,8 @@ pub async fn stream_chat_response(
     Ok(StreamChatResponse { new_messages })
 }
 
-/// Stores multiple conversation messages to the database
+/// Stores multiple conversation messages to the database.
+/// If `first_message_id` is provided, the first assistant message will use that ID.
 #[tracing::instrument(err, skip(ctx, messages), fields(chat_id=?chat_id, message_count=messages.len()))]
 pub async fn store_conversation_messages(
     ctx: Arc<ApiContext>,
@@ -234,17 +236,28 @@ pub async fn store_conversation_messages(
     chat_id: &str,
     messages: Vec<ChatMessage>,
     model: Model,
+    first_message_id: Option<String>,
 ) -> Result<Vec<String>> {
     if messages.is_empty() {
         return Ok(vec![]);
     }
 
     let mut message_ids = Vec::new();
+    let mut first_id_used = false;
 
     let created_at = chrono::Utc::now();
 
     for message in messages {
+        // Use the pre-generated ID for the first assistant message
+        let id = if !first_id_used && message.role == Role::Assistant {
+            first_id_used = true;
+            first_message_id.clone()
+        } else {
+            None
+        };
+
         let new_chat_message = model::chat::NewChatMessage {
+            id,
             content: message.content,
             role: message.role,
             attachments: None, // New messages from streaming don't have attachments (they are asssistant messages)
@@ -373,6 +386,7 @@ pub async fn handle_send_chat_message(
         &incoming_message.chat_id,
         new_messages,
         model,
+        None,
     )
     .await
     .map_err(|err| {

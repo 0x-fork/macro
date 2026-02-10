@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO \"ChatMessage\" (\"chatId\", \"content\", \"role\", \"model\", \"createdAt\", \"updatedAt\")\n            VALUES ($1, $2, $3, $4, $5, $6)\n            RETURNING id;\n        ",
+  "query": "\n            INSERT INTO \"ChatMessage\" (\"id\", \"chatId\", \"content\", \"role\", \"model\", \"createdAt\", \"updatedAt\")\n            VALUES ($1, $2, $3, $4, $5, $6, $7)\n            RETURNING id;\n        ",
   "describe": {
     "columns": [
       {
@@ -11,6 +11,7 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Text",
         "Jsonb",
         "Text",
@@ -23,5 +24,5 @@
       false
     ]
   },
-  "hash": "190e13cd096c3c62e7b961892744ac0c1869938293f683c2d4c82f5b92fbd4ce"
+  "hash": "062a45b8e7d65006120b1369981c4e04e513e99855ca9dab076768d43e189a80"
 }

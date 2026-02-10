@@ -259,6 +259,7 @@ pub async fn send_chat_message(
     let ctx_clone = ctx.clone();
     let user_id_clone = user_id.clone();
     let chat_id = actual_chat_id.clone();
+    let message_id_for_store = message_id.clone();
 
     tokio::spawn(async move {
         // Wait for the stream to complete
@@ -266,13 +267,14 @@ pub async fn send_chat_message(
 
         // Get the new messages from the channel
         if let Ok(new_messages) = messages_rx.await {
-            // Store conversation messages
+            // Store conversation messages, using the pre-generated message_id for the first assistant message
             if let Err(err) = store_conversation_messages(
                 ctx_clone.clone(),
                 user_id_clone.0.as_ref(),
                 &chat_id,
                 new_messages,
                 model,
+                Some(message_id_for_store),
             )
             .await
             {
