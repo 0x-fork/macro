@@ -4412,3 +4412,72 @@ async fn test_dyn_all_types_filtered_to_empty(db: PgPool) -> anyhow::Result<()> 
 
     Ok(())
 }
+
+/// Regression: importance=true combined with specific IDs should produce valid SQL.
+/// Previously, `Importance(true)` collapsed to an empty string in chat/project filters,
+/// causing `(c.id = '...' AND )` which is a SQL syntax error.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("dynamic_query_exhaustive")
+    )
+)]
+async fn test_dyn_importance_true_with_ids_generates_valid_sql(db: PgPool) -> anyhow::Result<()> {
+    use item_filters::{
+        ChannelFilters, ChatFilters, DocumentFilters, EmailFilters, EntityFilters, ProjectFilters,
+    };
+
+    // This mirrors the exact query shape that caused a 500:
+    // all filter types have importance=true, plus specific IDs
+    let entity_filters = EntityFilters {
+        channel_filters: ChannelFilters {
+            importance: Some(true),
+            channel_ids: vec!["00000000-0000-0000-0000-000000000000".to_string()],
+            ..Default::default()
+        },
+        document_filters: DocumentFilters {
+            importance: Some(true),
+            document_ids: vec!["00000000-0000-0000-0000-000000000000".to_string()],
+            ..Default::default()
+        },
+        chat_filters: ChatFilters {
+            importance: Some(true),
+            chat_ids: vec!["00000000-0000-0000-0000-000000000000".to_string()],
+            ..Default::default()
+        },
+        email_filters: EmailFilters {
+            importance: Some(true),
+            recipients: vec!["00000000-0000-0000-0000-000000000000".to_string()],
+            ..Default::default()
+        },
+        project_filters: ProjectFilters {
+            importance: Some(true),
+            project_ids: vec!["00000000-0000-0000-0000-000000000000".to_string()],
+            ..Default::default()
+        },
+    };
+
+    let filters = EntityFilterAst::new_from_filters(entity_filters)?.unwrap();
+
+    // The query should not error — the previous bug produced invalid SQL like
+    // `(c.id = '...' AND )` from the empty-string Importance(true) literal.
+    let items = dyn_fetch(
+        &db,
+        "macro|user-1@test.com",
+        100,
+        SimpleSortMethod::UpdatedAt,
+        filters,
+        false,
+    )
+    .await?;
+
+    // None of the zero-UUIDs exist, so documents/chats/projects should all be empty
+    assert!(
+        items.is_empty(),
+        "Nonexistent IDs with importance=true should return empty, got {} items",
+        items.len()
+    );
+
+    Ok(())
+}
