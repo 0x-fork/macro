@@ -15,10 +15,5 @@ export {
   unreadFilter,
 } from './filters';
 
-export {
-  noiseFilter,
-  signalFilter,
-  explicitNoiseFilter,
-} from './signal-filters';
 
 export { createFilterState } from './create-filter-state';
