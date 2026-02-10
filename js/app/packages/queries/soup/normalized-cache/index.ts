@@ -3,6 +3,7 @@ export type { NormalizerData } from './normalizer';
 export type { SoupTrasaction, SoupEntityTag } from './types';
 export {
   optimisticUpdateSoupEntity,
+  insertSoupEntity,
   getSoupEntityById,
   invalidateSoupEntity,
   invalidateAllSoup,

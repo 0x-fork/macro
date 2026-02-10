@@ -129,6 +129,34 @@ function restoreSnapshot(
 }
 
 /**
+ * Insert a new entity into the first page of every active soup list query.
+ * Normy auto-normalizes the entry on insertion, making it available via `getSoupEntityById`.
+ * Use for entities that don't yet exist in the cache. For existing entities use
+ * `optimisticUpdateSoupEntity` (deep-merge) instead.
+ */
+export function insertSoupEntity(
+  item: Record<string, unknown>
+): SoupTrasaction {
+  const previous = snapshotSoup();
+
+  queryClient.setQueriesData<InfiniteData<SoupPage, unknown>>(
+    { queryKey: soupKeys.items._def },
+    (prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        pages: prev.pages.map((p, i) => {
+          if (i !== 0) return p;
+          return { ...p, items: [item as SoupApiItem, ...p.items] };
+        }),
+      };
+    }
+  );
+
+  return { rollback: () => restoreSnapshot(previous) };
+}
+
+/**
  * Optimistically remove entities from all soup list queries.
  * Cancels in-flight fetches first to prevent them from re-adding removed items.
  * Snapshots the full soup cache before mutating — rollback restores everything.
@@ -244,23 +272,10 @@ export async function refetchSoupEntity(
 
   const item = page.items[0];
 
+  const asRecord = item as unknown as Record<string, unknown>;
   if (hasSoupEntity(entityId)) {
-    optimisticUpdateSoupEntity(item as unknown as Record<string, unknown>);
+    optimisticUpdateSoupEntity(asRecord);
   } else {
-    // Prepend to first page of every active soup list query.
-    // Normy auto-normalizes the new entry on insertion.
-    queryClient.setQueriesData<InfiniteData<SoupPage, unknown>>(
-      { queryKey: soupKeys.items._def },
-      (prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          pages: prev.pages.map((p, i) => {
-            if (i !== 0) return p;
-            return { ...p, items: [item, ...p.items] };
-          }),
-        };
-      }
-    );
+    insertSoupEntity(asRecord);
   }
 }

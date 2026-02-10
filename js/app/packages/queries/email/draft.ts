@@ -9,8 +9,7 @@ import { useMutation } from '@tanstack/solid-query';
 import { queryClient } from '../client';
 import { type MutationCallbacks, withCallbacks } from '../utils';
 import { emailKeys } from './keys';
-import { soupKeys } from '@queries/soup/keys';
-import { invalidateSoupEntity } from '@queries/soup/cache';
+import { invalidateSoupEntity, invalidateAllSoup } from '@queries/soup/cache';
 
 type CreateDraftParams = {
   draft: MessageToSend;
@@ -43,9 +42,7 @@ export function useSaveDraftMutation(
           queryClient.invalidateQueries({
             queryKey: emailKeys.previews._def,
           });
-          queryClient.invalidateQueries({
-            queryKey: soupKeys.items._def,
-          });
+          invalidateAllSoup();
         },
       },
       callbacks

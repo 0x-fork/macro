@@ -46,6 +46,8 @@ import {
   getSoupEntityById,
   optimisticUpdateSoupEntity,
   invalidateAllSoup,
+  invalidateSoupEntity,
+  refetchSoupEntity,
   hasSoupEntity,
 } from '@queries/soup/cache';
 
@@ -398,7 +400,7 @@ export function createDeleteDssItemMutation() {
         toast.failure('Failed to delete item');
       }
 
-      invalidateAllSoup();
+      invalidateSoupEntity(entity.id);
     },
   }));
 }
@@ -429,7 +431,9 @@ export function createBulkDeleteDssItemsMutation() {
     onError: (error, entities, _context) => {
       console.error(`Failed to delete dss items`, entities, error);
       toast.failure('Failed to delete items');
-      invalidateAllSoup();
+      for (const entity of entities) {
+        invalidateSoupEntity(entity.id);
+      }
       queryClient.invalidateQueries({
         queryKey: soupKeys.search._def,
       });
@@ -437,12 +441,18 @@ export function createBulkDeleteDssItemsMutation() {
   }));
 }
 
-function invalidateAfterMove(hasProjects: boolean, failed?: boolean) {
+function invalidateAfterMove(
+  entityIds: string[],
+  hasProjects: boolean,
+  failed?: boolean
+) {
   if (failed) {
     toast.failure('Failed to move item');
   }
 
-  invalidateAllSoup();
+  for (const id of entityIds) {
+    invalidateSoupEntity(id);
+  }
   queryClient.invalidateQueries({ queryKey: ['entity'] });
   // If moving a project, invalidate all project queries since nested projects' breadcrumbs change too
   if (hasProjects) {
@@ -491,7 +501,7 @@ export function createMoveToProjectDssEntityMutation() {
         console.error(`Failed to move dss item ${id}`, data, error);
       }
 
-      invalidateAfterMove(type === 'project', failed);
+      invalidateAfterMove([id], type === 'project', failed);
     },
   }));
 }
@@ -522,14 +532,14 @@ export function createCopyDssEntityMutation() {
       // For copy operations, we don't need optimistic updates since we're creating a new item
       // The new item will be added when the mutation completes and queries are invalidated
     },
-    onSettled: (data, error, { entity: { id } }) => {
+    onSettled: (data, error, { entity: { id, type } }) => {
       if (error) {
         console.error(`Failed to copy dss item ${id}`, data, error);
         toast.failure('Failed to copy item');
       }
-      queryClient.invalidateQueries({
-        queryKey: soupKeys.items._def,
-      });
+      if (data) {
+        refetchSoupEntity(data, type as 'document' | 'chat');
+      }
       queryClient.invalidateQueries({ queryKey: ['entity'] });
     },
   }));
@@ -653,6 +663,7 @@ export function createBulkMoveToProjectDssEntityMutation() {
       }
 
       invalidateAfterMove(
+        entities.map((e) => e.id),
         entities.some((e) => e.type === 'project'),
         failed
       );

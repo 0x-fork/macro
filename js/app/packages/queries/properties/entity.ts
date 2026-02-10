@@ -23,7 +23,6 @@ import type { SoupProperty } from '../../service-clients/service-storage/generat
 import { queryClient } from '../client';
 import { type MutationCallbacks, withCallbacks } from '../utils';
 import { propertiesKeys } from './keys';
-import { soupKeys } from '../soup/keys';
 import type { BulkEntityPropertiesData } from './bulk';
 import {
   getSoupEntityById,
@@ -535,8 +534,12 @@ export function useBulkSaveEntityPropertiesMutation(
             });
           });
 
-          // Invalidate soup/DSS queries to ensure UI updates reactively
-          queryClient.invalidateQueries({ queryKey: soupKeys.items._def });
+          // Invalidate soup queries for affected entities
+          entityGroups.forEach((entityIds) => {
+            entityIds.forEach((entityId) => {
+              invalidateSoupEntity(entityId);
+            });
+          });
         },
       },
       callbacks
