@@ -169,12 +169,12 @@ export function removeSoupEntities(entityIds: Set<string>): SoupTrasaction {
       if (!prev) return prev;
       return {
         ...prev,
-        pages: prev.pages.map((page) => ({
-          ...page,
-          items: page.items.filter(
+        pages: prev.pages.map((page) => {
+          const items = page.items.filter(
             (item) => !entityIds.has(getSoupItemId(item))
-          ),
-        })),
+          );
+          return items.length === page.items.length ? page : { ...page, items };
+        }),
       };
     }
   );
@@ -201,12 +201,14 @@ export function removeSearchEntities(entityIds: Set<string>): SoupTrasaction {
     if (!prev) return prev;
     return {
       ...prev,
-      pages: prev.pages.map((page) => ({
-        ...page,
-        results: page.results.filter(
+      pages: prev.pages.map((page) => {
+        const results = page.results.filter(
           (result) => !entityIds.has(getSearchResultId(result))
-        ),
-      })),
+        );
+        return results.length === page.results.length
+          ? page
+          : { ...page, results };
+      }),
     };
   });
 
