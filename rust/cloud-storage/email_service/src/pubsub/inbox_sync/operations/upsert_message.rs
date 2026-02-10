@@ -18,7 +18,9 @@ use models_email::email::service::link;
 use models_email::email::service::message::SimpleMessage;
 use models_email::gmail::inbox_sync::{InboxSyncOperation, UpsertMessagePayload};
 use models_email::gmail::operations::GmailApiOperation;
-use models_email::service::attachment::{AttachmentUploadArgs, AttachmentUploadDestination};
+use models_email::service::attachment::{
+    AttachmentUploadArgs, AttachmentUploadDestination, AttachmentUploadMetadata,
+};
 use models_email::service::message::{Message, is_spam_or_trash};
 use models_email::service::pubsub::{DetailedError, FailureReason, ProcessingError};
 use notification::domain::models::SendNotificationRequestBuilder;
@@ -247,6 +249,7 @@ async fn handle_attachment_upload(
 
     let mut attachments = document_atts;
     attachments.extend(media_atts);
+    let attachments: Vec<AttachmentUploadMetadata> = Vec::new();
     if !attachments.is_empty() {
         let message_ids = attachments
             .iter()
