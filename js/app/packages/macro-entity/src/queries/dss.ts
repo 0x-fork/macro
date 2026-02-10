@@ -476,19 +476,18 @@ export function createMoveToProjectDssEntityMutation() {
       entity: EntityData & { type: 'document' | 'chat' | 'project' };
       project: { id: string };
     }) => {
-      // Only do optimistic updates for documents and chats
-      // Projects have complex path data that we can't compute client-side
       if (type !== 'project') {
-        optimisticUpdateSoupEntity({
+        return optimisticUpdateSoupEntity({
           tag: type,
           data: { id, projectId },
           frecency_score: 0,
         });
       }
     },
-    onSettled: (data, error, { entity: { id, type } }) => {
+    onSettled: (data, error, { entity: { id, type } }, context) => {
       const failed = data?.success === false || !!error;
       if (failed) {
+        context?.rollback();
         console.error(`Failed to move dss item ${id}`, data, error);
       }
 
@@ -636,22 +635,20 @@ export function createBulkMoveToProjectDssEntityMutation() {
       entities: (EntityData & { name: string })[];
       project: { id: string; name: string };
     }) => {
-      // Only do optimistic updates for documents and chats
-      // Projects have complex path data that we can't compute client-side
       const nonProjectEntities = entities.filter((e) => e.type !== 'project');
-
-      for (const e of nonProjectEntities) {
+      return nonProjectEntities.map((e) =>
         optimisticUpdateSoupEntity({
           tag: e.type,
           data: { id: e.id, projectId: project.id },
           frecency_score: 0,
-        });
-      }
+        })
+      );
     },
 
-    onSettled: (data, error, { entities }) => {
+    onSettled: (data, error, { entities }, context) => {
       const failed = data?.success === false || !!error;
       if (failed) {
+        context?.forEach((txn) => txn.rollback());
         console.error(`Failed to bulk move dss items`, entities, data, error);
       }
 

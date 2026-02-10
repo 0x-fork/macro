@@ -23,7 +23,6 @@ import {
 } from '@core/component/Properties/constants';
 import {
   removeSoupEntities,
-  getSoupEntityById,
   optimisticUpdateSoupEntity,
   invalidateSoupEntity,
   refetchSoupEntity,
@@ -389,15 +388,12 @@ export async function archiveEmail(
     const snapshot = removeSoupEntities(new Set([id]));
     soupRollback = () => snapshot.rollback();
   } else {
-    const previousEntity = getSoupEntityById(id);
-    optimisticUpdateSoupEntity({
+    const txn = optimisticUpdateSoupEntity({
       tag: 'emailThread',
       data: { id, inboxVisible: false },
       frecency_score: 0,
     });
-    soupRollback = previousEntity
-      ? () => optimisticUpdateSoupEntity(previousEntity)
-      : undefined;
+    soupRollback = () => txn.rollback();
   }
 
   // Optimistic update for email queries

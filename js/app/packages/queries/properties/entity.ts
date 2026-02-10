@@ -29,6 +29,7 @@ import {
   getSoupEntityById,
   optimisticUpdateSoupEntity,
   invalidateSoupEntity,
+  type SoupTrasaction,
 } from '../soup/cache';
 
 export function useEntityPropertiesQuery(
@@ -95,7 +96,7 @@ export type SaveEntityPropertyParams = {
   apiValues: PropertyApiValues;
 };
 
-type SaveEntityPropertyContext = void;
+type SaveEntityPropertyContext = SoupTrasaction | undefined;
 
 /**
  * Converts PropertyApiValues to the SoupProperty value format for optimistic updates.
@@ -175,7 +176,7 @@ export function useSaveEntityPropertyMutation(
 
       if (current && currentData?.properties) {
         const soupValue = apiValuesToSoupPropertyValue(vars.apiValues);
-        optimisticUpdateSoupEntity({
+        return optimisticUpdateSoupEntity({
           ...current,
           data: {
             ...currentData,
@@ -188,7 +189,12 @@ export function useSaveEntityPropertyMutation(
         });
       }
     },
-    onError: (error: Error) => {
+    onError: (
+      error: Error,
+      _vars: SaveEntityPropertyParams,
+      context: SaveEntityPropertyContext
+    ) => {
+      context?.rollback();
       console.error('Failed to save property', error);
       toast.failure('Failed to save property');
     },
@@ -293,6 +299,7 @@ export type SetPropertyStatusCompleteParams = {
 type SetPropertyStatusCompleteContext = {
   previousEntityProperties: [QueryKey, Property[] | undefined][];
   previousBulkProperties: [QueryKey, BulkEntityPropertiesData | undefined][];
+  soupTxn?: SoupTrasaction;
 };
 
 /**
@@ -415,8 +422,9 @@ export function useSetPropertyStatusCompleteMutation(
         | { properties?: SoupProperty[] }
         | undefined;
 
+      let soupTxn: SoupTrasaction | undefined;
       if (current && currentData?.properties) {
-        optimisticUpdateSoupEntity({
+        soupTxn = optimisticUpdateSoupEntity({
           ...current,
           data: {
             ...currentData,
@@ -428,6 +436,7 @@ export function useSetPropertyStatusCompleteMutation(
       return {
         previousEntityProperties,
         previousBulkProperties,
+        soupTxn,
       };
     },
     onError: (
@@ -437,9 +446,8 @@ export function useSetPropertyStatusCompleteMutation(
     ) => {
       console.error('Failed to set status complete', error);
 
-      // Rollback optimistic updates for property queries
-      // (soup rollback is unnecessary — onSettled invalidation refetches server truth)
       if (context) {
+        context.soupTxn?.rollback();
         for (const [key, data] of context.previousEntityProperties) {
           queryClient.setQueryData(key, data);
         }

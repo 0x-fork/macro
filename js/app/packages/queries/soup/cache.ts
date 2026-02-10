@@ -71,8 +71,31 @@ type NormalizerData = Parameters<
  */
 export function optimisticUpdateSoupEntity(
   partial: Record<string, unknown>
-): void {
-  getSoupNormalizer().setNormalizedData(partial as NormalizerData);
+): SoupTrasaction {
+  const normalizer = getSoupNormalizer();
+  const normKey = getNormalizationObjectKey(partial);
+
+  const dependentKeys = normKey
+    ? normalizer.getDependentQueriesByIds([normKey])
+    : [];
+
+  const previous = dependentKeys.map(
+    (key) =>
+      [
+        key,
+        queryClient.getQueryData<InfiniteData<SoupPage, unknown>>(key),
+      ] as const
+  );
+
+  normalizer.setNormalizedData(partial as NormalizerData);
+
+  return {
+    rollback: () => {
+      for (const [key, data] of previous) {
+        queryClient.setQueryData(key, data);
+      }
+    },
+  };
 }
 
 /**
@@ -111,8 +134,8 @@ export function hasSoupEntity(entityId: string): boolean {
   return getSoupNormalizer().getObjectById(`soup:${entityId}`) != null;
 }
 
-export interface SoupCacheSnapshot {
-  rollback(): void;
+export interface SoupTrasaction {
+  rollback(): ReturnType<typeof restoreSnapshot>;
 }
 
 export function getSoupItemId(item: SoupApiItem): string {
@@ -156,7 +179,7 @@ function restoreSnapshot(
   }
 }
 
-export function removeSoupEntities(entityIds: Set<string>): SoupCacheSnapshot {
+export function removeSoupEntities(entityIds: Set<string>): SoupTrasaction {
   queryClient.cancelQueries({ queryKey: soupKeys.items._def });
 
   const previous = snapshotSoup();
@@ -180,9 +203,7 @@ export function removeSoupEntities(entityIds: Set<string>): SoupCacheSnapshot {
   return { rollback: () => restoreSnapshot(previous) };
 }
 
-export function removeSearchEntities(
-  entityIds: Set<string>
-): SoupCacheSnapshot {
+export function removeSearchEntities(entityIds: Set<string>): SoupTrasaction {
   queryClient.cancelQueries({ queryKey: soupKeys.search._def });
 
   const previous = queryClient.getQueriesData<
