@@ -300,6 +300,12 @@ export const buildDssFiltersRequest = (
     .filter((f) => ENTITY_TYPE_FILTERS.includes(f.id as EntityTypeFilters))
     .map((f) => f.id);
 
+  const importance = filters.some((f) => f.id === 'signal')
+    ? true
+    : filters.some((f) => f.id === 'noise')
+      ? false
+      : undefined;
+
   const {
     channel_filters,
     document_filters,
@@ -311,12 +317,14 @@ export const buildDssFiltersRequest = (
   return {
     channel_filters: {
       ...channel_filters,
+      importance,
       channel_ids:
         channel_filters?.channel_ids ??
         buildDefaultValue(entityTypes, ['teams', 'people']),
     },
     document_filters: {
       ...document_filters,
+      importance,
       document_ids:
         document_filters?.document_ids ??
         buildDefaultValue(entityTypes, ['file', 'document', 'task']),
@@ -325,12 +333,14 @@ export const buildDssFiltersRequest = (
     },
     chat_filters: {
       ...chat_filters,
+      importance,
       chat_ids:
         chat_filters?.chat_ids ?? buildDefaultValue(entityTypes, ['agent']),
       project_ids: chat_filters?.project_ids ?? [],
     },
     email_filters: {
       ...email_filters,
+      importance,
       recipients:
         email_filters?.recipients ??
         (context?.emailActive &&
@@ -341,10 +351,11 @@ export const buildDssFiltersRequest = (
     },
     project_filters: {
       ...project_filters,
+      importance,
       project_ids:
         project_filters?.project_ids ??
         buildDefaultValue(entityTypes, ['file']),
     },
-    emailView: 'all',
+    emailView: importance !== undefined ? 'inbox' : 'all',
   };
 };
