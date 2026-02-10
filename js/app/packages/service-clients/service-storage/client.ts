@@ -551,7 +551,7 @@ export const storageServiceClient = {
     return mapOk(
       await dssFetch<SuccessResponse>(`/documents/metadata/modification-data`, {
         method: 'PATCH',
-        // body: JSON.stringify(uploadData, modificationDataReplacer),
+        body: JSON.stringify(uploadData, modificationDataReplacer),
       }),
       (result) => result.data
     );

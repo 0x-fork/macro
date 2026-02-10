@@ -1,6 +1,10 @@
 export { initSoupNormalizer, getSoupNormalizer } from './normalizer';
 export type { NormalizerData } from './normalizer';
-export type { SoupTrasaction, SoupEntityTag, SoupEntityPartial } from './types';
+export type {
+  SoupTransaction,
+  SoupEntityTag,
+  SoupEntityPartial,
+} from './types';
 export {
   optimisticUpdateSoupEntity,
   insertSoupEntity,

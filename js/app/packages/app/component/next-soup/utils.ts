@@ -25,7 +25,6 @@ import {
   removeSoupEntities,
   optimisticUpdateSoupEntity,
   invalidateSoupEntity,
-  refetchSoupEntity,
 } from '@queries/soup/cache';
 import { match } from 'ts-pattern';
 
@@ -382,19 +381,13 @@ export async function archiveEmail(
     queryKey: queryKeys.all.email,
   });
 
-  // Optimistic update for soup cache
-  let soupRollback: (() => void) | undefined;
-  if (options.optimisticallyExclude) {
-    const snapshot = removeSoupEntities(new Set([id]));
-    soupRollback = () => snapshot.rollback();
-  } else {
-    const txn = optimisticUpdateSoupEntity({
-      tag: 'emailThread',
-      data: { id, inboxVisible: false },
-      frecency_score: 0,
-    });
-    soupRollback = () => txn.rollback();
-  }
+  const soupTxn = options.optimisticallyExclude
+    ? removeSoupEntities(new Set([id]))
+    : optimisticUpdateSoupEntity({
+        tag: 'emailThread',
+        data: { id, inboxVisible: false },
+        frecency_score: 0,
+      });
 
   // Optimistic update for email queries
   const applyEmailOptimistic = (data?: {
@@ -422,8 +415,7 @@ export async function archiveEmail(
   try {
     await emailClient.flagArchived({ value: !options.isDone, id });
   } catch (_err) {
-    // rollback on error
-    soupRollback?.();
+    soupTxn.rollback();
     for (const [key, data] of previousEmail) {
       queryClient.setQueryData(key, data);
     }

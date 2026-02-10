@@ -1,6 +1,6 @@
 import type { SoupApiItem } from '@service-storage/generated/schemas';
 
-export interface SoupTrasaction {
+export interface SoupTransaction {
   rollback(): void;
 }
 

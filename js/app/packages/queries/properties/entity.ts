@@ -28,7 +28,7 @@ import {
   getSoupEntityById,
   optimisticUpdateSoupEntity,
   invalidateSoupEntity,
-  type SoupTrasaction,
+  type SoupTransaction,
 } from '../soup/cache';
 
 export function useEntityPropertiesQuery(
@@ -95,7 +95,7 @@ export type SaveEntityPropertyParams = {
   apiValues: PropertyApiValues;
 };
 
-type SaveEntityPropertyContext = SoupTrasaction | undefined;
+type SaveEntityPropertyContext = SoupTransaction | undefined;
 
 /**
  * Converts PropertyApiValues to the SoupProperty value format for optimistic updates.
@@ -297,7 +297,7 @@ export type SetPropertyStatusCompleteParams = {
 type SetPropertyStatusCompleteContext = {
   previousEntityProperties: [QueryKey, Property[] | undefined][];
   previousBulkProperties: [QueryKey, BulkEntityPropertiesData | undefined][];
-  soupTxn?: SoupTrasaction;
+  soupTxn?: SoupTransaction;
 };
 
 /**
@@ -417,7 +417,7 @@ export function useSetPropertyStatusCompleteMutation(
       // Optimistically update soup queries (embedded properties on entities)
       const current = getSoupEntityById(vars.entityId);
 
-      let soupTxn: SoupTrasaction | undefined;
+      let soupTxn: SoupTransaction | undefined;
       if (current && current.tag !== 'channel' && current.data.properties) {
         soupTxn = optimisticUpdateSoupEntity({
           tag: current.tag,
@@ -530,12 +530,6 @@ export function useBulkSaveEntityPropertiesMutation(
           entityGroups.forEach((entityIds, entityType) => {
             entityIds.forEach((entityId) => {
               invalidatePropertiesForEntity(entityType, entityId);
-            });
-          });
-
-          // Invalidate soup queries for affected entities
-          entityGroups.forEach((entityIds) => {
-            entityIds.forEach((entityId) => {
               invalidateSoupEntity(entityId);
             });
           });

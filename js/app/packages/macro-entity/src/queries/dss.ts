@@ -45,10 +45,8 @@ import {
   removeSearchEntities,
   getSoupEntityById,
   optimisticUpdateSoupEntity,
-  invalidateAllSoup,
   invalidateSoupEntity,
   refetchSoupEntity,
-  hasSoupEntity,
 } from '@queries/soup/cache';
 
 const resolveDocumentEntityName = (
@@ -698,7 +696,3 @@ export function optimisticUpdateDssItemViewedAt(itemId: string) {
     });
   }
 }
-
-export const hasSoupItem = hasSoupEntity;
-
-export const invalidateSoup = invalidateAllSoup;

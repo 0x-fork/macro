@@ -15,7 +15,7 @@ import { setHistoryItemName } from '@queries/history/history';
 import { createCognitionWebsocketEffect } from '@service-cognition/websocket';
 import {
   optimisticUpdateSoupEntity,
-  type SoupTrasaction,
+  type SoupTransaction,
 } from '@queries/soup/cache';
 
 type RenamableEntity = Pick<EntityData, 'id' | 'type' | 'name'> &
@@ -35,7 +35,7 @@ type ChannelRenameContexts = Map<string, UpdateChannelNameContext | undefined>;
 
 type RenameRollbackContext = {
   channels: ChannelRenameContexts;
-  soupTransactions: SoupTrasaction[];
+  soupTransactions: SoupTransaction[];
 };
 
 type EntityRenameData = {
@@ -97,7 +97,7 @@ const validateEntityRename = (entity: EntityData): void => {
 
 const renameDssSetData = (
   entities: EntityRenameOptimisticInfo[]
-): SoupTrasaction[] => {
+): SoupTransaction[] => {
   return entities.flatMap(({ id, itemType, newName }) => {
     if (itemType === 'channel') {
       return optimisticUpdateSoupEntity({
@@ -231,7 +231,7 @@ const bulkRenameOnSettled = (
   // Rollback only the failed items by matching indices
   const failedUpdates: EntityRenameData[] = [];
   const failedChannelContexts: ChannelRenameContexts = new Map();
-  const failedSoupTransactions: SoupTrasaction[] = [];
+  const failedSoupTransactions: SoupTransaction[] = [];
 
   data.forEach((result, index) => {
     if (!result.success) {

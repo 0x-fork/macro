@@ -13,7 +13,11 @@ import {
   getNormalizationObjectKey,
   type NormalizerData,
 } from './normalizer';
-import type { SoupTrasaction, SoupEntityTag, SoupEntityPartial } from './types';
+import type {
+  SoupTransaction,
+  SoupEntityTag,
+  SoupEntityPartial,
+} from './types';
 
 /**
  * Optimistically update a single soup entity across all queries that reference it.
@@ -26,7 +30,7 @@ import type { SoupTrasaction, SoupEntityTag, SoupEntityPartial } from './types';
  */
 export function optimisticUpdateSoupEntity<T extends SoupEntityTag>(
   partial: SoupEntityPartial<T>
-): SoupTrasaction {
+): SoupTransaction {
   const record = partial as unknown as Record<string, unknown>;
   const normalizer = getSoupNormalizer();
   const normKey = getNormalizationObjectKey(record);
@@ -56,8 +60,9 @@ export function optimisticUpdateSoupEntity<T extends SoupEntityTag>(
 
 /** Read an entity from normy's normalized store by ID. Returns `undefined` if not cached. */
 export function getSoupEntityById(entityId: string): SoupApiItem | undefined {
-  const obj = getSoupNormalizer().getObjectById(`soup:${entityId}`);
-  return (obj as SoupApiItem | undefined) ?? undefined;
+  return (getSoupNormalizer().getObjectById(`soup:${entityId}`) ?? undefined) as
+    | SoupApiItem
+    | undefined;
 }
 
 /**
@@ -133,7 +138,7 @@ function restoreSnapshot(
  * Use for entities that don't yet exist in the cache. For existing entities use
  * `optimisticUpdateSoupEntity` (deep-merge) instead.
  */
-export function insertSoupEntity(item: SoupApiItem): SoupTrasaction {
+export function insertSoupEntity(item: SoupApiItem): SoupTransaction {
   const previous = snapshotSoup();
 
   queryClient.setQueriesData<InfiniteData<SoupPage, unknown>>(
@@ -158,7 +163,7 @@ export function insertSoupEntity(item: SoupApiItem): SoupTrasaction {
  * Cancels in-flight fetches first to prevent them from re-adding removed items.
  * Snapshots the full soup cache before mutating — rollback restores everything.
  */
-export function removeSoupEntities(entityIds: Set<string>): SoupTrasaction {
+export function removeSoupEntities(entityIds: Set<string>): SoupTransaction {
   queryClient.cancelQueries({ queryKey: soupKeys.items._def });
 
   const previous = snapshotSoup();
@@ -186,7 +191,7 @@ export function removeSoupEntities(entityIds: Set<string>): SoupTrasaction {
  * Optimistically remove entities from all search result queries.
  * Same cancel-snapshot-mutate pattern as `removeSoupEntities` but targets search queries.
  */
-export function removeSearchEntities(entityIds: Set<string>): SoupTrasaction {
+export function removeSearchEntities(entityIds: Set<string>): SoupTransaction {
   queryClient.cancelQueries({ queryKey: soupKeys.search._def });
 
   const previous = queryClient.getQueriesData<
