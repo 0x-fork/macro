@@ -6,7 +6,7 @@ use crate::models::{
     DocumentBasic, DocumentMetadata, DocumentPreviewData, response::GetDocumentListResult,
 };
 use chrono::Utc;
-use entity_access::domain::models::AccessError;
+use entity_access::domain::models::{AccessError, EntityPermission};
 use macro_user_id::lowercased::Lowercase;
 use macro_user_id::user_id::MacroUserId;
 use std::sync::Arc;
@@ -52,6 +52,20 @@ impl EntityAccessService for MockEntityAccess {
         match *level {
             Some(l) if l >= required_level => Ok(l),
             _ => Err(AccessError::Unauthorized),
+        }
+    }
+
+    async fn get_entity_permission(
+        &self,
+        _user_id: &MacroUserId<Lowercase<'_>>,
+        _entity_id: &str,
+        _entity_type: EntityType,
+        _user_org_id: Option<i64>,
+    ) -> std::result::Result<EntityPermission, AccessError> {
+        let level = self.access_level.lock().await;
+        match *level {
+            Some(l) => Ok(EntityPermission::AccessLevel { access_level: l }),
+            None => Err(AccessError::Unauthorized),
         }
     }
 }
