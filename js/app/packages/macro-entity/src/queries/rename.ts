@@ -98,7 +98,7 @@ const validateEntityRename = (entity: EntityData): void => {
 const renameDssSetData = (
   entities: EntityRenameOptimisticInfo[]
 ): SoupTrasaction[] => {
-  return entities.map(({ id, itemType, newName }) => {
+  return entities.flatMap(({ id, itemType, newName }) => {
     if (itemType === 'channel') {
       return optimisticUpdateSoupEntity({
         tag: 'channel',
@@ -106,6 +106,7 @@ const renameDssSetData = (
         frecency_score: 0,
       });
     }
+    if (itemType === 'email') return [];
     return optimisticUpdateSoupEntity({
       tag: itemType,
       data: { id, name: newName },

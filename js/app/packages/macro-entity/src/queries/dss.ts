@@ -645,8 +645,11 @@ export function createBulkMoveToProjectDssEntityMutation() {
       entities: (EntityData & { name: string })[];
       project: { id: string; name: string };
     }) => {
-      const nonProjectEntities = entities.filter((e) => e.type !== 'project');
-      return nonProjectEntities.map((e) =>
+      const moveableEntities = entities.filter(
+        (e): e is typeof e & { type: 'document' | 'chat' } =>
+          e.type === 'document' || e.type === 'chat'
+      );
+      return moveableEntities.map((e) =>
         optimisticUpdateSoupEntity({
           tag: e.type,
           data: { id: e.id, projectId: project.id },
@@ -676,7 +679,7 @@ export function createBulkMoveToProjectDssEntityMutation() {
  * Updates the item across all DSS queries if it exists.
  */
 export function optimisticUpdateDssItemViewedAt(itemId: string) {
-  const current = getSoupEntityById(itemId) as { tag: string } | undefined;
+  const current = getSoupEntityById(itemId);
   if (!current) return;
 
   const now = new Date();

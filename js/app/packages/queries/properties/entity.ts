@@ -19,7 +19,7 @@ import {
   propertiesServiceClient,
 } from '../../service-clients/service-properties/client';
 import type { EntityType } from '../../service-clients/service-properties/generated/schemas/entityType';
-import type { SoupProperty } from '../../service-clients/service-storage/generated/schemas/soupProperty';
+import type { SoupPropertyValue } from '../../service-clients/service-storage/generated/schemas/soupPropertyValue';
 import { queryClient } from '../client';
 import { type MutationCallbacks, withCallbacks } from '../utils';
 import { propertiesKeys } from './keys';
@@ -102,7 +102,7 @@ type SaveEntityPropertyContext = SoupTrasaction | undefined;
  */
 function apiValuesToSoupPropertyValue(
   apiValues: PropertyApiValues
-): { type: string; value: unknown } | null {
+): SoupPropertyValue {
   switch (apiValues.valueType) {
     case 'STRING':
       return apiValues.value != null
@@ -169,22 +169,21 @@ export function useSaveEntityPropertyMutation(
       vars: SaveEntityPropertyParams
     ): Promise<SaveEntityPropertyContext> => {
       const current = getSoupEntityById(vars.entityId);
-      const currentData = current?.data as
-        | { properties?: SoupProperty[] }
-        | undefined;
+      if (!current || current.tag === 'channel') return;
 
-      if (current && currentData?.properties) {
-        const soupValue = apiValuesToSoupPropertyValue(vars.apiValues);
+      const soupValue = apiValuesToSoupPropertyValue(vars.apiValues);
+      if (current.data.properties) {
         return optimisticUpdateSoupEntity({
-          ...current,
+          tag: current.tag,
           data: {
-            ...currentData,
-            properties: currentData.properties.map((prop) =>
+            id: current.data.id,
+            properties: current.data.properties.map((prop) =>
               prop.definition.id === vars.property.propertyDefinitionId
                 ? { ...prop, value: soupValue }
                 : prop
             ),
           },
+          frecency_score: current.frecency_score,
         });
       }
     },
@@ -417,18 +416,18 @@ export function useSetPropertyStatusCompleteMutation(
 
       // Optimistically update soup queries (embedded properties on entities)
       const current = getSoupEntityById(vars.entityId);
-      const currentData = current?.data as
-        | { properties?: SoupProperty[] }
-        | undefined;
 
       let soupTxn: SoupTrasaction | undefined;
-      if (current && currentData?.properties) {
+      if (current && current.tag !== 'channel' && current.data.properties) {
         soupTxn = optimisticUpdateSoupEntity({
-          ...current,
+          tag: current.tag,
           data: {
-            ...currentData,
-            properties: updateStatusPropertyToCompleted(currentData.properties),
+            id: current.data.id,
+            properties: updateStatusPropertyToCompleted(
+              current.data.properties
+            ),
           },
+          frecency_score: current.frecency_score,
         });
       }
 

@@ -13,7 +13,7 @@ import {
   getNormalizationObjectKey,
   type NormalizerData,
 } from './normalizer';
-import type { SoupTrasaction, SoupEntityTag } from './types';
+import type { SoupTrasaction, SoupEntityTag, SoupEntityPartial } from './types';
 
 /**
  * Optimistically update a single soup entity across all queries that reference it.
@@ -24,11 +24,12 @@ import type { SoupTrasaction, SoupEntityTag } from './types';
  * Channels: `{ tag: 'channel', data: { channel: { id, ...fields } }, frecency_score }`
  * Everything else: `{ tag, data: { id, ...fields }, frecency_score }`
  */
-export function optimisticUpdateSoupEntity(
-  partial: Record<string, unknown>
+export function optimisticUpdateSoupEntity<T extends SoupEntityTag>(
+  partial: SoupEntityPartial<T>
 ): SoupTrasaction {
+  const record = partial as unknown as Record<string, unknown>;
   const normalizer = getSoupNormalizer();
-  const normKey = getNormalizationObjectKey(partial);
+  const normKey = getNormalizationObjectKey(record);
 
   const dependentKeys = normKey
     ? normalizer.getDependentQueriesByIds([normKey])
@@ -42,7 +43,7 @@ export function optimisticUpdateSoupEntity(
       ] as const
   );
 
-  normalizer.setNormalizedData(partial as NormalizerData);
+  normalizer.setNormalizedData(record as NormalizerData);
 
   return {
     rollback: () => {
@@ -54,11 +55,9 @@ export function optimisticUpdateSoupEntity(
 }
 
 /** Read an entity from normy's normalized store by ID. Returns `undefined` if not cached. */
-export function getSoupEntityById(
-  entityId: string
-): Record<string, unknown> | undefined {
+export function getSoupEntityById(entityId: string): SoupApiItem | undefined {
   const obj = getSoupNormalizer().getObjectById(`soup:${entityId}`);
-  return (obj as Record<string, unknown> | undefined) ?? undefined;
+  return (obj as SoupApiItem | undefined) ?? undefined;
 }
 
 /**
@@ -134,9 +133,7 @@ function restoreSnapshot(
  * Use for entities that don't yet exist in the cache. For existing entities use
  * `optimisticUpdateSoupEntity` (deep-merge) instead.
  */
-export function insertSoupEntity(
-  item: Record<string, unknown>
-): SoupTrasaction {
+export function insertSoupEntity(item: SoupApiItem): SoupTrasaction {
   const previous = snapshotSoup();
 
   queryClient.setQueriesData<InfiniteData<SoupPage, unknown>>(
@@ -147,7 +144,7 @@ export function insertSoupEntity(
         ...prev,
         pages: prev.pages.map((p, i) => {
           if (i !== 0) return p;
-          return { ...p, items: [item as SoupApiItem, ...p.items] };
+          return { ...p, items: [item, ...p.items] };
         }),
       };
     }
@@ -272,10 +269,9 @@ export async function refetchSoupEntity(
 
   const item = page.items[0];
 
-  const asRecord = item as unknown as Record<string, unknown>;
   if (hasSoupEntity(entityId)) {
-    optimisticUpdateSoupEntity(asRecord);
+    optimisticUpdateSoupEntity(item);
   } else {
-    insertSoupEntity(asRecord);
+    insertSoupEntity(item);
   }
 }
