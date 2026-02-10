@@ -1,5 +1,6 @@
 use crate::map_soup_type;
 use crate::outbound::pg_soup_repo::{populate_properties, type_err};
+use chrono::{DateTime, Utc};
 use document_sub_type::DocumentSubType;
 use macro_user_id::cowlike::CowLike;
 use macro_user_id::user_id::MacroUserIdStr;
@@ -308,6 +309,405 @@ r#"
         .try_map(map_soup_type!())
         .fetch_all(db)
         .await?;
+
+    populate_properties(db, &mut items).await?;
+
+    Ok(items)
+}
+
+/// Extracts the sort timestamp from a SoupItem based on the sort method.
+/// This mirrors the SQL CASE expression used in the query's sort_ts column.
+fn sort_ts_for_item(item: &SoupItem, sort_method: &SimpleSortMethod) -> DateTime<Utc> {
+    match item {
+        SoupItem::Document(d) => match sort_method {
+            SimpleSortMethod::ViewedUpdated => d.viewed_at.unwrap_or(d.updated_at),
+            SimpleSortMethod::ViewedAt => d.viewed_at.unwrap_or(DateTime::<Utc>::UNIX_EPOCH),
+            SimpleSortMethod::CreatedAt => d.created_at,
+            SimpleSortMethod::UpdatedAt => d.updated_at,
+        },
+        SoupItem::Chat(c) => match sort_method {
+            SimpleSortMethod::ViewedUpdated => c.viewed_at.unwrap_or(c.updated_at),
+            SimpleSortMethod::ViewedAt => c.viewed_at.unwrap_or(DateTime::<Utc>::UNIX_EPOCH),
+            SimpleSortMethod::CreatedAt => c.created_at,
+            SimpleSortMethod::UpdatedAt => c.updated_at,
+        },
+        SoupItem::Project(p) => match sort_method {
+            SimpleSortMethod::ViewedUpdated => p.viewed_at.unwrap_or(p.updated_at),
+            SimpleSortMethod::ViewedAt => p.viewed_at.unwrap_or(DateTime::<Utc>::UNIX_EPOCH),
+            SimpleSortMethod::CreatedAt => p.created_at,
+            SimpleSortMethod::UpdatedAt => p.updated_at,
+        },
+        // EmailThread and Channel are not used by this query
+        _ => DateTime::<Utc>::UNIX_EPOCH,
+    }
+}
+
+/// Extracts the id from a SoupItem for use as a tiebreaker in sorting.
+fn id_for_item(item: &SoupItem) -> Uuid {
+    match item {
+        SoupItem::Document(d) => d.id,
+        SoupItem::Chat(c) => c.id,
+        SoupItem::Project(p) => p.id,
+        _ => Uuid::nil(),
+    }
+}
+
+/// Same as [expanded_generic_cursor_soup] but splits the query into three
+/// parallel queries (one per item type: document, chat, project) to avoid
+/// materializing all accessible items in a single UNION ALL before sorting.
+///
+/// Each sub-query independently computes the CTE chain and fetches the top N
+/// items of its type. Results are merged and sorted in Rust.
+#[tracing::instrument(skip(db, limit))]
+pub async fn expanded_generic_cursor_soup_2(
+    db: &PgPool,
+    user_id: MacroUserIdStr<'_>,
+    limit: u16,
+    cursor: Query<Uuid, SimpleSortMethod, ()>,
+) -> Result<Vec<SoupItem>, sqlx::Error> {
+    let query_limit = limit as i64;
+    let sort_method_str = cursor.sort_method().to_string();
+    let sort_method = *cursor.sort_method();
+    let (cursor_id, cursor_timestamp) = cursor.vals();
+    let cursor_id = cursor_id.as_ref().map(|u| u.to_string());
+
+    let status_property_id = SystemPropertyKey::STATUS_UUID;
+    let completed_option_id = StatusOption::COMPLETED_UUID.to_string();
+
+    let user_id_ref = user_id.as_ref();
+
+    let documents_fut = sqlx::query!(
+r#"
+        WITH RECURSIVE ProjectHierarchy AS (
+            SELECT p.id, uia.access_level
+            FROM "Project" p
+            JOIN "UserItemAccess" uia ON p.id = uia.item_id AND uia.item_type = 'project'
+            WHERE uia.user_id = $1 AND p."deletedAt" IS NULL
+            UNION ALL
+            SELECT p.id, ph.access_level
+            FROM "Project" p
+            JOIN ProjectHierarchy ph ON p."parentId" = ph.id
+            WHERE p."deletedAt" IS NULL
+        ),
+        AllAccessGrants AS (
+            SELECT item_id, item_type, access_level
+            FROM "UserItemAccess"
+            WHERE user_id = $1
+
+            UNION ALL
+
+            SELECT d.id AS item_id, 'document' AS item_type,
+                   (SELECT ph.access_level FROM ProjectHierarchy ph WHERE ph.id = d."projectId" LIMIT 1) as access_level
+            FROM "Document" d
+            WHERE d."projectId" = ANY(ARRAY(SELECT id FROM ProjectHierarchy))
+              AND d."deletedAt" IS NULL
+        ),
+        UserAccessibleItems AS (
+            SELECT DISTINCT ON (item_id, item_type) item_id, item_type
+            FROM AllAccessGrants
+            ORDER BY item_id, item_type,
+                CASE access_level
+                    WHEN 'owner' THEN 4
+                    WHEN 'edit' THEN 3
+                    WHEN 'comment' THEN 2
+                    WHEN 'view' THEN 1
+                    ELSE 0
+                END DESC
+        ),
+        TopItems AS (
+            SELECT id, sort_ts FROM (
+                SELECT
+                    d.id,
+                    CASE $2
+                        WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", d."updatedAt")
+                        WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
+                        WHEN 'created_at' THEN d."createdAt"
+                        ELSE d."updatedAt"
+                    END::timestamptz as sort_ts
+                FROM "Document" d
+                INNER JOIN UserAccessibleItems uai ON uai.item_id = d.id AND uai.item_type = 'document'
+                LEFT JOIN "UserHistory" uh ON uh."itemId" = d.id AND uh."itemType" = 'document' AND uh."userId" = $1
+                WHERE d."deletedAt" IS NULL
+            ) all_items
+            WHERE
+                ($4::timestamptz IS NULL)
+                OR
+                (sort_ts, id::text) < ($4, $5)
+            ORDER BY sort_ts DESC, id DESC
+            LIMIT $3
+        )
+
+        SELECT
+            'document' as "item_type!",
+            d.id as "id!",
+            CAST(COALESCE(di.id, db.id) as TEXT) as "document_version_id",
+            d.owner as "user_id!",
+            d.name as "name!",
+            d."branchedFromId" as "branched_from_id",
+            d."branchedFromVersionId" as "branched_from_version_id",
+            d."documentFamilyId" as "document_family_id",
+            d."fileType" as "file_type",
+            d."createdAt"::timestamptz as "created_at!",
+            d."updatedAt"::timestamptz as "updated_at!",
+            d."projectId" as "project_id",
+            NULL::boolean as "is_persistent",
+            di.sha as "sha",
+            dt.sub_type as "sub_type?: DocumentSubType",
+            uh."updatedAt"::timestamptz as "viewed_at",
+            t.sort_ts as "sort_ts!",
+            CASE
+                WHEN dt.sub_type = 'task'
+                    AND ep_status.values->'value' ? $6
+                THEN true
+                WHEN dt.sub_type = 'task'
+                THEN false
+                ELSE NULL
+            END as "is_completed",
+            d."deletedAt"::timestamptz as "deleted_at"
+        FROM TopItems t
+        INNER JOIN "Document" d ON d.id = t.id
+        LEFT JOIN document_sub_type dt ON dt.document_id = d.id
+        LEFT JOIN entity_properties ep_status
+            ON dt.sub_type = 'task'
+            AND ep_status.entity_id = d.id
+            AND ep_status.entity_type = 'TASK'
+            AND ep_status.property_definition_id = $7
+        LEFT JOIN "UserHistory" uh
+            ON uh."itemId" = d.id AND uh."itemType" = 'document' AND uh."userId" = $1
+        LEFT JOIN LATERAL (
+            SELECT b.id
+            FROM "DocumentBom" b
+            WHERE b."documentId" = d.id
+            ORDER BY b."createdAt" DESC
+            LIMIT 1
+        ) db ON true
+        LEFT JOIN LATERAL (
+            SELECT i.id, i.sha
+            FROM "DocumentInstance" i
+            WHERE i."documentId" = d.id
+            ORDER BY i."updatedAt" DESC
+            LIMIT 1
+        ) di ON true
+        ORDER BY t.sort_ts DESC, d.id DESC
+        LIMIT $3
+"#,
+        user_id_ref,         // $1
+        sort_method_str,     // $2
+        query_limit,         // $3
+        cursor_timestamp,    // $4
+        cursor_id,           // $5
+        completed_option_id, // $6
+        status_property_id,  // $7
+    )
+        .try_map(map_soup_type!())
+        .fetch_all(db);
+
+    let chats_fut = sqlx::query!(
+r#"
+        WITH RECURSIVE ProjectHierarchy AS (
+            SELECT p.id, uia.access_level
+            FROM "Project" p
+            JOIN "UserItemAccess" uia ON p.id = uia.item_id AND uia.item_type = 'project'
+            WHERE uia.user_id = $1 AND p."deletedAt" IS NULL
+            UNION ALL
+            SELECT p.id, ph.access_level
+            FROM "Project" p
+            JOIN ProjectHierarchy ph ON p."parentId" = ph.id
+            WHERE p."deletedAt" IS NULL
+        ),
+        AllAccessGrants AS (
+            SELECT item_id, item_type, access_level
+            FROM "UserItemAccess"
+            WHERE user_id = $1
+
+            UNION ALL
+
+            SELECT c.id AS item_id, 'chat' AS item_type, ph.access_level
+            FROM "Chat" c
+            JOIN ProjectHierarchy ph ON c."projectId" = ph.id
+            WHERE c."projectId" IS NOT NULL AND c."deletedAt" IS NULL
+        ),
+        UserAccessibleItems AS (
+            SELECT DISTINCT ON (item_id, item_type) item_id, item_type
+            FROM AllAccessGrants
+            ORDER BY item_id, item_type,
+                CASE access_level
+                    WHEN 'owner' THEN 4
+                    WHEN 'edit' THEN 3
+                    WHEN 'comment' THEN 2
+                    WHEN 'view' THEN 1
+                    ELSE 0
+                END DESC
+        ),
+        TopItems AS (
+            SELECT id, sort_ts FROM (
+                SELECT
+                    c.id,
+                    CASE $2
+                        WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", c."updatedAt")
+                        WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
+                        WHEN 'created_at' THEN c."createdAt"
+                        ELSE c."updatedAt"
+                    END::timestamptz as sort_ts
+                FROM "Chat" c
+                INNER JOIN UserAccessibleItems uai ON uai.item_id = c.id AND uai.item_type = 'chat'
+                LEFT JOIN "UserHistory" uh ON uh."itemId" = c.id AND uh."itemType" = 'chat' AND uh."userId" = $1
+                WHERE c."deletedAt" IS NULL
+            ) all_items
+            WHERE
+                ($3::timestamptz IS NULL)
+                OR
+                (sort_ts, id::text) < ($3, $4)
+            ORDER BY sort_ts DESC, id DESC
+            LIMIT $5
+        )
+
+        SELECT
+            'chat' as "item_type!",
+            c.id as "id!",
+            NULL::text as "document_version_id",
+            c."userId" as "user_id!",
+            c.name as "name!",
+            NULL::text as "branched_from_id",
+            NULL::bigint as "branched_from_version_id",
+            NULL::bigint as "document_family_id",
+            NULL::text as "file_type",
+            c."createdAt"::timestamptz as "created_at!",
+            c."updatedAt"::timestamptz as "updated_at!",
+            c."projectId" as "project_id",
+            c."isPersistent" as "is_persistent?",
+            NULL::text as "sha",
+            NULL::document_sub_type_value as "sub_type?: DocumentSubType",
+            uh."updatedAt"::timestamptz as "viewed_at",
+            t.sort_ts as "sort_ts!",
+            NULL::boolean as "is_completed",
+            c."deletedAt"::timestamptz as "deleted_at"
+        FROM TopItems t
+        INNER JOIN "Chat" c ON c.id = t.id
+        LEFT JOIN "UserHistory" uh
+            ON uh."itemId" = c.id AND uh."itemType" = 'chat' AND uh."userId" = $1
+        ORDER BY t.sort_ts DESC, c.id DESC
+        LIMIT $5
+"#,
+        user_id_ref,         // $1
+        sort_method_str,     // $2
+        cursor_timestamp,    // $3
+        cursor_id,           // $4
+        query_limit,         // $5
+    )
+        .try_map(map_soup_type!())
+        .fetch_all(db);
+
+    let projects_fut = sqlx::query!(
+r#"
+        WITH RECURSIVE ProjectHierarchy AS (
+            SELECT p.id, uia.access_level
+            FROM "Project" p
+            JOIN "UserItemAccess" uia ON p.id = uia.item_id AND uia.item_type = 'project'
+            WHERE uia.user_id = $1 AND p."deletedAt" IS NULL
+            UNION ALL
+            SELECT p.id, ph.access_level
+            FROM "Project" p
+            JOIN ProjectHierarchy ph ON p."parentId" = ph.id
+            WHERE p."deletedAt" IS NULL
+        ),
+        AllAccessGrants AS (
+            SELECT item_id, item_type, access_level
+            FROM "UserItemAccess"
+            WHERE user_id = $1
+
+            UNION ALL
+
+            SELECT ph.id AS item_id, 'project' AS item_type, ph.access_level
+            FROM ProjectHierarchy ph
+        ),
+        UserAccessibleItems AS (
+            SELECT DISTINCT ON (item_id, item_type) item_id, item_type
+            FROM AllAccessGrants
+            ORDER BY item_id, item_type,
+                CASE access_level
+                    WHEN 'owner' THEN 4
+                    WHEN 'edit' THEN 3
+                    WHEN 'comment' THEN 2
+                    WHEN 'view' THEN 1
+                    ELSE 0
+                END DESC
+        ),
+        TopItems AS (
+            SELECT id, sort_ts FROM (
+                SELECT
+                    p.id,
+                    CASE $2
+                        WHEN 'viewed_updated' THEN COALESCE(uh."updatedAt", p."updatedAt")
+                        WHEN 'viewed_at' THEN COALESCE(uh."updatedAt", '1970-01-01 00:00:00+00')
+                        WHEN 'created_at' THEN p."createdAt"
+                        ELSE p."updatedAt"
+                    END::timestamptz as sort_ts
+                FROM "Project" p
+                INNER JOIN UserAccessibleItems uai ON uai.item_id = p.id AND uai.item_type = 'project'
+                LEFT JOIN "UserHistory" uh ON uh."itemId" = p.id AND uh."itemType" = 'project' AND uh."userId" = $1
+                WHERE p."deletedAt" IS NULL
+            ) all_items
+            WHERE
+                ($3::timestamptz IS NULL)
+                OR
+                (sort_ts, id::text) < ($3, $4)
+            ORDER BY sort_ts DESC, id DESC
+            LIMIT $5
+        )
+
+        SELECT
+            'project' as "item_type!",
+            p.id as "id!",
+            NULL::text as "document_version_id",
+            p."userId" as "user_id!",
+            p.name as "name!",
+            NULL::text as "branched_from_id",
+            NULL::bigint as "branched_from_version_id",
+            NULL::bigint as "document_family_id",
+            NULL::text as "file_type",
+            p."createdAt"::timestamptz as "created_at!",
+            p."updatedAt"::timestamptz as "updated_at!",
+            p."parentId" as "project_id",
+            NULL::boolean as "is_persistent",
+            NULL::text as "sha",
+            NULL::document_sub_type_value as "sub_type?: DocumentSubType",
+            uh."updatedAt"::timestamptz as "viewed_at",
+            t.sort_ts as "sort_ts!",
+            NULL::boolean as "is_completed",
+            p."deletedAt"::timestamptz as "deleted_at"
+        FROM TopItems t
+        INNER JOIN "Project" p ON p.id = t.id
+        LEFT JOIN "UserHistory" uh
+            ON uh."itemId" = p.id AND uh."itemType" = 'project' AND uh."userId" = $1
+        ORDER BY t.sort_ts DESC, p.id DESC
+        LIMIT $5
+"#,
+        user_id_ref,         // $1
+        sort_method_str,     // $2
+        cursor_timestamp,    // $3
+        cursor_id,           // $4
+        query_limit,         // $5
+    )
+        .try_map(map_soup_type!())
+        .fetch_all(db);
+
+    let (documents, chats, projects) = tokio::try_join!(documents_fut, chats_fut, projects_fut)?;
+
+    let mut items: Vec<SoupItem> =
+        Vec::with_capacity(documents.len() + chats.len() + projects.len());
+    items.extend(documents);
+    items.extend(chats);
+    items.extend(projects);
+
+    items.sort_by(|a, b| {
+        let ts_a = sort_ts_for_item(a, &sort_method);
+        let ts_b = sort_ts_for_item(b, &sort_method);
+        ts_b.cmp(&ts_a)
+            .then_with(|| id_for_item(b).cmp(&id_for_item(a)))
+    });
+
+    items.truncate(limit as usize);
 
     populate_properties(db, &mut items).await?;
 
