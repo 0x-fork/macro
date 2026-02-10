@@ -11,12 +11,15 @@ import type {
 } from '@core/component/AI/types';
 import { useUploadAttachment } from '@core/component/AI/util/uploadToChat';
 import { ENABLE_AI_AUTO_TAB_ATTACHMENTS } from '@core/constant/featureFlags';
+import { connectionGatewayClient } from '@service-connection/client';
+import { subscribe, type Stream } from '@service-connection/stream';
 import type { Accessor, ParentProps, Setter } from 'solid-js';
 import {
   createContext,
   createEffect,
   createSignal,
   on,
+  untrack,
   useContext,
 } from 'solid-js';
 
@@ -29,6 +32,9 @@ export type ChatInputState = {
   setIsGenerating: (generating: boolean) => void;
   attachments: Attachments;
   uploadQueue: UploadQueue;
+  // True between sending the HTTP request and first stream chunk arriving
+  isAwaitingStream: Accessor<boolean>;
+  setIsAwaitingStream: (v: boolean) => void;
 };
 
 const ChatInputCtx = createContext<ChatInputState>();
@@ -47,6 +53,8 @@ export function ChatInputProvider(
   const [isGenerating, setIsGenerating] = createSignal<boolean>(
     props.isGenerating ?? false
   );
+
+  const [isAwaitingStream, setIsAwaitingStream] = createSignal(false);
 
   const attachments = useAttachments(props.initialAttachments);
   const uploadQueue = useUploadAttachment();
@@ -76,6 +84,8 @@ export function ChatInputProvider(
         setIsGenerating,
         attachments,
         uploadQueue,
+        isAwaitingStream,
+        setIsAwaitingStream,
       }}
     >
       {props.children}
@@ -102,6 +112,8 @@ export type ChatState = {
   addMessage: (msg: ChatMessageWithAttachments) => void;
   stream: Accessor<MessageStream | undefined>;
   setStream: Setter<MessageStream | undefined>;
+  // Connection gateway stream (for stop/cancel)
+  chatStream: Accessor<Stream<'chat'> | undefined> | undefined;
 };
 
 const ChatCtx = createContext<ChatState>();
@@ -146,15 +158,71 @@ export function ChatProvider(
     _setMessages((p) => [...p, msg]);
   };
 
+  // --- connection gateway subscription ---
+  const chatId = () => props.chatId;
+
+  // Track entity open/close for the connection gateway
+  createEffect(
+    on(chatId, (current, prev) => {
+      if (prev) {
+        connectionGatewayClient.trackEntity({
+          entity_type: 'chat',
+          entity_id: prev,
+          action: 'close',
+        });
+      }
+      if (current) {
+        connectionGatewayClient.trackEntity({
+          entity_type: 'chat',
+          entity_id: current,
+          action: 'open',
+        });
+      }
+    })
+  );
+
+  // Subscribe to connection gateway streams for this chat
+  const chatStream = subscribe(chatId, 'chat');
+
+  // Bridge: connection gateway Stream<"chat"> → MessageStream
+  const _setStream = setStream;
+  const inputCtx = useContext(ChatInputCtx);
+
+  createEffect(() => {
+    const cgStream = chatStream();
+    if (!cgStream) return;
+
+    // Dedup: stream_id matches chat message id — if already in messages, skip
+    const streamId = cgStream.id()?.stream_id;
+    if (streamId && untrack(() => messages()?.some((m) => m.id === streamId))) {
+      return;
+    }
+
+    inputCtx?.setIsAwaitingStream(false);
+
+    const bridged: MessageStream = {
+      data: cgStream.data,
+      isDone: cgStream.isDone,
+      isErr: () => false,
+      err: () => undefined,
+      close: () => {},
+      get request() {
+        return { stream_id: cgStream.id()?.stream_id } as any;
+      },
+    };
+    _setStream(bridged);
+  });
+
   return (
     <ChatCtx.Provider
       value={{
-        chatId: () => props.chatId,
+        chatId,
         messages,
         setMessages,
         addMessage,
         stream,
         setStream,
+        chatStream,
       }}
     >
       {props.children}

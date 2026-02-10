@@ -3,7 +3,7 @@ import { useIsAuthenticated } from '@core/auth';
 import { AiChatEmptyState } from '@core/component/AI/component/AIChatEmptyState';
 import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import { useBuildChatSendRequest } from '@core/component/AI/component/input/buildRequest';
-import { ChatInput } from '@core/component/AI/component/input/useChatInput';
+import { ChatInput } from '@core/component/AI/component/input/ChatInput';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
 import { ChatMessages } from '@core/component/AI/component/message/ChatMessages';
 import {
@@ -18,10 +18,9 @@ import { registerToolHandler } from '@core/component/AI/signal/tool';
 import type {
   Attachment,
   ChatMessageWithAttachments,
-  CreateAndSend,
+  ChatSendRequest,
   MessageStream,
   Model,
-  Send,
 } from '@core/component/AI/types';
 import { parseModel } from '@core/component/AI/util';
 import {
@@ -30,12 +29,13 @@ import {
 } from '@core/component/AI/util/storage';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
+import { Hotkey } from '@core/component/Hotkey';
 import { DropdownMenuContent, MenuItem } from '@core/component/Menu';
 import { ReferencesModal } from '@core/component/ReferencesModal';
-import { ShareButton } from '@core/component/TopBar/ShareButton';
-import { getPermissions } from '@core/component/SharePermissions';
-import type { Permissions } from '@core/component/SharePermissions';
 import { Resize } from '@core/component/Resize';
+import type { Permissions } from '@core/component/SharePermissions';
+import { getPermissions } from '@core/component/SharePermissions';
+import { ShareButton } from '@core/component/TopBar/ShareButton';
 import { ENABLE_REFERENCES_MODAL } from '@core/constant/featureFlags';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { settingsOpen } from '@core/constant/SettingsState';
@@ -57,11 +57,13 @@ import PlusIcon from '@icon/regular/plus.svg';
 import XIcon from '@icon/regular/x.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import { invalidateUserQuota } from '@queries/auth';
+import { refetchHistory, useHistoryQuery } from '@queries/history/history';
 import {
   cognitionApiServiceClient,
   cognitionWebsocketServiceClient,
 } from '@service-cognition/client';
-import { refetchHistory, useHistoryQuery } from '@queries/history/history';
+import { AccessLevel } from '@service-cognition/generated/schemas/accessLevel';
+import { Button } from '@ui/components/Button';
 import { useOpenInstructionsMd } from 'core/component/AI/util/instructions';
 import type { LexicalEditor } from 'lexical';
 import {
@@ -78,11 +80,8 @@ import {
   Suspense,
   untrack,
 } from 'solid-js';
-import { SplitlikeContainer } from '../split-layout/components/SplitContainer';
-import { Button } from '@ui/components/Button';
-import { Hotkey } from '@core/component/Hotkey';
-import { AccessLevel } from '@service-cognition/generated/schemas/accessLevel';
 import { useWaitChatRename } from '../../../macro-entity/src/queries/rename';
+import { SplitlikeContainer } from '../split-layout/components/SplitContainer';
 
 type ChatData = {
   messages: ChatMessageWithAttachments[];
@@ -294,6 +293,7 @@ function RightbarChatArea(props: { isBig?: boolean }) {
   });
 
   createEffect(() => {
+    if (input.isAwaitingStream()) return;
     const stream_ = chat.stream();
     if (!stream_ || stream_.isDone()) {
       input.setIsGenerating(false);
@@ -335,7 +335,7 @@ function RightbarChatArea(props: { isBig?: boolean }) {
 
 export function Rightbar(props: {
   chatId: string | undefined;
-  onSend: (args: CreateAndSend | Send) => void;
+  onSend: (args: ChatSendRequest) => Promise<boolean>;
   stopGenerating: () => void;
   chatName: string | undefined;
   isBig?: boolean;
@@ -355,6 +355,15 @@ export function Rightbar(props: {
   children?: JSXElement;
 }) {
   const input = useChatInputContext();
+
+  const handleSend = async (request: ChatSendRequest) => {
+    input.setIsAwaitingStream(true);
+    input.setIsGenerating(true);
+    const ok = await props.onSend(request);
+    if (!ok) {
+      input.setIsAwaitingStream(false);
+    }
+  };
 
   // NOTE: due to mount race condition in the markdown area, we need to set the initial value here
   const chatMarkdownArea = useChatMarkdownArea({
@@ -460,7 +469,7 @@ export function Rightbar(props: {
                 chatId={props.chatId}
                 isPersistent
                 showActiveTabs
-                onSend={props.onSend}
+                onSend={handleSend}
                 onStop={props.stopGenerating}
                 captureEditor={setEditor}
               />
@@ -547,45 +556,42 @@ export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
 
   const { showPaywall } = usePaywallState();
 
-  const onSend = async (request: Send | CreateAndSend) => {
-    if (request.type === 'createAndSend') {
-      const response = await request.call();
-      if (response.type === 'error') {
-        // TODO: show error state
-        console.error('error creating chat', response);
-        if (response.paymentError) {
-          showPaywall();
-        }
-        return;
+  const onSend = async (request: ChatSendRequest): Promise<boolean> => {
+    // Add user message immediately
+    setMessages((p) => [
+      ...p,
+      {
+        attachments: request.attachments ?? [],
+        content: request.content,
+        role: 'user',
+        id: '',
+      },
+    ]);
+
+    // Call HTTP stream API (creates chat if no chat_id)
+    const response =
+      await cognitionApiServiceClient.sendStreamChatMessage(request);
+    if (isErr(response)) {
+      console.error('error sending chat message', response);
+      if (isErr(response, 'PAYMENT_ERROR')) {
+        showPaywall();
       }
-      const newChatId = response.chat_id;
-      setNewChatId(newChatId);
-      setChatId(newChatId);
-      setUserAccessLevel(AccessLevel.owner);
-
-      refetchHistory();
-      useWaitChatRename(newChatId);
-      return await onSend(response);
-    } else if (request.type === 'send') {
-      setMessages((p) => {
-        return [
-          ...p,
-          {
-            attachments: request.request.attachments ?? [],
-            content: request.request.content,
-            role: 'user',
-            // TODO: no id because it's a user message that hasn't been uploaded yet
-            id: '',
-          },
-        ];
-      });
-
-      const stream = request.call();
-      setStream(stream);
-      invalidateUserQuota();
-    } else {
-      console.error('Invalid send request', request);
+      return false;
     }
+
+    const [, { chat_id: responseChatId }] = response;
+    invalidateUserQuota();
+
+    // Handle new chat creation (no chat_id in request)
+    if (!request.chat_id) {
+      setNewChatId(responseChatId);
+      setChatId(responseChatId);
+      setUserAccessLevel(AccessLevel.owner);
+      refetchHistory();
+      useWaitChatRename(responseChatId);
+    }
+
+    return true;
   };
 
   const buildChatSendRequest = useBuildChatSendRequest();
@@ -686,12 +692,11 @@ export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
   });
 
   const stopGenerating = () => {
-    const stream_ = stream();
-    if (!stream_) return false;
+    const streamId = stream()?.request?.stream_id;
+    if (!streamId) return false;
     cognitionWebsocketServiceClient.stopChatMessage({
-      stream_id: stream_.request.stream_id,
+      stream_id: streamId,
     });
-    stream_.close();
     return true;
   };
 

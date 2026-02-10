@@ -1,18 +1,21 @@
-import { ChatInput } from '@core/component/AI/component/input/useChatInput';
+import { ChatInput } from '@core/component/AI/component/input/ChatInput';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
 import {
   ChatInputProvider,
   useChatInputContext,
 } from '@core/component/AI/context';
-import type { Attachment, Model, Send } from '@core/component/AI/types';
-import { asEditRequest } from '@core/component/AI/types/util';
+import type {
+  Attachment,
+  ChatSendRequest,
+  Model,
+} from '@core/component/AI/types';
 import { onMount } from 'solid-js';
 
 function EditableChatMessageInner(props: {
   chatId: string;
   initialText: string;
   attachments: Attachment[];
-  onAccept: (r: Send) => void;
+  onAccept: (r: ChatSendRequest) => void;
   onCancel: () => void;
   model: Model;
 }) {
@@ -38,7 +41,7 @@ function EditableChatMessageInner(props: {
         markdown={chatMarkdownArea}
         chatId={props.chatId}
         onSend={(request) => {
-          if (request.type === 'send') props.onAccept(asEditRequest(request));
+          if (request.chat_id) props.onAccept(request);
         }}
       />
     </div>
@@ -49,7 +52,7 @@ export function EditableChatMessage(props: {
   chatId: string;
   initialText: string;
   attachments: Attachment[];
-  onAccept: (r: Send) => void;
+  onAccept: (r: ChatSendRequest) => void;
   onCancel: () => void;
   model: Model;
 }) {

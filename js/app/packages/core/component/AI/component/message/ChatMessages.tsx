@@ -4,6 +4,7 @@ import type {
   MessageStream,
 } from '@core/component/AI/types';
 import { asChatMessage } from '@core/component/AI/util/message';
+import { cognitionWebsocketServiceClient } from '@service-cognition/client';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { aiChatTheme } from '@core/component/LexicalMarkdown/theme';
 import { toast } from '@core/component/Toast/Toast';
@@ -302,7 +303,7 @@ export function ChatMessages(props: ChatMessagesProps) {
                                 ? undefined
                                 : {
                                     chatId: chatId()!,
-                                    makeEdit: (send) => {
+                                    makeEdit: (request) => {
                                       const setStream = streamTuple?.[1];
                                       if (setStream) {
                                         setMessages((p) => {
@@ -318,15 +319,29 @@ export function ChatMessages(props: ChatMessagesProps) {
                                           ...p,
                                           {
                                             attachments:
-                                              send.request.attachments ?? [],
-                                            content: send.request.content,
+                                              request.attachments ?? [],
+                                            content: request.content,
                                             role: 'user',
-                                            model: send.request.model,
+                                            model: request.model,
                                             // TODO update message id from server response
                                             id: 'todo',
                                           },
                                         ]);
-                                        setStream(send.call());
+                                        const stream =
+                                          cognitionWebsocketServiceClient.streamEditMessage(
+                                            {
+                                              chat_id: request.chat_id!,
+                                              content: request.content,
+                                              model: request.model,
+                                              attachments:
+                                                request.attachments ?? [],
+                                              token: request.token,
+                                              additional_instructions:
+                                                request.additional_instructions ??
+                                                '',
+                                            }
+                                          );
+                                        setStream(stream);
                                       }
                                     },
                                   }
@@ -355,7 +370,11 @@ export function ChatMessages(props: ChatMessagesProps) {
               }}
             </Show>
             {/* this works for most cases */}
-            <Show when={!generatingMessage() && isStream()}>
+            <Show
+              when={
+                !generatingMessage() && (isStream() || ctx.isAwaitingStream())
+              }
+            >
               <OnMount
                 onShow={() =>
                   scrollToBottom(isNearBottom() ? 'instant' : 'smooth')

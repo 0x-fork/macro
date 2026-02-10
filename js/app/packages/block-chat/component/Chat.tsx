@@ -2,9 +2,10 @@ import { useNavigatedFromJK } from '@app/component/useNavigatedFromJK';
 import type { SendBuilder } from '@block-chat/blockClient';
 import { TopBar } from '@block-chat/component/TopBar';
 import type { ChatData } from '@block-chat/definition';
+import { useBlockId } from '@core/block';
 import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import { useBuildChatSendRequest } from '@core/component/AI/component/input/buildRequest';
-import { ChatInput } from '@core/component/AI/component/input/useChatInput';
+import { ChatInput } from '@core/component/AI/component/input/ChatInput';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
 import { ChatMessages } from '@core/component/AI/component/message/ChatMessages';
 import {
@@ -16,19 +17,13 @@ import {
 import { useEntityDropAttachment } from '@core/component/AI/hook/useEntityDropAttachment';
 import { getPendingSend } from '@core/component/AI/signal/pendingSend';
 import { registerToolHandler } from '@core/component/AI/signal/tool';
-import type {
-  CreateAndSend,
-  MessageStream,
-  Send,
-} from '@core/component/AI/types';
+import type { ChatSendRequest } from '@core/component/AI/types';
 import {
   getChatInputStoredState,
   type StoredStuff,
   storeChatState,
 } from '@core/component/AI/util/storage';
-import { useBlockId } from '@core/block';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
-import { usePaywallState } from '@core/constant/PaywallState';
 import { TOKENS } from '@core/hotkey/tokens';
 import { registerScopeSignalHotkey } from '@core/hotkey/utils';
 import { createMethodRegistration } from '@core/orchestrator';
@@ -38,8 +33,12 @@ import {
 } from '@core/signal/blockElement';
 import { blockHandleSignal } from '@core/signal/load';
 import { useCanEdit } from '@core/signal/permissions';
+import { isErr } from '@core/util/maybeResult';
 import { invalidateUserQuota } from '@queries/auth';
-import { cognitionWebsocketServiceClient } from '@service-cognition/client';
+import {
+  cognitionApiServiceClient,
+  cognitionWebsocketServiceClient,
+} from '@service-cognition/client';
 import { createCallback } from '@solid-primitives/rootless';
 import type { LexicalEditor } from 'lexical';
 import { createEffect, createSignal, Show } from 'solid-js';
@@ -82,16 +81,12 @@ function ChatInner(props: {
     addAttachment: (a) => input.attachments.addAttachment(a),
   });
 
-  // Local stream signal for cancelStream and registerToolHandler
-  const [stream, setStream] = createSignal<MessageStream>();
   const cancelStream = () => {
-    const s = stream();
-    if (s) {
-      cognitionWebsocketServiceClient.stopChatMessage({
-        stream_id: s.request.stream_id,
-      });
-      s.close();
-    }
+    const streamId = chat.chatStream?.()?.id()?.stream_id;
+    if (!streamId) return;
+    cognitionWebsocketServiceClient.stopChatMessage({
+      stream_id: streamId,
+    });
   };
 
   const blockHandle = blockHandleSignal.get;
@@ -104,42 +99,45 @@ function ChatInner(props: {
   );
   false && droppable;
 
-  registerToolHandler(stream);
-  const { showPaywall } = usePaywallState();
+  registerToolHandler(chat.stream);
 
-  const onSend = createCallback(async (request: Send | CreateAndSend) => {
-    if (request.type === 'createAndSend') {
-      const response = await request.call();
-      if ('type' in response && response.type === 'error') {
-        if (response.paymentError) showPaywall();
-        return;
-      } else {
-        return onSend(response);
-      }
-    } else {
-      chat.addMessage({
-        attachments: request.request.attachments ?? [],
-        content: request.request.content,
-        role: 'user',
-        id: '',
-      });
-      const stream = request.call();
-      chat.setStream(stream);
-      setStream(stream);
-      input.setIsGenerating(true);
-      invalidateUserQuota();
-      createEffect(() => {
-        if (stream.data().length > 0) {
-          invalidateUserQuota();
-        }
-      });
-      createEffect(() => {
-        if (stream.isDone()) {
-          input.setIsGenerating(false);
-          invalidateUserQuota();
-        }
-      });
+  const onSend = createCallback(async (request: ChatSendRequest) => {
+    chat.addMessage({
+      attachments: request.attachments ?? [],
+      content: request.content,
+      role: 'user',
+      id: '',
+    });
+
+    input.setIsGenerating(true);
+    input.setIsAwaitingStream(true);
+
+    const response =
+      await cognitionApiServiceClient.sendStreamChatMessage(request);
+    if (isErr(response)) {
+      console.error('error sending chat message', response);
+      input.setIsAwaitingStream(false);
+      input.setIsGenerating(false);
+      return;
     }
+
+    invalidateUserQuota();
+
+    // Stream data arrives via connection gateway bridge in context
+    // Track generating state from the stream
+    createEffect(() => {
+      const stream = chat.stream();
+      if (stream && stream.data().length > 0) {
+        invalidateUserQuota();
+      }
+    });
+    createEffect(() => {
+      const stream = chat.stream();
+      if (stream?.isDone()) {
+        input.setIsGenerating(false);
+        invalidateUserQuota();
+      }
+    });
   });
 
   const saveChatState = (state: StoredStuff) => {

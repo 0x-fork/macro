@@ -2,6 +2,7 @@ import type {
   cognitionApiServiceClient,
   cognitionWebsocketServiceClient,
 } from '@service-cognition/client';
+import type { HttpSendChatMessageRequest } from '@service-cognition/generated/schemas/httpSendChatMessageRequest';
 import type { Model } from '@service-cognition/generated/schemas';
 import type { MessageStream } from '@service-cognition/websocket';
 import type { Attachment } from './attachment';
@@ -13,6 +14,9 @@ export type SendChatMessageArgs = Parameters<
 export type CreateMessageArgs = Parameters<
   (typeof cognitionApiServiceClient)['createChat']
 >[0];
+
+/** Request data for sending a chat message via the HTTP stream API. */
+export type ChatSendRequest = HttpSendChatMessageRequest;
 
 export type CreateAndSend = {
   type: 'createAndSend';

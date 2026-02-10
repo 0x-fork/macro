@@ -3,12 +3,7 @@ import { useBuildChatSendRequest } from '@core/component/AI/component/input/buil
 import { SMART_MODE_MODEL } from '@core/component/AI/constant';
 import { useChatInputContext } from '@core/component/AI/context';
 import { useChatAttachableHistory } from '@core/component/AI/signal/attachment';
-import type {
-  CreateAndSend,
-  Model,
-  Send,
-  ToolSet,
-} from '@core/component/AI/types';
+import type { ChatSendRequest, Model, ToolSet } from '@core/component/AI/types';
 import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
 import { Hotkey, modifierMap } from '@core/component/Hotkey';
 import { Tooltip } from '@core/component/Tooltip';
@@ -20,20 +15,20 @@ import XIcon from '@icon/regular/x.svg';
 import Stop from '@phosphor-icons/core/regular/stop.svg';
 import { createCallback } from '@solid-primitives/rootless';
 import { Button } from '@ui/components/Button';
+import { cn } from '@ui/utils/classname';
 import type { LexicalEditor } from 'lexical';
 import { createEffect, createSignal, Match, Show, Switch } from 'solid-js';
 import { AttachmentList } from './Attachment';
 import { ChatAttachMenu } from './ChatAttachMenu';
 import type { Source } from './ToolsetSelector';
 import type { UseChatMarkdown } from './useChatMarkdownArea';
-import { cn } from '@ui/utils/classname';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { useAiDataConsentGate } from './useAiDataConsent';
 
 const { track, TrackingEvents } = withAnalytics();
 
 export type ChatInputProps = {
-  onSend: (args: CreateAndSend | Send) => void;
+  onSend: (args: ChatSendRequest) => void;
   onStop?: () => void;
   isPersistent?: boolean;
   showActiveTabs?: boolean;

@@ -1,8 +1,7 @@
 import type {
-  CreateAndSend,
+  ChatSendRequest,
   MessageStream,
   Model,
-  Send,
 } from '@core/component/AI/types';
 import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
 import { createEffect, createSignal } from 'solid-js';
@@ -14,7 +13,7 @@ import {
 } from '../../context';
 import { useAttachments } from '../../signal/attachment';
 import { pausableStream } from '../../util/stream';
-import { ChatInput } from '../input/useChatInput';
+import { ChatInput } from '../input/ChatInput';
 import { ModelSelector } from '../input/ModelSelector';
 import { useChatMarkdownArea } from '../input/useChatMarkdownArea';
 import { ChatMessages } from '../message/ChatMessages';
@@ -141,27 +140,8 @@ function ChatInputBoxConnectedInner() {
     addAttachment: (a) => input.attachments.addAttachment(a),
   });
 
-  const [_gen, setGen] = createSignal(false);
-  const onSend = async (request: Send | CreateAndSend) => {
-    if (request.type === 'createAndSend') {
-      const response = await request.call();
-      if ('type' in response && response.type === 'error') {
-        console.log('error creating chat', response);
-        return;
-      } else {
-        console.log('created chat ', response.chat_id);
-        return onSend(response);
-      }
-    } else {
-      const stream = request.call();
-      setGen(true);
-      createEffect(() => {
-        const items = stream.data();
-        const latest = items.at(-1);
-        if (latest) console.log(JSON.stringify(latest, null, 2));
-        if (stream.isDone()) setGen(false);
-      });
-    }
+  const onSend = async (request: ChatSendRequest) => {
+    console.log('send request', request);
   };
 
   return (
@@ -240,44 +220,16 @@ function FullChatInner() {
   const chatMarkdownArea = useChatMarkdownArea({
     addAttachment: (a) => input.attachments.addAttachment(a),
   });
-  const [_isGen, setIsGen] = createSignal(false);
   const [stream, setDebugStream] = createSignal<MessageStream>();
 
-  const onSend = async (request: Send | CreateAndSend) => {
-    if (request.type === 'createAndSend') {
-      const response = await request.call();
-      if ('type' in response && response.type === 'error') {
-        console.log('error creating chat', response);
-        return;
-      } else {
-        console.log('created chat ', response.chat_id);
-        return onSend(response);
-      }
-    } else {
-      chat.addMessage({
-        attachments: request.request.attachments ?? [],
-        content: request.request.content,
-        role: 'user',
-        id: '',
-      });
-      const stream = request.call();
-      console.log('set stream');
-      chat.setStream(stream);
-      setDebugStream(stream);
-      setIsGen(true);
-      createEffect(() => {
-        if (stream.isErr()) {
-          console.log('stream error');
-        }
-        if (stream.isDone()) {
-          console.log('stream done');
-          setIsGen(false);
-        }
-      });
-      createEffect(() => {
-        console.log('stream', JSON.stringify(stream.data(), null, 2));
-      });
-    }
+  const onSend = async (request: ChatSendRequest) => {
+    chat.addMessage({
+      attachments: request.attachments ?? [],
+      content: request.content,
+      role: 'user',
+      id: '',
+    });
+    console.log('send request', request);
   };
 
   return (

@@ -2,12 +2,12 @@ import {
   ChatInputProvider,
   useChatInputContext,
 } from '@core/component/AI/context';
-import { ChatInput } from '@core/component/AI/component/input/useChatInput';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
 import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
-import type { CreateAndSend, Send } from '@core/component/AI/types';
+import type { ChatSendRequest } from '@core/component/AI/types';
 import { isErr } from '@core/util/maybeResult';
 import { cognitionApiServiceClient } from '@service-cognition/client';
+import { ChatInput } from 'core/component/AI/component/input/ChatInput';
 import { useHotkeyDOMScope } from 'core/hotkey/hotkeys';
 import { onMount, Show } from 'solid-js';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
@@ -29,8 +29,8 @@ function SoupChatInputInner() {
     attachHotkeys(containerRef);
   });
 
-  const handleSend = async (request: Send | CreateAndSend) => {
-    if (request.type !== 'createAndSend') return;
+  const handleSend = async (request: ChatSendRequest) => {
+    if (request.chat_id) return;
 
     // Create a new persistent chat
     const response = await cognitionApiServiceClient.createChat({
@@ -45,7 +45,7 @@ function SoupChatInputInner() {
     // Store the pending send data for the chat to pick up
     setPendingSendData({
       content: request.content,
-      attachments: request.attachments,
+      attachments: request.attachments ?? [],
       model: request.model,
     });
 
