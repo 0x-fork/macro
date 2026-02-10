@@ -6,6 +6,7 @@ import {
 import {
   buildDssFiltersRequest,
   getFolderFileTypes,
+  withImportance,
 } from '@app/component/next-soup/filters/filters';
 import { sortEntitiesForSearch } from '@app/component/next-soup/soup-view/sort-options';
 import { deduplicateEntities } from '@app/component/next-soup/utils';
@@ -17,6 +18,7 @@ import type { EntityData, WithNotification, WithSearch } from '@entity';
 import { useNotificationsForEntity } from '@notifications';
 import {
   type SoupItemsQueryFilters,
+  prefetchSoupItems,
   useSoupItemsQuery,
 } from '@queries/soup/items';
 import { useSearchSoupQuery } from '@queries/soup/search';
@@ -25,6 +27,7 @@ import type { UnifiedSearchIndex } from '@service-search/generated/models';
 import {
   type Accessor,
   createContext,
+  createEffect,
   createMemo,
   createRenderEffect,
   createSignal,
@@ -236,6 +239,31 @@ export const SoupViewContextProvider: FlowComponent<
       enabled: isSearchDisabled(),
     })
   );
+
+  // Prefetch Inbox/Other/All variants so switching views is instant
+  createEffect(() => {
+    const body = queryFilters();
+    const params = {
+      limit: 100,
+      sort_method: soup.sort.active()[0]?.id ?? 'updated_at'
+    };
+
+    const currentImportance = body.channel_filters?.importance;
+
+    const variants: (boolean | undefined)[] =
+      currentImportance === true
+        ? [false, undefined] // Inbox → prefetch Other + All
+        : currentImportance === false
+          ? [true, undefined] // Other → prefetch Inbox + All
+          : [true, false]; // All → prefetch Inbox + Other
+
+    for (const importance of variants) {
+      prefetchSoupItems({
+        params,
+        body: withImportance(body, importance),
+      });
+    }
+  });
 
   const searchQuery = useSearchSoupQuery(
     () => ({

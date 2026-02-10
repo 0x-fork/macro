@@ -1,5 +1,6 @@
 import { throwOnErr } from '@core/util/maybeResult';
 import type { EntityData } from '@macro-entity';
+import { queryClient } from '@queries/client';
 import { soupKeys } from '@queries/soup/keys';
 import { mapSoupPageToEntityList } from '@queries/soup/transform-utils';
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
@@ -79,6 +80,25 @@ export const useSoupItemsQuery = (
       });
     },
     enabled: options?.().enabled,
-    placeholderData: (p) => p,
   }));
+};
+
+export const prefetchSoupItems = (args: SoupItemsQueryArgs) => {
+  return queryClient.prefetchInfiniteQuery({
+    queryKey: soupKeys.items(args).queryKey,
+    queryFn: async (ctx) => {
+      return throwOnErr(
+        async () =>
+          await storageServiceClient.getSoupItems({
+            params: { cursor: ctx.pageParam },
+            body: {
+              ...args.body,
+              ...args.params,
+            },
+          })
+      );
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.next_cursor,
+  });
 };

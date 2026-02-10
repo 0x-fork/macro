@@ -284,6 +284,21 @@ const buildDefaultValue = (entityTypes: string[], required: string[]) => {
   return [NIL_UUID];
 };
 
+export const withImportance = (
+  body: SoupItemsQueryArgs['body'],
+  importance: boolean | undefined
+): SoupItemsQueryArgs['body'] => {
+  const emailView = importance !== undefined ? 'inbox' : 'all';
+  return {
+    channel_filters: { ...body.channel_filters, importance },
+    document_filters: { ...body.document_filters, importance },
+    chat_filters: { ...body.chat_filters, importance },
+    email_filters: { ...body.email_filters, importance },
+    project_filters: { ...body.project_filters, importance },
+    emailView,
+  };
+};
+
 export const buildDssFiltersRequest = (
   filters: FilterConfig<EntityData>[],
   context?: {
