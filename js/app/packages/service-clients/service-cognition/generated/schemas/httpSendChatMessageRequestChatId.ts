@@ -8,4 +8,4 @@
 /**
  * Id of the chat the message belongs to (optional - if not provided, a new chat is created)
  */
-export type HttpSendChatMessageRequestAllOfChatId = string | null;
+export type HttpSendChatMessageRequestChatId = string | null;

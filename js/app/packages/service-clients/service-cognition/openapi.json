@@ -2516,46 +2516,38 @@
         }
       },
       "HttpSendChatMessageRequest": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/JwtPayload",
-            "description": "JWT token for authentication"
+        "type": "object",
+        "description": "HTTP request payload for sending a chat message.\nUnlike the WebSocket payload, this does not include stream_id as it's generated server-side.",
+        "required": ["content", "model"],
+        "properties": {
+          "additional_instructions": {
+            "type": ["string", "null"],
+            "description": "Additional system instructions appended to the base system prompt"
           },
-          {
-            "type": "object",
-            "required": ["content", "model"],
-            "properties": {
-              "additional_instructions": {
-                "type": ["string", "null"],
-                "description": "Additional system instructions appended to the base system prompt"
-              },
-              "attachments": {
-                "type": ["array", "null"],
-                "items": {
-                  "$ref": "#/components/schemas/ChatAttachmentWithName"
-                },
-                "description": "Attachments for the message"
-              },
-              "chat_id": {
-                "type": ["string", "null"],
-                "description": "Id of the chat the message belongs to (optional - if not provided, a new chat is created)"
-              },
-              "content": {
-                "type": "string",
-                "description": "The content of the message"
-              },
-              "model": {
-                "$ref": "#/components/schemas/Model",
-                "description": "The model to respond with"
-              },
-              "toolset": {
-                "$ref": "#/components/schemas/ToolSet",
-                "description": "Which toolset to use. Defaults to `all`"
-              }
-            }
+          "attachments": {
+            "type": ["array", "null"],
+            "items": {
+              "$ref": "#/components/schemas/ChatAttachmentWithName"
+            },
+            "description": "Attachments for the message"
+          },
+          "chat_id": {
+            "type": ["string", "null"],
+            "description": "Id of the chat the message belongs to (optional - if not provided, a new chat is created)"
+          },
+          "content": {
+            "type": "string",
+            "description": "The content of the message"
+          },
+          "model": {
+            "$ref": "#/components/schemas/Model",
+            "description": "The model to respond with"
+          },
+          "toolset": {
+            "$ref": "#/components/schemas/ToolSet",
+            "description": "Which toolset to use. Defaults to `all`"
           }
-        ],
-        "description": "HTTP request payload for sending a chat message.\nUnlike the WebSocket payload, this does not include stream_id as it's generated server-side."
+        }
       },
       "JwtPayload": {
         "type": "object",
@@ -2648,6 +2640,10 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "id": {
+            "type": ["string", "null"],
+            "description": "Optional pre-generated ID. If None, the database generates one."
           },
           "model": {
             "$ref": "#/components/schemas/Model",

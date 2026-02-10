@@ -9,6 +9,6 @@ import type { ChatAttachmentWithName } from './chatAttachmentWithName';
 /**
  * Attachments for the message
  */
-export type HttpSendChatMessageRequestAllOfAttachments =
+export type HttpSendChatMessageRequestAttachments =
   | ChatAttachmentWithName[]
   | null;

@@ -8,6 +8,4 @@
 /**
  * Additional system instructions appended to the base system prompt
  */
-export type HttpSendChatMessageRequestAllOfAdditionalInstructions =
-  | string
-  | null;
+export type HttpSendChatMessageRequestAdditionalInstructions = string | null;
