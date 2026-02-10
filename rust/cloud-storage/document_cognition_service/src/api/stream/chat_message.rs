@@ -9,9 +9,7 @@ use crate::api::ws::chat_permissions;
 use crate::api::ws::connection::MESSAGE_ABORT_MAP;
 use crate::core::constants::DEFAULT_CHAT_NAME;
 use crate::core::model::FALLBACK_MODEL;
-use crate::model::ws::{
-    ChatStream, JwtPayload, SendChatMessagePayload, StreamError, ToolSet,
-};
+use crate::model::ws::{ChatStream, JwtPayload, SendChatMessagePayload, StreamError, ToolSet};
 use crate::service::ai::name::maybe_rename_chat;
 use crate::service::get_chat::get_chat;
 use ai::tool::ToolLoop;
@@ -20,8 +18,9 @@ use ai::types::{AssistantMessagePart, ChatMessage, Model};
 use ai_tools::{AiToolSet, RequestContext, ToolServiceContext};
 use async_stream::stream;
 use axum::Json;
-use axum::extract::{Extension, State};
+use axum::extract::{Extension, Request, State};
 use axum::http::StatusCode;
+use axum::middleware::Next;
 use axum::response::IntoResponse;
 use futures::StreamExt;
 use macro_db_client::dcs::create_chat;
@@ -37,6 +36,30 @@ use std::sync::Arc;
 use stream::domain::{PayloadStream, StreamId, StreamManagerExt};
 use tokio::sync::oneshot;
 use utoipa::ToSchema;
+
+/// Raw Bearer token extracted from the Authorization header.
+#[derive(Clone)]
+pub(crate) struct BearerToken(pub String);
+
+/// Middleware that extracts the raw access token from request headers or cookies
+/// and inserts it into request extensions.
+pub(crate) async fn attach_bearer_token(
+    mut req: Request,
+    next: Next,
+) -> Result<axum::response::Response, StatusCode> {
+    if cfg!(feature = "local_auth") {
+        let token = macro_auth::headers::extract_access_token_from_request_headers(req.headers())
+            .unwrap_or_default();
+        req.extensions_mut().insert(BearerToken(token));
+        return Ok(next.run(req).await);
+    }
+
+    let token = macro_auth::headers::extract_access_token_from_request_headers(req.headers())
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+
+    req.extensions_mut().insert(BearerToken(token));
+    Ok(next.run(req).await)
+}
 
 /// HTTP request payload for sending a chat message.
 /// Unlike the WebSocket payload, this does not include stream_id as it's generated server-side.
@@ -57,9 +80,6 @@ pub struct HttpSendChatMessageRequest {
     /// Which toolset to use. Defaults to `all`
     #[serde(default)]
     pub toolset: ToolSet,
-    /// JWT token for authentication
-    #[serde(flatten)]
-    pub jwt: JwtPayload,
 }
 
 /// Response for initiating a chat message stream
@@ -107,14 +127,16 @@ impl IntoResponse for ChatMessageError {
         (status = 403, description = "Forbidden"),
     )
 )]
-#[tracing::instrument(skip(state, user_context, request), fields(chat_id=?request.chat_id), err)]
+#[tracing::instrument(skip(state, user_context, bearer, request), fields(chat_id=?request.chat_id), err)]
 pub async fn send_chat_message(
     State(state): State<ApiContext>,
     Extension(user_context): Extension<UserContext>,
+    Extension(bearer): Extension<BearerToken>,
     Json(request): Json<HttpSendChatMessageRequest>,
 ) -> Result<Json<SendChatMessageResponse>, ChatMessageError> {
     let now = std::time::Instant::now();
     let ctx = Arc::new(state);
+    let jwt_token = bearer.0;
 
     // Generate message_id which also serves as the stream_id
     let message_id = uuid::Uuid::new_v4().to_string();
@@ -192,7 +214,9 @@ pub async fn send_chat_message(
         additional_instructions: request.additional_instructions.clone(),
         attachments: request.attachments.clone(),
         toolset: request.toolset.clone(),
-        jwt: request.jwt.clone(),
+        jwt: JwtPayload {
+            token: jwt_token.clone(),
+        },
     };
 
     // Store the incoming user message
@@ -209,7 +233,6 @@ pub async fn send_chat_message(
 
     // Build the completion request
     let toolset = choose_toolset(&payload);
-    let jwt_token = payload.jwt.token.clone();
     let ai_request =
         build_chat_completion_request(ctx.clone(), &chat, &payload, toolset.prompt, &jwt_token)
             .await

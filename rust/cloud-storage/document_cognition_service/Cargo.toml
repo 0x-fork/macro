@@ -23,6 +23,7 @@ path = "src/models_bin.rs"
 
 [features]
 local = []
+local_auth = ["macro_middleware/local_auth"]
 local_queue = []
 
 

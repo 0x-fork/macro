@@ -25,7 +25,6 @@ export function useBuildChatSendRequest() {
     toolset?: ToolSet;
     source?: string;
   }): Promise<ChatSendRequest> {
-    const token = await getMacroApiToken();
     const modelInstructions = model ? `\nYou are ${model}` : '';
     const additional = `${additionalInstructions()}${modelInstructions}`;
 
@@ -34,7 +33,6 @@ export function useBuildChatSendRequest() {
       content: userRequest,
       model: model ?? DEFAULT_MODEL,
       attachments: attachments ?? [],
-      token,
       additional_instructions: additional,
       toolset,
     };

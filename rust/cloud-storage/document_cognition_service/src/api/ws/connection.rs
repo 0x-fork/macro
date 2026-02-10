@@ -352,11 +352,7 @@ async fn handle_websocket_connection(
                         )
                         .await
                         {
-                            ws_send(
-                                &message_sender_clone,
-                                ChatStream::Error(err.into()),
-                            )
-                            .ok();
+                            ws_send(&message_sender_clone, ChatStream::Error(err.into())).ok();
                         }
                     });
                 }

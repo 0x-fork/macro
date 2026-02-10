@@ -13,7 +13,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     api::context::{ApiContext, GLOBAL_CONTEXT},
-    model::ws::{ExtractionStatusPayload, ChatStream, WebSocketError},
+    model::ws::{ChatStream, ExtractionStatusPayload, WebSocketError},
     service::attachment::document::get_document_plaintext_content,
 };
 

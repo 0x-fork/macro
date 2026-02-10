@@ -27,6 +27,7 @@ pub fn router(state: ApiContext) -> Router<ApiContext> {
                 .layer(axum::middleware::from_fn_with_state(
                     state,
                     macro_middleware::user_permissions::attach_user_permissions::handler,
-                )),
+                ))
+                .layer(axum::middleware::from_fn(chat_message::attach_bearer_token)),
         )
 }

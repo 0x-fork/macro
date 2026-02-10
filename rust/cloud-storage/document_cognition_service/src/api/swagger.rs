@@ -20,7 +20,9 @@ use crate::{
         health,
         models::get_models,
         preview::get_batch_preview,
-        stream::chat_message::{self, ChatMessageError, HttpSendChatMessageRequest, SendChatMessageResponse},
+        stream::chat_message::{
+            self, ChatMessageError, HttpSendChatMessageRequest, SendChatMessageResponse,
+        },
         stream::simple_completion::{self, SimpleCompletionError, SimpleCompletionResponse},
         ws::{self},
     },
@@ -38,7 +40,7 @@ use crate::{
             models::AIModel,
         },
         ws::{
-            ExtractionStatusPayload, ChatStream, GetSimpleCompletionStreamPayload,
+            ChatStream, ExtractionStatusPayload, GetSimpleCompletionStreamPayload,
             SelectModelPayload, SendChatMessagePayload, SendCompletionPayload,
             StopChatMessagePayload, StreamError, ToWebSocketMessage, ToolSet, WebSocketError,
         },

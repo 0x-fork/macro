@@ -4,10 +4,11 @@ import type {
   MessageStream,
 } from '@core/component/AI/types';
 import { asChatMessage } from '@core/component/AI/util/message';
-import { cognitionWebsocketServiceClient } from '@service-cognition/client';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { aiChatTheme } from '@core/component/LexicalMarkdown/theme';
 import { toast } from '@core/component/Toast/Toast';
+import { cognitionWebsocketServiceClient } from '@service-cognition/client';
+import { getMacroApiToken } from '@service-auth/fetch';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import type { Accessor, JSXElement, Setter } from 'solid-js';
 import {
@@ -303,7 +304,7 @@ export function ChatMessages(props: ChatMessagesProps) {
                                 ? undefined
                                 : {
                                     chatId: chatId()!,
-                                    makeEdit: (request) => {
+                                    makeEdit: async (request) => {
                                       const setStream = streamTuple?.[1];
                                       if (setStream) {
                                         setMessages((p) => {
@@ -327,15 +328,17 @@ export function ChatMessages(props: ChatMessagesProps) {
                                             id: 'todo',
                                           },
                                         ]);
+                                        const token =
+                                          (await getMacroApiToken()) ?? '';
                                         const stream =
                                           cognitionWebsocketServiceClient.streamEditMessage(
                                             {
                                               chat_id: request.chat_id!,
                                               content: request.content,
                                               model: request.model,
+                                              token,
                                               attachments:
                                                 request.attachments ?? [],
-                                              token: request.token,
                                               additional_instructions:
                                                 request.additional_instructions ??
                                                 '',
