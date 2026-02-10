@@ -1,10 +1,7 @@
 import type { BlockName } from '../block';
 import { useUpsertToHistoryMutation } from '@queries/history/history';
-import {
-  optimisticUpdateDssItemViewedAt,
-  hasSoupItem,
-  invalidateSoup,
-} from '@macro-entity';
+import { optimisticUpdateDssItemViewedAt } from '@macro-entity';
+import { hasSoupEntity, invalidateAllSoup } from '@queries/soup/cache';
 import {
   blockNameToItemType,
   isCloudStorageItem,
@@ -27,11 +24,11 @@ export function track({
 }) {
   const itemType = blockNameToItemType(blockName);
 
-  const inSoup = hasSoupItem(itemId);
+  const inSoup = hasSoupEntity(itemId);
   if (inSoup) {
     optimisticUpdateDssItemViewedAt(itemId);
   } else {
-    invalidateSoup();
+    invalidateAllSoup();
   }
 
   if (!isCloudStorageItem(itemType)) return;

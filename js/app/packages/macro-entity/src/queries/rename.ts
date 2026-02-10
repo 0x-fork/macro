@@ -8,14 +8,12 @@ import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import type { ItemType } from '@service-storage/client';
 import { ChannelTypeEnum } from '@service-comms/client';
 import type { EntityData } from '../types/entity';
-import { queryClient } from './client';
-import { type InfiniteData, useMutation } from '@tanstack/solid-query';
+import { useMutation } from '@tanstack/solid-query';
 import { toast } from '@core/component/Toast/Toast';
-import type { SoupPage } from '@service-storage/generated/schemas';
 import { setPreviewName } from '@queries/preview';
 import { setHistoryItemName } from '@queries/history/history';
 import { createCognitionWebsocketEffect } from '@service-cognition/websocket';
-import { soupKeys } from '@queries/soup/keys';
+import { optimisticUpdateSoupEntity } from '@queries/soup/cache';
 
 type RenamableEntity = Pick<EntityData, 'id' | 'type' | 'name'> &
   Partial<EntityData>;
@@ -44,8 +42,6 @@ type EntityRenameData = {
 };
 
 type EntityRenameOptimisticInfo = Omit<EntityRenameData, 'oldName'>;
-
-type EntityIdToNameMap = Map<string, string>;
 
 type RenameDssEntityMutationVariables = EntityRenameOperation;
 
@@ -95,59 +91,22 @@ const validateEntityRename = (entity: EntityData): void => {
   }
 };
 
-// TODO: move item to front of list with updatedAt timestamp
-function updateEntityNamesInDssQueryData(
-  prev: InfiniteData<SoupPage, unknown> | undefined,
-  updates: EntityIdToNameMap
-): InfiniteData<SoupPage, unknown> | undefined {
-  if (!prev) return prev;
-  const pages = prev.pages.map((page) => ({
-    ...page,
-    items: page.items.map((item) => {
-      // NOTE: reactivity does not seem to be a problem here so no spread is needed?
-      switch (item.tag) {
-        case 'channel': {
-          const itemId = item.data.channel.id;
-          const newName = updates.get(itemId);
-          if (newName === undefined) return item;
-          item.data.channel.name = newName;
-          break;
-        }
-        case 'document':
-        case 'chat':
-        case 'project': {
-          const itemId = item.data.id;
-          const newName = updates.get(itemId);
-          if (newName === undefined) return item;
-          item.data.name = newName;
-          break;
-        }
-        default:
-          break;
-      }
-      return item;
-    }),
-  }));
-  return {
-    ...prev,
-    pages,
-  };
-}
-
-const renameDssSetData = (entities: EntityRenameOptimisticInfo[]) => {
-  const updates: EntityIdToNameMap = new Map(
-    entities.map((e) => [e.id, e.newName])
-  );
-
-  queryClient.cancelQueries({
-    queryKey: soupKeys.items._def,
-  });
-  queryClient.setQueriesData({ queryKey: soupKeys.items._def }, (prev) =>
-    updateEntityNamesInDssQueryData(
-      prev as InfiniteData<SoupPage, unknown> | undefined,
-      updates
-    )
-  );
+const renameDssSetData = (entities: EntityRenameOptimisticInfo[]): void => {
+  for (const { id, itemType, newName } of entities) {
+    if (itemType === 'channel') {
+      optimisticUpdateSoupEntity({
+        tag: 'channel',
+        data: { channel: { id, name: newName } },
+        frecency_score: 0,
+      });
+    } else {
+      optimisticUpdateSoupEntity({
+        tag: itemType,
+        data: { id, name: newName },
+        frecency_score: 0,
+      });
+    }
+  }
 };
 
 const renameChannelSetData = (
@@ -192,11 +151,9 @@ function performOptimisticRenameUpdates(
   renamePreviewSetData(entities);
   renameHistorySetData(entities);
   renameDssSetData(entities);
-  const channelContexts = renameChannelSetData(entities);
+  const channels = renameChannelSetData(entities);
 
-  return {
-    channels: channelContexts,
-  };
+  return { channels };
 }
 
 function rollbackOptimisticRenameUpdates({
@@ -204,10 +161,9 @@ function rollbackOptimisticRenameUpdates({
   updates,
 }: RenameOnMutateResult): void {
   updates.forEach(({ id, oldName, itemType }) => {
-    const reverseUpdate = { id, itemType, newName: oldName, oldName };
-    renameDssSetData([reverseUpdate]);
-    renameHistorySetData([reverseUpdate]);
-    renamePreviewSetData([reverseUpdate]);
+    renameDssSetData([{ id, itemType, newName: oldName }]);
+    renameHistorySetData([{ id, itemType, newName: oldName }]);
+    renamePreviewSetData([{ id, itemType, newName: oldName }]);
 
     if (itemType === 'channel') {
       const context = contexts.channels.get(id);
