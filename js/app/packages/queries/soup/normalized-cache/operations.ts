@@ -221,11 +221,22 @@ export function removeSearchEntities(entityIds: Set<string>): SoupTrasaction {
   };
 }
 
+// UUID that matches no real entity — used to zero out soup filters
+// so omitted entity types return nothing instead of everything.
+const NIL_ID = '00000000-0000-0000-0000-000000000000';
+
 function buildSingleEntityFilter(
   entityType: SoupEntityTag,
   entityId: string
 ): PostSoupRequest | null {
-  const base = { limit: 1 } satisfies Partial<PostSoupRequest>;
+  const base: PostSoupRequest = {
+    limit: 1,
+    document_filters: { document_ids: [NIL_ID] },
+    chat_filters: { chat_ids: [NIL_ID] },
+    channel_filters: { channel_ids: [NIL_ID] },
+    project_filters: { project_ids: [NIL_ID] },
+    email_filters: { importance: false },
+  };
   switch (entityType) {
     case 'document':
       return { ...base, document_filters: { document_ids: [entityId] } };
