@@ -5,6 +5,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * A Bill of Materials (BOM) part for DOCX documents.
+ */
 export interface BomPart {
   /** The uuid of the bom part */
   id: string;

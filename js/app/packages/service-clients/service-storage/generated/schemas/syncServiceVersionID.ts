@@ -5,7 +5,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Version ID for sync service.
+ */
 export interface SyncServiceVersionID {
+  /** The counter value */
   counter: number;
+  /** The peer identifier */
   peer: string;
 }

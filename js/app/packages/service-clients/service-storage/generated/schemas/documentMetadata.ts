@@ -6,7 +6,6 @@
  */
 import type { DocumentMetadataBranchedFromId } from './documentMetadataBranchedFromId';
 import type { DocumentMetadataBranchedFromVersionId } from './documentMetadataBranchedFromVersionId';
-import type { DocumentMetadataDeletedAt } from './documentMetadataDeletedAt';
 import type { DocumentMetadataDocumentBom } from './documentMetadataDocumentBom';
 import type { DocumentMetadataDocumentFamilyId } from './documentMetadataDocumentFamilyId';
 import type { DocumentMetadataFileType } from './documentMetadataFileType';
@@ -15,6 +14,9 @@ import type { DocumentMetadataProjectName } from './documentMetadataProjectName'
 import type { DocumentMetadataSha } from './documentMetadataSha';
 import type { DocumentMetadataSubType } from './documentMetadataSubType';
 
+/**
+ * Full document metadata.
+ */
 export interface DocumentMetadata {
   /** The id of the document this document branched from */
   branchedFromId?: DocumentMetadataBranchedFromId;
@@ -24,8 +26,6 @@ the file type */
   branchedFromVersionId?: DocumentMetadataBranchedFromVersionId;
   /** The time the document was created */
   createdAt: number;
-  /** The time the document was deleted */
-  deletedAt: DocumentMetadataDeletedAt;
   /** If the document is a DOCX document and unzipped, the document_bom will be present */
   documentBom?: DocumentMetadataDocumentBom;
   /** The id of the document family this document belongs to */

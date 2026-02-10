@@ -6,6 +6,9 @@
  */
 import type { GetDocumentResponseData } from './getDocumentResponseData';
 
+/**
+ * Response for getting a document.
+ */
 export interface GetDocumentResponse {
   /** Data to be returned */
   data: GetDocumentResponseData;

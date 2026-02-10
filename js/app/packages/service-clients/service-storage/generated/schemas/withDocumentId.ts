@@ -5,6 +5,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Simple struct containing just a document id.
+ */
 export interface WithDocumentId {
+  /** The document id */
   document_id: string;
 }

@@ -8,5 +8,8 @@
 import type { DocumentPreviewOneOfSevenAllOf } from './documentPreviewOneOfSevenAllOf';
 import type { WithDocumentId } from './withDocumentId';
 
+/**
+ * Document does not exist
+ */
 export type DocumentPreviewOneOfSeven = WithDocumentId &
   DocumentPreviewOneOfSevenAllOf;

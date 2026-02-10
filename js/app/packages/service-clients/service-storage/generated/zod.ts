@@ -819,7 +819,194 @@ export const getUserDocumentsHandlerResponse = zod.object({
       zod.null(),
       zod.object({
         documents: zod.array(
-          zod.object({
+          zod
+            .object({
+              branchedFromId: zod
+                .string()
+                .nullish()
+                .describe('The id of the document this document branched from'),
+              branchedFromVersionId: zod
+                .number()
+                .nullish()
+                .describe(
+                  'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+                ),
+              createdAt: zod
+                .number()
+                .describe('The time the document was created'),
+              documentBom: zod
+                .array(
+                  zod
+                    .object({
+                      id: zod.string().describe('The uuid of the bom part'),
+                      path: zod
+                        .string()
+                        .describe('The file path of the bom part content'),
+                      sha: zod
+                        .string()
+                        .describe(
+                          'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                        ),
+                    })
+                    .describe(
+                      'A Bill of Materials (BOM) part for DOCX documents.'
+                    )
+                )
+                .nullish()
+                .describe(
+                  'If the document is a DOCX document and unzipped, the document_bom will be present'
+                ),
+              documentFamilyId: zod
+                .number()
+                .nullish()
+                .describe(
+                  'The id of the document family this document belongs to'
+                ),
+              documentId: zod.string().describe('The document id'),
+              documentName: zod.string().describe('The name of the document'),
+              documentVersionId: zod
+                .number()
+                .describe(
+                  'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+                ),
+              fileType: zod
+                .string()
+                .nullish()
+                .describe('The file type of the document (file extension)'),
+              modificationData: zod
+                .any()
+                .optional()
+                .describe(
+                  'The modification data for the document instance.\nThis is only used for PDF documents.'
+                ),
+              owner: zod.string().describe('The owner of the document'),
+              projectId: zod
+                .string()
+                .nullish()
+                .describe(
+                  'The id of the project that this document belongs to'
+                ),
+              projectName: zod
+                .string()
+                .nullish()
+                .describe(
+                  'The name of the project that this document belongs to'
+                ),
+              sha: zod
+                .string()
+                .nullish()
+                .describe(
+                  'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+                ),
+              subType: zod
+                .union([
+                  zod.null(),
+                  zod
+                    .enum(['task'])
+                    .describe(
+                      'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+                    ),
+                ])
+                .optional(),
+              updatedAt: zod
+                .number()
+                .describe(
+                  'The time the document instance / document BOM was updated'
+                ),
+            })
+            .describe('Full document metadata.')
+        ),
+        next_offset: zod
+          .number()
+          .nullish()
+          .describe('The next offset to be used if there is one'),
+        total: zod
+          .number()
+          .describe('The total number of documents the user has'),
+      }),
+    ])
+    .optional(),
+  error: zod.boolean().describe('Indicates if an error occurred'),
+  message: zod.string().nullish().describe('Message to explain failure'),
+});
+
+/**
+ * @summary Handles creating a document
+ */
+export const createDocumentHandlerBody = zod
+  .object({
+    branchedFromId: zod
+      .string()
+      .nullish()
+      .describe('The document id if the document is being branched.'),
+    branchedFromVersionId: zod
+      .number()
+      .nullish()
+      .describe('The version id if the document is being branched.'),
+    createdAt: zod
+      .string()
+      .datetime({})
+      .nullish()
+      .describe(
+        "Optional time to set the document's created_at to. Set when backfilling email attachments."
+      ),
+    documentFamilyId: zod
+      .number()
+      .nullish()
+      .describe('The document family id if the document is being branched.'),
+    documentName: zod
+      .string()
+      .describe('The name of the document without extension.'),
+    emailAttachmentId: zod
+      .string()
+      .uuid()
+      .nullish()
+      .describe(
+        'Internal only field that links the document created to the specified email attachment by\ncreating a row in the document_email table.'
+      ),
+    fileType: zod
+      .string()
+      .nullish()
+      .describe('Optional file type of the document.'),
+    id: zod
+      .string()
+      .nullish()
+      .describe('The id of the document in the database'),
+    isTask: zod
+      .boolean()
+      .optional()
+      .describe(
+        'Whether the document is a task.\nThis is only applicable for md documents and the request will fail if the file type is not\nmd.'
+      ),
+    jobId: zod
+      .string()
+      .nullish()
+      .describe(
+        'Optional job id to be used to track an upload job for the newly created document.\nWill need to have a corresponding job initiated for the file beforehand.'
+      ),
+    mimeType: zod
+      .string()
+      .nullish()
+      .describe(
+        'The content type of the document (currently only used for logging matches against file type).'
+      ),
+    projectId: zod.string().nullish(),
+    sha: zod.string().describe('The sha of the document.'),
+    skipHistory: zod
+      .boolean()
+      .optional()
+      .describe(
+        'Whether to add a viewed_at record for this document upon creation.'
+      ),
+  })
+  .describe('Request to create a document.');
+
+export const createDocumentHandlerResponse = zod
+  .object({
+    data: zod
+      .object({
+        documentMetadata: zod
+          .object({
             branchedFromId: zod
               .string()
               .nullish()
@@ -833,27 +1020,27 @@ export const getUserDocumentsHandlerResponse = zod.object({
             createdAt: zod
               .number()
               .describe('The time the document was created'),
-            deletedAt: zod
-              .number()
-              .nullable()
-              .describe('The time the document was deleted'),
             documentBom: zod
               .array(
-                zod.object({
-                  id: zod.string().describe('The uuid of the bom part'),
-                  path: zod
-                    .string()
-                    .describe('The file path of the bom part content'),
-                  sha: zod
-                    .string()
-                    .describe(
-                      'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
-                    ),
-                })
+                zod
+                  .object({
+                    id: zod.string().describe('The uuid of the bom part'),
+                    path: zod
+                      .string()
+                      .describe('The file path of the bom part content'),
+                    sha: zod
+                      .string()
+                      .describe(
+                        'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                      ),
+                  })
+                  .describe(
+                    'A Bill of Materials (BOM) part for DOCX documents.'
+                  )
               )
               .nullish()
               .describe(
-                'If the document is a DOCX document and unzipped, the document_bom will be present'
+                'If the document is a DOCX document, the document_bom will be present'
               ),
             documentFamilyId: zod
               .number()
@@ -871,7 +1058,7 @@ export const getUserDocumentsHandlerResponse = zod.object({
             fileType: zod
               .string()
               .nullish()
-              .describe('The file type of the document (file extension)'),
+              .describe('The file type of the document'),
             modificationData: zod
               .any()
               .optional()
@@ -879,16 +1066,6 @@ export const getUserDocumentsHandlerResponse = zod.object({
                 'The modification data for the document instance.\nThis is only used for PDF documents.'
               ),
             owner: zod.string().describe('The owner of the document'),
-            projectId: zod
-              .string()
-              .nullish()
-              .describe('The id of the project that this document belongs to'),
-            projectName: zod
-              .string()
-              .nullish()
-              .describe(
-                'The name of the project that this document belongs to'
-              ),
             sha: zod
               .string()
               .nullish()
@@ -911,180 +1088,29 @@ export const getUserDocumentsHandlerResponse = zod.object({
                 'The time the document instance / document BOM was updated'
               ),
           })
-        ),
-        next_offset: zod
-          .number()
-          .nullish()
-          .describe('The next offset to be used if there is one'),
-        total: zod
-          .number()
-          .describe('The total number of documents the user has'),
-      }),
-    ])
-    .optional(),
-  error: zod.boolean().describe('Indicates if an error occurred'),
-  message: zod.string().nullish().describe('Message to explain failure'),
-});
-
-/**
- * @summary Handles creating a document
- */
-export const createDocumentHandlerBody = zod.object({
-  branchedFromId: zod
-    .string()
-    .nullish()
-    .describe('The document id if the document is being branched.'),
-  branchedFromVersionId: zod
-    .number()
-    .nullish()
-    .describe('The version id if the document is being branched.'),
-  createdAt: zod
-    .string()
-    .datetime({})
-    .nullish()
-    .describe(
-      "Optional time to set the document's created_at to. Set when backfilling email attachments."
-    ),
-  documentFamilyId: zod
-    .number()
-    .nullish()
-    .describe('The document family id if the document is being branched.'),
-  documentName: zod
-    .string()
-    .describe('The name of the document without extension.'),
-  emailAttachmentId: zod
-    .string()
-    .uuid()
-    .nullish()
-    .describe(
-      'Internal only field that links the document created to the specified email attachment by\ncreating a row in the document_email table.'
-    ),
-  fileType: zod
-    .string()
-    .nullish()
-    .describe('Optional file type of the document.'),
-  id: zod.string().nullish().describe('The id of the document in the database'),
-  isTask: zod
-    .boolean()
-    .optional()
-    .describe(
-      'Whether the document is a task.\nThis is only applicable for md documents and the request will fail if the file type is not\nmd.'
-    ),
-  jobId: zod
-    .string()
-    .nullish()
-    .describe(
-      'Optional job id to be used to track an upload job for the newly created document.\nWill need to have a corresponding job initiated for the file beforehand.'
-    ),
-  mimeType: zod
-    .string()
-    .nullish()
-    .describe(
-      'The content type of the document (currently only used for logging matches against file type).'
-    ),
-  projectId: zod.string().nullish(),
-  sha: zod.string().describe('The sha of the document.'),
-  skipHistory: zod
-    .boolean()
-    .optional()
-    .describe(
-      'Whether to add a viewed_at record for this document upon creation.'
-    ),
-});
-
-export const createDocumentHandlerResponse = zod.object({
-  data: zod
-    .object({
-      documentMetadata: zod.object({
-        branchedFromId: zod
+          .describe('Document response metadata.'),
+        presignedUrl: zod
           .string()
           .nullish()
-          .describe('The id of the document this document branched from'),
-        branchedFromVersionId: zod
-          .number()
-          .nullish()
-          .describe(
-            'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-          ),
-        createdAt: zod.number().describe('The time the document was created'),
-        documentBom: zod
-          .array(
-            zod.object({
-              id: zod.string().describe('The uuid of the bom part'),
-              path: zod
-                .string()
-                .describe('The file path of the bom part content'),
-              sha: zod
-                .string()
-                .describe(
-                  'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
-                ),
-            })
-          )
-          .nullish()
-          .describe(
-            'If the document is a DOCX document, the document_bom will be present'
-          ),
-        documentFamilyId: zod
-          .number()
-          .nullish()
-          .describe('The id of the document family this document belongs to'),
-        documentId: zod.string().describe('The document id'),
-        documentName: zod.string().describe('The name of the document'),
-        documentVersionId: zod
-          .number()
-          .describe(
-            'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-          ),
-        fileType: zod
-          .string()
-          .nullish()
-          .describe('The file type of the document'),
-        modificationData: zod
-          .any()
-          .optional()
-          .describe(
-            'The modification data for the document instance.\nThis is only used for PDF documents.'
-          ),
-        owner: zod.string().describe('The owner of the document'),
-        sha: zod
-          .string()
-          .nullish()
-          .describe(
-            'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
-          ),
-        subType: zod
-          .union([
-            zod.null(),
-            zod
-              .enum(['task'])
-              .describe(
-                'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
-              ),
-          ])
-          .optional(),
-        updatedAt: zod
-          .number()
-          .describe(
-            'The time the document instance / document BOM was updated'
-          ),
-      }),
-      presignedUrl: zod.string().nullish(),
-    })
-    .and(
-      zod.object({
-        contentType: zod
-          .string()
-          .describe('Content type of the document converted from file type'),
-        fileType: zod
-          .string()
-          .nullish()
-          .describe('The file type of the document'),
+          .describe('The presigned url (if applicable)'),
       })
-    )
-    .describe('Data to be returned'),
-  error: zod.boolean().describe('Indicates if an error occurred'),
-});
+      .describe('Full document response.')
+      .and(
+        zod.object({
+          contentType: zod
+            .string()
+            .describe('Content type of the document converted from file type'),
+          fileType: zod
+            .string()
+            .nullish()
+            .describe('The file type of the document'),
+        })
+      )
+      .describe('Data for create document response.')
+      .describe('Data to be returned'),
+    error: zod.boolean().describe('Indicates if an error occurred'),
+  })
+  .describe('Typed success response wrapper.');
 
 /**
  * This endpoint creates task metadata and sets properties atomically.
@@ -1259,37 +1285,39 @@ export const initializeUserDocumentsResponse = zod.object({
 export const getDocumentListHandlerResponse = zod.object({
   data: zod
     .array(
-      zod.object({
-        branchedFromId: zod
-          .string()
-          .nullish()
-          .describe('The id of the document this document branched from'),
-        branchedFromVersionId: zod
-          .number()
-          .nullish()
-          .describe(
-            'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-          ),
-        createdAt: zod.number().describe('The time the document was created'),
-        documentFamilyId: zod
-          .number()
-          .nullish()
-          .describe('The id of the document family this document belongs to'),
-        documentId: zod.string().describe('The id of the document'),
-        documentName: zod.string().describe('The name of the document'),
-        documentVersionId: zod
-          .number()
-          .describe('The id of the document version'),
-        fileType: zod
-          .string()
-          .nullish()
-          .describe('The file type of the document'),
-        updatedAt: zod
-          .number()
-          .describe(
-            'The time the document instance / document BOM was updated'
-          ),
-      })
+      zod
+        .object({
+          branchedFromId: zod
+            .string()
+            .nullish()
+            .describe('The id of the document this document branched from'),
+          branchedFromVersionId: zod
+            .number()
+            .nullish()
+            .describe(
+              'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+            ),
+          createdAt: zod.number().describe('The time the document was created'),
+          documentFamilyId: zod
+            .number()
+            .nullish()
+            .describe('The id of the document family this document belongs to'),
+          documentId: zod.string().describe('The id of the document'),
+          documentName: zod.string().describe('The name of the document'),
+          documentVersionId: zod
+            .number()
+            .describe('The id of the document version'),
+          fileType: zod
+            .string()
+            .nullish()
+            .describe('The file type of the document'),
+          updatedAt: zod
+            .number()
+            .describe(
+              'The time the document instance / document BOM was updated'
+            ),
+        })
+        .describe('Result item for document list queries.')
     )
     .describe('Data to be returned'),
   error: zod.boolean().describe('Indicates if an error occurred'),
@@ -1304,18 +1332,20 @@ export const validateDocumentPermissionsTokenBody = zod.object({
 
 export const validateDocumentPermissionsTokenResponseExpMin = 0;
 
-export const validateDocumentPermissionsTokenResponse = zod.object({
-  access_level: zod
-    .enum(['view', 'comment', 'edit', 'owner'])
-    .describe('Ordered from least to most access top -> bottom'),
-  document_id: zod.string().describe('The document id'),
-  exp: zod
-    .number()
-    .min(validateDocumentPermissionsTokenResponseExpMin)
-    .describe('The expiration time of the token'),
-  iss: zod.string().describe('The issuer of the token'),
-  user_id: zod.string().nullish().describe('The users id if present'),
-});
+export const validateDocumentPermissionsTokenResponse = zod
+  .object({
+    access_level: zod
+      .enum(['view', 'comment', 'edit', 'owner'])
+      .describe('Ordered from least to most access top -> bottom'),
+    document_id: zod.string().describe('The document id'),
+    exp: zod
+      .number()
+      .min(validateDocumentPermissionsTokenResponseExpMin)
+      .describe('The expiration time of the token'),
+    iss: zod.string().describe('The issuer of the token'),
+    user_id: zod.string().nullish().describe('The users id if present'),
+  })
+  .describe('Token for document permissions.');
 
 /**
  * @summary Generates a document permissions token for a provided document id
@@ -1340,14 +1370,16 @@ export const presaveDocumentHandlerParams = zod.object({
 export const presaveDocumentHandlerBody = zod.object({
   newBom: zod
     .array(
-      zod.object({
-        path: zod.string().describe('The file path of the bom part content'),
-        sha: zod
-          .string()
-          .describe(
-            'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
-          ),
-      })
+      zod
+        .object({
+          path: zod.string().describe('The file path of the bom part content'),
+          sha: zod
+            .string()
+            .describe(
+              'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+            ),
+        })
+        .describe('A BOM part to be saved.')
     )
     .describe(
       'The updated BOM for the document\nContaining the file path and the sha'
@@ -1378,62 +1410,70 @@ export const getBatchPreviewHandlerBody = zod.object({
 
 export const getBatchPreviewHandlerResponse = zod.object({
   previews: zod.array(
-    zod.union([
-      zod
-        .object({
-          document_id: zod.string().describe('The document id'),
-          document_name: zod.string().describe('The name of the document'),
-          file_type: zod
-            .string()
-            .nullish()
-            .describe('The file type of the document (e.g. pdf, docx)'),
-          owner: zod.string().describe('The id of the owner of the document'),
-          sub_type: zod
-            .union([
-              zod.null(),
-              zod
-                .object({
-                  is_completed: zod
-                    .boolean()
-                    .describe(
-                      'Whether the task is completed.\nTrue if the Status property is set to \"Completed\".'
-                    ),
-                  type: zod.enum(['task']),
-                })
-                .describe('A task document with completion status')
-                .describe(
-                  'The sub type of a document preview with associated properties.\nTask-related properties are encoded within the variant to ensure valid states.'
-                ),
-            ])
-            .optional(),
-          updated_at: zod
-            .number()
-            .describe('The time the document was last updated'),
-        })
-        .and(
-          zod.object({
-            type: zod.enum(['access']),
+    zod
+      .union([
+        zod
+          .object({
+            document_id: zod.string().describe('The document id'),
+            document_name: zod.string().describe('The name of the document'),
+            file_type: zod
+              .string()
+              .nullish()
+              .describe('The file type of the document (e.g. pdf, docx)'),
+            owner: zod.string().describe('The id of the owner of the document'),
+            sub_type: zod
+              .union([
+                zod.null(),
+                zod
+                  .object({
+                    is_completed: zod
+                      .boolean()
+                      .describe(
+                        'Whether the task is completed.\nTrue if the Status property is set to \"Completed\".'
+                      ),
+                    type: zod.enum(['task']),
+                  })
+                  .describe('A task document with completion status')
+                  .describe(
+                    'The sub type of a document preview with associated properties.\nTask-related properties are encoded within the variant to ensure valid states.'
+                  ),
+              ])
+              .optional(),
+            updated_at: zod
+              .number()
+              .describe('The time the document was last updated'),
           })
-        ),
-      zod
-        .object({
-          document_id: zod.string(),
-        })
-        .and(
-          zod.object({
-            type: zod.enum(['no_access']),
+          .describe('Document preview data.')
+          .and(
+            zod.object({
+              type: zod.enum(['access']),
+            })
+          )
+          .describe('User has access to this document'),
+        zod
+          .object({
+            document_id: zod.string().describe('The document id'),
           })
-        ),
-      zod
-        .object({
-          document_id: zod.string(),
-        })
-        .and(
-          zod.object({
-            type: zod.enum(['does_not_exist']),
+          .describe('Simple struct containing just a document id.')
+          .and(
+            zod.object({
+              type: zod.enum(['no_access']),
+            })
+          )
+          .describe('User does not have access to this document'),
+        zod
+          .object({
+            document_id: zod.string().describe('The document id'),
           })
-        ),
-    ])
+          .describe('Simple struct containing just a document id.')
+          .and(
+            zod.object({
+              type: zod.enum(['does_not_exist']),
+            })
+          )
+          .describe('Document does not exist'),
+      ])
+      .describe('Document preview types.')
   ),
 });
 
@@ -1444,102 +1484,116 @@ export const getDocumentParams = zod.object({
   document_id: zod.string().describe('Document ID'),
 });
 
-export const getDocumentResponse = zod.object({
-  data: zod.object({
-    documentMetadata: zod.object({
-      branchedFromId: zod
-        .string()
-        .nullish()
-        .describe('The id of the document this document branched from'),
-      branchedFromVersionId: zod
-        .number()
-        .nullish()
-        .describe(
-          'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-        ),
-      createdAt: zod.number().describe('The time the document was created'),
-      deletedAt: zod
-        .number()
-        .nullable()
-        .describe('The time the document was deleted'),
-      documentBom: zod
-        .array(
-          zod.object({
-            id: zod.string().describe('The uuid of the bom part'),
-            path: zod
+export const getDocumentResponse = zod
+  .object({
+    data: zod
+      .object({
+        documentMetadata: zod
+          .object({
+            branchedFromId: zod
               .string()
-              .describe('The file path of the bom part content'),
+              .nullish()
+              .describe('The id of the document this document branched from'),
+            branchedFromVersionId: zod
+              .number()
+              .nullish()
+              .describe(
+                'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+              ),
+            createdAt: zod
+              .number()
+              .describe('The time the document was created'),
+            documentBom: zod
+              .array(
+                zod
+                  .object({
+                    id: zod.string().describe('The uuid of the bom part'),
+                    path: zod
+                      .string()
+                      .describe('The file path of the bom part content'),
+                    sha: zod
+                      .string()
+                      .describe(
+                        'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                      ),
+                  })
+                  .describe(
+                    'A Bill of Materials (BOM) part for DOCX documents.'
+                  )
+              )
+              .nullish()
+              .describe(
+                'If the document is a DOCX document and unzipped, the document_bom will be present'
+              ),
+            documentFamilyId: zod
+              .number()
+              .nullish()
+              .describe(
+                'The id of the document family this document belongs to'
+              ),
+            documentId: zod.string().describe('The document id'),
+            documentName: zod.string().describe('The name of the document'),
+            documentVersionId: zod
+              .number()
+              .describe(
+                'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+              ),
+            fileType: zod
+              .string()
+              .nullish()
+              .describe('The file type of the document (file extension)'),
+            modificationData: zod
+              .any()
+              .optional()
+              .describe(
+                'The modification data for the document instance.\nThis is only used for PDF documents.'
+              ),
+            owner: zod.string().describe('The owner of the document'),
+            projectId: zod
+              .string()
+              .nullish()
+              .describe('The id of the project that this document belongs to'),
+            projectName: zod
+              .string()
+              .nullish()
+              .describe(
+                'The name of the project that this document belongs to'
+              ),
             sha: zod
               .string()
+              .nullish()
               .describe(
-                'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+              ),
+            subType: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['task'])
+                  .describe(
+                    'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+                  ),
+              ])
+              .optional(),
+            updatedAt: zod
+              .number()
+              .describe(
+                'The time the document instance / document BOM was updated'
               ),
           })
-        )
-        .nullish()
-        .describe(
-          'If the document is a DOCX document and unzipped, the document_bom will be present'
-        ),
-      documentFamilyId: zod
-        .number()
-        .nullish()
-        .describe('The id of the document family this document belongs to'),
-      documentId: zod.string().describe('The document id'),
-      documentName: zod.string().describe('The name of the document'),
-      documentVersionId: zod
-        .number()
-        .describe(
-          'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-        ),
-      fileType: zod
-        .string()
-        .nullish()
-        .describe('The file type of the document (file extension)'),
-      modificationData: zod
-        .any()
-        .optional()
-        .describe(
-          'The modification data for the document instance.\nThis is only used for PDF documents.'
-        ),
-      owner: zod.string().describe('The owner of the document'),
-      projectId: zod
-        .string()
-        .nullish()
-        .describe('The id of the project that this document belongs to'),
-      projectName: zod
-        .string()
-        .nullish()
-        .describe('The name of the project that this document belongs to'),
-      sha: zod
-        .string()
-        .nullish()
-        .describe(
-          'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
-        ),
-      subType: zod
-        .union([
-          zod.null(),
-          zod
-            .enum(['task'])
-            .describe(
-              'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
-            ),
-        ])
-        .optional(),
-      updatedAt: zod
-        .number()
-        .describe('The time the document instance / document BOM was updated'),
-    }),
-    userAccessLevel: zod
-      .enum(['view', 'comment', 'edit', 'owner'])
-      .describe('Ordered from least to most access top -> bottom'),
-    viewLocation: zod
-      .string()
-      .nullish()
-      .describe('The users view location if there is one'),
-  }),
-  error: zod.boolean().describe('Indicates if an error occurred'),
-});
+          .describe('Full document metadata.'),
+        userAccessLevel: zod
+          .enum(['view', 'comment', 'edit', 'owner'])
+          .describe('Ordered from least to most access top -> bottom'),
+        viewLocation: zod
+          .string()
+          .nullish()
+          .describe('The users view location if there is one'),
+      })
+      .describe('Data for the get document response.'),
+    error: zod.boolean().describe('Indicates if an error occurred'),
+  })
+  .describe('Response for getting a document.');
 
 /**
  * @summary Creates a new version of a document
@@ -1557,14 +1611,16 @@ export const saveDocumentHandlerBody = zod.object({
     ),
   newBom: zod
     .array(
-      zod.object({
-        path: zod.string().describe('The file path of the bom part content'),
-        sha: zod
-          .string()
-          .describe(
-            'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
-          ),
-      })
+      zod
+        .object({
+          path: zod.string().describe('The file path of the bom part content'),
+          sha: zod
+            .string()
+            .describe(
+              'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+            ),
+        })
+        .describe('A BOM part to be saved.')
     )
     .nullish()
     .describe(
@@ -1580,78 +1636,84 @@ export const saveDocumentHandlerBody = zod.object({
 
 export const saveDocumentHandlerResponse = zod.object({
   data: zod.object({
-    documentMetadata: zod.object({
-      branchedFromId: zod
-        .string()
-        .nullish()
-        .describe('The id of the document this document branched from'),
-      branchedFromVersionId: zod
-        .number()
-        .nullish()
-        .describe(
-          'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-        ),
-      createdAt: zod.number().describe('The time the document was created'),
-      documentBom: zod
-        .array(
-          zod.object({
-            id: zod.string().describe('The uuid of the bom part'),
-            path: zod
-              .string()
-              .describe('The file path of the bom part content'),
-            sha: zod
-              .string()
+    documentMetadata: zod
+      .object({
+        branchedFromId: zod
+          .string()
+          .nullish()
+          .describe('The id of the document this document branched from'),
+        branchedFromVersionId: zod
+          .number()
+          .nullish()
+          .describe(
+            'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+          ),
+        createdAt: zod.number().describe('The time the document was created'),
+        documentBom: zod
+          .array(
+            zod
+              .object({
+                id: zod.string().describe('The uuid of the bom part'),
+                path: zod
+                  .string()
+                  .describe('The file path of the bom part content'),
+                sha: zod
+                  .string()
+                  .describe(
+                    'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                  ),
+              })
+              .describe('A Bill of Materials (BOM) part for DOCX documents.')
+          )
+          .nullish()
+          .describe(
+            'If the document is a DOCX document, the document_bom will be present'
+          ),
+        documentFamilyId: zod
+          .number()
+          .nullish()
+          .describe('The id of the document family this document belongs to'),
+        documentId: zod.string().describe('The document id'),
+        documentName: zod.string().describe('The name of the document'),
+        documentVersionId: zod
+          .number()
+          .describe(
+            'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+          ),
+        fileType: zod
+          .string()
+          .nullish()
+          .describe('The file type of the document'),
+        modificationData: zod
+          .any()
+          .optional()
+          .describe(
+            'The modification data for the document instance.\nThis is only used for PDF documents.'
+          ),
+        owner: zod.string().describe('The owner of the document'),
+        sha: zod
+          .string()
+          .nullish()
+          .describe(
+            'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+          ),
+        subType: zod
+          .union([
+            zod.null(),
+            zod
+              .enum(['task'])
               .describe(
-                'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
               ),
-          })
-        )
-        .nullish()
-        .describe(
-          'If the document is a DOCX document, the document_bom will be present'
-        ),
-      documentFamilyId: zod
-        .number()
-        .nullish()
-        .describe('The id of the document family this document belongs to'),
-      documentId: zod.string().describe('The document id'),
-      documentName: zod.string().describe('The name of the document'),
-      documentVersionId: zod
-        .number()
-        .describe(
-          'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-        ),
-      fileType: zod
-        .string()
-        .nullish()
-        .describe('The file type of the document'),
-      modificationData: zod
-        .any()
-        .optional()
-        .describe(
-          'The modification data for the document instance.\nThis is only used for PDF documents.'
-        ),
-      owner: zod.string().describe('The owner of the document'),
-      sha: zod
-        .string()
-        .nullish()
-        .describe(
-          'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
-        ),
-      subType: zod
-        .union([
-          zod.null(),
-          zod
-            .enum(['task'])
-            .describe(
-              'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
-            ),
-        ])
-        .optional(),
-      updatedAt: zod
-        .number()
-        .describe('The time the document instance / document BOM was updated'),
-    }),
+          ])
+          .optional(),
+        updatedAt: zod
+          .number()
+          .describe(
+            'The time the document instance / document BOM was updated'
+          ),
+      })
+      .describe('Document response metadata.'),
     presignedUrl: zod
       .string()
       .nullish()
@@ -1704,110 +1766,126 @@ export const copyDocumentHandlerBody = zod.object({
   versionId: zod
     .union([
       zod.null(),
-      zod.object({
-        counter: zod.number(),
-        peer: zod.string(),
-      }),
+      zod
+        .object({
+          counter: zod.number().describe('The counter value'),
+          peer: zod.string().describe('The peer identifier'),
+        })
+        .describe('Version ID for sync service.'),
     ])
     .optional(),
 });
 
-export const copyDocumentHandlerResponse = zod.object({
-  data: zod.object({
-    documentMetadata: zod.object({
-      branchedFromId: zod
-        .string()
-        .nullish()
-        .describe('The id of the document this document branched from'),
-      branchedFromVersionId: zod
-        .number()
-        .nullish()
-        .describe(
-          'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-        ),
-      createdAt: zod.number().describe('The time the document was created'),
-      deletedAt: zod
-        .number()
-        .nullable()
-        .describe('The time the document was deleted'),
-      documentBom: zod
-        .array(
-          zod.object({
-            id: zod.string().describe('The uuid of the bom part'),
-            path: zod
+export const copyDocumentHandlerResponse = zod
+  .object({
+    data: zod
+      .object({
+        documentMetadata: zod
+          .object({
+            branchedFromId: zod
               .string()
-              .describe('The file path of the bom part content'),
+              .nullish()
+              .describe('The id of the document this document branched from'),
+            branchedFromVersionId: zod
+              .number()
+              .nullish()
+              .describe(
+                'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+              ),
+            createdAt: zod
+              .number()
+              .describe('The time the document was created'),
+            documentBom: zod
+              .array(
+                zod
+                  .object({
+                    id: zod.string().describe('The uuid of the bom part'),
+                    path: zod
+                      .string()
+                      .describe('The file path of the bom part content'),
+                    sha: zod
+                      .string()
+                      .describe(
+                        'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                      ),
+                  })
+                  .describe(
+                    'A Bill of Materials (BOM) part for DOCX documents.'
+                  )
+              )
+              .nullish()
+              .describe(
+                'If the document is a DOCX document and unzipped, the document_bom will be present'
+              ),
+            documentFamilyId: zod
+              .number()
+              .nullish()
+              .describe(
+                'The id of the document family this document belongs to'
+              ),
+            documentId: zod.string().describe('The document id'),
+            documentName: zod.string().describe('The name of the document'),
+            documentVersionId: zod
+              .number()
+              .describe(
+                'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+              ),
+            fileType: zod
+              .string()
+              .nullish()
+              .describe('The file type of the document (file extension)'),
+            modificationData: zod
+              .any()
+              .optional()
+              .describe(
+                'The modification data for the document instance.\nThis is only used for PDF documents.'
+              ),
+            owner: zod.string().describe('The owner of the document'),
+            projectId: zod
+              .string()
+              .nullish()
+              .describe('The id of the project that this document belongs to'),
+            projectName: zod
+              .string()
+              .nullish()
+              .describe(
+                'The name of the project that this document belongs to'
+              ),
             sha: zod
               .string()
+              .nullish()
               .describe(
-                'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+              ),
+            subType: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['task'])
+                  .describe(
+                    'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+                  ),
+              ])
+              .optional(),
+            updatedAt: zod
+              .number()
+              .describe(
+                'The time the document instance / document BOM was updated'
               ),
           })
-        )
-        .nullish()
-        .describe(
-          'If the document is a DOCX document and unzipped, the document_bom will be present'
-        ),
-      documentFamilyId: zod
-        .number()
-        .nullish()
-        .describe('The id of the document family this document belongs to'),
-      documentId: zod.string().describe('The document id'),
-      documentName: zod.string().describe('The name of the document'),
-      documentVersionId: zod
-        .number()
-        .describe(
-          'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-        ),
-      fileType: zod
-        .string()
-        .nullish()
-        .describe('The file type of the document (file extension)'),
-      modificationData: zod
-        .any()
-        .optional()
-        .describe(
-          'The modification data for the document instance.\nThis is only used for PDF documents.'
-        ),
-      owner: zod.string().describe('The owner of the document'),
-      projectId: zod
-        .string()
-        .nullish()
-        .describe('The id of the project that this document belongs to'),
-      projectName: zod
-        .string()
-        .nullish()
-        .describe('The name of the project that this document belongs to'),
-      sha: zod
-        .string()
-        .nullish()
-        .describe(
-          'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
-        ),
-      subType: zod
-        .union([
-          zod.null(),
-          zod
-            .enum(['task'])
-            .describe(
-              'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
-            ),
-        ])
-        .optional(),
-      updatedAt: zod
-        .number()
-        .describe('The time the document instance / document BOM was updated'),
-    }),
-    userAccessLevel: zod
-      .enum(['view', 'comment', 'edit', 'owner'])
-      .describe('Ordered from least to most access top -> bottom'),
-    viewLocation: zod
-      .string()
-      .nullish()
-      .describe('The users view location if there is one'),
-  }),
-  error: zod.boolean().describe('Indicates if an error occurred'),
-});
+          .describe('Full document metadata.'),
+        userAccessLevel: zod
+          .enum(['view', 'comment', 'edit', 'owner'])
+          .describe('Ordered from least to most access top -> bottom'),
+        viewLocation: zod
+          .string()
+          .nullish()
+          .describe('The users view location if there is one'),
+      })
+      .describe('Data for the get document response.'),
+    error: zod.boolean().describe('Indicates if an error occurred'),
+  })
+  .describe('Response for getting a document.');
 
 /**
  * @summary Generates a presigned url to download the raw content of the document
@@ -1839,29 +1917,31 @@ export const getLocationHandlerQueryParams = zod.object({
     .describe('If true, this will return the converted docx url.'),
 });
 
-export const getLocationHandlerResponse = zod.union([
-  zod
-    .object({
-      presignedUrl: zod
-        .string()
-        .describe('The presigned url of the document if it is not a docx'),
-    })
-    .describe('The presigned url of the document if it is not a docx'),
-  zod
-    .object({
-      presignedUrls: zod
-        .array(
-          zod.object({
-            presignedUrl: zod
-              .string()
-              .describe('The presigned url used to upload the sha'),
-            sha: zod.string().describe('The sha of the item'),
-          })
-        )
-        .describe('The presigned urls of the docx bom parts if it is a docx'),
-    })
-    .describe('The presigned urls of the docx bom parts if it is a docx'),
-]);
+export const getLocationHandlerResponse = zod
+  .union([
+    zod
+      .object({
+        presignedUrl: zod
+          .string()
+          .describe('The presigned url of the document if it is not a docx'),
+      })
+      .describe('The presigned url of the document if it is not a docx'),
+    zod
+      .object({
+        presignedUrls: zod
+          .array(
+            zod.object({
+              presignedUrl: zod
+                .string()
+                .describe('The presigned url used to upload the sha'),
+              sha: zod.string().describe('The sha of the item'),
+            })
+          )
+          .describe('The presigned urls of the docx bom parts if it is a docx'),
+      })
+      .describe('The presigned urls of the docx bom parts if it is a docx'),
+  ])
+  .describe('Location response data variants.');
 
 /**
  * @summary Permanently deletes a document.
@@ -1943,78 +2023,84 @@ export const simpleSaveParams = zod.object({
 
 export const simpleSaveResponse = zod.object({
   data: zod.object({
-    documentMetadata: zod.object({
-      branchedFromId: zod
-        .string()
-        .nullish()
-        .describe('The id of the document this document branched from'),
-      branchedFromVersionId: zod
-        .number()
-        .nullish()
-        .describe(
-          'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-        ),
-      createdAt: zod.number().describe('The time the document was created'),
-      documentBom: zod
-        .array(
-          zod.object({
-            id: zod.string().describe('The uuid of the bom part'),
-            path: zod
-              .string()
-              .describe('The file path of the bom part content'),
-            sha: zod
-              .string()
+    documentMetadata: zod
+      .object({
+        branchedFromId: zod
+          .string()
+          .nullish()
+          .describe('The id of the document this document branched from'),
+        branchedFromVersionId: zod
+          .number()
+          .nullish()
+          .describe(
+            'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+          ),
+        createdAt: zod.number().describe('The time the document was created'),
+        documentBom: zod
+          .array(
+            zod
+              .object({
+                id: zod.string().describe('The uuid of the bom part'),
+                path: zod
+                  .string()
+                  .describe('The file path of the bom part content'),
+                sha: zod
+                  .string()
+                  .describe(
+                    'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                  ),
+              })
+              .describe('A Bill of Materials (BOM) part for DOCX documents.')
+          )
+          .nullish()
+          .describe(
+            'If the document is a DOCX document, the document_bom will be present'
+          ),
+        documentFamilyId: zod
+          .number()
+          .nullish()
+          .describe('The id of the document family this document belongs to'),
+        documentId: zod.string().describe('The document id'),
+        documentName: zod.string().describe('The name of the document'),
+        documentVersionId: zod
+          .number()
+          .describe(
+            'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+          ),
+        fileType: zod
+          .string()
+          .nullish()
+          .describe('The file type of the document'),
+        modificationData: zod
+          .any()
+          .optional()
+          .describe(
+            'The modification data for the document instance.\nThis is only used for PDF documents.'
+          ),
+        owner: zod.string().describe('The owner of the document'),
+        sha: zod
+          .string()
+          .nullish()
+          .describe(
+            'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+          ),
+        subType: zod
+          .union([
+            zod.null(),
+            zod
+              .enum(['task'])
               .describe(
-                'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
               ),
-          })
-        )
-        .nullish()
-        .describe(
-          'If the document is a DOCX document, the document_bom will be present'
-        ),
-      documentFamilyId: zod
-        .number()
-        .nullish()
-        .describe('The id of the document family this document belongs to'),
-      documentId: zod.string().describe('The document id'),
-      documentName: zod.string().describe('The name of the document'),
-      documentVersionId: zod
-        .number()
-        .describe(
-          'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-        ),
-      fileType: zod
-        .string()
-        .nullish()
-        .describe('The file type of the document'),
-      modificationData: zod
-        .any()
-        .optional()
-        .describe(
-          'The modification data for the document instance.\nThis is only used for PDF documents.'
-        ),
-      owner: zod.string().describe('The owner of the document'),
-      sha: zod
-        .string()
-        .nullish()
-        .describe(
-          'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
-        ),
-      subType: zod
-        .union([
-          zod.null(),
-          zod
-            .enum(['task'])
-            .describe(
-              'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
-            ),
-        ])
-        .optional(),
-      updatedAt: zod
-        .number()
-        .describe('The time the document instance / document BOM was updated'),
-    }),
+          ])
+          .optional(),
+        updatedAt: zod
+          .number()
+          .describe(
+            'The time the document instance / document BOM was updated'
+          ),
+      })
+      .describe('Document response metadata.'),
     presignedUrl: zod
       .string()
       .nullish()
@@ -2047,102 +2133,116 @@ export const getDocumentVersionParams = zod.object({
   document_version_id: zod.number().describe('Document Version ID'),
 });
 
-export const getDocumentVersionResponse = zod.object({
-  data: zod.object({
-    documentMetadata: zod.object({
-      branchedFromId: zod
-        .string()
-        .nullish()
-        .describe('The id of the document this document branched from'),
-      branchedFromVersionId: zod
-        .number()
-        .nullish()
-        .describe(
-          'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-        ),
-      createdAt: zod.number().describe('The time the document was created'),
-      deletedAt: zod
-        .number()
-        .nullable()
-        .describe('The time the document was deleted'),
-      documentBom: zod
-        .array(
-          zod.object({
-            id: zod.string().describe('The uuid of the bom part'),
-            path: zod
+export const getDocumentVersionResponse = zod
+  .object({
+    data: zod
+      .object({
+        documentMetadata: zod
+          .object({
+            branchedFromId: zod
               .string()
-              .describe('The file path of the bom part content'),
+              .nullish()
+              .describe('The id of the document this document branched from'),
+            branchedFromVersionId: zod
+              .number()
+              .nullish()
+              .describe(
+                'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+              ),
+            createdAt: zod
+              .number()
+              .describe('The time the document was created'),
+            documentBom: zod
+              .array(
+                zod
+                  .object({
+                    id: zod.string().describe('The uuid of the bom part'),
+                    path: zod
+                      .string()
+                      .describe('The file path of the bom part content'),
+                    sha: zod
+                      .string()
+                      .describe(
+                        'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                      ),
+                  })
+                  .describe(
+                    'A Bill of Materials (BOM) part for DOCX documents.'
+                  )
+              )
+              .nullish()
+              .describe(
+                'If the document is a DOCX document and unzipped, the document_bom will be present'
+              ),
+            documentFamilyId: zod
+              .number()
+              .nullish()
+              .describe(
+                'The id of the document family this document belongs to'
+              ),
+            documentId: zod.string().describe('The document id'),
+            documentName: zod.string().describe('The name of the document'),
+            documentVersionId: zod
+              .number()
+              .describe(
+                'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+              ),
+            fileType: zod
+              .string()
+              .nullish()
+              .describe('The file type of the document (file extension)'),
+            modificationData: zod
+              .any()
+              .optional()
+              .describe(
+                'The modification data for the document instance.\nThis is only used for PDF documents.'
+              ),
+            owner: zod.string().describe('The owner of the document'),
+            projectId: zod
+              .string()
+              .nullish()
+              .describe('The id of the project that this document belongs to'),
+            projectName: zod
+              .string()
+              .nullish()
+              .describe(
+                'The name of the project that this document belongs to'
+              ),
             sha: zod
               .string()
+              .nullish()
               .describe(
-                'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+              ),
+            subType: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['task'])
+                  .describe(
+                    'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+                  ),
+              ])
+              .optional(),
+            updatedAt: zod
+              .number()
+              .describe(
+                'The time the document instance / document BOM was updated'
               ),
           })
-        )
-        .nullish()
-        .describe(
-          'If the document is a DOCX document and unzipped, the document_bom will be present'
-        ),
-      documentFamilyId: zod
-        .number()
-        .nullish()
-        .describe('The id of the document family this document belongs to'),
-      documentId: zod.string().describe('The document id'),
-      documentName: zod.string().describe('The name of the document'),
-      documentVersionId: zod
-        .number()
-        .describe(
-          'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-        ),
-      fileType: zod
-        .string()
-        .nullish()
-        .describe('The file type of the document (file extension)'),
-      modificationData: zod
-        .any()
-        .optional()
-        .describe(
-          'The modification data for the document instance.\nThis is only used for PDF documents.'
-        ),
-      owner: zod.string().describe('The owner of the document'),
-      projectId: zod
-        .string()
-        .nullish()
-        .describe('The id of the project that this document belongs to'),
-      projectName: zod
-        .string()
-        .nullish()
-        .describe('The name of the project that this document belongs to'),
-      sha: zod
-        .string()
-        .nullish()
-        .describe(
-          'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
-        ),
-      subType: zod
-        .union([
-          zod.null(),
-          zod
-            .enum(['task'])
-            .describe(
-              'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
-            ),
-        ])
-        .optional(),
-      updatedAt: zod
-        .number()
-        .describe('The time the document instance / document BOM was updated'),
-    }),
-    userAccessLevel: zod
-      .enum(['view', 'comment', 'edit', 'owner'])
-      .describe('Ordered from least to most access top -> bottom'),
-    viewLocation: zod
-      .string()
-      .nullish()
-      .describe('The users view location if there is one'),
-  }),
-  error: zod.boolean().describe('Indicates if an error occurred'),
-});
+          .describe('Full document metadata.'),
+        userAccessLevel: zod
+          .enum(['view', 'comment', 'edit', 'owner'])
+          .describe('Ordered from least to most access top -> bottom'),
+        viewLocation: zod
+          .string()
+          .nullish()
+          .describe('The users view location if there is one'),
+      })
+      .describe('Data for the get document response.'),
+    error: zod.boolean().describe('Indicates if an error occurred'),
+  })
+  .describe('Response for getting a document.');
 
 /**
  * @summary Get the current user's permission for a given entity.

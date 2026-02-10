@@ -7,6 +7,9 @@
 import type { DocumentPreviewDataFileType } from './documentPreviewDataFileType';
 import type { DocumentPreviewDataSubTypeProperty } from './documentPreviewDataSubTypeProperty';
 
+/**
+ * Document preview data.
+ */
 export interface DocumentPreviewData {
   /** The document id */
   document_id: string;

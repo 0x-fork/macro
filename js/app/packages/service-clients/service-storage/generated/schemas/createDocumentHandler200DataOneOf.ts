@@ -8,5 +8,8 @@
 import type { CreateDocumentHandler200DataOneOfAllOf } from './createDocumentHandler200DataOneOfAllOf';
 import type { DocumentResponse } from './documentResponse';
 
+/**
+ * Data for create document response.
+ */
 export type CreateDocumentHandler200DataOneOf = DocumentResponse &
   CreateDocumentHandler200DataOneOfAllOf;

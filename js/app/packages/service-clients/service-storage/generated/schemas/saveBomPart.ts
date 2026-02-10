@@ -5,6 +5,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * A BOM part to be saved.
+ */
 export interface SaveBomPart {
   /** The file path of the bom part content */
   path: string;

@@ -7,5 +7,8 @@
 import type { DocumentPreviewData } from './documentPreviewData';
 import type { DocumentPreviewOneOfAllOf } from './documentPreviewOneOfAllOf';
 
+/**
+ * User has access to this document
+ */
 export type DocumentPreviewOneOf = DocumentPreviewData &
   DocumentPreviewOneOfAllOf;

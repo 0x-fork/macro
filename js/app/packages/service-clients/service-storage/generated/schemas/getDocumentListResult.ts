@@ -9,6 +9,9 @@ import type { GetDocumentListResultBranchedFromVersionId } from './getDocumentLi
 import type { GetDocumentListResultDocumentFamilyId } from './getDocumentListResultDocumentFamilyId';
 import type { GetDocumentListResultFileType } from './getDocumentListResultFileType';
 
+/**
+ * Result item for document list queries.
+ */
 export interface GetDocumentListResult {
   /** The id of the document this document branched from */
   branchedFromId?: GetDocumentListResultBranchedFromId;

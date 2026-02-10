@@ -160,7 +160,6 @@ export * from './documentFiltersImportance';
 export * from './documentMetadata';
 export * from './documentMetadataBranchedFromId';
 export * from './documentMetadataBranchedFromVersionId';
-export * from './documentMetadataDeletedAt';
 export * from './documentMetadataDocumentBom';
 export * from './documentMetadataDocumentFamilyId';
 export * from './documentMetadataFileType';

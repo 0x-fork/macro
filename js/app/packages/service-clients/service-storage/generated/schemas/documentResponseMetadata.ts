@@ -12,6 +12,9 @@ import type { DocumentResponseMetadataFileType } from './documentResponseMetadat
 import type { DocumentResponseMetadataSha } from './documentResponseMetadataSha';
 import type { DocumentResponseMetadataSubType } from './documentResponseMetadataSubType';
 
+/**
+ * Document response metadata.
+ */
 export interface DocumentResponseMetadata {
   /** The id of the document this document branched from */
   branchedFromId?: DocumentResponseMetadataBranchedFromId;

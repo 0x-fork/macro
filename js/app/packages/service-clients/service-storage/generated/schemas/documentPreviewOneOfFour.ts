@@ -8,5 +8,8 @@
 import type { DocumentPreviewOneOfFourAllOf } from './documentPreviewOneOfFourAllOf';
 import type { WithDocumentId } from './withDocumentId';
 
+/**
+ * User does not have access to this document
+ */
 export type DocumentPreviewOneOfFour = WithDocumentId &
   DocumentPreviewOneOfFourAllOf;

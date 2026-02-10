@@ -6,6 +6,9 @@
  */
 import type { CreateDocumentHandler200DataOneOf } from './createDocumentHandler200DataOneOf';
 
+/**
+ * Typed success response wrapper.
+ */
 export type CreateDocumentHandler200 = {
   /** Data to be returned */
   data: CreateDocumentHandler200DataOneOf;

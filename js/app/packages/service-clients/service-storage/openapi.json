@@ -698,6 +698,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
+                  "description": "Typed success response wrapper.",
                   "required": ["error", "data"],
                   "properties": {
                     "data": {
@@ -705,7 +706,8 @@
                         {
                           "allOf": [
                             {
-                              "$ref": "#/components/schemas/DocumentResponse"
+                              "$ref": "#/components/schemas/DocumentResponse",
+                              "description": "The document response"
                             },
                             {
                               "type": "object",
@@ -721,7 +723,8 @@
                                 }
                               }
                             }
-                          ]
+                          ],
+                          "description": "Data for create document response."
                         }
                       ],
                       "description": "Data to be returned"
@@ -4624,6 +4627,7 @@
       },
       "BomPart": {
         "type": "object",
+        "description": "A Bill of Materials (BOM) part for DOCX documents.",
         "required": ["id", "sha", "path"],
         "properties": {
           "id": {
@@ -5128,6 +5132,7 @@
       },
       "CreateDocumentRequest": {
         "type": "object",
+        "description": "Request to create a document.",
         "required": ["sha", "documentName"],
         "properties": {
           "branchedFromId": {
@@ -5194,7 +5199,8 @@
       "CreateDocumentResponseData": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/DocumentResponse"
+            "$ref": "#/components/schemas/DocumentResponse",
+            "description": "The document response"
           },
           {
             "type": "object",
@@ -5210,7 +5216,8 @@
               }
             }
           }
-        ]
+        ],
+        "description": "Data for create document response."
       },
       "CreateInstructionsDocumentResponse": {
         "type": "object",
@@ -5527,14 +5534,14 @@
       },
       "DocumentMetadata": {
         "type": "object",
+        "description": "Full document metadata.",
         "required": [
           "documentId",
           "documentVersionId",
           "owner",
           "documentName",
           "createdAt",
-          "updatedAt",
-          "deletedAt"
+          "updatedAt"
         ],
         "properties": {
           "branchedFromId": {
@@ -5550,11 +5557,6 @@
             "type": "integer",
             "format": "int64",
             "description": "The time the document was created"
-          },
-          "deletedAt": {
-            "type": ["integer", "null"],
-            "format": "int64",
-            "description": "The time the document was deleted"
           },
           "documentBom": {
             "type": ["array", "null"],
@@ -5624,6 +5626,7 @@
       },
       "DocumentPermissionsToken": {
         "type": "object",
+        "description": "Token for document permissions.",
         "required": ["document_id", "access_level", "exp", "iss"],
         "properties": {
           "access_level": {
@@ -5674,7 +5677,8 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/DocumentPreviewData"
+                "$ref": "#/components/schemas/DocumentPreviewData",
+                "description": "User has access to this document"
               },
               {
                 "type": "object",
@@ -5686,12 +5690,14 @@
                   }
                 }
               }
-            ]
+            ],
+            "description": "User has access to this document"
           },
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WithDocumentId"
+                "$ref": "#/components/schemas/WithDocumentId",
+                "description": "User does not have access to this document"
               },
               {
                 "type": "object",
@@ -5703,12 +5709,14 @@
                   }
                 }
               }
-            ]
+            ],
+            "description": "User does not have access to this document"
           },
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WithDocumentId"
+                "$ref": "#/components/schemas/WithDocumentId",
+                "description": "Document does not exist"
               },
               {
                 "type": "object",
@@ -5720,12 +5728,15 @@
                   }
                 }
               }
-            ]
+            ],
+            "description": "Document does not exist"
           }
-        ]
+        ],
+        "description": "Document preview types."
       },
       "DocumentPreviewData": {
         "type": "object",
+        "description": "Document preview data.",
         "required": ["document_id", "document_name", "owner", "updated_at"],
         "properties": {
           "document_id": {
@@ -5784,18 +5795,22 @@
       },
       "DocumentResponse": {
         "type": "object",
+        "description": "Full document response.",
         "required": ["documentMetadata"],
         "properties": {
           "documentMetadata": {
-            "$ref": "#/components/schemas/DocumentResponseMetadata"
+            "$ref": "#/components/schemas/DocumentResponseMetadata",
+            "description": "The document metadata"
           },
           "presignedUrl": {
-            "type": ["string", "null"]
+            "type": ["string", "null"],
+            "description": "The presigned url (if applicable)"
           }
         }
       },
       "DocumentResponseMetadata": {
         "type": "object",
+        "description": "Document response metadata.",
         "required": [
           "documentId",
           "documentVersionId",
@@ -6536,6 +6551,7 @@
       },
       "GetDocumentListResult": {
         "type": "object",
+        "description": "Result item for document list queries.",
         "required": [
           "documentId",
           "documentVersionId",
@@ -6633,6 +6649,7 @@
       },
       "GetDocumentResponse": {
         "type": "object",
+        "description": "Response for getting a document.",
         "required": ["error", "data"],
         "properties": {
           "data": {
@@ -6647,6 +6664,7 @@
       },
       "GetDocumentResponseData": {
         "type": "object",
+        "description": "Data for the get document response.",
         "required": ["documentMetadata", "userAccessLevel"],
         "properties": {
           "documentMetadata": {
@@ -6957,7 +6975,8 @@
               }
             }
           }
-        ]
+        ],
+        "description": "Location response data variants."
       },
       "Mentions": {
         "type": "object",
@@ -8107,6 +8126,7 @@
       },
       "SaveBomPart": {
         "type": "object",
+        "description": "A BOM part to be saved.",
         "required": ["sha", "path"],
         "properties": {
           "path": {
@@ -8995,14 +9015,17 @@
       },
       "SyncServiceVersionID": {
         "type": "object",
+        "description": "Version ID for sync service.",
         "required": ["peer", "counter"],
         "properties": {
           "counter": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "The counter value"
           },
           "peer": {
-            "type": "string"
+            "type": "string",
+            "description": "The peer identifier"
           }
         }
       },
@@ -9378,10 +9401,12 @@
       },
       "WithDocumentId": {
         "type": "object",
+        "description": "Simple struct containing just a document id.",
         "required": ["document_id"],
         "properties": {
           "document_id": {
-            "type": "string"
+            "type": "string",
+            "description": "The document id"
           }
         }
       },

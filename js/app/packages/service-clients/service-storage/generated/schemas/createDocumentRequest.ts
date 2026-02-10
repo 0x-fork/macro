@@ -15,6 +15,9 @@ import type { CreateDocumentRequestJobId } from './createDocumentRequestJobId';
 import type { CreateDocumentRequestMimeType } from './createDocumentRequestMimeType';
 import type { CreateDocumentRequestProjectId } from './createDocumentRequestProjectId';
 
+/**
+ * Request to create a document.
+ */
 export interface CreateDocumentRequest {
   /** The document id if the document is being branched. */
   branchedFromId?: CreateDocumentRequestBranchedFromId;

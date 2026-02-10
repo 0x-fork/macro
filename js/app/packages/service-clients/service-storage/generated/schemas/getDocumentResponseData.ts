@@ -9,6 +9,9 @@ import type { AccessLevel } from './accessLevel';
 import type { DocumentMetadata } from './documentMetadata';
 import type { GetDocumentResponseDataViewLocation } from './getDocumentResponseDataViewLocation';
 
+/**
+ * Data for the get document response.
+ */
 export interface GetDocumentResponseData {
   /** The metadata of the document */
   documentMetadata: DocumentMetadata;

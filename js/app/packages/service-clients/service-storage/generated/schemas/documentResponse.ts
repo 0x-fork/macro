@@ -7,7 +7,12 @@
 import type { DocumentResponseMetadata } from './documentResponseMetadata';
 import type { DocumentResponsePresignedUrl } from './documentResponsePresignedUrl';
 
+/**
+ * Full document response.
+ */
 export interface DocumentResponse {
+  /** The document metadata */
   documentMetadata: DocumentResponseMetadata;
+  /** The presigned url (if applicable) */
   presignedUrl?: DocumentResponsePresignedUrl;
 }

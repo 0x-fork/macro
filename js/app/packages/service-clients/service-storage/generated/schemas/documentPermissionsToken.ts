@@ -7,6 +7,9 @@
 import type { AccessLevel } from './accessLevel';
 import type { DocumentPermissionsTokenUserId } from './documentPermissionsTokenUserId';
 
+/**
+ * Token for document permissions.
+ */
 export interface DocumentPermissionsToken {
   /** The access level of the user for the document */
   access_level: AccessLevel;

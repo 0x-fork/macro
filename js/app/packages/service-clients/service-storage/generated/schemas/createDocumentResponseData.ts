@@ -8,5 +8,8 @@
 import type { CreateDocumentResponseDataAllOf } from './createDocumentResponseDataAllOf';
 import type { DocumentResponse } from './documentResponse';
 
+/**
+ * Data for create document response.
+ */
 export type CreateDocumentResponseData = DocumentResponse &
   CreateDocumentResponseDataAllOf;
