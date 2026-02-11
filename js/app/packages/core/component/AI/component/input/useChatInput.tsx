@@ -27,6 +27,8 @@ import { ChatAttachMenu } from './ChatAttachMenu';
 import type { Source } from './ToolsetSelector';
 import type { UseChatMarkdown } from './useChatMarkdownArea';
 import { cn } from '@ui/utils/classname';
+import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import { useAiDataConsentGate } from './useAiDataConsent';
 
 const { track, TrackingEvents } = withAnalytics();
 
@@ -53,6 +55,7 @@ export function ChatInput(props: ChatInputComponentProps) {
 
   let containerRef!: HTMLDivElement;
   const toolsetSignal = createSignal<ToolSet>({ type: 'all' });
+  const { hasConsent, requestConsent, ConsentDialog } = useAiDataConsentGate();
 
   const [source] = createSignal<Source>('everything');
   const [showAttachMenu, setShowAttachMenu] = createSignal(false);
@@ -88,6 +91,11 @@ export function ChatInput(props: ChatInputComponentProps) {
 
   const sendMessage = createCallback(async (modelOverride?: Model) => {
     if (!canSendMessage()) return;
+
+    if (isNativeMobilePlatform() && !hasConsent()) {
+      requestConsent(() => sendMessage(modelOverride));
+      return;
+    }
 
     const request = await buildChatSendRequest({
       chatId: chatId(),
@@ -283,6 +291,7 @@ export function ChatInput(props: ChatInputComponentProps) {
           <RightControls />
         </div>
       </div>
+      <ConsentDialog />
     </div>
   );
 }
