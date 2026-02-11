@@ -38,9 +38,10 @@ vi.mock('./normalizer', () => ({
   },
 }));
 
+// biome-ignore lint/correctness/noPrivateImports: testing private export
+import { buildSingleEntityFilter } from './operations';
 import {
   getSoupItemId,
-  buildSingleEntityFilter,
   insertSoupEntity,
   removeSoupEntities,
   removeSearchEntities,
