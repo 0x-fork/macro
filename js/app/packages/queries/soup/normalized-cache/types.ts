@@ -4,10 +4,8 @@ export interface SoupTransaction {
   rollback(): void;
 }
 
-// Derive tag union from the source of truth instead of manually maintaining it
 export type SoupEntityTag = SoupApiItem['tag'];
 
-// Extract data type for a given tag
 type SoupItemData<T extends SoupEntityTag> = Extract<
   SoupApiItem,
   { tag: T }
@@ -25,8 +23,6 @@ type SoupPartialData<T extends SoupEntityTag> = T extends 'channel'
   : Partial<SoupItemData<T>> & { id: string };
 
 // A partial soup entity for optimistic updates.
-// Generic so callers with literal tags get narrowed checking,
-// and callers with union tags still compile (conditional distributes).
 export type SoupEntityPartial<T extends SoupEntityTag = SoupEntityTag> = {
   tag: T;
   data: SoupPartialData<T>;

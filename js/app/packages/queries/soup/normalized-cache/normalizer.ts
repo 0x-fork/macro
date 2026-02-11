@@ -1,10 +1,13 @@
 import { createQueryNormalizer } from '@normy/query-core';
 import type { QueryClient } from '@tanstack/solid-query';
 
+export type NormalizerData = Parameters<
+  ReturnType<typeof createQueryNormalizer>['setNormalizedData']
+>[0];
+
 /**
  * Extracts a normalization key from SoupApiItem wrappers.
  * Only objects with `tag + data + frecency_score` are normalized.
- * Everything else (SoupProperty, nested data objects) is left inline.
  */
 export const getNormalizationObjectKey = (
   obj: Record<string, unknown>
@@ -42,7 +45,3 @@ export function initSoupNormalizer(qc: QueryClient): () => void {
   _normalizer.subscribe();
   return () => _normalizer!.unsubscribe();
 }
-
-export type NormalizerData = Parameters<
-  ReturnType<typeof createQueryNormalizer>['setNormalizedData']
->[0];

@@ -21,19 +21,15 @@ import type {
 
 /**
  * Optimistically update a single soup entity across all queries that reference it.
- * Normy deep-merges into its normalized store, so only changed fields are needed.
  * Returns a transaction whose `rollback()` restores only the affected queries
- * (scoped via normy's dependency graph — not a full soup snapshot).
- *
  * Channels: `{ tag: 'channel', data: { channel: { id, ...fields } }, frecency_score }`
  * Everything else: `{ tag, data: { id, ...fields }, frecency_score }`
  */
 export function optimisticUpdateSoupEntity<T extends SoupEntityTag>(
   partial: SoupEntityPartial<T>
 ): SoupTransaction {
-  const record = partial as unknown as Record<string, unknown>;
   const normalizer = getSoupNormalizer();
-  const normKey = getNormalizationObjectKey(record);
+  const normKey = getNormalizationObjectKey(partial);
 
   const dependentKeys = normKey
     ? normalizer.getDependentQueriesByIds([normKey])
@@ -47,7 +43,7 @@ export function optimisticUpdateSoupEntity<T extends SoupEntityTag>(
       ] as const
   );
 
-  normalizer.setNormalizedData(record as NormalizerData);
+  normalizer.setNormalizedData(partial as NormalizerData);
 
   return {
     rollback: () => {
@@ -67,7 +63,6 @@ export function getSoupEntityById(entityId: string): SoupApiItem | undefined {
 
 /**
  * Mark stale only the soup queries containing a specific entity.
- * Uses normy's dependency graph for O(1) lookup — does not scan pages.
  * Prefer this over `invalidateAllSoup` when you know the affected entity ID.
  */
 export function invalidateSoupEntity(entityId: string): void {
@@ -97,38 +92,6 @@ export function getSoupItemId(item: SoupApiItem): string {
       return item.data.channel.id;
     default:
       return item.data.id;
-  }
-}
-
-function getSearchResultId(result: UnifiedSearchResponseItem): string {
-  switch (result.type) {
-    case 'document':
-      return result.document_id;
-    case 'chat':
-      return result.chat_id;
-    case 'channel':
-      return result.channel_id;
-    case 'email':
-      return result.thread_id;
-    case 'project':
-      return result.id;
-  }
-}
-
-function snapshotSoup(): [
-  QueryKey,
-  InfiniteData<SoupPage, unknown> | undefined,
-][] {
-  return queryClient.getQueriesData<InfiniteData<SoupPage, unknown>>({
-    queryKey: soupKeys.items._def,
-  });
-}
-
-function restoreSnapshot(
-  snapshot: [QueryKey, InfiniteData<SoupPage, unknown> | undefined][]
-): void {
-  for (const [key, data] of snapshot) {
-    queryClient.setQueryData(key, data);
   }
 }
 
@@ -226,36 +189,6 @@ export function removeSearchEntities(entityIds: Set<string>): SoupTransaction {
   };
 }
 
-// UUID that matches no real entity — used to zero out soup filters
-// so omitted entity types return nothing instead of everything.
-const NIL_ID = '00000000-0000-0000-0000-000000000000';
-
-function buildSingleEntityFilter(
-  entityType: SoupEntityTag,
-  entityId: string
-): PostSoupRequest | null {
-  const base: PostSoupRequest = {
-    limit: 1,
-    document_filters: { document_ids: [NIL_ID] },
-    chat_filters: { chat_ids: [NIL_ID] },
-    channel_filters: { channel_ids: [NIL_ID] },
-    project_filters: { project_ids: [NIL_ID] },
-    email_filters: { importance: false },
-  };
-  switch (entityType) {
-    case 'document':
-      return { ...base, document_filters: { document_ids: [entityId] } };
-    case 'chat':
-      return { ...base, chat_filters: { chat_ids: [entityId] } };
-    case 'channel':
-      return { ...base, channel_filters: { channel_ids: [entityId] } };
-    case 'project':
-      return { ...base, project_filters: { project_ids: [entityId] } };
-    case 'emailThread':
-      return null;
-  }
-}
-
 /**
  * Fetch a single entity from the server and merge it into the cache.
  * If the entity is already cached, updates it via normy (deep-merge).
@@ -293,3 +226,71 @@ export async function refetchSoupEntity(
     insertSoupEntity(item);
   }
 }
+
+// UUID that matches no real entity — used to zero out soup filters
+// so omitted entity types return nothing instead of everything.
+const NIL_ID = '00000000-0000-0000-0000-000000000000';
+
+/** @private */
+export function buildSingleEntityFilter(
+  entityType: SoupEntityTag,
+  entityId: string
+): PostSoupRequest | null {
+  const base: PostSoupRequest = {
+    limit: 1,
+    document_filters: { document_ids: [NIL_ID] },
+    chat_filters: { chat_ids: [NIL_ID] },
+    channel_filters: { channel_ids: [NIL_ID] },
+    project_filters: { project_ids: [NIL_ID] },
+    email_filters: { importance: false },
+  };
+  switch (entityType) {
+    case 'document':
+      return { ...base, document_filters: { document_ids: [entityId] } };
+    case 'chat':
+      return { ...base, chat_filters: { chat_ids: [entityId] } };
+    case 'channel':
+      return { ...base, channel_filters: { channel_ids: [entityId] } };
+    case 'project':
+      return { ...base, project_filters: { project_ids: [entityId] } };
+    case 'emailThread':
+      //TODO: need to add backend support for email threads
+      return null;
+  }
+}
+
+/** @private */
+function getSearchResultId(result: UnifiedSearchResponseItem): string {
+  switch (result.type) {
+    case 'document':
+      return result.document_id;
+    case 'chat':
+      return result.chat_id;
+    case 'channel':
+      return result.channel_id;
+    case 'email':
+      return result.thread_id;
+    case 'project':
+      return result.id;
+  }
+}
+
+/** @private */
+function snapshotSoup(): [
+  QueryKey,
+  InfiniteData<SoupPage, unknown> | undefined,
+][] {
+  return queryClient.getQueriesData<InfiniteData<SoupPage, unknown>>({
+    queryKey: soupKeys.items._def,
+  });
+}
+
+/** @private */
+function restoreSnapshot(
+  snapshot: [QueryKey, InfiniteData<SoupPage, unknown> | undefined][]
+): void {
+  for (const [key, data] of snapshot) {
+    queryClient.setQueryData(key, data);
+  }
+}
+
