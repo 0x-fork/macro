@@ -19,6 +19,45 @@ false && fileSelector;
 false && folderSelector;
 
 const DEFAULT_EMPTY_MESSAGE = 'No items to show.';
+const EARLY_20TH_CENTURY_SCIENTIST_QUOTES: Record<string, string> = {
+  'Albert Einstein':
+    'Imagination is more important than knowledge. For knowledge is limited, whereas imagination embraces the entire world.',
+  'Marie Curie':
+    'Nothing in life is to be feared, it is only to be understood.',
+  'Niels Bohr':
+    'An expert is a person who has made all the mistakes that can be made in a very narrow field.',
+  'Max Planck':
+    'Science cannot solve the ultimate mystery of nature.',
+  'Ernest Rutherford':
+    "If your experiment needs statistics, you ought to have done a better experiment.",
+  'Nikola Tesla':
+    "The present is theirs; the future, for which I really worked, is mine.",
+  'Richard Feynman':
+    "I'd rather have questions that can't be answered than answers that can't be questioned.",
+  'Lise Meitner': 'Life need not be easy, provided only that it is not empty.',
+  'Enrico Fermi': "There are two possible outcomes: if the result confirms the hypothesis, then you've made a measurement. If the result is contrary to the hypothesis, then you've made a discovery.",
+  'C. V. Raman': 'Ask the right questions, and nature will open the doors to her secrets.',
+  'Satyendra Nath Bose':
+    'I would like to say to the young scientists that there is no short cut to success in scientific work.',
+  'Srinivasa Ramanujan':
+    'An equation for me has no meaning unless it expresses a thought of God.',
+  'J. Robert Oppenheimer':
+    'There must be no barriers for freedom of inquiry.',
+  'Wolfgang Pauli':
+    'God made the bulk; surfaces were invented by the devil.',
+  'Werner Heisenberg':
+    'Not only is the universe stranger than we think, it is stranger than we can think.',
+  'Paul Dirac':
+    'The aim of science is to make difficult things understandable in a simpler way.',
+  'Hendrik Lorentz':
+    'As long as there are physicists, there will be debates.',
+  'Henri Poincare':
+    'Science is built of facts as a house is built of stones; but an accumulation of facts is no more a science than a heap of stones is a house.',
+  'George Washington Carver':
+    'Where there is no vision, there is no hope.',
+  'Jagadish Chandra Bose':
+    'The true laboratory is the mind, where behind illusions we uncover the laws of truth.',
+};
 
 function getRandomArcanumGraphic() {
   const graphicStyle = 'h-72 m-8 mt-32 @max-sm:mt-20 opacity-60';
@@ -33,6 +72,13 @@ function getRandomArcanumGraphic() {
   ];
   const randomIndex = Math.floor(Math.random() * arcanumGraphics.length);
   return arcanumGraphics[randomIndex];
+}
+
+export function getRandomScientistQuote() {
+  const quotes = Object.entries(EARLY_20TH_CENTURY_SCIENTIST_QUOTES);
+  const randomIndex = Math.floor(Math.random() * quotes.length);
+  const [scientist, quote] = quotes[randomIndex];
+  return `[${quote}] - ${scientist}`;
 }
 
 export function EmptyState(props: {

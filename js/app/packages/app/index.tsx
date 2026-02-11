@@ -1,5 +1,8 @@
 import './index.css';
 import '@fontsource-variable/inter';
+import '@fontsource/roboto-slab/400.css';
+import '@fontsource/roboto-slab/500.css';
+import '@fontsource/roboto-slab/600.css';
 // SolidDevtools retains disposed memos, causes memory leak
 // import 'solid-devtools';
 

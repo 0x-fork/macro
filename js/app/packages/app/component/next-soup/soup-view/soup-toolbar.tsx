@@ -19,8 +19,6 @@ import {
   Show,
   onCleanup,
   createSignal,
-  onMount,
-  createEffect,
   type Component,
 } from 'solid-js';
 import {
@@ -34,7 +32,6 @@ import { registerHotkey } from '@core/hotkey/hotkeys';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ValidHotkey } from '@core/hotkey/types';
-import { createElementSize } from '@solid-primitives/resize-observer';
 import { IS_MAC } from '@core/constant/isMac';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { Dynamic } from 'solid-js/web';
@@ -58,50 +55,43 @@ const ENTITY_TYPE_SHORTCUTS: Record<
   file: 'f',
 };
 
+const runOnPress = (
+  event: PointerEvent | KeyboardEvent,
+  action: VoidFunction
+) => {
+  if (event instanceof PointerEvent) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    action();
+    return;
+  }
+
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    action();
+  }
+};
+
 export const SoupToolbar = () => {
-  const { soup } = useSoupView();
-
-  const [scrollContainerRef, setScrollContainerRef] = createSignal<
-    HTMLDivElement | undefined
-  >(undefined);
-
   return (
     <>
       <SplitHeaderLeft>
-        <div class="relative h-full">
-          <ScrollIndicators scrollRef={scrollContainerRef()} />
-
-          <div
-            ref={setScrollContainerRef}
-            class="flex items-center h-full overflow-x-auto scrollbar-hidden overscroll-none text-xs touch:mobile-width:text-sm"
-          >
-            <SoupFilters />
-            <SearchBar />
-          </div>
+        <div class="flex items-center h-full">
+          <SearchBar />
         </div>
       </SplitHeaderLeft>
 
       <SplitHeaderRight>
-        <div class="flex items-center h-full gap-0.5">
-          <Tooltip
-            tooltip={<LabelAndHotKey label="Clear filters" shortcut="/" />}
-          >
-            <button
-              type="button"
-              class="flex items-center gap-1.5 px-2.5 rounded-full text-ink-muted hover:text-accent hover:bg-accent/20 active:bg-accent active:text-panel"
-              onClick={soup.filters.clear}
-            >
-              <XIcon class="size-4.5" />
-              <span class="text-xs touch:mobile-width:text-sm leading-none">
-                Clear
-                <span class="ml-1 font-mono opacity-70">/</span>
-              </span>
-            </button>
-          </Tooltip>
-          <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
+        <div class="flex items-center h-full">
           <SettingsButton />
         </div>
       </SplitHeaderRight>
+
+      <aside class="w-14 shrink-0 border-r border-edge-muted/50 bg-menu overflow-y-auto">
+        <div class="flex flex-col items-stretch p-0">
+          <SoupFilters />
+        </div>
+      </aside>
     </>
   );
 };
@@ -249,7 +239,7 @@ const SoupFilters = () => {
   });
 
   return (
-    <>
+    <div class="flex flex-col gap-0">
       {/* Inbox toggle */}
       <FilterButton
         icon={SignalIcon}
@@ -270,36 +260,41 @@ const SoupFilters = () => {
       />
       <FilterDivider />
       {/* Unread filter */}
-      <div class="flex items-center mr-0.5 shrink-0">
-        <Tooltip tooltip={<LabelAndHotKey label="Unread Only" shortcut="u" />}>
-          <button
-            type="button"
-            class="flex items-center gap-1 h-[22px] touch:mobile-width:h-9 pr-2.5 pl-1 active:bg-accent active:text-panel rounded-full"
-            classList={{
-              'bg-accent text-panel': soup.filters.isActive('unread'),
-              'text-ink-muted hover:text-accent hover:bg-accent/20':
-                !soup.filters.isActive('unread'),
-            }}
-            onClick={() => soup.filters.toggle('unread')}
+      <div class="shrink-0">
+        <button
+          type="button"
+          class="w-full flex flex-col items-center justify-center gap-2 px-2 py-2 active:bg-accent active:text-panel rounded-none"
+          classList={{
+            'bg-accent text-panel': soup.filters.isActive('unread'),
+            'text-ink-muted hover:text-accent hover:bg-accent/20':
+              !soup.filters.isActive('unread'),
+          }}
+          onPointerDown={(e) => runOnPress(e, () => soup.filters.toggle('unread'))}
+          onKeyDown={(e) => runOnPress(e, () => soup.filters.toggle('unread'))}
+        >
+          <svg
+            class="size-4"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            stroke="none"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <svg
-              class="size-4"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              stroke="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx="12" cy="12" r="4" />
-            </svg>
-            <span class="leading-none">
-              <ShortcutLabel label="Unread" shortcut="u" />
-            </span>
-          </button>
-        </Tooltip>
+            <circle cx="12" cy="12" r="4.5" />
+          </svg>
+          <span
+            class="leading-none text-[6pt] text-center"
+            classList={{
+              'text-panel': soup.filters.isActive('unread'),
+              'text-ink': !soup.filters.isActive('unread'),
+            }}
+          >
+            <ShortcutLabel label="Unread" shortcut="u" />
+          </span>
+        </button>
       </div>
-      <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
+      <FilterDivider />
       {/* Entity type icons */}
-      <div class="flex items-center shrink-0">
+      <div class="flex flex-col gap-0 shrink-0">
         <For each={ENTITY_TYPE_FILTER_CONFIGS}>
           {(filter) => {
             const iconConfig = () => getEntityTypeFilterIcon(filter.id);
@@ -314,34 +309,36 @@ const SoupFilters = () => {
                 shortcut={shortcut}
                 isActive={() => soup.filters.isActive(filter.id)}
                 onClick={() => toggleFilter(filter.id)}
-                paddingClass="px-2.5"
               />
             );
           }}
         </For>
       </div>
-      <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
+      <FilterDivider />
       {/* Preview toggle */}
-      <Tooltip
-        tooltip={<LabelAndHotKey label="Toggle Preview" shortcut="space" />}
+      <button
+        type="button"
+        class="w-full flex flex-col items-center justify-center gap-2 px-2 py-2 active:bg-accent active:text-panel rounded-none"
+        classList={{
+          'bg-accent text-panel': !!soup.previewEntity(),
+          'text-ink-muted hover:text-accent hover:bg-accent/20':
+            !soup.previewEntity(),
+        }}
+        disabled={!soup.focus.id()}
+        onPointerDown={(e) => runOnPress(e, togglePreview)}
+        onKeyDown={(e) => runOnPress(e, togglePreview)}
       >
-        <button
-          type="button"
-          class="flex items-center gap-1.5 h-[22px] touch:mobile-width:h-9 px-2.5 active:bg-accent active:text-panel rounded-full"
+        <PreviewIcon class="size-4" />
+        <span
+          class="leading-none text-[6pt] text-center"
           classList={{
-            'bg-accent text-panel': !!soup.previewEntity(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20':
-              !soup.previewEntity(),
+            'text-panel': !!soup.previewEntity(),
+            'text-ink': !soup.previewEntity(),
           }}
-          disabled={!soup.focus.id()}
-          onClick={togglePreview}
         >
-          <PreviewIcon class="size-4.5" />
-          <span class="leading-none">
-            <ShortcutLabel label="Preview" shortcut="space" />
-          </span>
-        </button>
-      </Tooltip>
+          <ShortcutLabel label="Preview" shortcut="space" />
+        </span>
+      </button>
       <FilterDivider />
       {/* Sort dropdown */}
       <SortDropdown
@@ -351,12 +348,33 @@ const SoupFilters = () => {
         onChange={(value) => {
           soup.sort.setAll([value]);
         }}
+        layout="vertical"
       />
-      <div class="touch:mobile-width:-order-1">
-        <FilterDivider />
+      <FilterDivider />
+      <div class="shrink-0">
+        <button
+          type="button"
+          class="w-full flex flex-col items-center justify-center gap-2 px-2 py-2 rounded-none active:bg-accent active:text-panel text-ink-muted hover:text-accent hover:bg-accent/20"
+          onPointerDown={(e) =>
+            runOnPress(e, () => {
+              soup.filters.clear();
+              setSearchText('');
+            })
+          }
+          onKeyDown={(e) =>
+            runOnPress(e, () => {
+              soup.filters.clear();
+              setSearchText('');
+            })
+          }
+        >
+          <XIcon class="size-4" />
+          <span class="leading-none text-[6pt] text-center text-ink">
+            <ShortcutLabel label="Clear" shortcut="/" />
+          </span>
+        </button>
       </div>
-      {/* Filter search bar */}
-    </>
+    </div>
   );
 };
 
@@ -393,57 +411,6 @@ function SettingsButton() {
     </Show>
   );
 }
-
-const ScrollIndicators = (props: { scrollRef: HTMLElement | undefined }) => {
-  const [leftOpacity, setLeftOpacity] = createSignal(0);
-  const [rightOpacity, setRightOpacity] = createSignal(0);
-  const SCROLL_THRESHOLD = 10;
-
-  // Track size changes to update indicators
-  const size = createElementSize(() => props.scrollRef);
-  const containerWidth = () => size.width ?? 0;
-
-  const updateClipIndicators = () => {
-    const ref = props.scrollRef;
-    if (!ref) return;
-    const { scrollLeft, scrollWidth, clientWidth } = ref;
-
-    const leftAmount = Math.min(scrollLeft, SCROLL_THRESHOLD);
-    setLeftOpacity(leftAmount / SCROLL_THRESHOLD);
-
-    const maxScroll = scrollWidth - clientWidth;
-    const remainingScroll = maxScroll - scrollLeft;
-    const rightAmount = Math.min(remainingScroll, SCROLL_THRESHOLD);
-    setRightOpacity(rightAmount / SCROLL_THRESHOLD);
-  };
-
-  // Update indicators when size changes
-  createEffect(() => {
-    containerWidth(); // Track size changes
-    updateClipIndicators();
-  });
-
-  onMount(() => {
-    const ref = props.scrollRef;
-    if (!ref) return;
-    ref.addEventListener('scroll', updateClipIndicators);
-    onCleanup(() => ref?.removeEventListener('scroll', updateClipIndicators));
-  });
-  return (
-    <>
-      {/* Left clip boundary indicator */}
-      <div
-        class="absolute pointer-events-none left-0 top-px bottom-px w-3 z-2 pattern-diagonal-4 pattern-edge mask-r-from-0% border-l border-edge-muted"
-        style={{ opacity: leftOpacity() }}
-      />
-      {/* Right clip boundary indicator */}
-      <div
-        class="absolute pointer-events-none right-0 top-px bottom-px w-3 z-2 pattern-diagonal-4 pattern-edge mask-l-from-0% border-r border-edge-muted"
-        style={{ opacity: rightOpacity() }}
-      />
-    </>
-  );
-};
 
 const SearchBar = () => {
   const { searchText, setSearchText } = useSoupView();
@@ -557,7 +524,6 @@ export interface FilterButtonProps {
   shortcut: string;
   isActive: (() => boolean) | boolean;
   onClick: () => void;
-  paddingClass?: string;
 }
 
 export const FilterButton: Component<FilterButtonProps> = (props) => {
@@ -567,45 +533,46 @@ export const FilterButton: Component<FilterButtonProps> = (props) => {
     typeof props.isActive === 'function' ? props.isActive() : props.isActive;
 
   return (
-    <div class="flex items-center mr-0.5 shrink-0">
-      <Tooltip
-        tooltip={
-          <LabelAndHotKey label={props.label} shortcut={props.shortcut} />
-        }
+    <div class="shrink-0">
+      <button
+        type="button"
+        class="w-full flex flex-col items-center justify-center gap-2 px-2 py-2 active:bg-accent active:text-panel rounded-none"
+        classList={{
+          'bg-accent text-panel': isActive(),
+          'text-ink-muted hover:text-accent hover:bg-accent/20': !isActive(),
+        }}
+        onPointerDown={(e) => runOnPress(e, props.onClick)}
+        onKeyDown={(e) => runOnPress(e, props.onClick)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        <button
-          type="button"
-          class={`flex items-center gap-1 h-[22px] touch:mobile-width:h-9 ${props.paddingClass ?? 'pl-2 pr-2.5'} active:bg-accent active:text-panel rounded-full`}
-          classList={{
-            'bg-accent text-panel': isActive(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20': !isActive(),
-          }}
-          onClick={props.onClick}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
+        <Show
+          when={ENABLE_ANIMATED_ICONS && props.animatedIcon}
+          fallback={<Dynamic component={props.icon} class="size-4" />}
         >
-          <Show
-            when={ENABLE_ANIMATED_ICONS && props.animatedIcon}
-            fallback={<Dynamic component={props.icon} class="size-3.5" />}
-          >
-            {(Icon) => (
-              <div class="size-3.5 overflow-visible">
-                <Dynamic
-                  component={Icon()}
-                  triggerAnimation={isHovered() || isActive()}
-                />
-              </div>
-            )}
-          </Show>
-          <span class="leading-none">
-            <ShortcutLabel label={props.label} shortcut={props.shortcut} />
-          </span>
-        </button>
-      </Tooltip>
+          {(Icon) => (
+            <div class="size-4 overflow-visible">
+              <Dynamic
+                component={Icon()}
+                triggerAnimation={isHovered() || isActive()}
+              />
+            </div>
+          )}
+        </Show>
+        <span
+          class="leading-none text-[6pt] text-center"
+          classList={{
+            'text-panel': isActive(),
+            'text-ink': !isActive(),
+          }}
+        >
+          <ShortcutLabel label={props.label} shortcut={props.shortcut} />
+        </span>
+      </button>
     </div>
   );
 };
 
 export const FilterDivider: Component = () => (
-  <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
+  <hr class="w-full border-0 border-t border-edge-muted/50 m-0 shrink-0" />
 );

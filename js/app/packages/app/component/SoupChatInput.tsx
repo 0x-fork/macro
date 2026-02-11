@@ -11,11 +11,18 @@ import { onMount, Show } from 'solid-js';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
 import { useSoup } from '@app/component/next-soup/soup-context';
 
-function SoupChatInputInner() {
+type SoupChatInputProps = {
+  variant?: 'docked' | 'centered';
+  dockedTall?: boolean;
+};
+
+function SoupChatInputInner(props: SoupChatInputProps) {
   let containerRef!: HTMLDivElement;
   const splitPanelContext = useSplitPanelOrThrow();
   const soup = useSoup();
   const ctx = useChatContext();
+  const isCentered = () => props.variant === 'centered';
+  const isDockedTall = () => !isCentered() && !!props.dockedTall;
 
   const chatMarkdownArea = useChatMarkdownArea({
     addAttachment: (a) => ctx.attachments.addAttachment(a),
@@ -57,13 +64,31 @@ function SoupChatInputInner() {
     <Show when={!soup.previewEntity()}>
       <div
         ref={containerRef}
-        class="absolute z-10 bottom-0 pb-2 px-2 flex justify-center w-full pointer-events-none"
-        style={{
-          'background-image': `linear-gradient(transparent, var(--color-panel) 85%)`,
+        classList={{
+          'absolute z-10 bottom-0 pb-0 px-2 flex justify-center w-full pointer-events-none':
+            !isCentered(),
+          'w-full flex justify-center px-4': isCentered(),
         }}
+        style={
+          !isCentered()
+            ? {
+                'background-image': `linear-gradient(transparent, var(--color-panel) 85%)`,
+              }
+            : undefined
+        }
       >
-        <div class="w-full max-w-3xl">
-          <div class="pointer-events-auto">
+        <div
+          classList={{
+            'w-full max-w-3xl [&_#chat-input]:rounded-b-none [&_#chat-input]:border-b-0 [&_#chat-input]:transition-[min-height] [&_#chat-input]:duration-200 [&_#chat-input]:ease-out':
+              !isCentered(),
+            'w-full max-w-3xl [&_#chat-input]:min-h-[92px]': isDockedTall(),
+            'w-full max-w-3xl [&_#chat-input]:min-h-[56px]':
+              !isCentered() && !isDockedTall(),
+            'w-full max-w-3xl scale-[1.06] origin-center [&_#chat-input]:min-h-[100px] [&_#chat-input]:shadow-lg [&_#chat-input]:ring-[0.5px] [&_#chat-input]:ring-edge-muted':
+              isCentered(),
+          }}
+        >
+          <div classList={{ 'pointer-events-auto': !isCentered() }}>
             <ChatInput
               markdown={chatMarkdownArea}
               onSend={handleSend}
@@ -77,10 +102,10 @@ function SoupChatInputInner() {
   );
 }
 
-export function SoupChatInput() {
+export function SoupChatInput(props: SoupChatInputProps) {
   return (
     <ChatContextProvider autoAttach={false}>
-      <SoupChatInputInner />
+      <SoupChatInputInner variant={props.variant} />
     </ChatContextProvider>
   );
 }

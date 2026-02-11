@@ -638,6 +638,9 @@
 }
 
 @layer components {
+  .font-roboto-slab {
+    font-family: "Roboto Slab", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  }
 }
 /* Option to add to focusable elements */
 html[data-modality="keyboard"] .focus-bracket:focus-visible::after {

@@ -1,6 +1,5 @@
 import { type Component, createSignal, For, Show } from 'solid-js';
 import { Popover } from '@kobalte/core/popover';
-import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import SortIcon from '@macro-icons/wide/sort.svg';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { ShortcutLabel } from '@app/component/next-soup/soup-view/soup-toolbar';
@@ -27,6 +26,8 @@ export interface SortDropdownProps {
   open?: () => boolean;
   /** Controlled open state setter (optional - uses internal state if not provided) */
   onOpenChange?: (open: boolean) => void;
+  /** Layout mode for trigger button */
+  layout?: 'horizontal' | 'vertical';
 }
 
 export const SortDropdown: Component<SortDropdownProps> = (props) => {
@@ -45,6 +46,7 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
   };
 
   const options = () => props.options ?? SORT_OPTIONS;
+  const isVertical = () => props.layout === 'vertical';
 
   const handleKeyDown = (e: KeyboardEvent) => {
     const totalItems = options().length;
@@ -75,22 +77,30 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
       placement="bottom-start"
       gutter={4}
     >
-      <Tooltip tooltip={<LabelAndHotKey label="Sort" shortcut="s" />}>
-        <Popover.Trigger
-          as="button"
-          type="button"
-          class="flex items-center gap-1.5 h-[22px] px-2.5 shrink-0 rounded-full active:bg-accent active:text-panel"
+      <Popover.Trigger
+        as="button"
+        type="button"
+        class="shrink-0 active:bg-accent active:text-panel"
+        classList={{
+          'flex items-center gap-1.5 h-[22px] px-2.5 rounded-full': !isVertical(),
+          'w-full flex flex-col items-center justify-center gap-2 px-2 py-2 rounded-none':
+            isVertical(),
+          'bg-accent text-panel': open(),
+          'text-ink-muted hover:text-accent hover:bg-accent/20': !open(),
+        }}
+      >
+        <SortIcon class={isVertical() ? 'size-4' : 'size-4.5'} />
+        <span
           classList={{
-            'bg-accent text-panel': open(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20': !open(),
+            'leading-none': !isVertical(),
+            'leading-none text-[6pt] text-center': isVertical(),
+            'text-panel': isVertical() && open(),
+            'text-ink': isVertical() && !open(),
           }}
         >
-          <SortIcon class="size-4.5" />
-          <span class="leading-none">
-            <ShortcutLabel label="Sort" shortcut="s" />
-          </span>
-        </Popover.Trigger>
-      </Tooltip>
+          <ShortcutLabel label="Sort" shortcut="s" />
+        </span>
+      </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
           class="z-50 bg-panel border border-edge-muted shadow-lg"
