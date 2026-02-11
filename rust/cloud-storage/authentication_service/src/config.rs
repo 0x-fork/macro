@@ -21,14 +21,14 @@ pub struct Config {
     /// The Redis URI for the Redis this application should use.
     pub redis_uri: String,
 
+    /// FusionAuth Tenant Id
+    pub fusionauth_tenant_id: String,
     /// FusionAuth API key secret name
     pub fusionauth_api_key_secret_key: String,
     /// FusionAuth client id
     pub fusionauth_client_id: String,
     /// FusionAuth client secret key
     pub fusionauth_client_secret_key: String,
-    /// FusionAuth application id
-    pub fusionauth_application_id: String,
     /// FusionAuth base url
     pub fusionauth_base_url: String,
     /// FusionAuth oauth redirect uri
@@ -46,9 +46,6 @@ pub struct Config {
 
     /// The environment we are in
     pub environment: Environment,
-
-    /// The comms service url
-    pub comms_service_url: String,
 
     /// The internal auth key used by other services
     pub service_internal_auth_key: String,
@@ -77,14 +74,14 @@ impl Config {
 
         let redis_uri = std::env::var("REDIS_URI").context("REDIS_URI must be provided")?;
 
+        let fusionauth_tenant_id = std::env::var("FUSIONAUTH_TENANT_ID")
+            .context("FUSIONAUTH_TENANT_ID must be provided")?;
         let fusionauth_api_key_secret_key = std::env::var("FUSIONAUTH_API_KEY_SECRET_KEY")
             .context("FUSIONAUTH_API_KEY_SECRET_KEY must be provided")?;
         let fusionauth_client_id = std::env::var("FUSIONAUTH_CLIENT_ID")
             .context("FUSIONAUTH_CLIENT_ID must be provided")?;
         let fusionauth_client_secret_key = std::env::var("FUSIONAUTH_CLIENT_SECRET_KEY")
             .context("FUSIONAUTH_CLIENT_SECRET_KEY must be provided")?;
-        let fusionauth_application_id = std::env::var("FUSIONAUTH_APPLICATION_ID")
-            .context("FUSIONAUTH_APPLICATION_ID must be provided")?;
         let fusionauth_base_url =
             std::env::var("FUSIONAUTH_BASE_URL").context("FUSIONAUTH_BASE_URL must be provided")?;
         let fusionauth_oauth_redirect_uri = std::env::var("FUSIONAUTH_OAUTH_REDIRECT_URI")
@@ -106,8 +103,6 @@ impl Config {
             .context("should be valid port number")?;
 
         let environment = Environment::new_or_prod();
-        let comms_service_url =
-            std::env::var("COMMS_SERVICE_URL").context("COMMS_SERVICE_URL must be provided")?;
 
         let document_storage_service_url = std::env::var("DOCUMENT_STORAGE_SERVICE_URL")
             .context("DOCUMENT_STORAGE_SERVICE_URL must be provided")?;
@@ -128,17 +123,16 @@ impl Config {
             base_url,
             database_url,
             redis_uri,
+            fusionauth_tenant_id,
             fusionauth_api_key_secret_key,
             fusionauth_client_id,
             fusionauth_client_secret_key,
-            fusionauth_application_id,
             fusionauth_base_url,
             fusionauth_oauth_redirect_uri,
             google_client_id,
             google_client_secret_key,
             stripe_secret_key,
             port,
-            comms_service_url,
             service_internal_auth_key,
             document_storage_service_url,
             notification_service_url,

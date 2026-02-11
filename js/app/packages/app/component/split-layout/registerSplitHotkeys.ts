@@ -4,7 +4,6 @@ import {
   useBigChat,
   useToggleRightPanel,
 } from '@core/signal/layout';
-import type { ViewId } from '@core/types/view';
 import { registerHotkey } from 'core/hotkey/hotkeys';
 import { globalSplitManager } from '../../signal/splitLayout';
 import { fireMacroJump } from '../MacroJump';
@@ -21,7 +20,6 @@ export function registerSplitHotkeys(args: {
   goBack: () => void;
   canGoForward: () => boolean;
   goForward: () => void;
-  setSelectedView: (view: ViewId) => void;
   replaceSplit: (options: {
     content: SplitContent;
     referredFrom?: ReferredFrom;
@@ -38,22 +36,30 @@ export function registerSplitHotkeys(args: {
     goBack,
     canGoForward,
     goForward,
-    replaceSplit,
     splitName,
     getSplitCount,
     isNotUnifiedList,
+    replaceSplit,
   } = args;
   const splitManager = globalSplitManager();
   registerHotkey({
     scopeId: splitHotkeyScope,
     hotkey: 'cmd+escape',
-    condition: () => getSplitCount() > 1,
-    description: `Close split`,
+    condition: () => getSplitCount() > 1 || isNotUnifiedList(),
+    description: () => (getSplitCount() > 1 ? 'Close split' : 'Go home'),
     keyDownHandler: () => {
-      closeSplit();
+      if (getSplitCount() > 1) {
+        closeSplit();
+      } else {
+        replaceSplit({
+          content: { type: 'component', id: 'unified-list' },
+          referredFrom: 'hotkey',
+        });
+      }
       return true;
     },
     hotkeyToken: TOKENS.split.close,
+    runWithInputFocused: true,
   });
 
   // Spotlight (maximize split) - legacy binding.
@@ -71,23 +77,6 @@ export function registerSplitHotkeys(args: {
       return true;
     },
     runWithInputFocused: true,
-  });
-
-  registerHotkey({
-    scopeId: splitHotkeyScope,
-    hotkey: 'h',
-    description: 'Go home',
-    condition: isNotUnifiedList,
-    keyDownHandler: () => {
-      replaceSplit({
-        content: { type: 'component', id: 'unified-list' },
-        referredFrom: 'hotkey',
-      });
-      return true;
-    },
-    registrationType: 'add',
-    hotkeyToken: TOKENS.split.goHome,
-    displayPriority: 8,
   });
 
   // History back/forward - legacy bindings.
@@ -151,7 +140,7 @@ export function registerSplitHotkeys(args: {
 
   registerHotkey({
     hotkeyToken: TOKENS.window.focusSplitRight,
-    hotkey: ['arrowright'],
+    hotkey: ['l', 'arrowright'],
     scopeId: splitHotkeyScope,
     description: 'Focus split right',
     condition: () => getSplitCount() > 1,
@@ -164,7 +153,7 @@ export function registerSplitHotkeys(args: {
 
   registerHotkey({
     hotkeyToken: TOKENS.window.focusSplitLeft,
-    hotkey: ['arrowleft'],
+    hotkey: ['h', 'arrowleft'],
     scopeId: splitHotkeyScope,
     description: 'Focus split left',
     condition: () => getSplitCount() > 1,

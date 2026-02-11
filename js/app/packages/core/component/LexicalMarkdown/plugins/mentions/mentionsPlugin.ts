@@ -9,6 +9,8 @@ import {
   $createDocumentMentionNode,
   $createGroupMentionNode,
   $createInlineSearchNode,
+  $createSnapshotNode,
+  $createThemeMentionNode,
   $createUserMentionNode,
   $handleInlineSearchNodeMutation,
   $handleInlineSearchNodeTransform,
@@ -28,6 +30,8 @@ import {
   GroupMentionNode,
   InlineSearchNode,
   InlineSearchNodesType,
+  type SnapshotNodeInfo,
+  type ThemeMentionInfo,
   type UserMentionInfo,
   UserMentionNode,
   validTriggerPosition,
@@ -65,6 +69,9 @@ import { mapRegisterDelete } from '../shared';
 export const INSERT_DOCUMENT_MENTION_COMMAND: LexicalCommand<DocumentMentionInfo> =
   createCommand('INSERT_DOCUMENT_MENTION_COMMAND');
 
+export const INSERT_SNAPSHOT_NODE_COMMAND: LexicalCommand<SnapshotNodeInfo> =
+  createCommand('INSERT_SNAPSHOT_NODE_COMMAND');
+
 export const INSERT_CONTACT_MENTION_COMMAND: LexicalCommand<ContactMentionInfo> =
   createCommand('INSERT_CONTACT_MENTION_COMMAND');
 
@@ -96,6 +103,9 @@ export const INSERT_USER_MENTION_COMMAND: LexicalCommand<UserMentionInfo> =
 
 export const INSERT_GROUP_MENTION_COMMAND: LexicalCommand<GroupMentionInfo> =
   createCommand('INSERT_GROUP_MENTION_COMMAND');
+
+export const INSERT_THEME_MENTION_COMMAND: LexicalCommand<ThemeMentionInfo> =
+  createCommand('INSERT_THEME_MENTION_COMMAND');
 
 export type ItemMention = {
   itemType:
@@ -198,8 +208,8 @@ export function $mentionItemFromNode(node: MentionNode): ItemMention {
 }
 
 // Validators for the position of the @ trigger.
-const beforeRegex = /[(['"\`\s]$/;
-const afterRegex = /^[)\]'"\`\s]/;
+const beforeRegex = /[(['\"\`\s]$/;
+const afterRegex = /^[)\]'\"\`\s]/;
 
 /**
  * When mentions nodes are selected by using the arrow keys, we want to be able to delete them.
@@ -351,6 +361,31 @@ function registerMentionsPlugin(
     ),
 
     editor.registerCommand(
+      INSERT_SNAPSHOT_NODE_COMMAND,
+      (payload) => {
+        editor.update(() => {
+          const selection = $getSelection();
+          const snapshotNode = $createSnapshotNode(payload);
+
+          // Do not paste snapshot nodes over range-selected text -- append after.
+          if ($isRangeSelection(selection) && !selection.isCollapsed()) {
+            $collapseSelection(selection);
+            $insertNodes([$createTextNode(' '), snapshotNode]);
+            snapshotNode.selectEnd();
+            return true;
+          }
+          $insertNodes([snapshotNode]);
+          if ($isRootOrShadowRoot(snapshotNode.getParentOrThrow())) {
+            $wrapNodeInElement(snapshotNode, $createParagraphNode);
+          }
+          snapshotNode.selectEnd();
+        });
+        return true;
+      },
+      COMMAND_PRIORITY_NORMAL
+    ),
+
+    editor.registerCommand(
       INSERT_USER_MENTION_COMMAND,
       (payload) => {
         editor.update(() => {
@@ -419,6 +454,33 @@ function registerMentionsPlugin(
         editor.update(() => {
           const mentionNode = $createGroupMentionNode(payload);
 
+          $insertNodes([mentionNode]);
+          if ($isRootOrShadowRoot(mentionNode.getParentOrThrow())) {
+            $wrapNodeInElement(mentionNode, $createParagraphNode);
+          }
+          mentionNode.selectEnd();
+        });
+        return true;
+      },
+      COMMAND_PRIORITY_NORMAL
+    ),
+
+    editor.registerCommand(
+      INSERT_THEME_MENTION_COMMAND,
+      (payload) => {
+        editor.update(() => {
+          const selection = $getSelection();
+          const mentionNode = $createThemeMentionNode(
+            payload.name,
+            payload.data
+          );
+
+          if ($isRangeSelection(selection) && !selection.isCollapsed()) {
+            $collapseSelection(selection);
+            $insertNodes([$createTextNode(' '), mentionNode]);
+            mentionNode.selectEnd();
+            return true;
+          }
           $insertNodes([mentionNode]);
           if ($isRootOrShadowRoot(mentionNode.getParentOrThrow())) {
             $wrapNodeInElement(mentionNode, $createParagraphNode);

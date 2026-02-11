@@ -18,9 +18,12 @@ import {
   type DocumentCardNode,
   type DocumentMentionNode,
   type EquationNode,
+  type SnapshotNode,
   type GroupMentionNode,
   type HorizontalRuleNode,
   type ImageNode,
+  type ThemeMentionNode,
+  type UnknownMentionNode,
   isSupportedLanguage,
   normalizedLanguage,
   SupportedNodeTypes,
@@ -55,7 +58,10 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { replaceCitations } from '../../citationsUtils';
 import '../../styles.css';
-import { ENABLE_SVG_PREVIEW } from '@core/constant/featureFlags';
+import {
+  ENABLE_STATIC_DOCUMENT_CARDS,
+  ENABLE_SVG_PREVIEW,
+} from '@core/constant/featureFlags';
 import type { MarkNode } from '@lexical/mark';
 import type { SearchMatchNode } from '@lexical-core/nodes/SearchMatchNode';
 import { theme as baseTheme, createTheme } from '../../theme';
@@ -65,11 +71,14 @@ import { ContactMention as ContactMentionDecorator } from '../decorator/ContactM
 import { DateMention as DateMentionDecorator } from '../decorator/DateMention';
 import { DocumentCard as DocumentCardDecorator } from '../decorator/DocumentCard';
 import { DocumentMention as DocumentMentionDecorator } from '../decorator/DocumentMention';
+import { Snapshot as SnapshotDecorator } from '../decorator/Snapshot';
 import { GroupMention as GroupMentionDecorator } from '../decorator/GroupMention';
 import { Equation as EquationDecorator } from '../decorator/Equation';
 import { MarkdownImage as ImageDecorator } from '../decorator/MarkdownImage';
 import { MarkdownVideo as VideoDecorator } from '../decorator/MarkdownVideo';
 import { UserMention as UserMentionDecorator } from '../decorator/UserMention';
+import { ThemeMention as ThemeMentionDecorator } from '../decorator/ThemeMention';
+import { UnknownMention as UnknownMentionDecorator } from '../decorator/UnknownMention';
 import { Watermark as WatermarkDecorator } from '../decorator/Watermark';
 import { LinkWithPreview } from './LinkWithPreview';
 
@@ -211,7 +220,6 @@ function getTextClassName(
 type NodeComponent<T extends LexicalNode = LexicalNode> = {
   node: T;
   theme: EditorThemeClasses;
-  isGenerating: Accessor<boolean>;
 };
 
 type ElementNodeComponent<T extends ElementNode = ElementNode> = ParentProps &
@@ -272,6 +280,20 @@ const DocumentMention: RenderableEntity<DocumentMentionNode> = {
   ),
 };
 
+const ThemeMention: RenderableEntity<ThemeMentionNode> = {
+  guard: (node: LexicalNode): node is ThemeMentionNode =>
+    node.__type === 'theme-mention',
+  render: (props) => (
+    <span>
+      {ThemeMentionDecorator({
+        ...props.node.exportComponentProps(),
+        key: props.node.getKey(),
+        theme: props.theme,
+      })}
+    </span>
+  ),
+};
+
 const Watermark: RenderableEntity<WatermarkNode> = {
   guard: (node: LexicalNode): node is WatermarkNode =>
     node.__type === 'watermark',
@@ -320,6 +342,34 @@ const GroupMention: RenderableEntity<GroupMentionNode> = {
   render: (props) => (
     <span>
       {GroupMentionDecorator({
+        ...props.node.exportComponentProps(),
+        key: props.node.getKey(),
+        theme: props.theme,
+      })}
+    </span>
+  ),
+};
+
+const Snapshot: RenderableEntity<SnapshotNode> = {
+  guard: (node: LexicalNode): node is SnapshotNode =>
+    node.__type === 'snapshot',
+  render: (props) => (
+    <span>
+      {SnapshotDecorator({
+        ...props.node.exportComponentProps(),
+        key: props.node.getKey(),
+        theme: props.theme,
+      })}
+    </span>
+  ),
+};
+
+const UnknownMention: RenderableEntity<UnknownMentionNode> = {
+  guard: (node: LexicalNode): node is UnknownMentionNode =>
+    node.__type === 'unknown-mention',
+  render: (props) => (
+    <span>
+      {UnknownMentionDecorator({
         ...props.node.exportComponentProps(),
         key: props.node.getKey(),
         theme: props.theme,
@@ -540,24 +590,32 @@ const Equation: RenderableEntity<EquationNode> = {
 const DocumentCard: RenderableEntity<DocumentCardNode> = {
   guard: (node: LexicalNode): node is DocumentCardNode =>
     node.__type === 'document-card',
-  render: (props) =>
-    DocumentCardDecorator({
-      ...props.node.exportComponentProps(),
-      key: props.node.getKey(),
-      theme: props.theme,
-    }),
+  render: (props) => {
+    if (ENABLE_STATIC_DOCUMENT_CARDS) {
+      return DocumentCardDecorator({
+        ...props.node.exportComponentProps(),
+        key: props.node.getKey(),
+        theme: props.theme,
+      });
+    }
+    // TODO (seamus) : temp fix to make existing doc cards in dev look right.
+    return (
+      <p class="my-1.5">
+        {DocumentMentionDecorator({
+          ...props.node.exportComponentProps(),
+          key: props.node.getKey(),
+          theme: props.theme,
+        })}
+      </p>
+    );
+  },
 };
 
 // Table rendering components for Lexical tables
 const Table: RenderableElement<TableNode> = {
   guard: (node: LexicalNode): node is TableNode => node.__type === 'table',
   render: (props) => (
-    <div
-      class={`${props.theme?.static?.['table-container'] || ''}`}
-      classList={{
-        hidden: props.isGenerating(),
-      }}
-    >
+    <div class={`${props.theme?.static?.['table-container'] || ''}`}>
       <table
         class={`${props.theme.table} min-w-full table-auto`}
         style="width: max-content;"
@@ -627,10 +685,13 @@ const InlineEntities: Array<RenderableEntity> = [
   ContactMention,
   DateMention,
   GroupMention,
+  Snapshot,
   Image,
   Video,
   HorizontalRule,
   Equation,
+  ThemeMention,
+  UnknownMention,
   Watermark,
 ] as const;
 
@@ -656,7 +717,6 @@ function Render(props: NodeComponent | ElementNodeComponent) {
     return entity.render({
       ...props,
       theme: props.theme,
-      isGenerating: props.isGenerating,
     });
   }
 
@@ -669,10 +729,8 @@ function Render(props: NodeComponent | ElementNodeComponent) {
       children: MapRender({
         children: elemNode.getChildren(),
         theme: props.theme,
-        isGenerating: props.isGenerating,
       }),
       theme: props.theme,
-      isGenerating: props.isGenerating,
     });
   }
 
@@ -683,14 +741,9 @@ function Render(props: NodeComponent | ElementNodeComponent) {
 function MapRender(props: {
   children: LexicalNode[];
   theme: EditorThemeClasses;
-  isGenerating: Accessor<boolean>;
 }) {
   return props.children.map((child) => (
-    <Render
-      node={child}
-      theme={props.theme}
-      isGenerating={props.isGenerating}
-    />
+    <Render node={child} theme={props.theme} />
   ));
 }
 
@@ -698,7 +751,6 @@ function Document(props: {
   rootNode: RootNode;
   theme: EditorThemeClasses;
   rootRef?: (ref: HTMLDivElement) => void;
-  isGenerating: Accessor<boolean>;
   singleLine?: boolean;
 }): JSX.Element {
   return (
@@ -706,11 +758,7 @@ function Document(props: {
       class={`markdown-content ${props.theme.root ?? ''} break-words max-w-full`}
       ref={props.rootRef}
     >
-      <MapRender
-        children={props.rootNode.getChildren()}
-        theme={props.theme}
-        isGenerating={props.isGenerating}
-      />
+      <MapRender children={props.rootNode.getChildren()} theme={props.theme} />
     </div>
   );
 }
@@ -727,12 +775,10 @@ export function StaticMarkdown(props: {
   setEditorRef?: (editor: LexicalEditor) => void;
   rootRef?: (ref: HTMLDivElement) => void;
   target?: 'internal' | 'external' | 'both';
-  isGenerating?: Accessor<boolean>;
   singleLine?: boolean;
 }) {
   let { editor: contextEditor, theme: parentTheme } = useContext(context);
   let [editorState, setEditorState] = createSignal<EditorState | null>(null);
-  const [isGenerating, setIsGenerating] = createSignal<boolean>(false);
 
   if (contextEditor === null) {
     console.warn(
@@ -776,20 +822,16 @@ export function StaticMarkdown(props: {
 
   // TODO: Move citations to bulk query when built in backend
   createEffect(() => {
-    const isGenerating = props.isGenerating?.() ?? false;
-    if (!isGenerating) {
-      const editor = currentEditor();
+    const editor = currentEditor();
 
-      // Handle citations without affecting mentions
-      replaceCitations(content()).then((content: string) => {
-        setEditorStateFromMarkdown(editor, content, props.target);
-        if (props.singleLine) {
-          forceSingleLine(editor);
-        }
-        setEditorState(editor.getEditorState());
-      });
-    }
-    setIsGenerating(isGenerating);
+    // Handle citations without affecting mentions
+    replaceCitations(content()).then((content: string) => {
+      setEditorStateFromMarkdown(editor, content, props.target);
+      if (props.singleLine) {
+        forceSingleLine(editor);
+      }
+      setEditorState(editor.getEditorState());
+    });
   });
 
   const domTree = createMemo(() => {
@@ -797,7 +839,6 @@ export function StaticMarkdown(props: {
       return Document({
         rootNode: $getRoot(),
         theme: mergedTheme(),
-        isGenerating,
       });
     });
   });

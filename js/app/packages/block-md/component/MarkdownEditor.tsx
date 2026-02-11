@@ -10,6 +10,7 @@ import {
   useMaybeBlockAliasedName,
 } from '@core/block';
 import { IS_MAC } from '@core/constant/isMac';
+import { ENABLE_MARKDOWN_AI_GENERATE } from '@core/constant/featureFlags';
 import type { EntityDragEvent } from '@macro-entity';
 import { DecoratorRenderer } from '@core/component/LexicalMarkdown/component/core/DecoratorRenderer';
 import { FocusClickTarget } from '@core/component/LexicalMarkdown/component/core/FocusClickTarget';
@@ -107,6 +108,7 @@ import {
   createFilesReadyHandler,
   getDragDropPosition,
 } from '@core/component/LexicalMarkdown/utils/fileUploadUtils';
+import { iosCursorScrollPlugin } from '@core/component/LexicalMarkdown/plugins/ios-cursor-scroll';
 import { ScopedPortal } from '@core/component/ScopedPortal';
 import { toast } from '@core/component/Toast/Toast';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
@@ -175,6 +177,9 @@ import type { MarkdownRewriteOutput } from '../signal/rewriteSignal';
 import { useBlockSave, useSaveMarkdownDocument } from '../signal/save';
 import { MarkdownCollabProvider } from './MarkdownCollabProvider';
 import { MarkdownPopup } from './MarkdownPopup';
+import { isMobile } from '@core/mobile/isMobile';
+import { isIOS } from '@solid-primitives/platform';
+import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 
 false && fileFolderDrop;
 
@@ -579,6 +584,12 @@ export function MarkdownEditor(props: { autoFocusOnMount?: boolean } = {}) {
     )
     .use(pinnedPropertiesPlugin());
 
+  if (isIOS || isNativeMobilePlatform()) {
+    plugins.use(
+      iosCursorScrollPlugin({ scrollContainer: () => md.scrollContainer })
+    );
+  }
+
   if (ENABLE_MARKDOWN_LIVE_COLLABORATION) {
     const getBlockLoroManager = blockLoroManagerSignal.get;
     const peerId = () => getBlockLoroManager()?.getPeerIdStr();
@@ -597,17 +608,19 @@ export function MarkdownEditor(props: { autoFocusOnMount?: boolean } = {}) {
   }
 
   const [accessoryStore, setAccessoryStore] = createAccessoryStore();
-  plugins.use(
-    generatePlugin({
-      completionSignal: completionSignal,
-      isGeneratingSignal,
-      generatedAndWaitingSignal,
-      menuSignal: generateMenuSignal,
-      setContext: generateContextSignal[1],
-      accessories: accessoryStore,
-      setAccessories: setAccessoryStore,
-    })
-  );
+  if (ENABLE_MARKDOWN_AI_GENERATE) {
+    plugins.use(
+      generatePlugin({
+        completionSignal: completionSignal,
+        isGeneratingSignal,
+        generatedAndWaitingSignal,
+        menuSignal: generateMenuSignal,
+        setContext: generateContextSignal[1],
+        accessories: accessoryStore,
+        setAccessories: setAccessoryStore,
+      })
+    );
+  }
   plugins.use(
     codePlugin({
       accessories: accessoryStore,
@@ -923,7 +936,7 @@ export function MarkdownEditor(props: { autoFocusOnMount?: boolean } = {}) {
         <Show when={isBlankMarkdown()}>
           <div class="pointer-events-none text-ink-placeholder absolute top-0">
             {canEdit()
-              ? `Press '/' for commands, '@' to reference files, 'space' for AI writing...`
+              ? `Press '/' for commands, '@' to reference files${ENABLE_MARKDOWN_AI_GENERATE ? ", 'space' for AI writing..." : '...'}`
               : `This document is blank...`}
           </div>
         </Show>
@@ -990,7 +1003,7 @@ export function MarkdownEditor(props: { autoFocusOnMount?: boolean } = {}) {
         </Show>
 
         <ScopedPortal scope="block">
-          <Show when={!isBlankMarkdown()}>
+          <Show when={!isBlankMarkdown() && !isMobile()}>
             <div class="absolute bottom-2 left-2 w-fit h-fit">
               <Wordcount stats={wordcountStats} />
             </div>
@@ -1023,14 +1036,16 @@ export function MarkdownEditor(props: { autoFocusOnMount?: boolean } = {}) {
           <TableActionMenu anchorElem={editorContainerRef} cellMerge={true} />
         </Show>
 
-        <GenerateMenu
-          generateCallback={_generateContentCallback}
-          menuOpen={generateMenuSignal}
-          completionSignal={completionSignal[0]}
-          editor={editor}
-        />
+        <Show when={ENABLE_MARKDOWN_AI_GENERATE}>
+          <GenerateMenu
+            generateCallback={_generateContentCallback}
+            menuOpen={generateMenuSignal}
+            completionSignal={completionSignal[0]}
+            editor={editor}
+          />
+        </Show>
 
-        <Show when={DEBUG}>
+        <Show when={DEBUG && !isMobile()}>
           <Show when={state()}>
             {(state) => (
               <LexicalStateDebugger state={state()}></LexicalStateDebugger>

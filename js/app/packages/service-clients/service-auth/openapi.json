@@ -2681,6 +2681,16 @@
               }
             }
           },
+          "409": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "500": {
             "description": "",
             "content": {
@@ -2945,9 +2955,14 @@
           "licenseStatus",
           "tutorialComplete",
           "hasChromeExt",
-          "hasTrialed"
+          "hasTrialed",
+          "aiDataConsent"
         ],
         "properties": {
+          "aiDataConsent": {
+            "type": "boolean",
+            "description": "Whether the user has consented to AI data sharing"
+          },
           "email": {
             "type": "string",
             "description": "The user's email"

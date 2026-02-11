@@ -14,10 +14,6 @@ name = "generate_keys"
 path = "src/bin/generate_keys.rs"
 
 [[bin]]
-name = "backfill_null_macro_user_id"
-path = "src/bin/backfill_null_macro_user_id.rs"
-
-[[bin]]
 name = "authentication_service_openapi"
 path = "src/openapi.rs"
 
@@ -34,22 +30,23 @@ async-stripe = { workspace = true, default-features = false, features = [
   "runtime-tokio-hyper",
 ] }
 async-stripe-webhook = { version = "1.0.0-alpha.4", default-features = false }
-aws-config = { workspace = true }
 aws-sdk-secretsmanager = { workspace = true }
 aws-sdk-sesv2 = { workspace = true }
 aws-sdk-sqs = { workspace = true }
 axum = { workspace = true, features = ["macros"] }
 base64 = { workspace = true }
 chrono = { workspace = true }
-comms_service_client = { path = "../comms_service_client" }
+comms_db_client = { path = "../comms_db_client" }
 cookie = { workspace = true }
 document_storage_service_client = { path = "../document_storage_service_client" }
 doppleganger = { workspace = true }
 email_validator = { path = "../email_validator" }
+fusionauth = { path = "../fusionauth" }
 futures = { workspace = true }
 http-body-util = { workspace = true }
 jsonwebtoken = { workspace = true }
 macro_auth = { path = "../macro_auth" }
+macro_aws_config = { path = "../macro_aws_config" }
 macro_cache_client = { path = "../macro_cache_client", default-features = false, features = [
   "auth",
   "auth_rate_limit",
@@ -69,7 +66,6 @@ macro_middleware = { path = "../macro_middleware", default-features = false, fea
   "tracking",
   "user_permissions",
 ] }
-macro_notify = { path = "../macro_notify" }
 macro_user_id = { path = "../macro_user_id" }
 macro_uuid = { path = "../macro_uuid" }
 maud = { version = "0.27.0" }
@@ -81,6 +77,7 @@ model_user = { path = "../model_user", features = ["axum"] }
 models_team = { path = "../models_team" }
 native_app_service = { path = "../native_app_service" }
 non_empty = { path = "../non_empty" }
+notification = { path = "../notification" }
 notification_service_client = { path = "../notification_service_client" }
 openssl = { workspace = true }
 rand = { workspace = true }
@@ -91,7 +88,6 @@ rsa = "0.9.10"
 secretsmanager_client = { path = "../secretsmanager_client" }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_urlencoded = "0.7.1"
 serde_utils = { path = "../serde_utils", features = ["urlencode"] }
 ses_client = { path = "../ses_client" }
 sha1 = "0.10.6"
@@ -119,4 +115,4 @@ uuid = { workspace = true }
 cool_asserts = "2"
 
 [package.metadata.cargo-machete]
-ignored = ["async-stripe", "comms_service"]
+ignored = ["async-stripe"]

@@ -1972,37 +1972,11 @@
   },
   "components": {
     "schemas": {
-      "APIEmailThreadPreviewMetadata": {
-        "type": "object",
-        "required": [
-          "known_sender",
-          "tabular",
-          "calendar_invite",
-          "generic_sender"
-        ],
-        "properties": {
-          "calendar_invite": {
-            "type": "boolean",
-            "description": "if any email contains a calendar invite"
-          },
-          "generic_sender": {
-            "type": "boolean",
-            "description": "if any sender in the thread is a generic email"
-          },
-          "known_sender": {
-            "type": "boolean",
-            "description": "if user has previously emailed any sender in the thread"
-          },
-          "tabular": {
-            "type": "boolean",
-            "description": "if any email contains a <table> html tag"
-          }
-        }
-      },
       "APIThread": {
         "type": "object",
         "description": "Thread object exposed to the FE in Get Threads Call",
         "required": [
+          "db_id",
           "link_id",
           "inbox_visible",
           "is_read",
@@ -2020,7 +1994,7 @@
             "format": "date-time"
           },
           "db_id": {
-            "type": ["string", "null"],
+            "type": "string",
             "format": "uuid"
           },
           "inbox_visible": {
@@ -2242,7 +2216,7 @@
           },
           {
             "type": "object",
-            "required": ["attachments", "contacts", "labels", "metadata"],
+            "required": ["attachments", "contacts", "labels"],
             "properties": {
               "attachments": {
                 "type": "array",
@@ -2265,9 +2239,6 @@
                 "items": {
                   "$ref": "#/components/schemas/ApiLabel"
                 }
-              },
-              "metadata": {
-                "$ref": "#/components/schemas/APIEmailThreadPreviewMetadata"
               }
             }
           }
@@ -2355,6 +2326,7 @@
       "Attachment": {
         "type": "object",
         "description": "Attachments of a message, as sent to us by the provider.",
+        "required": ["db_id"],
         "properties": {
           "content_id": {
             "type": ["string", "null"]
@@ -2363,7 +2335,7 @@
             "type": ["string", "null"]
           },
           "db_id": {
-            "type": ["string", "null"],
+            "type": "string",
             "format": "uuid"
           },
           "filename": {
@@ -2515,13 +2487,13 @@
       },
       "Contact": {
         "type": "object",
-        "required": ["link_id"],
+        "required": ["id", "link_id"],
         "properties": {
           "email_address": {
             "type": ["string", "null"]
           },
           "id": {
-            "type": ["string", "null"],
+            "type": "string",
             "format": "uuid"
           },
           "link_id": {
@@ -2923,6 +2895,8 @@
       "Message": {
         "type": "object",
         "required": [
+          "db_id",
+          "thread_db_id",
           "link_id",
           "is_read",
           "is_starred",
@@ -2978,7 +2952,7 @@
             "format": "date-time"
           },
           "db_id": {
-            "type": ["string", "null"],
+            "type": "string",
             "format": "uuid"
           },
           "from": {
@@ -3066,7 +3040,7 @@
             "type": ["string", "null"]
           },
           "thread_db_id": {
-            "type": ["string", "null"],
+            "type": "string",
             "format": "uuid"
           },
           "to": {
@@ -3329,6 +3303,7 @@
       "Thread": {
         "type": "object",
         "required": [
+          "db_id",
           "link_id",
           "inbox_visible",
           "is_read",
@@ -3342,7 +3317,7 @@
             "format": "date-time"
           },
           "db_id": {
-            "type": ["string", "null"],
+            "type": "string",
             "format": "uuid"
           },
           "inbox_visible": {

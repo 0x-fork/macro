@@ -1,19 +1,29 @@
 use crate::api::context::AppState;
 use comms_db_client::{
     messages::get_count::check_if_channel_has_messages,
+    messages::get_message_owner::get_message_owner,
     model::{Message, SimpleMention},
     participants::get_participants::get_channel_participants_for_thread_id,
 };
+use macro_db_client::notification::BasicCloudStorageItemMetadata;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use model::{comms::ChannelParticipant, document_storage_service_internal::DocumentMetadata};
-use model_entity::EntityType;
+use model::comms::ChannelParticipant;
+use model_entity::{Entity, EntityType};
 use model_notifications::{
-    ChannelInviteMetadata, ChannelMentionMetadata, ChannelMessageDocumentMetadata,
-    ChannelMessageSendMetadata, ChannelReplyMetadata, CommonChannelMetadata,
-    DocumentMentionMetadata, NotificationEvent, NotificationQueueMessage,
+    ChannelInviteMetadata, ChannelMentionMetadata, ChannelMessageSendMetadata,
+    ChannelReplyMetadata, CommonChannelMetadata, DocumentMentionMetadata, NotifEvent,
 };
+use notification_hex::domain::models::SendNotificationRequestBuilder;
+use notification_hex::domain::service::NotificationIngress;
 use std::{collections::HashSet, iter::once};
 use uuid::Uuid;
+
+struct NotificationMsg {
+    notification_entity: Entity<'static>,
+    notification_event: NotifEvent,
+    sender_id: Option<MacroUserIdStr<'static>>,
+    recipient_ids: Vec<MacroUserIdStr<'static>>,
+}
 
 pub struct ChannelMessageEvent<'a> {
     channel_id: &'a Uuid,
@@ -21,9 +31,10 @@ pub struct ChannelMessageEvent<'a> {
     channel_metadata: &'a CommonChannelMetadata,
     channel_message_count: usize,
     user_mentions: &'a [String],
-    document_mentions: &'a [DocumentMetadata],
+    document_mentions: &'a [BasicCloudStorageItemMetadata],
     participants: &'a [ChannelParticipant],
     thread_participants: &'a [MacroUserIdStr<'static>],
+    thread_parent_sender_id: Option<MacroUserIdStr<'static>>,
 }
 
 pub struct ChannelInviteEvent<'a> {
@@ -36,45 +47,46 @@ pub struct ChannelInviteEvent<'a> {
 fn recipients_excluding<'a>(
     recipients: impl IntoIterator<Item = &'a str>,
     exclude: impl IntoIterator<Item = &'a str>,
-) -> Vec<String> {
+) -> Vec<MacroUserIdStr<'static>> {
     let exclude_set: HashSet<&str> = exclude.into_iter().collect();
     recipients
         .into_iter()
         .filter(|id| !exclude_set.contains(id))
-        .map(String::from)
+        .filter_map(|id| MacroUserIdStr::parse_from_str(id).ok())
+        .map(|u| u.into_owned())
         .collect()
 }
 
 fn create_notification_queue_message(
     channel_id: &Uuid,
     sender_id: MacroUserIdStr<'static>,
-    recipients: &[String],
-    notification_event: impl Into<NotificationEvent>,
-) -> NotificationQueueMessage {
-    NotificationQueueMessage {
+    recipients: Vec<MacroUserIdStr<'static>>,
+    notification_event: NotifEvent,
+) -> NotificationMsg {
+    NotificationMsg {
         notification_entity: EntityType::Channel.with_entity_string(channel_id.to_string()),
         sender_id: Some(sender_id),
-        recipient_ids: Some(recipients.to_vec()),
-        notification_event: notification_event.into(),
+        recipient_ids: recipients,
+        notification_event,
     }
 }
 
 impl<'a> ChannelInviteEvent<'a> {
-    fn generate_notifications(&self) -> Vec<NotificationQueueMessage> {
-        let mut notifications: Vec<NotificationQueueMessage> = vec![];
+    fn generate_notifications(&self) -> Vec<NotificationMsg> {
+        let mut notifications: Vec<NotificationMsg> = vec![];
 
         if !self.recipient_user_ids.is_empty() {
             notifications.push(create_notification_queue_message(
                 self.channel_id,
                 self.invited_by_user_id.copied().into_owned(),
-                &recipients_excluding(
+                recipients_excluding(
                     self.recipient_user_ids.iter().map(|m| m.as_str()),
                     once(self.invited_by_user_id.as_ref()),
                 ),
-                ChannelInviteMetadata {
+                NotifEvent::ChannelInvite(ChannelInviteMetadata {
                     invited_by: self.invited_by_user_id.clone(),
                     common: self.common.clone(),
-                },
+                }),
             ));
         }
 
@@ -83,23 +95,23 @@ impl<'a> ChannelInviteEvent<'a> {
 }
 
 impl ChannelMessageEvent<'_> {
-    fn generate_notifications(&self) -> Vec<NotificationQueueMessage> {
-        let mut notifications: Vec<NotificationQueueMessage> = vec![];
+    fn generate_notifications(&self) -> Vec<NotificationMsg> {
+        let mut notifications: Vec<NotificationMsg> = vec![];
 
         if !self.user_mentions.is_empty() {
             notifications.push(create_notification_queue_message(
                 self.channel_id,
                 self.message.sender_id.clone(),
-                &recipients_excluding(
+                recipients_excluding(
                     self.user_mentions.iter().map(|m| m.as_str()),
                     once(self.message.sender_id.0.as_ref()),
                 ),
-                ChannelMentionMetadata {
+                NotifEvent::ChannelMention(ChannelMentionMetadata {
                     message_content: self.message.content.clone(),
                     message_id: self.message.id.to_string(),
                     thread_id: self.message.thread_id.map(|t| t.to_string()),
                     common: self.channel_metadata.clone(),
-                },
+                }),
             ));
         }
 
@@ -113,12 +125,11 @@ impl ChannelMessageEvent<'_> {
                 notifications.push(create_notification_queue_message(
                     self.channel_id,
                     self.message.sender_id.clone(),
-                    &recipients_excluding_mentions,
-                    ChannelMessageDocumentMetadata(DocumentMentionMetadata {
+                    recipients_excluding_mentions.clone(),
+                    NotifEvent::DocumentMention(DocumentMentionMetadata {
                         document_name: mention.item_name.clone(),
                         owner: mention.item_owner.clone(),
                         file_type: mention.file_type.clone(),
-                        metadata: None,
                     }),
                 ));
             }
@@ -142,17 +153,18 @@ impl ChannelMessageEvent<'_> {
                     notifications.push(create_notification_queue_message(
                         self.channel_id,
                         self.message.sender_id.clone(),
-                        &recipients_excluding(
+                        recipients_excluding(
                             self.thread_participants.iter().map(|p| p.as_ref()),
                             sender_and_mentions,
                         ),
-                        ChannelReplyMetadata {
+                        NotifEvent::ChannelMessageReply(ChannelReplyMetadata {
                             thread_id: thread_id.to_string(),
                             message_id: self.message.id.to_string(),
                             user_id: self.message.sender_id.clone(),
                             message_content: self.message.content.clone(),
+                            thread_parent_sender_id: self.thread_parent_sender_id.clone(),
                             common: self.channel_metadata.clone(),
-                        },
+                        }),
                     ));
                 } else {
                     tracing::warn!("thread participants is empty, but message has thread id");
@@ -163,11 +175,11 @@ impl ChannelMessageEvent<'_> {
                 notifications.push(create_notification_queue_message(
                     self.channel_id,
                     self.message.sender_id.clone(),
-                    &recipients_without_sender_and_mentions,
-                    ChannelInviteMetadata {
+                    recipients_without_sender_and_mentions.clone(),
+                    NotifEvent::ChannelInvite(ChannelInviteMetadata {
                         invited_by: self.message.sender_id.clone(),
                         common: self.channel_metadata.clone(),
-                    },
+                    }),
                 ));
             }
             // Channel has messages, send message send notification
@@ -175,19 +187,111 @@ impl ChannelMessageEvent<'_> {
                 notifications.push(create_notification_queue_message(
                     self.channel_id,
                     self.message.sender_id.clone(),
-                    &recipients_without_sender_and_mentions,
-                    ChannelMessageSendMetadata {
+                    recipients_without_sender_and_mentions.clone(),
+                    NotifEvent::ChannelMessageSend(ChannelMessageSendMetadata {
                         message_id: self.message.id.to_string(),
                         sender: self.message.sender_id.clone(),
                         message_content: self.message.content.to_string(),
                         common: self.channel_metadata.clone(),
-                    },
+                    }),
                 ));
             }
         }
 
         notifications
     }
+}
+
+async fn send_notification_queue_message(
+    ingress: &impl NotificationIngress,
+    msg: NotificationMsg,
+) -> anyhow::Result<()> {
+    let entity = msg.notification_entity;
+    let sender_id = msg.sender_id;
+    let recipient_ids: HashSet<MacroUserIdStr<'_>> = msg.recipient_ids.into_iter().collect();
+
+    match msg.notification_event {
+        NotifEvent::ChannelInvite(metadata) => {
+            let req = SendNotificationRequestBuilder {
+                notification_entity: entity,
+                notification: metadata,
+                sender_id,
+                recipient_ids,
+            }
+            .into_request()
+            .with_apns()
+            .with_conn_gateway();
+            ingress
+                .send_notification(req)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        NotifEvent::ChannelMessageSend(metadata) => {
+            let req = SendNotificationRequestBuilder {
+                notification_entity: entity,
+                notification: metadata,
+                sender_id,
+                recipient_ids,
+            }
+            .into_request()
+            .with_apns()
+            .with_conn_gateway();
+            ingress
+                .send_notification(req)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        NotifEvent::ChannelMention(metadata) => {
+            let req = SendNotificationRequestBuilder {
+                notification_entity: entity,
+                notification: metadata,
+                sender_id,
+                recipient_ids,
+            }
+            .into_request()
+            .with_apns()
+            .with_conn_gateway();
+            ingress
+                .send_notification(req)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        NotifEvent::ChannelMessageReply(metadata) => {
+            let req = SendNotificationRequestBuilder {
+                notification_entity: entity,
+                notification: metadata,
+                sender_id,
+                recipient_ids,
+            }
+            .into_request()
+            .with_apns()
+            .with_conn_gateway();
+            ingress
+                .send_notification(req)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        NotifEvent::DocumentMention(metadata) => {
+            let req = SendNotificationRequestBuilder {
+                notification_entity: entity,
+                notification: metadata,
+                sender_id,
+                recipient_ids,
+            }
+            .into_request()
+            .with_apns()
+            .with_conn_gateway();
+            ingress
+                .send_notification(req)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        other => {
+            tracing::warn!(?other, "unhandled notification event type in comms_service");
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn dispatch_notifications_for_invite(
@@ -207,9 +311,7 @@ pub async fn dispatch_notifications_for_invite(
     let notifications = event.generate_notifications();
 
     for notification in notifications {
-        api_context
-            .macro_notify_client
-            .send_notification(notification)
+        send_notification_queue_message(&*api_context.notification_ingress_service, notification)
             .await?;
     }
 
@@ -239,22 +341,32 @@ pub async fn dispatch_notifications_for_message(
                 (users, docs)
             });
 
-    let document_mentions = api_context
-        .document_storage_service_client
-        .get_documents_metadata(document_mention_ids)
+    let document_mentions =
+        macro_db_client::notification::get_basic_cloud_storage_documents_metadata(
+            &api_context.db,
+            &document_mention_ids,
+        )
         .await
         .inspect_err(|e| {
-            tracing::error!("unable to get documents metadata: {e}");
+            tracing::error!(error=?e, "unable to get documents metadata");
         })
-        .map(|response| response.documents)
         .unwrap_or_default();
 
-    let thread_participants = if let Some(thread_id) = message.thread_id {
-        get_channel_participants_for_thread_id(&api_context.db, &thread_id)
+    let (thread_participants, thread_parent_sender_id) = if let Some(thread_id) = message.thread_id
+    {
+        let participants = get_channel_participants_for_thread_id(&api_context.db, &thread_id)
             .await
-            .unwrap_or_default()
+            .unwrap_or_default();
+        // Get the thread parent sender (author of the root message)
+        let sender_id = match get_message_owner(&api_context.db, &thread_id).await {
+            Ok(id) => MacroUserIdStr::parse_from_str(&id)
+                .ok()
+                .map(|id| id.into_owned()),
+            Err(_) => None,
+        };
+        (participants, sender_id)
     } else {
-        vec![]
+        (vec![], None)
     };
 
     let channel_message_event = ChannelMessageEvent {
@@ -266,14 +378,13 @@ pub async fn dispatch_notifications_for_message(
         document_mentions: &document_mentions,
         participants: &participants,
         thread_participants: &thread_participants,
+        thread_parent_sender_id,
     };
 
     let notifications = channel_message_event.generate_notifications();
 
     for notification in notifications {
-        api_context
-            .macro_notify_client
-            .send_notification(notification)
+        send_notification_queue_message(&*api_context.notification_ingress_service, notification)
             .await?;
     }
 
@@ -284,7 +395,6 @@ pub async fn dispatch_notifications_for_message(
 mod tests {
     use super::*;
     use model::comms::{ChannelId, ParticipantRole};
-    use model_notifications::NotificationEventType;
     use std::collections::HashMap;
     use uuid::Uuid;
 
@@ -316,8 +426,8 @@ mod tests {
         }
     }
 
-    fn doc_metadata(name: &str) -> DocumentMetadata {
-        DocumentMetadata {
+    fn doc_metadata(name: &str) -> BasicCloudStorageItemMetadata {
+        BasicCloudStorageItemMetadata {
             item_name: name.to_string(),
             item_owner: MacroUserIdStr::parse_from_str("macro|owner@test.com")
                 .unwrap()
@@ -334,34 +444,36 @@ mod tests {
         }
     }
 
-    // Ensures that each recipient receives only one message notification
-    fn assert_single_message_notification_per_recipient(
-        notifications: &[NotificationQueueMessage],
-    ) {
-        let mut visited: HashMap<String, Vec<NotificationEventType>> = HashMap::new();
+    fn is_message_notification(event: &NotifEvent) -> bool {
+        matches!(
+            event,
+            NotifEvent::ChannelMessageSend(_)
+                | NotifEvent::ChannelMessageReply(_)
+                | NotifEvent::ChannelMention(_)
+        )
+    }
 
-        const MESSAGE_TYPES: &[NotificationEventType] = &[
-            NotificationEventType::ChannelMessageSend,
-            NotificationEventType::ChannelMessageReply,
-            NotificationEventType::ChannelMention,
-        ];
+    fn uid(s: &str) -> MacroUserIdStr<'static> {
+        MacroUserIdStr::parse_from_str(s).unwrap().into_owned()
+    }
+
+    // Ensures that each recipient receives only one message notification
+    fn assert_single_message_notification_per_recipient(notifications: &[NotificationMsg]) {
+        let mut visited: HashMap<MacroUserIdStr<'static>, usize> = HashMap::new();
 
         for n in notifications {
-            if !MESSAGE_TYPES.contains(&n.notification_event.event_type()) {
+            if !is_message_notification(&n.notification_event) {
                 continue;
             }
-            for r in n.recipient_ids.as_ref().unwrap() {
-                visited
-                    .entry(r.clone())
-                    .or_default()
-                    .push(n.notification_event.event_type());
+            for r in &n.recipient_ids {
+                *visited.entry(r.clone()).or_default() += 1;
             }
         }
 
-        let violations = visited
+        let violations: Vec<_> = visited
             .into_iter()
-            .filter(|(_, v)| v.len() > 1)
-            .collect::<Vec<_>>();
+            .filter(|(_, count)| *count > 1)
+            .collect();
 
         assert!(
             violations.is_empty(),
@@ -404,6 +516,7 @@ mod tests {
             document_mentions: &[],
             participants: &participants,
             thread_participants: &[],
+            thread_parent_sender_id: None,
         };
 
         let notifications = event.generate_notifications();
@@ -411,9 +524,9 @@ mod tests {
         assert_single_message_notification_per_recipient(&notifications);
 
         for n in &notifications {
-            let recipients = n.recipient_ids.as_ref().unwrap();
+            let recipients = &n.recipient_ids;
             assert!(
-                !recipients.contains(&"sender".to_string()),
+                !recipients.contains(&uid("macro|sender@test.com")),
                 "sender should never receive their own notifications"
             );
         }
@@ -450,6 +563,7 @@ mod tests {
             document_mentions: &[],
             participants: &participants,
             thread_participants: &[],
+            thread_parent_sender_id: None,
         };
 
         let notifications = event.generate_notifications();
@@ -458,7 +572,7 @@ mod tests {
         assert_eq!(notifications.len(), 1);
         assert!(matches!(
             notifications[0].notification_event,
-            NotificationEvent::ChannelInvite(_)
+            NotifEvent::ChannelInvite(_)
         ));
     }
 
@@ -493,6 +607,7 @@ mod tests {
             document_mentions: &[],
             participants: &participants,
             thread_participants: &[],
+            thread_parent_sender_id: None,
         };
 
         let notifications = event.generate_notifications();
@@ -501,7 +616,7 @@ mod tests {
         assert_eq!(notifications.len(), 1);
         assert!(matches!(
             notifications[0].notification_event,
-            NotificationEvent::ChannelMessageSend(_)
+            NotifEvent::ChannelMessageSend(_)
         ));
     }
 
@@ -541,6 +656,7 @@ mod tests {
             document_mentions: &[],
             participants: &participants,
             thread_participants: &[],
+            thread_parent_sender_id: None,
         };
 
         let notifications = event.generate_notifications();
@@ -548,26 +664,21 @@ mod tests {
 
         let mention = notifications
             .iter()
-            .find(|n| matches!(n.notification_event, NotificationEvent::ChannelMention(_)))
+            .find(|n| matches!(n.notification_event, NotifEvent::ChannelMention(_)))
             .expect("should have mention notification");
 
-        let mention_recipients = mention.recipient_ids.as_ref().unwrap();
+        let mention_recipients = &mention.recipient_ids;
 
-        assert!(mention_recipients.contains(&"macro|alice@test.com".to_string()));
+        assert!(mention_recipients.contains(&uid("macro|alice@test.com")));
 
         let send = notifications
             .iter()
-            .find(|n| {
-                matches!(
-                    n.notification_event,
-                    NotificationEvent::ChannelMessageSend(_)
-                )
-            })
+            .find(|n| matches!(n.notification_event, NotifEvent::ChannelMessageSend(_)))
             .expect("should have message send notification");
 
-        let send_recipients = send.recipient_ids.as_ref().unwrap();
-        assert!(!send_recipients.contains(&"macro|alice@test.com".to_string()));
-        assert!(send_recipients.contains(&"macro|bob@test.com".to_string()));
+        let send_recipients = &send.recipient_ids;
+        assert!(!send_recipients.contains(&uid("macro|alice@test.com")));
+        assert!(send_recipients.contains(&uid("macro|bob@test.com")));
     }
 
     #[test]
@@ -608,6 +719,11 @@ mod tests {
             MacroUserIdStr::parse_from_str("macro|charlie@test.com").unwrap(),
         ];
 
+        let thread_parent_sender_id = Some(
+            MacroUserIdStr::parse_from_str("macro|thread_parent_sender@test.com")
+                .unwrap()
+                .into_owned(),
+        );
         let event = ChannelMessageEvent {
             channel_id: &channel_id,
             message: &msg,
@@ -617,6 +733,7 @@ mod tests {
             document_mentions: &[],
             participants: &participants,
             thread_participants: &thread_participants,
+            thread_parent_sender_id,
         };
 
         let notifications = event.generate_notifications();
@@ -624,19 +741,14 @@ mod tests {
 
         let reply = notifications
             .iter()
-            .find(|n| {
-                matches!(
-                    n.notification_event,
-                    NotificationEvent::ChannelMessageReply(_)
-                )
-            })
+            .find(|n| matches!(n.notification_event, NotifEvent::ChannelMessageReply(_)))
             .expect("should have reply notification");
 
-        let recipients = reply.recipient_ids.as_ref().unwrap();
-        assert!(!recipients.contains(&"macro|sender@test.com".to_string()));
-        assert!(!recipients.contains(&"macro|alice@test.com".to_string()));
-        assert!(recipients.contains(&"macro|bob@test.com".to_string()));
-        assert!(recipients.contains(&"macro|charlie@test.com".to_string()));
+        let recipients = &reply.recipient_ids;
+        assert!(!recipients.contains(&uid("macro|sender@test.com")));
+        assert!(!recipients.contains(&uid("macro|alice@test.com")));
+        assert!(recipients.contains(&uid("macro|bob@test.com")));
+        assert!(recipients.contains(&uid("macro|charlie@test.com")));
     }
 
     #[test]
@@ -675,6 +787,7 @@ mod tests {
             document_mentions: &doc_mentions,
             participants: &participants,
             thread_participants: &[],
+            thread_parent_sender_id: None,
         };
 
         let notifications = event.generate_notifications();
@@ -682,18 +795,13 @@ mod tests {
 
         let doc_notif = notifications
             .iter()
-            .find(|n| {
-                matches!(
-                    n.notification_event,
-                    NotificationEvent::ChannelMessageDocument(_)
-                )
-            })
+            .find(|n| matches!(n.notification_event, NotifEvent::DocumentMention(_)))
             .expect("should have document notification");
 
-        let recipients = doc_notif.recipient_ids.as_ref().unwrap();
-        assert!(!recipients.contains(&"macro|sender@test.com".to_string()));
-        assert!(recipients.contains(&"macro|alice@test.com".to_string()));
-        assert!(recipients.contains(&"macro|bob@test.com".to_string()));
+        let recipients = &doc_notif.recipient_ids;
+        assert!(!recipients.contains(&uid("macro|sender@test.com")));
+        assert!(recipients.contains(&uid("macro|alice@test.com")));
+        assert!(recipients.contains(&uid("macro|bob@test.com")));
     }
 
     #[test]
@@ -728,18 +836,16 @@ mod tests {
             document_mentions: &[],
             participants: &participants,
             thread_participants: &[],
+            thread_parent_sender_id: None,
         };
 
         let notifications = event.generate_notifications();
         assert_single_message_notification_per_recipient(&notifications);
 
         // Should not create reply notification with empty thread participants
-        let has_reply = notifications.iter().any(|n| {
-            matches!(
-                n.notification_event,
-                NotificationEvent::ChannelMessageReply(_)
-            )
-        });
+        let has_reply = notifications
+            .iter()
+            .any(|n| matches!(n.notification_event, NotifEvent::ChannelMessageReply(_)));
 
         assert!(!has_reply);
     }

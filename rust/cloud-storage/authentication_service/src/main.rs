@@ -1,5 +1,4 @@
 use anyhow::Context;
-use comms_service_client::CommsServiceClient;
 use config::{Config, Environment};
 use document_storage_service_client::DocumentStorageServiceClient;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
@@ -9,6 +8,9 @@ use native_app_service::{
     domain::{models::PlatformData, service::NativeAppServiceImpl},
     outbound::DefaultBundleFetcher,
 };
+use notification::domain::service::NotificationIngressService;
+use notification::outbound::queue::SqsNotificationQueue;
+use notification::outbound::repository::DbNotificationRepository;
 use notification_service_client::NotificationServiceClient;
 use roles_and_permissions::{
     domain::service::UserRolesAndPermissionsServiceImpl, outbound::pgpool::MacroDB,
@@ -31,20 +33,14 @@ mod config;
 mod generate_password;
 mod rate_limit_config;
 
-use authentication_service::service;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     MacroEntrypoint::default().init();
     let env = Environment::new_or_prod();
 
-    let secretsmanager_client =
-        secretsmanager_client::SecretsManager::new(aws_sdk_secretsmanager::Client::new(
-            &aws_config::defaults(aws_config::BehaviorVersion::latest())
-                .region("us-east-1")
-                .load()
-                .await,
-        ));
+    let secretsmanager_client = secretsmanager_client::SecretsManager::new(
+        aws_sdk_secretsmanager::Client::new(&macro_aws_config::get_macro_aws_config().await),
+    );
 
     let internal_api_key = secretsmanager_client
         .get_maybe_secret_value(env, InternalApiSecretKey::new()?)
@@ -128,23 +124,17 @@ async fn main() -> anyhow::Result<()> {
             .to_string(),
     };
 
-    let auth_client = service::fusionauth_client::FusionAuthClient::new(
+    let auth_client = fusionauth::FusionAuthClient::new(
+        config.fusionauth_tenant_id,
         fusionauth_api_key,
         config.fusionauth_client_id.clone(),
         fusionauth_client_secret,
-        config.fusionauth_application_id.clone(),
         config.fusionauth_base_url.clone(),
         config.fusionauth_oauth_redirect_uri.clone(),
         config.google_client_id.clone(),
         google_client_secret,
     );
     tracing::trace!("initialized auth client");
-
-    let comms_client = CommsServiceClient::new(
-        config.service_internal_auth_key.clone(),
-        config.comms_service_url.clone(),
-    );
-    tracing::trace!("initialized comms client");
 
     let document_storage_service_client = DocumentStorageServiceClient::new(
         config.service_internal_auth_key.clone(),
@@ -165,12 +155,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::trace!("initialized stripe client");
 
     let ses_client = ses_client::Ses::new(
-        aws_sdk_sesv2::Client::new(
-            &aws_config::defaults(aws_config::BehaviorVersion::latest())
-                .region("us-east-1")
-                .load()
-                .await,
-        ),
+        aws_sdk_sesv2::Client::new(&macro_aws_config::get_macro_aws_config().await),
         &config.environment.to_string(),
     );
 
@@ -178,18 +163,17 @@ async fn main() -> anyhow::Result<()> {
         JwtValidationArgs::new_with_secret_manager(config.environment, &secretsmanager_client)
             .await?;
 
-    let macro_notify_client = macro_notify::MacroNotify::new(
+    let notification_repository = DbNotificationRepository::new(db.clone());
+    let notification_queue = SqsNotificationQueue::new(
+        aws_sdk_sqs::Client::new(&macro_aws_config::get_macro_aws_config().await),
         config.notification_queue.clone(),
-        "authentication_service".to_string(),
-    )
-    .await;
-    tracing::trace!("initialized macro_notify client");
+    );
+    let notification_ingress_service =
+        NotificationIngressService::new(notification_repository, notification_queue);
+    tracing::trace!("initialized notification ingress service");
 
     let sqs_client = sqs_client::SQS::new(aws_sdk_sqs::Client::new(
-        &aws_config::defaults(aws_config::BehaviorVersion::latest())
-            .region("us-east-1")
-            .load()
-            .await,
+        &macro_aws_config::get_macro_aws_config().await,
     ))
     .search_event_queue(&config.search_event_queue);
     tracing::trace!("initialized sqs client");
@@ -216,11 +200,10 @@ async fn main() -> anyhow::Result<()> {
             auth_client: Arc::new(auth_client),
             macro_cache_client: Arc::new(macro_cache_client),
             stripe_client: Arc::new(stripe_client),
-            comms_client: Arc::new(comms_client),
             document_storage_service_client: Arc::new(document_storage_service_client),
             notification_service_client: Arc::new(notification_service_client),
             ses_client: Arc::new(ses_client),
-            macro_notify_client: Arc::new(macro_notify_client),
+            notification_ingress_service: Arc::new(notification_ingress_service),
             sqs_client: Arc::new(sqs_client),
             environment: config.environment,
             jwt_args,

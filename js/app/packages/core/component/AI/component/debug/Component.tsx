@@ -6,19 +6,27 @@ import type {
 } from '@core/component/AI/types';
 import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
 import { createEffect, createSignal } from 'solid-js';
+import {
+  ChatInputProvider,
+  ChatProvider,
+  useChatContext,
+  useChatInputContext,
+} from '../../context';
 import { useAttachments } from '../../signal/attachment';
-import { createStream } from '../../util/stream';
+import { pausableStream } from '../../util/stream';
+import { ChatInput } from '../input/useChatInput';
 import { ModelSelector } from '../input/ModelSelector';
-import { useChatInput } from '../input/useChatInput';
 import { useChatMarkdownArea } from '../input/useChatMarkdownArea';
-import { useChatMessages } from '../message/ChatMessages';
+import { ChatMessages } from '../message/ChatMessages';
 import {
   blockDone,
+  createStream,
   delayStream,
   mockMessages,
   poem,
   simpleMessageChain,
   slowFirst,
+  table,
   toolCall,
 } from './mockData';
 import { StreamDebuggerWithControls, StreamStatus } from './stream';
@@ -39,6 +47,7 @@ export default function Debug() {
           <ToolCallRender />
           <ToolCallResponseRender />
           <LoadingMessageScroll />
+          <TableStream />
         </div>
       </div>
     </div>
@@ -81,30 +90,57 @@ function ChatModelSelector() {
 }
 
 function ChatInputBox() {
-  const { ChatInput, setIsGenerating: setGen } = useChatInput();
+  return (
+    <ChatInputProvider>
+      <ChatInputBoxInner />
+    </ChatInputProvider>
+  );
+}
+
+function ChatInputBoxInner() {
+  const input = useChatInputContext();
+  const chatMarkdownArea = useChatMarkdownArea({
+    addAttachment: (a) => input.attachments.addAttachment(a),
+  });
 
   return (
     <Item label="Chat input - not connected to backend">
       <div class="w-full h-full">
         <div class="flex gap-2 py-2">
           <DeprecatedTextButton
-            onClick={() => setGen(true)}
+            onClick={() => input.setIsGenerating(true)}
             theme="accent"
             text="Generate"
           />
           <DeprecatedTextButton
-            onClick={() => setGen(false)}
+            onClick={() => input.setIsGenerating(false)}
             theme="accent"
             text="Stop"
           />
         </div>
-        <ChatInput onSend={(request) => console.log('request', request)} />
+        <ChatInput
+          markdown={chatMarkdownArea}
+          onSend={(request) => console.log('request', request)}
+        />
       </div>
     </Item>
   );
 }
 
 function ChatInputBoxConnected() {
+  return (
+    <ChatInputProvider>
+      <ChatInputBoxConnectedInner />
+    </ChatInputProvider>
+  );
+}
+
+function ChatInputBoxConnectedInner() {
+  const input = useChatInputContext();
+  const chatMarkdownArea = useChatMarkdownArea({
+    addAttachment: (a) => input.attachments.addAttachment(a),
+  });
+
   const [_gen, setGen] = createSignal(false);
   const onSend = async (request: Send | CreateAndSend) => {
     if (request.type === 'createAndSend') {
@@ -128,21 +164,27 @@ function ChatInputBoxConnected() {
     }
   };
 
-  const { ChatInput } = useChatInput();
-
   return (
     <Item label="Chat input - connected (console)">
       <div class="w-full h-full">
-        <ChatInput onSend={onSend} />
+        <ChatInput markdown={chatMarkdownArea} onSend={onSend} />
       </div>
     </Item>
   );
 }
 
 function StreamMessages() {
-  const { ChatMessages, setStream: setMessageStream } = useChatMessages({
-    messages: [],
-  });
+  return (
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={[]}>
+        <StreamMessagesInner />
+      </ChatProvider>
+    </ChatInputProvider>
+  );
+}
+
+function StreamMessagesInner() {
+  const chat = useChatContext();
   const [stream, setStream] = createSignal<MessageStream>();
   const makeStream = () => delayStream(poem(), slowFirst);
 
@@ -153,7 +195,7 @@ function StreamMessages() {
         onClick={() => {
           const poemStream = makeStream();
           setStream(poemStream);
-          setMessageStream(poemStream);
+          chat.setStream(poemStream);
         }}
       >
         Stream
@@ -168,23 +210,38 @@ function StreamMessages() {
 
 function StaticMessages() {
   const messages = simpleMessageChain();
-  const { ChatMessages } = useChatMessages({ messages: messages });
   console.log(JSON.stringify(messages, null, 2));
   return (
-    <Item col label="Chat messages - static render">
-      <div data-chat-scroll class="min-h-0 max-h-[400px] overflow-y-auto">
-        <ChatMessages />
-      </div>
-    </Item>
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={messages}>
+        <Item col label="Chat messages - static render">
+          <div data-chat-scroll class="min-h-0 max-h-[400px] overflow-y-auto">
+            <ChatMessages />
+          </div>
+        </Item>
+      </ChatProvider>
+    </ChatInputProvider>
   );
 }
 
 function FullChat() {
+  return (
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={[]}>
+        <FullChatInner />
+      </ChatProvider>
+    </ChatInputProvider>
+  );
+}
+
+function FullChatInner() {
+  const input = useChatInputContext();
+  const chat = useChatContext();
+  const chatMarkdownArea = useChatMarkdownArea({
+    addAttachment: (a) => input.attachments.addAttachment(a),
+  });
   const [_isGen, setIsGen] = createSignal(false);
   const [stream, setDebugStream] = createSignal<MessageStream>();
-  const { ChatMessages, addMessage, setStream } = useChatMessages({
-    messages: [],
-  });
 
   const onSend = async (request: Send | CreateAndSend) => {
     if (request.type === 'createAndSend') {
@@ -197,7 +254,7 @@ function FullChat() {
         return onSend(response);
       }
     } else {
-      addMessage({
+      chat.addMessage({
         attachments: request.request.attachments ?? [],
         content: request.request.content,
         role: 'user',
@@ -205,7 +262,7 @@ function FullChat() {
       });
       const stream = request.call();
       console.log('set stream');
-      setStream(stream);
+      chat.setStream(stream);
       setDebugStream(stream);
       setIsGen(true);
       createEffect(() => {
@@ -223,8 +280,6 @@ function FullChat() {
     }
   };
 
-  const { ChatInput } = useChatInput();
-
   return (
     <Item label="Input and messages - connected">
       <div
@@ -233,7 +288,12 @@ function FullChat() {
       >
         <StreamStatus stream={stream} />
         <ChatMessages />
-        <ChatInput onSend={onSend} onStop={() => {}} />
+        <ChatInput
+          markdown={chatMarkdownArea}
+          chatId={chat.chatId()}
+          onSend={onSend}
+          onStop={() => {}}
+        />
       </div>
     </Item>
   );
@@ -241,24 +301,30 @@ function FullChat() {
 
 function ToolCallRender() {
   const stream = toolCall(() => 1);
+  const initialMessages = mockMessages([
+    { text: 'read this file for me', type: 'user' },
+  ]);
 
-  const { ChatMessages, setStream } = useChatMessages({
-    messages: mockMessages([
-      {
-        text: 'read this file for me',
-        type: 'user',
-      },
-    ]),
-  });
+  return (
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={initialMessages}>
+        <ToolCallRenderInner stream={stream} />
+      </ChatProvider>
+    </ChatInputProvider>
+  );
+}
 
-  setStream(stream);
+function ToolCallRenderInner(props: { stream: MessageStream }) {
+  const chat = useChatContext();
+  chat.setStream(props.stream);
+
   return (
     <Item label="Tool call - static">
       <div
         data-chat-scroll
         class="size-full flex space-y-1 flex-col overflow-y-auto max-h-[400px]"
       >
-        <StreamStatus stream={() => stream} />
+        <StreamStatus stream={() => props.stream} />
         <ChatMessages />
       </div>
     </Item>
@@ -360,6 +426,101 @@ function LoadingMessageScroll() {
           autoStart
         />
       </div>
+    </Item>
+  );
+}
+
+function TableStream() {
+  const initialMessages = mockMessages([
+    {
+      type: 'user',
+      text: 'Can you show me a comparison of frontend frameworks?',
+    },
+  ]);
+
+  return (
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={initialMessages}>
+        <TableStreamInner />
+      </ChatProvider>
+    </ChatInputProvider>
+  );
+}
+
+function TableStreamInner() {
+  const chat = useChatContext();
+  const [isPaused, setIsPaused] = createSignal(false);
+  const [isSlow, setIsSlow] = createSignal(false);
+  const [showRaw, setShowRaw] = createSignal(false);
+  const [stream, setStream] = createSignal<MessageStream>();
+  const [rawText, setRawText] = createSignal('');
+
+  const startStream = () => {
+    chat.setMessages([]);
+    chat.setStream(undefined);
+    setRawText('');
+    const baseStream = table();
+    const controlled = pausableStream(baseStream, {
+      isPaused,
+      isSlow,
+      onChunk: (text) => setRawText((prev) => prev + text),
+    });
+    setStream(controlled);
+    chat.setStream(controlled);
+  };
+
+  return (
+    <Item col label="Table stream with controls">
+      <div class="flex gap-x-2 items-center">
+        <DeprecatedTextButton
+          text="Stream"
+          onClick={startStream}
+          theme="accent"
+        />
+        <DeprecatedTextButton
+          text={isPaused() ? 'Resume' : 'Pause'}
+          onClick={() => setIsPaused((p) => !p)}
+          theme="accent"
+        />
+        <label class="flex items-center gap-x-1 text-xs">
+          <input
+            type="checkbox"
+            checked={isSlow()}
+            onChange={(e) => setIsSlow(e.currentTarget.checked)}
+          />
+          Slow mode
+        </label>
+        <label class="flex items-center gap-x-1 text-xs">
+          <input
+            type="checkbox"
+            checked={showRaw()}
+            onChange={(e) => setShowRaw(e.currentTarget.checked)}
+          />
+          Raw
+        </label>
+        <DeprecatedTextButton
+          text="Reset"
+          theme="accent"
+          onClick={() => {
+            setStream(undefined);
+            setRawText('');
+            chat.setMessages([]);
+            chat.setStream(undefined);
+          }}
+        />
+      </div>
+      <StreamStatus stream={stream} />
+      {showRaw() ? (
+        <div class="min-h-0 max-h-[400px] overflow-y-auto select-text">
+          <pre class="text-xs whitespace-pre-wrap font-mono break-all select-text cursor-text">
+            {rawText()}
+          </pre>
+        </div>
+      ) : (
+        <div data-chat-scroll class="min-h-0 max-h-[400px] overflow-y-auto">
+          <ChatMessages />
+        </div>
+      )}
     </Item>
   );
 }

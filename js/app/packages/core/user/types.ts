@@ -1,14 +1,23 @@
-import type { IOrganizationUserInternal } from '@service-organization/client';
 import type { Accessor } from 'solid-js';
 
 export type { ChannelWithParticipants } from '@service-comms/generated/models';
 export type { ContactInfo } from '@service-email/generated/schemas';
-export type IOrganizationUser = IOrganizationUserInternal;
+
+export interface IOrganizationUser {
+  email: string;
+  id: string;
+  is_it_admin: boolean;
+}
+
+/** Timestamp of last interaction with the user (in milliseconds to match server timestamps) */
+export type LastInteractionTimestamp = number;
 
 export type IUser = {
   id: string;
   email: string;
   name: string;
+  /** timestamp of last interaction with the user (in milliseconds to match server timestamps) */
+  lastInteraction?: LastInteractionTimestamp;
 };
 
 type BaseUserName = {

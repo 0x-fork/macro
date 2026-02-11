@@ -96,6 +96,8 @@ export const ENABLE_SVG_PREVIEW = true;
 
 export const USE_WIDE_ICONS = true;
 
+export const ENABLE_ANIMATED_ICONS = true;
+
 export const ENABLE_PROPERTY_DISPLAY = DEV_MODE_ENV;
 export const ENABLE_PROPERTY_SORT = DEV_MODE_ENV;
 export const ENABLE_PROPERTY_FILTER = DEV_MODE_ENV;
@@ -113,3 +115,17 @@ export const ENABLE_CREATE_TASK = true;
 export const ENABLE_TASKS_TABS = true;
 
 export const ENABLE_EMAIL_SHARING = true;
+
+// Auto expand stand-alone mentions to richer previews in channels
+export const ENABLE_STATIC_DOCUMENT_CARDS = false;
+
+export const ENABLE_MARKDOWN_AI_GENERATE = false;
+
+export const ENABLE_UNIFIED_LIST_AI_INPUT = true;
+
+// snapshot mention content inline for AI chat
+export const ENABLE_SNAPSHOT_NODE = true;
+
+export const ENABLE_EMAIL_SCHEDULED_SEND = false;
+
+export const ENABLE_AI_AUTO_TAB_ATTACHMENTS = true;

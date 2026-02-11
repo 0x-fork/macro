@@ -8,6 +8,7 @@ import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
 import { AskAi } from '@core/component/GeneralizedPopup/AskAI';
 import { GeneralizedPopup } from '@core/component/GeneralizedPopup/Popup';
 import { LocationHighlight } from '@core/component/LexicalMarkdown/component/core/Highlights';
+import { ENABLE_MARKDOWN_AI_GENERATE } from '@core/constant/featureFlags';
 import {
   createMenuOpenSignal,
   MenuPriority,
@@ -34,10 +35,9 @@ import {
 import { toast } from '@core/component/Toast/Toast';
 import { ScopedPortal } from '@core/component/ScopedPortal';
 import { blockElementSignal } from '@core/signal/blockElement';
-import { blockMetadataSignal } from '@core/signal/load';
 import { useCanComment, useCanEdit } from '@core/signal/permissions';
 import { debouncedDependent } from '@core/util/debounce';
-import { createFromMarkdownText } from '@core/util/md';
+import { createMarkdownFile } from '@core/util/create';
 import { getScrollParentElement } from '@core/util/scrollParent';
 import type { NodeIdMappings } from '@lexical-core';
 import { useUserId } from '@core/context/user';
@@ -71,6 +71,7 @@ import {
 } from 'solid-js';
 import { FormatTools } from './FormatTools';
 import { isMobile } from '@core/mobile/isMobile';
+import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
 
 const MENU_ID = 'markdown-popup';
 
@@ -301,6 +302,7 @@ export function MarkdownPopup(props: {
       setPopupVisible(false);
     });
 
+    const name = useBlockDocumentName();
     const handleEditInMarkdown = createCallback(async () => {
       setIsLoading(true);
       const content = completion()?.content;
@@ -309,21 +311,13 @@ export function MarkdownPopup(props: {
       }
 
       const title: string | undefined = await generateTitleForMarkdown(content);
-      const maybeDoc = await createFromMarkdownText({
-        markdown: content,
-        title:
-          title ?? `${blockMetadataSignal()?.documentName} - AI Explanation`,
-        preserveNewLines: false,
+      const documentId = await createMarkdownFile({
+        content,
+        title: title ?? `${name()} - AI Explanation`,
       });
 
-      if ('error' in maybeDoc) {
-        console.error('Error opening AI message in Notes', maybeDoc.error);
-        setIsLoading(false);
-        return;
-      }
-
-      const documentId = maybeDoc.documentId;
       if (!documentId) {
+        console.error('Error opening AI message in Notes');
         setIsLoading(false);
         return;
       }
@@ -424,6 +418,7 @@ export function MarkdownPopup(props: {
         >
           <Show
             when={
+              ENABLE_MARKDOWN_AI_GENERATE &&
               isAuthenticated() &&
               !!selectedText() &&
               selectionType() === 'range' &&

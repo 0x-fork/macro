@@ -41,6 +41,7 @@ pub struct UserNames {
 }
 
 impl UserRepo for UserRepoImpl {
+    #[tracing::instrument(err, skip(self, user_ids))]
     async fn get_names_for_ids(
         &self,
         user_ids: std::collections::HashSet<macro_user_id::user_id::MacroUserIdStr<'_>>,
@@ -50,7 +51,9 @@ impl UserRepo for UserRepoImpl {
         let mut url = self.url.as_ref().clone();
         url.set_path("/internal/get_names");
 
-        let res = self.client.post(url).json(&body).send().await?;
+        let res = self.client.post(url).json(&body).send().await.inspect_err(
+            |e| tracing::error!(error=?e, "failed to get names from authentication service"),
+        )?;
 
         match res.status() {
             reqwest::StatusCode::OK => {

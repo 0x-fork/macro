@@ -36,6 +36,8 @@ pub struct GetLegacyUserPermissionsResponse {
     has_chrome_ext: bool,
     /// Whether the user has trialed through stripe
     has_trialed: bool,
+    /// Whether the user has consented to AI data sharing
+    ai_data_consent: bool,
 }
 
 #[derive(serde::Serialize, Debug, utoipa::ToSchema)]
@@ -116,18 +118,16 @@ pub async fn handler(
         .await
         .map_err(GetLegacyUserPermissionsError::InternalError)?;
 
-    let license_status = if user_context.organization_id.is_some() {
-        // organizations default to active license status
-        "active"
-    } else if permissions.contains(&PermissionId::ReadProfessionalFeatures.to_string()) {
-        // If the user has premium permission their license status is active
-        "active"
-    } else {
-        // By default, we can be lazy and just say they are inactive
-        // If the requirements change, we will need to update this to actually check the user's
-        // stripe subscription if present
-        "inactive"
-    };
+    let license_status =
+        if permissions.contains(&PermissionId::ReadProfessionalFeatures.to_string()) {
+            // If the user has premium permission their license status is active
+            "active"
+        } else {
+            // By default, we can be lazy and just say they are inactive
+            // If the requirements change, we will need to update this to actually check the user's
+            // stripe subscription if present
+            "inactive"
+        };
 
     let has_trialed = if let Some(stripe_customer_id) = legacy_user_info.stripe_customer_id.as_ref()
     {
@@ -160,5 +160,6 @@ pub async fn handler(
         },
         has_chrome_ext: legacy_user_info.has_chrome_ext,
         has_trialed,
+        ai_data_consent: legacy_user_info.ai_data_consent,
     })
 }

@@ -44,13 +44,14 @@ import {
 import type { PortalScope } from '@core/component/ScopedPortal';
 import { shortcutBadgeStyles } from '@core/component/Themes';
 import { toast } from '@core/component/Toast/Toast';
+import { ENABLE_SNAPSHOT_NODE } from '@core/constant/featureFlags';
 import { TOKENS } from '@core/hotkey/tokens';
 import { getPrettyHotkeyStringByToken } from '@core/hotkey/utils';
 import { isMobile } from '@core/mobile/isMobile';
 import type { IOrganizationUser } from '@core/user';
 import { handleFileFolderDrop } from '@core/util/upload';
 import { $isDocumentMentionNode } from '@lexical-core';
-import type { Item } from '@service-storage/generated/schemas/item';
+import type { HistoryItem } from '@queries/history/history';
 import { onElementConnect } from '@solid-primitives/lifecycle';
 import { activeElement } from 'app/signal/focus';
 import { filePastePlugin } from 'core/component/LexicalMarkdown/plugins/file-paste/filePastePlugin';
@@ -220,7 +221,7 @@ export type ConsumableChatMarkdownAreaProps = {
   initialValue?: string;
   placeholder?: string;
   users?: Accessor<IOrganizationUser[]>;
-  history?: Accessor<Item[]>;
+  history?: Accessor<HistoryItem[]>;
   onPasteFile?: (files: File[]) => void;
   dontFocusOnMount?: boolean;
   portalScope?: PortalScope;
@@ -234,32 +235,9 @@ function MarkdownArea(
 ) {
   const { editor, plugins, cleanup } = props.lexicalWrapper;
 
-  // TODO: ask peter what do
-  // const hotkeyScope = blockHotkeyScopeSignal.get;
   const isActiveElementInBlock = () => {
     return false;
-    // const blockElement = blockElementSignal.get();
-    // const currentActiveElement = activeElement();
-
-    // if (!blockElement || !currentActiveElement) {
-    //   return false;
-    // }
-
-    // return blockElement.contains(currentActiveElement);
   };
-
-  // onMount(() => {
-  //   registerHotkey({
-  //     hotkeyToken: 'chat-input-focus',
-  //     scopeId: 'TODO-chatimus', // TODO
-  //     description: 'Focus chat input',
-  //     hotkey: 't',
-  //     keyDownHandler: () => {
-  //       editor.focus();
-  //       return true;
-  //     },
-  //   });
-  // });
 
   const focusShortcut = getPrettyHotkeyStringByToken(TOKENS.chat.input.focus);
 
@@ -426,7 +404,7 @@ function MarkdownArea(
               }
               fallback={
                 <p class="py-1.5 p-0 text-ink-extra-muted">
-                  {props.placeholder ?? 'Ask AI @mention anything'}
+                  {props.placeholder ?? 'Ask AI, @mention anything'}
                 </p>
               }
             >
@@ -457,6 +435,7 @@ function MarkdownArea(
           block={'chat'}
           useBlockBoundary={true}
           portalScope={props.portalScope}
+          useSnapshotForDocuments={ENABLE_SNAPSHOT_NODE}
         />
         <FloatingMenuGroup>
           <FloatingLinkMenu />
