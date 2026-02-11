@@ -293,4 +293,3 @@ function restoreSnapshot(
     queryClient.setQueryData(key, data);
   }
 }
-
