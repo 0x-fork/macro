@@ -6,6 +6,7 @@ import {
 import {
   buildDssFiltersRequest,
   getFolderFileTypes,
+  withImportance,
 } from '@app/component/next-soup/filters/filters';
 import { sortEntitiesForSearch } from '@app/component/next-soup/soup-view/sort-options';
 import { deduplicateEntities } from '@app/component/next-soup/utils';
@@ -17,6 +18,7 @@ import type { EntityData, WithNotification, WithSearch } from '@entity';
 import { useNotificationsForEntity } from '@notifications';
 import {
   type SoupItemsQueryFilters,
+  prefetchSoupItems,
   useSoupItemsQuery,
 } from '@queries/soup/items';
 import { useSearchSoupQuery } from '@queries/soup/search';
@@ -25,6 +27,7 @@ import type { UnifiedSearchIndex } from '@service-search/generated/models';
 import {
   type Accessor,
   createContext,
+  createEffect,
   createMemo,
   createRenderEffect,
   createSignal,
@@ -226,18 +229,38 @@ export const SoupViewContextProvider: FlowComponent<
     };
   });
 
-  const itemsQuery = useSoupItemsQuery(
-    () => ({
-      params: {
-        limit: 100,
-        sort_method: soup.sort.active()[0]?.id ?? 'updated_at',
-      },
-      body: queryFilters(),
-    }),
-    () => ({
-      enabled: isSearchDisabled(),
-    })
-  );
+  const soupQueryParams = createMemo(() => ({
+    params: {
+      limit: 100,
+      sort_method: (soup.sort.active()[0]?.id ??
+        'updated_at') as import('@service-storage/generated/schemas').ParamsSortMethod,
+    },
+    body: queryFilters(),
+  }));
+
+  const itemsQuery = useSoupItemsQuery(soupQueryParams, () => ({
+    enabled: isSearchDisabled(),
+  }));
+
+  // Prefetch the other importance variants so filter switching is instant.
+  createEffect(() => {
+    const current = soupQueryParams();
+    const importance = current.body.document_filters?.importance;
+
+    const variants: (boolean | undefined)[] =
+      importance === true
+        ? [false, undefined] // Inbox → prefetch Other + All
+        : importance === false
+          ? [true, undefined] // Other → prefetch Inbox + All
+          : [true, false]; // All → prefetch Inbox + Other
+
+    for (const imp of variants) {
+      prefetchSoupItems({
+        params: current.params,
+        body: withImportance(current.body, imp),
+      });
+    }
+  });
 
   const searchQuery = useSearchSoupQuery(
     () => ({

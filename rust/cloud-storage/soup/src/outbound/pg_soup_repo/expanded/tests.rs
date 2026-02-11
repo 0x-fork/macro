@@ -4412,3 +4412,66 @@ async fn test_dyn_all_types_filtered_to_empty(db: PgPool) -> anyhow::Result<()> 
 
     Ok(())
 }
+
+/// Regression: `Importance(true)` AND-ed with ID filters must produce valid SQL.
+/// Previously `Importance(true)` emitted an empty string for chats/projects,
+/// which created `AND () AND ...` — a syntax error.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../../macro_db_client/fixtures",
+        scripts("dynamic_query_exhaustive")
+    )
+)]
+async fn test_dyn_importance_true_with_ids_generates_valid_sql(db: PgPool) -> anyhow::Result<()> {
+    use item_filters::{ChatFilters, DocumentFilters, EntityFilters, ProjectFilters};
+
+    let entity_filters = EntityFilters {
+        document_filters: DocumentFilters {
+            importance: Some(true),
+            document_ids: vec![DYN_DOC_ROOT_PDF.to_string()],
+            ..Default::default()
+        },
+        chat_filters: ChatFilters {
+            importance: Some(true),
+            chat_ids: vec![DYN_CHAT_ROOT.to_string()],
+            ..Default::default()
+        },
+        project_filters: ProjectFilters {
+            importance: Some(true),
+            project_ids: vec![DYN_PROJECT_ROOT.to_string()],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let filters = EntityFilterAst::new_from_filters(entity_filters)?.unwrap();
+
+    // This must not produce a SQL syntax error
+    let items = dyn_fetch(
+        &db,
+        "macro|user-1@test.com",
+        50,
+        SimpleSortMethod::UpdatedAt,
+        filters,
+        false,
+    )
+    .await?;
+
+    // We expect at least the items matching the provided IDs
+    let ids: HashSet<Uuid> = items.iter().map(|i| i.id()).collect();
+    assert!(
+        ids.contains(&Uuid::parse_str(DYN_DOC_ROOT_PDF).unwrap()),
+        "Should contain the filtered document"
+    );
+    assert!(
+        ids.contains(&Uuid::parse_str(DYN_CHAT_ROOT).unwrap()),
+        "Should contain the filtered chat"
+    );
+    assert!(
+        ids.contains(&Uuid::parse_str(DYN_PROJECT_ROOT).unwrap()),
+        "Should contain the filtered project"
+    );
+
+    Ok(())
+}

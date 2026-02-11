@@ -1,10 +1,5 @@
 import { isTaskEntity, type EntityData, type WithNotification } from '@entity';
 import {
-  signalFilter,
-  noiseFilter,
-  explicitNoiseFilter,
-} from './signal-filters';
-import {
   type EntityWithValidIcon,
   getIconConfig,
 } from '@core/component/EntityIcon';
@@ -130,23 +125,24 @@ export function teamsAndPeopleFilter(entity: EntityData): boolean {
 }
 
 export const SOUP_FILTERS = [
-  // Focus filters (mutually exclusive)
+  // Focus filters (mutually exclusive) — predicates are no-ops because
+  // the backend handles filtering via the `importance` parameter.
   {
     id: 'signal',
     label: 'Inbox',
-    predicate: signalFilter,
+    predicate: () => true,
     group: 'focus',
   },
   {
     id: 'noise',
     label: 'Other',
-    predicate: noiseFilter,
+    predicate: () => true,
     group: 'focus',
   },
   {
     id: 'explicit-noise',
     label: 'Explicit Noise',
-    predicate: (entity: EntityData) => !explicitNoiseFilter(entity),
+    predicate: () => true,
     group: 'focus',
   },
 
@@ -324,6 +320,13 @@ export const buildDssFiltersRequest = (
     .filter((f) => ENTITY_TYPE_FILTERS.includes(f.id as EntityTypeFilters))
     .map((f) => f.id);
 
+  const focusIds = filters.filter((f) => f.group === 'focus').map((f) => f.id);
+  const importance: boolean | undefined = focusIds.includes('signal')
+    ? true
+    : focusIds.includes('noise')
+      ? false
+      : undefined;
+
   const {
     channel_filters,
     document_filters,
@@ -338,6 +341,7 @@ export const buildDssFiltersRequest = (
       channel_ids:
         channel_filters?.channel_ids ??
         buildDefaultValue(entityTypes, ['teams', 'people']),
+      importance,
     },
     document_filters: {
       ...document_filters,
@@ -346,12 +350,14 @@ export const buildDssFiltersRequest = (
         buildDefaultValue(entityTypes, ['file', 'document', 'task']),
       project_ids: document_filters?.project_ids ?? [],
       file_types: document_filters?.file_types ?? [],
+      importance,
     },
     chat_filters: {
       ...chat_filters,
       chat_ids:
         chat_filters?.chat_ids ?? buildDefaultValue(entityTypes, ['agent']),
       project_ids: chat_filters?.project_ids ?? [],
+      importance,
     },
     email_filters: {
       ...email_filters,
@@ -362,13 +368,34 @@ export const buildDssFiltersRequest = (
         (entityTypes.includes('email') || entityTypes.length === 0)
           ? []
           : [NIL_UUID]),
+      importance,
     },
     project_filters: {
       ...project_filters,
       project_ids:
         project_filters?.project_ids ??
         buildDefaultValue(entityTypes, ['file']),
+      importance,
     },
-    emailView: 'all',
+    emailView:
+      importance === true ? 'inbox' : importance === false ? 'other' : 'all',
+  };
+};
+
+/** Clone a query body with a different importance value. Used for prefetching. */
+export const withImportance = (
+  body: SoupItemsQueryArgs['body'],
+  importance: boolean | undefined
+): SoupItemsQueryArgs['body'] => {
+  const emailView =
+    importance === true ? 'inbox' : importance === false ? 'other' : 'all';
+  return {
+    ...body,
+    channel_filters: { ...body.channel_filters, importance },
+    document_filters: { ...body.document_filters, importance },
+    chat_filters: { ...body.chat_filters, importance },
+    email_filters: { ...body.email_filters, importance },
+    project_filters: { ...body.project_filters, importance },
+    emailView,
   };
 };
