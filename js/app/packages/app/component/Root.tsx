@@ -328,6 +328,10 @@ function UserInfoSideEffects() {
       hasChromeExt: data.hasChromeExt,
     });
 
+    import('@sentry/solid').then((Sentry) => {
+      Sentry.setUser({ id: data.id, email: data.email });
+    });
+
     if (PROD_MODE_ENV) {
       identify(data.id, {
         email: data.email,
