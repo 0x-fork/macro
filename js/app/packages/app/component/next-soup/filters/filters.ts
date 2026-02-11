@@ -377,8 +377,7 @@ export const buildDssFiltersRequest = (
         buildDefaultValue(entityTypes, ['file']),
       importance,
     },
-    emailView:
-      importance === true ? 'inbox' : importance === false ? 'other' : 'all',
+    emailView: typeof importance === 'boolean' ? 'inbox' : 'all',
   };
 };
 
@@ -387,8 +386,7 @@ export const withImportance = (
   body: SoupItemsQueryArgs['body'],
   importance: boolean | undefined
 ): SoupItemsQueryArgs['body'] => {
-  const emailView =
-    importance === true ? 'inbox' : importance === false ? 'other' : 'all';
+  const emailView = typeof importance === 'boolean' ? 'inbox' : 'all';
   return {
     ...body,
     channel_filters: { ...body.channel_filters, importance },
