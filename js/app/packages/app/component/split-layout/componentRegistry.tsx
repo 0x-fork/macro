@@ -8,6 +8,7 @@ import { EmailCompose } from '../../../block-email/component/Compose';
 import { SettingsPanel } from '../settings/Settings';
 import NotificationRoute from '@notifications/components/NotificationRoute';
 import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
+import { SoupWithSidebar } from '@app/component/soup-sidebar';
 
 export type ComponentFactory = (params?: Record<string, any>) => JSXElement;
 
@@ -56,6 +57,7 @@ export function resolveComponent(
 }
 
 registerComponent('unified-list', () => <SoupView />);
+registerComponent('soup-sidebar', () => <SoupWithSidebar />);
 registerComponent('loading', () => <LoadingBlock />);
 registerComponent('channel-compose', () => <ChannelCompose />);
 registerComponent('email-compose', () => <EmailCompose />);
