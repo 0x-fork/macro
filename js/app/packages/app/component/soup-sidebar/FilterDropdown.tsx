@@ -88,7 +88,7 @@ export const FilterDropdown: Component<FilterDropdownProps> = (props) => {
           class="flex items-center gap-1.5 h-[22px] px-2.5 shrink-0 rounded-full transition-colors"
           classList={{
             'bg-accent text-panel': activeCount() > 0 || open(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20':
+            'text-ink-muted hover:text-ink hover:bg-ink/10':
               activeCount() === 0 && !open(),
           }}
         >
@@ -117,9 +117,9 @@ export const FilterDropdown: Component<FilterDropdownProps> = (props) => {
                 return (
                   <button
                     type="button"
-                    class="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-hover rounded transition-colors"
+                    class="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-ink/10 rounded transition-colors"
                     classList={{
-                      'bg-hover': focusedIndex() === index(),
+                      'bg-ink/10': focusedIndex() === index(),
                     }}
                     onClick={() => props.onToggle(option.id)}
                     onMouseEnter={() => setFocusedIndex(index())}

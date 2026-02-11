@@ -137,7 +137,7 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
                 >
                   <button
                     type="button"
-                    class="flex-1 flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-ink hover:bg-hover rounded transition-colors"
+                    class="flex-1 flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-ink hover:bg-ink/10 rounded transition-colors"
                     onClick={handleCreateClick}
                   >
                     <PlusIcon class="size-4 text-accent" />
@@ -156,8 +156,8 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
                     type="button"
                     class="p-1.5 rounded transition-colors"
                     classList={{
-                      'bg-accent/10 text-accent': isPinned(),
-                      'text-ink-muted hover:text-ink hover:bg-hover': !isPinned(),
+                      'bg-accent/15 text-accent': isPinned(),
+                      'text-ink-muted hover:text-ink hover:bg-ink/10': !isPinned(),
                     }}
                     onClick={handlePinToggle}
                   >
@@ -173,7 +173,7 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
             </div>
 
             {/* View groups */}
-            <div class="flex-1 overflow-y-auto py-2">
+            <div class="flex-1 overflow-y-auto py-2 px-2">
               <For each={VIEW_GROUPS}>
                 {(group) => (
                   <SidebarViewGroup
@@ -212,11 +212,11 @@ interface SidebarViewGroupProps {
 
 const SidebarViewGroup: Component<SidebarViewGroupProps> = (props) => {
   return (
-    <div class="mb-2">
-      <div class="px-3 py-1 text-xs font-medium text-ink-muted uppercase tracking-wider">
+    <div class="mb-4">
+      <div class="px-2 py-0.5 text-[10px] font-medium text-ink-extra-muted uppercase tracking-wider">
         {props.label}
       </div>
-      <div class="flex flex-col">
+      <div class="flex flex-col gap-0.5 mt-1">
         <For each={props.views}>
           {(view) => (
             <SidebarViewItem
@@ -250,14 +250,14 @@ const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
     >
       <button
         type="button"
-        class="w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors"
+        class="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-colors"
         classList={{
-          'bg-accent/10 text-accent': props.isActive,
-          'text-ink hover:bg-hover': !props.isActive,
+          'bg-accent/15 text-accent': props.isActive,
+          'text-ink-muted hover:bg-ink/10 hover:text-ink': !props.isActive,
         }}
         onClick={props.onClick}
       >
-        <Dynamic component={props.view.icon} class="size-4 flex-shrink-0" />
+        <Dynamic component={props.view.icon} class="size-3.5 flex-shrink-0" />
         <span class="truncate">{props.view.label}</span>
       </button>
     </Tooltip>
