@@ -23,6 +23,7 @@ import {
 } from '@core/component/Properties/constants';
 import {
   removeSoupEntities,
+  getSoupEntityById,
   optimisticUpdateSoupEntity,
   invalidateSoupEntity,
 } from '@queries/soup/cache';
@@ -381,12 +382,13 @@ export async function archiveEmail(
     queryKey: queryKeys.all.email,
   });
 
+  const current = getSoupEntityById(id);
   const soupTxn = options.optimisticallyExclude
     ? removeSoupEntities(new Set([id]))
     : optimisticUpdateSoupEntity({
         tag: 'emailThread',
         data: { id, inboxVisible: false },
-        frecency_score: 0,
+        frecency_score: current?.frecency_score ?? 0,
       });
 
   // Optimistic update for email queries

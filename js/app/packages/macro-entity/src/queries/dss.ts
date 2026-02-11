@@ -392,8 +392,9 @@ export function createDeleteDssItemMutation() {
     onMutate: async ({ id }: EntityData) => {
       return removeSoupEntities(new Set([id]));
     },
-    onSettled: (data, error, entity) => {
+    onSettled: (data, error, entity, context) => {
       if (data?.success === false || error) {
+        context?.rollback();
         console.error(`Failed to delete dss item ${entity}`, data, error);
         toast.failure('Failed to delete item');
       }
@@ -426,15 +427,11 @@ export function createBulkDeleteDssItemsMutation() {
       const searchSnapshot = removeSearchEntities(ids);
       return { soupSnapshot, searchSnapshot };
     },
-    onError: (error, entities, _context) => {
+    onError: (error, entities, context) => {
+      context?.soupSnapshot.rollback();
+      context?.searchSnapshot.rollback();
       console.error(`Failed to delete dss items`, entities, error);
       toast.failure('Failed to delete items');
-      for (const entity of entities) {
-        invalidateSoupEntity(entity.id);
-      }
-      queryClient.invalidateQueries({
-        queryKey: soupKeys.search._def,
-      });
     },
   }));
 }
@@ -485,10 +482,11 @@ export function createMoveToProjectDssEntityMutation() {
       project: { id: string };
     }) => {
       if (type !== 'project') {
+        const current = getSoupEntityById(id);
         return optimisticUpdateSoupEntity({
           tag: type,
           data: { id, projectId },
-          frecency_score: 0,
+          frecency_score: current?.frecency_score ?? 0,
         });
       }
     },
@@ -647,13 +645,14 @@ export function createBulkMoveToProjectDssEntityMutation() {
         (e): e is typeof e & { type: 'document' | 'chat' } =>
           e.type === 'document' || e.type === 'chat'
       );
-      return moveableEntities.map((e) =>
-        optimisticUpdateSoupEntity({
+      return moveableEntities.map((e) => {
+        const current = getSoupEntityById(e.id);
+        return optimisticUpdateSoupEntity({
           tag: e.type,
           data: { id: e.id, projectId: project.id },
-          frecency_score: 0,
-        })
-      );
+          frecency_score: current?.frecency_score ?? 0,
+        });
+      });
     },
 
     onSettled: (data, error, { entities }, context) => {
@@ -686,13 +685,13 @@ export function optimisticUpdateDssItemViewedAt(itemId: string) {
     optimisticUpdateSoupEntity({
       tag: 'channel',
       data: { channel: { id: itemId }, viewed_at: now.toISOString() },
-      frecency_score: 0,
+      frecency_score: current.frecency_score,
     });
   } else {
     optimisticUpdateSoupEntity({
       tag: current.tag,
       data: { id: itemId, viewedAt: now.getTime() },
-      frecency_score: 0,
+      frecency_score: current.frecency_score,
     });
   }
 }

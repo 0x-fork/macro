@@ -6,6 +6,7 @@ import type {
 import type { SoupPage } from '@service-storage/generated/schemas/soupPage';
 import type { UnifiedSearchResponseItem } from '@service-search/generated/models';
 import { isErr } from '@core/util/maybeResult';
+import { match } from 'ts-pattern';
 import { queryClient } from '../../client';
 import { soupKeys } from '../keys';
 import {
@@ -244,35 +245,36 @@ export function buildSingleEntityFilter(
     project_filters: { project_ids: [NIL_ID] },
     email_filters: { importance: false },
   };
-  switch (entityType) {
-    case 'document':
-      return { ...base, document_filters: { document_ids: [entityId] } };
-    case 'chat':
-      return { ...base, chat_filters: { chat_ids: [entityId] } };
-    case 'channel':
-      return { ...base, channel_filters: { channel_ids: [entityId] } };
-    case 'project':
-      return { ...base, project_filters: { project_ids: [entityId] } };
-    case 'emailThread':
+  return (
+    match(entityType)
+      .with('document', () => ({
+        ...base,
+        document_filters: { document_ids: [entityId] },
+      }))
+      .with('chat', () => ({ ...base, chat_filters: { chat_ids: [entityId] } }))
+      .with('channel', () => ({
+        ...base,
+        channel_filters: { channel_ids: [entityId] },
+      }))
+      .with('project', () => ({
+        ...base,
+        project_filters: { project_ids: [entityId] },
+      }))
       //TODO: need to add backend support for email threads
-      return null;
-  }
+      .with('emailThread', () => null)
+      .exhaustive()
+  );
 }
 
 /** @private */
 function getSearchResultId(result: UnifiedSearchResponseItem): string {
-  switch (result.type) {
-    case 'document':
-      return result.document_id;
-    case 'chat':
-      return result.chat_id;
-    case 'channel':
-      return result.channel_id;
-    case 'email':
-      return result.thread_id;
-    case 'project':
-      return result.id;
-  }
+  return match(result)
+    .with({ type: 'document' }, (r) => r.document_id)
+    .with({ type: 'chat' }, (r) => r.chat_id)
+    .with({ type: 'channel' }, (r) => r.channel_id)
+    .with({ type: 'email' }, (r) => r.thread_id)
+    .with({ type: 'project' }, (r) => r.id)
+    .exhaustive();
 }
 
 /** @private */
