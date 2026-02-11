@@ -130,18 +130,21 @@ export const SOUP_FILTERS = [
   {
     id: 'signal',
     label: 'Inbox',
+    // filtering is done on backend using importance flag in soup request
     predicate: () => true,
     group: 'focus',
   },
   {
     id: 'noise',
     label: 'Other',
+    // filtering is done on backend using importance flag in soup request
     predicate: () => true,
     group: 'focus',
   },
   {
     id: 'explicit-noise',
     label: 'Explicit Noise',
+    // filtering is done on backend using importance flag in soup request
     predicate: () => true,
     group: 'focus',
   },
@@ -377,6 +380,7 @@ export const buildDssFiltersRequest = (
         buildDefaultValue(entityTypes, ['file']),
       importance,
     },
+    // signal/other only query for messages in inbox, all queries for all mail
     emailView: typeof importance === 'boolean' ? 'inbox' : 'all',
   };
 };

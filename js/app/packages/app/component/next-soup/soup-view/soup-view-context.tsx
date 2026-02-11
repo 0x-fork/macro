@@ -38,6 +38,7 @@ import {
 } from 'solid-js';
 import { reconcile } from 'solid-js/store';
 import { match } from 'ts-pattern';
+import {ParamsSortMethod} from "@service-storage/generated/schemas";
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 300;
 const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
@@ -233,7 +234,7 @@ export const SoupViewContextProvider: FlowComponent<
     params: {
       limit: 100,
       sort_method: (soup.sort.active()[0]?.id ??
-        'updated_at') as import('@service-storage/generated/schemas').ParamsSortMethod,
+        'updated_at') as ParamsSortMethod,
     },
     body: queryFilters(),
   }));
