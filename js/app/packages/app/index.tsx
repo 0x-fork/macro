@@ -86,7 +86,7 @@ function main() {
   console.log('App Version ', import.meta.env.__APP_VERSION__);
 
   // during `vite dev` (but not dev builds), don't inject analytics/observability
-  if (true) {
+  if (!import.meta.hot) {
     const scheduleIdleTask =
       window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
 
