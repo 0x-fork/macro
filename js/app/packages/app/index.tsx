@@ -102,10 +102,10 @@ function main() {
             Sentry.consoleLoggingIntegration({
               levels: ['warn', 'error'],
             }),
-            Sentry.browserTracingIntegration(),
+            // Sentry.browserTracingIntegration(),
           ],
-          tracesSampleRate: isProd ? 0.1 : 1.0,
-          tracePropagationTargets: ['localhost', /^https:\/\/.*\.macro\.com/],
+          // tracesSampleRate: isProd ? 0.1 : 1.0,
+          // tracePropagationTargets: ['localhost', /^https:\/\/.*\.macro\.com/],
           replaysSessionSampleRate: isProd ? 0.1 : 1.0,
           replaysOnErrorSampleRate: 1.0,
           enableLogs: true,
