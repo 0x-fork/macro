@@ -86,7 +86,7 @@ function main() {
   console.log('App Version ', import.meta.env.__APP_VERSION__);
 
   // during `vite dev` (but not dev builds), don't inject analytics/observability
-  if (!import.meta.hot) {
+  if (true) {
     const scheduleIdleTask =
       window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
 
@@ -97,22 +97,17 @@ function main() {
         Sentry.init({
           dsn: 'https://50abb44df81faa48fed2e1b60f6ee614@o4506560101154816.ingest.us.sentry.io/4510779009990656',
           environment: isProd ? 'prod' : 'dev',
-          sendDefaultPii: true,
           integrations: [
             Sentry.captureConsoleIntegration({ levels: ['error', 'warn'] }),
             Sentry.consoleLoggingIntegration({
-              levels: ['log', 'warn', 'error'],
+              levels: ['warn', 'error'],
             }),
             Sentry.browserTracingIntegration(),
-            Sentry.replayIntegration(),
           ],
-          // Tracing
           tracesSampleRate: isProd ? 0.1 : 1.0,
           tracePropagationTargets: ['localhost', /^https:\/\/.*\.macro\.com/],
-          // Session Replay
           replaysSessionSampleRate: isProd ? 0.1 : 1.0,
           replaysOnErrorSampleRate: 1.0,
-          // Logs
           enableLogs: true,
         });
       });

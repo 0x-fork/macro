@@ -377,6 +377,10 @@ function UserInfoSideEffects() {
       const platform = detect(navigator.userAgent);
       const os = platform?.os?.replaceAll(' ', '');
 
+      import('@sentry/solid').then((Sentry) => {
+        Sentry.setUser({ id: user.id, email: user.email });
+      });
+
       analytics.identify(user.id, {
         email: user.email,
         os,
