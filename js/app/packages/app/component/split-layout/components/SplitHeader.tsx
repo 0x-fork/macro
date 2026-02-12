@@ -211,14 +211,11 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
           <SplitForwardButton />
         </div>
         <div
-          class="relative w-fit min-w-0 h-full shrink pl-2"
+          class="relative flex-1 min-w-0 h-full pl-2"
           ref={(ref) => {
             ctx.layoutRefs.headerLeft = ref;
           }}
         />
-
-        {/* space filler */}
-        <div class="h-full grow-1" />
 
         <Show when={!isMobile()}>
           <div

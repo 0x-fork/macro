@@ -164,38 +164,40 @@ const SoupWithSidebarInner: Component = () => {
   }));
 
   return (
-    <div class="relative flex size-full">
-      {/* Sidebar - only show on non-mobile */}
-      <Show when={!isMobile()}>
-        <SoupSidebar
-          pinned={sidebarPinned()}
-          onPinnedChange={setSidebarPinned}
-          onViewSelect={handleViewSelect}
-        />
-      </Show>
+    <>
+      {/* Search and filter controls in split header */}
+      <SoupFilterToolbar
+        entities={entities()}
+        filteredEntities={filteredEntities()}
+        contextualFilterState={contextualFilterState}
+      />
 
-      {/* Main content area */}
-      <div class="flex-1 flex flex-col min-w-0">
-        {/* Filter toolbar with dropdowns and contextual filters */}
-        <SoupFilterToolbar
-          entities={entities()}
-          filteredEntities={filteredEntities()}
-          contextualFilterState={contextualFilterState}
-        />
-
-        {/* Soup list with filtered rows context */}
-        <div class="flex-1 min-h-0">
-          <SoupViewContext.Provider value={filteredSoupViewContext()}>
-            <SoupViewList />
-          </SoupViewContext.Provider>
-        </div>
-
-        {/* AI input if enabled */}
-        <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
-          <SoupChatInput />
+      <div class="relative flex size-full">
+        {/* Sidebar - only show on non-mobile */}
+        <Show when={!isMobile()}>
+          <SoupSidebar
+            pinned={sidebarPinned()}
+            onPinnedChange={setSidebarPinned}
+            onViewSelect={handleViewSelect}
+          />
         </Show>
+
+        {/* Main content area */}
+        <div class="flex-1 flex flex-col min-w-0">
+          {/* Soup list with filtered rows context */}
+          <div class="flex-1 min-h-0">
+            <SoupViewContext.Provider value={filteredSoupViewContext()}>
+              <SoupViewList />
+            </SoupViewContext.Provider>
+          </div>
+
+          {/* AI input if enabled */}
+          <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
+            <SoupChatInput />
+          </Show>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
