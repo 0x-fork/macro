@@ -42,6 +42,38 @@ import {
   isSubtask,
   isRootTask,
 } from './property-filter-utils';
+import type { Component, JSX } from 'solid-js';
+
+// Phosphor icons for contextual filters
+import IconBell from '@icon/regular/bell.svg';
+import IconBellSlash from '@icon/regular/bell-slash.svg';
+import IconEnvelope from '@icon/regular/envelope.svg';
+import IconEnvelopeOpen from '@icon/regular/envelope-open.svg';
+import IconStar from '@icon/regular/star.svg';
+import IconPencilSimple from '@icon/regular/pencil-simple.svg';
+import IconCheckCircle from '@icon/regular/check-circle.svg';
+import IconCircle from '@icon/regular/circle.svg';
+import IconCircleDashed from '@icon/regular/circle-dashed.svg';
+import IconClock from '@icon/regular/clock.svg';
+import IconEye from '@icon/regular/eye.svg';
+import IconXCircle from '@icon/regular/x-circle.svg';
+import IconWarning from '@icon/regular/warning.svg';
+import IconArrowUp from '@icon/regular/arrow-up.svg';
+import IconMinus from '@icon/regular/minus.svg';
+import IconArrowDown from '@icon/regular/arrow-down.svg';
+import IconUser from '@icon/regular/user.svg';
+import IconUserCircle from '@icon/regular/user-circle.svg';
+import IconCalendar from '@icon/regular/calendar.svg';
+import IconCalendarX from '@icon/regular/calendar-x.svg';
+import IconCalendarCheck from '@icon/regular/calendar-check.svg';
+import IconTreeStructure from '@icon/regular/tree-structure.svg';
+import IconFileText from '@icon/regular/file-text.svg';
+import IconFolder from '@icon/regular/folder.svg';
+import IconChatCircle from '@icon/regular/chat-circle.svg';
+import IconUsers from '@icon/regular/users.svg';
+import IconGlobe from '@icon/regular/globe.svg';
+import IconLock from '@icon/regular/lock.svg';
+import IconClockCountdown from '@icon/regular/clock-countdown.svg';
 
 /**
  * Contextual filter that appears based on current list content
@@ -59,6 +91,8 @@ export interface ContextualFilter {
   minCount?: number;
   /** Category for grouping in UI */
   category?: 'status' | 'time' | 'source' | 'priority' | 'type' | 'assignee';
+  /** Optional icon component */
+  icon?: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
 }
 
 /**
@@ -76,6 +110,7 @@ export function createAssignedToMeFilter(
     },
     appliesTo: ['task'],
     category: 'assignee',
+    icon: IconUser,
   };
 }
 
@@ -89,6 +124,7 @@ export const EMAIL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isEmailEntity(entity) && signalFilter(entity),
     appliesTo: ['email'],
     category: 'priority',
+    icon: IconBell,
   },
   {
     id: 'email-noise',
@@ -96,6 +132,7 @@ export const EMAIL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isEmailEntity(entity) && noiseFilter(entity),
     appliesTo: ['email'],
     category: 'priority',
+    icon: IconBellSlash,
   },
   {
     id: 'email-unread',
@@ -103,6 +140,7 @@ export const EMAIL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isEmailEntity(entity) && !entity.isRead,
     appliesTo: ['email'],
     category: 'status',
+    icon: IconEnvelope,
   },
   {
     id: 'email-read',
@@ -110,6 +148,7 @@ export const EMAIL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isEmailEntity(entity) && entity.isRead,
     appliesTo: ['email'],
     category: 'status',
+    icon: IconEnvelopeOpen,
   },
   {
     id: 'email-important',
@@ -117,6 +156,7 @@ export const EMAIL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isEmailEntity(entity) && entity.isImportant,
     appliesTo: ['email'],
     category: 'priority',
+    icon: IconStar,
   },
   {
     id: 'email-draft',
@@ -124,6 +164,7 @@ export const EMAIL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isEmailEntity(entity) && entity.isDraft,
     appliesTo: ['email'],
     category: 'status',
+    icon: IconPencilSimple,
   },
   {
     id: 'email-done',
@@ -131,6 +172,7 @@ export const EMAIL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isEmailEntity(entity) && entity.done,
     appliesTo: ['email'],
     category: 'status',
+    icon: IconCheckCircle,
   },
   {
     id: 'email-not-done',
@@ -138,6 +180,7 @@ export const EMAIL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isEmailEntity(entity) && !entity.done,
     appliesTo: ['email'],
     category: 'status',
+    icon: IconCircle,
   },
 ];
 
@@ -151,6 +194,7 @@ export const TASK_STATUS_FILTERS: ContextualFilter[] = [
     predicate: isNotStarted,
     appliesTo: ['task'],
     category: 'status',
+    icon: IconCircleDashed,
   },
   {
     id: 'task-in-progress',
@@ -158,6 +202,7 @@ export const TASK_STATUS_FILTERS: ContextualFilter[] = [
     predicate: isInProgress,
     appliesTo: ['task'],
     category: 'status',
+    icon: IconClock,
   },
   {
     id: 'task-in-review',
@@ -165,6 +210,7 @@ export const TASK_STATUS_FILTERS: ContextualFilter[] = [
     predicate: isInReview,
     appliesTo: ['task'],
     category: 'status',
+    icon: IconEye,
   },
   {
     id: 'task-completed',
@@ -172,6 +218,7 @@ export const TASK_STATUS_FILTERS: ContextualFilter[] = [
     predicate: isCompleted,
     appliesTo: ['task'],
     category: 'status',
+    icon: IconCheckCircle,
   },
   {
     id: 'task-canceled',
@@ -179,6 +226,7 @@ export const TASK_STATUS_FILTERS: ContextualFilter[] = [
     predicate: isCanceled,
     appliesTo: ['task'],
     category: 'status',
+    icon: IconXCircle,
   },
   {
     id: 'task-open',
@@ -186,6 +234,7 @@ export const TASK_STATUS_FILTERS: ContextualFilter[] = [
     predicate: isOpen,
     appliesTo: ['task'],
     category: 'status',
+    icon: IconCircle,
   },
   {
     id: 'task-closed',
@@ -193,6 +242,7 @@ export const TASK_STATUS_FILTERS: ContextualFilter[] = [
     predicate: isClosed,
     appliesTo: ['task'],
     category: 'status',
+    icon: IconCheckCircle,
   },
 ];
 
@@ -206,6 +256,7 @@ export const TASK_PRIORITY_FILTERS: ContextualFilter[] = [
     predicate: isUrgentPriority,
     appliesTo: ['task'],
     category: 'priority',
+    icon: IconWarning,
   },
   {
     id: 'task-high-priority',
@@ -213,6 +264,7 @@ export const TASK_PRIORITY_FILTERS: ContextualFilter[] = [
     predicate: isHighPriority,
     appliesTo: ['task'],
     category: 'priority',
+    icon: IconArrowUp,
   },
   {
     id: 'task-medium-priority',
@@ -220,6 +272,7 @@ export const TASK_PRIORITY_FILTERS: ContextualFilter[] = [
     predicate: isMediumPriority,
     appliesTo: ['task'],
     category: 'priority',
+    icon: IconMinus,
   },
   {
     id: 'task-low-priority',
@@ -227,6 +280,7 @@ export const TASK_PRIORITY_FILTERS: ContextualFilter[] = [
     predicate: isLowPriority,
     appliesTo: ['task'],
     category: 'priority',
+    icon: IconArrowDown,
   },
   {
     id: 'task-high-or-urgent',
@@ -234,6 +288,7 @@ export const TASK_PRIORITY_FILTERS: ContextualFilter[] = [
     predicate: isHighOrUrgentPriority,
     appliesTo: ['task'],
     category: 'priority',
+    icon: IconWarning,
   },
   {
     id: 'task-no-priority',
@@ -241,6 +296,7 @@ export const TASK_PRIORITY_FILTERS: ContextualFilter[] = [
     predicate: hasNoPriority,
     appliesTo: ['task'],
     category: 'priority',
+    icon: IconMinus,
   },
 ];
 
@@ -254,6 +310,7 @@ export const TASK_ASSIGNEE_FILTERS: ContextualFilter[] = [
     predicate: hasAssignees,
     appliesTo: ['task'],
     category: 'assignee',
+    icon: IconUser,
   },
   {
     id: 'task-unassigned',
@@ -261,6 +318,7 @@ export const TASK_ASSIGNEE_FILTERS: ContextualFilter[] = [
     predicate: isUnassigned,
     appliesTo: ['task'],
     category: 'assignee',
+    icon: IconUserCircle,
   },
 ];
 
@@ -274,6 +332,7 @@ export const TASK_DUE_DATE_FILTERS: ContextualFilter[] = [
     predicate: isOverdue,
     appliesTo: ['task'],
     category: 'time',
+    icon: IconWarning,
   },
   {
     id: 'task-due-today',
@@ -281,6 +340,7 @@ export const TASK_DUE_DATE_FILTERS: ContextualFilter[] = [
     predicate: isDueToday,
     appliesTo: ['task'],
     category: 'time',
+    icon: IconCalendar,
   },
   {
     id: 'task-due-soon',
@@ -288,6 +348,7 @@ export const TASK_DUE_DATE_FILTERS: ContextualFilter[] = [
     predicate: isDueSoon,
     appliesTo: ['task'],
     category: 'time',
+    icon: IconClockCountdown,
   },
   {
     id: 'task-due-this-week',
@@ -295,6 +356,7 @@ export const TASK_DUE_DATE_FILTERS: ContextualFilter[] = [
     predicate: isDueThisWeek,
     appliesTo: ['task'],
     category: 'time',
+    icon: IconCalendarCheck,
   },
   {
     id: 'task-has-due-date',
@@ -302,6 +364,7 @@ export const TASK_DUE_DATE_FILTERS: ContextualFilter[] = [
     predicate: hasDueDate,
     appliesTo: ['task'],
     category: 'time',
+    icon: IconCalendar,
   },
   {
     id: 'task-no-due-date',
@@ -309,6 +372,7 @@ export const TASK_DUE_DATE_FILTERS: ContextualFilter[] = [
     predicate: hasNoDueDate,
     appliesTo: ['task'],
     category: 'time',
+    icon: IconCalendarX,
   },
 ];
 
@@ -322,6 +386,7 @@ export const TASK_STRUCTURE_FILTERS: ContextualFilter[] = [
     predicate: hasSubtasks,
     appliesTo: ['task'],
     category: 'type',
+    icon: IconTreeStructure,
   },
   {
     id: 'task-is-subtask',
@@ -329,6 +394,7 @@ export const TASK_STRUCTURE_FILTERS: ContextualFilter[] = [
     predicate: isSubtask,
     appliesTo: ['task'],
     category: 'type',
+    icon: IconTreeStructure,
   },
   {
     id: 'task-root-task',
@@ -336,6 +402,7 @@ export const TASK_STRUCTURE_FILTERS: ContextualFilter[] = [
     predicate: isRootTask,
     appliesTo: ['task'],
     category: 'type',
+    icon: IconCircle,
   },
 ];
 
@@ -368,6 +435,7 @@ export const DOCUMENT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     },
     appliesTo: ['document'],
     category: 'time',
+    icon: IconClock,
   },
   {
     id: 'doc-edited-this-week',
@@ -383,6 +451,7 @@ export const DOCUMENT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     },
     appliesTo: ['document'],
     category: 'time',
+    icon: IconCalendar,
   },
   {
     id: 'doc-in-folder',
@@ -390,6 +459,7 @@ export const DOCUMENT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isDocumentEntity(entity) && !!entity.projectId,
     appliesTo: ['document'],
     category: 'source',
+    icon: IconFolder,
   },
   {
     id: 'doc-standalone',
@@ -397,6 +467,7 @@ export const DOCUMENT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isDocumentEntity(entity) && !entity.projectId,
     appliesTo: ['document'],
     category: 'source',
+    icon: IconFileText,
   },
   {
     id: 'doc-markdown',
@@ -405,6 +476,7 @@ export const DOCUMENT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       isDocumentEntity(entity) && entity.fileType === 'md',
     appliesTo: ['document'],
     category: 'type',
+    icon: IconFileText,
   },
   {
     id: 'doc-canvas',
@@ -413,6 +485,7 @@ export const DOCUMENT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       isDocumentEntity(entity) && entity.fileType === 'canvas',
     appliesTo: ['document'],
     category: 'type',
+    icon: IconFileText,
   },
 ];
 
@@ -427,6 +500,7 @@ export const CHANNEL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       isChannelEntity(entity) && entity.channelType === 'direct_message',
     appliesTo: ['channel'],
     category: 'type',
+    icon: IconChatCircle,
   },
   {
     id: 'channel-group',
@@ -435,6 +509,7 @@ export const CHANNEL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       isChannelEntity(entity) && entity.channelType !== 'direct_message',
     appliesTo: ['channel'],
     category: 'type',
+    icon: IconUsers,
   },
   {
     id: 'channel-recent-activity',
@@ -450,6 +525,7 @@ export const CHANNEL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     },
     appliesTo: ['channel'],
     category: 'time',
+    icon: IconClock,
   },
   {
     id: 'channel-public',
@@ -458,6 +534,7 @@ export const CHANNEL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       isChannelEntity(entity) && entity.channelType === 'public',
     appliesTo: ['channel'],
     category: 'type',
+    icon: IconGlobe,
   },
   {
     id: 'channel-private',
@@ -466,6 +543,7 @@ export const CHANNEL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       isChannelEntity(entity) && entity.channelType === 'private',
     appliesTo: ['channel'],
     category: 'type',
+    icon: IconLock,
   },
 ];
 
@@ -487,6 +565,7 @@ export const CHAT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     },
     appliesTo: ['chat'],
     category: 'time',
+    icon: IconClock,
   },
   {
     id: 'chat-in-project',
@@ -494,6 +573,7 @@ export const CHAT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isChatEntity(entity) && !!entity.projectId,
     appliesTo: ['chat'],
     category: 'source',
+    icon: IconFolder,
   },
   {
     id: 'chat-standalone',
@@ -501,6 +581,7 @@ export const CHAT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
     predicate: (entity) => isChatEntity(entity) && !entity.projectId,
     appliesTo: ['chat'],
     category: 'source',
+    icon: IconChatCircle,
   },
 ];
 
@@ -518,6 +599,7 @@ export const GENERAL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       return viewedAt > hourAgo;
     },
     category: 'time',
+    icon: IconEye,
   },
   {
     id: 'recently-created',
@@ -531,6 +613,7 @@ export const GENERAL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       return createdAt > weekAgo;
     },
     category: 'time',
+    icon: IconClock,
   },
   {
     id: 'recently-updated',
@@ -544,6 +627,7 @@ export const GENERAL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       return updatedAt > dayAgo;
     },
     category: 'time',
+    icon: IconClock,
   },
   {
     id: 'high-frecency',
@@ -553,6 +637,7 @@ export const GENERAL_CONTEXTUAL_FILTERS: ContextualFilter[] = [
       return score > 100; // High frecency threshold
     },
     category: 'priority',
+    icon: IconStar,
   },
 ];
 

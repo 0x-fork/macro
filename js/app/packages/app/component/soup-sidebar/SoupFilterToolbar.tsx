@@ -1,5 +1,5 @@
-import { type Component, createEffect, createMemo, createSignal, For, Show } from 'solid-js';
-import { Portal } from 'solid-js/web';
+import { type Component, createEffect, createMemo, createSignal, For, Show, type JSX } from 'solid-js';
+import { Dynamic, Portal } from 'solid-js/web';
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import type { FilterID } from '@app/component/next-soup/filters/filters';
@@ -21,26 +21,37 @@ import CheckIcon from '@icon/bold/check-bold.svg';
 import XIcon from '@icon/regular/x.svg';
 import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
 import FilterIcon from '@macro-icons/pixel/tag.svg';
+import WideFileMd from '@macro-icons/wide/file-md.svg';
+import WideTask from '@macro-icons/wide/task.svg';
+import WideEmail from '@macro-icons/wide/email.svg';
+import WideUser from '@macro-icons/wide/user.svg';
+import WideChat from '@macro-icons/wide/chat.svg';
+import WideStar from '@macro-icons/wide/star.svg';
+import WideFolder from '@macro-icons/wide/folder.svg';
+import WideSignal from '@macro-icons/wide/signal.svg';
+import WideTaskNotDone from '@macro-icons/wide/task-not-done.svg';
+import WideNoise from '@macro-icons/wide/noise.svg';
 
 /**
  * Type filters shown as pills
  */
-const TYPE_FILTERS: Array<{ id: FilterID; label: string }> = [
-  { id: 'document', label: 'Docs' },
-  { id: 'task', label: 'Tasks' },
-  { id: 'email', label: 'Mail' },
-  { id: 'people', label: 'People' },
-  { id: 'teams', label: 'Teams' },
-  { id: 'agent', label: 'Agents' },
-  { id: 'file', label: 'Files' },
+const TYPE_FILTERS: Array<{ id: FilterID; label: string; icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>> }> = [
+  { id: 'document', label: 'Docs', icon: WideFileMd },
+  { id: 'task', label: 'Tasks', icon: WideTask },
+  { id: 'email', label: 'Mail', icon: WideEmail },
+  { id: 'people', label: 'People', icon: WideUser },
+  { id: 'teams', label: 'Teams', icon: WideChat },
+  { id: 'agent', label: 'Agents', icon: WideStar },
+  { id: 'file', label: 'Files', icon: WideFolder },
 ];
 
 /**
  * Status filters shown as pills
  */
-const STATUS_FILTERS: Array<{ id: FilterID; label: string }> = [
-  { id: 'unread', label: 'Unread' },
-  { id: 'not-done', label: 'Not Done' },
+const STATUS_FILTERS: Array<{ id: FilterID; label: string; icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>> }> = [
+  { id: 'explicit-noise', label: 'Hide Noise', icon: WideNoise },
+  { id: 'unread', label: 'Unread', icon: WideSignal },
+  { id: 'not-done', label: 'Not Done', icon: WideTaskNotDone },
 ];
 
 /**
@@ -497,13 +508,14 @@ export const SoupFilterToolbar: Component<SoupFilterToolbarProps> = (props) => {
                       return (
                         <button
                           type="button"
-                          class="px-2.5 py-1 text-xs rounded transition-colors"
+                          class="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded transition-colors"
                           classList={{
                             'bg-accent text-panel': isActive(),
                             'bg-panel-muted text-ink-muted hover:bg-ink/10 hover:text-ink': !isActive(),
                           }}
                           onClick={() => soup.filters.toggle(filter.id)}
                         >
+                          <Dynamic component={filter.icon} class="size-3.5" />
                           {filter.label}
                         </button>
                       );
@@ -527,13 +539,14 @@ export const SoupFilterToolbar: Component<SoupFilterToolbarProps> = (props) => {
                       return (
                         <button
                           type="button"
-                          class="px-2.5 py-1 text-xs rounded transition-colors"
+                          class="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded transition-colors"
                           classList={{
                             'bg-accent text-panel': isActive(),
                             'bg-panel-muted text-ink-muted hover:bg-ink/10 hover:text-ink': !isActive(),
                           }}
                           onClick={() => soup.filters.toggle(filter.id)}
                         >
+                          <Dynamic component={filter.icon} class="size-3.5" />
                           {filter.label}
                         </button>
                       );
@@ -667,15 +680,20 @@ const ContextualFilterSection: Component<ContextualFilterSectionProps> = (props)
                 return (
                   <button
                     type="button"
-                    class="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-ink/5 transition-colors"
+                    class="w-full flex items-center gap-1.5 px-2 py-1.5 text-left text-xs hover:bg-ink/5 transition-colors"
                     classList={{
                       'text-ink': isActive(),
                       'text-ink-muted': !isActive(),
                     }}
                     onClick={() => props.contextualFilterState.toggle(filter)}
                   >
+                    {/* Icon or checkmark */}
                     <span class="size-4 flex items-center justify-center shrink-0">
-                      <Show when={isActive()}>
+                      <Show when={isActive()} fallback={
+                        <Show when={filter.icon}>
+                          <Dynamic component={filter.icon} class="size-3.5 text-ink-muted" />
+                        </Show>
+                      }>
                         <CheckIcon class="size-3 text-accent" />
                       </Show>
                     </span>
