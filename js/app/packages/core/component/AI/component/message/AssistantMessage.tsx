@@ -220,7 +220,7 @@ export function AssistantMessage(props: {
     >
       <Switch>
         <Match when={!messageContentIsEmpty(props.message.content)}>
-          <div class="chat-markdown-container max-w-full px-2 w-full">
+          <div class="chat-markdown-container max-w-full px-2 w-full font-roboto-slab">
             <Switch>
               <Match
                 when={

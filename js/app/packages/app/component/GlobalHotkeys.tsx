@@ -36,6 +36,22 @@ export default function GlobalShortcuts() {
     toggleKonsoleVisibility();
   };
 
+  const isTextEditingContext = () => {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active) return false;
+    if (active instanceof HTMLTextAreaElement) return true;
+    if (active instanceof HTMLInputElement) {
+      const type = active.type?.toLowerCase();
+      return !['button', 'checkbox', 'radio', 'submit', 'reset'].includes(type);
+    }
+    return active.isContentEditable;
+  };
+
+  const hasVisibleTextSelection = () => {
+    const selection = window.getSelection();
+    return !!selection && !selection.isCollapsed && selection.toString().length > 0;
+  };
+
   const createCommandScope = registerHotkey({
     hotkeyToken: TOKENS.global.createCommand,
     hotkey: 'c',
@@ -90,6 +106,18 @@ export default function GlobalShortcuts() {
     },
     displayPriority: 10,
     hide: konsoleOpen,
+    runWithInputFocused: true,
+  });
+
+  registerHotkey({
+    hotkey: 'cmd+c',
+    scopeId: 'global',
+    description: 'Open create menu when nothing is selected',
+    condition: () => !hasVisibleTextSelection() && !isTextEditingContext(),
+    keyDownHandler: () => {
+      setCreateMenuOpen(true);
+      return true;
+    },
     runWithInputFocused: true,
   });
 

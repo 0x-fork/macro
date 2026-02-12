@@ -115,7 +115,7 @@ export function EmptyState(props: {
       <Match when={props.viewId === 'email' && !emailActive()}>
         <EmptyStateInner message={'Nothing to show. Email not connected.'} />
       </Match>
-      <Match when={props.viewId === 'people'}>
+      <Match when={props.viewId === 'messages' || props.viewId === 'people'}>
         <EmptyStateInner message={'No messages to show.'} />
       </Match>
       <Match when={props.viewId === 'files'}>

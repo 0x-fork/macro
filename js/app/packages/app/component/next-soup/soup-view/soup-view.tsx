@@ -71,12 +71,20 @@ import { SoupChatInput } from '@app/component/SoupChatInput';
 import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { isMobile } from '@core/mobile/isMobile';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
+import {
+  ENTITY_TYPE_FILTER_CONFIGS,
+  type FilterID,
+} from '@app/component/next-soup/filters/filters';
 import { usePropertyEditorHotkeys } from '@app/component/property-edit-modal/hooks/usePropertyEditorHotkeys';
-import { CREATABLE_BLOCKS } from '@app/component/Launcher';
-import { Dynamic } from 'solid-js/web';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 const IMPLICIT_ALL_VIEW_FILTERS = new Set(['explicit-noise']);
+const SIDEBAR_TAB_IDS = new Set<string>([
+  'none',
+  'all',
+  'inbox',
+  ...ENTITY_TYPE_FILTER_CONFIGS.map((f) => f.id),
+]);
 
 const isAllViewState = (activeFilterIds: string[], search: string) =>
   activeFilterIds.filter((id) => !IMPLICIT_ALL_VIEW_FILTERS.has(id)).length ===
@@ -126,6 +134,7 @@ const stateCache = new Map<
       focus: string | undefined;
       filters: string[];
       sort: SystemSortOption[];
+      selectedSidebarTab: string;
     };
     virtualCache?: CacheSnapshot;
     scrollOffset?: number;
@@ -178,12 +187,22 @@ interface SoupViewListProps {
 
 export const SoupViewList = (props: SoupViewListProps) => {
   const panel = useSplitPanelOrThrow();
-  const { soup, source, rows, searchText } = useSoupView();
+  const {
+    soup,
+    source,
+    rows,
+    searchText,
+    selectedSidebarTab,
+    setSelectedSidebarTab,
+  } = useSoupView();
   const { getSplitCount } = useSplitLayout();
   const isPreviewOpen = () =>
     soup.previewEntity() !== undefined || panel.previewState[0]();
   const isAllView = createMemo(
     () => isAllViewState(soup.filters.activeIds(), searchText())
+  );
+  const showWelcomeSplash = createMemo(
+    () => selectedSidebarTab() === 'none' && isAllView()
   );
 
   const { isKeypressActive } = useIsKeyPressActive();
@@ -465,6 +484,28 @@ export const SoupViewList = (props: SoupViewListProps) => {
     return key;
   };
 
+  let hydratedFromCache = false;
+  createEffect(() => {
+    if (hydratedFromCache) return;
+    const cached = stateCache.get(getCacheKey());
+    if (!cached) return;
+
+    soup.focus.set(cached.soup.focus);
+    for (const id of cached.soup.filters) {
+      soup.filters.activate(id);
+    }
+    soup.sort.setAll(cached.soup.sort);
+
+    const cachedTab = cached.soup.selectedSidebarTab;
+    if (SIDEBAR_TAB_IDS.has(cachedTab)) {
+      setSelectedSidebarTab(cachedTab as 'none' | 'all' | 'inbox' | FilterID);
+    } else {
+      setSelectedSidebarTab('none');
+    }
+
+    hydratedFromCache = true;
+  });
+
   onCleanup(() => {
     const virtualHandle = virtualizerHandle();
 
@@ -473,6 +514,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
         focus: soup.focus.id(),
         filters: soup.filters.activeIds(),
         sort: soup.sort.active().map((s) => s.id),
+        selectedSidebarTab: selectedSidebarTab(),
       },
       virtualCache: virtualHandle?.cache,
       scrollOffset: virtualHandle?.scrollOffset,
@@ -490,13 +532,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
       registerFocusEffects();
       return;
     }
-
-    soup.focus.set(cached.soup.focus);
-    for (const id of cached.soup.filters) {
-      soup.filters.activate(id);
-    }
-
-    soup.sort.setAll(cached.soup.sort);
 
     handle?.scrollTo(cached.scrollOffset ?? 0);
     registerFocusEffects(false);
@@ -531,7 +566,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
             <Match when={source.isLoading()}>
               <LoadingBlock />
             </Match>
-            <Match when={isAllView()}>
+            <Match when={showWelcomeSplash()}>
               <AllViewWelcomeState />
             </Match>
             <Match when={!rows().length}>
@@ -687,14 +722,29 @@ export const SoupViewList = (props: SoupViewListProps) => {
   );
 };
 
-const QUICK_CREATE_IDS = new Set([
-  'Doc',
-  'Task',
-  'Email',
-  'Message',
-  'Agent',
-  'Canvas',
-]);
+const ALL_VIEW_TAGLINES = [
+  'this is clean. ship it.',
+  'honestly fire, just needs like one more pass',
+  "last tweaks incoming & we're golden",
+  "very clean, easy to style - let's go",
+  'yo this is sick, keep pushing',
+  "we're so close, don't stop now",
+  "the hard part's done, just polish",
+  'trust the vision, this is about to hit',
+  'solid work, keep it rolling',
+  'this is the way',
+  'locked and loaded',
+  'the energy here is immaculate',
+  "you're cooking with gas",
+  "this one's a keeper",
+  'all gas no brakes',
+  "i'm feeling it",
+] as const;
+
+const getRandomAllViewTagline = () => {
+  const randomIndex = Math.floor(Math.random() * ALL_VIEW_TAGLINES.length);
+  return ALL_VIEW_TAGLINES[randomIndex];
+};
 
 const AllViewLogo = (props: { class?: string }) => (
   <svg
@@ -796,9 +846,7 @@ const AllViewLogo = (props: { class?: string }) => (
 );
 
 const AllViewWelcomeState = () => {
-  const quickCreateBlocks = createMemo(() =>
-    CREATABLE_BLOCKS.filter((block) => QUICK_CREATE_IDS.has(block.label))
-  );
+  const allViewTagline = createMemo(() => getRandomAllViewTagline());
 
   return (
     <div class="size-full flex items-center justify-center px-6 py-10 pb-28">
@@ -807,26 +855,7 @@ const AllViewWelcomeState = () => {
           <div class="flex justify-center">
             <AllViewLogo class="h-12 w-auto" />
           </div>
-          <h2 class="text-3xl text-ink font-roboto-slab">What can I help with today?</h2>
-        </div>
-
-        <div class="w-full flex flex-wrap items-center justify-center gap-2.5 pt-2">
-          <For each={quickCreateBlocks()}>
-            {(block) => (
-              <button
-                type="button"
-                class="h-9 px-3.5 rounded-md border border-edge-muted bg-panel text-ink-muted text-xs hover:text-ink hover:border-edge hover:bg-hover active:bg-accent/10 transition-colors flex items-center gap-2"
-                onClick={() => {
-                  block.keyDownHandler();
-                }}
-              >
-                <div class="size-4 text-ink-extra-muted">
-                  <Dynamic component={block.icon} />
-                </div>
-                {block.label}
-              </button>
-            )}
-          </For>
+          <h2 class="text-3xl text-ink font-roboto-slab">{allViewTagline()}</h2>
         </div>
       </div>
     </div>

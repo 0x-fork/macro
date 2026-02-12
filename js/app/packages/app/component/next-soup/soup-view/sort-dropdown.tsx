@@ -82,17 +82,17 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
         type="button"
         class="shrink-0 active:bg-accent active:text-panel"
         classList={{
-          'flex items-center gap-1.5 h-[22px] px-2.5 rounded-full': !isVertical(),
+          'flex items-center gap-1.5 h-full px-2.5 rounded-none': !isVertical(),
           'w-full flex flex-col items-center justify-center gap-2 px-2 py-2 rounded-none':
             isVertical(),
           'bg-accent text-panel': open(),
           'text-ink-muted hover:text-accent hover:bg-accent/20': !open(),
         }}
       >
-        <SortIcon class={isVertical() ? 'size-4' : 'size-4.5'} />
+        <SortIcon class="size-4" />
         <span
           classList={{
-            'leading-none': !isVertical(),
+            'leading-none text-[11px]': !isVertical(),
             'leading-none text-[6pt] text-center': isVertical(),
             'text-panel': isVertical() && open(),
             'text-ink': isVertical() && !open(),

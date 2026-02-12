@@ -1,4 +1,5 @@
 import { isTaskEntity, type EntityData, type WithNotification } from '@entity';
+import { fileTypeToResolvedBlockName } from '@core/constant/allBlocks';
 import {
   signalFilter,
   noiseFilter,
@@ -14,11 +15,12 @@ import type {
 } from '@queries/soup/items';
 import { codeFileExtensions } from '@block-code/util/languageSupport';
 import type { Component } from 'solid-js';
-import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
 import { AnimatedChatIcon } from '@macro-icons/wide/animating/chat';
 import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
+import { AnimatedFileCodeIcon } from '@macro-icons/wide/animating/fileCode';
 import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
 import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
+import { AnimatedDiagramIcon } from '@macro-icons/wide/animating/diagram';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 
@@ -78,12 +80,18 @@ export const FILTER_GROUPS: readonly FilterGroup[] = [
 
 type EnhancedEntity = WithNotification<EntityData>;
 
-/** Document filter (markdown, canvas) - excludes tasks */
+/** Document filter (markdown docs only) - excludes tasks */
 export function documentFilter(entity: EntityData): boolean {
   if (entity.type !== 'document') return false;
   if (entity.subType?.type === 'task') return false;
   const fileType = entity.fileType ?? '';
-  return fileType === 'md' || fileType === 'canvas';
+  return fileType === 'md';
+}
+
+/** Canvas filter */
+export function canvasFilter(entity: EntityData): boolean {
+  if (entity.type !== 'document') return false;
+  return entity.fileType === 'canvas';
 }
 
 /** Task filter */
@@ -96,14 +104,9 @@ export function emailFilter(entity: EntityData): boolean {
   return entity.type === 'email';
 }
 
-/** People filter (direct messages) */
-export function peopleFilter(entity: EntityData): boolean {
-  return entity.type === 'channel' && entity.channelType === 'direct_message';
-}
-
-/** Teams filter (group channels) */
-export function teamsFilter(entity: EntityData): boolean {
-  return entity.type === 'channel' && entity.channelType !== 'direct_message';
+/** Messages filter (all channels) */
+export function messagesFilter(entity: EntityData): boolean {
+  return entity.type === 'channel';
 }
 
 /** Chat/agent filter */
@@ -116,17 +119,32 @@ export function projectFilter(entity: EntityData): boolean {
   return entity.type === 'project';
 }
 
+/** Image filter */
+export function imageFilter(entity: EntityData): boolean {
+  if (entity.type !== 'document') return false;
+  if (entity.subType?.type === 'task') return false;
+  return fileTypeToResolvedBlockName(entity.fileType) === 'image';
+}
+
+/** Code filter */
+export function codeFilter(entity: EntityData): boolean {
+  if (entity.type !== 'document') return false;
+  if (entity.subType?.type === 'task') return false;
+  return fileTypeToResolvedBlockName(entity.fileType) === 'code';
+}
+
+/** Video filter */
+export function videoFilter(entity: EntityData): boolean {
+  if (entity.type !== 'document') return false;
+  if (entity.subType?.type === 'task') return false;
+  return fileTypeToResolvedBlockName(entity.fileType) === 'video';
+}
+
 /** File filter (non-markdown documents) */
 export function fileFilter(entity: EntityData): boolean {
   if (entity.type !== 'document') return false;
   const fileType = entity.fileType ?? '';
   return !['md', 'canvas'].includes(fileType);
-}
-
-export function teamsAndPeopleFilter(entity: EntityData): boolean {
-  if (entity.type !== 'channel') return false;
-
-  return true;
 }
 
 export const SOUP_FILTERS = [
@@ -170,21 +188,39 @@ export const SOUP_FILTERS = [
     group: 'type',
   },
   {
+    id: 'canvas',
+    label: 'Canvas',
+    predicate: canvasFilter,
+    group: 'type',
+  },
+  {
+    id: 'image',
+    label: 'Image',
+    predicate: imageFilter,
+    group: 'type',
+  },
+  {
+    id: 'code',
+    label: 'Code',
+    predicate: codeFilter,
+    group: 'type',
+  },
+  {
+    id: 'video',
+    label: 'Video',
+    predicate: videoFilter,
+    group: 'type',
+  },
+  {
     id: 'agent',
     label: 'Agents',
     predicate: agentFilter,
     group: 'type',
   },
   {
-    id: 'people',
-    label: 'People',
-    predicate: peopleFilter,
-    group: 'type',
-  },
-  {
-    id: 'teams',
-    label: 'Teams',
-    predicate: teamsFilter,
+    id: 'messages',
+    label: 'Messages',
+    predicate: messagesFilter,
     group: 'type',
   },
   {
@@ -200,15 +236,15 @@ export const SOUP_FILTERS = [
     group: 'type',
   },
   {
-    id: 'file',
-    label: 'Files',
-    predicate: fileFilter,
+    id: 'folder',
+    label: 'Folders',
+    predicate: projectFilter,
     group: 'type',
   },
   {
-    id: 'teams-and-people',
-    label: 'Groups',
-    predicate: teamsAndPeopleFilter,
+    id: 'file',
+    label: 'Files',
+    predicate: fileFilter,
     group: 'type',
   },
 ] as const;
@@ -217,12 +253,16 @@ export type FilterID = (typeof SOUP_FILTERS)[number]['id'];
 
 const ENTITY_TYPE_FILTERS = [
   'document',
+  'canvas',
+  'image',
+  'code',
+  'video',
   'task',
   'email',
-  'people',
-  'teams',
+  'messages',
   'agent',
   'file',
+  'folder',
 ] as const;
 
 type EntityTypeFilters = (typeof ENTITY_TYPE_FILTERS)[number];
@@ -243,12 +283,16 @@ export const ENTITY_TYPE_FILTER_CONFIGS = SOUP_FILTERS.filter((f) =>
 const ENTITY_TYPE_TO_ICON_TYPE: Record<EntityTypeFilters, EntityWithValidIcon> =
   {
     document: 'md',
+    canvas: 'canvas',
+    image: 'image',
+    code: 'code',
+    video: 'video',
     email: 'email',
     task: 'task',
-    people: 'channel',
-    teams: 'direct_message',
+    messages: 'direct_message',
     agent: 'chat',
-    file: 'project',
+    file: 'unknown',
+    folder: 'project',
   };
 
 export const getEntityTypeFilterIcon = (filter: EntityTypeFilters) => {
@@ -263,12 +307,13 @@ export const ANIMATED_ICONS: Partial<
   Record<EntityTypeFilters, Component<{ triggerAnimation?: boolean }>>
 > = {
   document: AnimatedFileMdIcon,
+  canvas: AnimatedDiagramIcon,
+  code: AnimatedFileCodeIcon,
   agent: AnimatedStarIcon,
-  people: AnimatedChatIcon,
-  teams: AnimatedChannelIcon,
+  messages: AnimatedChatIcon,
   task: AnimatedTaskIcon,
   email: AnimatedEmailIcon,
-  file: AnimatedFolderIcon,
+  folder: AnimatedFolderIcon,
 };
 
 export const getFilterWithID = (filterID: FilterID) => {
@@ -337,13 +382,21 @@ export const buildDssFiltersRequest = (
       ...channel_filters,
       channel_ids:
         channel_filters?.channel_ids ??
-        buildDefaultValue(entityTypes, ['teams', 'people']),
+        buildDefaultValue(entityTypes, ['messages']),
     },
     document_filters: {
       ...document_filters,
       document_ids:
         document_filters?.document_ids ??
-        buildDefaultValue(entityTypes, ['file', 'document', 'task']),
+        buildDefaultValue(entityTypes, [
+          'file',
+          'document',
+          'task',
+          'canvas',
+          'image',
+          'code',
+          'video',
+        ]),
       project_ids: document_filters?.project_ids ?? [],
       file_types: document_filters?.file_types ?? [],
     },
@@ -367,7 +420,7 @@ export const buildDssFiltersRequest = (
       ...project_filters,
       project_ids:
         project_filters?.project_ids ??
-        buildDefaultValue(entityTypes, ['file']),
+        buildDefaultValue(entityTypes, ['file', 'folder']),
     },
     emailView: 'all',
   };

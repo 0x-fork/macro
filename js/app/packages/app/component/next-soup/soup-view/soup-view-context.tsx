@@ -4,6 +4,7 @@ import {
   type SoupState,
 } from '@app/component/next-soup/create-soup-state';
 import {
+  type FilterID,
   buildDssFiltersRequest,
   getFolderFileTypes,
 } from '@app/component/next-soup/filters/filters';
@@ -68,6 +69,8 @@ interface SoupViewContextValues {
   source: DataSource<EntityData>;
   searchText: Accessor<string>;
   setSearchText: (value: string) => void;
+  selectedSidebarTab: Accessor<'none' | 'all' | 'inbox' | FilterID>;
+  setSelectedSidebarTab: (value: 'none' | 'all' | 'inbox' | FilterID) => void;
   isSearchDisabled: Accessor<boolean>;
   rows: Accessor<SoupRow[]>;
 }
@@ -101,6 +104,9 @@ export const SoupViewContextProvider: FlowComponent<
   const emailActive = useEmailLinksStatus();
 
   const [searchText, setSearchText] = createSignal('');
+  const [selectedSidebarTab, setSelectedSidebarTab] = createSignal<
+    'none' | 'all' | 'inbox' | FilterID
+  >('none');
 
   const debouncedSearchForLocal = debouncedDependent(
     searchText,
@@ -120,19 +126,28 @@ export const SoupViewContextProvider: FlowComponent<
       const includeArray: UnifiedSearchIndex[] = [];
       for (const type of types) {
         match(type)
-          .with('document', () => {
+          .with(
+            'document',
+            'task',
+            'file',
+            'canvas',
+            'image',
+            'code',
+            'video',
+            () => {
             includeArray.push('documents');
-          })
+            }
+          )
           .with('agent', () => {
             includeArray.push('chats');
           })
-          .with('people', 'teams', () => {
+          .with('messages', () => {
             includeArray.push('channels');
           })
           .with('email', () => {
             includeArray.push('emails');
           })
-          .with('project', () => {
+          .with('project', 'folder', () => {
             includeArray.push('projects');
           });
       }
@@ -410,6 +425,8 @@ export const SoupViewContextProvider: FlowComponent<
     rows,
     searchText,
     setSearchText,
+    selectedSidebarTab,
+    setSelectedSidebarTab,
     isSearchDisabled,
   };
 

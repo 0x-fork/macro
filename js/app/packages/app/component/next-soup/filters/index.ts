@@ -7,11 +7,10 @@ export {
   type FilterConfig,
   type FilterGroup,
   type FilterPredicate,
+  messagesFilter,
   notDoneFilter,
-  peopleFilter,
   projectFilter,
   taskFilter,
-  teamsFilter,
   unreadFilter,
 } from './filters';
 

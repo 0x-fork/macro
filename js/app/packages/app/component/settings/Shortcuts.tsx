@@ -42,8 +42,7 @@ const shortcutSections: ShortcutSection[] = [
     items: [
       { keys: ['d'], description: 'Filter to docs' },
       { keys: ['l'], description: 'Filter to email' },
-      { keys: ['p'], description: 'Filter to people (direct messages)' },
-      { keys: ['m'], description: 'Filter to teams' },
+      { keys: ['m'], description: 'Filter to messages' },
       { keys: ['f'], description: 'Filter to files' },
     ],
   },

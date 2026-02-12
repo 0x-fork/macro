@@ -1,4 +1,4 @@
-import WideChannel from '@macro-icons/wide/channel.svg';
+import WideChat from '@macro-icons/wide/chat.svg';
 import SignalIcon from '@macro-icons/wide/signal.svg';
 import WideFolder from '@macro-icons/wide/folder.svg';
 import WidePlus from '@macro-icons/wide/plus.svg';
@@ -60,7 +60,7 @@ export function MobileDock() {
   const isInboxActive = () =>
     soup.filters.isActive('signal') && splitIsUnifiedList();
   const isPeopleTeamsActive = () =>
-    soup.filters.isActive('teams-and-people') && splitIsUnifiedList();
+    soup.filters.isActive('messages') && splitIsUnifiedList();
   const isTasksActive = () =>
     soup.filters.isActive('task') && splitIsUnifiedList();
   const isAllActive = () =>
@@ -113,14 +113,14 @@ export function MobileDock() {
         }}
       />
       <MobileDockButton
-        icon={WideChannel}
-        label="People"
+        icon={WideChat}
+        label="Messages"
         active={isPeopleTeamsActive()}
         onClick={() => {
           ensureUnifiedList();
           batch(() => {
             toggleSignalFilter(false);
-            activateFilter('teams-and-people');
+            activateFilter('messages');
           });
         }}
       />

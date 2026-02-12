@@ -101,9 +101,9 @@ export const useEntityActionHotkeys = (
     tags: [HotkeyTags.SelectionModification],
   });
 
-  // Rename - 'r'
+  // Rename - 'shift+r' (reserved 'r' for folder tab in sidebar)
   registerHotkey({
-    hotkey: ['r'],
+    hotkey: ['shift+r'],
     hotkeyToken: TOKENS.entity.action.rename,
     scopeId,
     description: () => {
@@ -153,9 +153,9 @@ export const useEntityActionHotkeys = (
     tags: [HotkeyTags.SelectionModification],
   });
 
-  // Move to folder - 'm'
+  // Move to folder - 'shift+m' (reserved 'm' for messages tab in sidebar)
   registerHotkey({
-    hotkey: ['m'],
+    hotkey: ['shift+m'],
     hotkeyToken: TOKENS.entity.action.moveToFolder,
     scopeId,
     description: () => {

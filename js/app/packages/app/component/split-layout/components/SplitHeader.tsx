@@ -195,23 +195,43 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
   const ctx = useContext(SplitPanelContext);
   if (!ctx)
     throw new Error('<SplitHeader> must be used within a <SplitLayout>');
+  const isUnifiedList = createMemo(() => {
+    const content = ctx.handle.content();
+    return content.type === 'component' && content.id === 'unified-list';
+  });
 
   return (
     <div
-      class="isolate relative w-full h-10 touch:h-11 overflow-clip text-ink shrink-0 border-b border-edge-muted/50"
+      class="isolate relative w-full overflow-clip text-ink shrink-0 border-b border-edge-muted/50"
+      classList={{
+        'h-9 touch:h-10': isUnifiedList(),
+        'h-10 touch:h-11': !isUnifiedList(),
+      }}
       data-split-header
       ref={props.ref}
     >
       <div class="absolute inset-0 flex justify-start items-center bg-panel">
-        <div class="z-2 relative flex items-center bg-panel pl-2 h-full">
-          <div class="touch:mobile-width:hidden">
-            <SplitCloseButton />
-          </div>
-          <SplitBackButton />
-          <SplitForwardButton />
+        <div
+          class="z-2 relative flex items-center bg-panel h-full"
+          classList={{
+            'pl-0': isUnifiedList(),
+            'pl-2': !isUnifiedList(),
+          }}
+        >
+          <Show when={!isUnifiedList()}>
+            <div class="touch:mobile-width:hidden">
+              <SplitCloseButton />
+            </div>
+            <SplitBackButton />
+            <SplitForwardButton />
+          </Show>
         </div>
         <div
-          class="relative w-fit min-w-0 h-full shrink pl-2"
+          class="relative w-fit min-w-0 h-full shrink"
+          classList={{
+            'pl-0': isUnifiedList(),
+            'pl-2': !isUnifiedList(),
+          }}
           ref={(ref) => {
             ctx.layoutRefs.headerLeft = ref;
           }}
@@ -230,6 +250,13 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
           <div class="z-2 relative flex items-center bg-panel pr-2 h-full">
             <EntityNavigationIndicator />
             <SplitSpotlightButton />
+            <Show when={isUnifiedList()}>
+              <SplitBackButton />
+              <SplitForwardButton />
+              <div class="touch:mobile-width:hidden">
+                <SplitCloseButton />
+              </div>
+            </Show>
           </div>
         </Show>
         <Show when={isTouchDevice()}>

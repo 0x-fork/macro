@@ -261,7 +261,7 @@ export function ChatInput(props: ChatInputComponentProps) {
         >
           <props.markdown.MarkdownArea
             onEnter={handleEnter}
-            placeholder="Ask AI, @mention anything"
+            placeholder="Ask Boz, @mention anything"
             history={availableAttachments}
             dontFocusOnMount={
               isTouchDevice() || props.autoFocusOnMount === false
