@@ -69,6 +69,8 @@ interface SoupViewContextValues {
   source: DataSource<EntityData>;
   searchText: Accessor<string>;
   setSearchText: (value: string) => void;
+  emailView: Accessor<'all' | 'inbox' | 'drafts' | 'sent'>;
+  setEmailView: (value: 'all' | 'inbox' | 'drafts' | 'sent') => void;
   selectedSidebarTab: Accessor<'none' | 'all' | 'inbox' | FilterID>;
   setSelectedSidebarTab: (value: 'none' | 'all' | 'inbox' | FilterID) => void;
   isSearchDisabled: Accessor<boolean>;
@@ -104,6 +106,9 @@ export const SoupViewContextProvider: FlowComponent<
   const emailActive = useEmailLinksStatus();
 
   const [searchText, setSearchText] = createSignal('');
+  const [emailView, setEmailView] = createSignal<'all' | 'inbox' | 'drafts' | 'sent'>(
+    'all'
+  );
   const [selectedSidebarTab, setSelectedSidebarTab] = createSignal<
     'none' | 'all' | 'inbox' | FilterID
   >('none');
@@ -193,6 +198,12 @@ export const SoupViewContextProvider: FlowComponent<
       isSearchActive: !isSearchDisabled(),
       emailActive: emailActive(),
     });
+
+    if (soup.filters.isActive('email')) {
+      base.emailView = emailView();
+    } else {
+      base.emailView = 'all';
+    }
 
     if (soup.filters.isActive('file')) {
       if (base.document_filters?.file_types) {
@@ -425,6 +436,8 @@ export const SoupViewContextProvider: FlowComponent<
     rows,
     searchText,
     setSearchText,
+    emailView,
+    setEmailView,
     selectedSidebarTab,
     setSelectedSidebarTab,
     isSearchDisabled,

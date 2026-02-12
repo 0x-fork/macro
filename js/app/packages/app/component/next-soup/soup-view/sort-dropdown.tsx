@@ -80,13 +80,13 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
       <Popover.Trigger
         as="button"
         type="button"
-        class="shrink-0 active:bg-accent active:text-panel"
+        class="shrink-0 active:bg-hover active:text-ink"
         classList={{
           'flex items-center gap-1.5 h-full px-2.5 rounded-none': !isVertical(),
           'w-full flex flex-col items-center justify-center gap-2 px-2 py-2 rounded-none':
             isVertical(),
-          'bg-accent text-panel': open(),
-          'text-ink-muted hover:text-accent hover:bg-accent/20': !open(),
+          'bg-edge-muted/70 text-ink font-medium': open(),
+          'text-ink-muted hover:text-ink hover:bg-hover/70': !open(),
         }}
       >
         <SortIcon class="size-4" />
@@ -94,7 +94,7 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
           classList={{
             'leading-none text-[11px]': !isVertical(),
             'leading-none text-[6pt] text-center': isVertical(),
-            'text-panel': isVertical() && open(),
+            'text-ink': isVertical() && open(),
             'text-ink': isVertical() && !open(),
           }}
         >
@@ -115,7 +115,7 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
                   type="button"
                   class="flex items-center justify-between px-2 py-1.5 text-sm hover:bg-hover"
                   classList={{
-                    'bg-hover text-ink': props.value() === option.value,
+                    'bg-edge-muted/70 text-ink': props.value() === option.value,
                     'text-ink': props.value() !== option.value,
                     'bg-hover': focusedIndex() === index(),
                   }}

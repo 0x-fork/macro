@@ -95,7 +95,7 @@ export const SoupToolbar = () => {
   return (
     <>
       <SplitHeaderLeft>
-        <div class="flex items-center h-full min-w-0 gap-1.5">
+        <div class="flex items-center h-full min-w-0 gap-0">
           <TopLeftActionButtons />
           <TopbarSoupControls />
         </div>
@@ -253,8 +253,14 @@ const SoupFilters = () => {
 };
 
 const useSoupFilterActions = () => {
-  const { soup, setSearchText, selectedSidebarTab, setSelectedSidebarTab } =
-    useSoupView();
+  const {
+    soup,
+    setSearchText,
+    emailView,
+    setEmailView,
+    selectedSidebarTab,
+    setSelectedSidebarTab,
+  } = useSoupView();
   const panel = useSplitPanelOrThrow();
 
   const focusSearchBar = () => {
@@ -272,12 +278,16 @@ const useSoupFilterActions = () => {
     soup.filters.clear();
     soup.filters.activate(filter);
     setSearchText('');
+    if (filter !== 'email') {
+      setEmailView('all');
+    }
     setSelectedSidebarTab(filter);
   };
 
   const goHomeView = () => {
     soup.filters.clear();
     setSearchText('');
+    setEmailView('all');
     setSelectedSidebarTab('none');
   };
 
@@ -301,6 +311,30 @@ const useSoupFilterActions = () => {
     setSelectedSidebarTab('inbox');
   };
 
+  const clearMailPriorityFilters = () => {
+    soup.filters.deactivate('signal');
+    soup.filters.deactivate('noise');
+  };
+
+  const setMailImportantFilter = () => {
+    setEmailView('inbox');
+    soup.filters.deactivate('noise');
+    soup.filters.activate('signal');
+  };
+
+  const setMailOtherFilter = () => {
+    setEmailView('inbox');
+    soup.filters.deactivate('signal');
+    soup.filters.activate('noise');
+  };
+
+  const setMailView = (view: 'all' | 'inbox' | 'drafts' | 'sent') => {
+    setEmailView(view);
+    if (view !== 'inbox') {
+      clearMailPriorityFilters();
+    }
+  };
+
   const isInboxMode = () => selectedSidebarTab() === 'inbox';
 
   const isAllMode = () => selectedSidebarTab() === 'all';
@@ -310,6 +344,7 @@ const useSoupFilterActions = () => {
   const openAllView = () => {
     soup.filters.clear();
     setSearchText('');
+    setEmailView('all');
     setSelectedSidebarTab('all');
     focusSearchBar();
   };
@@ -349,6 +384,12 @@ const useSoupFilterActions = () => {
   return {
     soup,
     panel,
+    emailView,
+    setEmailView,
+    setMailView,
+    setMailImportantFilter,
+    setMailOtherFilter,
+    clearMailPriorityFilters,
     openFilterView,
     toggleFilterView,
     isFilterMode,
@@ -403,10 +444,11 @@ const TopbarFilterPill: Component<{
   <button
     type="button"
     disabled={props.disabled}
-    class="h-full px-2.5 rounded-none shrink-0 flex items-center gap-1.5 active:bg-accent active:text-panel"
+    class="h-full px-2.5 rounded-none shrink-0 flex items-center gap-1.5 active:bg-hover active:text-ink"
     classList={{
-      'bg-accent text-panel': props.isActive,
-      'text-ink-muted hover:text-accent hover:bg-accent/20': !props.isActive,
+      'bg-edge-muted/70 text-ink': props.isActive,
+      'text-ink-muted hover:text-ink hover:bg-hover/70': !props.isActive,
+      'font-medium': props.isActive,
       'opacity-50 pointer-events-none': !!props.disabled,
     }}
     onPointerDown={(e) => runOnPress(e, props.onPress)}
@@ -425,9 +467,14 @@ const TopbarSoupControls = () => {
   const {
     soup,
     panel,
+    emailView,
+    setMailView,
+    setMailImportantFilter,
+    setMailOtherFilter,
     setSignalFilter,
     setNoiseFilter,
     isInboxMode,
+    isFilterMode,
     togglePreview,
   } =
     useSoupFilterActions();
@@ -448,7 +495,53 @@ const TopbarSoupControls = () => {
     <div class="flex items-stretch h-full gap-0 min-w-0 overflow-x-auto scrollbar-hidden">
       <Show
         when={isInboxMode()}
-        fallback={<SearchBar />}
+        fallback={
+          <>
+            <SearchBar />
+            <Show when={isFilterMode('email')}>
+              <>
+                <TopbarFilterPill
+                  label="Important"
+                  shortcut="i"
+                  isActive={
+                    emailView() === 'inbox' &&
+                    soup.filters.isActive('signal') &&
+                    !soup.filters.isActive('noise')
+                  }
+                  onPress={setMailImportantFilter}
+                />
+                <TopbarFilterPill
+                  label="Other"
+                  shortcut="o"
+                  isActive={
+                    emailView() === 'inbox' &&
+                    soup.filters.isActive('noise') &&
+                    !soup.filters.isActive('signal')
+                  }
+                  onPress={setMailOtherFilter}
+                />
+                <TopbarFilterPill
+                  label="Drafts"
+                  shortcut="d"
+                  isActive={emailView() === 'drafts'}
+                  onPress={() => setMailView('drafts')}
+                />
+                <TopbarFilterPill
+                  label="Sent"
+                  shortcut="s"
+                  isActive={emailView() === 'sent'}
+                  onPress={() => setMailView('sent')}
+                />
+                <TopbarFilterPill
+                  label="All"
+                  shortcut="a"
+                  isActive={emailView() === 'all'}
+                  onPress={() => setMailView('all')}
+                />
+              </>
+            </Show>
+          </>
+        }
       >
         <>
           <TopbarFilterPill
@@ -514,10 +607,10 @@ function SettingsButton() {
       >
         <button
           type="button"
-          class="relative flex items-center justify-center size-[22px] rounded-full active:bg-accent active:text-panel"
+          class="relative flex items-center justify-center size-[22px] rounded-full active:bg-hover active:text-ink"
           classList={{
-            'bg-hover text-ink': settingsOpen(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20':
+            'bg-edge-muted/70 text-ink': settingsOpen(),
+            'text-ink-muted hover:text-ink hover:bg-hover/70':
               !settingsOpen(),
           }}
           onClick={() => toggleSettings()}
@@ -543,7 +636,7 @@ function CreateButton() {
     <button
       type="button"
       title="Create"
-      class="group relative flex items-center justify-center w-1/2 h-full rounded-none text-ink-muted hover:text-accent hover:bg-accent/20 active:bg-accent active:text-panel transition-colors border-r border-edge-muted/50"
+      class="group relative flex items-center justify-center w-1/2 h-full rounded-none text-ink-muted hover:text-ink hover:bg-hover/70 active:bg-hover active:text-ink transition-colors border-r border-edge-muted/50"
       onClick={() => setCreateMenuOpen(true)}
     >
       <svg
@@ -560,7 +653,7 @@ function CreateButton() {
           fill="currentColor"
         />
       </svg>
-      <span class="absolute bottom-1 right-1 text-[9px] font-mono leading-none text-ink/70 group-hover:text-accent/80 group-active:text-panel/80">
+      <span class="absolute bottom-1 right-1 text-[9px] font-mono leading-none text-ink/70 group-hover:text-ink/80 group-active:text-ink/80">
         c
       </span>
     </button>
@@ -572,11 +665,11 @@ function CommandMenuButton() {
     <button
       type="button"
       title="Command Menu"
-      class="group relative flex items-center justify-center w-1/2 h-full rounded-none text-ink-muted hover:text-accent hover:bg-accent/20 active:bg-accent active:text-panel transition-colors"
+      class="group relative flex items-center justify-center w-1/2 h-full rounded-none text-ink-muted hover:text-ink hover:bg-hover/70 active:bg-hover active:text-ink transition-colors"
       onClick={() => setKonsoleOpen(true)}
     >
       <span class="text-base leading-none">⌘</span>
-      <span class="absolute bottom-1 right-1 text-[9px] font-mono leading-none text-ink/70 group-hover:text-accent/80 group-active:text-panel/80">
+      <span class="absolute bottom-1 right-1 text-[9px] font-mono leading-none text-ink/70 group-hover:text-ink/80 group-active:text-ink/80">
         k
       </span>
     </button>
@@ -608,17 +701,17 @@ const SearchBar = () => {
     <div class="flex items-center shrink-0">
       <Tooltip tooltip={<LabelAndHotKey label="Filter" shortcut="⌘F" />}>
         <div
-          class="relative flex items-center gap-1.5 h-full px-2.5 rounded-none touch:mobile-width:min-w-35 active:bg-accent active:text-panel"
+          class="relative flex items-center gap-1.5 h-full px-2.5 rounded-none touch:mobile-width:min-w-35 active:bg-hover active:text-ink"
           classList={{
-            'bg-accent text-panel': !!searchText() && !searchFocused(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20':
+            'bg-edge-muted/70 text-ink': !!searchText() && !searchFocused(),
+            'text-ink-muted hover:text-ink hover:bg-hover/70':
               !searchText() || searchFocused(),
           }}
           onClick={() => ref()?.focus()}
         >
           <SearchIcon class="size-4.5 shrink-0" />
           <Show when={!searchText() && !searchFocused()}>
-            <span class="leading-none pointer-events-none">
+            <span class="leading-none pointer-events-none text-[10px]">
               <span class="underline underline-offset-2 decoration-current/60">
                 {IS_MAC ? '⌘' : '^'}F
               </span>
@@ -703,11 +796,11 @@ export const FilterButton: Component<FilterButtonProps> = (props) => {
     <div class="shrink-0">
       <button
         type="button"
-        class="w-full h-9 flex items-center justify-between px-3 active:bg-accent active:text-panel rounded-none"
+        class="w-full h-9 flex items-center justify-between px-3 active:bg-hover active:text-ink rounded-none"
         title={props.label}
         classList={{
-          'bg-accent text-panel': isActive(),
-          'text-ink-muted hover:text-accent hover:bg-accent/20': !isActive(),
+          'bg-edge-muted/70 text-ink': isActive(),
+          'text-ink-muted hover:bg-hover/70': !isActive(),
         }}
         onPointerDown={(e) => runOnPress(e, props.onClick)}
         onKeyDown={(e) => runOnPress(e, props.onClick)}
@@ -731,8 +824,8 @@ export const FilterButton: Component<FilterButtonProps> = (props) => {
           <span
             class="min-w-0 overflow-hidden whitespace-nowrap text-xs leading-none"
             classList={{
-              'text-panel': isActive(),
-              'text-ink': !isActive(),
+              'text-ink': isActive(),
+              'text-ink-muted': !isActive(),
             }}
           >
             <ShortcutLabel label={props.label} shortcut={props.shortcut} />
@@ -742,8 +835,8 @@ export const FilterButton: Component<FilterButtonProps> = (props) => {
           <span
             class="shrink-0 font-mono text-[10px] leading-none opacity-90"
             classList={{
-              'text-panel/90': isActive(),
-              'text-ink/80': !isActive(),
+              'text-ink/80': isActive(),
+              'text-ink-muted': !isActive(),
             }}
           >
             {shortcutDisplay()}

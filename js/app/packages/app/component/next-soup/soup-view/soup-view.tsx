@@ -135,6 +135,7 @@ const stateCache = new Map<
       filters: string[];
       sort: SystemSortOption[];
       selectedSidebarTab: string;
+        emailView: 'all' | 'inbox' | 'drafts' | 'sent';
     };
     virtualCache?: CacheSnapshot;
     scrollOffset?: number;
@@ -192,6 +193,8 @@ export const SoupViewList = (props: SoupViewListProps) => {
     source,
     rows,
     searchText,
+    emailView,
+    setEmailView,
     selectedSidebarTab,
     setSelectedSidebarTab,
   } = useSoupView();
@@ -502,6 +505,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     } else {
       setSelectedSidebarTab('none');
     }
+    setEmailView(cached.soup.emailView ?? 'all');
 
     hydratedFromCache = true;
   });
@@ -515,6 +519,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
         filters: soup.filters.activeIds(),
         sort: soup.sort.active().map((s) => s.id),
         selectedSidebarTab: selectedSidebarTab(),
+        emailView: emailView(),
       },
       virtualCache: virtualHandle?.cache,
       scrollOffset: virtualHandle?.scrollOffset,
