@@ -72,6 +72,7 @@ import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { isMobile } from '@core/mobile/isMobile';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { usePropertyEditorHotkeys } from '@app/component/property-edit-modal/hooks/usePropertyEditorHotkeys';
+import { applyViewToSplit, setApplyViewToSplit, setApplyContextualFilters } from '@app/component/soup-sidebar/sidebar-selection-state';
 
 const DEFAULT_ENTITY_HEIGHT = 40;
 
@@ -130,6 +131,37 @@ export const SoupView = () => {
   const panel = useSplitPanelOrThrow();
 
   useSoupNotificationInvalidators();
+
+  // Listen for view changes from the sidebar overlay
+  createEffect(() => {
+    const pending = applyViewToSplit();
+    if (pending && pending.splitId === panel.handle.id) {
+      // Clear existing filters
+      soup.filters.clear();
+
+      // Activate view filters
+      for (const filterId of pending.view.filters) {
+        soup.filters.activate(filterId);
+      }
+
+      // Set sort if specified
+      if (pending.view.sort) {
+        soup.sort.setAll([pending.view.sort]);
+      }
+
+      // If the view has contextual filters, signal to apply them
+      // Note: SoupView doesn't have contextual filter support, so we just log for now
+      if (pending.view.contextualFilters && pending.view.contextualFilters.length > 0) {
+        setApplyContextualFilters({
+          splitId: pending.splitId,
+          contextualFilterIds: pending.view.contextualFilters,
+        });
+      }
+
+      // Clear the signal after applying
+      setApplyViewToSplit(null);
+    }
+  });
 
   return (
     <SplitPanelContext.Provider

@@ -1,8 +1,23 @@
 // Main components
 export { SoupWithSidebar } from './SoupWithSidebar';
 export { SoupSidebar } from './SoupSidebar';
+export { AppSidebar } from './AppSidebar';
 export { SoupFilterToolbar } from './SoupFilterToolbar';
 export { FilterDropdown, type FilterOption } from './FilterDropdown';
+export { SplitOverlays } from './SplitOverlay';
+
+// Sidebar selection state
+export { 
+  pendingView, 
+  setPendingView, 
+  pendingPinnedItem,
+  setPendingPinnedItem,
+  applyViewToSplit, 
+  setApplyViewToSplit,
+  applyContextualFilters,
+  setApplyContextualFilters,
+  type PinnedItem,
+} from './sidebar-selection-state';
 
 // Predefined views configuration
 export {

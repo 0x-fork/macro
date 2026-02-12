@@ -1,12 +1,13 @@
 import {
   type Component,
   createContext,
+  createEffect,
   createMemo,
   createSignal,
+  onCleanup,
   Show,
   useContext,
 } from 'solid-js';
-import { SoupSidebar } from './SoupSidebar';
 import { SoupFilterToolbar } from './SoupFilterToolbar';
 import { SoupViewList } from '@app/component/next-soup/soup-view/soup-view';
 import {
@@ -28,15 +29,12 @@ import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { isMobile } from '@core/mobile/isMobile';
 import type { EntityData } from '@entity';
 import { createContextualFilterState } from './contextual-filter-state';
-import {
-  getContextualFiltersForActiveFilters,
-  ALL_CONTEXTUAL_FILTERS,
-  createAssignedToMeFilter,
-  type ContextualFilter,
-} from './contextual-filters';
+import { getContextualFiltersForActiveFilters } from './contextual-filters';
 import type { FilterID } from '@app/component/next-soup/filters/filters';
 import type { ContextualFilterState } from './contextual-filter-state';
 import { useUserId } from '@core/context/user';
+import { applyViewToSplit, setApplyViewToSplit, applyContextualFilters, setApplyContextualFilters, registerActiveView, unregisterActiveView } from './sidebar-selection-state';
+import type { SplitId } from '@app/component/split-layout/layoutManager';
 import type { PredefinedView } from './predefined-views';
 
 /**
@@ -45,6 +43,24 @@ import type { PredefinedView } from './predefined-views';
 const ContextualFilterContext = createContext<ContextualFilterState>();
 
 export const useContextualFilters = () => useContext(ContextualFilterContext);
+
+/**
+ * Apply a predefined view's filters to the soup state
+ */
+function applyViewFilters(soup: ReturnType<typeof createSoupState>, view: PredefinedView) {
+  // Clear existing filters
+  soup.filters.clear();
+
+  // Activate view filters
+  for (const filterId of view.filters) {
+    soup.filters.activate(filterId);
+  }
+
+  // Set sort if specified
+  if (view.sort) {
+    soup.sort.setAll([view.sort]);
+  }
+}
 
 /**
  * Main component that combines the sidebar, filter toolbar, and soup list.
@@ -64,6 +80,36 @@ export const SoupWithSidebar: Component = () => {
     });
 
   const panel = useSplitPanelOrThrow();
+  const splitId = panel.handle.id as SplitId;
+  
+  // Track the current active view in this split
+  const [, setCurrentViewId] = createSignal<string | undefined>(undefined);
+
+  // Listen for view changes from the sidebar overlay
+  createEffect(() => {
+    const pending = applyViewToSplit();
+    if (pending && pending.splitId === splitId) {
+      applyViewFilters(soup, pending.view);
+      setCurrentViewId(pending.view.id);
+      registerActiveView(splitId, pending.view.id);
+      
+      // If the view has contextual filters, signal to apply them
+      if (pending.view.contextualFilters && pending.view.contextualFilters.length > 0) {
+        setApplyContextualFilters({
+          splitId: pending.splitId,
+          contextualFilterIds: pending.view.contextualFilters,
+        });
+      }
+      
+      // Clear the signal after applying
+      setApplyViewToSplit(null);
+    }
+  });
+  
+  // Unregister view when component unmounts
+  onCleanup(() => {
+    unregisterActiveView(splitId);
+  });
 
   return (
     <SoupContextProvider soup={soup}>
@@ -75,21 +121,24 @@ export const SoupWithSidebar: Component = () => {
         }}
       >
         <SoupViewContextProvider soup={soup}>
-          <SoupWithSidebarInner />
+          <SoupWithSidebarInner splitId={splitId} />
         </SoupViewContextProvider>
       </SplitPanelContext.Provider>
     </SoupContextProvider>
   );
 };
 
+interface SoupWithSidebarInnerProps {
+  splitId: string;
+}
+
 /**
  * Inner component that has access to soup view context
  */
-const SoupWithSidebarInner: Component = () => {
+const SoupWithSidebarInner: Component<SoupWithSidebarInnerProps> = (props) => {
   const soupViewContext = useSoupView();
   const { rows } = soupViewContext;
   const soup = useSoup();
-  const [sidebarPinned, setSidebarPinned] = createSignal(false);
 
   // Get current user ID for user-specific filters like "Assigned to Me"
   const userId = useUserId();
@@ -108,31 +157,26 @@ const SoupWithSidebarInner: Component = () => {
   // Create contextual filter state
   const contextualFilterState = createContextualFilterState(availableContextualFilters);
 
-  // Handle view selection - activate contextual filters specified by the view
-  const handleViewSelect = (view: PredefinedView) => {
-    // Clear existing contextual filters
-    contextualFilterState.clear();
-
-    // Activate contextual filters from the view
-    if (view.contextualFilters) {
-      const currentUserId = userId();
-      for (const filterId of view.contextualFilters) {
-        // Find the filter by ID
-        let filter: ContextualFilter | undefined;
-
-        // Special case for "assigned to me" which needs current user
-        if (filterId === 'task-assigned-to-me' && currentUserId) {
-          filter = createAssignedToMeFilter(currentUserId);
-        } else {
-          filter = ALL_CONTEXTUAL_FILTERS.find((f) => f.id === filterId);
-        }
-
+  // Listen for contextual filter changes from sidebar view selection
+  createEffect(() => {
+    const pending = applyContextualFilters();
+    if (pending && pending.splitId === props.splitId) {
+      // Clear existing contextual filters
+      contextualFilterState.clear();
+      
+      // Apply the new contextual filters
+      const availableFilters = availableContextualFilters();
+      for (const filterId of pending.contextualFilterIds) {
+        const filter = availableFilters.find(f => f.id === filterId);
         if (filter) {
           contextualFilterState.toggle(filter);
         }
       }
+      
+      // Clear the signal
+      setApplyContextualFilters(null);
     }
-  };
+  });
 
   // Apply contextual filters to get filtered rows
   const filteredRows = createMemo((): SoupRow[] => {
@@ -172,30 +216,19 @@ const SoupWithSidebarInner: Component = () => {
         contextualFilterState={contextualFilterState}
       />
 
-      <div class="relative flex size-full">
-        {/* Sidebar - only show on non-mobile */}
-        <Show when={!isMobile()}>
-          <SoupSidebar
-            pinned={sidebarPinned()}
-            onPinnedChange={setSidebarPinned}
-            onViewSelect={handleViewSelect}
-          />
-        </Show>
-
-        {/* Main content area */}
-        <div class="flex-1 flex flex-col min-w-0">
-          {/* Soup list with filtered rows context */}
-          <div class="flex-1 min-h-0">
-            <SoupViewContext.Provider value={filteredSoupViewContext()}>
-              <SoupViewList />
-            </SoupViewContext.Provider>
-          </div>
-
-          {/* AI input if enabled */}
-          <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
-            <SoupChatInput />
-          </Show>
+      {/* Main content area - size-full needed since parent isn't a flex container */}
+      <div class="size-full flex flex-col min-w-0">
+        {/* Soup list with filtered rows context */}
+        <div class="flex-1 min-h-0">
+          <SoupViewContext.Provider value={filteredSoupViewContext()}>
+            <SoupViewList />
+          </SoupViewContext.Provider>
         </div>
+
+        {/* AI input if enabled */}
+        <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
+          <SoupChatInput />
+        </Show>
       </div>
     </>
   );

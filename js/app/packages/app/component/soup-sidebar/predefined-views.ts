@@ -33,8 +33,6 @@ export interface PredefinedView {
   readonly sort?: SystemSortOption;
   /** Description shown in tooltip */
   readonly description?: string;
-  /** Keyboard shortcut for this view */
-  readonly shortcut?: string;
   /** Whether this view requires current user ID for filtering */
   readonly requiresCurrentUser?: boolean;
 }
@@ -44,35 +42,21 @@ export interface PredefinedView {
  * Organized by user workflow rather than entity type.
  */
 export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
-  // ============ TRIAGE VIEWS ============
-  // For processing incoming items
-
+  // ============ TOP LEVEL ============
+  {
+    id: 'briefing',
+    label: 'Briefing',
+    icon: WideStar,
+    filters: [],
+    description: 'Your daily briefing',
+  },
   {
     id: 'inbox',
     label: 'Inbox',
-    icon: WideEmail,
-    filters: ['unread'],
-    sort: 'updated_at',
-    description: 'Unread items needing attention',
-    shortcut: 'g i',
-  },
-  {
-    id: 'important',
-    label: 'Important',
-    icon: WidePriorityHigh,
-    filters: ['signal'],
-    sort: 'updated_at',
-    description: 'High priority items',
-    shortcut: 'g !',
-  },
-  {
-    id: 'notifications',
-    label: 'Notifications',
     icon: WideSignal,
     filters: ['not-done'],
     sort: 'updated_at',
     description: 'Items with outstanding notifications',
-    shortcut: 'g n',
   },
 
   // ============ TASK VIEWS ============
@@ -86,7 +70,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     contextualFilters: ['task-assigned-to-me', 'task-open'],
     sort: 'updated_at',
     description: 'Tasks assigned to you',
-    shortcut: 'g t',
     requiresCurrentUser: true,
   },
   {
@@ -97,7 +80,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     contextualFilters: ['task-open'],
     sort: 'updated_at',
     description: 'All open tasks',
-    shortcut: 'g a',
   },
   {
     id: 'completed-tasks',
@@ -107,7 +89,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     contextualFilters: ['task-completed'],
     sort: 'updated_at',
     description: 'Completed tasks',
-    shortcut: 'g c',
   },
   {
     id: 'urgent-tasks',
@@ -117,7 +98,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     contextualFilters: ['task-high-or-urgent'],
     sort: 'updated_at',
     description: 'High priority and urgent tasks',
-    shortcut: 'g u',
   },
 
   // ============ EMAIL VIEWS ============
@@ -130,7 +110,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     filters: ['email'],
     sort: 'updated_at',
     description: 'All emails',
-    shortcut: 'g m',
   },
   {
     id: 'unread-mail',
@@ -140,7 +119,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     contextualFilters: ['email-unread'],
     sort: 'updated_at',
     description: 'Unread emails',
-    shortcut: 'g e',
   },
   {
     id: 'important-mail',
@@ -150,7 +128,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     contextualFilters: ['email-important'],
     sort: 'updated_at',
     description: 'Important emails',
-    shortcut: 'g p',
   },
   {
     id: 'drafts',
@@ -160,7 +137,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     contextualFilters: ['email-draft'],
     sort: 'updated_at',
     description: 'Draft emails',
-    shortcut: 'g d',
   },
 
   // ============ DOCUMENT VIEWS ============
@@ -173,7 +149,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     filters: ['document'],
     sort: 'updated_at',
     description: 'All documents',
-    shortcut: 'g o',
   },
   {
     id: 'recent-docs',
@@ -183,7 +158,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     contextualFilters: ['doc-recent'],
     sort: 'updated_at',
     description: 'Recently edited documents',
-    shortcut: 'g r',
   },
 
   // ============ PEOPLE VIEWS ============
@@ -196,7 +170,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     filters: ['teams-and-people'],
     sort: 'updated_at',
     description: 'All conversations',
-    shortcut: 'g s',
   },
   {
     id: 'direct-messages',
@@ -205,7 +178,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     filters: ['people'],
     sort: 'updated_at',
     description: 'Direct message conversations',
-    shortcut: 'g @',
   },
   {
     id: 'team-channels',
@@ -214,7 +186,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     filters: ['teams'],
     sort: 'updated_at',
     description: 'Team and group channels',
-    shortcut: 'g h',
   },
 
   // ============ OTHER VIEWS ============
@@ -226,7 +197,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     filters: ['agent'],
     sort: 'updated_at',
     description: 'AI agent conversations',
-    shortcut: 'g g',
   },
   {
     id: 'low-priority',
@@ -235,7 +205,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     filters: ['explicit-noise'],
     sort: 'updated_at',
     description: 'Low priority items',
-    shortcut: 'g l',
   },
 ] as const;
 
@@ -253,34 +222,20 @@ export interface ViewGroup {
  */
 export const VIEW_GROUPS: readonly ViewGroup[] = [
   {
-    id: 'triage',
-    label: 'Triage',
-    viewIds: ['inbox', 'important', 'notifications'],
+    id: 'top',
+    label: '',
+    viewIds: ['briefing', 'inbox'],
   },
   {
-    id: 'tasks',
-    label: 'Tasks',
-    viewIds: ['my-tasks', 'all-tasks', 'completed-tasks', 'urgent-tasks'],
-  },
-  {
-    id: 'mail',
-    label: 'Mail',
-    viewIds: ['all-mail', 'unread-mail', 'important-mail', 'drafts'],
-  },
-  {
-    id: 'docs',
-    label: 'Docs',
-    viewIds: ['all-docs', 'recent-docs'],
-  },
-  {
-    id: 'people',
-    label: 'People',
-    viewIds: ['messages', 'direct-messages', 'team-channels'],
-  },
-  {
-    id: 'other',
-    label: 'Other',
-    viewIds: ['agents', 'low-priority'],
+    id: 'views',
+    label: 'Views',
+    viewIds: [
+      'my-tasks', 'all-tasks', 'completed-tasks', 'urgent-tasks',
+      'all-mail', 'unread-mail', 'important-mail', 'drafts',
+      'all-docs', 'recent-docs',
+      'messages', 'direct-messages', 'team-channels',
+      'agents', 'low-priority',
+    ],
   },
 ] as const;
 

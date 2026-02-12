@@ -1,70 +1,112 @@
 import {
-  VIEW_GROUPS,
-  getViewsForGroup,
+  PREDEFINED_VIEWS,
   type PredefinedView,
 } from './predefined-views';
-import { useSoup } from '@app/component/next-soup/soup-context';
+import { useIsGoToScopeActive, useIsPinnedScopeActive, updatePinnedItemsForHotkeys } from './sidebar-hotkeys';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import PlusIcon from '@macro-icons/wide/plus.svg';
-import PinIcon from '@macro-icons/pixel/pin.svg';
-import UnpinIcon from '@macro-icons/pixel/unpin.svg';
-import { type Component, createSignal, For, createMemo, Show } from 'solid-js';
+import MacroLogo from '@macro-icons/macro-logo.svg';
+import WideChat from '@macro-icons/wide/chat.svg';
+import WideEmail from '@macro-icons/wide/email.svg';
+import WideFileMd from '@macro-icons/wide/file-md.svg';
+import WideStar from '@macro-icons/wide/star.svg';
+import { type Component, For, Show, createMemo, onMount } from 'solid-js';
+import { globalSplitManager } from '@app/signal/splitLayout';
 import { Dynamic } from 'solid-js/web';
 import { setCreateMenuOpen } from '@app/component/Launcher';
+import { setPendingView, setPendingPinnedItem, type PinnedItem, getSplitIndicesForView, activeViewsBySplit } from './sidebar-selection-state';
+import type { SplitId } from '@app/component/split-layout/layoutManager';
+
+/**
+ * Example pinned items for demonstration.
+ * In a real implementation, these would come from user preferences/storage.
+ */
+const EXAMPLE_PINNED_ITEMS: PinnedItem[] = [
+  {
+    id: 'pinned-1',
+    label: '#general',
+    type: 'channel',
+    entityId: 'example-channel-id-1',
+  },
+  {
+    id: 'pinned-2', 
+    label: '#engineering',
+    type: 'channel',
+    entityId: 'example-channel-id-2',
+  },
+  {
+    id: 'pinned-3',
+    label: 'Project Roadmap',
+    type: 'md',
+    entityId: 'example-doc-id-1',
+  },
+  {
+    id: 'pinned-4',
+    label: 'Re: Q4 Planning',
+    type: 'email',
+    entityId: 'example-email-id-1',
+  },
+];
 
 export interface SoupSidebarProps {
-  /** Whether the sidebar is pinned open */
-  pinned?: boolean;
-  /** Callback when pinned state changes */
-  onPinnedChange?: (pinned: boolean) => void;
   /** Callback when a view with contextual filters is selected */
   onViewSelect?: (view: PredefinedView) => void;
 }
 
 /**
- * Collapsible sidebar for the soup view, inspired by Linear's UI.
+ * Get icon component for a pinned item based on its type
+ */
+function getIconForPinnedItem(item: PinnedItem) {
+  switch (item.type) {
+    case 'channel':
+      return WideChat;
+    case 'email':
+      return WideEmail;
+    case 'md':
+    case 'write':
+      return WideFileMd;
+    default:
+      return WideStar;
+  }
+}
+
+/**
+ * Format index for display: 1-9, 0 for 10th, then a-z for 11+
+ */
+function formatIndexKey(index: number): string {
+  if (index < 9) return String(index + 1); // 1-9
+  if (index === 9) return '0'; // 10th item
+  if (index < 36) return String.fromCharCode(97 + index - 10); // a-z (indices 10-35)
+  return ''; // No hotkey beyond 36 items
+}
+
+/**
+ * Sidebar for the soup view, inspired by Linear's UI.
  * Shows predefined views with filters and a create button.
  *
- * Behavior:
- * - By default floats over content (overlay mode)
- * - Shows a thin collapsed bar on the left when not hovered
- * - Expands as an overlay when hovered
- * - When pinned, pushes the content to the right (inline mode)
+ * Always visible, full height, on the left side.
+ * Clicking a view shows overlays on all splits to choose where to open it.
  */
 export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
-  const [isHovered, setIsHovered] = createSignal(false);
-  const [isPinned, setIsPinned] = createSignal(props.pinned ?? false);
-  const [activeViewId, setActiveViewId] = createSignal<string | undefined>();
-
-  const soup = useSoup();
-
-  // Sidebar is expanded when hovered OR pinned
-  const isExpanded = createMemo(() => isPinned() || isHovered());
-
-  const handlePinToggle = () => {
-    const newPinned = !isPinned();
-    setIsPinned(newPinned);
-    props.onPinnedChange?.(newPinned);
-  };
-
+  const isGoToActive = useIsGoToScopeActive();
+  const isPinnedActive = useIsPinnedScopeActive();
+  
+  // Register pinned items for hotkeys on mount
+  onMount(() => {
+    updatePinnedItemsForHotkeys(EXAMPLE_PINNED_ITEMS);
+  });
+  
   const handleViewClick = (view: PredefinedView) => {
-    // Clear existing filters
-    soup.filters.clear();
-
-    // Activate view filters
-    for (const filterId of view.filters) {
-      soup.filters.activate(filterId);
-    }
-
-    // Set sort if specified
-    if (view.sort) {
-      soup.sort.setAll([view.sort]);
-    }
-
-    setActiveViewId(view.id);
+    // Set the pending view to show overlays on splits
+    setPendingView(view);
 
     // Notify parent about the view selection (for contextual filters)
     props.onViewSelect?.(view);
+  };
+
+  const handlePinnedItemClick = (item: PinnedItem) => {
+    // Set the pending pinned item to show overlays on splits
+    setPendingPinnedItem(item);
   };
 
   const handleCreateClick = () => {
@@ -72,195 +114,218 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
   };
 
   return (
-    <>
-      {/* 
-        Wrapper container - when pinned, takes up space in layout (pushes content).
-        When not pinned, has zero width so sidebar floats over content.
-      */}
-      <div
-        class="relative h-full flex-shrink-0 z-20"
-        classList={{
-          'w-48': isPinned(),
-          'w-0': !isPinned(),
-        }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        {/* Hover trigger zone - extends slightly into content area when collapsed */}
-        <Show when={!isPinned()}>
-          <div
-            class="absolute left-0 top-0 h-full w-3 z-10"
-            onMouseEnter={() => setIsHovered(true)}
-          />
-        </Show>
-
-        {/* Collapsed bar - only visible when not expanded and not pinned */}
-        <div
-          class="absolute left-0 top-0 h-full w-2 bg-panel border-r border-edge-muted transition-opacity duration-200"
-          classList={{
-            'opacity-100': !isExpanded(),
-            'opacity-0 pointer-events-none': isExpanded(),
-          }}
+    <div class="w-48 h-full flex-shrink-0 bg-panel border-r border-edge-muted flex flex-col">
+      {/* Header with logo and create button */}
+      <div class="px-3 py-2 border-b border-edge-muted shrink-0 flex items-center justify-between">
+        <MacroLogo class="size-5 text-accent" />
+        <Tooltip
+          tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}
         >
-          {/* Visual indicator dots when collapsed */}
-          <div class="flex flex-col items-center gap-1.5 pt-3">
-            <div class="w-1 h-1 rounded-full bg-edge" />
-            <div class="w-1 h-1 rounded-full bg-edge" />
-            <div class="w-1 h-1 rounded-full bg-edge" />
-          </div>
+          <button
+            type="button"
+            class="flex items-center justify-center size-7 text-ink-muted hover:text-ink hover:bg-ink/20 rounded transition-colors"
+            onClick={handleCreateClick}
+          >
+            <PlusIcon class="size-4" />
+          </button>
+        </Tooltip>
+      </div>
+
+      {/* Scrollable content */}
+      <div class="flex-1 overflow-y-auto py-2 px-2">
+        {/* Briefing and Inbox - top level items (indices 0-1) */}
+        <div class="mb-8">
+          <For each={PREDEFINED_VIEWS.slice(0, 2)}>
+            {(view, index) => (
+              <SidebarViewItem
+                view={view}
+                index={index()}
+                onClick={() => handleViewClick(view)}
+                showShortcutHint={isGoToActive() && !isPinnedActive()}
+              />
+            )}
+          </For>
         </div>
 
-        {/* Expanded sidebar */}
-        <div
-          class="h-full bg-panel border-r border-edge-muted transition-all duration-200 ease-out overflow-hidden"
-          classList={{
-            // When expanded: full width
-            'w-48': isExpanded(),
-            // When collapsed: thin bar
-            'w-2': !isExpanded(),
-            // When not pinned and expanded: position absolute to float over content
-            'absolute left-0 top-0 shadow-lg': !isPinned() && isExpanded(),
-          }}
-        >
-          <div
-            class="h-full flex flex-col transition-opacity duration-150"
-            classList={{
-              'opacity-100': isExpanded(),
-              'opacity-0 pointer-events-none': !isExpanded(),
-            }}
-          >
-            {/* Header with Create and Pin buttons */}
-            <div class="p-2 border-b border-edge-muted">
-              <div class="flex items-center gap-1">
-                <Tooltip
-                  tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}
-                >
-                  <button
-                    type="button"
-                    class="flex-1 flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-ink hover:bg-ink/10 rounded transition-colors"
-                    onClick={handleCreateClick}
-                  >
-                    <PlusIcon class="size-4 text-accent" />
-                    <span>Create</span>
-                  </button>
-                </Tooltip>
-                <Tooltip
-                  tooltip={
-                    <LabelAndHotKey
-                      label={isPinned() ? 'Unpin sidebar' : 'Pin sidebar open'}
-                      shortcut="["
-                    />
-                  }
-                >
-                  <button
-                    type="button"
-                    class="p-1.5 rounded transition-colors"
-                    classList={{
-                      'bg-accent/15 text-accent': isPinned(),
-                      'text-ink-muted hover:text-ink hover:bg-ink/10': !isPinned(),
-                    }}
-                    onClick={handlePinToggle}
-                  >
-                    <Show
-                      when={isPinned()}
-                      fallback={<PinIcon class="size-4 rotate-45" />}
-                    >
-                      <UnpinIcon class="size-4" />
-                    </Show>
-                  </button>
-                </Tooltip>
-              </div>
+        {/* Pinned items section */}
+        <Show when={EXAMPLE_PINNED_ITEMS.length > 0}>
+          <div class="mb-8">
+            <div class="px-2 py-0.5 text-[10px] font-medium text-ink-extra-muted uppercase tracking-wider flex items-center">
+              <span>Pinned</span>
+              {/* Show "p" hint when g is active but not yet in pinned scope */}
+              <Show when={isGoToActive() && !isPinnedActive()}>
+                <ShortcutHint key="p" />
+              </Show>
             </div>
-
-            {/* View groups */}
-            <div class="flex-1 overflow-y-auto py-2 px-2">
-              <For each={VIEW_GROUPS}>
-                {(group) => (
-                  <SidebarViewGroup
-                    groupId={group.id}
-                    label={group.label}
-                    views={getViewsForGroup(group.id)}
-                    activeViewId={activeViewId()}
-                    onViewClick={handleViewClick}
+            <div class="flex flex-col gap-0.5 mt-1">
+              <For each={EXAMPLE_PINNED_ITEMS}>
+                {(item, index) => (
+                  <SidebarPinnedItem
+                    item={item}
+                    index={index()}
+                    onClick={() => handlePinnedItemClick(item)}
+                    showShortcutHint={isPinnedActive()}
                   />
                 )}
               </For>
             </div>
           </div>
+        </Show>
+
+        {/* Views section (indices 2+) */}
+        <div class="mb-4">
+          <div class="px-2 py-0.5 text-[10px] font-medium text-ink-extra-muted uppercase tracking-wider">
+            Views
+          </div>
+          <div class="flex flex-col gap-0.5 mt-1">
+            <For each={PREDEFINED_VIEWS.slice(2)}>
+              {(view, index) => (
+                <SidebarViewItem
+                  view={view}
+                  index={index() + 2}
+                  onClick={() => handleViewClick(view)}
+                  showShortcutHint={isGoToActive() && !isPinnedActive()}
+                />
+              )}
+            </For>
+          </div>
         </div>
-      </div>
-
-      {/* Backdrop overlay when floating and expanded - click to close */}
-      <Show when={!isPinned() && isExpanded()}>
-        <div
-          class="fixed inset-0 z-10"
-          onClick={() => setIsHovered(false)}
-          onMouseEnter={() => setIsHovered(false)}
-        />
-      </Show>
-    </>
-  );
-};
-
-interface SidebarViewGroupProps {
-  groupId: string;
-  label: string;
-  views: PredefinedView[];
-  activeViewId: string | undefined;
-  onViewClick: (view: PredefinedView) => void;
-}
-
-const SidebarViewGroup: Component<SidebarViewGroupProps> = (props) => {
-  return (
-    <div class="mb-4">
-      <div class="px-2 py-0.5 text-[10px] font-medium text-ink-extra-muted uppercase tracking-wider">
-        {props.label}
-      </div>
-      <div class="flex flex-col gap-0.5 mt-1">
-        <For each={props.views}>
-          {(view) => (
-            <SidebarViewItem
-              view={view}
-              isActive={props.activeViewId === view.id}
-              onClick={() => props.onViewClick(view)}
-            />
-          )}
-        </For>
       </div>
     </div>
   );
 };
 
+interface SidebarPinnedItemProps {
+  item: PinnedItem;
+  index: number;
+  onClick: () => void;
+  showShortcutHint?: boolean;
+}
+
+const SidebarPinnedItem: Component<SidebarPinnedItemProps> = (props) => {
+  const Icon = getIconForPinnedItem(props.item);
+  
+  const splitIndices = createMemo(() => 
+    getSplitIndicesForEntity(props.item.type, props.item.entityId)
+  );
+
+  const shortcutKey = () => formatIndexKey(props.index);
+  
+  return (
+    <Tooltip
+      tooltip={<LabelAndHotKey label={props.item.label} shortcut={`v p ${shortcutKey()}`} />}
+      placement="right"
+    >
+      <button
+        type="button"
+        class="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-colors text-ink-muted hover:bg-ink/10 hover:text-ink"
+        onClick={props.onClick}
+      >
+        <Dynamic component={Icon} class="size-3.5 flex-shrink-0" />
+        <span class="truncate">{props.item.label}</span>
+        <Show when={!props.showShortcutHint}>
+          <SplitIndicator indices={splitIndices()} />
+        </Show>
+        <Show when={props.showShortcutHint && shortcutKey()}>
+          <ShortcutHint key={shortcutKey()} />
+        </Show>
+      </button>
+    </Tooltip>
+  );
+};
+
+/**
+ * Get split indices where a pinned item (entity) is currently open
+ */
+function getSplitIndicesForEntity(type: string, entityId: string): number[] {
+  const manager = globalSplitManager();
+  if (!manager) return [];
+  
+  const splits = manager.splits();
+  const indices: number[] = [];
+  
+  splits.forEach((split, index) => {
+    if (split.content.type === type && split.content.id === entityId) {
+      indices.push(index + 1); // 1-indexed for display
+    }
+  });
+  
+  return indices;
+}
+
+interface SplitIndicatorProps {
+  indices: number[];
+}
+
+const SplitIndicator: Component<SplitIndicatorProps> = (props) => {
+  return (
+    <Show when={props.indices.length > 0}>
+      <span class="ml-auto text-[10px] text-accent/70 font-medium">
+        {props.indices.join(', ')}
+      </span>
+    </Show>
+  );
+};
+
 interface SidebarViewItemProps {
   view: PredefinedView;
-  isActive: boolean;
+  index: number;
   onClick: () => void;
+  showShortcutHint?: boolean;
 }
 
 const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
+  const splitIndices = createMemo(() => {
+    // Subscribe to activeViewsBySplit changes
+    activeViewsBySplit();
+    const manager = globalSplitManager();
+    if (!manager) return [];
+    const splitIds = manager.splits().map(s => s.id) as SplitId[];
+    return getSplitIndicesForView(props.view.id, splitIds);
+  });
+
+  const shortcutKey = () => formatIndexKey(props.index);
+  
   return (
     <Tooltip
       tooltip={
         <LabelAndHotKey
           label={props.view.description ?? props.view.label}
-          shortcut={props.view.shortcut}
+          shortcut={shortcutKey() ? `v ${shortcutKey()}` : undefined}
         />
       }
       placement="right"
     >
       <button
         type="button"
-        class="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-colors"
-        classList={{
-          'bg-accent/15 text-accent': props.isActive,
-          'text-ink-muted hover:bg-ink/10 hover:text-ink': !props.isActive,
-        }}
+        class="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-colors text-ink-muted hover:bg-ink/10 hover:text-ink"
         onClick={props.onClick}
       >
         <Dynamic component={props.view.icon} class="size-3.5 flex-shrink-0" />
         <span class="truncate">{props.view.label}</span>
+        <Show when={!props.showShortcutHint}>
+          <SplitIndicator indices={splitIndices()} />
+        </Show>
+        <Show when={props.showShortcutHint && shortcutKey()}>
+          <ShortcutHint key={shortcutKey()} />
+        </Show>
       </button>
     </Tooltip>
+  );
+};
+
+interface ShortcutHintProps {
+  key: string;
+}
+
+/**
+ * Small badge showing the shortcut key when the "v" leader is active
+ */
+const ShortcutHint: Component<ShortcutHintProps> = (props) => {
+  return (
+    <span class="ml-auto px-1 py-0.5 text-[10px] font-mono font-medium bg-accent text-page rounded">
+      {props.key}
+    </span>
   );
 };
 

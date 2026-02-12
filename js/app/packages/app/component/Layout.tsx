@@ -21,6 +21,9 @@ import { Paywall } from './paywall/Paywall';
 import { RightbarWrapper } from './rightbar/Rightbar';
 import { SettingsWrapper } from './settings/SettingsWrapper';
 import { ShortcutsHelper } from './settings/ShortcutsHelper';
+import { AppSidebar } from './soup-sidebar/AppSidebar';
+import { SplitOverlays } from './soup-sidebar/SplitOverlay';
+import { isMobile } from '@core/mobile/isMobile';
 import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
 import { cn } from '@ui/utils/classname';
 import { useAppSquishHandlers } from './useAppSquishHandlers';
@@ -127,7 +130,13 @@ export function Layout(props: RouteSectionProps) {
       <Show when={paywallOpen()}>
         <Paywall />
       </Show>
-      <div class="grow-1">
+      <div class="grow-1 flex">
+        {/* App-level sidebar - only on desktop */}
+        <Show when={isAuthenticated() && !isMobile()}>
+          <AppSidebar />
+          <SplitOverlays />
+        </Show>
+        
         <Resize.Zone
           gutter={4}
           direction="horizontal"

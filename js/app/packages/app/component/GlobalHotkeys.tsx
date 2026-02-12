@@ -6,6 +6,7 @@ import { useBigChat } from '@core/signal/layout';
 import { AiInstructionsIcon } from '@queries/storage/instructions-md';
 import { registerHotkey } from 'core/hotkey/hotkeys';
 import { createMemo } from 'solid-js';
+import { registerSidebarHotkeys } from './soup-sidebar/sidebar-hotkeys';
 import {
   monochromeIcons,
   setDarkModeTheme,
@@ -35,6 +36,9 @@ export default function GlobalShortcuts() {
     resetKonsoleMode();
     toggleKonsoleVisibility();
   };
+
+  // Register sidebar view hotkeys (g i, g b, g t, etc.)
+  registerSidebarHotkeys();
 
   const createCommandScope = registerHotkey({
     hotkeyToken: TOKENS.global.createCommand,
