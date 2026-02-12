@@ -1,5 +1,6 @@
 import {
   PREDEFINED_VIEWS,
+  getViewsForGroup,
   type PredefinedView,
 } from './predefined-views';
 import { useIsGoToScopeActive, useIsPinnedScopeActive, updatePinnedItemsForHotkeys } from './sidebar-hotkeys';
@@ -133,13 +134,13 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
 
       {/* Scrollable content */}
       <div class="flex-1 overflow-y-auto py-2 px-2">
-        {/* Briefing and Inbox - top level items (indices 0-1) */}
+        {/* Top level items (Briefing, Briefing 2, Inbox) */}
         <div class="mb-8">
-          <For each={PREDEFINED_VIEWS.slice(0, 2)}>
-            {(view, index) => (
+          <For each={getViewsForGroup('top')}>
+            {(view) => (
               <SidebarViewItem
                 view={view}
-                index={index()}
+                index={PREDEFINED_VIEWS.indexOf(view)}
                 onClick={() => handleViewClick(view)}
                 showShortcutHint={isGoToActive() && !isPinnedActive()}
               />
@@ -172,17 +173,17 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
           </div>
         </Show>
 
-        {/* Views section (indices 2+) */}
+        {/* Views section */}
         <div class="mb-4">
           <div class="px-2 py-0.5 text-[10px] font-medium text-ink-extra-muted uppercase tracking-wider">
             Views
           </div>
           <div class="flex flex-col gap-0.5 mt-1">
-            <For each={PREDEFINED_VIEWS.slice(2)}>
-              {(view, index) => (
+            <For each={getViewsForGroup('views')}>
+              {(view) => (
                 <SidebarViewItem
                   view={view}
-                  index={index() + 2}
+                  index={PREDEFINED_VIEWS.indexOf(view)}
                   onClick={() => handleViewClick(view)}
                   showShortcutHint={isGoToActive() && !isPinnedActive()}
                 />
@@ -284,14 +285,15 @@ const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
     return getSplitIndicesForView(props.view.id, splitIds);
   });
 
-  const shortcutKey = () => formatIndexKey(props.index);
+  // Use view's shortcut if defined, otherwise fall back to index-based key
+  const shortcutKey = () => props.view.shortcut ?? formatIndexKey(props.index);
   
   return (
     <Tooltip
       tooltip={
         <LabelAndHotKey
           label={props.view.description ?? props.view.label}
-          shortcut={shortcutKey() ? `v ${shortcutKey()}` : undefined}
+          shortcut={shortcutKey() ? shortcutKey() : undefined}
         />
       }
       placement="right"

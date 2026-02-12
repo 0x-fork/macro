@@ -11,7 +11,7 @@ let registeredPinnedItems: PinnedItem[] = [];
 /**
  * State machine for sidebar hotkey sequence:
  * - 'idle': waiting for 'v' key
- * - 'goto': 'v' was pressed, waiting for view index or 'p'
+ * - 'goto': 'v' was pressed, waiting for view shortcut/index or 'p'
  * - 'pinned': 'v p' was pressed, waiting for pinned item index
  */
 type HotkeyState = 'idle' | 'goto' | 'pinned';
@@ -23,13 +23,23 @@ const [hotkeyState, setHotkeyState] = createSignal<HotkeyState>('idle');
 let stateTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * Get the index from a hotkey character
+ * Map of shortcut keys to view IDs for quick lookup
+ */
+const shortcutToViewMap = new Map<string, typeof PREDEFINED_VIEWS[number]>();
+
+// Build the shortcut map
+for (const view of PREDEFINED_VIEWS) {
+  if (view.shortcut) {
+    shortcutToViewMap.set(view.shortcut.toLowerCase(), view);
+  }
+}
+
+/**
+ * Get the index from a hotkey character (for fallback index-based selection)
  */
 function getIndexFromHotkey(key: string): number | undefined {
   if (key >= '1' && key <= '9') return parseInt(key) - 1; // 1-9 → 0-8
   if (key === '0') return 9; // 0 → 9
-  const lowerKey = key.toLowerCase();
-  if (lowerKey >= 'a' && lowerKey <= 'z') return lowerKey.charCodeAt(0) - 97 + 10; // a-z → 10-35
   return undefined;
 }
 
@@ -95,14 +105,25 @@ function isEditableElement(el: Element | null): boolean {
 }
 
 /**
- * Handle view selection by key
+ * Handle view selection by shortcut key or index
  */
 function handleViewKey(key: string): boolean {
+  const lowerKey = key.toLowerCase();
+  
+  // First try to find a view with this shortcut
+  const viewByShortcut = shortcutToViewMap.get(lowerKey);
+  if (viewByShortcut) {
+    setPendingView(viewByShortcut);
+    return true;
+  }
+  
+  // Fall back to index-based selection (1-9, 0)
   const index = getIndexFromHotkey(key);
   if (index !== undefined && index < PREDEFINED_VIEWS.length) {
     setPendingView(PREDEFINED_VIEWS[index]);
     return true;
   }
+  
   return false;
 }
 
@@ -121,11 +142,12 @@ function handlePinnedItemKey(key: string): boolean {
 /**
  * Register hotkeys for all sidebar views and pinned items.
  * Uses a custom keyboard listener instead of the hotkey system
- * to support the v -> p -> <key> sequence for pinned items.
+ * to support the v -> <shortcut> sequence for views.
  * 
  * Shortcuts:
- * - v 1-9, 0, a-z: Select view by index
- * - v p 1-9, 0, a-z: Select pinned item by index
+ * - v <shortcut>: Select view by its defined shortcut (e.g., v i for inbox)
+ * - v 1-9, 0: Select view by index (fallback)
+ * - v p 1-9, 0: Select pinned item by index
  * - Escape: Cancel selection
  */
 export function registerSidebarHotkeys() {
@@ -162,7 +184,7 @@ export function registerSidebarHotkeys() {
           e.preventDefault();
           e.stopPropagation();
         } else {
-          // Try to handle as view key
+          // Try to handle as view shortcut or index
           const handled = handleViewKey(key);
           resetState();
           if (handled) {

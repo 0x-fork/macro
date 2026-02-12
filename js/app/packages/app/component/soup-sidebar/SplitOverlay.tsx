@@ -13,6 +13,11 @@ function isListComponent(content: SplitContent): boolean {
 }
 
 /**
+ * Views that should navigate to their own component instead of applying filters
+ */
+const STANDALONE_VIEWS = ['briefing', 'briefing2'] as const;
+
+/**
  * Get a display name for split content
  */
 function getContentDisplayName(content: SplitContent): string {
@@ -98,6 +103,19 @@ export const SplitOverlays: Component = () => {
 
     const split = splitManager.getSplit(splitId);
     if (!split) {
+      return;
+    }
+
+    // Check if this view should navigate to its own component (like briefing)
+    if (STANDALONE_VIEWS.includes(currentView.id as typeof STANDALONE_VIEWS[number])) {
+      split.replace({
+        next: {
+          type: 'component',
+          id: currentView.id,
+        },
+        referredFrom: 'launcher',
+      });
+      setPendingView(null);
       return;
     }
 

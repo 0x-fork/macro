@@ -208,19 +208,41 @@ export const SoupFilterToolbar: Component<SoupFilterToolbarProps> = (props) => {
   // Track input ref for cursor position and autocomplete positioning
   let inputRef: HTMLInputElement | undefined;
   let containerRef: HTMLDivElement | undefined;
+  let dropdownRef: HTMLDivElement | undefined;
   
   // Autocomplete state
   const [highlightedIndex, setHighlightedIndex] = createSignal(0);
   const [showAutocomplete, setShowAutocomplete] = createSignal(false);
   const [dropdownPosition, setDropdownPosition] = createSignal({ top: 0, left: 0 });
+  
+  // Scroll highlighted item into view
+  const scrollHighlightedIntoView = (index: number) => {
+    if (!dropdownRef) return;
+    const items = dropdownRef.querySelectorAll('button');
+    const item = items[index];
+    if (item) {
+      item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  };
 
   // Available filter suggestions (filters that are not yet active)
   type FilterSuggestion = {
     id: string;
     label: string;
     category: string;
+    /** Entity type this filter applies to (for disambiguation) */
+    entityType?: string;
     type: 'main' | 'contextual';
     activate: () => void;
+  };
+
+  // Map entity type prefixes to readable names
+  const ENTITY_TYPE_LABELS: Record<string, string> = {
+    email: 'Email',
+    task: 'Task',
+    document: 'Doc',
+    channel: 'Channel',
+    chat: 'Agent',
   };
 
   const availableFilterSuggestions = createMemo((): FilterSuggestion[] => {
@@ -255,17 +277,40 @@ export const SoupFilterToolbar: Component<SoupFilterToolbarProps> = (props) => {
     }
 
     // Add contextual filters that aren't active
+    // Track seen labels to detect duplicates
+    const seenLabels = new Map<string, number>();
+    const contextualSuggestions: FilterSuggestion[] = [];
+    
     for (const filter of contextualFilters()) {
       if (!activeContextualIds.has(filter.id)) {
-        suggestions.push({
+        const category = CATEGORY_LABELS[filter.category ?? 'other'] ?? filter.category ?? 'Other';
+        // Extract entity type from filter id (e.g., 'email-unread' -> 'email')
+        const entityType = filter.appliesTo?.[0];
+        
+        contextualSuggestions.push({
           id: filter.id,
           label: filter.label,
-          category: CATEGORY_LABELS[filter.category ?? 'other'] ?? filter.category ?? 'Other',
+          category,
+          entityType,
           type: 'contextual',
           activate: () => props.contextualFilterState.toggle(filter),
         });
+        
+        // Count occurrences of this label
+        const count = seenLabels.get(filter.label) ?? 0;
+        seenLabels.set(filter.label, count + 1);
       }
     }
+    
+    // For labels that appear multiple times, prefix with entity type
+    for (const suggestion of contextualSuggestions) {
+      if ((seenLabels.get(suggestion.label) ?? 0) > 1 && suggestion.entityType) {
+        const entityLabel = ENTITY_TYPE_LABELS[suggestion.entityType] ?? suggestion.entityType;
+        suggestion.label = `${entityLabel}: ${suggestion.label}`;
+      }
+    }
+    
+    suggestions.push(...contextualSuggestions);
 
     return suggestions;
   });
@@ -367,12 +412,16 @@ export const SoupFilterToolbar: Component<SoupFilterToolbarProps> = (props) => {
     if (showAutocomplete() && suggestions.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setHighlightedIndex((i) => Math.min(i + 1, suggestions.length - 1));
+        const newIndex = Math.min(highlightedIndex() + 1, suggestions.length - 1);
+        setHighlightedIndex(newIndex);
+        scrollHighlightedIntoView(newIndex);
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setHighlightedIndex((i) => Math.max(i - 1, 0));
+        const newIndex = Math.max(highlightedIndex() - 1, 0);
+        setHighlightedIndex(newIndex);
+        scrollHighlightedIntoView(newIndex);
         return;
       }
       if (e.key === 'Enter') {
@@ -594,7 +643,8 @@ export const SoupFilterToolbar: Component<SoupFilterToolbarProps> = (props) => {
       <Show when={showAutocomplete() && filteredSuggestions().length > 0}>
         <Portal>
           <div 
-            class="fixed z-[100] bg-panel border border-edge-muted rounded-lg shadow-lg w-[240px] py-1 max-h-[300px] overflow-y-auto"
+            ref={dropdownRef}
+            class="fixed z-[100] bg-panel border border-edge-muted rounded-lg shadow-lg w-[280px] py-1 max-h-[300px] overflow-y-auto"
             style={{
               top: `${dropdownPosition().top}px`,
               left: `${dropdownPosition().left}px`,

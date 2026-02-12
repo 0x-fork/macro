@@ -5,6 +5,8 @@ export { AppSidebar } from './AppSidebar';
 export { SoupFilterToolbar } from './SoupFilterToolbar';
 export { FilterDropdown, type FilterOption } from './FilterDropdown';
 export { SplitOverlays } from './SplitOverlay';
+export { BriefingView } from './BriefingView';
+export { Briefing2View } from './Briefing2View';
 
 // Sidebar selection state
 export { 

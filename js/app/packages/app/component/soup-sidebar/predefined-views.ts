@@ -5,14 +5,12 @@ import type { Component, JSX } from 'solid-js';
 import WideSignal from '@macro-icons/wide/signal.svg';
 import WideEmail from '@macro-icons/wide/email.svg';
 import WideTask from '@macro-icons/wide/task.svg';
-import WideTaskDone from '@macro-icons/wide/task-done.svg';
 import WideStar from '@macro-icons/wide/star.svg';
 import WideNoise from '@macro-icons/wide/noise.svg';
 import WideFileMd from '@macro-icons/wide/file-md.svg';
 import WideChat from '@macro-icons/wide/chat.svg';
 import WideUser from '@macro-icons/wide/user.svg';
-import WidePriorityHigh from '@macro-icons/wide/priority-high.svg';
-import WideTaskNotDone from '@macro-icons/wide/task-not-done.svg';
+import WideFolder from '@macro-icons/wide/folder.svg';
 
 /**
  * Configuration for a predefined view in the sidebar.
@@ -23,6 +21,8 @@ export interface PredefinedView {
   readonly id: string;
   /** Display name shown in the sidebar */
   readonly label: string;
+  /** Keyboard shortcut (single key) */
+  readonly shortcut?: string;
   /** Icon component to display */
   readonly icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
   /** Main filter IDs to activate when this view is selected */
@@ -39,7 +39,7 @@ export interface PredefinedView {
 
 /**
  * Predefined views for the soup sidebar.
- * Organized by user workflow rather than entity type.
+ * These match the filter buttons in the current soup toolbar.
  */
 export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
   // ============ TOP LEVEL ============
@@ -51,160 +51,95 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     description: 'Your daily briefing',
   },
   {
+    id: 'briefing2',
+    label: 'Briefing 2',
+    icon: WideStar,
+    filters: [],
+    description: 'Briefing with scratch pad',
+  },
+  {
     id: 'inbox',
     label: 'Inbox',
+    shortcut: 'i',
     icon: WideSignal,
-    filters: ['not-done'],
+    filters: ['signal', 'not-done'],
     sort: 'updated_at',
-    description: 'Items with outstanding notifications',
+    description: 'Items requiring attention',
+  },
+  {
+    id: 'other',
+    label: 'Other',
+    shortcut: 'o',
+    icon: WideNoise,
+    filters: ['noise', 'not-done'],
+    sort: 'updated_at',
+    description: 'Low priority items',
   },
 
-  // ============ TASK VIEWS ============
-  // For managing tasks
-
+  // ============ ENTITY TYPE FILTERS ============
+  // These match the entity type buttons in the toolbar
   {
-    id: 'my-tasks',
-    label: 'My Tasks',
+    id: 'docs',
+    label: 'Docs',
+    shortcut: 'd',
+    icon: WideFileMd,
+    filters: ['document'],
+    sort: 'updated_at',
+    description: 'Documents and notes',
+  },
+  {
+    id: 'tasks',
+    label: 'Tasks',
+    shortcut: 't',
     icon: WideTask,
     filters: ['task'],
-    contextualFilters: ['task-assigned-to-me', 'task-open'],
     sort: 'updated_at',
-    description: 'Tasks assigned to you',
-    requiresCurrentUser: true,
+    description: 'All tasks',
   },
   {
-    id: 'all-tasks',
-    label: 'All Tasks',
-    icon: WideTaskNotDone,
-    filters: ['task'],
-    contextualFilters: ['task-open'],
-    sort: 'updated_at',
-    description: 'All open tasks',
-  },
-  {
-    id: 'completed-tasks',
-    label: 'Completed',
-    icon: WideTaskDone,
-    filters: ['task'],
-    contextualFilters: ['task-completed'],
-    sort: 'updated_at',
-    description: 'Completed tasks',
-  },
-  {
-    id: 'urgent-tasks',
-    label: 'Urgent',
-    icon: WidePriorityHigh,
-    filters: ['task'],
-    contextualFilters: ['task-high-or-urgent'],
-    sort: 'updated_at',
-    description: 'High priority and urgent tasks',
-  },
-
-  // ============ EMAIL VIEWS ============
-  // For managing emails
-
-  {
-    id: 'all-mail',
-    label: 'All Mail',
+    id: 'mail',
+    label: 'Mail',
+    shortcut: 'l',
     icon: WideEmail,
     filters: ['email'],
     sort: 'updated_at',
-    description: 'All emails',
+    description: 'Email messages',
   },
   {
-    id: 'unread-mail',
-    label: 'Unread Mail',
-    icon: WideEmail,
-    filters: ['email'],
-    contextualFilters: ['email-unread'],
-    sort: 'updated_at',
-    description: 'Unread emails',
-  },
-  {
-    id: 'important-mail',
-    label: 'Important Mail',
-    icon: WidePriorityHigh,
-    filters: ['email'],
-    contextualFilters: ['email-important'],
-    sort: 'updated_at',
-    description: 'Important emails',
-  },
-  {
-    id: 'drafts',
-    label: 'Drafts',
-    icon: WideEmail,
-    filters: ['email'],
-    contextualFilters: ['email-draft'],
-    sort: 'updated_at',
-    description: 'Draft emails',
-  },
-
-  // ============ DOCUMENT VIEWS ============
-  // For managing documents
-
-  {
-    id: 'all-docs',
-    label: 'All Docs',
-    icon: WideFileMd,
-    filters: ['document'],
-    sort: 'updated_at',
-    description: 'All documents',
-  },
-  {
-    id: 'recent-docs',
-    label: 'Recent Docs',
-    icon: WideFileMd,
-    filters: ['document'],
-    contextualFilters: ['doc-recent'],
-    sort: 'updated_at',
-    description: 'Recently edited documents',
-  },
-
-  // ============ PEOPLE VIEWS ============
-  // For collaboration
-
-  {
-    id: 'messages',
-    label: 'Messages',
-    icon: WideChat,
-    filters: ['teams-and-people'],
-    sort: 'updated_at',
-    description: 'All conversations',
-  },
-  {
-    id: 'direct-messages',
-    label: 'Direct Messages',
+    id: 'people',
+    label: 'People',
+    shortcut: 'p',
     icon: WideUser,
     filters: ['people'],
     sort: 'updated_at',
-    description: 'Direct message conversations',
+    description: 'Direct messages',
   },
   {
-    id: 'team-channels',
-    label: 'Team Channels',
+    id: 'teams',
+    label: 'Teams',
+    shortcut: 'm',
     icon: WideChat,
     filters: ['teams'],
     sort: 'updated_at',
-    description: 'Team and group channels',
+    description: 'Team channels',
   },
-
-  // ============ OTHER VIEWS ============
-
   {
     id: 'agents',
     label: 'Agents',
+    shortcut: 'a',
     icon: WideStar,
     filters: ['agent'],
     sort: 'updated_at',
     description: 'AI agent conversations',
   },
   {
-    id: 'low-priority',
-    label: 'Low Priority',
-    icon: WideNoise,
-    filters: ['explicit-noise'],
+    id: 'files',
+    label: 'Files',
+    shortcut: 'f',
+    icon: WideFolder,
+    filters: ['file'],
     sort: 'updated_at',
-    description: 'Low priority items',
+    description: 'Uploaded files',
   },
 ] as const;
 
@@ -224,18 +159,12 @@ export const VIEW_GROUPS: readonly ViewGroup[] = [
   {
     id: 'top',
     label: '',
-    viewIds: ['briefing', 'inbox'],
+    viewIds: ['briefing', 'briefing2', 'inbox'],
   },
   {
     id: 'views',
     label: 'Views',
-    viewIds: [
-      'my-tasks', 'all-tasks', 'completed-tasks', 'urgent-tasks',
-      'all-mail', 'unread-mail', 'important-mail', 'drafts',
-      'all-docs', 'recent-docs',
-      'messages', 'direct-messages', 'team-channels',
-      'agents', 'low-priority',
-    ],
+    viewIds: ['other', 'docs', 'tasks', 'mail', 'people', 'teams', 'agents', 'files'],
   },
 ] as const;
 
