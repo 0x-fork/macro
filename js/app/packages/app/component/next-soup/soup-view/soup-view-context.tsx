@@ -4,6 +4,7 @@ import {
   type SoupState,
 } from '@app/component/next-soup/create-soup-state';
 import {
+  applyFilters,
   buildDssFiltersRequest,
   getFolderFileTypes,
 } from '@app/component/next-soup/filters/filters';
@@ -350,7 +351,7 @@ export const SoupViewContextProvider: FlowComponent<
     const next = [];
 
     for (const entity of transformed) {
-      if (!filters.every((f) => f.predicate(entity))) {
+      if (!applyFilters(entity, filters)) {
         continue;
       }
 

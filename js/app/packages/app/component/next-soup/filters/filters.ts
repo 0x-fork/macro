@@ -73,8 +73,65 @@ export type FilterGroup = {
 /** Filter group configurations */
 export const FILTER_GROUPS: readonly FilterGroup[] = [
   { id: 'focus', allowMultiple: false },
-  { id: 'type', allowMultiple: false },
+  { id: 'type', allowMultiple: true },
 ];
+
+/**
+ * Applies filters to an entity with proper group logic:
+ * - Filters within a group that allows multiple are combined with OR
+ * - Filters without a group or in exclusive groups use AND
+ * - Groups are combined with AND
+ *
+ * @example
+ * // If "Tasks" and "Mail" type filters are active:
+ * // Entity passes if it matches Tasks OR Mail
+ * // If "Hide Noise" focus filter is also active:
+ * // Entity passes if (Tasks OR Mail) AND (Hide Noise)
+ */
+export function applyFilters<T>(
+  entity: T,
+  filters: readonly FilterConfig<T>[]
+): boolean {
+  if (filters.length === 0) return true;
+
+  // Group filters by their group
+  const groupedFilters = new Map<string | undefined, FilterConfig<T>[]>();
+  for (const filter of filters) {
+    const group = filter.group;
+    if (!groupedFilters.has(group)) {
+      groupedFilters.set(group, []);
+    }
+    groupedFilters.get(group)!.push(filter);
+  }
+
+  // Check each group
+  for (const [group, groupFilters] of groupedFilters) {
+    if (group === undefined) {
+      // Ungrouped filters: all must pass (AND)
+      if (!groupFilters.every((f) => f.predicate(entity))) {
+        return false;
+      }
+    } else {
+      // Check if this group allows multiple selections
+      const groupConfig = FILTER_GROUPS.find((g) => g.id === group);
+      const allowMultiple = groupConfig?.allowMultiple ?? false;
+
+      if (allowMultiple) {
+        // Multiple allowed: at least one must pass (OR)
+        if (!groupFilters.some((f) => f.predicate(entity))) {
+          return false;
+        }
+      } else {
+        // Exclusive group: all must pass (AND) - though typically only one is active
+        if (!groupFilters.every((f) => f.predicate(entity))) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
 
 type EnhancedEntity = WithNotification<EntityData>;
 
