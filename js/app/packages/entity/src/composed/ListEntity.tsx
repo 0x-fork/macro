@@ -51,6 +51,7 @@ interface ListEntityProps {
     e: PointerEvent | MouseEvent,
     location?: SearchLocation
   ) => void;
+  compactPreview?: boolean;
 }
 
 interface LayoutProps {
@@ -315,6 +316,58 @@ function WideLayout(props: LayoutProps) {
   );
 }
 
+function CompactPreviewLayout(props: LayoutProps) {
+  return (
+    <Entity.Layout
+      class="w-full min-h-[inherit] items-center text-sm px-2 grid gap-2"
+      style={{
+        'grid-template-columns': '1rem 1fr',
+        'grid-template-areas': '"indicator content"',
+      }}
+    >
+      <Entity.Slot placement="indicator" class="relative size-full group">
+        <div class="absolute inset-0 grid place-items-center group-hover:opacity-0">
+          <UnreadIndicator active={props.unread} />
+        </div>
+        <div
+          class={cn(
+            'absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100',
+            {
+              'opacity-100': props.checked,
+            }
+          )}
+        >
+          <MultiSelectCheckbox
+            checked={props.checked}
+            onChecked={props.onChecked}
+          />
+        </div>
+      </Entity.Slot>
+
+      <Entity.Slot
+        placement="content"
+        class="font-semibold truncate items-center gap-2 flex"
+      >
+        <div class="size-4">
+          <Entity.Icon entity={props.entity} />
+        </div>
+        <Switch>
+          <Match when={isEmailEntity(props.entity) && props.entity}>
+            {(entity) => (
+              <span class="truncate">
+                <Entity.EmailParticipants entity={entity()} />
+              </span>
+            )}
+          </Match>
+          <Match when={props.entity}>
+            {(entity) => <Entity.Title entity={entity()} />}
+          </Match>
+        </Switch>
+      </Entity.Slot>
+    </Entity.Layout>
+  );
+}
+
 export function ListEntity(props: ListEntityProps) {
   const unread = () => unreadFilterFn(props.entity);
   const isShared = useIsShared(props.entity);
@@ -371,10 +424,19 @@ export function ListEntity(props: ListEntityProps) {
         })}
       />
 
-      <NarrowLayout {...layoutProps()} />
-      <WideLayout {...layoutProps()} />
+      <Show
+        when={props.compactPreview}
+        fallback={
+          <>
+            <NarrowLayout {...layoutProps()} />
+            <WideLayout {...layoutProps()} />
+          </>
+        }
+      >
+        <CompactPreviewLayout {...layoutProps()} />
+      </Show>
 
-      <Show when={hasNotifications()}>
+      <Show when={!props.compactPreview && hasNotifications()}>
         <div class="flex gap-2 w-full h-full items-center text-sm px-2 pb-1 -mt-2 min-w-0 overflow-hidden">
           <div class={cn('min-w-0 flex-1 truncate ml-2 @lg/entity:ml-6')}>
             <Show
@@ -392,7 +454,7 @@ export function ListEntity(props: ListEntityProps) {
         </div>
       </Show>
 
-      <Show when={isSearchEntity(props.entity)}>
+      <Show when={!props.compactPreview && isSearchEntity(props.entity)}>
         <div class="flex gap-2 w-full h-full items-center text-sm px-2 pb-1 -mt-2 min-w-0 overflow-hidden">
           <div class={cn('min-w-0 flex-1 truncate ml-4 @lg/entity:ml-6')}>
             <Entity.Search.ContentHits

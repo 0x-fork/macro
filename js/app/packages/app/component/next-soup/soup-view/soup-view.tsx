@@ -86,6 +86,13 @@ const SIDEBAR_TAB_IDS = new Set<string>([
   ...ENTITY_TYPE_FILTER_CONFIGS.map((f) => f.id),
 ]);
 
+const normalizeLegacySidebarTab = (tab: string) => {
+  if (tab === 'canvas') return 'document';
+  if (tab === 'video') return 'image';
+  if (tab === 'folder' || tab === 'code') return 'file';
+  return tab;
+};
+
 const isAllViewState = (activeFilterIds: string[], search: string) =>
   activeFilterIds.filter((id) => !IMPLICIT_ALL_VIEW_FILTERS.has(id)).length ===
     0 && search.trim().length === 0;
@@ -219,6 +226,21 @@ export const SoupViewList = (props: SoupViewListProps) => {
     HTMLElement | undefined
   >();
 
+  // Keep preview entity in sync with keyboard focus when preview mode is enabled.
+  // This ensures keyboard navigation (e.g. `j`) behaves like click-to-preview.
+  createEffect(() => {
+    if (!panel.previewState[0]()) return;
+    const focusedId = soup.focus.id();
+    if (!focusedId) {
+      if (soup.previewEntity()) {
+        soup.setPreviewEntity(undefined);
+      }
+      return;
+    }
+    if (soup.previewEntity() === focusedId) return;
+    soup.setPreviewEntity(focusedId);
+  });
+
   const focusFirstEntity = () => {
     const next = soup.navigate.toFirst();
 
@@ -234,6 +256,10 @@ export const SoupViewList = (props: SoupViewListProps) => {
       createEffect(
         on(rows, () => {
           if (!initialLoad || source.isLoading()) return;
+          if (isPreviewOpen()) {
+            initialLoad = false;
+            return;
+          }
           focusFirstEntity();
           initialLoad = false;
         })
@@ -244,6 +270,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
       on(
         () => [soup.filters.activeIds(), searchText()] as const,
         () => {
+          if (isPreviewOpen()) return;
           focusFirstEntity();
         },
         { defer: true }
@@ -356,8 +383,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
       return;
     }
 
-    if (soup.previewEntity() && type === 'entity') {
+    if (isPreviewOpen() && type === 'entity') {
       soup.focus.set(entity.id);
+      soup.setPreviewEntity(entity.id);
       return;
     }
 
@@ -499,7 +527,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     }
     soup.sort.setAll(cached.soup.sort);
 
-    const cachedTab = cached.soup.selectedSidebarTab;
+    const cachedTab = normalizeLegacySidebarTab(cached.soup.selectedSidebarTab);
     if (SIDEBAR_TAB_IDS.has(cachedTab)) {
       setSelectedSidebarTab(cachedTab as 'none' | 'all' | 'inbox' | FilterID);
     } else {
@@ -631,12 +659,13 @@ export const SoupViewList = (props: SoupViewListProps) => {
                           <ListEntity
                             entity={row.original}
                             timestamp={timestamp()}
+                            compactPreview={isPreviewOpen()}
                             highlighted={
                               panel.isPanelActive() && row.isFocused()
                             }
                             onMouseMove={() => {
                               if (isKeypressActive()) return;
-                              if (soup.previewEntity()) return;
+                              if (isPreviewOpen()) return;
                               soup.focus.set(row.original.id);
                             }}
                             showUnrollNotifications={
@@ -713,15 +742,24 @@ export const SoupViewList = (props: SoupViewListProps) => {
         />
       </Show>
       <Show when={soup.previewEntity() || panel.previewState[0]()}>
-        <PreviewPanel
-          ref={setPreviewPanelRef}
-          selectedEntity={soup.focus.item()}
-          orchestrator={orchestrator}
-          splitPanelContext={panel}
-          onFocusOut={() => {
-            soupViewRef()?.focus();
-          }}
-        />
+        <Show
+          when={soup.focus.item()}
+          fallback={
+            <div class="flex flex-row flex-1 min-w-0 h-full max-sm:h-[50%] max-sm:w-full max-sm:min-w-0 max-sm:max-w-none max-sm:border-t border-edge-muted">
+              <AllViewWelcomeState />
+            </div>
+          }
+        >
+          <PreviewPanel
+            ref={setPreviewPanelRef}
+            selectedEntity={soup.focus.item()}
+            orchestrator={orchestrator}
+            splitPanelContext={panel}
+            onFocusOut={() => {
+              soupViewRef()?.focus();
+            }}
+          />
+        </Show>
       </Show>
     </div>
   );

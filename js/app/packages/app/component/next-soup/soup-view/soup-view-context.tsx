@@ -106,9 +106,9 @@ export const SoupViewContextProvider: FlowComponent<
   const emailActive = useEmailLinksStatus();
 
   const [searchText, setSearchText] = createSignal('');
-  const [emailView, setEmailView] = createSignal<'all' | 'inbox' | 'drafts' | 'sent'>(
-    'all'
-  );
+  const [emailView, setEmailView] = createSignal<
+    'all' | 'inbox' | 'drafts' | 'sent'
+  >('all');
   const [selectedSidebarTab, setSelectedSidebarTab] = createSignal<
     'none' | 'all' | 'inbox' | FilterID
   >('none');

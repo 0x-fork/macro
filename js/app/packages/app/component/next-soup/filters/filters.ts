@@ -219,7 +219,7 @@ export const SOUP_FILTERS = [
   },
   {
     id: 'messages',
-    label: 'Messages',
+    label: 'Msgs',
     predicate: messagesFilter,
     group: 'type',
   },
