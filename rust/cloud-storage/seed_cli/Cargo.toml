@@ -27,6 +27,7 @@ email_db_client = { path = "../email_db_client" }
 models_email = { path = "../models_email" }
 chrono = { workspace = true }
 rand = { workspace = true }
+futures = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

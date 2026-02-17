@@ -8046,6 +8046,7 @@ dependencies = [
  "csv",
  "email_db_client",
  "fusionauth",
+ "futures",
  "macro_entrypoint",
  "macro_env",
  "macro_env_var",

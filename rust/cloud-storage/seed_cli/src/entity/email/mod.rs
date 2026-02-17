@@ -12,10 +12,13 @@ mod test;
 mod sample_bodies;
 
 use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::Context;
 use chrono::{DateTime, Duration, Utc};
 use clap::{Args, Subcommand};
+use futures::stream::{self, StreamExt};
 use models_email::email::service::address::ContactInfo;
 use models_email::email::service::label::{
     Label, LabelListVisibility, LabelType, MessageListVisibility,
@@ -41,14 +44,14 @@ pub struct EmailArgs {
 #[derive(Debug, Subcommand)]
 pub enum EmailCommand {
     /// Generate a JSON file of randomized email seed data
-    Generate(GenerateArgs),
+    BulkGenerate(BulkGenerateArgs),
     /// Import email data from a JSON file into the database
-    Import(ImportArgs),
+    BulkCreate(BulkCreateArgs),
 }
 
 /// Arguments for generating random email data.
 #[derive(Debug, Args)]
-pub struct GenerateArgs {
+pub struct BulkGenerateArgs {
     /// The user ID (fusionauth) to generate emails for
     #[arg(long)]
     pub user_id: String,
@@ -61,17 +64,20 @@ pub struct GenerateArgs {
     /// Max messages per thread (actual count is random between 1 and this value)
     #[arg(long, default_value = "10")]
     pub max_messages_per_thread: u32,
-    /// Output file name for the generated JSON (written to src/entity/email/generated_output/)
-    #[arg(long, default_value = "seed_emails.json")]
+    /// Output file name for the generated JSON (written to seed_cli/seed/)
+    #[arg(long, default_value = "emails.json")]
     pub output: String,
 }
 
 /// Arguments for importing email data from a file.
 #[derive(Debug, Args)]
-pub struct ImportArgs {
+pub struct BulkCreateArgs {
     /// Path to the JSON file containing email data to import
     #[arg(long)]
     pub file_path: String,
+    /// Max concurrent database insertions
+    #[arg(long, default_value = "95")]
+    pub concurrency: usize,
 }
 
 /// The top-level seed data structure that gets serialized to JSON.
@@ -136,10 +142,8 @@ pub struct SeedMessage {
     pub to: Vec<ContactInfo>,
     /// CC recipients
     pub cc: Vec<ContactInfo>,
-    /// Plaintext body
-    pub body_text: Option<String>,
-    /// HTML body
-    pub body_html: Option<String>,
+    /// Sample body template name (references a file in sample_bodies/)
+    pub body_template: String,
     /// Label provider IDs to apply to this message
     pub label_ids: Vec<String>,
 }
@@ -207,18 +211,18 @@ impl EmailArgs {
     /// Execute the email command.
     pub async fn execute(self, ctx: SeedCliContext) -> anyhow::Result<()> {
         match self.command {
-            EmailCommand::Generate(args) => generate(args).await,
-            EmailCommand::Import(args) => import(args, ctx).await,
+            EmailCommand::BulkGenerate(args) => bulk_generate(args).await,
+            EmailCommand::BulkCreate(args) => bulk_create(args, ctx).await,
         }
     }
 }
 
 #[tracing::instrument(err)]
-async fn generate(args: GenerateArgs) -> anyhow::Result<()> {
+async fn bulk_generate(args: BulkGenerateArgs) -> anyhow::Result<()> {
     tracing::info!("generating email seed data");
 
     let mut rng = rand::rng();
-    let bodies = sample_bodies::load_sample_bodies();
+    let template_names = sample_bodies::TEMPLATE_NAMES;
 
     let labels: Vec<SeedLabel> = SYSTEM_LABELS
         .iter()
@@ -237,19 +241,26 @@ async fn generate(args: GenerateArgs) -> anyhow::Result<()> {
 
     let mut threads = Vec::with_capacity(args.thread_count as usize);
     let now = Utc::now();
+    let earliest = DateTime::parse_from_rfc3339("2020-01-01T00:00:00Z")
+        .expect("valid date")
+        .with_timezone(&Utc);
+    let total_seconds = (now - earliest).num_seconds();
 
     for i in 0..args.thread_count {
         let message_count = rng.random_range(1..=args.max_messages_per_thread);
         let is_read = rng.random_bool(0.6);
         let subject = SUBJECTS[rng.random_range(0..SUBJECTS.len())].to_string();
 
-        // Pick a base time going backwards from now, older threads further back
-        let thread_base_time =
-            now - Duration::hours((args.thread_count - i) as i64 * 24 + rng.random_range(0..12));
+        // Spread threads evenly across [earliest, now], with some jitter
+        let fraction = i as f64 / args.thread_count.max(1) as f64;
+        let base_offset = (fraction * total_seconds as f64) as i64;
+        let jitter = rng.random_range(0..total_seconds / args.thread_count.max(1) as i64);
+        let thread_base_time = earliest + Duration::seconds(base_offset + jitter);
 
         let mut messages = Vec::with_capacity(message_count as usize);
 
         for j in 0..message_count {
+            // Space messages within the thread by 5 minutes to 2 hours
             let msg_time =
                 thread_base_time + Duration::minutes(j as i64 * rng.random_range(5..120));
             let is_sent_by_owner = rng.random_bool(0.3);
@@ -279,7 +290,8 @@ async fn generate(args: GenerateArgs) -> anyhow::Result<()> {
                 (sender, to_list, cc_contacts)
             };
 
-            let (body_text, body_html) = &bodies[rng.random_range(0..bodies.len())];
+            let body_template =
+                template_names[rng.random_range(0..template_names.len())].to_string();
 
             // Build label set for this message
             let mut label_ids = Vec::new();
@@ -301,14 +313,10 @@ async fn generate(args: GenerateArgs) -> anyhow::Result<()> {
                 }
             }
 
-            let snippet = body_text
-                .as_ref()
-                .map(|t| t.chars().take(100).collect::<String>());
-
             messages.push(SeedMessage {
                 provider_id: random_hex_id(&mut rng),
                 subject: Some(subject.clone()),
-                snippet,
+                snippet: None,
                 sent_at: msg_time,
                 is_read: is_read || j < message_count - 1, // older messages in thread are read
                 is_starred: rng.random_bool(0.1),
@@ -316,8 +324,7 @@ async fn generate(args: GenerateArgs) -> anyhow::Result<()> {
                 from,
                 to,
                 cc,
-                body_text: body_text.clone(),
-                body_html: body_html.clone(),
+                body_template,
                 label_ids,
             });
         }
@@ -342,8 +349,7 @@ async fn generate(args: GenerateArgs) -> anyhow::Result<()> {
 
     let json = serde_json::to_string_pretty(&seed_data).context("failed to serialize seed data")?;
 
-    let output_dir =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/entity/email/generated_output");
+    let output_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("seed");
     std::fs::create_dir_all(&output_dir).with_context(|| {
         format!(
             "failed to create output directory: {}",
@@ -365,7 +371,7 @@ async fn generate(args: GenerateArgs) -> anyhow::Result<()> {
 }
 
 #[tracing::instrument(skip(ctx), err)]
-async fn import(args: ImportArgs, ctx: SeedCliContext) -> anyhow::Result<()> {
+async fn bulk_create(args: BulkCreateArgs, ctx: SeedCliContext) -> anyhow::Result<()> {
     tracing::info!("importing email seed data");
 
     let content = std::fs::read_to_string(Path::new(&args.file_path))
@@ -415,123 +421,157 @@ async fn import(args: ImportArgs, ctx: SeedCliContext) -> anyhow::Result<()> {
     ctx.db.insert_email_labels(labels).await?;
     println!("Created {} labels", seed_data.labels.len());
 
-    // 3. Insert threads with messages
-    let mut created = 0;
-    let mut failed = 0;
+    // 3. Insert threads with messages concurrently
+    let created = Arc::new(AtomicU32::new(0));
+    let failed = Arc::new(AtomicU32::new(0));
+    let db = Arc::new(ctx.db);
+    let bodies = Arc::new(sample_bodies::load_sample_bodies());
 
-    for seed_thread in &seed_data.threads {
-        let thread_id = Uuid::now_v7();
-        let latest_sent_at = seed_thread.messages.last().map(|m| m.sent_at);
-        let latest_inbound = seed_thread
-            .messages
-            .iter()
-            .rev()
-            .find(|m| !m.is_sent)
-            .map(|m| m.sent_at);
-        let latest_outbound = seed_thread
-            .messages
-            .iter()
-            .rev()
-            .find(|m| m.is_sent)
-            .map(|m| m.sent_at);
+    stream::iter(seed_data.threads.iter().map(|seed_thread| {
+        let db = Arc::clone(&db);
+        let created = Arc::clone(&created);
+        let failed = Arc::clone(&failed);
+        let bodies = Arc::clone(&bodies);
 
-        let messages: Vec<Message> = seed_thread
-            .messages
-            .iter()
-            .map(|m| {
-                let msg_labels: Vec<Label> = m
-                    .label_ids
-                    .iter()
-                    .map(|lid| Label {
-                        id: None,
-                        link_id,
-                        provider_label_id: lid.clone(),
-                        name: Some(lid.clone()),
-                        created_at: now,
-                        message_list_visibility: None,
-                        label_list_visibility: None,
-                        type_: None,
-                    })
-                    .collect();
-
-                Message {
-                    db_id: Uuid::now_v7(),
-                    provider_id: Some(m.provider_id.clone()),
-                    thread_db_id: thread_id,
-                    provider_thread_id: Some(seed_thread.provider_id.clone()),
-                    replying_to_id: None,
-                    global_id: None,
-                    link_id,
-                    subject: m.subject.clone(),
-                    snippet: m.snippet.clone(),
-                    provider_history_id: None,
-                    internal_date_ts: Some(m.sent_at),
-                    sent_at: Some(m.sent_at),
-                    size_estimate: None,
-                    is_read: m.is_read,
-                    is_starred: m.is_starred,
-                    is_sent: m.is_sent,
-                    is_draft: false,
-                    scheduled_send_time: None,
-                    has_attachments: false,
-                    from: Some(m.from.clone()),
-                    to: m.to.clone(),
-                    cc: m.cc.clone(),
-                    bcc: vec![],
-                    labels: msg_labels,
-                    body_text: m.body_text.clone(),
-                    body_html_sanitized: m.body_html.clone(),
-                    body_macro: None,
-                    attachments: vec![],
-                    attachments_draft: vec![],
-                    attachments_forwarded: vec![],
-                    headers_json: None,
-                    created_at: m.sent_at,
-                    updated_at: m.sent_at,
-                }
-            })
-            .collect();
-
-        let thread = Thread {
-            db_id: thread_id,
-            provider_id: Some(seed_thread.provider_id.clone()),
-            link_id,
-            inbox_visible: seed_thread.inbox_visible,
-            is_read: seed_thread.is_read,
-            latest_inbound_message_ts: latest_inbound,
-            latest_outbound_message_ts: latest_outbound,
-            latest_non_spam_message_ts: latest_sent_at,
-            created_at: seed_thread
+        async move {
+            let thread = build_thread(seed_thread, link_id, now, &bodies);
+            let subject_label = seed_thread
                 .messages
                 .first()
-                .map(|m| m.sent_at)
-                .unwrap_or(now),
-            updated_at: latest_sent_at.unwrap_or(now),
-            messages,
-        };
+                .and_then(|m| m.subject.as_deref())
+                .unwrap_or("<no subject>")
+                .to_string();
 
-        let subject_label = seed_thread
-            .messages
-            .first()
-            .and_then(|m| m.subject.as_deref())
-            .unwrap_or("<no subject>");
-
-        match ctx.db.insert_email_thread(thread, link_id).await {
-            Ok(id) => {
-                println!("Created thread \"{subject_label}\" with id {id}");
-                created += 1;
-            }
-            Err(e) => {
-                tracing::error!(error=?e, subject = subject_label, "failed to create thread");
-                println!("Failed to create thread \"{subject_label}\": {e}");
-                failed += 1;
+            match db.insert_email_thread(thread, link_id).await {
+                Ok(id) => {
+                    println!("Created thread \"{subject_label}\" with id {id}");
+                    created.fetch_add(1, Ordering::Relaxed);
+                }
+                Err(e) => {
+                    tracing::error!(error=?e, subject = subject_label, "failed to create thread");
+                    println!("Failed to create thread \"{subject_label}\": {e}");
+                    failed.fetch_add(1, Ordering::Relaxed);
+                }
             }
         }
-    }
+    }))
+    .buffer_unordered(args.concurrency)
+    .collect::<Vec<()>>()
+    .await;
+
+    let created = created.load(Ordering::Relaxed);
+    let failed = failed.load(Ordering::Relaxed);
 
     println!("\nImport complete: {created} threads created, {failed} failed");
 
     Ok(())
+}
+
+/// Build a `Thread` from seed data for insertion.
+fn build_thread(
+    seed_thread: &SeedThread,
+    link_id: Uuid,
+    now: DateTime<Utc>,
+    bodies: &std::collections::HashMap<String, sample_bodies::SampleBody>,
+) -> Thread {
+    let thread_id = Uuid::now_v7();
+    let latest_sent_at = seed_thread.messages.last().map(|m| m.sent_at);
+    let latest_inbound = seed_thread
+        .messages
+        .iter()
+        .rev()
+        .find(|m| !m.is_sent)
+        .map(|m| m.sent_at);
+    let latest_outbound = seed_thread
+        .messages
+        .iter()
+        .rev()
+        .find(|m| m.is_sent)
+        .map(|m| m.sent_at);
+
+    let messages: Vec<Message> = seed_thread
+        .messages
+        .iter()
+        .map(|m| {
+            let msg_labels: Vec<Label> = m
+                .label_ids
+                .iter()
+                .map(|lid| Label {
+                    id: None,
+                    link_id,
+                    provider_label_id: lid.clone(),
+                    name: Some(lid.clone()),
+                    created_at: now,
+                    message_list_visibility: None,
+                    label_list_visibility: None,
+                    type_: None,
+                })
+                .collect();
+
+            let (body_text, body_html) = bodies
+                .get(&m.body_template)
+                .map(|(t, h)| (Some(t.clone()), Some(h.clone())))
+                .unwrap_or((None, None));
+
+            let snippet = body_text
+                .as_ref()
+                .map(|t| t.chars().take(100).collect::<String>());
+
+            Message {
+                db_id: Uuid::now_v7(),
+                provider_id: Some(m.provider_id.clone()),
+                thread_db_id: thread_id,
+                provider_thread_id: Some(seed_thread.provider_id.clone()),
+                replying_to_id: None,
+                global_id: None,
+                link_id,
+                subject: m.subject.clone(),
+                snippet,
+                provider_history_id: None,
+                internal_date_ts: Some(m.sent_at),
+                sent_at: Some(m.sent_at),
+                size_estimate: None,
+                is_read: m.is_read,
+                is_starred: m.is_starred,
+                is_sent: m.is_sent,
+                is_draft: false,
+                scheduled_send_time: None,
+                has_attachments: false,
+                from: Some(m.from.clone()),
+                to: m.to.clone(),
+                cc: m.cc.clone(),
+                bcc: vec![],
+                labels: msg_labels,
+                body_text,
+                body_html_sanitized: body_html,
+                body_macro: None,
+                attachments: vec![],
+                attachments_draft: vec![],
+                attachments_forwarded: vec![],
+                headers_json: None,
+                created_at: m.sent_at,
+                updated_at: m.sent_at,
+            }
+        })
+        .collect();
+
+    Thread {
+        db_id: thread_id,
+        provider_id: Some(seed_thread.provider_id.clone()),
+        link_id,
+        inbox_visible: seed_thread.inbox_visible,
+        is_read: seed_thread.is_read,
+        latest_inbound_message_ts: latest_inbound,
+        latest_outbound_message_ts: latest_outbound,
+        latest_non_spam_message_ts: latest_sent_at,
+        created_at: seed_thread
+            .messages
+            .first()
+            .map(|m| m.sent_at)
+            .unwrap_or(now),
+        updated_at: latest_sent_at.unwrap_or(now),
+        messages,
+    }
 }
 
 fn make_contact(contact: (&str, &str)) -> ContactInfo {
