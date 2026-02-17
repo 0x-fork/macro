@@ -9,7 +9,9 @@ pub use SeedDb as Db;
 use mockall::automock;
 
 use comms_db_client::channels::create_channel::CreateChannelOptions;
+use comms_db_client::channels::seed_channel::SeedChannelOptions;
 use comms_db_client::messages::create_message::CreateMessageOptions;
+use comms_db_client::messages::seed_message::SeedMessageOptions;
 use models_email::email::service;
 
 /// Wrapper around the database connection pool.
@@ -36,6 +38,14 @@ impl SeedDb {
         Ok(id)
     }
 
+    /// Seed a channel with a pre-defined UUID.
+    #[tracing::instrument(skip(self), err)]
+    pub async fn seed_channel(&self, options: SeedChannelOptions) -> anyhow::Result<uuid::Uuid> {
+        let id =
+            comms_db_client::channels::seed_channel::seed_channel(&self.inner, options).await?;
+        Ok(id)
+    }
+
     /// Create a message in the database.
     #[tracing::instrument(skip(self), err)]
     pub async fn create_message(
@@ -44,6 +54,14 @@ impl SeedDb {
     ) -> anyhow::Result<uuid::Uuid> {
         let message =
             comms_db_client::messages::create_message::create_message(&self.inner, options).await?;
+        Ok(message.id)
+    }
+
+    /// Seed a message with a pre-defined UUID.
+    #[tracing::instrument(skip(self), err)]
+    pub async fn seed_message(&self, options: SeedMessageOptions) -> anyhow::Result<uuid::Uuid> {
+        let message =
+            comms_db_client::messages::seed_message::seed_message(&self.inner, options).await?;
         Ok(message.id)
     }
 

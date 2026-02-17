@@ -17,7 +17,6 @@ import {
 } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
-import { useElementItemCount } from '@app/component/next-soup/use-element-item-count';
 import { registerPreviewEntity } from '@app/signal/splitLayout';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { fileTypeToResolvedBlockName } from '@core/constant/allBlocks';
@@ -77,8 +76,6 @@ import { isMobile } from '@core/mobile/isMobile';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { usePropertyEditorHotkeys } from '@app/component/property-edit-modal/hooks/usePropertyEditorHotkeys';
 import type { SoupItemsQueryFilters } from '@queries/soup/items';
-
-const DEFAULT_ENTITY_HEIGHT = 40;
 
 const useSoupNotificationInvalidators = () => {
   const notificationSource = useGlobalNotificationSource();
@@ -305,7 +302,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     if (source.isFetchingNextPage() || !source.hasNextPage()) return;
 
     source.fetchNextPage();
-  });
+  }, 15);
 
   const orchestrator = useGlobalBlockOrchestrator();
 
@@ -411,24 +408,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
     }
   });
 
-  const [listRef, setListRef] = createSignal<HTMLDivElement>();
-
-  const viewportItemCount = useElementItemCount({
-    element: listRef,
-    itemHeight: DEFAULT_ENTITY_HEIGHT,
-  });
-
-  // Fetch more data if we filter out more items than the viewport can display
-  // because it's possible that the match exists on the server
-  createEffect(
-    on([rows, viewportItemCount], ([rows, viewportItemCount]) => {
-      if (rows.length >= viewportItemCount || source.isFetching()) return;
-      debouncedFetchMore();
-    })
-  );
-
-  onCleanup(() => debouncedFetchMore.clear());
-
   const [localEntityListRef, setLocalEntityListRef] = createSignal<
     HTMLDivElement | undefined
   >();
@@ -527,7 +506,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
       data-soup-view-id={panel.handle.id + (previewPanel ? '-preview' : '')}
     >
       <div
-        ref={setListRef}
         class="@container/uList size-full unified-list-root flex flex-col"
         classList={{
           'border-r border-edge-muted': soup.previewEntity() !== undefined,
@@ -579,6 +557,10 @@ export const SoupViewList = (props: SoupViewListProps) => {
                           return row.original.updatedAt;
                       }
                     };
+
+                    if (i() === Math.floor(rows().length * 0.8)) {
+                      debouncedFetchMore();
+                    }
 
                     return (
                       <EntityRow
