@@ -16,7 +16,7 @@ run:
 
 ```bash
 just run_dbs
-just init_local_dbs
+just setup_local_dbs
 just infra/stacks/fusionauth-instance/setup
 ```
 

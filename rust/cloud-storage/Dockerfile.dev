@@ -6,7 +6,7 @@ FROM chef AS builder
 COPY . .
 
 # Build ALL standard service binaries at once
-RUN cargo build \
+RUN CARGO_BUILD_JOBS=5 cargo build \
     --bin authentication_service \
     --bin connection_gateway_service \
     --bin contacts_service \
