@@ -198,11 +198,15 @@ export const SoupViewList = (props: SoupViewListProps) => {
     HTMLElement | undefined
   >();
 
+  const debouncedScrollTo = debounce((index: number) => {
+    virtualizerHandle()?.scrollToIndex(index, { align: 'auto' });
+  }, 50);
+
   const focusFirstEntity = () => {
     const next = soup.navigate.toFirst();
 
     if (next) {
-      virtualizerHandle()?.scrollToIndex(next.index, { align: 'auto' });
+      debouncedScrollTo(next.index);
     }
   };
 
