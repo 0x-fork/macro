@@ -48,8 +48,8 @@ import {
   type Accessor,
   createEffect,
   createMemo,
-  createRenderEffect,
   createSignal,
+  For,
   type JSX,
   Match,
   on,
@@ -58,8 +58,6 @@ import {
   Suspense,
   Switch,
 } from 'solid-js';
-import { createStore, reconcile } from 'solid-js/store';
-import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { SoupToolbar } from './soup-toolbar';
 import { useUserId } from '@core/context/user';
@@ -68,7 +66,6 @@ import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-vi
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { invalidateEntityNotifications } from '@queries/notification/user-notifications';
 import { soupKeys } from '@queries/soup/keys';
-import type { CacheSnapshot } from 'virtua/unstable_core';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
 import { SoupChatInput } from '@app/component/SoupChatInput';
 import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
@@ -76,6 +73,15 @@ import { isMobile } from '@core/mobile/isMobile';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { usePropertyEditorHotkeys } from '@app/component/property-edit-modal/hooks/usePropertyEditorHotkeys';
 import type { SoupItemsQueryFilters } from '@queries/soup/items';
+import {
+  createVirtualizer,
+  type VirtualItem,
+  type Virtualizer,
+} from '@tanstack/solid-virtual';
+import { onMount } from 'solid-js';
+import { CircleSpinner } from '@core/component/CircleSpinner';
+
+type SoupVirutalizer = Virtualizer<HTMLElement, Element>;
 
 const useSoupNotificationInvalidators = () => {
   const notificationSource = useGlobalNotificationSource();
@@ -124,7 +130,7 @@ const stateCache = new Map<
       sort: SystemSortOption[];
       searchText: string;
     };
-    virtualCache?: CacheSnapshot;
+    virtualCache?: VirtualItem[];
     scrollOffset?: number;
   }
 >();
@@ -184,7 +190,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
   const { isKeypressActive } = useIsKeyPressActive();
 
   const [virtualizerHandle, setVirtualizerHandle] =
-    createSignal<VirtualizerHandle>();
+    createSignal<SoupVirutalizer>();
 
   const [soupViewRef, setSoupViewRef] = createSignal<HTMLElement | undefined>();
 
@@ -196,7 +202,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     const next = soup.navigate.toFirst();
 
     if (next) {
-      virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
+      virtualizerHandle()?.scrollToIndex(next.index, { align: 'auto' });
     }
   };
 
@@ -466,8 +472,8 @@ export const SoupViewList = (props: SoupViewListProps) => {
         sort: soup.sort.active().map((s) => s.id),
         searchText: searchText(),
       },
-      virtualCache: virtualHandle?.cache,
-      scrollOffset: virtualHandle?.scrollOffset,
+      virtualCache: virtualHandle?.measurementsCache ?? [],
+      scrollOffset: virtualHandle?.scrollOffset ?? 0,
     });
   });
 
@@ -494,13 +500,11 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
     soup.sort.setAll(cached.soup.sort);
 
-    virtualizerHandle()?.scrollTo(cached.scrollOffset ?? 0);
+    virtualizerHandle()?.scrollToOffset(cached.scrollOffset ?? 0);
     registerFocusEffects(false);
   };
 
-  const registerVirtualizerHandler = (
-    handle: VirtualizerHandle | undefined
-  ) => {
+  const registerVirtualizerHandler = (handle: SoupVirutalizer | undefined) => {
     setVirtualizerHandle(handle);
 
     restoreState();
@@ -559,7 +563,14 @@ export const SoupViewList = (props: SoupViewListProps) => {
                   class="overflow-hidden flex min-w-0"
                   virtualizerRef={registerVirtualizerHandler}
                   onScrollBottom={debouncedFetchMore}
+                  scrollBottomOffset={300}
                   rows={rows()}
+                  bottomContent={
+                    <div class="w-full flex items-center gap-2 py-2 px-7">
+                      <CircleSpinner />
+                      <span class="text-sm font-semibold">Loading...</span>
+                    </div>
+                  }
                 >
                   {(row, i) => {
                     const timestamp = () => {
@@ -707,12 +718,12 @@ export const SoupViewList = (props: SoupViewListProps) => {
   );
 };
 
-const DEFAULT_ITEM_SIZE = 10;
-const DEFAULT_OVERSCAN = 5;
+const DEFAULT_ITEM_SIZE = 40;
+const DEFAULT_OVERSCAN = 25;
 
 interface SoupListProps {
   ref?: (el: HTMLElement) => void;
-  virtualizerRef?: (handle: VirtualizerHandle) => void;
+  virtualizerRef?: (handle: SoupVirutalizer) => void;
   class?: string;
   virtualizerClass?: string;
   itemSize?: number;
@@ -721,62 +732,151 @@ interface SoupListProps {
   onScrollBottom?: VoidFunction;
   scrollBottomOffset?: number;
   rows: SoupRow[];
-  cache?: CacheSnapshot;
+  cache?: VirtualItem[];
+  bottomContent?: JSX.Element;
 }
 
 const SoupList = (props: SoupListProps) => {
-  const [virtualizerHandle, setVirtualizerHandle] =
-    createSignal<VirtualizerHandle>();
-
   const itemSize = createMemo(() => props.itemSize ?? DEFAULT_ITEM_SIZE);
   const overscan = createMemo(() => props.overscan ?? DEFAULT_OVERSCAN);
 
-  const [stableRows, setStableRows] = createStore<SoupRow[]>([]);
+  const [scrollElement, setScrollElement] = createSignal<HTMLElement>();
 
-  createRenderEffect(() => {
-    setStableRows(reconcile(props.rows, { key: 'id' }));
+  const virtualizer = createVirtualizer({
+    getScrollElement() {
+      return scrollElement() ?? null;
+    },
+    get count() {
+      return props.rows.length;
+    },
+    initialMeasurementsCache: props.cache,
+    estimateSize() {
+      return itemSize();
+    },
+    overscan: overscan(),
+    getItemKey(index) {
+      return props.rows[index]?.id ?? index;
+    },
+    initialRect: {
+      width: 1920,
+      height: 1080,
+    },
+    // useAnimationFrameWithResizeObserver: true,
   });
 
-  const handleScroll = (offset: number) => {
-    const handle = virtualizerHandle();
+  props.virtualizerRef?.(virtualizer);
 
-    if (!handle) return;
+  const handleScroll = (e: Event) => {
+    const target = e.currentTarget;
 
-    if (
-      handle.scrollSize - handle.viewportSize - offset <=
-      (props.scrollBottomOffset ?? 100)
-    ) {
+    if (!(target instanceof HTMLElement)) return;
+
+    const offset = target.scrollTop;
+    const height = target.clientHeight;
+    const scrollHeight = target.scrollHeight;
+
+    if (scrollHeight - height - offset <= (props.scrollBottomOffset ?? 100)) {
       props.onScrollBottom?.();
     }
   };
 
-  const registerVirtualizerHandler = (
-    handle: VirtualizerHandle | undefined
-  ) => {
-    setVirtualizerHandle(handle);
+  let io: IntersectionObserver | undefined;
 
-    if (handle) {
-      props.virtualizerRef?.(handle);
-    }
+  const initializeIntersectionObserver = (element: HTMLElement) => {
+    if (io) return;
+
+    io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+
+          props.onScrollBottom?.();
+          break;
+        }
+      },
+      {
+        root: element,
+      }
+    );
+  };
+
+  onCleanup(() => {
+    io?.disconnect();
+  });
+
+  const registerViewportElement = (element: HTMLElement) => {
+    props.ref?.(element);
+    initializeIntersectionObserver(element);
   };
 
   return (
     <div
-      ref={props.ref}
-      class={cn('unified-table-body size-full relative', props.class)}
+      ref={registerViewportElement}
+      class={cn(
+        'unified-table-body size-full relative overflow-hidden',
+        props.class
+      )}
     >
-      <VList
-        cache={props.cache}
-        ref={registerVirtualizerHandler}
-        class={props.virtualizerClass}
-        data={stableRows}
-        itemSize={itemSize()}
-        bufferSize={overscan() * itemSize()}
+      <div
+        ref={(el) => {
+          onMount(() => {
+            setScrollElement(el);
+            queueMicrotask(() => {
+              virtualizer._willUpdate();
+            });
+          });
+        }}
+        class="relative size-full overflow-auto"
         onScroll={handleScroll}
-        data-soup-list-container
       >
-        {(row, i) => props.children(row, i)}
-      </VList>
+        <div
+          class="size-full relative"
+          data-soup-list-container
+          style={{
+            // contain: 'strict',
+            // transform: `translateY(${virtualizer.getVirtualItems()[0]?.start}px)`,
+            height: `${virtualizer.getTotalSize()}px`,
+          }}
+        >
+          <For each={virtualizer.getVirtualItems()}>
+            {(virtual) => {
+              const row = createMemo(() => {
+                return props.rows[virtual.index];
+              });
+
+              return (
+                <Show when={row()}>
+                  <div
+                    ref={(el) => {
+                      onMount(() => {
+                        virtualizer.measureElement(el);
+                      });
+                    }}
+                    data-index={virtual.index}
+                    class="w-full max-h-min absolute top-0 left-0"
+                    style={{
+                      contain: 'strict',
+                      transform: `translateY(${virtual.start}px)`,
+                      'min-height': `${virtual.size}px`,
+                    }}
+                  >
+                    {props.children(row(), () => virtual.index)}
+                  </div>
+                </Show>
+              );
+            }}
+          </For>
+        </div>
+        {props.bottomContent}
+        <div
+          class="w-full h-2 bg-red"
+          ref={(el) => {
+            onMount(() => {
+              io?.observe(el);
+            });
+          }}
+        />
+      </div>
     </div>
   );
 };

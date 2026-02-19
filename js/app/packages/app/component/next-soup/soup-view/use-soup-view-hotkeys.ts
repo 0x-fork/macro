@@ -21,16 +21,16 @@ import {
 } from '@core/hotkey/utils';
 import { isSearchEntity } from '@entity';
 import type { Accessor } from 'solid-js';
-import type { VirtualizerHandle } from 'virtua/solid';
 import type { SoupState } from '../create-soup-state';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
+import type { Virtualizer } from '@tanstack/solid-virtual';
 
 type UseSoupViewHotkeysOptions = {
   splitId: string;
   scopeId: string;
   soup: SoupState;
   splitHandle: SplitHandle;
-  virtualizerHandle: Accessor<VirtualizerHandle | undefined>;
+  virtualizerHandle: Accessor<Virtualizer<HTMLElement, Element> | undefined>;
   previewState: Accessor<boolean>;
   getSplitCount: () => number;
 };
@@ -56,7 +56,7 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     keyDownHandler: () => {
       const next = soup.navigate.toFirst();
       if (next) {
-        virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
+        virtualizerHandle()?.scrollToIndex(next.index, { align: 'auto' });
       }
       return true;
     },
@@ -80,7 +80,7 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     keyDownHandler: () => {
       const next = soup.navigate.toFirst();
       if (next) {
-        virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
+        virtualizerHandle()?.scrollToIndex(next.index, { align: 'auto' });
       }
       return true;
     },
@@ -95,7 +95,7 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     keyDownHandler: () => {
       const next = soup.navigate.toLast();
       if (next) {
-        virtualizerHandle()?.scrollToIndex(next.index, { align: 'nearest' });
+        virtualizerHandle()?.scrollToIndex(next.index, { align: 'auto' });
       }
       return true;
     },

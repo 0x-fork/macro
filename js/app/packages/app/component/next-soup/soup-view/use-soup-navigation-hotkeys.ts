@@ -1,5 +1,4 @@
 import { TOKENS } from '@core/hotkey/tokens';
-import type { VirtualizerHandle } from 'virtua/solid';
 import type { Accessor } from 'solid-js';
 import type { SoupState } from '../create-soup-state';
 import { useMaybePreviewPanel } from '@app/component/PreviewPanel';
@@ -7,17 +6,15 @@ import { registerHotkey } from '@core/hotkey/hotkeys';
 import type { SplitHandle } from '@app/component/split-layout/layoutManager';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import type { EntityData } from '@entity';
+import type { Virtualizer } from '@tanstack/solid-virtual';
 
-const DEFAULT_ENTITY_SIZE = 40;
 const CONTEXT_ENTITIES_COUNT = 3;
-
-const CONTEXT_OFFSET = DEFAULT_ENTITY_SIZE * CONTEXT_ENTITIES_COUNT;
 
 type UseSoupNavigationHotkeysOptions = {
   scopeId: string;
   soup: SoupState;
   splitHandle: SplitHandle;
-  virtualizerHandle: Accessor<VirtualizerHandle | undefined>;
+  virtualizerHandle: Accessor<Virtualizer<HTMLElement, Element> | undefined>;
   previewPanelRef: Accessor<HTMLElement | undefined>;
 };
 
@@ -33,19 +30,22 @@ export const useSoupNavigationHotkeys = (
 
     // We add some space between the top and bottom when scrolling up/down
 
-    const scrollOffset = handle.getItemOffset(index);
-
     // How many items should we show above/below the index we want to scroll to
     let contextOffset = CONTEXT_ENTITIES_COUNT;
 
+    const scrollOffset =
+      handle.getOffsetForIndex(index - contextOffset)?.[0] ?? 0;
+
     // If we're going to end up scrolling out of the top of scroll area,
     // we set our offset to be negative
-    if (scrollOffset - CONTEXT_OFFSET < handle.scrollOffset) {
+    if (scrollOffset < (handle.scrollOffset ?? 0)) {
       contextOffset *= -1;
     }
 
-    virtualizerHandle()?.scrollToIndex(index + contextOffset, {
-      align: 'nearest',
+    requestAnimationFrame(() => {
+      virtualizerHandle()?.scrollToIndex(index + contextOffset, {
+        align: 'auto',
+      });
     });
   };
 
