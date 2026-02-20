@@ -75,8 +75,6 @@ interface SoupViewContextValues {
   setStatusFilter: Setter<string | undefined>;
   assigneeFilter: Accessor<string | undefined>;
   setAssigneeFilter: Setter<string | undefined>;
-  emailView: Accessor<string | undefined>;
-  setEmailView: Setter<string | undefined>;
 }
 
 export const SoupViewContext = createContext<SoupViewContextValues>();
@@ -104,8 +102,6 @@ export const SoupViewContextProvider: FlowComponent<
   SoupViewContextProviderProps
 > = (props) => {
   const soup = props.soup ?? createSoupState();
-  const [emailView, setEmailView] = createSignal<string>('all');
-
   const soupParams = createMemo(
     (): SoupParams => ({
       limit: 100,
@@ -161,7 +157,7 @@ export const SoupViewContextProvider: FlowComponent<
   const soupBody = createMemo(
     (): SoupBody => ({
       ...queryFilters(),
-      emailView: emailView(),
+      emailView: 'all',
     })
   );
 
@@ -355,8 +351,6 @@ export const SoupViewContextProvider: FlowComponent<
     isLocalSearchSettling: search.isLocalSearchSettling,
     queryFilters,
     setQueryFilters,
-    emailView,
-    setEmailView,
     statusFilter,
     setStatusFilter,
     assigneeFilter,

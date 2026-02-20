@@ -19,6 +19,7 @@ import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 import { ChannelTypeEnum } from '@service-comms/client';
+import { SoupItemsQueryFilters } from '@queries/soup/items';
 
 export const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
