@@ -7,12 +7,10 @@ const INBOX_TASK_BYPASS = true;
 const isNonEmptyObject = (obj: Record<string, unknown>) =>
   Object.keys(obj).length > 0;
 
-const removeDoneNotificationFilter = (
-  notificationFilters?: {
-    done?: boolean | null;
-    seen?: boolean | null;
-  }
-) => {
+const removeDoneNotificationFilter = (notificationFilters?: {
+  done?: boolean | null;
+  seen?: boolean | null;
+}) => {
   if (!notificationFilters) return undefined;
   if (notificationFilters.done !== INBOX_DONE) return notificationFilters;
 
@@ -98,7 +96,9 @@ export function removeInboxQueryFilters(
   };
   const chat_filters = {
     ...chatRest,
-    ...(chatNotificationFilters ? { notification_filters: chatNotificationFilters } : {}),
+    ...(chatNotificationFilters
+      ? { notification_filters: chatNotificationFilters }
+      : {}),
   };
   const document_filters = {
     ...docRest,
@@ -111,9 +111,7 @@ export function removeInboxQueryFilters(
       : {}),
   };
   const email_filters =
-    importance === INBOX_IMPORTANCE
-      ? emailRest
-      : { ...emailRest, importance };
+    importance === INBOX_IMPORTANCE ? emailRest : { ...emailRest, importance };
 
   return {
     ...filters,

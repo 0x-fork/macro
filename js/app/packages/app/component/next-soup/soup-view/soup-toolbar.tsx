@@ -168,7 +168,9 @@ const SoupFilters = () => {
     const willBeActive = !soup.filters.isActive(id);
     batch(() => {
       soup.filters.toggle(id);
-      setQueryFiltersInboxAware(willBeActive ? QUERY_FILTERS[id] : QUERY_FILTERS.default);
+      setQueryFiltersInboxAware(
+        willBeActive ? QUERY_FILTERS[id] : QUERY_FILTERS.default
+      );
     });
   };
 
