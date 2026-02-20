@@ -17,11 +17,7 @@ import {
 } from '../../block-theme/signals/themeSignals';
 import { applyTheme } from '../../block-theme/utils/themeUtils';
 import { globalSplitManager } from '../signal/splitLayout';
-import {
-  konsoleOpen,
-  resetKonsoleMode,
-  toggleKonsoleVisibility,
-} from './command/state';
+import { CommandState } from './command';
 import { CREATABLE_BLOCKS, setCreateMenuOpen } from './Launcher';
 import { useSplitLayout } from './split-layout/layout';
 
@@ -32,8 +28,7 @@ export default function GlobalShortcuts() {
   const { toggleSettings } = useSettingsState();
 
   const handleCommandMenu = () => {
-    resetKonsoleMode();
-    toggleKonsoleVisibility();
+    CommandState.toggle();
   };
 
   const createCommandScope = registerHotkey({
@@ -82,14 +77,14 @@ export default function GlobalShortcuts() {
     hotkey: 'cmd+k',
     scopeId: 'global',
     description: () => {
-      return konsoleOpen() ? 'Close command menu' : 'Open command menu';
+      return CommandState.isOpen() ? 'Close command menu' : 'Open command menu';
     },
     keyDownHandler: () => {
       handleCommandMenu();
       return true;
     },
     displayPriority: 10,
-    hide: konsoleOpen,
+    hide: CommandState.isOpen,
     runWithInputFocused: true,
   });
 

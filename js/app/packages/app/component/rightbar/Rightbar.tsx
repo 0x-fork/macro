@@ -17,7 +17,6 @@ import { getPendingSend } from '@core/component/AI/signal/pendingSend';
 import { registerToolHandler } from '@core/component/AI/signal/tool';
 import type {
   Attachment,
-  ChatMessageStream,
   ChatMessageWithAttachments,
   Model,
 } from '@core/component/AI/types';
@@ -55,12 +54,12 @@ import NotepadIcon from '@icon/regular/notepad.svg';
 import PlusIcon from '@icon/regular/plus.svg';
 import XIcon from '@icon/regular/x.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import { useWaitChatRename } from '@macro-entity';
 import { invalidateUserQuota } from '@queries/auth';
 import { refetchHistory, useHistoryQuery } from '@queries/history/history';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { AccessLevel } from '@service-cognition/generated/schemas/accessLevel';
 import { connectionGatewayClient } from '@service-connection/client';
+import type { ChatMessageStream } from '@service-connection/stream';
 import { state as connectionState } from '@service-connection/websocket';
 import { Button } from '@ui/components/Button';
 import { WebsocketConnectionState } from '@websocket';
@@ -582,7 +581,6 @@ export const RightbarWrapper = (_props: { isBigChat?: boolean }) => {
       setChatId(result.chat_id);
       setUserAccessLevel(AccessLevel.owner);
       refetchHistory();
-      useWaitChatRename(result.chat_id);
     }
 
     setStream(result.stream);
