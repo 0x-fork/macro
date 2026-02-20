@@ -173,6 +173,7 @@ fn test_build_view_message_filter_important() {
     let view = PreviewView::StandardLabel(PreviewViewStandardLabel::Important);
     let result = build_view_message_filter(&view, "$1");
     assert!(result.contains("IMPORTANT"));
+    assert!(result.contains("m.is_draft = TRUE"));
     assert!(result.contains("EXISTS"));
 }
 
@@ -202,7 +203,10 @@ fn test_get_sort_timestamp_field_inbox() {
 fn test_get_sort_timestamp_field_default() {
     let view = PreviewView::StandardLabel(PreviewViewStandardLabel::All);
     let result = get_sort_timestamp_field(&view);
-    assert_eq!(result, "t.latest_non_spam_message_ts");
+    assert_eq!(
+        result,
+        "COALESCE(t.latest_non_spam_message_ts, t.updated_at)"
+    );
 }
 
 #[test]

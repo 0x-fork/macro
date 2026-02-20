@@ -54,46 +54,46 @@ export const useSearchContext = () => {
 };
 
 export const SearchProvider: FlowComponent = (props) => {
-  const itemsQuery = useSoupItemsQuery(() => ITEM_PRELOAD_ARGS);
-  const itemsFetchNextPage = throttle(() => itemsQuery.fetchNextPage(), 2000);
-  createDeferred(() => {
-    if (itemsQuery.hasNextPage && !itemsQuery.isFetchingNextPage) {
-      itemsFetchNextPage();
-    }
-  });
+  // const itemsQuery = useSoupItemsQuery(() => ITEM_PRELOAD_ARGS);
+  // const itemsFetchNextPage = throttle(() => itemsQuery.fetchNextPage(), 2000);
+  // // createDeferred(() => {
+  // //   if (itemsQuery.hasNextPage && !itemsQuery.isFetchingNextPage) {
+  // //     itemsFetchNextPage();
+  // //   }
+  // // });
 
-  const channelItemsQuery = useSoupItemsQuery(() => CHANNEL_PRELOAD_ARGS);
-  const channelItemsFetchNextPage = throttle(
-    () => channelItemsQuery.fetchNextPage(),
-    2000
-  );
-  createDeferred(() => {
-    if (
-      channelItemsQuery.hasNextPage &&
-      !channelItemsQuery.isFetchingNextPage
-    ) {
-      channelItemsFetchNextPage();
-    }
-  });
+  // const channelItemsQuery = useSoupItemsQuery(() => CHANNEL_PRELOAD_ARGS);
+  // const channelItemsFetchNextPage = throttle(
+  //   () => channelItemsQuery.fetchNextPage(),
+  //   2000
+  // );
+  // createDeferred(() => {
+  //   if (
+  //     channelItemsQuery.hasNextPage &&
+  //     !channelItemsQuery.isFetchingNextPage
+  //   ) {
+  //     channelItemsFetchNextPage();
+  //   }
+  // });
 
-  const itemsQueryData = delayedQueue(
-    () => itemsQuery.data,
-    5000,
-    (items) => !!items && items.length > 0
-  );
-  const channelItemsQueryData = delayedQueue(
-    () => channelItemsQuery.data,
-    5000,
-    (items) => !!items && items.length > 0
-  );
+  // const itemsQueryData = delayedQueue(
+  //   () => itemsQuery.data,
+  //   5000,
+  //   (items) => !!items && items.length > 0
+  // );
+  // const channelItemsQueryData = delayedQueue(
+  //   () => channelItemsQuery.data,
+  //   5000,
+  //   (items) => !!items && items.length > 0
+  // );
 
-  const entityPool = createMemo<EntityData[]>(() => [
-    ...(itemsQueryData() ?? []),
-    ...(channelItemsQueryData() ?? []),
-  ]);
+  // const entityPool = createMemo<EntityData[]>(() => [
+  //   ...(itemsQueryData() ?? []),
+  //   ...(channelItemsQueryData() ?? []),
+  // ]);
 
   return (
-    <SearchContext.Provider value={{ entityPool }}>
+    <SearchContext.Provider value={{ entityPool: [] }}>
       {props.children}
     </SearchContext.Provider>
   );

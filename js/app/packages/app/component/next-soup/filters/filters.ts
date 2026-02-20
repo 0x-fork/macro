@@ -301,7 +301,95 @@ export const getFileAssociations = (type: 'soup' | 'search') => {
   });
 };
 
+/** Apply inbox query filters to any existing query filter set **/
+export function applyInboxQueryFilters(
+  filters: SoupItemsQueryFilters
+): SoupItemsQueryFilters {
+  const inbox = QUERY_FILTERS.inbox;
+  return {
+    ...filters,
+    channel_filters: {
+      ...filters.channel_filters,
+      notification_filters: inbox.channel_filters.notification_filters,
+    },
+    chat_filters: {
+      ...filters.chat_filters,
+      notification_filters: inbox.chat_filters.notification_filters,
+    },
+    document_filters: {
+      ...filters.document_filters,
+      notification_filters: inbox.document_filters.notification_filters,
+      task_filters: {
+        ...filters.document_filters?.task_filters,
+        ...inbox.document_filters.task_filters,
+      },
+    },
+    email_filters: {
+      ...filters.email_filters,
+      recipients: inbox.email_filters.recipients,
+      importance: inbox.email_filters.importance,
+    },
+  };
+}
+
+/** remove all inbox query filters to any existing query filter set **/
+export function removeInboxQueryFilters(
+  filters: SoupItemsQueryFilters
+): SoupItemsQueryFilters {
+  const { notification_filters: _cn, ...channelRest } =
+    filters.channel_filters ?? {};
+  const { notification_filters: _chatn, ...chatRest } =
+    filters.chat_filters ?? {};
+  const {
+    notification_filters: _dn,
+    task_filters,
+    ...docRest
+  } = filters.document_filters ?? {};
+  const { include_cbm_atm_nc: _, ...taskRest } = task_filters ?? {};
+  const {
+    recipients: _r,
+    importance: _i,
+    ...emailRest
+  } = filters.email_filters ?? {};
+
+  return {
+    ...filters,
+    channel_filters: channelRest,
+    chat_filters: chatRest,
+    document_filters: {
+      ...docRest,
+      ...(Object.keys(taskRest).length > 0 ? { task_filters: taskRest } : {}),
+    },
+    email_filters: emailRest,
+  };
+}
+
+
 export const QUERY_FILTERS = {
+  inbox: {
+    channel_filters: {
+      notification_filters: {
+        done: false,
+      },
+    },
+    chat_filters: {
+      notification_filters: {
+        done: false,
+      },
+    },
+    document_filters: {
+      notification_filters: {
+        done: false,
+      },
+      task_filters: {
+        include_cbm_atm_nc: true,
+      },
+    },
+    email_filters: {
+      recipients: [],
+      importance: true,
+    },
+  },
   /** Docs filter - markdown and canvas documents (excludes tasks) */
   document: {
     channel_filters: { channel_ids: EXCLUDE },

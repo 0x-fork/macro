@@ -24,10 +24,12 @@ import {
 } from 'solid-js';
 import {
   ANIMATED_ICONS,
+  applyInboxQueryFilters,
   ENTITY_TYPE_FILTER_CONFIGS,
   EXCLUDE,
   getEntityTypeFilterIcon,
   QUERY_FILTERS,
+  removeInboxQueryFilters,
 } from '@app/component/next-soup/filters/filters';
 import { ENABLE_ANIMATED_ICONS } from '@core/constant/featureFlags';
 import { registerHotkey } from '@core/hotkey/hotkeys';
@@ -45,6 +47,8 @@ import {
   TaskStatusDropdown,
   TaskAssigneeDropdown,
 } from '@app/component/next-soup/soup-view/task-sub-filters';
+import { REMOVE_LIST_COMMAND } from '@lexical/list';
+import { SoupItemsQueryFilters } from '@queries/soup/items';
 
 /**
  * Keyboard shortcuts for entity type filters.
@@ -65,7 +69,7 @@ const ENTITY_TYPE_SHORTCUTS: Record<
 };
 
 export const SoupToolbar = () => {
-  const { soup, setSearchText, setQueryFilters } = useSoupView();
+  const { soup, setSearchText, setQueryFilters} = useSoupView();
 
   const [scrollContainerRef, setScrollContainerRef] = createSignal<
     HTMLDivElement | undefined
@@ -131,13 +135,34 @@ const SoupFilters = () => {
   const [statusDropdownOpen, setStatusDropdownOpen] = createSignal(false);
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = createSignal(false);
 
+  const setQueryFiltersInboxAware = (filters: SoupItemsQueryFilters) => {
+    if (soup.filters.isActive('signal')) {
+          setQueryFilters(applyInboxQueryFilters(filters));
+    
+    } else {
+
+          setQueryFilters(removeInboxQueryFilters(filters));
+      
+    }
+  
+  }
+
+
   const toggleFocus = (id: 'signal' | 'noise') => {
     if (soup.filters.isActive(id)) {
       soup.filters.toggle('explicit-noise');
+      setQueryFilters((prev) => removeInboxQueryFilters(prev));
       soup.filters.deactivate('not-done');
     } else {
-      soup.filters.toggle(id);
-      soup.filters.activate('not-done');
+      batch(() => {
+        if (id === 'signal') {
+          setQueryFilters((prev) => applyInboxQueryFilters(prev));
+        } else {
+          setQueryFilters((prev) => removeInboxQueryFilters(prev));
+        }
+        soup.filters.toggle(id);
+        soup.filters.activate('not-done');
+      });
     }
   };
 
@@ -149,7 +174,7 @@ const SoupFilters = () => {
     const willBeActive = !soup.filters.isActive(id);
     batch(() => {
       soup.filters.toggle(id);
-      setQueryFilters(willBeActive ? QUERY_FILTERS[id] : QUERY_FILTERS.default);
+      setQueryFiltersInboxAware(willBeActive ? QUERY_FILTERS[id] : QUERY_FILTERS.default);
     });
   };
 
@@ -160,7 +185,7 @@ const SoupFilters = () => {
       soup.filters.toggle('email');
       if (willBeActive) {
         const shouldIncludeEmails = emailActive();
-        setQueryFilters({
+        setQueryFiltersInboxAware({
           ...QUERY_FILTERS.email,
           email_filters: {
             recipients: shouldIncludeEmails ? [] : EXCLUDE,
