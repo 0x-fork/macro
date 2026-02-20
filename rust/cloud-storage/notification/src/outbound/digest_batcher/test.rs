@@ -1,5 +1,5 @@
 use super::*;
-use crate::domain::models::{Notification, RateLimitConfig, RateLimitKey};
+use crate::domain::models::{Notification, RateLimitConfig, RateLimitKey, TaggedContent};
 use model_entity::EntityType;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
@@ -31,9 +31,15 @@ async fn get_redis_connection() -> MultiplexedConnection {
         .expect("Failed to connect to Redis")
 }
 
-async fn cleanup_redis(conn: &mut MultiplexedConnection, prefix: &str) {
+/// Each test gets a unique key prefix so tests can run in parallel across
+/// nextest processes without interfering with each other's Redis state.
+fn test_prefix(name: &str) -> String {
+    format!("test_{name}_{}", Uuid::new_v4().as_simple())
+}
+
+async fn cleanup_prefix(conn: &mut MultiplexedConnection, prefix: &str) {
     let keys: Vec<String> = redis::cmd("KEYS")
-        .arg(format!("{}*", prefix))
+        .arg(format!("{prefix}:*"))
         .query_async(conn)
         .await
         .unwrap_or_default();
@@ -41,10 +47,6 @@ async fn cleanup_redis(conn: &mut MultiplexedConnection, prefix: &str) {
     for key in keys {
         conn.del::<_, ()>(&key).await.unwrap();
     }
-
-    conn.del::<_, ()>("digest_pending_users")
-        .await
-        .unwrap_or_default();
 }
 
 fn test_user(suffix: &str) -> MacroUserIdStr<'static> {
@@ -54,7 +56,7 @@ fn test_user(suffix: &str) -> MacroUserIdStr<'static> {
 fn create_test_notification(
     user_id: MacroUserIdStr<'static>,
     message: &str,
-) -> UserNotificationRow<TaggedContent<serde_json::Value>> {
+) -> UserNotificationRow<serde_json::Value> {
     let notification = TestNotification {
         message: message.to_string(),
     };
@@ -70,17 +72,17 @@ fn create_test_notification(
         viewed_at: None,
         updated_at: Some(Utc::now()),
         deleted_at: None,
-        notification_metadata: TaggedContent::new(notification).serialize(),
+        notification_metadata: serde_json::to_value(TaggedContent::new(notification))
+            .expect("serialize cannot fail"),
         sender_id: None,
     }
 }
 
-// #[tokio::test]
+#[tokio::test]
 async fn test_add_to_digest_creates_pending_entry() {
     let mut conn = get_redis_connection().await;
-    cleanup_redis(&mut conn, "digest:").await;
-
-    let batcher = RedisDigestBatcher::new(conn.clone());
+    let prefix = test_prefix("add_creates_entry");
+    let batcher = RedisDigestBatcher::with_key_prefix(conn.clone(), &prefix);
     let user = test_user("add_creates_entry");
     let notification = create_test_notification(user.clone(), "test message");
 
@@ -90,26 +92,23 @@ async fn test_add_to_digest_creates_pending_entry() {
         .expect("Failed to add to digest");
 
     // Verify the notification was added to the list
-    let digest_key = format!("digest:{}", user.as_ref());
+    let digest_key = format!("{prefix}:digest:{}", user.as_ref());
     let items: Vec<String> = conn.lrange(&digest_key, 0, -1).await.unwrap();
     assert_eq!(items.len(), 1);
 
     // Verify user was added to pending set
-    let score: Option<f64> = conn
-        .zscore("digest_pending_users", user.as_ref())
-        .await
-        .unwrap();
+    let pending_key = format!("{prefix}:digest_pending_users");
+    let score: Option<f64> = conn.zscore(&pending_key, user.as_ref()).await.unwrap();
     assert!(score.is_some());
 
-    cleanup_redis(&mut conn, "digest:").await;
+    cleanup_prefix(&mut conn, &prefix).await;
 }
 
-// #[tokio::test]
+#[tokio::test]
 async fn test_add_multiple_notifications_same_user() {
     let mut conn = get_redis_connection().await;
-    cleanup_redis(&mut conn, "digest:").await;
-
-    let batcher = RedisDigestBatcher::new(conn.clone());
+    let prefix = test_prefix("multiple_same_user");
+    let batcher = RedisDigestBatcher::with_key_prefix(conn.clone(), &prefix);
     let user = test_user("multiple_same_user");
 
     let notif1 = create_test_notification(user.clone(), "message 1");
@@ -130,36 +129,33 @@ async fn test_add_multiple_notifications_same_user() {
         .unwrap();
 
     // Verify all notifications were added
-    let digest_key = format!("digest:{}", user.as_ref());
+    let digest_key = format!("{prefix}:digest:{}", user.as_ref());
     let items: Vec<String> = conn.lrange(&digest_key, 0, -1).await.unwrap();
     assert_eq!(items.len(), 3);
 
     // Verify user appears only once in pending set (NX semantics)
-    let count: usize = conn.zcard("digest_pending_users").await.unwrap();
+    let pending_key = format!("{prefix}:digest_pending_users");
+    let count: usize = conn.zcard(&pending_key).await.unwrap();
     assert_eq!(count, 1);
 
-    cleanup_redis(&mut conn, "digest:").await;
+    cleanup_prefix(&mut conn, &prefix).await;
 }
 
-// #[tokio::test]
+#[tokio::test]
 async fn test_claim_ready_digest_returns_empty_when_none_pending() {
-    let mut conn = get_redis_connection().await;
-    cleanup_redis(&mut conn, "digest:").await;
-
-    let batcher = RedisDigestBatcher::new(conn.clone());
+    let conn = get_redis_connection().await;
+    let prefix = test_prefix("empty_when_none");
+    let batcher = RedisDigestBatcher::with_key_prefix(conn.clone(), &prefix);
 
     let result = batcher.claim_ready_digest().await.unwrap();
     assert!(matches!(result, ClaimResult::Empty));
-
-    cleanup_redis(&mut conn, "digest:").await;
 }
 
-// #[tokio::test]
+#[tokio::test]
 async fn test_claim_ready_digest_returns_wait_when_not_ready() {
     let mut conn = get_redis_connection().await;
-    cleanup_redis(&mut conn, "digest:").await;
-
-    let batcher = RedisDigestBatcher::new(conn.clone());
+    let prefix = test_prefix("wait_not_ready");
+    let batcher = RedisDigestBatcher::with_key_prefix(conn.clone(), &prefix);
     let user = test_user("not_ready");
     let notification = create_test_notification(user.clone(), "test");
 
@@ -179,15 +175,14 @@ async fn test_claim_ready_digest_returns_wait_when_not_ready() {
         other => panic!("Expected ClaimResult::Wait, got {:?}", other),
     }
 
-    cleanup_redis(&mut conn, "digest:").await;
+    cleanup_prefix(&mut conn, &prefix).await;
 }
 
-// #[tokio::test]
+#[tokio::test]
 async fn test_claim_ready_digest_returns_batch_when_ready() {
     let mut conn = get_redis_connection().await;
-    cleanup_redis(&mut conn, "digest:").await;
-
-    let batcher = RedisDigestBatcher::new(conn.clone());
+    let prefix = test_prefix("batch_when_ready");
+    let batcher = RedisDigestBatcher::with_key_prefix(conn.clone(), &prefix);
     let user = test_user("ready_batch");
     let notification = create_test_notification(user.clone(), "ready message");
 
@@ -211,26 +206,23 @@ async fn test_claim_ready_digest_returns_batch_when_ready() {
     }
 
     // Verify the digest was cleaned up
-    let digest_key = format!("digest:{}", user.as_ref());
+    let digest_key = format!("{prefix}:digest:{}", user.as_ref());
     let items: Vec<String> = conn.lrange(&digest_key, 0, -1).await.unwrap();
     assert!(items.is_empty());
 
     // Verify user was removed from pending set
-    let score: Option<f64> = conn
-        .zscore("digest_pending_users", user.as_ref())
-        .await
-        .unwrap();
+    let pending_key = format!("{prefix}:digest_pending_users");
+    let score: Option<f64> = conn.zscore(&pending_key, user.as_ref()).await.unwrap();
     assert!(score.is_none());
 
-    cleanup_redis(&mut conn, "digest:").await;
+    cleanup_prefix(&mut conn, &prefix).await;
 }
 
-// #[tokio::test]
+#[tokio::test]
 async fn test_new_notifications_during_processing_not_lost() {
     let mut conn = get_redis_connection().await;
-    cleanup_redis(&mut conn, "digest:").await;
-
-    let batcher = RedisDigestBatcher::new(conn.clone());
+    let prefix = test_prefix("during_processing");
+    let batcher = RedisDigestBatcher::with_key_prefix(conn.clone(), &prefix);
     let user = test_user("during_processing");
 
     // Add first notification (immediately ready)
@@ -264,15 +256,14 @@ async fn test_new_notifications_during_processing_not_lost() {
         other => panic!("Expected second batch to be ready, got {:?}", other),
     }
 
-    cleanup_redis(&mut conn, "digest:").await;
+    cleanup_prefix(&mut conn, &prefix).await;
 }
 
-// #[tokio::test]
+#[tokio::test]
 async fn test_multiple_users_independent() {
     let mut conn = get_redis_connection().await;
-    cleanup_redis(&mut conn, "digest:").await;
-
-    let batcher = RedisDigestBatcher::new(conn.clone());
+    let prefix = test_prefix("multi_user");
+    let batcher = RedisDigestBatcher::with_key_prefix(conn.clone(), &prefix);
 
     let user1 = test_user("multi_user_1");
     let user2 = test_user("multi_user_2");
@@ -303,5 +294,5 @@ async fn test_multiple_users_independent() {
     let result3 = batcher.claim_ready_digest().await.unwrap();
     assert!(matches!(result3, ClaimResult::Empty));
 
-    cleanup_redis(&mut conn, "digest:").await;
+    cleanup_prefix(&mut conn, &prefix).await;
 }

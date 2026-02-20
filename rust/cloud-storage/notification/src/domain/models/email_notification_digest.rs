@@ -9,7 +9,7 @@
 
 use crate::domain::{
     models::{
-        Notification, TaggedContent, UserNotificationRow,
+        Notification, UserNotificationRow,
         email_notification_digest::ports::{
             DigestBatcher, LastOnlineChecker, MessageId, MessageReceiptRepo,
             NotificationSendChecker, PushNotificationChecker, UserExistenceChecker,
@@ -19,9 +19,10 @@ use crate::domain::{
 };
 use either::Either;
 use macro_user_id::cowlike::CowLike;
+use macro_user_id::user_id::MacroUserIdStr;
 use rootcause::{Report, report};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 /// Port traits for external dependencies (user existence, push notification checks).
 pub mod ports;
@@ -34,11 +35,34 @@ mod test;
 #[serde(transparent)]
 pub struct BatchSend<T>(T);
 
+impl<T> BatchSend<T> {
+    /// Borrow the inner value.
+    pub(crate) fn inner(&self) -> &T {
+        &self.0
+    }
+}
+
+#[cfg(test)]
+impl<T> BatchSend<T> {
+    /// Wrap an inner value.
+    pub(crate) fn from_inner(inner: T) -> Self {
+        Self(inner)
+    }
+}
+
 /// Send immediately as a single notification email.
 pub struct SingleSend<T>(T);
 
 /// Do not send an email for this notification.
 pub struct DontSend(());
+
+#[cfg(test)]
+impl DontSend {
+    /// Create a new `DontSend` value (test-only).
+    pub(crate) fn new() -> Self {
+        Self(())
+    }
+}
 
 struct NotificationSet(HashSet<&'static str>);
 
@@ -137,7 +161,7 @@ impl EmailBlockList {
     /// or [`Decision::Next`] with an [`AllowedNotification`] to continue the flow.
     pub fn notification_is_allowed<T: Notification>(
         &self,
-        notif: UserNotificationRow<T>,
+        notif: UserNotificationRow<Arc<T>>,
     ) -> Either<AllowedNotification<T>, DontSend> {
         match self.0.is_member::<T>() {
             true => Either::Right(DontSend(())),
@@ -148,7 +172,7 @@ impl EmailBlockList {
 
 /// represents a notification that is allowed to be sent as part of a [EmailSendDecision]
 pub struct AllowedNotification<T> {
-    inner: UserNotificationRow<T>,
+    inner: UserNotificationRow<Arc<T>>,
 }
 
 /// State indicating the notification recipient has a Macro account.
@@ -209,7 +233,7 @@ impl<T: Notification> AccountDoesNotExist<T> {
     pub fn batch_or_single_send(
         self,
         invite_list: &ExplicitInviteAllowList,
-    ) -> EmailSendDecision<UserNotificationRow<T>> {
+    ) -> EmailSendDecision<UserNotificationRow<Arc<T>>> {
         match invite_list.0.is_member::<T>() {
             true => EmailSendDecision::Left(SingleSend(self.prev.inner)),
             false => EmailSendDecision::Right(BatchSend(self.prev.inner)),
@@ -220,20 +244,25 @@ impl<T: Notification> AccountDoesNotExist<T> {
 /// State indicating the user has push notifications enabled.
 ///
 /// If push was delivered successfully, don't send email. Otherwise, batch send.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PushNotificationsEnabled {
     /// the inner value which has become adjacently tagged
     /// We lose the compiler typing here because we need to store this value
     /// to be retrieved during the SNS event handling.
     /// The deserialization cannot handle some specific T it needs to handle the general case
     /// of some json value
-    inner: UserNotificationRow<TaggedContent<serde_json::Value>>,
+    inner: UserNotificationRow<serde_json::Value>,
 }
 
 impl PushNotificationsEnabled {
+    /// Get the owner (user) ID of this notification.
+    pub(crate) fn owner_id(&self) -> &MacroUserIdStr<'static> {
+        &self.inner.owner_id
+    }
+
     /// assert that the push notification failed to deliver and therefore
     /// we should queue a bulk email notification
-    fn assert_failed(self) -> BatchSend<UserNotificationRow<TaggedContent<serde_json::Value>>> {
+    fn assert_failed(self) -> BatchSend<UserNotificationRow<serde_json::Value>> {
         BatchSend(self.inner)
     }
 }
@@ -262,8 +291,7 @@ impl<T: Notification> AccountExists<T> {
                 inner: self
                     .prev
                     .inner
-                    .map(TaggedContent::new)
-                    .map(TaggedContent::serialize),
+                    .map(|v| serde_json::to_value(&*v).expect("serialization cannot fail")),
             })),
             Ok(false) => Ok(Either::Right(PushNotificationsDisabled { prev: self })),
             Err(e) => Err(e),
@@ -279,7 +307,7 @@ impl<T: Notification> PushNotificationsDisabled<T> {
         self,
         checker: &impl LastOnlineChecker,
         threshold: Duration,
-    ) -> Result<Either<BatchSend<UserNotificationRow<T>>, DontSend>, Report> {
+    ) -> Result<Either<BatchSend<UserNotificationRow<Arc<T>>>, DontSend>, Report> {
         let last_online = checker
             .last_online_checker(self.prev.prev.inner.owner_id.copied())
             .await?;
@@ -288,6 +316,20 @@ impl<T: Notification> PushNotificationsDisabled<T> {
             std::cmp::Ordering::Greater => Either::Left(BatchSend(self.prev.prev.inner)),
         })
     }
+}
+
+/// Port for driving the bulk-digest state machine to an initial decision.
+///
+/// This abstracts the concrete [`StateMachineDriverA`] so callers only depend on the capability,
+/// not the specific implementation or its generic adapter parameters.
+pub trait BulkDigestStateMachine: Send + Sync + 'static {
+    /// Given an input notification, drive the state machine to an initial decision.
+    ///
+    /// See [`StateMachineDecisionA`] for the possible outcomes.
+    fn ingest<T: Notification + 'static>(
+        &self,
+        notif: UserNotificationRow<Arc<T>>,
+    ) -> impl Future<Output = Result<StateMachineDecisionA<T>, Report>> + Send;
 }
 
 /// a struct which is able to drive the state machine to a decision on a given notification
@@ -329,7 +371,7 @@ pub enum StateMachineDecisionA<T> {
     Indeterminate(BatchSend<PushNotificationsEnabled>),
     /// we should template the contained notification into an email to send immediately.
     /// The caller is responsible for templating this notification into an email and queuing it for delivery
-    SendImmediate(SingleSend<UserNotificationRow<T>>),
+    SendImmediate(SingleSend<UserNotificationRow<Arc<T>>>),
 }
 
 impl<U, N, O, B> StateMachineDriverA<U, N, O, B>
@@ -344,7 +386,7 @@ where
     /// See [StateMachineInitialDecision] for more info.
     pub async fn ingest<T: Notification>(
         &self,
-        notif: UserNotificationRow<T>,
+        notif: UserNotificationRow<Arc<T>>,
     ) -> Result<StateMachineDecisionA<T>, Report> {
         let allowed = match self.block_list.notification_is_allowed(notif) {
             Either::Left(l) => l,
@@ -389,14 +431,31 @@ where
 
     async fn inner_store_batch<T: Notification>(
         &self,
-        batch: BatchSend<UserNotificationRow<T>>,
+        batch: BatchSend<UserNotificationRow<Arc<T>>>,
     ) -> Result<BatchSend<()>, Report> {
-        let notif = batch.0.into_tagged().map(TaggedContent::serialize);
+        let notif = batch
+            .0
+            .map(|v| serde_json::to_value(&*v).expect("serialize cannot fail"));
         let () = self
             .digest_batcher
             .add_to_digest(&notif, self.digest_window)
             .await?;
         Ok(BatchSend(()))
+    }
+}
+
+impl<U, N, O, B> BulkDigestStateMachine for StateMachineDriverA<U, N, O, B>
+where
+    U: UserExistenceChecker,
+    N: PushNotificationChecker,
+    O: LastOnlineChecker,
+    B: DigestBatcher,
+{
+    fn ingest<T: Notification + 'static>(
+        &self,
+        notif: UserNotificationRow<Arc<T>>,
+    ) -> impl Future<Output = Result<StateMachineDecisionA<T>, Report>> + Send {
+        self.ingest(notif)
     }
 }
 
@@ -415,9 +474,8 @@ pub struct StateMachineDriverB<B, R> {
 pub struct ResumeMachineBRequest<N> {
     /// the notification enabled value as received from [StateMachineDecisionA::Indeterminate]
     pub notification_enabled: PushNotificationsEnabled,
-    /// a value which abstracts away the sending of the notification
-    /// implements [NotificationSendChecker]
-    pub send_notif: N,
+    /// all endpoint send checkers for this user — implements [NotificationSendChecker]
+    pub send_notifs: Vec<N>,
 }
 
 impl<B, R> StateMachineDriverB<B, R>
@@ -426,46 +484,103 @@ where
     R: MessageReceiptRepo,
 {
     /// this picks up where we left off if we received a [StateMachineDecisionA::Indeterminate]
-    /// We call this when its time to send the notification, on the egress side of the queue
+    /// We call this when its time to send the notification, on the egress side of the queue.
+    ///
+    /// Tries all endpoints for the user. Records message IDs for successes.
+    /// Only queues a batch email digest if ALL endpoints fail.
+    ///
+    /// Returns a tuple of:
+    /// - Per-endpoint results (for delivery status tracking)
+    /// - `Left(DontSend)` if any succeeded, `Right(batch_result)` if all failed
+    #[allow(clippy::type_complexity)]
     pub async fn continue_machine<N: NotificationSendChecker>(
         &self,
         req: ResumeMachineBRequest<N>,
-    ) -> Result<(N::Ok, DontSend), (N::Err, Result<BatchSend<()>, Report>)> {
+    ) -> (
+        Vec<Result<N::Ok, N::Err>>,
+        Either<DontSend, Result<BatchSend<()>, Report>>,
+    ) {
         let ResumeMachineBRequest {
             notification_enabled,
-            send_notif,
+            send_notifs,
         } = req;
-        let res = send_notif.send_notification().await;
 
-        match res {
-            // the notification succeeded (probably) so we dont send a bulk email
-            Ok(r) => {
-                // record the message id in the repo
-                let message_id = N::extract_message_id(&r);
+        let mut results = Vec::with_capacity(send_notifs.len());
+        let mut any_succeeded = false;
 
-                // cant really do anything if this fails, so we just ignore the error
-                let _ = self
-                    .message_receipt_repo
-                    .record_message_id(
-                        message_id,
-                        notification_enabled.inner.owner_id,
-                        notification_enabled.inner.notification_id,
-                    )
-                    .await;
-
-                Ok((r, DontSend(())))
-            }
-            // the notification failed to send, queue the batch
-            Err(e) => {
-                let next = notification_enabled.assert_failed();
-                let res = self
-                    .digest_batcher
-                    .add_to_digest(&next.0, self.digest_window)
-                    .await
-                    .map(BatchSend);
-                Err((e, res))
+        for send_notif in send_notifs {
+            match send_notif.send_notification().await {
+                Ok(r) => {
+                    let message_id = N::extract_message_id(&r);
+                    // cant really do anything if this fails, so we just ignore the error
+                    let _ = self
+                        .message_receipt_repo
+                        .record_message_id(
+                            message_id,
+                            notification_enabled.inner.owner_id.copied(),
+                            notification_enabled.inner.notification_id,
+                        )
+                        .await;
+                    results.push(Ok(r));
+                    any_succeeded = true;
+                }
+                Err(e) => {
+                    results.push(Err(e));
+                }
             }
         }
+
+        if any_succeeded {
+            (results, Either::Left(DontSend(())))
+        } else {
+            let next = notification_enabled.assert_failed();
+            let batch_result = self
+                .digest_batcher
+                .add_to_digest(&next.0, self.digest_window)
+                .await
+                .map(BatchSend);
+            (results, Either::Right(batch_result))
+        }
+    }
+}
+
+/// Port for continuing the bulk-digest state machine on the egress side.
+///
+/// This abstracts [`StateMachineDriverB`] so callers only depend on the capability,
+/// not the specific implementation or its generic adapter parameters.
+pub trait BulkDigestEgressStateMachine: Send + Sync + 'static {
+    /// Try all endpoints for a user. Records message IDs for successes.
+    /// Only queues a batch email digest if ALL endpoints fail.
+    ///
+    /// Returns per-endpoint results and either `DontSend` (any succeeded)
+    /// or the batch result (all failed).
+    #[allow(clippy::type_complexity)]
+    fn continue_machine<N: NotificationSendChecker>(
+        &self,
+        req: ResumeMachineBRequest<N>,
+    ) -> impl Future<
+        Output = (
+            Vec<Result<N::Ok, N::Err>>,
+            Either<DontSend, Result<BatchSend<()>, Report>>,
+        ),
+    > + Send;
+}
+
+impl<B, R> BulkDigestEgressStateMachine for StateMachineDriverB<B, R>
+where
+    B: DigestBatcher,
+    R: MessageReceiptRepo,
+{
+    fn continue_machine<N: NotificationSendChecker>(
+        &self,
+        req: ResumeMachineBRequest<N>,
+    ) -> impl Future<
+        Output = (
+            Vec<Result<N::Ok, N::Err>>,
+            Either<DontSend, Result<BatchSend<()>, Report>>,
+        ),
+    > + Send {
+        self.continue_machine(req)
     }
 }
 
@@ -526,7 +641,6 @@ where
                 notif_id
             ));
         };
-        let notif = notif.into_tagged();
 
         let () = self
             .digest_batcher
