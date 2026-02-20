@@ -34,7 +34,6 @@ import {
   Suspense,
   useContext,
 } from 'solid-js';
-import { composeBackendSoupFilters } from '@app/component/next-soup/filters/backend-query-filters';
 import { matchesTaskSubFilters } from './task-sub-filter-matcher';
 
 type Row<T> = {
@@ -129,7 +128,8 @@ export const SoupViewContextProvider: FlowComponent<
 
   const queryFilters = createMemo((): SoupItemsQueryFilters => {
     const base = internalQueryFilters();
-    const mergedFilters: SoupItemsQueryFilters = {
+
+    return {
       ...base,
       ...props.queryFilters,
       channel_filters: {
@@ -153,12 +153,6 @@ export const SoupViewContextProvider: FlowComponent<
         ...props.queryFilters?.project_filters,
       },
     };
-
-    return composeBackendSoupFilters(mergedFilters, {
-      inboxActive: soup.filters.isActive('signal'),
-      notDoneActive: soup.filters.isActive('not-done'),
-      unreadActive: soup.filters.isActive('unread'),
-    });
   });
 
   const soupBody = createMemo(

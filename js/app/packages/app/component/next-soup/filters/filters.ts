@@ -20,8 +20,8 @@ import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 import { ChannelTypeEnum } from '@service-comms/client';
-import { NIL_UUID } from './backend-query-filters';
-export { NIL_UUID, composeBackendSoupFilters } from './backend-query-filters';
+
+export const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 /**
  * Array containing NIL_UUID, used to exclude an entity type from query results.
@@ -302,29 +302,6 @@ export const getFileAssociations = (type: 'soup' | 'search') => {
 };
 
 export const QUERY_FILTERS = {
-  inbox: {
-    channel_filters: {
-      notification_filters: {
-        done: false,
-      },
-    },
-    chat_filters: {
-      notification_filters: {
-        done: false,
-      },
-    },
-    document_filters: {
-      notification_filters: {
-        done: false,
-      },
-      task_filters: {
-        include_cbm_atm_nc: true,
-      },
-    },
-    email_filters: {
-      importance: true,
-    },
-  },
   /** Docs filter - markdown and canvas documents (excludes tasks) */
   document: {
     channel_filters: { channel_ids: EXCLUDE },
