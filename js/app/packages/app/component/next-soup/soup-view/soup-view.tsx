@@ -830,12 +830,12 @@ const SoupList = (props: SoupListProps) => {
             });
           });
         }}
-        class="relative size-full overflow-auto"
+        class="relative size-full overflow-auto scrollbar-hidden"
         onScroll={handleScroll}
+        data-soup-list-container
       >
         <div
           class="size-full relative"
-          data-soup-list-container
           style={{
             // contain: 'strict',
             // transform: `translateY(${virtualizer.getVirtualItems()[0]?.start}px)`,
