@@ -58,7 +58,11 @@ import {
 } from 'solid-js';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
-import { SoupToolbar } from './soup-toolbar';
+import {
+  SOUP_SIDEBAR_WIDTH_CLASS,
+  SoupSidebarFilters,
+  SoupToolbar,
+} from './soup-toolbar';
 import { useUserId } from '@core/context/user';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
@@ -72,8 +76,8 @@ import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { isMobile } from '@core/mobile/isMobile';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import {
-  ENTITY_TYPE_FILTER_CONFIGS,
   type FilterID,
+  SOUP_FILTERS,
 } from '@app/component/next-soup/filters/filters';
 import { usePropertyEditorHotkeys } from '@app/component/property-edit-modal/hooks/usePropertyEditorHotkeys';
 
@@ -83,13 +87,14 @@ const SIDEBAR_TAB_IDS = new Set<string>([
   'none',
   'all',
   'inbox',
-  ...ENTITY_TYPE_FILTER_CONFIGS.map((f) => f.id),
+  ...SOUP_FILTERS.map((f) => f.id),
 ]);
 
 const normalizeLegacySidebarTab = (tab: string) => {
   if (tab === 'canvas') return 'document';
   if (tab === 'video') return 'image';
   if (tab === 'folder' || tab === 'code') return 'file';
+  if (tab === 'unread') return 'inbox';
   return tab;
 };
 
@@ -168,7 +173,7 @@ export const SoupView = () => {
           <SoupToolbar />
           <div class="flex-1 min-w-0">
             <SoupViewFileDropzone>
-              <SoupViewList />
+              <SoupViewList sidebarHeader={<SoupSidebarFilters />} />
             </SoupViewFileDropzone>
           </div>
         </div>
@@ -191,6 +196,7 @@ const DockedSoupChatInput = () => {
 interface SoupViewListProps {
   customScrollbarHidden?: boolean;
   scopeId?: string;
+  sidebarHeader?: JSX.Element;
 }
 
 export const SoupViewList = (props: SoupViewListProps) => {
@@ -588,12 +594,13 @@ export const SoupViewList = (props: SoupViewListProps) => {
       <div
         ref={setListRef}
         class="@container/uList unified-list-root flex flex-col h-full"
-        classList={{
-          'w-[225px] min-w-[225px] max-w-[225px] border-r border-edge-muted':
-            isPreviewOpen(),
-          'flex-1 min-w-0': !isPreviewOpen(),
-        }}
+        class={`${SOUP_SIDEBAR_WIDTH_CLASS} min-w-[280px] max-w-[280px] border-r border-edge-muted`}
       >
+        <Show when={props.sidebarHeader}>
+          <div class="shrink-0 border-b border-edge-muted/50 bg-panel">
+            {props.sidebarHeader}
+          </div>
+        </Show>
         <StaticMarkdownContext>
           <Switch>
             <Match when={source.isLoading()}>

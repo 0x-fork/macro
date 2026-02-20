@@ -55,6 +55,16 @@ export function notDoneFilter(entity: WithNotification<EntityData>) {
   );
 }
 
+/**
+ * Done filter - entity has no outstanding items.
+ */
+export function doneFilter(entity: WithNotification<EntityData>) {
+  if (entity.type === 'email') return entity.done;
+  if (isTaskEntity(entity)) return false;
+  if (!entity.notifications) return false;
+  return entity.notifications().every(({ done }) => done);
+}
+
 /** Filter predicate function */
 export type FilterPredicate<T> = (entity: T) => boolean;
 
@@ -178,6 +188,11 @@ export const SOUP_FILTERS = [
     id: 'not-done',
     label: 'Not done',
     predicate: notDoneFilter,
+  },
+  {
+    id: 'done',
+    label: 'Done',
+    predicate: doneFilter,
   },
 
   // Entity type filters (mutually exclusive)
