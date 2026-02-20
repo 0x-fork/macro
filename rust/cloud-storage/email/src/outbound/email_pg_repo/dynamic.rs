@@ -163,6 +163,10 @@ fn build_message_email_filter(ast: &Expr<EmailLiteral>) -> String {
             )"#
                 .to_string()
         }
+        // Email notification filters are accepted for cross-entity API compatibility
+        // but are not currently applied by email thread query logic.
+        filter_ast::ExprFrame::Literal(EmailLiteral::NotificationDone(_)) => "TRUE".to_string(),
+        filter_ast::ExprFrame::Literal(EmailLiteral::NotificationSeen(_)) => "TRUE".to_string(),
     });
 
     if formatting.is_empty() {
@@ -188,7 +192,9 @@ fn build_thread_email_filter(ast: &Expr<EmailLiteral>) -> String {
             | EmailLiteral::Cc(_)
             | EmailLiteral::Bcc(_)
             | EmailLiteral::Recipient(_)
-            | EmailLiteral::Importance(_),
+            | EmailLiteral::Importance(_)
+            | EmailLiteral::NotificationDone(_)
+            | EmailLiteral::NotificationSeen(_),
         ) => "TRUE".to_string(),
     });
 
