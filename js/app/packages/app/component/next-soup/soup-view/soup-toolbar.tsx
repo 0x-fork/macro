@@ -47,8 +47,7 @@ import {
   TaskStatusDropdown,
   TaskAssigneeDropdown,
 } from '@app/component/next-soup/soup-view/task-sub-filters';
-import { REMOVE_LIST_COMMAND } from '@lexical/list';
-import { SoupItemsQueryFilters } from '@queries/soup/items';
+import type { SoupItemsQueryFilters } from '@queries/soup/items';
 
 /**
  * Keyboard shortcuts for entity type filters.
@@ -69,7 +68,7 @@ const ENTITY_TYPE_SHORTCUTS: Record<
 };
 
 export const SoupToolbar = () => {
-  const { soup, setSearchText, setQueryFilters} = useSoupView();
+  const { soup, setSearchText, setQueryFilters } = useSoupView();
 
   const [scrollContainerRef, setScrollContainerRef] = createSignal<
     HTMLDivElement | undefined
@@ -137,16 +136,11 @@ const SoupFilters = () => {
 
   const setQueryFiltersInboxAware = (filters: SoupItemsQueryFilters) => {
     if (soup.filters.isActive('signal')) {
-          setQueryFilters(applyInboxQueryFilters(filters));
-    
+      setQueryFilters(applyInboxQueryFilters(filters));
     } else {
-
-          setQueryFilters(removeInboxQueryFilters(filters));
-      
+      setQueryFilters(removeInboxQueryFilters(filters));
     }
-  
-  }
-
+  };
 
   const toggleFocus = (id: 'signal' | 'noise') => {
     if (soup.filters.isActive(id)) {
@@ -192,7 +186,7 @@ const SoupFilters = () => {
           },
         });
       } else {
-        setQueryFilters(QUERY_FILTERS.default);
+        setQueryFiltersInboxAware(QUERY_FILTERS.default);
       }
     });
   };
