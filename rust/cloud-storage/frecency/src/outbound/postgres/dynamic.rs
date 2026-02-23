@@ -15,15 +15,15 @@ use super::FrecencyStorageErr;
 
 static DOCUMENT_CLAUSE: &str = r#"
     SELECT
-        entity_id,
+        fa.entity_id,
         'document' as entity_type,
-        user_id,
-        event_count,
-        frecency_score,
-        first_event,
-        recent_events
-    FROM frecency_aggregates
-    WHERE user_id = $1 AND entity_type = 'document'
+        fa.user_id,
+        fa.event_count,
+        fa.frecency_score,
+        fa.first_event,
+        fa.recent_events
+    FROM frecency_aggregates fa
+    WHERE fa.user_id = $1 AND fa.entity_type = 'document'
 "#;
 
 static CHAT_CLAUSE: &str = r#"
@@ -106,7 +106,7 @@ fn build_notification_seen_clause(entity_id_sql: &str, entity_type: &str, seen: 
     )
 }
 
-fn build_task_include_cbm_atm_nc_clause() -> String {
+fn build_task_include_cbm_atm_nc_clause(entity_id_sql: &str) -> String {
     format!(
         r#"entity_id IN (
             SELECT d.id::text
@@ -122,7 +122,7 @@ fn build_task_include_cbm_atm_nc_clause() -> String {
                 AND ep_status.entity_id = d.id
                 AND ep_status.entity_type = 'TASK'
                 AND ep_status.property_definition_id = '{STATUS_PROPERTY_ID}'
-            WHERE d.id::text = entity_id
+            WHERE d.id::text = {entity_id_sql}
               AND d."deletedAt" IS NULL
               AND dt.sub_type = 'task'
               AND d.owner = $1
@@ -171,13 +171,13 @@ fn build_document_filter(ast: Option<&Expr<DocumentLiteral>>) -> String {
                 .to_string()
         }
         filter_ast::ExprFrame::Literal(DocumentLiteral::NotificationDone(done)) => {
-            build_notification_done_clause("entity_id", "document", done)
+            build_notification_done_clause("fa.entity_id", "document", done)
         }
         filter_ast::ExprFrame::Literal(DocumentLiteral::NotificationSeen(seen)) => {
-            build_notification_seen_clause("entity_id", "document", seen)
+            build_notification_seen_clause("fa.entity_id", "document", seen)
         }
         filter_ast::ExprFrame::Literal(DocumentLiteral::IncludeCbmAtmNc(true)) => {
-            build_task_include_cbm_atm_nc_clause()
+            build_task_include_cbm_atm_nc_clause("fa.entity_id")
         }
         filter_ast::ExprFrame::Literal(DocumentLiteral::IncludeCbmAtmNc(false)) => String::new(),
     });
