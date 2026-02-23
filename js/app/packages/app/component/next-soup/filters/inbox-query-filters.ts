@@ -1,5 +1,5 @@
 import type { SoupItemsQueryFilters } from '@queries/soup/items';
-import type { EntityFilters } from '@service-storage/generated/schemas';
+import type { EntityFilters, NotificationFilters } from '@service-storage/generated/schemas';
 
 const INBOX_DONE = false;
 const INBOX_IMPORTANCE = true;
@@ -9,10 +9,14 @@ const isNonEmptyObject = (obj: Record<string, unknown>) =>
   Object.keys(obj).length > 0;
 
 type AllFilterTypes = NonNullable<EntityFilters[keyof EntityFilters]>;
+type FilterWithNotification = {
+  notification_filters?: NotificationFilters;
+};
 
-function withInboxNotification(filters: AllFilterTypes | undefined): {
-  notification_filters: { done: boolean };
-} {
+function withInboxNotification<T extends FilterWithNotification>(
+  filters: T | undefined
+): T | undefined {
+  if (!filters) return undefined;
   return {
     ...filters,
     notification_filters: {
@@ -22,18 +26,13 @@ function withInboxNotification(filters: AllFilterTypes | undefined): {
   };
 }
 
-function withoutInboxNotification(filters: AllFilterTypes | undefined):
-  | (Omit<AllFilterTypes, 'notification_filters'> & {
-      notification_filters?: Omit<
-        AllFilterTypes['notification_filters'],
-        'done'
-      >;
-    })
-  | undefined {
+function withoutInboxNotification<T extends FilterWithNotification>(
+  filters: T | undefined
+): T | undefined {
   if (!filters) return undefined;
   const { notification_filters, ...rest } = filters;
   if (!notification_filters || notification_filters.done !== INBOX_DONE) {
-    return filters as any;
+    return filters;
   }
   const { done: _, ...notifRest } = notification_filters;
   const result = {
@@ -41,7 +40,7 @@ function withoutInboxNotification(filters: AllFilterTypes | undefined):
     ...(isNonEmptyObject(notifRest) ? { notification_filters: notifRest } : {}),
   };
   return isNonEmptyObject(result as Record<string, unknown>)
-    ? (result as any)
+    ? (result as T)
     : undefined;
 }
 
@@ -53,6 +52,7 @@ export function applyInboxQueryFilters(
     ...filters,
     channel_filters: withInboxNotification(filters.channel_filters),
     chat_filters: withInboxNotification(filters.chat_filters),
+    project_filters: withInboxNotification(filters.project_filters),
     document_filters: {
       ...withInboxNotification(filters.document_filters),
       task_filters: {
@@ -70,6 +70,7 @@ export function removeInboxQueryFilters(
 ): SoupItemsQueryFilters {
   const channel_filters = withoutInboxNotification(filters.channel_filters);
   const chat_filters = withoutInboxNotification(filters.chat_filters);
+  const project_filters = withoutInboxNotification(filters.project_filters);
 
   const docWithoutNotif = withoutInboxNotification(filters.document_filters);
   const task_filters = filters.document_filters?.task_filters;
@@ -100,6 +101,7 @@ export function removeInboxQueryFilters(
     ...filters,
     channel_filters,
     chat_filters,
+    project_filters,
     document_filters,
     email_filters,
   };
