@@ -301,11 +301,6 @@ export const getFileAssociations = (type: 'soup' | 'search') => {
   });
 };
 
-export {
-  applyInboxQueryFilters,
-  removeInboxQueryFilters,
-} from './inbox-query-filters';
-
 export const QUERY_FILTERS = {
   /** Docs filter - markdown and canvas documents (excludes tasks) */
   document: {

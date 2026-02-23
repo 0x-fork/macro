@@ -24,13 +24,15 @@ import {
 } from 'solid-js';
 import {
   ANIMATED_ICONS,
-  applyInboxQueryFilters,
   ENTITY_TYPE_FILTER_CONFIGS,
   EXCLUDE,
   getEntityTypeFilterIcon,
   QUERY_FILTERS,
-  removeInboxQueryFilters,
 } from '@app/component/next-soup/filters/filters';
+import {
+  applyInboxQueryFilters,
+  removeInboxQueryFilters,
+} from '@app/component/next-soup/filters/inbox-query-filters';
 import { ENABLE_ANIMATED_ICONS } from '@core/constant/featureFlags';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
@@ -148,15 +150,13 @@ const SoupFilters = () => {
       setQueryFilters((prev) => removeInboxQueryFilters(prev));
       soup.filters.deactivate('not-done');
     } else {
-      batch(() => {
-        if (id === 'signal') {
-          setQueryFilters((prev) => applyInboxQueryFilters(prev));
-        } else {
-          setQueryFilters((prev) => removeInboxQueryFilters(prev));
-        }
-        soup.filters.toggle(id);
-        soup.filters.activate('not-done');
-      });
+      if (id === 'signal') {
+        setQueryFilters((prev) => applyInboxQueryFilters(prev));
+      } else {
+        setQueryFilters((prev) => removeInboxQueryFilters(prev));
+      }
+      soup.filters.toggle(id);
+      soup.filters.activate('not-done');
     }
   };
 
