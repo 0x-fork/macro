@@ -19,7 +19,7 @@ import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 import { ChannelTypeEnum } from '@service-comms/client';
-import { SoupItemsQueryFilters } from '@queries/soup/items';
+import type { SoupItemsQueryFilters } from '@queries/soup/items';
 
 export const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -307,30 +307,6 @@ export {
 } from './inbox-query-filters';
 
 export const QUERY_FILTERS = {
-  inbox: {
-    channel_filters: {
-      notification_filters: {
-        done: false,
-      },
-    },
-    chat_filters: {
-      notification_filters: {
-        done: false,
-      },
-    },
-    document_filters: {
-      notification_filters: {
-        done: false,
-      },
-      task_filters: {
-        include_cbm_atm_nc: true,
-      },
-    },
-    email_filters: {
-      recipients: [],
-      importance: true,
-    },
-  },
   /** Docs filter - markdown and canvas documents (excludes tasks) */
   document: {
     channel_filters: { channel_ids: EXCLUDE },
