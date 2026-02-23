@@ -22,7 +22,7 @@ import { isSearchEntity } from '../types/search';
 import { createEntityDraggable } from '../utils/draggable';
 import { UnreadIndicator } from '../components/UnreadIndicator';
 import { MultiSelectCheckbox } from '../components/MultiSelectCheckbox';
-import { DraftBadge, SharedBadge } from '../components/Badges';
+import { DraftBadge, InviteBadge, SharedBadge } from '../components/Badges';
 import { DisplayName } from '../components/DisplayName';
 import { useIsShared } from '../utils/shared';
 import { ProjectBreadCrumb } from '../components/ProjectBreadCrumb';
@@ -110,7 +110,14 @@ function NarrowLayout(props: LayoutProps) {
           <Match when={isEmailEntity(props.entity) && props.entity}>
             {(entity) => (
               <>
-                <Show when={entity().isDraft}>
+                <Show
+                  when={entity().isDraft}
+                  fallback={
+                    <Show when={entity().hasIcsAttachment}>
+                      <InviteBadge />
+                    </Show>
+                  }
+                >
                   <DraftBadge />
                 </Show>
                 <span class="truncate">
@@ -161,24 +168,41 @@ function NarrowLayout(props: LayoutProps) {
               )}
             </Match>
             <Match when={isChannelEntity(props.entity) && props.entity}>
-              {(entity) => (
-                <Show when={entity().latestMessage}>
-                  {(msg) => (
-                    <div class="flex items-center gap-2 w-full truncate">
-                      <span class="font-semibold truncate min-w-min max-w-1/3">
-                        <DisplayName id={msg().senderId} format="firstName" />
-                      </span>
-                      <span class="text-ink/50 font-medium truncate inline-flex items-center shrink">
-                        <StaticMarkdown
-                          theme={unifiedListMarkdownTheme}
-                          markdown={msg().content}
-                          singleLine
-                        />
-                      </span>
-                    </div>
-                  )}
-                </Show>
-              )}
+              {(entity) => {
+                return (
+                  <Show when={entity().latestMessage}>
+                    {(msg) => {
+                      console.log({ message: msg() });
+                      const hasContent = () => Boolean(msg().content?.trim());
+
+                      return (
+                        <div class="flex items-center gap-2 w-full truncate">
+                          <span class="font-semibold truncate min-w-min max-w-1/3">
+                            <DisplayName
+                              id={msg().senderId}
+                              format="firstName"
+                            />
+                          </span>
+                          <span class="text-ink/50 font-medium truncate inline-flex items-center shrink">
+                            <Show
+                              when={hasContent()}
+                              fallback={
+                                <span class="italic">Attached Items</span>
+                              }
+                            >
+                              <StaticMarkdown
+                                theme={unifiedListMarkdownTheme}
+                                markdown={msg().content}
+                                singleLine
+                              />
+                            </Show>
+                          </span>
+                        </div>
+                      );
+                    }}
+                  </Show>
+                );
+              }}
             </Match>
           </Switch>
         </Entity.Slot>
@@ -244,7 +268,14 @@ function WideLayout(props: LayoutProps) {
                   }
                 >
                   <span class="w-(--title-width) truncate shrink-0 flex gap-2">
-                    <Show when={entity().isDraft}>
+                    <Show
+                      when={entity().isDraft}
+                      fallback={
+                        <Show when={entity().hasIcsAttachment}>
+                          <InviteBadge />
+                        </Show>
+                      }
+                    >
                       <DraftBadge />
                     </Show>
                     <span class="truncate">
@@ -268,18 +299,28 @@ function WideLayout(props: LayoutProps) {
                   <Entity.Title entity={entity()} />
                 </span>
                 <Show when={!props.hasNotifications && entity().latestMessage}>
-                  {(msg) => (
-                    <>
-                      <DisplayName id={msg().senderId} format="firstName" />
-                      <span class="text-ink/50 font-medium truncate inline-flex shrink items-center">
-                        <StaticMarkdown
-                          theme={unifiedListMarkdownTheme}
-                          markdown={msg().content}
-                          singleLine
-                        />
-                      </span>
-                    </>
-                  )}
+                  {(msg) => {
+                    const hasContent = () => Boolean(msg().content?.trim());
+                    return (
+                      <>
+                        <DisplayName id={msg().senderId} format="firstName" />
+                        <span class="text-ink/50 font-medium truncate inline-flex shrink items-center">
+                          <Show
+                            when={hasContent()}
+                            fallback={
+                              <span class="italic">Attached Items</span>
+                            }
+                          >
+                            <StaticMarkdown
+                              theme={unifiedListMarkdownTheme}
+                              markdown={msg().content}
+                              singleLine
+                            />
+                          </Show>
+                        </span>
+                      </>
+                    );
+                  }}
                 </Show>
               </>
             )}
