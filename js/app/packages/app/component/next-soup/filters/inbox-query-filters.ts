@@ -1,5 +1,5 @@
 import type { SoupItemsQueryFilters } from '@queries/soup/items';
-import type { EntityFilters, NotificationFilters } from '@service-storage/generated/schemas';
+import type { NotificationFilters } from '@service-storage/generated/schemas';
 
 const INBOX_DONE = false;
 const INBOX_IMPORTANCE = true;
@@ -8,7 +8,6 @@ const INBOX_TASK_BYPASS = true;
 const isNonEmptyObject = (obj: Record<string, unknown>) =>
   Object.keys(obj).length > 0;
 
-type AllFilterTypes = NonNullable<EntityFilters[keyof EntityFilters]>;
 type FilterWithNotification = {
   notification_filters?: NotificationFilters;
 };
