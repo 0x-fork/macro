@@ -35,6 +35,9 @@ import {
   useContext,
 } from 'solid-js';
 import { matchesTaskSubFilters } from './task-sub-filter-matcher';
+import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
+import { applySidebarPreset, type SidebarPresetViewId } from '@app/component/next-soup/sidebar/viewPresets';
+import { useUserId } from '@core/context/user';
 
 type Row<T> = {
   original: T;
@@ -102,6 +105,8 @@ export const SoupViewContextProvider: FlowComponent<
   SoupViewContextProviderProps
 > = (props) => {
   const soup = props.soup ?? createSoupState();
+  const splitPanel = useSplitPanel();
+  const userId = useUserId();
 
   const soupParams = createMemo(
     (): SoupParams => ({
@@ -118,6 +123,14 @@ export const SoupViewContextProvider: FlowComponent<
     string | undefined
   >();
 
+  const presetViewId = createMemo(() => {
+    const meta = splitPanel?.handle.meta();
+    if (!meta || !('viewId' in meta)) return undefined;
+    const viewId = meta.viewId;
+    if (typeof viewId !== 'string') return undefined;
+    return viewId as SidebarPresetViewId;
+  });
+
   // Clear sub-filters when task filter is deactivated
   createEffect(() => {
     if (!soup.filters.isActive('task')) {
@@ -125,6 +138,19 @@ export const SoupViewContextProvider: FlowComponent<
       setAssigneeFilter(undefined);
     }
   });
+
+  createEffect(
+    on(presetViewId, (viewId) => {
+      applySidebarPreset({
+        viewId,
+        soup,
+        setQueryFilters,
+        setStatusFilter,
+        setAssigneeFilter,
+        userId: userId() ?? '',
+      });
+    })
+  );
 
   const queryFilters = createMemo((): SoupItemsQueryFilters => {
     const base = internalQueryFilters();

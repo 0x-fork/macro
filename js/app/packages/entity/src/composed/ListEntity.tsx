@@ -38,6 +38,7 @@ const hasSearchContentHits = (entity: EntityData) =>
 
 interface ListEntityProps {
   entity: WithNotification<EntityData>;
+  displayMode?: 'default' | 'skinny';
   onClick?: (event: MouseEvent) => void;
   timestamp?: DateValue | null;
   ref?: Ref<HTMLDivElement>;
@@ -362,6 +363,32 @@ function WideLayout(props: LayoutProps) {
   );
 }
 
+function SkinnyLayout(props: LayoutProps) {
+  return (
+    <Entity.Layout
+      class="w-full min-h-[inherit] items-center text-base px-0 gap-2 grid grid-cols-[1rem_1fr] grid-rows-[1fr]"
+      style={{
+        'grid-template-areas': '"indicator content"',
+      }}
+    >
+      <Entity.Slot placement="indicator" class="relative size-full grid place-items-center">
+        <UnreadIndicator active={props.unread} />
+      </Entity.Slot>
+      <Entity.Slot
+        placement="content"
+        class="font-medium truncate items-center gap-1.5 flex"
+      >
+        <div class="size-3 shrink-0">
+          <Entity.Icon entity={props.entity} />
+        </div>
+        <span class="truncate">
+          <Entity.Title entity={props.entity} />
+        </span>
+      </Entity.Slot>
+    </Entity.Layout>
+  );
+}
+
 export function ListEntity(props: ListEntityProps) {
   const unread = () => unreadFilterFn(props.entity);
   const isShared = useIsShared(props.entity);
@@ -406,7 +433,9 @@ export function ListEntity(props: ListEntityProps) {
         props.onClick?.(e);
       }}
       ref={mergeRefs(props.ref, draggable)}
-      class={cn('@container/entity w-full min-h-10 relative group/narrow', {
+      class={cn('@container/entity w-full relative group/narrow', {
+        'min-h-7': props.displayMode === 'skinny',
+        'min-h-10': props.displayMode !== 'skinny',
         'bg-accent/5': props.checked,
         'hover:bg-hover/30':
           !props.checked && !props.highlighted && !props.hovered,
@@ -422,10 +451,15 @@ export function ListEntity(props: ListEntityProps) {
         })}
       />
 
-      <NarrowLayout {...layoutProps()} />
-      <WideLayout {...layoutProps()} />
+      <Show when={props.displayMode === 'skinny'}>
+        <SkinnyLayout {...layoutProps()} />
+      </Show>
+      <Show when={props.displayMode !== 'skinny'}>
+        <NarrowLayout {...layoutProps()} />
+        <WideLayout {...layoutProps()} />
+      </Show>
 
-      <Show when={hasNotifications()}>
+      <Show when={props.displayMode !== 'skinny' && hasNotifications()}>
         <div class="flex gap-2 w-full h-full items-center text-sm px-2 pb-1 -mt-2 min-w-0 overflow-hidden">
           <div class={cn('min-w-0 flex-1 truncate ml-2 @lg/entity:ml-6')}>
             <Show when={isWithNotification(props.entity) && !showContentHits()}>
@@ -438,7 +472,7 @@ export function ListEntity(props: ListEntityProps) {
         </div>
       </Show>
 
-      <Show when={showContentHits()}>
+      <Show when={props.displayMode !== 'skinny' && showContentHits()}>
         <div class="flex gap-2 w-full h-full items-center text-sm px-2 pb-1 -mt-2 min-w-0 overflow-hidden">
           <div class={cn('min-w-0 flex-1 truncate ml-4 @lg/entity:ml-6')}>
             <Entity.Search.ContentHits

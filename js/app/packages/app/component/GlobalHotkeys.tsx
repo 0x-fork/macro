@@ -16,9 +16,13 @@ import {
 } from '../../block-theme/signals/themeSignals';
 import { applyTheme } from '../../block-theme/utils/themeUtils';
 import { globalSplitManager } from '../signal/splitLayout';
+import { openSidebarPinnedItem } from './global-sidebar/pinnedActions';
 import { CommandState } from './command';
 import { CREATABLE_BLOCKS, setCreateMenuOpen } from './Launcher';
 import { useSplitLayout } from './split-layout/layout';
+import {
+  getPinnedItemByShortcutIndex,
+} from '@core/signal/layout/globalSidebar';
 
 export default function GlobalShortcuts() {
   const canFit = () => globalSplitManager()?.canAppendSplit() ?? true;
@@ -84,6 +88,23 @@ export default function GlobalShortcuts() {
     hide: CommandState.isOpen,
     runWithInputFocused: true,
   });
+
+  for (let i = 1; i <= 9; i++) {
+    registerHotkey({
+      hotkeyToken: TOKENS.soup.tabs[i.toString() as keyof typeof TOKENS.soup.tabs],
+      hotkey: [`cmd+${i}`, `ctrl+${i}`] as ValidHotkey[],
+      scopeId: 'global',
+      description: () => `Open pinned item ${i}`,
+      condition: () => !!getPinnedItemByShortcutIndex(i),
+      keyDownHandler: () => {
+        const pinnedItem = getPinnedItemByShortcutIndex(i);
+        if (!pinnedItem) return false;
+        openSidebarPinnedItem(pinnedItem);
+        return true;
+      },
+      runWithInputFocused: true,
+    });
+  }
 
   const { openWithSplit } = useSplitLayout();
 

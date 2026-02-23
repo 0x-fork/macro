@@ -15,12 +15,90 @@
 //     the code is regenerated.
 // </auto-generated>
 import {
-  BebopJson,
   type BebopRecord,
   BebopRuntimeError,
-  BebopTypeGuard,
   BebopView,
 } from 'bebop';
+
+const MAX_UINT64 = 18446744073709551615n;
+const ISO_DATE_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+
+// Compat shim for bebop runtime versions that no longer export BebopJson/BebopTypeGuard.
+const BebopJson = {
+  replacer(_key: string, value: unknown): unknown {
+    if (typeof value === 'bigint') {
+      return `${value}n`;
+    }
+    if (value instanceof Uint8Array) {
+      return Array.from(value);
+    }
+    return value;
+  },
+  reviver(_key: string, value: unknown): unknown {
+    if (typeof value === 'string') {
+      if (/^-?\d+n$/.test(value)) {
+        try {
+          return BigInt(value.slice(0, -1));
+        } catch {
+          return value;
+        }
+      }
+      if (ISO_DATE_PATTERN.test(value)) {
+        const date = new Date(value);
+        if (!Number.isNaN(date.getTime())) {
+          return date;
+        }
+      }
+      return value;
+    }
+    if (
+      Array.isArray(value) &&
+      value.every(
+        (item) =>
+          typeof item === 'number' &&
+          Number.isInteger(item) &&
+          item >= 0 &&
+          item <= 255
+      )
+    ) {
+      return new Uint8Array(value);
+    }
+    return value;
+  },
+};
+
+const BebopTypeGuard = {
+  ensureArray(value: unknown, ensureItem: (item: any) => void): void {
+    if (!Array.isArray(value) && !(value instanceof Uint8Array)) {
+      throw new BebopRuntimeError('Expected array or Uint8Array');
+    }
+    const arrayValue = value as ArrayLike<unknown>;
+    for (let i = 0; i < arrayValue.length; i++) {
+      ensureItem(arrayValue[i]);
+    }
+  },
+  ensureUint8(value: unknown): void {
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < 0 ||
+      value > 255
+    ) {
+      throw new BebopRuntimeError('Expected uint8');
+    }
+  },
+  ensureUint64(value: unknown): void {
+    if (typeof value !== 'bigint' || value < 0n || value > MAX_UINT64) {
+      throw new BebopRuntimeError('Expected uint64 bigint');
+    }
+  },
+  ensureDate(value: unknown): void {
+    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+      throw new BebopRuntimeError('Expected valid Date');
+    }
+  },
+};
 
 export const BEBOP_SCHEMA = new Uint8Array([
   3, 16, 0, 0, 0, 80, 101, 101, 114, 85, 112, 100, 97, 116, 101, 0, 1, 0, 0, 4,

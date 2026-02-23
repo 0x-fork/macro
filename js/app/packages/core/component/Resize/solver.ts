@@ -262,6 +262,23 @@ export function createResizeSolver(params: {
 
       // default is the "equal size" share
       let incomingShare = 1 / nextLength;
+      const target = panel.target;
+
+      if (length > 0 && target?.kind === 'percent') {
+        incomingShare = Math.max(0, Math.min(1, target.percent / 100));
+      }
+
+      // Convert pixel target to share for deterministic first layout sizing.
+      if (length > 0 && target?.kind === 'px') {
+        const usableSize = getUsable(
+          nextLength,
+          params.size(),
+          params.gutter()
+        );
+        if (usableSize > 0) {
+          incomingShare = Math.max(0, Math.min(1, target.px / usableSize));
+        }
+      }
 
       // check max size constraint
       if (length > 0) {

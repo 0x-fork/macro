@@ -510,6 +510,13 @@ export const SoupViewList = (props: SoupViewListProps) => {
   };
 
   const featuredCount = createMemo(() => featuredIds().length);
+  const currentViewId = () => {
+    const meta = panel.handle.meta();
+    if (!meta || !('viewId' in meta) || typeof meta.viewId !== 'string') {
+      return undefined;
+    }
+    return meta.viewId;
+  };
 
   return (
     <div
@@ -549,7 +556,10 @@ export const SoupViewList = (props: SoupViewListProps) => {
               </div>
             </Match>
             <Match when={!rows().length}>
-              <EmptyState search={!!searchText()} />
+              <EmptyState
+                search={!!searchText()}
+                viewId={currentViewId()}
+              />
             </Match>
             <Match when={rows().length}>
               <EntityRowProvider

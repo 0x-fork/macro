@@ -12,7 +12,7 @@ import {
   useContext,
 } from 'solid-js';
 import { createResizeSolver } from './solver';
-import type { PanelConfig, PanelId, ResizeZoneCtx } from './types';
+import type { PanelConfig, PanelId, PanelSizeSpec, ResizeZoneCtx } from './types';
 
 export const ResizeZoneContext = createContext<ResizeZoneCtx>();
 
@@ -184,6 +184,7 @@ type PanelProps = {
   id: PanelId;
   minSize: number;
   maxSize?: number;
+  target?: PanelSizeSpec;
   collapsed?: () => boolean;
   hidden?: () => boolean;
   /** The index position for this panel in the layout order */
@@ -228,6 +229,7 @@ function Panel(props: ParentProps<PanelProps>) {
         id: props.id,
         minSize: props.minSize,
         maxSize: props.maxSize ?? Infinity,
+        target: props.target,
       },
       props.index
     );
@@ -244,6 +246,7 @@ function Panel(props: ParentProps<PanelProps>) {
           id: props.id,
           minSize: props.minSize,
           maxSize: props.maxSize ?? Infinity,
+          target: props.target,
         },
         props.index
       );
@@ -269,6 +272,7 @@ function Panel(props: ParentProps<PanelProps>) {
             id: props.id,
             minSize: props.minSize,
             maxSize: props.maxSize ?? Infinity,
+            target: props.target,
           },
           props.index
         );

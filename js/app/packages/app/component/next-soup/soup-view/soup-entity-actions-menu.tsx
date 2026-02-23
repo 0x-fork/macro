@@ -14,6 +14,11 @@ import {
 } from '../actions';
 import type { SoupState } from '../create-soup-state';
 import { useUserId } from '@core/context/user';
+import {
+  isEntityPinned,
+  pinEntityInSidebar,
+  unpinEntityInSidebar,
+} from '@core/signal/layout/globalSidebar';
 
 interface SoupEntityActionsMenuProps {
   entities: EntityData[];
@@ -94,6 +99,28 @@ export const SoupEntityActionsMenu = (props: SoupEntityActionsMenuProps) => {
     }
   };
 
+  const canTogglePin = () => props.entities.length === 1;
+
+  const togglePin = () => {
+    const entity = props.entities[0];
+    if (!entity) return;
+
+    if (isEntityPinned(entity.id)) {
+      unpinEntityInSidebar(entity.id);
+      return;
+    }
+
+    pinEntityInSidebar({
+      entityId: entity.id,
+      entityType: entity.type,
+      splitType:
+        entity.type === 'document'
+          ? fileTypeToBlockName(entity.subType?.type ?? entity.fileType)
+          : entity.type,
+      label: 'name' in entity ? entity.name : undefined,
+    });
+  };
+
   return (
     <>
       <MenuItem
@@ -106,6 +133,16 @@ export const SoupEntityActionsMenu = (props: SoupEntityActionsMenuProps) => {
         text="Open in new split"
         disabled={!canOpenInSplit()}
         onClick={openInNewSplit}
+      />
+
+      <MenuItem
+        text={
+          canTogglePin() && isEntityPinned(props.entities[0].id)
+            ? 'Unpin from sidebar'
+            : 'Pin to sidebar'
+        }
+        disabled={!canTogglePin()}
+        onClick={togglePin}
       />
 
       <Divider />
