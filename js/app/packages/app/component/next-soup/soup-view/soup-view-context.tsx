@@ -215,9 +215,7 @@ export const SoupViewContextProvider: FlowComponent<
       if (!searching) {
         const data = itemsQuery.data;
         if (!data) return prev;
-        return data.map((e) =>
-          isWithNotification(e) ? e : attachNotifications(e)
-        ) as SoupEntity[];
+        return data.map((e) => e) as SoupEntity[];
       }
 
       const local = search.localFuzzyResults();
@@ -236,7 +234,7 @@ export const SoupViewContextProvider: FlowComponent<
       for (let i = 0; i < merged.length; i++) {
         const entity = merged[i];
         if (entity.notifications) continue;
-        merged[i] = attachNotifications(entity);
+        // merged[i] = attachNotifications(entity);
       }
 
       return merged;
