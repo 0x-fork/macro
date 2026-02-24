@@ -6,6 +6,7 @@ import {
 import { useSearchContext } from '@app/component/next-soup/search-context';
 import {
   createSoupFreshSearch,
+  getValidSearchFilters,
   intersectEntityPools,
   nameFuzzySearchFilter,
 } from '@app/component/next-soup/search-utils';
@@ -176,7 +177,7 @@ export const createSearchState = ({
 
   const allFiltersResults = createMemo((): Map<string, EntityData[]> => {
     if (!localFuzzyResults()) return new Map();
-    const allFilters = soup.filters.available;
+    const allFilters = getValidSearchFilters(soup.filters.available);
     const filterToResultMap = new Map<string, EntityData[]>();
     for (const filter of allFilters) {
       filterToResultMap.set(
@@ -189,7 +190,7 @@ export const createSearchState = ({
 
   const filteredLocalFuzzyResults = createMemo(() => {
     if (!localFuzzyResults()) return [];
-    const activeFilters = soup.filters.active();
+    const activeFilters = getValidSearchFilters(soup.filters.active());
     if (activeFilters.length === 0)
       return localFuzzyResults().slice(0, FEATURED_COUNT);
     const pools = activeFilters.map((f) => allFiltersResults().get(f.id) ?? []);

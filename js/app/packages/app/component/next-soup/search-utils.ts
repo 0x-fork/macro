@@ -2,6 +2,14 @@ import { fuzzyMatch } from '@core/util/fuzzy';
 import { mergeAdjacentMacroEmTags } from '@core/util/searchHighlight';
 import { createFreshSearch } from '@core/util/freshSort';
 import type { EntityData, WithSearch } from '@entity';
+import type { FilterConfig } from './filters/create-filter-state';
+
+export const getValidSearchFilters = <T>(
+  filters: readonly FilterConfig<T>[]
+) => {
+  return filters.filter((f) => f.id !== 'explicit-noise');
+};
+
 /** Takes a list of entity pools and returns a list of unique entities that are present in all pools, deduplicating by id */
 export function intersectEntityPools(
   pools: readonly EntityData[][]

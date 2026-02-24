@@ -74,8 +74,10 @@ export function MobileDock() {
   };
 
   const toggleSignalFilter = (value: boolean) => {
+    // If we're going to be removing the signal filter,
+    // we should replace it with the explicit-noise filter
     if (!value) {
-      soup.filters.deactivate('signal');
+      activateFilter('explicit-noise');
       soup.filters.deactivate('not-done');
     } else {
       activateFilter('signal');

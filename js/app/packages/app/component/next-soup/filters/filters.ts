@@ -1,5 +1,9 @@
 import { isTaskEntity, type EntityData, type WithNotification } from '@entity';
-import { signalFilter, noiseFilter } from './signal-filters';
+import {
+  signalFilter,
+  noiseFilter,
+  explicitNoiseFilter,
+} from './signal-filters';
 import {
   type EntityWithValidIcon,
   getIconConfig,
@@ -178,6 +182,12 @@ export const SOUP_FILTERS = [
     id: 'noise',
     label: 'Other',
     predicate: noiseFilter,
+    group: 'focus',
+  },
+  {
+    id: 'explicit-noise',
+    label: 'Explicit Noise',
+    predicate: (entity: EntityData) => !explicitNoiseFilter(entity),
     group: 'focus',
   },
 

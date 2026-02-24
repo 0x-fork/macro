@@ -374,7 +374,9 @@ function SplitPanel(props: SplitPanelProps) {
     },
   });
 
-  const nextSoup = createSoupState();
+  const nextSoup = createSoupState({
+    initialFilters: ['explicit-noise'],
+  });
 
   return (
     <SoupContextProvider soup={nextSoup}>
