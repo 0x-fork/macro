@@ -24,6 +24,7 @@ on:
           - email-suppression
           - lambda-aggregate-frecency
           - link-sharing
+          - litellm-proxy
           - notification-service
           - organization-retention
           - search-processing-service

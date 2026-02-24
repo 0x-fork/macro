@@ -141,6 +141,12 @@
         "rust/cloud-storage/dlp_handler/**"
       ],
       "stack_path": "infra/stacks/dlp-handler/**"
+    },
+    "litellm-proxy": {
+      "source_paths": [
+        "rust/cloud-storage/ai/**"
+      ],
+      "stack_path": "infra/stacks/litellm-proxy/**"
     }
   }
 }

@@ -1,9 +1,8 @@
 use super::chained::Chained;
 use super::chat::Chat;
 use crate::tool::types::AsyncToolSet;
-use crate::types::AnthropicClient;
 use crate::types::ExtendedClient;
-use anthropic::openai::request::{AnthropicRequestExtension, AnthropicRequestExtensions};
+use crate::types::LiteLlmClient;
 use std::sync::Arc;
 
 pub struct ToolLoop<I, T>
@@ -16,17 +15,12 @@ where
     toolset: Arc<AsyncToolSet<T>>,
 }
 
-impl<T> ToolLoop<AnthropicClient, T>
+impl<T> ToolLoop<LiteLlmClient, T>
 where
     T: Clone + Send + Sync,
 {
     pub fn new(toolset: AsyncToolSet<T>, context: T) -> Self {
-        let extensions = AnthropicRequestExtensions(vec![
-            AnthropicRequestExtension::WebSearchTool,
-            AnthropicRequestExtension::FetchTool,
-            AnthropicRequestExtension::CodeExecutionTool,
-        ]);
-        let client = AnthropicClient::new(extensions);
+        let client = LiteLlmClient::new();
         let toolset = Arc::new(toolset);
         Self {
             client,

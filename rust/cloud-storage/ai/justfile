@@ -1,0 +1,9 @@
+set dotenv-load := true
+
+mod ci '../ci.just'
+
+deploy-dev:
+    just ci::deploy-dev ai-service
+
+start_localstack:
+    docker compose -f docker-compose.litellm.yaml up -d

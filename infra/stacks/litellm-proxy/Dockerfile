@@ -1,0 +1,3 @@
+FROM docker.litellm.ai/berriai/litellm:main-stable
+COPY litellm_config.yaml /app/config.yaml
+CMD ["--config=/app/config.yaml", "--port=4000"]

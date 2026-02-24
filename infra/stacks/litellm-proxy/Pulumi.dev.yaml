@@ -1,0 +1,5 @@
+config:
+  aws-native:region: us-east-1
+  aws:region: us-east-1
+  litellm-proxy:openai_api_key: dcs-api-keys
+  litellm-proxy:anthropic_api_key: anthropic-api-key-dev

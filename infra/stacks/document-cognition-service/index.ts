@@ -336,6 +336,12 @@ const documentCognitionService = new DocumentCognitionService(
         name: 'DD_ENV',
         value: stack,
       },
+      {
+        name: 'LITELLM_BASE_URL',
+        value: `https://litellm-proxy${
+          stack === 'prod' ? '' : `-${stack}`
+        }.macro.com`,
+      },
     ],
     isPrivate: false,
     tags,

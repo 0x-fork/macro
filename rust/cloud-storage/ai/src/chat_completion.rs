@@ -1,5 +1,7 @@
 /* Non-streaming chat completion via Anthropic */
-use crate::types::{AnthropicClient, ChatCompletionError, ChatCompletionRequest, ExtendedClient};
+use crate::types::{
+    ChatCompletionError, ChatCompletionRequest, ExtendedClient, anthropic::AnthropicClient,
+};
 use async_openai::types::CreateChatCompletionRequest;
 use futures::StreamExt;
 

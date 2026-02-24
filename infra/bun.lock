@@ -126,6 +126,10 @@
       "name": "link-sharing-stack",
       "version": "0.0.0",
     },
+    "stacks/litellm-proxy": {
+      "name": "litellm-proxy-stack",
+      "version": "0.0.0",
+    },
     "stacks/macrodb": {
       "name": "macrodb-stack",
       "version": "0.0.0",
@@ -725,6 +729,8 @@
     "lambda": ["lambda@workspace:packages/lambda"],
 
     "link-sharing-stack": ["link-sharing-stack@workspace:stacks/link-sharing"],
+
+    "litellm-proxy-stack": ["litellm-proxy-stack@workspace:stacks/litellm-proxy"],
 
     "locate-path": ["locate-path@7.2.0", "", { "dependencies": { "p-locate": "^6.0.0" } }, "sha512-gvVijfZvn7R+2qyPX8mAuKcFGDf6Nc61GdvGafQsHL0sBIxfKzA+usWn4GFC/bk+QdwPUD4kWFJLhElipq+0VA=="],
 
