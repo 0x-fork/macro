@@ -1,12 +1,13 @@
+import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { createSortState } from '@app/component/next-soup/create-sort-state';
 import {
   createFilterState,
+  createSoupFilters,
   type FilterConfig,
 } from '@app/component/next-soup/filters';
 import {
   FILTER_GROUPS,
   type FilterGroup,
-  SOUP_FILTERS,
 } from '@app/component/next-soup/filters/filters';
 import { createSelectionState } from '@app/component/next-soup/selection-state';
 import { SORT_CONFIGS } from '@app/component/next-soup/soup-view/sort-options';
@@ -56,8 +57,10 @@ export const createSoupState = <
     getItemId: (i) => i.id,
   });
 
+  const notificationSource = useGlobalNotificationSource();
+
   const filters = createFilterState<SoupEntity, FilterConfig<SoupEntity>>({
-    filters: filterConfigs ?? SOUP_FILTERS,
+    filters: filterConfigs ?? createSoupFilters(notificationSource),
     groups: filterGroups ?? FILTER_GROUPS,
     initialFilters,
   });
