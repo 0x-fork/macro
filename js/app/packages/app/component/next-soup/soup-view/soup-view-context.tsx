@@ -176,31 +176,6 @@ export const SoupViewContextProvider: FlowComponent<
     })
   );
 
-  // Prefetch inbox and other views so they're cached when user toggles
-  createEffect(() => {
-    const params = soupParams();
-    const filters = queryFilters();
-
-    const prefetch = (body: SoupBody) => {
-      const args: SoupItemsQueryArgs = { params, body };
-      void queryClient.prefetchInfiniteQuery({
-        queryKey: soupKeys.items(args).queryKey,
-        queryFn: async (ctx) =>
-          throwOnErr(() =>
-            storageServiceClient.getSoupItems({
-              params: { cursor: ctx.pageParam },
-              body: { ...body, ...params },
-            })
-          ),
-        initialPageParam: null as string | null,
-        staleTime: 5_000,
-      });
-    };
-
-    prefetch({ ...applyInboxQueryFilters(filters), emailView: 'inbox' });
-    prefetch({ ...applyOtherQueryFilters(filters), emailView: 'inbox' });
-  });
-
   const search = createSearchState({ soup, queryFilters });
 
   const notificationSource = useGlobalNotificationSource();
