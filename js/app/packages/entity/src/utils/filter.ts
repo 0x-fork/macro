@@ -1,7 +1,10 @@
+import type { UnifiedNotification } from '@notifications';
 import type { EntityData } from '../types/entity';
-import type { WithNotification } from '../types/notification';
 
-export function unreadFilterFn(entity: WithNotification<EntityData>) {
+export function unreadFilterFn(
+  entity: EntityData,
+  notifications: UnifiedNotification[]
+) {
   if (entity.type === 'email') return !entity.isRead;
-  return entity.notifications?.()?.some(({ viewed_at }) => !viewed_at) ?? false;
+  return notifications.some(({ viewed_at }) => !viewed_at) ?? false;
 }

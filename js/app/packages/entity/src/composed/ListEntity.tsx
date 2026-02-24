@@ -40,6 +40,8 @@ import {
 } from '../utils/notification';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { mergeRefs } from '@solid-primitives/refs';
+import { useNotificationsForEntity } from '@notifications';
+import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 
 const hasSearchContentHits = (entity: EntityData) =>
   isSearchEntity(entity) && !!entity.search.contentHitData?.length;
@@ -371,19 +373,25 @@ function WideLayout(props: LayoutProps) {
 }
 
 export function ListEntity(props: ListEntityProps) {
-  const unread = () => unreadFilterFn(props.entity);
   const isShared = useIsShared(props.entity);
 
   subscribeToStreamState(props.entity.id, props.entity.type);
   const streamState = getStreamState(props.entity.id);
 
+  const notificationsSource = useGlobalNotificationSource();
+  const notifications = useNotificationsForEntity(
+    notificationsSource,
+    props.entity
+  );
+
+  const unread = () => unreadFilterFn(props.entity, notifications());
+
   const hasNotifications = () => {
     if (!props.showUnrollNotifications) return false;
     if (!isWithNotification(props.entity)) return false;
     return (
-      filterNotDoneNotifications(
-        filterValidNotifications(props.entity.notifications?.())
-      ).length > 0
+      filterNotDoneNotifications(filterValidNotifications(notifications()))
+        .length > 0
     );
   };
 

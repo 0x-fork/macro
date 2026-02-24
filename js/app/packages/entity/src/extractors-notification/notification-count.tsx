@@ -5,6 +5,8 @@ import {
   filterNotDoneNotifications,
   filterValidNotifications,
 } from '../utils/notification';
+import { useNotificationsForEntity } from '@notifications';
+import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 
 interface NotificationCountProps {
   entity: EntityData;
@@ -15,10 +17,15 @@ interface NotificationCountProps {
  * Returns empty fragment if entity has no notifications or all are done
  */
 export function NotificationCount(props: NotificationCountProps) {
+  const notificationsSource = useGlobalNotificationSource();
+  const entityNotifications = useNotificationsForEntity(
+    notificationsSource,
+    props.entity
+  );
   const count = createMemo(() => {
     if (!isWithNotification(props.entity)) return 0;
 
-    const notifications = props.entity.notifications?.();
+    const notifications = entityNotifications();
     if (!notifications) return 0;
 
     const validNotifications = filterValidNotifications(notifications);

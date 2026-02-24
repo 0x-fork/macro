@@ -5,6 +5,7 @@ import {
   type NotificationStack,
   getMostRecentNotification,
   openNotification,
+  useNotificationsForEntity,
 } from '@notifications';
 import type { WithNotification } from '../types/notification';
 import type { EntityData } from '../types/entity';
@@ -121,7 +122,12 @@ function NotificationStackRow(props: {
 }
 
 export function NotificationStacks(props: NotificationStacksProps) {
-  const notifications = () => props.entity.notifications?.() ?? [];
+  const notificationsSource = useGlobalNotificationSource();
+  const notifications = useNotificationsForEntity(
+    notificationsSource,
+    props.entity
+  );
+
   const validNotifications = () =>
     filterNotDoneNotifications(filterValidNotifications(notifications()));
 
