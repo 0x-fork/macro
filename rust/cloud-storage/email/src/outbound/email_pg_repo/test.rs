@@ -780,6 +780,50 @@ async fn test_dynamic_query_with_importance_filter(pool: Pool<Postgres>) -> anyh
     Ok(())
 }
 
+// Inbox view + importance=false: the "Other" toggle in the UI.
+// Thread 6 (CATEGORY_UPDATES) has importance=false but inbox_visible=false → excluded by Inbox view.
+// Thread 7 (CATEGORY_PROMOTIONS) has importance=false AND inbox_visible=true → included.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+)]
+async fn test_dynamic_query_inbox_view_with_importance_false(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
+    let view = PreviewView::StandardLabel(PreviewViewStandardLabel::Inbox);
+    let limit = 50;
+
+    let filter = Arc::new(Expr::Literal(EmailLiteral::Importance(false)));
+    let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
+
+    let results =
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query).await?;
+
+    // Only thread 7: inbox_visible=true AND importance=false
+    assert_eq!(
+        results.len(),
+        1,
+        "Inbox view with importance=false should return only 1 thread"
+    );
+
+    assert_eq!(
+        results[0].id.to_string(),
+        "20000007-0000-0000-0000-000000000007",
+        "Should be thread 7 (CATEGORY_PROMOTIONS, inbox_visible=true)"
+    );
+
+    // Thread 6 should be excluded (inbox_visible=false)
+    assert!(
+        !results
+            .iter()
+            .any(|r| r.id.to_string() == "20000006-0000-0000-0000-000000000006"),
+        "Should exclude thread 6 (inbox_visible=false)"
+    );
+
+    Ok(())
+}
+
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))

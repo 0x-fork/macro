@@ -193,6 +193,7 @@ export const SoupViewContextProvider: FlowComponent<
             })
           ),
         initialPageParam: null as string | null,
+        staleTime: 5_000,
       });
     };
 
