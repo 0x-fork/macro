@@ -166,6 +166,11 @@ export function fileFilter(entity: EntityData): boolean {
   return !['md', 'canvas'].includes(fileType);
 }
 
+/** Docs + Files filter (all non-task documents) */
+export function docsFilesFilter(entity: EntityData): boolean {
+  return documentFilter(entity) || fileFilter(entity);
+}
+
 export function channelsFilter(entity: EntityData): boolean {
   return entity.type === 'channel';
 }
@@ -208,6 +213,12 @@ export const SOUP_FILTERS = [
     id: 'document',
     label: 'Docs',
     predicate: documentFilter,
+    group: 'type',
+  },
+  {
+    id: 'docs-files',
+    label: 'Docs + Files',
+    predicate: docsFilesFilter,
     group: 'type',
   },
   {
@@ -258,6 +269,7 @@ export type FilterID = (typeof SOUP_FILTERS)[number]['id'];
 
 const ENTITY_TYPE_FILTERS = [
   'document',
+  'docs-files',
   'task',
   'email',
   'people',
@@ -284,6 +296,7 @@ export const ENTITY_TYPE_FILTER_CONFIGS = SOUP_FILTERS.filter((f) =>
 const ENTITY_TYPE_TO_ICON_TYPE: Record<EntityTypeFilters, EntityWithValidIcon> =
   {
     document: 'md',
+    'docs-files': 'md',
     email: 'email',
     task: 'task',
     people: 'channel',
@@ -304,6 +317,7 @@ export const ANIMATED_ICONS: Partial<
   Record<EntityTypeFilters, Component<{ triggerAnimation?: boolean }>>
 > = {
   document: AnimatedFileMdIcon,
+  'docs-files': AnimatedFileMdIcon,
   agent: AnimatedStarIcon,
   people: AnimatedChatIcon,
   teams: AnimatedChannelIcon,
@@ -348,6 +362,15 @@ export const QUERY_FILTERS = {
     email_filters: { recipients: EXCLUDE },
     project_filters: { project_ids: EXCLUDE },
     document_filters: { file_types: ['md', 'canvas'] },
+  },
+
+  /** Docs + files filter - all document file types (tasks excluded by local predicate) */
+  docs_files: {
+    channel_filters: { channel_ids: EXCLUDE },
+    chat_filters: { chat_ids: EXCLUDE },
+    email_filters: { recipients: EXCLUDE },
+    project_filters: { project_ids: EXCLUDE },
+    document_filters: {},
   },
 
   /** Tasks filter - markdown documents with task subType */

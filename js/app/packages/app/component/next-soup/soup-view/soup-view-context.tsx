@@ -107,6 +107,14 @@ export const SoupViewContextProvider: FlowComponent<
   const soup = props.soup ?? createSoupState();
   const splitPanel = useSplitPanel();
   const userId = useUserId();
+  const isSoupContentVisible = createMemo(() => {
+    const content = splitPanel?.handle.content();
+    if (!content) return true;
+    return (
+      (content.type === 'component' && content.id === 'unified-list') ||
+      content.type === 'project'
+    );
+  });
 
   const soupParams = createMemo(
     (): SoupParams => ({
@@ -231,7 +239,7 @@ export const SoupViewContextProvider: FlowComponent<
       body: soupBody(),
     }),
     () => ({
-      enabled: !search.isSearching(),
+      enabled: isSoupContentVisible() && !search.isSearching(),
     })
   );
 

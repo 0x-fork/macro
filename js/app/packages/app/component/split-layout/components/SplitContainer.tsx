@@ -20,6 +20,9 @@ import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
 import { ClippedPanel } from '@core/component/ClippedPanel';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { isMobile } from '@core/mobile/isMobile';
+import CaretRight from '@icon/regular/caret-right.svg';
+import { GlobalSidebar } from '@app/component/global-sidebar/GlobalSidebar';
+import { SoupToolbar } from '@app/component/next-soup/soup-view/soup-toolbar';
 
 export function SplitContainer(
   props: ParentProps<{
@@ -46,6 +49,7 @@ export function SplitContainer(
 
   const [toolbarRef, setToolbarRef] = createSignal<HTMLDivElement | null>(null);
   const [headerRef, setHeaderRef] = createSignal<HTMLDivElement | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = createSignal(false);
 
   const headerSize = createElementSize(headerRef);
   const toolbarSize = createElementSize(toolbarRef);
@@ -101,11 +105,32 @@ export function SplitContainer(
             }
             edgeColor="transparent"
           >
-            <div class="flex flex-col min-h-0 size-full bg-panel">
-              <SplitHeader ref={setHeaderRef} />
-              <SplitToolbar ref={setToolbarRef} />
-              <div class="@container/split size-full overflow-hidden">
-                {props.children}
+            <div class="@container/split size-full overflow-hidden flex min-w-0 bg-panel">
+              <Show when={!isSidebarCollapsed()}>
+                <div class="w-[260px] shrink-0 min-h-0">
+                  <GlobalSidebar
+                    splitHandle={panel.handle}
+                    onCollapse={() => setIsSidebarCollapsed(true)}
+                  />
+                </div>
+              </Show>
+              <div class="flex-1 min-w-0 min-h-0 relative flex flex-col">
+                <SplitHeader ref={setHeaderRef} />
+                <SoupToolbar />
+                <SplitToolbar ref={setToolbarRef} />
+                <div class="size-full min-h-0 overflow-hidden relative">
+                  <Show when={isSidebarCollapsed()}>
+                    <button
+                      type="button"
+                      class="absolute top-2 left-2 z-10 size-6 rounded-md grid place-items-center text-ink-muted bg-panel border border-edge-muted/50 hover:bg-hover/40"
+                      onClick={() => setIsSidebarCollapsed(false)}
+                      aria-label="Expand sidebar"
+                    >
+                      <CaretRight class="size-4" />
+                    </button>
+                  </Show>
+                  {props.children}
+                </div>
               </div>
               <Show when={panel.handle.isSpotLight()}>
                 <MacroJump tabbableParent={ref} />

@@ -1,14 +1,9 @@
 import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
-import BackspaceIcon from '@icon/regular/backspace.svg?component-solid';
 import XIcon from '@icon/regular/x.svg?component-solid';
-import PreviewIcon from '@macro-icons/wide/preview.svg';
-import NoiseIcon from '@macro-icons/wide/noise.svg';
 import SignalIcon from '@macro-icons/wide/signal.svg';
-import { AnimatedNoiseIcon } from '@macro-icons/wide/animating/noise';
-import { AnimatedSignalIcon } from '@macro-icons/wide/animating/signal';
+import MessageIcon from '@macro-icons/wide/chat.svg';
 import {
   SplitHeaderLeft,
-  SplitHeaderRight,
 } from '@app/component/split-layout/components/SplitHeader';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 
@@ -23,8 +18,6 @@ import {
   type Component,
 } from 'solid-js';
 import {
-  ANIMATED_ICONS,
-  ENTITY_TYPE_FILTER_CONFIGS,
   EXCLUDE,
   getEntityTypeFilterIcon,
   QUERY_FILTERS,
@@ -35,135 +28,194 @@ import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-contex
 import { useEmailLinksStatus } from '@core/email-link';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ValidHotkey } from '@core/hotkey/types';
+import { getIconConfig, type EntityWithValidIcon } from '@core/component/EntityIcon';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { IS_MAC } from '@core/constant/isMac';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { Dynamic } from 'solid-js/web';
 import { SortDropdown } from '@app/component/next-soup/soup-view/sort-dropdown';
-import { SettingsButton } from '@app/component/settings/SettingsButton';
-import { Popover } from '@kobalte/core/popover';
-import CaretDownIcon from '@icon/regular/caret-down.svg';
-import CircleDashedIcon from '@icon/regular/circle-dashed.svg';
+import {
+  useSoupFilterMount,
+  useSoupTopControlsMount,
+} from '@app/component/global-sidebar/soup-filter-mount';
 import {
   TaskStatusDropdown,
   TaskAssigneeDropdown,
 } from '@app/component/next-soup/soup-view/task-sub-filters';
+import { Portal } from 'solid-js/web';
+import SplitIcon from '@icon/regular/square-half.svg';
 
 /**
  * Keyboard shortcuts for entity type filters.
  * This object is the single source of truth for filter shortcuts,
  * used by both the filter buttons and hotkey registrations.
  */
-const ENTITY_TYPE_SHORTCUTS: Record<
-  (typeof ENTITY_TYPE_FILTER_CONFIGS)[number]['id'],
-  ValidHotkey
-> = {
-  document: 'd',
+const ENTITY_TYPE_SHORTCUTS: Record<EntityTypeFilterId, ValidHotkey> = {
+  'docs-files': 'd',
   task: 't',
   email: 'l',
-  people: 'p',
-  teams: 'm',
+  channels: 'm',
   agent: 'a',
-  file: 'f',
 };
 
+type EntityTypeFilterId =
+  | 'docs-files'
+  | 'task'
+  | 'email'
+  | 'channels'
+  | 'agent';
+
+const TYPE_FILTER_BUTTONS: Array<{
+  id: EntityTypeFilterId;
+  label: string;
+}> = [
+  { id: 'docs-files', label: 'Docs' },
+  { id: 'task', label: 'Tasks' },
+  { id: 'email', label: 'Mail' },
+  { id: 'channels', label: 'Msgs' },
+  { id: 'agent', label: 'Agents' },
+];
+
+const DOC_FILE_TYPE_OPTIONS: Array<{
+  id: 'md' | 'canvas' | 'pdf' | 'csv';
+  label: string;
+  icon: EntityWithValidIcon;
+}> = [
+  { id: 'md', label: 'Doc', icon: 'md' },
+  { id: 'canvas', label: 'Canvas', icon: 'canvas' },
+  { id: 'pdf', label: 'PDF', icon: 'pdf' },
+  { id: 'csv', label: 'CSV', icon: 'csv' },
+];
+
 export const SoupToolbar = () => {
-  const { soup, setSearchText, setQueryFilters } = useSoupView();
+  const { soup } = useSoupView();
+  const panel = useSplitPanelOrThrow();
+  const filterMount = useSoupFilterMount(() => String(panel.handle.id));
+  const topControlsMount = useSoupTopControlsMount(() => String(panel.handle.id));
+  const [sortDropdownOpen, setSortDropdownOpen] = createSignal(false);
+  const isSoupListContent = () => {
+    const content = panel.handle.content();
+    return (
+      (content.type === 'component' && content.id === 'unified-list') ||
+      content.type === 'project'
+    );
+  };
 
   const [scrollContainerRef, setScrollContainerRef] = createSignal<
     HTMLDivElement | undefined
   >(undefined);
 
-  const handleClear = () => {
-    batch(() => {
-      soup.filters.clear();
-      setSearchText('');
-      setQueryFilters(QUERY_FILTERS.default);
-    });
+  const togglePreview = () => {
+    const currentPreview = soup.previewEntity();
+    if (currentPreview) {
+      soup.setPreviewEntity(undefined);
+      return;
+    }
+    const focused = soup.focus.id();
+    if (!focused) return;
+    soup.setPreviewEntity(focused);
   };
 
   return (
     <>
-      <SplitHeaderLeft>
-        <div class="relative h-full w-full">
-          <ScrollIndicators scrollRef={scrollContainerRef()} />
+      <Show when={isSoupListContent()}>
+        <SplitHeaderLeft>
+          <div class="relative h-full w-full pl-2">
+            <ScrollIndicators scrollRef={scrollContainerRef()} />
 
-          <div
-            ref={setScrollContainerRef}
-            class="flex items-center h-full w-full overflow-x-auto scrollbar-hidden overscroll-none text-xs mobile:text-sm"
-          >
-            <SoupFilters />
-            <SearchBar />
+            <div
+              ref={setScrollContainerRef}
+              class="flex items-center h-full w-full overflow-x-auto scrollbar-hidden overscroll-none text-xs mobile:text-sm"
+            >
+              <SearchBar />
+            </div>
           </div>
-        </div>
-      </SplitHeaderLeft>
-
-      <SplitHeaderRight>
-        <Tooltip
-          tooltip={<LabelAndHotKey label="Clear filters" shortcut="/" />}
-        >
-          <button
-            type="button"
-            class="flex items-center justify-center size-[22px] rounded-full text-ink-muted hover:text-accent hover:bg-accent/20 active:bg-accent active:text-panel"
-            onClick={handleClear}
-          >
-            <BackspaceIcon class="size-4.5" />
-          </button>
-        </Tooltip>
-        <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
-        <SettingsButton />
-      </SplitHeaderRight>
+        </SplitHeaderLeft>
+      </Show>
+      <Show when={filterMount()}>
+        {(mount) => (
+          <Portal mount={mount()}>
+            <div class="w-full pb-2">
+              <SoupFilters
+                sortDropdownOpen={sortDropdownOpen}
+                setSortDropdownOpen={setSortDropdownOpen}
+              />
+            </div>
+          </Portal>
+        )}
+      </Show>
+      <Show when={isSoupListContent() && topControlsMount()}>
+        {(mount) => (
+          <Portal mount={mount()}>
+            <button
+              type="button"
+              class="size-7 rounded-md grid place-items-center transition-colors"
+              classList={{
+                'bg-accent/20 text-accent': !!soup.previewEntity(),
+                'text-ink-muted hover:bg-hover/50 hover:text-ink':
+                  !soup.previewEntity(),
+              }}
+              disabled={!soup.focus.id()}
+              onClick={togglePreview}
+              aria-label="Toggle preview"
+              title="Preview"
+            >
+              <SplitIcon class="size-4" />
+            </button>
+            <SortDropdown
+              open={sortDropdownOpen}
+              onOpenChange={setSortDropdownOpen}
+              iconOnly
+              value={() => soup.sort.active()[0].id as SystemSortOption}
+              onChange={(value) => {
+                soup.sort.setAll([value]);
+              }}
+            />
+          </Portal>
+        )}
+      </Show>
     </>
   );
 };
 
-type EntityTypeFilterId =
-  | 'document'
-  | 'task'
-  | 'people'
-  | 'teams'
-  | 'agent'
-  | 'file';
+type ExclusiveMode = 'inbox' | 'all' | EntityTypeFilterId;
 
-const SoupFilters = () => {
+const SoupFilters = (props: {
+  sortDropdownOpen: () => boolean;
+  setSortDropdownOpen: (open: boolean) => void;
+}) => {
   const { soup, setSearchText, setQueryFilters } = useSoupView();
   const panel = useSplitPanelOrThrow();
   const emailActive = useEmailLinksStatus();
+  const [selectedDocFileType, setSelectedDocFileType] = createSignal<
+    'md' | 'canvas' | 'pdf' | 'csv' | undefined
+  >();
 
-  const [sortDropdownOpen, setSortDropdownOpen] = createSignal(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = createSignal(false);
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = createSignal(false);
-  const [viewDropdownOpen, setViewDropdownOpen] = createSignal(false);
-  const [entityTypeDropdownOpen, setEntityTypeDropdownOpen] = createSignal(false);
 
-  const toggleFocus = (id: 'signal' | 'noise') => {
-    if (soup.filters.isActive(id)) {
-      soup.filters.toggle('explicit-noise');
-      soup.filters.deactivate('not-done');
-    } else {
-      soup.filters.toggle(id);
-      soup.filters.activate('not-done');
-    }
+  const clearExclusiveFilters = () => {
+    soup.filters.clear();
+    setSelectedDocFileType(undefined);
   };
 
-  const toggleUnread = () => {
-    soup.filters.toggle('unread');
-  };
-
-  const toggleEntityType = (id: EntityTypeFilterId) => {
-    const willBeActive = !soup.filters.isActive(id);
+  const activateExclusiveMode = (mode: ExclusiveMode) => {
     batch(() => {
-      soup.filters.toggle(id);
-      setQueryFilters(willBeActive ? QUERY_FILTERS[id] : QUERY_FILTERS.default);
-    });
-  };
+      clearExclusiveFilters();
+      setQueryFilters(QUERY_FILTERS.default);
 
-  // Email has special handling for email integration status
-  const toggleEmail = () => {
-    const willBeActive = !soup.filters.isActive('email');
-    batch(() => {
-      soup.filters.toggle('email');
-      if (willBeActive) {
+      if (mode === 'inbox') {
+        soup.filters.activate('signal');
+        soup.filters.activate('not-done');
+        return;
+      }
+
+      if (mode === 'all') {
+        return;
+      }
+
+      soup.filters.activate(mode);
+      if (mode === 'email') {
         const shouldIncludeEmails = emailActive();
         setQueryFilters({
           ...QUERY_FILTERS.email,
@@ -171,23 +223,55 @@ const SoupFilters = () => {
             recipients: shouldIncludeEmails ? [] : EXCLUDE,
           },
         });
-      } else {
-        setQueryFilters(QUERY_FILTERS.default);
+        return;
       }
+
+      if (mode === 'docs-files') {
+        setQueryFilters(QUERY_FILTERS.docs_files);
+        return;
+      }
+
+      setQueryFilters(QUERY_FILTERS[mode]);
     });
   };
 
   const entityTypeToggleHandlers: Record<
-    (typeof ENTITY_TYPE_FILTER_CONFIGS)[number]['id'],
+    EntityTypeFilterId,
     () => void
   > = {
-    document: () => toggleEntityType('document'),
-    task: () => toggleEntityType('task'),
-    email: toggleEmail,
-    people: () => toggleEntityType('people'),
-    teams: () => toggleEntityType('teams'),
-    agent: () => toggleEntityType('agent'),
-    file: () => toggleEntityType('file'),
+    'docs-files': () => activateExclusiveMode('docs-files'),
+    task: () => activateExclusiveMode('task'),
+    email: () => activateExclusiveMode('email'),
+    channels: () => activateExclusiveMode('channels'),
+    agent: () => activateExclusiveMode('agent'),
+  };
+
+  const toggleDocFileType = (nextType: 'md' | 'canvas' | 'pdf' | 'csv') => {
+    if (!soup.filters.isActive('docs-files')) {
+      batch(() => {
+        clearExclusiveFilters();
+        soup.filters.activate('docs-files');
+        setSelectedDocFileType(nextType);
+        setQueryFilters({
+          ...QUERY_FILTERS.docs_files,
+          document_filters: { file_types: [nextType] },
+        });
+      });
+      return;
+    }
+
+    const current = selectedDocFileType();
+    if (current === nextType) {
+      setSelectedDocFileType(undefined);
+      setQueryFilters(QUERY_FILTERS.docs_files);
+      return;
+    }
+
+    setSelectedDocFileType(nextType);
+    setQueryFilters({
+      ...QUERY_FILTERS.docs_files,
+      document_filters: { file_types: [nextType] },
+    });
   };
 
   const togglePreview = () => {
@@ -204,6 +288,21 @@ const SoupFilters = () => {
     soup.setPreviewEntity(focused);
   };
 
+  const selectedMode = (): ExclusiveMode => {
+    if (soup.filters.isActive('signal') && !soup.filters.isActive('noise')) {
+      return 'inbox';
+    }
+
+    const activeType = TYPE_FILTER_BUTTONS.find(({ id }) =>
+      soup.filters.isActive(id)
+    )?.id;
+    if (activeType) {
+      return activeType;
+    }
+
+    return 'all';
+  };
+
   const hotkeyConfigs: {
     hotkey: ValidHotkey;
     description: string;
@@ -211,59 +310,44 @@ const SoupFilters = () => {
   }[] = [
     {
       hotkey: 'i',
-      description: 'Toggle Inbox',
-      handler: () => toggleFocus('signal'),
-    },
-    {
-      hotkey: 'o',
-      description: 'Toggle Other',
-      handler: () => toggleFocus('noise'),
+      description: 'Switch to Inbox',
+      handler: () => activateExclusiveMode('inbox'),
     },
     // Entity type filter hotkeys
     {
-      hotkey: ENTITY_TYPE_SHORTCUTS.document,
-      description: 'Filter by Docs',
-      handler: () => toggleEntityType('document'),
+      hotkey: ENTITY_TYPE_SHORTCUTS['docs-files'],
+      description: 'Filter by Docs and Files',
+      handler: () => activateExclusiveMode('docs-files'),
     },
     {
       hotkey: ENTITY_TYPE_SHORTCUTS.task,
       description: 'Filter by Tasks',
-      handler: () => toggleEntityType('task'),
+      handler: () => activateExclusiveMode('task'),
     },
     {
       hotkey: ENTITY_TYPE_SHORTCUTS.email,
       description: 'Filter by Mail',
-      handler: toggleEmail,
+      handler: () => activateExclusiveMode('email'),
     },
     {
-      hotkey: ENTITY_TYPE_SHORTCUTS.people,
-      description: 'Filter by People',
-      handler: () => toggleEntityType('people'),
-    },
-    {
-      hotkey: ENTITY_TYPE_SHORTCUTS.teams,
-      description: 'Filter by Teams',
-      handler: () => toggleEntityType('teams'),
+      hotkey: ENTITY_TYPE_SHORTCUTS.channels,
+      description: 'Filter by Messages',
+      handler: () => activateExclusiveMode('channels'),
     },
     {
       hotkey: ENTITY_TYPE_SHORTCUTS.agent,
       description: 'Filter by Agents',
-      handler: () => toggleEntityType('agent'),
-    },
-    {
-      hotkey: ENTITY_TYPE_SHORTCUTS.file,
-      description: 'Filter by Files',
-      handler: () => toggleEntityType('file'),
+      handler: () => activateExclusiveMode('agent'),
     },
     {
       hotkey: 'u',
-      description: 'Filter by Unread',
-      handler: toggleUnread,
+      description: 'Switch to All',
+      handler: () => activateExclusiveMode('all'),
     },
     {
       hotkey: 's',
       description: 'Open sort menu',
-      handler: () => setSortDropdownOpen((prev) => !prev),
+      handler: () => props.setSortDropdownOpen(!props.sortDropdownOpen()),
     },
     {
       hotkey: '/',
@@ -328,58 +412,94 @@ const SoupFilters = () => {
 
   return (
     <>
-      <ViewDropdown
-        open={viewDropdownOpen}
-        onOpenChange={setViewDropdownOpen}
-        isInboxActive={() => soup.filters.isActive('signal')}
-        isOtherActive={() => soup.filters.isActive('noise')}
-        isSentActive={() =>
-          soup.filters.isActive('email') &&
-          !soup.filters.isActive('signal') &&
-          !soup.filters.isActive('noise') &&
-          !soup.filters.isActive('unread')
-        }
-        isUnreadActive={() => soup.filters.isActive('unread')}
-        onSelectInbox={() => {
-          if (!soup.filters.isActive('signal')) {
-            toggleFocus('signal');
-          }
-        }}
-        onSelectOther={() => {
-          if (!soup.filters.isActive('noise')) {
-            toggleFocus('noise');
-          }
-        }}
-        onSelectSent={() => {
-          batch(() => {
-            soup.filters.deactivate('signal');
-            soup.filters.deactivate('noise');
-            soup.filters.deactivate('explicit-noise');
-            soup.filters.deactivate('not-done');
-            soup.filters.activate('email');
-
-            const shouldIncludeEmails = emailActive();
-            setQueryFilters({
-              ...QUERY_FILTERS.email,
-              email_filters: {
-                recipients: shouldIncludeEmails ? [] : EXCLUDE,
-              },
-            });
-          });
-        }}
-        onSelectUnread={() => {
-          toggleUnread();
-        }}
-      />
-      <FilterDivider />
-      <EntityTypeDropdown
-        open={entityTypeDropdownOpen}
-        onOpenChange={setEntityTypeDropdownOpen}
-        isActive={(id) => soup.filters.isActive(id)}
-        onSelect={(id) => entityTypeToggleHandlers[id]()}
-      />
+      <div class="flex flex-col items-stretch gap-0 w-full">
+        <button
+          type="button"
+          class="h-8 w-full px-2.5 rounded-full text-xs font-medium inline-flex items-center justify-start gap-1.5"
+          aria-label="Inbox"
+          title="Inbox"
+          classList={{
+            'bg-accent/20 text-accent': selectedMode() === 'inbox',
+            'text-ink-muted hover:text-ink hover:bg-hover/40': selectedMode() !== 'inbox',
+          }}
+          onClick={() => activateExclusiveMode('inbox')}
+        >
+          <SignalIcon class="size-3.5" />
+          <span class="leading-none">Inbox</span>
+        </button>
+        <button
+          type="button"
+          class="h-8 w-full px-2.5 rounded-full text-xs font-medium inline-flex items-center justify-start gap-1.5"
+          aria-label="All"
+          title="All"
+          classList={{
+            'bg-accent/20 text-accent': selectedMode() === 'all',
+            'text-ink-muted hover:text-ink hover:bg-hover/40': selectedMode() !== 'all',
+          }}
+          onClick={() => activateExclusiveMode('all')}
+        >
+          <SearchIcon class="size-3.5" />
+          <span class="leading-none">All</span>
+        </button>
+        <For each={TYPE_FILTER_BUTTONS}>
+          {(filter) => (
+            <button
+              type="button"
+              class="h-8 w-full px-2.5 rounded-full text-xs font-medium inline-flex items-center justify-start gap-1.5"
+              aria-label={filter.label ?? 'Filter'}
+              title={filter.label ?? 'Filter'}
+              classList={{
+                'bg-accent/20 text-accent': selectedMode() === filter.id,
+                'text-ink-muted hover:text-ink hover:bg-hover/40':
+                  selectedMode() !== filter.id,
+              }}
+              onClick={entityTypeToggleHandlers[filter.id]}
+            >
+              <Show
+                when={filter.id === 'channels'}
+                fallback={
+                  <Dynamic
+                    component={
+                      getEntityTypeFilterIcon(
+                        filter.id as Exclude<EntityTypeFilterId, 'channels'>
+                      ).icon
+                    }
+                    class="size-3.5"
+                  />
+                }
+              >
+                <MessageIcon class="size-3.5" />
+              </Show>
+              <span class="leading-none">{filter.label}</span>
+            </button>
+          )}
+        </For>
+      </div>
+      <Show when={soup.filters.isActive('docs-files')}>
+        <div class="mt-1 flex flex-wrap items-center gap-1">
+          <For each={DOC_FILE_TYPE_OPTIONS}>
+            {(option) => (
+              <button
+                type="button"
+                class="h-10 min-w-[40px] px-1 rounded-md flex flex-col items-center justify-center gap-0.5 text-xs"
+                aria-label={option.label}
+                title={option.label}
+                classList={{
+                  'bg-accent/20 text-accent': selectedDocFileType() === option.id,
+                  'text-ink-muted hover:text-ink hover:bg-hover/40':
+                    selectedDocFileType() !== option.id,
+                }}
+                onClick={() => toggleDocFileType(option.id)}
+              >
+                <Dynamic component={getIconConfig(option.icon).icon} class="size-3.5" />
+                <span class="text-[8px] leading-none">{option.label}</span>
+              </button>
+            )}
+          </For>
+        </div>
+      </Show>
       <Show when={soup.filters.isActive('task')}>
-        <FilterDivider />
+        <div class="my-2 h-px w-full bg-edge-muted/50" />
         <div class="flex items-center gap-1 shrink-0">
           <TaskStatusDropdown
             open={statusDropdownOpen}
@@ -391,339 +511,8 @@ const SoupFilters = () => {
           />
         </div>
       </Show>
-      <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
-      {/* Preview toggle */}
-      <Tooltip
-        tooltip={<LabelAndHotKey label="Toggle Preview" shortcut="space" />}
-      >
-        <button
-          type="button"
-          class="flex items-center gap-1.5 h-[22px] mobile:h-9 px-2.5 active:bg-accent active:text-panel rounded-full"
-          classList={{
-            'bg-accent text-panel': !!soup.previewEntity(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20':
-              !soup.previewEntity(),
-          }}
-          disabled={!soup.focus.id()}
-          onClick={togglePreview}
-        >
-          <PreviewIcon class="size-4.5" />
-          <span class="leading-none">
-            <ShortcutLabel label="Preview" shortcut="space" />
-          </span>
-        </button>
-      </Tooltip>
-      <FilterDivider />
-      {/* Sort dropdown */}
-      <SortDropdown
-        open={sortDropdownOpen}
-        onOpenChange={setSortDropdownOpen}
-        value={() => soup.sort.active()[0].id as SystemSortOption}
-        onChange={(value) => {
-          soup.sort.setAll([value]);
-        }}
-      />
-      <div class="mobile:-order-1">
-        <FilterDivider />
-      </div>
-      {/* Filter search bar */}
+      <div class="my-2 h-px w-full bg-edge-muted/50" />
     </>
-  );
-};
-
-const ViewDropdown = (props: {
-  open: () => boolean;
-  onOpenChange: (open: boolean) => void;
-  isInboxActive: () => boolean;
-  isOtherActive: () => boolean;
-  isSentActive: () => boolean;
-  isUnreadActive: () => boolean;
-  onSelectInbox: () => void;
-  onSelectOther: () => void;
-  onSelectSent: () => void;
-  onSelectUnread: () => void;
-}) => {
-  const [focusedIndex, setFocusedIndex] = createSignal(0);
-  const options = [
-    {
-      id: 'inbox',
-      label: 'Inbox',
-      icon: SignalIcon,
-      animatedIcon: AnimatedSignalIcon,
-      active: props.isInboxActive,
-      onSelect: props.onSelectInbox,
-    },
-    {
-      id: 'other',
-      label: 'Other',
-      icon: NoiseIcon,
-      animatedIcon: AnimatedNoiseIcon,
-      active: props.isOtherActive,
-      onSelect: props.onSelectOther,
-    },
-    {
-      id: 'sent',
-      label: 'Sent',
-      icon: getEntityTypeFilterIcon('email').icon,
-      animatedIcon: ANIMATED_ICONS.email,
-      active: props.isSentActive,
-      onSelect: props.onSelectSent,
-    },
-    {
-      id: 'unread',
-      label: 'Unread',
-      icon: CircleDashedIcon,
-      animatedIcon: undefined,
-      active: props.isUnreadActive,
-      onSelect: props.onSelectUnread,
-    },
-  ] as const;
-
-  const activeOption = () => options.find((option) => option.active());
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    const totalItems = options.length;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setFocusedIndex((prev) => (prev + 1) % totalItems);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setFocusedIndex((prev) => (prev - 1 + totalItems) % totalItems);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const option = options[focusedIndex()];
-      if (!option) return;
-      option.onSelect();
-      props.onOpenChange(false);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      props.onOpenChange(false);
-    }
-  };
-
-  return (
-    <Popover
-      open={props.open()}
-      onOpenChange={(isOpen) => {
-        props.onOpenChange(isOpen);
-        if (isOpen) setFocusedIndex(0);
-      }}
-      placement="bottom-start"
-      gutter={4}
-    >
-      <Tooltip tooltip={<LabelAndHotKey label="View" shortcut="i/o/u" />}>
-        <Popover.Trigger
-          as="button"
-          type="button"
-          class="flex items-center gap-1.5 h-[22px] mobile:h-9 px-2.5 shrink-0 rounded-full active:bg-accent active:text-panel"
-          classList={{
-            'bg-accent text-panel': !!activeOption() || props.open(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20':
-              !activeOption() && !props.open(),
-          }}
-        >
-          <Show
-            when={activeOption()}
-            fallback={<span class="leading-none">View</span>}
-          >
-            {(option) => (
-              <>
-                <Show
-                  when={ENABLE_ANIMATED_ICONS && option().animatedIcon}
-                  fallback={<Dynamic component={option().icon} class="size-3.5" />}
-                >
-                  {(Icon) => (
-                    <div class="size-3.5 overflow-visible">
-                      <Dynamic component={Icon()} triggerAnimation />
-                    </div>
-                  )}
-                </Show>
-                <span class="leading-none">{option().label}</span>
-              </>
-            )}
-          </Show>
-          <CaretDownIcon class="size-3 opacity-70" />
-        </Popover.Trigger>
-      </Tooltip>
-
-      <Popover.Portal>
-        <Popover.Content
-          class="z-50 bg-panel border border-edge-muted shadow-lg"
-          tabIndex={0}
-          ref={(el) => setTimeout(() => el?.focus(), 0)}
-          onKeyDown={handleKeyDown}
-        >
-          <div class="flex flex-col gap-1 p-2 min-w-[160px]">
-            <For each={options}>
-              {(option, index) => (
-                <button
-                  type="button"
-                  class="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-hover"
-                  classList={{
-                    'bg-hover text-ink': option.active(),
-                    'text-ink': !option.active(),
-                    'outline outline-1 outline-edge-muted/40': focusedIndex() === index(),
-                  }}
-                  onClick={() => {
-                    option.onSelect();
-                    props.onOpenChange(false);
-                  }}
-                  onMouseEnter={() => setFocusedIndex(index())}
-                >
-                  <Show
-                    when={ENABLE_ANIMATED_ICONS && option.animatedIcon}
-                    fallback={<Dynamic component={option.icon} class="size-3.5" />}
-                  >
-                    {(Icon) => (
-                      <div class="size-3.5 overflow-visible">
-                        <Dynamic component={Icon()} triggerAnimation={focusedIndex() === index()} />
-                      </div>
-                    )}
-                  </Show>
-                  <span class="flex-1 text-left">{option.label}</span>
-                  <Show when={option.active()}>
-                    <span class="text-ink">✓</span>
-                  </Show>
-                </button>
-              )}
-            </For>
-          </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover>
-  );
-};
-
-const EntityTypeDropdown = (props: {
-  open: () => boolean;
-  onOpenChange: (open: boolean) => void;
-  isActive: (id: (typeof ENTITY_TYPE_FILTER_CONFIGS)[number]['id']) => boolean;
-  onSelect: (id: (typeof ENTITY_TYPE_FILTER_CONFIGS)[number]['id']) => void;
-}) => {
-  const [focusedIndex, setFocusedIndex] = createSignal(0);
-
-  const activeFilter = () =>
-    ENTITY_TYPE_FILTER_CONFIGS.find((filter) => props.isActive(filter.id));
-  const activeLabel = () => activeFilter()?.label ?? 'Type';
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    const totalItems = ENTITY_TYPE_FILTER_CONFIGS.length;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setFocusedIndex((prev) => (prev + 1) % totalItems);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setFocusedIndex((prev) => (prev - 1 + totalItems) % totalItems);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const item = ENTITY_TYPE_FILTER_CONFIGS[focusedIndex()];
-      if (!item) return;
-      props.onSelect(item.id);
-      props.onOpenChange(false);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      props.onOpenChange(false);
-    }
-  };
-
-  return (
-    <Popover
-      open={props.open()}
-      onOpenChange={(isOpen) => {
-        props.onOpenChange(isOpen);
-        if (isOpen) setFocusedIndex(0);
-      }}
-      placement="bottom-start"
-      gutter={4}
-    >
-      <Tooltip tooltip={<LabelAndHotKey label="Entity Type" shortcut="d/t/l/p/m/a/f" />}>
-        <Popover.Trigger
-          as="button"
-          type="button"
-          class="flex items-center gap-1.5 h-[22px] mobile:h-9 px-2.5 shrink-0 rounded-full active:bg-accent active:text-panel"
-          classList={{
-            'bg-accent text-panel': !!activeFilter() || props.open(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20':
-              !activeFilter() && !props.open(),
-          }}
-        >
-          <Show
-            when={activeFilter()}
-            fallback={<span class="leading-none">Type</span>}
-          >
-            {(filter) => (
-              <>
-                <Show
-                  when={ENABLE_ANIMATED_ICONS && ANIMATED_ICONS[filter().id]}
-                  fallback={
-                    <Dynamic
-                      component={getEntityTypeFilterIcon(filter().id).icon}
-                      class="size-3.5"
-                    />
-                  }
-                >
-                  {(Icon) => (
-                    <div class="size-3.5 overflow-visible">
-                      <Dynamic component={Icon()} triggerAnimation />
-                    </div>
-                  )}
-                </Show>
-                <span class="leading-none">{activeLabel()}</span>
-              </>
-            )}
-          </Show>
-          <CaretDownIcon class="size-3 opacity-70" />
-        </Popover.Trigger>
-      </Tooltip>
-
-      <Popover.Portal>
-        <Popover.Content
-          class="z-50 bg-panel border border-edge-muted shadow-lg"
-          tabIndex={0}
-          ref={(el) => setTimeout(() => el?.focus(), 0)}
-          onKeyDown={handleKeyDown}
-        >
-          <div class="flex flex-col gap-1 p-2 min-w-[180px]">
-            <For each={ENTITY_TYPE_FILTER_CONFIGS}>
-              {(filter, index) => {
-                const iconConfig = () => getEntityTypeFilterIcon(filter.id);
-                return (
-                  <button
-                    type="button"
-                    class="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-hover"
-                    classList={{
-                      'bg-hover text-ink': props.isActive(filter.id),
-                      'text-ink': !props.isActive(filter.id),
-                      'outline outline-1 outline-edge-muted/40': focusedIndex() === index(),
-                    }}
-                    onClick={() => {
-                      props.onSelect(filter.id);
-                      props.onOpenChange(false);
-                    }}
-                    onMouseEnter={() => setFocusedIndex(index())}
-                  >
-                    <Show
-                      when={ENABLE_ANIMATED_ICONS && ANIMATED_ICONS[filter.id]}
-                      fallback={<Dynamic component={iconConfig().icon} class="size-3.5" />}
-                    >
-                      {(Icon) => (
-                        <div class="size-3.5 overflow-visible">
-                          <Dynamic component={Icon()} triggerAnimation={focusedIndex() === index()} />
-                        </div>
-                      )}
-                    </Show>
-                    <span class="flex-1 text-left">{filter.label}</span>
-                    <Show when={props.isActive(filter.id)}>
-                      <span class="text-ink">✓</span>
-                    </Show>
-                  </button>
-                );
-              }}
-            </For>
-          </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover>
   );
 };
 

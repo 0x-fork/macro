@@ -7,6 +7,7 @@ export type SidebarPresetViewId =
   | 'sidebar-home'
   | 'sidebar-inbox'
   | 'sidebar-sent'
+  | 'sidebar-messages'
   | 'sidebar-my-notes'
   | 'sidebar-message-inbox'
   | 'sidebar-my-tasks'
@@ -43,6 +44,10 @@ export function applySidebarPreset(params: {
       case 'sidebar-sent':
         soup.filters.activate('email');
         setQueryFilters(QUERY_FILTERS.email);
+        break;
+      case 'sidebar-messages':
+        soup.filters.activate('channels');
+        setQueryFilters(QUERY_FILTERS.channels);
         break;
       case 'sidebar-my-notes':
         soup.filters.activate('document');

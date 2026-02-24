@@ -27,6 +27,8 @@ export interface SortDropdownProps {
   open?: () => boolean;
   /** Controlled open state setter (optional - uses internal state if not provided) */
   onOpenChange?: (open: boolean) => void;
+  /** Render icon-only trigger without label */
+  iconOnly?: boolean;
 }
 
 export const SortDropdown: Component<SortDropdownProps> = (props) => {
@@ -79,16 +81,19 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
         <Popover.Trigger
           as="button"
           type="button"
-          class="flex items-center gap-1.5 h-[22px] px-2.5 shrink-0 rounded-full active:bg-accent active:text-panel"
+          class="flex items-center justify-center gap-1.5 h-[22px] px-2.5 shrink-0 rounded-full active:bg-accent active:text-panel"
           classList={{
+            'w-[22px] px-0': props.iconOnly,
             'bg-accent text-panel': open(),
             'text-ink-muted hover:text-accent hover:bg-accent/20': !open(),
           }}
         >
           <SortIcon class="size-4.5" />
-          <span class="leading-none">
-            <ShortcutLabel label="Sort" shortcut="s" />
-          </span>
+          <Show when={!props.iconOnly}>
+            <span class="leading-none">
+              <ShortcutLabel label="Sort" shortcut="s" />
+            </span>
+          </Show>
         </Popover.Trigger>
       </Tooltip>
       <Popover.Portal>

@@ -7,6 +7,7 @@ export const VIEW_SHORTCUT_LABELS: Record<SidebarViewShortcutId, string> = {
   home: 'Home',
   inbox: 'Inbox',
   sent: 'Sent',
+  messages: 'Messages',
   'my-notes': 'My Notes',
   'message-inbox': 'Message Inbox',
   'my-tasks': 'My Tasks',
@@ -20,6 +21,7 @@ export const VIEW_SHORTCUT_TO_VIEW_ID: Record<
   home: 'sidebar-home',
   inbox: 'sidebar-inbox',
   sent: 'sidebar-sent',
+  messages: 'sidebar-messages',
   'my-notes': 'sidebar-my-notes',
   'message-inbox': 'sidebar-message-inbox',
   'my-tasks': 'sidebar-my-tasks',
@@ -50,10 +52,12 @@ function openViewShortcut(
   splitHandle.activate();
 }
 
-function openPinnedEntity(item: Extract<SidebarPinnedItem, { kind: 'entity' }>) {
+function openPinnedEntity(
+  item: Extract<SidebarPinnedItem, { kind: 'entity' }>,
+  splitHandle: SplitHandle
+) {
   const manager = globalSplitManager();
-  const splitHandle = getActiveSplitHandle();
-  if (!manager || !splitHandle) return;
+  if (!manager) return;
 
   manager.openWithSplit(
     { type: item.splitType as never, id: item.entityId },
@@ -61,8 +65,11 @@ function openPinnedEntity(item: Extract<SidebarPinnedItem, { kind: 'entity' }>) 
   );
 }
 
-export function openSidebarPinnedItem(item: SidebarPinnedItem) {
-  const splitHandle = getActiveSplitHandle();
+export function openSidebarPinnedItem(
+  item: SidebarPinnedItem,
+  targetSplitHandle?: SplitHandle
+) {
+  const splitHandle = targetSplitHandle ?? getActiveSplitHandle();
   if (!splitHandle) return;
 
   if (item.kind === 'view') {
@@ -70,5 +77,5 @@ export function openSidebarPinnedItem(item: SidebarPinnedItem) {
     return;
   }
 
-  openPinnedEntity(item);
+  openPinnedEntity(item, splitHandle);
 }

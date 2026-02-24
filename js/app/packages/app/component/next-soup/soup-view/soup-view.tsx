@@ -13,7 +13,6 @@ import { useSoup } from '@app/component/next-soup/soup-context';
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
 import {
   type SoupRow,
-  SoupViewContextProvider,
   useSoupView,
 } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
@@ -62,7 +61,6 @@ import {
 import { createStore, reconcile } from 'solid-js/store';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
-import { SoupToolbar } from './soup-toolbar';
 import { useUserId } from '@core/context/user';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
@@ -144,21 +142,16 @@ export const SoupView = () => {
           soup.previewEntity() ? { side: 'left', percentage: 30 } : undefined,
       }}
     >
-      <SoupViewContextProvider soup={soup}>
-        <div class="relative flex-grow min-h-1 flex max-sm:flex-col flex-row size-full">
-          <Suspense>
-            <SoupToolbar />
-          </Suspense>
-          <SoupViewFileDropzone>
-            <SoupViewList />
-          </SoupViewFileDropzone>
-        </div>
-        <Suspense>
-          <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
-            <SoupChatInput />
-          </Show>
-        </Suspense>
-      </SoupViewContextProvider>
+      <div class="relative flex-grow min-h-1 flex max-sm:flex-col flex-row size-full">
+        <SoupViewFileDropzone>
+          <SoupViewList />
+        </SoupViewFileDropzone>
+      </div>
+      <Suspense>
+        <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
+          <SoupChatInput />
+        </Show>
+      </Suspense>
     </SplitPanelContext.Provider>
   );
 };

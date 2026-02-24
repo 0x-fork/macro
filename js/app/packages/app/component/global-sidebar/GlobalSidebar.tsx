@@ -1,78 +1,71 @@
 import { useGlobalSidebarItems } from '@app/component/next-soup/sidebar/useGlobalSidebarItems';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
-import {
-  type SidebarViewShortcutId,
-  setIsGlobalSidebarCollapsed,
-} from '@core/signal/layout/globalSidebar';
 import { setCreateMenuOpen } from '@app/component/Launcher';
-import { getActiveSplitHandle } from './pinnedActions';
+import type { SplitHandle } from '@app/component/split-layout/layoutManager';
+import { setSoupFilterMount, setSoupTopControlsMount } from './soup-filter-mount';
 import CaretLeft from '@icon/regular/caret-left.svg';
 import CaretDown from '@icon/regular/caret-down.svg';
 import CaretRight from '@icon/regular/caret-right.svg';
-import HomeIcon from '@icon/regular/house.svg';
-import ListIcon from '@icon/regular/list.svg';
-import CheckCircleIcon from '@icon/regular/check-circle.svg';
 import UserCircleIcon from '@icon/regular/user-circle.svg';
+import GroupChannelIcon from '@macro-icons/wide/channel.svg';
+import DirectMessageIcon from '@macro-icons/wide/chat.svg';
 import { ListEntity } from '@entity';
-import { createMemo, createSignal, For, Show } from 'solid-js';
-import { openSidebarPinnedItem } from './pinnedActions';
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 
-const SAVED_VIEWS: Array<{
-  id: SidebarViewShortcutId;
-  label: string;
-  icon: typeof HomeIcon;
-}> = [
-  { id: 'home', label: 'Home', icon: HomeIcon },
-  { id: 'inbox', label: 'Inbox', icon: ListIcon },
-  { id: 'sent', label: 'Sent', icon: CheckCircleIcon },
-  { id: 'my-notes', label: 'My Notes', icon: ListIcon },
-  { id: 'my-tasks', label: 'My Tasks', icon: CheckCircleIcon },
-  { id: 'team-tasks', label: 'Team Tasks', icon: UserCircleIcon },
-];
+export function GlobalSidebar(props: {
+  splitHandle: SplitHandle;
+  onCollapse: () => void;
+}) {
+  const { channelItems, isLoading } = useGlobalSidebarItems();
+  const [groupsExpanded, setGroupsExpanded] = createSignal(true);
+  const [dmsExpanded, setDmsExpanded] = createSignal(true);
+  const [showAllGroups, setShowAllGroups] = createSignal(false);
+  const [showAllDMs, setShowAllDMs] = createSignal(false);
 
-export function GlobalSidebar() {
-  const { pinnedItems, channelItems, isLoading } = useGlobalSidebarItems();
-  const [activeViewId, setActiveViewId] = createSignal<SidebarViewShortcutId>('inbox');
-  const [pinnedItemsExpanded, setPinnedItemsExpanded] = createSignal(true);
-  const [pinnedDocsExpanded, setPinnedDocsExpanded] = createSignal(true);
-  const [channelsExpanded, setChannelsExpanded] = createSignal(true);
-  const [showAllChannels, setShowAllChannels] = createSignal(false);
-
-  const openView = (id: SidebarViewShortcutId, label: string) => {
-    setActiveViewId(id);
-    openSidebarPinnedItem({
-      kind: 'view',
-      id,
-      label,
-    });
-  };
-
-  const pinnedDocs = createMemo(() =>
-    pinnedItems().flatMap((item) =>
-      item.kind === 'entity' && item.entity.type === 'document' ? [item] : []
-    )
+  const groups = createMemo(() =>
+    channelItems().filter((entity) => entity.channelType !== 'direct_message')
+  );
+  const directMessages = createMemo(() =>
+    channelItems().filter((entity) => entity.channelType === 'direct_message')
   );
 
-  const channels = createMemo(() => channelItems());
-
-  const visibleChannels = createMemo(() =>
-    showAllChannels() ? channels() : channels().slice(0, 20)
+  const visibleGroups = createMemo(() =>
+    showAllGroups() ? groups() : groups().slice(0, 20)
   );
+  const visibleDMs = createMemo(() =>
+    showAllDMs() ? directMessages() : directMessages().slice(0, 20)
+  );
+  const splitId = () => String(props.splitHandle.id);
+  let soupFilterMountRef: HTMLDivElement | undefined;
+  let soupTopControlsMountRef: HTMLDivElement | undefined;
+
+  onMount(() => {
+    setSoupFilterMount(splitId(), soupFilterMountRef);
+    setSoupTopControlsMount(splitId(), soupTopControlsMountRef);
+  });
+
+  onCleanup(() => {
+    setSoupFilterMount(splitId(), undefined);
+    setSoupTopControlsMount(splitId(), undefined);
+  });
 
   return (
     <div class="size-full bg-panel border-r border-edge-muted/60 flex flex-col min-h-0">
       <div class="h-10 px-2 flex items-center justify-between border-b border-edge-muted/50">
-        <button
-          type="button"
-          class="h-7 px-2.5 rounded-md text-[12px] font-medium bg-accent/18 text-accent hover:bg-accent/24 transition-colors"
-          onClick={() => setCreateMenuOpen(true)}
-        >
-          New
-        </button>
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md text-[12px] font-medium bg-accent/18 text-accent hover:bg-accent/24 transition-colors"
+            onClick={() => setCreateMenuOpen(true)}
+          >
+            New
+          </button>
+          <div ref={soupTopControlsMountRef} class="contents" />
+        </div>
         <button
           type="button"
           class="size-7 rounded-md grid place-items-center text-ink-muted hover:bg-hover/50 hover:text-ink transition-colors"
-          onClick={() => setIsGlobalSidebarCollapsed(true)}
+          onClick={props.onCollapse}
           aria-label="Collapse sidebar"
         >
           <CaretLeft class="size-4" />
@@ -83,123 +76,104 @@ export function GlobalSidebar() {
           <div class="text-xs text-ink-extra-muted px-2 py-1.5">Loading...</div>
         </Show>
 
-        <button
-          type="button"
-          class="w-full h-8 rounded-md px-2 text-[13px] text-left text-ink-muted hover:bg-hover/40 hover:text-ink transition-colors flex items-center gap-1.5"
-          onClick={() => setPinnedItemsExpanded((prev) => !prev)}
-        >
-          <Show when={pinnedItemsExpanded()} fallback={<CaretRight class="size-3.5" />}>
-            <CaretDown class="size-3.5" />
-          </Show>
-          <ListIcon class="size-3.5 opacity-80" />
-          <span class="flex-1">Pinned Items</span>
-          <span class="min-w-5 h-5 rounded bg-hover/50 px-1.5 text-[11px] leading-5 text-center text-ink-extra-muted">
-            {SAVED_VIEWS.length}
-          </span>
-        </button>
-
-        <Show when={pinnedItemsExpanded()}>
-          <div class="ml-4 pl-3 border-l border-edge-muted/50">
-            <For each={SAVED_VIEWS}>
-              {(view) => (
-                <button
-                  type="button"
-                  class="w-full h-8 rounded-md px-2 text-[13px] text-left transition-colors text-ink-muted hover:bg-hover/40 hover:text-ink flex items-center gap-2"
-                  classList={{
-                    'bg-hover/50 text-ink font-medium': activeViewId() === view.id,
-                  }}
-                  onClick={() => openView(view.id, view.label)}
-                >
-                  <view.icon class="size-3.5 opacity-80" />
-                  <span>{view.label}</span>
-                </button>
-              )}
-            </For>
-          </div>
-        </Show>
+        <div
+          ref={soupFilterMountRef}
+          class="w-full"
+          data-soup-filter-mount={splitId()}
+        />
 
         <button
           type="button"
           class="w-full h-8 rounded-md px-2 text-[13px] text-left text-ink-muted hover:bg-hover/40 hover:text-ink transition-colors flex items-center gap-1.5"
-          onClick={() => setPinnedDocsExpanded((prev) => !prev)}
+          onClick={() => setGroupsExpanded((prev) => !prev)}
         >
-          <Show when={pinnedDocsExpanded()} fallback={<CaretRight class="size-3.5" />}>
+          <Show when={groupsExpanded()} fallback={<CaretRight class="size-3.5" />}>
             <CaretDown class="size-3.5" />
           </Show>
-          <ListIcon class="size-3.5 opacity-80" />
-          <span class="flex-1">Pinned Docs</span>
+          <GroupChannelIcon class="size-3.5 opacity-80" />
+          <span class="flex-1">Groups</span>
           <span class="min-w-5 h-5 rounded bg-hover/50 px-1.5 text-[11px] leading-5 text-center text-ink-extra-muted">
-            {pinnedDocs().length}
+            {groups().length}
           </span>
         </button>
 
-        <Show when={pinnedDocsExpanded()}>
+        <Show when={groupsExpanded()}>
           <div class="ml-4 pl-3 border-l border-edge-muted/50">
-            <For each={pinnedDocs()}>
-              {(item) => (
-                <ListEntity
-                  entity={item.entity}
-                  displayMode="skinny"
-                  onClick={() => {
-                    const splitHandle = getActiveSplitHandle();
-                    if (!splitHandle) return;
-                    openEntityInSplitFromUnifiedList(item.entity, { splitHandle });
-                  }}
-                />
-              )}
-            </For>
-          </div>
-        </Show>
-
-        <Show when={!isLoading() && pinnedDocsExpanded() && pinnedDocs().length === 0}>
-          <div class="text-xs text-ink-extra-muted px-2 py-1">No pinned docs</div>
-        </Show>
-
-        <button
-          type="button"
-          class="w-full h-8 rounded-md px-2 text-[13px] text-left text-ink-muted hover:bg-hover/40 hover:text-ink transition-colors flex items-center gap-1.5"
-          onClick={() => setChannelsExpanded((prev) => !prev)}
-        >
-          <Show when={channelsExpanded()} fallback={<CaretRight class="size-3.5" />}>
-            <CaretDown class="size-3.5" />
-          </Show>
-          <UserCircleIcon class="size-3.5 opacity-80" />
-          <span class="flex-1">Channels</span>
-          <span class="min-w-5 h-5 rounded bg-hover/50 px-1.5 text-[11px] leading-5 text-center text-ink-extra-muted">
-            {channels().length}
-          </span>
-        </button>
-
-        <Show when={channelsExpanded()}>
-          <div class="ml-4 pl-3 border-l border-edge-muted/50">
-            <For each={visibleChannels()}>
+            <For each={visibleGroups()}>
               {(entity) => (
                 <ListEntity
                   entity={entity}
                   displayMode="skinny"
                   onClick={() => {
-                    const splitHandle = getActiveSplitHandle();
-                    if (!splitHandle) return;
-                    openEntityInSplitFromUnifiedList(entity, { splitHandle });
+                    openEntityInSplitFromUnifiedList(entity, {
+                      splitHandle: props.splitHandle,
+                    });
                   }}
                 />
               )}
             </For>
 
-            <Show when={channels().length > 20}>
+            <Show when={groups().length > 20}>
               <button
                 type="button"
                 class="mt-1 h-7 px-2 rounded-md text-xs text-ink-muted hover:text-ink hover:bg-hover/40 transition-colors"
-                onClick={() => setShowAllChannels((prev) => !prev)}
+                onClick={() => setShowAllGroups((prev) => !prev)}
               >
-                {showAllChannels() ? 'Show less' : 'Show more'}
+                {showAllGroups() ? 'Show less' : 'Show more'}
               </button>
             </Show>
           </div>
         </Show>
 
-        <Show when={!isLoading() && channelsExpanded() && channels().length === 0}>
-          <div class="text-xs text-ink-extra-muted px-2 py-1">No channels</div>
+        <Show when={!isLoading() && groupsExpanded() && groups().length === 0}>
+          <div class="text-xs text-ink-extra-muted px-2 py-1">No groups</div>
+        </Show>
+
+        <button
+          type="button"
+          class="w-full h-8 rounded-md px-2 text-[13px] text-left text-ink-muted hover:bg-hover/40 hover:text-ink transition-colors flex items-center gap-1.5"
+          onClick={() => setDmsExpanded((prev) => !prev)}
+        >
+          <Show when={dmsExpanded()} fallback={<CaretRight class="size-3.5" />}>
+            <CaretDown class="size-3.5" />
+          </Show>
+          <DirectMessageIcon class="size-3.5 opacity-80" />
+          <span class="flex-1">Direct Messages</span>
+          <span class="min-w-5 h-5 rounded bg-hover/50 px-1.5 text-[11px] leading-5 text-center text-ink-extra-muted">
+            {directMessages().length}
+          </span>
+        </button>
+
+        <Show when={dmsExpanded()}>
+          <div class="ml-4 pl-3 border-l border-edge-muted/50">
+            <For each={visibleDMs()}>
+              {(entity) => (
+                <ListEntity
+                  entity={entity}
+                  displayMode="skinny"
+                  onClick={() => {
+                    openEntityInSplitFromUnifiedList(entity, {
+                      splitHandle: props.splitHandle,
+                    });
+                  }}
+                />
+              )}
+            </For>
+
+            <Show when={directMessages().length > 20}>
+              <button
+                type="button"
+                class="mt-1 h-7 px-2 rounded-md text-xs text-ink-muted hover:text-ink hover:bg-hover/40 transition-colors"
+                onClick={() => setShowAllDMs((prev) => !prev)}
+              >
+                {showAllDMs() ? 'Show less' : 'Show more'}
+              </button>
+            </Show>
+          </div>
+        </Show>
+
+        <Show when={!isLoading() && dmsExpanded() && directMessages().length === 0}>
+          <div class="text-xs text-ink-extra-muted px-2 py-1">No direct messages</div>
         </Show>
       </div>
     </div>

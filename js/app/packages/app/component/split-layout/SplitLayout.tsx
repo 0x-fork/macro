@@ -1,6 +1,7 @@
 import { useGlobalBlockOrchestrator } from '@app/component/GlobalAppState';
 import { createSoupState } from '@app/component/next-soup/create-soup-state';
 import { SoupContextProvider } from '@app/component/next-soup/soup-context';
+import { SoupViewContextProvider } from '@app/component/next-soup/soup-view/soup-view-context';
 import { activeElement } from '@app/signal/focus';
 import { Resize } from '@core/component/Resize';
 import { tabTitleSignal } from '@core/signal/tabTitle';
@@ -393,18 +394,20 @@ function SplitPanel(props: SplitPanelProps) {
           previewState: [previewState, setPreviewState],
         }}
       >
-        <SplitContainer
-          id={props.split.id}
-          ref={(ref) => {
-            setPanelRef(ref);
-            props.setPanelRef(ref);
-            attachHotKeys(ref);
-          }}
-        >
-          <Suspense>
-            <Dynamic component={props.split.mount.element} />
-          </Suspense>
-        </SplitContainer>
+        <SoupViewContextProvider soup={nextSoup}>
+          <SplitContainer
+            id={props.split.id}
+            ref={(ref) => {
+              setPanelRef(ref);
+              props.setPanelRef(ref);
+              attachHotKeys(ref);
+            }}
+          >
+            <Suspense>
+              <Dynamic component={props.split.mount.element} />
+            </Suspense>
+          </SplitContainer>
+        </SoupViewContextProvider>
       </SplitPanelContext.Provider>
     </SoupContextProvider>
   );

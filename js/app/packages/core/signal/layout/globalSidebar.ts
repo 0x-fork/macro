@@ -9,6 +9,7 @@ export type SidebarViewShortcutId =
   | 'home'
   | 'inbox'
   | 'sent'
+  | 'messages'
   | 'my-notes'
   | 'message-inbox'
   | 'my-tasks'
