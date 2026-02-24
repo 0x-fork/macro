@@ -9,8 +9,8 @@ describe('globalSidebar pin shortcuts', () => {
   it('maps shortcut index to ordered pinned items', () => {
     createRoot((dispose) => {
       setSidebarPinnedItems([
-        { kind: 'view', id: 'message-inbox', label: 'Message Inbox' },
-        { kind: 'view', id: 'my-tasks', label: 'My Tasks' },
+        { kind: 'view', id: 'home', label: 'Home' },
+        { kind: 'view', id: 'inbox', label: 'Inbox' },
       ]);
 
       const firstPinned = getPinnedItemByShortcutIndex(1);
@@ -18,10 +18,10 @@ describe('globalSidebar pin shortcuts', () => {
 
       expect(firstPinned?.kind).toBe('view');
       expect(firstPinned && firstPinned.kind === 'view' ? firstPinned.id : undefined).toBe(
-        'message-inbox'
+        'home'
       );
       expect(secondPinned && secondPinned.kind === 'view' ? secondPinned.id : undefined).toBe(
-        'my-tasks'
+        'inbox'
       );
       expect(getPinnedItemByShortcutIndex(3)).toBeUndefined();
 

@@ -25,14 +25,14 @@ describe('composeSidebarItems', () => {
     ];
 
     const pinned: SidebarPinnedItem[] = [
-      { kind: 'view', id: 'message-inbox', label: 'Message Inbox' },
+      { kind: 'view', id: 'inbox', label: 'Inbox' },
       {
         kind: 'entity',
         entityId: 'b',
         entityType: 'document',
         splitType: 'md',
       },
-      { kind: 'view', id: 'my-tasks', label: 'My Tasks' },
+      { kind: 'view', id: 'sent', label: 'Sent' },
     ];
 
     const composed = composeSidebarItems({ pinned, entities });

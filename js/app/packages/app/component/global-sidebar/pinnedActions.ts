@@ -4,6 +4,10 @@ import type { SidebarPresetViewId } from '@app/component/next-soup/sidebar/viewP
 import type { SplitHandle } from '@app/component/split-layout/layoutManager';
 
 export const VIEW_SHORTCUT_LABELS: Record<SidebarViewShortcutId, string> = {
+  home: 'Home',
+  inbox: 'Inbox',
+  sent: 'Sent',
+  'my-notes': 'My Notes',
   'message-inbox': 'Message Inbox',
   'my-tasks': 'My Tasks',
   'team-tasks': 'Team Tasks',
@@ -13,6 +17,10 @@ export const VIEW_SHORTCUT_TO_VIEW_ID: Record<
   SidebarViewShortcutId,
   SidebarPresetViewId
 > = {
+  home: 'sidebar-home',
+  inbox: 'sidebar-inbox',
+  sent: 'sidebar-sent',
+  'my-notes': 'sidebar-my-notes',
   'message-inbox': 'sidebar-message-inbox',
   'my-tasks': 'sidebar-my-tasks',
   'team-tasks': 'sidebar-team-tasks',

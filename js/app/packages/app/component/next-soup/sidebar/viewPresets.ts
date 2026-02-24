@@ -4,6 +4,10 @@ import type { SoupItemsQueryFilters } from '@queries/soup/items';
 import { batch, type Setter } from 'solid-js';
 
 export type SidebarPresetViewId =
+  | 'sidebar-home'
+  | 'sidebar-inbox'
+  | 'sidebar-sent'
+  | 'sidebar-my-notes'
   | 'sidebar-message-inbox'
   | 'sidebar-my-tasks'
   | 'sidebar-team-tasks';
@@ -29,9 +33,20 @@ export function applySidebarPreset(params: {
     soup.setPreviewEntity(undefined);
 
     switch (viewId) {
+      case 'sidebar-home':
+        break;
+      case 'sidebar-inbox':
       case 'sidebar-message-inbox':
         soup.filters.activate('signal');
         soup.filters.activate('not-done');
+        break;
+      case 'sidebar-sent':
+        soup.filters.activate('email');
+        setQueryFilters(QUERY_FILTERS.email);
+        break;
+      case 'sidebar-my-notes':
+        soup.filters.activate('document');
+        setQueryFilters(QUERY_FILTERS.document);
         break;
       case 'sidebar-my-tasks':
         soup.filters.activate('task');

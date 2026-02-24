@@ -57,9 +57,14 @@ export function useGlobalSidebarItems() {
     }).frecencyItems
   );
 
+  const channelItems = createMemo(() =>
+    entities().filter((entity) => entity.type === 'channel')
+  );
+
   return {
     pinnedItems,
     frecencyItems,
+    channelItems,
     isLoading: () => itemsQuery.isLoading,
   };
 }

@@ -41,6 +41,9 @@ import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-o
 import { Dynamic } from 'solid-js/web';
 import { SortDropdown } from '@app/component/next-soup/soup-view/sort-dropdown';
 import { SettingsButton } from '@app/component/settings/SettingsButton';
+import { Popover } from '@kobalte/core/popover';
+import CaretDownIcon from '@icon/regular/caret-down.svg';
+import CircleDashedIcon from '@icon/regular/circle-dashed.svg';
 import {
   TaskStatusDropdown,
   TaskAssigneeDropdown,
@@ -130,6 +133,8 @@ const SoupFilters = () => {
   const [sortDropdownOpen, setSortDropdownOpen] = createSignal(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = createSignal(false);
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = createSignal(false);
+  const [viewDropdownOpen, setViewDropdownOpen] = createSignal(false);
+  const [entityTypeDropdownOpen, setEntityTypeDropdownOpen] = createSignal(false);
 
   const toggleFocus = (id: 'signal' | 'noise') => {
     if (soup.filters.isActive(id)) {
@@ -323,76 +328,56 @@ const SoupFilters = () => {
 
   return (
     <>
-      {/* Inbox toggle */}
-      <FilterButton
-        icon={SignalIcon}
-        animatedIcon={AnimatedSignalIcon}
-        label="Inbox"
-        shortcut="i"
-        isActive={soup.filters.isActive('signal')}
-        onClick={() => toggleFocus('signal')}
-      />
-      {/* Other toggle */}
-      <FilterButton
-        icon={NoiseIcon}
-        animatedIcon={AnimatedNoiseIcon}
-        label="Other"
-        shortcut="o"
-        isActive={soup.filters.isActive('noise')}
-        onClick={() => toggleFocus('noise')}
+      <ViewDropdown
+        open={viewDropdownOpen}
+        onOpenChange={setViewDropdownOpen}
+        isInboxActive={() => soup.filters.isActive('signal')}
+        isOtherActive={() => soup.filters.isActive('noise')}
+        isSentActive={() =>
+          soup.filters.isActive('email') &&
+          !soup.filters.isActive('signal') &&
+          !soup.filters.isActive('noise') &&
+          !soup.filters.isActive('unread')
+        }
+        isUnreadActive={() => soup.filters.isActive('unread')}
+        onSelectInbox={() => {
+          if (!soup.filters.isActive('signal')) {
+            toggleFocus('signal');
+          }
+        }}
+        onSelectOther={() => {
+          if (!soup.filters.isActive('noise')) {
+            toggleFocus('noise');
+          }
+        }}
+        onSelectSent={() => {
+          batch(() => {
+            soup.filters.deactivate('signal');
+            soup.filters.deactivate('noise');
+            soup.filters.deactivate('explicit-noise');
+            soup.filters.deactivate('not-done');
+            soup.filters.activate('email');
+
+            const shouldIncludeEmails = emailActive();
+            setQueryFilters({
+              ...QUERY_FILTERS.email,
+              email_filters: {
+                recipients: shouldIncludeEmails ? [] : EXCLUDE,
+              },
+            });
+          });
+        }}
+        onSelectUnread={() => {
+          toggleUnread();
+        }}
       />
       <FilterDivider />
-      {/* Unread filter */}
-      <div class="flex items-center mr-0.5 shrink-0">
-        <Tooltip tooltip={<LabelAndHotKey label="Unread Only" shortcut="u" />}>
-          <button
-            type="button"
-            class="flex items-center gap-1 h-[22px] mobile:h-9 pr-2.5 pl-1 active:bg-accent active:text-panel rounded-full"
-            classList={{
-              'bg-accent text-panel': soup.filters.isActive('unread'),
-              'text-ink-muted hover:text-accent hover:bg-accent/20':
-                !soup.filters.isActive('unread'),
-            }}
-            onClick={toggleUnread}
-          >
-            <svg
-              class="size-4"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              stroke="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle cx="12" cy="12" r="4" />
-            </svg>
-            <span class="leading-none">
-              <ShortcutLabel label="Unread" shortcut="u" />
-            </span>
-          </button>
-        </Tooltip>
-      </div>
-      <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
-      {/* Entity type icons */}
-      <div class="flex items-center shrink-0">
-        <For each={ENTITY_TYPE_FILTER_CONFIGS}>
-          {(filter) => {
-            const iconConfig = () => getEntityTypeFilterIcon(filter.id);
-            const shortcut = ENTITY_TYPE_SHORTCUTS[filter.id];
-            const animatedIcon = ANIMATED_ICONS[filter.id];
-
-            return (
-              <FilterButton
-                icon={iconConfig().icon}
-                animatedIcon={animatedIcon}
-                label={filter.label ?? ''}
-                shortcut={shortcut}
-                isActive={() => soup.filters.isActive(filter.id)}
-                onClick={entityTypeToggleHandlers[filter.id]}
-                paddingClass="px-2.5"
-              />
-            );
-          }}
-        </For>
-      </div>
+      <EntityTypeDropdown
+        open={entityTypeDropdownOpen}
+        onOpenChange={setEntityTypeDropdownOpen}
+        isActive={(id) => soup.filters.isActive(id)}
+        onSelect={(id) => entityTypeToggleHandlers[id]()}
+      />
       <Show when={soup.filters.isActive('task')}>
         <FilterDivider />
         <div class="flex items-center gap-1 shrink-0">
@@ -443,6 +428,302 @@ const SoupFilters = () => {
       </div>
       {/* Filter search bar */}
     </>
+  );
+};
+
+const ViewDropdown = (props: {
+  open: () => boolean;
+  onOpenChange: (open: boolean) => void;
+  isInboxActive: () => boolean;
+  isOtherActive: () => boolean;
+  isSentActive: () => boolean;
+  isUnreadActive: () => boolean;
+  onSelectInbox: () => void;
+  onSelectOther: () => void;
+  onSelectSent: () => void;
+  onSelectUnread: () => void;
+}) => {
+  const [focusedIndex, setFocusedIndex] = createSignal(0);
+  const options = [
+    {
+      id: 'inbox',
+      label: 'Inbox',
+      icon: SignalIcon,
+      animatedIcon: AnimatedSignalIcon,
+      active: props.isInboxActive,
+      onSelect: props.onSelectInbox,
+    },
+    {
+      id: 'other',
+      label: 'Other',
+      icon: NoiseIcon,
+      animatedIcon: AnimatedNoiseIcon,
+      active: props.isOtherActive,
+      onSelect: props.onSelectOther,
+    },
+    {
+      id: 'sent',
+      label: 'Sent',
+      icon: getEntityTypeFilterIcon('email').icon,
+      animatedIcon: ANIMATED_ICONS.email,
+      active: props.isSentActive,
+      onSelect: props.onSelectSent,
+    },
+    {
+      id: 'unread',
+      label: 'Unread',
+      icon: CircleDashedIcon,
+      animatedIcon: undefined,
+      active: props.isUnreadActive,
+      onSelect: props.onSelectUnread,
+    },
+  ] as const;
+
+  const activeOption = () => options.find((option) => option.active());
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const totalItems = options.length;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev + 1) % totalItems);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev - 1 + totalItems) % totalItems);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const option = options[focusedIndex()];
+      if (!option) return;
+      option.onSelect();
+      props.onOpenChange(false);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      props.onOpenChange(false);
+    }
+  };
+
+  return (
+    <Popover
+      open={props.open()}
+      onOpenChange={(isOpen) => {
+        props.onOpenChange(isOpen);
+        if (isOpen) setFocusedIndex(0);
+      }}
+      placement="bottom-start"
+      gutter={4}
+    >
+      <Tooltip tooltip={<LabelAndHotKey label="View" shortcut="i/o/u" />}>
+        <Popover.Trigger
+          as="button"
+          type="button"
+          class="flex items-center gap-1.5 h-[22px] mobile:h-9 px-2.5 shrink-0 rounded-full active:bg-accent active:text-panel"
+          classList={{
+            'bg-accent text-panel': !!activeOption() || props.open(),
+            'text-ink-muted hover:text-accent hover:bg-accent/20':
+              !activeOption() && !props.open(),
+          }}
+        >
+          <Show
+            when={activeOption()}
+            fallback={<span class="leading-none">View</span>}
+          >
+            {(option) => (
+              <>
+                <Show
+                  when={ENABLE_ANIMATED_ICONS && option().animatedIcon}
+                  fallback={<Dynamic component={option().icon} class="size-3.5" />}
+                >
+                  {(Icon) => (
+                    <div class="size-3.5 overflow-visible">
+                      <Dynamic component={Icon()} triggerAnimation />
+                    </div>
+                  )}
+                </Show>
+                <span class="leading-none">{option().label}</span>
+              </>
+            )}
+          </Show>
+          <CaretDownIcon class="size-3 opacity-70" />
+        </Popover.Trigger>
+      </Tooltip>
+
+      <Popover.Portal>
+        <Popover.Content
+          class="z-50 bg-panel border border-edge-muted shadow-lg"
+          tabIndex={0}
+          ref={(el) => setTimeout(() => el?.focus(), 0)}
+          onKeyDown={handleKeyDown}
+        >
+          <div class="flex flex-col gap-1 p-2 min-w-[160px]">
+            <For each={options}>
+              {(option, index) => (
+                <button
+                  type="button"
+                  class="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-hover"
+                  classList={{
+                    'bg-hover text-ink': option.active(),
+                    'text-ink': !option.active(),
+                    'outline outline-1 outline-edge-muted/40': focusedIndex() === index(),
+                  }}
+                  onClick={() => {
+                    option.onSelect();
+                    props.onOpenChange(false);
+                  }}
+                  onMouseEnter={() => setFocusedIndex(index())}
+                >
+                  <Show
+                    when={ENABLE_ANIMATED_ICONS && option.animatedIcon}
+                    fallback={<Dynamic component={option.icon} class="size-3.5" />}
+                  >
+                    {(Icon) => (
+                      <div class="size-3.5 overflow-visible">
+                        <Dynamic component={Icon()} triggerAnimation={focusedIndex() === index()} />
+                      </div>
+                    )}
+                  </Show>
+                  <span class="flex-1 text-left">{option.label}</span>
+                  <Show when={option.active()}>
+                    <span class="text-ink">✓</span>
+                  </Show>
+                </button>
+              )}
+            </For>
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover>
+  );
+};
+
+const EntityTypeDropdown = (props: {
+  open: () => boolean;
+  onOpenChange: (open: boolean) => void;
+  isActive: (id: (typeof ENTITY_TYPE_FILTER_CONFIGS)[number]['id']) => boolean;
+  onSelect: (id: (typeof ENTITY_TYPE_FILTER_CONFIGS)[number]['id']) => void;
+}) => {
+  const [focusedIndex, setFocusedIndex] = createSignal(0);
+
+  const activeFilter = () =>
+    ENTITY_TYPE_FILTER_CONFIGS.find((filter) => props.isActive(filter.id));
+  const activeLabel = () => activeFilter()?.label ?? 'Type';
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const totalItems = ENTITY_TYPE_FILTER_CONFIGS.length;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev + 1) % totalItems);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev - 1 + totalItems) % totalItems);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const item = ENTITY_TYPE_FILTER_CONFIGS[focusedIndex()];
+      if (!item) return;
+      props.onSelect(item.id);
+      props.onOpenChange(false);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      props.onOpenChange(false);
+    }
+  };
+
+  return (
+    <Popover
+      open={props.open()}
+      onOpenChange={(isOpen) => {
+        props.onOpenChange(isOpen);
+        if (isOpen) setFocusedIndex(0);
+      }}
+      placement="bottom-start"
+      gutter={4}
+    >
+      <Tooltip tooltip={<LabelAndHotKey label="Entity Type" shortcut="d/t/l/p/m/a/f" />}>
+        <Popover.Trigger
+          as="button"
+          type="button"
+          class="flex items-center gap-1.5 h-[22px] mobile:h-9 px-2.5 shrink-0 rounded-full active:bg-accent active:text-panel"
+          classList={{
+            'bg-accent text-panel': !!activeFilter() || props.open(),
+            'text-ink-muted hover:text-accent hover:bg-accent/20':
+              !activeFilter() && !props.open(),
+          }}
+        >
+          <Show
+            when={activeFilter()}
+            fallback={<span class="leading-none">Type</span>}
+          >
+            {(filter) => (
+              <>
+                <Show
+                  when={ENABLE_ANIMATED_ICONS && ANIMATED_ICONS[filter().id]}
+                  fallback={
+                    <Dynamic
+                      component={getEntityTypeFilterIcon(filter().id).icon}
+                      class="size-3.5"
+                    />
+                  }
+                >
+                  {(Icon) => (
+                    <div class="size-3.5 overflow-visible">
+                      <Dynamic component={Icon()} triggerAnimation />
+                    </div>
+                  )}
+                </Show>
+                <span class="leading-none">{activeLabel()}</span>
+              </>
+            )}
+          </Show>
+          <CaretDownIcon class="size-3 opacity-70" />
+        </Popover.Trigger>
+      </Tooltip>
+
+      <Popover.Portal>
+        <Popover.Content
+          class="z-50 bg-panel border border-edge-muted shadow-lg"
+          tabIndex={0}
+          ref={(el) => setTimeout(() => el?.focus(), 0)}
+          onKeyDown={handleKeyDown}
+        >
+          <div class="flex flex-col gap-1 p-2 min-w-[180px]">
+            <For each={ENTITY_TYPE_FILTER_CONFIGS}>
+              {(filter, index) => {
+                const iconConfig = () => getEntityTypeFilterIcon(filter.id);
+                return (
+                  <button
+                    type="button"
+                    class="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-hover"
+                    classList={{
+                      'bg-hover text-ink': props.isActive(filter.id),
+                      'text-ink': !props.isActive(filter.id),
+                      'outline outline-1 outline-edge-muted/40': focusedIndex() === index(),
+                    }}
+                    onClick={() => {
+                      props.onSelect(filter.id);
+                      props.onOpenChange(false);
+                    }}
+                    onMouseEnter={() => setFocusedIndex(index())}
+                  >
+                    <Show
+                      when={ENABLE_ANIMATED_ICONS && ANIMATED_ICONS[filter.id]}
+                      fallback={<Dynamic component={iconConfig().icon} class="size-3.5" />}
+                    >
+                      {(Icon) => (
+                        <div class="size-3.5 overflow-visible">
+                          <Dynamic component={Icon()} triggerAnimation={focusedIndex() === index()} />
+                        </div>
+                      )}
+                    </Show>
+                    <span class="flex-1 text-left">{filter.label}</span>
+                    <Show when={props.isActive(filter.id)}>
+                      <span class="text-ink">✓</span>
+                    </Show>
+                  </button>
+                );
+              }}
+            </For>
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover>
   );
 };
 

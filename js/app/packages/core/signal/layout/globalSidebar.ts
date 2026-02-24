@@ -6,6 +6,10 @@ const GLOBAL_SIDEBAR_COMPACT_BREAKPOINT_PX = 200;
 const DEFAULT_GLOBAL_SIDEBAR_WIDTH = 100;
 
 export type SidebarViewShortcutId =
+  | 'home'
+  | 'inbox'
+  | 'sent'
+  | 'my-notes'
   | 'message-inbox'
   | 'my-tasks'
   | 'team-tasks';
@@ -25,9 +29,9 @@ export type SidebarPinnedItem =
     };
 
 const DEFAULT_PINNED_ITEMS: SidebarPinnedItem[] = [
-  { kind: 'view', id: 'message-inbox', label: 'Message Inbox' },
-  { kind: 'view', id: 'my-tasks', label: 'My Tasks' },
-  { kind: 'view', id: 'team-tasks', label: 'Team Tasks' },
+  { kind: 'view', id: 'home', label: 'Home' },
+  { kind: 'view', id: 'inbox', label: 'Inbox' },
+  { kind: 'view', id: 'sent', label: 'Sent' },
 ];
 
 export const [isGlobalSidebarCollapsed, setIsGlobalSidebarCollapsed] =
