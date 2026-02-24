@@ -100,7 +100,7 @@ export function removeInboxQueryFilters(
 
   const { importance, ...emailRest } = filters.email_filters ?? {};
   const email_filters =
-    importance === INBOX_IMPORTANCE
+    importance === INBOX_IMPORTANCE || importance === false
       ? isNonEmptyObject(emailRest)
         ? emailRest
         : undefined

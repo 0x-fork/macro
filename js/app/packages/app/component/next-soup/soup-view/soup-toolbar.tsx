@@ -154,38 +154,38 @@ const SoupFilters = () => {
   const toggleFocus = (id: 'signal' | 'noise') => {
     const comb = { id, isActive: soup.filters.isActive(id) };
 
-    const activateFocus = () =>
-      batch(() => {
-        soup.filters.toggle(id);
-        soup.filters.activate('not-done');
-      });
-
-    const deactivateFocus = () =>
-      batch(() => {
-        soup.filters.toggle('explicit-noise');
-        soup.filters.deactivate('not-done');
-      });
-
     match(comb)
       .with({ id: 'signal', isActive: false }, () => {
-        setQueryFilters((prev) =>
-          applyInboxQueryFilters(removeOtherQueryFilters(prev))
-        );
-        activateFocus();
+        batch(() => {
+          setQueryFilters((prev) =>
+            applyInboxQueryFilters(removeOtherQueryFilters(prev))
+          );
+          soup.filters.toggle(id);
+          soup.filters.activate('not-done');
+        });
       })
       .with({ id: 'noise', isActive: false }, () => {
-        setQueryFilters((prev) =>
-          applyOtherQueryFilters(removeInboxQueryFilters(prev))
-        );
-        activateFocus();
+        batch(() => {
+          setQueryFilters((prev) =>
+            applyOtherQueryFilters(removeInboxQueryFilters(prev))
+          );
+          soup.filters.toggle(id);
+          soup.filters.activate('not-done');
+        });
       })
       .with({ id: 'signal', isActive: true }, () => {
-        setQueryFilters(removeInboxQueryFilters);
-        deactivateFocus();
+        batch(() => {
+          setQueryFilters(removeInboxQueryFilters);
+          soup.filters.toggle(id);
+          soup.filters.deactivate('not-done');
+        });
       })
       .with({ id: 'noise', isActive: true }, () => {
-        setQueryFilters(removeOtherQueryFilters);
-        deactivateFocus();
+        batch(() => {
+          setQueryFilters(removeOtherQueryFilters);
+          soup.filters.toggle(id);
+          soup.filters.deactivate('not-done');
+        });
       })
       .exhaustive();
   };

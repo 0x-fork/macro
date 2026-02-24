@@ -17,7 +17,6 @@ export {
 export {
   noiseFilter,
   signalFilter,
-  explicitNoiseFilter,
 } from './signal-filters';
 
 export {
