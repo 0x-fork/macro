@@ -168,24 +168,32 @@ const SoupFilters = () => {
 
     match(comb)
       .with({ id: 'signal', isActive: false }, () => {
-        setQueryFilters((prev) =>
-          applyInboxQueryFilters(removeOtherQueryFilters(prev))
-        );
-        activateFocus();
+        batch(() => {
+          setQueryFilters((prev) =>
+            applyInboxQueryFilters(removeOtherQueryFilters(prev))
+          );
+          activateFocus();
+        });
       })
       .with({ id: 'noise', isActive: false }, () => {
-        setQueryFilters((prev) =>
-          applyOtherQueryFilters(removeInboxQueryFilters(prev))
-        );
-        activateFocus();
+        batch(() => {
+          setQueryFilters((prev) =>
+            applyOtherQueryFilters(removeInboxQueryFilters(prev))
+          );
+          activateFocus();
+        });
       })
       .with({ id: 'signal', isActive: true }, () => {
-        setQueryFilters(removeInboxQueryFilters);
-        deactivateFocus();
+        batch(() => {
+          setQueryFilters(removeInboxQueryFilters);
+          deactivateFocus();
+        });
       })
       .with({ id: 'noise', isActive: true }, () => {
-        setQueryFilters(removeOtherQueryFilters);
-        deactivateFocus();
+        batch(() => {
+          setQueryFilters(removeOtherQueryFilters);
+          deactivateFocus();
+        });
       })
       .exhaustive();
   };
