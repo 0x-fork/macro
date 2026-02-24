@@ -3,6 +3,7 @@ export { SoupWithSidebar } from './SoupWithSidebar';
 export { SoupSidebar } from './SoupSidebar';
 export { AppSidebar } from './AppSidebar';
 export { SoupFilterToolbar } from './SoupFilterToolbar';
+export { QuickFiltersBar } from './QuickFiltersBar';
 export { FilterDropdown, type FilterOption } from './FilterDropdown';
 export { SplitOverlays } from './SplitOverlay';
 export { BriefingView } from './BriefingView';

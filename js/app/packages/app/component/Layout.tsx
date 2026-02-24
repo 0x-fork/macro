@@ -130,7 +130,7 @@ export function Layout(props: RouteSectionProps) {
       <Show when={paywallOpen()}>
         <Paywall />
       </Show>
-      <div class="grow-1 flex">
+      <div class="grow-1 flex min-h-0">
         {/* App-level sidebar - only on desktop */}
         <Show when={isAuthenticated() && !isMobile()}>
           <AppSidebar />

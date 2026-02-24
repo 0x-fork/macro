@@ -9,6 +9,7 @@ import {
   useContext,
 } from 'solid-js';
 import { SoupFilterToolbar } from './SoupFilterToolbar';
+import { QuickFiltersBar } from './QuickFiltersBar';
 import { SoupViewList } from '@app/component/next-soup/soup-view/soup-view';
 import {
   SoupViewContext,
@@ -207,12 +208,22 @@ const SoupWithSidebarInner: Component<SoupWithSidebarInnerProps> = (props) => {
     rows: filteredRows,
   }));
 
+  // Get active filter IDs for quick filters bar
+  const activeFilterIds = createMemo(() => soup.filters.activeIds() as FilterID[]);
+
   return (
     <>
       {/* Search and filter controls in split header */}
       <SoupFilterToolbar
         entities={entities()}
         filteredEntities={filteredEntities()}
+        contextualFilterState={contextualFilterState}
+      />
+
+      {/* Quick contextual filters bar */}
+      <QuickFiltersBar
+        activeFilterIds={activeFilterIds()}
+        availableFilters={availableContextualFilters()}
         contextualFilterState={contextualFilterState}
       />
 

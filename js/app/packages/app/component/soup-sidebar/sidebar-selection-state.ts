@@ -47,6 +47,14 @@ function getSplitIndicesForView(viewId: string, allSplitIds: SplitId[]): number[
 }
 
 /**
+ * Notification priority for pinned items
+ * - 'high': Direct mention or important (filled dot)
+ * - 'low': Unread but less important (ring with dot inside)
+ * - undefined: No notification
+ */
+export type NotificationPriority = 'high' | 'low';
+
+/**
  * Represents a pinned entity in the sidebar
  */
 export interface PinnedItem {
@@ -55,6 +63,8 @@ export interface PinnedItem {
   type: SplitContent['type'];
   entityId: string;
   icon?: string;
+  /** Notification indicator priority */
+  notification?: NotificationPriority;
 }
 
 /**

@@ -11,7 +11,15 @@ import WideChat from '@macro-icons/wide/chat.svg';
 import WideEmail from '@macro-icons/wide/email.svg';
 import WideFileMd from '@macro-icons/wide/file-md.svg';
 import WideStar from '@macro-icons/wide/star.svg';
-import { type Component, For, Show, createMemo, onMount } from 'solid-js';
+import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
+import CommandIcon from '@phosphor-icons/core/assets/regular/command.svg';
+import XIcon from '@icon/regular/x.svg';
+import PushPinIcon from '@phosphor-icons/core/assets/regular/push-pin.svg';
+import CaretRightIcon from '@phosphor-icons/core/assets/regular/caret-right.svg';
+import GearIcon from '@phosphor-icons/core/assets/regular/gear.svg';
+import PhosphorPlusIcon from '@phosphor-icons/core/assets/regular/plus.svg';
+import { useSettingsState } from '@core/constant/SettingsState';
+import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { Dynamic } from 'solid-js/web';
 import { setCreateMenuOpen } from '@app/component/Launcher';
@@ -28,12 +36,14 @@ const EXAMPLE_PINNED_ITEMS: PinnedItem[] = [
     label: '#general',
     type: 'channel',
     entityId: 'example-channel-id-1',
+    notification: 'high', // Direct mention - filled dot
   },
   {
     id: 'pinned-2', 
     label: '#engineering',
     type: 'channel',
     entityId: 'example-channel-id-2',
+    notification: 'low', // Unread but less important - ring with dot
   },
   {
     id: 'pinned-3',
@@ -46,7 +56,33 @@ const EXAMPLE_PINNED_ITEMS: PinnedItem[] = [
     label: 'Re: Q4 Planning',
     type: 'email',
     entityId: 'example-email-id-1',
+    notification: 'high', // Important email
   },
+];
+
+/**
+ * Open conversation item type
+ */
+interface OpenConversation {
+  id: string;
+  label: string;
+  type: 'channel' | 'dm';
+  entityId: string;
+  /** Avatar initials for DMs */
+  initials?: string;
+  /** Whether the conversation has unread messages */
+  hasUnread?: boolean;
+}
+
+/**
+ * Example open conversations
+ */
+const INITIAL_OPEN_CONVERSATIONS: OpenConversation[] = [
+  { id: 'conv-1', label: 'Sarah Chen', type: 'dm', entityId: 'dm-1', initials: 'SC', hasUnread: true },
+  { id: 'conv-2', label: '#design-reviews', type: 'channel', entityId: 'channel-1' },
+  { id: 'conv-3', label: 'Mike Johnson', type: 'dm', entityId: 'dm-2', initials: 'MJ' },
+  { id: 'conv-4', label: '#product-updates', type: 'channel', entityId: 'channel-2', hasUnread: true },
+  { id: 'conv-5', label: 'Alex Kim', type: 'dm', entityId: 'dm-3', initials: 'AK' },
 ];
 
 export interface SoupSidebarProps {
@@ -114,22 +150,50 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
     setCreateMenuOpen(true);
   };
 
+  const handleSearchClick = () => {
+    // TODO: Open search/launcher
+    console.log('Open search');
+  };
+
+  const handleCommandPaletteClick = () => {
+    // TODO: Open command palette
+    console.log('Open command palette');
+  };
+
   return (
-    <div class="w-48 h-full flex-shrink-0 bg-panel border-r border-edge-muted flex flex-col">
-      {/* Header with logo and create button */}
-      <div class="px-3 py-2 border-b border-edge-muted shrink-0 flex items-center justify-between">
+    <div class="w-56 h-full flex-shrink-0 bg-panel border-r border-edge-muted flex flex-col">
+      {/* Header with logo and action buttons */}
+      <div class="px-3 py-2 shrink-0 flex items-center justify-between">
         <MacroLogo class="size-5 text-accent" />
-        <Tooltip
-          tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}
-        >
-          <button
-            type="button"
-            class="flex items-center justify-center size-7 text-ink-muted hover:text-ink hover:bg-ink/20 rounded transition-colors"
-            onClick={handleCreateClick}
-          >
-            <PlusIcon class="size-4" />
-          </button>
-        </Tooltip>
+        <div class="flex items-center gap-1">
+          <Tooltip tooltip={<LabelAndHotKey label="Search" shortcut="/" />}>
+            <button
+              type="button"
+              class="flex items-center justify-center size-6 bg-ink/10 text-ink-muted hover:bg-ink/20 hover:text-ink rounded transition-colors"
+              onClick={handleSearchClick}
+            >
+              <SearchIcon class="size-3.5" />
+            </button>
+          </Tooltip>
+          <Tooltip tooltip={<LabelAndHotKey label="Command palette" shortcut="⌘K" />}>
+            <button
+              type="button"
+              class="flex items-center justify-center size-6 bg-ink/10 text-ink-muted hover:bg-ink/20 hover:text-ink rounded transition-colors"
+              onClick={handleCommandPaletteClick}
+            >
+              <CommandIcon class="size-3.5" />
+            </button>
+          </Tooltip>
+          <Tooltip tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}>
+            <button
+              type="button"
+              class="flex items-center justify-center size-6 bg-ink/10 text-ink-muted hover:bg-ink/20 hover:text-ink rounded transition-colors"
+              onClick={handleCreateClick}
+            >
+              <PlusIcon class="size-3.5" />
+            </button>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Scrollable content */}
@@ -148,37 +212,31 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
           </For>
         </div>
 
+        {/* Open conversations section */}
+        <ConversationsSection />
+
         {/* Pinned items section */}
-        <Show when={EXAMPLE_PINNED_ITEMS.length > 0}>
-          <div class="mb-8">
-            <div class="px-2 py-0.5 text-[10px] font-medium text-ink-extra-muted uppercase tracking-wider flex items-center">
-              <span>Pinned</span>
-              {/* Show "p" hint when g is active but not yet in pinned scope */}
-              <Show when={isGoToActive() && !isPinnedActive()}>
-                <ShortcutHint key="p" />
-              </Show>
-            </div>
-            <div class="flex flex-col gap-0.5 mt-1">
-              <For each={EXAMPLE_PINNED_ITEMS}>
-                {(item, index) => (
-                  <SidebarPinnedItem
-                    item={item}
-                    index={index()}
-                    onClick={() => handlePinnedItemClick(item)}
-                    showShortcutHint={isPinnedActive()}
-                  />
-                )}
-              </For>
-            </div>
-          </div>
-        </Show>
+        <PinnedItemsSection 
+          isGoToActive={isGoToActive()}
+          isPinnedActive={isPinnedActive()}
+          onItemClick={handlePinnedItemClick}
+        />
 
         {/* Views section */}
         <div class="mb-4">
-          <div class="px-2 py-0.5 text-[10px] font-medium text-ink-extra-muted uppercase tracking-wider">
-            Views
+          <div class="group/views flex items-center justify-between px-2 py-1.5">
+            <span class="text-xs font-medium text-ink/50">Views</span>
+            <Tooltip tooltip="Create view">
+              <button
+                type="button"
+                class="size-5 flex items-center justify-center rounded text-ink/40 hover:text-ink hover:bg-ink/10 transition-colors opacity-0 group-hover/views:opacity-100"
+                onClick={() => console.log('Create view')}
+              >
+                <PhosphorPlusIcon class="size-3.5" />
+              </button>
+            </Tooltip>
           </div>
-          <div class="flex flex-col gap-0.5 mt-1">
+          <div class="flex flex-col gap-0.5">
             <For each={getViewsForGroup('views')}>
               {(view) => (
                 <SidebarViewItem
@@ -192,7 +250,300 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
           </div>
         </div>
       </div>
+
+      {/* Account selector at bottom */}
+      <AccountSelector />
     </div>
+  );
+};
+
+/**
+ * Pinned items section component
+ */
+interface PinnedItemsSectionProps {
+  isGoToActive: boolean;
+  isPinnedActive: boolean;
+  onItemClick: (item: PinnedItem) => void;
+}
+
+const PinnedItemsSection: Component<PinnedItemsSectionProps> = (props) => {
+  const [pinnedItems, setPinnedItems] = createSignal(EXAMPLE_PINNED_ITEMS);
+  const [isCollapsed, setIsCollapsed] = createSignal(false);
+
+  const handleUnpin = (id: string) => {
+    setPinnedItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  return (
+    <Show when={pinnedItems().length > 0}>
+      <div class="mb-3">
+        <div 
+          class="group/pinned flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-ink/10 transition-colors cursor-pointer"
+          onClick={() => setIsCollapsed(!isCollapsed())}
+        >
+          <div class="flex items-center gap-1">
+            <CaretRightIcon 
+              class="size-3 text-ink/40 transition-transform" 
+              classList={{ 'rotate-90': !isCollapsed() }}
+            />
+            <span class="text-xs font-medium text-ink/50">Pinned</span>
+            {/* Show "p" hint when g is active but not yet in pinned scope */}
+            <Show when={props.isGoToActive && !props.isPinnedActive}>
+              <ShortcutHint key="p" />
+            </Show>
+          </div>
+          <Tooltip tooltip="Pin item">
+            <button
+              type="button"
+              class="size-5 flex items-center justify-center rounded text-ink/40 hover:text-ink hover:bg-ink/20 transition-colors opacity-0 group-hover/pinned:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Pin item');
+              }}
+            >
+              <PhosphorPlusIcon class="size-3.5" />
+            </button>
+          </Tooltip>
+        </div>
+        <Show when={!isCollapsed()}>
+          <div class="flex flex-col gap-0.5">
+            <For each={pinnedItems()}>
+              {(item, index) => (
+                <SidebarPinnedItem
+                  item={item}
+                  index={index()}
+                  onClick={() => props.onItemClick(item)}
+                  onUnpin={() => handleUnpin(item.id)}
+                  showShortcutHint={props.isPinnedActive}
+                />
+              )}
+            </For>
+          </div>
+        </Show>
+      </div>
+    </Show>
+  );
+};
+
+/**
+ * Conversations section component (renamed from Open)
+ */
+const ConversationsSection: Component = () => {
+  const [conversations, setConversations] = createSignal(INITIAL_OPEN_CONVERSATIONS);
+  const [isCollapsed, setIsCollapsed] = createSignal(false);
+
+  const handleRemove = (id: string) => {
+    setConversations(prev => prev.filter(c => c.id !== id));
+  };
+
+  const handleClick = (conv: OpenConversation) => {
+    // TODO: Navigate to conversation
+    console.log('Open conversation:', conv.id);
+  };
+
+  return (
+    <Show when={conversations().length > 0}>
+      <div class="mb-3">
+        <div 
+          class="group/conversations flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-ink/10 transition-colors cursor-pointer"
+          onClick={() => setIsCollapsed(!isCollapsed())}
+        >
+          <div class="flex items-center gap-1">
+            <CaretRightIcon 
+              class="size-3 text-ink/40 transition-transform" 
+              classList={{ 'rotate-90': !isCollapsed() }}
+            />
+            <span class="text-xs font-medium text-ink/50">Conversations</span>
+          </div>
+          <Tooltip tooltip="New conversation">
+            <button
+              type="button"
+              class="size-5 flex items-center justify-center rounded text-ink/40 hover:text-ink hover:bg-ink/20 transition-colors opacity-0 group-hover/conversations:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('New conversation');
+              }}
+            >
+              <PhosphorPlusIcon class="size-3.5" />
+            </button>
+          </Tooltip>
+        </div>
+        <Show when={!isCollapsed()}>
+          <div class="flex flex-col gap-0.5">
+            <For each={conversations()}>
+              {(conv) => (
+                <OpenConversationItem
+                  conversation={conv}
+                  onClick={() => handleClick(conv)}
+                  onRemove={() => handleRemove(conv.id)}
+                />
+              )}
+            </For>
+          </div>
+        </Show>
+      </div>
+    </Show>
+  );
+};
+
+interface OpenConversationItemProps {
+  conversation: OpenConversation;
+  onClick: () => void;
+  onRemove: () => void;
+}
+
+const OpenConversationItem: Component<OpenConversationItemProps> = (props) => {
+  return (
+    <div class="group relative">
+      <button
+        type="button"
+        class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors text-ink-muted hover:bg-ink/10 hover:text-ink text-left"
+        onClick={props.onClick}
+      >
+        {/* Icon or avatar */}
+        <span class="relative flex-shrink-0">
+          <Show
+            when={props.conversation.type === 'dm'}
+            fallback={<WideChat class="size-4" />}
+          >
+            <div class="size-5 rounded-full bg-ink/20 flex items-center justify-center text-[9px] font-medium text-ink">
+              {props.conversation.initials}
+            </div>
+          </Show>
+          {/* Unread indicator */}
+          <Show when={props.conversation.hasUnread}>
+            <span class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-accent" />
+          </Show>
+        </span>
+        <span class="truncate flex-1">{props.conversation.label}</span>
+      </button>
+      {/* Remove button - shows on hover */}
+      <button
+        type="button"
+        class="absolute right-1 top-1/2 -translate-y-1/2 size-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-ink/20 transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          props.onRemove();
+        }}
+      >
+        <XIcon class="size-3 text-ink-muted" />
+      </button>
+    </div>
+  );
+};
+
+/**
+ * Example accounts for the account selector
+ */
+const EXAMPLE_ACCOUNTS = [
+  { id: '1', name: 'John Doe', email: 'john@example.com', initials: 'JD', color: 'bg-accent/20 text-accent' },
+  { id: '2', name: 'Jane Smith', email: 'jane@company.co', initials: 'JS', color: 'bg-purple-500/20 text-purple-500' },
+  { id: '3', name: 'Work Account', email: 'john@work.com', initials: 'WA', color: 'bg-green-500/20 text-green-500' },
+];
+
+/**
+ * Account selector dropdown component
+ */
+const AccountSelector: Component = () => {
+  const [isOpen, setIsOpen] = createSignal(false);
+  const [selectedAccount, setSelectedAccount] = createSignal(EXAMPLE_ACCOUNTS[0]);
+  const { toggleSettings } = useSettingsState();
+
+  const handleAccountSelect = (account: typeof EXAMPLE_ACCOUNTS[0]) => {
+    setSelectedAccount(account);
+    setIsOpen(false);
+  };
+
+  return (
+    <div class="shrink-0 border-t border-edge-muted p-2 relative flex items-center gap-1">
+      {/* Current account button */}
+      <button
+        type="button"
+        class="flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-ink/10 transition-colors"
+        onClick={() => setIsOpen(!isOpen())}
+      >
+        <div class={`size-6 shrink-0 rounded-full flex items-center justify-center text-xs font-medium ${selectedAccount().color}`}>
+          {selectedAccount().initials}
+        </div>
+        <div class="flex-1 min-w-0 text-left">
+          <div class="text-xs font-medium text-ink truncate">{selectedAccount().name}</div>
+          <div class="text-[10px] text-ink-muted truncate">{selectedAccount().email}</div>
+        </div>
+        <svg 
+          class="size-3 shrink-0 text-ink-muted transition-transform" 
+          classList={{ 'rotate-180': isOpen() }}
+          viewBox="0 0 12 12" 
+          fill="none"
+        >
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+
+      {/* Settings button */}
+      <Tooltip tooltip={<LabelAndHotKey label="Settings" shortcut="," />}>
+        <button
+          type="button"
+          class="flex items-center justify-center size-6 rounded-md text-ink-muted hover:text-ink hover:bg-ink/10 transition-colors shrink-0"
+          onClick={() => toggleSettings()}
+        >
+          <GearIcon class="size-3.5" />
+        </button>
+      </Tooltip>
+
+      {/* Dropdown */}
+      <Show when={isOpen()}>
+        <div class="absolute bottom-full left-2 right-2 mb-1 bg-panel border border-edge-muted rounded-lg shadow-lg overflow-hidden">
+          <For each={EXAMPLE_ACCOUNTS}>
+            {(account) => (
+              <button
+                type="button"
+                class="w-full flex items-center gap-2 px-2 py-2 hover:bg-ink/10 transition-colors"
+                classList={{ 'bg-ink/5': account.id === selectedAccount().id }}
+                onClick={() => handleAccountSelect(account)}
+              >
+                <div class={`size-6 rounded-full flex items-center justify-center text-xs font-medium ${account.color}`}>
+                  {account.initials}
+                </div>
+                <div class="flex-1 min-w-0 text-left">
+                  <div class="text-xs font-medium text-ink truncate">{account.name}</div>
+                  <div class="text-[10px] text-ink-muted truncate">{account.email}</div>
+                </div>
+                <Show when={account.id === selectedAccount().id}>
+                  <svg class="size-3.5 text-accent" viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7.5L5.5 10.5L11.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </Show>
+              </button>
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
+  );
+};
+
+/**
+ * Notification indicator for pinned items
+ * - 'high': Filled dot (direct mention/important)
+ * - 'low': Ring with small dot inside (unread but less important)
+ * 
+ * Positioned absolutely to float on top-right of parent
+ */
+const NotificationIndicator: Component<{ priority: 'high' | 'low' }> = (props) => {
+  return (
+    <Show
+      when={props.priority === 'high'}
+      fallback={
+        // Low priority: ring with small dot inside
+        <span class="absolute -top-0.5 -right-0.5 size-2">
+          <span class="absolute inset-0 rounded-full border border-accent bg-panel" />
+          <span class="absolute inset-[2px] rounded-full bg-accent" />
+        </span>
+      }
+    >
+      {/* High priority: filled dot */}
+      <span class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-accent" />
+    </Show>
   );
 };
 
@@ -200,6 +551,7 @@ interface SidebarPinnedItemProps {
   item: PinnedItem;
   index: number;
   onClick: () => void;
+  onUnpin: () => void;
   showShortcutHint?: boolean;
 }
 
@@ -217,20 +569,39 @@ const SidebarPinnedItem: Component<SidebarPinnedItemProps> = (props) => {
       tooltip={<LabelAndHotKey label={props.item.label} shortcut={`v p ${shortcutKey()}`} />}
       placement="right"
     >
-      <button
-        type="button"
-        class="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-colors text-ink-muted hover:bg-ink/10 hover:text-ink"
-        onClick={props.onClick}
-      >
-        <Dynamic component={Icon} class="size-3.5 flex-shrink-0" />
-        <span class="truncate">{props.item.label}</span>
-        <Show when={!props.showShortcutHint}>
-          <SplitIndicator indices={splitIndices()} />
-        </Show>
-        <Show when={props.showShortcutHint && shortcutKey()}>
-          <ShortcutHint key={shortcutKey()} />
-        </Show>
-      </button>
+      <div class="group relative">
+        <button
+          type="button"
+          class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors text-ink-muted hover:bg-ink/10 hover:text-ink text-left"
+          onClick={props.onClick}
+        >
+          {/* Icon with notification indicator */}
+          <span class="relative flex-shrink-0">
+            <Dynamic component={Icon} class="size-4" />
+            <Show when={props.item.notification}>
+              <NotificationIndicator priority={props.item.notification!} />
+            </Show>
+          </span>
+          <span class="truncate flex-1">{props.item.label}</span>
+          <Show when={!props.showShortcutHint}>
+            <SplitIndicator indices={splitIndices()} />
+          </Show>
+          <Show when={props.showShortcutHint && shortcutKey()}>
+            <ShortcutHint key={shortcutKey()} />
+          </Show>
+        </button>
+        {/* Unpin button - shows on hover */}
+        <button
+          type="button"
+          class="absolute right-1 top-1/2 -translate-y-1/2 size-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-ink/20 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onUnpin();
+          }}
+        >
+          <PushPinIcon class="size-3 text-ink-muted" />
+        </button>
+      </div>
     </Tooltip>
   );
 };
@@ -300,10 +671,10 @@ const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
     >
       <button
         type="button"
-        class="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-colors text-ink-muted hover:bg-ink/10 hover:text-ink"
+        class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors text-ink-muted hover:bg-ink/10 hover:text-ink"
         onClick={props.onClick}
       >
-        <Dynamic component={props.view.icon} class="size-3.5 flex-shrink-0" />
+        <Dynamic component={props.view.icon} class="size-4 flex-shrink-0" />
         <span class="truncate">{props.view.label}</span>
         <Show when={!props.showShortcutHint}>
           <SplitIndicator indices={splitIndices()} />
