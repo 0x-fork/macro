@@ -74,6 +74,7 @@ import IconUsers from '@icon/regular/users.svg';
 import IconGlobe from '@icon/regular/globe.svg';
 import IconLock from '@icon/regular/lock.svg';
 import IconClockCountdown from '@icon/regular/clock-countdown.svg';
+import IconPaperPlaneTilt from '@icon/regular/paper-plane-tilt.svg';
 
 /**
  * Contextual filter that appears based on current list content
@@ -111,6 +112,26 @@ export function createAssignedToMeFilter(
     appliesTo: ['task'],
     category: 'assignee',
     icon: IconUser,
+  };
+}
+
+/**
+ * Creates a filter that checks if email was sent by the current user
+ */
+export function createSentByMeFilter(
+  currentUserEmail: string | undefined
+): ContextualFilter {
+  return {
+    id: 'email-sent-by-me',
+    label: 'Sent',
+    predicate: (entity) => {
+      if (!currentUserEmail) return false;
+      if (!isEmailEntity(entity)) return false;
+      return entity.senderEmail?.toLowerCase() === currentUserEmail.toLowerCase();
+    },
+    appliesTo: ['email'],
+    category: 'status',
+    icon: IconPaperPlaneTilt,
   };
 }
 
@@ -659,7 +680,8 @@ export const ALL_CONTEXTUAL_FILTERS = [
  */
 export function getContextualFiltersForActiveFilters(
   activeFilterIds: FilterID[],
-  currentUserId?: string
+  currentUserId?: string,
+  currentUserEmail?: string
 ): ContextualFilter[] {
   const relevantFilters: ContextualFilter[] = [];
 
@@ -678,6 +700,11 @@ export function getContextualFiltersForActiveFilters(
   // Add email filters
   if (hasEmail || hasNoTypeFilter) {
     relevantFilters.push(...EMAIL_CONTEXTUAL_FILTERS);
+    
+    // Add "Sent" filter if we have a user email
+    if (currentUserEmail) {
+      relevantFilters.push(createSentByMeFilter(currentUserEmail));
+    }
   }
 
   // Add task filters

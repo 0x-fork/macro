@@ -51,6 +51,7 @@ export {
   applyContextualFilter,
   countMatchingEntities,
   createAssignedToMeFilter,
+  createSentByMeFilter,
 } from './contextual-filters';
 
 // Property-based filter utilities

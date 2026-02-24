@@ -5,11 +5,11 @@ import {
   createMemo,
   createSignal,
   onCleanup,
+  onMount,
   Show,
   useContext,
 } from 'solid-js';
 import { SoupFilterToolbar } from './SoupFilterToolbar';
-import { QuickFiltersBar } from './QuickFiltersBar';
 import { SoupViewList } from '@app/component/next-soup/soup-view/soup-view';
 import {
   SoupViewContext,
@@ -33,10 +33,10 @@ import { createContextualFilterState } from './contextual-filter-state';
 import { getContextualFiltersForActiveFilters } from './contextual-filters';
 import type { FilterID } from '@app/component/next-soup/filters/filters';
 import type { ContextualFilterState } from './contextual-filter-state';
-import { useUserId } from '@core/context/user';
+import { useUserId, useEmail } from '@core/context/user';
 import { applyViewToSplit, setApplyViewToSplit, applyContextualFilters, setApplyContextualFilters, registerActiveView, unregisterActiveView } from './sidebar-selection-state';
 import type { SplitId } from '@app/component/split-layout/layoutManager';
-import type { PredefinedView } from './predefined-views';
+import { type PredefinedView, getViewById } from './predefined-views';
 
 /**
  * Context for passing contextual filter state to children
@@ -73,18 +73,33 @@ function applyViewFilters(soup: ReturnType<typeof createSoupState>, view: Predef
 export const SoupWithSidebar: Component = () => {
   const existingSoup = useMaybeSoup();
 
+  // Get the inbox view to use as initial state
+  const inboxView = getViewById('inbox');
+  
   // Create soup state if not already provided by parent context
+  // Initialize with inbox view filters
   const soup =
     existingSoup ??
     createSoupState({
-      initialFilters: ['explicit-noise'],
+      initialFilters: inboxView?.filters ?? ['signal', 'not-done'],
     });
 
   const panel = useSplitPanelOrThrow();
   const splitId = panel.handle.id as SplitId;
   
   // Track the current active view in this split
-  const [, setCurrentViewId] = createSignal<string | undefined>(undefined);
+  const [, setCurrentViewId] = createSignal<string | undefined>('inbox');
+
+  // Register inbox as the initial active view on mount
+  onMount(() => {
+    if (inboxView) {
+      registerActiveView(splitId, 'inbox');
+      // Apply sort if specified
+      if (inboxView.sort) {
+        soup.sort.setAll([inboxView.sort]);
+      }
+    }
+  });
 
   // Listen for view changes from the sidebar overlay
   createEffect(() => {
@@ -141,18 +156,20 @@ const SoupWithSidebarInner: Component<SoupWithSidebarInnerProps> = (props) => {
   const { rows } = soupViewContext;
   const soup = useSoup();
 
-  // Get current user ID for user-specific filters like "Assigned to Me"
+  // Get current user ID and email for user-specific filters
   const userId = useUserId();
+  const userEmail = useEmail();
 
   // Get entities from rows for contextual filtering (before contextual filters)
   const entities = createMemo(() => rows().map((r) => r.original as EntityData));
 
   // Get available contextual filters based on active main filters
-  // Pass currentUserId to enable user-specific filters
+  // Pass currentUserId and currentUserEmail to enable user-specific filters
   const availableContextualFilters = createMemo(() => {
     const activeIds = soup.filters.activeIds() as FilterID[];
     const currentUserId = userId();
-    return getContextualFiltersForActiveFilters(activeIds, currentUserId);
+    const currentUserEmail = userEmail();
+    return getContextualFiltersForActiveFilters(activeIds, currentUserId, currentUserEmail);
   });
 
   // Create contextual filter state
@@ -213,18 +230,13 @@ const SoupWithSidebarInner: Component<SoupWithSidebarInnerProps> = (props) => {
 
   return (
     <>
-      {/* Search and filter controls in split header */}
+      {/* Search and filter controls in split header (includes quick filters) */}
       <SoupFilterToolbar
         entities={entities()}
         filteredEntities={filteredEntities()}
         contextualFilterState={contextualFilterState}
-      />
-
-      {/* Quick contextual filters bar */}
-      <QuickFiltersBar
         activeFilterIds={activeFilterIds()}
-        availableFilters={availableContextualFilters()}
-        contextualFilterState={contextualFilterState}
+        availableContextualFilters={availableContextualFilters()}
       />
 
       {/* Main content area - size-full needed since parent isn't a flex container */}

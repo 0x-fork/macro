@@ -2,7 +2,6 @@ import type { FilterID } from '@app/component/next-soup/filters/filters';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import type { Component, JSX } from 'solid-js';
 
-import WideSignal from '@macro-icons/wide/signal.svg';
 import WideEmail from '@macro-icons/wide/email.svg';
 import WideTask from '@macro-icons/wide/task.svg';
 import WideStar from '@macro-icons/wide/star.svg';
@@ -11,6 +10,7 @@ import WideFileMd from '@macro-icons/wide/file-md.svg';
 import WideChat from '@macro-icons/wide/chat.svg';
 import WideUser from '@macro-icons/wide/user.svg';
 import WideFolder from '@macro-icons/wide/folder.svg';
+import IconTray from '@icon/regular/tray.svg';
 
 /**
  * Configuration for a predefined view in the sidebar.
@@ -61,7 +61,7 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     id: 'inbox',
     label: 'Inbox',
     shortcut: 'i',
-    icon: WideSignal,
+    icon: IconTray,
     filters: ['signal', 'not-done'],
     sort: 'updated_at',
     description: 'Items requiring attention',
@@ -152,79 +152,6 @@ export const PREDEFINED_VIEWS: readonly PredefinedView[] = [
     sort: 'updated_at',
     description: 'Uploaded files',
   },
-  {
-    id: 'my-tasks',
-    label: 'My Tasks',
-    icon: WideTask,
-    filters: ['task'],
-    contextualFilters: ['task-assigned-to-me'],
-    sort: 'updated_at',
-    description: 'Tasks assigned to me',
-    requiresCurrentUser: true,
-  },
-  {
-    id: 'overdue-tasks',
-    label: 'Overdue',
-    icon: WideTask,
-    filters: ['task'],
-    contextualFilters: ['task-overdue'],
-    sort: 'updated_at',
-    description: 'Tasks past their due date',
-  },
-  {
-    id: 'due-today',
-    label: 'Due Today',
-    icon: WideTask,
-    filters: ['task'],
-    contextualFilters: ['task-due-today'],
-    sort: 'updated_at',
-    description: 'Tasks due today',
-  },
-  {
-    id: 'unread-mail',
-    label: 'Unread Mail',
-    icon: WideEmail,
-    filters: ['email'],
-    contextualFilters: ['email-unread'],
-    sort: 'updated_at',
-    description: 'Unread emails',
-  },
-  {
-    id: 'important-mail',
-    label: 'Important',
-    icon: WideEmail,
-    filters: ['email'],
-    contextualFilters: ['email-important'],
-    sort: 'updated_at',
-    description: 'Important emails',
-  },
-  {
-    id: 'draft-mail',
-    label: 'Drafts',
-    icon: WideEmail,
-    filters: ['email'],
-    contextualFilters: ['email-draft'],
-    sort: 'updated_at',
-    description: 'Email drafts',
-  },
-  {
-    id: 'recent-docs',
-    label: 'Recent Docs',
-    icon: WideFileMd,
-    filters: ['document'],
-    contextualFilters: ['doc-recent'],
-    sort: 'updated_at',
-    description: 'Documents edited in the last 24 hours',
-  },
-  {
-    id: 'direct-messages',
-    label: 'DMs',
-    icon: WideUser,
-    filters: ['people'],
-    contextualFilters: ['channel-recent-activity'],
-    sort: 'updated_at',
-    description: 'Recent direct messages',
-  },
 ] as const;
 
 /**
@@ -243,12 +170,7 @@ export const VIEW_GROUPS: readonly ViewGroup[] = [
   {
     id: 'top',
     label: '',
-    viewIds: ['briefing', 'briefing2', 'inbox'],
-  },
-  {
-    id: 'views',
-    label: 'Views',
-    viewIds: ['all', 'my-tasks', 'overdue-tasks', 'due-today', 'unread-mail', 'important-mail', 'draft-mail', 'recent-docs', 'direct-messages', 'other', 'docs', 'tasks', 'mail', 'people', 'teams', 'agents', 'files'],
+    viewIds: ['briefing', /* 'briefing2', */ 'inbox', 'mail', 'tasks', 'docs', 'files'],
   },
 ] as const;
 

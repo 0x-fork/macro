@@ -23,7 +23,7 @@ import { type Component, For, Show, createMemo, createSignal, onMount } from 'so
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { Dynamic } from 'solid-js/web';
 import { setCreateMenuOpen } from '@app/component/Launcher';
-import { setPendingView, setPendingPinnedItem, type PinnedItem, getSplitIndicesForView, activeViewsBySplit } from './sidebar-selection-state';
+import { setPendingView, setPendingPinnedItem, setApplyViewToSplit, setApplyContextualFilters, type PinnedItem, getSplitIndicesForView, activeViewsBySplit } from './sidebar-selection-state';
 import type { SplitId } from '@app/component/split-layout/layoutManager';
 
 /**
@@ -133,9 +133,68 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
     updatePinnedItemsForHotkeys(EXAMPLE_PINNED_ITEMS);
   });
   
+  // Views that should navigate to their own component instead of applying filters
+  const STANDALONE_VIEWS = ['briefing', 'briefing2'] as const;
+
   const handleViewClick = (view: PredefinedView) => {
-    // Set the pending view to show overlays on splits
-    setPendingView(view);
+    const manager = globalSplitManager();
+    const activeSplitId = manager?.activeSplitId();
+    
+    if (!activeSplitId || !manager) {
+      // Fallback: show overlays to let user pick a split
+      setPendingView(view);
+      return;
+    }
+
+    const split = manager.getSplit(activeSplitId);
+    if (!split) {
+      setPendingView(view);
+      return;
+    }
+
+    // Check if this view should navigate to its own component (like briefing)
+    if (STANDALONE_VIEWS.includes(view.id as typeof STANDALONE_VIEWS[number])) {
+      split.replace({
+        next: {
+          type: 'component',
+          id: view.id,
+        },
+        referredFrom: 'launcher',
+      });
+      return;
+    }
+
+    // Check if the split already has a list component
+    const content = split.content();
+    const isListComponent = content.type === 'component' && 
+      (content.id === 'unified-list' || content.id === 'soup-sidebar');
+
+    if (isListComponent) {
+      // Signal to the existing soup to apply the new filters
+      setApplyViewToSplit({ splitId: activeSplitId, view });
+    } else {
+      // Replace with soup-sidebar component
+      split.replace({
+        next: {
+          type: 'component',
+          id: 'soup-sidebar',
+        },
+        referredFrom: 'launcher',
+      });
+      
+      // Also signal to apply filters after component mounts
+      setTimeout(() => {
+        setApplyViewToSplit({ splitId: activeSplitId, view });
+      }, 100);
+    }
+      
+    // If the view has contextual filters, apply them too
+    if (view.contextualFilters && view.contextualFilters.length > 0) {
+      setApplyContextualFilters({
+        splitId: activeSplitId,
+        contextualFilterIds: view.contextualFilters,
+      });
+    }
 
     // Notify parent about the view selection (for contextual filters)
     props.onViewSelect?.(view);
@@ -222,7 +281,7 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
           onItemClick={handlePinnedItemClick}
         />
 
-        {/* Views section */}
+        {/* Views section - empty state */}
         <div class="mb-4">
           <div class="group/views flex items-center justify-between px-2 py-1.5">
             <span class="text-xs font-medium text-ink/50">Views</span>
@@ -236,17 +295,8 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
               </button>
             </Tooltip>
           </div>
-          <div class="flex flex-col gap-0.5">
-            <For each={getViewsForGroup('views')}>
-              {(view) => (
-                <SidebarViewItem
-                  view={view}
-                  index={PREDEFINED_VIEWS.indexOf(view)}
-                  onClick={() => handleViewClick(view)}
-                  showShortcutHint={isGoToActive() && !isPinnedActive()}
-                />
-              )}
-            </For>
+          <div class="px-2 py-3 text-xs text-ink-muted text-center">
+            No saved views yet
           </div>
         </div>
       </div>
@@ -656,6 +706,27 @@ const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
     return getSplitIndicesForView(props.view.id, splitIds);
   });
 
+  // Check if this view is active in the current active split
+  const isActive = createMemo(() => {
+    const manager = globalSplitManager();
+    if (!manager) return false;
+    const activeSplitId = manager.activeSplitId();
+    if (!activeSplitId) return false;
+    
+    // For standalone views (like briefing), check if the split content matches
+    const STANDALONE_VIEWS = ['briefing', 'briefing2'];
+    if (STANDALONE_VIEWS.includes(props.view.id)) {
+      const split = manager.getSplit(activeSplitId);
+      if (!split) return false;
+      const content = split.content();
+      return content.type === 'component' && content.id === props.view.id;
+    }
+    
+    // For filter-based views, check the activeViewsBySplit registry
+    const views = activeViewsBySplit();
+    return views.get(activeSplitId) === props.view.id;
+  });
+
   // Use view's shortcut if defined, otherwise fall back to index-based key
   const shortcutKey = () => props.view.shortcut ?? formatIndexKey(props.index);
   
@@ -671,7 +742,11 @@ const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
     >
       <button
         type="button"
-        class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors text-ink-muted hover:bg-ink/10 hover:text-ink"
+        class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors"
+        classList={{
+          'bg-ink/10 text-ink': isActive(),
+          'text-ink-muted hover:bg-ink/10 hover:text-ink': !isActive(),
+        }}
         onClick={props.onClick}
       >
         <Dynamic component={props.view.icon} class="size-4 flex-shrink-0" />

@@ -7,7 +7,6 @@ import { type JSXElement, lazy } from 'solid-js';
 import { EmailCompose } from '../../../block-email/component/Compose';
 import { SettingsPanel } from '../settings/Settings';
 import NotificationRoute from '@notifications/components/NotificationRoute';
-import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
 import { SoupWithSidebar, BriefingView, Briefing2View } from '@app/component/soup-sidebar';
 
 export type ComponentFactory = (params?: Record<string, any>) => JSXElement;
@@ -56,8 +55,7 @@ export function resolveComponent(
   };
 }
 
-registerComponent('unified-list', () => <SoupView />);
-registerComponent('soup-sidebar', () => <SoupWithSidebar />);
+registerComponent('unified-list', () => <SoupWithSidebar />);
 registerComponent('briefing', () => <BriefingView />);
 registerComponent('briefing2', () => <Briefing2View />);
 registerComponent('loading', () => <LoadingBlock />);

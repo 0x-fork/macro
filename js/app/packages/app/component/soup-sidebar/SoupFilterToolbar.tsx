@@ -1,4 +1,4 @@
-import { type Component, createEffect, createMemo, createSignal, For, Show, type JSX } from 'solid-js';
+import { type Component, createEffect, createMemo, createSignal, For, Show, type Accessor, type JSX } from 'solid-js';
 import { Dynamic, Portal } from 'solid-js/web';
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
@@ -10,7 +10,7 @@ import {
 } from './contextual-filters';
 import type { ContextualFilterState } from './contextual-filter-state';
 import type { EntityData } from '@entity';
-import { useUserId } from '@core/context/user';
+import { useUserId, useEmail } from '@core/context/user';
 import { Popover } from '@kobalte/core/popover';
 import {
   SplitHeaderLeft,
@@ -71,6 +71,39 @@ const CATEGORY_LABELS: Record<string, string> = {
  */
 const CATEGORY_ORDER = ['assignee', 'status', 'priority', 'time', 'type', 'source'];
 
+/**
+ * Quick filter group configuration
+ */
+interface QuickFilterGroup {
+  id: string;
+  label: string;
+  /** Filter IDs in this group - only one can be active at a time (segmented control) */
+  filterIds: string[];
+  /** If true, allows selecting none (toggleable). If false, one must always be selected */
+  allowNone?: boolean;
+}
+
+/**
+ * Quick filter groups for different entity types
+ */
+const EMAIL_QUICK_FILTERS: QuickFilterGroup[] = [
+  {
+    id: 'email-status',
+    label: 'Status',
+    filterIds: ['email-unread', 'email-read', 'email-sent-by-me', 'email-draft'],
+    allowNone: true,
+  },
+];
+
+const TASK_QUICK_FILTERS: QuickFilterGroup[] = [
+  {
+    id: 'task-status',
+    label: 'Status',
+    filterIds: ['task-open', 'task-in-progress', 'task-completed'],
+    allowNone: true,
+  },
+];
+
 export interface SoupFilterToolbarProps {
   /** Additional class names */
   class?: string;
@@ -80,6 +113,10 @@ export interface SoupFilterToolbarProps {
   filteredEntities?: EntityData[];
   /** Contextual filter state */
   contextualFilterState: ContextualFilterState;
+  /** Active main filter IDs for quick filters */
+  activeFilterIds?: FilterID[];
+  /** Available contextual filters for quick filters */
+  availableContextualFilters?: ContextualFilter[];
 }
 
 /**
@@ -89,6 +126,7 @@ export interface SoupFilterToolbarProps {
 export const SoupFilterToolbar: Component<SoupFilterToolbarProps> = (props) => {
   const soup = useSoup();
   const userId = useUserId();
+  const userEmail = useEmail();
   const { setSearchText } = useSoupView();
   
   // Local input value (what the user sees in the input)
@@ -98,7 +136,8 @@ export const SoupFilterToolbar: Component<SoupFilterToolbarProps> = (props) => {
   const contextualFilters = createMemo(() => {
     const activeIds = soup.filters.activeIds() as FilterID[];
     const currentUserId = userId();
-    return getContextualFiltersForActiveFilters(activeIds, currentUserId);
+    const currentUserEmail = userEmail();
+    return getContextualFiltersForActiveFilters(activeIds, currentUserId, currentUserEmail);
   });
 
   // Calculate counts for contextual filters
@@ -471,53 +510,142 @@ export const SoupFilterToolbar: Component<SoupFilterToolbarProps> = (props) => {
     setTimeout(() => setShowAutocomplete(false), 150);
   };
 
+  // Quick filter groups based on active main filters
+  const quickFilterGroups = createMemo(() => {
+    const groups: QuickFilterGroup[] = [];
+    const activeIds = props.activeFilterIds ?? (soup.filters.activeIds() as FilterID[]);
+    
+    const hasEmail = activeIds.includes('email');
+    const hasTask = activeIds.includes('task');
+    
+    if (hasEmail) {
+      groups.push(...EMAIL_QUICK_FILTERS);
+    }
+    if (hasTask) {
+      groups.push(...TASK_QUICK_FILTERS);
+    }
+    
+    return groups;
+  });
+
+  // Handle clicking a quick filter segment
+  const handleQuickFilterClick = (filterId: string, group: QuickFilterGroup) => {
+    const filter = contextualFilters().find(f => f.id === filterId);
+    if (!filter) return;
+    
+    const isCurrentlyActive = props.contextualFilterState.isActive(filterId);
+    
+    // If clicking on already active filter and allowNone, deactivate it
+    if (isCurrentlyActive && group.allowNone) {
+      props.contextualFilterState.toggle(filter);
+      return;
+    }
+    
+    // Deactivate other filters in this group first
+    for (const id of group.filterIds) {
+      if (props.contextualFilterState.isActive(id) && id !== filterId) {
+        const otherFilter = contextualFilters().find(f => f.id === id);
+        if (otherFilter) {
+          props.contextualFilterState.toggle(otherFilter);
+        }
+      }
+    }
+    
+    // Activate the clicked filter if not already active
+    if (!isCurrentlyActive) {
+      props.contextualFilterState.toggle(filter);
+    }
+  };
+
   return (
     <>
-      {/* Search bar with filter pills - full width in header left */}
+      {/* Quick filters and search bar in header left */}
       <SplitHeaderLeft>
         <div 
           ref={containerRef}
-          class="flex items-center gap-1.5 h-full w-full min-w-0"
+          class="flex items-center gap-2 h-full w-full min-w-0"
         >
-          <SearchIcon class="size-3.5 text-ink-muted shrink-0" />
-          
-          {/* Active filter pills */}
-          <For each={activeFilterPills()}>
-            {(pill) => (
-              <span class="flex items-center gap-1 px-1.5 py-0.5 text-[11px] bg-ink/10 text-ink-muted rounded shrink-0">
-                {pill.label}
-                <button
-                  type="button"
-                  class="hover:bg-ink/15 rounded-sm"
-                  onClick={() => pill.remove()}
-                >
-                  <XIcon class="size-3" />
-                </button>
-              </span>
-            )}
+          {/* Quick filter segments */}
+          <For each={quickFilterGroups()}>
+            {(group) => {
+              // Get filters that exist in available contextual filters
+              const groupFilters = () => group.filterIds
+                .map(id => contextualFilters().find(f => f.id === id))
+                .filter((f): f is ContextualFilter => f !== undefined);
+              
+              return (
+                <Show when={groupFilters().length > 0}>
+                  <div class="flex items-center rounded-md bg-ink/5 p-0.5 shrink-0">
+                    <For each={groupFilters()}>
+                      {(filter) => {
+                        const isActive = () => props.contextualFilterState.isActive(filter.id);
+                        return (
+                          <button
+                            type="button"
+                            class="px-2 py-0.5 text-[11px] font-medium rounded transition-colors"
+                            classList={{
+                              'bg-panel text-ink shadow-sm': isActive(),
+                              'text-ink-muted hover:text-ink': !isActive(),
+                            }}
+                            onClick={() => handleQuickFilterClick(filter.id, group)}
+                          >
+                            {filter.label}
+                          </button>
+                        );
+                      }}
+                    </For>
+                  </div>
+                </Show>
+              );
+            }}
           </For>
           
-          {/* Search input */}
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder={activeFilterPills().length > 0 ? 'Search... (@ for filters)' : 'Search... (@ for filters)'}
-            value={inputValue()}
-            onInput={handleInput}
-            onKeyDown={handleKeyDown}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            class="flex-1 min-w-0 bg-transparent text-xs text-ink placeholder:text-ink-muted outline-none"
-          />
-          <Show when={inputValue().length > 0}>
-            <button
-              type="button"
-              class="text-ink-muted hover:text-ink text-xs shrink-0 pr-2"
-              onClick={() => setInputValue('')}
-            >
-              ×
-            </button>
-          </Show>
+          {/* Spacer to push search to the right */}
+          <div class="flex-1" />
+          
+          {/* Search section with icon and input */}
+          <div class="flex items-center gap-1.5 min-w-0 w-[280px]">
+            <SearchIcon class="size-3.5 text-ink-muted shrink-0" />
+            
+            {/* Active filter pills - temporarily hidden
+            <For each={activeFilterPills()}>
+              {(pill) => (
+                <span class="flex items-center gap-1 px-1.5 py-0.5 text-[11px] bg-ink/10 text-ink-muted rounded shrink-0">
+                  {pill.label}
+                  <button
+                    type="button"
+                    class="hover:bg-ink/15 rounded-sm"
+                    onClick={() => pill.remove()}
+                  >
+                    <XIcon class="size-3" />
+                  </button>
+                </span>
+              )}
+            </For>
+            */}
+            
+            {/* Search input */}
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Search..."
+              value={inputValue()}
+              onInput={handleInput}
+              onKeyDown={handleKeyDown}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              class="flex-1 min-w-0 bg-transparent text-xs text-ink placeholder:text-ink-muted outline-none"
+            />
+            <Show when={inputValue().length > 0}>
+              <button
+                type="button"
+                class="text-ink-muted hover:text-ink text-xs shrink-0"
+                onClick={() => setInputValue('')}
+              >
+                ×
+              </button>
+            </Show>
+          </div>
         </div>
       </SplitHeaderLeft>
 
