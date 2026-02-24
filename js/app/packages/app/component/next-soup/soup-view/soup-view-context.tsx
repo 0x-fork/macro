@@ -1,4 +1,3 @@
-import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import {
   createSoupState,
   type SoupState,
@@ -7,14 +6,12 @@ import { createSearchState } from '@app/component/next-soup/soup-view/create-sea
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import {
   isTaskEntity,
-  isWithNotification,
   type EntityData,
   type TaskEntityWithProperties,
   type WithNotification,
   type WithSearch,
 } from '@entity';
 import { ENABLE_FEATURED_SEARCH_RESULTS } from '@core/constant/featureFlags';
-import { useNotificationsForEntity } from '@notifications';
 import {
   type SoupParams,
   useSoupItemsQuery,
@@ -162,15 +159,6 @@ export const SoupViewContextProvider: FlowComponent<
   );
 
   const search = createSearchState({ soup, queryFilters });
-
-  const notificationSource = useGlobalNotificationSource();
-
-  const attachNotifications = (entity: EntityData) => {
-    return {
-      ...entity,
-      notifications: useNotificationsForEntity(notificationSource, entity),
-    };
-  };
 
   const attachMethods = (
     entity: WithNotification<EntityData>,
