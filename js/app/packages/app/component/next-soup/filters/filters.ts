@@ -22,6 +22,7 @@ import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 import { ChannelTypeEnum } from '@service-comms/client';
 import { match } from 'ts-pattern';
+import { useEmail, useUserId } from '@core/context/user';
 
 export const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -170,6 +171,56 @@ export function channelsFilter(entity: EntityData): boolean {
   return entity.type === 'channel';
 }
 
+/** Messages filter (channels, both people and team threads) */
+export function messagesFilter(entity: EntityData): boolean {
+  return entity.type === 'channel';
+}
+
+const getCurrentUserId = () => {
+  try {
+    return useUserId()();
+  } catch {
+    return undefined;
+  }
+};
+
+const getCurrentUserEmail = () => {
+  try {
+    return useEmail()();
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Sent filter - outgoing content authored by the current user.
+ *
+ * Matches:
+ * - Email threads where the sender is the current user
+ * - Chats owned by the current user
+ * - Channels where latest message sender is the current user
+ */
+export function sentFilter(entity: EntityData): boolean {
+  const currentUserId = getCurrentUserId();
+  const currentUserEmail = getCurrentUserEmail()?.toLowerCase();
+
+  switch (entity.type) {
+    case 'email':
+      return (
+        !!currentUserEmail &&
+        entity.senderEmail?.toLowerCase() === currentUserEmail
+      );
+    case 'chat':
+      return !!currentUserId && entity.ownerId === currentUserId;
+    case 'channel':
+      return (
+        !!currentUserId && entity.latestMessage?.senderId === currentUserId
+      );
+    default:
+      return false;
+  }
+}
+
 export const SOUP_FILTERS = [
   // Focus filters (mutually exclusive)
   {
@@ -182,6 +233,12 @@ export const SOUP_FILTERS = [
     id: 'noise',
     label: 'Other',
     predicate: noiseFilter,
+    group: 'focus',
+  },
+  {
+    id: 'sent',
+    label: 'Sent',
+    predicate: sentFilter,
     group: 'focus',
   },
   {
@@ -217,15 +274,9 @@ export const SOUP_FILTERS = [
     group: 'type',
   },
   {
-    id: 'people',
-    label: 'People',
-    predicate: peopleFilter,
-    group: 'type',
-  },
-  {
-    id: 'teams',
-    label: 'Teams',
-    predicate: teamsFilter,
+    id: 'messages',
+    label: 'Messages',
+    predicate: messagesFilter,
     group: 'type',
   },
   {
@@ -260,8 +311,7 @@ const ENTITY_TYPE_FILTERS = [
   'document',
   'task',
   'email',
-  'people',
-  'teams',
+  'messages',
   'agent',
   'file',
 ] as const;
@@ -286,8 +336,7 @@ const ENTITY_TYPE_TO_ICON_TYPE: Record<EntityTypeFilters, EntityWithValidIcon> =
     document: 'md',
     email: 'email',
     task: 'task',
-    people: 'channel',
-    teams: 'direct_message',
+    messages: 'channel',
     agent: 'chat',
     file: 'project',
   };
@@ -305,8 +354,7 @@ export const ANIMATED_ICONS: Partial<
 > = {
   document: AnimatedFileMdIcon,
   agent: AnimatedStarIcon,
-  people: AnimatedChatIcon,
-  teams: AnimatedChannelIcon,
+  messages: AnimatedChannelIcon,
   task: AnimatedTaskIcon,
   email: AnimatedEmailIcon,
   file: AnimatedFolderIcon,
@@ -407,6 +455,15 @@ export const QUERY_FILTERS = {
     chat_filters: { chat_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
     document_filters: { file_types: getFileAssociations('soup') },
+  },
+
+  /** Channels filter - all channels (teams and people) */
+  messages: {
+    chat_filters: { chat_ids: EXCLUDE },
+    document_filters: { document_ids: EXCLUDE },
+    email_filters: { recipients: EXCLUDE },
+    project_filters: { project_ids: EXCLUDE },
+    channel_filters: {},
   },
 
   /** Channels filter - all channels (teams and people) */

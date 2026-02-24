@@ -4,21 +4,20 @@ import XIcon from '@icon/regular/x.svg?component-solid';
 import PreviewIcon from '@macro-icons/wide/preview.svg';
 import NoiseIcon from '@macro-icons/wide/noise.svg';
 import SignalIcon from '@macro-icons/wide/signal.svg';
+import SentIcon from '@icon/regular/paper-plane-tilt.svg';
 import { AnimatedNoiseIcon } from '@macro-icons/wide/animating/noise';
 import { AnimatedSignalIcon } from '@macro-icons/wide/animating/signal';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
 } from '@app/component/split-layout/components/SplitHeader';
-import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 
 import {
   For,
   Show,
   onCleanup,
-  createSignal,
-  onMount,
   createEffect,
+  createSignal,
   batch,
   type Component,
 } from 'solid-js';
@@ -35,7 +34,6 @@ import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-contex
 import { useEmailLinksStatus } from '@core/email-link';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ValidHotkey } from '@core/hotkey/types';
-import { createElementSize } from '@solid-primitives/resize-observer';
 import { IS_MAC } from '@core/constant/isMac';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { Dynamic } from 'solid-js/web';
@@ -45,6 +43,9 @@ import {
   TaskStatusDropdown,
   TaskAssigneeDropdown,
 } from '@app/component/next-soup/soup-view/task-sub-filters';
+import { isMobile } from '@core/mobile/isMobile';
+import { useEmail, useUserId } from '@core/context/user';
+import { ChannelTypeEnum } from '@service-comms/client';
 
 /**
  * Keyboard shortcuts for entity type filters.
@@ -58,18 +59,16 @@ const ENTITY_TYPE_SHORTCUTS: Record<
   document: 'd',
   task: 't',
   email: 'l',
-  people: 'p',
-  teams: 'm',
+  messages: 'm',
   agent: 'a',
   file: 'f',
 };
 
+let focusSearchInput: (() => void) | undefined;
+
 export const SoupToolbar = () => {
   const { soup, setSearchText, setQueryFilters } = useSoupView();
-
-  const [scrollContainerRef, setScrollContainerRef] = createSignal<
-    HTMLDivElement | undefined
-  >(undefined);
+  const mobile = isMobile();
 
   const handleClear = () => {
     batch(() => {
@@ -82,31 +81,27 @@ export const SoupToolbar = () => {
   return (
     <>
       <SplitHeaderLeft>
-        <div class="relative h-full w-full">
-          <ScrollIndicators scrollRef={scrollContainerRef()} />
-
-          <div
-            ref={setScrollContainerRef}
-            class="flex items-center h-full w-full overflow-x-auto scrollbar-hidden overscroll-none text-xs mobile:text-sm"
-          >
+        <div class="flex items-center h-full w-full overflow-x-auto scrollbar-hidden overscroll-none text-xs mobile:text-sm">
+          <Show when={mobile}>
             <SoupFilters />
+          </Show>
+          <div class="min-w-0 flex-1">
             <SearchBar />
           </div>
         </div>
       </SplitHeaderLeft>
 
       <SplitHeaderRight>
-        <Tooltip
-          tooltip={<LabelAndHotKey label="Clear filters" shortcut="/" />}
+        <button
+          type="button"
+          class="flex items-center justify-center size-[22px] rounded-full text-ink-muted hover:text-accent hover:bg-accent/20 active:bg-accent active:text-panel"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            handleClear();
+          }}
         >
-          <button
-            type="button"
-            class="flex items-center justify-center size-[22px] rounded-full text-ink-muted hover:text-accent hover:bg-accent/20 active:bg-accent active:text-panel"
-            onClick={handleClear}
-          >
-            <BackspaceIcon class="size-4.5" />
-          </button>
-        </Tooltip>
+          <BackspaceIcon class="size-4.5" />
+        </button>
         <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
         <SettingsButton />
       </SplitHeaderRight>
@@ -114,18 +109,30 @@ export const SoupToolbar = () => {
   );
 };
 
+export const SoupFilterSidebar = () => {
+  return (
+    <div class="w-[136px] shrink-0 border-r border-edge-muted bg-panel max-sm:hidden">
+      <div class="h-full overflow-y-auto p-3">
+        <SoupFilters variant="sidebar" />
+      </div>
+    </div>
+  );
+};
+
 type EntityTypeFilterId =
   | 'document'
   | 'task'
-  | 'people'
-  | 'teams'
+  | 'messages'
   | 'agent'
   | 'file';
 
-const SoupFilters = () => {
-  const { soup, setSearchText, setQueryFilters } = useSoupView();
+const SoupFilters = (props: { variant?: 'topbar' | 'sidebar' }) => {
+  const { soup, setSearchText, setQueryFilters, queryFilters } = useSoupView();
   const panel = useSplitPanelOrThrow();
   const emailActive = useEmailLinksStatus();
+  const userId = useUserId();
+  const userEmail = useEmail();
+  const isSidebar = () => props.variant === 'sidebar';
 
   const [sortDropdownOpen, setSortDropdownOpen] = createSignal(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = createSignal(false);
@@ -139,6 +146,38 @@ const SoupFilters = () => {
       soup.filters.toggle(id);
       soup.filters.activate('not-done');
     }
+  };
+
+  const toggleSent = () => {
+    const currentUserId = userId();
+    const currentUserEmail = userEmail();
+
+    if (soup.filters.isActive('sent')) {
+      batch(() => {
+        soup.filters.deactivate('sent');
+        setQueryFilters(QUERY_FILTERS.default);
+      });
+      return;
+    }
+
+    batch(() => {
+      soup.filters.activate('sent');
+      soup.filters.deactivate('not-done');
+      soup.filters.deactivate('explicit-noise');
+      setQueryFilters({
+        document_filters: { document_ids: EXCLUDE },
+        project_filters: { project_ids: EXCLUDE },
+        chat_filters: currentUserId
+          ? { owners: [currentUserId], role: ['user'] }
+          : { chat_ids: EXCLUDE },
+        channel_filters: currentUserId
+          ? { sender_ids: [currentUserId] }
+          : { channel_ids: EXCLUDE },
+        email_filters: currentUserEmail
+          ? { senders: [currentUserEmail] }
+          : { email_thread_ids: EXCLUDE },
+      });
+    });
   };
 
   const toggleUnread = () => {
@@ -179,10 +218,43 @@ const SoupFilters = () => {
     document: () => toggleEntityType('document'),
     task: () => toggleEntityType('task'),
     email: toggleEmail,
-    people: () => toggleEntityType('people'),
-    teams: () => toggleEntityType('teams'),
+    messages: () => toggleEntityType('messages'),
     agent: () => toggleEntityType('agent'),
     file: () => toggleEntityType('file'),
+  };
+
+  const activeMessageSubFilter = () => {
+    const types = queryFilters().channel_filters?.channel_types ?? [];
+    if (types.length === 0) return 'all';
+    if (
+      types.length === 1 &&
+      types[0] === ChannelTypeEnum.DirectMessage
+    ) {
+      return 'people';
+    }
+    return 'teams';
+  };
+
+  const setMessagesSubFilter = (value: 'all' | 'people' | 'teams') => {
+    if (!soup.filters.isActive('messages')) return;
+
+    const channelFilter =
+      value === 'people'
+        ? { channel_types: [ChannelTypeEnum.DirectMessage] }
+        : value === 'teams'
+          ? {
+              channel_types: [
+                ChannelTypeEnum.Private,
+                ChannelTypeEnum.Organization,
+                ChannelTypeEnum.Public,
+              ],
+            }
+          : {};
+
+    setQueryFilters({
+      ...QUERY_FILTERS.messages,
+      channel_filters: channelFilter,
+    });
   };
 
   const togglePreview = () => {
@@ -214,6 +286,11 @@ const SoupFilters = () => {
       description: 'Toggle Other',
       handler: () => toggleFocus('noise'),
     },
+    {
+      hotkey: 'y',
+      description: 'Toggle Sent',
+      handler: () => toggleSent(),
+    },
     // Entity type filter hotkeys
     {
       hotkey: ENTITY_TYPE_SHORTCUTS.document,
@@ -231,14 +308,9 @@ const SoupFilters = () => {
       handler: toggleEmail,
     },
     {
-      hotkey: ENTITY_TYPE_SHORTCUTS.people,
-      description: 'Filter by People',
-      handler: () => toggleEntityType('people'),
-    },
-    {
-      hotkey: ENTITY_TYPE_SHORTCUTS.teams,
-      description: 'Filter by Teams',
-      handler: () => toggleEntityType('teams'),
+      hotkey: ENTITY_TYPE_SHORTCUTS.messages,
+      description: 'Filter by Messages',
+      handler: () => toggleEntityType('messages'),
     },
     {
       hotkey: ENTITY_TYPE_SHORTCUTS.agent,
@@ -269,6 +341,7 @@ const SoupFilters = () => {
           setQueryFilters(QUERY_FILTERS.default);
           setSearchText('');
         });
+        focusSearchInput?.();
       },
     },
     {
@@ -322,29 +395,57 @@ const SoupFilters = () => {
   onCleanup(() => taskSubFilterHotkeyDisposers.forEach((d) => d.dispose()));
 
   return (
-    <>
-      {/* Inbox toggle */}
-      <FilterButton
-        icon={SignalIcon}
-        animatedIcon={AnimatedSignalIcon}
-        label="Inbox"
-        shortcut="i"
-        isActive={soup.filters.isActive('signal')}
-        onClick={() => toggleFocus('signal')}
-      />
-      {/* Other toggle */}
-      <FilterButton
-        icon={NoiseIcon}
-        animatedIcon={AnimatedNoiseIcon}
-        label="Other"
-        shortcut="o"
-        isActive={soup.filters.isActive('noise')}
-        onClick={() => toggleFocus('noise')}
-      />
-      <FilterDivider />
-      {/* Unread filter */}
-      <div class="flex items-center mr-0.5 shrink-0">
-        <Tooltip tooltip={<LabelAndHotKey label="Unread Only" shortcut="u" />}>
+    <div
+      classList={{
+        'flex items-center shrink-0': !isSidebar(),
+        'flex flex-col gap-4 text-sm': isSidebar(),
+      }}
+    >
+      <Show when={isSidebar()}>
+        <div class="text-xs font-medium text-text-muted uppercase tracking-wide px-1">
+          View
+        </div>
+      </Show>
+      <div classList={{ 'flex items-center': !isSidebar(), 'flex flex-col gap-1': isSidebar() }}>
+        {/* Inbox toggle */}
+        <FilterButton
+          icon={SignalIcon}
+          animatedIcon={AnimatedSignalIcon}
+          label="Inbox"
+          shortcut="i"
+          isActive={soup.filters.isActive('signal')}
+          onClick={() => toggleFocus('signal')}
+          sidebar={isSidebar()}
+        />
+        {/* Sent toggle */}
+        <FilterButton
+          icon={SentIcon}
+          label="Sent"
+          shortcut="y"
+          isActive={soup.filters.isActive('sent')}
+          onClick={toggleSent}
+          sidebar={isSidebar()}
+        />
+        {/* Other toggle */}
+        <FilterButton
+          icon={NoiseIcon}
+          animatedIcon={AnimatedNoiseIcon}
+          label="Other"
+          shortcut="o"
+          isActive={soup.filters.isActive('noise')}
+          onClick={() => toggleFocus('noise')}
+          sidebar={isSidebar()}
+        />
+      </div>
+      <Show when={!isSidebar()}>
+        <FilterDivider />
+      </Show>
+      <Show when={isSidebar()}>
+        <div class="h-px bg-edge-muted/60" />
+      </Show>
+      <div classList={{ 'flex items-center': !isSidebar(), 'flex flex-col gap-1': isSidebar() }}>
+        {/* Unread filter */}
+        <div classList={{ 'flex items-center mr-0.5 shrink-0': !isSidebar(), 'w-full': isSidebar() }}>
           <button
             type="button"
             class="flex items-center gap-1 h-[22px] mobile:h-9 pr-2.5 pl-1 active:bg-accent active:text-panel rounded-full"
@@ -352,8 +453,12 @@ const SoupFilters = () => {
               'bg-accent text-panel': soup.filters.isActive('unread'),
               'text-ink-muted hover:text-accent hover:bg-accent/20':
                 !soup.filters.isActive('unread'),
+              'w-full justify-start h-8 px-2.5': isSidebar(),
             }}
-            onClick={toggleUnread}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              toggleUnread();
+            }}
           >
             <svg
               class="size-4"
@@ -368,11 +473,8 @@ const SoupFilters = () => {
               <ShortcutLabel label="Unread" shortcut="u" />
             </span>
           </button>
-        </Tooltip>
-      </div>
-      <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
-      {/* Entity type icons */}
-      <div class="flex items-center shrink-0">
+        </div>
+        {/* Entity type icons */}
         <For each={ENTITY_TYPE_FILTER_CONFIGS}>
           {(filter) => {
             const iconConfig = () => getEntityTypeFilterIcon(filter.id);
@@ -388,14 +490,25 @@ const SoupFilters = () => {
                 isActive={() => soup.filters.isActive(filter.id)}
                 onClick={entityTypeToggleHandlers[filter.id]}
                 paddingClass="px-2.5"
+                sidebar={isSidebar()}
               />
             );
           }}
         </For>
       </div>
       <Show when={soup.filters.isActive('task')}>
-        <FilterDivider />
-        <div class="flex items-center gap-1 shrink-0">
+        <Show when={!isSidebar()}>
+          <FilterDivider />
+        </Show>
+        <Show when={isSidebar()}>
+          <div class="h-px bg-edge-muted/60" />
+        </Show>
+        <div
+          classList={{
+            'flex items-center gap-1 shrink-0': !isSidebar(),
+            'flex flex-col gap-1': isSidebar(),
+          }}
+        >
           <TaskStatusDropdown
             open={statusDropdownOpen}
             onOpenChange={setStatusDropdownOpen}
@@ -406,11 +519,41 @@ const SoupFilters = () => {
           />
         </div>
       </Show>
-      <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
-      {/* Preview toggle */}
-      <Tooltip
-        tooltip={<LabelAndHotKey label="Toggle Preview" shortcut="space" />}
-      >
+      <Show when={soup.filters.isActive('messages')}>
+        <Show when={!isSidebar()}>
+          <FilterDivider />
+        </Show>
+        <Show when={isSidebar()}>
+          <div class="h-px bg-edge-muted/60" />
+        </Show>
+        <div
+          classList={{
+            'flex items-center gap-1 shrink-0': !isSidebar(),
+            'flex flex-col gap-1': isSidebar(),
+          }}
+        >
+          <MessageSubFilterButton
+            label="People"
+            active={activeMessageSubFilter() === 'people'}
+            sidebar={isSidebar()}
+            onMouseDown={() => setMessagesSubFilter('people')}
+          />
+          <MessageSubFilterButton
+            label="Teams"
+            active={activeMessageSubFilter() === 'teams'}
+            sidebar={isSidebar()}
+            onMouseDown={() => setMessagesSubFilter('teams')}
+          />
+        </div>
+      </Show>
+      <Show when={!isSidebar()}>
+        <div class="mx-0.5 w-px h-5 bg-edge-muted/50 shrink-0" />
+      </Show>
+      <Show when={isSidebar()}>
+        <div class="h-px bg-edge-muted/60" />
+      </Show>
+      <div classList={{ 'flex items-center': !isSidebar(), 'flex flex-col gap-1': isSidebar() }}>
+        {/* Preview toggle */}
         <button
           type="button"
           class="flex items-center gap-1.5 h-[22px] mobile:h-9 px-2.5 active:bg-accent active:text-panel rounded-full"
@@ -418,100 +561,51 @@ const SoupFilters = () => {
             'bg-accent text-panel': !!soup.previewEntity(),
             'text-ink-muted hover:text-accent hover:bg-accent/20':
               !soup.previewEntity(),
+            'w-full justify-start h-8': isSidebar(),
           }}
           disabled={!soup.focus.id()}
-          onClick={togglePreview}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            togglePreview();
+          }}
         >
           <PreviewIcon class="size-4.5" />
           <span class="leading-none">
             <ShortcutLabel label="Preview" shortcut="space" />
           </span>
         </button>
-      </Tooltip>
-      <FilterDivider />
-      {/* Sort dropdown */}
-      <SortDropdown
-        open={sortDropdownOpen}
-        onOpenChange={setSortDropdownOpen}
-        value={() => soup.sort.active()[0].id as SystemSortOption}
-        onChange={(value) => {
-          soup.sort.setAll([value]);
-        }}
-      />
-      <div class="mobile:-order-1">
-        <FilterDivider />
+        {/* Sort dropdown */}
+        <SortDropdown
+          open={sortDropdownOpen}
+          onOpenChange={setSortDropdownOpen}
+          value={() => soup.sort.active()[0].id as SystemSortOption}
+          onChange={(value) => {
+            soup.sort.setAll([value]);
+          }}
+        />
       </div>
-      {/* Filter search bar */}
-    </>
-  );
-};
-
-const ScrollIndicators = (props: { scrollRef: HTMLElement | undefined }) => {
-  const [leftOpacity, setLeftOpacity] = createSignal(0);
-  const [rightOpacity, setRightOpacity] = createSignal(0);
-  const SCROLL_THRESHOLD = 10;
-
-  // Track size changes to update indicators
-  const size = createElementSize(() => props.scrollRef);
-  const containerWidth = () => size.width ?? 0;
-
-  const updateClipIndicators = () => {
-    const ref = props.scrollRef;
-    if (!ref) return;
-    const { scrollLeft, scrollWidth, clientWidth } = ref;
-
-    const leftAmount = Math.min(scrollLeft, SCROLL_THRESHOLD);
-    setLeftOpacity(leftAmount / SCROLL_THRESHOLD);
-
-    const maxScroll = scrollWidth - clientWidth;
-    const remainingScroll = maxScroll - scrollLeft;
-    const rightAmount = Math.min(remainingScroll, SCROLL_THRESHOLD);
-    setRightOpacity(rightAmount / SCROLL_THRESHOLD);
-  };
-
-  // Update indicators when size changes
-  createEffect(() => {
-    containerWidth(); // Track size changes
-    updateClipIndicators();
-  });
-
-  onMount(() => {
-    const ref = props.scrollRef;
-    if (!ref) return;
-    ref.addEventListener('scroll', updateClipIndicators);
-    onCleanup(() => ref?.removeEventListener('scroll', updateClipIndicators));
-  });
-  return (
-    <>
-      {/* Left clip boundary indicator */}
-      <div
-        class="absolute pointer-events-none left-0 top-px bottom-px w-3 z-2 pattern-diagonal-4 pattern-edge mask-r-from-0% border-l border-edge-muted"
-        style={{ opacity: leftOpacity() }}
-      />
-      {/* Right clip boundary indicator */}
-      <div
-        class="absolute pointer-events-none right-0 top-px bottom-px w-3 z-2 pattern-diagonal-4 pattern-edge mask-l-from-0% border-r border-edge-muted"
-        style={{ opacity: rightOpacity() }}
-      />
-    </>
+      <Show when={!isSidebar()}>
+        <div class="mobile:-order-1">
+          <FilterDivider />
+        </div>
+      </Show>
+    </div>
   );
 };
 
 const SearchBar = () => {
-  const { searchText, setSearchText } = useSoupView();
+  const { soup, searchText, setSearchText, queryFilters } = useSoupView();
   const panel = useSplitPanelOrThrow();
-
-  const [ref, setRef] = createSignal<HTMLInputElement | undefined>();
-  let measureSpan: HTMLSpanElement | undefined;
-
-  const [searchFocused, setSearchFocused] = createSignal(false);
-  const [measuredWidth, setMeasuredWidth] = createSignal(0);
+  const [inputRef, setInputRef] = createSignal<HTMLInputElement | undefined>();
 
   createEffect(() => {
-    if (measureSpan) {
-      measureSpan.textContent = searchText() || '';
-      setMeasuredWidth(measureSpan.scrollWidth);
-    }
+    const focus = () => inputRef()?.focus();
+    focusSearchInput = focus;
+    onCleanup(() => {
+      if (focusSearchInput === focus) {
+        focusSearchInput = undefined;
+      }
+    });
   });
 
   const searchHotkey = registerHotkey({
@@ -519,96 +613,143 @@ const SearchBar = () => {
     scopeId: panel.splitHotkeyScope,
     description: 'Search',
     keyDownHandler: () => {
-      ref()?.focus();
+      inputRef()?.focus();
       return true;
     },
   });
 
   onCleanup(searchHotkey.dispose);
 
-  const MIN_INPUT_WIDTH = 48;
+  const filterSummary = () => {
+    const parts: string[] = [];
+    const activeIds = soup.filters.activeIds();
+    const messageTypes = queryFilters().channel_filters?.channel_types ?? [];
 
-  const inputWidth = () => {
-    if (!searchText() && !searchFocused()) return 0;
-    return Math.max(MIN_INPUT_WIDTH, measuredWidth());
+    const typeLabel = activeIds.includes('messages')
+      ? 'messages'
+      : activeIds.includes('email')
+        ? 'emails'
+        : activeIds.includes('task')
+          ? 'tasks'
+          : activeIds.includes('document')
+            ? 'docs'
+            : activeIds.includes('agent')
+              ? 'agents'
+              : activeIds.includes('file')
+                ? 'files'
+                : '';
+
+    if (typeLabel) parts.push(typeLabel);
+
+    if (activeIds.includes('messages')) {
+      if (
+        messageTypes.length === 1 &&
+        messageTypes[0] === ChannelTypeEnum.DirectMessage
+      ) {
+        parts.push('from people');
+      } else if (messageTypes.length > 0) {
+        parts.push('in teams');
+      }
+    }
+
+    if (activeIds.includes('signal')) parts.push('in inbox');
+    if (activeIds.includes('noise')) parts.push('in other');
+    if (activeIds.includes('sent')) {
+      if (activeIds.includes('messages')) {
+        parts.push('sent by me');
+      } else if (activeIds.includes('email')) {
+        parts.push('sent emails');
+      } else {
+        parts.push('sent');
+      }
+    }
+    if (activeIds.includes('unread')) parts.push('unread');
+
+    if (parts.length === 0) return 'filters';
+    return parts.join(' ');
   };
 
   return (
     <div class="flex items-center shrink-0 grow min-w-0 mobile:-order-2">
-      <Tooltip
-        class="w-fit"
-        placement="bottom-start"
-        tooltip={<LabelAndHotKey label="Filter" shortcut="⌘F" />}
+      <div
+        class="relative flex items-center gap-1.5 h-[22px] mobile:h-9 px-2.5 mobile:min-w-35 text-ink-muted"
+        onMouseDown={(e) => {
+          if (e.target !== inputRef()) {
+            e.preventDefault();
+            inputRef()?.focus();
+          }
+        }}
       >
-        <div
-          class="relative flex items-center gap-1.5 h-[22px] mobile:h-9 px-2.5 rounded-full mobile:min-w-35"
-          classList={{
-            'bg-accent text-panel': !!searchText() && !searchFocused(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20':
-              !searchText() && !searchFocused(),
-            'bg-accent/15 text-ink': searchFocused(),
-          }}
-          onMouseDown={(e) => {
-            if (e.target !== ref()) {
+        <SearchIcon class="size-4.5 shrink-0" />
+        <Show when={searchText()}>
+          <button
+            type="button"
+            class="size-4.5 shrink-0"
+            onMouseDown={(e) => {
               e.preventDefault();
-              ref()?.focus();
+              e.stopPropagation();
+              setSearchText('');
+            }}
+          >
+            <XIcon class="size-4.5" />
+          </button>
+        </Show>
+        <Show when={!searchText()}>
+          <span class="leading-none pointer-events-none whitespace-nowrap">
+            Search [{filterSummary()}] [{IS_MAC ? 'cmdF' : 'ctrlF'}] or search
+            all `/`
+          </span>
+        </Show>
+        <Show when={searchText()}>
+          <span class="leading-none pointer-events-none whitespace-nowrap">
+            Search [{filterSummary()}]
+          </span>
+        </Show>
+        <input
+          ref={setInputRef}
+          type="text"
+          value={searchText()}
+          onInput={(e) => setSearchText(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (
+              e.key === 'Escape' ||
+              e.key === 'Enter' ||
+              e.key === 'ArrowDown'
+            ) {
+              e.preventDefault();
+              e.currentTarget.blur();
             }
           }}
-        >
-          <Show
-            when={searchText()}
-            fallback={<SearchIcon class="size-4.5 shrink-0" />}
-          >
-            <button
-              type="button"
-              class="size-4.5 shrink-0 hover:opacity-60"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setSearchText('');
-              }}
-            >
-              <XIcon class="size-4.5" />
-            </button>
-          </Show>
-          <span
-            ref={(el) => {
-              measureSpan = el;
-            }}
-            class="invisible absolute whitespace-pre"
-            aria-hidden="true"
-          />
-          <Show when={!searchText() && !searchFocused()}>
-            <span class="leading-none pointer-events-none">
-              <span class="underline underline-offset-2 decoration-current/60">
-                {IS_MAC ? '⌘' : '^'}F
-              </span>
-              <span>ilter</span>
-            </span>
-          </Show>
-          <input
-            ref={setRef}
-            type="text"
-            value={searchText()}
-            onInput={(e) => setSearchText(e.currentTarget.value)}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            onKeyDown={(e) => {
-              if (
-                e.key === 'Escape' ||
-                e.key === 'Enter' ||
-                e.key === 'ArrowDown'
-              ) {
-                e.preventDefault();
-                e.currentTarget.blur();
-              }
-            }}
-            class="p-0 bg-transparent border-none outline-none ring-0 focus:outline-none focus:ring-0 cursor-default"
-            style={{ width: `${inputWidth()}px` }}
-          />
-        </div>
-      </Tooltip>
+          class="p-0 bg-transparent border-none outline-none ring-0 focus:outline-none focus:ring-0 cursor-default"
+          style={{ width: searchText() ? '240px' : '0px' }}
+        />
+      </div>
     </div>
+  );
+};
+
+const MessageSubFilterButton = (props: {
+  label: string;
+  active: boolean;
+  sidebar: boolean;
+  onMouseDown: () => void;
+}) => {
+  return (
+    <button
+      type="button"
+      class="flex items-center gap-1 h-[22px] mobile:h-9 px-2.5 active:bg-accent active:text-panel rounded-full"
+      classList={{
+        'bg-accent text-panel': props.active,
+        'text-ink-muted hover:text-accent hover:bg-accent/20': !props.active,
+        'w-full justify-start h-8': props.sidebar,
+      }}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        props.onMouseDown();
+      }}
+    >
+      <span class="leading-none">{props.label}</span>
+    </button>
   );
 };
 
@@ -652,6 +793,7 @@ export interface FilterButtonProps {
   isActive: (() => boolean) | boolean;
   onClick: () => void;
   paddingClass?: string;
+  sidebar?: boolean;
 }
 
 export const FilterButton: Component<FilterButtonProps> = (props) => {
@@ -661,41 +803,44 @@ export const FilterButton: Component<FilterButtonProps> = (props) => {
     typeof props.isActive === 'function' ? props.isActive() : props.isActive;
 
   return (
-    <div class="flex items-center mr-0.5 shrink-0">
-      <Tooltip
-        tooltip={
-          <LabelAndHotKey label={props.label} shortcut={props.shortcut} />
-        }
+    <div
+      classList={{
+        'flex items-center mr-0.5 shrink-0': !props.sidebar,
+        'w-full': !!props.sidebar,
+      }}
+    >
+      <button
+        type="button"
+        class={`flex items-center gap-1 h-[22px] mobile:h-9 ${props.paddingClass ?? 'pl-2 pr-2.5'} active:bg-accent active:text-panel rounded-full`}
+        classList={{
+          'bg-accent text-panel': isActive(),
+          'text-ink-muted hover:text-accent hover:bg-accent/20': !isActive(),
+          'w-full justify-start h-8 px-2.5': !!props.sidebar,
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          props.onClick();
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        <button
-          type="button"
-          class={`flex items-center gap-1 h-[22px] mobile:h-9 ${props.paddingClass ?? 'pl-2 pr-2.5'} active:bg-accent active:text-panel rounded-full`}
-          classList={{
-            'bg-accent text-panel': isActive(),
-            'text-ink-muted hover:text-accent hover:bg-accent/20': !isActive(),
-          }}
-          onClick={props.onClick}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
+        <Show
+          when={ENABLE_ANIMATED_ICONS && props.animatedIcon}
+          fallback={<Dynamic component={props.icon} class="size-3.5" />}
         >
-          <Show
-            when={ENABLE_ANIMATED_ICONS && props.animatedIcon}
-            fallback={<Dynamic component={props.icon} class="size-3.5" />}
-          >
-            {(Icon) => (
-              <div class="size-3.5 overflow-visible">
-                <Dynamic
-                  component={Icon()}
-                  triggerAnimation={isHovered() || isActive()}
-                />
-              </div>
-            )}
-          </Show>
-          <span class="leading-none">
-            <ShortcutLabel label={props.label} shortcut={props.shortcut} />
-          </span>
-        </button>
-      </Tooltip>
+          {(Icon) => (
+            <div class="size-3.5 overflow-visible">
+              <Dynamic
+                component={Icon()}
+                triggerAnimation={isHovered() || isActive()}
+              />
+            </div>
+          )}
+        </Show>
+        <span class="leading-none">
+          <ShortcutLabel label={props.label} shortcut={props.shortcut} />
+        </span>
+      </button>
     </div>
   );
 };

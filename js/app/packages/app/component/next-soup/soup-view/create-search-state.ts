@@ -72,7 +72,7 @@ export const createSearchState = ({
           .with('agent', () => {
             includeArray.push('chats');
           })
-          .with('people', 'teams', 'channels', () => {
+          .with('messages', 'channels', () => {
             includeArray.push('channels');
           })
           .with('email', () => {
@@ -108,11 +108,17 @@ export const createSearchState = ({
     return {
       channel:
         channel_filters?.channel_ids?.length ||
-        channel_filters?.channel_types?.length
+        channel_filters?.channel_types?.length ||
+        channel_filters?.sender_ids?.length ||
+        channel_filters?.thread_ids?.length ||
+        channel_filters?.mentions?.length
           ? channel_filters
           : null,
       chat:
-        chat_filters?.chat_ids?.length || chat_filters?.project_ids?.length
+        chat_filters?.chat_ids?.length ||
+        chat_filters?.project_ids?.length ||
+        chat_filters?.owners?.length ||
+        chat_filters?.role?.length
           ? chat_filters
           : null,
       document:
@@ -121,7 +127,14 @@ export const createSearchState = ({
         document_filters?.file_types?.length
           ? { ...document_filters, file_types: fileTypes }
           : null,
-      email: email_filters?.recipients?.length ? email_filters : null,
+      email:
+        email_filters?.recipients?.length ||
+        email_filters?.senders?.length ||
+        email_filters?.cc?.length ||
+        email_filters?.bcc?.length ||
+        email_filters?.email_thread_ids?.length
+          ? email_filters
+          : null,
       project: project_filters?.project_ids?.length ? project_filters : null,
     };
   });

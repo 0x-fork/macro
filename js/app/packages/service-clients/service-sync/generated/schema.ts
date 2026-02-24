@@ -14,13 +14,88 @@
 //     Changes to this file may cause incorrect behavior and will be lost if
 //     the code is regenerated.
 // </auto-generated>
-import {
-  BebopJson,
-  type BebopRecord,
-  BebopRuntimeError,
-  BebopTypeGuard,
-  BebopView,
-} from 'bebop';
+import * as BebopRuntime from 'bebop';
+import type { BebopRecord } from 'bebop';
+import type { BebopView as BebopViewType } from 'bebop';
+
+type BebopJsonCompat = {
+  replacer: (_key: string | number, value: unknown) => unknown;
+  reviver: (_key: string | number, value: unknown) => unknown;
+};
+
+type BebopTypeGuardCompat = {
+  ensureArray: (value: unknown, elementTypeValidator: (v: unknown) => void) => void;
+  ensureUint8: (value: unknown) => void;
+  ensureUint64: (value: unknown) => void;
+  ensureDate: (value: unknown) => void;
+};
+
+const runtime = BebopRuntime as typeof BebopRuntime & {
+  BebopJson?: BebopJsonCompat;
+  BebopTypeGuard?: BebopTypeGuardCompat;
+};
+
+const { BebopRuntimeError, BebopView } = runtime;
+type BebopView = BebopViewType;
+
+const BebopJson: BebopJsonCompat = runtime.BebopJson ?? {
+  replacer: (_key, value) => {
+    if (typeof value === 'bigint') return `b${value.toString()}`;
+    if (value instanceof Date) return `d${value.toISOString()}`;
+    if (value instanceof Uint8Array) {
+      return `u${Array.from(value)
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('')}`;
+    }
+    return value;
+  },
+  reviver: (_key, value) => {
+    if (typeof value !== 'string') return value;
+    if (value.startsWith('b')) return BigInt(value.slice(1));
+    if (value.startsWith('d')) return new Date(value.slice(1));
+    if (value.startsWith('u')) {
+      const hex = value.slice(1);
+      const bytes = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+      }
+      return bytes;
+    }
+    return value;
+  },
+};
+
+const BebopTypeGuard: BebopTypeGuardCompat = runtime.BebopTypeGuard ?? {
+  ensureArray: (value, elementTypeValidator) => {
+    if (!(value instanceof Uint8Array) && !Array.isArray(value)) {
+      throw new BebopRuntimeError('Expected array-like value');
+    }
+    for (const item of value as Iterable<unknown>) elementTypeValidator(item);
+  },
+  ensureUint8: (value) => {
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < 0 ||
+      value > 255
+    ) {
+      throw new BebopRuntimeError('Expected uint8');
+    }
+  },
+  ensureUint64: (value) => {
+    if (
+      typeof value !== 'bigint' &&
+      (typeof value !== 'number' || !Number.isInteger(value) || value < 0)
+    ) {
+      throw new BebopRuntimeError('Expected uint64');
+    }
+  },
+  ensureDate: (value) => {
+    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+      throw new BebopRuntimeError('Expected date');
+    }
+  },
+};
 
 export const BEBOP_SCHEMA = new Uint8Array([
   3, 16, 0, 0, 0, 80, 101, 101, 114, 85, 112, 100, 97, 116, 101, 0, 1, 0, 0, 4,

@@ -62,7 +62,7 @@ import {
 import { createStore, reconcile } from 'solid-js/store';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
-import { SoupToolbar } from './soup-toolbar';
+import { SoupFilterSidebar, SoupToolbar } from './soup-toolbar';
 import { useUserId } from '@core/context/user';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
@@ -526,6 +526,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
       data-soup-view
       data-soup-view-id={panel.handle.id + (previewPanel ? '-preview' : '')}
     >
+      <Show when={!isMobile()}>
+        <SoupFilterSidebar />
+      </Show>
       <div
         class="@container/uList size-full unified-list-root flex flex-col"
         classList={{
