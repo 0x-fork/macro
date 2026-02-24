@@ -11,7 +11,6 @@ import {
 import type { SoupBody, SoupItemsQueryFilters } from '@queries/soup/items';
 import type { SoupApiItem } from '@service-storage/generated/schemas';
 import { codeFileExtensions } from '@block-code/util/languageSupport';
-import type { FilterConfig } from './create-filter-state';
 import type { Component } from 'solid-js';
 import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
 import { AnimatedChatIcon } from '@macro-icons/wide/animating/chat';
@@ -22,6 +21,7 @@ import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 import { ChannelTypeEnum } from '@service-comms/client';
 import { match } from 'ts-pattern';
+import { compositeEntity, NotificationSource } from '@notifications';
 
 export const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -83,11 +83,15 @@ export function filterSoupItemByRequestBody(
  * - Emails: Uses `isRead` boolean field
  * - Everything else: Has at least one notification with viewedAt === null
  */
-export function unreadFilter(entity: EnhancedEntity): boolean {
-  if (entity.type === 'email') {
-    return !entity.isRead;
-  }
-  return entity.notifications?.()?.some((n) => !n.viewed_at) ?? false;
+export function unreadFilter(notificationSource: NotificationSource) {
+  return function (entity: EntityData): boolean {
+    if (entity.type === 'email') {
+      return !entity.isRead;
+    }
+    const notifications =
+      notificationSource.notificationsByEntity()[compositeEntity(entity)];
+    return notifications?.some((n) => !n.viewed_at) ?? false;
+  };
 }
 
 /**
@@ -118,8 +122,6 @@ export const FILTER_GROUPS: readonly FilterGroup[] = [
   { id: 'focus', allowMultiple: false },
   { id: 'type', allowMultiple: false },
 ];
-
-type EnhancedEntity = WithNotification<EntityData>;
 
 /** Document filter (markdown, canvas) - excludes tasks */
 export function documentFilter(entity: EntityData): boolean {
@@ -170,39 +172,7 @@ export function channelsFilter(entity: EntityData): boolean {
   return entity.type === 'channel';
 }
 
-export const SOUP_FILTERS = [
-  // Focus filters (mutually exclusive)
-  {
-    id: 'signal',
-    label: 'Inbox',
-    predicate: signalFilter,
-    group: 'focus',
-  },
-  {
-    id: 'noise',
-    label: 'Other',
-    predicate: noiseFilter,
-    group: 'focus',
-  },
-  {
-    id: 'explicit-noise',
-    label: 'Explicit Noise',
-    predicate: (entity: EntityData) => !explicitNoiseFilter(entity),
-    group: 'focus',
-  },
-
-  // Notification filters
-  {
-    id: 'unread',
-    label: 'Unread',
-    predicate: unreadFilter,
-  },
-  {
-    id: 'not-done',
-    label: 'Not done',
-    predicate: notDoneFilter,
-  },
-
+export const ENTITY_TYPE_FILTER_CONFIGS = [
   // Entity type filters (mutually exclusive)
   {
     id: 'document',
@@ -246,40 +216,56 @@ export const SOUP_FILTERS = [
     predicate: fileFilter,
     group: 'type',
   },
-  {
-    id: 'channels',
-    label: 'Channels',
-    predicate: channelsFilter,
-    group: 'type',
-  },
 ] as const;
 
-export type FilterID = (typeof SOUP_FILTERS)[number]['id'];
+export const createSoupFilters = (notificationSource: NotificationSource) => {
+  return [
+    // Focus filters (mutually exclusive)
+    {
+      id: 'signal',
+      label: 'Inbox',
+      predicate: signalFilter,
+      group: 'focus',
+    },
+    {
+      id: 'noise',
+      label: 'Other',
+      predicate: noiseFilter,
+      group: 'focus',
+    },
+    {
+      id: 'explicit-noise',
+      label: 'Explicit Noise',
+      predicate: (entity: EntityData) => !explicitNoiseFilter(entity),
+      group: 'focus',
+    },
 
-const ENTITY_TYPE_FILTERS = [
-  'document',
-  'task',
-  'email',
-  'people',
-  'teams',
-  'agent',
-  'file',
-] as const;
-
-type EntityTypeFilters = (typeof ENTITY_TYPE_FILTERS)[number];
-
-export const isEntityTypeFilter = (
-  filter: FilterConfig<EntityData>
-): filter is Extract<
-  (typeof SOUP_FILTERS)[number],
-  { readonly id: EntityTypeFilters }
-> => {
-  return ENTITY_TYPE_FILTERS.includes(filter.id as EntityTypeFilters);
+    // Notification filters
+    {
+      id: 'unread',
+      label: 'Unread',
+      predicate: unreadFilter(notificationSource),
+    },
+    {
+      id: 'not-done',
+      label: 'Not done',
+      predicate: notDoneFilter,
+    },
+    ...ENTITY_TYPE_FILTER_CONFIGS,
+    {
+      id: 'channels',
+      label: 'Channels',
+      predicate: channelsFilter,
+      group: 'type',
+    },
+  ] as const;
 };
 
-export const ENTITY_TYPE_FILTER_CONFIGS = SOUP_FILTERS.filter((f) =>
-  isEntityTypeFilter(f)
-);
+type SoupFilters = ReturnType<typeof createSoupFilters>;
+
+export type FilterID = SoupFilters[number]['id'];
+
+type EntityTypeFilters = (typeof ENTITY_TYPE_FILTER_CONFIGS)[number]['id'];
 
 const ENTITY_TYPE_TO_ICON_TYPE: Record<EntityTypeFilters, EntityWithValidIcon> =
   {
@@ -310,14 +296,6 @@ export const ANIMATED_ICONS: Partial<
   task: AnimatedTaskIcon,
   email: AnimatedEmailIcon,
   file: AnimatedFolderIcon,
-};
-
-export const getFilterWithID = (filterID: FilterID) => {
-  const found = SOUP_FILTERS.find((f) => f.id === filterID);
-
-  if (!found) return;
-
-  return found;
 };
 
 export const FILE_ASSOCIATION_TYPES = [
