@@ -154,10 +154,15 @@ export const SoupViewContextProvider: FlowComponent<
     };
   });
 
+  const emailView = () =>
+    soup.filters.isActive('signal') || soup.filters.isActive('noise')
+      ? 'inbox'
+      : 'all';
+
   const soupBody = createMemo(
     (): SoupBody => ({
       ...queryFilters(),
-      emailView: 'all',
+      emailView: emailView(),
     })
   );
 

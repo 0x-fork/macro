@@ -31,6 +31,7 @@ import {
 } from '@app/component/next-soup/filters/filters';
 import {
   applyInboxQueryFilters,
+  applyOtherQueryFilters,
   removeInboxQueryFilters,
 } from '@app/component/next-soup/filters/inbox-query-filters';
 import { ENABLE_ANIMATED_ICONS } from '@core/constant/featureFlags';
@@ -146,14 +147,14 @@ const SoupFilters = () => {
 
   const toggleFocus = (id: 'signal' | 'noise') => {
     if (soup.filters.isActive(id)) {
-      soup.filters.toggle('explicit-noise');
+      soup.filters.toggle(id);
       setQueryFilters((prev) => removeInboxQueryFilters(prev));
       soup.filters.deactivate('not-done');
     } else {
       if (id === 'signal') {
         setQueryFilters((prev) => applyInboxQueryFilters(prev));
       } else {
-        setQueryFilters((prev) => removeInboxQueryFilters(prev));
+        setQueryFilters((prev) => applyOtherQueryFilters(prev));
       }
       soup.filters.toggle(id);
       soup.filters.activate('not-done');

@@ -63,6 +63,26 @@ export function applyInboxQueryFilters(
   };
 }
 
+/** Apply "Other" query filters — same as inbox but with importance:false. */
+export function applyOtherQueryFilters(
+  filters: SoupItemsQueryFilters
+): SoupItemsQueryFilters {
+  return {
+    ...filters,
+    channel_filters: withInboxNotification(filters.channel_filters),
+    chat_filters: withInboxNotification(filters.chat_filters),
+    project_filters: withInboxNotification(filters.project_filters),
+    document_filters: {
+      ...withInboxNotification(filters.document_filters),
+      task_filters: {
+        ...filters.document_filters?.task_filters,
+        include_cbm_atm_nc: INBOX_TASK_BYPASS,
+      },
+    },
+    email_filters: { ...filters.email_filters, importance: false },
+  };
+}
+
 /** Removes inbox specific query filters keeping the rest in place */
 export function removeInboxQueryFilters(
   filters: SoupItemsQueryFilters
@@ -90,7 +110,7 @@ export function removeInboxQueryFilters(
 
   const { importance, ...emailRest } = filters.email_filters ?? {};
   const email_filters =
-    importance === INBOX_IMPORTANCE
+    importance === INBOX_IMPORTANCE || importance === false
       ? isNonEmptyObject(emailRest)
         ? emailRest
         : undefined

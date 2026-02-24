@@ -39,7 +39,7 @@ export function intersectEntityPools(
 export const getValidSearchFilters = <T>(
   filters: readonly FilterConfig<T>[]
 ) => {
-  return filters.filter((f) => f.id !== 'explicit-noise');
+  return filters;
 };
 
 /** Adds name highlight to item list based on fuzzy match */
