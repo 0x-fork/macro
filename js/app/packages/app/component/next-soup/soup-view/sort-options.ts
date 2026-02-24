@@ -1,6 +1,6 @@
 import type { SortConfig } from '@app/component/next-soup/create-soup-state';
 import type { SoupEntity } from '@app/component/next-soup/soup-view/soup-view-context';
-import type { EntityData, WithNotification } from '@entity';
+import type { EntityData } from '@entity';
 import { compareDateDesc } from '@core/util/date';
 
 export type SystemSortOption =
@@ -8,24 +8,6 @@ export type SystemSortOption =
   | 'created_at'
   | 'viewed_at'
   | 'frecency';
-
-export function sortByNotifiedAt<T extends WithNotification<EntityData>>(
-  a: T,
-  b: T
-) {
-  const aNotification = a.notifications?.()[0];
-  const bNotification = b.notifications?.()[0];
-
-  if (aNotification && bNotification) {
-    return compareDateDesc(aNotification.created_at, bNotification.created_at);
-  } else if (aNotification) {
-    return -1;
-  } else if (bNotification) {
-    return 1;
-  }
-
-  return sortByUpdatedAt(a, b);
-}
 
 export function sortByCreatedAt<T extends EntityData>(a: T, b: T): number {
   return compareDateDesc(a.createdAt, b.createdAt);
