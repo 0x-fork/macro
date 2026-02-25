@@ -2,13 +2,13 @@ import { type Component, For, Show, onMount, createSignal } from 'solid-js';
 import WideStar from '@macro-icons/wide/star.svg';
 import MacroLogo from '@macro-icons/macro-logo.svg';
 import {
-  ChatContextProvider,
-  useChatContext,
+  ChatInputProvider,
+  useChatInputContext,
 } from '@core/component/AI/context';
 import { ChatInput } from '@core/component/AI/component/input/ChatInput';
+import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
 import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
-import type { CreateAndSend, Send } from '@core/component/AI/types';
 import { isErr } from '@core/util/maybeResult';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { useHotkeyDOMScope } from 'core/hotkey/hotkeys';
@@ -196,10 +196,10 @@ const ChatPlaceholder: Component = () => {
 const BriefingChatInput: Component = () => {
   let containerRef!: HTMLDivElement;
   const splitPanelContext = useSplitPanelOrThrow();
-  const ctx = useChatContext();
+  const input = useChatInputContext();
 
   const chatMarkdownArea = useChatMarkdownArea({
-    addAttachment: (a) => ctx.attachments.addAttachment(a),
+    addAttachment: (a) => input.attachments.addAttachment(a),
   });
 
   const [attachHotkeys] = useHotkeyDOMScope('briefing2.chatInput');
@@ -208,9 +208,7 @@ const BriefingChatInput: Component = () => {
     attachHotkeys(containerRef);
   });
 
-  const handleSend = async (request: Send | CreateAndSend) => {
-    if (request.type !== 'createAndSend') return;
-
+  const handleSend = async (request: ChatSendInput) => {
     const response = await cognitionApiServiceClient.createChat({
       isPersistent: true,
     });
@@ -305,9 +303,9 @@ const Briefing2ViewInner: Component = () => {
  */
 export const Briefing2View: Component = () => {
   return (
-    <ChatContextProvider autoAttach={false}>
+    <ChatInputProvider autoAttach={false}>
       <Briefing2ViewInner />
-    </ChatContextProvider>
+    </ChatInputProvider>
   );
 };
 

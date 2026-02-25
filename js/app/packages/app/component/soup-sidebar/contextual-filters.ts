@@ -692,8 +692,7 @@ export function getContextualFiltersForActiveFilters(
   const hasDocument = activeFilterIds.includes('document');
   const hasChannel =
     activeFilterIds.includes('people') ||
-    activeFilterIds.includes('teams') ||
-    activeFilterIds.includes('teams-and-people');
+    activeFilterIds.includes('teams');
   const hasChat = activeFilterIds.includes('agent');
   const hasNoTypeFilter =
     !hasEmail && !hasTask && !hasDocument && !hasChannel && !hasChat;

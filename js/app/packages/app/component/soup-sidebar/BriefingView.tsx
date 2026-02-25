@@ -10,13 +10,13 @@ import IconClock from '@icon/regular/clock.svg';
 import IconUsers from '@icon/regular/users.svg';
 import { Dynamic } from 'solid-js/web';
 import {
-  ChatContextProvider,
-  useChatContext,
+  ChatInputProvider,
+  useChatInputContext,
 } from '@core/component/AI/context';
 import { ChatInput } from '@core/component/AI/component/input/ChatInput';
+import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
 import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
-import type { CreateAndSend, Send } from '@core/component/AI/types';
 import { isErr } from '@core/util/maybeResult';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { useHotkeyDOMScope } from 'core/hotkey/hotkeys';
@@ -300,10 +300,10 @@ const BriefingSectionCard: Component<BriefingSectionCardProps> = (props) => {
 const BriefingChatInput: Component = () => {
   let containerRef!: HTMLDivElement;
   const splitPanelContext = useSplitPanelOrThrow();
-  const ctx = useChatContext();
+  const input = useChatInputContext();
 
   const chatMarkdownArea = useChatMarkdownArea({
-    addAttachment: (a) => ctx.attachments.addAttachment(a),
+    addAttachment: (a) => input.attachments.addAttachment(a),
   });
 
   const [attachHotkeys] = useHotkeyDOMScope('briefing.chatInput');
@@ -312,9 +312,7 @@ const BriefingChatInput: Component = () => {
     attachHotkeys(containerRef);
   });
 
-  const handleSend = async (request: Send | CreateAndSend) => {
-    if (request.type !== 'createAndSend') return;
-
+  const handleSend = async (request: ChatSendInput) => {
     // Create a new persistent chat
     const response = await cognitionApiServiceClient.createChat({
       isPersistent: true,
@@ -449,9 +447,9 @@ const BriefingViewInner: Component<BriefingViewProps> = (props) => {
  */
 export const BriefingView: Component<BriefingViewProps> = (props) => {
   return (
-    <ChatContextProvider autoAttach={false}>
+    <ChatInputProvider autoAttach={false}>
       <BriefingViewInner {...props} />
-    </ChatContextProvider>
+    </ChatInputProvider>
   );
 };
 

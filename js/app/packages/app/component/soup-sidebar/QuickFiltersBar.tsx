@@ -90,8 +90,7 @@ export const QuickFiltersBar: Component<QuickFiltersBarProps> = (props) => {
     const hasTask = props.activeFilterIds.includes('task');
     const hasChannel =
       props.activeFilterIds.includes('people') ||
-      props.activeFilterIds.includes('teams') ||
-      props.activeFilterIds.includes('teams-and-people');
+      props.activeFilterIds.includes('teams');
 
     if (hasEmail) {
       groups.push(...EMAIL_QUICK_FILTERS);
