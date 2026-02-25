@@ -1,6 +1,10 @@
 import { createMemo, createSignal } from 'solid-js';
 import { PREDEFINED_VIEWS } from './predefined-views';
-import { setPendingView, setPendingPinnedItem, type PinnedItem } from './sidebar-selection-state';
+import {
+  setPendingView,
+  setPendingPinnedItem,
+  type PinnedItem,
+} from './sidebar-selection-state';
 
 /**
  * Stored pinned items for hotkey handlers.
@@ -25,7 +29,7 @@ let stateTimeout: ReturnType<typeof setTimeout> | null = null;
 /**
  * Map of shortcut keys to view IDs for quick lookup
  */
-const shortcutToViewMap = new Map<string, typeof PREDEFINED_VIEWS[number]>();
+const shortcutToViewMap = new Map<string, (typeof PREDEFINED_VIEWS)[number]>();
 
 // Build the shortcut map
 for (const view of PREDEFINED_VIEWS) {
@@ -78,12 +82,12 @@ function resetState() {
  */
 function setState(state: HotkeyState) {
   setHotkeyState(state);
-  
+
   // Clear any existing timeout
   if (stateTimeout) {
     clearTimeout(stateTimeout);
   }
-  
+
   // Auto-reset after 2 seconds if not idle
   if (state !== 'idle') {
     stateTimeout = setTimeout(() => {
@@ -109,21 +113,21 @@ function isEditableElement(el: Element | null): boolean {
  */
 function handleViewKey(key: string): boolean {
   const lowerKey = key.toLowerCase();
-  
+
   // First try to find a view with this shortcut
   const viewByShortcut = shortcutToViewMap.get(lowerKey);
   if (viewByShortcut) {
     setPendingView(viewByShortcut);
     return true;
   }
-  
+
   // Fall back to index-based selection (1-9, 0)
   const index = getIndexFromHotkey(key);
   if (index !== undefined && index < PREDEFINED_VIEWS.length) {
     setPendingView(PREDEFINED_VIEWS[index]);
     return true;
   }
-  
+
   return false;
 }
 
@@ -143,7 +147,7 @@ function handlePinnedItemKey(key: string): boolean {
  * Register hotkeys for all sidebar views and pinned items.
  * Uses a custom keyboard listener instead of the hotkey system
  * to support the v -> <shortcut> sequence for views.
- * 
+ *
  * Shortcuts:
  * - v <shortcut>: Select view by its defined shortcut (e.g., v i for inbox)
  * - v 1-9, 0: Select view by index (fallback)
@@ -151,66 +155,70 @@ function handlePinnedItemKey(key: string): boolean {
  * - Escape: Cancel selection
  */
 export function registerSidebarHotkeys() {
-  document.addEventListener('keydown', (e) => {
-    // Don't handle if an editable element is focused
-    if (isEditableElement(document.activeElement)) return;
-    
-    // Ignore modifier keys alone
-    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
-    
-    // Ignore if any modifier is held (except for the key itself)
-    if (e.ctrlKey || e.altKey || e.metaKey) return;
-    
-    const key = e.key.toLowerCase();
-    const currentState = hotkeyState();
-    
-    // Handle based on current state
-    switch (currentState) {
-      case 'idle':
-        if (key === 'v') {
-          setState('goto');
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        break;
-        
-      case 'goto':
-        if (key === 'escape') {
-          resetState();
-          e.preventDefault();
-          e.stopPropagation();
-        } else if (key === 'p') {
-          setState('pinned');
-          e.preventDefault();
-          e.stopPropagation();
-        } else {
-          // Try to handle as view shortcut or index
-          const handled = handleViewKey(key);
-          resetState();
-          if (handled) {
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      // Don't handle if an editable element is focused
+      if (isEditableElement(document.activeElement)) return;
+
+      // Ignore modifier keys alone
+      if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+
+      // Ignore if any modifier is held (except for the key itself)
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      const key = e.key.toLowerCase();
+      const currentState = hotkeyState();
+
+      // Handle based on current state
+      switch (currentState) {
+        case 'idle':
+          if (key === 'v') {
+            setState('goto');
             e.preventDefault();
             e.stopPropagation();
           }
-        }
-        break;
-        
-      case 'pinned':
-        if (key === 'escape') {
-          resetState();
-          e.preventDefault();
-          e.stopPropagation();
-        } else {
-          // Try to handle as pinned item key
-          const handled = handlePinnedItemKey(key);
-          resetState();
-          if (handled) {
+          break;
+
+        case 'goto':
+          if (key === 'escape') {
+            resetState();
             e.preventDefault();
             e.stopPropagation();
+          } else if (key === 'p') {
+            setState('pinned');
+            e.preventDefault();
+            e.stopPropagation();
+          } else {
+            // Try to handle as view shortcut or index
+            const handled = handleViewKey(key);
+            resetState();
+            if (handled) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
           }
-        }
-        break;
-    }
-  }, { capture: true });
+          break;
+
+        case 'pinned':
+          if (key === 'escape') {
+            resetState();
+            e.preventDefault();
+            e.stopPropagation();
+          } else {
+            // Try to handle as pinned item key
+            const handled = handlePinnedItemKey(key);
+            resetState();
+            if (handled) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }
+          break;
+      }
+    },
+    { capture: true }
+  );
 }
 
 /**

@@ -7,7 +7,11 @@ import { type JSXElement, lazy } from 'solid-js';
 import { EmailCompose } from '../../../block-email/component/Compose';
 import { SettingsPanelComponentWrapper } from '../settings/Settings';
 import NotificationRoute from '@notifications/components/NotificationRoute';
-import { SoupWithSidebar, BriefingView, Briefing2View } from '@app/component/soup-sidebar';
+import {
+  SoupWithSidebar,
+  BriefingView,
+  Briefing2View,
+} from '@app/component/soup-sidebar';
 
 export type ComponentFactory = (params?: Record<string, any>) => JSXElement;
 

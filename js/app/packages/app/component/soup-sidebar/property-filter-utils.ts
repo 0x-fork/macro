@@ -109,10 +109,7 @@ export function getStatusOptionId(entity: EntityData): string | undefined {
 /**
  * Check if task has a specific status
  */
-export function hasStatus(
-  entity: EntityData,
-  statusOptionId: string
-): boolean {
+export function hasStatus(entity: EntityData, statusOptionId: string): boolean {
   return getStatusOptionId(entity) === statusOptionId;
 }
 

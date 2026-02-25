@@ -1,7 +1,10 @@
 import { type Component, For, Show, onMount, createSignal } from 'solid-js';
 import WideStar from '@macro-icons/wide/star.svg';
 import MacroLogo from '@macro-icons/macro-logo.svg';
-import { ChatContextProvider, useChatContext } from '@core/component/AI/context';
+import {
+  ChatContextProvider,
+  useChatContext,
+} from '@core/component/AI/context';
 import { ChatInput } from '@core/component/AI/component/input/useChatInput';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
 import { setPendingSendData } from '@core/component/AI/signal/pendingSend';

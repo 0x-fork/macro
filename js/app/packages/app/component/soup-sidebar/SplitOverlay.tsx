@@ -1,15 +1,35 @@
-import { type Component, Show, For, createMemo, createEffect, createSignal, onCleanup } from 'solid-js';
+import {
+  type Component,
+  Show,
+  For,
+  createMemo,
+  createEffect,
+  createSignal,
+  onCleanup,
+} from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { pendingView, setPendingView, setApplyViewToSplit, pendingPinnedItem, setPendingPinnedItem } from './sidebar-selection-state';
+import {
+  pendingView,
+  setPendingView,
+  setApplyViewToSplit,
+  pendingPinnedItem,
+  setPendingPinnedItem,
+} from './sidebar-selection-state';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import type { SplitContent, SplitState, SplitId } from '@app/component/split-layout/layoutManager';
+import type {
+  SplitContent,
+  SplitState,
+  SplitId,
+} from '@app/component/split-layout/layoutManager';
 
 /**
  * Check if the split content is a list component (unified-list or soup-sidebar)
  */
 function isListComponent(content: SplitContent): boolean {
-  return content.type === 'component' && 
-    (content.id === 'unified-list' || content.id === 'soup-sidebar');
+  return (
+    content.type === 'component' &&
+    (content.id === 'unified-list' || content.id === 'soup-sidebar')
+  );
 }
 
 /**
@@ -39,12 +59,16 @@ interface SplitOverlayItemProps {
 }
 
 const SplitOverlayItem: Component<SplitOverlayItemProps> = (props) => {
-  const contentName = createMemo(() => getContentDisplayName(props.split.content));
+  const contentName = createMemo(() =>
+    getContentDisplayName(props.split.content)
+  );
   const [rect, setRect] = createSignal<DOMRect | null>(null);
 
   // Find and track the split element's position
   createEffect(() => {
-    const el = document.querySelector(`[data-split-id="${props.split.id}"]`) as HTMLElement | null;
+    const el = document.querySelector(
+      `[data-split-id="${props.split.id}"]`
+    ) as HTMLElement | null;
     if (el) {
       setRect(el.getBoundingClientRect());
     }
@@ -93,10 +117,13 @@ export const SplitOverlays: Component = () => {
   // Check if any selection is pending
   const hasPendingSelection = createMemo(() => !!view() || !!pinnedItem());
 
-  const handleSplitSelectForView = (splitId: SplitId, content: SplitContent) => {
+  const handleSplitSelectForView = (
+    splitId: SplitId,
+    content: SplitContent
+  ) => {
     const currentView = view();
     const splitManager = manager();
-    
+
     if (!currentView || !splitManager) {
       return;
     }
@@ -107,7 +134,11 @@ export const SplitOverlays: Component = () => {
     }
 
     // Check if this view should navigate to its own component (like briefing)
-    if (STANDALONE_VIEWS.includes(currentView.id as typeof STANDALONE_VIEWS[number])) {
+    if (
+      STANDALONE_VIEWS.includes(
+        currentView.id as (typeof STANDALONE_VIEWS)[number]
+      )
+    ) {
       split.replace({
         next: {
           type: 'component',
@@ -133,7 +164,7 @@ export const SplitOverlays: Component = () => {
         },
         referredFrom: 'launcher',
       });
-      
+
       // Also signal to apply filters after component mounts
       setTimeout(() => {
         setApplyViewToSplit({ splitId, view: currentView });
@@ -147,7 +178,7 @@ export const SplitOverlays: Component = () => {
   const handleSplitSelectForPinnedItem = (splitId: SplitId) => {
     const item = pinnedItem();
     const splitManager = manager();
-    
+
     if (!item || !splitManager) {
       return;
     }
@@ -177,11 +208,11 @@ export const SplitOverlays: Component = () => {
       handleSplitSelectForPinnedItem(splitId);
     }
   };
-  
+
   const handleSelectByIndex = (index: number) => {
     const splits = manager()?.splits();
     if (!splits || index < 0 || index >= splits.length) return;
-    
+
     const split = splits[index];
     handleSplitSelect(split.id, split.content);
   };
@@ -194,7 +225,7 @@ export const SplitOverlays: Component = () => {
   // Handle keyboard input for selecting splits by number
   createEffect(() => {
     if (!hasPendingSelection()) return;
-    
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if it's a number key 1-9
       const num = parseInt(e.key, 10);
@@ -206,7 +237,7 @@ export const SplitOverlays: Component = () => {
         setPendingPinnedItem(null);
       }
     };
-    
+
     document.addEventListener('keydown', handleKeyDown);
     onCleanup(() => document.removeEventListener('keydown', handleKeyDown));
   });
@@ -217,10 +248,7 @@ export const SplitOverlays: Component = () => {
     <Show when={hasPendingSelection()}>
       <Portal>
         {/* Backdrop to close on click outside - lower z-index than overlays */}
-        <div
-          class="fixed inset-0 z-40"
-          onClick={handleBackdropClick}
-        />
+        <div class="fixed inset-0 z-40" onClick={handleBackdropClick} />
 
         {/* Render overlay on each split - higher z-index */}
         <For each={splits()}>

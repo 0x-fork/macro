@@ -170,7 +170,14 @@ export const VIEW_GROUPS: readonly ViewGroup[] = [
   {
     id: 'top',
     label: '',
-    viewIds: ['briefing', /* 'briefing2', */ 'inbox', 'mail', 'tasks', 'docs', 'files'],
+    viewIds: [
+      'briefing',
+      /* 'briefing2', */ 'inbox',
+      'mail',
+      'tasks',
+      'docs',
+      'files',
+    ],
   },
 ] as const;
 

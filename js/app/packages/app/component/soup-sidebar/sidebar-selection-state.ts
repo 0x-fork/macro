@@ -1,18 +1,23 @@
 import { createSignal } from 'solid-js';
 import type { PredefinedView } from './predefined-views';
-import type { SplitId, SplitContent } from '@app/component/split-layout/layoutManager';
+import type {
+  SplitId,
+  SplitContent,
+} from '@app/component/split-layout/layoutManager';
 
 /**
  * Track which view is active in each split.
  * Map from splitId to viewId.
  */
-const [activeViewsBySplit, setActiveViewsBySplit] = createSignal<Map<SplitId, string>>(new Map());
+const [activeViewsBySplit, setActiveViewsBySplit] = createSignal<
+  Map<SplitId, string>
+>(new Map());
 
 /**
  * Register a view as active in a split
  */
 function registerActiveView(splitId: SplitId, viewId: string) {
-  setActiveViewsBySplit(prev => {
+  setActiveViewsBySplit((prev) => {
     const next = new Map(prev);
     next.set(splitId, viewId);
     return next;
@@ -23,7 +28,7 @@ function registerActiveView(splitId: SplitId, viewId: string) {
  * Unregister a view from a split (e.g., when split closes or changes to non-list content)
  */
 function unregisterActiveView(splitId: SplitId) {
-  setActiveViewsBySplit(prev => {
+  setActiveViewsBySplit((prev) => {
     const next = new Map(prev);
     next.delete(splitId);
     return next;
@@ -33,16 +38,19 @@ function unregisterActiveView(splitId: SplitId) {
 /**
  * Get all split indices (1-indexed) where a view is active
  */
-function getSplitIndicesForView(viewId: string, allSplitIds: SplitId[]): number[] {
+function getSplitIndicesForView(
+  viewId: string,
+  allSplitIds: SplitId[]
+): number[] {
   const activeViews = activeViewsBySplit();
   const indices: number[] = [];
-  
+
   allSplitIds.forEach((splitId, index) => {
     if (activeViews.get(splitId) === viewId) {
       indices.push(index + 1); // 1-indexed
     }
   });
-  
+
   return indices;
 }
 
@@ -79,7 +87,8 @@ const [pendingView, setPendingView] = createSignal<PredefinedView | null>(null);
  * When a pinned item is selected, this stores the pending item
  * so overlays can be shown on splits.
  */
-const [pendingPinnedItem, setPendingPinnedItem] = createSignal<PinnedItem | null>(null);
+const [pendingPinnedItem, setPendingPinnedItem] =
+  createSignal<PinnedItem | null>(null);
 
 /**
  * Signal to apply a view to a specific split.
@@ -100,12 +109,12 @@ const [applyContextualFilters, setApplyContextualFilters] = createSignal<{
   contextualFilterIds: readonly string[];
 } | null>(null);
 
-export { 
-  pendingView, 
-  setPendingView, 
+export {
+  pendingView,
+  setPendingView,
   pendingPinnedItem,
   setPendingPinnedItem,
-  applyViewToSplit, 
+  applyViewToSplit,
   setApplyViewToSplit,
   applyContextualFilters,
   setApplyContextualFilters,

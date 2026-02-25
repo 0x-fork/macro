@@ -34,7 +34,14 @@ import { getContextualFiltersForActiveFilters } from './contextual-filters';
 import type { FilterID } from '@app/component/next-soup/filters/filters';
 import type { ContextualFilterState } from './contextual-filter-state';
 import { useUserId, useEmail } from '@core/context/user';
-import { applyViewToSplit, setApplyViewToSplit, applyContextualFilters, setApplyContextualFilters, registerActiveView, unregisterActiveView } from './sidebar-selection-state';
+import {
+  applyViewToSplit,
+  setApplyViewToSplit,
+  applyContextualFilters,
+  setApplyContextualFilters,
+  registerActiveView,
+  unregisterActiveView,
+} from './sidebar-selection-state';
 import type { SplitId } from '@app/component/split-layout/layoutManager';
 import { type PredefinedView, getViewById } from './predefined-views';
 
@@ -48,7 +55,10 @@ export const useContextualFilters = () => useContext(ContextualFilterContext);
 /**
  * Apply a predefined view's filters to the soup state
  */
-function applyViewFilters(soup: ReturnType<typeof createSoupState>, view: PredefinedView) {
+function applyViewFilters(
+  soup: ReturnType<typeof createSoupState>,
+  view: PredefinedView
+) {
   // Clear existing filters
   soup.filters.clear();
 
@@ -75,7 +85,7 @@ export const SoupWithSidebar: Component = () => {
 
   // Get the inbox view to use as initial state
   const inboxView = getViewById('inbox');
-  
+
   // Create soup state if not already provided by parent context
   // Initialize with inbox view filters
   const soup =
@@ -86,7 +96,7 @@ export const SoupWithSidebar: Component = () => {
 
   const panel = useSplitPanelOrThrow();
   const splitId = panel.handle.id as SplitId;
-  
+
   // Track the current active view in this split
   const [, setCurrentViewId] = createSignal<string | undefined>('inbox');
 
@@ -108,20 +118,23 @@ export const SoupWithSidebar: Component = () => {
       applyViewFilters(soup, pending.view);
       setCurrentViewId(pending.view.id);
       registerActiveView(splitId, pending.view.id);
-      
+
       // If the view has contextual filters, signal to apply them
-      if (pending.view.contextualFilters && pending.view.contextualFilters.length > 0) {
+      if (
+        pending.view.contextualFilters &&
+        pending.view.contextualFilters.length > 0
+      ) {
         setApplyContextualFilters({
           splitId: pending.splitId,
           contextualFilterIds: pending.view.contextualFilters,
         });
       }
-      
+
       // Clear the signal after applying
       setApplyViewToSplit(null);
     }
   });
-  
+
   // Unregister view when component unmounts
   onCleanup(() => {
     unregisterActiveView(splitId);
@@ -161,7 +174,9 @@ const SoupWithSidebarInner: Component<SoupWithSidebarInnerProps> = (props) => {
   const userEmail = useEmail();
 
   // Get entities from rows for contextual filtering (before contextual filters)
-  const entities = createMemo(() => rows().map((r) => r.original as EntityData));
+  const entities = createMemo(() =>
+    rows().map((r) => r.original as EntityData)
+  );
 
   // Get available contextual filters based on active main filters
   // Pass currentUserId and currentUserEmail to enable user-specific filters
@@ -169,11 +184,17 @@ const SoupWithSidebarInner: Component<SoupWithSidebarInnerProps> = (props) => {
     const activeIds = soup.filters.activeIds() as FilterID[];
     const currentUserId = userId();
     const currentUserEmail = userEmail();
-    return getContextualFiltersForActiveFilters(activeIds, currentUserId, currentUserEmail);
+    return getContextualFiltersForActiveFilters(
+      activeIds,
+      currentUserId,
+      currentUserEmail
+    );
   });
 
   // Create contextual filter state
-  const contextualFilterState = createContextualFilterState(availableContextualFilters);
+  const contextualFilterState = createContextualFilterState(
+    availableContextualFilters
+  );
 
   // Listen for contextual filter changes from sidebar view selection
   createEffect(() => {
@@ -181,16 +202,16 @@ const SoupWithSidebarInner: Component<SoupWithSidebarInnerProps> = (props) => {
     if (pending && pending.splitId === props.splitId) {
       // Clear existing contextual filters
       contextualFilterState.clear();
-      
+
       // Apply the new contextual filters
       const availableFilters = availableContextualFilters();
       for (const filterId of pending.contextualFilterIds) {
-        const filter = availableFilters.find(f => f.id === filterId);
+        const filter = availableFilters.find((f) => f.id === filterId);
         if (filter) {
           contextualFilterState.toggle(filter);
         }
       }
-      
+
       // Clear the signal
       setApplyContextualFilters(null);
     }
@@ -226,7 +247,9 @@ const SoupWithSidebarInner: Component<SoupWithSidebarInnerProps> = (props) => {
   }));
 
   // Get active filter IDs for quick filters bar
-  const activeFilterIds = createMemo(() => soup.filters.activeIds() as FilterID[]);
+  const activeFilterIds = createMemo(
+    () => soup.filters.activeIds() as FilterID[]
+  );
 
   return (
     <>

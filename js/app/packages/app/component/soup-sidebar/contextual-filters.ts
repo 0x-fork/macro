@@ -127,7 +127,9 @@ export function createSentByMeFilter(
     predicate: (entity) => {
       if (!currentUserEmail) return false;
       if (!isEmailEntity(entity)) return false;
-      return entity.senderEmail?.toLowerCase() === currentUserEmail.toLowerCase();
+      return (
+        entity.senderEmail?.toLowerCase() === currentUserEmail.toLowerCase()
+      );
     },
     appliesTo: ['email'],
     category: 'status',
@@ -493,8 +495,7 @@ export const DOCUMENT_CONTEXTUAL_FILTERS: ContextualFilter[] = [
   {
     id: 'doc-markdown',
     label: 'Markdown',
-    predicate: (entity) =>
-      isDocumentEntity(entity) && entity.fileType === 'md',
+    predicate: (entity) => isDocumentEntity(entity) && entity.fileType === 'md',
     appliesTo: ['document'],
     category: 'type',
     icon: IconFileText,
@@ -700,7 +701,7 @@ export function getContextualFiltersForActiveFilters(
   // Add email filters
   if (hasEmail || hasNoTypeFilter) {
     relevantFilters.push(...EMAIL_CONTEXTUAL_FILTERS);
-    
+
     // Add "Sent" filter if we have a user email
     if (currentUserEmail) {
       relevantFilters.push(createSentByMeFilter(currentUserEmail));

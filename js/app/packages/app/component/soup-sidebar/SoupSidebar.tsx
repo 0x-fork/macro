@@ -3,7 +3,11 @@ import {
   getViewsForGroup,
   type PredefinedView,
 } from './predefined-views';
-import { useIsGoToScopeActive, useIsPinnedScopeActive, updatePinnedItemsForHotkeys } from './sidebar-hotkeys';
+import {
+  useIsGoToScopeActive,
+  useIsPinnedScopeActive,
+  updatePinnedItemsForHotkeys,
+} from './sidebar-hotkeys';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import PlusIcon from '@macro-icons/wide/plus.svg';
 import MacroLogo from '@macro-icons/macro-logo.svg';
@@ -19,11 +23,26 @@ import CaretRightIcon from '@phosphor-icons/core/assets/regular/caret-right.svg'
 import GearIcon from '@phosphor-icons/core/assets/regular/gear.svg';
 import PhosphorPlusIcon from '@phosphor-icons/core/assets/regular/plus.svg';
 import { useSettingsState } from '@core/constant/SettingsState';
-import { type Component, For, Show, createMemo, createSignal, onMount } from 'solid-js';
+import {
+  type Component,
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  onMount,
+} from 'solid-js';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { Dynamic } from 'solid-js/web';
 import { setCreateMenuOpen } from '@app/component/Launcher';
-import { setPendingView, setPendingPinnedItem, setApplyViewToSplit, setApplyContextualFilters, type PinnedItem, getSplitIndicesForView, activeViewsBySplit } from './sidebar-selection-state';
+import {
+  setPendingView,
+  setPendingPinnedItem,
+  setApplyViewToSplit,
+  setApplyContextualFilters,
+  type PinnedItem,
+  getSplitIndicesForView,
+  activeViewsBySplit,
+} from './sidebar-selection-state';
 import type { SplitId } from '@app/component/split-layout/layoutManager';
 
 /**
@@ -39,7 +58,7 @@ const EXAMPLE_PINNED_ITEMS: PinnedItem[] = [
     notification: 'high', // Direct mention - filled dot
   },
   {
-    id: 'pinned-2', 
+    id: 'pinned-2',
     label: '#engineering',
     type: 'channel',
     entityId: 'example-channel-id-2',
@@ -78,11 +97,41 @@ interface OpenConversation {
  * Example open conversations
  */
 const INITIAL_OPEN_CONVERSATIONS: OpenConversation[] = [
-  { id: 'conv-1', label: 'Sarah Chen', type: 'dm', entityId: 'dm-1', initials: 'SC', hasUnread: true },
-  { id: 'conv-2', label: '#design-reviews', type: 'channel', entityId: 'channel-1' },
-  { id: 'conv-3', label: 'Mike Johnson', type: 'dm', entityId: 'dm-2', initials: 'MJ' },
-  { id: 'conv-4', label: '#product-updates', type: 'channel', entityId: 'channel-2', hasUnread: true },
-  { id: 'conv-5', label: 'Alex Kim', type: 'dm', entityId: 'dm-3', initials: 'AK' },
+  {
+    id: 'conv-1',
+    label: 'Sarah Chen',
+    type: 'dm',
+    entityId: 'dm-1',
+    initials: 'SC',
+    hasUnread: true,
+  },
+  {
+    id: 'conv-2',
+    label: '#design-reviews',
+    type: 'channel',
+    entityId: 'channel-1',
+  },
+  {
+    id: 'conv-3',
+    label: 'Mike Johnson',
+    type: 'dm',
+    entityId: 'dm-2',
+    initials: 'MJ',
+  },
+  {
+    id: 'conv-4',
+    label: '#product-updates',
+    type: 'channel',
+    entityId: 'channel-2',
+    hasUnread: true,
+  },
+  {
+    id: 'conv-5',
+    label: 'Alex Kim',
+    type: 'dm',
+    entityId: 'dm-3',
+    initials: 'AK',
+  },
 ];
 
 export interface SoupSidebarProps {
@@ -127,19 +176,19 @@ function formatIndexKey(index: number): string {
 export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
   const isGoToActive = useIsGoToScopeActive();
   const isPinnedActive = useIsPinnedScopeActive();
-  
+
   // Register pinned items for hotkeys on mount
   onMount(() => {
     updatePinnedItemsForHotkeys(EXAMPLE_PINNED_ITEMS);
   });
-  
+
   // Views that should navigate to their own component instead of applying filters
   const STANDALONE_VIEWS = ['briefing', 'briefing2'] as const;
 
   const handleViewClick = (view: PredefinedView) => {
     const manager = globalSplitManager();
     const activeSplitId = manager?.activeSplitId();
-    
+
     if (!activeSplitId || !manager) {
       // Fallback: show overlays to let user pick a split
       setPendingView(view);
@@ -153,7 +202,9 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
     }
 
     // Check if this view should navigate to its own component (like briefing)
-    if (STANDALONE_VIEWS.includes(view.id as typeof STANDALONE_VIEWS[number])) {
+    if (
+      STANDALONE_VIEWS.includes(view.id as (typeof STANDALONE_VIEWS)[number])
+    ) {
       split.replace({
         next: {
           type: 'component',
@@ -166,8 +217,8 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
 
     // Check if the split already has a list component
     const content = split.content();
-    const isListComponent = content.type === 'component' && 
-      content.id === 'unified-list';
+    const isListComponent =
+      content.type === 'component' && content.id === 'unified-list';
 
     if (isListComponent) {
       // Signal to the existing soup to apply the new filters
@@ -181,13 +232,13 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
         },
         referredFrom: 'launcher',
       });
-      
+
       // Signal to apply filters after component mounts
       setTimeout(() => {
         setApplyViewToSplit({ splitId: activeSplitId, view });
       }, 100);
     }
-      
+
     // If the view has contextual filters, apply them too
     if (view.contextualFilters && view.contextualFilters.length > 0) {
       setApplyContextualFilters({
@@ -234,7 +285,9 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
               <SearchIcon class="size-3.5" />
             </button>
           </Tooltip>
-          <Tooltip tooltip={<LabelAndHotKey label="Command palette" shortcut="⌘K" />}>
+          <Tooltip
+            tooltip={<LabelAndHotKey label="Command palette" shortcut="⌘K" />}
+          >
             <button
               type="button"
               class="flex items-center justify-center size-6 bg-ink/10 text-ink-muted hover:bg-ink/20 hover:text-ink rounded transition-colors"
@@ -275,7 +328,7 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
         <ConversationsSection />
 
         {/* Pinned items section */}
-        <PinnedItemsSection 
+        <PinnedItemsSection
           isGoToActive={isGoToActive()}
           isPinnedActive={isPinnedActive()}
           onItemClick={handlePinnedItemClick}
@@ -321,19 +374,19 @@ const PinnedItemsSection: Component<PinnedItemsSectionProps> = (props) => {
   const [isCollapsed, setIsCollapsed] = createSignal(false);
 
   const handleUnpin = (id: string) => {
-    setPinnedItems(prev => prev.filter(item => item.id !== id));
+    setPinnedItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   return (
     <Show when={pinnedItems().length > 0}>
       <div class="mb-3">
-        <div 
+        <div
           class="group/pinned flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-ink/10 transition-colors cursor-pointer"
           onClick={() => setIsCollapsed(!isCollapsed())}
         >
           <div class="flex items-center gap-1">
-            <CaretRightIcon 
-              class="size-3 text-ink/40 transition-transform" 
+            <CaretRightIcon
+              class="size-3 text-ink/40 transition-transform"
               classList={{ 'rotate-90': !isCollapsed() }}
             />
             <span class="text-xs font-medium text-ink/50">Pinned</span>
@@ -379,11 +432,13 @@ const PinnedItemsSection: Component<PinnedItemsSectionProps> = (props) => {
  * Conversations section component (renamed from Open)
  */
 const ConversationsSection: Component = () => {
-  const [conversations, setConversations] = createSignal(INITIAL_OPEN_CONVERSATIONS);
+  const [conversations, setConversations] = createSignal(
+    INITIAL_OPEN_CONVERSATIONS
+  );
   const [isCollapsed, setIsCollapsed] = createSignal(false);
 
   const handleRemove = (id: string) => {
-    setConversations(prev => prev.filter(c => c.id !== id));
+    setConversations((prev) => prev.filter((c) => c.id !== id));
   };
 
   const handleClick = (conv: OpenConversation) => {
@@ -394,13 +449,13 @@ const ConversationsSection: Component = () => {
   return (
     <Show when={conversations().length > 0}>
       <div class="mb-3">
-        <div 
+        <div
           class="group/conversations flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-ink/10 transition-colors cursor-pointer"
           onClick={() => setIsCollapsed(!isCollapsed())}
         >
           <div class="flex items-center gap-1">
-            <CaretRightIcon 
-              class="size-3 text-ink/40 transition-transform" 
+            <CaretRightIcon
+              class="size-3 text-ink/40 transition-transform"
               classList={{ 'rotate-90': !isCollapsed() }}
             />
             <span class="text-xs font-medium text-ink/50">Conversations</span>
@@ -486,9 +541,27 @@ const OpenConversationItem: Component<OpenConversationItemProps> = (props) => {
  * Example accounts for the account selector
  */
 const EXAMPLE_ACCOUNTS = [
-  { id: '1', name: 'John Doe', email: 'john@example.com', initials: 'JD', color: 'bg-accent/20 text-accent' },
-  { id: '2', name: 'Jane Smith', email: 'jane@company.co', initials: 'JS', color: 'bg-purple-500/20 text-purple-500' },
-  { id: '3', name: 'Work Account', email: 'john@work.com', initials: 'WA', color: 'bg-green-500/20 text-green-500' },
+  {
+    id: '1',
+    name: 'John Doe',
+    email: 'john@example.com',
+    initials: 'JD',
+    color: 'bg-accent/20 text-accent',
+  },
+  {
+    id: '2',
+    name: 'Jane Smith',
+    email: 'jane@company.co',
+    initials: 'JS',
+    color: 'bg-purple-500/20 text-purple-500',
+  },
+  {
+    id: '3',
+    name: 'Work Account',
+    email: 'john@work.com',
+    initials: 'WA',
+    color: 'bg-green-500/20 text-green-500',
+  },
 ];
 
 /**
@@ -496,10 +569,12 @@ const EXAMPLE_ACCOUNTS = [
  */
 const AccountSelector: Component = () => {
   const [isOpen, setIsOpen] = createSignal(false);
-  const [selectedAccount, setSelectedAccount] = createSignal(EXAMPLE_ACCOUNTS[0]);
+  const [selectedAccount, setSelectedAccount] = createSignal(
+    EXAMPLE_ACCOUNTS[0]
+  );
   const { toggleSettings } = useSettingsState();
 
-  const handleAccountSelect = (account: typeof EXAMPLE_ACCOUNTS[0]) => {
+  const handleAccountSelect = (account: (typeof EXAMPLE_ACCOUNTS)[0]) => {
     setSelectedAccount(account);
     setIsOpen(false);
   };
@@ -512,20 +587,32 @@ const AccountSelector: Component = () => {
         class="flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-ink/10 transition-colors"
         onClick={() => setIsOpen(!isOpen())}
       >
-        <div class={`size-6 shrink-0 rounded-full flex items-center justify-center text-xs font-medium ${selectedAccount().color}`}>
+        <div
+          class={`size-6 shrink-0 rounded-full flex items-center justify-center text-xs font-medium ${selectedAccount().color}`}
+        >
           {selectedAccount().initials}
         </div>
         <div class="flex-1 min-w-0 text-left">
-          <div class="text-xs font-medium text-ink truncate">{selectedAccount().name}</div>
-          <div class="text-[10px] text-ink-muted truncate">{selectedAccount().email}</div>
+          <div class="text-xs font-medium text-ink truncate">
+            {selectedAccount().name}
+          </div>
+          <div class="text-[10px] text-ink-muted truncate">
+            {selectedAccount().email}
+          </div>
         </div>
-        <svg 
-          class="size-3 shrink-0 text-ink-muted transition-transform" 
+        <svg
+          class="size-3 shrink-0 text-ink-muted transition-transform"
           classList={{ 'rotate-180': isOpen() }}
-          viewBox="0 0 12 12" 
+          viewBox="0 0 12 12"
           fill="none"
         >
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       </button>
 
@@ -551,16 +638,32 @@ const AccountSelector: Component = () => {
                 classList={{ 'bg-ink/5': account.id === selectedAccount().id }}
                 onClick={() => handleAccountSelect(account)}
               >
-                <div class={`size-6 rounded-full flex items-center justify-center text-xs font-medium ${account.color}`}>
+                <div
+                  class={`size-6 rounded-full flex items-center justify-center text-xs font-medium ${account.color}`}
+                >
                   {account.initials}
                 </div>
                 <div class="flex-1 min-w-0 text-left">
-                  <div class="text-xs font-medium text-ink truncate">{account.name}</div>
-                  <div class="text-[10px] text-ink-muted truncate">{account.email}</div>
+                  <div class="text-xs font-medium text-ink truncate">
+                    {account.name}
+                  </div>
+                  <div class="text-[10px] text-ink-muted truncate">
+                    {account.email}
+                  </div>
                 </div>
                 <Show when={account.id === selectedAccount().id}>
-                  <svg class="size-3.5 text-accent" viewBox="0 0 14 14" fill="none">
-                    <path d="M2.5 7.5L5.5 10.5L11.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <svg
+                    class="size-3.5 text-accent"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                  >
+                    <path
+                      d="M2.5 7.5L5.5 10.5L11.5 4.5"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
                   </svg>
                 </Show>
               </button>
@@ -576,10 +679,12 @@ const AccountSelector: Component = () => {
  * Notification indicator for pinned items
  * - 'high': Filled dot (direct mention/important)
  * - 'low': Ring with small dot inside (unread but less important)
- * 
+ *
  * Positioned absolutely to float on top-right of parent
  */
-const NotificationIndicator: Component<{ priority: 'high' | 'low' }> = (props) => {
+const NotificationIndicator: Component<{ priority: 'high' | 'low' }> = (
+  props
+) => {
   return (
     <Show
       when={props.priority === 'high'}
@@ -607,16 +712,21 @@ interface SidebarPinnedItemProps {
 
 const SidebarPinnedItem: Component<SidebarPinnedItemProps> = (props) => {
   const Icon = getIconForPinnedItem(props.item);
-  
-  const splitIndices = createMemo(() => 
+
+  const splitIndices = createMemo(() =>
     getSplitIndicesForEntity(props.item.type, props.item.entityId)
   );
 
   const shortcutKey = () => formatIndexKey(props.index);
-  
+
   return (
     <Tooltip
-      tooltip={<LabelAndHotKey label={props.item.label} shortcut={`v p ${shortcutKey()}`} />}
+      tooltip={
+        <LabelAndHotKey
+          label={props.item.label}
+          shortcut={`v p ${shortcutKey()}`}
+        />
+      }
       placement="right"
     >
       <div class="group relative">
@@ -662,16 +772,16 @@ const SidebarPinnedItem: Component<SidebarPinnedItemProps> = (props) => {
 function getSplitIndicesForEntity(type: string, entityId: string): number[] {
   const manager = globalSplitManager();
   if (!manager) return [];
-  
+
   const splits = manager.splits();
   const indices: number[] = [];
-  
+
   splits.forEach((split, index) => {
     if (split.content.type === type && split.content.id === entityId) {
       indices.push(index + 1); // 1-indexed for display
     }
   });
-  
+
   return indices;
 }
 
@@ -702,7 +812,7 @@ const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
     activeViewsBySplit();
     const manager = globalSplitManager();
     if (!manager) return [];
-    const splitIds = manager.splits().map(s => s.id) as SplitId[];
+    const splitIds = manager.splits().map((s) => s.id) as SplitId[];
     return getSplitIndicesForView(props.view.id, splitIds);
   });
 
@@ -712,7 +822,7 @@ const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
     if (!manager) return false;
     const activeSplitId = manager.activeSplitId();
     if (!activeSplitId) return false;
-    
+
     // For standalone views (like briefing), check if the split content matches
     const STANDALONE_VIEWS = ['briefing', 'briefing2'];
     if (STANDALONE_VIEWS.includes(props.view.id)) {
@@ -721,7 +831,7 @@ const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
       const content = split.content();
       return content.type === 'component' && content.id === props.view.id;
     }
-    
+
     // For filter-based views, check the activeViewsBySplit registry
     const views = activeViewsBySplit();
     return views.get(activeSplitId) === props.view.id;
@@ -729,7 +839,7 @@ const SidebarViewItem: Component<SidebarViewItemProps> = (props) => {
 
   // Use view's shortcut if defined, otherwise fall back to index-based key
   const shortcutKey = () => props.view.shortcut ?? formatIndexKey(props.index);
-  
+
   return (
     <Tooltip
       tooltip={

@@ -9,7 +9,10 @@ import IconArrowUp from '@icon/regular/arrow-up.svg';
 import IconClock from '@icon/regular/clock.svg';
 import IconUsers from '@icon/regular/users.svg';
 import { Dynamic } from 'solid-js/web';
-import { ChatContextProvider, useChatContext } from '@core/component/AI/context';
+import {
+  ChatContextProvider,
+  useChatContext,
+} from '@core/component/AI/context';
 import { ChatInput } from '@core/component/AI/component/input/useChatInput';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
 import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
@@ -373,7 +376,8 @@ const BriefingViewInner: Component<BriefingViewProps> = (props) => {
     0
   );
   const totalHighPriority = EXAMPLE_SECTIONS.reduce(
-    (sum, section) => sum + section.items.filter((i) => i.priority === 'high').length,
+    (sum, section) =>
+      sum + section.items.filter((i) => i.priority === 'high').length,
     0
   );
 

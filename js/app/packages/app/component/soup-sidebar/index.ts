@@ -10,12 +10,12 @@ export { BriefingView } from './BriefingView';
 export { Briefing2View } from './Briefing2View';
 
 // Sidebar selection state
-export { 
-  pendingView, 
-  setPendingView, 
+export {
+  pendingView,
+  setPendingView,
   pendingPinnedItem,
   setPendingPinnedItem,
-  applyViewToSplit, 
+  applyViewToSplit,
   setApplyViewToSplit,
   applyContextualFilters,
   setApplyContextualFilters,

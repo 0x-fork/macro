@@ -43,8 +43,12 @@ const TASK_QUICK_FILTERS: QuickFilterGroup[] = [
   },
   {
     id: 'task-priority',
-    label: 'Priority', 
-    filterIds: ['task-high-or-urgent', 'task-medium-priority', 'task-low-priority'],
+    label: 'Priority',
+    filterIds: [
+      'task-high-or-urgent',
+      'task-medium-priority',
+      'task-low-priority',
+    ],
     allowNone: true,
   },
   {
@@ -81,13 +85,14 @@ export const QuickFiltersBar: Component<QuickFiltersBarProps> = (props) => {
   // Determine which quick filter groups to show based on active filters
   const quickFilterGroups = createMemo(() => {
     const groups: QuickFilterGroup[] = [];
-    
+
     const hasEmail = props.activeFilterIds.includes('email');
     const hasTask = props.activeFilterIds.includes('task');
-    const hasChannel = props.activeFilterIds.includes('people') || 
-                       props.activeFilterIds.includes('teams') ||
-                       props.activeFilterIds.includes('teams-and-people');
-    
+    const hasChannel =
+      props.activeFilterIds.includes('people') ||
+      props.activeFilterIds.includes('teams') ||
+      props.activeFilterIds.includes('teams-and-people');
+
     if (hasEmail) {
       groups.push(...EMAIL_QUICK_FILTERS);
     }
@@ -97,7 +102,7 @@ export const QuickFiltersBar: Component<QuickFiltersBarProps> = (props) => {
     if (hasChannel) {
       groups.push(...CHANNEL_QUICK_FILTERS);
     }
-    
+
     return groups;
   });
 
@@ -134,26 +139,26 @@ const QuickFilterSegment: Component<QuickFilterSegmentProps> = (props) => {
   // Get filters that exist in available filters
   const groupFilters = createMemo(() => {
     return props.group.filterIds
-      .map(id => props.availableFilters.find(f => f.id === id))
+      .map((id) => props.availableFilters.find((f) => f.id === id))
       .filter((f): f is ContextualFilter => f !== undefined);
   });
 
   const handleFilterClick = (filter: ContextualFilter) => {
     const isCurrentlyActive = props.contextualFilterState.isActive(filter.id);
-    
+
     // If clicking on already active filter and allowNone, deactivate it
     if (isCurrentlyActive && props.group.allowNone) {
       props.contextualFilterState.toggle(filter);
       return;
     }
-    
+
     // Deactivate other filters in this group first
     for (const f of groupFilters()) {
       if (props.contextualFilterState.isActive(f.id) && f.id !== filter.id) {
         props.contextualFilterState.toggle(f);
       }
     }
-    
+
     // Activate the clicked filter if not already active
     if (!isCurrentlyActive) {
       props.contextualFilterState.toggle(filter);
@@ -166,7 +171,8 @@ const QuickFilterSegment: Component<QuickFilterSegmentProps> = (props) => {
         <div class="flex items-center rounded-md bg-ink/5 p-0.5">
           <For each={groupFilters()}>
             {(filter) => {
-              const isActive = () => props.contextualFilterState.isActive(filter.id);
+              const isActive = () =>
+                props.contextualFilterState.isActive(filter.id);
               return (
                 <button
                   type="button"
