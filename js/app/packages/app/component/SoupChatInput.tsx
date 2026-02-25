@@ -1,24 +1,27 @@
-import { ChatContextProvider } from '@core/component/AI/context';
-import { ChatInput } from '@core/component/AI/component/input/useChatInput';
+import { useSoup } from '@app/component/next-soup/soup-context';
+import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
-import { useChatContext } from '@core/component/AI/context';
+import {
+  ChatInputProvider,
+  useChatInputContext,
+} from '@core/component/AI/context';
 import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
-import type { CreateAndSend, Send } from '@core/component/AI/types';
+import { TOKENS } from '@core/hotkey/tokens';
 import { isErr } from '@core/util/maybeResult';
 import { cognitionApiServiceClient } from '@service-cognition/client';
-import { useHotkeyDOMScope } from 'core/hotkey/hotkeys';
+import { ChatInput } from 'core/component/AI/component/input/ChatInput';
+import { registerHotkey, useHotkeyDOMScope } from 'core/hotkey/hotkeys';
 import { onMount, Show } from 'solid-js';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
-import { useSoup } from '@app/component/next-soup/soup-context';
 
 function SoupChatInputInner() {
   let containerRef!: HTMLDivElement;
   const splitPanelContext = useSplitPanelOrThrow();
   const soup = useSoup();
-  const ctx = useChatContext();
+  const input = useChatInputContext();
 
   const chatMarkdownArea = useChatMarkdownArea({
-    addAttachment: (a) => ctx.attachments.addAttachment(a),
+    addAttachment: (a) => input.attachments.addAttachment(a),
   });
 
   const [attachHotkeys] = useHotkeyDOMScope('soup.chatInput');
@@ -27,9 +30,19 @@ function SoupChatInputInner() {
     attachHotkeys(containerRef);
   });
 
-  const handleSend = async (request: Send | CreateAndSend) => {
-    if (request.type !== 'createAndSend') return;
+  // cmd+j - Focus the soup chat input
+  registerHotkey({
+    hotkey: 'cmd+j',
+    scopeId: splitPanelContext.splitHotkeyScope,
+    hotkeyToken: TOKENS.chat.input.focus,
+    description: 'Focus chat input',
+    keyDownHandler: () => {
+      chatMarkdownArea.focus();
+      return true;
+    },
+  });
 
+  const handleSend = async (request: ChatSendInput) => {
     // Create a new persistent chat
     const response = await cognitionApiServiceClient.createChat({
       isPersistent: true,
@@ -67,6 +80,10 @@ function SoupChatInputInner() {
             <ChatInput
               markdown={chatMarkdownArea}
               onSend={handleSend}
+              onEscape={() => {
+                splitPanelContext.panelRef()?.focus();
+                return true;
+              }}
               isPersistent={true}
               autoFocusOnMount={false}
             />
@@ -79,8 +96,8 @@ function SoupChatInputInner() {
 
 export function SoupChatInput() {
   return (
-    <ChatContextProvider autoAttach={false}>
+    <ChatInputProvider autoAttach={false}>
       <SoupChatInputInner />
-    </ChatContextProvider>
+    </ChatInputProvider>
   );
 }

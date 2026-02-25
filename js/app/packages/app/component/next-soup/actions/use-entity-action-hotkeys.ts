@@ -5,24 +5,30 @@ import type { EntityData } from '@entity';
 import type { SoupState } from '../create-soup-state';
 import {
   makeCopyAction,
+  makeCopyLinkAction,
   makeDeleteAction,
   makeMarkDoneAction,
   makeMoveToProjectAction,
   makeRenameAction,
+  makeShareAction,
 } from './index';
+import { isShareableEntityType } from '@app/component/global-share-modal/GlobalShareModal';
 import { useUserId } from '@core/context/user';
 import { registerHotkey } from '@core/hotkey/hotkeys';
+import type { SplitHandle } from '@app/component/split-layout/layoutManager';
+import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 
 type UseEntityActionHotkeysOptions = {
   scopeId: string;
   soup: SoupState;
+  splitHandle?: SplitHandle;
   condition?: () => boolean;
 };
 
 export const useEntityActionHotkeys = (
   options: UseEntityActionHotkeysOptions
 ) => {
-  const { scopeId, soup, condition } = options;
+  const { scopeId, soup, splitHandle, condition } = options;
 
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
@@ -44,12 +50,23 @@ export const useEntityActionHotkeys = (
 
   const moveToProjectAction = makeMoveToProjectAction();
 
+  const copyLinkAction = makeCopyLinkAction();
+
+  const shareAction = makeShareAction();
+
   const getEntitiesForAction = (): EntityData[] => {
     const selected = soup.selection.selected();
     if (selected.length > 0) return selected;
 
     const focused = soup.focus.item();
     return focused ? [focused] : [];
+  };
+
+  const openNextEntity = (entity: EntityData) => {
+    if (!splitHandle) return;
+    const handleContent = splitHandle.content().type;
+    if (handleContent === 'component' || handleContent === 'project') return;
+    openEntityInSplitFromUnifiedList(entity, { splitHandle });
   };
 
   // Mark Done - 'e'
@@ -63,7 +80,7 @@ export const useEntityActionHotkeys = (
       if (entities.length === 0) return false;
       if (!entities.some(markDone.canExecute)) return false;
 
-      markDone.executeWithSoup(entities, soup);
+      markDone.executeWithSoup(entities, soup, openNextEntity);
       return true;
     },
     condition: () => {
@@ -174,6 +191,48 @@ export const useEntityActionHotkeys = (
       if (condition && !condition()) return false;
       const entities = getEntitiesForAction();
       return entities.some(moveToProjectAction.canExecute);
+    },
+    displayPriority: 10,
+    tags: [HotkeyTags.SelectionModification],
+  });
+
+  // Copy link - 'shift+cmd+c'
+  registerHotkey({
+    hotkey: ['shift+cmd+c'],
+    hotkeyToken: TOKENS.entity.action.copyLink,
+    scopeId,
+    description: 'Copy link',
+    keyDownHandler: () => {
+      const entities = getEntitiesForAction();
+      if (entities.length === 0) return false;
+      if (!copyLinkAction.canExecute(entities[0])) return false;
+      copyLinkAction.executeWithSoup(entities, soup);
+      return true;
+    },
+    condition: () => {
+      if (condition && !condition()) return false;
+      const entities = getEntitiesForAction();
+      return entities.length === 1 && copyLinkAction.canExecute(entities[0]);
+    },
+    displayPriority: 10,
+    tags: [HotkeyTags.SelectionModification],
+  });
+
+  registerHotkey({
+    hotkeyToken: TOKENS.entity.action.share,
+    scopeId,
+    description: 'Share',
+    keyDownHandler: () => {
+      const entities = getEntitiesForAction();
+      if (entities.length === 0) return false;
+      if (!shareAction.canExecute(entities[0])) return false;
+      shareAction.executeWithSoup(entities, soup);
+      return true;
+    },
+    condition: () => {
+      if (condition && !condition()) return false;
+      const entities = getEntitiesForAction();
+      return entities.length === 1 && isShareableEntityType(entities[0].type);
     },
     displayPriority: 10,
     tags: [HotkeyTags.SelectionModification],

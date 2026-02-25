@@ -1,103 +1,61 @@
 import { DEFAULT_MODEL } from '@core/component/AI/constant';
 import { useAttachments } from '@core/component/AI/signal/attachment';
-import { useTabAttachments } from '@core/component/AI/signal/tabAttachments';
+import { globalTabAttachments } from '@core/component/AI/signal/globalAttachments';
 import type {
   Attachment,
   Attachments,
   ChatMessageWithAttachments,
-  MessageStream,
   Model,
   UploadQueue,
 } from '@core/component/AI/types';
 import { useUploadAttachment } from '@core/component/AI/util/uploadToChat';
 import { ENABLE_AI_AUTO_TAB_ATTACHMENTS } from '@core/constant/featureFlags';
+import type { ChatMessageStream } from '@service-connection/stream';
+import { getEntityStreams } from '@service-connection/stream';
+import type { Accessor, ParentProps, Setter } from 'solid-js';
 import {
-  createContextProvider,
-  type ContextProviderProps,
-} from '@solid-primitives/context';
-import type { Accessor, Setter } from 'solid-js';
-import { createEffect, createSignal, on } from 'solid-js';
+  createContext,
+  createEffect,
+  createSignal,
+  on,
+  untrack,
+  useContext,
+} from 'solid-js';
 
-export type ChatContextValue = {
-  // Identity
-  chatId: Accessor<string | undefined>;
-  setChatId: (chatId: string | undefined) => void;
+// ---- Uncreated state (always present) ----
 
-  // Input state
+export type ChatInputState = {
   model: Accessor<Model>;
   setModel: (model?: Model) => void;
   isGenerating: Accessor<boolean>;
   setIsGenerating: (generating: boolean) => void;
   attachments: Attachments;
   uploadQueue: UploadQueue;
-
-  // Message state (undefined for input-only consumers like SoupChatInput)
-  messages: Accessor<ChatMessageWithAttachments[]> | undefined;
-  setMessages: Setter<ChatMessageWithAttachments[]> | undefined;
-  addMessage: ((msg: ChatMessageWithAttachments) => void) | undefined;
-  stream: Accessor<MessageStream | undefined> | undefined;
-  setStream: Setter<MessageStream | undefined> | undefined;
 };
 
-export type ChatContextProviderProps = ContextProviderProps & {
-  // Initial values for self-owned mode
-  chatId?: string;
-  model?: Model;
-  isGenerating?: boolean;
-  initialAttachments?: Attachment[];
-  autoAttach?: boolean;
+const ChatInputCtx = createContext<ChatInputState>();
 
-  // When provided, creates message/stream signals with initial messages
-  messages?: ChatMessageWithAttachments[];
-
-  // External state injection (for Rightbar)
-  external?: {
-    chatId: [Accessor<string | undefined>, (id: string | undefined) => void];
-    messages: [
-      Accessor<ChatMessageWithAttachments[]>,
-      Setter<ChatMessageWithAttachments[]>,
-    ];
-    stream: [
-      Accessor<MessageStream | undefined>,
-      Setter<MessageStream | undefined>,
-    ];
-  };
-};
-
-function createChatContext(props: ChatContextProviderProps): ChatContextValue {
-  // --- chatId ---
-  let chatId: Accessor<string | undefined>;
-  let setChatId: (id: string | undefined) => void;
-  if (props.external) {
-    [chatId, setChatId] = props.external.chatId;
-  } else {
-    const [_chatId, _setChatId] = createSignal<string | undefined>(
-      props.chatId
-    );
-    chatId = _chatId;
-    setChatId = _setChatId;
+export function ChatInputProvider(
+  props: ParentProps & {
+    model?: Model;
+    isGenerating?: boolean;
+    initialAttachments?: Attachment[];
+    autoAttach?: boolean;
   }
-
-  // --- model (always self-owned) ---
+) {
   const [model, _setModel] = createSignal<Model>(props.model ?? DEFAULT_MODEL);
   const setModel = (m?: Model) => _setModel(m ?? DEFAULT_MODEL);
 
-  // --- isGenerating (always self-owned) ---
   const [isGenerating, setIsGenerating] = createSignal<boolean>(
     props.isGenerating ?? false
   );
 
-  // --- attachments (always self-owned) ---
   const attachments = useAttachments(props.initialAttachments);
-
-  // --- uploadQueue (always self-owned) ---
   const uploadQueue = useUploadAttachment();
 
-  // --- tab auto-attachment ---
-  const tabAttachments = useTabAttachments();
   if (ENABLE_AI_AUTO_TAB_ATTACHMENTS && props.autoAttach !== false) {
     createEffect(
-      on(tabAttachments, (tabs, p) => {
+      on(globalTabAttachments, (tabs, p) => {
         for (const prev of p ?? []) {
           if (!tabs.find((t) => t.attachmentId === prev.attachmentId)) {
             attachments.removeAttachment(prev.attachmentId);
@@ -110,66 +68,151 @@ function createChatContext(props: ChatContextProviderProps): ChatContextValue {
     );
   }
 
-  // --- messages / stream ---
-  let messages: Accessor<ChatMessageWithAttachments[]> | undefined;
-  let setMessages: Setter<ChatMessageWithAttachments[]> | undefined;
-  let addMessage: ((msg: ChatMessageWithAttachments) => void) | undefined;
-  let stream: Accessor<MessageStream | undefined> | undefined;
-  let setStream: Setter<MessageStream | undefined> | undefined;
-
-  if (props.external) {
-    [messages, setMessages] = props.external.messages;
-    [stream, setStream] = props.external.stream;
-    addMessage = (msg: ChatMessageWithAttachments) => {
-      setMessages!((p) => [...p, msg]);
-    };
-  } else if (props.messages !== undefined) {
-    const [_messages, _setMessages] = createSignal<
-      ChatMessageWithAttachments[]
-    >(props.messages);
-    const [_stream, _setStream] = createSignal<MessageStream>();
-    messages = _messages;
-    setMessages = _setMessages;
-    stream = _stream;
-    setStream = _setStream;
-    addMessage = (msg: ChatMessageWithAttachments) => {
-      _setMessages((p) => [...p, msg]);
-    };
-  }
-  // else: messages/stream remain undefined (input-only mode)
-
-  return {
-    chatId,
-    setChatId,
-    model,
-    setModel,
-    isGenerating,
-    setIsGenerating,
-    attachments,
-    uploadQueue,
-    messages,
-    setMessages,
-    addMessage,
-    stream,
-    setStream,
-  };
+  return (
+    <ChatInputCtx.Provider
+      value={{
+        model,
+        setModel,
+        isGenerating,
+        setIsGenerating,
+        attachments,
+        uploadQueue,
+      }}
+    >
+      {props.children}
+    </ChatInputCtx.Provider>
+  );
 }
 
-const [ChatContextProvider, useContextInternal] =
-  createContextProvider(createChatContext);
-
-export { ChatContextProvider };
-
-export function useChatContext(): ChatContextValue {
-  const ctx = useContextInternal();
-  if (ctx === undefined) {
+export function useChatInputContext(): ChatInputState {
+  const ctx = useContext(ChatInputCtx);
+  if (!ctx) {
     throw new Error(
-      'useChatContext must be used within <ChatContextProvider />'
+      'useChatInputContext must be used within <ChatInputProvider />'
     );
   }
   return ctx;
 }
 
-export function useChatContextOptional(): ChatContextValue | undefined {
-  return useContextInternal();
+// ---- Created state (only when chat exists) ----
+
+export type ChatState = {
+  chatId: Accessor<string>;
+  messages: Accessor<ChatMessageWithAttachments[]>;
+  setMessages: Setter<ChatMessageWithAttachments[]>;
+  addMessage: (msg: ChatMessageWithAttachments) => void;
+  stream: Accessor<ChatMessageStream | undefined>;
+  setStream: Setter<ChatMessageStream | undefined>;
+  waitingForStream: Accessor<boolean>;
+  setWaitingForStream: Setter<boolean>;
+};
+
+const ChatCtx = createContext<ChatState>();
+
+export function ChatProvider(
+  props: ParentProps & {
+    chatId: string;
+    messages?: ChatMessageWithAttachments[];
+    external?: {
+      messages: [
+        Accessor<ChatMessageWithAttachments[]>,
+        Setter<ChatMessageWithAttachments[]>,
+      ];
+      stream: [
+        Accessor<ChatMessageStream | undefined>,
+        Setter<ChatMessageStream | undefined>,
+      ];
+      waitingForStream?: [Accessor<boolean>, Setter<boolean>];
+    };
+  }
+) {
+  let messages: Accessor<ChatMessageWithAttachments[]>;
+  let setMessages: Setter<ChatMessageWithAttachments[]>;
+  let stream: Accessor<ChatMessageStream | undefined>;
+  let setStream: Setter<ChatMessageStream | undefined>;
+  let waitingForStream: Accessor<boolean>;
+  let setWaitingForStream: Setter<boolean>;
+
+  if (props.external) {
+    [messages, setMessages] = props.external.messages;
+    [stream, setStream] = props.external.stream;
+    if (props.external.waitingForStream) {
+      [waitingForStream, setWaitingForStream] = props.external.waitingForStream;
+    } else {
+      [waitingForStream, setWaitingForStream] = createSignal(false);
+    }
+  } else {
+    const [_messages, _setMessages] = createSignal<
+      ChatMessageWithAttachments[]
+    >(props.messages ?? []);
+    const [_stream, _setStream] = createSignal<ChatMessageStream>();
+    messages = _messages;
+    setMessages = _setMessages;
+    stream = _stream;
+    setStream = _setStream;
+    [waitingForStream, setWaitingForStream] = createSignal(false);
+  }
+
+  const _setMessages = setMessages;
+  const addMessage = (msg: ChatMessageWithAttachments) => {
+    _setMessages((p) => [...p, msg]);
+  };
+
+  // --- Reconnect active streams on page refresh ---
+  // Reactive to props.chatId (ChatProvider may not remount on chat switch).
+  // Uses untrack for stream/messages to only fire on new WS streams or chatId change.
+  createEffect(() => {
+    const activeStreams = getEntityStreams('chat', props.chatId)();
+    const currentStream = untrack(stream);
+
+    for (const s of activeStreams) {
+      const sid = s.id()?.stream_id;
+      if (!sid) {
+        console.warn('reject chat stream: no id');
+        continue;
+      }
+      if (currentStream?.isDone() && currentStream?.id()?.stream_id === sid) {
+        console.warn('reject chat stream: duplicate stream');
+        continue;
+      }
+
+      const isInMessages = untrack(() => messages().some((m) => m.id === sid));
+      if (isInMessages) {
+        console.warn('reject chat stream: already has message');
+        continue;
+      }
+
+      setStream(s);
+      break;
+    }
+  });
+
+  return (
+    <ChatCtx.Provider
+      value={{
+        chatId: () => props.chatId,
+        messages,
+        setMessages,
+        addMessage,
+        stream,
+        setStream,
+        waitingForStream,
+        setWaitingForStream,
+      }}
+    >
+      {props.children}
+    </ChatCtx.Provider>
+  );
+}
+
+export function useChatContext(): ChatState {
+  const ctx = useContext(ChatCtx);
+  if (!ctx) {
+    throw new Error('useChatContext must be used within <ChatProvider />');
+  }
+  return ctx;
+}
+
+export function useChatContextOptional(): ChatState | undefined {
+  return useContext(ChatCtx);
 }

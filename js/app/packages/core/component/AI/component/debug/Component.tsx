@@ -1,18 +1,24 @@
-import type {
-  CreateAndSend,
-  MessageStream,
-  Model,
-  Send,
-} from '@core/component/AI/types';
+import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
+import type { Model } from '@core/component/AI/types';
 import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
+import { isErr } from '@core/util/maybeResult';
+import { cognitionApiServiceClient } from '@service-cognition/client';
+import type { ChatMessageStream } from '@service-connection/stream';
+import { subscribe } from '@service-connection/stream';
 import { createEffect, createSignal } from 'solid-js';
-import { ChatContextProvider, useChatContext } from '../../context';
+import {
+  ChatInputProvider,
+  ChatProvider,
+  useChatContext,
+  useChatInputContext,
+} from '../../context';
 import { useAttachments } from '../../signal/attachment';
 import { pausableStream } from '../../util/stream';
-import { ChatInput } from '../input/useChatInput';
+import { ChatInput } from '../input/ChatInput';
 import { ModelSelector } from '../input/ModelSelector';
 import { useChatMarkdownArea } from '../input/useChatMarkdownArea';
 import { ChatMessages } from '../message/ChatMessages';
+
 import {
   blockDone,
   createStream,
@@ -86,16 +92,16 @@ function ChatModelSelector() {
 
 function ChatInputBox() {
   return (
-    <ChatContextProvider>
+    <ChatInputProvider>
       <ChatInputBoxInner />
-    </ChatContextProvider>
+    </ChatInputProvider>
   );
 }
 
 function ChatInputBoxInner() {
-  const ctx = useChatContext();
+  const input = useChatInputContext();
   const chatMarkdownArea = useChatMarkdownArea({
-    addAttachment: (a) => ctx.attachments.addAttachment(a),
+    addAttachment: (a) => input.attachments.addAttachment(a),
   });
 
   return (
@@ -103,12 +109,12 @@ function ChatInputBoxInner() {
       <div class="w-full h-full">
         <div class="flex gap-2 py-2">
           <DeprecatedTextButton
-            onClick={() => ctx.setIsGenerating(true)}
+            onClick={() => input.setIsGenerating(true)}
             theme="accent"
             text="Generate"
           />
           <DeprecatedTextButton
-            onClick={() => ctx.setIsGenerating(false)}
+            onClick={() => input.setIsGenerating(false)}
             theme="accent"
             text="Stop"
           />
@@ -124,39 +130,43 @@ function ChatInputBoxInner() {
 
 function ChatInputBoxConnected() {
   return (
-    <ChatContextProvider>
+    <ChatInputProvider>
       <ChatInputBoxConnectedInner />
-    </ChatContextProvider>
+    </ChatInputProvider>
   );
 }
 
 function ChatInputBoxConnectedInner() {
-  const ctx = useChatContext();
+  const input = useChatInputContext();
   const chatMarkdownArea = useChatMarkdownArea({
-    addAttachment: (a) => ctx.attachments.addAttachment(a),
+    addAttachment: (a) => input.attachments.addAttachment(a),
   });
 
   const [_gen, setGen] = createSignal(false);
-  const onSend = async (request: Send | CreateAndSend) => {
-    if (request.type === 'createAndSend') {
-      const response = await request.call();
-      if ('type' in response && response.type === 'error') {
-        console.log('error creating chat', response);
-        return;
-      } else {
-        console.log('created chat ', response.chat_id);
-        return onSend(response);
-      }
-    } else {
-      const stream = request.call();
-      setGen(true);
-      createEffect(() => {
-        const items = stream.data();
-        const latest = items.at(-1);
-        if (latest) console.log(JSON.stringify(latest, null, 2));
-        if (stream.isDone()) setGen(false);
-      });
+  const onSend = async (input: ChatSendInput) => {
+    const response = await cognitionApiServiceClient.sendStreamChatMessage({
+      content: input.content,
+      model: input.model,
+      attachments: input.attachments.length > 0 ? input.attachments : undefined,
+      toolset: input.toolset,
+    });
+    if (isErr(response)) {
+      console.log('error sending message', response);
+      return;
     }
+    const [, { stream_id, chat_id }] = response;
+    const connectionStream = subscribe('chat', chat_id, stream_id);
+    if (!connectionStream) {
+      console.log('no connection stream');
+      return;
+    }
+    setGen(true);
+    createEffect(() => {
+      const items = connectionStream.data();
+      const latest = items.at(-1);
+      if (latest) console.log(JSON.stringify(latest, null, 2));
+      if (connectionStream.isDone()) setGen(false);
+    });
   };
 
   return (
@@ -170,15 +180,17 @@ function ChatInputBoxConnectedInner() {
 
 function StreamMessages() {
   return (
-    <ChatContextProvider messages={[]}>
-      <StreamMessagesInner />
-    </ChatContextProvider>
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={[]}>
+        <StreamMessagesInner />
+      </ChatProvider>
+    </ChatInputProvider>
   );
 }
 
 function StreamMessagesInner() {
-  const ctx = useChatContext();
-  const [stream, setStream] = createSignal<MessageStream>();
+  const chat = useChatContext();
+  const [stream, setStream] = createSignal<ChatMessageStream>();
   const makeStream = () => delayStream(poem(), slowFirst);
 
   return (
@@ -188,7 +200,7 @@ function StreamMessagesInner() {
         onClick={() => {
           const poemStream = makeStream();
           setStream(poemStream);
-          ctx.setStream!(poemStream);
+          chat.setStream(poemStream);
         }}
       >
         Stream
@@ -205,67 +217,78 @@ function StaticMessages() {
   const messages = simpleMessageChain();
   console.log(JSON.stringify(messages, null, 2));
   return (
-    <ChatContextProvider messages={messages}>
-      <Item col label="Chat messages - static render">
-        <div data-chat-scroll class="min-h-0 max-h-[400px] overflow-y-auto">
-          <ChatMessages />
-        </div>
-      </Item>
-    </ChatContextProvider>
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={messages}>
+        <Item col label="Chat messages - static render">
+          <div data-chat-scroll class="min-h-0 max-h-[400px] overflow-y-auto">
+            <ChatMessages />
+          </div>
+        </Item>
+      </ChatProvider>
+    </ChatInputProvider>
   );
 }
 
 function FullChat() {
   return (
-    <ChatContextProvider messages={[]}>
-      <FullChatInner />
-    </ChatContextProvider>
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={[]}>
+        <FullChatInner />
+      </ChatProvider>
+    </ChatInputProvider>
   );
 }
 
 function FullChatInner() {
-  const ctx = useChatContext();
+  const input = useChatInputContext();
+  const chat = useChatContext();
   const chatMarkdownArea = useChatMarkdownArea({
-    addAttachment: (a) => ctx.attachments.addAttachment(a),
+    addAttachment: (a) => input.attachments.addAttachment(a),
   });
   const [_isGen, setIsGen] = createSignal(false);
-  const [stream, setDebugStream] = createSignal<MessageStream>();
+  const [debugStream, _setDebugStream] = createSignal<ChatMessageStream>();
 
-  const onSend = async (request: Send | CreateAndSend) => {
-    if (request.type === 'createAndSend') {
-      const response = await request.call();
-      if ('type' in response && response.type === 'error') {
-        console.log('error creating chat', response);
-        return;
-      } else {
-        console.log('created chat ', response.chat_id);
-        return onSend(response);
-      }
-    } else {
-      ctx.addMessage!({
-        attachments: request.request.attachments ?? [],
-        content: request.request.content,
-        role: 'user',
-        id: '',
-      });
-      const stream = request.call();
-      console.log('set stream');
-      ctx.setStream!(stream);
-      setDebugStream(stream);
-      setIsGen(true);
-      createEffect(() => {
-        if (stream.isErr()) {
-          console.log('stream error');
-        }
-        if (stream.isDone()) {
-          console.log('stream done');
-          setIsGen(false);
-        }
-      });
-      createEffect(() => {
-        console.log('stream', JSON.stringify(stream.data(), null, 2));
-      });
+  const onSend = async (input: ChatSendInput) => {
+    chat.addMessage({
+      attachments: input.attachments,
+      content: input.content,
+      role: 'user',
+      id: '',
+    });
+    const response = await cognitionApiServiceClient.sendStreamChatMessage({
+      content: input.content,
+      model: input.model,
+      chat_id: chat.chatId(),
+      attachments: input.attachments.length > 0 ? input.attachments : undefined,
+      toolset: input.toolset,
+    });
+    if (isErr(response)) {
+      console.log('error sending message', response);
+      return;
     }
+    const [, { stream_id, chat_id }] = response;
+    const connectionStream = subscribe('chat', chat_id, stream_id);
+    if (!connectionStream) {
+      console.log('no connection stream');
+      return;
+    }
+    const chatStream: ChatMessageStream = {
+      data: connectionStream.data,
+      isDone: connectionStream.isDone,
+      id: () => ({ stream_id, entity_id: chat_id, entity_type: 'chat' }),
+    };
+    console.log('set stream');
+    chat.setStream(chatStream);
+    setIsGen(true);
+    createEffect(() => {
+      if (connectionStream.isDone()) {
+        console.log('stream done');
+        setIsGen(false);
+      }
+    });
+    createEffect(() => {
+      console.log('stream', JSON.stringify(connectionStream.data(), null, 2));
+    });
   };
 
   return (
@@ -274,10 +297,11 @@ function FullChatInner() {
         data-chat-scroll
         class="size-full min-h-0 max-h-[400px] overflow-y-auto"
       >
-        <StreamStatus stream={stream} />
+        <StreamStatus stream={debugStream} />
         <ChatMessages />
         <ChatInput
           markdown={chatMarkdownArea}
+          chatId={chat.chatId()}
           onSend={onSend}
           onStop={() => {}}
         />
@@ -293,15 +317,17 @@ function ToolCallRender() {
   ]);
 
   return (
-    <ChatContextProvider messages={initialMessages}>
-      <ToolCallRenderInner stream={stream} />
-    </ChatContextProvider>
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={initialMessages}>
+        <ToolCallRenderInner stream={stream} />
+      </ChatProvider>
+    </ChatInputProvider>
   );
 }
 
-function ToolCallRenderInner(props: { stream: MessageStream }) {
-  const ctx = useChatContext();
-  ctx.setStream!(props.stream);
+function ToolCallRenderInner(props: { stream: ChatMessageStream }) {
+  const chat = useChatContext();
+  chat.setStream(props.stream);
 
   return (
     <Item label="Tool call - static">
@@ -424,23 +450,25 @@ function TableStream() {
   ]);
 
   return (
-    <ChatContextProvider messages={initialMessages}>
-      <TableStreamInner />
-    </ChatContextProvider>
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={initialMessages}>
+        <TableStreamInner />
+      </ChatProvider>
+    </ChatInputProvider>
   );
 }
 
 function TableStreamInner() {
-  const ctx = useChatContext();
+  const chat = useChatContext();
   const [isPaused, setIsPaused] = createSignal(false);
   const [isSlow, setIsSlow] = createSignal(false);
   const [showRaw, setShowRaw] = createSignal(false);
-  const [stream, setStream] = createSignal<MessageStream>();
+  const [stream, setStream] = createSignal<ChatMessageStream>();
   const [rawText, setRawText] = createSignal('');
 
   const startStream = () => {
-    ctx.setMessages!([]);
-    ctx.setStream!(undefined);
+    chat.setMessages([]);
+    chat.setStream(undefined);
     setRawText('');
     const baseStream = table();
     const controlled = pausableStream(baseStream, {
@@ -449,7 +477,7 @@ function TableStreamInner() {
       onChunk: (text) => setRawText((prev) => prev + text),
     });
     setStream(controlled);
-    ctx.setStream!(controlled);
+    chat.setStream(controlled);
   };
 
   return (
@@ -487,8 +515,8 @@ function TableStreamInner() {
           onClick={() => {
             setStream(undefined);
             setRawText('');
-            ctx.setMessages!([]);
-            ctx.setStream!(undefined);
+            chat.setMessages([]);
+            chat.setStream(undefined);
           }}
         />
       </div>

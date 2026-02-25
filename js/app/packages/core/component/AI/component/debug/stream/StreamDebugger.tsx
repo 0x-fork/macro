@@ -1,36 +1,43 @@
 import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
 import type { ChatMessageWithAttachments } from '@service-cognition/generated/schemas';
-import type { MessageStream } from '@service-cognition/websocket';
+import type { ChatMessageStream } from '@service-connection/stream';
 import { createSignal } from 'solid-js';
-import { ChatContextProvider, useChatContext } from '../../../context';
+import {
+  ChatInputProvider,
+  ChatProvider,
+  useChatContext,
+} from '../../../context';
 import { ChatMessages } from '../../message/ChatMessages';
 import { StreamStatus } from './StreamStatus';
 
 export function StreamDebuggerWithControls(props: {
-  stream: () => MessageStream;
+  stream: () => ChatMessageStream;
   messages?: ChatMessageWithAttachments[];
   autoStart?: true;
 }) {
   return (
-    <ChatContextProvider messages={props.messages ?? []}>
-      <StreamDebuggerWithControlsInner
-        stream={props.stream}
-        autoStart={props.autoStart}
-      />
-    </ChatContextProvider>
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={props.messages ?? []}>
+        <StreamDebuggerWithControlsInner
+          stream={props.stream}
+          autoStart={props.autoStart}
+        />
+      </ChatProvider>
+    </ChatInputProvider>
   );
 }
 
 function StreamDebuggerWithControlsInner(props: {
-  stream: () => MessageStream;
+  stream: () => ChatMessageStream;
   autoStart?: true;
 }) {
-  const ctx = useChatContext();
-  const [stream, setStream] = createSignal<MessageStream>();
+  const chat = useChatContext();
+  const [stream, setStream] = createSignal<ChatMessageStream>();
 
   if (props.autoStart) {
-    setStream(props.stream());
-    ctx.setStream!(props.stream());
+    const s = props.stream();
+    setStream(s);
+    chat.setStream(s);
   }
 
   return (
@@ -41,7 +48,7 @@ function StreamDebuggerWithControlsInner(props: {
           onClick={() => {
             const stream = props.stream();
             setStream(stream);
-            ctx.setStream!(stream);
+            chat.setStream(stream);
           }}
           theme="accent"
         />
@@ -50,8 +57,8 @@ function StreamDebuggerWithControlsInner(props: {
           theme="accent"
           onClick={() => {
             setStream(undefined);
-            ctx.setMessages!([]);
-            ctx.setStream!(undefined);
+            chat.setMessages([]);
+            chat.setStream(undefined);
           }}
         />
       </div>
@@ -64,25 +71,31 @@ function StreamDebuggerWithControlsInner(props: {
 }
 
 export function StreamDebugger(props: {
-  stream: MessageStream;
+  stream: ChatMessageStream;
   messages?: ChatMessageWithAttachments[];
 }) {
   return (
-    <ChatContextProvider messages={props.messages ?? []}>
-      <StreamDebuggerInner stream={props.stream} />
-    </ChatContextProvider>
+    <ChatInputProvider>
+      <ChatProvider chatId="debug" messages={props.messages ?? []}>
+        <StreamDebuggerInner stream={props.stream} />
+      </ChatProvider>
+    </ChatInputProvider>
   );
 }
 
-function StreamDebuggerInner(props: { stream: MessageStream }) {
-  const ctx = useChatContext();
-  ctx.setStream!(props.stream);
+function StreamDebuggerInner(props: { stream: ChatMessageStream }) {
+  const chat = useChatContext();
+  chat.setStream(props.stream);
   return (
     <div
       data-chat-scroll
       class="size-full flex flex-col gap-y-2 overflow-y-auto"
     >
-      <StreamStatus stream={() => props.stream} />
+      <div class="p-2 bg-menu border border-edge text-ink font-mono text-sm">
+        <span>chunks: {props.stream.data().length}</span>
+        {' | '}
+        <span>isDone: {String(props.stream.isDone())}</span>
+      </div>
       <ChatMessages />
     </div>
   );
