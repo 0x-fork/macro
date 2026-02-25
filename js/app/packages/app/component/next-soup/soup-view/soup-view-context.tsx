@@ -35,6 +35,7 @@ import {
   useContext,
 } from 'solid-js';
 import { matchesTaskSubFilters } from './task-sub-filter-matcher';
+import { createSearchState } from '@app/component/next-soup/soup-view/create-search-state';
 
 type Row<T> = {
   original: T;
