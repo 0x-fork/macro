@@ -167,22 +167,22 @@ export const SoupSidebar: Component<SoupSidebarProps> = (props) => {
     // Check if the split already has a list component
     const content = split.content();
     const isListComponent = content.type === 'component' && 
-      (content.id === 'unified-list' || content.id === 'soup-sidebar');
+      content.id === 'unified-list';
 
     if (isListComponent) {
       // Signal to the existing soup to apply the new filters
       setApplyViewToSplit({ splitId: activeSplitId, view });
     } else {
-      // Replace with soup-sidebar component
+      // Replace with unified-list component and apply view filters
       split.replace({
         next: {
           type: 'component',
-          id: 'soup-sidebar',
+          id: 'unified-list',
         },
         referredFrom: 'launcher',
       });
       
-      // Also signal to apply filters after component mounts
+      // Signal to apply filters after component mounts
       setTimeout(() => {
         setApplyViewToSplit({ splitId: activeSplitId, view });
       }, 100);

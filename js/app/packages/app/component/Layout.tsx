@@ -3,14 +3,12 @@ import { mountGlobalFocusListener } from '@app/signal/focus';
 import { useIsAuthenticated } from '@core/auth';
 import { Resize } from '@core/component/Resize';
 import { usePaywallState } from '@core/constant/PaywallState';
-import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
 import {
   LAYOUT_CONTEXT_ID,
   setPersistedLayoutSizes,
 } from '@core/signal/layout';
 import { updateCookie } from '@core/util/cookies';
 import { type RouteSectionProps, useLocation } from '@solidjs/router';
-import { cn } from '@ui/utils/classname';
 import { attachGlobalDOMScope } from 'core/hotkey/hotkeys';
 import { createEffect, onMount, Show, Suspense } from 'solid-js';
 import Banner from './banner/Banner';
@@ -130,7 +128,7 @@ export function Layout(props: RouteSectionProps) {
           <AppSidebar />
           <SplitOverlays />
         </Show>
-        
+
         <Resize.Zone
           gutter={4}
           direction="horizontal"
