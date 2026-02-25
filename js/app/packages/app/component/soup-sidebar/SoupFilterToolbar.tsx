@@ -5,7 +5,6 @@ import {
   createSignal,
   For,
   Show,
-  type Accessor,
   type JSX,
 } from 'solid-js';
 import { Dynamic, Portal } from 'solid-js/web';
@@ -27,7 +26,6 @@ import {
 } from '@app/component/split-layout/components/SplitHeader';
 import ChevronDownIcon from '@icon/regular/caret-down.svg';
 import CheckIcon from '@icon/bold/check-bold.svg';
-import XIcon from '@icon/regular/x.svg';
 import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
 import FilterIcon from '@macro-icons/pixel/tag.svg';
 import WideFileMd from '@macro-icons/wide/file-md.svg';

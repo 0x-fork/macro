@@ -3,12 +3,7 @@ import {
   createSoupState,
   type SoupState,
 } from '@app/component/next-soup/create-soup-state';
-import {
-  applyFilters,
-  buildDssFiltersRequest,
-  getFolderFileTypes,
-} from '@app/component/next-soup/filters/filters';
-import { sortEntitiesForSearch } from '@app/component/next-soup/soup-view/sort-options';
+import { applyFilters } from '@app/component/next-soup/filters/filters';
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import {
   isTaskEntity,

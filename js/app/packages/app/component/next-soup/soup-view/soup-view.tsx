@@ -82,7 +82,7 @@ import {
   setApplyContextualFilters,
 } from '@app/component/soup-sidebar/sidebar-selection-state';
 
-const DEFAULT_ENTITY_HEIGHT = 40;
+const _DEFAULT_ENTITY_HEIGHT = 40;
 
 const useSoupNotificationInvalidators = () => {
   const notificationSource = useGlobalNotificationSource();
