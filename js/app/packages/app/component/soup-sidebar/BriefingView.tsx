@@ -13,7 +13,7 @@ import {
   ChatContextProvider,
   useChatContext,
 } from '@core/component/AI/context';
-import { ChatInput } from '@core/component/AI/component/input/useChatInput';
+import { ChatInput } from '@core/component/AI/component/input/ChatInput';
 import { useChatMarkdownArea } from '@core/component/AI/component/input/useChatMarkdownArea';
 import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
 import type { CreateAndSend, Send } from '@core/component/AI/types';
