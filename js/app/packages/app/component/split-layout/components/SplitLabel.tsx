@@ -7,6 +7,7 @@ import {
 import {
   EntityIcon,
   type EntityIconSelector,
+  getFiletypeIcon,
   isArchiveType,
 } from '@core/component/EntityIcon';
 import { Tooltip } from '@core/component/Tooltip';
@@ -148,13 +149,17 @@ export function BlockItemSplitLabel(props: {
   const blockName = useBlockAliasedName();
   const isOwner = useIsDocumentOwner();
 
-  const targetType = () => {
+  const targetType = (): EntityIconSelector => {
+    const fileType = blockMetadataSignal()?.fileType;
     // archive files have a special icon
     if (blockName === 'unknown') {
-      const fileType = blockMetadataSignal()?.fileType;
       if (fileType && isArchiveType(fileType)) {
         return 'archive';
       }
+    }
+    // code files may have filetype-specific icons (e.g., .ts, .py, .rs)
+    if (blockName === 'code' && fileType && getFiletypeIcon(fileType)) {
+      return fileType as EntityIconSelector;
     }
     return blockName;
   };

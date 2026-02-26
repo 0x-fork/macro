@@ -45,6 +45,16 @@ import WideUser from '@macro-icons/wide/user.svg';
 import WideVideo from '@macro-icons/wide/video.svg';
 import GlobeIcon from '@icon/duotone/globe-duotone.svg';
 import ThreeUsersIcon from '@icon/duotone/users-three-duotone.svg';
+// Filetype-specific icons for code files
+import FiletypeC from '@macro-icons/filetypes/c.svg';
+import FiletypeCpp from '@macro-icons/filetypes/cpp.svg';
+import FiletypeCs from '@macro-icons/filetypes/cs.svg';
+import FiletypeJava from '@macro-icons/filetypes/java.svg';
+import FiletypeJs from '@macro-icons/filetypes/js.svg';
+import FiletypePy from '@macro-icons/filetypes/py.svg';
+import FiletypeReact from '@macro-icons/filetypes/react.svg';
+import FiletypeRs from '@macro-icons/filetypes/rs.svg';
+import FiletypeTs from '@macro-icons/filetypes/ts.svg';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
 import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
@@ -280,6 +290,50 @@ export const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
   task: WideTask,
 };
 
+/**
+ * Mapping from file extensions to filetype-specific icons.
+ * Used for code files to show language-specific icons instead of generic code icon.
+ */
+export const FILETYPE_ICONS: Record<string, Component> = {
+  // C
+  c: FiletypeC,
+  h: FiletypeC,
+  // C++
+  cpp: FiletypeCpp,
+  cc: FiletypeCpp,
+  cxx: FiletypeCpp,
+  hpp: FiletypeCpp,
+  hxx: FiletypeCpp,
+  // C#
+  cs: FiletypeCs,
+  // Java
+  java: FiletypeJava,
+  // JavaScript
+  js: FiletypeJs,
+  mjs: FiletypeJs,
+  cjs: FiletypeJs,
+  // Python
+  py: FiletypePy,
+  pyw: FiletypePy,
+  pyx: FiletypePy,
+  // React (JSX/TSX)
+  jsx: FiletypeReact,
+  tsx: FiletypeReact,
+  // Rust
+  rs: FiletypeRs,
+  // TypeScript
+  ts: FiletypeTs,
+  mts: FiletypeTs,
+  cts: FiletypeTs,
+};
+
+/**
+ * Get a filetype-specific icon for a file extension, if one exists.
+ */
+export function getFiletypeIcon(extension: string): Component | undefined {
+  return FILETYPE_ICONS[extension.toLowerCase()];
+}
+
 export const ICON_SIZES = {
   xs: 'w-4 h-4',
   sm: 'w-4.5 h-4.5',
@@ -343,6 +397,13 @@ export function EntityIcon(props: EntityIconProps) {
   const config = () => ENTITY_ICON_CONFIGS[getName()];
   const icon = () => {
     if (USE_WIDE_ICONS) {
+      // Check for filetype-specific icon first (for code files)
+      const filetypeIcon = props.targetType
+        ? getFiletypeIcon(props.targetType)
+        : undefined;
+      if (filetypeIcon) {
+        return filetypeIcon;
+      }
       return WIDE_ICONS[getName()];
     } else {
       return config().icon;
@@ -399,7 +460,9 @@ export function getIconConfig(
   const key = validateEntity(targetType);
   const config = { ...ENTITY_ICON_CONFIGS[key] };
   if (USE_WIDE_ICONS) {
-    config.icon = WIDE_ICONS[key];
+    // Check for filetype-specific icon first
+    const filetypeIcon = getFiletypeIcon(targetType);
+    config.icon = filetypeIcon ?? WIDE_ICONS[key];
   }
   return config;
 }
