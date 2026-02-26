@@ -109,7 +109,7 @@ export function CommandItem(props: CommandItemProps) {
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        props.onSelect(props.item, e.shiftKey);
+        props.onSelect(props.item, e.shiftKey || e.altKey);
       }}
     >
       {/* Accent bar indicator */}

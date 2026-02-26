@@ -224,7 +224,7 @@ function CommandMenuInner(props: {
   });
 
   registerHotkey({
-    hotkey: 'shift+enter',
+    hotkey: ['shift+enter', 'opt+enter'],
     scopeId: hotkeyScope,
     description: 'Open in new split',
     keyDownHandler: () => {
