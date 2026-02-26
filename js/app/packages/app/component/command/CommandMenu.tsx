@@ -39,11 +39,11 @@ import { createIsActiveSplitContentMemo } from '../split-layout/layoutUtils';
 const CATEGORIES: { id: CategoryFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'channels', label: 'Channels' },
-  { id: 'dms', label: 'Dms' },
+  { id: 'dms', label: 'DMs' },
   { id: 'notes', label: 'Notes' },
   { id: 'tasks', label: 'Tasks' },
   { id: 'documents', label: 'Docs' },
-  { id: 'chats', label: 'Chats' },
+  { id: 'chats', label: 'Agents' },
   { id: 'projects', label: 'Projects' },
   { id: 'commands', label: 'Commands' },
 ];
