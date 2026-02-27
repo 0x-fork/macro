@@ -61,6 +61,7 @@ import {
 } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
+import { createElementSize } from '@solid-primitives/resize-observer';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { SoupToolbar } from './soup-toolbar';
 import { useUserId } from '@core/context/user';
@@ -436,6 +437,12 @@ export const SoupViewList = (props: SoupViewListProps) => {
     HTMLDivElement | undefined
   >();
 
+  // Derive container width to conditionally render narrow/wide layout
+  // instead of rendering both layouts per row with CSS-only toggling.
+  // Tailwind @lg = 32rem = 512px
+  const containerSize = createElementSize(localEntityListRef);
+  const isWide: Accessor<boolean> = () => (containerSize.width ?? 0) >= 512;
+
   const entityById = createMemo(
     () => {
       const list = rows() ?? [];
@@ -448,7 +455,12 @@ export const SoupViewList = (props: SoupViewListProps) => {
     new Map<string, SoupRow>(),
     {
       equals(prev, next) {
-        return prev.size === next.size;
+        if (prev.size !== next.size) return false;
+        // Compare actual keys to detect reordering/substitutions of same-size sets
+        for (const key of next.keys()) {
+          if (!prev.has(key)) return false;
+        }
+        return true;
       },
     }
   );
@@ -628,6 +640,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                             <ListEntity
                               entity={row.original}
                               timestamp={timestamp()}
+                              isWide={isWide}
                               highlighted={
                                 panel.isPanelActive() && row.isFocused()
                               }

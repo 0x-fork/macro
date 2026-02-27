@@ -58,7 +58,7 @@ export function useEntityPropertiesQuery(
           );
           return data.properties.map(entityPropertyFromApi);
         },
-        staleTime: 0,
+        staleTime: 60_000, // 60s - mutations already invalidate via onSettled
       };
     },
     () => queryClient

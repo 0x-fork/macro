@@ -12,7 +12,7 @@ export function useEmailLabelsQuery() {
     queryFn: async () =>
       throwOnErr(async () => await emailClient.getUserLabels()),
     staleTime: LABEL_STALE_TIME,
-    refetchOnWindowFocus: 'always',
+    refetchOnWindowFocus: true,
   }));
 }
 

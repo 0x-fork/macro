@@ -67,44 +67,40 @@ createRoot(() =>
 );
 
 async function batchFetchUnfurls(urls: string[]) {
-  const updates: UnfurlStore = {};
-  urls.forEach((url) => {
-    updates[url] = { type: 'loading', _createdAt: new Date() };
-  });
-  setUnfurlStore(updates);
+  // Use granular key-based updates to avoid invalidating all store subscribers
+  for (const url of urls) {
+    setUnfurlStore(url, { type: 'loading', _createdAt: new Date() });
+  }
 
   const result = await UnfurlServiceClient.unfurlBulk({ url_list: urls });
 
   if (isErr(result)) {
     console.error('Failed to fetch unfurl bulk data');
-    const errorUpdates: UnfurlStore = {};
-    urls.forEach((url) => {
-      errorUpdates[url] = { type: 'error', _createdAt: new Date() };
-    });
-    setUnfurlStore(errorUpdates);
+    for (const url of urls) {
+      setUnfurlStore(url, { type: 'error', _createdAt: new Date() });
+    }
     return;
   }
 
   const [, data] = result;
-  const successUpdates: UnfurlStore = {};
+  const successUrls = new Set<string>();
 
-  data.responses.forEach((unfurl) => {
-    if (unfurl && unfurl.url) {
-      successUpdates[unfurl.url] = {
+  for (const unfurl of data.responses) {
+    if (unfurl?.url) {
+      successUrls.add(unfurl.url);
+      setUnfurlStore(unfurl.url, {
         type: 'success',
         data: unfurl as GetUnfurlResponse,
         _createdAt: new Date(),
-      };
+      });
     }
-  });
+  }
 
-  urls.forEach((url) => {
-    if (!successUpdates[url]) {
-      successUpdates[url] = { type: 'error', _createdAt: new Date() };
+  for (const url of urls) {
+    if (!successUrls.has(url)) {
+      setUnfurlStore(url, { type: 'error', _createdAt: new Date() });
     }
-  });
-
-  setUnfurlStore(successUpdates);
+  }
 }
 
 function isCacheExpired(cached: UnfurledLinkData | undefined): boolean {

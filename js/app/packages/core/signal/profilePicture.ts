@@ -86,13 +86,9 @@ async function batchFetchProfilePictures(ids: string[]) {
     ids.length > 0 ? fetchProfilePictures(ids) : Promise.resolve([]),
   ]);
 
-  const updates: ProfilePictureStore = {};
-
-  [...nameResults].forEach((result) => {
-    updates[result.id] = result;
-  });
-
-  setUserProfilePictures((prev) => ({ ...prev, ...updates }));
+  for (const result of nameResults) {
+    setUserProfilePictures(result.id, result);
+  }
 }
 
 export function useProfilePictureUrl(id?: string): ProfilePictureUrlFetcher {

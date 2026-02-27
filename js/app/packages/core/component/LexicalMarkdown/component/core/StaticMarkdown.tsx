@@ -802,6 +802,11 @@ export function StaticMarkdown(props: {
     }
   });
 
+  // Citation pattern: [[...]] - only run the async citation replacement pass
+  // when the markdown actually contains citation markers. This avoids double-parsing
+  // every StaticMarkdown instance (the majority of which have no citations).
+  const CITATION_PATTERN = /\[\[.*?\]\]/;
+
   createEffect(() => {
     const editor = currentEditor();
     if (!editor) {
@@ -809,25 +814,25 @@ export function StaticMarkdown(props: {
       return;
     }
 
-    setEditorStateFromMarkdown(editor, props.markdown, props.target);
+    const markdown = props.markdown;
+    const hasCitations = CITATION_PATTERN.test(markdown);
+
+    setEditorStateFromMarkdown(editor, markdown, props.target);
     if (props.singleLine) {
       forceSingleLine(editor);
     }
     setEditorState(editor.getEditorState());
-  });
 
-  // TODO: Move citations to bulk query when built in backend
-  createEffect(() => {
-    const editor = currentEditor();
-
-    // Handle citations without affecting mentions
-    replaceCitations(props.markdown).then((content: string) => {
-      setEditorStateFromMarkdown(editor, content, props.target);
-      if (props.singleLine) {
-        forceSingleLine(editor);
-      }
-      setEditorState(editor.getEditorState());
-    });
+    // Only run the async citation replacement when citations are present
+    if (hasCitations) {
+      replaceCitations(markdown).then((content: string) => {
+        setEditorStateFromMarkdown(editor, content, props.target);
+        if (props.singleLine) {
+          forceSingleLine(editor);
+        }
+        setEditorState(editor.getEditorState());
+      });
+    }
   });
 
   const domTree = createMemo(() => {

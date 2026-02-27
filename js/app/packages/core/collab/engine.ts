@@ -4,7 +4,7 @@ import { logger } from '@observability/logger';
 import { Mutex } from 'async-mutex';
 import type { Frontiers } from 'loro-crdt';
 import type { ResultAsync } from 'neverthrow';
-import { type Accessor, createEffect, createSignal, on } from 'solid-js';
+import { type Accessor, createEffect, createSignal, on, onCleanup } from 'solid-js';
 import type { Awareness } from './awareness';
 import { type LoroManager, LoroStateTag, type StateUpdate } from './manager';
 import type { GenericRootSchema, LoroRawUpdate, RawUpdate } from './shared';
@@ -226,7 +226,7 @@ export function createSyncEngine<
   createEffect(() => {
     if (!running()) return;
 
-    source.listen(async (event) => {
+    const unlisten = source.listen(async (event) => {
       switch (event.type) {
         case 'update':
           handleRemoteUpdate(event.update);
@@ -251,6 +251,7 @@ export function createSyncEngine<
         }
       }
     });
+    onCleanup(() => unlisten());
   });
 
   createEffect(

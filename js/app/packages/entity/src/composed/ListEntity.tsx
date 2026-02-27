@@ -12,7 +12,7 @@ import {
   type EntityData,
   isTaskEntity,
 } from '../types/entity';
-import { Match, Show, Switch, type Ref } from 'solid-js';
+import { type Accessor, Match, Show, Switch, type Ref } from 'solid-js';
 import {
   getStreamState,
   subscribeToStreamState,
@@ -82,6 +82,9 @@ interface ListEntityProps {
     e: PointerEvent | MouseEvent,
     location?: SearchLocation
   ) => void;
+  /** When provided, only renders one layout instead of both (CSS @container).
+   * This avoids doubling the component tree per row in virtualized lists. */
+  isWide?: Accessor<boolean>;
 }
 
 interface LayoutProps {
@@ -434,8 +437,18 @@ export function ListEntity(props: ListEntityProps) {
         })}
       />
 
-      <NarrowLayout {...layoutProps()} />
-      <WideLayout {...layoutProps()} />
+      <Show when={props.isWide} fallback={
+        <>
+          <NarrowLayout {...layoutProps()} />
+          <WideLayout {...layoutProps()} />
+        </>
+      }>
+        {(isWide) => (
+          <Show when={isWide()()} fallback={<NarrowLayout {...layoutProps()} />}>
+            <WideLayout {...layoutProps()} />
+          </Show>
+        )}
+      </Show>
 
       <Show when={hasNotifications()}>
         <div class="flex gap-2 w-full h-full items-center text-sm px-2 pb-1 -mt-2 min-w-0 overflow-hidden">

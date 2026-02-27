@@ -503,13 +503,15 @@ export function createLoroManager<S extends GenericRootSchema>(
   };
 
   createEffect(() => {
-    if (mirror()) {
-      mirror()?.subscribe((update, metadata) => {
+    const m = mirror();
+    if (m) {
+      const unsubscribe = m.subscribe((update, metadata) => {
         setState(() => ({
           state: update,
           metadata,
         }));
       });
+      onCleanup(() => unsubscribe());
     }
   });
 

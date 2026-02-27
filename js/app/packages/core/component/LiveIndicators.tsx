@@ -40,7 +40,7 @@ export function LiveIndicators(props: {
         'width-0': len() === 0,
       }}
     >
-      <For each={userIds().splice(0, 3)}>
+      <For each={userIds().slice(0, 3)}>
         {(userId) => <UserIndicator userId={userId} />}
       </For>
       <Show when={remaining()}>

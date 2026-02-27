@@ -1,7 +1,7 @@
 import { debounce } from '@core/util/debounce';
 import { isErr } from '@core/util/maybeResult';
 import { authServiceClient } from '@service-auth/client';
-import { createEffect, createSignal } from 'solid-js';
+import { createEffect, createRoot, createSignal } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { type MacroId, macroIdToEmail } from './macroId';
 import type { UserNameItem, UserNamePreviewFetcher } from './types';
@@ -80,17 +80,26 @@ const processFetchQueue = debounce(async () => {
   await batchFetchNames(items);
 }, 50);
 
+// Single global effect to process the fetch queue.
+// Previously this was created per-useUserNameItem call, causing N duplicate
+// effects for N displayed user names all watching the same signal.
+createRoot(() =>
+  createEffect(() => {
+    const queue = displayNameFetchQueue();
+    if (queue.length > 0) {
+      processFetchQueue();
+    }
+  })
+);
+
 async function batchFetchNames(ids: string[]) {
   const [nameResults] = await Promise.all([
     ids.length > 0 ? fetchDisplayNames(ids) : Promise.resolve([]),
   ]);
 
-  const updates = nameResults.reduce((acc, result) => {
-    acc[result.id] = result;
-    return acc;
-  }, {} as DisplayNameStore);
-
-  setUserDisplayNames((prev) => ({ ...prev, ...updates }));
+  for (const result of nameResults) {
+    setUserDisplayNames(result.id, result);
+  }
 }
 
 /** Shared hook that handles caching/fetching and returns the underlying UserNameItem */
@@ -110,13 +119,6 @@ function useUserNameItem(id: MacroId) {
     });
     queueItemsForFetch([id]);
   }
-
-  createEffect(() => {
-    const queue = displayNameFetchQueue();
-    if (queue.length > 0) {
-      processFetchQueue();
-    }
-  });
 
   const getItem = () => unwrap(userDisplayNames[id]);
 
