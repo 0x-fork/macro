@@ -6,6 +6,8 @@ import { EmailInput } from '@block-email/component/EmailInput';
 import { EmailMessageBody } from '@block-email/component/EmailMessageBody';
 import { EmailMessageTopBar } from '@block-email/component/EmailMessageTopBar';
 import { isMessageFromCurrentUser } from '@block-email/util/emailUser';
+import { DEFAULT_MODEL } from '@core/component/AI/constant/model';
+import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
 import { ImageGalleryPreview } from '@core/component/ImageGalleryPreview';
 import { Message } from '@core/component/Message';
 import { toast } from '@core/component/Toast/Toast';
@@ -13,6 +15,7 @@ import { VideoPreview } from '@core/component/VideoPreview';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { tryMacroId, useDisplayName } from '@core/user';
 import { isErr } from '@core/util/maybeResult';
+import { cognitionApiServiceClient } from '@service-cognition/client';
 import { refetchSoupEntity } from '@queries/soup/cache';
 import { logger } from '@observability';
 import { emailClient } from '@service-email/client';
@@ -195,6 +198,41 @@ export function MessageContainer(props: MessageContainerProps) {
     }
   };
 
+  const handleDraftReply = async () => {
+    const thread = context.thread();
+    const threadId = thread?.db_id;
+    if (!threadId) return;
+
+    const subject = thread.messages[0]?.subject ?? 'No Subject';
+    const sender =
+      props.message.from?.name ?? props.message.from?.email ?? 'the sender';
+
+    const response = await cognitionApiServiceClient.createChat({
+      attachments: [{ attachment_type: 'email', attachment_id: threadId }],
+      isPersistent: true,
+    });
+    if (isErr(response)) {
+      toast.failure('Failed to create chat. Please try again.');
+      return;
+    }
+    const [, { id: chatId }] = response;
+
+    setPendingSendData({
+      content: `From email: "${subject}"\n\nFind relevant context in order to summarize prior interactions with ${sender}, then draft a reply to this email thread.`,
+      attachments: [
+        {
+          id: `${threadId}-email-attachment`,
+          attachmentId: threadId,
+          attachmentType: 'email',
+          metadata: { type: 'email', email_subject: subject },
+        },
+      ],
+      model: DEFAULT_MODEL,
+    });
+
+    openWithSplit({ type: 'chat', id: chatId }, { preferNewSplit: true });
+  };
+
   return (
     <Show
       when={isBodyExpanded()}
@@ -236,6 +274,9 @@ export function MessageContainer(props: MessageContainerProps) {
                   !context.permissions().isOwner
                     ? ['reply', 'reply-all', 'forward']
                     : undefined
+                }
+                onDraftReply={
+                  context.permissions().isOwner ? handleDraftReply : undefined
                 }
               />
             </Message.TopBar>

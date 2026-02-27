@@ -1,6 +1,7 @@
 import ArrowBendDoubleUpLeft from '@icon/regular/arrow-bend-double-up-left.svg';
 import ArrowBendUpLeft from '@icon/regular/arrow-bend-up-left.svg';
 import ArrowBendUpRight from '@icon/regular/arrow-bend-up-right.svg';
+import StarIcon from '@macro-icons/wide/star.svg';
 import type { MessageWithBodyReplyless } from '@service-email/generated/schemas';
 import { useEmail } from '@core/context/user';
 import { Button } from '@ui/components/Button';
@@ -18,6 +19,7 @@ export function MessageActions(props: {
   setShowReply: Setter<boolean>;
   isLastMessage?: boolean;
   hiddenActions?: EmailMessageAction[];
+  onDraftReply?: () => void;
 }) {
   const formRegistry = getEmailFormRegistry();
   const userEmail = useEmail();
@@ -61,6 +63,15 @@ export function MessageActions(props: {
         'opacity-100': canShowActions(),
       }}
     >
+      <Show when={props.onDraftReply}>
+        <Button
+          class="h-8 w-8 p-0 border-0 bg-transparent hover:bg-hover hover-transition-bg text-ink gap-0.5 active:bg-hover active:text-ink active:border-transparent"
+          onClick={() => props.onDraftReply?.()}
+          tooltip={<span>Draft reply with AI</span>}
+        >
+          <StarIcon class="h-5 w-5" />
+        </Button>
+      </Show>
       <Show
         when={
           shouldShowReplyAll() && !props.hiddenActions?.includes('reply-all')

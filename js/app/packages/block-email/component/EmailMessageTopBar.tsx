@@ -33,6 +33,7 @@ interface EmailMessageTopBarProps {
   setShowReply: Setter<boolean>;
   isLastMessage?: boolean;
   hiddenActions?: EmailMessageAction[];
+  onDraftReply?: () => void;
 }
 
 interface Recipient {
@@ -159,6 +160,7 @@ function CollapsedHeader(props: {
   setShowReply: Setter<boolean>;
   isLastMessage?: boolean;
   hiddenActions?: EmailMessageAction[];
+  onDraftReply?: () => void;
 }): JSX.Element {
   return (
     <div class="flex flex-row w-full items-center justify-between">
@@ -195,6 +197,7 @@ function CollapsedHeader(props: {
           setShowReply={props.setShowReply}
           isLastMessage={props.isLastMessage}
           hiddenActions={props.hiddenActions}
+          onDraftReply={props.onDraftReply}
         />
         <Show when={props.message.internal_date_ts}>
           <div class="text-xs text-ink">
@@ -288,6 +291,7 @@ export function EmailMessageTopBar(props: EmailMessageTopBarProps) {
             setShowReply={props.setShowReply}
             isLastMessage={props.isLastMessage}
             hiddenActions={props.hiddenActions}
+            onDraftReply={props.onDraftReply}
           />
         </Show>
       </Show>
