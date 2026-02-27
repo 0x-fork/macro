@@ -3214,7 +3214,9 @@ dependencies = [
 name = "email"
 version = "0.1.0"
 dependencies = [
+ "ai",
  "anyhow",
+ "async-trait",
  "axum",
  "axum-extra",
  "chrono",
@@ -3230,6 +3232,7 @@ dependencies = [
  "model-error-response",
  "model_user",
  "models_pagination",
+ "models_permissions",
  "recursion",
  "schemars",
  "serde",
@@ -3351,6 +3354,7 @@ dependencies = [
  "email",
  "email_db_client",
  "email_utils",
+ "entity_access",
  "frecency",
  "futures",
  "gmail_client",
@@ -8813,6 +8817,7 @@ dependencies = [
  "model-error-response",
  "model_user",
  "models_pagination",
+ "models_permissions",
  "models_properties",
  "models_soup",
  "non_empty",

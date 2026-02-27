@@ -7,6 +7,7 @@ pub(crate) mod attachments;
 pub(crate) mod backfill;
 pub(crate) mod contacts;
 pub(crate) mod drafts;
+pub(crate) mod email_service_with_threads;
 pub(crate) mod init;
 pub(crate) mod labels;
 pub(crate) mod links;

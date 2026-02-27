@@ -169,6 +169,8 @@ pub enum EmailErr {
     RepoErr(#[from] anyhow::Error),
     #[error(transparent)]
     Frecency(#[from] FrecencyQueryErr),
+    #[error("Not found")]
+    NotFound,
 }
 
 pub struct GetEmailsRequest {

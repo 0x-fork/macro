@@ -25,6 +25,8 @@ use super::*;
 struct NoopEmailService;
 
 impl EmailService for NoopEmailService {
+    type GetThreadResponse = ();
+
     async fn get_email_thread_previews(
         &self,
         _req: email::domain::models::GetEmailsRequest,
@@ -38,11 +40,20 @@ impl EmailService for NoopEmailService {
             .into_page())
     }
 
-    async fn get_link_by_auth_id_and_macro_id(
+    async fn get_link_by_macro_id(
         &self,
-        _auth_id: &str,
         _macro_id: MacroUserIdStr<'_>,
     ) -> Result<Option<email::domain::models::Link>, email::domain::models::EmailErr> {
+        Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
+    }
+
+    async fn get_thread(
+        &self,
+        _thread_id: Uuid,
+        _access_level: models_permissions::share_permission::access_level::AccessLevel,
+        _offset: i64,
+        _limit: i64,
+    ) -> Result<Self::GetThreadResponse, email::domain::models::EmailErr> {
         Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
     }
 }

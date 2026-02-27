@@ -2,9 +2,11 @@ pub(crate) mod archived;
 pub(crate) mod get;
 pub(crate) mod labels;
 pub(crate) mod seen;
+pub(crate) mod thread_router;
 
 use axum::Router;
 use axum::routing::{get, patch, post};
+use thread_router::EmailRouterState;
 use tower::ServiceBuilder;
 
 use crate::api::ApiContext;
@@ -45,9 +47,13 @@ pub fn router(state: ApiContext) -> Router<ApiContext> {
         ));
 
     // user can still view threads shared with them if they don't have email enabled
-    let optional_link_routes = Router::new().route("/:id", get(get::get_thread_handler));
+    let thread_routes = thread_router::thread_router(EmailRouterState {
+        email_service: state.email_service.inner.clone(),
+        access_service: state.entity_access_service.clone(),
+        pool: state.db.clone(),
+    });
 
     Router::new()
         .merge(required_link_routes)
-        .merge(optional_link_routes)
+        .merge(thread_routes)
 }

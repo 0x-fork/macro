@@ -83,6 +83,7 @@ doppleganger = { workspace = true }
 ego-tree = { workspace = true }
 email = { path = "../email", features = ["axum", "inbound", "outbound"] }
 email_db_client = { path = "../email_db_client" }
+entity_access = { path = "../entity_access" }
 email_utils = { path = "../email_utils" }
 frecency = { path = "../frecency", features = ["postgres"] }
 futures = { workspace = true }

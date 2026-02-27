@@ -110,14 +110,11 @@ where
     type Rejection = EmailLinkErr;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let Cached(MacroUserExtractor {
-            macro_user_id,
-            user_context,
-            ..
-        }) = parts.extract_with_state(state).await?;
+        let Cached(MacroUserExtractor { macro_user_id, .. }) =
+            parts.extract_with_state(state).await?;
         let res = <EmailPreviewState<U>>::from_ref(state)
             .inner
-            .get_link_by_auth_id_and_macro_id(&user_context.fusion_user_id, macro_user_id)
+            .get_link_by_macro_id(macro_user_id)
             .await?
             .ok_or(EmailLinkErr::NotFound)?;
         Ok(Self(res, PhantomData))
@@ -144,14 +141,11 @@ where
     type Rejection = EmailLinkErr;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let Cached(MacroUserExtractor {
-            macro_user_id,
-            user_context,
-            ..
-        }) = parts.extract_with_state(state).await?;
+        let Cached(MacroUserExtractor { macro_user_id, .. }) =
+            parts.extract_with_state(state).await?;
         let res = <EmailPreviewState<U>>::from_ref(state)
             .inner
-            .get_link_by_auth_id_and_macro_id(&user_context.fusion_user_id, macro_user_id)
+            .get_link_by_macro_id(macro_user_id)
             .await?;
         Ok(Self(res, PhantomData))
     }

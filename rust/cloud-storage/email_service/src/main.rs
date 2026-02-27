@@ -1,8 +1,11 @@
 use crate::api::context::ApiContext;
+use crate::api::email::email_service_with_threads::EmailServiceWithThreads;
 use anyhow::Context;
 use document_storage_service_client::DocumentStorageServiceClient;
 use email::{domain::service::EmailServiceImpl, inbound::EmailPreviewState, outbound::EmailPgRepo};
 use email_service::config::EmailServiceCloudfrontSignerPrivateKey;
+use entity_access::domain::service::EntityAccessServiceImpl;
+use entity_access::outbound::PgAccessRepository;
 use frecency::{domain::services::FrecencyQueryServiceImpl, outbound::postgres::FrecencyPgStorage};
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_entrypoint::MacroEntrypoint;
@@ -120,6 +123,10 @@ async fn main() -> anyhow::Result<()> {
         JwtValidationArgs::new_with_secret_manager(config.environment, &secretsmanager_client)
             .await?;
 
+    let entity_access_service = Arc::new(EntityAccessServiceImpl::new(PgAccessRepository::new(
+        db.clone(),
+    )));
+
     api::setup_and_serve(ApiContext {
         db: db.clone(),
         config: Arc::new(config),
@@ -133,10 +140,14 @@ async fn main() -> anyhow::Result<()> {
         system_properties_service,
         jwt_args,
         internal_auth_key: LocalOrRemoteSecret::Local(internal_auth_key),
-        email_service: EmailPreviewState::new(EmailServiceImpl::new(
-            EmailPgRepo::new(db.clone()),
-            FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(db)),
-        )),
+        email_service: EmailPreviewState::new(EmailServiceWithThreads {
+            inner: EmailServiceImpl::new(
+                EmailPgRepo::new(db.clone()),
+                FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(db.clone())),
+            ),
+            pool: db,
+        }),
+        entity_access_service,
     })
     .await?;
     Ok(())

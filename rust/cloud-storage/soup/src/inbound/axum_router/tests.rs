@@ -58,6 +58,8 @@ impl SoupService for MockSoup {
 struct MockEmail;
 
 impl EmailService for MockEmail {
+    type GetThreadResponse = ();
+
     async fn get_email_thread_previews(
         &self,
         _req: email::domain::models::GetEmailsRequest,
@@ -73,9 +75,8 @@ impl EmailService for MockEmail {
         Err(EmailErr::RepoErr(anyhow::anyhow!("Not implemented")))
     }
 
-    async fn get_link_by_auth_id_and_macro_id(
+    async fn get_link_by_macro_id(
         &self,
-        _auth_id: &str,
         _macro_id: macro_user_id::user_id::MacroUserIdStr<'_>,
     ) -> Result<Option<email::domain::models::Link>, email::domain::models::EmailErr> {
         Ok(Some(email::domain::models::Link {
@@ -88,6 +89,16 @@ impl EmailService for MockEmail {
             created_at: Default::default(),
             updated_at: Default::default(),
         }))
+    }
+
+    async fn get_thread(
+        &self,
+        _thread_id: Uuid,
+        _access_level: models_permissions::share_permission::access_level::AccessLevel,
+        _offset: i64,
+        _limit: i64,
+    ) -> Result<Self::GetThreadResponse, email::domain::models::EmailErr> {
+        Err(EmailErr::RepoErr(anyhow::anyhow!("Not implemented")))
     }
 }
 
@@ -130,6 +141,8 @@ struct MockEmailLinkResult {
 }
 
 impl EmailService for MockEmailLinkResult {
+    type GetThreadResponse = ();
+
     async fn get_email_thread_previews(
         &self,
         _req: email::domain::models::GetEmailsRequest,
@@ -145,12 +158,21 @@ impl EmailService for MockEmailLinkResult {
         Err(EmailErr::RepoErr(anyhow::anyhow!("Not implemented")))
     }
 
-    async fn get_link_by_auth_id_and_macro_id(
+    async fn get_link_by_macro_id(
         &self,
-        _auth_id: &str,
         _macro_id: macro_user_id::user_id::MacroUserIdStr<'_>,
     ) -> Result<Option<email::domain::models::Link>, email::domain::models::EmailErr> {
         (self.get_link_result)()
+    }
+
+    async fn get_thread(
+        &self,
+        _thread_id: Uuid,
+        _access_level: models_permissions::share_permission::access_level::AccessLevel,
+        _offset: i64,
+        _limit: i64,
+    ) -> Result<Self::GetThreadResponse, email::domain::models::EmailErr> {
+        Err(EmailErr::RepoErr(anyhow::anyhow!("Not implemented")))
     }
 }
 

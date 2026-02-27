@@ -1,7 +1,5 @@
 use crate::domain::{
-    models::{
-        EmailErr, EnrichedEmailThreadPreview, GetEmailsRequest, PreviewCursorQuery, UserProvider,
-    },
+    models::{EmailErr, EnrichedEmailThreadPreview, GetEmailsRequest, PreviewCursorQuery},
     ports::{EmailRepo, EmailService},
 };
 use frecency::domain::{
@@ -16,8 +14,8 @@ use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct EmailServiceImpl<T, U> {
-    email_repo: T,
-    frecency_service: U,
+    pub(crate) email_repo: T,
+    pub(crate) frecency_service: U,
 }
 
 impl<T, U> EmailServiceImpl<T, U>
@@ -39,6 +37,8 @@ where
     U: FrecencyQueryService,
     anyhow::Error: From<T::Err>,
 {
+    type GetThreadResponse = ();
+
     #[tracing::instrument(err, skip(self, req))]
     async fn get_email_thread_previews(
         &self,
@@ -130,15 +130,24 @@ where
             .into_page())
     }
 
-    async fn get_link_by_auth_id_and_macro_id(
+    async fn get_link_by_macro_id(
         &self,
-        auth_id: &str,
         macro_id: macro_user_id::user_id::MacroUserIdStr<'_>,
     ) -> Result<Option<super::models::Link>, EmailErr> {
         Ok(self
             .email_repo
-            .link_by_fusionauth_and_macro_id(auth_id, macro_id, UserProvider::Gmail)
+            .link_by_macro_id(macro_id)
             .await
             .map_err(anyhow::Error::from)?)
+    }
+
+    async fn get_thread(
+        &self,
+        _thread_id: Uuid,
+        _access_level: models_permissions::share_permission::access_level::AccessLevel,
+        _offset: i64,
+        _limit: i64,
+    ) -> Result<Self::GetThreadResponse, EmailErr> {
+        Err(EmailErr::NotFound)
     }
 }

@@ -6,6 +6,12 @@ version = "0.1.0"
 
 [features]
 ai_schema = ["dep:schemars"]
+ai_tools = [
+  "dep:ai",
+  "dep:async-trait",
+  "dep:schemars",
+  "ports",
+]
 axum = [
   "dep:axum",
   "dep:axum-extra",
@@ -20,7 +26,9 @@ outbound = ["dep:sqlx", "ports"]
 ports = ["dep:tokio", "frecency/ports"]
 
 [dependencies]
+ai = { path = "../ai", optional = true }
 anyhow = { workspace = true }
+async-trait = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 axum-extra = { workspace = true, optional = true }
 chrono = { workspace = true, features = ["serde"] }
@@ -35,6 +43,7 @@ model-entity = { path = "../model-entity" }
 model-error-response = { path = "../model-error-response", optional = true }
 model_user = { path = "../model_user", optional = true }
 models_pagination = { path = "../models_pagination" }
+models_permissions = { path = "../models_permissions" }
 recursion = { workspace = true }
 schemars = { workspace = true, optional = true, features = ["uuid1"] }
 serde = { workspace = true }

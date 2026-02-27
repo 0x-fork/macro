@@ -2,7 +2,7 @@ use crate::domain::models::Label;
 use crate::domain::{
     models::{
         Attachment, Contact, EmailThreadPreview, Link, PreviewCursorQuery, PreviewView,
-        PreviewViewStandardLabel, UserProvider,
+        PreviewViewStandardLabel,
     },
     ports::EmailRepo,
 };
@@ -215,28 +215,21 @@ impl EmailRepo for EmailPgRepo {
     }
 
     #[tracing::instrument(err, skip(self))]
-    async fn link_by_fusionauth_and_macro_id(
+    async fn link_by_macro_id(
         &self,
-        fusionauth_user_id: &str,
         macro_id: MacroUserIdStr<'_>,
-        provider: UserProvider,
     ) -> Result<Option<Link>, Self::Err> {
-        let provider: DbUserProvider = match provider {
-            UserProvider::Gmail => DbUserProvider::Gmail,
-        };
-
         let db_link = sqlx::query_as!(
             db_types::DbLink,
             r#"
             SELECT id, macro_id, fusionauth_user_id, email_address, provider as "provider: _",
                    is_sync_active, created_at, updated_at
             FROM email_links
-            WHERE fusionauth_user_id = $1 AND macro_id = $2 AND provider = $3
+            WHERE macro_id = $1
+            ORDER BY created_at DESC
             LIMIT 1
             "#,
-            fusionauth_user_id,
             macro_id.as_ref(),
-            provider as _
         )
         .fetch_optional(&self.pool)
         .await?;

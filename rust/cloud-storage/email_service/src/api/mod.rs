@@ -9,7 +9,7 @@ use utoipa_swagger_ui::SwaggerUi;
 // Routes
 mod health;
 
-mod email;
+pub(crate) mod email;
 
 // Misc
 pub(crate) mod context;

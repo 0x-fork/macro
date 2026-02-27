@@ -78,6 +78,7 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 cool_asserts = "2"
+models_permissions = { path = "../models_permissions" }
 filter_ast = { path = "../filter_ast" }
 frecency = { path = "../frecency", features = ["mock", "outbound"] }
 futures = { workspace = true }

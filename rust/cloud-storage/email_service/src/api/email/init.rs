@@ -7,7 +7,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
-use email::domain::models::UserProvider;
 use email::domain::ports::EmailRepo;
 use macro_user_id::email::EmailStr;
 use macro_user_id::user_id::MacroUserIdStr;
@@ -94,11 +93,7 @@ pub async fn handler(
     // Fetch the existing link for the user
     let pg_repo = email::outbound::EmailPgRepo::new(ctx.db.clone());
     let existing_link = pg_repo
-        .link_by_fusionauth_and_macro_id(
-            &user_context.fusion_user_id,
-            macro_user_id,
-            UserProvider::Gmail,
-        )
+        .link_by_macro_id(macro_user_id)
         .await
         .context("Failed to fetch existing link")?;
 
