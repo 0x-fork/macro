@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT DISTINCT ON (l.id, m.thread_id)\n            l.id,\n            m.thread_id as \"thread_id!\",\n            l.link_id,\n            l.provider_label_id,\n            l.name,\n            l.created_at,\n            l.message_list_visibility as \"message_list_visibility: _\",\n            l.label_list_visibility as \"label_list_visibility: _\",\n            l.type as \"type_: _\"\n        FROM\n             email_messages m\n        JOIN email_message_labels ml ON m.id = ml.message_id\n        JOIN email_labels l ON ml.label_id = l.id\n        WHERE m.thread_id = ANY($1)\n        ",
+  "query": "\n    SELECT DISTINCT ON (l.id, m.thread_id)\n        l.id,\n        m.thread_id as \"thread_id!\",\n        l.link_id,\n        l.provider_label_id,\n        l.name,\n        l.created_at,\n        l.message_list_visibility as \"message_list_visibility: _\",\n        l.label_list_visibility as \"label_list_visibility: _\",\n        l.type as \"type_: _\"\n    FROM\n         email_messages m\n    JOIN email_message_labels ml ON m.id = ml.message_id\n    JOIN email_labels l ON ml.label_id = l.id\n    WHERE m.thread_id = ANY($1)\n    ",
   "describe": {
     "columns": [
       {
@@ -97,5 +97,5 @@
       false
     ]
   },
-  "hash": "f33cae291a4c2d553de0f61e5c32bcc09c162de5ca96535567a6e307e86b5fb9"
+  "hash": "d501983b009e4418f1753f03db0ea12db11f18e4a89a76c87b4c8ddda431cbdb"
 }

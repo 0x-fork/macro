@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                eaf.message_id as draft_id,\n                eaf.attachment_id,\n                ea.provider_attachment_id,\n                orig_msg.provider_id as \"message_provider_id!\",\n                ea.filename,\n                ea.mime_type,\n                ea.size_bytes\n            FROM email_attachments_fwd eaf\n            JOIN email_attachments ea ON eaf.attachment_id = ea.id\n            JOIN email_messages orig_msg ON ea.message_id = orig_msg.id\n            WHERE eaf.message_id = ANY($1)\n            ORDER BY eaf.message_id, ea.filename ASC\n            ",
+  "query": "\n        SELECT\n            eaf.message_id as draft_id,\n            eaf.attachment_id,\n            ea.provider_attachment_id,\n            orig_msg.provider_id as \"message_provider_id!\",\n            ea.filename,\n            ea.mime_type,\n            ea.size_bytes\n        FROM email_attachments_fwd eaf\n        JOIN email_attachments ea ON eaf.attachment_id = ea.id\n        JOIN email_messages orig_msg ON ea.message_id = orig_msg.id\n        WHERE eaf.message_id = ANY($1)\n        ORDER BY eaf.message_id, ea.filename ASC\n        ",
   "describe": {
     "columns": [
       {
@@ -54,5 +54,5 @@
       true
     ]
   },
-  "hash": "bc036ef42cfe1fd6d00b8783e66807f5ed939d79fb438c6e517991d30dbaba9d"
+  "hash": "922f058d237b9ffe46e13677ce2e6c4f4b39b7ae7b8b4dd248f54714d842a08e"
 }

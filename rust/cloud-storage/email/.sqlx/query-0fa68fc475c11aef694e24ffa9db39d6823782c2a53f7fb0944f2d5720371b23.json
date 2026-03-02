@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT t.id, t.provider_id, t.link_id, t.inbox_visible, t.is_read,\n                   t.latest_inbound_message_ts, t.latest_outbound_message_ts,\n                   t.latest_non_spam_message_ts, t.created_at, t.updated_at\n            FROM email_threads t\n            WHERE t.id = $1\n            ",
+  "query": "\n        SELECT t.id, t.provider_id, t.link_id, t.inbox_visible, t.is_read,\n               t.latest_inbound_message_ts, t.latest_outbound_message_ts,\n               t.latest_non_spam_message_ts, t.created_at, t.updated_at\n        FROM email_threads t\n        WHERE t.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -72,5 +72,5 @@
       false
     ]
   },
-  "hash": "fb3bf917db7d98d7691ada7e8e59d14b3a0930cdebb097fda9f52d99dea900ff"
+  "hash": "0fa68fc475c11aef694e24ffa9db39d6823782c2a53f7fb0944f2d5720371b23"
 }

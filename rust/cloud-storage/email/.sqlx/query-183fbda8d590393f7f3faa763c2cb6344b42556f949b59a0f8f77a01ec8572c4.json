@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                ea.message_id,\n                ea.id,\n                ea.provider_attachment_id,\n                ea.filename,\n                ea.mime_type,\n                ea.size_bytes,\n                eas.sfs_id as \"sfs_id?\",\n                ea.content_id\n            FROM email_attachments ea\n            LEFT JOIN email_attachments_sfs eas ON ea.id = eas.attachment_id\n            WHERE ea.message_id = ANY($1)\n            ORDER BY ea.message_id, ea.filename NULLS LAST\n            ",
+  "query": "\n        SELECT\n            ea.message_id,\n            ea.id,\n            ea.provider_attachment_id,\n            ea.filename,\n            ea.mime_type,\n            ea.size_bytes,\n            eas.sfs_id as \"sfs_id?\",\n            ea.content_id\n        FROM email_attachments ea\n        LEFT JOIN email_attachments_sfs eas ON ea.id = eas.attachment_id\n        WHERE ea.message_id = ANY($1)\n        ORDER BY ea.message_id, ea.filename NULLS LAST\n        ",
   "describe": {
     "columns": [
       {
@@ -60,5 +60,5 @@
       true
     ]
   },
-  "hash": "3612457487296570dadc4f8c048ac3d9508afe9e71fe07539c1496346bfe6839"
+  "hash": "183fbda8d590393f7f3faa763c2cb6344b42556f949b59a0f8f77a01ec8572c4"
 }

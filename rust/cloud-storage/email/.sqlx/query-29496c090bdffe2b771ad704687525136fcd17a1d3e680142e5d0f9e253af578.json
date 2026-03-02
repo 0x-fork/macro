@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT message_id, send_time\n            FROM email_scheduled_messages\n            WHERE message_id = ANY($1) AND sent = false\n            ",
+  "query": "\n        SELECT message_id, send_time\n        FROM email_scheduled_messages\n        WHERE message_id = ANY($1) AND sent = false\n        ",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "514fec6fdd23b28359daaa9e50e3d98cfe6283e03d9db2682ca9bb2d72bdff0a"
+  "hash": "29496c090bdffe2b771ad704687525136fcd17a1d3e680142e5d0f9e253af578"
 }
