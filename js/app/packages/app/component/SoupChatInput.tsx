@@ -7,6 +7,7 @@ import {
 import { useGetChatAttachmentInfo } from '@core/component/AI/signal/attachment';
 import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
 import { buildChatEditor } from '@core/component/AI/component/input/buildChatEditor';
+import { useAdditionalInstructions } from '@core/component/AI/constant/prompts';
 import { ENABLE_SNAPSHOT_NODE } from '@core/constant/featureFlags';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isErr } from '@core/util/maybeResult';
@@ -24,6 +25,7 @@ function SoupChatInputInner() {
   const splitPanelContext = useSplitPanelOrThrow();
   const soup = useSoup();
   const input = useChatInputContext();
+  const additionalInstructions = useAdditionalInstructions();
 
   const { getAttachmentFromMention } = useGetChatAttachmentInfo();
 
@@ -80,6 +82,33 @@ function SoupChatInputInner() {
     });
   };
 
+  const handleSendInBackground = async (request: ChatSendInput) => {
+    const response = await cognitionApiServiceClient.createChat({
+      isPersistent: true,
+    });
+
+    if (isErr(response)) {
+      console.error('Failed to create chat', response);
+      return;
+    }
+
+    const [, { id: chatId }] = response;
+    const modelInstructions = request.model ? `\nYou are ${request.model}` : '';
+
+    const sendResponse = await cognitionApiServiceClient.sendStreamChatMessage({
+      content: request.content,
+      model: request.model,
+      chat_id: chatId,
+      attachments: request.attachments.length ? request.attachments : undefined,
+      toolset: request.toolset,
+      additional_instructions: `${additionalInstructions()}${modelInstructions}`,
+    });
+
+    if (isErr(sendResponse)) {
+      console.error('Failed to send message in background', sendResponse);
+    }
+  };
+
   return (
     <Show when={!soup.previewEntity()}>
       <div
@@ -94,6 +123,7 @@ function SoupChatInputInner() {
             <ChatInput
               editor={editor}
               onSend={handleSend}
+              onSendInBackground={handleSendInBackground}
               onEscape={() => {
                 splitPanelContext.panelRef()?.focus();
                 return true;

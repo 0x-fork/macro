@@ -22,12 +22,14 @@ import { cn } from '@ui/utils/classname';
 import { createEffect, createSignal, Match, Show, Switch } from 'solid-js';
 import { AttachmentList } from './Attachment';
 import { ChatAttachMenu } from './ChatAttachMenu';
+import { isBackgroundSendShortcut } from './chatInputShortcuts';
 import { useAiDataConsentGate } from './useAiDataConsent';
 
 const { track, TrackingEvents } = withAnalytics();
 
 export type ChatInputProps = {
   onSend: (args: ChatSendInput) => void;
+  onSendInBackground?: (args: ChatSendInput) => void;
   onStop?: () => void;
   onEscape?: (e: KeyboardEvent) => boolean;
   isPersistent?: boolean;
@@ -83,7 +85,7 @@ export function ChatInput(props: ChatInputComponentProps) {
     return mdRef.scrollHeight > LINE_HEIGHT_THRESHOLD;
   };
 
-  const sendMessage = createCallback(async (modelOverride?: Model) => {
+  const sendMessage = createCallback(async (modelOverride?: Model, background = false) => {
     if (!canSendMessage()) return;
 
     if (isNativeMobilePlatform() && !hasConsent()) {
@@ -98,6 +100,10 @@ export function ChatInput(props: ChatInputComponentProps) {
       toolset: toolsetSignal[0](),
     };
     props.editor.controls.clear();
+    if (background && props.onSendInBackground) {
+      props.onSendInBackground(sendInput);
+      return;
+    }
     props.onSend(sendInput);
   });
 
@@ -113,7 +119,12 @@ export function ChatInput(props: ChatInputComponentProps) {
         });
       },
     })
-    .onEnter(() => {
+    .onEnter((event) => {
+      if (props.onSendInBackground && isBackgroundSendShortcut(event)) {
+        sendMessage(undefined, true);
+        return true;
+      }
+
       if (canSendMessage()) {
         sendMessage();
       }
