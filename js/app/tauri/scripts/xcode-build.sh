@@ -14,8 +14,13 @@ unset NIX_APPLE_SDK_VERSION
 # Keep SDKROOT as set by Xcode - don't unset it here since xcode-script needs it
 # DEVELOPER_DIR should already be set correctly by Xcode
 
-# Add cargo to PATH if not present (Xcode may not inherit shell PATH)
+# Prioritize rustup's cargo in ~/.cargo/bin
 export PATH="$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+# Debug: show which cargo is being used
+echo "DEBUG: Using cargo at: $(which cargo)" >&2
+echo "DEBUG: Cargo version: $(cargo --version)" >&2
+echo "DEBUG: PATH=$PATH" >&2
 
 # Run the tauri xcode-script with all arguments passed through
 exec cargo tauri ios xcode-script "$@"

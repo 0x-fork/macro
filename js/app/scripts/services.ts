@@ -115,12 +115,12 @@ export const services: Service[] = [
 ];
 
 export const documentCognitionBase: Service = {
-	name: "document-cognition",
-	dev: "https://document-cognition-dev.macro.com",
-	prod: "https://document-cognition.macro.com",
-	local: "http://localhost:8085",
-	output: "../packages/service-clients/service-cognition/",
-	orvalKey: "cognitionService",
+  name: "document-cognition",
+  dev: "https://document-cognition-dev.macro.com",
+  prod: "https://document-cognition.macro.com",
+  local: "http://localhost:8085",
+  output: "../packages/service-clients/service-cognition/",
+  orvalKey: "cognitionService",
 };
 
 export function serviceUrl(service: Service): string {
