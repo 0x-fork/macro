@@ -5,26 +5,26 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AccessLevel } from './accessLevel';
-import type { APIThreadLatestInboundMessageTs } from './aPIThreadLatestInboundMessageTs';
-import type { APIThreadLatestNonSpamMessageTs } from './aPIThreadLatestNonSpamMessageTs';
-import type { APIThreadLatestOutboundMessageTs } from './aPIThreadLatestOutboundMessageTs';
-import type { APIThreadProviderId } from './aPIThreadProviderId';
-import type { MessageWithBodyReplyless } from './messageWithBodyReplyless';
+import type { ApiMessage } from './apiMessage';
+import type { ApiThreadLatestInboundMessageTs } from './apiThreadLatestInboundMessageTs';
+import type { ApiThreadLatestNonSpamMessageTs } from './apiThreadLatestNonSpamMessageTs';
+import type { ApiThreadLatestOutboundMessageTs } from './apiThreadLatestOutboundMessageTs';
+import type { ApiThreadProviderId } from './apiThreadProviderId';
 
 /**
- * Thread object exposed to the FE in Get Threads Call
+ * API representation of a fully assembled email thread.
  */
-export interface APIThread {
+export interface ApiThread {
   access_level: AccessLevel;
   created_at: string;
   db_id: string;
   inbox_visible: boolean;
   is_read: boolean;
-  latest_inbound_message_ts?: APIThreadLatestInboundMessageTs;
-  latest_non_spam_message_ts?: APIThreadLatestNonSpamMessageTs;
-  latest_outbound_message_ts?: APIThreadLatestOutboundMessageTs;
+  latest_inbound_message_ts?: ApiThreadLatestInboundMessageTs;
+  latest_non_spam_message_ts?: ApiThreadLatestNonSpamMessageTs;
+  latest_outbound_message_ts?: ApiThreadLatestOutboundMessageTs;
   link_id: string;
-  messages: MessageWithBodyReplyless[];
-  provider_id?: APIThreadProviderId;
+  messages: ApiMessage[];
+  provider_id?: ApiThreadProviderId;
   updated_at: string;
 }

@@ -4,5 +4,6 @@
  * email_service
  * OpenAPI spec version: 0.1.0
  */
+import type { ApiLabelType } from './apiLabelType';
 
-export type ApiThreadLatestInboundMessageTs = string | null;
+export type ApiMessageLabelType = null | ApiLabelType;

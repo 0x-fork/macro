@@ -5,4 +5,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type MessageWithBodyReplylessAllOfBodyReplyless = string | null;
+export type ApiMessageAttachmentSfsId = string | null;

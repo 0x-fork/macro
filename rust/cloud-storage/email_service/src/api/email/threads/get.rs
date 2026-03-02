@@ -49,7 +49,7 @@ impl IntoResponse for GetThreadError {
 
 /// Parameters for getting messages. The number of messages is paginated, returning the latest updated first.
 #[derive(serde::Serialize, serde::Deserialize, Debug, ToSchema)]
-pub struct GetThreadParams {
+pub struct GetThreadMessagesParams {
     pub offset: Option<i64>,
     pub limit: Option<i64>,
 }
@@ -95,7 +95,7 @@ pub async fn get_thread_messages_handler(
     user_context: Extension<UserContext>,
     link: Extension<Link>,
     Path(PathParams { id }): Path<PathParams>,
-    extract::Query(query_params): extract::Query<GetThreadParams>,
+    extract::Query(query_params): extract::Query<GetThreadMessagesParams>,
 ) -> Result<Response, GetThreadError> {
     let p = process_get_thread_params(&query_params)?;
 
@@ -120,7 +120,7 @@ pub async fn get_thread_messages_handler(
 
 /// Extracts pagination parameters from query params, using defaults when not specified
 fn process_get_thread_params(
-    params: &GetThreadParams,
+    params: &GetThreadMessagesParams,
 ) -> Result<GetThreadPaginationParams, GetThreadError> {
     if let Some(offset) = params.offset
         && offset < 0
