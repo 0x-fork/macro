@@ -3302,10 +3302,13 @@ dependencies = [
  "doppleganger",
  "either",
  "email_utils",
+ "entity_access",
  "filter_ast",
  "frecency",
+ "futures",
  "item_filters",
  "macro_db_migrator",
+ "macro_middleware",
  "macro_user_id",
  "model-entity",
  "model-error-response",
@@ -3445,6 +3448,7 @@ dependencies = [
  "email",
  "email_db_client",
  "email_utils",
+ "entity_access",
  "frecency",
  "futures",
  "gmail_client",
@@ -3560,8 +3564,10 @@ dependencies = [
 name = "email_utils"
 version = "0.1.0"
 dependencies = [
+ "ego-tree",
  "lazy_static",
  "regex",
+ "scraper",
 ]
 
 [[package]]
@@ -5933,7 +5939,6 @@ dependencies = [
  "model_user",
  "models_bulk_upload",
  "models_comms",
- "models_email",
  "models_pagination",
  "models_permissions",
  "schemars",
@@ -6064,6 +6069,7 @@ dependencies = [
  "doppleganger",
  "ego-tree",
  "email",
+ "email_utils",
  "html2text",
  "lazy_static",
  "macro_user_id",

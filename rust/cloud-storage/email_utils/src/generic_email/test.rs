@@ -1,4 +1,4 @@
-use crate::{dedupe_emails, is_generic_email};
+use super::{dedupe_emails, is_generic_email};
 
 #[test]
 fn test_is_generic_email() {

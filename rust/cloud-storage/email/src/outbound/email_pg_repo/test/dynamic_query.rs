@@ -1,154 +1,8 @@
-use std::sync::Arc;
-
 use super::*;
-use crate::domain::models::{LabelType, PreviewView, PreviewViewStandardLabel};
-use crate::domain::ports::EmailRepo;
-use filter_ast::Expr;
-use item_filters::ast::email::{Email, EmailLiteral};
-use macro_db_migrator::MACRO_DB_MIGRATIONS;
-use macro_user_id::cowlike::CowLike;
-use macro_user_id::email::EmailStr;
-use models_pagination::{Cursor, CursorVal, Query, SimpleSortMethod};
-use sqlx::{Pool, Postgres};
-use uuid::Uuid;
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_labels"))
-)]
-async fn test_labels_by_thread_ids_single_thread(pool: Pool<Postgres>) -> anyhow::Result<()> {
-    const _: &sqlx::migrate::Migrator = &MACRO_DB_MIGRATIONS; // Dummy reference for IDE
-    let repo = EmailPgRepo::new(pool);
-
-    let thread_ids = vec![Uuid::parse_str("11111111-1111-1111-1111-111111111111")?];
-    let labels = repo.labels_by_thread_ids(&thread_ids).await?;
-
-    assert_eq!(labels.len(), 2, "Thread 1 should have 2 labels");
-
-    let inbox_label = labels.iter().find(|l| l.name == "INBOX");
-    assert!(inbox_label.is_some(), "Should have INBOX label");
-
-    let important_label = labels.iter().find(|l| l.name == "IMPORTANT");
-    assert!(important_label.is_some(), "Should have IMPORTANT label");
-
-    Ok(())
-}
-
-#[sqlx::test(
-    migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_labels"))
-)]
-async fn test_labels_by_thread_ids_multiple_threads(pool: Pool<Postgres>) -> anyhow::Result<()> {
-    let repo = EmailPgRepo::new(pool);
-
-    let thread_ids = vec![
-        Uuid::parse_str("11111111-1111-1111-1111-111111111111")?,
-        Uuid::parse_str("22222222-2222-2222-2222-222222222222")?,
-    ];
-    let labels = repo.labels_by_thread_ids(&thread_ids).await?;
-
-    // Thread 1 has 2 labels (INBOX, IMPORTANT)
-    // Thread 2 has 2 labels (INBOX, SENT)
-    // Should get four unique labels as it's distinct across (thread_id, label_id)
-    assert_eq!(
-        labels.len(),
-        4,
-        "Should have 4 unique labels across both threads"
-    );
-
-    Ok(())
-}
-
-#[sqlx::test(
-    migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_labels"))
-)]
-async fn test_labels_by_thread_ids_no_duplicate_labels_same_thread(
-    pool: Pool<Postgres>,
-) -> anyhow::Result<()> {
-    let repo = EmailPgRepo::new(pool);
-
-    // Thread 3 has multiple messages with the same label
-    let thread_ids = vec![Uuid::parse_str("33333333-3333-3333-3333-333333333333")?];
-    let labels = repo.labels_by_thread_ids(&thread_ids).await?;
-
-    assert_eq!(
-        labels.len(),
-        1,
-        "Should have only 1 label despite multiple messages having it"
-    );
-    assert_eq!(labels[0].name, "INBOX");
-
-    Ok(())
-}
-
-#[sqlx::test(
-    migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_labels"))
-)]
-async fn test_labels_by_thread_ids_thread_with_no_labels(
-    pool: Pool<Postgres>,
-) -> anyhow::Result<()> {
-    let repo = EmailPgRepo::new(pool);
-
-    let thread_ids = vec![Uuid::parse_str("44444444-4444-4444-4444-444444444444")?];
-    let labels = repo.labels_by_thread_ids(&thread_ids).await?;
-
-    assert_eq!(
-        labels.len(),
-        0,
-        "Thread with no messages/labels should return empty"
-    );
-
-    Ok(())
-}
-
-#[sqlx::test(
-    migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_labels"))
-)]
-async fn test_labels_by_thread_ids_empty_input(pool: Pool<Postgres>) -> anyhow::Result<()> {
-    let repo = EmailPgRepo::new(pool);
-
-    let thread_ids: Vec<Uuid> = vec![];
-    let labels = repo.labels_by_thread_ids(&thread_ids).await?;
-
-    assert_eq!(labels.len(), 0, "Empty input should return empty result");
-
-    Ok(())
-}
-
-#[sqlx::test(
-    migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_labels"))
-)]
-async fn test_labels_by_thread_ids_different_label_types(
-    pool: Pool<Postgres>,
-) -> anyhow::Result<()> {
-    let repo = EmailPgRepo::new(pool);
-
-    let thread_ids = vec![Uuid::parse_str("55555555-5555-5555-5555-555555555555")?];
-    let labels = repo.labels_by_thread_ids(&thread_ids).await?;
-
-    assert_eq!(labels.len(), 2, "Should have both system and user labels");
-
-    let system_label = labels.iter().find(|l| l.name == "INBOX");
-    assert!(system_label.is_some());
-    assert_eq!(system_label.unwrap().type_, LabelType::System);
-
-    let user_label = labels.iter().find(|l| l.name == "MyCustomLabel");
-    assert!(user_label.is_some());
-    assert_eq!(user_label.unwrap().type_, LabelType::User);
-
-    Ok(())
-}
-// ============================================================================
-// Dynamic Query Builder Integration Tests
-// ============================================================================
-
-#[sqlx::test(
-    migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_inbox_view(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -183,7 +37,7 @@ async fn test_dynamic_query_inbox_view(pool: Pool<Postgres>) -> anyhow::Result<(
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_sent_view(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -209,7 +63,7 @@ async fn test_dynamic_query_sent_view(pool: Pool<Postgres>) -> anyhow::Result<()
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_drafts_view(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -235,7 +89,7 @@ async fn test_dynamic_query_drafts_view(pool: Pool<Postgres>) -> anyhow::Result<
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_starred_view(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -261,7 +115,7 @@ async fn test_dynamic_query_starred_view(pool: Pool<Postgres>) -> anyhow::Result
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_important_view(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -300,7 +154,7 @@ async fn test_dynamic_query_important_view(pool: Pool<Postgres>) -> anyhow::Resu
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_static_important_query_includes_drafts(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -308,7 +162,7 @@ async fn test_static_important_query_includes_drafts(pool: Pool<Postgres>) -> an
     let query = Query::Sort(SimpleSortMethod::UpdatedAt, ());
 
     let results =
-        queries::important::important_preview_cursor(&pool, &link_id, limit, &query).await?;
+        preview_views::important::important_preview_cursor(&pool, &link_id, limit, &query).await?;
 
     assert_eq!(
         results.len(),
@@ -339,7 +193,7 @@ async fn test_static_important_query_includes_drafts(pool: Pool<Postgres>) -> an
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_user_label_view(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -365,7 +219,7 @@ async fn test_dynamic_query_user_label_view(pool: Pool<Postgres>) -> anyhow::Res
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_with_sender_filter(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -399,7 +253,7 @@ async fn test_dynamic_query_with_sender_filter(pool: Pool<Postgres>) -> anyhow::
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_with_partial_sender_filter(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -426,7 +280,7 @@ async fn test_dynamic_query_with_partial_sender_filter(pool: Pool<Postgres>) -> 
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_with_recipient_filter(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -453,7 +307,7 @@ async fn test_dynamic_query_with_recipient_filter(pool: Pool<Postgres>) -> anyho
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_with_cc_filter(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -481,7 +335,7 @@ async fn test_dynamic_query_with_cc_filter(pool: Pool<Postgres>) -> anyhow::Resu
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_inbox_with_sender_filter(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -517,7 +371,7 @@ async fn test_dynamic_query_inbox_with_sender_filter(pool: Pool<Postgres>) -> an
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_drafts_with_recipient_filter(
     pool: Pool<Postgres>,
@@ -548,7 +402,7 @@ async fn test_dynamic_query_drafts_with_recipient_filter(
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_with_and_filter(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -580,7 +434,7 @@ async fn test_dynamic_query_with_and_filter(pool: Pool<Postgres>) -> anyhow::Res
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_with_or_filter(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -612,7 +466,7 @@ async fn test_dynamic_query_with_or_filter(pool: Pool<Postgres>) -> anyhow::Resu
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_pagination(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -683,7 +537,7 @@ async fn test_dynamic_query_pagination(pool: Pool<Postgres>) -> anyhow::Result<(
 //   Thread 8 (msg 8): DRAFT + CATEGORY_UPDATES → important (DRAFT priority overrides depriority)
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_with_importance_filter(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -785,7 +639,7 @@ async fn test_dynamic_query_with_importance_filter(pool: Pool<Postgres>) -> anyh
 // Thread 7 (CATEGORY_PROMOTIONS) has importance=false AND inbox_visible=true → included.
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_inbox_view_with_importance_false(
     pool: Pool<Postgres>,
@@ -826,7 +680,7 @@ async fn test_dynamic_query_inbox_view_with_importance_false(
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_with_single_thread_id(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;
@@ -849,7 +703,7 @@ async fn test_dynamic_query_with_single_thread_id(pool: Pool<Postgres>) -> anyho
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_dynamic_query_thread_id_with_sender_filter(
     pool: Pool<Postgres>,
@@ -888,7 +742,7 @@ async fn test_dynamic_query_thread_id_with_sender_filter(
 // even though it has a depriority label.
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_importance_true_includes_drafts_with_depriority_label(
     pool: Pool<Postgres>,
@@ -926,7 +780,7 @@ async fn test_importance_true_includes_drafts_with_depriority_label(
 // DRAFT is a priority label, so it should NOT appear in importance=false results.
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("email_dynamic_query"))
+    fixtures(path = "../../../../fixtures", scripts("email_dynamic_query"))
 )]
 async fn test_importance_false_excludes_drafts(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")?;

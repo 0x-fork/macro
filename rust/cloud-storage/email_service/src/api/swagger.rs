@@ -19,7 +19,6 @@ use crate::api::email::messages::labels::{UpdateLabelBatchRequest, UpdateLabelBa
 use crate::api::email::messages::send::{SendMessageRequest, SendMessageResponse};
 use crate::api::email::settings::patch::{PatchSettingsRequest, PatchSettingsResponse};
 use crate::api::email::threads::archived::ArchiveThreadRequest;
-use crate::api::email::threads::get::GetThreadResponse;
 use crate::api::email::threads::labels::UpdateThreadLabelRequest;
 use crate::api::{email, health};
 use ::email::inbound;
@@ -63,7 +62,6 @@ use utoipa::OpenApi;
         email::messages::labels::handler,
         email::messages::send::send_handler,
         email::threads::seen::seen_handler,
-        email::threads::get::get_thread_handler,
         email::threads::get::get_thread_messages_handler,
         email::threads::archived::archived_handler,
         email::threads::labels::handler,
@@ -106,7 +104,6 @@ use utoipa::OpenApi;
             ParsedMessage,
             MessageToSend,
             // Thread types
-            GetThreadResponse,
             ArchiveThreadRequest,
             UpdateThreadLabelRequest,
             APIThread,

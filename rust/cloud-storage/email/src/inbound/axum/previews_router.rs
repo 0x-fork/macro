@@ -41,6 +41,11 @@ where
             inner: Arc::new(state),
         }
     }
+
+    /// Returns an `Arc` to the inner service.
+    pub fn service(&self) -> Arc<T> {
+        Arc::clone(&self.inner)
+    }
 }
 
 pub fn router<S, T>(state: EmailPreviewState<T>) -> Router<S>

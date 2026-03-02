@@ -3,6 +3,7 @@ use anyhow::Context;
 use document_storage_service_client::DocumentStorageServiceClient;
 use email::{domain::service::EmailServiceImpl, inbound::EmailPreviewState, outbound::EmailPgRepo};
 use email_service::config::EmailServiceCloudfrontSignerPrivateKey;
+use entity_access::{domain::service::EntityAccessServiceImpl, outbound::PgAccessRepository};
 use frecency::{domain::services::FrecencyQueryServiceImpl, outbound::postgres::FrecencyPgStorage};
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_entrypoint::MacroEntrypoint;
@@ -135,8 +136,9 @@ async fn main() -> anyhow::Result<()> {
         internal_auth_key: LocalOrRemoteSecret::Local(internal_auth_key),
         email_service: EmailPreviewState::new(EmailServiceImpl::new(
             EmailPgRepo::new(db.clone()),
-            FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(db)),
+            FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(db.clone())),
         )),
+        entity_access_service: Arc::new(EntityAccessServiceImpl::new(PgAccessRepository::new(db))),
     })
     .await?;
     Ok(())

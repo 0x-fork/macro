@@ -2,40 +2,16 @@ use chrono::{DateTime, Utc};
 use doppleganger::{Doppleganger, Mirror};
 use frecency::domain::models::AggregateFrecency;
 use macro_user_id::user_id::MacroUserIdStr;
-use models_pagination::{PaginatedOpaqueCursor, SimpleSortMethod};
+use models_pagination::PaginatedOpaqueCursor;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domain::models::{
     Attachment, Contact, EmailThreadPreview, EnrichedEmailThreadPreview, Label,
-    LabelListVisibility, LabelType, MessageListVisibility,
 };
 
-/// common types of sorts based on timestamps
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ApiSortMethod {
-    /// we are sorting by the viewed_at time
-    ViewedAt,
-    /// we are sorting by the updated_at time
-    UpdatedAt,
-    /// we are sorting by the created_at time
-    CreatedAt,
-    /// we are sorting by the viewed/updated time
-    ViewedUpdated,
-}
-
-impl ApiSortMethod {
-    pub fn into_simple_sort(self) -> SimpleSortMethod {
-        match self {
-            ApiSortMethod::ViewedAt => SimpleSortMethod::ViewedAt,
-            ApiSortMethod::UpdatedAt => SimpleSortMethod::UpdatedAt,
-            ApiSortMethod::CreatedAt => SimpleSortMethod::CreatedAt,
-            ApiSortMethod::ViewedUpdated => SimpleSortMethod::ViewedUpdated,
-        }
-    }
-}
+use super::label::{ApiLabelListVisibility, ApiLabelType, ApiMessageListVisibility};
 
 #[derive(Debug, ToSchema, Serialize, Deserialize, Doppleganger)]
 #[cfg_attr(feature = "ai_schema", derive(schemars::JsonSchema))]
@@ -125,31 +101,6 @@ pub struct ApiLabel {
     message_list_visibility: ApiMessageListVisibility,
     label_list_visibility: ApiLabelListVisibility,
     type_: ApiLabelType,
-}
-
-#[derive(Debug, ToSchema, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Doppleganger)]
-#[cfg_attr(feature = "ai_schema", derive(schemars::JsonSchema))]
-#[dg(backward = MessageListVisibility)]
-pub enum ApiMessageListVisibility {
-    Show,
-    Hide,
-}
-
-#[derive(Debug, ToSchema, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Doppleganger)]
-#[cfg_attr(feature = "ai_schema", derive(schemars::JsonSchema))]
-#[dg(backward = LabelListVisibility)]
-pub enum ApiLabelListVisibility {
-    LabelShow,
-    LabelShowIfUnread,
-    LabelHide,
-}
-
-#[derive(Debug, ToSchema, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Doppleganger)]
-#[cfg_attr(feature = "ai_schema", derive(schemars::JsonSchema))]
-#[dg(backward = LabelType)]
-pub enum ApiLabelType {
-    System,
-    User,
 }
 
 #[derive(Debug, ToSchema, Serialize, Deserialize)]

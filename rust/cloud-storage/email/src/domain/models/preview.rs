@@ -1,16 +1,16 @@
 use chrono::{DateTime, Utc};
-use frecency::domain::models::{AggregateFrecency, FrecencyQueryErr};
+use frecency::domain::models::AggregateFrecency;
 use item_filters::ast::{LiteralTree, email::EmailLiteral};
-use macro_user_id::{email::EmailStr, user_id::MacroUserIdStr};
+use macro_user_id::user_id::MacroUserIdStr;
 use models_pagination::{Identify, Query, SimpleSortMethod, SortOn};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use std::str::FromStr;
 use strum::{Display, EnumString};
-use thiserror::Error;
 use uuid::Uuid;
 
-#[cfg(test)]
-mod tests;
+use super::attachment::Attachment;
+use super::contact::Contact;
+use super::label::Label;
 
 #[derive(Debug)]
 pub struct PreviewCursorQuery {
@@ -128,111 +128,10 @@ impl SortOn<SimpleSortMethod> for EnrichedEmailThreadPreview {
     }
 }
 
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub struct Attachment {
-    pub id: Uuid,
-    pub(crate) thread_id: Uuid,
-    pub message_id: Uuid,
-    // a different value is returned by the gmail API for this each time you fetch a message -
-    // don't make the mistake of using it to uniquely identify an attachment
-    pub provider_attachment_id: Option<String>,
-    pub filename: Option<String>,
-    pub mime_type: Option<String>,
-    pub size_bytes: Option<i64>,
-    pub content_id: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-impl Identify for Attachment {
-    type Id = Uuid;
-
-    fn id(&self) -> Self::Id {
-        self.id
-    }
-}
-
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub struct Contact {
-    pub id: Uuid,
-    pub(crate) thread_id: Uuid,
-    pub link_id: Uuid,
-    pub name: Option<String>,
-    pub email_address: Option<String>,
-    pub sfs_photo_url: Option<String>,
-}
-
-#[derive(Debug, Error)]
-pub enum EmailErr {
-    #[error(transparent)]
-    RepoErr(#[from] anyhow::Error),
-    #[error(transparent)]
-    Frecency(#[from] FrecencyQueryErr),
-}
-
 pub struct GetEmailsRequest {
     pub view: PreviewView,
     pub link_id: Uuid,
     pub macro_id: MacroUserIdStr<'static>,
     pub limit: Option<u32>,
     pub query: Query<Uuid, SimpleSortMethod, LiteralTree<EmailLiteral>>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MessageListVisibility {
-    Show,
-    Hide,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LabelListVisibility {
-    LabelShow,
-    LabelShowIfUnread,
-    LabelHide,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LabelType {
-    System,
-    User,
-}
-
-#[derive(Debug, Clone)]
-pub struct Label {
-    pub id: Uuid,
-    pub(crate) thread_id: Uuid,
-    pub link_id: Uuid,
-    pub provider_label_id: String,
-    pub name: String,
-    pub created_at: DateTime<Utc>,
-    pub message_list_visibility: MessageListVisibility,
-    pub label_list_visibility: LabelListVisibility,
-    pub type_: LabelType,
-}
-
-/// The provider of this email
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UserProvider {
-    Gmail,
-}
-
-impl UserProvider {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            UserProvider::Gmail => "GMAIL",
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct Link {
-    pub id: Uuid,
-    pub macro_id: MacroUserIdStr<'static>,
-    pub fusionauth_user_id: String,
-    pub email_address: EmailStr<'static>,
-    pub provider: UserProvider,
-    pub is_sync_active: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
 }

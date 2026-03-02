@@ -1,4 +1,4 @@
-use crate::service::body_parsing::body_replyless::constants::PLAINTEXT_SPLITTER_RE;
+use super::constants::PLAINTEXT_SPLITTER_RE;
 
 /// Extracts the latest reply from a plaintext email string.
 pub fn extract_reply_plaintext(subject: Option<&str>, text_content: &str) -> String {
