@@ -52,7 +52,7 @@ import {
 } from '@queries/email/thread';
 import type {
   MessageToSendDbId,
-  MessageWithBodyReplyless,
+  ApiMessage,
 } from '@service-email/generated/schemas';
 import { useEmail, useUserId } from '@core/context/user';
 import { Button } from '@ui/components/Button';
@@ -313,11 +313,11 @@ type UndoReplySnapshot = {
 let undoReplySnapshot: UndoReplySnapshot | null = null;
 
 export function BaseInput(props: {
-  replyingTo: Accessor<MessageWithBodyReplyless | undefined>;
+  replyingTo: Accessor<ApiMessage | undefined>;
   // TODO: Remove `newMessage` props. It's not used...
   newMessage?: boolean;
   isEditingExisting?: boolean;
-  draft?: MessageWithBodyReplyless;
+  draft?: ApiMessage;
   preloadedBody?: string;
   preloadedHtml?: string;
   sideEffectOnSend?: (newMessageId: MessageToSendDbId | null) => void;

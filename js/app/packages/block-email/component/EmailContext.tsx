@@ -26,9 +26,9 @@ import {
 import { emailKeys } from '@queries/email/keys';
 import { queryClient } from '@queries/client';
 import type {
-  APIThread,
+  ApiThread,
   ContactInfo,
-  MessageWithBodyReplyless,
+  ApiMessage,
 } from '@service-email/generated/schemas';
 import { useSearchParams } from '@solidjs/router';
 import {
@@ -71,14 +71,14 @@ export type EmailContextValues = {
   drafts: {
     getDraftForMessage: (
       messageDbID: string
-    ) => MessageWithBodyReplyless | undefined;
+    ) => ApiMessage | undefined;
     deleteDraftForMessage: (messageDbID: string) => void;
     initialDraftsSettled: Accessor<boolean>;
   };
 
   messages: {
-    unfiltered: Accessor<MessageWithBodyReplyless[]>;
-    list: Accessor<MessageWithBodyReplyless[]>;
+    unfiltered: Accessor<ApiMessage[]>;
+    list: Accessor<ApiMessage[]>;
     targetMessageID: Accessor<string | undefined>;
     setTargetMessageID: (id: string | undefined) => void;
     focusedID: Accessor<string | undefined>;
@@ -89,7 +89,7 @@ export type EmailContextValues = {
     replyingToMessageId: Accessor<string | undefined>;
     setReplyingToMessageId: (id: string | undefined) => void;
   };
-  thread: Accessor<APIThread | undefined>;
+  thread: Accessor<ApiThread | undefined>;
   permissions: Accessor<{
     type: Permissions;
     isOwner: boolean;
@@ -134,7 +134,7 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
         });
 
         const filtered = [];
-        const messageDraftMap: Record<string, MessageWithBodyReplyless> = {};
+        const messageDraftMap: Record<string, ApiMessage> = {};
 
         for (const message of messages) {
           if (!message.is_draft) {
@@ -212,7 +212,7 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
   });
 
   const [messageDraftMap, setMessageDraftMap] = createStore<
-    Record<string, MessageWithBodyReplyless | undefined>
+    Record<string, ApiMessage | undefined>
   >({});
 
   const deleteDraftForMessage = (messageID: string) => {
