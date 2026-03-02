@@ -4,7 +4,7 @@ import {
   emailToId,
   recipientEntityMapper,
 } from '@core/user';
-import type {ApiMessage} from '@service-email/generated/schemas';
+import type { ApiMessage } from '@service-email/generated/schemas';
 import type { EmailRecipient } from '../component/EmailContext';
 
 const extractedContactInfo = (contact: ContactInfo): ExtractedContactInfo => ({

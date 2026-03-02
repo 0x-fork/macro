@@ -72,11 +72,9 @@ impl From<MessageLabel> for ApiMessageLabel {
             created_at: l.created_at,
             message_list_visibility: l
                 .message_list_visibility
-                .map(|v| ApiMessageListVisibility::from(v)),
-            label_list_visibility: l
-                .label_list_visibility
-                .map(|v| ApiLabelListVisibility::from(v)),
-            type_: l.type_.map(|v| ApiLabelType::from(v)),
+                .map(ApiMessageListVisibility::from),
+            label_list_visibility: l.label_list_visibility.map(ApiLabelListVisibility::from),
+            type_: l.type_.map(ApiLabelType::from),
         }
     }
 }

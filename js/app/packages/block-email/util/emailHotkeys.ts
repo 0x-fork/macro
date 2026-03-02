@@ -1,5 +1,5 @@
 import { TOKENS } from '@core/hotkey/tokens';
-import type {ApiThread} from '@service-email/generated/schemas';
+import type { ApiThread } from '@service-email/generated/schemas';
 import { registerHotkey } from 'core/hotkey/hotkeys';
 import type { Accessor } from 'solid-js';
 

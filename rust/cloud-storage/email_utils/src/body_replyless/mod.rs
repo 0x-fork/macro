@@ -17,9 +17,7 @@ pub fn compute_body_replyless(
 ) -> Option<String> {
     if let Some(sanitized) = body_html_sanitized {
         Some(extract_reply_html(subject, sanitized))
-    } else if let Some(body) = body_text {
-        Some(extract_reply_plaintext(subject, body))
     } else {
-        None
+        body_text.map(|body| extract_reply_plaintext(subject, body))
     }
 }

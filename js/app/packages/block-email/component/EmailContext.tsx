@@ -69,9 +69,7 @@ export type EmailContextValues = {
   onRecipientsChange: (items: EmailRecipient[]) => void;
 
   drafts: {
-    getDraftForMessage: (
-      messageDbID: string
-    ) => ApiMessage | undefined;
+    getDraftForMessage: (messageDbID: string) => ApiMessage | undefined;
     deleteDraftForMessage: (messageDbID: string) => void;
     initialDraftsSettled: Accessor<boolean>;
   };
