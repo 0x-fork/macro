@@ -71,6 +71,17 @@ impl EmailService for NoopEmailService {
     ) -> Result<email::domain::models::CreatedDraft, EmailErr> {
         Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
     }
+
+    async fn update_thread_labels(
+        &self,
+        _access_token: &str,
+        _link: &email::domain::models::Link,
+        _thread_id: uuid::Uuid,
+        _label_id: uuid::Uuid,
+        _add: bool,
+    ) -> Result<email::domain::models::UpdateThreadLabelsResult, EmailErr> {
+        Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
+    }
 }
 
 struct NoopCommsService;
