@@ -1824,7 +1824,7 @@
     "/email/threads/{id}/labels": {
       "patch": {
         "tags": ["Threads"],
-        "summary": "Add or remove a label from all messages in a thread",
+        "summary": "Add or remove a label from all messages in a thread.",
         "operationId": "add_remove_thread_label",
         "parameters": [
           {
@@ -1854,7 +1854,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UpdateLabelBatchResponse"
+                  "$ref": "#/components/schemas/UpdateThreadLabelsResponse"
                 }
               }
             }
@@ -4204,6 +4204,7 @@
       },
       "UpdateThreadLabelRequest": {
         "type": "object",
+        "description": "Request body for updating a thread's labels.",
         "required": ["label_id", "value"],
         "properties": {
           "label_id": {
@@ -4212,6 +4213,27 @@
           },
           "value": {
             "type": "boolean"
+          }
+        }
+      },
+      "UpdateThreadLabelsResponse": {
+        "type": "object",
+        "description": "Response body for updating a thread's labels.",
+        "required": ["successful_ids", "failed_ids"],
+        "properties": {
+          "failed_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "successful_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },

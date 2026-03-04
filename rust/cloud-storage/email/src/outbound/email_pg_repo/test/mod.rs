@@ -5,6 +5,7 @@ mod link;
 mod message;
 mod preview;
 mod thread;
+mod thread_labels;
 
 use std::sync::Arc;
 

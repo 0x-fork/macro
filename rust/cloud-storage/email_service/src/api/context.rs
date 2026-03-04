@@ -2,9 +2,11 @@ use axum::extract::FromRef;
 use document_storage_service_client::DocumentStorageServiceClient;
 use email::{
     domain::service::EmailServiceImpl,
-    inbound::{EmailRouterState, EmailThreadRouterState},
-    outbound::EmailPgRepo,
+    inbound::{EmailRouterState, EmailThreadRouterState, GmailTokenState},
+    outbound::{EmailPgRepo, GmailTokenProviderImpl},
 };
+
+use email::outbound::GmailClientLabelModifier;
 use email_service::config::Config;
 use email_service::util::redis::RedisClient;
 use entity_access::{domain::service::EntityAccessServiceImpl, outbound::PgAccessRepository};
@@ -17,8 +19,12 @@ use std::sync::Arc;
 use system_properties::{PgSystemPropertiesRepository, SystemPropertiesServiceImpl};
 
 pub(crate) type EmailEntityAccessService = EntityAccessServiceImpl<PgAccessRepository>;
-type EmailSvc =
-    EmailServiceImpl<EmailPgRepo, FrecencyQueryServiceImpl<FrecencyPgStorage>, sqs_client::SQS>;
+pub(crate) type EmailSvc = EmailServiceImpl<
+    EmailPgRepo,
+    FrecencyQueryServiceImpl<FrecencyPgStorage>,
+    sqs_client::SQS,
+    GmailClientLabelModifier,
+>;
 
 #[derive(Clone, FromRef)]
 pub(crate) struct ApiContext {
@@ -37,4 +43,5 @@ pub(crate) struct ApiContext {
     pub email_service: EmailRouterState<EmailSvc>,
     pub entity_access_service: Arc<EmailEntityAccessService>,
     pub email_thread_state: EmailThreadRouterState<EmailSvc, EmailEntityAccessService>,
+    pub gmail_token_state: GmailTokenState<GmailTokenProviderImpl>,
 }

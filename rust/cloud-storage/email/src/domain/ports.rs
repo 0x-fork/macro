@@ -1,9 +1,9 @@
 use crate::domain::models::{
     Attachment, AttachmentDraft, AttachmentForwarded, Contact, ContactInfo, CreateDraftInput,
     CreatedDraft, EmailErr, EmailThreadPreview, EnrichedEmailThreadPreview, GetEmailsRequest,
-    Label, Link, MessageAttachment, MessageLabel, MessageRow, ParsedAddresses, PreviewCursorQuery,
-    RecipientType, ResolvedDraftInput, SimpleMessageInfo, Thread, ThreadRow, UpsertedContacts,
-    UserProvider,
+    Label, Link, LinkLabel, MessageAttachment, MessageLabel, MessageRow, ParsedAddresses,
+    PreviewCursorQuery, RecipientType, ResolvedDraftInput, SimpleMessage, SimpleMessageInfo,
+    Thread, ThreadRow, UpdateThreadLabelsResult, UpsertedContacts, UserProvider,
 };
 use chrono::{DateTime, Utc};
 use entity_access::domain::models::{EntityAccessReceipt, ViewAccessLevel};
@@ -149,6 +149,52 @@ pub trait EmailRepo: Send + Sync + 'static {
         new_thread: Option<ThreadRow>,
         is_draft: bool,
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
+
+    /// Fetch a label by its database ID and link ID.
+    fn get_label_by_id(
+        &self,
+        label_id: Uuid,
+        link_id: Uuid,
+    ) -> impl Future<Output = Result<Option<LinkLabel>, Self::Err>> + Send;
+
+    /// Fetch all messages in a thread for label operations.
+    fn get_thread_label_messages(
+        &self,
+        thread_id: Uuid,
+        link_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<SimpleMessage>, Self::Err>> + Send;
+
+    /// Bulk insert a label for multiple messages.
+    fn insert_message_labels_batch(
+        &self,
+        message_ids: &[Uuid],
+        provider_label_id: &str,
+        link_id: Uuid,
+    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
+
+    /// Bulk delete a label from multiple messages.
+    fn delete_message_labels_batch(
+        &self,
+        message_ids: &[Uuid],
+        provider_label_id: &str,
+        link_id: Uuid,
+    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
+
+    /// Update the read status for a batch of messages, verified by link_id.
+    fn update_message_read_status_batch(
+        &self,
+        message_ids: &[Uuid],
+        link_id: Uuid,
+        is_read: bool,
+    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
+
+    /// Update the starred status for a batch of messages, verified by link_id.
+    fn update_message_starred_status_batch(
+        &self,
+        message_ids: &[Uuid],
+        link_id: Uuid,
+        is_starred: bool,
+    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 }
 
 pub trait EmailService: Send + Sync + 'static {
@@ -189,6 +235,44 @@ pub trait EmailService: Send + Sync + 'static {
         link: &Link,
         input: CreateDraftInput,
     ) -> impl Future<Output = Result<CreatedDraft, EmailErr>> + Send;
+
+    /// Add or remove a label from all messages in a thread.
+    fn update_thread_labels(
+        &self,
+        access_token: &str,
+        link: &Link,
+        thread_id: Uuid,
+        label_id: Uuid,
+        add: bool,
+    ) -> impl Future<Output = Result<UpdateThreadLabelsResult, EmailErr>> + Send;
+}
+
+/// Port for modifying Gmail message labels via the provider API.
+pub trait GmailLabelModifier: Send + Sync + 'static {
+    /// Add and remove labels on a single message identified by its provider message ID.
+    fn modify_message_labels(
+        &self,
+        access_token: &str,
+        provider_message_id: &str,
+        label_ids_to_add: &[String],
+        label_ids_to_remove: &[String],
+    ) -> impl Future<Output = Result<(), EmailErr>> + Send;
+}
+
+/// No-op label modifier for callers that don't need Gmail label operations.
+#[derive(Clone)]
+pub struct NoOpGmailLabelModifier;
+
+impl GmailLabelModifier for NoOpGmailLabelModifier {
+    async fn modify_message_labels(
+        &self,
+        _access_token: &str,
+        _provider_message_id: &str,
+        _label_ids_to_add: &[String],
+        _label_ids_to_remove: &[String],
+    ) -> Result<(), EmailErr> {
+        Ok(())
+    }
 }
 
 /// No-op enqueuer for callers that don't need send capability.

@@ -17,7 +17,6 @@ use crate::api::email::links::list::ListLinksResponse;
 use crate::api::email::messages::labels::{UpdateLabelBatchRequest, UpdateLabelBatchResponse};
 use crate::api::email::settings::patch::{PatchSettingsRequest, PatchSettingsResponse};
 use crate::api::email::threads::archived::ArchiveThreadRequest;
-use crate::api::email::threads::labels::UpdateThreadLabelRequest;
 use crate::api::{email, health};
 use ::email::inbound;
 use ::email::inbound::{
@@ -26,6 +25,7 @@ use ::email::inbound::{
     CreateDraftResponse as HexCreateDraftResponse, GetPreviewsCursorParams, GetThreadResponse,
     SendMessageRequest as HexSendMessageRequest, SendMessageResponse as HexSendMessageResponse,
 };
+use ::email::inbound::{UpdateThreadLabelRequest, UpdateThreadLabelsResponse};
 use model::response::EmptyResponse;
 use models_email::api::settings::Settings;
 use models_email::email::service;
@@ -67,7 +67,7 @@ use utoipa::OpenApi;
         email::threads::seen::seen_handler,
         email::threads::get::get_thread_messages_handler,
         email::threads::archived::archived_handler,
-        email::threads::labels::handler,
+        inbound::update_thread_labels_handler,
         inbound::cursor_handler,
         inbound::get_thread_handler,
         email::links::list::list_links_handler,
@@ -112,6 +112,7 @@ use utoipa::OpenApi;
             // Thread types
             ArchiveThreadRequest,
             UpdateThreadLabelRequest,
+            UpdateThreadLabelsResponse,
             ThreadPreviewCursor,
             GetThreadResponse,
             ApiThread,

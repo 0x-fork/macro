@@ -41,6 +41,7 @@ import type {
   UpdateLabelBatchRequest,
   UpdateLabelBatchResponse,
   UpdateThreadLabelRequest,
+  UpdateThreadLabelsResponse,
   UpsertScheduledRequest,
   UpsertScheduledResponse,
 } from './schemas';
@@ -1899,10 +1900,10 @@ export const archiveThread = async (
 };
 
 /**
- * @summary Add or remove a label from all messages in a thread
+ * @summary Add or remove a label from all messages in a thread.
  */
 export type addRemoveThreadLabelResponse200 = {
-  data: UpdateLabelBatchResponse;
+  data: UpdateThreadLabelsResponse;
   status: 200;
 };
 

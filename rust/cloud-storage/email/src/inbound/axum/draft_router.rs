@@ -60,7 +60,7 @@ impl From<EmailErr> for CreateDraftError {
             | EmailErr::CannotReplyToDraft
             | EmailErr::Base64DecodeError(_)
             | EmailErr::Utf8Error(_) => CreateDraftError::Validation(err.to_string()),
-            EmailErr::RepoErr(_) | EmailErr::Frecency(_) => CreateDraftError::Internal(err),
+            _ => CreateDraftError::Internal(err),
         }
     }
 }

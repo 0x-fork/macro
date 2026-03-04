@@ -53,3 +53,31 @@ pub struct MessageLabel {
     /// Label type (system or user).
     pub type_: Option<LabelType>,
 }
+
+/// A label looked up by ID, used for thread label operations.
+#[derive(Debug, Clone)]
+pub struct LinkLabel {
+    pub id: Uuid,
+    pub link_id: Uuid,
+    pub provider_label_id: String,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub message_list_visibility: MessageListVisibility,
+    pub label_list_visibility: LabelListVisibility,
+    pub type_: LabelType,
+}
+
+/// Result of updating labels on a thread's messages.
+#[derive(Debug, Clone)]
+pub struct UpdateThreadLabelsResult {
+    pub successful_ids: Vec<Uuid>,
+    pub failed_ids: Vec<Uuid>,
+}
+
+/// Well-known system label identifiers.
+pub mod system_labels {
+    /// The UNREAD label.
+    pub const UNREAD: &str = "UNREAD";
+    /// The STARRED label.
+    pub const STARRED: &str = "STARRED";
+}

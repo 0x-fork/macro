@@ -2,13 +2,14 @@ mod draft;
 mod previews;
 mod send;
 mod thread;
+mod thread_labels;
 
 use crate::domain::{
     models::{
         CreateDraftInput, CreatedDraft, EmailErr, EnrichedEmailThreadPreview, GetEmailsRequest,
-        Link, Thread,
+        Link, Thread, UpdateThreadLabelsResult,
     },
-    ports::{EmailMessageEnqueuer, EmailRepo, EmailService},
+    ports::{EmailMessageEnqueuer, EmailRepo, EmailService, GmailLabelModifier},
 };
 use entity_access::domain::models::{EntityAccessReceipt, ViewAccessLevel};
 use frecency::domain::ports::FrecencyQueryService;
@@ -16,39 +17,44 @@ use models_pagination::{PaginatedCursor, SimpleSortMethod};
 use uuid::Uuid;
 
 #[derive(Clone)]
-pub struct EmailServiceImpl<T, U, E> {
+pub struct EmailServiceImpl<T, U, E, G> {
     email_repo: T,
     frecency_service: U,
     enqueuer: E,
+    gmail_label_modifier: G,
     sent_undo_delay_secs: u32,
 }
 
-impl<T, U, E> EmailServiceImpl<T, U, E>
+impl<T, U, E, G> EmailServiceImpl<T, U, E, G>
 where
     T: EmailRepo,
     U: FrecencyQueryService,
     E: EmailMessageEnqueuer,
+    G: GmailLabelModifier,
 {
     pub fn new(
         email_repo: T,
         frecency_service: U,
         enqueuer: E,
+        gmail_label_modifier: G,
         sent_undo_delay_secs: u32,
-    ) -> EmailServiceImpl<T, U, E> {
+    ) -> EmailServiceImpl<T, U, E, G> {
         EmailServiceImpl {
             email_repo,
             frecency_service,
             enqueuer,
+            gmail_label_modifier,
             sent_undo_delay_secs,
         }
     }
 }
 
-impl<T, U, E> EmailService for EmailServiceImpl<T, U, E>
+impl<T, U, E, G> EmailService for EmailServiceImpl<T, U, E, G>
 where
     T: EmailRepo,
     U: FrecencyQueryService,
     E: EmailMessageEnqueuer,
+    G: GmailLabelModifier,
     anyhow::Error: From<T::Err>,
     anyhow::Error: From<E::Err>,
 {
@@ -93,5 +99,17 @@ where
         input: CreateDraftInput,
     ) -> Result<CreatedDraft, EmailErr> {
         self.send_message_impl(link, input).await
+    }
+
+    async fn update_thread_labels(
+        &self,
+        access_token: &str,
+        link: &Link,
+        thread_id: Uuid,
+        label_id: Uuid,
+        add: bool,
+    ) -> Result<UpdateThreadLabelsResult, EmailErr> {
+        self.update_thread_labels_impl(access_token, link, thread_id, label_id, add)
+            .await
     }
 }

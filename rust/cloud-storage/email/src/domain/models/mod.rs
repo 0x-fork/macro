@@ -18,9 +18,12 @@ pub use draft::{
     UpsertedContacts, UpsertedRecipient,
 };
 pub use error::EmailErr;
-pub use label::{Label, LabelListVisibility, LabelType, MessageLabel, MessageListVisibility};
+pub use label::{
+    Label, LabelListVisibility, LabelType, LinkLabel, MessageLabel, MessageListVisibility,
+    UpdateThreadLabelsResult,
+};
 pub use link::{Link, UserProvider};
-pub use message::{Message, MessageRow};
+pub use message::{Message, MessageRow, SimpleMessage};
 pub use preview::{
     EmailThreadPreview, EnrichedEmailThreadPreview, GetEmailsRequest, PreviewCursorQuery,
     PreviewView, PreviewViewStandardLabel,

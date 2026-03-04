@@ -8,6 +8,9 @@ pub enum EmailErr {
     /// A repository/infrastructure error.
     #[error(transparent)]
     RepoErr(#[from] anyhow::Error),
+    /// An external provider API error (e.g. Gmail API).
+    #[error("Provider error: {0}")]
+    ProviderErr(anyhow::Error),
     /// A frecency query error.
     #[error(transparent)]
     Frecency(#[from] FrecencyQueryErr),
@@ -26,4 +29,13 @@ pub enum EmailErr {
     /// Decoded bytes are not valid UTF-8.
     #[error("Failed to convert decoded HTML body to UTF-8")]
     Utf8Error(#[from] std::string::FromUtf8Error),
+    /// The referenced label was not found.
+    #[error("Label not found")]
+    LabelNotFound,
+    /// The label has an empty provider label ID.
+    #[error("Label has empty provider label ID")]
+    EmptyProviderLabelId,
+    /// No messages found for thread.
+    #[error("No messages found for thread")]
+    ThreadEmpty,
 }

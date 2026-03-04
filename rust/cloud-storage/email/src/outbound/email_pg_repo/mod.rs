@@ -1,9 +1,9 @@
 use crate::domain::{
     models::{
         Attachment, AttachmentDraft, AttachmentForwarded, Contact, ContactInfo, EmailThreadPreview,
-        Label, Link, MessageAttachment, MessageLabel, MessageRow, ParsedAddresses,
-        PreviewCursorQuery, ResolvedDraftInput, SimpleMessageInfo, ThreadRow, UpsertedContacts,
-        UserProvider,
+        Label, Link, LinkLabel, MessageAttachment, MessageLabel, MessageRow, ParsedAddresses,
+        PreviewCursorQuery, ResolvedDraftInput, SimpleMessage, SimpleMessageInfo, ThreadRow,
+        UpsertedContacts, UserProvider,
     },
     ports::{EmailRepo, RecipientsByMessageId},
 };
@@ -17,6 +17,7 @@ mod contact;
 mod db_types;
 mod draft;
 mod dynamic;
+mod label;
 mod link;
 mod message;
 mod preview;
@@ -168,5 +169,60 @@ impl EmailRepo for EmailPgRepo {
         is_draft: bool,
     ) -> Result<(), Self::Err> {
         draft::insert_message(&self.pool, input, contacts, link_id, new_thread, is_draft).await
+    }
+
+    async fn get_label_by_id(
+        &self,
+        label_id: Uuid,
+        link_id: Uuid,
+    ) -> Result<Option<LinkLabel>, Self::Err> {
+        label::get_label_by_id(&self.pool, label_id, link_id).await
+    }
+
+    async fn get_thread_label_messages(
+        &self,
+        thread_id: Uuid,
+        link_id: Uuid,
+    ) -> Result<Vec<SimpleMessage>, Self::Err> {
+        label::get_thread_label_messages(&self.pool, thread_id, link_id).await
+    }
+
+    async fn insert_message_labels_batch(
+        &self,
+        message_ids: &[Uuid],
+        provider_label_id: &str,
+        link_id: Uuid,
+    ) -> Result<(), Self::Err> {
+        label::insert_message_labels_batch(&self.pool, message_ids, provider_label_id, link_id)
+            .await
+    }
+
+    async fn delete_message_labels_batch(
+        &self,
+        message_ids: &[Uuid],
+        provider_label_id: &str,
+        link_id: Uuid,
+    ) -> Result<(), Self::Err> {
+        label::delete_message_labels_batch(&self.pool, message_ids, provider_label_id, link_id)
+            .await
+    }
+
+    async fn update_message_read_status_batch(
+        &self,
+        message_ids: &[Uuid],
+        link_id: Uuid,
+        is_read: bool,
+    ) -> Result<(), Self::Err> {
+        label::update_message_read_status_batch(&self.pool, message_ids, link_id, is_read).await
+    }
+
+    async fn update_message_starred_status_batch(
+        &self,
+        message_ids: &[Uuid],
+        link_id: Uuid,
+        is_starred: bool,
+    ) -> Result<(), Self::Err> {
+        label::update_message_starred_status_batch(&self.pool, message_ids, link_id, is_starred)
+            .await
     }
 }
