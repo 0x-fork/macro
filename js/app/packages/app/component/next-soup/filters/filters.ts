@@ -822,9 +822,6 @@ const JAVA_KOTLIN_EXTENSIONS = ['java', 'kt', 'kts'];
 /** YAML extensions */
 const YAML_EXTENSIONS = ['yml', 'yaml'];
 
-/** Markdown extensions */
-const MARKDOWN_EXTENSIONS = ['md', 'mdx', 'markdown'];
-
 export const FILE_TYPE_FILTERS: EntityFilterConfig[] = [
   {
     id: 'file-code',
