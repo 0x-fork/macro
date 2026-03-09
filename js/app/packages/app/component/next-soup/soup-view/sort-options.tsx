@@ -145,14 +145,12 @@ export function sortByStatus<T extends EntityData>(a: T, b: T): number {
   return sortByUpdatedAt(a, b);
 }
 
-/**
- * File type sort order: Folders first, then documents (markdown, canvas), then other files.
- */
 const FILE_TYPE_ORDER: Record<string, number> = {
-  project: 0, // Folders
-  md: 1, // Markdown documents
-  canvas: 2, // Canvas documents
+  project: 0,
+  md: 1,
+  canvas: 2,
 };
+
 const DEFAULT_FILE_TYPE_ORDER = 3;
 
 const getFileTypeOrder = (entity: EntityData): number => {
@@ -164,15 +162,27 @@ const getFileTypeOrder = (entity: EntityData): number => {
   return DEFAULT_FILE_TYPE_ORDER;
 };
 
-/**
- * Sort by file type (Folders first, then markdown, canvas, then other files).
- */
+const getFileTypeKey = (entity: EntityData): string => {
+  if (entity.type === 'document') return entity.fileType ?? '';
+  return entity.type;
+};
+
 export function sortByFileType<T extends EntityData>(a: T, b: T): number {
   const aOrder = getFileTypeOrder(a);
   const bOrder = getFileTypeOrder(b);
 
+  // Sort preferred types first
   if (aOrder !== bOrder) {
     return aOrder - bOrder;
+  }
+
+  // Sort others by their key so their visually grouped together
+  if (aOrder === DEFAULT_FILE_TYPE_ORDER) {
+    const aKey = getFileTypeKey(a);
+    const bKey = getFileTypeKey(b);
+    if (aKey !== bKey) {
+      return aKey.localeCompare(bKey);
+    }
   }
 
   // Fall back to updated_at for same file type
