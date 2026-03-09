@@ -582,7 +582,7 @@ export const ImageTypeFilter = () => {
 
   return (
     <FilterSelect
-      label="Format"
+      label="Image Format"
       options={imageTypeOptions}
       active={imageType.active()}
       onChange={handleChange}
@@ -634,7 +634,7 @@ export const CodeLanguageFilter = () => {
 
   return (
     <FilterSelect
-      label="Language"
+      label="Code Language"
       options={codeLanguageOptions}
       active={codeLanguage.active()}
       onChange={handleChange}
