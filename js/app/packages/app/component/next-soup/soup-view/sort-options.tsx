@@ -18,6 +18,7 @@ import EyeIcon from '@icon/regular/eye.svg';
 import ChartLineUpIcon from '@icon/regular/chart-line-up.svg';
 import FlagIcon from '@icon/regular/flag.svg';
 import ListChecksIcon from '@icon/regular/list-checks.svg';
+import FolderIcon from '@icon/regular/folder.svg';
 
 export type SystemSortOption =
   | 'updated_at'
@@ -25,7 +26,8 @@ export type SystemSortOption =
   | 'viewed_at'
   | 'frecency'
   | 'priority'
-  | 'status';
+  | 'status'
+  | 'file_type';
 
 export interface SortOption {
   value: SystemSortOption;
@@ -143,6 +145,40 @@ export function sortByStatus<T extends EntityData>(a: T, b: T): number {
   return sortByUpdatedAt(a, b);
 }
 
+/**
+ * File type sort order: Folders first, then documents (markdown, canvas), then other files.
+ */
+const FILE_TYPE_ORDER: Record<string, number> = {
+  project: 0, // Folders
+  md: 1, // Markdown documents
+  canvas: 2, // Canvas documents
+};
+const DEFAULT_FILE_TYPE_ORDER = 3;
+
+const getFileTypeOrder = (entity: EntityData): number => {
+  if (entity.type === 'project') return FILE_TYPE_ORDER.project;
+  if (entity.type === 'document') {
+    const fileType = entity.fileType ?? '';
+    return FILE_TYPE_ORDER[fileType] ?? DEFAULT_FILE_TYPE_ORDER;
+  }
+  return DEFAULT_FILE_TYPE_ORDER;
+};
+
+/**
+ * Sort by file type (Folders first, then markdown, canvas, then other files).
+ */
+export function sortByFileType<T extends EntityData>(a: T, b: T): number {
+  const aOrder = getFileTypeOrder(a);
+  const bOrder = getFileTypeOrder(b);
+
+  if (aOrder !== bOrder) {
+    return aOrder - bOrder;
+  }
+
+  // Fall back to updated_at for same file type
+  return sortByUpdatedAt(a, b);
+}
+
 export const SORT_CONFIGS = {
   updated_at: {
     id: 'updated_at',
@@ -167,6 +203,10 @@ export const SORT_CONFIGS = {
   status: {
     id: 'status',
     fn: sortByStatus,
+  },
+  file_type: {
+    id: 'file_type',
+    fn: sortByFileType,
   },
 } satisfies Record<string, SortConfig<SoupEntity>>;
 
@@ -200,6 +240,11 @@ const SORT_OPTIONS = [
     value: 'status',
     label: 'Status',
     icon: () => <ListChecksIcon class="size-3.5" />,
+  },
+  {
+    value: 'file_type',
+    label: 'Type',
+    icon: () => <FolderIcon class="size-3.5" />,
   },
 ] as const satisfies SortOption[];
 
@@ -237,6 +282,13 @@ export const EMAIL_SORT_OPTIONS = buildSortOptions([
 ]);
 
 export const CHANNEL_SORT_OPTIONS = buildSortOptions([
+  'viewed_at',
+  'updated_at',
+  'created_at',
+]);
+
+export const FILES_SORT_OPTIONS = buildSortOptions([
+  'file_type',
   'viewed_at',
   'updated_at',
   'created_at',

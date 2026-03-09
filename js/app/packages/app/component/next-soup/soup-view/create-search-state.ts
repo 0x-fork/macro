@@ -66,7 +66,7 @@ export const createSearchState = ({
       const includeArray: UnifiedSearchIndex[] = [];
       for (const type of types) {
         match(type)
-          .with('file-folder', () => {
+          .with('file-folder', 'document-file-folder', () => {
             // TODO: distinguish between document and project requests
             includeArray.push('documents');
             includeArray.push('projects');

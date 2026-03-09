@@ -195,6 +195,17 @@ export function filesAndFolderFilter(entity: EntityData): boolean {
   return true;
 }
 
+/** Combined filter for documents (markdown, canvas), files, and folders - excludes tasks */
+export function documentsFilesAndFolderFilter(entity: EntityData): boolean {
+  if (entity.type !== 'project' && entity.type !== 'document') return false;
+
+  // Exclude tasks
+  if (entity.type === 'document' && entity.subType?.type === 'task')
+    return false;
+
+  return true;
+}
+
 export function activeAgentFilter(entity: EntityData): boolean {
   if (entity.type !== 'chat') return false;
 
@@ -854,6 +865,11 @@ export const createSoupFilters = (
       predicate: filesAndFolderFilter,
     },
     {
+      id: 'document-file-folder',
+      label: 'Documents, Files & Folders',
+      predicate: documentsFilesAndFolderFilter,
+    },
+    {
       id: 'folders',
       label: 'Folders',
       predicate: projectFilter,
@@ -1066,12 +1082,14 @@ export const QUERY_FILTERS = {
     chat_filters: {},
   },
 
-  /** Files filter - non-markdown documents (code, images, pdfs, etc.) */
+  /** Files filter - all documents including markdown, canvas, code, images, pdfs, etc. */
   file: {
     channel_filters: { channel_ids: EXCLUDE },
     chat_filters: { chat_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
-    document_filters: { file_types: getFileAssociations('soup') },
+    document_filters: {
+      file_types: ['md', 'canvas', ...getFileAssociations('soup')],
+    },
   },
 
   /** Channels filter - all channels (teams and people) */

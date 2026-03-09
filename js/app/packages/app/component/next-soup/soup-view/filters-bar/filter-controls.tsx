@@ -431,8 +431,23 @@ export const ChannelVisibilityFilter = () => {
   );
 };
 
-export const FileTypeFilter = () => {
-  const fileTypeOptions: Option[] = [
+export const FilesTypeFilter = () => {
+  const typeOptions: Option[] = [
+    {
+      value: 'doc-markdown',
+      label: 'Markdown',
+      icon: () => <EntityIcon targetType="md" size="xs" />,
+    },
+    {
+      value: 'doc-canvas',
+      label: 'Canvas',
+      icon: () => <EntityIcon targetType="canvas" size="xs" />,
+    },
+    {
+      value: 'folders',
+      label: 'Folders',
+      icon: () => <FolderIcon class="size-3.5" />,
+    },
     {
       value: 'file-code',
       label: 'Code',
@@ -455,33 +470,14 @@ export const FileTypeFilter = () => {
     },
   ];
 
-  const fileType = useFilterOptions(fileTypeOptions);
+  const type = useFilterOptions(typeOptions);
 
   return (
-    <FilterChipGroup
-      options={fileTypeOptions}
-      active={fileType.active()}
-      onChange={fileType.onChange}
-    />
-  );
-};
-
-export const FoldersFilter = () => {
-  const foldersOptions: Option[] = [
-    {
-      value: 'folders',
-      label: 'Folders',
-      icon: () => <FolderIcon class="size-3.5" />,
-    },
-  ];
-
-  const folders = useFilterOptions(foldersOptions);
-
-  return (
-    <FilterChipGroup
-      options={foldersOptions}
-      active={folders.active()}
-      onChange={folders.onChange}
+    <FilterSelect
+      label="Type"
+      options={typeOptions}
+      active={type.active()}
+      onChange={type.onChange}
     />
   );
 };

@@ -83,9 +83,6 @@ export const SoupViewTabs = () => {
       <Match when={isComponentListView('mail')}>
         <MailTabs />
       </Match>
-      <Match when={isComponentListView('documents')}>
-        <DocumentsTabs />
-      </Match>
       <Match when={isComponentListView('tasks')}>
         <TasksTabs />
       </Match>
@@ -155,26 +152,6 @@ const MailTabs = () => {
         value={activeTab()}
         defaultValue={VIEW_TAB_PRESETS.mail.default}
         onChange={(value) => applyTabPreset('mail', value)}
-      />
-    </div>
-  );
-};
-
-const DocumentsTabs = () => {
-  const { applyTabPreset } = useApplyPreset();
-  const { activeTab } = useSoupView();
-
-  return (
-    <div>
-      <SegmentedControl
-        list={[
-          { value: 'owned', label: 'Owned' },
-          { value: 'shared', label: 'Shared' },
-          { value: 'all', label: 'All' },
-        ]}
-        value={activeTab()}
-        defaultValue={VIEW_TAB_PRESETS.documents.default}
-        onChange={(value) => applyTabPreset('documents', value)}
       />
     </div>
   );

@@ -6,10 +6,8 @@ import {
   AssigneeFilter,
   AttachmentTypeFilter,
   DocumentFolderFilter,
-  DocumentTypeFilter,
   EntityTypeFilter,
-  FileTypeFilter,
-  FoldersFilter,
+  FilesTypeFilter,
   FromSenderFilter,
   HasAttachmentFilter,
   HasCalendarInviteFilter,
@@ -50,9 +48,6 @@ export const SoupViewContextFilters = () => {
       </Match>
       <Match when={isComponentListView('mail')}>
         <MailFilters />
-      </Match>
-      <Match when={isComponentListView('documents')}>
-        <DocumentsFilters />
       </Match>
       <Match when={isComponentListView('tasks')}>
         <TasksFilters />
@@ -104,16 +99,6 @@ const MailFilters = () => {
   );
 };
 
-const DocumentsFilters = () => {
-  return (
-    <>
-      <DocumentTypeFilter />
-      <FilterDivider />
-      <DocumentFolderFilter />
-    </>
-  );
-};
-
 const TasksFilters = () => {
   const { soup } = useSoupView();
 
@@ -138,9 +123,9 @@ const ChannelsFilters = () => {
 const FilesFilters = () => {
   return (
     <>
-      <FoldersFilter />
+      <FilesTypeFilter />
       <FilterDivider />
-      <FileTypeFilter />
+      <DocumentFolderFilter />
     </>
   );
 };

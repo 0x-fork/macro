@@ -121,29 +121,6 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
       },
     },
   },
-  documents: {
-    default: 'owned',
-    tabs: {
-      owned: (ctx) => {
-        if (!ctx.userId) return undefined;
-        return {
-          queryFilters: {
-            ...QUERY_FILTERS.document,
-            document_filters: { owners: [ctx.userId] },
-          },
-          clientFilters: { and: ['document'] },
-        };
-      },
-      shared: () => ({
-        queryFilters: QUERY_FILTERS.document,
-        clientFilters: { and: ['document', 'shared-entity'] },
-      }),
-      all: () => ({
-        queryFilters: QUERY_FILTERS.document,
-        clientFilters: { and: ['document'] },
-      }),
-    },
-  },
   tasks: {
     default: 'assigned-to-me',
     tabs: {
@@ -207,19 +184,19 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             },
             project_filters: { owners: [ctx.userId] },
           },
-          clientFilters: { and: ['file-folder'] },
+          clientFilters: { and: ['document-file-folder'] },
         };
       },
       shared: () => ({
         queryFilters: QUERY_FILTERS.file,
-        clientFilters: { and: ['file-folder', 'shared-entity'] },
+        clientFilters: { and: ['document-file-folder', 'shared-entity'] },
       }),
       all: () => ({
         queryFilters: {
           ...QUERY_FILTERS.file,
           project_filters: {},
         },
-        clientFilters: { and: ['file-folder'] },
+        clientFilters: { and: ['document-file-folder'] },
       }),
     },
   },
@@ -237,7 +214,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
 };
 
 /** Views whose default tab requires user context */
-type ContextRequiredView = 'agents' | 'documents' | 'tasks' | 'files';
+type ContextRequiredView = 'agents' | 'tasks' | 'files';
 
 /** Views whose default tab works without user context */
 type ContextOptionalView = Exclude<ListView, ContextRequiredView>;
@@ -248,7 +225,7 @@ type ContextOptionalView = Exclude<ListView, ContextRequiredView>;
  * if the default requires context values that aren't provided.
  *
  * @param view - The list view to get the preset for
- * @param ctx - User context (required for agents, documents, tasks, files)
+ * @param ctx - User context (required for agents, tasks, files)
  */
 export function getDefaultListViewPreset(
   view: ContextRequiredView,

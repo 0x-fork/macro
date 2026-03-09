@@ -7,7 +7,6 @@ import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
-import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
 import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
 import { useLocation } from '@solidjs/router';
 import LogoIcon from '@macro-icons/macro-logo.svg';
@@ -61,13 +60,6 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.mail,
     icon: AnimatedEmailIcon,
     hotkey: 'e',
-  },
-  {
-    id: 'documents',
-    label: 'Documents',
-    href: LIST_VIEW_PATHS.documents,
-    icon: AnimatedFileMdIcon,
-    hotkey: 'd',
   },
   {
     id: 'tasks',

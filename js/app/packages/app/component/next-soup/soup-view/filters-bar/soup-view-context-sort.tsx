@@ -4,8 +4,8 @@ import { SortDropdown } from '@app/component/next-soup/soup-view/filters-bar/sor
 import {
   CHANNEL_SORT_OPTIONS,
   DEFAULT_SORT_OPTIONS,
-  DOCUMENT_SORT_OPTIONS,
   EMAIL_SORT_OPTIONS,
+  FILES_SORT_OPTIONS,
   TASK_SORT_OPTIONS,
   type SortOption,
   type SystemSortOption,
@@ -38,9 +38,6 @@ export const SoupViewContextSort = () => {
       </Match>
       <Match when={isComponentListView('mail')}>
         <MailSort />
-      </Match>
-      <Match when={isComponentListView('documents')}>
-        <DocumentsSort />
       </Match>
       <Match when={isComponentListView('tasks')}>
         <TasksSort />
@@ -105,18 +102,6 @@ const MailSort = () => {
   );
 };
 
-const DocumentsSort = () => {
-  const sort = useSortDropdown(DOCUMENT_SORT_OPTIONS);
-
-  return (
-    <SortDropdown
-      value={sort.value}
-      onChange={sort.onChange}
-      options={sort.options}
-    />
-  );
-};
-
 const TasksSort = () => {
   const sort = useSortDropdown(TASK_SORT_OPTIONS);
 
@@ -142,7 +127,7 @@ const ChannelsSort = () => {
 };
 
 const FilesSort = () => {
-  const sort = useSortDropdown();
+  const sort = useSortDropdown(FILES_SORT_OPTIONS);
 
   return (
     <SortDropdown

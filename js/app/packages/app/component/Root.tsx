@@ -213,10 +213,6 @@ const ROUTES: RouteDefinition[] = [
     component: LAYOUT_ROUTE.component,
   },
   {
-    path: '/documents',
-    component: LAYOUT_ROUTE.component,
-  },
-  {
     path: '/tasks',
     component: LAYOUT_ROUTE.component,
   },

@@ -138,24 +138,6 @@ registerComponent(
 );
 
 registerComponent(
-  'documents',
-  withAuth(() => {
-    const user = useUserContext();
-    const preset = getDefaultListViewPreset('documents', {
-      userId: user.userId(),
-      email: user.email(),
-    });
-    return (
-      <SoupView
-        viewName="Documents"
-        queryFilters={preset.queryFilters}
-        initialClientFilters={preset.clientFilters}
-      />
-    );
-  })
-);
-
-registerComponent(
   'tasks',
   withAuth(() => {
     const user = useUserContext();
