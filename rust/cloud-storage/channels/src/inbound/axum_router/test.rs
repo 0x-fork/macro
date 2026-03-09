@@ -12,7 +12,8 @@ use axum::{
 };
 use entity_access::domain::{
     models::{
-        AccessError, AccessLevel, AnyEntity, EntityAccessReceipt, EntityPermission, EntityType,
+        AccessError, AccessLevel, AnyEntity, ChannelAccessReceipt, EntityAccessReceipt,
+        EntityPermission, EntityType, MemberParticipantRole,
         ParticipantRole as EntityParticipantRole, RequiredPermission,
     },
     ports::EntityAccessService,
@@ -144,7 +145,7 @@ struct MockService;
 impl ChannelMessagesService for MockService {
     async fn get_channel_messages(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _direction: MessagePageDirection,
         _limit: u16,
@@ -161,7 +162,7 @@ impl ChannelMessagesService for MockService {
 
     async fn get_channel_attachments(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _limit: u16,
     ) -> Result<ChannelAttachmentsPage, ChannelMessagesErr> {
@@ -174,14 +175,14 @@ impl ChannelMessagesService for MockService {
 
     async fn get_channel_participants(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
     ) -> Result<Vec<ChannelParticipant>, ChannelMessagesErr> {
         Ok(vec![])
     }
 
     async fn get_channel_messages_around(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _message_id: Uuid,
         _limit: u16,
     ) -> Result<ChannelMessagesPage, ChannelMessagesErr> {
@@ -194,7 +195,7 @@ impl ChannelMessagesService for MockService {
 
     async fn get_thread_replies(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _message_id: Uuid,
     ) -> Result<Vec<crate::domain::models::ThreadReply>, ChannelMessagesErr> {
         Ok(vec![])
@@ -206,7 +207,7 @@ struct ErrorService;
 impl ChannelMessagesService for ErrorService {
     async fn get_channel_messages(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _direction: MessagePageDirection,
         _limit: u16,
@@ -216,7 +217,7 @@ impl ChannelMessagesService for ErrorService {
 
     async fn get_channel_attachments(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _limit: u16,
     ) -> Result<ChannelAttachmentsPage, ChannelMessagesErr> {
@@ -225,14 +226,14 @@ impl ChannelMessagesService for ErrorService {
 
     async fn get_channel_participants(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
     ) -> Result<Vec<ChannelParticipant>, ChannelMessagesErr> {
         Err(ChannelMessagesErr::Repo(anyhow::anyhow!("database error")))
     }
 
     async fn get_channel_messages_around(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _message_id: Uuid,
         _limit: u16,
     ) -> Result<ChannelMessagesPage, ChannelMessagesErr> {
@@ -241,7 +242,7 @@ impl ChannelMessagesService for ErrorService {
 
     async fn get_thread_replies(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _message_id: Uuid,
     ) -> Result<Vec<crate::domain::models::ThreadReply>, ChannelMessagesErr> {
         Err(ChannelMessagesErr::Repo(anyhow::anyhow!("database error")))
@@ -253,7 +254,7 @@ struct ParticipantsService;
 impl ChannelMessagesService for ParticipantsService {
     async fn get_channel_messages(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _direction: MessagePageDirection,
         _limit: u16,
@@ -270,7 +271,7 @@ impl ChannelMessagesService for ParticipantsService {
 
     async fn get_channel_attachments(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _limit: u16,
     ) -> Result<ChannelAttachmentsPage, ChannelMessagesErr> {
@@ -283,8 +284,11 @@ impl ChannelMessagesService for ParticipantsService {
 
     async fn get_channel_participants(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
     ) -> Result<Vec<ChannelParticipant>, ChannelMessagesErr> {
+        let channel_id = receipt
+            .channel_id()
+            .map_err(|e| ChannelMessagesErr::Repo(e.into()))?;
         Ok(vec![
             ChannelParticipant {
                 channel_id,
@@ -305,7 +309,7 @@ impl ChannelMessagesService for ParticipantsService {
 
     async fn get_channel_messages_around(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _message_id: Uuid,
         _limit: u16,
     ) -> Result<ChannelMessagesPage, ChannelMessagesErr> {
@@ -318,7 +322,7 @@ impl ChannelMessagesService for ParticipantsService {
 
     async fn get_thread_replies(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _message_id: Uuid,
     ) -> Result<Vec<crate::domain::models::ThreadReply>, ChannelMessagesErr> {
         Ok(vec![])
@@ -551,7 +555,7 @@ struct NotFoundService;
 impl ChannelMessagesService for NotFoundService {
     async fn get_channel_messages(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _direction: MessagePageDirection,
         _limit: u16,
@@ -568,7 +572,7 @@ impl ChannelMessagesService for NotFoundService {
 
     async fn get_channel_attachments(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _limit: u16,
     ) -> Result<ChannelAttachmentsPage, ChannelMessagesErr> {
@@ -581,14 +585,14 @@ impl ChannelMessagesService for NotFoundService {
 
     async fn get_channel_participants(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
     ) -> Result<Vec<ChannelParticipant>, ChannelMessagesErr> {
         Ok(vec![])
     }
 
     async fn get_channel_messages_around(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         message_id: Uuid,
         _limit: u16,
     ) -> Result<ChannelMessagesPage, ChannelMessagesErr> {
@@ -597,7 +601,7 @@ impl ChannelMessagesService for NotFoundService {
 
     async fn get_thread_replies(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         message_id: Uuid,
     ) -> Result<Vec<crate::domain::models::ThreadReply>, ChannelMessagesErr> {
         Err(ChannelMessagesErr::MessageNotFound(message_id))
@@ -609,7 +613,7 @@ struct AroundHasItemsService;
 impl ChannelMessagesService for AroundHasItemsService {
     async fn get_channel_messages(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _direction: MessagePageDirection,
         _limit: u16,
@@ -626,7 +630,7 @@ impl ChannelMessagesService for AroundHasItemsService {
 
     async fn get_channel_attachments(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _query: Query<Uuid, CreatedAt, ()>,
         _limit: u16,
     ) -> Result<ChannelAttachmentsPage, ChannelMessagesErr> {
@@ -639,17 +643,20 @@ impl ChannelMessagesService for AroundHasItemsService {
 
     async fn get_channel_participants(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
     ) -> Result<Vec<ChannelParticipant>, ChannelMessagesErr> {
         Ok(vec![])
     }
 
     async fn get_channel_messages_around(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _message_id: Uuid,
         limit: u16,
     ) -> Result<ChannelMessagesPage, ChannelMessagesErr> {
+        let channel_id = receipt
+            .channel_id()
+            .map_err(|e| ChannelMessagesErr::Repo(e.into()))?;
         let now = chrono::Utc::now();
         let message = ChannelMessage {
             id: Uuid::new_v4(),
@@ -678,7 +685,7 @@ impl ChannelMessagesService for AroundHasItemsService {
 
     async fn get_thread_replies(
         &self,
-        _channel_id: Uuid,
+        _receipt: ChannelAccessReceipt<MemberParticipantRole>,
         _message_id: Uuid,
     ) -> Result<Vec<crate::domain::models::ThreadReply>, ChannelMessagesErr> {
         Ok(vec![])

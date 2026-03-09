@@ -3,7 +3,7 @@ use crate::domain::models::{
     MessagePageDirection, ThreadData, ThreadReply, ThreadReplyRow, TopLevelMessageRow,
 };
 use chrono::{DateTime, Utc};
-use entity_access::domain::models::EntityAccessReceipt;
+use entity_access::domain::models::{ChannelAccessReceipt, MemberParticipantRole};
 use models_pagination::{CreatedAt, Query};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -86,7 +86,7 @@ pub trait ChannelMessagesService: Send + Sync + 'static {
     /// Fetch a page of channel messages with thread previews, reactions, and attachments.
     fn get_channel_messages(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
         query: Query<Uuid, CreatedAt, ()>,
         direction: MessagePageDirection,
         limit: u16,
@@ -95,7 +95,7 @@ pub trait ChannelMessagesService: Send + Sync + 'static {
     /// Fetch a paginated page of channel-level attachments.
     fn get_channel_attachments(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
         query: Query<Uuid, CreatedAt, ()>,
         limit: u16,
     ) -> impl Future<Output = Result<ChannelAttachmentsPage, ChannelMessagesErr>> + Send;
@@ -103,13 +103,13 @@ pub trait ChannelMessagesService: Send + Sync + 'static {
     /// Fetch active participants for a channel.
     fn get_channel_participants(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
     ) -> impl Future<Output = Result<Vec<ChannelParticipant>, ChannelMessagesErr>> + Send;
 
     /// Fetch a centered window of messages around a specific message id.
     fn get_channel_messages_around(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
         message_id: Uuid,
         limit: u16,
     ) -> impl Future<Output = Result<ChannelMessagesPage, ChannelMessagesErr>> + Send;
@@ -119,7 +119,7 @@ pub trait ChannelMessagesService: Send + Sync + 'static {
     /// If `message_id` is itself a reply, replies are fetched for its top-level parent.
     fn get_thread_replies(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
         message_id: Uuid,
     ) -> impl Future<Output = Result<Vec<ThreadReply>, ChannelMessagesErr>> + Send;
 }

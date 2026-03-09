@@ -17,10 +17,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use entity_access::{
-    domain::{
-        models::{ChannelAccessReceipt, MemberParticipantRole},
-        ports::EntityAccessService,
-    },
+    domain::{models::MemberParticipantRole, ports::EntityAccessService},
     inbound::axum_extractors::ChannelAccessLevelExtractor,
 };
 use model_error_response::ErrorResponse;
@@ -61,14 +58,6 @@ impl<S, Svc> FromRef<ChannelsRouterState<S, Svc>> for Arc<Svc> {
     fn from_ref(state: &ChannelsRouterState<S, Svc>) -> Self {
         state.access_service.clone()
     }
-}
-
-fn channel_id_from_receipt<T>(
-    receipt: &ChannelAccessReceipt<T>,
-) -> Result<Uuid, ChannelsHandlerErr> {
-    receipt
-        .channel_id()
-        .map_err(|_| ChannelsHandlerErr::BadRequest("Invalid channel_id"))
 }
 
 /// Query parameters for the messages endpoint.
@@ -189,13 +178,12 @@ pub async fn get_channel_messages_handler<S: ChannelMessagesService, Svc: Entity
 ) -> Result<Json<ApiChannelMessagesPage>, ChannelsHandlerErr> {
     let limit = params.limit.unwrap_or(50).clamp(1, 100);
     let (query, direction, has_cursor) = parse_messages_query(cursor);
-    let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
 
     let (page, has_more_newer) = match params.load_around_message_id {
         Some(message_id) => {
             let page = state
                 .service
-                .get_channel_messages_around(channel_id, message_id, limit)
+                .get_channel_messages_around(access.entity_access_receipt, message_id, limit)
                 .await?;
             (page, false)
         }
@@ -205,7 +193,7 @@ pub async fn get_channel_messages_handler<S: ChannelMessagesService, Svc: Entity
                 has_more_newer,
             } = state
                 .service
-                .get_channel_messages(channel_id, query, direction, limit)
+                .get_channel_messages(access.entity_access_receipt, query, direction, limit)
                 .await?;
             (page, has_more_newer)
         }
@@ -255,15 +243,14 @@ pub async fn get_channel_messages_handler<S: ChannelMessagesService, Svc: Entity
 #[tracing::instrument(err, skip_all)]
 pub async fn get_thread_replies_handler<S: ChannelMessagesService, Svc: EntityAccessService>(
     State(state): State<ChannelsRouterState<S, Svc>>,
-    _access: ChannelAccessLevelExtractor<MemberParticipantRole, Svc>,
+    access: ChannelAccessLevelExtractor<MemberParticipantRole, Svc>,
     Path(path): Path<ThreadRepliesPath>,
 ) -> Result<Json<Vec<ApiThreadReply>>, ChannelsHandlerErr> {
-    let channel_id = path.channel_id;
     let message_id = path.message_id;
 
     let replies = state
         .service
-        .get_thread_replies(channel_id, message_id)
+        .get_thread_replies(access.entity_access_receipt, message_id)
         .await?;
 
     Ok(Json(
@@ -300,11 +287,10 @@ pub async fn get_channel_attachments_handler<
 ) -> Result<Json<PaginatedOpaqueCursor<ApiChannelAttachment>>, ChannelsHandlerErr> {
     let limit = params.limit.unwrap_or(50);
     let query = cursor.into_query(CreatedAt, ());
-    let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
 
     let page = state
         .service
-        .get_channel_attachments(channel_id, query, limit)
+        .get_channel_attachments(access.entity_access_receipt, query, limit)
         .await?;
 
     Ok(Json(page.type_erase().map(ApiChannelAttachment::from)))
@@ -333,8 +319,10 @@ pub async fn get_channel_participants_handler<
     State(state): State<ChannelsRouterState<S, Svc>>,
     access: ChannelAccessLevelExtractor<MemberParticipantRole, Svc>,
 ) -> Result<Json<Vec<ApiChannelParticipant>>, ChannelsHandlerErr> {
-    let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
-    let participants = state.service.get_channel_participants(channel_id).await?;
+    let participants = state
+        .service
+        .get_channel_participants(access.entity_access_receipt)
+        .await?;
 
     Ok(Json(
         participants

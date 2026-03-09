@@ -8,6 +8,7 @@ use crate::domain::{
         ChannelMessagesQueryResult, ChannelMessagesRepo, ChannelMessagesService,
     },
 };
+use entity_access::domain::models::{ChannelAccessReceipt, MemberParticipantRole};
 use models_pagination::{CreatedAt, PaginateOn, Query};
 use uuid::Uuid;
 
@@ -157,11 +158,14 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn get_channel_messages(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
         query: Query<Uuid, CreatedAt, ()>,
         direction: MessagePageDirection,
         limit: u16,
     ) -> Result<ChannelMessagesQueryResult, ChannelMessagesErr> {
+        let channel_id = receipt
+            .channel_id()
+            .map_err(|e| ChannelMessagesErr::Repo(e.into()))?;
         let limit = limit.clamp(1, 100);
 
         let rows_result = self
@@ -187,10 +191,13 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn get_channel_attachments(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
         query: Query<Uuid, CreatedAt, ()>,
         limit: u16,
     ) -> Result<ChannelAttachmentsPage, ChannelMessagesErr> {
+        let channel_id = receipt
+            .channel_id()
+            .map_err(|e| ChannelMessagesErr::Repo(e.into()))?;
         let limit = limit.clamp(1, 100);
 
         let attachments = self
@@ -211,8 +218,11 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn get_channel_participants(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
     ) -> Result<Vec<ChannelParticipant>, ChannelMessagesErr> {
+        let channel_id = receipt
+            .channel_id()
+            .map_err(|e| ChannelMessagesErr::Repo(e.into()))?;
         let participants = self
             .repo
             .get_channel_participants(channel_id)
@@ -225,10 +235,13 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn get_channel_messages_around(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
         message_id: Uuid,
         limit: u16,
     ) -> Result<ChannelMessagesPage, ChannelMessagesErr> {
+        let channel_id = receipt
+            .channel_id()
+            .map_err(|e| ChannelMessagesErr::Repo(e.into()))?;
         let limit = limit.clamp(1, 100);
 
         let anchor = self
@@ -259,9 +272,12 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn get_thread_replies(
         &self,
-        channel_id: Uuid,
+        receipt: ChannelAccessReceipt<MemberParticipantRole>,
         message_id: Uuid,
     ) -> Result<Vec<ThreadReply>, ChannelMessagesErr> {
+        let channel_id = receipt
+            .channel_id()
+            .map_err(|e| ChannelMessagesErr::Repo(e.into()))?;
         let parent = self
             .repo
             .resolve_top_level_parent(channel_id, message_id)

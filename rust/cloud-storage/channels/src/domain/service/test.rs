@@ -6,8 +6,18 @@ use crate::domain::{
     },
     ports::{MockChannelMessagesRepo, TopLevelMessagesQueryResult},
 };
+use entity_access::domain::models::{AnyEntity, EntityAccessReceipt, EntityType, MemberParticipantRole};
 use chrono::Utc;
 use std::collections::HashMap;
+
+fn member_receipt(channel_id: Uuid) -> entity_access::domain::models::ChannelAccessReceipt<MemberParticipantRole> {
+    EntityAccessReceipt::<AnyEntity, MemberParticipantRole>::dangerously_assert_internal_user(
+        &channel_id.to_string(),
+        EntityType::Channel,
+    )
+    .try_into_kind()
+    .expect("channel receipt should tighten from a channel entity type")
+}
 
 fn make_row(id: Uuid, minutes_ago: i64) -> TopLevelMessageRow {
     let now = Utc::now();
@@ -58,7 +68,7 @@ async fn returns_empty_page_for_no_messages() {
     let svc = ChannelMessagesServiceImpl::new(empty_repo());
     let result = svc
         .get_channel_messages(
-            Uuid::nil(),
+            member_receipt(Uuid::nil()),
             Query::Sort(CreatedAt, ()),
             MessagePageDirection::Older,
             50,
@@ -143,7 +153,7 @@ async fn returns_messages_with_thread_info() {
     let svc = ChannelMessagesServiceImpl::new(repo);
     let result = svc
         .get_channel_messages(
-            Uuid::nil(),
+            member_receipt(Uuid::nil()),
             Query::Sort(CreatedAt, ()),
             MessagePageDirection::Older,
             50,
@@ -184,7 +194,7 @@ async fn clamps_limit() {
     let svc = ChannelMessagesServiceImpl::new(repo);
     let result = svc
         .get_channel_messages(
-            Uuid::nil(),
+            member_receipt(Uuid::nil()),
             Query::Sort(CreatedAt, ()),
             MessagePageDirection::Older,
             200,
@@ -200,7 +210,7 @@ async fn clamps_limit() {
 async fn returns_empty_attachments_page() {
     let svc = ChannelMessagesServiceImpl::new(empty_repo());
     let page = svc
-        .get_channel_attachments(Uuid::nil(), Query::Sort(CreatedAt, ()), 50)
+        .get_channel_attachments(member_receipt(Uuid::nil()), Query::Sort(CreatedAt, ()), 50)
         .await
         .unwrap();
 
@@ -211,7 +221,10 @@ async fn returns_empty_attachments_page() {
 #[tokio::test]
 async fn returns_empty_participants_list() {
     let svc = ChannelMessagesServiceImpl::new(empty_repo());
-    let participants = svc.get_channel_participants(Uuid::nil()).await.unwrap();
+    let participants = svc
+        .get_channel_participants(member_receipt(Uuid::nil()))
+        .await
+        .unwrap();
 
     assert!(participants.is_empty());
 }
@@ -304,7 +317,7 @@ async fn around_message_not_found() {
     let message_id = Uuid::new_v4();
 
     let err = svc
-        .get_channel_messages_around(Uuid::nil(), message_id, 50)
+        .get_channel_messages_around(member_receipt(Uuid::nil()), message_id, 50)
         .await
         .unwrap_err();
 
@@ -346,7 +359,7 @@ async fn around_resolves_and_hydrates() {
 
     let svc = ChannelMessagesServiceImpl::new(repo);
     let page = svc
-        .get_channel_messages_around(Uuid::nil(), anchor.id, 50)
+        .get_channel_messages_around(member_receipt(Uuid::nil()), anchor.id, 50)
         .await
         .unwrap();
 
@@ -363,7 +376,7 @@ async fn thread_replies_message_not_found() {
     let message_id = Uuid::new_v4();
 
     let err = svc
-        .get_thread_replies(Uuid::nil(), message_id)
+        .get_thread_replies(member_receipt(Uuid::nil()), message_id)
         .await
         .unwrap_err();
 
@@ -437,7 +450,7 @@ async fn thread_replies_resolve_and_hydrate() {
 
     let svc = ChannelMessagesServiceImpl::new(repo);
     let replies = svc
-        .get_thread_replies(Uuid::nil(), reply_1.id)
+        .get_thread_replies(member_receipt(Uuid::nil()), reply_1.id)
         .await
         .unwrap();
 
