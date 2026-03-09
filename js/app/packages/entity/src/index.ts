@@ -9,11 +9,11 @@ export { Entity } from './entity';
 export { createEntityDraggable } from './utils/draggable';
 
 export { InlineEntity } from './composed/InlineEntity';
-export { ListEntity } from './composed/ListEntity';
+export { ListEntity, ListLayoutProvider } from './composed/ListEntity';
 
 export { UnreadIndicator } from './components/UnreadIndicator';
 export { MultiSelectCheckbox } from './components/MultiSelectCheckbox';
-export { DraftBadge, SharedBadge } from './components/Badges';
+export { DraftBadge, InviteBadge, SharedBadge } from './components/Badges';
 export { DisplayName } from './components/DisplayName';
 export { ProjectBreadCrumb } from './components/ProjectBreadCrumb';
 

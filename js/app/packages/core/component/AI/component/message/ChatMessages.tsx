@@ -1,16 +1,10 @@
-import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
-import { DEFAULT_MODEL } from '@core/component/AI/constant';
-import { useAdditionalInstructions } from '@core/component/AI/constant/prompts';
 import { useChatContext } from '@core/component/AI/context';
-import type {
-  ChatMessageStream,
-  ChatMessageWithAttachments,
-} from '@core/component/AI/types';
+import type { ChatMessageWithAttachments } from '@core/component/AI/types';
 import { asChatMessage } from '@core/component/AI/util/message';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { aiChatTheme } from '@core/component/LexicalMarkdown/theme';
-import { getMacroApiToken } from '@service-auth/fetch';
-import { cognitionWebsocketServiceClient } from '@service-cognition/client';
+import { PulsingStar } from '@entity/components/PulsingStar';
+import type { ChatMessageStream } from '@service-connection/stream';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import type { Accessor, JSXElement, Setter } from 'solid-js';
 import {
@@ -28,7 +22,6 @@ import {
 import { createStore } from 'solid-js/store';
 import { idStream, timeStream } from '../../util/stream/extendedStream';
 import { AssistantMessage } from './AssistantMessage';
-import { LoadingMessage } from './LoadingMessage';
 import { UserMessage } from './UserMessage';
 
 export type MessageActions = {};
@@ -65,53 +58,54 @@ export function ChatMessages(props: ChatMessagesProps) {
     Accessor<ChatMessageStream | undefined>,
     Setter<ChatMessageStream | undefined>,
   ] = [chat.stream, chat.setStream];
-  const chatId = chat.chatId;
-  const additionalInstructions = useAdditionalInstructions();
+  // const chatId = chat.chatId;
+  // const additionalInstructions = useAdditionalInstructions();
 
-  const makeEdit = async (data: ChatSendInput) => {
-    const setStream = streamTuple?.[1];
-    if (!setStream) return;
+  // const makeEdit = async (data: ChatSendInput) => {
+  // 	const setStream = streamTuple?.[1];
+  // 	if (!setStream) return;
 
-    setMessages((p) => {
-      const last = p.at(-1);
-      if (!last) return p;
-      if (last.role === 'user') {
-        return p.slice(0, -1);
-      } else {
-        return p.slice(0, -2);
-      }
-    });
-    setMessages((p) => [
-      ...p,
-      {
-        attachments: data.attachments ?? [],
-        content: data.content,
-        role: 'user',
-        model: data.model,
-        id: 'todo',
-      },
-    ]);
+  // 	setMessages((p) => {
+  // 		const last = p.at(-1);
+  // 		if (!last) return p;
+  // 		if (last.role === "user") {
+  // 			return p.slice(0, -1);
+  // 		} else {
+  // 			return p.slice(0, -2);
+  // 		}
+  // 	});
+  // 	setMessages((p) => [
+  // 		...p,
+  // 		{
+  // 			attachments: data.attachments ?? [],
+  // 			content: data.content,
+  // 			role: "user",
+  // 			model: data.model,
+  // 			id: "todo",
+  // 		},
+  // 	]);
 
-    const token = await getMacroApiToken();
-    const modelInstructions = data.model ? `\nYou are ${data.model}` : '';
-    const additional = `${additionalInstructions()}${modelInstructions}`;
-    const editStream = cognitionWebsocketServiceClient.streamEditMessage({
-      chat_id: chatId()!,
-      content: data.content,
-      model: data.model ?? DEFAULT_MODEL,
-      attachments: data.attachments ?? [],
-      token,
-      additional_instructions: additional,
-      toolset: data.toolset,
-    });
+  // 	const token = await getMacroApiToken();
+  // 	const modelInstructions = data.model ? `\nYou are ${data.model}` : "";
+  // 	const additional = `${additionalInstructions()}${modelInstructions}`;
+  // 	const editStream = cognitionWebsocketServiceClient.streamEditMessage({
+  // 		chat_id: chatId()!,
+  // 		content: data.content,
+  // 		model: data.model ?? DEFAULT_MODEL,
+  // 		attachments: data.attachments ?? [],
+  // 		token,
+  // 		additional_instructions: additional,
+  // 		toolset: data.toolset,
+  // 	});
 
-    setStream({
-      data: editStream.data,
-      isDone: editStream.isDone,
-      model: data.model ?? DEFAULT_MODEL,
-      attachments: data.attachments ?? [],
-    });
-  };
+  // 	setStream({
+  // 		data: editStream.data,
+  // 		isDone: editStream.isDone,
+  //      id: () => ({
+
+  //      })
+  // 	});
+  // };
 
   const extendedStream = createMemo(() => {
     const s = streamTuple?.[0]?.();
@@ -147,19 +141,6 @@ export function ChatMessages(props: ChatMessagesProps) {
     return message;
   };
 
-  const generatingAfterToolCall = () => {
-    const streamAccessor = streamTuple?.[0];
-    if (!streamAccessor) return;
-    const stream = streamAccessor();
-    if (!stream || stream.isDone()) return;
-    const message = asChatMessage(stream.data());
-    if (!message || typeof message.content === 'string') return;
-    const last = message.content.at(-1);
-    if (!last) return;
-    if (last.type === 'toolCallResponseJson') return true;
-    return;
-  };
-
   const isStream = () => {
     const streamSignal = streamTuple?.[0];
     if (!streamSignal) return false;
@@ -168,13 +149,13 @@ export function ChatMessages(props: ChatMessagesProps) {
     return !stream.isDone();
   };
 
-  const streamRequestAttachments = () => {
-    const streamable = streamTuple?.[0];
-    if (!streamable) return [];
-    const stream = streamable();
-    if (!stream) return [];
-    return stream.attachments ?? [];
-  };
+  // const streamRequestAttachments = () => {
+  // 	const streamable = streamTuple?.[0];
+  // 	if (!streamable) return [];
+  // 	const stream = streamable();
+  // 	if (!stream) return [];
+  // 	return stream.attachments ?? [];
+  // };
 
   const streamData = () => {
     const stream = streamTuple?.[0]?.();
@@ -219,7 +200,6 @@ export function ChatMessages(props: ChatMessagesProps) {
     if (s.isDone()) {
       const message = asChatMessage(s.data());
       if (message) {
-        message.model = s.model;
         setMessages((p) => {
           if (p.find((m) => m.id === message.id)) return p;
           return [...p, message];
@@ -375,17 +355,7 @@ export function ChatMessages(props: ChatMessagesProps) {
                     >
                       <Switch>
                         <Match when={msg.role === 'user'}>
-                          <UserMessage
-                            message={msg}
-                            edit={
-                              props.editDisabled
-                                ? undefined
-                                : {
-                                    chatId: chatId()!,
-                                    makeEdit,
-                                  }
-                            }
-                          />
+                          <UserMessage message={msg} />
                         </Match>
                         <Match when={msg.role === 'assistant'}>
                           <AssistantMessage
@@ -408,25 +378,14 @@ export function ChatMessages(props: ChatMessagesProps) {
                 );
               }}
             </Show>
-            {/* this works for most cases */}
-            <Show
-              when={
-                !generatingMessage() && (isStream() || chat.waitingForStream())
-              }
-            >
+            <Show when={isStream() || chat.waitingForStream()}>
               <OnMount
                 onShow={() =>
                   scrollToBottom(isNearBottom() ? 'instant' : 'smooth')
                 }
               >
-                <LoadingMessage attachments={streamRequestAttachments()} />
+                <PulsingStar kind="streamIndicator" animate />
               </OnMount>
-            </Show>
-            {/*
-              This shows a spinner after a tool call
-            */}
-            <Show when={generatingAfterToolCall()}>
-              <LoadingMessage attachments={[]} />
             </Show>
           </div>
         </Show>

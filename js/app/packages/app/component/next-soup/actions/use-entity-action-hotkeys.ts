@@ -5,15 +5,21 @@ import type { EntityData } from '@entity';
 import type { SoupState } from '../create-soup-state';
 import {
   makeCopyAction,
+  makeCopyBranchNameAction,
+  makeCopyLinkAction,
   makeDeleteAction,
   makeMarkDoneAction,
   makeMoveToProjectAction,
   makeRenameAction,
+  makeShareAction,
 } from './index';
+import { isShareableEntityType } from '@app/component/global-share-modal/GlobalShareModal';
 import { useUserId } from '@core/context/user';
-import { registerHotkey } from '@core/hotkey/hotkeys';
+import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
 import type { SplitHandle } from '@app/component/split-layout/layoutManager';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
+import { onCleanup } from 'solid-js';
+import { isListViewID } from '@app/constants/list-views';
 
 type UseEntityActionHotkeysOptions = {
   scopeId: string;
@@ -47,9 +53,20 @@ export const useEntityActionHotkeys = (
 
   const moveToProjectAction = makeMoveToProjectAction();
 
+  const copyLinkAction = makeCopyLinkAction();
+
+  const copyBranchNameAction = makeCopyBranchNameAction();
+
+  const shareAction = makeShareAction();
+
   const getEntitiesForAction = (): EntityData[] => {
-    const selected = soup.selection.selected();
-    if (selected.length > 0) return selected;
+    if (
+      splitHandle?.content().type === 'component' &&
+      isListViewID(splitHandle?.content().id)
+    ) {
+      const selected = soup.selection.selected();
+      if (selected.length > 0) return selected;
+    }
 
     const focused = soup.focus.item();
     return focused ? [focused] : [];
@@ -62,7 +79,9 @@ export const useEntityActionHotkeys = (
     openEntityInSplitFromUnifiedList(entity, { splitHandle });
   };
 
-  // Mark Done - 'e'
+  const group = createHotkeyGroup();
+
+  // Mark Done - 'e', not included in Hotkey Group so that we can use it from inside of blocks
   registerHotkey({
     hotkey: ['e'],
     hotkeyToken: TOKENS.entity.action.markDone,
@@ -109,7 +128,7 @@ export const useEntityActionHotkeys = (
     },
     displayPriority: 10,
     tags: [HotkeyTags.SelectionModification],
-  });
+  }).withGroup(group);
 
   // Rename - 'r'
   registerHotkey({
@@ -135,7 +154,7 @@ export const useEntityActionHotkeys = (
     },
     displayPriority: 10,
     tags: [HotkeyTags.SelectionModification],
-  });
+  }).withGroup(group);
 
   // Copy - 'cmd+d'
   registerHotkey({
@@ -161,7 +180,7 @@ export const useEntityActionHotkeys = (
     },
     displayPriority: 10,
     tags: [HotkeyTags.SelectionModification],
-  });
+  }).withGroup(group);
 
   // Move to folder - 'm'
   registerHotkey({
@@ -187,5 +206,74 @@ export const useEntityActionHotkeys = (
     },
     displayPriority: 10,
     tags: [HotkeyTags.SelectionModification],
-  });
+  }).withGroup(group);
+
+  // Copy link - 'shift+cmd+c'
+  registerHotkey({
+    hotkey: ['shift+cmd+c'],
+    hotkeyToken: TOKENS.entity.action.copyLink,
+    scopeId,
+    description: 'Copy link',
+    keyDownHandler: () => {
+      const entities = getEntitiesForAction();
+      if (entities.length === 0) return false;
+      if (!copyLinkAction.canExecute(entities[0])) return false;
+      copyLinkAction.executeWithSoup(entities, soup);
+      return true;
+    },
+    condition: () => {
+      if (condition && !condition()) return false;
+      const entities = getEntitiesForAction();
+      return entities.length === 1 && copyLinkAction.canExecute(entities[0]);
+    },
+    displayPriority: 10,
+    tags: [HotkeyTags.SelectionModification],
+  }).withGroup(group);
+
+  // Copy branch name - 'shift+cmd+b'
+  registerHotkey({
+    hotkey: ['shift+cmd+b'],
+    hotkeyToken: TOKENS.entity.action.copyBranchName,
+    scopeId,
+    description: 'Copy branch name',
+    keyDownHandler: () => {
+      const entities = getEntitiesForAction();
+      if (entities.length === 0) return false;
+      if (!copyBranchNameAction.canExecute(entities[0])) return false;
+      copyBranchNameAction.executeWithSoup(entities, soup);
+      return true;
+    },
+    condition: () => {
+      if (condition && !condition()) return false;
+      const entities = getEntitiesForAction();
+      return (
+        entities.length === 1 && copyBranchNameAction.canExecute(entities[0])
+      );
+    },
+    displayPriority: 10,
+    tags: [HotkeyTags.SelectionModification],
+  }).withGroup(group);
+
+  // Share
+  registerHotkey({
+    hotkeyToken: TOKENS.entity.action.share,
+    scopeId,
+    description: 'Share',
+    keyDownHandler: () => {
+      const entities = getEntitiesForAction();
+      if (entities.length === 0) return false;
+      if (!shareAction.canExecute(entities[0])) return false;
+      shareAction.executeWithSoup(entities, soup);
+      return true;
+    },
+    condition: () => {
+      if (condition && !condition()) return false;
+      const entities = getEntitiesForAction();
+      return entities.length === 1 && isShareableEntityType(entities[0].type);
+    },
+    displayPriority: 10,
+    tags: [HotkeyTags.SelectionModification],
+  }).withGroup(group);
+
+  onCleanup(() => group.dispose());
 };

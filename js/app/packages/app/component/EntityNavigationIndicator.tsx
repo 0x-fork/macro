@@ -16,14 +16,14 @@ const EntityNavigationIndicator = () => {
   return (
     <Show
       when={
-        panel.handle.referredFrom() === 'unified-list' &&
+        panel.handle.referredFrom() === 'list-view' &&
         soup.data()?.length &&
         selectedEntity() &&
         panel.handle.content().type !== 'component' &&
         panel.handle.content().type !== 'project'
       }
     >
-      <div class="flex gap-1 items-center font-mono text-xs text-ink/50 pl-2 pr-4">
+      <div class="flex gap-1 items-center font-mono text-xs text-ink/50">
         <div>
           [<span class="text-ink">{selectedEntityIndex() + 1}</span>/
           {soup.data()?.length}]

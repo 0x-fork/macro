@@ -3,6 +3,13 @@ import { mergeAdjacentMacroEmTags } from '@core/util/searchHighlight';
 import { createFreshSearch } from '@core/util/freshSort';
 import type { EntityData, WithSearch } from '@entity';
 import type { FilterConfig } from './filters/create-filter-state';
+import type { SearchPoolItem } from './search-context';
+
+export const getValidSearchFilters = <T>(
+  filters: readonly FilterConfig<T>[]
+) => {
+  return filters.filter((f) => f.id !== 'explicit-noise');
+};
 
 /** Takes a list of entity pools and returns a list of unique entities that are present in all pools, deduplicating by id */
 export function intersectEntityPools(
@@ -37,12 +44,6 @@ export function intersectEntityPools(
   return result;
 }
 
-export const getValidSearchFilters = <T>(
-  filters: readonly FilterConfig<T>[]
-) => {
-  return filters.filter((f) => f.id !== 'explicit-noise');
-};
-
 /** Adds name highlight to item list based on fuzzy match */
 export const nameFuzzySearchFilter = (
   items: EntityData[],
@@ -68,6 +69,7 @@ export const nameFuzzySearchFilter = (
         ...item,
         search: {
           nameHighlight: mergeAdjacentMacroEmTags(matchResult.nameHighlight),
+          senderHighlightTerms: null,
           contentHitData: null,
           source: 'local',
         },
@@ -76,16 +78,21 @@ export const nameFuzzySearchFilter = (
 };
 
 export const createSoupFreshSearch = () =>
-  createFreshSearch<EntityData>(
-    {
+  createFreshSearch<SearchPoolItem>({
+    config: {
       useViewedAt: true,
       channelBoost: 3,
+      dmBoost: 1.5,
       fuzzyWeight: 0.7,
       timeWeight: 0.3,
       minFuzzyThreshold: 0.1,
       commaSeparatedChannelMatch: true,
     },
-    (item) => item.name,
-    (item) => item.type === 'channel',
-    (item) => item
-  );
+    getName: (item) => item.data.name,
+    isChannelItem: (item) => item.data.type === 'channel',
+    isDmItem: (item) => item.bucket === 'dm',
+    getTimestamp: (item) => ({
+      viewedAt: item.data.viewedAt,
+      updatedAt: item.data.updatedAt,
+    }),
+  });

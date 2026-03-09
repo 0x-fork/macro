@@ -1,14 +1,18 @@
 //! Entity access service implementation.
 
+use std::marker::PhantomData;
+use std::str::FromStr;
+
 use crate::domain::{
     models::{
         AccessError, AccessLevel, ChannelRoleResult, Entity, EntityAccessAuth, EntityAccessReceipt,
-        EntityPermission, EntityType,
+        EntityPermission, EntityType, RequiredPermission,
     },
     ports::{AccessRepository, EntityAccessService},
 };
-use macro_user_id::{cowlike::CowLike, lowercased::Lowercase, user_id::MacroUserId};
-use std::str::FromStr;
+use macro_user_id::{
+    cowlike::CowLike, lowercased::Lowercase, user_id::MacroUserId, user_id::MacroUserIdStr,
+};
 use uuid::Uuid;
 
 /// Implementation of the [`EntityAccessService`].
@@ -77,16 +81,20 @@ where
     R: AccessRepository,
 {
     #[tracing::instrument(err, skip(self))]
-    async fn generate_entity_access_receipt(
+    async fn generate_entity_access_receipt<T: RequiredPermission>(
         &self,
         user_id: &MacroUserId<Lowercase<'_>>,
         user_org_id: Option<i64>,
         entity_id: &str,
         entity_type: EntityType,
-    ) -> Result<EntityAccessReceipt, AccessError> {
+    ) -> Result<EntityAccessReceipt<T>, AccessError> {
         let entity_permission = self
             .get_entity_permission(Some(user_id), entity_id, entity_type, user_org_id)
             .await?;
+
+        if !entity_permission.satisfies::<T>() {
+            return Err(AccessError::Unauthorized);
+        }
 
         Ok(EntityAccessReceipt {
             auth: EntityAccessAuth::Authenticated(user_id.clone().into_owned()),
@@ -95,6 +103,7 @@ where
                 entity_type,
             },
             entity_permission,
+            _marker: PhantomData,
         })
     }
 
@@ -115,7 +124,7 @@ where
             }
             EntityType::Channel => self.get_channel_access(entity_id, user_id).await,
             // These entity types don't have access checks implemented yet
-            EntityType::Email | EntityType::Team | EntityType::User => Ok(None),
+            EntityType::Team | EntityType::User => Ok(None),
         }
     }
 
@@ -191,6 +200,23 @@ where
                 }
             }
             _ => Err(AccessError::BadRequest("Unsupported entity type")),
+        }
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn get_users_by_entity(
+        &self,
+        entity_id: &str,
+        entity_type: EntityType,
+    ) -> Result<Vec<MacroUserIdStr<'static>>, AccessError> {
+        match entity_type {
+            EntityType::Document => self.repo.get_document_users(entity_id).await,
+            EntityType::Chat => self.repo.get_chat_users(entity_id).await,
+            EntityType::Project => self.repo.get_project_users(entity_id).await,
+            EntityType::EmailThread => self.repo.get_thread_users(entity_id).await,
+            _ => Err(AccessError::BadRequest(
+                "get_users_by_entity only supports Document, Chat, Project, and EmailThread",
+            )),
         }
     }
 }

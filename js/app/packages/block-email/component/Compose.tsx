@@ -68,12 +68,30 @@ import {
 import { MACRO_EMAIL_SIGNATURE } from '@block-email/constants';
 import { useMaybeEmailContext } from '@block-email/component/EmailContext';
 import { decodeBase64Utf8 } from '@block-email/util/decodeBase64';
+import { plainTextToHtml } from '@block-email/util/plainTextToHtml';
 import { stickyGate } from '@core/util/debounce';
 import { invalidateSoupEntity } from '@queries/soup/cache';
 import { WrapUnlessMobile } from '@core/mobile/WrapUnlessMobile';
 import { isMobile } from '@core/mobile/isMobile';
+import { $generateHtmlFromNodes } from '@lexical/html';
+import type { EmailFormRecipients } from '@block-email/component/createEmailFormState';
+import { unwrap } from 'solid-js/store';
+import { emailClient } from '@service-email/client';
+import { queryClient } from '@queries/client';
+import { emailKeys } from '@queries/email/keys';
+import { LIST_VIEW_ID } from '@app/constants/list-views';
 
 const DRAFT_DEBOUNCE_MS = 1000;
+
+type UndoComposeSnapshot = {
+  draftId: string;
+  recipients: EmailFormRecipients;
+  subject: string;
+  bodyHtml: string;
+  attachments: DraftFormAttachment[];
+};
+
+let undoComposeSnapshot: UndoComposeSnapshot | null = null;
 
 type EmailComposeErrors =
   | 'no_recipient'
@@ -182,6 +200,20 @@ export function EmailCompose(props: EmailComposeProps) {
     props.draftID
   );
 
+  // Restore form state from undo-send snapshot if available
+  const restoredSnapshot =
+    undoComposeSnapshot?.draftId === props.draftID ? undoComposeSnapshot : null;
+  if (restoredSnapshot) {
+    form.setRecipients('to', restoredSnapshot.recipients.to);
+    form.setRecipients('cc', restoredSnapshot.recipients.cc);
+    form.setRecipients('bcc', restoredSnapshot.recipients.bcc);
+    form.setSubject(restoredSnapshot.subject);
+    for (const attachment of restoredSnapshot.attachments) {
+      form.attachments.add(attachment);
+    }
+    undoComposeSnapshot = null;
+  }
+
   const uploadAttachmentMutation = useUploadDraftAttachmentsMutation();
   const saveDraftMutation = useSaveDraftMutation();
   const deleteDraftMutation = useDeleteDraftMutation();
@@ -227,14 +259,6 @@ export function EmailCompose(props: EmailComposeProps) {
       return;
     }
 
-    const linkID = link()?.id;
-    if (!linkID || hasLinkError()) {
-      logger.error(
-        new Error('Failed to save email draft: could not load email links')
-      );
-      return;
-    }
-
     const existingDraft = currentDraftID() !== undefined;
 
     // If there's an existing draft, we should send the sendTime so that the send time
@@ -245,7 +269,6 @@ export function EmailCompose(props: EmailComposeProps) {
       draft: {
         ...draftToSave,
         db_id: currentDraftID(),
-        link_id: linkID,
       },
       sendTime,
     });
@@ -468,9 +491,43 @@ export function EmailCompose(props: EmailComposeProps) {
   const [validationError, setValidationError] =
     createSignal<EmailComposeError | null>(null);
 
+  const undoSend = async (draftId: string) => {
+    try {
+      await emailClient.unscheduleMessage({ draftID: draftId });
+      queryClient.invalidateQueries({
+        queryKey: emailKeys.previews._def,
+      });
+      replaceSplit({
+        content: {
+          type: 'component',
+          id: 'email-compose',
+          params: { draftID: draftId },
+        },
+      });
+      toast.success('Send cancelled');
+      invalidateSoupEntity(draftId);
+    } catch {
+      toast.failure('Failed to undo send');
+    }
+  };
+
   const sendMutation = useSendMessageMutation({
     onSuccess: (data) => {
-      toast.success('Email sent');
+      const draftId = data.message.db_id;
+      const toastId = toast.success(
+        'Email sent',
+        undefined,
+        draftId
+          ? {
+              text: 'Undo',
+              onClick: () => {
+                if (toastId != null) toast.dismiss(toastId);
+                void undoSend(draftId);
+              },
+            }
+          : undefined,
+        10_000
+      );
       if (data.message.thread_db_id) {
         replaceSplit({
           content: { type: 'email', id: data.message.thread_db_id },
@@ -488,7 +545,7 @@ export function EmailCompose(props: EmailComposeProps) {
       toast.success('Email scheduled');
 
       replaceSplit({
-        content: { type: 'component', id: 'unified-list' },
+        content: { type: 'component', id: LIST_VIEW_ID.mail },
         mergeHistory: true,
       });
     },
@@ -501,6 +558,23 @@ export function EmailCompose(props: EmailComposeProps) {
     setValidationError(null);
 
     const currentEditor = editor();
+
+    // Snapshot editor state before watermark so undo-send can restore it
+    if (currentEditor) {
+      const snapshotHtml = currentEditor.read(() =>
+        $generateHtmlFromNodes(currentEditor)
+      );
+      const draftId = currentDraftID();
+      if (draftId) {
+        undoComposeSnapshot = {
+          draftId,
+          recipients: structuredClone(unwrap(form.recipients())),
+          subject: form.subject(),
+          bodyHtml: snapshotHtml,
+          attachments: [...form.attachments.list()],
+        };
+      }
+    }
 
     // We handle cleaning up the signature after we've sent the request because
     // otherwise the `bodyMacro` signal would update after the clean up call and
@@ -572,6 +646,7 @@ export function EmailCompose(props: EmailComposeProps) {
       scheduleMessageMutation.mutate({
         draftID,
         sendTime,
+        threadID: saveDraftMutation.data?.draft.thread_db_id ?? undefined,
       });
 
       cleanupWatermark();
@@ -580,7 +655,6 @@ export function EmailCompose(props: EmailComposeProps) {
 
     sendMutation.mutate({
       message: {
-        link_id: currentLink.id,
         to: convertToContactInfoArray(recipients.to),
         cc:
           recipients.cc.length > 0
@@ -595,7 +669,6 @@ export function EmailCompose(props: EmailComposeProps) {
         body_html: data.html,
         body_macro: data.raw,
         db_id: currentDraftID(),
-        send_time: sendTime,
       },
     });
 
@@ -649,12 +722,20 @@ export function EmailCompose(props: EmailComposeProps) {
   };
 
   const initialHtml = () => {
+    if (restoredSnapshot) {
+      return restoredSnapshot.bodyHtml;
+    }
+
     const draft = form.draft;
-    if (!draft || !draft.body_html_sanitized) return;
+    if (!draft) return;
 
-    const decodedHtml = decodeBase64Utf8(draft.body_html_sanitized);
+    if (draft.body_html_sanitized) {
+      return decodeBase64Utf8(draft.body_html_sanitized);
+    }
 
-    return decodedHtml;
+    if (draft.body_text) {
+      return plainTextToHtml(draft.body_text);
+    }
   };
 
   const getRecipientOptions = () => {

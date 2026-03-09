@@ -25,7 +25,7 @@ enum StoredStreamItem {
 
 struct StreamNotifier {
     _listener: JoinHandle<()>,
-    tx: broadcast::Sender<StreamId>,
+    tx: broadcast::Sender<StreamEvent>,
 }
 
 impl StreamNotifier {
@@ -41,11 +41,11 @@ impl StreamNotifier {
         }
     }
 
-    pub fn subscribe(&self) -> Receiver<StreamId> {
+    pub fn subscribe(&self) -> Receiver<StreamEvent> {
         self.tx.subscribe()
     }
 
-    fn spawn_subscriber(client: Client, tx: broadcast::Sender<StreamId>) -> JoinHandle<()> {
+    fn spawn_subscriber(client: Client, tx: broadcast::Sender<StreamEvent>) -> JoinHandle<()> {
         tracing::info!("Start notification subscriber");
         tokio::spawn(async move {
             loop {
@@ -56,16 +56,16 @@ impl StreamNotifier {
                         }
                         let mut stream = pubsub.on_message();
                         while let Some(msg) = stream.next().await {
-                            if let Ok(stream_id) = msg
+                            if let Ok(event) = msg
                                         .get_payload::<String>()
                                         .map_err(StreamServiceError::from)
                                         .and_then(|payload| {
-                                            serde_json::from_str::<StreamId>(&payload).map_err(Into::into)
+                                            serde_json::from_str::<StreamEvent>(&payload).map_err(Into::into)
                                         })
                                         .inspect_err(|err| tracing::error!(error=?err, "failed to get notification payload"))
                                     {
-                                        tracing::debug!(stream_id=?stream_id, "notify new stream");
-                                        let _ = tx.send(stream_id).inspect_err(
+                                        tracing::debug!(event=?event, "stream event received");
+                                        let _ = tx.send(event).inspect_err(
                                             |err| tracing::error!(error=?err, "failed to forward notification"),
                                         );
                                     }
@@ -119,6 +119,7 @@ impl RedisPostgresStreamRepo {
     /// Delete stream data from redis and postgres.
     /// Internal / testing only. Streams are cleaned using TTL for prod.
     #[allow(unused)]
+    #[tracing::instrument(err, skip(self))]
     pub async fn cleanup_stream(&self, id: &StreamId) -> Result<()> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await?;
         let _: () = conn
@@ -134,6 +135,7 @@ impl RedisPostgresStreamRepo {
         Ok(())
     }
 
+    #[tracing::instrument(skip(conn, item), err)]
     async fn publish_item(
         conn: &mut redis::aio::MultiplexedConnection,
         id: &StreamId,
@@ -149,6 +151,7 @@ impl RedisPostgresStreamRepo {
 #[async_trait]
 impl StreamRepo for RedisPostgresStreamRepo {
     /// Create and append to stream or append to an existing stream.
+    #[tracing::instrument(err, skip(self, payload))]
     async fn append(&self, id: &StreamId, payload: serde_json::Value) -> Result<ItemId> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await?;
 
@@ -167,7 +170,8 @@ impl StreamRepo for RedisPostgresStreamRepo {
 
         if is_new {
             tracing::debug!(stream_id=?id, "New stream detected publishing notification");
-            let notification = serde_json::to_string(id).expect("json");
+            let event = StreamEvent::Created(id.clone());
+            let notification = serde_json::to_string(&event).expect("json");
             let _: RedisResult<()> = conn
                 .publish(NOTIFY_CHANNEL, notification)
                 .await
@@ -182,6 +186,7 @@ impl StreamRepo for RedisPostgresStreamRepo {
         Ok(item_id)
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn stream_from_beginning(&self, id: &StreamId) -> Result<ItemStream> {
         // Use no response timeout for blocking XREAD — the default 500ms from redis 1.0
         // kills the connection before the block period expires.
@@ -248,6 +253,7 @@ impl StreamRepo for RedisPostgresStreamRepo {
         Ok(Box::pin(stream))
     }
 
+    #[tracing::instrument(err, skip(self))]
     async fn close(&self, id: &StreamId) -> Result<()> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await?;
         Self::publish_item(&mut conn, id, &StoredStreamItem::End).await?;
@@ -262,9 +268,17 @@ impl StreamRepo for RedisPostgresStreamRepo {
             .await
             .inspect_err(|e| tracing::error!(error=?e, "failed to remove stream from postgres"));
 
+        let event = StreamEvent::Closed(id.clone());
+        let notification = serde_json::to_string(&event).expect("json");
+        let _: RedisResult<()> = conn
+            .publish(NOTIFY_CHANNEL, notification)
+            .await
+            .inspect_err(|e| tracing::error!(error=?e, "failed to publish close event"));
+
         Ok(())
     }
 
+    #[tracing::instrument(err, skip(self))]
     async fn active_streams(&self, entity_id: &str) -> Result<Vec<StreamId>> {
         super::queries::get_active_stream_keys(&self.pg_pool, entity_id)
             .await
@@ -275,7 +289,7 @@ impl StreamRepo for RedisPostgresStreamRepo {
             .map_err(|e| StreamServiceError::StorageError(e.to_string()))
     }
 
-    async fn notify(&self) -> Receiver<StreamId> {
+    async fn notify(&self) -> Receiver<StreamEvent> {
         self.notifier
             .get_or_init(|| StreamNotifier::new(&self.redis_client))
             .await
