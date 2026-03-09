@@ -885,6 +885,30 @@ const SoupList = (props: SoupListProps) => {
     }
   };
 
+  let io: IntersectionObserver | undefined;
+
+  const initializeIntersectionObserver = (element: HTMLElement) => {
+    if (io) return;
+
+    io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+
+          props.onScrollBottom?.();
+          break;
+        }
+      },
+      {
+        root: element,
+      }
+    );
+  };
+
+  onCleanup(() => {
+    io?.disconnect();
+  });
+
   const registerVirtualizerHandler = (
     handle: VirtualizerHandle | undefined
   ) => {
@@ -895,9 +919,14 @@ const SoupList = (props: SoupListProps) => {
     }
   };
 
+  const registerViewportElement = (element: HTMLElement) => {
+    props.ref?.(element);
+    initializeIntersectionObserver(element);
+  };
+
   return (
     <div
-      ref={props.ref}
+      ref={registerViewportElement}
       class={cn('unified-table-body size-full relative', props.class)}
     >
       <VList
@@ -910,7 +939,19 @@ const SoupList = (props: SoupListProps) => {
         onScroll={handleScroll}
         data-soup-list-container
       >
-        {(row, i) => props.children(row, i)}
+        {(row, i) => (
+          <>
+            {props.children(row, i)}
+            <div
+              class="w-full h-2 bg-red"
+              ref={(el) => {
+                onMount(() => {
+                  io?.observe(el);
+                });
+              }}
+            />
+          </>
+        )}
       </VList>
     </div>
   );
