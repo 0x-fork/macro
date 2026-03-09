@@ -866,145 +866,58 @@ export const FILE_TYPE_FILTERS: EntityFilterConfig[] = [
   },
 ];
 
-/** Specific image type filters */
-export const IMAGE_TYPE_FILTERS = [
-  {
-    id: 'image-png',
-    label: 'PNG',
-    predicate: (entity) =>
-      entity.type === 'document' && entity.fileType === 'png',
-  },
-  {
-    id: 'image-jpg',
-    label: 'JPG',
-    predicate: (entity) =>
-      entity.type === 'document' &&
-      (entity.fileType === 'jpg' || entity.fileType === 'jpeg'),
-  },
-  {
-    id: 'image-gif',
-    label: 'GIF',
-    predicate: (entity) =>
-      entity.type === 'document' && entity.fileType === 'gif',
-  },
-  {
-    id: 'image-svg',
-    label: 'SVG',
-    predicate: (entity) =>
-      entity.type === 'document' && entity.fileType === 'svg',
-  },
-  {
-    id: 'image-webp',
-    label: 'WebP',
-    predicate: (entity) =>
-      entity.type === 'document' && entity.fileType === 'webp',
-  },
-] as const satisfies EntityFilterConfig[];
+const hasFileType = (extensions: string[]) => {
+  return (entity: EntityData) =>
+    entity.type === 'document' && extensions.includes(entity.fileType ?? '');
+};
+
+export const IMAGE_TYPE_FILTERS: EntityFilterConfig[] = [
+  { id: 'image-png', label: 'PNG', predicate: hasFileType(['png']) },
+  { id: 'image-jpg', label: 'JPG', predicate: hasFileType(['jpg', 'jpeg']) },
+  { id: 'image-gif', label: 'GIF', predicate: hasFileType(['gif']) },
+  { id: 'image-svg', label: 'SVG', predicate: hasFileType(['svg']) },
+  { id: 'image-webp', label: 'WebP', predicate: hasFileType(['webp']) },
+];
 
 export const IMAGE_TYPE_FILTER_IDS = IMAGE_TYPE_FILTERS.map((f) => f.id);
 
-/** Specific code language filters */
-export const CODE_LANGUAGE_FILTERS = [
+export const CODE_LANGUAGE_FILTERS: EntityFilterConfig[] = [
   {
     id: 'code-js-ts',
     label: 'JavaScript/TypeScript',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return JS_TS_EXTENSIONS.includes(fileType);
-    },
+    predicate: hasFileType(JS_TS_EXTENSIONS),
   },
   {
     id: 'code-python',
     label: 'Python',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return PYTHON_EXTENSIONS.includes(fileType);
-    },
+    predicate: hasFileType(PYTHON_EXTENSIONS),
   },
-  {
-    id: 'code-rust',
-    label: 'Rust',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return RUST_EXTENSIONS.includes(fileType);
-    },
-  },
+  { id: 'code-rust', label: 'Rust', predicate: hasFileType(RUST_EXTENSIONS) },
   {
     id: 'code-c-cpp',
     label: 'C/C++',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return C_CPP_EXTENSIONS.includes(fileType);
-    },
+    predicate: hasFileType(C_CPP_EXTENSIONS),
   },
   {
     id: 'code-html-css',
     label: 'HTML/CSS',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return HTML_CSS_EXTENSIONS.includes(fileType);
-    },
+    predicate: hasFileType(HTML_CSS_EXTENSIONS),
   },
-  {
-    id: 'code-json',
-    label: 'JSON',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return JSON_EXTENSIONS.includes(fileType);
-    },
-  },
+  { id: 'code-json', label: 'JSON', predicate: hasFileType(JSON_EXTENSIONS) },
   {
     id: 'code-shell',
     label: 'Shell',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return SHELL_EXTENSIONS.includes(fileType);
-    },
+    predicate: hasFileType(SHELL_EXTENSIONS),
   },
-  {
-    id: 'code-go',
-    label: 'Go',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return GO_EXTENSIONS.includes(fileType);
-    },
-  },
-  {
-    id: 'code-ruby',
-    label: 'Ruby',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return RUBY_EXTENSIONS.includes(fileType);
-    },
-  },
+  { id: 'code-go', label: 'Go', predicate: hasFileType(GO_EXTENSIONS) },
+  { id: 'code-ruby', label: 'Ruby', predicate: hasFileType(RUBY_EXTENSIONS) },
   {
     id: 'code-java-kotlin',
     label: 'Java/Kotlin',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return JAVA_KOTLIN_EXTENSIONS.includes(fileType);
-    },
+    predicate: hasFileType(JAVA_KOTLIN_EXTENSIONS),
   },
-  {
-    id: 'code-yaml',
-    label: 'YAML',
-    predicate: (entity) => {
-      if (entity.type !== 'document') return false;
-      const fileType = entity.fileType ?? '';
-      return YAML_EXTENSIONS.includes(fileType);
-    },
-  },
-] as const satisfies EntityFilterConfig[];
+  { id: 'code-yaml', label: 'YAML', predicate: hasFileType(YAML_EXTENSIONS) },
+];
 
 export const CODE_LANGUAGE_FILTER_IDS = CODE_LANGUAGE_FILTERS.map((f) => f.id);
 
