@@ -14,7 +14,7 @@ use documents::domain::{
     ports::DocumentService,
 };
 use entity_access::domain::models::{
-    EditAccessLevel, EntityAccessReceipt, OwnerAccessLevel, ViewAccessLevel,
+    DocumentAccessReceipt, EditAccessLevel, OwnerAccessLevel, ViewAccessLevel,
 };
 use macro_user_id::user_id::MacroUserIdStr;
 use model::document::{
@@ -112,15 +112,15 @@ impl DocumentService for StubDocumentService {
     }
     async fn get_short_id(
         &self,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _receipt: DocumentAccessReceipt<ViewAccessLevel>,
     ) -> Result<String, DocumentError> {
         unimplemented!()
     }
     async fn get_document(
         &self,
-        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        receipt: DocumentAccessReceipt<ViewAccessLevel>,
     ) -> Result<GetDocumentResponseData, DocumentError> {
-        let document_id = receipt.entity().entity_id.clone();
+        let document_id = receipt.document_id().to_owned();
         if document_id == KNOWN_TASK_UUID {
             Ok(GetDocumentResponseData {
                 document_metadata: Self::task_metadata(&document_id),
@@ -134,21 +134,21 @@ impl DocumentService for StubDocumentService {
     async fn get_document_location(
         &self,
         _ctx: &DocumentBasic,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _receipt: DocumentAccessReceipt<ViewAccessLevel>,
         _params: LocationQueryParams,
     ) -> Result<LocationResponseV3, DocumentError> {
         unimplemented!()
     }
     async fn delete_document(
         &self,
-        _receipt: EntityAccessReceipt<OwnerAccessLevel>,
+        _receipt: DocumentAccessReceipt<OwnerAccessLevel>,
         _project_id: Option<String>,
     ) -> Result<(), DocumentError> {
         unimplemented!()
     }
     async fn get_document_text(
         &self,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _receipt: DocumentAccessReceipt<ViewAccessLevel>,
     ) -> Result<String, DocumentError> {
         unimplemented!()
     }
@@ -162,11 +162,11 @@ impl DocumentService for StubDocumentService {
     }
     async fn update_task_status(
         &self,
-        receipt: EntityAccessReceipt<EditAccessLevel>,
+        receipt: DocumentAccessReceipt<EditAccessLevel>,
         status: &str,
     ) -> Result<(), DocumentError> {
         self.task_status_calls.lock().unwrap().push(TaskStatusCall {
-            entity_id: receipt.entity().entity_id.clone(),
+            entity_id: receipt.document_id().to_owned(),
             status: status.to_string(),
         });
         Ok(())

@@ -6,7 +6,7 @@ use crate::domain::{models::LocationQueryParams, ports::DocumentService};
 use ai::tool::{AsyncTool, RequestContext, ServiceContext, ToolCallError, ToolResult};
 use async_trait::async_trait;
 use entity_access::domain::{
-    models::{EntityAccessReceipt, EntityType, ViewAccessLevel},
+    models::{DocumentAccessReceipt, EntityType, ViewAccessLevel},
     ports::EntityAccessService,
 };
 use model::document::DocumentBasic;
@@ -89,6 +89,11 @@ where
             .map_err(|e| ToolCallError {
                 description: "unable to get the entity access receipt".to_string(),
                 internal_error: e.into(),
+            })?
+            .try_into_kind()
+            .map_err(|e| ToolCallError {
+                description: "unable to use receipt as document access".to_string(),
+                internal_error: e.into(),
             })?;
 
         // SAFETY: This is allowed because we have the entity_access_receipt call right above to
@@ -169,7 +174,7 @@ where
 async fn get_document_content_from_location<DSvc: DocumentService, ESvc: EntityAccessService>(
     service_context: ServiceContext<DocumentToolContext<DSvc, ESvc>>,
     document_context: &DocumentBasic,
-    entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
+    entity_access_receipt: DocumentAccessReceipt<ViewAccessLevel>,
 ) -> anyhow::Result<String> {
     let location = service_context
         .service

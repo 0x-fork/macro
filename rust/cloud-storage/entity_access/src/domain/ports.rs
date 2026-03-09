@@ -4,8 +4,8 @@
 
 use super::models::EntityType;
 use crate::domain::models::{
-    AccessError, AccessLevel, ChannelRoleResult, EntityAccessReceipt, EntityPermission,
-    RequiredPermission,
+    AccessError, AccessLevel, AnyEntity, ChannelRoleResult, EntityAccessReceipt,
+    EntityPermission, RequiredPermission,
 };
 use macro_user_id::{lowercased::Lowercase, user_id::MacroUserId};
 use std::future::Future;
@@ -83,7 +83,7 @@ pub trait AccessRepository: Clone + Send + Sync + 'static {
 ///
 /// This service orchestrates access checks using the repository.
 pub trait EntityAccessService: Clone + Send + Sync + 'static {
-    /// Generates an [`EntityAccessReceipt<T>`] for a given entity and user.
+    /// Generates a generic [`EntityAccessReceipt<AnyEntity, T>`] for a given entity and user.
     ///
     /// The type parameter `T` specifies the minimum permission required.
     /// Returns an error if the user does not satisfy that requirement.
@@ -93,7 +93,7 @@ pub trait EntityAccessService: Clone + Send + Sync + 'static {
         user_org_id: Option<i64>,
         entity_id: &str,
         entity_type: EntityType,
-    ) -> impl Future<Output = Result<EntityAccessReceipt<T>, AccessError>> + Send;
+    ) -> impl Future<Output = Result<EntityAccessReceipt<AnyEntity, T>, AccessError>> + Send;
 
     /// Get the access level a user has for an entity.
     ///

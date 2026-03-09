@@ -11,7 +11,7 @@ use crate::domain::{
     },
     ports::{EmailMessageEnqueuer, EmailRepo, EmailService, GmailLabelModifier},
 };
-use entity_access::domain::models::{EntityAccessReceipt, ViewAccessLevel};
+use entity_access::domain::models::{ThreadAccessReceipt, ViewAccessLevel};
 use frecency::domain::ports::FrecencyQueryService;
 use models_pagination::{PaginatedCursor, SimpleSortMethod};
 use uuid::Uuid;
@@ -77,7 +77,7 @@ where
 
     async fn get_thread_with_messages(
         &self,
-        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        receipt: ThreadAccessReceipt<ViewAccessLevel>,
         offset: i64,
         limit: i64,
     ) -> Result<Option<Thread>, EmailErr> {
@@ -87,7 +87,7 @@ where
 
     async fn get_thread_parsed(
         &self,
-        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        receipt: ThreadAccessReceipt<ViewAccessLevel>,
         offset: i64,
         limit: i64,
     ) -> Result<Option<ParsedThread>, EmailErr> {

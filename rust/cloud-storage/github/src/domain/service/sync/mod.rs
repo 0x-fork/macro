@@ -161,7 +161,7 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
 
             // SAFETY: This is ok as we are only using the preview information of the
             // document
-            let entity_access = entity_access::domain::models::EntityAccessReceipt::<
+            let entity_access = entity_access::domain::models::DocumentAccessReceipt::<
                 ViewAccessLevel,
             >::dangerously_assert_internal_user(
                 &uuid.to_string(),
@@ -246,7 +246,7 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
         for doc_id in doc_ids {
             tracing::trace!(doc_id, status, "updating task status");
 
-            let entity_access = entity_access::domain::models::EntityAccessReceipt::<
+            let entity_access = entity_access::domain::models::DocumentAccessReceipt::<
                 EditAccessLevel,
             >::dangerously_assert_internal_user(
                 doc_id,

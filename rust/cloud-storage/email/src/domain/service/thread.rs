@@ -7,7 +7,7 @@ use crate::domain::{
     ports::{EmailRepo, RecipientsByMessageId},
 };
 use entity_access::domain::models::{
-    AccessLevel, EntityAccessReceipt, EntityPermission, ViewAccessLevel,
+    AccessLevel, EntityPermission, ThreadAccessReceipt, ViewAccessLevel,
 };
 use frecency::domain::ports::FrecencyQueryService;
 use std::collections::HashMap;
@@ -38,11 +38,12 @@ where
     /// (senders, recipients, labels). Returns `None` if the thread doesn't exist.
     async fn fetch_thread_core(
         &self,
-        receipt: &EntityAccessReceipt<ViewAccessLevel>,
+        receipt: &ThreadAccessReceipt<ViewAccessLevel>,
         offset: i64,
         limit: i64,
     ) -> Result<Option<ThreadFetchResult>, EmailErr> {
-        let thread_id = Uuid::parse_str(&receipt.entity().entity_id)
+        let thread_id = receipt
+            .thread_id()
             .map_err(|e| EmailErr::RepoErr(anyhow::anyhow!("invalid thread id: {}", e)))?;
 
         let thread_row = self
@@ -117,7 +118,7 @@ where
     #[tracing::instrument(err, skip(self, receipt))]
     pub(crate) async fn get_thread_with_messages_impl(
         &self,
-        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        receipt: ThreadAccessReceipt<ViewAccessLevel>,
         offset: i64,
         limit: i64,
     ) -> Result<Option<Thread>, EmailErr> {
@@ -216,7 +217,7 @@ where
     #[tracing::instrument(err, skip(self, receipt))]
     pub(crate) async fn get_thread_parsed_impl(
         &self,
-        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        receipt: ThreadAccessReceipt<ViewAccessLevel>,
         offset: i64,
         limit: i64,
     ) -> Result<Option<ParsedThread>, EmailErr> {

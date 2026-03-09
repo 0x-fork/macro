@@ -12,7 +12,8 @@ use axum::{
 use super::{ExtractorError, InternalUser, RequiredPermission};
 use crate::domain::{
     models::{
-        AccessLevel, Entity, EntityAccessAuth, EntityAccessReceipt, EntityPermission, EntityType,
+        AccessLevel, AnyEntity, EntityAccessAuth, EntityAccessReceipt, EntityPermission,
+        EntityType,
     },
     ports::EntityAccessService,
 };
@@ -33,7 +34,7 @@ pub struct HistoryParams {
 #[derive(Debug)]
 pub struct HistoryAccessExtractor<T: RequiredPermission, Svc> {
     /// The entity access receipt
-    pub entity_access_receipt: EntityAccessReceipt<T>,
+    pub entity_access_receipt: EntityAccessReceipt<AnyEntity, T>,
     _marker: PhantomData<(T, Svc)>,
 }
 
@@ -77,12 +78,12 @@ where
 
         if internal_user.is_some() {
             return Ok(Self {
-                entity_access_receipt: EntityAccessReceipt {
-                    entity: Entity {
+                entity_access_receipt: EntityAccessReceipt::<AnyEntity, T> {
+                    auth: EntityAccessAuth::Internal,
+                    entity: crate::domain::models::Entity {
                         entity_id: item_id,
                         entity_type,
                     },
-                    auth: EntityAccessAuth::Internal,
                     entity_permission: EntityPermission::AccessLevel {
                         access_level: AccessLevel::Owner,
                     },
@@ -107,14 +108,14 @@ where
         };
 
         Ok(Self {
-            entity_access_receipt: EntityAccessReceipt {
-                entity: Entity {
-                    entity_id: item_id,
-                    entity_type,
-                },
+            entity_access_receipt: EntityAccessReceipt::<AnyEntity, T> {
                 auth: macro_user_id
                     .map(|m| EntityAccessAuth::Authenticated(m.0))
                     .unwrap_or(EntityAccessAuth::Unauthenticated),
+                entity: crate::domain::models::Entity {
+                    entity_id: item_id,
+                    entity_type,
+                },
                 entity_permission: permission,
                 _marker: PhantomData,
             },

@@ -6,7 +6,7 @@ use crate::domain::models::{
     SimpleMessageInfo, Thread, ThreadRow, UpdateThreadLabelsResult, UpsertedContacts, UserProvider,
 };
 use chrono::{DateTime, Utc};
-use entity_access::domain::models::{EntityAccessReceipt, ViewAccessLevel};
+use entity_access::domain::models::{ThreadAccessReceipt, ViewAccessLevel};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_pagination::{PaginatedCursor, SimpleSortMethod};
 use std::collections::HashMap;
@@ -223,7 +223,7 @@ pub trait EmailService: Send + Sync + 'static {
     /// Fetch a thread with paginated messages, verifying access via the provided receipt.
     fn get_thread_with_messages(
         &self,
-        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        receipt: ThreadAccessReceipt<ViewAccessLevel>,
         offset: i64,
         limit: i64,
     ) -> impl Future<Output = Result<Option<Thread>, EmailErr>> + Send;
@@ -231,7 +231,7 @@ pub trait EmailService: Send + Sync + 'static {
     /// Fetch a thread with lightweight parsed messages (no attachments or scheduled send times).
     fn get_thread_parsed(
         &self,
-        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        receipt: ThreadAccessReceipt<ViewAccessLevel>,
         offset: i64,
         limit: i64,
     ) -> impl Future<Output = Result<Option<ParsedThread>, EmailErr>> + Send;

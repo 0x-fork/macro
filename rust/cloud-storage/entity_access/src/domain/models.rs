@@ -43,6 +43,72 @@ pub trait RequiredPermission: std::fmt::Debug + Send + Sync + 'static {
     fn is_satisfied_by(permission: &EntityPermission) -> bool;
 }
 
+/// Marker trait implemented by types that encode an entity kind for a receipt.
+pub trait EntityKind: std::fmt::Debug + Send + Sync + 'static {
+    /// Returns true if the provided entity type is valid for this kind.
+    fn matches(entity_type: EntityType) -> bool;
+}
+
+/// Receipt kind for an arbitrary entity.
+#[derive(Debug)]
+pub struct AnyEntity;
+
+/// Receipt kind for documents.
+#[derive(Debug)]
+pub struct DocumentEntity;
+
+/// Receipt kind for chats.
+#[derive(Debug)]
+pub struct ChatEntity;
+
+/// Receipt kind for projects.
+#[derive(Debug)]
+pub struct ProjectEntity;
+
+/// Receipt kind for email threads.
+#[derive(Debug)]
+pub struct EmailThreadEntity;
+
+/// Receipt kind for channels.
+#[derive(Debug)]
+pub struct ChannelEntity;
+
+impl EntityKind for AnyEntity {
+    fn matches(_: EntityType) -> bool {
+        true
+    }
+}
+
+impl EntityKind for DocumentEntity {
+    fn matches(entity_type: EntityType) -> bool {
+        entity_type == EntityType::Document
+    }
+}
+
+impl EntityKind for ChatEntity {
+    fn matches(entity_type: EntityType) -> bool {
+        entity_type == EntityType::Chat
+    }
+}
+
+impl EntityKind for ProjectEntity {
+    fn matches(entity_type: EntityType) -> bool {
+        entity_type == EntityType::Project
+    }
+}
+
+impl EntityKind for EmailThreadEntity {
+    fn matches(entity_type: EntityType) -> bool {
+        entity_type == EntityType::EmailThread
+    }
+}
+
+impl EntityKind for ChannelEntity {
+    fn matches(entity_type: EntityType) -> bool {
+        entity_type == EntityType::Channel
+    }
+}
+
 /// A user's permission for an entity, discriminated by entity kind.
 ///
 /// Items (documents, chats, projects, threads) use access levels.
@@ -182,18 +248,33 @@ pub enum EntityAccessAuth {
 /// The type parameter `T` encodes the minimum permission that was verified
 /// when this receipt was created.
 #[derive(Debug)]
-pub struct EntityAccessReceipt<T: RequiredPermission> {
+pub struct EntityAccessReceipt<K: EntityKind, T: RequiredPermission> {
     /// The entity access authentication method
     pub(crate) auth: EntityAccessAuth,
     /// The entity that was requested access
     pub(crate) entity: Entity,
     /// The permission for the user on the entity
     pub(crate) entity_permission: EntityPermission,
-    /// Phantom data to carry the access level type
-    pub(crate) _marker: PhantomData<T>,
+    /// Phantom data to carry the entity and permission types.
+    pub(crate) _marker: PhantomData<(K, T)>,
 }
 
-impl<T: RequiredPermission> EntityAccessReceipt<T> {
+/// Receipt alias for document access.
+pub type DocumentAccessReceipt<T> = EntityAccessReceipt<DocumentEntity, T>;
+
+/// Receipt alias for chat access.
+pub type ChatAccessReceipt<T> = EntityAccessReceipt<ChatEntity, T>;
+
+/// Receipt alias for project access.
+pub type ProjectAccessReceipt<T> = EntityAccessReceipt<ProjectEntity, T>;
+
+/// Receipt alias for thread access.
+pub type ThreadAccessReceipt<T> = EntityAccessReceipt<EmailThreadEntity, T>;
+
+/// Receipt alias for channel access.
+pub type ChannelAccessReceipt<T> = EntityAccessReceipt<ChannelEntity, T>;
+
+impl<K: EntityKind, T: RequiredPermission> EntityAccessReceipt<K, T> {
     /// Getter for auth
     pub fn auth(&self) -> &EntityAccessAuth {
         &self.auth
@@ -209,6 +290,22 @@ impl<T: RequiredPermission> EntityAccessReceipt<T> {
         &self.entity_permission
     }
 
+    /// Rebind this receipt to a different entity kind after validating the stored entity type.
+    pub fn try_into_kind<K2: EntityKind>(self) -> Result<EntityAccessReceipt<K2, T>, AccessError> {
+        if !K2::matches(self.entity.entity_type) {
+            return Err(AccessError::BadRequest("Invalid receipt entity type"));
+        }
+
+        Ok(EntityAccessReceipt {
+            auth: self.auth,
+            entity: self.entity,
+            entity_permission: self.entity_permission,
+            _marker: PhantomData,
+        })
+    }
+}
+
+impl<T: RequiredPermission> EntityAccessReceipt<AnyEntity, T> {
     /// Dangerously generates a EntityAccessReceipt for an internal user
     /// **NOTE** This should only be used in specific circumstances and not as a way
     /// to circumvent AI tool permissioning
@@ -216,7 +313,35 @@ impl<T: RequiredPermission> EntityAccessReceipt<T> {
     pub fn dangerously_assert_internal_user(
         entity_id: &str,
         entity_type: EntityType,
-    ) -> EntityAccessReceipt<T> {
+    ) -> EntityAccessReceipt<AnyEntity, T> {
+        let entity_permission = match entity_type {
+            EntityType::Channel => EntityPermission::ChannelRole {
+                role: ParticipantRole::Owner,
+            },
+            _ => EntityPermission::AccessLevel {
+                access_level: AccessLevel::Owner,
+            },
+        };
+
+        EntityAccessReceipt {
+            auth: EntityAccessAuth::Internal,
+            entity: Entity {
+                entity_id: entity_id.to_string(),
+                entity_type,
+            },
+            entity_permission,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T: RequiredPermission> DocumentAccessReceipt<T> {
+    /// Dangerously generates a document receipt for an internal user.
+    pub fn dangerously_assert_internal_user(
+        entity_id: &str,
+        entity_type: EntityType,
+    ) -> DocumentAccessReceipt<T> {
+        assert!(DocumentEntity::matches(entity_type));
         EntityAccessReceipt {
             auth: EntityAccessAuth::Internal,
             entity: Entity {
@@ -228,6 +353,117 @@ impl<T: RequiredPermission> EntityAccessReceipt<T> {
             },
             _marker: PhantomData,
         }
+    }
+
+    /// Getter for the validated document id.
+    pub fn document_id(&self) -> &str {
+        &self.entity.entity_id
+    }
+}
+
+impl<T: RequiredPermission> ProjectAccessReceipt<T> {
+    /// Dangerously generates a project receipt for an internal user.
+    pub fn dangerously_assert_internal_user(
+        entity_id: &str,
+        entity_type: EntityType,
+    ) -> ProjectAccessReceipt<T> {
+        assert!(ProjectEntity::matches(entity_type));
+        EntityAccessReceipt {
+            auth: EntityAccessAuth::Internal,
+            entity: Entity {
+                entity_id: entity_id.to_string(),
+                entity_type,
+            },
+            entity_permission: EntityPermission::AccessLevel {
+                access_level: AccessLevel::Owner,
+            },
+            _marker: PhantomData,
+        }
+    }
+
+    /// Getter for the validated project id.
+    pub fn project_id(&self) -> &str {
+        &self.entity.entity_id
+    }
+}
+
+impl<T: RequiredPermission> ChatAccessReceipt<T> {
+    /// Dangerously generates a chat receipt for an internal user.
+    pub fn dangerously_assert_internal_user(
+        entity_id: &str,
+        entity_type: EntityType,
+    ) -> ChatAccessReceipt<T> {
+        assert!(ChatEntity::matches(entity_type));
+        EntityAccessReceipt {
+            auth: EntityAccessAuth::Internal,
+            entity: Entity {
+                entity_id: entity_id.to_string(),
+                entity_type,
+            },
+            entity_permission: EntityPermission::AccessLevel {
+                access_level: AccessLevel::Owner,
+            },
+            _marker: PhantomData,
+        }
+    }
+
+    /// Getter for the validated chat id.
+    pub fn chat_id(&self) -> &str {
+        &self.entity.entity_id
+    }
+}
+
+impl<T: RequiredPermission> ThreadAccessReceipt<T> {
+    /// Dangerously generates an email thread receipt for an internal user.
+    pub fn dangerously_assert_internal_user(
+        entity_id: &str,
+        entity_type: EntityType,
+    ) -> ThreadAccessReceipt<T> {
+        assert!(EmailThreadEntity::matches(entity_type));
+        EntityAccessReceipt {
+            auth: EntityAccessAuth::Internal,
+            entity: Entity {
+                entity_id: entity_id.to_string(),
+                entity_type,
+            },
+            entity_permission: EntityPermission::AccessLevel {
+                access_level: AccessLevel::Owner,
+            },
+            _marker: PhantomData,
+        }
+    }
+
+    /// Getter for the validated thread id as a UUID.
+    pub fn thread_id(&self) -> Result<uuid::Uuid, AccessError> {
+        uuid::Uuid::parse_str(&self.entity.entity_id)
+            .map_err(|_| AccessError::BadRequest("Invalid thread ID format"))
+    }
+}
+
+impl<T: RequiredPermission> ChannelAccessReceipt<T> {
+    /// Dangerously generates a channel receipt for an internal user.
+    pub fn dangerously_assert_internal_user(
+        entity_id: &str,
+        entity_type: EntityType,
+    ) -> ChannelAccessReceipt<T> {
+        assert!(ChannelEntity::matches(entity_type));
+        EntityAccessReceipt {
+            auth: EntityAccessAuth::Internal,
+            entity: Entity {
+                entity_id: entity_id.to_string(),
+                entity_type,
+            },
+            entity_permission: EntityPermission::ChannelRole {
+                role: ParticipantRole::Owner,
+            },
+            _marker: PhantomData,
+        }
+    }
+
+    /// Getter for the validated channel id as a UUID.
+    pub fn channel_id(&self) -> Result<uuid::Uuid, AccessError> {
+        uuid::Uuid::parse_str(&self.entity.entity_id)
+            .map_err(|_| AccessError::BadRequest("Invalid channel ID format"))
     }
 }
 

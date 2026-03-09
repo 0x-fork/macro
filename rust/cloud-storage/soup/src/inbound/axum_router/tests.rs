@@ -7,7 +7,7 @@ use email::domain::{
     models::{EmailErr, PreviewView, PreviewViewStandardLabel, UserProvider},
     ports::EmailService,
 };
-use entity_access::domain::models::{EntityAccessReceipt, ViewAccessLevel};
+use entity_access::domain::models::{ThreadAccessReceipt, ViewAccessLevel};
 use http_body_util::BodyExt;
 use item_filters::EntityFilters;
 use macro_user_id::{email::EmailStr, user_id::MacroUserIdStr};
@@ -93,7 +93,7 @@ impl EmailService for MockEmail {
 
     async fn get_thread_with_messages(
         &self,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _receipt: ThreadAccessReceipt<ViewAccessLevel>,
         _offset: i64,
         _limit: i64,
     ) -> Result<Option<email::domain::models::Thread>, EmailErr> {
@@ -102,7 +102,7 @@ impl EmailService for MockEmail {
 
     async fn get_thread_parsed(
         &self,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _receipt: ThreadAccessReceipt<ViewAccessLevel>,
         _offset: i64,
         _limit: i64,
     ) -> Result<Option<email::domain::models::ParsedThread>, EmailErr> {
@@ -208,7 +208,7 @@ impl EmailService for MockEmailLinkResult {
 
     async fn get_thread_with_messages(
         &self,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _receipt: ThreadAccessReceipt<ViewAccessLevel>,
         _offset: i64,
         _limit: i64,
     ) -> Result<Option<email::domain::models::Thread>, EmailErr> {
@@ -217,7 +217,7 @@ impl EmailService for MockEmailLinkResult {
 
     async fn get_thread_parsed(
         &self,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _receipt: ThreadAccessReceipt<ViewAccessLevel>,
         _offset: i64,
         _limit: i64,
     ) -> Result<Option<email::domain::models::ParsedThread>, EmailErr> {

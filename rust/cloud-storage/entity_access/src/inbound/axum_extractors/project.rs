@@ -13,7 +13,7 @@ use serde::de::DeserializeOwned;
 use super::{ExtractorError, InternalUser, RequiredPermission};
 use crate::domain::{
     models::{
-        AccessLevel, Entity, EntityAccessAuth, EntityAccessReceipt, EntityPermission, EntityType,
+        AccessLevel, EntityAccessAuth, EntityPermission, EntityType, ProjectAccessReceipt,
     },
     ports::EntityAccessService,
 };
@@ -31,7 +31,7 @@ use model_user::axum_extractor::OptionalMacroUserExtractor;
 #[derive(Debug)]
 pub struct ProjectAccessLevelExtractor<T: RequiredPermission, Svc> {
     /// The entity access receipt
-    pub entity_access_receipt: EntityAccessReceipt<T>,
+    pub entity_access_receipt: ProjectAccessReceipt<T>,
     _marker: PhantomData<(T, Svc)>,
 }
 
@@ -70,12 +70,12 @@ where
 
         if internal_user.is_some() {
             return Ok(Self {
-                entity_access_receipt: EntityAccessReceipt {
-                    entity: Entity {
+                entity_access_receipt: ProjectAccessReceipt {
+                    auth: EntityAccessAuth::Internal,
+                    entity: crate::domain::models::Entity {
                         entity_id: project_context.id.clone(),
                         entity_type: EntityType::Project,
                     },
-                    auth: EntityAccessAuth::Internal,
                     entity_permission: EntityPermission::AccessLevel {
                         access_level: AccessLevel::Owner,
                     },
@@ -90,12 +90,12 @@ where
             && project_context.user_id == *user_id
         {
             return Ok(Self {
-                entity_access_receipt: EntityAccessReceipt {
-                    entity: Entity {
+                entity_access_receipt: ProjectAccessReceipt {
+                    auth: EntityAccessAuth::Authenticated(user_id.clone().0),
+                    entity: crate::domain::models::Entity {
                         entity_id: project_context.id.clone(),
                         entity_type: EntityType::Project,
                     },
-                    auth: EntityAccessAuth::Authenticated(user_id.clone().0),
                     entity_permission: EntityPermission::AccessLevel {
                         access_level: AccessLevel::Owner,
                     },
@@ -131,14 +131,14 @@ where
         };
 
         Ok(Self {
-            entity_access_receipt: EntityAccessReceipt {
-                entity: Entity {
-                    entity_id: project_context.id.clone(),
-                    entity_type: EntityType::Project,
-                },
+            entity_access_receipt: ProjectAccessReceipt {
                 auth: macro_user_id
                     .map(|m| EntityAccessAuth::Authenticated(m.0))
                     .unwrap_or(EntityAccessAuth::Unauthenticated),
+                entity: crate::domain::models::Entity {
+                    entity_id: project_context.id.clone(),
+                    entity_type: EntityType::Project,
+                },
                 entity_permission: permission,
                 _marker: PhantomData,
             },
@@ -205,7 +205,7 @@ pub enum ProjectBodyAccessLevelExtractor<T: RequiredPermission, V, Svc> {
         /// Marker for the desired access level.
         desired: PhantomData<(T, Svc)>,
         /// The entity access receipt
-        entity_access_receipt: EntityAccessReceipt<T>,
+        entity_access_receipt: ProjectAccessReceipt<T>,
         /// The parsed body.
         body: V,
     },
@@ -275,12 +275,12 @@ where
 
         if internal_user.is_some() {
             return Ok(Self::FoundProject {
-                entity_access_receipt: EntityAccessReceipt {
-                    entity: Entity {
+                entity_access_receipt: ProjectAccessReceipt {
+                    auth: EntityAccessAuth::Internal,
+                    entity: crate::domain::models::Entity {
                         entity_id: project.id().to_owned(),
                         entity_type: EntityType::Project,
                     },
-                    auth: EntityAccessAuth::Internal,
                     entity_permission: EntityPermission::AccessLevel {
                         access_level: AccessLevel::Owner,
                     },
@@ -307,14 +307,14 @@ where
         };
 
         Ok(Self::FoundProject {
-            entity_access_receipt: EntityAccessReceipt {
-                entity: Entity {
-                    entity_id: project.id().to_owned(),
-                    entity_type: EntityType::Project,
-                },
+            entity_access_receipt: ProjectAccessReceipt {
                 auth: macro_user_id
                     .map(|m| EntityAccessAuth::Authenticated(m.0))
                     .unwrap_or(EntityAccessAuth::Unauthenticated),
+                entity: crate::domain::models::Entity {
+                    entity_id: project.id().to_owned(),
+                    entity_type: EntityType::Project,
+                },
                 entity_permission: permission,
                 _marker: PhantomData,
             },

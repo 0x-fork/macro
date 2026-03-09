@@ -18,7 +18,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use entity_access::{
     domain::{
-        models::{EntityAccessReceipt, MemberParticipantRole, RequiredPermission},
+        models::{ChannelAccessReceipt, MemberParticipantRole},
         ports::EntityAccessService,
     },
     inbound::axum_extractors::ChannelAccessLevelExtractor,
@@ -63,10 +63,11 @@ impl<S, Svc> FromRef<ChannelsRouterState<S, Svc>> for Arc<Svc> {
     }
 }
 
-fn channel_id_from_receipt<T: RequiredPermission>(
-    receipt: &EntityAccessReceipt<T>,
+fn channel_id_from_receipt<T>(
+    receipt: &ChannelAccessReceipt<T>,
 ) -> Result<Uuid, ChannelsHandlerErr> {
-    Uuid::parse_str(&receipt.entity().entity_id)
+    receipt
+        .channel_id()
         .map_err(|_| ChannelsHandlerErr::BadRequest("Invalid channel_id"))
 }
 

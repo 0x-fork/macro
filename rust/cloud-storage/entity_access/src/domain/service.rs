@@ -1,12 +1,11 @@
 //! Entity access service implementation.
 
-use std::marker::PhantomData;
 use std::str::FromStr;
 
 use crate::domain::{
     models::{
-        AccessError, AccessLevel, ChannelRoleResult, Entity, EntityAccessAuth, EntityAccessReceipt,
-        EntityPermission, EntityType, RequiredPermission,
+        AccessError, AccessLevel, AnyEntity, ChannelRoleResult, EntityAccessAuth,
+        EntityAccessReceipt, EntityPermission, EntityType, RequiredPermission,
     },
     ports::{AccessRepository, EntityAccessService},
 };
@@ -85,7 +84,7 @@ where
         user_org_id: Option<i64>,
         entity_id: &str,
         entity_type: EntityType,
-    ) -> Result<EntityAccessReceipt<T>, AccessError> {
+    ) -> Result<EntityAccessReceipt<AnyEntity, T>, AccessError> {
         let entity_permission = self
             .get_entity_permission(Some(user_id), entity_id, entity_type, user_org_id)
             .await?;
@@ -96,12 +95,12 @@ where
 
         Ok(EntityAccessReceipt {
             auth: EntityAccessAuth::Authenticated(user_id.clone().into_owned()),
-            entity: Entity {
+            entity: crate::domain::models::Entity {
                 entity_id: entity_id.to_string(),
                 entity_type,
             },
             entity_permission,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         })
     }
 

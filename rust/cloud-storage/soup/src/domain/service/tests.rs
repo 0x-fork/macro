@@ -4,7 +4,7 @@ use chrono::Days;
 use comms::domain::models::GetChannelsRequest;
 use cool_asserts::assert_matches;
 use email::domain::models::{EmailErr, EnrichedEmailThreadPreview, PreviewView};
-use entity_access::domain::models::{EntityAccessReceipt, ViewAccessLevel};
+use entity_access::domain::models::{ThreadAccessReceipt, ViewAccessLevel};
 use frecency::domain::models::{FrecencyPageRequest, FrecencyPageResponse};
 use frecency::domain::ports::MockFrecencyQueryService;
 use frecency::domain::services::FrecencyQueryServiceImpl;
@@ -49,7 +49,7 @@ impl EmailService for NoopEmailService {
 
     async fn get_thread_with_messages(
         &self,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _receipt: ThreadAccessReceipt<ViewAccessLevel>,
         _offset: i64,
         _limit: i64,
     ) -> Result<Option<email::domain::models::Thread>, EmailErr> {
@@ -58,7 +58,7 @@ impl EmailService for NoopEmailService {
 
     async fn get_thread_parsed(
         &self,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+        _receipt: ThreadAccessReceipt<ViewAccessLevel>,
         _offset: i64,
         _limit: i64,
     ) -> Result<Option<email::domain::models::ParsedThread>, EmailErr> {

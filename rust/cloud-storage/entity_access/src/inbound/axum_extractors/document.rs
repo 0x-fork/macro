@@ -13,8 +13,7 @@ use super::{ExtractorError, RequiredPermission};
 use crate::{
     domain::{
         models::{
-            AccessLevel, Entity, EntityAccessAuth, EntityAccessReceipt, EntityPermission,
-            EntityType,
+            AccessLevel, DocumentAccessReceipt, EntityAccessAuth, EntityPermission, EntityType,
         },
         ports::EntityAccessService,
     },
@@ -35,7 +34,7 @@ use model_user::axum_extractor::OptionalMacroUserExtractor;
 #[derive(Debug)]
 pub struct DocumentAccessExtractor<T: RequiredPermission, Svc> {
     /// The entity access receipt
-    pub entity_access_receipt: EntityAccessReceipt<T>,
+    pub entity_access_receipt: DocumentAccessReceipt<T>,
     _marker: PhantomData<(T, Svc)>,
 }
 
@@ -74,12 +73,12 @@ where
 
         if internal_user.is_some() {
             return Ok(Self {
-                entity_access_receipt: EntityAccessReceipt {
-                    entity: Entity {
+                entity_access_receipt: DocumentAccessReceipt {
+                    auth: EntityAccessAuth::Internal,
+                    entity: crate::domain::models::Entity {
                         entity_id: document_context.document_id.clone(),
                         entity_type: EntityType::Document,
                     },
-                    auth: EntityAccessAuth::Internal,
                     entity_permission: EntityPermission::AccessLevel {
                         access_level: AccessLevel::Owner,
                     },
@@ -94,12 +93,12 @@ where
             && document_context.owner == *user_id
         {
             return Ok(Self {
-                entity_access_receipt: EntityAccessReceipt {
-                    entity: Entity {
+                entity_access_receipt: DocumentAccessReceipt {
+                    auth: EntityAccessAuth::Authenticated(user_id.clone().0),
+                    entity: crate::domain::models::Entity {
                         entity_id: document_context.document_id.clone(),
                         entity_type: EntityType::Document,
                     },
-                    auth: EntityAccessAuth::Authenticated(user_id.clone().0),
                     entity_permission: EntityPermission::AccessLevel {
                         access_level: AccessLevel::Owner,
                     },
@@ -135,14 +134,14 @@ where
         };
 
         Ok(Self {
-            entity_access_receipt: EntityAccessReceipt {
-                entity: Entity {
-                    entity_id: document_context.document_id.clone(),
-                    entity_type: EntityType::Document,
-                },
+            entity_access_receipt: DocumentAccessReceipt {
                 auth: macro_user_id
                     .map(|m| EntityAccessAuth::Authenticated(m.0))
                     .unwrap_or(EntityAccessAuth::Unauthenticated),
+                entity: crate::domain::models::Entity {
+                    entity_id: document_context.document_id.clone(),
+                    entity_type: EntityType::Document,
+                },
                 entity_permission: permission,
                 _marker: PhantomData,
             },

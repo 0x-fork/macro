@@ -12,8 +12,8 @@ use axum::{
 use super::{ExtractorError, InternalUser};
 use crate::domain::{
     models::{
-        Entity, EntityAccessAuth, EntityAccessReceipt, EntityPermission, EntityType,
-        ParticipantRole, RequiredPermission,
+        ChannelAccessReceipt, EntityAccessAuth, EntityPermission, EntityType, ParticipantRole,
+        RequiredPermission,
     },
     ports::EntityAccessService,
 };
@@ -31,7 +31,7 @@ struct ChannelAccessParams {
 #[derive(Debug)]
 pub struct ChannelAccessLevelExtractor<T: RequiredPermission, Svc> {
     /// The entity access receipt
-    pub entity_access_receipt: EntityAccessReceipt<T>,
+    pub entity_access_receipt: ChannelAccessReceipt<T>,
     _marker: PhantomData<(T, Svc)>,
 }
 
@@ -74,12 +74,12 @@ where
 
         if internal_user.is_some() {
             return Ok(Self {
-                entity_access_receipt: EntityAccessReceipt {
-                    entity: Entity {
+                entity_access_receipt: ChannelAccessReceipt {
+                    auth: EntityAccessAuth::Internal,
+                    entity: crate::domain::models::Entity {
                         entity_id: channel_id,
                         entity_type: EntityType::Channel,
                     },
-                    auth: EntityAccessAuth::Internal,
                     entity_permission: EntityPermission::ChannelRole {
                         role: ParticipantRole::Owner,
                     },
@@ -110,12 +110,12 @@ where
         }
 
         Ok(Self {
-            entity_access_receipt: EntityAccessReceipt {
-                entity: Entity {
+            entity_access_receipt: ChannelAccessReceipt {
+                auth: EntityAccessAuth::Authenticated(macro_user_id.0),
+                entity: crate::domain::models::Entity {
                     entity_id: channel_id,
                     entity_type: EntityType::Channel,
                 },
-                auth: EntityAccessAuth::Authenticated(macro_user_id.0),
                 entity_permission: permission,
                 _marker: PhantomData,
             },

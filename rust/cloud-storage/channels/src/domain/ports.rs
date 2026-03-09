@@ -3,6 +3,7 @@ use crate::domain::models::{
     MessagePageDirection, ThreadData, ThreadReply, ThreadReplyRow, TopLevelMessageRow,
 };
 use chrono::{DateTime, Utc};
+use entity_access::domain::models::EntityAccessReceipt;
 use models_pagination::{CreatedAt, Query};
 use std::collections::HashMap;
 use uuid::Uuid;

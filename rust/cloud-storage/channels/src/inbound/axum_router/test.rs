@@ -12,7 +12,7 @@ use axum::{
 };
 use entity_access::domain::{
     models::{
-        AccessError, AccessLevel, EntityAccessReceipt, EntityPermission, EntityType,
+        AccessError, AccessLevel, AnyEntity, EntityAccessReceipt, EntityPermission, EntityType,
         ParticipantRole as EntityParticipantRole, RequiredPermission,
     },
     ports::EntityAccessService,
@@ -72,7 +72,7 @@ impl EntityAccessService for TestAccessService {
         _user_org_id: Option<i64>,
         _entity_id: &str,
         _entity_type: EntityType,
-    ) -> Result<EntityAccessReceipt<T>, AccessError> {
+    ) -> Result<EntityAccessReceipt<AnyEntity, T>, AccessError> {
         Err(self.access_err())
     }
 

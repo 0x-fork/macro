@@ -60,6 +60,11 @@ where
             .map_err(|e| ToolCallError {
                 description: "unable to get the entity access receipt".to_string(),
                 internal_error: e.into(),
+            })?
+            .try_into_kind()
+            .map_err(|e| ToolCallError {
+                description: "unable to use receipt as document access".to_string(),
+                internal_error: e.into(),
             })?;
 
         let result = service_context
