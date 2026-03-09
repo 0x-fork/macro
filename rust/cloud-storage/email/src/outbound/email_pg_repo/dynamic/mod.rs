@@ -12,7 +12,7 @@ pub(crate) use query::dynamic_email_thread_cursor;
 
 // Re-export filter internals so tests.rs can reach them via `use super::*`
 #[cfg(test)]
-pub(crate) use filters::*;
+use filters::*;
 
 use sqlx::{Postgres, QueryBuilder};
 use uuid::Uuid;

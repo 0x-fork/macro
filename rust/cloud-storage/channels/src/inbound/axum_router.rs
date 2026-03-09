@@ -76,7 +76,8 @@ pub struct Params {
 #[derive(Debug, Deserialize)]
 pub struct ThreadRepliesPath {
     /// Channel ID from path.
-    channel_id: Uuid,
+    #[serde(rename = "channel_id")]
+    _channel_id: Uuid,
     /// Message ID from path.
     message_id: Uuid,
 }
