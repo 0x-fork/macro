@@ -693,10 +693,14 @@ export const SoupViewList = (props: SoupViewListProps) => {
                     scrollBottomOffset={300}
                     rows={rows()}
                     bottomContent={
-                      <div class="w-full flex items-center gap-2 py-2 px-7">
-                        <CircleSpinner />
-                        <span class="text-sm font-semibold">Loading...</span>
-                      </div>
+                      <Show
+                        when={source.isFetching() || isSearchServiceLoading()}
+                      >
+                        <div class="w-full flex items-center gap-2 py-2 px-7">
+                          <CircleSpinner />
+                          <span class="text-sm font-semibold">Loading...</span>
+                        </div>
+                      </Show>
                     }
                   >
                     {(row, i) => {
