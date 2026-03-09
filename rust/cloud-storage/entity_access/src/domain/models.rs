@@ -336,25 +336,6 @@ impl<T: RequiredPermission> EntityAccessReceipt<AnyEntity, T> {
 }
 
 impl<T: RequiredPermission> DocumentAccessReceipt<T> {
-    /// Dangerously generates a document receipt for an internal user.
-    pub fn dangerously_assert_internal_user(
-        entity_id: &str,
-        entity_type: EntityType,
-    ) -> DocumentAccessReceipt<T> {
-        assert!(DocumentEntity::matches(entity_type));
-        EntityAccessReceipt {
-            auth: EntityAccessAuth::Internal,
-            entity: Entity {
-                entity_id: entity_id.to_string(),
-                entity_type,
-            },
-            entity_permission: EntityPermission::AccessLevel {
-                access_level: AccessLevel::Owner,
-            },
-            _marker: PhantomData,
-        }
-    }
-
     /// Getter for the validated document id.
     pub fn document_id(&self) -> &str {
         &self.entity.entity_id
@@ -362,25 +343,6 @@ impl<T: RequiredPermission> DocumentAccessReceipt<T> {
 }
 
 impl<T: RequiredPermission> ProjectAccessReceipt<T> {
-    /// Dangerously generates a project receipt for an internal user.
-    pub fn dangerously_assert_internal_user(
-        entity_id: &str,
-        entity_type: EntityType,
-    ) -> ProjectAccessReceipt<T> {
-        assert!(ProjectEntity::matches(entity_type));
-        EntityAccessReceipt {
-            auth: EntityAccessAuth::Internal,
-            entity: Entity {
-                entity_id: entity_id.to_string(),
-                entity_type,
-            },
-            entity_permission: EntityPermission::AccessLevel {
-                access_level: AccessLevel::Owner,
-            },
-            _marker: PhantomData,
-        }
-    }
-
     /// Getter for the validated project id.
     pub fn project_id(&self) -> &str {
         &self.entity.entity_id
@@ -388,25 +350,6 @@ impl<T: RequiredPermission> ProjectAccessReceipt<T> {
 }
 
 impl<T: RequiredPermission> ChatAccessReceipt<T> {
-    /// Dangerously generates a chat receipt for an internal user.
-    pub fn dangerously_assert_internal_user(
-        entity_id: &str,
-        entity_type: EntityType,
-    ) -> ChatAccessReceipt<T> {
-        assert!(ChatEntity::matches(entity_type));
-        EntityAccessReceipt {
-            auth: EntityAccessAuth::Internal,
-            entity: Entity {
-                entity_id: entity_id.to_string(),
-                entity_type,
-            },
-            entity_permission: EntityPermission::AccessLevel {
-                access_level: AccessLevel::Owner,
-            },
-            _marker: PhantomData,
-        }
-    }
-
     /// Getter for the validated chat id.
     pub fn chat_id(&self) -> &str {
         &self.entity.entity_id
@@ -414,25 +357,6 @@ impl<T: RequiredPermission> ChatAccessReceipt<T> {
 }
 
 impl<T: RequiredPermission> ThreadAccessReceipt<T> {
-    /// Dangerously generates an email thread receipt for an internal user.
-    pub fn dangerously_assert_internal_user(
-        entity_id: &str,
-        entity_type: EntityType,
-    ) -> ThreadAccessReceipt<T> {
-        assert!(EmailThreadEntity::matches(entity_type));
-        EntityAccessReceipt {
-            auth: EntityAccessAuth::Internal,
-            entity: Entity {
-                entity_id: entity_id.to_string(),
-                entity_type,
-            },
-            entity_permission: EntityPermission::AccessLevel {
-                access_level: AccessLevel::Owner,
-            },
-            _marker: PhantomData,
-        }
-    }
-
     /// Getter for the validated thread id as a UUID.
     pub fn thread_id(&self) -> Result<uuid::Uuid, AccessError> {
         uuid::Uuid::parse_str(&self.entity.entity_id)
@@ -441,25 +365,6 @@ impl<T: RequiredPermission> ThreadAccessReceipt<T> {
 }
 
 impl<T: RequiredPermission> ChannelAccessReceipt<T> {
-    /// Dangerously generates a channel receipt for an internal user.
-    pub fn dangerously_assert_internal_user(
-        entity_id: &str,
-        entity_type: EntityType,
-    ) -> ChannelAccessReceipt<T> {
-        assert!(ChannelEntity::matches(entity_type));
-        EntityAccessReceipt {
-            auth: EntityAccessAuth::Internal,
-            entity: Entity {
-                entity_id: entity_id.to_string(),
-                entity_type,
-            },
-            entity_permission: EntityPermission::ChannelRole {
-                role: ParticipantRole::Owner,
-            },
-            _marker: PhantomData,
-        }
-    }
-
     /// Getter for the validated channel id as a UUID.
     pub fn channel_id(&self) -> Result<uuid::Uuid, AccessError> {
         uuid::Uuid::parse_str(&self.entity.entity_id)

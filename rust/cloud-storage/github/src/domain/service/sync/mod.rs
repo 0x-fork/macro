@@ -161,12 +161,15 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
 
             // SAFETY: This is ok as we are only using the preview information of the
             // document
-            let entity_access = entity_access::domain::models::DocumentAccessReceipt::<
+            let entity_access = entity_access::domain::models::EntityAccessReceipt::<
+                entity_access::domain::models::AnyEntity,
                 ViewAccessLevel,
             >::dangerously_assert_internal_user(
                 &uuid.to_string(),
                 entity_access::domain::models::EntityType::Document,
-            );
+            )
+            .try_into_kind()
+            .expect("document receipt should tighten from a document entity type");
 
             match self.document_service.get_document(entity_access).await {
                 Ok(document) => {
@@ -246,12 +249,15 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
         for doc_id in doc_ids {
             tracing::trace!(doc_id, status, "updating task status");
 
-            let entity_access = entity_access::domain::models::DocumentAccessReceipt::<
+            let entity_access = entity_access::domain::models::EntityAccessReceipt::<
+                entity_access::domain::models::AnyEntity,
                 EditAccessLevel,
             >::dangerously_assert_internal_user(
                 doc_id,
                 entity_access::domain::models::EntityType::Document,
-            );
+            )
+            .try_into_kind()
+            .expect("document receipt should tighten from a document entity type");
 
             self.document_service
                 .update_task_status(entity_access, status)
