@@ -758,7 +758,72 @@ export const GENERAL_CONTEXTUAL_FILTERS: EntityFilterConfig[] = [
   },
 ];
 
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'] as const;
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
+
+/** JavaScript/TypeScript extensions */
+const JS_TS_EXTENSIONS = ['js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'cts', 'mts'];
+
+/** Python extensions */
+const PYTHON_EXTENSIONS = ['py', 'pyw', 'pyi', 'rpy'];
+
+/** Rust extensions */
+const RUST_EXTENSIONS = ['rs'];
+
+/** C/C++ extensions */
+const C_CPP_EXTENSIONS = [
+  'c',
+  'h',
+  'cpp',
+  'cc',
+  'cxx',
+  'c++',
+  'hpp',
+  'hh',
+  'hxx',
+  'h++',
+  'ii',
+  'ino',
+  'inl',
+  'ipp',
+  'ixx',
+  'cppm',
+  'ccm',
+  'cxxm',
+  'c++m',
+];
+
+/** HTML/CSS extensions */
+const HTML_CSS_EXTENSIONS = [
+  'html',
+  'htm',
+  'xhtml',
+  'shtml',
+  'css',
+  'scss',
+  'sass',
+  'less',
+];
+
+/** JSON extensions */
+const JSON_EXTENSIONS = ['json', 'jsonc'];
+
+/** Shell script extensions */
+const SHELL_EXTENSIONS = ['sh', 'bash', 'zsh', 'fish', 'ksh', 'csh', 'tcsh'];
+
+/** Go extensions */
+const GO_EXTENSIONS = ['go'];
+
+/** Ruby extensions */
+const RUBY_EXTENSIONS = ['rb', 'erb', 'rake', 'gemspec'];
+
+/** Java/Kotlin extensions */
+const JAVA_KOTLIN_EXTENSIONS = ['java', 'kt', 'kts'];
+
+/** YAML extensions */
+const YAML_EXTENSIONS = ['yml', 'yaml'];
+
+/** Markdown extensions */
+const MARKDOWN_EXTENSIONS = ['md', 'mdx', 'markdown'];
 
 export const FILE_TYPE_FILTERS: EntityFilterConfig[] = [
   {
@@ -776,7 +841,7 @@ export const FILE_TYPE_FILTERS: EntityFilterConfig[] = [
     predicate: (entity) => {
       if (entity.type !== 'document') return false;
       const fileType = entity.fileType ?? '';
-      return (IMAGE_EXTENSIONS as readonly string[]).includes(fileType);
+      return IMAGE_EXTENSIONS.includes(fileType);
     },
   },
   {
@@ -797,13 +862,154 @@ export const FILE_TYPE_FILTERS: EntityFilterConfig[] = [
       if (['md', 'canvas'].includes(fileType)) return false;
       if ((codeFileExtensions as readonly string[]).includes(fileType))
         return false;
-      if ((IMAGE_EXTENSIONS as readonly string[]).includes(fileType))
-        return false;
+      if (IMAGE_EXTENSIONS.includes(fileType)) return false;
       if (fileType === 'pdf') return false;
       return true;
     },
   },
 ];
+
+/** Specific image type filters */
+export const IMAGE_TYPE_FILTERS = [
+  {
+    id: 'image-png',
+    label: 'PNG',
+    predicate: (entity) =>
+      entity.type === 'document' && entity.fileType === 'png',
+  },
+  {
+    id: 'image-jpg',
+    label: 'JPG',
+    predicate: (entity) =>
+      entity.type === 'document' &&
+      (entity.fileType === 'jpg' || entity.fileType === 'jpeg'),
+  },
+  {
+    id: 'image-gif',
+    label: 'GIF',
+    predicate: (entity) =>
+      entity.type === 'document' && entity.fileType === 'gif',
+  },
+  {
+    id: 'image-svg',
+    label: 'SVG',
+    predicate: (entity) =>
+      entity.type === 'document' && entity.fileType === 'svg',
+  },
+  {
+    id: 'image-webp',
+    label: 'WebP',
+    predicate: (entity) =>
+      entity.type === 'document' && entity.fileType === 'webp',
+  },
+] as const satisfies EntityFilterConfig[];
+
+export const IMAGE_TYPE_FILTER_IDS = IMAGE_TYPE_FILTERS.map((f) => f.id);
+
+/** Specific code language filters */
+export const CODE_LANGUAGE_FILTERS = [
+  {
+    id: 'code-js-ts',
+    label: 'JavaScript/TypeScript',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return JS_TS_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-python',
+    label: 'Python',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return PYTHON_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-rust',
+    label: 'Rust',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return RUST_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-c-cpp',
+    label: 'C/C++',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return C_CPP_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-html-css',
+    label: 'HTML/CSS',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return HTML_CSS_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-json',
+    label: 'JSON',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return JSON_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-shell',
+    label: 'Shell',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return SHELL_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-go',
+    label: 'Go',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return GO_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-ruby',
+    label: 'Ruby',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return RUBY_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-java-kotlin',
+    label: 'Java/Kotlin',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return JAVA_KOTLIN_EXTENSIONS.includes(fileType);
+    },
+  },
+  {
+    id: 'code-yaml',
+    label: 'YAML',
+    predicate: (entity) => {
+      if (entity.type !== 'document') return false;
+      const fileType = entity.fileType ?? '';
+      return YAML_EXTENSIONS.includes(fileType);
+    },
+  },
+] as const satisfies EntityFilterConfig[];
+
+export const CODE_LANGUAGE_FILTER_IDS = CODE_LANGUAGE_FILTERS.map((f) => f.id);
 
 export const createSoupFilters = (
   notificationSource: NotificationSource,
@@ -939,6 +1145,8 @@ export const createSoupFilters = (
     ...CHANNEL_CONTEXTUAL_FILTERS,
     ...CHAT_CONTEXTUAL_FILTERS,
     ...FILE_TYPE_FILTERS,
+    ...IMAGE_TYPE_FILTERS,
+    ...CODE_LANGUAGE_FILTERS,
   ] as const satisfies EntityFilterConfig[];
 
   return list;

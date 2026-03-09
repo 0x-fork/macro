@@ -3,14 +3,20 @@ import type { ListView } from '@app/constants/list-views';
 import { createMemo, Match, Show, Switch } from 'solid-js';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import {
+  CODE_LANGUAGE_FILTER_IDS,
+  IMAGE_TYPE_FILTER_IDS,
+} from '@app/component/next-soup/filters/filters';
+import {
   AssigneeFilter,
   AttachmentTypeFilter,
+  CodeLanguageFilter,
   DocumentFolderFilter,
   EntityTypeFilter,
   FilesTypeFilter,
   FromSenderFilter,
   HasAttachmentFilter,
   HasCalendarInviteFilter,
+  ImageTypeFilter,
   ProjectFilter,
   StatusFilter,
   TaskPriorityFilter,
@@ -121,9 +127,28 @@ const ChannelsFilters = () => {
 };
 
 const FilesFilters = () => {
+  const { soup } = useSoupView();
+
+  // Show sub-filter dropdown if parent is active OR any sub-filter is active
+  const isImageFilterActive = () =>
+    soup.filters.isActive('file-image') ||
+    IMAGE_TYPE_FILTER_IDS.some((id) => soup.filters.isActive(id));
+  const isCodeFilterActive = () =>
+    soup.filters.isActive('file-code') ||
+    CODE_LANGUAGE_FILTER_IDS.some((id) => soup.filters.isActive(id));
+
   return (
     <>
       <FilesTypeFilter />
+
+      <Show when={isImageFilterActive()}>
+        <ImageTypeFilter />
+      </Show>
+
+      <Show when={isCodeFilterActive()}>
+        <CodeLanguageFilter />
+      </Show>
+
       <FilterDivider />
       <DocumentFolderFilter />
     </>
