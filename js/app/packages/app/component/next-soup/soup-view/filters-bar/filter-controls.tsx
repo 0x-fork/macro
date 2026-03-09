@@ -536,7 +536,7 @@ export const FilesTypeFilter = () => {
 
   return (
     <FilterSelect
-      label="Type"
+      label="File Type"
       options={typeOptions}
       active={activeOptions()}
       onChange={handleChange}
