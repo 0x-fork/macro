@@ -6,11 +6,15 @@ use crate::domain::{
     },
     ports::{MockChannelMessagesRepo, TopLevelMessagesQueryResult},
 };
-use entity_access::domain::models::{AnyEntity, EntityAccessReceipt, EntityType, MemberParticipantRole};
 use chrono::Utc;
+use entity_access::domain::models::{
+    AnyEntity, EntityAccessReceipt, EntityType, MemberParticipantRole,
+};
 use std::collections::HashMap;
 
-fn member_receipt(channel_id: Uuid) -> entity_access::domain::models::ChannelAccessReceipt<MemberParticipantRole> {
+fn member_receipt(
+    channel_id: Uuid,
+) -> entity_access::domain::models::ChannelAccessReceipt<MemberParticipantRole> {
     EntityAccessReceipt::<AnyEntity, MemberParticipantRole>::dangerously_assert_internal_user(
         &channel_id.to_string(),
         EntityType::Channel,

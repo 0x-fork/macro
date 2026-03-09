@@ -12,8 +12,7 @@ use axum::{
 use super::{ExtractorError, InternalUser, RequiredPermission};
 use crate::domain::{
     models::{
-        AccessLevel, AnyEntity, EntityAccessAuth, EntityAccessReceipt, EntityPermission,
-        EntityType,
+        AccessLevel, AnyEntity, EntityAccessAuth, EntityAccessReceipt, EntityPermission, EntityType,
     },
     ports::EntityAccessService,
 };

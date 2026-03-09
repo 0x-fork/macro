@@ -11,9 +11,7 @@ use axum::{
 
 use super::{ExtractorError, InternalUser, RequiredPermission};
 use crate::domain::{
-    models::{
-        AccessLevel, ChatAccessReceipt, EntityAccessAuth, EntityPermission, EntityType,
-    },
+    models::{AccessLevel, ChatAccessReceipt, EntityAccessAuth, EntityPermission, EntityType},
     ports::EntityAccessService,
 };
 use model::chat::ChatBasic;

@@ -12,9 +12,7 @@ use serde::de::DeserializeOwned;
 
 use super::{ExtractorError, InternalUser, RequiredPermission};
 use crate::domain::{
-    models::{
-        AccessLevel, EntityAccessAuth, EntityPermission, EntityType, ProjectAccessReceipt,
-    },
+    models::{AccessLevel, EntityAccessAuth, EntityPermission, EntityType, ProjectAccessReceipt},
     ports::EntityAccessService,
 };
 use model::project::BasicProject;

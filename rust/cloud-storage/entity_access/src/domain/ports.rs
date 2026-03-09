@@ -4,8 +4,8 @@
 
 use super::models::EntityType;
 use crate::domain::models::{
-    AccessError, AccessLevel, AnyEntity, ChannelRoleResult, EntityAccessReceipt,
-    EntityPermission, RequiredPermission,
+    AccessError, AccessLevel, AnyEntity, ChannelRoleResult, EntityAccessReceipt, EntityPermission,
+    RequiredPermission,
 };
 use macro_user_id::{lowercased::Lowercase, user_id::MacroUserId};
 use std::future::Future;

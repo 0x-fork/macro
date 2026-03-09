@@ -558,7 +558,9 @@ impl<R: DocumentRepo, U: PresignedUploadUrlPort, T: TaskPropertiesPort> Document
     #[tracing::instrument(skip(self))]
     async fn update_task_status(
         &self,
-        entity_access_receipt: DocumentAccessReceipt<entity_access::domain::models::EditAccessLevel>,
+        entity_access_receipt: DocumentAccessReceipt<
+            entity_access::domain::models::EditAccessLevel,
+        >,
         status: &str,
     ) -> Result<(), DocumentError> {
         self.task_properties_service
