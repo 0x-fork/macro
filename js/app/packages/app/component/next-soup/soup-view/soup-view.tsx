@@ -1,4 +1,3 @@
-import ChevronRightIcon from '@icon/regular/caret-right.svg';
 import CheckIcon from '@icon/bold/check-bold.svg';
 import Spinner from '@icon/regular/spinner.svg';
 import {
@@ -80,8 +79,11 @@ import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-o
 import { usePropertyEditorHotkeys } from '@app/component/property-edit-modal/hooks/usePropertyEditorHotkeys';
 import type { SoupItemsQueryFilters } from '@queries/soup/items';
 import type { FilterID } from '@app/component/next-soup/filters/filters';
-import { SoupViewTabs } from '@app/component/next-soup/soup-view/soup-view-tabs';
-import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
+import {
+  SplitHeaderLeft,
+  SplitHeaderRight,
+} from '@app/component/split-layout/components/SplitHeader';
+import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import {
@@ -182,12 +184,14 @@ export const SoupView = (props: SoupViewProps) => {
                   <h1 class="font-medium text-ink-muted select-none text-sm">
                     {props.viewName}
                   </h1>
-                  <ChevronRightIcon class="size-4 text-ink-muted select-none" />
                 </Show>
-
-                <SoupViewTabs />
               </div>
             </SplitHeaderLeft>
+            <SplitHeaderRight>
+              <div class="w-52">
+                <SoupSearchbar variant="filled" />
+              </div>
+            </SplitHeaderRight>
             <SoupFiltersBar />
           </div>
           <div class="relative flex-grow min-h-1 flex max-sm:flex-col flex-row size-full">

@@ -1,6 +1,7 @@
 import { type Component, For, Show } from 'solid-js';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import CheckIcon from '@icon/regular/check.svg';
+import SortIcon from '@icon/regular/sort-ascending.svg';
 import ChevronDownIcon from '@icon/regular/caret-down.svg';
 import type {
   SortOption,
@@ -24,10 +25,6 @@ export interface SortDropdownProps {
 export const SortDropdown: Component<SortDropdownProps> = (props) => {
   const options = () => props.options ?? [];
 
-  const currentOption = () => options().find((o) => o.value === props.value());
-
-  const currentLabel = () => currentOption()?.label ?? 'Sort';
-
   return (
     <DropdownMenu
       open={props.open}
@@ -37,18 +34,12 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
     >
       <DropdownMenu.Trigger
         as={Button}
-        variant="secondary"
+        variant="tertiary"
         size="sm"
         class="whitespace-nowrap"
       >
-        <Show when={currentOption()?.icon}>
-          {(icon) => (
-            <span class="size-3.5 flex items-center justify-center shrink-0">
-              {icon()()}
-            </span>
-          )}
-        </Show>
-        <span class="font-medium">{currentLabel()}</span>
+        <SortIcon class="size-3.5" />
+        <span class="font-medium">Sort</span>
         <ChevronDownIcon class="size-3" />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -56,7 +47,7 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
           <For each={options()}>
             {(option) => (
               <DropdownMenu.Item
-                class="w-full flex items-center gap-2 px-2 py-2 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-md"
+                class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-md"
                 onSelect={() => props.onChange(option.value)}
               >
                 <Show when={option.icon}>

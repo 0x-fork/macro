@@ -918,6 +918,7 @@ export const createSoupFilters = (
       label: 'Task assigned to user',
       predicate: taskAssignedToUserFilter(getUserID),
     },
+    ...TASK_STATUS_FILTERS,
     ...TASK_PRIORITY_FILTERS,
     ...DOCUMENT_CONTEXTUAL_FILTERS,
     ...CHANNEL_CONTEXTUAL_FILTERS,

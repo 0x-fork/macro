@@ -1,15 +1,21 @@
-import { Button } from '@app/component/next-soup/soup-view/filters-bar/button';
-import { SoupViewContextFilters } from '@app/component/next-soup/soup-view/filters-bar/soup-view-context-filters';
 import { SoupViewContextSort } from '@app/component/next-soup/soup-view/filters-bar/soup-view-context-sort';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
-import XIcon from '@icon/regular/x.svg';
-import { createMemo, Match, Show, Switch } from 'solid-js';
+import { createMemo, Match, Switch } from 'solid-js';
+import { SoupViewTabs } from '@app/component/next-soup/soup-view/soup-view-tabs';
+import { UnifiedFilterDropdown } from '@app/component/next-soup/soup-view/filters-bar/unified-filter-dropdown';
+import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-bar/active-filter-chips';
 
 export const SoupFiltersBar = () => {
-  const { hasActiveRefinements, resetToTabDefaults } = useFilterRefinements();
+  const {
+    resetToTabDefaults,
+    activeFiltersList,
+    removeFilter,
+    replaceFilter,
+    isOptionActive,
+  } = useFilterRefinements();
 
   const panel = useSplitPanelOrThrow();
 
@@ -33,22 +39,25 @@ export const SoupFiltersBar = () => {
         </div>
       </Match>
       <Match when={true}>
-        <div class="@container w-full overflow-hidden flex gap-2 flex-wrap py-2 pl-2 pr-1">
-          <SoupViewContextFilters />
-          <Show when={hasActiveRefinements()}>
-            <Button variant="ghost" size="sm" onClick={resetToTabDefaults}>
-              <XIcon class="size-3" />
-              <span>Clear all</span>
-            </Button>
-          </Show>
+        <div class="flex flex-col w-full">
+          {/* Top row: Tabs on left, Filter + Sort on right */}
+          <div class="flex items-center gap-2 px-2 py-1.5 border-b border-edge-muted">
+            <SoupViewTabs />
 
-          <div class="flex-1" />
+            <div class="flex-1" />
 
-          <div class="max-w-60 w-full">
-            <SoupSearchbar />
+            <UnifiedFilterDropdown />
+            <SoupViewContextSort />
           </div>
 
-          <SoupViewContextSort />
+          {/* Active filters row - only shown when there are active filters */}
+          <ActiveFilterChips
+            filters={activeFiltersList()}
+            onRemove={removeFilter}
+            onReplace={replaceFilter}
+            onClearAll={resetToTabDefaults}
+            isOptionActive={isOptionActive}
+          />
         </div>
       </Match>
     </Switch>

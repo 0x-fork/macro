@@ -1,7 +1,14 @@
 import { Button as KButton, type ButtonRootProps } from '@kobalte/core/button';
 import type { PolymorphicProps } from '@kobalte/core/polymorphic';
+import { Tooltip } from '@core/component/Tooltip';
 import { cn } from '@ui/utils/classname';
-import { type ParentProps, splitProps, type ValidComponent } from 'solid-js';
+import {
+  type JSX,
+  type ParentProps,
+  Show,
+  splitProps,
+  type ValidComponent,
+} from 'solid-js';
 
 export type ButtonVariant =
   | 'primary'
@@ -17,6 +24,7 @@ export type ButtonProps<T extends ValidComponent = 'button'> = ParentProps<
     variant?: ButtonVariant;
     size?: ButtonSize;
     class?: string;
+    tooltip?: JSX.Element;
   }
 >;
 
@@ -59,12 +67,13 @@ export const Button = <T extends ValidComponent = 'button'>(
     'size',
     'class',
     'children',
+    'tooltip',
   ]);
 
   const variant = () => local.variant ?? 'primary';
   const size = () => local.size ?? 'md';
 
-  return (
+  const button = (
     <KButton
       class={cn(
         'inline-flex items-center justify-center font-medium rounded-md transition-colors',
@@ -78,5 +87,11 @@ export const Button = <T extends ValidComponent = 'button'>(
     >
       {local.children}
     </KButton>
+  );
+
+  return (
+    <Show when={local.tooltip} fallback={button}>
+      <Tooltip tooltip={local.tooltip}>{button}</Tooltip>
+    </Show>
   );
 };
