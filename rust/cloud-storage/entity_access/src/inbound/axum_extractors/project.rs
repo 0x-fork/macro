@@ -94,6 +94,7 @@ where
                         entity_id: project_context.id.clone(),
                         entity_type: EntityType::Project,
                     },
+                    auth: EntityAccessAuth::Authenticated(user_id.clone()),
                     entity_permission: EntityPermission::AccessLevel {
                         access_level: AccessLevel::Owner,
                     },
@@ -131,7 +132,7 @@ where
         Ok(Self {
             entity_access_receipt: ProjectAccessReceipt {
                 auth: macro_user_id
-                    .map(|m| EntityAccessAuth::Authenticated(m.0))
+                    .map(EntityAccessAuth::Authenticated)
                     .unwrap_or(EntityAccessAuth::Unauthenticated),
                 entity: crate::domain::models::Entity {
                     entity_id: project_context.id.clone(),
@@ -307,7 +308,7 @@ where
         Ok(Self::FoundProject {
             entity_access_receipt: ProjectAccessReceipt {
                 auth: macro_user_id
-                    .map(|m| EntityAccessAuth::Authenticated(m.0))
+                    .map(EntityAccessAuth::Authenticated)
                     .unwrap_or(EntityAccessAuth::Unauthenticated),
                 entity: crate::domain::models::Entity {
                     entity_id: project.id().to_owned(),

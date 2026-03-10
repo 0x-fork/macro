@@ -93,6 +93,7 @@ where
                         entity_id: chat_context.id.clone(),
                         entity_type: EntityType::Chat,
                     },
+                    auth: EntityAccessAuth::Authenticated(user_id.clone()),
                     entity_permission: EntityPermission::AccessLevel {
                         access_level: AccessLevel::Owner,
                     },
@@ -126,7 +127,7 @@ where
         Ok(Self {
             entity_access_receipt: ChatAccessReceipt {
                 auth: macro_user_id
-                    .map(|m| EntityAccessAuth::Authenticated(m.0))
+                    .map(EntityAccessAuth::Authenticated)
                     .unwrap_or(EntityAccessAuth::Unauthenticated),
                 entity: crate::domain::models::Entity {
                     entity_id: chat_context.id.clone(),

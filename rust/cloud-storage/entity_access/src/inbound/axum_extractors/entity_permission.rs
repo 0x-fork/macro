@@ -118,7 +118,7 @@ where
         Ok(Self {
             entity_access_receipt: EntityAccessReceipt::<AnyEntity, ViewAccessLevel> {
                 auth: macro_user_id
-                    .map(|m| EntityAccessAuth::Authenticated(m.0))
+                    .map(EntityAccessAuth::Authenticated)
                     .unwrap_or(EntityAccessAuth::Unauthenticated),
                 entity: crate::domain::models::Entity {
                     entity_id,

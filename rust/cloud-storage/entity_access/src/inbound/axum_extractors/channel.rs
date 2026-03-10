@@ -116,6 +116,7 @@ where
                     entity_id: channel_id,
                     entity_type: EntityType::Channel,
                 },
+                auth: EntityAccessAuth::Authenticated(macro_user_id),
                 entity_permission: permission,
                 _marker: PhantomData,
             },
