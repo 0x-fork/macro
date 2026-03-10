@@ -88,12 +88,11 @@ where
         {
             return Ok(Self {
                 entity_access_receipt: ChatAccessReceipt {
-                    auth: EntityAccessAuth::Authenticated(user_id.clone().0),
+                    auth: EntityAccessAuth::Authenticated(user_id.clone()),
                     entity: crate::domain::models::Entity {
                         entity_id: chat_context.id.clone(),
                         entity_type: EntityType::Chat,
                     },
-                    auth: EntityAccessAuth::Authenticated(user_id.clone()),
                     entity_permission: EntityPermission::AccessLevel {
                         access_level: AccessLevel::Owner,
                     },

@@ -111,12 +111,11 @@ where
 
         Ok(Self {
             entity_access_receipt: ChannelAccessReceipt {
-                auth: EntityAccessAuth::Authenticated(macro_user_id.0),
+                auth: EntityAccessAuth::Authenticated(macro_user_id),
                 entity: crate::domain::models::Entity {
                     entity_id: channel_id,
                     entity_type: EntityType::Channel,
                 },
-                auth: EntityAccessAuth::Authenticated(macro_user_id),
                 entity_permission: permission,
                 _marker: PhantomData,
             },

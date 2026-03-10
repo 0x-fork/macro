@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use crate::domain::{
     models::{
-        AccessError, AccessLevel, AnyEntity, ChannelRoleResult, EntityAccessAuth,
+        AccessError, AccessLevel, AnyEntity, ChannelRoleResult, Entity, EntityAccessAuth,
         EntityAccessReceipt, EntityPermission, EntityType, RequiredPermission,
     },
     ports::{AccessRepository, EntityAccessService},
