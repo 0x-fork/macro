@@ -34,13 +34,15 @@ const freshSearch = createSoupFreshSearch();
 interface CreateSearchStateArgs {
   soup: SoupState;
   queryFilters: Accessor<SoupItemsQueryFilters>;
+  initialSearchText?: string;
 }
 
 export const createSearchState = ({
   soup,
   queryFilters,
+  initialSearchText,
 }: CreateSearchStateArgs) => {
-  const [searchText, setSearchText] = createSignal('');
+  const [searchText, setSearchText] = createSignal(initialSearchText ?? '');
 
   const trimmedSearchText = createMemo(() => searchText().trim());
 

@@ -1,5 +1,13 @@
 import GearIcon from '@phosphor-icons/core/regular/gear.svg?component-solid';
-import { type Component, createSignal, For, type JSX, Show } from 'solid-js';
+import {
+  type Component,
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  Show,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
@@ -8,12 +16,12 @@ import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
 import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
 import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
 import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
-import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
 import { AnimatedSidebarIcon } from '@macro-icons/wide/animating/sidebar';
 import { useLocation } from '@solidjs/router';
 import LogoIcon from '@macro-icons/macro-logo.svg';
 import PlusIcon from '@phosphor-icons/core/bold/plus-bold.svg?component-solid';
 import CommandIcon from '@phosphor-icons/core/assets/regular/command.svg';
+import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
 import { LIST_VIEW_PATHS, type ListView } from '@app/constants/list-views';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import { setCreateMenuOpen } from '@app/component/Launcher';
@@ -30,7 +38,17 @@ import { registerHotkey } from '@core/hotkey/hotkeys';
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { ROUTER_BASE } from '@app/constants/routerBase';
 import { TOKENS } from '@core/hotkey/tokens';
-import { Hotkey } from '@core/component/Hotkey';
+import { CommandItem } from '@app/component/command/CommandItem';
+import { getBlockNameForEntity } from '@app/component/command/CommandMenu';
+import { setPendingSidebarSearchText } from '@app/component/command/sidebar-search';
+import type { CategoryFilter } from '@app/component/command/types';
+import {
+  isCommandItem,
+  isEntityItem,
+  useCommandItems,
+} from '@app/component/command/useCommandItems';
+import { getActiveCommandsFromScope } from '@core/hotkey/getCommands';
+import { runCommand } from '@core/hotkey/utils';
 
 interface SidebarItem {
   id: ListView;
@@ -50,14 +68,6 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.inbox,
     icon: AnimatedInboxIcon,
     hotkey: 'i',
-  },
-  {
-    id: 'search',
-    label: 'Search',
-    href: LIST_VIEW_PATHS.search,
-    icon: AnimatedSearchIcon,
-    hotkey: '/',
-    standaloneHotkey: true,
   },
   {
     id: 'agents',
@@ -169,6 +179,17 @@ export const AppSidebar = (props: AppSidebarProps) => {
         },
       });
     }
+
+    registerHotkey({
+      hotkey: '/',
+      scopeId: 'global',
+      description: 'Focus sidebar search',
+      keyDownHandler: (e) => {
+        e?.preventDefault();
+        searchInputRef()?.focus();
+        return true;
+      },
+    });
   };
 
   registerHotkeys();
@@ -176,6 +197,94 @@ export const AppSidebar = (props: AppSidebarProps) => {
   const isExpanded = () => props.sidebarState === 'expanded';
   const isSlim = () => props.sidebarState === 'slim';
   const [sidebarBtnHovering, setSidebarBtnHovering] = createSignal(false);
+  const [searchInputRef, setSearchInputRef] = createSignal<HTMLInputElement>();
+  const [searchQuery, setSearchQuery] = createSignal('');
+  const [selectedIndex, setSelectedIndex] = createSignal(-1);
+  const [categoryFilter] = createSignal<CategoryFilter>('all');
+  const filteredItems = useCommandItems(searchQuery, categoryFilter);
+
+  const shouldShowResults = createMemo(
+    () => isExpanded() && searchQuery().trim().length > 0
+  );
+
+  const selectedItem = createMemo(() => {
+    const index = selectedIndex();
+    if (index < 0) return undefined;
+    return filteredItems()[index];
+  });
+
+  createEffect(() => {
+    const items = filteredItems();
+    const index = selectedIndex();
+    if (index >= items.length) {
+      setSelectedIndex(items.length > 0 ? 0 : -1);
+    }
+  });
+
+  const openSearchView = () => {
+    const query = searchQuery().trim();
+    if (query.length === 0) return;
+    setPendingSidebarSearchText(query);
+    layout.openWithSplit(
+      {
+        type: 'component',
+        id: 'search',
+      },
+      {
+        mergeHistory: true,
+        allowDuplicate: true,
+      }
+    );
+    setSearchQuery('');
+    setSelectedIndex(-1);
+  };
+
+  const handleItemAction = (openInNewSplit = false) => {
+    const item = selectedItem();
+    if (!item) {
+      openSearchView();
+      return;
+    }
+
+    if (isCommandItem(item)) {
+      const command = item.data;
+      if (command.activateCommandScopeId) {
+        const nestedCommands = getActiveCommandsFromScope(
+          command.activateCommandScopeId,
+          {
+            sortByScopeLevel: false,
+            hideShadowedCommands: false,
+            hideCommandsWithoutHotkeys: false,
+            limitToCurrentScope: true,
+          }
+        );
+        CommandState.setQuery('');
+        CommandState.setCommandScopeCommands(nestedCommands);
+        CommandState.setSelectedIndex(0);
+        CommandState.open();
+      } else {
+        runCommand(command);
+      }
+      setSearchQuery('');
+      setSelectedIndex(-1);
+      return;
+    }
+
+    if (isEntityItem(item)) {
+      const blockName = getBlockNameForEntity(item);
+      if (blockName) {
+        layout.openWithSplit(
+          { type: blockName, id: item.id },
+          {
+            referredFrom: 'kommand-menu',
+            preferNewSplit: openInNewSplit,
+          }
+        );
+      }
+      setSearchQuery('');
+      setSelectedIndex(-1);
+    }
+  };
 
   return (
     <>
@@ -212,6 +321,16 @@ export const AppSidebar = (props: AppSidebarProps) => {
           <LogoIcon class="size-6 text-accent opacity-100 group-data-[slim=true]/sidebar:opacity-0 group-data-[slim=true]/sidebar:size-0" />
           <div class="flex items-center gap-1">
             <Show when={isExpanded()}>
+              <Tooltip tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}>
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  class="rounded-xs"
+                  onClick={handleCreateClick}
+                >
+                  <PlusIcon class="size-4" />
+                </Button>
+              </Tooltip>
               <Tooltip
                 tooltip={
                   <LabelAndHotKey
@@ -257,29 +376,73 @@ export const AppSidebar = (props: AppSidebarProps) => {
           </div>
         </div>
 
-        <Tooltip
-          class={
-            'group-data-[slim=true]/sidebar:px-0.5 px-2 flex items-center justify-center'
-          }
-          tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}
-        >
-          <Button
-            class={
-              'rounded-xs justify-center group-data-[expanded=true]/sidebar:justify-start group-data-[expanded=true]/sidebar:w-full font-bold text-sm ring-1 ring-edge-muted p-1.5 flex gap-2'
-            }
-            variant="ghost"
-            size="sm"
-            onClick={handleCreateClick}
-          >
-            <PlusIcon class="size-4 shrink-0" />
-            <span class="opacity-100 group-data-[slim=true]/sidebar:sr-only group-data-[slim=true]/sidebar:opacity-0 grow text-left">
-              Create
-            </span>
-            <span class="opacity-100 group-data-[slim=true]/sidebar:sr-only group-data-[slim=true]/sidebar:opacity-0 rounded-sm px-2 py-0.5 text-xs border border-edge-muted">
-              <Hotkey shortcut="C" />
-            </span>
-          </Button>
-        </Tooltip>
+        <Show when={isExpanded()}>
+          <div class="px-2">
+            <div class="relative flex items-center gap-2 rounded-xs border border-edge-muted bg-transparent px-2 py-1.5 text-sm">
+              <SearchIcon class="size-4 shrink-0 text-ink-muted" />
+              <input
+                ref={setSearchInputRef}
+                type="text"
+                value={searchQuery()}
+                onInput={(e) => {
+                  setSearchQuery(e.currentTarget.value);
+                  setSelectedIndex(-1);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const items = filteredItems();
+                    if (items.length === 0) return;
+                    setSelectedIndex((prev) =>
+                      prev < 0 ? 0 : Math.min(prev + 1, items.length - 1)
+                    );
+                  }
+
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const items = filteredItems();
+                    if (items.length === 0) return;
+                    setSelectedIndex((prev) =>
+                      prev <= 0 ? 0 : Math.max(prev - 1, 0)
+                    );
+                  }
+
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleItemAction(e.shiftKey);
+                  }
+
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setSearchQuery('');
+                    setSelectedIndex(-1);
+                  }
+                }}
+                class="w-full bg-transparent p-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                placeholder="Search everything (/)"
+              />
+            </div>
+
+            <Show when={shouldShowResults()}>
+              <div class="mt-1 overflow-hidden rounded-xs border border-edge-muted bg-bg-panel max-h-80">
+                <For each={filteredItems().slice(0, 8)}>
+                  {(item, index) => (
+                    <CommandItem
+                      item={item}
+                      index={index()}
+                      selected={selectedIndex() === index()}
+                      onHover={setSelectedIndex}
+                      onSelect={(_, openInNewSplit) => {
+                        setSelectedIndex(index());
+                        handleItemAction(openInNewSplit);
+                      }}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
+          </div>
+        </Show>
 
         <nav>
           <ul class="w-full h-full px-2 flex flex-col gap-1">

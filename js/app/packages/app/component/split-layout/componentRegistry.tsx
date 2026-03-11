@@ -10,6 +10,7 @@ import { SettingsPanelComponentWrapper } from '../settings/Settings';
 import NotificationRoute from '@notifications/components/NotificationRoute';
 import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
 import { getDefaultListViewPreset } from '@app/component/app-sidebar/soup-filter-presets';
+import { takePendingSidebarSearchText } from '@app/component/command/sidebar-search';
 import { useUserContext } from '@core/context/user';
 import { useSplitPanelOrThrow } from './layoutUtils';
 import type { SplitContent } from './layoutManager';
@@ -218,6 +219,7 @@ registerComponent(
         viewName="Search"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
+        initialSearchText={takePendingSidebarSearchText()}
       />
     );
   })
