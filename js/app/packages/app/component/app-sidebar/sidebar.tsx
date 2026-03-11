@@ -1,5 +1,15 @@
 import GearIcon from '@phosphor-icons/core/regular/gear.svg?component-solid';
-import { type Component, createSignal, For, type JSX, Show } from 'solid-js';
+import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
+import {
+  type Component,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  type JSX,
+  Show,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
@@ -8,7 +18,6 @@ import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
 import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
 import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
 import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
-import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
 import { AnimatedSidebarIcon } from '@macro-icons/wide/animating/sidebar';
 import { useLocation } from '@solidjs/router';
 import LogoIcon from '@macro-icons/macro-logo.svg';
@@ -30,7 +39,16 @@ import { registerHotkey } from '@core/hotkey/hotkeys';
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { ROUTER_BASE } from '@app/constants/routerBase';
 import { TOKENS } from '@core/hotkey/tokens';
-import { Hotkey } from '@core/component/Hotkey';
+import { getBlockNameForEntity } from '@app/component/command/CommandMenu';
+import {
+  isCommandItem,
+  isEntityItem,
+  type CommandMenuItem,
+  useCommandItems,
+} from '@app/component/command/useCommandItems';
+import { runCommand } from '@core/hotkey/utils';
+import { CommandItem } from '@app/component/command/CommandItem';
+import { setPendingSidebarSearchText } from '@app/component/app-sidebar/sidebar-search-state';
 
 interface SidebarItem {
   id: ListView;
@@ -50,14 +68,6 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.inbox,
     icon: AnimatedInboxIcon,
     hotkey: 'i',
-  },
-  {
-    id: 'search',
-    label: 'Search',
-    href: LIST_VIEW_PATHS.search,
-    icon: AnimatedSearchIcon,
-    hotkey: '/',
-    standaloneHotkey: true,
   },
   {
     id: 'agents',
@@ -122,6 +132,8 @@ export const AppSidebar = (props: AppSidebarProps) => {
     setCreateMenuOpen((p) => !p);
   };
 
+  let sidebarSearchInputRef: HTMLInputElement | undefined;
+
   const registerHotkeys = () => {
     // Register 'g' as a leader key that activates the global GO_TO command scope
     registerHotkey({
@@ -169,6 +181,18 @@ export const AppSidebar = (props: AppSidebarProps) => {
         },
       });
     }
+
+    registerHotkey({
+      hotkey: '/',
+      scopeId: 'global',
+      description: 'Focus sidebar search',
+      keyDownHandler: (e) => {
+        e?.preventDefault();
+        sidebarSearchInputRef?.focus();
+        return true;
+      },
+      runWithInputFocused: false,
+    });
   };
 
   registerHotkeys();
@@ -212,6 +236,18 @@ export const AppSidebar = (props: AppSidebarProps) => {
           <LogoIcon class="size-6 text-accent opacity-100 group-data-[slim=true]/sidebar:opacity-0 group-data-[slim=true]/sidebar:size-0" />
           <div class="flex items-center gap-1">
             <Show when={isExpanded()}>
+              <Tooltip
+                tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}
+              >
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  class="rounded-xs"
+                  onClick={handleCreateClick}
+                >
+                  <PlusIcon class="size-4" />
+                </Button>
+              </Tooltip>
               <Tooltip
                 tooltip={
                   <LabelAndHotKey
@@ -257,29 +293,13 @@ export const AppSidebar = (props: AppSidebarProps) => {
           </div>
         </div>
 
-        <Tooltip
-          class={
-            'group-data-[slim=true]/sidebar:px-0.5 px-2 flex items-center justify-center'
-          }
-          tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}
-        >
-          <Button
-            class={
-              'rounded-xs justify-center group-data-[expanded=true]/sidebar:justify-start group-data-[expanded=true]/sidebar:w-full font-bold text-sm ring-1 ring-edge-muted p-1.5 flex gap-2'
-            }
-            variant="ghost"
-            size="sm"
-            onClick={handleCreateClick}
-          >
-            <PlusIcon class="size-4 shrink-0" />
-            <span class="opacity-100 group-data-[slim=true]/sidebar:sr-only group-data-[slim=true]/sidebar:opacity-0 grow text-left">
-              Create
-            </span>
-            <span class="opacity-100 group-data-[slim=true]/sidebar:sr-only group-data-[slim=true]/sidebar:opacity-0 rounded-sm px-2 py-0.5 text-xs border border-edge-muted">
-              <Hotkey shortcut="C" />
-            </span>
-          </Button>
-        </Tooltip>
+        <Show when={isExpanded()}>
+          <SidebarSearch
+            inputRef={(el) => {
+              sidebarSearchInputRef = el;
+            }}
+          />
+        </Show>
 
         <nav>
           <ul class="w-full h-full px-2 flex flex-col gap-1">
@@ -345,6 +365,150 @@ export const AppSidebar = (props: AppSidebarProps) => {
         </div>
       </div>
     </>
+  );
+};
+
+const SidebarSearch = (props: { inputRef?: (el: HTMLInputElement) => void }) => {
+  const layout = useSplitLayout();
+  const [searchText, setSearchText] = createSignal('');
+  const [isFocused, setIsFocused] = createSignal(false);
+  const [selectedIndex, setSelectedIndex] = createSignal(-1);
+
+  const items = useCommandItems(searchText, () => 'all');
+
+  const selectedItem = createMemo(() => {
+    const index = selectedIndex();
+    if (index < 0) return undefined;
+    return items()[index];
+  });
+
+  const openFullPageSearch = () => {
+    setIsFocused(false);
+    setPendingSidebarSearchText(searchText());
+    layout.openWithSplit(
+      {
+        type: 'component',
+        id: 'search',
+      },
+      { mergeHistory: true, allowDuplicate: true }
+    );
+  };
+
+  const handleItemAction = (item: CommandMenuItem) => {
+    if (!item) return;
+
+    if (isCommandItem(item)) {
+      setIsFocused(false);
+      runCommand(item.data);
+      return;
+    }
+
+    if (isEntityItem(item)) {
+      const blockName = getBlockNameForEntity(item);
+      if (!blockName) return;
+      setIsFocused(false);
+      layout.openWithSplit(
+        { type: blockName, id: item.id },
+        {
+          referredFrom: 'sidebar-search',
+        }
+      );
+    }
+  };
+
+  onMount(() => {
+    const onDocumentPointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Element)) return;
+      if (!event.target.closest('[data-sidebar-search-root]')) {
+        setIsFocused(false);
+        setSelectedIndex(-1);
+      }
+    };
+
+    document.addEventListener('pointerdown', onDocumentPointerDown);
+    onCleanup(() => {
+      document.removeEventListener('pointerdown', onDocumentPointerDown);
+    });
+  });
+
+  return (
+    <div class="px-2 relative" data-sidebar-search-root>
+      <div class="flex items-center gap-2 rounded-xs border border-edge-muted bg-panel px-2 py-1.5 text-sm">
+        <SearchIcon class="size-4 shrink-0 text-ink-muted" />
+        <input
+          ref={props.inputRef}
+          class="w-full bg-transparent border-none outline-none ring-0 focus:outline-none focus:ring-0 text-sm placeholder:text-ink-muted"
+          placeholder="Search everything (/)"
+          value={searchText()}
+          onInput={(e) => {
+            setSearchText(e.currentTarget.value);
+            setSelectedIndex(-1);
+          }}
+          onFocus={() => setIsFocused(true)}
+          onKeyDown={(e) => {
+            const resultItems = items();
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              if (resultItems.length === 0) return;
+              setSelectedIndex((prev) => {
+                const next = prev + 1;
+                return next >= resultItems.length ? 0 : next;
+              });
+              return;
+            }
+
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              if (resultItems.length === 0) return;
+              setSelectedIndex((prev) => {
+                if (prev === -1) return resultItems.length - 1;
+                const next = prev - 1;
+                return next < 0 ? resultItems.length - 1 : next;
+              });
+              return;
+            }
+
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const item = selectedItem();
+              if (item) {
+                handleItemAction(item);
+                return;
+              }
+
+              openFullPageSearch();
+              return;
+            }
+
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
+        />
+      </div>
+
+      <Show when={isFocused()}>
+        <div class="absolute inset-x-2 top-full mt-1 z-50 max-h-80 overflow-auto rounded-xs border border-edge-muted bg-panel">
+          <Show
+            when={items().length > 0}
+            fallback={<div class="px-3 py-2 text-sm text-ink-muted">No results found</div>}
+          >
+            <For each={items()}>
+              {(item, index) => (
+                <CommandItem
+                  item={item}
+                  index={index()}
+                  selected={selectedIndex() === index()}
+                  onSelect={(selected, _openInNewSplit) => handleItemAction(selected)}
+                  onHover={setSelectedIndex}
+                />
+              )}
+            </For>
+          </Show>
+        </div>
+      </Show>
+    </div>
   );
 };
 

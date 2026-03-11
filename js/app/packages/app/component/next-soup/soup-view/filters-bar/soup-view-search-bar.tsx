@@ -6,6 +6,10 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { Hotkey } from '@core/component/Hotkey';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import { registerHotkey } from '@core/hotkey/hotkeys';
+import {
+  pendingSidebarSearchText,
+  setPendingSidebarSearchText,
+} from '@app/component/app-sidebar/sidebar-search-state';
 import { createSignal, createEffect, onCleanup, Show } from 'solid-js';
 
 type SearchbarVariant = 'filled' | 'secondary';
@@ -46,6 +50,20 @@ export const SoupSearchbar = (props: SoupSearchbarProps) => {
         ref()?.focus();
       });
     }
+  });
+
+
+  createEffect(() => {
+    const pendingText = pendingSidebarSearchText();
+    if (!pendingText) return;
+    if (panel.handle.content().id !== 'search') return;
+
+    setSearchText(pendingText);
+    setPendingSidebarSearchText(undefined);
+    queueMicrotask(() => {
+      ref()?.focus();
+      ref()?.select();
+    });
   });
 
   const searchHotkey = registerHotkey({
