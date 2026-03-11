@@ -207,17 +207,23 @@ registerComponent(
 
 registerComponent(
   'search',
-  withAuth(() => {
+  withAuth((params) => {
     const user = useUserContext();
     const preset = getDefaultListViewPreset('search', {
       userId: user.userId(),
       email: user.email(),
     });
+
+    const initialSearchText = params?.q;
+
     return (
       <SoupView
         viewName="Search"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
+        initialSearchText={
+          typeof initialSearchText === 'string' ? initialSearchText : undefined
+        }
       />
     );
   })

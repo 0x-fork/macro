@@ -8,7 +8,6 @@ import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
 import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
 import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
 import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
-import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
 import { AnimatedSidebarIcon } from '@macro-icons/wide/animating/sidebar';
 import { useLocation } from '@solidjs/router';
 import LogoIcon from '@macro-icons/macro-logo.svg';
@@ -30,7 +29,17 @@ import { registerHotkey } from '@core/hotkey/hotkeys';
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { ROUTER_BASE } from '@app/constants/routerBase';
 import { TOKENS } from '@core/hotkey/tokens';
-import { Hotkey } from '@core/component/Hotkey';
+import {
+  type CommandMenuItem,
+  isCommandItem,
+  isEntityItem,
+  useCommandItems,
+} from '@app/component/command/useCommandItems';
+import { debouncedDependent } from '@core/util/debounce';
+import { getActiveCommandsFromScope } from '@core/hotkey/getCommands';
+import { runCommand } from '@core/hotkey/utils';
+import { getBlockNameForEntity } from '@app/component/command/CommandMenu';
+import { CommandItem } from '@app/component/command/CommandItem';
 
 interface SidebarItem {
   id: ListView;
@@ -50,14 +59,6 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.inbox,
     icon: AnimatedInboxIcon,
     hotkey: 'i',
-  },
-  {
-    id: 'search',
-    label: 'Search',
-    href: LIST_VIEW_PATHS.search,
-    icon: AnimatedSearchIcon,
-    hotkey: '/',
-    standaloneHotkey: true,
   },
   {
     id: 'agents',
@@ -113,6 +114,7 @@ type AppSidebarProps = {
 export const AppSidebar = (props: AppSidebarProps) => {
   const layout = useSplitLayout();
   const { toggleSettings } = useSettingsState();
+  const [searchInputRef, setSearchInputRef] = createSignal<HTMLInputElement>();
 
   const handleCommandPaletteClick = () => {
     CommandState.toggle();
@@ -169,6 +171,17 @@ export const AppSidebar = (props: AppSidebarProps) => {
         },
       });
     }
+
+    registerHotkey({
+      hotkey: '/',
+      scopeId: 'global',
+      description: 'Open sidebar search',
+      keyDownHandler: (e) => {
+        e?.preventDefault();
+        searchInputRef()?.focus();
+        return true;
+      },
+    });
   };
 
   registerHotkeys();
@@ -212,6 +225,18 @@ export const AppSidebar = (props: AppSidebarProps) => {
           <LogoIcon class="size-6 text-accent opacity-100 group-data-[slim=true]/sidebar:opacity-0 group-data-[slim=true]/sidebar:size-0" />
           <div class="flex items-center gap-1">
             <Show when={isExpanded()}>
+              <Tooltip
+                tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}
+              >
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  class="rounded-xs"
+                  onClick={handleCreateClick}
+                >
+                  <PlusIcon class="size-4 shrink-0" />
+                </Button>
+              </Tooltip>
               <Tooltip
                 tooltip={
                   <LabelAndHotKey
@@ -257,29 +282,9 @@ export const AppSidebar = (props: AppSidebarProps) => {
           </div>
         </div>
 
-        <Tooltip
-          class={
-            'group-data-[slim=true]/sidebar:px-0.5 px-2 flex items-center justify-center'
-          }
-          tooltip={<LabelAndHotKey label="Create new" shortcut="c" />}
-        >
-          <Button
-            class={
-              'rounded-xs justify-center group-data-[expanded=true]/sidebar:justify-start group-data-[expanded=true]/sidebar:w-full font-bold text-sm ring-1 ring-edge-muted p-1.5 flex gap-2'
-            }
-            variant="ghost"
-            size="sm"
-            onClick={handleCreateClick}
-          >
-            <PlusIcon class="size-4 shrink-0" />
-            <span class="opacity-100 group-data-[slim=true]/sidebar:sr-only group-data-[slim=true]/sidebar:opacity-0 grow text-left">
-              Create
-            </span>
-            <span class="opacity-100 group-data-[slim=true]/sidebar:sr-only group-data-[slim=true]/sidebar:opacity-0 rounded-sm px-2 py-0.5 text-xs border border-edge-muted">
-              <Hotkey shortcut="C" />
-            </span>
-          </Button>
-        </Tooltip>
+        <Show when={isExpanded()}>
+          <SidebarSearch setInputRef={setSearchInputRef} />
+        </Show>
 
         <nav>
           <ul class="w-full h-full px-2 flex flex-col gap-1">
@@ -345,6 +350,157 @@ export const AppSidebar = (props: AppSidebarProps) => {
         </div>
       </div>
     </>
+  );
+};
+
+const SidebarSearch = (props: {
+  setInputRef: (el: HTMLInputElement) => void;
+}) => {
+  const { openWithSplit } = useSplitLayout();
+  const [searchQuery, setSearchQuery] = createSignal('');
+  const [selectedIndex, setSelectedIndex] = createSignal(-1);
+  const [isOpen, setIsOpen] = createSignal(false);
+
+  const query = debouncedDependent(searchQuery, 60);
+  const items = useCommandItems(query, () => 'all');
+
+  const openFullTextSearch = () => {
+    openWithSplit(
+      {
+        type: 'component',
+        id: 'search',
+        params: { q: searchQuery().trim() },
+      },
+      {
+        mergeHistory: true,
+        allowDuplicate: true,
+      }
+    );
+    CommandState.clearCommandScopeCommands();
+    setIsOpen(false);
+  };
+
+  const handleItemAction = (item: CommandMenuItem, openInNewSplit = false) => {
+    if (!item) return;
+
+    if (isCommandItem(item)) {
+      const command = item.data;
+
+      if (command.activateCommandScopeId) {
+        CommandState.setQuery('');
+        CommandState.setCommandScopeCommands(
+          getActiveCommandsFromScope(command.activateCommandScopeId, {
+            sortByScopeLevel: false,
+            hideShadowedCommands: false,
+            hideCommandsWithoutHotkeys: false,
+            limitToCurrentScope: true,
+          })
+        );
+        setSelectedIndex(0);
+        return;
+      }
+
+      runCommand(command);
+      CommandState.clearCommandScopeCommands();
+      setIsOpen(false);
+      return;
+    }
+
+    if (isEntityItem(item)) {
+      const blockName = getBlockNameForEntity(item);
+      if (blockName) {
+        openWithSplit(
+          { type: blockName, id: item.id },
+          {
+            referredFrom: 'kommand-menu',
+            preferNewSplit: openInNewSplit,
+          }
+        );
+      }
+      CommandState.clearCommandScopeCommands();
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div class="px-2 relative">
+      <input
+        ref={(el) => props.setInputRef(el)}
+        type="text"
+        value={searchQuery()}
+        onInput={(e) => {
+          const nextQuery = e.currentTarget.value;
+          setSearchQuery(nextQuery);
+          CommandState.setQuery(nextQuery);
+          setSelectedIndex(-1);
+          setIsOpen(true);
+        }}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => {
+          queueMicrotask(() => {
+            setIsOpen(false);
+            CommandState.clearCommandScopeCommands();
+          });
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const next = Math.min(selectedIndex() + 1, items().length - 1);
+            setSelectedIndex(Math.max(next, 0));
+            return;
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIndex(Math.max(selectedIndex() - 1, -1));
+            return;
+          }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const selected = items()[selectedIndex()];
+            if (selected) {
+              handleItemAction(selected);
+              return;
+            }
+            openFullTextSearch();
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            setIsOpen(false);
+            CommandState.clearCommandScopeCommands();
+            e.currentTarget.blur();
+          }
+        }}
+        placeholder="Search everything (/)"
+        class="w-full rounded-xs border border-edge-muted bg-transparent px-2 py-1.5 text-sm text-ink placeholder:text-ink-muted"
+      />
+
+      <Show when={isOpen()}>
+        <div class="absolute left-2 right-2 mt-1 rounded-xs border border-edge-muted bg-panel overflow-hidden z-10">
+          <Show
+            when={items().length > 0}
+            fallback={
+              <div class="px-3 py-2 text-xs text-ink-extra-muted">
+                Press Enter to search full text
+              </div>
+            }
+          >
+            <div class="max-h-80 overflow-y-auto scrollbar-hidden">
+              <For each={items()}>
+                {(item, index) => (
+                  <CommandItem
+                    item={item}
+                    index={index()}
+                    selected={selectedIndex() === index()}
+                    onSelect={(next) => handleItemAction(next, false)}
+                    onHover={setSelectedIndex}
+                  />
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+      </Show>
+    </div>
   );
 };
 

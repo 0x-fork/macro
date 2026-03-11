@@ -101,6 +101,7 @@ export const useMaybeSoupView = () => useContext(SoupViewContext);
 interface SoupViewContextProviderProps {
   soup?: SoupState;
   queryFilters?: SoupBody;
+  initialSearchText?: string;
 }
 
 type ApiSortMethod = NonNullable<SoupParams['sort_method']>;
@@ -163,6 +164,12 @@ export const SoupViewContextProvider: FlowComponent<
   );
 
   const search = createSearchState({ soup, queryFilters });
+
+  createRenderEffect(() => {
+    const next = props.initialSearchText;
+    if (next === undefined) return;
+    search.setSearchText(next);
+  });
 
   const notificationSource = useGlobalNotificationSource();
 
