@@ -723,6 +723,12 @@ export const SoupViewList = (props: SoupViewListProps) => {
                         }
                       };
 
+                      createEffect(() => {
+                        if (i() === Math.floor(rows().length * 0.8)) {
+                          debouncedFetchMore();
+                        }
+                      });
+
                       return (
                         <>
                           <Show when={i() === 0 && featuredCount() > 0}>
