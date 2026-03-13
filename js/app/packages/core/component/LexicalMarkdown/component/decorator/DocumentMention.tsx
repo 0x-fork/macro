@@ -38,6 +38,7 @@ import {
   COMMAND_PRIORITY_NORMAL,
   type EditorThemeClasses,
   KEY_ENTER_COMMAND,
+  type LexicalEditor,
 } from 'lexical';
 import type { JSX } from 'solid-js';
 import {
@@ -55,6 +56,7 @@ import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
 import { autoRegister, UPDATE_DOCUMENT_NAME_COMMAND } from '../../plugins';
 import { openDocument } from '../core/BlockLink';
 import { MentionTooltip } from './MentionTooltip';
+import { InlineTaskEditor } from './InlineTaskEditor';
 
 function MentionContainer(props: {
   icon: JSX.Element;
@@ -98,8 +100,13 @@ function InlinePreview(props: {
   blockParams: Record<string, string>;
   theme?: EditorThemeClasses;
   collapsed?: boolean;
+  isEditable?: boolean;
+  editor?: LexicalEditor;
 }) {
   const { item, ItemEntityIcon } = useItemPreviewData(() => props.entity);
+
+  // Check if this is a task mention that should use inline editing
+  const isTaskMention = () => props.blockName === 'task';
 
   return (
     <Switch>
@@ -108,46 +115,57 @@ function InlinePreview(props: {
       </Match>
       <Match when={matches(item(), isAccessiblePreviewItem)}>
         {(accessibleItem) => (
-          <MentionContainer
-            icon={
-              <ItemEntityIcon
-                size="fill"
-                theme={
-                  accessibleItem().type !== 'channel' &&
-                  props.theme?.['document-mention'] === 'chat-blue'
-                    ? 'monochrome'
-                    : undefined
+          <Show
+            when={isTaskMention() && props.isEditable && !props.collapsed}
+            fallback={
+              <MentionContainer
+                icon={
+                  <ItemEntityIcon
+                    size="fill"
+                    theme={
+                      accessibleItem().type !== 'channel' &&
+                      props.theme?.['document-mention'] === 'chat-blue'
+                        ? 'monochrome'
+                        : undefined
+                    }
+                  />
                 }
+                text={
+                  <span
+                    data-document-mention="true"
+                    data-document-id={accessibleItem().id}
+                    data-block-name={props.blockName}
+                    data-document-name={accessibleItem().name}
+                  >
+                    {accessibleItem().name.replaceAll('\n', ' ').trim()}
+                    <span class="relative text-[0.8em] text-current/50 rounded-xs">
+                      {(() => {
+                        const accessories = mentionsAccessories(
+                          props.blockName as BlockName,
+                          props.blockParams
+                        );
+                        if (accessories) {
+                          return (
+                            <>
+                              {` ${accessories.note ?? ''}`}
+                              {getMentionsIcon(accessories.icon)}
+                            </>
+                          );
+                        }
+                      })()}
+                    </span>
+                  </span>
+                }
+                collapsed={props.collapsed}
               />
             }
-            text={
-              <span
-                data-document-mention="true"
-                data-document-id={accessibleItem().id}
-                data-block-name={props.blockName}
-                data-document-name={accessibleItem().name}
-              >
-                {accessibleItem().name.replaceAll('\n', ' ').trim()}
-                <span class="relative text-[0.8em] text-current/50 rounded-xs">
-                  {(() => {
-                    const accessories = mentionsAccessories(
-                      props.blockName as BlockName,
-                      props.blockParams
-                    );
-                    if (accessories) {
-                      return (
-                        <>
-                          {` ${accessories.note ?? ''}`}
-                          {getMentionsIcon(accessories.icon)}
-                        </>
-                      );
-                    }
-                  })()}
-                </span>
-              </span>
-            }
-            collapsed={props.collapsed}
-          />
+          >
+            <InlineTaskEditor
+              taskId={accessibleItem().id}
+              taskName={accessibleItem().name}
+              editor={props.editor}
+            />
+          </Show>
         )}
       </Match>
       <Match when={(item() as PreviewItemNoAccess).access === 'no_access'}>
@@ -300,14 +318,29 @@ export function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     }
   });
 
+  // Check if this is an editable task mention
+  const isEditableTaskMention = createMemo(() => {
+    const blockName = verifyBlockName(props.blockName);
+    return blockName === 'task' && editor?.isEditable() && !isCollapsed();
+  });
+
   return (
     <HoverCard
+      triggerClass={isEditableTaskMention() ? 'inline-flex flex-1' : undefined}
       trigger={
-        <span class="relative">
+        <span
+          class="relative"
+          classList={{
+            'inline-flex flex-1': isEditableTaskMention(),
+          }}
+        >
           <span
-            class="w-full h-full py-0.5 cursor-default rounded-xs hover:bg-hover focus:bg-active"
+            class="cursor-default rounded-xs focus:bg-active"
             classList={{
+              'py-0.5': !isEditableTaskMention(),
               'bg-active text-ink bracket bracket-offset-2': isSelectedAsNode(),
+              'hover:bg-hover': !isEditableTaskMention(),
+              'inline-flex flex-1': isEditableTaskMention(),
             }}
             style={{
               'user-select': 'inherit',
@@ -325,6 +358,8 @@ export function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
                   blockParams={props.blockParams || {}}
                   theme={props.theme}
                   collapsed={isCollapsed()}
+                  isEditable={editor?.isEditable()}
+                  editor={editor}
                 />
               </Match>
             </Switch>

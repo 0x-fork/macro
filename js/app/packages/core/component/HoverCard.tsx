@@ -35,6 +35,8 @@ export type HoverCardComponentProps = {
   gutter?: number;
   /** Additional class for content */
   contentClass?: string;
+  /** Additional class for trigger */
+  triggerClass?: string;
   /** Whether to disable the hover card */
   disabled?: boolean;
   /** Callback when open state changes */
@@ -91,7 +93,11 @@ export function HoverCard(props: HoverCardComponentProps) {
       onOpenChange={handleOpenChange}
       forceMount={shouldForceMount()}
     >
-      <KobalteHoverCard.Trigger as="span" disabled={props.disabled}>
+      <KobalteHoverCard.Trigger
+        as="span"
+        class={props.triggerClass}
+        disabled={props.disabled}
+      >
         {props.trigger}
       </KobalteHoverCard.Trigger>
 
