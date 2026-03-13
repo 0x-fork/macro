@@ -96,9 +96,11 @@ export const SIDEBAR_LINKS = [
     hasNotifications(notificationSource) {
       const allNotifications = notificationSource.notifications();
 
-      const mailNotifications = allNotifications.filter(
-        (n) => n.entity_type === 'email_thread' && !n.viewed_at && !n.done
-      );
+      const mailNotifications = allNotifications.filter((n) => {
+        const isUnreadEmail = n.entity_type === 'email_thread' && !n.viewed_at;
+
+        return isUnreadEmail && !n.done;
+      });
 
       return mailNotifications.length > 0;
     },
