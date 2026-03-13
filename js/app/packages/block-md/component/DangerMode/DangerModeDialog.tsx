@@ -1,5 +1,4 @@
 import { Dialog } from '@kobalte/core';
-import type { JSX } from 'solid-js';
 import { DialogWrapper } from '@core/component/DialogWrapper';
 import { SegmentedControl } from '@core/component/FormControls/SegmentControls';
 import { Button } from '@ui/components/Button';
