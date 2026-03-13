@@ -45,6 +45,7 @@ export function DangerModeDialog(props: {
   wordcountStats: Store<WordcountStats>;
 }) {
   const dangerMode = useDangerMode();
+  if (!dangerMode) return null;
   const focusLock = useFocusLock('danger-mode');
   const [goalType, setGoalType] = createSignal<'Time Limit' | 'Word Count'>(
     'Time Limit'
