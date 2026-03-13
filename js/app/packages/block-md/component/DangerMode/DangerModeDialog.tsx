@@ -2,7 +2,7 @@ import { Dialog } from '@kobalte/core';
 import { DialogWrapper } from '@core/component/DialogWrapper';
 import { SegmentedControl } from '@core/component/FormControls/SegmentControls';
 import { Button } from '@ui/components/Button';
-import { createMemo, createSignal, Match, Switch } from 'solid-js';
+import { createMemo, createSignal, Show } from 'solid-js';
 import type { LexicalEditor } from 'lexical';
 import type { WordcountStats } from '@core/component/LexicalMarkdown/plugins/wordcount/wordcountPlugin';
 import type { Store } from 'solid-js/store';
@@ -65,33 +65,13 @@ export function DangerModeDialog(props: {
   const getTimeModeString = (plural?: boolean) =>
     isTimeMode() ? `minute${plural && 's'}` : `word${plural && 's'}`;
 
-  const ExplanatoryText = () => {
-    return (
-      <Switch>
-        <Match when={!goalValue() && isTimeMode()}>
-          <p>Choose how long you want to write for.</p>
-        </Match>
-        <Match when={!goalValue() && !isTimeMode()}>
-          <p>Choose how many words you want to write.</p>
-        </Match>
-        <Match when={goalValue() && isTimeMode()}>
-          <p>
-            Write for{' '}
-            <strong>
-              {numberToWords(goalValue()!)} minute{goalValue() === 1 ? '' : 's'}
-            </strong>
-            , or your work will be destroyed.
-          </p>
-        </Match>
-        <Match when={goalValue() && !isTimeMode()}>
-          <p>
-            Write <strong>{goalValue()} words</strong>, or your work will be
-            destroyed.
-          </p>
-        </Match>
-      </Switch>
-    );
-  };
+  const goalLabel = createMemo(() => {
+    const val = goalValue();
+    if (!val) return null;
+    return isTimeMode()
+      ? `${numberToWords(val)} minute${val === 1 ? '' : 's'}`
+      : `${val} words`;
+  });
 
   const onCommit = () => {
     const snapshot = props.editor.getEditorState().toJSON();
@@ -165,7 +145,20 @@ export function DangerModeDialog(props: {
               </div>
             </div>
 
-            <ExplanatoryText />
+            <Show
+              when={goalLabel()}
+              fallback={
+                <p>
+                  Choose how {isTimeMode() ? 'long' : 'many words'} you want to
+                  write{isTimeMode() ? ' for' : ''}.
+                </p>
+              }
+            >
+              <p>
+                Write {isTimeMode() ? 'for ' : ''}
+                <strong>{goalLabel()}</strong>, or your work will be destroyed.
+              </p>
+            </Show>
 
             <div class="flex justify-end gap-3 pt-1">
               <Button

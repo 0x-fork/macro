@@ -15,7 +15,7 @@ import {
 } from 'solid-js';
 import { mdStore } from '../signal/markdownBlockData';
 import { FindAndReplace } from './FindAndReplace';
-import { dangerModeEnabled } from './DangerMode/dangerModeEnabled';
+import { dangerModeEnabled } from '@app/signal/dangerModeEnabled';
 import { DangerModeProvider } from './DangerMode/DangerModeContext';
 import { ModalsProvider } from './ModalsProvider';
 import { InstructionsNotebook, Notebook } from './Notebook';

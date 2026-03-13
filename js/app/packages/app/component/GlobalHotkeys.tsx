@@ -29,7 +29,7 @@ import Upload from '@icon/regular/upload.svg';
 import {
   dangerModeEnabled,
   setDangerModeEnabled,
-} from '@block-md/component/DangerMode/dangerModeEnabled';
+} from '../signal/dangerModeEnabled';
 
 export default function GlobalShortcuts() {
   const canFit = () => globalSplitManager()?.canAppendSplit() ?? true;

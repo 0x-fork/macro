@@ -55,7 +55,7 @@ import BombIcon from '@icon/regular/bomb.svg';
 import TagIcon from '@icon/regular/tag.svg';
 import { blockNameToItemType } from '@service-storage/client';
 import { useDangerMode } from './DangerMode/DangerModeContext';
-import { dangerModeEnabled } from './DangerMode/dangerModeEnabled';
+import { dangerModeEnabled } from '@app/signal/dangerModeEnabled';
 import { copyBranchNameToClipboard } from '@core/util/branchName';
 import { TOKENS } from '@core/hotkey/tokens';
 import { registerHotkey } from '@core/hotkey/hotkeys';
