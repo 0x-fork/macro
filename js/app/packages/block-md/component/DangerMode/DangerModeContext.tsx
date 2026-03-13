@@ -18,6 +18,8 @@ export function createDangerModeState() {
     createSignal<SerializedEditorState | null>(null);
   const [startWordCount, setStartWordCount] = createSignal(0);
   const [timeRemaining, setTimeRemaining] = createSignal(0);
+  const [wordsWritten, setWordsWritten] = createSignal(0);
+  const [started, setStarted] = createSignal(false);
 
   return {
     dialogOpen,
@@ -34,6 +36,10 @@ export function createDangerModeState() {
     setStartWordCount,
     timeRemaining,
     setTimeRemaining,
+    wordsWritten,
+    setWordsWritten,
+    started,
+    setStarted,
   };
 }
 

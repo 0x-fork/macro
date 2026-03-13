@@ -63,10 +63,6 @@ import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { createEffect, For, on, Show, type JSX } from 'solid-js';
 import { HISTORY_DRAWER_ID } from './History';
 import { DRAWER_ID as PROPERTIES_DRAWER_ID } from './MarkdownPropertiesModal';
-import { Button } from '@ui/components/Button';
-import { SplitToolbarRight } from '@app/component/split-layout/components/SplitToolbar';
-import { cn } from '@ui/utils/classname';
-import { LabelAndHotKey } from '@core/component/Tooltip';
 
 export function TopBar() {
   const canEdit = useCanEdit();
@@ -148,6 +144,13 @@ export function TopBar() {
   ];
 
   const tools: BlockTool[] = [
+    {
+      label: 'Danger Mode',
+      icon: BombIcon,
+      action: () => dangerMode?.setDialogOpen(true),
+      condition: () => dangerModeEnabled() && !dangerMode?.active(),
+      divideAbove: true,
+    },
     {
       label: 'History',
       icon: ClockIcon,
@@ -233,23 +236,6 @@ export function TopBar() {
         <BlockLiveIndicators />
       </SplitHeaderRight>
       <ResponsivePermissionsBadge />
-
-      <Show when={dangerModeEnabled()}>
-        <SplitToolbarRight>
-          <Button
-            class={cn(
-              'normal-case font-normal px-1 disabled:opacity-100 disabled:pointer-events-none disabled:hover:bg-inherit',
-              dangerMode?.active() &&
-                'bg-accent/20 hover:bg-accent/30 text-accent-ink'
-            )}
-            onClick={() => dangerMode?.setDialogOpen(true)}
-            tooltip={<LabelAndHotKey label="Danger Mode" />}
-            disabled={dangerMode?.active()}
-          >
-            <BombIcon class="size-4" />
-          </Button>
-        </SplitToolbarRight>
-      </Show>
 
       <ResponsiveBlockToolbar
         tools={tools}

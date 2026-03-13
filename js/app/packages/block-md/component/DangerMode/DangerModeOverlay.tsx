@@ -1,4 +1,11 @@
-import { createEffect, createMemo, on, onCleanup, Show } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  Show,
+} from 'solid-js';
 import type { LexicalEditor } from 'lexical';
 import { useDangerMode } from './DangerModeContext';
 import { ScopedPortal } from '@core/component/ScopedPortal';
@@ -10,6 +17,21 @@ export function DangerModeOverlay(props: { editor: LexicalEditor }) {
   const dangerMode = useDangerMode();
   if (!dangerMode) return;
 
+  const [flashing, setFlashing] = createSignal(false);
+
+  // Flash accent on activation
+  createEffect(
+    on(
+      () => dangerMode.active(),
+      (active) => {
+        if (active) {
+          setFlashing(true);
+          setTimeout(() => setFlashing(false), 600);
+        }
+      }
+    )
+  );
+
   const countdown = createMemo(() => {
     const config = dangerMode.config();
     if (config.goalType === 'time') {
@@ -19,8 +41,10 @@ export function DangerModeOverlay(props: { editor: LexicalEditor }) {
       const seconds = totalSeconds % 60;
       return `${minutes}:${String(seconds).padStart(2, '0')}`;
     } else {
-      const wordsWritten = dangerMode.timeRemaining();
-      const remaining = Math.max(0, config.goalValue - wordsWritten);
+      const remaining = Math.max(
+        0,
+        config.goalValue - dangerMode.wordsWritten()
+      );
       return `${remaining}`;
     }
   });
@@ -62,27 +86,37 @@ export function DangerModeOverlay(props: { editor: LexicalEditor }) {
       {/* Countdown display */}
       <ScopedPortal scope="split">
         {' '}
-        <div class="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-sm font-mono text-ink bg-panel px-2 py-1 rounded">
+        <div
+          class="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-sm font-mono bg-panel px-2 py-1 rounded transition-colors duration-500"
+          style={{
+            color: flashing() ? 'var(--color-accent)' : 'var(--color-ink)',
+          }}
+        >
           {countdown()}
         </div>
         {/* Health bar - vertical, right margin */}
-        <div class="absolute top-1/3 right-2 bottom-1/3 w-2 z-10 rounded-full overflow-hidden bg-panel">
-          {/* Clip container: anchored to bottom, height = health %. Rounded + overflow-hidden gives rounded ends. */}
-          <div
-            class="absolute bottom-0 left-0 right-0 rounded-full overflow-hidden transition-[height] duration-100"
-            style={{ height: `${dangerMode.health() * 100}%` }}
-          >
-            {/* Gradient fill: sized to the full track height so it stays fixed as health shrinks. */}
-            <div
-              class="absolute bottom-0 left-0 right-0"
-              style={{
-                height: `${100 / Math.max(dangerMode.health(), 0.01)}%`,
-                background:
-                  'linear-gradient(to bottom, var(--color-accent), var(--color-edge))',
-              }}
-            />
-          </div>
-        </div>
+        {/* Visual health uses a power curve so the bar reaches zero visually
+            right as the actual health hits zero (avoids a lingering sliver). */}
+        {(() => {
+          const visual = Math.pow(dangerMode.health(), 1.5);
+          return (
+            <div class="absolute top-1/3 right-2 bottom-1/3 w-2 z-10 rounded-full overflow-hidden bg-panel">
+              <div
+                class="absolute bottom-0 left-0 right-0 rounded-full overflow-hidden transition-[height] duration-100"
+                style={{ height: `${visual * 100}%` }}
+              >
+                <div
+                  class="absolute bottom-0 left-0 right-0"
+                  style={{
+                    height: `${100 / Math.max(visual, 0.01)}%`,
+                    background:
+                      'linear-gradient(to bottom, var(--color-accent), var(--color-page))',
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })()}
       </ScopedPortal>
     </Show>
   );
