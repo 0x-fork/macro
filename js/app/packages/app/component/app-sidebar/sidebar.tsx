@@ -31,6 +31,9 @@ import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { ROUTER_BASE } from '@app/constants/routerBase';
 import { TOKENS } from '@core/hotkey/tokens';
 import { Hotkey } from '@core/component/Hotkey';
+import type { NotificationSource } from '@notifications';
+import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
+import { UnreadIndicator } from '@entity';
 
 interface SidebarItem {
   id: ListView;
@@ -41,6 +44,7 @@ interface SidebarItem {
   >;
   hotkey: ValidHotkey;
   standaloneHotkey?: boolean;
+  hasNotifications: (notificationSource: NotificationSource) => boolean;
 }
 
 export const SIDEBAR_LINKS = [
@@ -50,6 +54,11 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.inbox,
     icon: AnimatedInboxIcon,
     hotkey: 'i',
+    hasNotifications(notificationSource) {
+      const notifications = notificationSource.notifications();
+
+      return notifications.filter((n) => !n.viewed_at).length > 0;
+    },
   },
   {
     id: 'search',
@@ -58,6 +67,9 @@ export const SIDEBAR_LINKS = [
     icon: AnimatedSearchIcon,
     hotkey: '/',
     standaloneHotkey: true,
+    hasNotifications() {
+      return false;
+    },
   },
   {
     id: 'agents',
@@ -65,6 +77,15 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.agents,
     icon: AnimatedStarIcon,
     hotkey: 'a',
+    hasNotifications(notificationSource) {
+      const allNotifications = notificationSource.notifications();
+
+      const agentNotifications = allNotifications.filter(
+        (n) => n.entity_type === 'chat' && !n.viewed_at
+      );
+
+      return agentNotifications.length > 0;
+    },
   },
   {
     id: 'mail',
@@ -72,6 +93,15 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.mail,
     icon: AnimatedEmailIcon,
     hotkey: 'e',
+    hasNotifications(notificationSource) {
+      const allNotifications = notificationSource.notifications();
+
+      const mailNotifications = allNotifications.filter(
+        (n) => n.entity_type === 'email_thread' && !n.viewed_at && !n.done
+      );
+
+      return mailNotifications.length > 0;
+    },
   },
   {
     id: 'documents',
@@ -79,6 +109,23 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.documents,
     icon: AnimatedFileMdIcon,
     hotkey: 'd',
+    hasNotifications(notificationSource) {
+      const allNotifications = notificationSource.notifications();
+
+      const documentNotifications = allNotifications.filter((n) => {
+        const isDoc = n.entity_type === 'document';
+        const meta = n.notification_metadata;
+
+        return (
+          isDoc &&
+          (meta.tag === 'document_mention' ||
+            meta.tag === 'mentioned_in_document_comment') &&
+          !n.viewed_at
+        );
+      });
+
+      return documentNotifications.length > 0;
+    },
   },
   {
     id: 'tasks',
@@ -86,6 +133,18 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.tasks,
     icon: AnimatedTaskIcon,
     hotkey: 't',
+    hasNotifications(notificationSource) {
+      const allNotifications = notificationSource.notifications();
+
+      const taskNotifications = allNotifications.filter((n) => {
+        const isDoc = n.entity_type === 'document';
+        const meta = n.notification_metadata;
+
+        return isDoc && meta.tag === 'task_assigned' && !n.viewed_at;
+      });
+
+      return taskNotifications.length > 0;
+    },
   },
   {
     id: 'channels',
@@ -93,6 +152,15 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.channels,
     icon: AnimatedChannelIcon,
     hotkey: 'c',
+    hasNotifications(notificationSource) {
+      const allNotifications = notificationSource.notifications();
+
+      const channelNotifications = allNotifications.filter(
+        (n) => n.entity_type === 'channel' && !n.viewed_at
+      );
+
+      return channelNotifications.length > 0;
+    },
   },
   {
     id: 'files',
@@ -100,6 +168,19 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.files,
     icon: AnimatedFolderIcon,
     hotkey: 'f',
+    hasNotifications(notificationSource) {
+      const allNotifications = notificationSource.notifications();
+
+      const fileNotifications = allNotifications.filter((n) => {
+        const isFile =
+          n.entity_type === 'document' || n.entity_type === 'project';
+        const meta = n.notification_metadata;
+
+        return isFile && meta.tag !== 'task_assigned' && !n.viewed_at;
+      });
+
+      return fileNotifications.length > 0;
+    },
   },
 ] satisfies SidebarItem[];
 
@@ -353,12 +434,14 @@ interface SidebarLinkProps extends SidebarItem {
 }
 
 const SidebarLink = (props: SidebarLinkProps) => {
-  const [isHovering, setIsHovering] = createSignal(false);
-
   const layout = useSplitLayout();
   const layoutManager = globalSplitManager();
 
+  const notificationSource = useGlobalNotificationSource();
+
   const location = useLocation();
+
+  const [isHovering, setIsHovering] = createSignal(false);
 
   const isActive = () => {
     const activeContent = layoutManager?.activeSplit()?.content();
@@ -380,7 +463,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
       variant="ghost"
       size={props.sidebarState === 'slim' ? 'icon-sm' : 'sm'}
       class={cn(
-        'flex items-center justify-start text-sm gap-2 cursor-default rounded-xs',
+        'relative flex items-center justify-start text-sm gap-2 cursor-default rounded-xs',
         isActive() && 'bg-ink/7 not-disabled:hover:bg-ink/15 text-ink',
         props.sidebarState === 'slim' && 'size-8 justify-center aspect-square',
         props.sidebarState !== 'slim' && 'w-full'
@@ -407,8 +490,11 @@ const SidebarLink = (props: SidebarLinkProps) => {
       }}
     >
       <Show when={props.icon}>
-        <div class="shrink-0 [&_svg]:size-4">
+        <div class="relative shrink-0 [&_svg]:size-4">
           <Dynamic component={props.icon} triggerAnimation={isHovering()} />
+          <Show when={props.hasNotifications(notificationSource)}>
+            <UnreadIndicator class="absolute -top-1 -right-1" active />
+          </Show>
         </div>
       </Show>
       <span class="opacity-100 group-data-[slim=true]/sidebar:sr-only group-data-[slim=true]/sidebar:opacity-0">
