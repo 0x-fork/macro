@@ -309,6 +309,10 @@ fn truncate_url(url: &str, max_len: usize) -> String {
     if url.len() <= max_len {
         url.to_string()
     } else {
-        format!("{}...", &url[..max_len])
+        let mut end = max_len;
+        while !url.is_char_boundary(end) {
+            end -= 1;
+        }
+        format!("{}...", &url[..end])
     }
 }
