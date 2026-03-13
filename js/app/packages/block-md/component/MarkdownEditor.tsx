@@ -180,6 +180,10 @@ import { MarkdownPopup } from './MarkdownPopup';
 import { isMobile } from '@core/mobile/isMobile';
 import { isIOS } from '@solid-primitives/platform';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import { useDangerMode } from './DangerMode/DangerModeContext';
+import { dangerModePlugin } from './DangerMode/dangerModePlugin';
+import { DangerModeOverlay } from './DangerMode/DangerModeOverlay';
+import { DangerModeDialog } from './DangerMode/DangerModeDialog';
 
 false && fileFolderDrop;
 
@@ -873,6 +877,11 @@ export function MarkdownEditor(props: { autoFocusOnMount?: boolean } = {}) {
     wordcountPlugin({ setStore: setWordcountStats, debounceTime: 200 })
   );
 
+  const dangerMode = useDangerMode();
+  if (dangerMode) {
+    plugins.use(dangerModePlugin({ dangerMode, wordcountStats }));
+  }
+
   return (
     <LexicalWrapperContext.Provider value={lexicalWrapper}>
       {/* SCUFFED: are these the right transparency values? */}
@@ -1000,6 +1009,11 @@ export function MarkdownEditor(props: { autoFocusOnMount?: boolean } = {}) {
 
         <Show when={ENABLE_MARKDOWN_COMMENTS}>
           <CommentsProvider />
+        </Show>
+
+        <Show when={dangerMode}>
+          <DangerModeOverlay editor={editor} />
+          <DangerModeDialog editor={editor} wordcountStats={wordcountStats} />
         </Show>
 
         <ScopedPortal scope="block">

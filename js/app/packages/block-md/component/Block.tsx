@@ -5,14 +5,31 @@ import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { DocumentDebouncedNotificationReadMarker } from '@notifications';
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
-import { createEffect, createSignal, onMount, Show, Suspense } from 'solid-js';
+import {
+  createEffect,
+  createSignal,
+  onMount,
+  type ParentProps,
+  Show,
+  Suspense,
+} from 'solid-js';
 import { mdStore } from '../signal/markdownBlockData';
 import { FindAndReplace } from './FindAndReplace';
+import { dangerModeEnabled } from './DangerMode/dangerModeEnabled';
+import { DangerModeProvider } from './DangerMode/DangerModeContext';
 import { ModalsProvider } from './ModalsProvider';
 import { InstructionsNotebook, Notebook } from './Notebook';
 import { InstructionsTopBar, TopBar } from './TopBar';
 
 const { track, TrackingEvents } = withAnalytics();
+
+function MaybeDangerModeProvider(props: ParentProps) {
+  return (
+    <Show when={dangerModeEnabled()} fallback={props.children}>
+      <DangerModeProvider>{props.children}</DangerModeProvider>
+    </Show>
+  );
+}
 
 export default function BlockMarkdown() {
   const [scrollRef, setScrollRef] = createSignal<HTMLDivElement>();
@@ -42,44 +59,49 @@ export default function BlockMarkdown() {
         tabIndex={-1}
       >
         <ModalsProvider>
-          <div class="relative">
-            <Suspense>
-              <Show
-                when={!isInstructionsMd()}
-                fallback={<InstructionsTopBar />}
-              >
-                <TopBar />
-              </Show>
-            </Suspense>
-            {/* off until - https://linear.app/macro-eng/issue/M-5203/markdown-unloads-completely-after-find */}
-            <Suspense>
-              <Show when={!isInstructionsMd() && false}>
-                <div class="absolute right-4 bottom-[-12] translate-y-full z-action-menu flex justify-end">
-                  <FindAndReplace />
-                </div>
-              </Show>
-            </Suspense>
-          </div>
-          <DocumentDebouncedNotificationReadMarker
-            notificationSource={notificationSource}
-            documentId={blockId}
-          />
-          <div class="w-full grow overflow-hidden relative" data-block-content>
-            <div
-              class="w-full h-full relative overflow-auto portal-scope scrollbar-hidden"
-              ref={setScrollRef}
-            >
+          <MaybeDangerModeProvider>
+            <div class="relative">
               <Suspense>
                 <Show
                   when={!isInstructionsMd()}
-                  fallback={<InstructionsNotebook />}
+                  fallback={<InstructionsTopBar />}
                 >
-                  <Notebook />
+                  <TopBar />
+                </Show>
+              </Suspense>
+              {/* off until - https://linear.app/macro-eng/issue/M-5203/markdown-unloads-completely-after-find */}
+              <Suspense>
+                <Show when={!isInstructionsMd() && false}>
+                  <div class="absolute right-4 bottom-[-12] translate-y-full z-action-menu flex justify-end">
+                    <FindAndReplace />
+                  </div>
                 </Show>
               </Suspense>
             </div>
-            <CustomScrollbar scrollContainer={scrollRef} />
-          </div>
+            <DocumentDebouncedNotificationReadMarker
+              notificationSource={notificationSource}
+              documentId={blockId}
+            />
+            <div
+              class="w-full grow overflow-hidden relative"
+              data-block-content
+            >
+              <div
+                class="w-full h-full relative overflow-auto portal-scope scrollbar-hidden"
+                ref={setScrollRef}
+              >
+                <Suspense>
+                  <Show
+                    when={!isInstructionsMd()}
+                    fallback={<InstructionsNotebook />}
+                  >
+                    <Notebook />
+                  </Show>
+                </Suspense>
+              </div>
+              <CustomScrollbar scrollContainer={scrollRef} />
+            </div>
+          </MaybeDangerModeProvider>
         </ModalsProvider>
       </div>
     </DocumentBlockContainer>

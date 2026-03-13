@@ -51,8 +51,11 @@ import Quotes from '@icon/regular/quotes.svg';
 import IconShared from '@icon/regular/share.svg';
 import IconLink from '@icon/regular/link.svg';
 import ClockIcon from '@icon/regular/clock-counter-clockwise.svg';
+import BombIcon from '@icon/regular/bomb.svg';
 import TagIcon from '@icon/regular/tag.svg';
 import { blockNameToItemType } from '@service-storage/client';
+import { useDangerMode } from './DangerMode/DangerModeContext';
+import { dangerModeEnabled } from './DangerMode/dangerModeEnabled';
 import { copyBranchNameToClipboard } from '@core/util/branchName';
 import { TOKENS } from '@core/hotkey/tokens';
 import { registerHotkey } from '@core/hotkey/hotkeys';
@@ -60,6 +63,10 @@ import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { createEffect, For, on, Show, type JSX } from 'solid-js';
 import { HISTORY_DRAWER_ID } from './History';
 import { DRAWER_ID as PROPERTIES_DRAWER_ID } from './MarkdownPropertiesModal';
+import { Button } from '@ui/components/Button';
+import { SplitToolbarRight } from '@app/component/split-layout/components/SplitToolbar';
+import { cn } from '@ui/utils/classname';
+import { LabelAndHotKey } from '@core/component/Tooltip';
 
 export function TopBar() {
   const canEdit = useCanEdit();
@@ -79,6 +86,7 @@ export function TopBar() {
   const referencesControl = useDrawerControl(REFERENCES_DRAWER_ID);
   const propertiesControl = useDrawerControl(PROPERTIES_DRAWER_ID);
   const shareCtx = useShareDialogContext();
+  const dangerMode = useDangerMode(); // may be undefined when provider not mounted
   const blockAliasedName = useBlockAliasedName();
   const isTask = blockAliasedName === 'task';
 
@@ -225,6 +233,23 @@ export function TopBar() {
         <BlockLiveIndicators />
       </SplitHeaderRight>
       <ResponsivePermissionsBadge />
+
+      <Show when={dangerModeEnabled()}>
+        <SplitToolbarRight>
+          <Button
+            class={cn(
+              'normal-case font-normal px-1 disabled:opacity-100 disabled:pointer-events-none disabled:hover:bg-inherit',
+              dangerMode?.active() &&
+                'bg-accent/20 hover:bg-accent/30 text-accent-ink'
+            )}
+            onClick={() => dangerMode?.setDialogOpen(true)}
+            tooltip={<LabelAndHotKey label="Danger Mode" />}
+            disabled={dangerMode?.active()}
+          >
+            <BombIcon class="size-4" />
+          </Button>
+        </SplitToolbarRight>
+      </Show>
 
       <ResponsiveBlockToolbar
         tools={tools}

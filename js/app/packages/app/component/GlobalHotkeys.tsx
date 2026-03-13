@@ -26,6 +26,10 @@ import {
 } from '@core/util/upload';
 import { useHandleFileUpload } from '@app/util/handleFileUpload';
 import Upload from '@icon/regular/upload.svg';
+import {
+  dangerModeEnabled,
+  setDangerModeEnabled,
+} from '@block-md/component/DangerMode/dangerModeEnabled';
 
 export default function GlobalShortcuts() {
   const canFit = () => globalSplitManager()?.canAppendSplit() ?? true;
@@ -263,6 +267,20 @@ export default function GlobalShortcuts() {
       });
       return true;
     },
+  });
+
+  registerHotkey({
+    scopeId: 'global',
+    description: createMemo(() =>
+      dangerModeEnabled()
+        ? 'Disable dangerous writing mode'
+        : 'Enable dangerous writing mode'
+    ),
+    keyDownHandler: () => {
+      setDangerModeEnabled((prev) => !prev);
+      return true;
+    },
+    runWithInputFocused: true,
   });
 
   return null;
