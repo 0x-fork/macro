@@ -1,5 +1,6 @@
 import type { SoupItemsQueryFilters } from '@queries/soup/items';
 import type { NotificationFilters } from '@service-storage/generated/schemas';
+import { EXCLUDE } from './filters';
 
 const INBOX_DONE = false;
 const INBOX_IMPORTANCE = true;
@@ -67,6 +68,7 @@ export function applyInboxQueryFilters(
       },
     },
     email_filters: { ...filters.email_filters, importance: INBOX_IMPORTANCE },
+    reminder_filters: filters.reminder_filters ?? { reminder_ids: EXCLUDE },
   };
 }
 
@@ -139,6 +141,7 @@ export function applyOtherQueryFilters(
     project_filters: withOtherImportance(filters.project_filters),
     document_filters: withOtherImportance(filters.document_filters),
     email_filters: withOtherImportance(filters.email_filters),
+    reminder_filters: filters.reminder_filters ?? { reminder_ids: EXCLUDE },
   };
 }
 

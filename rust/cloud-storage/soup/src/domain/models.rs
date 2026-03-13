@@ -238,6 +238,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
     ) -> GetRemindersRequest {
         GetRemindersRequest {
             user_id: self.user.clone(),
+            reminder_ids: reminder_filters.reminder_ids.clone(),
             done: reminder_filters.done,
             limit: self.limit,
         }
@@ -275,6 +276,8 @@ impl SoupRequest<Option<EntityFilterAst>> {
 pub struct GetRemindersRequest {
     /// The user to fetch reminders for.
     pub user_id: MacroUserIdStr<'static>,
+    /// Specific reminder IDs to filter by. Empty means all.
+    pub reminder_ids: Vec<String>,
     /// Filter by done state.
     pub done: Option<bool>,
     /// Max number of reminders to return.

@@ -10,6 +10,8 @@ import type { ReminderFiltersDone } from './reminderFiltersDone';
  * Filters for reminders in the soup feed.
  */
 export interface ReminderFilters {
+  /** Reminder IDs to filter by. Examples: ['uuid-1']. Empty to search all reminders. */
+  reminder_ids?: string[];
   /** Filter by reminder done state.
 None to ignore, true to include only done reminders, false to include only not-done reminders. */
   done?: ReminderFiltersDone;

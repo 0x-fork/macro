@@ -323,7 +323,7 @@ where
     ) -> Result<impl Iterator<Item = FrecencySoupItem>, SoupErr> {
         let items = self
             .soup_storage
-            .get_reminders(req.user_id.copied(), req.done, req.limit)
+            .get_reminders(req.user_id.copied(), &req.reminder_ids, req.done, req.limit)
             .await
             .map_err(anyhow::Error::from)?;
 

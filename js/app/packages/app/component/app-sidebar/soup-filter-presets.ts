@@ -1,5 +1,6 @@
 import {
   QUERY_FILTERS,
+  EXCLUDE,
   type FilterID,
 } from '@app/component/next-soup/filters/filters';
 import {
@@ -56,6 +57,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
       all: () => ({
         queryFilters: {
           emailView: 'all',
+          reminder_filters: { reminder_ids: EXCLUDE },
         },
         clientFilters: { and: ['explicit-noise'] },
       }),

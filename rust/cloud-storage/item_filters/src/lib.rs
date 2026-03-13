@@ -327,6 +327,10 @@ impl IsEmpty for ProjectFilters {
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq, Clone)]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema, schemars::JsonSchema))]
 pub struct ReminderFilters {
+    /// Reminder IDs to filter by. Examples: ['uuid-1']. Empty to search all reminders.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reminder_ids: Vec<String>,
+
     /// Filter by reminder done state.
     /// None to ignore, true to include only done reminders, false to include only not-done reminders.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -335,8 +339,8 @@ pub struct ReminderFilters {
 
 impl IsEmpty for ReminderFilters {
     fn is_empty(&self) -> bool {
-        let ReminderFilters { done } = self;
-        done.is_none()
+        let ReminderFilters { done, reminder_ids } = self;
+        done.is_none() && reminder_ids.is_empty()
     }
 }
 

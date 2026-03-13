@@ -36,10 +36,11 @@ pub trait SoupRepo: Send + Sync + 'static {
         items: &mut [SoupItem],
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
-    /// Fetches reminders for a user, optionally filtered by done state.
+    /// Fetches reminders for a user, optionally filtered by done state and/or specific IDs.
     fn get_reminders<'a>(
         &self,
         user_id: MacroUserIdStr<'a>,
+        reminder_ids: &[String],
         done_filter: Option<bool>,
         limit: u16,
     ) -> impl Future<Output = Result<Vec<SoupItem>, Self::Err>> + Send;

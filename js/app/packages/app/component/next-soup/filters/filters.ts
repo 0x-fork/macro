@@ -53,6 +53,7 @@ export const QUERY_FILTERS_BASE: SoupItemsQueryFilters = {
   document_filters: { document_ids: EXCLUDE },
   email_filters: { recipients: EXCLUDE },
   project_filters: { project_ids: EXCLUDE },
+  reminder_filters: { reminder_ids: EXCLUDE },
 };
 
 function isIdFilteredOut(ids: string[] | undefined, value: string): boolean {
@@ -88,6 +89,11 @@ export function filterSoupItemByRequestBody(
       { tag: 'emailThread' },
       ({ data }) =>
         !isIdFilteredOut(body.email_filters?.email_thread_ids, data.id)
+    )
+    .with(
+      { tag: 'reminder' },
+      ({ data }) =>
+        !isIdFilteredOut(body.reminder_filters?.reminder_ids, data.id)
     )
     .exhaustive();
 }
@@ -1012,6 +1018,7 @@ export const QUERY_FILTERS = {
     chat_filters: { chat_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
     project_filters: { project_ids: EXCLUDE },
+    reminder_filters: { reminder_ids: EXCLUDE },
     document_filters: { file_types: ['md', 'canvas'] },
   },
 
@@ -1021,6 +1028,7 @@ export const QUERY_FILTERS = {
     chat_filters: { chat_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
     project_filters: { project_ids: EXCLUDE },
+    reminder_filters: { reminder_ids: EXCLUDE },
     document_filters: { file_types: ['md'] },
   },
 
@@ -1030,6 +1038,7 @@ export const QUERY_FILTERS = {
     chat_filters: { chat_ids: EXCLUDE },
     document_filters: { document_ids: EXCLUDE },
     project_filters: { project_ids: EXCLUDE },
+    reminder_filters: { reminder_ids: EXCLUDE },
     email_filters: {},
   },
 
@@ -1039,6 +1048,7 @@ export const QUERY_FILTERS = {
     document_filters: { document_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
     project_filters: { project_ids: EXCLUDE },
+    reminder_filters: { reminder_ids: EXCLUDE },
     channel_filters: { channel_types: [ChannelTypeEnum.DirectMessage] },
   },
 
@@ -1048,6 +1058,7 @@ export const QUERY_FILTERS = {
     document_filters: { document_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
     project_filters: { project_ids: EXCLUDE },
+    reminder_filters: { reminder_ids: EXCLUDE },
     channel_filters: {
       channel_types: [
         ChannelTypeEnum.Private,
@@ -1063,6 +1074,7 @@ export const QUERY_FILTERS = {
     document_filters: { document_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
     project_filters: { project_ids: EXCLUDE },
+    reminder_filters: { reminder_ids: EXCLUDE },
     chat_filters: {},
   },
 
@@ -1071,6 +1083,7 @@ export const QUERY_FILTERS = {
     channel_filters: { channel_ids: EXCLUDE },
     chat_filters: { chat_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
+    reminder_filters: { reminder_ids: EXCLUDE },
     document_filters: { file_types: getFileAssociations('soup') },
   },
 
@@ -1080,6 +1093,7 @@ export const QUERY_FILTERS = {
     document_filters: { document_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
     project_filters: { project_ids: EXCLUDE },
+    reminder_filters: { reminder_ids: EXCLUDE },
     channel_filters: {},
   },
 

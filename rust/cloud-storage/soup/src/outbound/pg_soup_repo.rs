@@ -128,10 +128,11 @@ impl SoupRepo for PgSoupRepo {
     fn get_reminders(
         &self,
         user_id: macro_user_id::user_id::MacroUserIdStr<'_>,
+        reminder_ids: &[String],
         done_filter: Option<bool>,
         limit: u16,
     ) -> impl Future<Output = Result<Vec<SoupItem>, Self::Err>> + Send {
-        reminders::get_reminders(&self.inner, user_id, done_filter, limit)
+        reminders::get_reminders(&self.inner, user_id, reminder_ids, done_filter, limit)
     }
 }
 
