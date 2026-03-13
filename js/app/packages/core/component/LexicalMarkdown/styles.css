@@ -31,17 +31,19 @@
   min-height: 1.5em;
 }
 
-/* Make paragraph flex when it contains an inline task editor */
-.md-p:has(.inline-task-editor) {
+/* Full-width inline task editor (when alone on line) */
+.md-p:has(.inline-task-editor-full) {
   display: flex;
-  flex-wrap: wrap;
   width: 100%;
   align-items: baseline;
 }
 
-/* Make the Lexical-created span for document mentions flex when containing task editor */
-span[data-document-mention]:has(.inline-task-editor) {
+span[data-document-mention]:has(.inline-task-editor-full) {
   display: inline-flex;
+  flex: 1;
+}
+
+.inline-task-editor-full {
   flex: 1;
 }
 
@@ -216,20 +218,6 @@ ol.static-md.depth-6 > li:not(.list-none)::before {
 
 .md-inline-mention > div {
   display: contents;
-}
-
-/* Make paragraph flex when it contains an inline task editor */
-.md-p:has(.inline-task-editor) {
-  display: flex;
-  flex-wrap: wrap;
-  width: 100%;
-  align-items: baseline;
-}
-
-/* Make the Lexical-created span for document mentions flex when containing task editor */
-span[data-document-mention]:has(.inline-task-editor) {
-  display: inline-flex;
-  flex: 1;
 }
 
 .md-code-box {

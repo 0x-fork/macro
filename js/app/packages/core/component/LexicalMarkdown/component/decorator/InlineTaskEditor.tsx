@@ -46,6 +46,7 @@ export type InlineTaskEditorProps = {
   taskName: string;
   onNameChange?: (newName: string) => void;
   editor?: LexicalEditor;
+  fullWidth?: boolean;
 };
 
 /** Filters and sorts properties to show only Status, Priority, and Assignees */
@@ -275,8 +276,9 @@ export function InlineTaskEditor(props: InlineTaskEditorProps) {
     >
       <span
         class={cn(
-          'inline-task-editor inline-flex flex-1 items-center gap-1 group rounded border border-edge-muted hover:bg-hover/50 align-baseline',
-          'mx-1 px-0.5 py-px text-sm max-w-full'
+          'inline-flex items-center gap-1 group rounded ring ring-edge-muted/80 hover:bg-hover/50 align-baseline',
+          'mx-1 px-0.5 py-px text-sm max-w-full',
+          props.fullWidth ? 'inline-task-editor-full' : 'inline-task-editor'
         )}
       >
         {/* Left side: Status Icon + Title */}

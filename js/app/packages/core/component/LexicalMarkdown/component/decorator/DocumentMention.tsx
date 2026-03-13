@@ -35,6 +35,7 @@ import { blockNameToItemType } from '@service-storage/client';
 import { createCallback } from '@solid-primitives/rootless';
 import {
   $getNodeByKey,
+  $isTextNode,
   COMMAND_PRIORITY_NORMAL,
   type EditorThemeClasses,
   KEY_ENTER_COMMAND,
@@ -102,6 +103,7 @@ function InlinePreview(props: {
   collapsed?: boolean;
   isEditable?: boolean;
   editor?: LexicalEditor;
+  isAloneOnLine?: boolean;
 }) {
   const { item, ItemEntityIcon } = useItemPreviewData(() => props.entity);
 
@@ -164,6 +166,7 @@ function InlinePreview(props: {
               taskId={accessibleItem().id}
               taskName={accessibleItem().name}
               editor={props.editor}
+              fullWidth={props.isAloneOnLine}
             />
           </Show>
         )}
@@ -324,14 +327,45 @@ export function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     return blockName === 'task' && editor?.isEditable() && !isCollapsed();
   });
 
+  // Check if the mention is alone on its line (no text siblings)
+  const isAloneOnLine = createMemo(() => {
+    if (!editor || !isEditableTaskMention()) return false;
+    let result = false;
+    editor.getEditorState().read(() => {
+      const node = $getNodeByKey(props.key);
+      if (!node) return;
+
+      const parent = node.getParent();
+      if (!parent) return;
+
+      const siblings = parent.getChildren();
+      // Check if all siblings are either this node or empty/whitespace-only text nodes
+      const hasTextContent = siblings.some((sibling) => {
+        if (sibling.getKey() === props.key) return false;
+        if ($isTextNode(sibling)) {
+          const text = sibling.getTextContent().trim();
+          return text.length > 0;
+        }
+        // Other non-text nodes count as content
+        return !$isDocumentMentionNode(sibling);
+      });
+
+      result = !hasTextContent;
+    });
+    return result;
+  });
+
+  // Should the editor grow to fill available space?
+  const shouldGrow = () => isEditableTaskMention() && isAloneOnLine();
+
   return (
     <HoverCard
-      triggerClass={isEditableTaskMention() ? 'inline-flex flex-1' : undefined}
+      triggerClass={shouldGrow() ? 'inline-flex flex-1' : undefined}
       trigger={
         <span
           class="relative"
           classList={{
-            'inline-flex flex-1': isEditableTaskMention(),
+            'inline-flex flex-1': shouldGrow(),
           }}
         >
           <span
@@ -340,7 +374,7 @@ export function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
               'py-0.5': !isEditableTaskMention(),
               'bg-active text-ink bracket bracket-offset-2': isSelectedAsNode(),
               'hover:bg-hover': !isEditableTaskMention(),
-              'inline-flex flex-1': isEditableTaskMention(),
+              'inline-flex flex-1': shouldGrow(),
             }}
             style={{
               'user-select': 'inherit',
@@ -360,6 +394,7 @@ export function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
                   collapsed={isCollapsed()}
                   isEditable={editor?.isEditable()}
                   editor={editor}
+                  isAloneOnLine={isAloneOnLine()}
                 />
               </Match>
             </Switch>
