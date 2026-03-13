@@ -9,9 +9,5 @@ CREATE TABLE reminders (
                            PRIMARY KEY (id)
 );
 
--- All reminders for a user
-CREATE INDEX idx_reminders_user_id ON reminders (user_id);
-
--- Pending (due & not done) reminders for a user
-CREATE INDEX idx_reminders_user_pending ON reminders (user_id, reminder_time)
-    WHERE done_time IS NULL;
+-- All reminders for a user, sorted (covers the None filter case)
+CREATE INDEX idx_reminders_user_id ON reminders (user_id, reminder_time DESC);

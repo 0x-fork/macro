@@ -4047,6 +4047,42 @@ export const getItemsSoupResponse = zod.object({
             ),
           tag: zod.enum(['channel']),
         }),
+        zod.object({
+          data: zod
+            .object({
+              createdAt: zod
+                .string()
+                .datetime({})
+                .describe('When the reminder was created.'),
+              doneTime: zod
+                .string()
+                .datetime({})
+                .nullish()
+                .describe(
+                  'When the reminder was marked as done (if completed).'
+                ),
+              entityId: zod
+                .string()
+                .uuid()
+                .describe('The id of the entity this reminder is attached to.'),
+              entityType: zod
+                .string()
+                .describe('The type of entity this reminder is attached to.'),
+              id: zod
+                .string()
+                .uuid()
+                .describe('The unique identifier for this reminder.'),
+              reminderTime: zod
+                .string()
+                .datetime({})
+                .describe('When the reminder is due.'),
+              userId: zod
+                .string()
+                .describe('The user who created the reminder.'),
+            })
+            .describe('A reminder that appears in the soup feed.'),
+          tag: zod.enum(['reminder']),
+        }),
       ])
       .and(
         zod.object({
@@ -4367,6 +4403,17 @@ export const postItemsSoupBody = zod
       .describe(
         'The project filters used to filter down what projects you search over.'
       ),
+    reminder_filters: zod
+      .object({
+        done: zod
+          .boolean()
+          .nullish()
+          .describe(
+            'Filter by reminder done state.\nNone to ignore, true to include only done reminders, false to include only not-done reminders.'
+          ),
+      })
+      .optional()
+      .describe('Filters for reminders in the soup feed.'),
   })
   .describe('a bundle of all of the filters for each entity type')
   .and(
@@ -5587,6 +5634,42 @@ export const postItemsSoupResponse = zod.object({
               })
             ),
           tag: zod.enum(['channel']),
+        }),
+        zod.object({
+          data: zod
+            .object({
+              createdAt: zod
+                .string()
+                .datetime({})
+                .describe('When the reminder was created.'),
+              doneTime: zod
+                .string()
+                .datetime({})
+                .nullish()
+                .describe(
+                  'When the reminder was marked as done (if completed).'
+                ),
+              entityId: zod
+                .string()
+                .uuid()
+                .describe('The id of the entity this reminder is attached to.'),
+              entityType: zod
+                .string()
+                .describe('The type of entity this reminder is attached to.'),
+              id: zod
+                .string()
+                .uuid()
+                .describe('The unique identifier for this reminder.'),
+              reminderTime: zod
+                .string()
+                .datetime({})
+                .describe('When the reminder is due.'),
+              userId: zod
+                .string()
+                .describe('The user who created the reminder.'),
+            })
+            .describe('A reminder that appears in the soup feed.'),
+          tag: zod.enum(['reminder']),
         }),
       ])
       .and(
@@ -7508,6 +7591,29 @@ export const recentlyDeletedResponse = zod.object({
         .describe('The items returned from the call'),
     })
     .describe('Data to be returned'),
+  error: zod.boolean().describe('Indicates if an error occurred'),
+});
+
+/**
+ * @summary Creates a new reminder for the authenticated user
+ */
+export const createReminderHandlerBody = zod.object({
+  entity_id: zod.string().uuid(),
+  entity_type: zod.string(),
+  reminder_time: zod.string().datetime({}),
+});
+
+/**
+ * @summary Marks a reminder as done
+ */
+export const markReminderDoneHandlerParams = zod.object({
+  reminder_id: zod.string().uuid().describe('ID of the reminder'),
+});
+
+export const markReminderDoneHandlerResponse = zod.object({
+  data: zod.object({
+    success: zod.boolean().describe('Indicates if the request was successful'),
+  }),
   error: zod.boolean().describe('Indicates if an error occurred'),
 });
 

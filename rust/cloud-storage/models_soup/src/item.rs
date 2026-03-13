@@ -1,6 +1,7 @@
 use crate::document::SoupDocument;
 use crate::email_thread::SoupEnrichedEmailThreadPreview;
 use crate::project::SoupProject;
+use crate::reminder::SoupReminder;
 use crate::{chat::SoupChat, comms::SoupChannel};
 use chrono::{DateTime, Utc};
 use model_entity::{Entity, EntityType};
@@ -18,6 +19,7 @@ pub enum SoupItem {
     Project(SoupProject),
     EmailThread(SoupEnrichedEmailThreadPreview),
     Channel(SoupChannel),
+    Reminder(SoupReminder),
 }
 
 impl SoupItem {
@@ -39,6 +41,9 @@ impl SoupItem {
             SoupItem::Channel(channel) => {
                 EntityType::Channel.with_entity_string(channel.channel.channel.id.0.to_string())
             }
+            SoupItem::Reminder(reminder) => {
+                EntityType::Reminder.with_entity_string(reminder.id.to_string())
+            }
         }
     }
 
@@ -49,6 +54,7 @@ impl SoupItem {
             SoupItem::Project(soup_project) => soup_project.updated_at,
             SoupItem::EmailThread(soup_thread) => soup_thread.thread.updated_at,
             SoupItem::Channel(soup_channel) => soup_channel.channel.channel.updated_at,
+            SoupItem::Reminder(reminder) => reminder.reminder_time,
         }
     }
 }
@@ -112,6 +118,7 @@ impl SoupItem {
             (SoupItem::Channel(soup_channel), SimpleSortMethod::ViewedUpdated) => soup_channel
                 .viewed_at
                 .unwrap_or(soup_channel.channel.channel.updated_at),
+            (SoupItem::Reminder(reminder), _) => reminder.reminder_time,
         }
     }
 }
@@ -126,6 +133,7 @@ impl Identify for SoupItem {
             SoupItem::Project(soup_project) => soup_project.id,
             SoupItem::EmailThread(thread) => thread.thread.id,
             SoupItem::Channel(soup_channel) => soup_channel.channel.channel.id.0,
+            SoupItem::Reminder(reminder) => reminder.id,
         }
     }
 }
@@ -166,6 +174,7 @@ impl SoupItem {
                 PropertiesEntityType::Chat,
             )),
             SoupItem::Channel(_) => None,
+            SoupItem::Reminder(_) => None,
         }
     }
 }

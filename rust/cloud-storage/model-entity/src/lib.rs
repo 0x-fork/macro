@@ -45,6 +45,8 @@ pub enum EntityType {
     EmailThread,
     /// The entity is a team
     Team,
+    /// The entity is a reminder
+    Reminder,
 }
 
 impl EntityType {

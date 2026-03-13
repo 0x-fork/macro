@@ -5,5 +5,6 @@ pub mod email_thread;
 pub mod item;
 pub mod project;
 pub mod properties;
+pub mod reminder;
 
 pub use properties::SoupProperty;

@@ -277,22 +277,22 @@ services:
   # image_proxy_service (Port 8097)
   # Proxies external images to avoid CORS issues and IP leakage
   # ============================================================================
-  image_proxy_service:
-    <<: *common-env
-    build:
-      context: ./rust/cloud-storage
-      dockerfile: Dockerfile.dev
-      target: image_proxy_service
-    ports:
-      - "8097:8080"
-    networks:
-      - services
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+#  image_proxy_service:
+#    <<: *common-env
+#    build:
+#      context: ./rust/cloud-storage
+#      dockerfile: Dockerfile.dev
+#      target: image_proxy_service
+#    ports:
+#      - "8097:8080"
+#    networks:
+#      - services
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#      start_period: 10s
 
   # ============================================================================
   # websocket_service (Port 6969)
@@ -311,23 +311,23 @@ services:
   # sync_service (Port 8787)
   # Document sync service using Cloudflare Workers/Durable Objects (via miniflare)
   # ============================================================================
-  sync_service:
-    <<: *common-env
-    build:
-      context: ./rust/sync-service
-      dockerfile: Dockerfile
-    ports:
-      - "8787:8787"
-    environment:
-      - INTERNAL_API_SECRET_KEY=${INTERNAL_API_SECRET_KEY}
-    networks:
-      - services
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8787/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+#  sync_service:
+#    <<: *common-env
+#    build:
+#      context: ./rust/sync-service
+#      dockerfile: Dockerfile
+#    ports:
+#      - "8787:8787"
+#    environment:
+#      - INTERNAL_API_SECRET_KEY=${INTERNAL_API_SECRET_KEY}
+#    networks:
+#      - services
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8787/health"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#      start_period: 60s
 
   # ============================================================================
   # lexical_service (Port 8096)
@@ -342,8 +342,8 @@ services:
         GITHUB_PACKAGES_TOKEN: ${GITHUB_PACKAGES_TOKEN}
     ports:
       - "8096:8096"
-    depends_on:
-      - sync_service
+#    depends_on:
+#      - sync_service
     environment:
       - PORT=8096
       - INTERNAL_AUTH_KEY=${INTERNAL_API_SECRET_KEY}

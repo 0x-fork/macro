@@ -1,7 +1,8 @@
 use crate::domain::{
     models::{
-        AdvancedSortParams, FrecencyQueryInner, FrecencySoupItem, SimpleQueryInner,
-        SimpleSortQuery, SimpleSortRequest, SoupErr, SoupQuery, SoupRequest, SoupType,
+        AdvancedSortParams, FrecencyQueryInner, FrecencySoupItem, GetRemindersRequest,
+        SimpleQueryInner, SimpleSortQuery, SimpleSortRequest, SoupErr, SoupQuery, SoupRequest,
+        SoupType,
     },
     ports::{SoupOutput, SoupRepo, SoupService},
 };
@@ -316,6 +317,23 @@ where
     }
 
     #[tracing::instrument(err, skip(self, req))]
+    async fn handle_reminders_request(
+        &self,
+        req: GetRemindersRequest,
+    ) -> Result<impl Iterator<Item = FrecencySoupItem>, SoupErr> {
+        let items = self
+            .soup_storage
+            .get_reminders(req.user_id.copied(), req.done, req.limit)
+            .await
+            .map_err(anyhow::Error::from)?;
+
+        Ok(items.into_iter().map(|item| FrecencySoupItem {
+            item,
+            frecency_score: None,
+        }))
+    }
+
+    #[tracing::instrument(err, skip(self, req))]
     async fn handle_comms_request(
         &self,
         req: Option<GetChannelsRequest>,
@@ -354,11 +372,13 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn get_user_soup(&self, req: SoupRequest<EntityFilters>) -> Result<SoupOutput, SoupErr> {
         let entity_filter = req.filters().clone();
+        let reminder_filters = entity_filter.reminder_filters.clone();
         let req = req.into_ast()?;
         let limit = req.limit.clamp(20, 500);
 
         let email_request = req.build_email_request();
         let comms_request = req.build_comms_request();
+        let reminders_request = req.build_reminders_request(&reminder_filters);
 
         match req.cursor {
             SoupQuery::Simple(SimpleQueryInner(cursor)) => {
@@ -374,16 +394,21 @@ where
                 );
 
                 let email_soup_fut = self.handle_email_request(email_request);
-
                 let comms_soup_fut = self.handle_comms_request(comms_request);
+                let reminders_soup_fut = self.handle_reminders_request(reminders_request);
 
-                let (main_soup, email_soup, comms_soup) =
-                    tokio::join!(main_soup_fut, email_soup_fut, comms_soup_fut);
+                let (main_soup, email_soup, comms_soup, reminders_soup) = tokio::join!(
+                    main_soup_fut,
+                    email_soup_fut,
+                    comms_soup_fut,
+                    reminders_soup_fut
+                );
 
                 Ok(Either::Left(
                     main_soup?
                         .chain(email_soup?)
                         .chain(comms_soup?)
+                        .chain(reminders_soup?)
                         .paginate_on(limit.into(), sort_method)
                         .filter_on(entity_filter)
                         .sort_desc()

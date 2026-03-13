@@ -232,6 +232,17 @@ impl SoupRequest<Option<EntityFilterAst>> {
         })
     }
 
+    pub(crate) fn build_reminders_request(
+        &self,
+        reminder_filters: &item_filters::ReminderFilters,
+    ) -> GetRemindersRequest {
+        GetRemindersRequest {
+            user_id: self.user.clone(),
+            done: reminder_filters.done,
+            limit: self.limit,
+        }
+    }
+
     pub(crate) fn build_comms_request(&self) -> Option<GetChannelsRequest> {
         Some(GetChannelsRequest {
             macro_id: self.user.clone(),
@@ -257,6 +268,17 @@ impl SoupRequest<Option<EntityFilterAst>> {
             }?,
         })
     }
+}
+
+/// Parameters for fetching reminders in the soup feed.
+#[derive(Debug)]
+pub struct GetRemindersRequest {
+    /// The user to fetch reminders for.
+    pub user_id: MacroUserIdStr<'static>,
+    /// Filter by done state.
+    pub done: Option<bool>,
+    /// Max number of reminders to return.
+    pub limit: u16,
 }
 
 /// a [SoupItem] with an associated frecency score

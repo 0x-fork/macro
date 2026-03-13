@@ -3,6 +3,7 @@ use crate::domain::models::{
 };
 use either::Either;
 use item_filters::EntityFilters;
+use macro_user_id::user_id::MacroUserIdStr;
 use models_pagination::{Frecency, PaginatedCursor, SimpleSortMethod};
 use models_soup::item::SoupItem;
 
@@ -34,6 +35,14 @@ pub trait SoupRepo: Send + Sync + 'static {
         &self,
         items: &mut [SoupItem],
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
+
+    /// Fetches reminders for a user, optionally filtered by done state.
+    fn get_reminders<'a>(
+        &self,
+        user_id: MacroUserIdStr<'a>,
+        done_filter: Option<bool>,
+        limit: u16,
+    ) -> impl Future<Output = Result<Vec<SoupItem>, Self::Err>> + Send;
 }
 
 /// type alias which represents the posible outputs of soup

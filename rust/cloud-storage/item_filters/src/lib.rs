@@ -323,6 +323,23 @@ impl IsEmpty for ProjectFilters {
     }
 }
 
+/// Filters for reminders in the soup feed.
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq, Clone)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema, schemars::JsonSchema))]
+pub struct ReminderFilters {
+    /// Filter by reminder done state.
+    /// None to ignore, true to include only done reminders, false to include only not-done reminders.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub done: Option<bool>,
+}
+
+impl IsEmpty for ReminderFilters {
+    fn is_empty(&self) -> bool {
+        let ReminderFilters { done } = self;
+        done.is_none()
+    }
+}
+
 /// a bundle of all of the filters for each entity type
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema, schemars::JsonSchema))]
@@ -342,6 +359,9 @@ pub struct EntityFilters {
     /// the bundled [EmailFilters]
     #[serde(default)]
     pub email_filters: EmailFilters,
+    /// the bundled [ReminderFilters]
+    #[serde(default)]
+    pub reminder_filters: ReminderFilters,
 }
 
 impl IsEmpty for EntityFilters {
@@ -352,6 +372,7 @@ impl IsEmpty for EntityFilters {
             chat_filters,
             channel_filters,
             email_filters,
+            reminder_filters,
         } = self;
         project_filters.is_empty()
             && document_filters.is_empty()
@@ -359,5 +380,6 @@ impl IsEmpty for EntityFilters {
             && chat_filters.is_empty()
             && email_filters.is_empty()
             && channel_filters.is_empty()
+            && reminder_filters.is_empty()
     }
 }

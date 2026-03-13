@@ -356,7 +356,8 @@ async fn test_expanded_soup_by_ids(pool: Pool<Postgres>) {
             SoupItem::Chat(_)
             | SoupItem::Project(_)
             | SoupItem::EmailThread(_)
-            | SoupItem::Channel(_) => None,
+            | SoupItem::Channel(_)
+            | SoupItem::Reminder(_) => None,
         })
         .expect("The document should exist");
     let expected_doc_id = Uuid::parse_str("11111111-aaaa-aaaa-aaaa-aaaaaaaaaaaa").unwrap(); // doc-in-A
@@ -4630,6 +4631,7 @@ async fn test_all_filter_types_combined(db: PgPool) -> anyhow::Result<()> {
             owners: vec!["macro|user-1@test.com".to_string()],
             ..Default::default()
         },
+        ..Default::default()
     };
 
     let filters = EntityFilterAst::new_from_filters(entity_filters)?.unwrap();
