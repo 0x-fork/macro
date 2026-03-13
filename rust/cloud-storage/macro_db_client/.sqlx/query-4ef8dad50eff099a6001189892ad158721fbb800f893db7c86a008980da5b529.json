@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE reminders\n        SET done_time = NOW()\n        WHERE id = $1 AND user_id = $2 AND done_time IS NULL\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ef8dad50eff099a6001189892ad158721fbb800f893db7c86a008980da5b529"
+}

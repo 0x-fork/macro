@@ -29,6 +29,7 @@ pub mod organization;
 pub mod pins;
 pub mod projects;
 pub mod recents;
+pub mod reminders;
 pub mod share_permission;
 #[cfg(feature = "team")]
 pub mod team;

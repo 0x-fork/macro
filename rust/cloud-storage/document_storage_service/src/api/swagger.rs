@@ -26,7 +26,7 @@ use crate::{
             self,
             recently_deleted::{RecentlyDeletedResponse, RecentlyDeletedResponseData},
         },
-        saved_views, threads, user_document_view_location,
+        reminders, saved_views, threads, user_document_view_location,
     },
     model::{
         request::{
@@ -180,6 +180,11 @@ use utoipa::OpenApi;
         history::upsert_history::upsert_history_handler,
         history::delete_history::delete_history_handler,
 
+        // reminders
+        reminders::create_reminder::create_reminder_handler,
+        reminders::get_reminders::get_reminders_handler,
+        reminders::mark_reminder_done::mark_reminder_done_handler,
+
         // items
         soup::inbound::axum_router::get_soup_handler,
         soup::inbound::axum_router::post_soup_handler,
@@ -287,6 +292,7 @@ use utoipa::OpenApi;
             GetPinsResponse, // Get pins
             ReorderPinRequest, // Reorder pins
             GetUserHistoryResponse, // Get user history
+            reminders::create_reminder::CreateReminderRequest, // Reminders
             CreateInstructionsDocumentResponse, // Instructions
             GetInstructionsDocumentResponse,
             UserViewsResponse,

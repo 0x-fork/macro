@@ -38,6 +38,7 @@ mod notification;
 mod pins;
 mod projects;
 mod recents;
+mod reminders;
 mod user;
 mod user_document_view_location;
 
@@ -116,6 +117,12 @@ fn api_router(state: ApiContext) -> Router {
                 axum::middleware::from_fn(macro_middleware::connection_drop_prevention_handler),
                 CompressionLayer::new(),
             ]),
+        )
+        .nest(
+            "/reminders",
+            reminders::router().layer(axum::middleware::from_fn(
+                macro_middleware::connection_drop_prevention_handler,
+            )),
         )
         .nest("/instructions", instructions::router())
         .nest(
