@@ -2,6 +2,7 @@ import { isEntityType } from '@core/types/utils';
 import type { DateValue } from '@core/util/date';
 import type { ApiLabel } from '@service-email/generated/schemas';
 import type {
+  ReminderMetadata,
   SoupLabel,
   SoupProperty,
 } from '@service-storage/generated/schemas';
@@ -15,6 +16,7 @@ export type EntityBase = {
   createdAt?: DateValue | null;
   updatedAt?: DateValue | null;
   viewedAt?: DateValue | null;
+  reminderMetadata?: ReminderMetadata;
 };
 
 export type ChannelEntity = EntityBase & {

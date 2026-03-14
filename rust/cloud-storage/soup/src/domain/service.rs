@@ -1,11 +1,11 @@
 use crate::domain::{
     models::{
-        AdvancedSortParams, FrecencyQueryInner, FrecencySoupItem, GetRemindersRequest,
-        SimpleQueryInner, SimpleSortQuery, SimpleSortRequest, SoupErr, SoupQuery, SoupRequest,
-        SoupType,
+        AdvancedSortParams, FrecencyQueryInner, FrecencySoupItem, SimpleQueryInner,
+        SimpleSortQuery, SimpleSortRequest, SoupErr, SoupQuery, SoupRequest, SoupType,
     },
     ports::{SoupOutput, SoupRepo, SoupService},
 };
+use crate::outbound::pg_soup_repo::reminders::ReminderRow;
 use comms::domain::{models::GetChannelsRequest, ports::ChannelsService};
 use cowlike::CowLike;
 use doppleganger::Mirror;
@@ -31,6 +31,7 @@ use models_soup::{
     },
     item::SoupItem,
 };
+use non_empty::IsEmpty;
 use std::cmp::Ordering;
 use uuid::Uuid;
 
@@ -88,6 +89,7 @@ where
         Ok(res.into_iter().map(|item| FrecencySoupItem {
             item,
             frecency_score: None,
+            reminder_metadata: None,
         }))
     }
 
@@ -248,6 +250,7 @@ where
             .map(|(soup_item, frecency)| FrecencySoupItem {
                 item: soup_item,
                 frecency_score: Some(frecency),
+                reminder_metadata: None,
             });
 
         Ok(match res.len().cmp(&(limit as usize)) {
@@ -310,27 +313,11 @@ where
             .map(|(item, frecency_score)| FrecencySoupItem {
                 item,
                 frecency_score,
+                reminder_metadata: None,
             })
             .collect();
 
         Ok(Either::Right(emails_with_props.into_iter()))
-    }
-
-    #[tracing::instrument(err, skip(self, req))]
-    async fn handle_reminders_request(
-        &self,
-        req: GetRemindersRequest,
-    ) -> Result<impl Iterator<Item = FrecencySoupItem>, SoupErr> {
-        let items = self
-            .soup_storage
-            .get_reminders(req.user_id.copied(), &req.reminder_ids, req.done, req.limit)
-            .await
-            .map_err(anyhow::Error::from)?;
-
-        Ok(items.into_iter().map(|item| FrecencySoupItem {
-            item,
-            frecency_score: None,
-        }))
     }
 
     #[tracing::instrument(err, skip(self, req))]
@@ -354,6 +341,7 @@ where
                         FrecencySoupItem {
                             item: SoupItem::Channel(soup_channel),
                             frecency_score,
+                            reminder_metadata: None,
                         }
                     })
                 })?,
@@ -373,16 +361,60 @@ where
     async fn get_user_soup(&self, req: SoupRequest<EntityFilters>) -> Result<SoupOutput, SoupErr> {
         let entity_filter = req.filters().clone();
         let reminder_filters = entity_filter.reminder_filters.clone();
-        let req = req.into_ast()?;
         let limit = req.limit.clamp(20, 500);
 
+        println!("asdf reminder_filters: {:?}", reminder_filters);
+        println!(
+            "asdf reminder_filters.is_empty(): {}",
+            reminder_filters.is_empty()
+        );
+
+        // Step 1: Fetch reminder rows (sequential — we need entity IDs before other queries)
+        let reminder_rows = if reminder_filters.is_empty() {
+            println!("asdf skipping reminder fetch — filters empty");
+            vec![]
+        } else {
+            let rows = self
+                .soup_storage
+                .get_reminders(
+                    req.user.copied(),
+                    &reminder_filters.reminder_ids,
+                    reminder_filters.done,
+                    limit,
+                )
+                .await
+                .map_err(anyhow::Error::from)?;
+            println!("asdf fetched {} reminder rows", rows.len());
+            for r in &rows {
+                println!(
+                    "asdf   reminder row: id={}, entity_type={}, entity_id={}, reminder_time={}",
+                    r.id, r.entity_type, r.entity_id, r.reminder_time
+                );
+            }
+            rows
+        };
+
+        // Step 2: Build entity list for fetching reminder entities by ID
+        let reminder_entities: Vec<_> = reminder_rows
+            .iter()
+            .map(|r| reminder_row_to_entity(r))
+            .collect();
+        println!("asdf reminder_entities to fetch: {:?}", reminder_entities);
+
+        // Step 3: Convert filters to AST (unmodified) and build sub-requests
+        let req = req.into_ast()?;
         let email_request = req.build_email_request();
         let comms_request = req.build_comms_request();
-        let reminders_request = req.build_reminders_request(&reminder_filters);
+        println!(
+            "asdf has email_request: {}, has comms_request: {}",
+            email_request.is_some(),
+            comms_request.is_some()
+        );
 
         match req.cursor {
             SoupQuery::Simple(SimpleQueryInner(cursor)) => {
                 let sort_method = *cursor.sort_method();
+                println!("asdf Simple path, sort_method={:?}", sort_method);
 
                 let main_soup_fut = self.handle_simple_request(
                     req.soup_type,
@@ -392,36 +424,181 @@ where
                         user_id: req.user.copied(),
                     },
                 );
-
                 let email_soup_fut = self.handle_email_request(email_request);
                 let comms_soup_fut = self.handle_comms_request(comms_request);
-                let reminders_soup_fut = self.handle_reminders_request(reminders_request);
 
-                let (main_soup, email_soup, comms_soup, reminders_soup) = tokio::join!(
+                // Fetch reminder entities separately by ID (runs in parallel with other queries)
+                let reminder_soup_fut = async {
+                    if reminder_entities.is_empty() {
+                        println!("asdf no reminder entities to fetch by ID");
+                        return Ok(Vec::new());
+                    }
+                    println!(
+                        "asdf fetching {} reminder entities by ID",
+                        reminder_entities.len()
+                    );
+                    let result = self
+                        .handle_soup_by_ids(
+                            req.soup_type,
+                            AdvancedSortParams {
+                                entities: &reminder_entities,
+                                user_id: req.user.copied(),
+                            },
+                        )
+                        .await
+                        .map_err(anyhow::Error::from);
+                    match &result {
+                        Ok(items) => {
+                            println!("asdf reminder soup_by_ids returned {} items", items.len());
+                            for item in items {
+                                println!("asdf   reminder soup item: entity={:?}", item.entity());
+                            }
+                        }
+                        Err(e) => println!("asdf reminder soup_by_ids error: {:?}", e),
+                    }
+                    result
+                };
+
+                let (main_soup, email_soup, comms_soup, reminder_soup) = tokio::join!(
                     main_soup_fut,
                     email_soup_fut,
                     comms_soup_fut,
-                    reminders_soup_fut
+                    reminder_soup_fut,
                 );
 
-                Ok(Either::Left(
-                    main_soup?
-                        .chain(email_soup?)
-                        .chain(comms_soup?)
-                        .chain(reminders_soup?)
-                        .paginate_on(limit.into(), sort_method)
-                        .filter_on(entity_filter)
-                        .sort_desc()
-                        .into_page(),
-                ))
+                let main_soup_items: Vec<_> = main_soup?.collect();
+                let email_soup_items: Vec<_> = email_soup?.collect();
+                let comms_soup_items: Vec<_> = comms_soup?.collect();
+                let reminder_soup_items: Vec<_> = reminder_soup?
+                    .into_iter()
+                    .map(|item| FrecencySoupItem {
+                        item,
+                        frecency_score: None,
+                        reminder_metadata: None,
+                    })
+                    .collect();
+
+                println!(
+                    "asdf main_soup: {} items, email_soup: {} items, comms_soup: {} items, reminder_soup: {} items",
+                    main_soup_items.len(),
+                    email_soup_items.len(),
+                    comms_soup_items.len(),
+                    reminder_soup_items.len()
+                );
+
+                let total_before_paginate = main_soup_items.len()
+                    + email_soup_items.len()
+                    + comms_soup_items.len()
+                    + reminder_soup_items.len();
+                println!(
+                    "asdf total items before pagination: {}",
+                    total_before_paginate
+                );
+
+                let mut page = main_soup_items
+                    .into_iter()
+                    .chain(email_soup_items)
+                    .chain(comms_soup_items)
+                    .chain(reminder_soup_items)
+                    .paginate_on(limit.into(), sort_method)
+                    .filter_on(entity_filter)
+                    .sort_desc()
+                    .into_page();
+
+                println!("asdf items after pagination: {}", page.items.len());
+                for item in &page.items {
+                    println!("asdf   paginated item: entity={:?}", item.item.entity());
+                }
+
+                // Step 4: Annotate paginated items with reminder metadata
+                annotate_reminder_metadata(&mut page.items, &reminder_rows);
+
+                let annotated_count = page
+                    .items
+                    .iter()
+                    .filter(|i| i.reminder_metadata.is_some())
+                    .count();
+                println!("asdf items with reminder_metadata: {}", annotated_count);
+
+                Ok(Either::Left(page))
             }
-            SoupQuery::Frecency(FrecencyQueryInner(cursor)) => Ok(Either::Right(
-                self.handle_advanced_sort(cursor, req.soup_type, req.user, limit)
+            SoupQuery::Frecency(FrecencyQueryInner(cursor)) => {
+                // For frecency path, fetch reminder entities and merge after
+                let reminder_items: Vec<SoupItem> = if reminder_entities.is_empty() {
+                    Vec::new()
+                } else {
+                    self.handle_soup_by_ids(
+                        req.soup_type,
+                        AdvancedSortParams {
+                            entities: &reminder_entities,
+                            user_id: req.user.copied(),
+                        },
+                    )
+                    .await
+                    .map_err(anyhow::Error::from)?
+                };
+
+                let mut page = self
+                    .handle_advanced_sort(cursor, req.soup_type, req.user, limit)
                     .await?
+                    .chain(reminder_items.into_iter().map(|item| FrecencySoupItem {
+                        item,
+                        frecency_score: None,
+                        reminder_metadata: None,
+                    }))
                     .paginate_on(limit.into(), Frecency)
                     .filter_on(entity_filter)
-                    .into_page(),
-            )),
+                    .into_page();
+
+                annotate_reminder_metadata(&mut page.items, &reminder_rows);
+
+                Ok(Either::Right(page))
+            }
+        }
+    }
+}
+
+/// Converts a [ReminderRow] into an [Entity] for fetching via `soup_by_ids`.
+fn reminder_row_to_entity(row: &ReminderRow) -> model_entity::Entity<'static> {
+    use model_entity::EntityType;
+    use std::str::FromStr;
+
+    let entity_type = EntityType::from_str(&row.entity_type).unwrap_or(EntityType::Document);
+    entity_type.with_entity_string(row.entity_id.to_string())
+}
+
+/// Annotates paginated items with reminder metadata for any items whose entity
+/// matches a fetched reminder row.
+fn annotate_reminder_metadata(items: &mut [FrecencySoupItem], rows: &[ReminderRow]) {
+    use std::collections::HashMap;
+
+    if rows.is_empty() {
+        return;
+    }
+
+    // Build lookup: (entity_type, entity_id) → first matching ReminderRow
+    let mut lookup: HashMap<(&str, Uuid), &ReminderRow> = HashMap::new();
+    for row in rows {
+        lookup
+            .entry((row.entity_type.as_str(), row.entity_id))
+            .or_insert(row);
+    }
+
+    for item in items.iter_mut() {
+        let (entity_type_str, entity_id) = match &item.item {
+            SoupItem::Document(d) => ("document", d.id),
+            SoupItem::Chat(c) => ("chat", c.id),
+            SoupItem::Project(p) => ("project", p.id),
+            SoupItem::EmailThread(e) => ("email_thread", e.thread.id),
+            SoupItem::Channel(ch) => ("channel", ch.channel.channel.id.0),
+        };
+
+        if let Some(row) = lookup.get(&(entity_type_str, entity_id)) {
+            item.reminder_metadata = Some(models_soup::reminder::ReminderMetadata {
+                reminder_id: row.id,
+                reminder_time: row.reminder_time,
+                done_time: row.done_time,
+            });
         }
     }
 }

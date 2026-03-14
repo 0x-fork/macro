@@ -8,4 +8,4 @@
 /**
  * When the reminder was marked as done (if completed).
  */
-export type SoupReminderDoneTime = string | null;
+export type ReminderMetadataDoneTime = string | null;

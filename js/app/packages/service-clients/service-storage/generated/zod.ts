@@ -4047,46 +4047,34 @@ export const getItemsSoupResponse = zod.object({
             ),
           tag: zod.enum(['channel']),
         }),
-        zod.object({
-          data: zod
-            .object({
-              createdAt: zod
-                .string()
-                .datetime({})
-                .describe('When the reminder was created.'),
-              doneTime: zod
-                .string()
-                .datetime({})
-                .nullish()
-                .describe(
-                  'When the reminder was marked as done (if completed).'
-                ),
-              entityId: zod
-                .string()
-                .uuid()
-                .describe('The id of the entity this reminder is attached to.'),
-              entityType: zod
-                .string()
-                .describe('The type of entity this reminder is attached to.'),
-              id: zod
-                .string()
-                .uuid()
-                .describe('The unique identifier for this reminder.'),
-              reminderTime: zod
-                .string()
-                .datetime({})
-                .describe('When the reminder is due.'),
-              userId: zod
-                .string()
-                .describe('The user who created the reminder.'),
-            })
-            .describe('A reminder that appears in the soup feed.'),
-          tag: zod.enum(['reminder']),
-        }),
       ])
       .and(
         zod.object({
           frecency_score: zod.number(),
+          reminder_metadata: zod
+            .union([
+              zod.null(),
+              zod
+                .object({
+                  doneTime: zod
+                    .string()
+                    .datetime({})
+                    .nullish()
+                    .describe(
+                      'When the reminder was marked as done (if completed).'
+                    ),
+                  reminderId: zod
+                    .string()
+                    .uuid()
+                    .describe('The unique identifier for this reminder.'),
+                  reminderTime: zod
+                    .string()
+                    .datetime({})
+                    .describe('When the reminder is due.'),
+                })
+                .describe('Metadata about a reminder attached to a soup item.'),
+            ])
+            .optional(),
         })
       )
   ),
@@ -4410,6 +4398,12 @@ export const postItemsSoupBody = zod
           .nullish()
           .describe(
             'Filter by reminder done state.\nNone to ignore, true to include only done reminders, false to include only not-done reminders.'
+          ),
+        reminder_ids: zod
+          .array(zod.string())
+          .optional()
+          .describe(
+            "Reminder IDs to filter by. Examples: ['uuid-1']. Empty to search all reminders."
           ),
       })
       .optional()
@@ -5635,46 +5629,34 @@ export const postItemsSoupResponse = zod.object({
             ),
           tag: zod.enum(['channel']),
         }),
-        zod.object({
-          data: zod
-            .object({
-              createdAt: zod
-                .string()
-                .datetime({})
-                .describe('When the reminder was created.'),
-              doneTime: zod
-                .string()
-                .datetime({})
-                .nullish()
-                .describe(
-                  'When the reminder was marked as done (if completed).'
-                ),
-              entityId: zod
-                .string()
-                .uuid()
-                .describe('The id of the entity this reminder is attached to.'),
-              entityType: zod
-                .string()
-                .describe('The type of entity this reminder is attached to.'),
-              id: zod
-                .string()
-                .uuid()
-                .describe('The unique identifier for this reminder.'),
-              reminderTime: zod
-                .string()
-                .datetime({})
-                .describe('When the reminder is due.'),
-              userId: zod
-                .string()
-                .describe('The user who created the reminder.'),
-            })
-            .describe('A reminder that appears in the soup feed.'),
-          tag: zod.enum(['reminder']),
-        }),
       ])
       .and(
         zod.object({
           frecency_score: zod.number(),
+          reminder_metadata: zod
+            .union([
+              zod.null(),
+              zod
+                .object({
+                  doneTime: zod
+                    .string()
+                    .datetime({})
+                    .nullish()
+                    .describe(
+                      'When the reminder was marked as done (if completed).'
+                    ),
+                  reminderId: zod
+                    .string()
+                    .uuid()
+                    .describe('The unique identifier for this reminder.'),
+                  reminderTime: zod
+                    .string()
+                    .datetime({})
+                    .describe('When the reminder is due.'),
+                })
+                .describe('Metadata about a reminder attached to a soup item.'),
+            ])
+            .optional(),
         })
       )
   ),

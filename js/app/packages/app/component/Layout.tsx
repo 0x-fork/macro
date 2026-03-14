@@ -15,6 +15,7 @@ import { attachGlobalDOMScope } from 'core/hotkey/hotkeys';
 import { createEffect, createSignal, onMount, Show, Suspense } from 'solid-js';
 import Banner from './banner/Banner';
 import { GlobalBulkEditEntityModal } from './bulk-edit-entity/BulkEditEntityModal';
+import { GlobalReminderPicker } from './global-reminder-picker/GlobalReminderPicker';
 import { GlobalShareModal } from './global-share-modal/GlobalShareModal';
 import { CommandMenu } from './command';
 import GlobalShortcuts from './GlobalHotkeys';
@@ -117,6 +118,7 @@ export function Layout(props: RouteSectionProps) {
           </Suspense>
           <GlobalBulkEditEntityModal />
           <GlobalShareModal />
+          <GlobalReminderPicker />
         </Show>
         <Show
           when={

@@ -351,6 +351,7 @@ export const mapSoupPageToEntityList: (
             frecencyScore: item.frecency_score,
             viewedAt: item.data.viewedAt,
             projectId: item.data.projectId ?? undefined,
+            reminderMetadata: item.reminder_metadata ?? undefined,
           };
         }
 
@@ -365,6 +366,7 @@ export const mapSoupPageToEntityList: (
             projectId: item.data.parentId ?? undefined,
             type: item.tag,
             name: item.data.name || 'New Project',
+            reminderMetadata: item.reminder_metadata ?? undefined,
           };
         }
 
@@ -402,6 +404,7 @@ export const mapSoupPageToEntityList: (
             participants,
             hasIcsAttachment,
             attachments,
+            reminderMetadata: item.reminder_metadata ?? undefined,
           };
         }
 
@@ -424,6 +427,7 @@ export const mapSoupPageToEntityList: (
                   createdAt: item.data.latest_non_thread_message.created_at,
                 }
               : undefined,
+            reminderMetadata: item.reminder_metadata ?? undefined,
           };
           return out;
         }
@@ -445,6 +449,7 @@ export const mapSoupPageToEntityList: (
                   is_completed: item.data.subType.is_completed,
                 },
           name: resolveDocumentEntityName(item.data),
+          reminderMetadata: item.reminder_metadata ?? undefined,
         };
       }
     );

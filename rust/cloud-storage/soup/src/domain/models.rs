@@ -232,18 +232,6 @@ impl SoupRequest<Option<EntityFilterAst>> {
         })
     }
 
-    pub(crate) fn build_reminders_request(
-        &self,
-        reminder_filters: &item_filters::ReminderFilters,
-    ) -> GetRemindersRequest {
-        GetRemindersRequest {
-            user_id: self.user.clone(),
-            reminder_ids: reminder_filters.reminder_ids.clone(),
-            done: reminder_filters.done,
-            limit: self.limit,
-        }
-    }
-
     pub(crate) fn build_comms_request(&self) -> Option<GetChannelsRequest> {
         Some(GetChannelsRequest {
             macro_id: self.user.clone(),
@@ -271,19 +259,6 @@ impl SoupRequest<Option<EntityFilterAst>> {
     }
 }
 
-/// Parameters for fetching reminders in the soup feed.
-#[derive(Debug)]
-pub struct GetRemindersRequest {
-    /// The user to fetch reminders for.
-    pub user_id: MacroUserIdStr<'static>,
-    /// Specific reminder IDs to filter by. Empty means all.
-    pub reminder_ids: Vec<String>,
-    /// Filter by done state.
-    pub done: Option<bool>,
-    /// Max number of reminders to return.
-    pub limit: u16,
-}
-
 /// a [SoupItem] with an associated frecency score
 #[derive(Debug)]
 #[non_exhaustive]
@@ -292,6 +267,8 @@ pub struct FrecencySoupItem {
     pub item: SoupItem,
     /// the frecency score
     pub frecency_score: Option<AggregateFrecency>,
+    /// optional reminder metadata if this item has an associated reminder
+    pub reminder_metadata: Option<models_soup::reminder::ReminderMetadata>,
 }
 
 impl Identify for FrecencySoupItem {
@@ -304,13 +281,22 @@ impl Identify for FrecencySoupItem {
 
 impl SortOn<Frecency> for FrecencySoupItem {
     fn sort_on(sort_type: Frecency) -> impl FnMut(&Self) -> models_pagination::CursorVal<Frecency> {
-        move |val| CursorVal {
-            sort_type,
-            // if this record does not have a frecency score we fallback to created_at as the sort
-            last_val: match &val.frecency_score {
-                Some(f) => FrecencyValue::FrecencyScore(f.data.frecency_score),
-                None => FrecencyValue::UpdatedAt(val.item.updated_at()),
-            },
+        move |val| {
+            // If the item has reminder metadata, use reminder_time for sorting
+            if let Some(ref rm) = val.reminder_metadata {
+                return CursorVal {
+                    sort_type,
+                    last_val: FrecencyValue::UpdatedAt(rm.reminder_time),
+                };
+            }
+            CursorVal {
+                sort_type,
+                // if this record does not have a frecency score we fallback to created_at as the sort
+                last_val: match &val.frecency_score {
+                    Some(f) => FrecencyValue::FrecencyScore(f.data.frecency_score),
+                    None => FrecencyValue::UpdatedAt(val.item.updated_at()),
+                },
+            }
         }
     }
 }
@@ -318,7 +304,16 @@ impl SortOn<Frecency> for FrecencySoupItem {
 impl SortOn<SimpleSortMethod> for FrecencySoupItem {
     fn sort_on(sort: SimpleSortMethod) -> impl FnMut(&Self) -> CursorVal<SimpleSortMethod> {
         let mut cb = SoupItem::sort_on(sort);
-        move |v| cb(&v.item)
+        move |v| {
+            // If the item has reminder metadata, use reminder_time for sorting
+            if let Some(ref rm) = v.reminder_metadata {
+                return CursorVal {
+                    sort_type: sort,
+                    last_val: rm.reminder_time,
+                };
+            }
+            cb(&v.item)
+        }
     }
 }
 

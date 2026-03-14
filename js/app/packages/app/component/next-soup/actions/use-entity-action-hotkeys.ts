@@ -10,6 +10,7 @@ import {
   makeDeleteAction,
   makeMarkDoneAction,
   makeMoveToProjectAction,
+  makeRemindAction,
   makeRenameAction,
   makeShareAction,
 } from './index';
@@ -59,6 +60,8 @@ export const useEntityActionHotkeys = (
 
   const shareAction = makeShareAction();
 
+  const remindAction = makeRemindAction();
+
   const getEntitiesForAction = (): EntityData[] => {
     if (
       splitHandle?.content().type === 'component' &&
@@ -99,6 +102,28 @@ export const useEntityActionHotkeys = (
       if (condition && !condition()) return false;
       const entities = getEntitiesForAction();
       return entities.some(markDone.canExecute);
+    },
+    displayPriority: 10,
+    tags: [HotkeyTags.SelectionModification],
+  });
+
+  // Remind me - 'shift+r', not in group so it works from inside blocks
+  registerHotkey({
+    hotkey: ['shift+r'],
+    scopeId,
+    description: 'Remind me',
+    keyDownHandler: () => {
+      const entities = getEntitiesForAction();
+      if (entities.length === 0) return false;
+      if (!remindAction.canExecute(entities[0])) return false;
+
+      remindAction.executeWithSoup(entities, soup);
+      return true;
+    },
+    condition: () => {
+      if (condition && !condition()) return false;
+      const entities = getEntitiesForAction();
+      return entities.length === 1 && remindAction.canExecute(entities[0]);
     },
     displayPriority: 10,
     tags: [HotkeyTags.SelectionModification],

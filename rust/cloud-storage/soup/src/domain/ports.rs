@@ -1,6 +1,7 @@
 use crate::domain::models::{
     AdvancedSortParams, FrecencySoupItem, SimpleSortRequest, SoupErr, SoupRequest,
 };
+use crate::outbound::pg_soup_repo::reminders::ReminderRow;
 use either::Either;
 use item_filters::EntityFilters;
 use macro_user_id::user_id::MacroUserIdStr;
@@ -43,7 +44,7 @@ pub trait SoupRepo: Send + Sync + 'static {
         reminder_ids: &[String],
         done_filter: Option<bool>,
         limit: u16,
-    ) -> impl Future<Output = Result<Vec<SoupItem>, Self::Err>> + Send;
+    ) -> impl Future<Output = Result<Vec<ReminderRow>, Self::Err>> + Send;
 }
 
 /// type alias which represents the posible outputs of soup

@@ -31,6 +31,7 @@ import type { IDocumentStorageServiceFile } from '@filesystem/file';
 import { platformFetch } from 'core/util/platformFetch';
 import type {
   AccessLevel,
+  CreateReminderRequest,
   PostSoupRequest,
   SoupPage,
   View,
@@ -1239,6 +1240,54 @@ export const storageServiceClient = {
       });
     },
   },
+  reminders: {
+    async list() {
+      return mapOk(
+        await dssFetch<{
+          data: Array<{
+            id: string;
+            user_id: string;
+            entity_type: string;
+            entity_id: string;
+            reminder_time: string;
+            done_time: string | null;
+            created_at: string;
+          }>;
+        }>('/reminders'),
+        (result) => result.data
+      );
+    },
+
+    async create(params: CreateReminderRequest) {
+      return mapOk(
+        await dssFetch<{
+          data: {
+            id: string;
+            user_id: string;
+            entity_type: string;
+            entity_id: string;
+            reminder_time: string;
+            done_time: string | null;
+            created_at: string;
+          };
+        }>('/reminders', {
+          method: 'POST',
+          body: JSON.stringify(params),
+        }),
+        (result) => result.data
+      );
+    },
+
+    async markDone(params: { reminderId: string }) {
+      return mapOk(
+        await dssFetch<SuccessResponse>(`/reminders/${params.reminderId}/done`, {
+          method: 'PUT',
+        }),
+        (result) => result.data
+      );
+    },
+  },
+
   async editThread(params) {
     const { threadId, ...body } = params;
 

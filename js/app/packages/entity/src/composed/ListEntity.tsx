@@ -46,7 +46,12 @@ import { isSearchEntity } from '../types/search';
 import { createEntityDraggable } from '../utils/draggable';
 import { UnreadIndicator } from '../components/UnreadIndicator';
 import { MultiSelectCheckbox } from '../components/MultiSelectCheckbox';
-import { DraftBadge, InviteBadge, SharedBadge } from '../components/Badges';
+import {
+  DraftBadge,
+  InviteBadge,
+  ReminderBadge,
+  SharedBadge,
+} from '../components/Badges';
 import { DisplayName } from '../components/DisplayName';
 import { useIsShared } from '../utils/shared';
 import { ProjectBreadCrumb } from '../components/ProjectBreadCrumb';
@@ -148,18 +153,25 @@ interface LayoutProps {
   ) => void;
 }
 
-function EmailIdentity(props: { entity: EmailEntity }) {
+function EmailIdentity(props: { entity: EmailEntity; hasReminder?: boolean }) {
   return (
     <>
       <Show
-        when={props.entity.isDraft}
+        when={props.hasReminder}
         fallback={
-          <Show when={props.entity.hasIcsAttachment}>
-            <InviteBadge />
+          <Show
+            when={props.entity.isDraft}
+            fallback={
+              <Show when={props.entity.hasIcsAttachment}>
+                <InviteBadge />
+              </Show>
+            }
+          >
+            <DraftBadge />
           </Show>
         }
       >
-        <DraftBadge />
+        <ReminderBadge />
       </Show>
       <span class="truncate">
         <Entity.EmailParticipants entity={props.entity} />
@@ -243,10 +255,22 @@ function NarrowLayout(props: LayoutProps) {
         </div>
         <Switch>
           <Match when={isEmailEntity(props.entity) && props.entity}>
-            {(entity) => <EmailIdentity entity={entity()} />}
+            {(entity) => (
+              <EmailIdentity
+                entity={entity()}
+                hasReminder={!!props.entity.reminderMetadata}
+              />
+            )}
           </Match>
           <Match when={props.entity}>
-            {(entity) => <Entity.Title entity={entity()} />}
+            {(entity) => (
+              <>
+                <Show when={props.entity.reminderMetadata}>
+                  <ReminderBadge />
+                </Show>
+                <Entity.Title entity={entity()} />
+              </>
+            )}
           </Match>
         </Switch>
         <Show when={isTaskEntity(props.entity) && props.entity}>
@@ -349,7 +373,10 @@ function WideLayout(props: LayoutProps) {
             {(entity) => (
               <>
                 <span class="w-(--title-width) truncate shrink-0 flex gap-2">
-                  <EmailIdentity entity={entity()} />
+                  <EmailIdentity
+                    entity={entity()}
+                    hasReminder={!!props.entity.reminderMetadata}
+                  />
                 </span>
                 <span class="truncate">
                   <Entity.Title entity={entity()} />
@@ -367,6 +394,9 @@ function WideLayout(props: LayoutProps) {
             {(entity) => (
               <>
                 <span class="w-(--title-width) shrink-0 truncate flex gap-2">
+                  <Show when={props.entity.reminderMetadata}>
+                    <ReminderBadge />
+                  </Show>
                   <Entity.Title entity={entity()} />
                 </span>
                 <Show when={!props.hasNotifications && entity().latestMessage}>
@@ -376,7 +406,14 @@ function WideLayout(props: LayoutProps) {
             )}
           </Match>
           <Match when={props.entity}>
-            {(entity) => <Entity.Title entity={entity()} />}
+            {(entity) => (
+              <>
+                <Show when={props.entity.reminderMetadata}>
+                  <ReminderBadge />
+                </Show>
+                <Entity.Title entity={entity()} />
+              </>
+            )}
           </Match>
         </Switch>
       </Entity.Slot>

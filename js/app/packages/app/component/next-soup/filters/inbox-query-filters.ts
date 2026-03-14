@@ -68,7 +68,7 @@ export function applyInboxQueryFilters(
       },
     },
     email_filters: { ...filters.email_filters, importance: INBOX_IMPORTANCE },
-    reminder_filters: filters.reminder_filters ?? { reminder_ids: EXCLUDE },
+    reminder_filters: filters.reminder_filters ?? { done: false },
   };
 }
 

@@ -181,6 +181,8 @@ pub struct SoupApiItem {
     #[serde(flatten)]
     item: SoupItem,
     frecency_score: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reminder_metadata: Option<models_soup::reminder::ReminderMetadata>,
 }
 
 impl SoupApiItem {
@@ -188,12 +190,14 @@ impl SoupApiItem {
         let FrecencySoupItem {
             item,
             frecency_score,
+            reminder_metadata,
         } = item;
         SoupApiItem {
             item,
             frecency_score: frecency_score
                 .map(|f| f.data.frecency_score)
                 .unwrap_or_default(),
+            reminder_metadata,
         }
     }
 }

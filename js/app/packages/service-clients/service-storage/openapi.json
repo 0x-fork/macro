@@ -9480,6 +9480,35 @@
           "done": {
             "type": ["boolean", "null"],
             "description": "Filter by reminder done state.\nNone to ignore, true to include only done reminders, false to include only not-done reminders."
+          },
+          "reminder_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Reminder IDs to filter by. Examples: ['uuid-1']. Empty to search all reminders."
+          }
+        }
+      },
+      "ReminderMetadata": {
+        "type": "object",
+        "description": "Metadata about a reminder attached to a soup item.",
+        "required": ["reminderId", "reminderTime"],
+        "properties": {
+          "doneTime": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When the reminder was marked as done (if completed)."
+          },
+          "reminderId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for this reminder."
+          },
+          "reminderTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the reminder is due."
           }
         }
       },
@@ -9792,6 +9821,16 @@
               "frecency_score": {
                 "type": "number",
                 "format": "double"
+              },
+              "reminder_metadata": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReminderMetadata"
+                  }
+                ]
               }
             }
           }
@@ -10240,19 +10279,6 @@
                 "enum": ["channel"]
               }
             }
-          },
-          {
-            "type": "object",
-            "required": ["data", "tag"],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/SoupReminder"
-              },
-              "tag": {
-                "type": "string",
-                "enum": ["reminder"]
-              }
-            }
           }
         ]
       },
@@ -10402,53 +10428,6 @@
                 "description": "The property value, if set"
               }
             ]
-          }
-        }
-      },
-      "SoupReminder": {
-        "type": "object",
-        "description": "A reminder that appears in the soup feed.",
-        "required": [
-          "id",
-          "userId",
-          "entityType",
-          "entityId",
-          "reminderTime",
-          "createdAt"
-        ],
-        "properties": {
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the reminder was created."
-          },
-          "doneTime": {
-            "type": ["string", "null"],
-            "format": "date-time",
-            "description": "When the reminder was marked as done (if completed)."
-          },
-          "entityId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The id of the entity this reminder is attached to."
-          },
-          "entityType": {
-            "type": "string",
-            "description": "The type of entity this reminder is attached to."
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The unique identifier for this reminder."
-          },
-          "reminderTime": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the reminder is due."
-          },
-          "userId": {
-            "type": "string",
-            "description": "The user who created the reminder."
           }
         }
       },

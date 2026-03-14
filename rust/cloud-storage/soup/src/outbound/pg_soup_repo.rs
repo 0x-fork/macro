@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use system_properties::SystemPropertyKey;
 
 mod expanded;
-mod reminders;
+pub(crate) mod reminders;
 mod unexpanded;
 
 pub struct PgSoupRepo {
@@ -131,7 +131,7 @@ impl SoupRepo for PgSoupRepo {
         reminder_ids: &[String],
         done_filter: Option<bool>,
         limit: u16,
-    ) -> impl Future<Output = Result<Vec<SoupItem>, Self::Err>> + Send {
+    ) -> impl Future<Output = Result<Vec<reminders::ReminderRow>, Self::Err>> + Send {
         reminders::get_reminders(&self.inner, user_id, reminder_ids, done_filter, limit)
     }
 }
@@ -186,7 +186,6 @@ pub(crate) async fn populate_properties(
             SoupItem::EmailThread(x) => properties_map.remove(&x.thread.id.to_string()),
             SoupItem::Chat(x) => properties_map.remove(&x.id.to_string()),
             SoupItem::Channel(_) => None,
-            SoupItem::Reminder(_) => None,
         };
         if let Some(props) = props {
             let soup_props: Vec<SoupProperty> = props.into_iter().map(SoupProperty::from).collect();
@@ -196,7 +195,6 @@ pub(crate) async fn populate_properties(
                 SoupItem::EmailThread(x) => x.properties = soup_props,
                 SoupItem::Chat(x) => x.properties = soup_props,
                 SoupItem::Channel(_) => {}
-                SoupItem::Reminder(_) => {}
             }
         }
     }

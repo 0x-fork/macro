@@ -1,5 +1,4 @@
 use macro_user_id::user_id::MacroUserIdStr;
-use models_soup::{item::SoupItem, reminder::SoupReminder};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -9,7 +8,7 @@ pub(crate) async fn get_reminders(
     reminder_ids: &[String],
     done_filter: Option<bool>,
     limit: u16,
-) -> Result<Vec<SoupItem>, sqlx::Error> {
+) -> Result<Vec<ReminderRow>, sqlx::Error> {
     let user_id_str: &str = user_id.as_ref();
     let limit_i64 = limit as i64;
 
@@ -106,28 +105,23 @@ pub(crate) async fn get_reminders(
             .await?,
         };
 
-    Ok(rows
-        .into_iter()
-        .map(|r| {
-            SoupItem::Reminder(SoupReminder {
-                id: r.id,
-                user_id: r.user_id,
-                entity_type: r.entity_type,
-                entity_id: r.entity_id,
-                reminder_time: r.reminder_time,
-                done_time: r.done_time,
-                created_at: r.created_at,
-            })
-        })
-        .collect())
+    Ok(rows)
 }
 
-struct ReminderRow {
-    id: uuid::Uuid,
-    user_id: String,
-    entity_type: String,
-    entity_id: uuid::Uuid,
-    reminder_time: chrono::DateTime<chrono::Utc>,
-    done_time: Option<chrono::DateTime<chrono::Utc>>,
-    created_at: chrono::DateTime<chrono::Utc>,
+/// A row from the reminders table.
+pub struct ReminderRow {
+    /// The unique identifier for this reminder.
+    pub id: uuid::Uuid,
+    /// The user who created the reminder.
+    pub user_id: String,
+    /// The type of entity this reminder is attached to (e.g. "document", "email_thread").
+    pub entity_type: String,
+    /// The id of the entity this reminder is attached to.
+    pub entity_id: uuid::Uuid,
+    /// When the reminder is due.
+    pub reminder_time: chrono::DateTime<chrono::Utc>,
+    /// When the reminder was marked as done (if completed).
+    pub done_time: Option<chrono::DateTime<chrono::Utc>>,
+    /// When the reminder was created.
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }

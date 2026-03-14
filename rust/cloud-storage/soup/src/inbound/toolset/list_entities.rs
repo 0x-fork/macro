@@ -45,7 +45,6 @@ pub enum ItemType {
     Project,
     Email,
     Channel,
-    Reminder,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -61,8 +60,6 @@ pub enum EntityItem {
     Email { id: Uuid, subject: Option<String> },
     #[serde(rename_all = "camelCase")]
     Channel { id: Uuid, name: Option<String> },
-    #[serde(rename_all = "camelCase")]
-    Reminder { id: Uuid, entity_type: String },
 }
 
 impl EntityItem {
@@ -73,7 +70,6 @@ impl EntityItem {
             EntityItem::Project { .. } => ItemType::Project,
             EntityItem::Email { .. } => ItemType::Email,
             EntityItem::Channel { .. } => ItemType::Channel,
-            EntityItem::Reminder { .. } => ItemType::Reminder,
         }
     }
 }
@@ -100,10 +96,6 @@ impl From<SoupItem> for EntityItem {
             SoupItem::Channel(channel) => EntityItem::Channel {
                 id: channel.channel.channel.id.0,
                 name: channel.channel.channel.name.clone(),
-            },
-            SoupItem::Reminder(reminder) => EntityItem::Reminder {
-                id: reminder.id,
-                entity_type: reminder.entity_type,
             },
         }
     }
@@ -214,7 +206,6 @@ pub(super) fn build_summary(
     let mut projects = 0;
     let mut emails = 0;
     let mut channels = 0;
-    let mut reminders = 0;
 
     for item in items {
         match item {
@@ -223,7 +214,6 @@ pub(super) fn build_summary(
             EntityItem::Project { .. } => projects += 1,
             EntityItem::Email { .. } => emails += 1,
             EntityItem::Channel { .. } => channels += 1,
-            EntityItem::Reminder { .. } => reminders += 1,
         }
     }
 
@@ -256,12 +246,6 @@ pub(super) fn build_summary(
         parts.push(format!(
             "{channels} channel{}",
             if channels == 1 { "" } else { "s" }
-        ));
-    }
-    if reminders > 0 {
-        parts.push(format!(
-            "{reminders} reminder{}",
-            if reminders == 1 { "" } else { "s" }
         ));
     }
 

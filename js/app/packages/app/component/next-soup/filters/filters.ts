@@ -90,12 +90,7 @@ export function filterSoupItemByRequestBody(
       ({ data }) =>
         !isIdFilteredOut(body.email_filters?.email_thread_ids, data.id)
     )
-    .with(
-      { tag: 'reminder' },
-      ({ data }) =>
-        !isIdFilteredOut(body.reminder_filters?.reminder_ids, data.id)
-    )
-    .exhaustive();
+    .otherwise(() => true);
 }
 
 type EntityFilterConfig = FilterConfig<EntityData> & { label?: string };

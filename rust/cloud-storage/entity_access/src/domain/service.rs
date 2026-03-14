@@ -124,7 +124,7 @@ where
             }
             EntityType::Channel => self.get_channel_access(entity_id, user_id).await,
             // These entity types don't have access checks implemented yet
-            EntityType::Team | EntityType::User | EntityType::Reminder => Ok(None),
+            EntityType::Team | EntityType::User => Ok(None),
         }
     }
 
