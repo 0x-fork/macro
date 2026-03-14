@@ -1,13 +1,17 @@
 //! Processing logic for cleaning up unused SFS files.
 
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 
 use anyhow::Context;
+use futures::TryStreamExt;
 use futures::stream::{self, Stream};
 use sqlx::PgPool;
 use tokio::sync::mpsc;
+
+/// Length of a UUID string (8-4-4-4-12 format with dashes).
+const UUID_LENGTH: usize = 36;
 
 /// Counts non-empty lines in a file without loading all into memory.
 pub fn count_uuids_in_file(path: &Path) -> anyhow::Result<usize> {
@@ -108,6 +112,44 @@ pub async fn delete_mapping_from_db(db: &PgPool, destination_url: &str) -> anyho
         .context("Failed to delete mapping from database")?;
 
     Ok(result.rows_affected() > 0)
+}
+
+/// Extracts a UUID string from the end of a URL.
+/// Assumes the last 36 characters are always the UUID.
+/// Expected format: https://domain.com/file/{uuid}
+fn extract_uuid_from_url(url: &str) -> String {
+    if url.len() >= UUID_LENGTH {
+        url[url.len() - UUID_LENGTH..].to_string()
+    } else {
+        url.to_string()
+    }
+}
+
+/// Streams all mapping destinations from the database, extracts UUIDs, and writes them to a file.
+/// Returns the number of UUIDs written.
+pub async fn stream_mapping_uuids_to_file(db: &PgPool, file_path: &Path) -> anyhow::Result<usize> {
+    let file = File::create(file_path)
+        .with_context(|| format!("Failed to create file: {}", file_path.display()))?;
+    let mut writer = BufWriter::new(file);
+
+    let mut stream =
+        sqlx::query_scalar::<_, String>("SELECT destination FROM public.email_sfs_mappings")
+            .fetch(db);
+
+    let mut count = 0;
+    while let Some(destination) = stream.try_next().await? {
+        let uuid = extract_uuid_from_url(&destination);
+        writeln!(writer, "{}", uuid).context("Failed to write UUID to file")?;
+        count += 1;
+
+        if count % 10000 == 0 {
+            writer.flush().context("Failed to flush buffer")?;
+            println!("  Streamed {} UUIDs so far...", count);
+        }
+    }
+
+    writer.flush().context("Failed to flush final buffer")?;
+    Ok(count)
 }
 
 /// Deletes multiple mapping rows from email_sfs_mappings by destination URLs.

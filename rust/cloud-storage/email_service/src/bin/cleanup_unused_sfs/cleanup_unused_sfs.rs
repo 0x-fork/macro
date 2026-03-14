@@ -49,6 +49,7 @@ struct DeletionContext<'a> {
     bulk_concurrency: usize,
     stats: &'a DeletionStats,
     total: usize,
+    start_time: Instant,
 }
 
 impl DeletionStats {
@@ -89,6 +90,27 @@ async fn main() -> anyhow::Result<()> {
     MacroEntrypoint::default().init();
     let config = load_and_print_config()?;
 
+    // If unused UUIDs file doesn't exist, fetch all SFS mappings from database
+    let uuids_path = Path::new(&config.unused_uuids_file);
+    let db_pool = if !uuids_path.exists() {
+        println!(
+            "Unused UUIDs file '{}' not found, fetching all SFS mappings from database...",
+            config.unused_uuids_file
+        );
+        let pool = connect_to_database(&config).await?;
+        let fetch_start = Instant::now();
+        let count = process::stream_mapping_uuids_to_file(&pool, uuids_path).await?;
+        println!(
+            "Fetched and saved {} mapping UUIDs to '{}' in {:.2?}\n",
+            count,
+            config.unused_uuids_file,
+            fetch_start.elapsed()
+        );
+        Some(pool)
+    } else {
+        None
+    };
+
     // Count UUIDs to delete
     let total = count_uuids_to_delete(&config.unused_uuids_file)?;
     if total == 0 {
@@ -96,8 +118,11 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // Setup database and SFS client
-    let db_pool = connect_to_database(&config).await?;
+    // Setup database and SFS client (reuse pool if already connected)
+    let db_pool = match db_pool {
+        Some(pool) => pool,
+        None => connect_to_database(&config).await?,
+    };
     let sfs_client = create_sfs_client(&config);
 
     // Execute deletions
@@ -113,6 +138,7 @@ async fn main() -> anyhow::Result<()> {
         bulk_concurrency: config.bulk_concurrency,
         stats: &stats,
         total,
+        start_time: delete_start,
     };
 
     execute_deletions(ctx).await?;
@@ -198,6 +224,7 @@ async fn execute_deletions(ctx: DeletionContext<'_>) -> anyhow::Result<()> {
                         ctx.destination_prefix,
                         ctx.stats,
                         ctx.total,
+                        ctx.start_time,
                     )
                     .await;
                 }
@@ -222,6 +249,7 @@ async fn process_bulk_batch(
     destination_prefix: &str,
     stats: &DeletionStats,
     total: usize,
+    start_time: Instant,
 ) {
     let batch_size = uuids.len();
 
@@ -292,8 +320,8 @@ async fn process_bulk_batch(
 
     // Update progress
     let count = stats.processed.fetch_add(batch_size, Ordering::Relaxed) + batch_size;
-    if count.is_multiple_of(100) || count >= total {
-        print_progress(count, total, stats);
+    if count % 1000 == 0 || count >= total {
+        print_progress(count, total, stats, start_time);
     }
 }
 
@@ -333,14 +361,42 @@ async fn delete_single_file_fallback(
     }
 }
 
-/// Prints progress update.
-fn print_progress(count: usize, total: usize, stats: &DeletionStats) {
+/// Prints progress update with estimated time remaining.
+fn print_progress(count: usize, total: usize, stats: &DeletionStats, start_time: Instant) {
+    let elapsed = start_time.elapsed();
+    let remaining = if count > 0 {
+        let secs_per_row = elapsed.as_secs_f64() / count as f64;
+        let remaining_rows = total.saturating_sub(count);
+        let remaining_secs = secs_per_row * remaining_rows as f64;
+        format_duration(std::time::Duration::from_secs_f64(remaining_secs))
+    } else {
+        "unknown".to_string()
+    };
+
     println!(
-        "Progress: {}/{} processed (SFS: {} deleted, {} already deleted, {} failed)",
+        "Progress: {}/{} processed (SFS: {} deleted, {} already deleted, {} failed) | Elapsed: {} | Est. remaining: {}",
         count,
         total,
         stats.sfs_deleted.load(Ordering::Relaxed),
         stats.sfs_already_deleted.load(Ordering::Relaxed),
-        stats.sfs_failed.load(Ordering::Relaxed)
+        stats.sfs_failed.load(Ordering::Relaxed),
+        format_duration(elapsed),
+        remaining,
     );
+}
+
+/// Formats a duration as a human-readable string (e.g., "1h 23m 45s").
+fn format_duration(d: std::time::Duration) -> String {
+    let total_secs = d.as_secs();
+    let hours = total_secs / 3600;
+    let minutes = (total_secs % 3600) / 60;
+    let seconds = total_secs % 60;
+
+    if hours > 0 {
+        format!("{}h {:02}m {:02}s", hours, minutes, seconds)
+    } else if minutes > 0 {
+        format!("{}m {:02}s", minutes, seconds)
+    } else {
+        format!("{}s", seconds)
+    }
 }
