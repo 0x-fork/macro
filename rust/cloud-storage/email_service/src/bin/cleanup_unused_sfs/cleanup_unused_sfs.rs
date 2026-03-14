@@ -29,6 +29,9 @@ use macro_entrypoint::MacroEntrypoint;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
+/// Window size for rolling rate estimation (rows).
+const RATE_WINDOW_SIZE: usize = 50_000;
+
 /// Statistics for tracking deletion operations.
 struct DeletionStats {
     sfs_deleted: Arc<AtomicUsize>,
@@ -37,6 +40,10 @@ struct DeletionStats {
     db_success: Arc<AtomicUsize>,
     db_failed: Arc<AtomicUsize>,
     processed: Arc<AtomicUsize>,
+    /// Count at the last rate checkpoint (resets every RATE_WINDOW_SIZE rows).
+    checkpoint_count: AtomicUsize,
+    /// Time at the last rate checkpoint.
+    checkpoint_time: std::sync::Mutex<Instant>,
 }
 
 /// Context for deletion operations.
@@ -53,7 +60,7 @@ struct DeletionContext<'a> {
 }
 
 impl DeletionStats {
-    fn new() -> Self {
+    fn new(start_time: Instant) -> Self {
         Self {
             sfs_deleted: Arc::new(AtomicUsize::new(0)),
             sfs_already_deleted: Arc::new(AtomicUsize::new(0)),
@@ -61,6 +68,8 @@ impl DeletionStats {
             db_success: Arc::new(AtomicUsize::new(0)),
             db_failed: Arc::new(AtomicUsize::new(0)),
             processed: Arc::new(AtomicUsize::new(0)),
+            checkpoint_count: AtomicUsize::new(0),
+            checkpoint_time: std::sync::Mutex::new(start_time),
         }
     }
 
@@ -126,8 +135,8 @@ async fn main() -> anyhow::Result<()> {
     let sfs_client = create_sfs_client(&config);
 
     // Execute deletions
-    let stats = DeletionStats::new();
     let delete_start = Instant::now();
+    let stats = DeletionStats::new(delete_start);
 
     let ctx = DeletionContext {
         uuids_file: &config.unused_uuids_file,
@@ -361,11 +370,26 @@ async fn delete_single_file_fallback(
     }
 }
 
-/// Prints progress update with estimated time remaining.
+/// Prints progress update with estimated time remaining based on rolling window rate.
 fn print_progress(count: usize, total: usize, stats: &DeletionStats, start_time: Instant) {
+    let now = Instant::now();
     let elapsed = start_time.elapsed();
-    let remaining = if count > 0 {
-        let secs_per_row = elapsed.as_secs_f64() / count as f64;
+
+    // Get current checkpoint
+    let cp_count = stats.checkpoint_count.load(Ordering::Relaxed);
+    let cp_time = *stats.checkpoint_time.lock().unwrap();
+
+    // Rotate checkpoint if we've processed RATE_WINDOW_SIZE since last checkpoint
+    if count.saturating_sub(cp_count) >= RATE_WINDOW_SIZE {
+        stats.checkpoint_count.store(count, Ordering::Relaxed);
+        *stats.checkpoint_time.lock().unwrap() = now;
+    }
+
+    // Estimate remaining time based on rate since checkpoint
+    let rows_since_checkpoint = count.saturating_sub(cp_count);
+    let remaining = if rows_since_checkpoint > 0 {
+        let window_elapsed = now.duration_since(cp_time).as_secs_f64();
+        let secs_per_row = window_elapsed / rows_since_checkpoint as f64;
         let remaining_rows = total.saturating_sub(count);
         let remaining_secs = secs_per_row * remaining_rows as f64;
         format_duration(std::time::Duration::from_secs_f64(remaining_secs))
