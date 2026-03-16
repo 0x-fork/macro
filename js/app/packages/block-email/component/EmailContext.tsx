@@ -1,6 +1,9 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { makeMarkDoneAction } from '@app/component/next-soup/actions';
 import { useMaybeSoup } from '@app/component/next-soup/soup-context';
+import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
+import { globalSplitManager } from '@app/signal/splitLayout';
+import type { EntityData } from '@entity';
 import { URL_PARAMS } from '@block-email/constants';
 import { convertContactInfoToEmailRecipient } from '@block-email/util/recipientConversion';
 import {
@@ -338,7 +341,14 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
 
     if (selectedEntity) {
       if (soup) {
-        markAsDoneAction.executeWithSoup([selectedEntity], soup);
+        const onNavigate = (entity: EntityData) => {
+          const splitManager = globalSplitManager();
+          const splitHandle = splitManager?.activeSplit();
+          if (splitHandle) {
+            openEntityInSplitFromUnifiedList(entity, { splitHandle });
+          }
+        };
+        markAsDoneAction.executeWithSoup([selectedEntity], soup, onNavigate);
       } else {
         markAsDoneAction.execute([selectedEntity]);
       }

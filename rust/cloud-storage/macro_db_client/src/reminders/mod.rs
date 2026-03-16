@@ -1,8 +1,10 @@
 mod create_reminder;
 mod mark_reminder_done;
+mod update_reminder_time;
 
 pub use create_reminder::*;
 pub use mark_reminder_done::*;
+pub use update_reminder_time::*;
 
 use chrono::{DateTime, Utc};
 use uuid::Uuid;

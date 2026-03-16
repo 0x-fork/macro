@@ -9,7 +9,7 @@ use models_properties::{EntityReference, EntityType as PropertiesEntityType};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase", tag = "tag", content = "data")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 pub enum SoupItem {

@@ -184,6 +184,7 @@ use utoipa::OpenApi;
         reminders::create_reminder::create_reminder_handler,
         reminders::get_reminders::get_reminders_handler,
         reminders::mark_reminder_done::mark_reminder_done_handler,
+        reminders::update_reminder_time::update_reminder_time_handler,
 
         // items
         soup::inbound::axum_router::get_soup_handler,
@@ -293,6 +294,7 @@ use utoipa::OpenApi;
             ReorderPinRequest, // Reorder pins
             GetUserHistoryResponse, // Get user history
             reminders::create_reminder::CreateReminderRequest, // Reminders
+            reminders::update_reminder_time::UpdateReminderTimeRequest,
             CreateInstructionsDocumentResponse, // Instructions
             GetInstructionsDocumentResponse,
             UserViewsResponse,

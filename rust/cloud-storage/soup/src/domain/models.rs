@@ -174,7 +174,7 @@ pub struct SoupRequest<T> {
 }
 
 impl SoupRequest<EntityFilters> {
-    /// returns a reference to the filters to pass to the paginator
+    /// returns a reference to the filyters to pass to the paginator
     /// this is used to prevent passing back the full ast on each server request
     pub(crate) fn filters(&self) -> &EntityFilters {
         self.cursor.filter()

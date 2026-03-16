@@ -7,5 +7,6 @@ export { makeCopyLinkAction } from './make-copy-link-action';
 export { makeCopyBranchNameAction } from './make-copy-branch-name-action';
 export { makeShareAction } from './make-share-action';
 export { makeRemindAction } from './make-remind-action';
+export { makeSnoozeAction } from './make-snooze-action';
 
 export { useEntityActionHotkeys } from './use-entity-action-hotkeys';

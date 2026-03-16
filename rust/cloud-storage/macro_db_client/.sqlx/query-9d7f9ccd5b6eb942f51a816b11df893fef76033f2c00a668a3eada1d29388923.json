@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at\n               FROM reminders\n               WHERE user_id = $1 AND id = ANY($3) AND done_time IS NOT NULL\n               ORDER BY reminder_time DESC\n               LIMIT $2",
+  "query": "\n        UPDATE reminders\n        SET reminder_time = $3, done_time = NULL\n        WHERE id = $1 AND user_id = $2\n        RETURNING\n            id,\n            user_id,\n            entity_type,\n            entity_id,\n            reminder_time,\n            done_time,\n            created_at\n        ",
   "describe": {
     "columns": [
       {
@@ -41,9 +41,9 @@
     ],
     "parameters": {
       "Left": [
+        "Uuid",
         "Text",
-        "Int8",
-        "UuidArray"
+        "Timestamptz"
       ]
     },
     "nullable": [
@@ -56,5 +56,5 @@
       false
     ]
   },
-  "hash": "223d5ab45a4b20ff657c502b00c67db5555dcfbcbfbab8deb29b9bdbb42846ea"
+  "hash": "9d7f9ccd5b6eb942f51a816b11df893fef76033f2c00a668a3eada1d29388923"
 }

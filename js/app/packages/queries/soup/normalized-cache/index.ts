@@ -14,6 +14,7 @@ export {
   hasSoupEntity,
   getSoupItemId,
   removeSoupEntities,
+  removeSoupReminders,
   removeSearchEntities,
   refetchSoupEntity,
   optimisticUpdateSoupItemViewedAt,

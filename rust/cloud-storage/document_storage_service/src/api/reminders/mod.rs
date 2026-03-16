@@ -7,6 +7,7 @@ use axum::{
 pub(in crate::api) mod create_reminder;
 pub(in crate::api) mod get_reminders;
 pub(in crate::api) mod mark_reminder_done;
+pub(in crate::api) mod update_reminder_time;
 
 pub fn router() -> Router<ApiContext> {
     Router::new()
@@ -15,6 +16,10 @@ pub fn router() -> Router<ApiContext> {
         .route(
             "/{reminder_id}/done",
             put(mark_reminder_done::mark_reminder_done_handler),
+        )
+        .route(
+            "/{reminder_id}/time",
+            put(update_reminder_time::update_reminder_time_handler),
         )
         .layer(axum::middleware::from_fn(
             macro_middleware::auth::ensure_user_exists::handler,

@@ -161,6 +161,37 @@ export function removeSoupEntities(entityIds: Set<string>): SoupTransaction {
 }
 
 /**
+ * Optimistically remove reminder items from soup by their reminder IDs.
+ * Unlike `removeSoupEntities`, this targets specific reminder instances
+ * without removing the non-reminder version of the same entity.
+ */
+export function removeSoupReminders(reminderIds: Set<string>): SoupTransaction {
+  queryClient.cancelQueries({ queryKey: soupKeys.items._def });
+
+  const previous = snapshotSoup();
+
+  queryClient.setQueriesData<InfiniteData<SoupPage, unknown>>(
+    { queryKey: soupKeys.items._def },
+    (prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        pages: prev.pages.map((page) => {
+          const items = page.items.filter(
+            (item) =>
+              !item.reminder_metadata ||
+              !reminderIds.has(item.reminder_metadata.reminderId)
+          );
+          return items.length === page.items.length ? page : { ...page, items };
+        }),
+      };
+    }
+  );
+
+  return { rollback: () => restoreSnapshot(previous) };
+}
+
+/**
  * Optimistically remove entities from all search result queries.
  * Same cancel-snapshot-mutate pattern as `removeSoupEntities` but targets search queries.
  */

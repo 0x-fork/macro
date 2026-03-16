@@ -469,14 +469,8 @@ where
                 let main_soup_items: Vec<_> = main_soup?.collect();
                 let email_soup_items: Vec<_> = email_soup?.collect();
                 let comms_soup_items: Vec<_> = comms_soup?.collect();
-                let reminder_soup_items: Vec<_> = reminder_soup?
-                    .into_iter()
-                    .map(|item| FrecencySoupItem {
-                        item,
-                        frecency_score: None,
-                        reminder_metadata: None,
-                    })
-                    .collect();
+                let reminder_raw_items = reminder_soup?;
+                let reminder_soup_items = expand_reminder_items(reminder_raw_items, &reminder_rows);
 
                 println!(
                     "asdf main_soup: {} items, email_soup: {} items, comms_soup: {} items, reminder_soup: {} items",
@@ -510,9 +504,6 @@ where
                     println!("asdf   paginated item: entity={:?}", item.item.entity());
                 }
 
-                // Step 4: Annotate paginated items with reminder metadata
-                annotate_reminder_metadata(&mut page.items, &reminder_rows);
-
                 let annotated_count = page
                     .items
                     .iter()
@@ -524,7 +515,7 @@ where
             }
             SoupQuery::Frecency(FrecencyQueryInner(cursor)) => {
                 // For frecency path, fetch reminder entities and merge after
-                let reminder_items: Vec<SoupItem> = if reminder_entities.is_empty() {
+                let mut reminder_items: Vec<SoupItem> = if reminder_entities.is_empty() {
                     Vec::new()
                 } else {
                     self.handle_soup_by_ids(
@@ -537,20 +528,15 @@ where
                     .await
                     .map_err(anyhow::Error::from)?
                 };
+                let expanded_reminders = expand_reminder_items(reminder_items, &reminder_rows);
 
                 let mut page = self
                     .handle_advanced_sort(cursor, req.soup_type, req.user, limit)
                     .await?
-                    .chain(reminder_items.into_iter().map(|item| FrecencySoupItem {
-                        item,
-                        frecency_score: None,
-                        reminder_metadata: None,
-                    }))
+                    .chain(expanded_reminders.into_iter())
                     .paginate_on(limit.into(), Frecency)
                     .filter_on(entity_filter)
                     .into_page();
-
-                annotate_reminder_metadata(&mut page.items, &reminder_rows);
 
                 Ok(Either::Right(page))
             }
@@ -567,38 +553,77 @@ fn reminder_row_to_entity(row: &ReminderRow) -> model_entity::Entity<'static> {
     entity_type.with_entity_string(row.entity_id.to_string())
 }
 
-/// Annotates paginated items with reminder metadata for any items whose entity
-/// matches a fetched reminder row.
-fn annotate_reminder_metadata(items: &mut [FrecencySoupItem], rows: &[ReminderRow]) {
+/// Expands fetched reminder [SoupItem]s into one [FrecencySoupItem] per [ReminderRow].
+///
+/// If an entity has multiple reminders, the item is cloned for each one.
+/// Each copy has its timestamps overwritten to the reminder's `reminder_time`
+/// and the corresponding [ReminderMetadata] attached.
+fn expand_reminder_items(items: Vec<SoupItem>, rows: &[ReminderRow]) -> Vec<FrecencySoupItem> {
     use std::collections::HashMap;
 
     if rows.is_empty() {
-        return;
+        return Vec::new();
     }
 
-    // Build lookup: (entity_type, entity_id) → first matching ReminderRow
-    let mut lookup: HashMap<(&str, Uuid), &ReminderRow> = HashMap::new();
-    for row in rows {
-        lookup
-            .entry((row.entity_type.as_str(), row.entity_id))
-            .or_insert(row);
-    }
-
-    for item in items.iter_mut() {
-        let (entity_type_str, entity_id) = match &item.item {
+    // Build lookup: (entity_type, entity_id) → SoupItem
+    let mut item_lookup: HashMap<(&str, Uuid), SoupItem> = HashMap::new();
+    for item in items {
+        let (entity_type_str, entity_id) = match &item {
             SoupItem::Document(d) => ("document", d.id),
             SoupItem::Chat(c) => ("chat", c.id),
             SoupItem::Project(p) => ("project", p.id),
             SoupItem::EmailThread(e) => ("email_thread", e.thread.id),
             SoupItem::Channel(ch) => ("channel", ch.channel.channel.id.0),
         };
-
-        if let Some(row) = lookup.get(&(entity_type_str, entity_id)) {
-            item.reminder_metadata = Some(models_soup::reminder::ReminderMetadata {
-                reminder_id: row.id,
-                reminder_time: row.reminder_time,
-                done_time: row.done_time,
-            });
-        }
+        item_lookup.insert((entity_type_str, entity_id), item);
     }
+
+    // For each reminder row, clone the matching SoupItem, apply timestamps, attach metadata
+    rows.iter()
+        .filter_map(|row| {
+            let key = (row.entity_type.as_str(), row.entity_id);
+            let base_item = item_lookup.get(&key)?;
+            let mut item = base_item.clone();
+
+            // Overwrite timestamps to reminder_time
+            let rt = row.reminder_time;
+            match &mut item {
+                SoupItem::Document(d) => {
+                    d.created_at = rt;
+                    d.updated_at = rt;
+                    d.viewed_at = Some(rt);
+                }
+                SoupItem::Chat(c) => {
+                    c.created_at = rt;
+                    c.updated_at = rt;
+                    c.viewed_at = Some(rt);
+                }
+                SoupItem::Project(p) => {
+                    p.created_at = rt;
+                    p.updated_at = rt;
+                    p.viewed_at = Some(rt);
+                }
+                SoupItem::EmailThread(e) => {
+                    e.thread.created_at = rt;
+                    e.thread.updated_at = rt;
+                    e.thread.viewed_at = Some(rt);
+                }
+                SoupItem::Channel(ch) => {
+                    ch.channel.channel.created_at = rt;
+                    ch.channel.channel.updated_at = rt;
+                    ch.viewed_at = Some(rt);
+                }
+            }
+
+            Some(FrecencySoupItem {
+                item,
+                frecency_score: None,
+                reminder_metadata: Some(models_soup::reminder::ReminderMetadata {
+                    reminder_id: row.id,
+                    reminder_time: row.reminder_time,
+                    done_time: row.done_time,
+                }),
+            })
+        })
+        .collect()
 }

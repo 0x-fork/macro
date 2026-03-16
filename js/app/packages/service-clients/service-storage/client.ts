@@ -1286,6 +1286,26 @@ export const storageServiceClient = {
         (result) => result.data
       );
     },
+
+    async updateTime(params: { reminderId: string; reminderTime: string }) {
+      return mapOk(
+        await dssFetch<{
+          data: {
+            id: string;
+            user_id: string;
+            entity_type: string;
+            entity_id: string;
+            reminder_time: string;
+            done_time: string | null;
+            created_at: string;
+          };
+        }>(`/reminders/${params.reminderId}/time`, {
+          method: 'PUT',
+          body: JSON.stringify({ reminder_time: params.reminderTime }),
+        }),
+        (result) => result.data
+      );
+    },
   },
 
   async editThread(params) {

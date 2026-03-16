@@ -176,10 +176,21 @@ export function EntityEmailParticipants(props: { entity: EmailEntity }) {
   const fetchDisplayName = (email: string) =>
     useDisplayName(emailToMacroId(email))[0]();
 
+  const effectiveParticipants = (): EmailThreadParticipants | undefined => {
+    if (props.entity.participants && props.entity.participants.length > 0) {
+      return props.entity.participants;
+    }
+    // Fall back to sender info when participants list is empty (e.g. reminder-fetched emails)
+    if (props.entity.senderEmail) {
+      return [{ email: props.entity.senderEmail, name: props.entity.senderName }];
+    }
+    return undefined;
+  };
+
   const participants = () =>
     abbreviateParticipants(
       resolveParticipants(
-        props.entity.participants,
+        effectiveParticipants(),
         userEmail(),
         fetchDisplayName
       )
@@ -187,7 +198,7 @@ export function EntityEmailParticipants(props: { entity: EmailEntity }) {
 
   const allResolved = () =>
     resolveParticipants(
-      props.entity.participants,
+      effectiveParticipants(),
       userEmail(),
       fetchDisplayName
     );

@@ -1,12 +1,12 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT *\n            FROM\n                frecency_events\n            WHERE was_processed = false\n            LIMIT $1\n            ",
+  "query": "SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at\n               FROM reminders\n               WHERE user_id = $1 AND done_time IS NOT NULL AND reminder_time <= NOW()\n               ORDER BY reminder_time DESC\n               LIMIT $2",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int8"
+        "type_info": "Uuid"
       },
       {
         "ordinal": 1,
@@ -20,32 +20,28 @@
       },
       {
         "ordinal": 3,
-        "name": "event_type",
-        "type_info": "Text"
+        "name": "entity_id",
+        "type_info": "Uuid"
       },
       {
         "ordinal": 4,
-        "name": "timestamp",
+        "name": "reminder_time",
         "type_info": "Timestamptz"
       },
       {
         "ordinal": 5,
-        "name": "connection_id",
-        "type_info": "Text"
+        "name": "done_time",
+        "type_info": "Timestamptz"
       },
       {
         "ordinal": 6,
-        "name": "entity_id",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 7,
-        "name": "was_processed",
-        "type_info": "Bool"
+        "name": "created_at",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Int8"
       ]
     },
@@ -55,10 +51,9 @@
       false,
       false,
       false,
-      false,
-      false,
+      true,
       false
     ]
   },
-  "hash": "d42e3270642ca0b9eff6b5807f600c24fd26d50d612a66edf0738c62d15680ba"
+  "hash": "cfc41fc890ef10e3e43a7e3f2c6c6890448471ecdfaa917b226abcaf77a91868"
 }

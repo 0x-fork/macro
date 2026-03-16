@@ -12,6 +12,9 @@ import {
 } from '@notifications';
 import { useSetPropertyStatusCompleteMutation } from '@queries/properties/entity';
 import type { PropertiesEntityType } from '@service-properties/client';
+import { storageServiceClient } from '@service-storage/client';
+import { isOk } from '@core/util/maybeResult';
+import { removeSoupReminders } from '@queries/soup/normalized-cache';
 import type { SoupState } from '../create-soup-state';
 import { archiveEmail } from '@app/component/next-soup/utils';
 
@@ -37,6 +40,11 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     useSetPropertyStatusCompleteMutation();
 
   const canExecute = (entity: EntityData): boolean => {
+    // Reminders can always be marked done
+    if (entity.reminderMetadata) {
+      return true;
+    }
+
     if (
       entity.type === 'email' ||
       entity.type === 'channel' ||
@@ -71,7 +79,31 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
   const execute = async (entities: EntityData[]) => {
     const source = notificationSource();
 
-    for (const entity of entities) {
+    // Separate reminder entities from regular entities
+    const reminderEntities = entities.filter((e) => e.reminderMetadata);
+    const regularEntities = entities.filter((e) => !e.reminderMetadata);
+
+    // Optimistically remove reminder items from the soup list
+    const reminderIds = new Set(
+      reminderEntities.map((e) => e.reminderMetadata!.reminderId)
+    );
+    const reminderTxn =
+      reminderIds.size > 0 ? removeSoupReminders(reminderIds) : null;
+
+    // Mark reminders as done via the reminders endpoint
+    for (const entity of reminderEntities) {
+      const result = await storageServiceClient.reminders.markDone({
+        reminderId: entity.reminderMetadata!.reminderId,
+      });
+      if (!isOk(result)) {
+        reminderTxn?.rollback();
+        toast.error('Failed to dismiss reminder');
+        return;
+      }
+    }
+
+    // Handle regular entities with the existing logic
+    for (const entity of regularEntities) {
       if (entity.type === 'email') {
         archiveEmail(entity.id, {
           archive: true,
@@ -90,11 +122,19 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
       }
     }
 
-    toast.success(
-      entities.length > 1
-        ? `Marked ${entities.length} items as done`
-        : 'Marked as done'
-    );
+    if (reminderEntities.length > 0 && regularEntities.length === 0) {
+      toast.success(
+        reminderEntities.length > 1
+          ? `Dismissed ${reminderEntities.length} reminders`
+          : 'Reminder dismissed'
+      );
+    } else {
+      toast.success(
+        entities.length > 1
+          ? `Marked ${entities.length} items as done`
+          : 'Marked as done'
+      );
+    }
   };
 
   const executeWithSoup = async (
@@ -120,8 +160,10 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     const shouldNavigate =
       soup.filters.isActive('signal') || soup.filters.isActive('noise');
 
-    // marking email as done removes it in any view, so we should update selection.
-    const willBeRemoved = entities.some((e) => e.type === 'email');
+    // marking email/reminder as done removes it from the view, so we should update selection.
+    const willBeRemoved = entities.some(
+      (e) => e.type === 'email' || e.reminderMetadata
+    );
 
     if (nextEntity && (shouldNavigate || willBeRemoved)) {
       soup.focus.set(nextEntity.id);

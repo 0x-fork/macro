@@ -32,7 +32,7 @@ pub(crate) async fn get_reminders(
                 ReminderRow,
                 r#"SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at
                FROM reminders
-               WHERE user_id = $1 AND id = ANY($3) AND done_time IS NOT NULL
+               WHERE user_id = $1 AND id = ANY($3) AND done_time IS NOT NULL AND reminder_time <= NOW()
                ORDER BY reminder_time DESC
                LIMIT $2"#,
                 user_id_str,
@@ -45,7 +45,7 @@ pub(crate) async fn get_reminders(
                 ReminderRow,
                 r#"SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at
                FROM reminders
-               WHERE user_id = $1 AND id = ANY($3) AND done_time IS NULL
+               WHERE user_id = $1 AND id = ANY($3) AND done_time IS NULL AND reminder_time <= NOW()
                ORDER BY reminder_time DESC
                LIMIT $2"#,
                 user_id_str,
@@ -58,7 +58,7 @@ pub(crate) async fn get_reminders(
                 ReminderRow,
                 r#"SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at
                FROM reminders
-               WHERE user_id = $1 AND id = ANY($3)
+               WHERE user_id = $1 AND id = ANY($3) AND reminder_time <= NOW()
                ORDER BY reminder_time DESC
                LIMIT $2"#,
                 user_id_str,
@@ -71,7 +71,7 @@ pub(crate) async fn get_reminders(
                 ReminderRow,
                 r#"SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at
                FROM reminders
-               WHERE user_id = $1 AND done_time IS NOT NULL
+               WHERE user_id = $1 AND done_time IS NOT NULL AND reminder_time <= NOW()
                ORDER BY reminder_time DESC
                LIMIT $2"#,
                 user_id_str,
@@ -83,7 +83,7 @@ pub(crate) async fn get_reminders(
                 ReminderRow,
                 r#"SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at
                FROM reminders
-               WHERE user_id = $1 AND done_time IS NULL
+               WHERE user_id = $1 AND done_time IS NULL AND reminder_time <= NOW()
                ORDER BY reminder_time DESC
                LIMIT $2"#,
                 user_id_str,
@@ -95,7 +95,7 @@ pub(crate) async fn get_reminders(
                 ReminderRow,
                 r#"SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at
                FROM reminders
-               WHERE user_id = $1
+               WHERE user_id = $1 AND reminder_time <= NOW()
                ORDER BY reminder_time DESC
                LIMIT $2"#,
                 user_id_str,

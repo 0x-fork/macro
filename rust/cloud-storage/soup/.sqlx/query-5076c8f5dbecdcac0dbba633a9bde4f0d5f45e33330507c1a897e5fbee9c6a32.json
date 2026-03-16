@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at\n               FROM reminders\n               WHERE user_id = $1 AND id = ANY($3)\n               ORDER BY reminder_time DESC\n               LIMIT $2",
+  "query": "SELECT id, user_id, entity_type, entity_id, reminder_time, done_time, created_at\n               FROM reminders\n               WHERE user_id = $1 AND id = ANY($3) AND done_time IS NULL AND reminder_time <= NOW()\n               ORDER BY reminder_time DESC\n               LIMIT $2",
   "describe": {
     "columns": [
       {
@@ -56,5 +56,5 @@
       false
     ]
   },
-  "hash": "48aad9d199e9ffcc00467f62a2b684f034019d2c718e1f7feb01af49d8d732fa"
+  "hash": "5076c8f5dbecdcac0dbba633a9bde4f0d5f45e33330507c1a897e5fbee9c6a32"
 }

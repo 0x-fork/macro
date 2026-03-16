@@ -13,6 +13,7 @@ import {
   makeRemindAction,
   makeRenameAction,
   makeShareAction,
+  makeSnoozeAction,
 } from './index';
 import { isShareableEntityType } from '@app/component/global-share-modal/GlobalShareModal';
 import { useUserId } from '@core/context/user';
@@ -61,6 +62,8 @@ export const useEntityActionHotkeys = (
   const shareAction = makeShareAction();
 
   const remindAction = makeRemindAction();
+
+  const snoozeAction = makeSnoozeAction({ markDone });
 
   const getEntitiesForAction = (): EntityData[] => {
     if (
@@ -124,6 +127,28 @@ export const useEntityActionHotkeys = (
       if (condition && !condition()) return false;
       const entities = getEntitiesForAction();
       return entities.length === 1 && remindAction.canExecute(entities[0]);
+    },
+    displayPriority: 10,
+    tags: [HotkeyTags.SelectionModification],
+  });
+
+  // Snooze (Remind me + Mark done) - 'shift+e', not in group so it works from inside blocks
+  registerHotkey({
+    hotkey: ['shift+e'],
+    scopeId,
+    description: 'Snooze (remind me & mark done)',
+    keyDownHandler: () => {
+      const entities = getEntitiesForAction();
+      if (entities.length === 0) return false;
+      if (!snoozeAction.canExecute(entities[0])) return false;
+
+      snoozeAction.executeWithSoup(entities, soup, openNextEntity);
+      return true;
+    },
+    condition: () => {
+      if (condition && !condition()) return false;
+      const entities = getEntitiesForAction();
+      return entities.length === 1 && snoozeAction.canExecute(entities[0]);
     },
     displayPriority: 10,
     tags: [HotkeyTags.SelectionModification],

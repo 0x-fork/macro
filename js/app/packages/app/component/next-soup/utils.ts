@@ -82,6 +82,15 @@ export const deduplicateEntities = <T extends EntityData>(
       continue;
     }
 
+    // Don't deduplicate if either version has reminder metadata —
+    // we want both the reminder item and the normal item to show.
+    if (entity.reminderMetadata || existing.reminderMetadata) {
+      // Use a synthetic key so both can coexist
+      const reminderKey = `${entity.id}:reminder:${entity.reminderMetadata?.reminderId ?? 'none'}`;
+      entityMap.set(reminderKey, entity);
+      continue;
+    }
+
     const existingHasSearch = isSearchEntity(existing);
     const newHasSearch = isSearchEntity(entity);
 
