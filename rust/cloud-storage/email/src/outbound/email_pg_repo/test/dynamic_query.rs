@@ -776,7 +776,7 @@ async fn test_importance_true_includes_drafts_with_depriority_label(
     Ok(())
 }
 
-// Thread 8 is a draft with CATEGORY_UPDATES (depriority label).
+// Thread 8 is a draft with CATEGORY_UPDATES (depriority label)
 // DRAFT is a priority label, so it should NOT appear in importance=false results.
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
