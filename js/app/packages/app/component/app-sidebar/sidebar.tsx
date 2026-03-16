@@ -88,10 +88,10 @@ export const SIDEBAR_LINKS = [
   },
   {
     id: 'channels',
-    label: 'Channels',
+    label: 'Messages',
     href: LIST_VIEW_PATHS.channels,
     icon: AnimatedChannelIcon,
-    hotkey: 'c',
+    hotkey: 'm',
   },
   {
     id: 'files',
