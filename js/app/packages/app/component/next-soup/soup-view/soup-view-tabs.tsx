@@ -89,7 +89,7 @@ export const SoupViewTabs = () => {
       <Match when={isComponentListView('tasks')}>
         <TasksTabs />
       </Match>
-      <Match when={isComponentListView('channels')}>
+      <Match when={isComponentListView('messages') || isComponentListView('channels')}>
         <ChannelsTabs />
       </Match>
       <Match when={isComponentListView('files')}>

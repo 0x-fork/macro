@@ -45,7 +45,7 @@ export const SoupViewContextSort = () => {
       <Match when={isComponentListView('tasks')}>
         <TasksSort />
       </Match>
-      <Match when={isComponentListView('channels')}>
+      <Match when={isComponentListView('messages') || isComponentListView('channels')}>
         <ChannelsSort />
       </Match>
       <Match when={isComponentListView('files')}>

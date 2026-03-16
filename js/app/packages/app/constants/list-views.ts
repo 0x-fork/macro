@@ -6,6 +6,7 @@ export const LIST_VIEWS = [
   'mail',
   'documents',
   'tasks',
+  'messages',
   'channels',
   'files',
   'search',
@@ -19,6 +20,7 @@ export const LIST_VIEW_PATHS = {
   mail: '/mail',
   documents: '/documents',
   tasks: '/tasks',
+  messages: '/channels',
   channels: '/channels',
   files: '/files',
   search: '/search',
@@ -34,6 +36,7 @@ export const LIST_VIEW_ID = {
   mail: 'mail',
   documents: 'documents',
   tasks: 'tasks',
+  messages: 'messages',
   channels: 'channels',
   files: 'files',
   search: 'search',
@@ -46,11 +49,11 @@ export const isListViewID = (id: string | null | undefined): id is ListView => {
 };
 
 const BLOCK_LIST_VIEW_MAP = {
-  channel: 'channels',
+  channel: 'messages',
   canvas: 'documents',
   chat: 'agents',
   code: 'files',
-  contact: 'channels',
+  contact: 'messages',
   csv: 'files',
   email: 'mail',
   image: 'files',

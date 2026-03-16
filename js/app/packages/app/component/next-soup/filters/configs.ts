@@ -313,7 +313,7 @@ export const createSoupFilters = (
     ...ENTITY_TYPE_FILTER_CONFIGS,
     {
       id: 'channels',
-      label: 'Channels',
+      label: 'Messages',
       predicate: channelsFilter,
     },
     {

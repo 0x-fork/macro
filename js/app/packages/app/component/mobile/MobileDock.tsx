@@ -63,7 +63,7 @@ function MobileDockButton(props: MobileDockButtonProps) {
   );
 }
 
-const PRIMARY_IDS = ['inbox', 'channels', 'files', 'search'] as const;
+const PRIMARY_IDS = ['inbox', 'messages', 'files', 'search'] as const;
 
 const MORE_VIEWS = SIDEBAR_LINKS.filter(
   (l) => !(PRIMARY_IDS as readonly string[]).includes(l.id)
@@ -208,11 +208,19 @@ export function MobileDock() {
 
   const isActive = (id: ListView) => {
     const activeContent = globalSplitManager()?.activeSplit()?.content();
+
+    const matchesMessagesAlias = (value: string | undefined, viewId: ListView) => {
+      if (!value) return false;
+      if (viewId === 'messages') return value === 'messages' || value === 'channels';
+      return value === viewId;
+    };
+
     if (!activeContent) {
       const segments = location.pathname.split('/').filter(Boolean);
-      return segments[segments.length - 1] === id;
+      return matchesMessagesAlias(segments[segments.length - 1], id);
     }
-    return activeContent.id === id;
+
+    return matchesMessagesAlias(activeContent.id, id);
   };
 
   const isMoreActive = () => MORE_VIEWS.some((v) => isActive(v.id));
@@ -232,9 +240,9 @@ export function MobileDock() {
       />
       <MobileDockButton
         icon={AnimatedChannelIcon}
-        label="Channels"
-        active={isActive('channels')}
-        onClick={() => navigate('channels')}
+        label="Messages"
+        active={isActive('messages')}
+        onClick={() => navigate('messages')}
       />
       <MobileDockButton
         icon={AnimatedFolderIcon}

@@ -87,9 +87,9 @@ export const SIDEBAR_LINKS = [
     hotkey: 't',
   },
   {
-    id: 'channels',
+    id: 'messages',
     label: 'Messages',
-    href: LIST_VIEW_PATHS.channels,
+    href: LIST_VIEW_PATHS.messages,
     icon: AnimatedChannelIcon,
     hotkey: 'm',
   },

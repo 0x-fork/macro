@@ -39,7 +39,7 @@ import { ScrollIndicators } from '@core/component/VerticalScrollIndicators';
 
 const CATEGORIES: { id: CategoryFilter; label: string }[] = [
   { id: 'all', label: 'All' },
-  { id: 'channels', label: 'Channels' },
+  { id: 'channels', label: 'Messages' },
   { id: 'dms', label: 'DMs' },
   { id: 'notes', label: 'Notes' },
   { id: 'tasks', label: 'Tasks' },

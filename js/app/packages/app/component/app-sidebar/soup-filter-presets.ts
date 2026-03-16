@@ -170,6 +170,26 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
       }),
     },
   },
+  messages: {
+    default: 'recent',
+    tabs: {
+      recent: () => ({
+        queryFilters: {
+          ...QUERY_FILTERS.channels,
+          channel_filters: { importance: true },
+        },
+        clientFilters: { and: ['channels'] },
+      }),
+      people: () => ({
+        queryFilters: QUERY_FILTERS.people,
+        clientFilters: { and: ['people'] },
+      }),
+      teams: () => ({
+        queryFilters: QUERY_FILTERS.teams,
+        clientFilters: { and: ['teams'] },
+      }),
+    },
+  },
   channels: {
     default: 'recent',
     tabs: {

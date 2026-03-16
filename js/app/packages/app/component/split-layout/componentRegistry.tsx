@@ -174,12 +174,26 @@ registerComponent(
 );
 
 registerComponent(
+  'messages',
+  withAuth(() => {
+    const preset = getDefaultListViewPreset('channels');
+    return (
+      <SoupView
+        viewName="Messages"
+        queryFilters={preset.queryFilters}
+        initialClientFilters={preset.clientFilters}
+      />
+    );
+  })
+);
+
+registerComponent(
   'channels',
   withAuth(() => {
     const preset = getDefaultListViewPreset('channels');
     return (
       <SoupView
-        viewName="Channels"
+        viewName="Messages"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
       />

@@ -38,7 +38,7 @@ import { isListViewID } from '@app/constants/list-views';
 
 const CATEGORIES: { id: CategoryFilter; label: string }[] = [
   { id: 'all', label: 'All' },
-  { id: 'channels', label: 'Channels' },
+  { id: 'channels', label: 'Messages' },
   { id: 'dms', label: 'Dms' },
   { id: 'notes', label: 'Docs' },
   { id: 'tasks', label: 'Tasks' },
