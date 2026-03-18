@@ -521,8 +521,11 @@ const SidebarLink = (props: SidebarLinkProps) => {
             <div class="group-data-[slim=true]/sidebar:invisible ml-auto">
               <div class="flex gap-1 items-center text-ink-extra-muted font-normal text-[0.625rem]">
                 <Show when={SIDEBAR_CREATE_IDS.has(props.id)}>
-                  <button
-                    class="size-5 flex items-center justify-center rounded-xs border border-ink/10 hover:bg-ink/10 hover:text-ink text-ink-extra-muted transition-colors"
+                  <Button
+                    class="size-5 flex items-center justify-center rounded-xs border border-ink/10 hover:bg-ink/10 hover:text-ink text-ink-extra-muted transition-colors p-0"
+                    variant="ghost"
+                    tooltip="Create"
+                    tooltipPlacement="right"
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
@@ -540,7 +543,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
                       <line x1="6" y1="2" x2="6" y2="10" />
                       <line x1="2" y1="6" x2="10" y2="6" />
                     </svg>
-                  </button>
+                  </Button>
                 </Show>
               </div>
             </div>
