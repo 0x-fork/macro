@@ -5,7 +5,6 @@ export const LIST_VIEW_CREATE_ACTIONS: Partial<
 > = {
   agents: 'agent',
   mail: 'email',
-  documents: 'doc',
   tasks: 'task',
   channels: 'message',
   files: 'folder',
@@ -63,10 +62,11 @@ export function getCreateOptionLabel(optionId: ListViewCreateOptionId): string {
 export function getListViewCreateOptions(
   view: ListView
 ): ListViewCreateOption[] {
-  if (view === 'documents') {
+  if (view === 'files') {
     return [
       { id: 'doc', label: 'New doc' },
       { id: 'canvas', label: 'New canvas' },
+      { id: 'folder', label: 'New folder' },
       { id: 'import', label: 'Import' },
     ];
   }

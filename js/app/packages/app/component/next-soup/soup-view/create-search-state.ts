@@ -104,7 +104,10 @@ export const createSearchState = ({
 
     let fileTypes = document_filters?.file_types;
 
-    if (soup.filters.isActive('file-folder')) {
+    if (
+      soup.filters.isActive('file-folder') ||
+      soup.filters.isActive('document-file-folder')
+    ) {
       fileTypes = getFileAssociations('search');
     }
 

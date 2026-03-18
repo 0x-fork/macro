@@ -11,7 +11,6 @@ describe('getListViewCreateActionId', () => {
   test.each([
     ['agents', 'agent'],
     ['mail', 'email'],
-    ['documents', 'doc'],
     ['tasks', 'task'],
     ['channels', 'message'],
     ['files', 'folder'],
@@ -27,7 +26,6 @@ describe('getListViewCreateActionId', () => {
   test.each([
     ['agents', 'New agent'],
     ['mail', 'New email'],
-    ['documents', 'New doc'],
     ['tasks', 'New task'],
     ['channels', 'New message'],
     ['files', 'New folder'],
@@ -49,15 +47,16 @@ describe('getListViewCreateActionId', () => {
     expect(getCreateOptionLabel('import')).toBe('Import');
   });
 
-  test('returns the full documents create menu', () => {
-    expect(getListViewCreateOptions('documents')).toEqual([
+  test('returns the full files create menu', () => {
+    expect(getListViewCreateOptions('files')).toEqual([
       { id: 'doc', label: 'New doc' },
       { id: 'canvas', label: 'New canvas' },
+      { id: 'folder', label: 'New folder' },
       { id: 'import', label: 'Import' },
     ]);
   });
 
-  test('returns a single create option for non-document views', () => {
+  test('returns a single create option for non-files views', () => {
     expect(getListViewCreateOptions('tasks')).toEqual([
       { id: 'task', label: 'New task' },
     ]);

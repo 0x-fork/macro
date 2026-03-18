@@ -102,6 +102,17 @@ export function filesAndFolderFilter(entity: EntityData): boolean {
   return true;
 }
 
+/** Combined filter for documents (markdown, canvas), files, and folders - excludes tasks */
+export function documentsFilesAndFolderFilter(entity: EntityData): boolean {
+  if (entity.type !== 'project' && entity.type !== 'document') return false;
+
+  // Exclude tasks
+  if (entity.type === 'document' && entity.subType?.type === 'task')
+    return false;
+
+  return true;
+}
+
 export function activeAgentFilter(entity: EntityData): boolean {
   if (entity.type !== 'chat') return false;
 

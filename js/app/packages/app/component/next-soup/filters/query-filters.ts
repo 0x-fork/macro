@@ -133,7 +133,9 @@ export const QUERY_FILTERS = {
     channel_filters: { channel_ids: EXCLUDE },
     chat_filters: { chat_ids: EXCLUDE },
     email_filters: { recipients: EXCLUDE },
-    document_filters: { file_types: getFileAssociations('soup') },
+    document_filters: {
+      file_types: ['md', 'canvas', ...getFileAssociations('soup')],
+    },
   },
 
   channels: {

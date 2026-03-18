@@ -17,6 +17,7 @@ import {
   isUnassigned,
   channelsFilter,
   filesAndFolderFilter,
+  documentsFilesAndFolderFilter,
   activeAgentFilter,
   emailDraftsFilter,
   noDraftsFilter,
@@ -320,6 +321,11 @@ export const createSoupFilters = (
       id: 'file-folder',
       label: 'Files & Folders',
       predicate: filesAndFolderFilter,
+    },
+    {
+      id: 'document-file-folder',
+      label: 'Documents, Files & Folders',
+      predicate: documentsFilesAndFolderFilter,
     },
     {
       id: 'folders',

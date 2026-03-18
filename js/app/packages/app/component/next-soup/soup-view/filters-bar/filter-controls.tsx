@@ -16,9 +16,7 @@ import { PROPERTY_OPTION_IDS } from '@core/component/Properties/constants';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { useProjectsQuery } from '@queries/storage/projects';
 import {
-  CODE_LANGUAGE_FILTER_IDS,
   getFileAssociations,
-  IMAGE_TYPE_FILTER_IDS,
   QUERY_FILTERS_BASE,
 } from '@app/component/next-soup/filters/query-filters';
 import { ChannelTypeEnum } from '@service-comms/client';
@@ -461,25 +459,8 @@ export const ChannelVisibilityFilter = () => {
   );
 };
 
-export const FilesTypeFilter = () => {
-  const { soup } = useSoupView();
-
-  const typeOptions: Option[] = [
-    {
-      value: 'doc-markdown',
-      label: 'Markdown',
-      icon: () => <EntityIcon targetType="md" size="xs" />,
-    },
-    {
-      value: 'doc-canvas',
-      label: 'Canvas',
-      icon: () => <EntityIcon targetType="canvas" size="xs" />,
-    },
-    {
-      value: 'folders',
-      label: 'Folders',
-      icon: () => <FolderIcon class="size-3.5" />,
-    },
+export const FileTypeFilter = () => {
+  const fileTypeOptions: Option[] = [
     {
       value: 'file-code',
       label: 'Code',
@@ -502,170 +483,33 @@ export const FilesTypeFilter = () => {
     },
   ];
 
-  const type = useFilterOptions(typeOptions);
-
-  // Check if any sub-filters are active (parent may have been removed from OR)
-  const hasImageSubFilters = () =>
-    IMAGE_TYPE_FILTER_IDS.some((id) => soup.filters.isActive(id));
-  const hasCodeSubFilters = () =>
-    CODE_LANGUAGE_FILTER_IDS.some((id) => soup.filters.isActive(id));
-
-  // Compute active options, including parents that have active sub-filters
-  const activeOptions = createMemo(() => {
-    const active = type.active();
-    const activeValues = new Set(active.map((o) => o.value));
-
-    // Add parent to display as active if sub-filters are active
-    if (hasImageSubFilters() && !activeValues.has('file-image')) {
-      const imageOption = typeOptions.find((o) => o.value === 'file-image');
-      if (imageOption) return [...active, imageOption];
-    }
-    if (hasCodeSubFilters() && !activeValues.has('file-code')) {
-      const codeOption = typeOptions.find((o) => o.value === 'file-code');
-      if (codeOption) return [...active, codeOption];
-    }
-
-    return active;
-  });
-
-  const handleChange = (selected: Option[]) => {
-    const selectedValues = new Set(selected.map((o) => o.value));
-
-    // Check if parent was effectively selected before (either directly or via sub-filters)
-    const wasImageActive =
-      soup.filters.isActive('file-image') || hasImageSubFilters();
-    const wasCodeActive =
-      soup.filters.isActive('file-code') || hasCodeSubFilters();
-
-    // Determine what's being deselected
-    const imageDeselected = wasImageActive && !selectedValues.has('file-image');
-    const codeDeselected = wasCodeActive && !selectedValues.has('file-code');
-
-    // Build list of filters to remove (sub-filters go in OR now)
-    const filtersToRemove: string[] = [];
-    if (imageDeselected) {
-      filtersToRemove.push(...IMAGE_TYPE_FILTER_IDS);
-    }
-    if (codeDeselected) {
-      filtersToRemove.push(...CODE_LANGUAGE_FILTER_IDS);
-    }
-
-    // Call the original onChange
-    type.onChange(selected);
-
-    // Clear sub-filters from OR
-    if (filtersToRemove.length > 0) {
-      soup.filters.set((cur) => ({
-        and: cur.andIds,
-        or: cur.orIds.filter((id) => !filtersToRemove.includes(id)),
-      }));
-    }
-  };
+  const fileType = useFilterOptions(fileTypeOptions);
 
   return (
-    <FilterSelect
-      label="File Type"
-      options={typeOptions}
-      active={activeOptions()}
-      onChange={handleChange}
+    <FilterChipGroup
+      options={fileTypeOptions}
+      active={fileType.active()}
+      onChange={fileType.onChange}
     />
   );
 };
 
-export const ImageTypeFilter = () => {
-  const { soup } = useSoupView();
-
-  const imageTypeOptions: Option[] = [
-    { value: 'image-png', label: 'PNG' },
-    { value: 'image-jpg', label: 'JPG' },
-    { value: 'image-gif', label: 'GIF' },
-    { value: 'image-svg', label: 'SVG' },
-    { value: 'image-webp', label: 'WebP' },
+export const FoldersFilter = () => {
+  const foldersOptions: Option[] = [
+    {
+      value: 'folders',
+      label: 'Folders',
+      icon: () => <FolderIcon class="size-3.5" />,
+    },
   ];
 
-  const imageType = useFilterOptions(imageTypeOptions, { target: 'or' });
-
-  const handleChange = (selected: Option[]) => {
-    const hadSubFilters = imageTypeOptions.some((o) =>
-      soup.filters.isActive(o.value)
-    );
-    const willHaveSubFilters = selected.length > 0;
-
-    imageType.onChange(selected);
-
-    // When sub-filters are added, remove parent from OR (sub-filters refine it)
-    // When all sub-filters are removed, add parent back to OR
-    if (!hadSubFilters && willHaveSubFilters) {
-      soup.filters.set((cur) => ({
-        and: cur.andIds,
-        or: cur.orIds.filter((id) => id !== 'file-image'),
-      }));
-    } else if (hadSubFilters && !willHaveSubFilters) {
-      soup.filters.set((cur) => ({
-        and: cur.andIds,
-        or: [...cur.orIds, 'file-image'],
-      }));
-    }
-  };
+  const folders = useFilterOptions(foldersOptions);
 
   return (
-    <FilterSelect
-      label="Image Format"
-      options={imageTypeOptions}
-      active={imageType.active()}
-      onChange={handleChange}
-    />
-  );
-};
-
-export const CodeLanguageFilter = () => {
-  const { soup } = useSoupView();
-
-  const codeLanguageOptions: Option[] = [
-    { value: 'code-js-ts', label: 'JavaScript/TypeScript' },
-    { value: 'code-python', label: 'Python' },
-    { value: 'code-rust', label: 'Rust' },
-    { value: 'code-c-cpp', label: 'C/C++' },
-    { value: 'code-html-css', label: 'HTML/CSS' },
-    { value: 'code-json', label: 'JSON' },
-    { value: 'code-shell', label: 'Shell' },
-    { value: 'code-go', label: 'Go' },
-    { value: 'code-ruby', label: 'Ruby' },
-    { value: 'code-java-kotlin', label: 'Java/Kotlin' },
-    { value: 'code-yaml', label: 'YAML' },
-  ];
-
-  const codeLanguage = useFilterOptions(codeLanguageOptions, { target: 'or' });
-
-  const handleChange = (selected: Option[]) => {
-    const hadSubFilters = codeLanguageOptions.some((o) =>
-      soup.filters.isActive(o.value)
-    );
-    const willHaveSubFilters = selected.length > 0;
-
-    codeLanguage.onChange(selected);
-
-    // When sub-filters are added, remove parent from OR (sub-filters refine it)
-    // When all sub-filters are removed, add parent back to OR
-    if (!hadSubFilters && willHaveSubFilters) {
-      soup.filters.set((cur) => ({
-        and: cur.andIds,
-        or: cur.orIds.filter((id) => id !== 'file-code'),
-      }));
-    } else if (hadSubFilters && !willHaveSubFilters) {
-      soup.filters.set((cur) => ({
-        and: cur.andIds,
-        or: [...cur.orIds, 'file-code'],
-      }));
-    }
-  };
-
-  return (
-    <FilterSelect
-      label="Code Language"
-      options={codeLanguageOptions}
-      active={codeLanguage.active()}
-      onChange={handleChange}
+    <FilterChipGroup
+      options={foldersOptions}
+      active={folders.active()}
+      onChange={folders.onChange}
     />
   );
 };

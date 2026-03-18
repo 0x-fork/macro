@@ -5,7 +5,6 @@ import {
   CHANNEL_SORT_OPTIONS,
   DEFAULT_SORT_OPTIONS,
   EMAIL_SORT_OPTIONS,
-  FILES_SORT_OPTIONS,
   TASK_SORT_OPTIONS,
   type SortOption,
   type SystemSortOption,
@@ -127,7 +126,7 @@ const ChannelsSort = () => {
 };
 
 const FilesSort = () => {
-  const sort = useSortDropdown(FILES_SORT_OPTIONS);
+  const sort = useSortDropdown();
 
   return (
     <SortDropdown
