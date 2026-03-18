@@ -21,7 +21,8 @@ import {
   type ListView,
 } from '@app/constants/list-views';
 import { LabelAndHotKey } from '@core/component/Tooltip';
-import { setCreateMenuOpen } from '@app/component/Launcher';
+import { runCreateAction, setCreateMenuOpen } from '@app/component/Launcher';
+import { LIST_VIEW_CREATE_ACTIONS } from '@app/component/list-view-create';
 import { CommandState } from '@app/component/command';
 import { cn } from '@ui/utils/classname';
 import { Button } from '@ui/components/Button';
@@ -408,6 +409,14 @@ interface SidebarLinkProps extends SidebarItem {
   sidebarState: SidebarState;
 }
 
+const SIDEBAR_CREATE_IDS = new Set<ListView>([
+  'agents',
+  'mail',
+  'documents',
+  'tasks',
+  'channels',
+]);
+
 const SidebarLink = (props: SidebarLinkProps) => {
   const [isHovering, setIsHovering] = createSignal(false);
 
@@ -511,19 +520,27 @@ const SidebarLink = (props: SidebarLinkProps) => {
           <Show when={isHovering()}>
             <div class="group-data-[slim=true]/sidebar:invisible ml-auto">
               <div class="flex gap-1 items-center text-ink-extra-muted font-normal text-[0.625rem]">
-                <Show when={!props.standaloneHotkey}>
-                  <div class="text-[0.625rem] text-ink-extra-muted rounded-sm ml-auto border border-ink/5 px-1.5 py-0.5 -my-1">
-                    <Hotkey shortcut={GO_TO_LEADER_KEY} />
-                  </div>
-                  then
-                  <div class="text-[0.625rem] text-ink-extra-muted rounded-sm ml-auto border border-ink/5 px-1.5 py-0.5 -my-1">
-                    <Hotkey shortcut={props.hotkey} />
-                  </div>
-                </Show>
-                <Show when={props.standaloneHotkey}>
-                  <div class="text-[0.625rem] text-ink-extra-muted rounded-sm ml-auto border border-ink/5 px-1.5 py-0.5 -my-1">
-                    <Hotkey shortcut={props.hotkey} />
-                  </div>
+                <Show when={SIDEBAR_CREATE_IDS.has(props.id)}>
+                  <button
+                    class="size-5 flex items-center justify-center rounded-xs border border-ink/10 hover:bg-ink/10 hover:text-ink text-ink-extra-muted transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      const actionId = LIST_VIEW_CREATE_ACTIONS[props.id];
+                      if (actionId) runCreateAction(actionId);
+                    }}
+                  >
+                    <svg
+                      class="size-3"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                    >
+                      <line x1="6" y1="2" x2="6" y2="10" />
+                      <line x1="2" y1="6" x2="10" y2="6" />
+                    </svg>
+                  </button>
                 </Show>
               </div>
             </div>
