@@ -1,11 +1,19 @@
+import { useUserId } from '@core/context/user';
+import { useSendMessageMutation } from '@queries/channel/message';
 import type { Accessor, Setter } from 'solid-js';
 import { ChannelInput, createInputAttachmentTracker } from '../Input';
 import type { InputSnapshot } from '../Input';
+import { buildPostMessageRequest } from '../Input/message-payload';
 import { createEntityDropZone } from '../Channel/create-entity-drop-zone';
 import { replyInputOffsetX } from './utils/thread-rail-geometry';
 import { ThreadReplyInputConnector } from './ThreadReplyInputConnector';
+import {
+  makeAttachmentTrackerPersistenceKey,
+  makeInputValuePersistenceKey,
+} from '@channel/Input/utils/persistence';
 
 type ThreadReplyInputProps = {
+  channelId: string;
   messageId: string;
   replyInputState: Accessor<InputSnapshot | undefined>;
   setReplyInputState: Setter<InputSnapshot | undefined>;
@@ -13,7 +21,13 @@ type ThreadReplyInputProps = {
 };
 
 export function ThreadReplyInput(props: ThreadReplyInputProps) {
+  const userId = useUserId();
+  const sendMessageMutation = useSendMessageMutation();
   const tracker = createInputAttachmentTracker({
+    persistenceKey: makeAttachmentTrackerPersistenceKey({
+      channelId: props.channelId,
+      threadId: props.messageId,
+    }),
     initialAttachments: props.replyInputState()?.attachments,
   });
 
@@ -23,7 +37,7 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
   });
 
   return (
-    <div class="relative" style={{ 'margin-left': replyInputOffsetX }}>
+    <div class="relative pt-2" style={{ 'margin-left': replyInputOffsetX }}>
       <ThreadReplyInputConnector />
       {(() => {
         const droppable = entityDropZone.droppable;
@@ -40,15 +54,28 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                 mode: 'reply',
               }}
               attachmentTracker={tracker}
+              persistenceKey={makeInputValuePersistenceKey({
+                channelId: props.channelId,
+                threadId: props.messageId,
+              })}
               markdownNamespace={`thread-reply-input-${props.messageId}-markdown`}
               onChange={(snapshot) => void props.setReplyInputState(snapshot)}
-              onCloseDraft={() => {
+              onClose={() => {
                 props.setReplyInputState(undefined);
                 props.setIsReplying(false);
               }}
-              onSend={async () => {
+              onSend={(snapshot) => {
+                const senderId = userId();
+                if (!senderId) return;
+
+                sendMessageMutation.mutate({
+                  channelID: props.channelId,
+                  senderId,
+                  optimisticId: crypto.randomUUID(),
+                  message: buildPostMessageRequest(snapshot, props.messageId),
+                });
+
                 props.setReplyInputState(undefined);
-                props.setIsReplying(false);
               }}
             />
           </div>

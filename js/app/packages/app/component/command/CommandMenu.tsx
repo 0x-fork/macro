@@ -40,10 +40,10 @@ const CATEGORIES: { id: CategoryFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'channels', label: 'Channels' },
   { id: 'dms', label: 'Dms' },
-  { id: 'notes', label: 'Notes' },
+  { id: 'notes', label: 'Docs' },
   { id: 'tasks', label: 'Tasks' },
-  { id: 'documents', label: 'Docs' },
-  { id: 'chats', label: 'Chats' },
+  { id: 'documents', label: 'Files' },
+  { id: 'chats', label: 'Agents' },
   { id: 'projects', label: 'Projects' },
   { id: 'commands', label: 'Commands' },
 ];
@@ -52,7 +52,7 @@ const VIRTUAL_ITEM_HEIGHT = 40; // tailwind h-10
 const MAX_LIST_HEIGHT = VIRTUAL_ITEM_HEIGHT * 8;
 const EMPTY_STATE_HEIGHT = VIRTUAL_ITEM_HEIGHT * 1.5;
 
-function getBlockNameForEntity(
+export function getBlockNameForEntity(
   item: CommandMenuItem
 ): BlockName | BlockAlias | undefined {
   if (isEntityItem(item)) {
@@ -605,8 +605,8 @@ function CategoryFilterTabs() {
         }
       }}
     >
-      <Tabs.List class="p-1.5">
-        <div class="text-sm bg-ink/5 rounded-sm overflow-clip border border-edge-muted inline-block">
+      <Tabs.List class="p-1.5 border-b border-edge-muted/50">
+        <div class="text-sm rounded-xs overflow-clip border border-edge-muted inline-block">
           <div class="flex">
             <For each={CATEGORIES}>
               {(category) => (
@@ -614,9 +614,9 @@ function CategoryFilterTabs() {
                   value={category.id}
                   class={cn(
                     'border-r-1 border-edge-muted last:border-r-0',
-                    'relative text-ink-muted/70 px-3 py-1 text-xs font-medium block hover:bg-ink/6 hover:text-ink',
+                    'relative text-ink-muted/70 px-2.5 py-1 text-xs font-medium block hover:bg-ink/6 hover:text-ink',
                     CommandState.categoryFilter() === category.id &&
-                      'text-ink bg-ink/7'
+                      'text-ink bg-edge/50'
                   )}
                   tabIndex={-1}
                 >

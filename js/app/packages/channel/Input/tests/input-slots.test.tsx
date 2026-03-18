@@ -31,8 +31,28 @@ vi.mock('@core/constant/allBlocks', () => ({
   fileTypeToBlockName: (type?: string | null) => type ?? 'unknown',
 }));
 
-vi.mock('../utils/render-icon', () => ({
-  renderIcon: () => null,
+vi.mock('@phosphor-icons/core/regular/paperclip.svg?component-solid', () => ({
+  default: () => <span data-testid="paperclip-icon" />,
+}));
+
+vi.mock('@icon/regular/text-aa.svg', () => ({
+  default: () => <span data-testid="format-icon" />,
+}));
+
+vi.mock('@icon/regular/trash.svg', () => ({
+  default: () => <span data-testid="trash-icon" />,
+}));
+
+vi.mock('@icon/regular/x.svg', () => ({
+  default: () => <span data-testid="close-icon" />,
+}));
+
+vi.mock('@icon/bold/arrow-up-bold.svg', () => ({
+  default: () => <span data-testid="send-icon" />,
+}));
+
+vi.mock('@icon/bold/spinner-gap-bold.svg', () => ({
+  default: () => <span data-testid="spinner-icon" />,
 }));
 
 vi.mock('@core/component/EntityIcon', () => ({
@@ -52,8 +72,13 @@ vi.mock('@core/component/VideoPreview', () => ({
 }));
 
 vi.mock('@core/component/LexicalMarkdown/builder/MarkdownShell', () => ({
-  MarkdownShell: (props: { placeholder?: string }) => (
-    <div data-testid="markdown-shell">{props.placeholder}</div>
+  MarkdownShell: (props: { placeholder?: string; initialValue?: string }) => (
+    <div
+      data-testid="markdown-shell"
+      data-initial-value={props.initialValue ?? ''}
+    >
+      {props.placeholder}
+    </div>
   ),
 }));
 
@@ -105,9 +130,14 @@ vi.mock(
   })
 );
 
+vi.mock('../FormatButtons', () => ({
+  FormatButtons: () => <div data-testid="format-buttons" />,
+}));
+
 import { ChannelInput } from '../ChannelInput';
 import { Root } from '../Root';
 import { DropOverlay } from '../DropOverlay';
+import { createInputAttachmentTracker } from '../attachment-tracker';
 import type { InputData } from '../types';
 
 const baseInput: InputData = {
@@ -121,24 +151,28 @@ const baseInput: InputData = {
 };
 
 describe('Input slots', () => {
-  it('wires send and primary action handlers through context', async () => {
+  it('renders the default action composition and wires handlers through context', async () => {
     const user = userEvent.setup();
     const onSend = vi.fn();
     const onToggleFormatRibbon = vi.fn();
-    const onCloseDraft = vi.fn();
+    const onClose = vi.fn();
 
-    render(() =>
+    const { container } = render(() =>
       (() => {
         return (
           <ChannelInput
             input={{ ...baseInput, mode: 'reply' }}
             onSend={onSend}
             onToggleFormatRibbon={onToggleFormatRibbon}
-            onCloseDraft={onCloseDraft}
+            onClose={onClose}
           />
         );
       })()
     );
+
+    expect(container.querySelector('[data-input-actions]')).toBeTruthy();
+    expect(container.querySelector('[data-input-actions-left]')).toBeTruthy();
+    expect(container.querySelector('[data-input-actions-right]')).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'Send message' }));
     const clickSpy = vi.spyOn(HTMLInputElement.prototype, 'click');
@@ -150,8 +184,55 @@ describe('Input slots', () => {
     expect(clickSpy).toHaveBeenCalledOnce();
     clickSpy.mockRestore();
     expect(onToggleFormatRibbon).toHaveBeenCalledOnce();
-    expect(onCloseDraft).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
     expect(onSend.mock.calls[0]?.[0]?.value).toBe('');
+  });
+
+  it('omits the reply action for channel mode', () => {
+    render(() => <ChannelInput input={baseInput} />);
+
+    expect(screen.queryByRole('button', { name: 'Delete reply' })).toBeNull();
+  });
+
+  it('renders custom action composition from children instead of defaults', () => {
+    render(() => (
+      <ChannelInput input={baseInput}>
+        <div data-testid="custom-actions">custom actions</div>
+      </ChannelInput>
+    ));
+
+    expect(screen.getByTestId('custom-actions')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Attach files' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Send message' })).toBeNull();
+  });
+
+  it('disables send while attachments are pending', () => {
+    render(() =>
+      (() => {
+        const attachmentTracker = createInputAttachmentTracker({
+          initialAttachments: [
+            {
+              id: 'pending-1',
+              name: 'uploading.png',
+              kind: 'image',
+              pending: true,
+            },
+          ],
+        });
+
+        return (
+          <ChannelInput
+            input={baseInput}
+            attachmentTracker={attachmentTracker}
+          />
+        );
+      })()
+    );
+
+    expect(screen.getByRole('button', { name: 'Send message' })).toHaveProperty(
+      'disabled',
+      true
+    );
   });
 
   it('shows invalid state in drop overlay', () => {

@@ -7,7 +7,7 @@ import type {
   InputCallbacks,
   InputCommands,
   InputData,
-  InputDraftAdapter,
+  InputPersistenceKey,
   InputSnapshot,
 } from './types';
 
@@ -15,9 +15,11 @@ type CreateInputStateOptions = {
   initialInput: InputData;
   mentions: Accessor<ItemMention[]>;
   attachmentTracker: InputAttachmentTracker;
+  clearComposer?: () => void;
   attachFiles?: (files: File[]) => Promise<void> | void;
+  clearInput?: () => void;
   callbacks?: InputCallbacks;
-  draft?: InputDraftAdapter;
+  persistenceKey?: InputPersistenceKey;
 };
 
 export type InputState = {
@@ -35,7 +37,7 @@ export function createInputState(options: CreateInputStateOptions): InputState {
     mentions: options.mentions,
     attachmentTracker: options.attachmentTracker,
     callbacks: options.callbacks,
-    draft: options.draft,
+    persistenceKey: options.persistenceKey,
   });
 
   const commands = createInputCommands({
@@ -43,12 +45,15 @@ export function createInputState(options: CreateInputStateOptions): InputState {
     snapshot: view.snapshot,
     setIsSending: view.setIsSending,
     setShowFormatRibbon: view.setShowFormatRibbon,
-    reset: view.reset,
+    clearComposer: options.clearComposer,
+    reset: () => {
+      view.reset();
+      options.clearInput?.();
+    },
     removeTrackedAttachment: (id) =>
       options.attachmentTracker.removeAttachment(id),
     attachFiles: options.attachFiles,
     callbacks: options.callbacks,
-    draft: options.draft,
   });
 
   return {
@@ -57,6 +62,9 @@ export function createInputState(options: CreateInputStateOptions): InputState {
     commands,
     setValue: view.setValue,
     setIsDraggedOver: view.setIsDraggedOver,
-    reset: view.reset,
+    reset: () => {
+      view.reset();
+      options.clearInput?.();
+    },
   };
 }

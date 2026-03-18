@@ -1,5 +1,4 @@
-import PreviewIcon from '@macro-icons/wide/preview.svg';
-import ChevronRightIcon from '@icon/regular/caret-right.svg';
+import { AnimatedPreviewIcon } from '@macro-icons/wide/animating/preview';
 import CheckIcon from '@icon/bold/check-bold.svg';
 import Spinner from '@icon/regular/spinner.svg';
 import {
@@ -71,17 +70,21 @@ import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { invalidateEntityNotifications } from '@queries/notification/user-notifications';
-import { soupKeys } from '@queries/soup/keys';
 import type { CacheSnapshot } from 'virtua/unstable_core';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
 import { SoupChatInput } from '@app/component/SoupChatInput';
 import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { isMobile } from '@core/mobile/isMobile';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
-import { usePropertyEditorHotkeys } from '@app/component/property-edit-modal/hooks/usePropertyEditorHotkeys';
+
 import type { SoupItemsQueryFilters } from '@queries/soup/items';
-import type { FilterID } from '@app/component/next-soup/filters/filters';
-import { SoupViewTabs } from '@app/component/next-soup/soup-view/soup-view-tabs';
+import type { FilterID } from '@app/component/next-soup/filters';
+import {
+  SoupViewCreateButton,
+  SoupViewTabs,
+  useApplyPreset,
+} from '@app/component/next-soup/soup-view/soup-view-tabs';
+import { isListViewID } from '@app/constants/list-views';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -103,9 +106,8 @@ const useSoupNotificationInvalidators = () => {
     notificationSource,
     'channel',
     (notification) => {
-      entityQueryClient.invalidateQueries({
-        queryKey: soupKeys._def,
-      });
+      refetchSoupEntity(notification.entity_id, 'channel');
+      invalidateSoupEntity(notification.entity_id);
       invalidateEntityNotifications(notification.entity_id);
     }
   );
@@ -128,9 +130,8 @@ const useSoupNotificationInvalidators = () => {
     'document',
     (notification) => {
       if (notification.notification_event_type === 'task_assigned') {
-        entityQueryClient.invalidateQueries({
-          queryKey: soupKeys._def,
-        });
+        refetchSoupEntity(notification.entity_id, 'document');
+        invalidateSoupEntity(notification.entity_id);
         invalidateEntityNotifications(notification.entity_id);
       }
     }
@@ -171,6 +172,8 @@ export const SoupView = (props: SoupViewProps) => {
     soup.filters.set(props.initialClientFilters);
   });
 
+  const [previewBtnHovering, setPreviewBtnHovering] = createSignal(false);
+
   const togglePreview = () => {
     const currentPreview = soup.previewEntity();
     if (currentPreview) {
@@ -207,15 +210,16 @@ export const SoupView = (props: SoupViewProps) => {
         <div class="size-full flex flex-col">
           <div class="flex flex-col w-full">
             <SplitHeaderLeft>
-              <div class="h-full flex gap-2 items-center">
+              <div class="h-full flex gap-3 items-center">
                 <Show when={!isMobile()}>
                   <h1 class="font-medium text-ink-muted select-none text-sm">
                     {props.viewName}
                   </h1>
-                  <ChevronRightIcon class="size-4 text-ink-muted select-none" />
+                  {/*<ChevronRightIcon class="size-4 text-ink-muted select-none" />*/}
                 </Show>
 
                 <SoupViewTabs />
+                <SoupViewCreateButton />
               </div>
             </SplitHeaderLeft>
             <SplitHeaderRight>
@@ -223,11 +227,16 @@ export const SoupView = (props: SoupViewProps) => {
                 tooltip={<LabelAndHotKey label="Preview" shortcut="space" />}
               >
                 <Button
-                  variant={soup.previewEntity() ? 'tertiary' : 'ghost'}
+                  variant={soup.previewEntity() ? 'primary' : 'ghost'}
                   size="icon-sm"
+                  class="rounded-xs [&_svg]:size-4"
                   onClick={togglePreview}
+                  onMouseEnter={() => setPreviewBtnHovering(true)}
+                  onMouseLeave={() => setPreviewBtnHovering(false)}
                 >
-                  <PreviewIcon />
+                  <AnimatedPreviewIcon
+                    triggerAnimation={previewBtnHovering()}
+                  />
                 </Button>
               </Tooltip>
             </SplitHeaderRight>
@@ -359,17 +368,14 @@ export const SoupViewList = (props: SoupViewListProps) => {
     splitHandle: panel.handle,
   });
 
-  // Property editor
-  const propertyHotkeys = usePropertyEditorHotkeys({
-    scopeId: scopeId(),
-    soup,
-  });
-
-  onCleanup(() => {
-    propertyHotkeys.disposeHotkeys();
-  });
-
   // Register soup view hotkeys (jump navigation, enter, escape, cmd+k, etc.)
+  const { applyTabPreset } = useApplyPreset();
+  const currentView = () => {
+    const { type, id } = panel.handle.content();
+    if (type !== 'component') return;
+    return isListViewID(id) ? id : undefined;
+  };
+
   useSoupViewHotkeys({
     splitId: panel.handle.id,
     scopeId: scopeId(),
@@ -378,6 +384,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
     virtualizerHandle,
     previewState: () => !!soup.previewEntity(),
     getSplitCount,
+    currentView,
+    activeTab,
+    applyTabPreset,
   });
 
   // Register previewed entity for auto-attach

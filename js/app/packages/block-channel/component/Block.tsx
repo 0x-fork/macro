@@ -2,6 +2,7 @@ import { useBlockId } from '@core/block';
 import { useChannelName } from '@core/context/channels';
 import { EntityPermissionsGate } from '@core/component/EntityPermissionsGate';
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
+import { useBlockEntityCommands } from '@app/component/next-soup/actions';
 import { type JSXElement, onMount, Suspense } from 'solid-js';
 import { Channel as NewChannel } from '@channel/Channel/Channel';
 import { URL_PARAMS } from '@block-channel/constants';
@@ -28,13 +29,14 @@ type IncomingParams = Record<string, string>;
 export type BlockChannelProps = IncomingParams & {};
 
 export default function BlockChannel(props: BlockChannelProps) {
+  useBlockEntityCommands();
   const channelId = useBlockId();
 
   if (ENABLE_NEW_CHANNELS) {
     return (
       <NewChannel
         channelId={channelId}
-        // targetMessageId="019c2444-b1c4-7a91-a57d-14bd684388c9"
+        // targetMessageId="019b47e2-d61d-7cef-a7a3-b192c0df2f7f"
       />
     );
   }

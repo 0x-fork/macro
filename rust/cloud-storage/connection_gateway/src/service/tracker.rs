@@ -84,7 +84,10 @@ pub async fn track_entity(
 
             ctx.api_context
                 .stream_manager
-                .unsubscribe(ctx.connection_id.to_owned())
+                .unsubscribe(
+                    ctx.connection_id.to_owned(),
+                    data.entity.extra.extra.entity_id.to_string(),
+                )
                 .await?;
         }
         TrackAction::Ping => {
@@ -156,7 +159,8 @@ pub async fn notify_tracking_change(ctx: ConnectionContext<'_>, entity: &Entity<
         })?,
     };
 
-    send_message_to_entity(ctx, entity, message).await?;
+    let redis_connection = ctx.api_context.redis_connection.clone();
+    send_message_to_entity(ctx, entity, message, redis_connection).await?;
 
     Ok(())
 }
