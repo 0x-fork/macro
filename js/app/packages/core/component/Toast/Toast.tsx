@@ -1,6 +1,6 @@
-import CheckIcon from '@icon/regular/check.svg';
-import ExclamationIcon from '@icon/regular/exclamation-mark.svg';
-import Spinner from '@icon/regular/spinner.svg';
+import CheckIcon from '@icon/bold/check-bold.svg';
+import ExclamationIcon from '@icon/bold/exclamation-mark-bold.svg';
+import Spinner from '@icon/bold/spinner-bold.svg';
 import XIcon from '@icon/regular/x.svg';
 import { Toast, toaster } from '@kobalte/core/toast';
 import type { Component } from 'solid-js';
@@ -232,54 +232,48 @@ function ToastContent(props: {
   return (
     <Toast
       toastId={props.toastId}
-      class={`relative overflow-visible rounded-xs pointer-events-auto
-        bg-panel
+      class={`relative overflow-hidden rounded-sm pointer-events-auto
+        w-fit max-w-full bg-panel border border-edge-muted shadow-md
         data-opened:animate-slide-in data-closed:animate-hide transition-transform data-[swipe=move]:translate-x-[var(--kb-toast-swipe-move-x)]
         data-[swipe=cancel]:translate-x-0 data-[swipe=cancel]:ease-out data-[swipe=cancel]:duration-200 data-[swipe=end]:animate-swipe-out`}
       persistent={true}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Animated border that fades from opacity 1 to 0 */}
+      {/* Colored border that fades out as the toast expires */}
       <Show when={!props.persistent}>
         <div
-          class={`absolute inset-0 rounded-xs border-1 pointer-events-none ${styles().borderColor}`}
+          class={`absolute inset-0 rounded-sm border pointer-events-none ${styles().borderColor}`}
           style={{ opacity: progress() }}
         />
       </Show>
 
-      <div class="flex">
-        {/* Left accent area with icon */}
+      <div class="flex items-start gap-3 px-4 py-3">
+        {/* Circular colored icon */}
         <div
-          class={`flex items-center justify-center w-12 shrink-0 ${styles().accent}/20`}
+          class={`mt-0.5 flex items-center justify-center size-4.5 rounded-full shrink-0 ${styles().accent}`}
         >
           <Dynamic
             component={styles().icon}
-            class={`size-6 ${styles().titleText} ${props.toastType === ToastType.LOADING ? 'animate-spin' : ''}`}
+            class={`size-3.5 text-panel ${props.toastType === ToastType.LOADING ? 'animate-spin' : ''}`}
           />
         </div>
 
-        {/* Content area */}
-        <div class="flex-1 pt-2 px-3 pb-3 pr-10">
-          <Toast.Title class={`font-semibold text-ink`}>
+        {/* Content */}
+        <div class="min-w-0">
+          <Toast.Title class="font-semibold text-ink leading-snug">
             {props.message}
           </Toast.Title>
           <Show when={props.subtext}>
-            <Toast.Description class={`text-sm text-ink-extra-muted`}>
+            <Toast.Description class="text-ink-muted mt-0.5">
               {props.subtext}
             </Toast.Description>
           </Show>
-
-          {/* Action button */}
           <Show when={props.action}>
             {(action) => (
               <button
                 onClick={action().onClick}
-                class={`mt-2 w-full text-sm font-semibold py-1.5 px-3 rounded
-                  ${styles().button.background}/20
-                  ${styles().button.hover}
-                  ${styles().button.text}
-                `}
+                class={`mt-1 font-medium ${styles().button.text} hover:underline`}
               >
                 {action().text}
               </button>
@@ -287,11 +281,9 @@ function ToastContent(props: {
           </Show>
         </div>
 
-        {/* Close button */}
-        <Toast.CloseButton class="absolute top-2 right-2 p-1 rounded">
-          <XIcon
-            class={`size-4 text-ink-extra-muted transition-colors ${styles().closeButtonHover}`}
-          />
+        {/* Close button — inline with icon and title */}
+        <Toast.CloseButton class="mt-0.5 ml-2 p-0.5 rounded shrink-0 text-ink-extra-muted hover:text-ink transition-colors">
+          <XIcon class="size-3.5" />
         </Toast.CloseButton>
       </div>
     </Toast>
