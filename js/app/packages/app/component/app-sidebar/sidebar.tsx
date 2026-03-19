@@ -518,9 +518,9 @@ const SidebarLink = (props: SidebarLinkProps) => {
           </span>
 
           <Show when={isHovering() && SIDEBAR_CREATE_IDS.has(props.id)}>
-            <div class="group-data-[slim=true]/sidebar:invisible absolute inset-y-0 right-0 flex items-center">
+            <div class="group-data-[slim=true]/sidebar:invisible absolute inset-y-0 right-0 flex items-center pr-1">
               <Button
-                class="h-full px-2 flex items-center justify-center rounded-r-xs border-l border-ink/10 hover:bg-ink/10 hover:text-ink text-ink-extra-muted transition-colors"
+                class="h-full px-1.5 flex items-center justify-center rounded-xs border border-ink/10 hover:bg-ink/10 hover:text-ink text-ink-extra-muted transition-colors"
                 variant="ghost"
                 tooltip="Create"
                 tooltipPlacement="right"
