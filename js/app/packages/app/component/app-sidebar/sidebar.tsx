@@ -479,7 +479,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
           draggable={false}
           variant="ghost"
           class={cn(
-            'flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-xs py-1 text-ink-extra-muted',
+            'relative flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-xs py-1 text-ink-extra-muted',
             isActive() && 'bg-ink/5 not-disabled:hover:bg-ink/10 text-ink'
           )}
           tooltipPlacement="right"
@@ -517,35 +517,31 @@ const SidebarLink = (props: SidebarLinkProps) => {
             {props.label}
           </span>
 
-          <Show when={isHovering()}>
-            <div class="group-data-[slim=true]/sidebar:invisible ml-auto">
-              <div class="flex gap-1 items-center text-ink-extra-muted font-normal text-[0.625rem]">
-                <Show when={SIDEBAR_CREATE_IDS.has(props.id)}>
-                  <Button
-                    class="size-5 flex items-center justify-center rounded-xs border border-ink/10 hover:bg-ink/10 hover:text-ink text-ink-extra-muted transition-colors p-0"
-                    variant="ghost"
-                    tooltip="Create"
-                    tooltipPlacement="right"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      const actionId = LIST_VIEW_CREATE_ACTIONS[props.id];
-                      if (actionId) runCreateAction(actionId);
-                    }}
-                  >
-                    <svg
-                      class="size-3"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                    >
-                      <line x1="6" y1="2" x2="6" y2="10" />
-                      <line x1="2" y1="6" x2="10" y2="6" />
-                    </svg>
-                  </Button>
-                </Show>
-              </div>
+          <Show when={isHovering() && SIDEBAR_CREATE_IDS.has(props.id)}>
+            <div class="group-data-[slim=true]/sidebar:invisible absolute inset-y-0 right-0 flex items-center">
+              <Button
+                class="h-full px-2 flex items-center justify-center rounded-r-xs border-l border-ink/10 hover:bg-ink/10 hover:text-ink text-ink-extra-muted transition-colors"
+                variant="ghost"
+                tooltip="Create"
+                tooltipPlacement="right"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const actionId = LIST_VIEW_CREATE_ACTIONS[props.id];
+                  if (actionId) runCreateAction(actionId);
+                }}
+              >
+                <svg
+                  class="size-3"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                >
+                  <line x1="6" y1="2" x2="6" y2="10" />
+                  <line x1="2" y1="6" x2="10" y2="6" />
+                </svg>
+              </Button>
             </div>
           </Show>
         </Button>
