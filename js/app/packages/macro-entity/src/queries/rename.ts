@@ -67,6 +67,16 @@ const getEntityRenameData = (
   operation: EntityRenameOperation
 ): EntityRenameData => {
   const { entity, newName } = operation;
+
+  if (
+    entity.type !== 'channel' &&
+    entity.type !== 'document' &&
+    entity.type !== 'chat' &&
+    entity.type !== 'project'
+  ) {
+    throw new Error(`Unsupported entity type: ${entity.type}`);
+  }
+
   return {
     id: entity.id,
     itemType: entity.type,

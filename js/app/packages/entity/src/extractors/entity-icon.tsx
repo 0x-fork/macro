@@ -60,6 +60,7 @@ export function EntityIcon(props: EntityIconProps) {
       })
       .with({ type: 'chat' }, () => 'chat')
       .with({ type: 'project' }, () => 'project')
+      .with({ type: 'pr' }, () => 'pr')
       .with({ type: 'email' }, ({ isRead, hasIcsAttachment }) =>
         hasIcsAttachment ? 'emailInvite' : isRead ? 'emailRead' : 'email'
       )

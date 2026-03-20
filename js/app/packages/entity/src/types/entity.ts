@@ -101,13 +101,28 @@ export type ProjectEntity = EntityBase & {
   projectId?: string;
 };
 
+export type PrEntity = EntityBase & {
+  type: 'pr';
+  number: number;
+  repoOwner: string;
+  repoName: string;
+  repoFullName: string;
+  state: 'open' | 'closed' | 'merged';
+  commentCount: number;
+  htmlUrl: string;
+  authorLogin: string;
+  authorAvatarUrl?: string | null;
+  isDraft?: boolean;
+};
+
 export type EntityData =
   | ChannelEntity
   | ChatEntity
   | DocumentEntity
   | TaskEntity
   | EmailEntity
-  | ProjectEntity;
+  | ProjectEntity
+  | PrEntity;
 
 export const isEntityData = (item: unknown): item is EntityData => {
   if (typeof item !== 'object') return false;
@@ -147,6 +162,10 @@ export const isProjectEntity = (
   entity: EntityData
 ): entity is ProjectEntity => {
   return entity.type === 'project';
+};
+
+export const isPrEntity = (entity: EntityData): entity is PrEntity => {
+  return entity.type === 'pr';
 };
 
 export const isDocumentEntity = (

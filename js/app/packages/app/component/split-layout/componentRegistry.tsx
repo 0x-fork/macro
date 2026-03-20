@@ -10,6 +10,7 @@ import { SettingsPanelComponentWrapper } from '../settings/Settings';
 import NotificationRoute from '@notifications/components/NotificationRoute';
 import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
 import { getDefaultListViewPreset } from '@app/component/app-sidebar/soup-filter-presets';
+import { CodeView } from '@app/component/code-view/CodeView';
 import { useUserContext } from '@core/context/user';
 import { useSplitPanelOrThrow } from './layoutUtils';
 import type { SplitContent } from './layoutManager';
@@ -134,6 +135,13 @@ registerComponent(
         initialClientFilters={preset.clientFilters}
       />
     );
+  })
+);
+
+registerComponent(
+  'code',
+  withAuth(() => {
+    return <CodeView />;
   })
 );
 

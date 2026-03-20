@@ -3,6 +3,7 @@ import { type Component, createSignal, For, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
+import { AnimatedFileCodeIcon } from '@macro-icons/wide/animating/fileCode';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
 import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
@@ -79,6 +80,13 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.mail,
     icon: AnimatedEmailIcon,
     hotkey: 'e',
+  },
+  {
+    id: 'code',
+    label: 'Code',
+    href: LIST_VIEW_PATHS.code,
+    icon: AnimatedFileCodeIcon,
+    hotkey: 'o',
   },
   {
     id: 'documents',

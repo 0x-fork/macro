@@ -73,6 +73,7 @@ export const fileTypeColors: Record<
   chat: defaultFileColor,
   channel: defaultFileColor,
   email: defaultFileColor,
+  pr: 'bg-code/20 group/item',
   project: defaultFileColor,
   unknown: defaultFileColor,
   task: defaultFileColor,

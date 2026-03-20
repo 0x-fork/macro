@@ -2907,6 +2907,7 @@ name = "document_storage_service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "authentication_service_client",
  "aws-sdk-dynamodb",
  "aws-sdk-s3",
  "aws-sdk-secretsmanager",

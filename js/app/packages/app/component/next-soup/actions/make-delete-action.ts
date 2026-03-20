@@ -15,6 +15,9 @@ export const makeDeleteAction = (options: MakeDeleteOptions) => {
   const { userId } = options;
 
   const canExecute = (entity: EntityData): boolean => {
+    if (entity.type === 'pr') {
+      return false;
+    }
     if (entity.type === 'email') {
       return true;
     }

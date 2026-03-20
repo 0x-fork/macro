@@ -26,6 +26,8 @@ export function track({
   blockName: BlockName;
   client: Accessor<QueryClient>;
 }) {
+  if (blockName === 'pr') return;
+
   const itemType = blockNameToItemType(blockName);
 
   const inSoup = hasSoupEntity(itemId);

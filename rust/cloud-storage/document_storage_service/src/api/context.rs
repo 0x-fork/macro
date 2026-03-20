@@ -1,4 +1,5 @@
 use crate::{config::Config, service::s3::S3};
+use authentication_service_client::AuthServiceClient;
 use axum::extract::FromRef;
 use channels::{
     domain::service::ChannelMessagesServiceImpl, inbound::axum_router::ChannelsRouterState,
@@ -163,6 +164,7 @@ pub(crate) struct ApiContext {
     pub db: PgPool,
     pub redis_client: Arc<Redis>,
     pub s3_client: Arc<S3>,
+    pub auth_service_client: Arc<AuthServiceClient>,
     pub github_sync_service: Arc<GithubSyncServiceType>,
     pub dynamodb_client: Arc<DynamodbClient>,
     pub dynamo_db: aws_sdk_dynamodb::Client,

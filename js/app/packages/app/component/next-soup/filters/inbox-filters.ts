@@ -152,6 +152,8 @@ export function signalFilter(entity: EntityData): boolean {
       return isSignalEmail(entity) || entity.isDraft;
     case 'project':
       return true;
+    case 'pr':
+      return false;
   }
 }
 

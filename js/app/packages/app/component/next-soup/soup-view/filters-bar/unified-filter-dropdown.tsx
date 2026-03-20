@@ -293,6 +293,7 @@ export const VIEW_FILTER_CATEGORIES: Record<ListView, FilterCategory[]> = {
   inbox: INBOX_FILTER_CATEGORIES,
   agents: [],
   mail: MAIL_FILTER_CATEGORIES,
+  code: [],
   documents: DOCUMENTS_FILTER_CATEGORIES,
   tasks: TASKS_FILTER_CATEGORIES,
   channels: [],

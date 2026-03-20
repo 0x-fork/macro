@@ -9,10 +9,12 @@ import type { StreamEvent } from '@service-connection/generated/schemas';
 import {
   isChannelEntity,
   isEmailEntity,
+  isPrEntity,
   isProjectContainedEntity,
   type ChannelEntity,
   type EmailEntity,
   type ProjectEntity,
+  type PrEntity,
   type EntityData,
   isTaskEntity,
 } from '../types/entity';
@@ -227,6 +229,22 @@ function ChannelMessage(props: {
   );
 }
 
+function PrMeta(props: { entity: PrEntity }) {
+  const stateLabel = () =>
+    props.entity.isDraft ? `draft ${props.entity.state}` : props.entity.state;
+
+  return (
+    <>
+      <span class="truncate font-mono text-[0.6875rem] uppercase tracking-wide">
+        {props.entity.repoFullName} #{props.entity.number}
+      </span>
+      <span class="rounded-xs border border-edge-muted px-1.5 py-0.5 text-[0.625rem] font-mono uppercase tracking-wide">
+        {stateLabel()}
+      </span>
+    </>
+  );
+}
+
 function NarrowLayout(props: LayoutProps) {
   const [emailSnippetContainerRef, setEmailSnippetContainerRef] = createSignal<
     HTMLElement | undefined
@@ -290,7 +308,9 @@ function NarrowLayout(props: LayoutProps) {
 
       <Show
         when={
-          (isEmailEntity(props.entity) || isChannelEntity(props.entity)) &&
+          (isEmailEntity(props.entity) ||
+            isChannelEntity(props.entity) ||
+            isPrEntity(props.entity)) &&
           !props.hasNotifications
         }
       >
@@ -326,6 +346,13 @@ function NarrowLayout(props: LayoutProps) {
                     </div>
                   )}
                 </Show>
+              )}
+            </Match>
+            <Match when={isPrEntity(props.entity) && props.entity}>
+              {(entity) => (
+                <div class="flex items-center gap-2 w-full truncate text-ink/50 font-medium">
+                  <PrMeta entity={entity()} />
+                </div>
               )}
             </Match>
           </Switch>
@@ -533,6 +560,13 @@ function WideLayout(props: LayoutProps) {
       </Entity.Slot>
 
       <Entity.Slot placement="meta" class="flex items-center gap-2">
+        <Show when={isPrEntity(props.entity) && props.entity}>
+          {(entity) => (
+            <span class="text-ink-extra-muted text-xs flex items-center gap-2">
+              <PrMeta entity={entity()} />
+            </span>
+          )}
+        </Show>
         <Show when={isProjectContainedEntity(props.entity) && props.entity}>
           {(entity) => (
             <span class="text-ink-extra-muted text-xs">

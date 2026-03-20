@@ -17,6 +17,7 @@ function extractRawTitle(entity: EntityData): string {
     .with({ type: 'channel' }, (e) => e.name)
     .with({ type: 'email' }, (e) => e.name || '(No Subject)')
     .with({ type: 'chat' }, (e) => e.name)
+    .with({ type: 'pr' }, (e) => e.name)
     .otherwise(() => 'Unknown');
 }
 

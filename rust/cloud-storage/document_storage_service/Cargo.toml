@@ -30,6 +30,7 @@ location_check = []
 
 [dependencies]
 anyhow = { workspace = true }
+authentication_service_client = { path = "../authentication_service_client" }
 aws-sdk-dynamodb = { workspace = true }
 aws-sdk-s3 = { workspace = true }
 aws-sdk-secretsmanager = { workspace = true }

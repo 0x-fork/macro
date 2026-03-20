@@ -158,6 +158,15 @@ async fn main() -> anyhow::Result<()> {
         config.vars.connection_gateway_url.as_ref().to_string(),
     );
 
+    let auth_service_client = authentication_service_client::AuthServiceClient::new(
+        config
+            .vars
+            .authentication_service_secret_key
+            .as_ref()
+            .to_string(),
+        config.vars.authentication_service_url.as_ref().to_string(),
+    );
+
     let sync_service_auth_key = match config.environment {
         Environment::Local => config.vars.sync_service_auth_key.as_ref().to_string(),
         _ => secretsmanager_client
@@ -343,6 +352,7 @@ async fn main() -> anyhow::Result<()> {
         db: db.clone(),
         redis_client: Arc::new(Redis::new(redis_client)),
         s3_client: s3,
+        auth_service_client: Arc::new(auth_service_client),
         dynamodb_client: Arc::new(dynamodb_client),
         dynamo_db,
         sqs_client: Arc::new(sqs_client),

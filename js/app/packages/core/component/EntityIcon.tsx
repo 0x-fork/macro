@@ -136,6 +136,12 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-code-bg',
     prettyName: 'Code',
   },
+  pr: {
+    icon: FileCode,
+    foreground: 'text-code',
+    background: 'bg-code-bg',
+    prettyName: 'Pull Request',
+  },
   csv: {
     icon: WideCsv,
     foreground: 'text-code',
@@ -269,6 +275,7 @@ export const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
   direct_message: WideChat,
   email: WideEmail,
   code: WideFileCode,
+  pr: WideFileCode,
   csv: WideCsv,
   pdf: WideBook,
   md: WideFileMd,
@@ -424,6 +431,7 @@ export function getEntityIconType(entity: EntityIconData): EntityWithValidIcon {
     .with({ type: 'document' }, (e) => itemToBlockName(e, true) ?? 'default')
     .with({ type: 'email', isRead: true }, () => 'emailRead')
     .with({ type: 'email' }, () => 'email')
+    .with({ type: 'pr' }, () => 'pr')
     .otherwise((e) => e.type);
 
   return validateEntity(typeString);

@@ -124,6 +124,7 @@ export function useEntityDropAttachment(
           },
         } satisfies Attachment;
       })
+      .with('pr', () => undefined)
       .with('chat', () => undefined)
       .exhaustive() satisfies Attachment | undefined;
 

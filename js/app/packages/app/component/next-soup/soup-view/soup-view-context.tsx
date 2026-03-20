@@ -54,7 +54,7 @@ export type SoupRow = Row<SoupEntity>;
 
 export type SoupEntity = WithNotification<EntityData | WithSearch<EntityData>>;
 
-type DataSource<T> = {
+export type DataSource<T> = {
   data: Accessor<T[]>;
   isLoading: Accessor<boolean>;
   isFetching: Accessor<boolean>;
@@ -63,7 +63,7 @@ type DataSource<T> = {
   fetchNextPage: VoidFunction;
 };
 
-interface SoupViewContextValues {
+export interface SoupViewContextValues {
   soup: SoupState;
   source: DataSource<EntityData>;
   searchText: Accessor<string>;

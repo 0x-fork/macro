@@ -16,6 +16,41 @@ import {
   invalidateSoupEntity,
 } from '@queries/soup/cache';
 
+const toDeleteItemType = (entity: EntityData): 'chat' | 'document' | 'project' => {
+  switch (entity.type) {
+    case 'chat':
+    case 'document':
+    case 'project':
+      return entity.type;
+    default:
+      throw new Error(`Unsupported entity type: ${entity.type}`);
+  }
+};
+
+const toCopyItemType = (entity: EntityData): 'chat' | 'document' => {
+  switch (entity.type) {
+    case 'chat':
+    case 'document':
+      return entity.type;
+    default:
+      throw new Error(`Unsupported entity type: ${entity.type}`);
+  }
+};
+
+const toMoveItemType = (
+  entity: EntityData
+): 'chat' | 'document' | 'project' | 'email' => {
+  switch (entity.type) {
+    case 'chat':
+    case 'document':
+    case 'project':
+    case 'email':
+      return entity.type;
+    default:
+      throw new Error(`Unsupported entity type: ${entity.type}`);
+  }
+};
+
 export function createBulkDeleteDssItemsMutation() {
   const isUnsupportedEntity = (entity: EntityData) => {
     const type = entity.type;
@@ -29,7 +64,7 @@ export function createBulkDeleteDssItemsMutation() {
 
       return await Promise.all(
         entities.map((e) => {
-          return deleteItem({ id: e.id, itemType: e.type });
+          return deleteItem({ id: e.id, itemType: toDeleteItemType(e) });
         })
       );
     },
@@ -136,7 +171,7 @@ export function createBulkCopyDssEntityMutation() {
       const results = await Promise.all(
         entities.map((e) =>
           copyItem({
-            itemType: e.type as 'document' | 'chat',
+            itemType: toCopyItemType(e),
             id: e.id,
             name: typeof name === 'function' ? name(e.name) : name,
           })
@@ -198,7 +233,7 @@ export function createBulkMoveToProjectDssEntityMutation() {
       const results = await Promise.all(
         entities.map((entity) =>
           moveToFolder({
-            itemType: entity.type as 'document' | 'chat' | 'project' | 'email',
+            itemType: toMoveItemType(entity),
             id: entity.id,
             folderId: project.id,
           })

@@ -884,6 +884,11 @@ export function CanvasController(props: ParentProps) {
 
     const entityType = event.draggable.data.type;
 
+    if (entityType === 'pr') {
+      toast.failure('Pull requests cannot be attached to canvas');
+      return;
+    }
+
     // Track document mention and get UUID
     let mentionUuid: string | undefined;
     if (blockId && entityType === 'document') {

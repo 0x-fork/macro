@@ -6,7 +6,7 @@ import {
   type FileTypeString,
   type MimeType,
 } from '@core/block';
-import type { SubType } from '@entity';
+import type { EntityData, SubType } from '@entity';
 import type { ItemType } from '@service-storage/client';
 import type { BasicDocumentSubTypeProperty } from '@service-storage/generated/schemas';
 import type { BasicDocumentFileType } from '@service-storage/generated/schemas/basicDocumentFileType';
@@ -205,7 +205,7 @@ export function blockNameToDefaultFile(block?: BlockName | string | null) {
 }
 
 type ItemLike = {
-  type: ItemType;
+  type: ItemType | EntityData['type'];
   fileType?: BasicDocumentFileType;
   subType?: SubType | BasicDocumentSubTypeProperty;
   name?: string;

@@ -13,7 +13,7 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
   const { userId } = options;
 
   const canExecute = (entity: EntityData): boolean => {
-    if (entity.type === 'email') return false;
+    if (entity.type === 'email' || entity.type === 'pr') return false;
 
     if (entity.type === 'channel') {
       if (entity.channelType === 'direct_message') return false;

@@ -222,6 +222,10 @@ const ROUTES: RouteDefinition[] = [
     component: LAYOUT_ROUTE.component,
   },
   {
+    path: '/code',
+    component: LAYOUT_ROUTE.component,
+  },
+  {
     path: '/documents',
     component: LAYOUT_ROUTE.component,
   },
