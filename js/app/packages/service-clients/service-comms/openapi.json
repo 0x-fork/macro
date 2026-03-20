@@ -705,6 +705,189 @@
         }
       }
     },
+    "/comms/channels/{channel_id}/call": {
+      "get": {
+        "tags": ["channels"],
+        "operationId": "get_channel_call",
+        "parameters": [
+          {
+            "name": "channel_id",
+            "in": "path",
+            "description": "id of the channel",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelCallState"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["channels"],
+        "operationId": "create_channel_call",
+        "parameters": [
+          {
+            "name": "channel_id",
+            "in": "path",
+            "description": "id of the channel",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChannelCallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinChannelCallResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["channels"],
+        "operationId": "end_channel_call",
+        "parameters": [
+          {
+            "name": "channel_id",
+            "in": "path",
+            "description": "id of the channel",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/comms/channels/{channel_id}/join": {
       "post": {
         "tags": ["channels"],
@@ -1684,6 +1867,77 @@
           }
         }
       },
+      "ChannelCallParticipant": {
+        "type": "object",
+        "required": ["identity"],
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": ["string", "null"]
+          },
+          "name": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "ChannelCallState": {
+        "type": "object",
+        "required": [
+          "channel_id",
+          "status",
+          "participant_count",
+          "participants"
+        ],
+        "properties": {
+          "call_type": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChannelCallType"
+              }
+            ]
+          },
+          "channel_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_by": {
+            "type": ["string", "null"]
+          },
+          "participant_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChannelCallParticipant"
+            }
+          },
+          "room_name": {
+            "type": ["string", "null"]
+          },
+          "started_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ChannelCallStatus"
+          }
+        }
+      },
+      "ChannelCallStatus": {
+        "type": "string",
+        "enum": ["inactive", "active"]
+      },
+      "ChannelCallType": {
+        "type": "string",
+        "enum": ["voice", "video"]
+      },
       "ChannelMessage": {
         "type": "object",
         "required": [
@@ -1919,6 +2173,15 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "CreateChannelCallRequest": {
+        "type": "object",
+        "required": ["call_type"],
+        "properties": {
+          "call_type": {
+            "$ref": "#/components/schemas/ChannelCallType"
           }
         }
       },
@@ -2173,6 +2436,16 @@
           }
         }
       },
+      "GenericSuccessResponse": {
+        "type": "object",
+        "required": ["success"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Indicates if the request was successful"
+          }
+        }
+      },
       "GetAttachmentReferencesResponse": {
         "type": "object",
         "required": ["references"],
@@ -2344,6 +2617,33 @@
             "$ref": "#/components/schemas/GetOrCreateAction"
           },
           "channel_id": {
+            "type": "string"
+          }
+        }
+      },
+      "JoinChannelCallResponse": {
+        "type": "object",
+        "required": [
+          "call",
+          "room_name",
+          "server_url",
+          "token",
+          "participant_identity"
+        ],
+        "properties": {
+          "call": {
+            "$ref": "#/components/schemas/ChannelCallState"
+          },
+          "participant_identity": {
+            "type": "string"
+          },
+          "room_name": {
+            "type": "string"
+          },
+          "server_url": {
+            "type": "string"
+          },
+          "token": {
             "type": "string"
           }
         }

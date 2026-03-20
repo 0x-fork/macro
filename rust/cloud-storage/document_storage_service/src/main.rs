@@ -17,6 +17,7 @@ use comms::{
     inbound::CommsRouterState,
     outbound::postgres::{comms_repo::PgCommsRepo, user_repo::PgUserRepo},
 };
+use comms_service::service::livekit::LiveKitService;
 use config::{Config, Environment};
 use connection::{
     domain::service::ConnectionServiceImpl,
@@ -157,6 +158,18 @@ async fn main() -> anyhow::Result<()> {
         internal_api_secret.as_ref().to_string(),
         config.vars.connection_gateway_url.as_ref().to_string(),
     );
+
+    let livekit_service = config.livekit.as_ref().map(|cfg| {
+        Arc::new(LiveKitService::new(
+            comms_service::service::livekit::LiveKitConfig {
+                api_url: cfg.api_url.clone(),
+                ws_url: cfg.ws_url.clone(),
+                api_key: cfg.api_key.clone(),
+                api_secret: cfg.api_secret.clone(),
+                room_prefix: cfg.room_prefix.clone(),
+            },
+        ))
+    });
 
     let sync_service_auth_key = match config.environment {
         Environment::Local => config.vars.sync_service_auth_key.as_ref().to_string(),
@@ -348,6 +361,7 @@ async fn main() -> anyhow::Result<()> {
         sqs_client: Arc::new(sqs_client),
         notification_ingress_service,
         conn_gateway_client: Arc::new(conn_gateway_client),
+        livekit_service,
         sync_service_client: Arc::new(sync_service_client),
         system_properties_service: system_properties_service.clone(),
         properties_service: properties_service.clone(),

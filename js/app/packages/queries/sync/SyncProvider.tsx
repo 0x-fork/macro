@@ -1,6 +1,7 @@
 import { invalidateContacts } from '@queries/contacts/contacts';
 import {
   handleCommsAttachment,
+  handleCommsCall,
   handleCommsMessage,
   handleCommsReaction,
 } from '@queries/channel/sync';
@@ -30,6 +31,9 @@ export function QuerySyncProvider(props: SyncProviderProps) {
       })
       .with({ type: 'comms_attachment' }, () => {
         handleCommsAttachment(payload);
+      })
+      .with({ type: 'comms_call' }, () => {
+        handleCommsCall(payload);
       })
       .with({ type: 'comms_typing' }, () => {
         const userId = props.userId();

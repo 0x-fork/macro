@@ -106,6 +106,7 @@
 		"lexical": "^0.32.1",
 		"libheif-js": "^1.19.8",
 		"linkify-it": "^5.0.0",
+		"livekit-client": "2.17.3",
 		"lodash-es": "^4.17.21",
 		"loro-crdt": "^1.5.9",
 		"nanoid": "^3.3.7",

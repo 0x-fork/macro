@@ -80,6 +80,7 @@ tracing = { workspace = true }
 utoipa = { workspace = true, features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 uuid = { workspace = true }
+livekit-api = "0.4.15"
 
 [package.metadata.cargo-machete]
 ignored = ["connection_gateway"]

@@ -120,3 +120,25 @@ pub async fn notify_attachments(
 
     Ok(())
 }
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CallStateData<'a> {
+    pub channel_id: &'a Uuid,
+}
+
+pub async fn notify_call_state(ctx: &AppState, update: CallStateData<'_>) -> Result<()> {
+    let participants = get_participants(&ctx.db, update.channel_id).await?;
+
+    ctx.connection_gateway_client
+        .batch_send_message(
+            "comms_call".to_string(),
+            serde_json::to_value(update)?,
+            participants
+                .iter()
+                .map(|p| EntityType::User.with_entity_str(p.user_id.as_ref()))
+                .collect(),
+        )
+        .await?;
+
+    Ok(())
+}

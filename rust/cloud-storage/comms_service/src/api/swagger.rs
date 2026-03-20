@@ -20,6 +20,10 @@ use crate::api::{
     },
     preview::get_batch_preview::{GetBatchChannelPreviewRequest, GetBatchChannelPreviewResponse},
 };
+use crate::service::livekit::{
+    ChannelCallParticipant, ChannelCallState, ChannelCallStatus, ChannelCallType,
+    CreateChannelCallRequest, JoinChannelCallResponse,
+};
 use comms::inbound::{ApiActivity, ApiChannelWithLatest};
 use comms_db_client::channels::patch_channel::PatchChannelOptions;
 use comms_db_client::model::{
@@ -31,14 +35,15 @@ use model::comms::{
     GetMessageWithContextResponse, GetOrCreateAction, LatestMessage, ParticipantRole,
 };
 
-use model::response::{GenericErrorResponse, StringIDResponse};
+use model::response::{GenericErrorResponse, GenericSuccessResponse, StringIDResponse};
 use model::version::CommunicationServiceApiVersion;
 use utoipa::OpenApi;
 
 use super::channels::{
-    add_participants, create_channel, delete_channel, delete_message, get_channel, get_mentions,
-    get_message_with_context, get_or_create_dm, get_or_create_private, join_channel, leave_channel,
-    patch_channel, patch_message, post_message, post_reaction, post_typing, remove_participants,
+    add_participants, call, create_channel, delete_channel, delete_message, get_channel,
+    get_mentions, get_message_with_context, get_or_create_dm, get_or_create_private, join_channel,
+    leave_channel, patch_channel, patch_message, post_message, post_reaction, post_typing,
+    remove_participants,
 };
 
 use super::attachments::references;
@@ -85,6 +90,9 @@ use super::preview::get_batch_preview;
             delete_mention_handler,
             get_mentions::handler,
             get_message_with_context::handler,
+            call::get_channel_call_handler,
+            call::create_channel_call_handler,
+            call::end_channel_call_handler,
         ),
         components(
             schemas(
@@ -98,6 +106,7 @@ use super::preview::get_batch_preview;
                 PostTypingRequest,
                 StringIDResponse,
                 GenericErrorResponse,
+                GenericSuccessResponse,
                 PostReactionRequest,
                 ReactionAction,
                 PatchMessageParams,
@@ -148,6 +157,12 @@ use super::preview::get_batch_preview;
                 ChannelWithParticipants,
                 LatestMessage,
                 GetMessageWithContextResponse,
+                CreateChannelCallRequest,
+                JoinChannelCallResponse,
+                ChannelCallState,
+                ChannelCallParticipant,
+                ChannelCallStatus,
+                ChannelCallType,
             ),
         ),
         tags(

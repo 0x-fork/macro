@@ -9,12 +9,15 @@ import type {
   AddParticipantsRequest,
   ApiActivity,
   ApiChannelWithLatest,
+  ChannelCallState,
+  CreateChannelCallRequest,
   CreateChannelRequest,
   CreateChannelResponse,
   CreateEntityMentionRequest,
   CreateEntityMentionResponse,
   DeleteEntityMentionResponse,
   GenericErrorResponse,
+  GenericSuccessResponse,
   GetAttachmentReferencesResponse,
   GetBatchChannelPreviewRequest,
   GetBatchChannelPreviewResponse,
@@ -27,6 +30,7 @@ import type {
   GetOrCreateDmResponse,
   GetOrCreatePrivateRequest,
   GetOrCreatePrivateResponse,
+  JoinChannelCallResponse,
   PatchChannelOptions,
   PatchMessageRequest,
   PostActivityRequest,
@@ -733,6 +737,183 @@ export const patchChannel = async (
     status: res.status,
     headers: res.headers,
   } as patchChannelResponse;
+};
+
+export type getChannelCallResponse200 = {
+  data: ChannelCallState;
+  status: 200;
+};
+
+export type getChannelCallResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type getChannelCallResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type getChannelCallResponse503 = {
+  data: string;
+  status: 503;
+};
+
+export type getChannelCallResponseSuccess = getChannelCallResponse200 & {
+  headers: Headers;
+};
+export type getChannelCallResponseError = (
+  | getChannelCallResponse401
+  | getChannelCallResponse500
+  | getChannelCallResponse503
+) & {
+  headers: Headers;
+};
+
+export type getChannelCallResponse =
+  | getChannelCallResponseSuccess
+  | getChannelCallResponseError;
+
+export const getGetChannelCallUrl = (channelId: string) => {
+  return `/comms/channels/${channelId}/call`;
+};
+
+export const getChannelCall = async (
+  channelId: string,
+  options?: RequestInit
+): Promise<getChannelCallResponse> => {
+  const res = await fetch(getGetChannelCallUrl(channelId), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getChannelCallResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getChannelCallResponse;
+};
+
+export type createChannelCallResponse200 = {
+  data: JoinChannelCallResponse;
+  status: 200;
+};
+
+export type createChannelCallResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type createChannelCallResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type createChannelCallResponse503 = {
+  data: string;
+  status: 503;
+};
+
+export type createChannelCallResponseSuccess = createChannelCallResponse200 & {
+  headers: Headers;
+};
+export type createChannelCallResponseError = (
+  | createChannelCallResponse401
+  | createChannelCallResponse500
+  | createChannelCallResponse503
+) & {
+  headers: Headers;
+};
+
+export type createChannelCallResponse =
+  | createChannelCallResponseSuccess
+  | createChannelCallResponseError;
+
+export const getCreateChannelCallUrl = (channelId: string) => {
+  return `/comms/channels/${channelId}/call`;
+};
+
+export const createChannelCall = async (
+  channelId: string,
+  createChannelCallRequest: CreateChannelCallRequest,
+  options?: RequestInit
+): Promise<createChannelCallResponse> => {
+  const res = await fetch(getCreateChannelCallUrl(channelId), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createChannelCallRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createChannelCallResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createChannelCallResponse;
+};
+
+export type endChannelCallResponse200 = {
+  data: GenericSuccessResponse;
+  status: 200;
+};
+
+export type endChannelCallResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type endChannelCallResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type endChannelCallResponse503 = {
+  data: string;
+  status: 503;
+};
+
+export type endChannelCallResponseSuccess = endChannelCallResponse200 & {
+  headers: Headers;
+};
+export type endChannelCallResponseError = (
+  | endChannelCallResponse401
+  | endChannelCallResponse500
+  | endChannelCallResponse503
+) & {
+  headers: Headers;
+};
+
+export type endChannelCallResponse =
+  | endChannelCallResponseSuccess
+  | endChannelCallResponseError;
+
+export const getEndChannelCallUrl = (channelId: string) => {
+  return `/comms/channels/${channelId}/call`;
+};
+
+export const endChannelCall = async (
+  channelId: string,
+  options?: RequestInit
+): Promise<endChannelCallResponse> => {
+  const res = await fetch(getEndChannelCallUrl(channelId), {
+    ...options,
+    method: 'DELETE',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: endChannelCallResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as endChannelCallResponse;
 };
 
 /**

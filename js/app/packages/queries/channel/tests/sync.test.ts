@@ -24,7 +24,11 @@ import type { ChannelMessagesData } from '../channel-messages';
 import { getChannelMessagesQueryKey } from '../channel-messages';
 import { channelKeys, ChannelNonceKeys } from '../keys';
 import { registerNonce } from '../../nonce';
-import { handleCommsAttachment, handleCommsReaction } from '../sync';
+import {
+  handleCommsAttachment,
+  handleCommsCall,
+  handleCommsReaction,
+} from '../sync';
 import { getThreadRepliesQueryKey } from '../thread-replies';
 import type { GetChannelResponse } from '../types';
 
@@ -242,5 +246,17 @@ describe('channel sync', () => {
     expect(cached?.pages[0].items[0].thread.preview[0].reactions).toEqual([
       { emoji: '👍', users: ['user-1'] },
     ]);
+  });
+
+  it('invalidates the call query when call state changes over websocket', () => {
+    const invalidateSpy = vi.spyOn(testQueryClient, 'invalidateQueries');
+
+    handleCommsCall({
+      channel_id: 'channel-1',
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: channelKeys.call('channel-1').queryKey,
+    });
   });
 });

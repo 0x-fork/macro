@@ -7,6 +7,7 @@ import { ENABLE_NEW_CHANNELS } from '@core/constant/featureFlags';
 import type { ApiThreadReply } from '@service-comms/client';
 import type { GetChannelResponse } from './types';
 import { queryClient } from '../client';
+import { invalidateChannelCall } from './call';
 import { softInvalidateChannelWithID } from './channel';
 import { channelKeys, ChannelNonceKeys } from './keys';
 import { consumeNonce } from '../nonce';
@@ -35,6 +36,10 @@ type CommsAttachmentPayload = {
   message_id: string;
   attachments: ApiAttachment[];
   nonce: string;
+};
+
+type CommsCallPayload = {
+  channel_id: string;
 };
 
 /**
@@ -242,4 +247,8 @@ export function handleCommsAttachment(payload: CommsAttachmentPayload): void {
   if (ENABLE_NEW_CHANNELS()) {
     softInvalidateTargetCaches(payload.channel_id, target);
   }
+}
+
+export function handleCommsCall(payload: CommsCallPayload): void {
+  invalidateChannelCall(payload.channel_id);
 }

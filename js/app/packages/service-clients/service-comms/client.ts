@@ -13,10 +13,12 @@ import type { SafeFetchInit } from '@core/util/safeFetch';
 import type {
   ApiActivity,
   ApiChannelWithLatest,
+  ChannelCallState,
   GetMentionsResponse,
 } from './generated/models';
 import type { Activity } from './generated/models/activity';
 import type { AddParticipantsRequest } from './generated/models/addParticipantsRequest';
+import type { CreateChannelCallRequest } from './generated/models/createChannelCallRequest';
 import type { CreateChannelRequest } from './generated/models/createChannelRequest';
 import type { CreateChannelResponse } from './generated/models/createChannelResponse';
 import type { CreateEntityMentionRequest } from './generated/models/createEntityMentionRequest';
@@ -32,6 +34,7 @@ import type { GetOrCreateDmRequest } from './generated/models/getOrCreateDmReque
 import type { GetOrCreateDmResponse } from './generated/models/getOrCreateDmResponse';
 import type { GetOrCreatePrivateRequest } from './generated/models/getOrCreatePrivateRequest';
 import type { GetOrCreatePrivateResponse } from './generated/models/getOrCreatePrivateResponse';
+import type { JoinChannelCallResponse } from './generated/models/joinChannelCallResponse';
 import type { PatchMessageRequest } from './generated/models/patchMessageRequest';
 import type { PostActivityRequest } from './generated/models/postActivityRequest';
 import type { PostMessageRequest } from './generated/models/postMessageRequest';
@@ -51,6 +54,10 @@ export type { ApiChannelAttachment } from '@service-storage/generated/schemas/ap
 export type { ApiChannelAttachmentsPage as ChannelAttachmentsPage } from '@service-storage/generated/schemas/apiChannelAttachmentsPage';
 export type { ApiChannelParticipant } from '@service-storage/generated/schemas/apiChannelParticipant';
 export type { ApiThreadReply } from '@service-storage/generated/schemas/apiThreadReply';
+export type { ChannelCallParticipant } from './generated/models/channelCallParticipant';
+export type { ChannelCallState } from './generated/models/channelCallState';
+export type { ChannelCallType } from './generated/models/channelCallType';
+export type { JoinChannelCallResponse } from './generated/models/joinChannelCallResponse';
 
 const commsHost: string = SERVER_HOSTS['document-storage-service'];
 
@@ -102,6 +109,37 @@ export const commsServiceClient = {
     return mapOk(
       await commsFetch<ApiChannelWithLatest[]>(`/comms/channels`, {
         method: 'GET',
+      }),
+      (result) => result
+    );
+  },
+  async getChannelCall(args: WithChannelId) {
+    const { channel_id } = args;
+    return mapOk(
+      await commsFetch<ChannelCallState>(`/comms/channels/${channel_id}/call`, {
+        method: 'GET',
+      }),
+      (result) => result
+    );
+  },
+  async createChannelCall(args: WithChannelId & CreateChannelCallRequest) {
+    const { channel_id, call_type } = args;
+    return mapOk(
+      await commsFetch<JoinChannelCallResponse>(
+        `/comms/channels/${channel_id}/call`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ call_type }),
+        }
+      ),
+      (result) => result
+    );
+  },
+  async endChannelCall(args: WithChannelId) {
+    const { channel_id } = args;
+    return mapOk(
+      await commsFetch<Success>(`/comms/channels/${channel_id}/call`, {
+        method: 'DELETE',
       }),
       (result) => result
     );

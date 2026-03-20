@@ -4,6 +4,7 @@ use axum::{
 };
 
 pub mod add_participants;
+pub mod call;
 pub mod create_channel;
 pub mod delete_channel;
 pub mod delete_message;
@@ -69,6 +70,12 @@ pub fn router() -> Router<AppState> {
             "/{channel_id}/participants",
             delete(remove_participants::handler),
         )
+        .route("/{channel_id}/call", get(call::get_channel_call_handler))
+        .route(
+            "/{channel_id}/call",
+            post(call::create_channel_call_handler),
+        )
+        .route("/{channel_id}/call", delete(call::end_channel_call_handler))
         .route("/get_or_create_dm", post(get_or_create_dm::handler))
         .route(
             "/get_or_create_private",

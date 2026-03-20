@@ -13,6 +13,9 @@ export const channelKeys = createQueryKeys('channel', {
   attachments: (channelID: string) => ({
     queryKey: [channelID],
   }),
+  call: (channelID: string) => ({
+    queryKey: [channelID],
+  }),
   participants: (channelID: string) => ({
     queryKey: [channelID],
   }),

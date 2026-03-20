@@ -10,6 +10,7 @@ use comms::{
     outbound::postgres::{comms_repo::PgCommsRepo, user_repo::PgUserRepo},
 };
 use comms_service::CommsHandlerState;
+use comms_service::service::livekit::LiveKitService;
 use connection::{
     domain::service::ConnectionServiceImpl,
     outbound::connection_gateway_client::ConnectionGatewayImpl,
@@ -170,6 +171,7 @@ pub(crate) struct ApiContext {
     pub sqs_client: Arc<sqs_client::SQS>,
     pub notification_ingress_service: Arc<NotificationIngressType>,
     pub conn_gateway_client: Arc<ConnectionGatewayClient>,
+    pub livekit_service: Option<Arc<LiveKitService>>,
     pub sync_service_client: Arc<SyncServiceClient>,
     pub system_properties_service: Arc<SystemPropertiesService>,
     pub properties_service: Arc<PropertiesService>,
@@ -228,6 +230,7 @@ impl From<&ApiContext> for CommsHandlerState {
             jwt_validation_args: ctx.jwt_validation_args.clone(),
             db: ctx.db.clone(),
             connection_gateway_client: ctx.conn_gateway_client.clone(),
+            livekit_service: ctx.livekit_service.clone(),
             notification_ingress_service: ctx.notification_ingress_service.clone(),
             sqs_client: ctx.sqs_client.clone(),
             permissions_token_secret: ctx.permissions_token_secret.clone(),

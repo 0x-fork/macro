@@ -34,6 +34,16 @@ pub struct Config {
         LocalOrRemoteSecret<DocumentStorageServiceCloudfrontSignerPrivateKeySecretName>,
 
     pub document_permission_jwt: LocalOrRemoteSecret<DocumentPermissionJwtSecretKey>,
+    pub livekit: Option<LiveKitConfig>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LiveKitConfig {
+    pub api_url: String,
+    pub ws_url: String,
+    pub api_key: String,
+    pub api_secret: String,
+    pub room_prefix: String,
 }
 
 env_var! {
@@ -122,6 +132,7 @@ impl Config {
             .unwrap_or(4);
 
         let vars = EnvVars::new()?;
+        let livekit = load_livekit_config()?;
 
         Ok(Config {
             vars,
@@ -134,9 +145,37 @@ impl Config {
             document_storage_service_presigned_url_browser_cache_expiry_seconds,
             document_storage_service_cloudfront_signer_private_key,
             document_permission_jwt,
+            livekit,
         })
     }
 }
 
 pub const DEFAULT_PRESIGNED_URL_EXPIRY_SECONDS: u64 = 900; // 15 minutes
 pub const DEFAULT_PRESIGNED_URL_BROWSER_CACHE_EXPIRY_SECONDS: u64 = 840; // remember that this is just a suggestion to the client browser 
+
+fn load_livekit_config() -> anyhow::Result<Option<LiveKitConfig>> {
+    let api_url = std::env::var("LIVEKIT_API_URL").ok();
+    let ws_url = std::env::var("LIVEKIT_WS_URL").ok();
+    let api_key = std::env::var("LIVEKIT_API_KEY").ok();
+    let api_secret = std::env::var("LIVEKIT_API_SECRET").ok();
+
+    if api_url.is_none() && ws_url.is_none() && api_key.is_none() && api_secret.is_none() {
+        return Ok(None);
+    }
+
+    let (Some(api_url), Some(ws_url), Some(api_key), Some(api_secret)) =
+        (api_url, ws_url, api_key, api_secret)
+    else {
+        anyhow::bail!(
+            "LIVEKIT_API_URL, LIVEKIT_WS_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET must all be set together"
+        );
+    };
+
+    Ok(Some(LiveKitConfig {
+        api_url,
+        ws_url,
+        api_key,
+        api_secret,
+        room_prefix: std::env::var("LIVEKIT_ROOM_PREFIX").unwrap_or_else(|_| "macro".to_string()),
+    }))
+}

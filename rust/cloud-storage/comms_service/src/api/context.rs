@@ -14,6 +14,8 @@ use secretsmanager_client::LocalOrRemoteSecret;
 use sqlx::PgPool;
 use std::sync::Arc;
 
+use crate::service::livekit::LiveKitService;
+
 pub type NotificationIngressType = SqsNotificationIngress<SqsIngressQueue>;
 
 env_var! {
@@ -26,6 +28,7 @@ pub struct AppState {
     pub jwt_validation_args: JwtValidationArgs,
     pub db: PgPool,
     pub connection_gateway_client: Arc<ConnectionGatewayClient>,
+    pub livekit_service: Option<Arc<LiveKitService>>,
     pub notification_ingress_service: Arc<NotificationIngressType>,
     pub sqs_client: Arc<sqs_client::SQS>,
     pub permissions_token_secret: LocalOrRemoteSecret<DocumentPermissionJwtSecretKey>,

@@ -21,6 +21,7 @@ import Bell from '@icon/regular/bell.svg';
 import HashIcon from '@icon/regular/hash.svg';
 import LinkIcon from '@icon/regular/link.svg';
 import PaperclipIcon from '@phosphor-icons/core/regular/paperclip.svg?component-solid';
+import PhoneCallIcon from '@phosphor-icons/core/regular/phone-call.svg?component-solid';
 import UsersIcon from '@icon/regular/users.svg';
 import type { ChannelParticipant } from '@queries/channel/types';
 import type { ChannelType } from '@service-comms/generated/models/channelType';
@@ -32,6 +33,7 @@ import { useChannelContext } from '@block-channel/hooks/channel';
 import { isChannelAdminOrOwner } from '@queries/channel/derived';
 import { useChannelModals } from './ModalsProvider';
 import { ParticipantManagerButton } from './ParticipantManager';
+import { ChannelCallControl } from './ChannelCall';
 
 type TopIconProps = {
   channelType: ChannelType;
@@ -128,6 +130,17 @@ export function Top(props: TopProps) {
   );
 
   const tools: BlockTool[] = [
+    {
+      label: 'Call',
+      icon: PhoneCallIcon,
+      action: () => {},
+      buttonComponent: () => (
+        <ChannelCallControl
+          channelId={props.channelId}
+          channelName={channelName() ?? 'Channel'}
+        />
+      ),
+    },
     {
       label: 'Copy Link',
       icon: LinkIcon,
