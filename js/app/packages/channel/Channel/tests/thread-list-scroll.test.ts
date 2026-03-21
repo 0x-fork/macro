@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   accumulateExplicitScrollDownDistance,
+  getInitialPaginationEdgeState,
   hasExplicitScrollDownGesture,
   isExplicitScrollDown,
 } from '../ThreadList';
@@ -68,5 +69,21 @@ describe('hasExplicitScrollDownGesture', () => {
   it('requires a minimum accumulated downward distance', () => {
     expect(hasExplicitScrollDownGesture(63)).toBe(false);
     expect(hasExplicitScrollDownGesture(64)).toBe(true);
+  });
+});
+
+describe('getInitialPaginationEdgeState', () => {
+  it('marks a settled initial position inside the top threshold as already near top', () => {
+    expect(getInitialPaginationEdgeState(320, 1600, 900)).toEqual({
+      isNearTop: true,
+      isNearBottom: false,
+    });
+  });
+
+  it('marks a settled initial position inside the bottom threshold as already near bottom', () => {
+    expect(getInitialPaginationEdgeState(900, 1950, 1000)).toEqual({
+      isNearTop: false,
+      isNearBottom: true,
+    });
   });
 });

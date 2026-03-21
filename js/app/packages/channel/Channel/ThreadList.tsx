@@ -99,6 +99,19 @@ export function hasExplicitScrollDownGesture(distance: number): boolean {
   return distance >= EXPLICIT_SCROLL_DOWN_TRIGGER_DISTANCE;
 }
 
+export function getInitialPaginationEdgeState(
+  scrollOffset: number,
+  scrollSize: number,
+  viewportSize: number
+) {
+  const distanceFromBottom = scrollSize - viewportSize - scrollOffset;
+
+  return {
+    isNearTop: scrollOffset <= NEAR_TOP_THRESHOLD,
+    isNearBottom: distanceFromBottom <= NEAR_BOTTOM_THRESHOLD,
+  };
+}
+
 function getTargetAlign(target: ThreadListScrollTarget): ScrollAlignment {
   if (target.align) return target.align;
   switch (target.tag) {
@@ -185,6 +198,19 @@ export function ThreadList(props: ThreadListProps) {
     });
   };
 
+  const syncInitialPaginationEdges = (handle: VirtualizerHandle) => {
+    const edgeState = getInitialPaginationEdgeState(
+      handle.scrollOffset,
+      handle.scrollSize,
+      handle.viewportSize
+    );
+
+    nearTopFired = edgeState.isNearTop;
+    nearBottomFired = edgeState.isNearBottom;
+    previousScrollOffset = handle.scrollOffset;
+    setIsNearBottom(edgeState.isNearBottom);
+  };
+
   const createNavigation = (
     handle: VirtualizerHandle
   ): ThreadListNavigation => ({
@@ -234,6 +260,7 @@ export function ThreadList(props: ThreadListProps) {
       requestAnimationFrame(() => {
         // Run a second pass after layout settles to avoid partial initial anchoring.
         scrollToTarget(handle, target);
+        syncInitialPaginationEdges(handle);
         setDidInitialScroll(true);
         emitScrollState(handle, false);
       });
