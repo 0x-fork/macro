@@ -159,7 +159,6 @@ const stateCache = new Map<
 >();
 
 interface SoupViewProps {
-  viewName: string;
   initialClientFilters?: { and?: FilterID[]; or?: FilterID[] };
   queryFilters?: SoupItemsQueryFilters;
 }
@@ -223,11 +222,6 @@ export const SoupView = (props: SoupViewProps) => {
                   'flex-1 min-w-0': narrowSearchExpanded(),
                 })}
               >
-                <Show when={!isMobile()}>
-                  <h1 class="font-medium text-ink-muted select-none text-sm shrink-0">
-                    {props.viewName}
-                  </h1>
-                </Show>
                 <Show when={!narrowSearchExpanded()}>
                   <SoupViewTabs />
                   <SoupViewCreateButton />

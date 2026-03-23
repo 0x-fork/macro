@@ -97,7 +97,6 @@ registerComponent(
     const preset = getDefaultListViewPreset('inbox');
     return (
       <SoupView
-        viewName="Inbox"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
       />
@@ -115,7 +114,6 @@ registerComponent(
     });
     return (
       <SoupView
-        viewName="Agents"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
       />
@@ -129,7 +127,6 @@ registerComponent(
     const preset = getDefaultListViewPreset('mail');
     return (
       <SoupView
-        viewName="Mail"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
       />
@@ -147,7 +144,6 @@ registerComponent(
     });
     return (
       <SoupView
-        viewName="Documents"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
       />
@@ -165,7 +161,6 @@ registerComponent(
     });
     return (
       <SoupView
-        viewName="Tasks"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
       />
@@ -179,7 +174,6 @@ registerComponent(
     const preset = getDefaultListViewPreset('channels');
     return (
       <SoupView
-        viewName="Channels"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
       />
@@ -197,7 +191,6 @@ registerComponent(
     });
     return (
       <SoupView
-        viewName="Files"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
       />
@@ -215,7 +208,6 @@ registerComponent(
     });
     return (
       <SoupView
-        viewName="Search"
         queryFilters={preset.queryFilters}
         initialClientFilters={preset.clientFilters}
       />
