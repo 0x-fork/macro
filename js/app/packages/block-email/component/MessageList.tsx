@@ -36,7 +36,7 @@ export function MessageList(props: MessageListProps) {
 
         props.onScrollPositionChange?.(scrollFromTop);
 
-        // Don't load more if we're programmatically scrolling to a message
+        // Don't load more if we're programmatically scrolling to a message!
         if (getIsScrollingToMessage() || !props.initialLoadComplete) return;
 
         const threshold = 300;
