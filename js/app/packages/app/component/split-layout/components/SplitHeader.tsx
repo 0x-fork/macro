@@ -1,4 +1,6 @@
-import EntityNavigationIndicator from '@app/component/EntityNavigationIndicator';
+import EntityNavigationIndicator, {
+  shouldShowEntityNavigation,
+} from '@app/component/EntityNavigationIndicator';
 import { LabelAndHotKey } from '@core/component/Tooltip';
 import {
   ENABLE_PREVIEW,
@@ -7,7 +9,6 @@ import {
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import HamburgerIcon from '@phosphor-icons/core/bold/list-bold.svg?component-solid';
 import CollapseIcon from '@icon/regular/arrows-in.svg';
 import ExpandIcon from '@icon/regular/arrows-out.svg';
 import CaretLeft from '@icon/regular/caret-left.svg';
@@ -29,7 +30,7 @@ import { SplitLayoutContext, SplitPanelContext } from '../context';
 import { canSpotlight } from '../utils/canSpotlight';
 import { cn } from '@ui/utils/classname';
 import { isListViewID } from '@app/constants/list-views';
-import { setSidebarState } from '@app/component/Layout';
+import { useSoup } from '@app/component/next-soup/soup-context';
 
 function SplitBackButton() {
   const context = useContext(SplitPanelContext);
@@ -78,7 +79,7 @@ function SplitSpotlightButton() {
   return (
     <Show when={canSpotlight(layout.manager)}>
       <Button
-        class="p-1"
+        class="p-1 rounded-xs"
         tooltip={
           <LabelAndHotKey
             label={
@@ -113,15 +114,17 @@ function SplitCloseButton() {
   });
 
   return (
-    <Button
-      class="p-1"
-      tooltip={
-        <LabelAndHotKey label={label()} hotkeyToken={TOKENS.split.close} />
-      }
-      onClick={context.handle.close}
-    >
-      <CloseIcon class="w-4 h-4" />
-    </Button>
+    <Show when={layout.manager.splits().length > 1}>
+      <Button
+        class="p-1"
+        tooltip={
+          <LabelAndHotKey label={label()} hotkeyToken={TOKENS.split.close} />
+        }
+        onClick={context.handle.close}
+      >
+        <CloseIcon class="w-4 h-4" />
+      </Button>
+    </Show>
   );
 }
 
@@ -175,9 +178,16 @@ function _SplitControlButtons() {
 }
 
 export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
-  const ctx = useContext(SplitPanelContext);
-  if (!ctx)
+  const soup = useSoup();
+  const panel = useContext(SplitPanelContext);
+  if (!panel)
     throw new Error('<SplitHeader> must be used within a <SplitLayout>');
+  const layout = useContext(SplitLayoutContext);
+
+  const shouldShowRightmost = () =>
+    !isTouchDevice() &&
+    (shouldShowEntityNavigation(soup, panel) ||
+      (layout && canSpotlight(layout.manager)));
 
   return (
     <div
@@ -187,19 +197,6 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
     >
       <div class="absolute inset-0 flex justify-start items-center bg-panel">
         <div class="z-2 relative flex items-center bg-panel pl-2 mobile:pl-0 h-full">
-          <div class="hidden mobile:block">
-            <button
-              type="button"
-              class="p-2"
-              onClick={() => {
-                setSidebarState((p) =>
-                  p === 'expanded' ? 'hidden' : 'expanded'
-                );
-              }}
-            >
-              <HamburgerIcon class="size-6" />
-            </button>
-          </div>
           <div class="mobile:hidden">
             <SplitCloseButton />
           </div>
@@ -209,23 +206,30 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         <div
           class="relative min-w-0 h-full grow shrink pl-2 flex items-center gap-0.5"
           ref={(ref) => {
-            ctx.layoutRefs.headerLeft = ref;
+            panel.layoutRefs.headerLeft = ref;
           }}
         />
 
         <div
-          class="min-w-4 h-full shrink-0 flex items-center gap-0.5 px-2"
+          class={cn(
+            'min-w-4 h-full shrink-0 flex items-center gap-0.5 pl-2',
+            !shouldShowRightmost() && 'pr-2'
+          )}
           ref={(ref) => {
-            ctx.layoutRefs.headerRight = ref;
+            panel.layoutRefs.headerRight = ref;
           }}
-        >
-          <Show when={!isTouchDevice()}>
-            <div class="z-2 relative flex items-center gap-0.5 h-full order-last">
-              <EntityNavigationIndicator />
-              <SplitSpotlightButton />
-            </div>
-          </Show>
-        </div>
+        />
+
+        <Show when={shouldShowRightmost()}>
+          <div
+            class={
+              'pl-0.5 pr-2 z-2 relative flex items-center gap-0.5 h-full order-last'
+            }
+          >
+            <EntityNavigationIndicator />
+            <SplitSpotlightButton />
+          </div>
+        </Show>
       </div>
     </div>
   );

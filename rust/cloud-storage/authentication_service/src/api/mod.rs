@@ -5,6 +5,7 @@ use axum::http::HeaderName;
 use macro_auth::constant::MACRO_REFRESH_TOKEN_HEADER;
 use macro_tower_layers::MacroRequestIdAndTracingLayer;
 use native_app_service::inbound::RouterState;
+use std::net::SocketAddr;
 use std::time::Duration;
 use tower::ServiceBuilder;
 use utoipa::OpenApi;
@@ -29,7 +30,6 @@ mod oauth;
 mod oauth2;
 mod permissions;
 mod session;
-mod team;
 mod user;
 mod webhooks;
 
@@ -61,9 +61,12 @@ pub async fn setup_and_serve(state: ApiContext, port: usize) -> anyhow::Result<(
         &env,
         &port
     );
-    axum::serve(listener, app.into_make_service())
-        .await
-        .context("error starting service")
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .context("error starting service")
 }
 
 fn api_router(state: ApiContext) -> Router<ApiContext> {
@@ -82,22 +85,41 @@ fn api_router(state: ApiContext) -> Router<ApiContext> {
         .nest("/user", user::router(state.clone(), state.jwt_args.clone()))
         .nest(
             "/link",
-            link::router(state.clone()).layer(
-                ServiceBuilder::new()
-                    .layer(axum::middleware::from_fn(
-                        macro_middleware::tracking::attach_ip_context_handler,
-                    ))
-                    .layer(axum::middleware::from_fn_with_state(
-                        state.jwt_args.clone(),
-                        macro_middleware::auth::decode_jwt::handler,
-                    )),
-            ),
+            link::router(state.clone()).layer(ServiceBuilder::new().layer(
+                axum::middleware::from_fn_with_state(
+                    state.jwt_args.clone(),
+                    macro_middleware::auth::decode_jwt::handler,
+                ),
+            )),
         )
         .nest(
             "/team",
-            team::router(state.jwt_args.clone()).layer(ServiceBuilder::new().layer(
-                axum::middleware::from_fn(macro_middleware::tracking::attach_ip_context_handler),
-            )),
+            teams::inbound::axum_router::teams_router(
+                teams::inbound::axum_router::TeamRouterState {
+                    service: state.teams_service.clone(),
+                },
+            )
+            .layer(
+                ServiceBuilder::new().layer(axum::middleware::from_fn_with_state(
+                    state.jwt_args.clone(),
+                    macro_middleware::auth::decode_jwt::handler,
+                )),
+            ),
+        )
+        .nest(
+            "/referral",
+            referral::inbound::axum_router::referral_router(
+                referral::inbound::axum_router::ReferralRouterState {
+                    service: state.referral_service.clone(),
+                    rate_limiter: state.rate_limit_service.clone(),
+                },
+            )
+            .layer(
+                ServiceBuilder::new().layer(axum::middleware::from_fn_with_state(
+                    state.jwt_args.clone(),
+                    macro_middleware::auth::decode_jwt::handler,
+                )),
+            ),
         )
         .nest("/jwt", jwt::router(state.jwt_args.clone()))
         .nest("/session", session::router())

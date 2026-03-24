@@ -1,5 +1,3 @@
-import { withAnalytics } from '@coparse/analytics';
-import { TrackingEvents } from '@coparse/analytics/src/types/TrackingEvents';
 import { useIsAuthenticated } from '@core/auth';
 import {
   type BlockAlias,
@@ -11,7 +9,6 @@ import {
   useBlockId,
   useBlockName,
 } from '@core/block';
-import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
 import { DropdownMenuContent, MenuItem } from '@core/component/Menu';
 import { UserIcon } from '@core/component/UserIcon';
 import { ENABLE_MARKDOWN_COMMENTS } from '@core/constant/featureFlags';
@@ -47,7 +44,7 @@ import { Dialog } from '@kobalte/core/dialog';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { commsServiceClient } from '@service-comms/client';
-import { useUserId } from '@core/context/user';
+import { useReferralCode, useUserId } from '@core/context/user';
 import {
   blockNameToItemType,
   type ItemType,
@@ -67,18 +64,22 @@ import {
   onCleanup,
   onMount,
   Show,
+  Suspense,
   Switch,
   useContext,
 } from 'solid-js';
 import { match } from 'ts-pattern';
-import { DeprecatedIconButton } from '../DeprecatedIconButton';
 import { DialogWrapper } from '../DialogWrapper';
 import { ForwardToChannel } from '../ForwardToChannel';
 import { Permissions } from '../SharePermissions';
 import { toast } from '../Toast/Toast';
 import { Tooltip } from '../Tooltip';
 import { openLoginModal } from './LoginButton';
-import { VerticalScrollIndicators } from '../VerticalScrollIndicators';
+import { ScrollIndicators } from '../VerticalScrollIndicators';
+import { useAnalytics } from '@app/component/analytics-context';
+import { Button } from '@ui/components/Button';
+import { Dynamic } from 'solid-js/web';
+import ChevronDownIcon from '@icon/regular/caret-down.svg';
 
 false && clickOutside;
 
@@ -172,7 +173,7 @@ interface ShareModalProps {
 
 export function ShareModal(props: ShareModalProps) {
   const navigate = useNavigate();
-  const { track } = withAnalytics();
+  const analytics = useAnalytics();
   const isBlockContext = isInBlock();
   const [fallbackPermissionsResource, { refetch: refetchFallback }] =
     createResource(
@@ -209,13 +210,20 @@ export function ShareModal(props: ShareModalProps) {
   const [recipientScrollRef, setRecipientScrollRef] =
     createSignal<HTMLElement>();
 
+  const referralCode = useReferralCode();
+
   const copyPublicLink = createCallback(() => {
+    const params: Record<string, string> = {};
+    const code = referralCode();
+    if (code) {
+      params.referral_code = code;
+    }
     const url = buildSimpleEntityUrl(
       {
         type: props.blockAlias,
         id: props.id,
       },
-      {}
+      params
     );
     navigator.clipboard.writeText(url);
     toast.success(
@@ -276,7 +284,6 @@ export function ShareModal(props: ShareModalProps) {
   // Function to navigate to a channel
   const navigateToChannel = createCallback((channelId: string) => {
     navigate(`/channel/${channelId}`);
-    track(TrackingEvents.SHARE.CLOSE);
     props.setIsSharePermOpen(false); // Close the dialog after navigation
   });
 
@@ -447,6 +454,7 @@ export function ShareModal(props: ShareModalProps) {
         });
         if (!isErr(result)) {
           refetch();
+
           if (accessLevel === null) {
             toast.success(
               'Made chat private',
@@ -457,6 +465,12 @@ export function ShareModal(props: ShareModalProps) {
               'Updated public link sharing',
               `Anyone with the link can ${accessLevel} this chat`
             );
+
+            analytics.track('share_entity', {
+              entityType: 'chat',
+              accessLevel,
+              isPublic: true,
+            });
           }
         } else {
           toast.alert('Failed to change chat access', 'Please try again');
@@ -482,6 +496,12 @@ export function ShareModal(props: ShareModalProps) {
               'Updated public link sharing',
               `Anyone with the link can ${accessLevel} this document`
             );
+
+            analytics.track('share_entity', {
+              entityType: 'document',
+              accessLevel,
+              isPublic: true,
+            });
           }
         } else {
           toast.alert('Failed to change document access', 'Please try again');
@@ -507,6 +527,12 @@ export function ShareModal(props: ShareModalProps) {
               'Updated public link sharing',
               `Anyone with the link can ${accessLevel} this folder`
             );
+
+            analytics.track('share_entity', {
+              entityType: 'project',
+              accessLevel,
+              isPublic: true,
+            });
           }
         } else {
           toast.alert('Failed to change folder access', 'Please try again');
@@ -535,13 +561,9 @@ export function ShareModal(props: ShareModalProps) {
             <div class="shrink-0 flex flex-row items-center justify-between px-2 h-[40px] gap-2 border-b-1 border-b-edge-muted">
               <div class="flex flex-row items-center gap-2">
                 <Dialog.CloseButton>
-                  <DeprecatedIconButton
-                    tooltip={{ label: 'Close' }}
-                    icon={CloseIcon}
-                    iconSize={16}
-                    theme="clear"
-                    size="sm"
-                  />
+                  <Button tooltip="Close" variant="ghost" size="icon-sm">
+                    <CloseIcon />
+                  </Button>
                 </Dialog.CloseButton>
                 <Dialog.Title>{`Share: ${props.name}`}</Dialog.Title>
               </div>
@@ -567,10 +589,10 @@ export function ShareModal(props: ShareModalProps) {
 
             <Show when={(recipients()?.length ?? 0) > 0}>
               <div class="grow-2 shrink-1 min-h-[118px] flex flex-col border-t-1 border-edge-muted relative">
-                <VerticalScrollIndicators
+                <ScrollIndicators
                   scrollRef={recipientScrollRef}
-                  noBorderBottom
-                  noBorderTop
+                  noBorderStart
+                  noBorderEnd
                 />
                 <div
                   class="overflow-y-auto scrollbar-hidden"
@@ -670,14 +692,15 @@ export function ShareModal(props: ShareModalProps) {
                   Public Link
                 </div>
                 <div class="flex items-center p-3 justify-between">
-                  <DeprecatedTextButton
-                    onClick={() => copyPublicLink()}
-                    text="Copy Link"
-                    height="h-[22px]"
-                    icon={IconLink}
-                    theme="accent"
-                    outline
-                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    class="flex items-center gap-1 rounded-xs px-2"
+                    onClick={copyPublicLink}
+                  >
+                    <IconLink class="size-4" />
+                    Copy Link
+                  </Button>
                   <ShareOptions
                     permissions={publicAccessLevel() ?? null}
                     hideNoAccess={props.itemType === 'chat'}
@@ -692,198 +715,13 @@ export function ShareModal(props: ShareModalProps) {
     </Dialog>
   );
 }
-interface ShareButtonProps {
-  userPermissions: Permissions; // user permissions are in service-storage/cognition V2 are unified @sharePermissionV2.ts
-  copyLink?: () => void; // some blocks have their own copy link function e.g. canvas copies current (x,y) position
-  name: string; // document name or chat name
-  id: string; // document id or chat id
-  itemType: ItemType;
-  owner?: string;
-}
-
-export function ShareButton(props: ShareButtonProps) {
-  const [isSharePermOpen, setIsSharePermOpen] = createSignal(false);
-  const isBlockContext = isInBlock();
-  const [fallbackPermissionsResource] = createResource(
-    () => {
-      if (isBlockContext || !props.id) return;
-      return { id: props.id, itemType: props.itemType };
-    },
-    async (source) => {
-      if (!source) return;
-      const { id, itemType } = source;
-      if (itemType === 'chat') {
-        return cognitionApiServiceClient.getChatPermissions({ id });
-      } else if (itemType === 'document') {
-        return storageServiceClient.getDocumentPermissions({ document_id: id });
-      } else if (itemType === 'project') {
-        if (id === 'trash') {
-          return;
-        }
-        return storageServiceClient.projects.getPermissions({ id });
-      }
-    },
-    { initialValue: undefined }
-  );
-  const permissionsResource = isBlockContext
-    ? permissionsBlockResource[0]
-    : fallbackPermissionsResource;
-  const isAuthenticated = useIsAuthenticated();
-  const blockType = isBlockContext
-    ? useBlockAliasedName()
-    : (props.itemType as BlockName | BlockAlias);
-  const blockId = isBlockContext ? useBlockId() : props.id;
-
-  onMount(() => {
-    if (!isBlockContext) return;
-    const blockScopeId = blockHotkeyScopeSignal.get;
-    registerHotkey({
-      keyDownHandler: () => {
-        if (!isAuthenticated()) {
-          openLoginModal();
-        } else {
-          track(TrackingEvents.SHARE.OPEN);
-          setIsSharePermOpen(true);
-        }
-        return true;
-      },
-      hotkeyToken: TOKENS.block.share,
-      runWithInputFocused: true,
-      scopeId: blockScopeId(),
-      description: 'Share',
-      hotkey: 'cmd+s',
-    });
-  });
-
-  const defaultUrl = () => {
-    return buildSimpleEntityUrl(
-      {
-        id: blockId ?? '',
-        type: blockType,
-      },
-      {}
-    );
-  };
-
-  const { track } = withAnalytics();
-
-  const copyLink = createCallback(() => {
-    if (props.copyLink) {
-      return props.copyLink();
-    }
-
-    navigator.clipboard.writeText(defaultUrl());
-    toast.success(
-      'Link copied to clipboard.',
-      'Sending this link in a Macro message will automatically update permissions to include recipients.'
-    );
-  });
-
-  const ShareLinkAction = createMemo(() => {
-    return {
-      action: (e: MouseEvent | KeyboardEvent) => {
-        e.stopPropagation();
-        copyLink();
-      },
-      icon: IconLink,
-    };
-  });
-
-  const shareAccessLevelText = createMemo(() => {
-    const maybeResult = permissionsResource.latest;
-    if (!maybeResult || isErr(maybeResult)) {
-      return '';
-    }
-    const [, sharePermission] = maybeResult;
-    if (sharePermission.isPublic) {
-      return 'Public';
-    }
-    if (sharePermission.channelSharePermissions?.length) {
-      return 'Shared';
-    }
-    return 'Just me';
-  });
-
-  return (
-    <>
-      <div class="border-1 border-edge-muted flex ml-1 items-stretch">
-        <Tooltip
-          tooltip={
-            <div>
-              {match(shareAccessLevelText())
-                .when(
-                  (level) => level === 'Public',
-                  () => 'Anyone with the link can access this item'
-                )
-                .when(
-                  (level) => level === 'Shared',
-                  () => 'Shared with specific people or channels'
-                )
-                .when(
-                  (level) => level === 'Just me',
-                  () => 'Only you can access this item'
-                )
-                .otherwise(() => 'This item has been shared with you')}
-            </div>
-          }
-        >
-          <button
-            class="text-[0.75rem] font-mono tracking-wide hover:bg-hover text-ink px-2 flex items-center gap-1 h-full"
-            onClick={() => {
-              if (!isAuthenticated()) {
-                openLoginModal();
-              } else {
-                track(TrackingEvents.SHARE.OPEN);
-                setIsSharePermOpen(true);
-              }
-            }}
-          >
-            <Switch fallback={<IconShared class="size-4" />}>
-              <Match when={shareAccessLevelText() === 'Public'}>
-                <IconGlobe class="size-4" />
-              </Match>
-              <Match when={shareAccessLevelText() === 'Shared'}>
-                <IconUsers class="size-4" />
-              </Match>
-              <Match when={shareAccessLevelText() === 'Just me'}>
-                <IconEyeSlash class="size-4" />
-              </Match>
-            </Switch>
-            SHARE
-          </button>
-        </Tooltip>
-
-        <div class="w-[1px] bg-edge-muted" />
-
-        <DeprecatedIconButton
-          tooltip={{ label: 'Copy Share Link' }}
-          onClick={ShareLinkAction().action}
-          icon={ShareLinkAction().icon}
-          theme="clear"
-          size="sm"
-        />
-      </div>
-
-      <ShareModal
-        setIsSharePermOpen={setIsSharePermOpen}
-        userPermissions={props.userPermissions}
-        isSharePermOpen={isSharePermOpen()}
-        itemType={props.itemType}
-        owner={props.owner}
-        name={props.name}
-        blockAlias={blockType}
-        id={props.id}
-      />
-    </>
-  );
-}
 
 export function ShareTrigger(props: { copyLink?: () => void }) {
   const shareCtx = useShareDialogContext();
   const isAuthenticated = useIsAuthenticated();
   const blockType = useBlockAliasedName();
   const blockId = useBlockId();
-  const { track } = withAnalytics();
+  const analytics = useAnalytics();
 
   onMount(() => {
     const blockScopeId = blockHotkeyScopeSignal.get;
@@ -892,7 +730,7 @@ export function ShareTrigger(props: { copyLink?: () => void }) {
         if (!isAuthenticated()) {
           openLoginModal();
         } else {
-          track(TrackingEvents.SHARE.OPEN);
+          analytics.track('share_menu_open', { blockType });
           shareCtx.open();
         }
         return true;
@@ -905,12 +743,21 @@ export function ShareTrigger(props: { copyLink?: () => void }) {
     });
   });
 
-  const defaultUrl = () =>
-    buildSimpleEntityUrl({ id: blockId ?? '', type: blockType }, {});
+  const referralCode = useReferralCode();
+
+  const defaultUrl = () => {
+    const params: Record<string, string> = {};
+    const code = referralCode();
+    if (code) {
+      params.referral_code = code;
+    }
+    return buildSimpleEntityUrl({ id: blockId ?? '', type: blockType }, params);
+  };
 
   const copyLink = createCallback(() => {
     if (props.copyLink) return props.copyLink();
     navigator.clipboard.writeText(defaultUrl());
+    analytics.track('copy_share_link', { blockType });
     toast.success(
       'Link copied to clipboard.',
       'Sending this link in a Macro message will automatically update permissions to include recipients.'
@@ -935,7 +782,7 @@ export function ShareTrigger(props: { copyLink?: () => void }) {
   });
 
   return (
-    <div class="border-1 border-edge-muted flex ml-1 items-stretch">
+    <div class="border-1 border-edge-muted flex ml-1 items-stretch rounded-xs">
       <Tooltip
         tooltip={
           <div>
@@ -957,12 +804,12 @@ export function ShareTrigger(props: { copyLink?: () => void }) {
         }
       >
         <button
-          class="text-[0.75rem] font-mono tracking-wide hover:bg-hover text-ink px-2 flex items-center gap-1 h-full"
+          class="text-xs hover:bg-hover text-ink px-2 flex items-center gap-1 h-full"
           onClick={() => {
             if (!isAuthenticated()) {
               openLoginModal();
             } else {
-              track(TrackingEvents.SHARE.OPEN);
+              analytics.track('share_menu_open', { blockType });
               shareCtx.open();
             }
           }}
@@ -978,19 +825,21 @@ export function ShareTrigger(props: { copyLink?: () => void }) {
               <IconEyeSlash class="size-4" />
             </Match>
           </Switch>
-          SHARE
+          Share
         </button>
       </Tooltip>
 
       <div class="w-[1px] bg-edge-muted" />
 
-      <DeprecatedIconButton
-        tooltip={{ label: 'Copy Share Link' }}
+      <Button
+        tooltip="Copy Share Link"
         onClick={ShareLinkAction().action}
-        icon={ShareLinkAction().icon}
-        theme="clear"
-        size="sm"
-      />
+        variant="ghost"
+        size="icon-sm"
+        class="p-1"
+      >
+        <Dynamic component={ShareLinkAction().icon} />
+      </Button>
     </div>
   );
 }
@@ -1012,16 +861,18 @@ export function ShareBlockModal(props: {
   if (!itemType) return null;
 
   return (
-    <ShareModal
-      isSharePermOpen={ctx.isOpen()}
-      setIsSharePermOpen={(v) => (v ? ctx.open() : ctx.close())}
-      id={id}
-      blockAlias={blockAlias}
-      itemType={itemType}
-      name={props.name ?? documentName() ?? ''}
-      userPermissions={props.userPermissions ?? permissions()}
-      owner={props.owner ?? ownerDerived()}
-    />
+    <Suspense>
+      <ShareModal
+        isSharePermOpen={ctx.isOpen()}
+        setIsSharePermOpen={(v) => (v ? ctx.open() : ctx.close())}
+        id={id}
+        blockAlias={blockAlias}
+        itemType={itemType}
+        name={props.name ?? documentName() ?? ''}
+        userPermissions={props.userPermissions ?? permissions()}
+        owner={props.owner ?? ownerDerived()}
+      />
+    </Suspense>
   );
 }
 
@@ -1083,15 +934,14 @@ export function ShareOptions(props: {
   return (
     <DropdownMenu>
       <DropdownMenu.Trigger disabled={props.disabled}>
-        <DeprecatedTextButton
-          text={currentValueText()}
+        <Button
           disabled={props.disabled}
-          width="w-[67px]"
-          height="22px"
-          theme="base"
-          showChevron
-          left
-        />
+          class="min-w-[67px] h-[22px] py-2 pl-2 pr-1 rounded-xs flex items-center gap-1"
+          variant="secondary"
+        >
+          {currentValueText()}
+          <ChevronDownIcon class="size-4 text-ink-extra-muted/50" />
+        </Button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenuContent>

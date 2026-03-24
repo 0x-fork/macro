@@ -18,7 +18,10 @@ where
     S: Send + Sync + Clone + 'static,
 {
     Router::new()
-        .route("/send/:entity_type/:entity_id", post(send_message_handler))
+        .route(
+            "/send/{entity_type}/{entity_id}",
+            post(send_message_handler),
+        )
         .route("/batch_send", post(batch_send_message_handler))
         .route(
             "/batch_send_unique",
@@ -52,6 +55,8 @@ pub async fn send_message_handler(
     Path(entity): Path<Entity<'static>>,
     Json(body): Json<SendMessageBody>,
 ) -> Result<(StatusCode, JsonResponse<SendMessageResponse>), (StatusCode, String)> {
+    let redis_connection = ctx.context.redis_connection.clone();
+
     let res = send_message_to_entity(
         &ctx,
         &entity,
@@ -59,6 +64,7 @@ pub async fn send_message_handler(
             message_type: body.message_type.clone(),
             data: body.message.to_string(),
         },
+        redis_connection,
     )
     .await
     .map_err(|e| {
@@ -91,7 +97,10 @@ pub async fn batch_send_message_handler(
 ) -> Result<(StatusCode, JsonResponse<SendMessageResponse>), (StatusCode, String)> {
     let now = Instant::now();
 
+    let redis_connection = ctx.context.redis_connection.clone();
+
     let all_receipts = try_join_all(body.entities.iter().map(|entity| {
+        let redis_connection = redis_connection.clone();
         send_message_to_entity(
             &ctx,
             entity,
@@ -99,6 +108,7 @@ pub async fn batch_send_message_handler(
                 message_type: body.message_type.clone(),
                 data: body.message.to_string(),
             },
+            redis_connection,
         )
     }))
     .await
@@ -138,7 +148,10 @@ pub async fn batch_send_unique_messages_handler(
 ) -> Result<(StatusCode, JsonResponse<SendMessageResponse>), (StatusCode, String)> {
     let now = Instant::now();
 
+    let redis_connection = ctx.context.redis_connection.clone();
+
     let all_receipts = try_join_all(body.messages.iter().map(|message| {
+        let redis_connection = redis_connection.clone();
         send_message_to_entity(
             &ctx,
             &message.entity,
@@ -146,6 +159,7 @@ pub async fn batch_send_unique_messages_handler(
                 message_type: message.message_type.clone(),
                 data: message.message_content.to_string(),
             },
+            redis_connection,
         )
     }))
     .await

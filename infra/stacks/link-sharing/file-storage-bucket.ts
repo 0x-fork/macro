@@ -41,11 +41,11 @@ export const attachPolicyToBucket = ({
   documentProcessingServiceRoleArn,
   pdfPreprocessLambdaRoleArn,
   documentStorageBucketReplicationRoleArn,
-  deleteDocumentWorkerRoleArn,
   searchProcessingServiceRoleArn,
   bulkUploadLambdaRoleArn,
   convertServiceRoleArn,
   documentCognitionRoleArn,
+  mcpServerRoleArn,
 }: {
   cloudfrontDistributionArn: pulumi.Output<string>;
   bucket: pulumi.Output<GetStorageBucketResult>;
@@ -56,11 +56,11 @@ export const attachPolicyToBucket = ({
   documentProcessingServiceRoleArn: pulumi.Output<string>;
   pdfPreprocessLambdaRoleArn: pulumi.Output<string>;
   documentStorageBucketReplicationRoleArn: pulumi.Output<string>;
-  deleteDocumentWorkerRoleArn: pulumi.Output<string>;
   searchProcessingServiceRoleArn: pulumi.Output<string>;
   bulkUploadLambdaRoleArn: pulumi.Output<string>;
   convertServiceRoleArn: pulumi.Output<string>;
   documentCognitionRoleArn: pulumi.Output<string>;
+  mcpServerRoleArn: pulumi.Output<string>;
 }) => {
   const groupName = config.require('adminGroupName');
 
@@ -85,12 +85,12 @@ export const attachPolicyToBucket = ({
         documentProcessingServiceRoleArn,
         pdfPreprocessLambdaRoleArn,
         documentStorageBucketReplicationRoleArn,
-        deleteDocumentWorkerRoleArn,
         documentTextExtractorArn,
         searchProcessingServiceRoleArn,
         bulkUploadLambdaRoleArn,
         convertServiceRoleArn,
         documentCognitionRoleArn,
+        mcpServerRoleArn,
       ];
     });
 
@@ -179,15 +179,6 @@ export const attachPolicyToBucket = ({
         Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
       },
       {
-        Sid: 'AllowAccessForDeleteDocumentWorker',
-        Effect: 'Allow',
-        Principal: {
-          AWS: deleteDocumentWorkerRoleArn,
-        },
-        Action: ['s3:ListBucket', 's3:GetObject', 's3:DeleteObject'],
-        Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
-      },
-      {
         Sid: 'AllowAccessForShaCleanupWorker',
         Effect: 'Allow',
         Principal: {
@@ -228,6 +219,20 @@ export const attachPolicyToBucket = ({
         Effect: 'Allow',
         Principal: {
           AWS: documentCognitionRoleArn,
+        },
+        Action: [
+          's3:ListBucket',
+          's3:GetObject',
+          's3:PutObject',
+          's3:DeleteObject',
+        ],
+        Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
+      },
+      {
+        Sid: 'AllowAccessForMcpServer',
+        Effect: 'Allow',
+        Principal: {
+          AWS: mcpServerRoleArn,
         },
         Action: [
           's3:ListBucket',

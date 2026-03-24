@@ -13,12 +13,15 @@ import {
   DEFAULT_REACTION_EMOJI,
   hasReactionFromUser,
 } from '../Thread/utils/message-actions';
+import { useAnalytics } from '@app/component/analytics-context';
 
 type AddReactionInput = {
   channelId: string;
   messageId: string;
   emoji: string;
   userId: string;
+  threadId?: string;
+  currentReactions: MessageData['reactions'];
 };
 
 type RemoveReactionInput = {
@@ -26,36 +29,31 @@ type RemoveReactionInput = {
   messageId: string;
   emoji: string;
   userId: string;
-};
-
-type PatchMessageInput = {
-  channelID: string;
-  messageID: string;
-  content: string;
+  threadId?: string;
+  currentReactions: MessageData['reactions'];
 };
 
 type DeleteMessageInput = {
   channelID: string;
   messageID: string;
+  threadID?: string;
 };
 
 type ChannelMessageActionEffects = {
   getLocationHref: () => string;
   copyToClipboard: (text: string) => Promise<void>;
-  promptForEdit: (content: string) => string | null;
   notifyCopyLinkSuccess: () => void;
   notifyCopyLinkFailure: (error: unknown) => void;
-  notifyEmptyEdit: () => void;
 };
 
 export type CreateChannelMessageActionsOptions = {
   channelId: Accessor<string>;
   userId: Accessor<string | undefined>;
-  patchMessage: (input: PatchMessageInput) => void;
   deleteMessage: (input: DeleteMessageInput) => void;
   addReaction: (input: AddReactionInput) => void;
   removeReaction: (input: RemoveReactionInput) => void;
   onReply?: MessageActionHandler;
+  onEdit?: MessageActionHandler;
   effects?: Partial<ChannelMessageActionEffects>;
 };
 
@@ -67,16 +65,12 @@ function createDefaultEffects(): ChannelMessageActionEffects {
       window.location.search +
       window.location.hash,
     copyToClipboard: (text) => navigator.clipboard.writeText(text),
-    promptForEdit: (content) => window.prompt('Edit message', content),
     notifyCopyLinkSuccess: () => {
       toast.success('Link copied to clipboard');
     },
     notifyCopyLinkFailure: (error) => {
       console.error('failed to copy link', error);
       toast.failure('Failed to copy link');
-    },
-    notifyEmptyEdit: () => {
-      toast.failure('Message cannot be empty');
     },
   };
 }
@@ -86,6 +80,8 @@ const emptyReplyHandler: MessageActionHandler = () => undefined;
 export function createChannelMessageActions(
   options: CreateChannelMessageActionsOptions
 ): (message: MessageData) => MessageActions {
+  const analytics = useAnalytics();
+
   const effects = {
     ...createDefaultEffects(),
     ...options.effects,
@@ -106,23 +102,37 @@ export function createChannelMessageActions(
 
             const emoji = ctx.emoji ?? DEFAULT_REACTION_EMOJI;
             const channelId = options.channelId();
-            const hasReaction = hasReactionFromUser(message, emoji, userId);
+            const targetMessage = message;
+            const liveMessage = ctx.message;
+            const threadId =
+              (targetMessage as MessageData & { thread_id?: string | null })
+                .thread_id ?? undefined;
+            const hasReaction = hasReactionFromUser(liveMessage, emoji, userId);
+
+            analytics.track('channel_reaction', {
+              emoji,
+              action: hasReaction ? 'remove' : 'add',
+            });
 
             if (hasReaction) {
               options.removeReaction({
                 channelId,
-                messageId: message.id,
+                messageId: targetMessage.id,
                 emoji,
                 userId,
+                threadId,
+                currentReactions: liveMessage.reactions,
               });
               return;
             }
 
             options.addReaction({
               channelId,
-              messageId: message.id,
+              messageId: targetMessage.id,
               emoji,
               userId,
+              threadId,
+              currentReactions: liveMessage.reactions,
             });
           }
         : undefined,
@@ -135,30 +145,15 @@ export function createChannelMessageActions(
           effects.notifyCopyLinkFailure(error);
         }
       },
-      onEdit: canEditDelete
-        ? () => {
-            const content = effects.promptForEdit(message.content);
-            if (content == null) return;
-
-            const nextContent = content.trim();
-            if (nextContent.length === 0) {
-              effects.notifyEmptyEdit();
-              return;
-            }
-            if (nextContent === message.content) return;
-
-            options.patchMessage({
-              channelID: options.channelId(),
-              messageID: message.id,
-              content: nextContent,
-            });
-          }
-        : undefined,
+      onEdit: canEditDelete ? options.onEdit : undefined,
       onDelete: canEditDelete
         ? () => {
             options.deleteMessage({
               channelID: options.channelId(),
               messageID: message.id,
+              threadID:
+                (message as MessageData & { thread_id?: string | null })
+                  .thread_id ?? undefined,
             });
           }
         : undefined,

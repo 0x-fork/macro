@@ -9,9 +9,12 @@ use model_error_response::ErrorResponse;
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::domain::{models::EmailErr, ports::EmailService};
+use crate::domain::{
+    models::EmailErr,
+    ports::{EmailService, GmailTokenProvider},
+};
 
-use super::{EmailRouterState, GmailAccessTokenExtractor, GmailTokenProvider, GmailTokenState};
+use super::{EmailRouterState, GmailAccessTokenExtractor, GmailTokenState};
 
 /// Request body for updating a thread's labels.
 #[derive(serde::Serialize, serde::Deserialize, Debug, utoipa::ToSchema)]
@@ -69,7 +72,7 @@ impl From<EmailErr> for UpdateThreadLabelError {
     }
 }
 
-/// Create the thread labels router with a `PATCH /:id/labels` handler.
+/// Create the thread labels router with a `PATCH /{id}/labels` handler.
 pub fn thread_labels_router<S, T, G>() -> Router<S>
 where
     S: Send + Sync + Clone + 'static,
@@ -78,7 +81,7 @@ where
     EmailRouterState<T>: axum::extract::FromRef<S>,
     GmailTokenState<G>: axum::extract::FromRef<S>,
 {
-    Router::new().route("/:id/labels", patch(update_thread_labels_handler::<T, G>))
+    Router::new().route("/{id}/labels", patch(update_thread_labels_handler::<T, G>))
 }
 
 /// Add or remove a label from all messages in a thread.

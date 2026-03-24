@@ -1,17 +1,58 @@
-import { Button } from '@app/component/next-soup/soup-view/filters-bar/button';
-import { SoupViewContextFilters } from '@app/component/next-soup/soup-view/filters-bar/soup-view-context-filters';
 import { SoupViewContextSort } from '@app/component/next-soup/soup-view/filters-bar/soup-view-context-sort';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
-import XIcon from '@icon/regular/x.svg';
-import { createMemo, Match, Show, Switch } from 'solid-js';
+import { createMemo, createSignal, Match, Switch } from 'solid-js';
+import { UnifiedFilterDropdown } from '@app/component/next-soup/soup-view/filters-bar/unified-filter-dropdown';
+import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-bar/active-filter-chips';
+import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
+import { Button } from './button';
+import { AnimatedPreviewIcon } from '@macro-icons/wide/animating/preview';
+import { useSoup } from '../../soup-context';
+import { registerHotkey } from '@core/hotkey/hotkeys';
+import { useAnalytics } from '@app/component/analytics-context';
 
 export const SoupFiltersBar = () => {
-  const { hasActiveRefinements, resetToTabDefaults } = useFilterRefinements();
+  const {
+    resetToTabDefaults,
+    activeFiltersList,
+    removeFilter,
+    replaceFilter,
+    isOptionActive,
+  } = useFilterRefinements();
 
+  const analytics = useAnalytics();
+
+  const [previewBtnHovering, setPreviewBtnHovering] = createSignal(false);
+
+  const soup = useSoup();
   const panel = useSplitPanelOrThrow();
+
+  const togglePreview = () => {
+    const currentPreview = soup.previewEntity();
+    if (currentPreview) {
+      soup.setPreviewEntity(undefined);
+      return;
+    }
+
+    const focused = soup.focus.id();
+
+    if (!focused) return;
+
+    analytics.track('preview_panel_use');
+    soup.setPreviewEntity(focused);
+  };
+
+  registerHotkey({
+    hotkey: 'space',
+    scopeId: panel.splitHotkeyScope,
+    description: 'Toggle preview',
+    keyDownHandler: () => {
+      togglePreview();
+      return true;
+    },
+  });
 
   const component = createMemo(() => {
     const content = panel.handle.content();
@@ -28,26 +69,35 @@ export const SoupFiltersBar = () => {
   return (
     <Switch>
       <Match when={isComponentListView('search')}>
-        <div class="w-full flex flex-col gap-2 p-2">
+        <div class="w-full flex flex-col gap-2 p-2 border-b border-edge-muted/50">
           <SoupSearchbar autoFocus />
         </div>
       </Match>
       <Match when={true}>
-        <div class="@container w-full overflow-hidden flex gap-2 flex-wrap py-2 pl-2 pr-1">
-          <SoupViewContextFilters />
-          <Show when={hasActiveRefinements()}>
-            <Button variant="ghost" size="sm" onClick={resetToTabDefaults}>
-              <XIcon class="size-3" />
-              <span>Clear all</span>
-            </Button>
-          </Show>
-
+        <div class="flex items-start gap-2 px-2 py-1.5 border-b border-edge-muted/50 w-full">
+          <UnifiedFilterDropdown />
+          <ActiveFilterChips
+            filters={activeFiltersList()}
+            onRemove={removeFilter}
+            onReplace={replaceFilter}
+            onClearAll={resetToTabDefaults}
+            isOptionActive={isOptionActive}
+          />
           <div class="flex-1" />
-
-          <div class="max-w-60 w-full">
-            <SoupSearchbar />
-          </div>
-
+          <Tooltip
+            tooltip={<LabelAndHotKey label="Preview" shortcut="space" />}
+          >
+            <Button
+              variant={soup.previewEntity() ? 'primary' : 'ghost'}
+              size="sm"
+              class="rounded-xs [&_svg]:size-4 px-1 border border-transparent"
+              onClick={togglePreview}
+              onMouseEnter={() => setPreviewBtnHovering(true)}
+              onMouseLeave={() => setPreviewBtnHovering(false)}
+            >
+              <AnimatedPreviewIcon triggerAnimation={previewBtnHovering()} />
+            </Button>
+          </Tooltip>
           <SoupViewContextSort />
         </div>
       </Match>

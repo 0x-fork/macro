@@ -1,6 +1,5 @@
 import { useChannelMarkdownArea } from '@block-channel/component/MarkdownArea';
-import { withAnalytics } from '@coparse/analytics';
-import { TrackingEvents } from '@coparse/analytics/src/types/TrackingEvents';
+import { useAnalytics } from '@app/component/analytics-context';
 import { useIsAuthenticated } from '@core/auth';
 import {
   useMaybeBlockAliasedName,
@@ -30,7 +29,7 @@ import {
 import { getDestinationFromOptions } from './NewMessage';
 import { Permissions } from './SharePermissions';
 import { toast } from './Toast/Toast';
-import { VerticalScrollIndicators } from './VerticalScrollIndicators';
+import { ScrollIndicators } from './VerticalScrollIndicators';
 
 interface ForwardToChannelProps {
   submitPermissionInfo?: {
@@ -61,7 +60,7 @@ interface ForwardToChannelProps {
 
 export function ForwardToChannel(props: ForwardToChannelProps) {
   const isAuthenticated = useIsAuthenticated();
-  const { track } = withAnalytics();
+  const analytics = useAnalytics();
 
   const [selectedOptions, setSelectedOptions] = createSignal<
     WithCustomUserInput<'user' | 'contact' | 'channel'>[]
@@ -187,7 +186,7 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
             onClick: navigateToChannel,
             text: 'View in channel',
           });
-          track(TrackingEvents.SHARE.FORWARD);
+          analytics.track('share_entity', { location: 'forward_to_channel' });
         });
       } else {
         toast.failure('Message failed to send');
@@ -217,7 +216,9 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
                   text: 'View in channel',
                 });
               }
-              track(TrackingEvents.SHARE.FORWARD);
+              analytics.track('share_entity', {
+                location: 'forward_to_channel',
+              });
             }),
           ]);
         } else {
@@ -242,7 +243,7 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
                 text: 'View in channel',
               });
             }
-            track(TrackingEvents.SHARE.FORWARD);
+            analytics.track('share_entity', { location: 'forward_to_channel' });
           });
         }
       }
@@ -292,7 +293,7 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
       </div>
       <div class="grow-1 shrink-1 min-h-0 flex flex-col w-full border-t-1 border-edge-muted/50">
         <div class="relative grow-1 shrink-1 min-h-0 flex flex-col">
-          <VerticalScrollIndicators scrollRef={mdScrollRef} noBorderTop />
+          <ScrollIndicators scrollRef={mdScrollRef} noBorderStart />
           <div
             class="grow-1 shrink-1 min-h-20 overflow-y-auto scrollbar-hidden px-[12px] py-[6px] w-full text-sm"
             onClick={() => focusMarkdownArea()}

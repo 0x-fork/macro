@@ -38,10 +38,20 @@ type DateSelectorProps = {
   onSelectDate?: (date: Date | null) => void;
   placeholder?: string;
   disablePriorToDate?: Date;
+  disableAfterDate?: Date;
   withTime?: boolean;
+  /** Render content inline instead of in a portal (avoids keyboard positioning issues on mobile) */
+  disablePortal?: boolean;
   trigger?:
     | JSX.Element
     | ((props: { selectedDate: Date | null }) => JSX.Element);
+};
+
+const DateSelectorPortalWrapper: FlowComponent<{ disabled?: boolean }> = (
+  props
+) => {
+  if (props.disabled) return <>{props.children}</>;
+  return <Combobox.Portal>{props.children}</Combobox.Portal>;
 };
 
 export const DateSelector = (props: DateSelectorProps) => {
@@ -70,6 +80,18 @@ export const DateSelector = (props: DateSelectorProps) => {
     )
   );
 
+  const [internalOpen, setInternalOpen] = createSignal(props.open ?? false);
+  createEffect(
+    on(
+      () => props.open,
+      (open) => {
+        if (open !== undefined) setInternalOpen(open);
+      },
+      { defer: true }
+    )
+  );
+  const isControlled = () => props.open !== undefined;
+  const isOpen = () => (isControlled() ? props.open! : internalOpen());
   const [mode, setMode] = createSignal<DateSelectorMode>('search');
 
   const [searchQuery, setSearchQuery] = createSignal('');
@@ -81,6 +103,7 @@ export const DateSelector = (props: DateSelectorProps) => {
   const dateOptions = useDateSearch({
     query: searchQuery,
     baseDate: startOfDay(new Date()),
+    defaultTime: { hours: 8, minutes: 0 },
   });
 
   const dispatchKeyToListbox = (key: string) => {
@@ -91,10 +114,14 @@ export const DateSelector = (props: DateSelectorProps) => {
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
+    const target = e.target;
+    const isNonComboboxInput =
+      target instanceof HTMLInputElement && target !== searchInputRef();
+
     switch (e.key) {
       case 'Delete':
       case 'Backspace': {
-        if (searchQuery().trim()) {
+        if (isNonComboboxInput || searchQuery().trim()) {
           return;
         }
         e.preventDefault();
@@ -140,6 +167,7 @@ export const DateSelector = (props: DateSelectorProps) => {
   };
 
   const onOpenChange = (open: boolean) => {
+    setInternalOpen(open);
     if (!open) {
       resetState();
       props.onClose?.();
@@ -155,12 +183,14 @@ export const DateSelector = (props: DateSelectorProps) => {
     setSelectedOption(option);
     if (!option) {
       props.onSelectDate?.(null);
+      onOpenChange(false);
       return;
     }
 
     const dateValue = option.date;
 
     props.onSelectDate?.(dateValue);
+    onOpenChange(false);
   };
 
   const options = createMemo(() => {
@@ -233,7 +263,7 @@ export const DateSelector = (props: DateSelectorProps) => {
 
   return (
     <Combobox<DateSelectorOption>
-      open={props.open}
+      open={isOpen()}
       multiple={false}
       value={selectedOption()}
       options={options()}
@@ -256,6 +286,12 @@ export const DateSelector = (props: DateSelectorProps) => {
           <Combobox.Trigger
             class="flex group/date-selector-trigger"
             tabIndex={0}
+            onKeyDown={(e: KeyboardEvent) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                setInternalOpen(true);
+              }
+            }}
           >
             {typeof props.trigger === 'function'
               ? props.trigger({ selectedDate: selectedDate() })
@@ -264,7 +300,7 @@ export const DateSelector = (props: DateSelectorProps) => {
         </Combobox.Control>
       </Show>
 
-      <Combobox.Portal>
+      <DateSelectorPortalWrapper disabled={props.disablePortal}>
         <Combobox.Content
           class="w-full max-w-sm bg-dialog text-ink border border-edge-muted"
           on:keydown={handleKeyDown}
@@ -272,10 +308,11 @@ export const DateSelector = (props: DateSelectorProps) => {
           <WithCustomDateMode
             selectedDate={selectedDate()}
             disablePriorToDate={props.disablePriorToDate}
+            disableAfterDate={props.disableAfterDate}
             mode={mode()}
             onSelectDate={(date) => {
               onChange({ type: 'custom', date });
-              setMode('search');
+              setInternalOpen(false);
             }}
           >
             <div class="flex w-full items-center py-1 gap-2 px-2 border-b border-edge-muted">
@@ -339,7 +376,7 @@ export const DateSelector = (props: DateSelectorProps) => {
             </div>
           </WithCustomDateMode>
         </Combobox.Content>
-      </Combobox.Portal>
+      </DateSelectorPortalWrapper>
     </Combobox>
   );
 };
@@ -367,6 +404,7 @@ const CurrentValueDisplay = (props: CurrentValueDisplayProps) => {
           <span class="text-xs font-medium">{currentDateDisplay()}</span>
         </div>
         <button
+          onPointerDown={(e: PointerEvent) => e.preventDefault()}
           onClick={props.onClear}
           class="text-xs text-ink-muted hover:text-ink underline"
         >
@@ -382,6 +420,7 @@ interface WithCustomDateModeProps {
   mode: DateSelectorMode;
   onSelectDate: (date: Date) => void;
   disablePriorToDate?: Date;
+  disableAfterDate?: Date;
 }
 
 const WithCustomDateMode: FlowComponent<WithCustomDateModeProps> = (props) => {
@@ -390,8 +429,10 @@ const WithCustomDateMode: FlowComponent<WithCustomDateModeProps> = (props) => {
       <div class="border-b border-edge-muted text-sm flex justify-center">
         <DatePickerUI
           disablePriorToDate={props.disablePriorToDate}
+          disableAfterDate={props.disableAfterDate}
           value={props.selectedDate ?? new Date()}
           onChange={props.onSelectDate}
+          showTimePicker
         />
       </div>
     </Show>
@@ -420,12 +461,17 @@ const DateSelectorItem: Component<
     <Combobox.Item
       item={props.item}
       class={cn(
-        'flex flex-row w-full justify-between items-center gap-2 py-1.5 pr-2 pl-6 relative data-[highlighted]:bg-hover',
+        'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 relative data-[highlighted]:bg-hover',
         props.item.rawValue.type === 'select-custom' &&
-          'border-t border-edge-muted pl-2'
+          'border-t border-edge-muted'
       )}
+      onPointerDown={(e: PointerEvent) => {
+        // Prevent default to stop input blur on mobile, which would close the
+        // combobox before the selection click event fires.
+        e.preventDefault();
+      }}
     >
-      <Combobox.ItemIndicator class="absolute left-2 top-1/2 -translate-y-1/2 size-2 bg-accent aspect-square" />
+      <Combobox.ItemIndicator class="hidden" />
       <div class="flex items-center gap-2 flex-1 min-w-0">
         <Combobox.ItemLabel class="text-sm font-medium truncate">
           {label()}
