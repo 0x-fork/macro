@@ -33,8 +33,8 @@ const config: KnipConfig = {
     'biome',
   ],
 
-  // Ignore workspaces that are not real app code
-  ignoreWorkspaces: ['packages/loro-mirror'],
+  // Ignore workspaces that are not real app code or intentionally source-only packages
+  ignoreWorkspaces: ['packages/loro-mirror', 'packages/baby-gl'],
 
   // Workspace configurations
   workspaces: {
