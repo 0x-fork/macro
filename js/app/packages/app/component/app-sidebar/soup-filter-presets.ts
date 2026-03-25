@@ -43,9 +43,7 @@ export type PresetContext = {
   email: string | undefined;
 };
 
-type TabPresetResolver = (
-  ctx: PresetContext
-) => SoupFiltersPreset | undefined;
+type TabPresetResolver = (ctx: PresetContext) => SoupFiltersPreset | undefined;
 
 type TabConfig = Record<string, TabPresetResolver>;
 

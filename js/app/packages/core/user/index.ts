@@ -9,17 +9,10 @@ export {
 export { useContacts } from './contactService';
 export { useAugmentUserWithDmActivity } from './dmActivity';
 export {
-  type DisplayNameParts,
   seedMockDisplayNames,
   useDisplayName,
   useDisplayNameParts,
 } from './displayName';
-export {
-  emailToMacroId,
-  isMacroId,
-  type MacroId,
-  macroIdToEmail,
-  tryMacroId,
-} from './macroId';
+export { emailToMacroId, macroIdToEmail, tryMacroId } from './macroId';
 export type * from './types';
 export { emailToId, idToDisplayName, idToEmail } from './util';

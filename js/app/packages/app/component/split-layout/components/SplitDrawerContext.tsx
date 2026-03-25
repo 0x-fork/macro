@@ -19,7 +19,7 @@ interface ISplitDrawerContext {
   contentOffsetTop: Accessor<number>;
 }
 
-export const SplitDrawerContext = createContext<ISplitDrawerContext>();
+const SplitDrawerContext = createContext<ISplitDrawerContext>();
 
 export function SplitDrawerGroup(
   props: ParentProps<{

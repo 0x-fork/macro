@@ -8,13 +8,10 @@ import type { SplitContent } from '../component/split-layout/layoutManager';
 export const [globalSplitManager, setGlobalSplitManager] =
   createSignal<SplitManager>();
 
-/**
- * Tracks entities currently shown in preview panels across all Soup instances.
- * Keyed by the split ID of the Soup that owns the preview.
- */
-export const [globalPreviewEntities, setGlobalPreviewEntities] = createSignal<
+const [globalPreviewEntities, setGlobalPreviewEntities] = createSignal<
   Map<string, SplitContent>
 >(new Map());
+export { globalPreviewEntities };
 
 export function registerPreviewEntity(
   splitId: string,

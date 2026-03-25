@@ -14,7 +14,6 @@ export type Entity = {
   type: EntityType;
 };
 
-
 import type { NotifEvent } from '@service-notification/generated/schemas';
 export type NotificationType = NotifEvent['tag'];
 

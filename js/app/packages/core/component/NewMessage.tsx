@@ -107,7 +107,7 @@ function mentionToSimpleMention(mention: ItemMention): SimpleMention {
   };
 }
 
-export function NewMessage(props: NewMessageProps) {
+function NewMessage(props: NewMessageProps) {
   const { all: destinationOptions } = useCombinedRecipients();
   const [selectedOptions, setSelectedOptions] = createSignal<
     WithCustomUserInput<'user' | 'contact' | 'channel'>[]
@@ -266,9 +266,7 @@ export function NewMessage(props: NewMessageProps) {
   );
 }
 
-function useNewMessageModal(
-  props: Pick<NewMessageProps, 'title' | 'source'>
-) {
+function useNewMessageModal(props: Pick<NewMessageProps, 'title' | 'source'>) {
   const isOpenSignal = createSignal(false);
   return {
     Modal: () => {

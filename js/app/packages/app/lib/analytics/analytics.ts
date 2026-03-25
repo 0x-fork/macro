@@ -51,7 +51,7 @@ const tryInitialize = (callback: VoidFunction) => {
   }
 };
 
-export const createAnalytics = () => {
+const createAnalytics = () => {
   const posthog = new PostHog();
 
   const disabled = import.meta.env.DEV === true;

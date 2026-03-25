@@ -15,16 +15,6 @@ function FileLevelSpacer(props: { size: FileListSize }) {
   );
 }
 
-export function Caret(props: { isExpanded: boolean; size: FileListSize }) {
-  return (
-    <div
-      class={`expand-project-caret flex items-center justify-center ${FILE_LIST_CARET_WIDTH[props.size]} transition-transform duration-150 ${props.isExpanded ? 'rotate-90' : ''}`}
-    >
-      <CaretRight class={`w-3 h-3`} />
-    </div>
-  );
-}
-
 type ExplorerSpacerProps = {
   depth?: number;
   size?: FileListSize;

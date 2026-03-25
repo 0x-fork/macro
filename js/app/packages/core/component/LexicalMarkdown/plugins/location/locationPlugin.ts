@@ -135,9 +135,7 @@ function persistentLocationToSearchParams(location: PersistentLocation) {
  * @param location - The highlight location to serialize
  * @returns A string in the format `anchor=<id>::<offset>&focus=<id>::<offset>`
  */
-function getPersitentLocationString(
-  location: PersistentLocation
-): string {
+function getPersitentLocationString(location: PersistentLocation): string {
   return persistentLocationToSearchParams(location).toString();
 }
 

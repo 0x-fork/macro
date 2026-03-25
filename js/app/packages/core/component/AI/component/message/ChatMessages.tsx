@@ -25,7 +25,7 @@ import { idStream, timeStream } from '../../util/stream/extendedStream';
 import { AssistantMessage } from './AssistantMessage';
 import { UserMessage } from './UserMessage';
 
-export type MessageActions = {};
+type MessageActions = {};
 
 function OnMount(props: {
   onShow: (ref: HTMLDivElement) => void;

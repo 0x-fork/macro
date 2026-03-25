@@ -27,7 +27,7 @@ type Actor = keyof typeof ACTORS;
  * that behave similarly but have different access, consider breaking up or
  * consolidating the functionality first.
  */
-export type Access =
+type Access =
   | {
       /** access is solely denied to actors specified */
       exclude?: Actor[];
@@ -310,7 +310,7 @@ export const fetchErrorsSvc = new Svc('Common fetch errors')
 
 export type FetchError = keyof typeof fetchErrorsSvc.state.errors;
 
-export const fetchErrors = Object.keys(fetchErrorsSvc.state.errors) as Array<
+const fetchErrors = Object.keys(fetchErrorsSvc.state.errors) as Array<
   keyof typeof fetchErrorsSvc.state.errors
 >;
 

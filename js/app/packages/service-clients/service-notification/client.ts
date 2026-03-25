@@ -33,22 +33,15 @@ type IncomingNotification = {
 type WithEventItemId = { event_item_id: string };
 type WithItem = { item_id: string; item_type: string };
 
-export type UnifiedNotification = Omit<ApiUserNotification, 'ownerId'> & {
-  senderId?: string | null;
-  // whether the notification is incoming on the websocket and needs processing
-  // as opposed to coming from the database or an already processed notification
-  new?: boolean;
-};
-
-export function notificationFetch(
+function notificationFetch(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeError<FetchWithTokenErrorCode>>;
-export function notificationFetch<T extends ObjectLike>(
+function notificationFetch<T extends ObjectLike>(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
-export function notificationFetch<T extends ObjectLike = never>(
+function notificationFetch<T extends ObjectLike = never>(
   url: string,
   init?: SafeFetchInit
 ):
@@ -56,11 +49,10 @@ export function notificationFetch<T extends ObjectLike = never>(
   | Promise<MaybeError<FetchWithTokenErrorCode>> {
   return fetchWithToken<T>(`${notificationHost}${url}`, init);
 }
-export type Success = { success: boolean };
 
 // message id is set by the notification service
-export type ChannelMentionMetadata = z.infer<typeof channelMentionMetadata>;
-export const channelMentionMetadata = z.object({
+
+const channelMentionMetadata = z.object({
   message_id: z.string(),
 });
 

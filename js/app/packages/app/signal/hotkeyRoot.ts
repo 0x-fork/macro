@@ -5,8 +5,9 @@ import type {
 } from '@core/hotkey/types';
 import { createSignal, onCleanup, onMount } from 'solid-js';
 
-export const [hotkeyRoot, setHotkeyRoot] =
+const [hotkeyRoot, setHotkeyRoot] =
   createSignal<ReturnType<typeof useHotKeyRoot>>();
+export { setHotkeyRoot };
 
 /**
  * Subscribe to keypress events. Automatically cleans up on unmount.

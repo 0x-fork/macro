@@ -24,10 +24,3 @@ export const PROPERTY_STYLES = {
     base: 'w-4 h-4 border flex items-center justify-center',
   },
 } as const;
-
-/**
- * Utility to combine class names, filtering out falsy values
- */
-export function cx(...classes: (string | false | undefined | null)[]): string {
-  return classes.filter(Boolean).join(' ');
-}

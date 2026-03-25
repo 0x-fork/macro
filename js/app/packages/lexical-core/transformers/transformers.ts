@@ -80,26 +80,25 @@ export const PRESERVE_LINES: ConversionOnlyTransformer<ElementTransformer> = {
 };
 
 // Strip br tags from external markdown.
-const BR_TAG_TO_SPACE: ConversionOnlyTransformer<TextMatchTransformer> =
-  {
-    dependencies: [],
-    export: () => {
-      return null;
-    },
-    importRegExp: /<br\s*\/?>/i,
-    regExp: /<br\s*\/?>/i,
-    replace: (textNode, _) => {
-      const fullText = textNode.getTextContent();
-      const replacement = ' ';
-      const newText = fullText.replace(/<br\s*\/?>/gi, replacement);
-      if (newText !== fullText) {
-        textNode.setTextContent(newText);
-      }
-      return textNode;
-    },
-    type: 'text-match',
-    conversionOnly: true,
-  };
+const BR_TAG_TO_SPACE: ConversionOnlyTransformer<TextMatchTransformer> = {
+  dependencies: [],
+  export: () => {
+    return null;
+  },
+  importRegExp: /<br\s*\/?>/i,
+  regExp: /<br\s*\/?>/i,
+  replace: (textNode, _) => {
+    const fullText = textNode.getTextContent();
+    const replacement = ' ';
+    const newText = fullText.replace(/<br\s*\/?>/gi, replacement);
+    if (newText !== fullText) {
+      textNode.setTextContent(newText);
+    }
+    return textNode;
+  },
+  type: 'text-match',
+  conversionOnly: true,
+};
 
 export const BR_TAG_TO_LINE_BREAK: ConversionOnlyTransformer<TextMatchTransformer> =
   {
@@ -134,30 +133,15 @@ function createEntityToUnicodeTransformer(
   };
 }
 
-const AMP_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
-  '&amp;',
-  '&'
-);
+const AMP_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer('&amp;', '&');
 const NBSP_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
   '&nbsp;',
   '\u00A0'
 );
-const LT_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
-  '&lt;',
-  '<'
-);
-const GT_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
-  '&gt;',
-  '>'
-);
-const COPY_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
-  '&copy;',
-  '©'
-);
-const REG_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
-  '&reg;',
-  '®'
-);
+const LT_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer('&lt;', '<');
+const GT_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer('&gt;', '>');
+const COPY_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer('&copy;', '©');
+const REG_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer('&reg;', '®');
 const TRADE_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
   '&trade;',
   '™'

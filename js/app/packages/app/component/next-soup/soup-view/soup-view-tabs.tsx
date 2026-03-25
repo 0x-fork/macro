@@ -201,7 +201,7 @@ export const CollapsedSoupViewTabs = () => {
   );
 };
 
-export const SegmentedControl: ParentComponent<
+const SegmentedControl: ParentComponent<
   {
     list: { value: string; label: string }[];
     value?: string;

@@ -97,10 +97,7 @@ function invalidateProjectPreview(projectId: string) {
 /**
  * Set project preview data directly in cache
  */
-function setProjectPreviewData(
-  projectId: string,
-  data: ProjectPreviewData
-) {
+function setProjectPreviewData(projectId: string, data: ProjectPreviewData) {
   return queryClient.setQueryData<ProjectPreviewData>(
     projectsKeys.preview(projectId).queryKey,
     data

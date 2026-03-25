@@ -14,7 +14,7 @@ import { err, okAsync, ResultAsync } from 'neverthrow';
 import { createMemo, createSignal } from 'solid-js';
 import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 
-export const [emailRefetchInterval, setEmailRefetchInterval] = createSignal<
+const [emailRefetchInterval, setEmailRefetchInterval] = createSignal<
   number | undefined
 >();
 

@@ -13,7 +13,7 @@ import {
 import { MarkdownEditorErrors } from '../../constants';
 import { MARKDOWN_VERSION_COUNTER, STAGING_TAG } from '../../version';
 
-export type DocumentMetadata = {
+type DocumentMetadata = {
   version: number;
   environmentTags?: string[];
 };
@@ -51,9 +51,7 @@ export function $getDocumentMetadata(): DocumentMetadata {
   return $getState(root, documentMetadataState);
 }
 
-function $setDocumentMetadata(
-  metadata: Partial<DocumentMetadata>
-): void {
+function $setDocumentMetadata(metadata: Partial<DocumentMetadata>): void {
   const root = $getRoot();
   const currentMetadata = $getState(root, documentMetadataState);
   const newMetadata = { ...currentMetadata, ...metadata };

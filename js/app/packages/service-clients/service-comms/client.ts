@@ -47,22 +47,21 @@ import type { ApiThreadReply } from '@service-storage/generated/schemas';
 
 export type { ApiChannelMessage } from '@service-storage/generated/schemas/apiChannelMessage';
 export type { ApiChannelMessagesPage as ChannelMessagesPage } from '@service-storage/generated/schemas/apiChannelMessagesPage';
-export type { ApiChannelAttachment } from '@service-storage/generated/schemas/apiChannelAttachment';
 
 export type { ApiChannelParticipant } from '@service-storage/generated/schemas/apiChannelParticipant';
 export type { ApiThreadReply } from '@service-storage/generated/schemas/apiThreadReply';
 
 const commsHost: string = SERVER_HOSTS['document-storage-service'];
 
-export function commsFetch(
+function commsFetch(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeError<FetchWithTokenErrorCode>>;
-export function commsFetch<T extends ObjectLike>(
+function commsFetch<T extends ObjectLike>(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
-export function commsFetch<T extends ObjectLike = never>(
+function commsFetch<T extends ObjectLike = never>(
   url: string,
   init?: SafeFetchInit
 ):
@@ -71,9 +70,8 @@ export function commsFetch<T extends ObjectLike = never>(
   return fetchWithToken<T>(`${commsHost}${url}`, init);
 }
 
-export type EmptyResponse = {};
 export type IdResponse = { id: string };
-export type Success = { success: boolean };
+
 export type MessageResponse = { message: string };
 
 type WithChannelId = { channel_id: string };

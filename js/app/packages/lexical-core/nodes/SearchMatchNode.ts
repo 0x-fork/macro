@@ -1,5 +1,9 @@
 import { MarkNode, type SerializedMarkNode } from '@lexical/mark';
-import { $applyNodeReplacement, type EditorConfig } from 'lexical';
+import {
+  $applyNodeReplacement,
+  type EditorConfig,
+  type LexicalNode,
+} from 'lexical';
 import { $applyIdFromSerialized } from '../plugins/nodeIdPlugin';
 import { $applyPeerIdFromSerialized } from '../plugins/peerIdPlugin';
 
@@ -11,7 +15,7 @@ export function $createSearchMatchNode(
   return $applyNodeReplacement(new SearchMatchNode(ids));
 }
 
-export function $isSearchMatchNode(node: any): node is SearchMatchNode {
+export function $isSearchMatchNode(node: LexicalNode) {
   return node instanceof SearchMatchNode;
 }
 

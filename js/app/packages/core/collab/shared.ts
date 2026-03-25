@@ -10,5 +10,3 @@ export type LoroRawUpdate = Uint8Array;
 export type GenericRootSchema = RootSchemaType<
   Record<string, ContainerSchemaType>
 >;
-
-export type Subscription = () => void;

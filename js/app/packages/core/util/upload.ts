@@ -270,7 +270,7 @@ class UnsupportedFileTypeError extends Error {
   }
 }
 
-export class UploadError extends Error {
+class UploadError extends Error {
   constructor(
     file: File,
     destination?: UploadDestination,

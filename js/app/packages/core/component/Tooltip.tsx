@@ -162,26 +162,3 @@ export function LabelAndHotKey(props: LabelAndHotKeyProps) {
     </div>
   );
 }
-
-export function TooltipWrapper(props: {
-  tooltip?: LabelAndHotKeyProps;
-  children: JSX.Element;
-}) {
-  if (props.tooltip) {
-    return (
-      <Tooltip
-        tooltip={
-          <div class="flex flex-col">
-            <LabelAndHotKey
-              label={props.tooltip.label}
-              hotkeyToken={props.tooltip.hotkeyToken}
-            />
-          </div>
-        }
-      >
-        {props.children}
-      </Tooltip>
-    );
-  }
-  return props.children;
-}

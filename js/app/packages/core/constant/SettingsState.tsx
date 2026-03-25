@@ -17,10 +17,9 @@ export type SettingsTab =
   | 'Inbox'
   | 'Shortcuts';
 
-export const settingsOpen = isSettingsPanelOpen;
+const settingsOpen = isSettingsPanelOpen;
 const setSettingsOpen = setIsSettingsPanelOpen;
-export const [activeTabId, setActiveTabId] =
-  createSignal<SettingsTab>('Appearance');
+const [activeTabId, setActiveTabId] = createSignal<SettingsTab>('Appearance');
 
 export const useSettingsState = () => {
   const { replaceSplit } = useSplitLayout();

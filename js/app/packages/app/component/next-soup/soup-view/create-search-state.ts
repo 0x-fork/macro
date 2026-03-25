@@ -226,5 +226,3 @@ export const createSearchState = ({
     isLocalSearchSettling,
   };
 };
-
-export type SearchState = ReturnType<typeof createSearchState>;

@@ -205,5 +205,5 @@ export function useCommandItems(
   return filteredItems;
 }
 
-export { isEntityItem, isUserItem, isCommandItem };
-export type { QuickAccessItem, CommandMenuItem, CommandItem, Bucket };
+export { isEntityItem, isCommandItem };
+export type { CommandMenuItem };

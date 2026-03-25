@@ -257,19 +257,11 @@ export function isCanceled(entity: EntityData): boolean {
   return hasStatus(entity, PROPERTY_OPTION_IDS.STATUS.CANCELED);
 }
 
-export function isClosed(entity: EntityData): boolean {
+function isClosed(entity: EntityData): boolean {
   return isCompleted(entity) || isCanceled(entity);
 }
 
-export function isOpen(entity: EntityData): boolean {
-  if (!isTaskEntity(entity)) return false;
-  return !isClosed(entity);
-}
-
-export function hasPriority(
-  entity: EntityData,
-  priorityOptionId: string
-): boolean {
+function hasPriority(entity: EntityData, priorityOptionId: string): boolean {
   if (!isTaskEntity(entity)) return false;
 
   return getTaskPriorityOptionId(entity) === priorityOptionId;

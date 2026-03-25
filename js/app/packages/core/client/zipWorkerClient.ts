@@ -118,7 +118,7 @@ interface ZipErrorData {
   message: string;
 }
 
-export interface WorkerMessage {
+interface WorkerMessage {
   taskId: string;
   type: 'progress' | 'complete' | 'error' | 'status';
   data: ZipProgressData | ZipCompleteData | ZipErrorData;
@@ -128,7 +128,7 @@ export interface FileDetail {
   path: string;
 }
 
-export interface Task {
+interface Task {
   id: string;
   message: ZipTaskMessage;
   onProgress?: (data: ZipProgressData) => void;

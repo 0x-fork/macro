@@ -114,7 +114,7 @@ export function dssFetch<T extends Record<string, any> = never>(
   return fetchWithToken<T>(`${dssHost}${url}`, init);
 }
 
-export type Success = {
+type Success = {
   id: string | null | undefined;
   success: boolean;
 };

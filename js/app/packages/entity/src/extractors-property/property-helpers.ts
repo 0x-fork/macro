@@ -17,7 +17,7 @@ const EPOCH_ZERO = new Date(0);
 /**
  * Sort order for key properties (status, priority, assignees)
  */
-export const PROPERTY_SORT_ORDER = [
+const PROPERTY_SORT_ORDER = [
   SYSTEM_PROPERTY_IDS.STATUS,
   SYSTEM_PROPERTY_IDS.PRIORITY,
   SYSTEM_PROPERTY_IDS.ASSIGNEES,
@@ -262,18 +262,9 @@ export function soupPropertyToProperty(soupProperty: SoupProperty): Property {
 }
 
 /**
- * Convert array of SoupProperty to Property array
- */
-export function soupPropertiesToProperties(
-  soupProperties: SoupProperty[]
-): Property[] {
-  return soupProperties.map(soupPropertyToProperty);
-}
-
-/**
  * Sort properties by the defined sort order (status, priority, assignees first)
  */
-export function sortProperties(properties: Property[]): Property[] {
+function sortProperties(properties: Property[]): Property[] {
   return [...properties].sort((a, b) => {
     const aIndex = PROPERTY_SORT_ORDER.indexOf(
       a.propertyDefinitionId as (typeof PROPERTY_SORT_ORDER)[number]
@@ -298,7 +289,7 @@ export function sortProperties(properties: Property[]): Property[] {
 /**
  * Filter properties to only include key properties (status, priority, assignees)
  */
-export function filterKeyProperties(properties: Property[]): Property[] {
+function filterKeyProperties(properties: Property[]): Property[] {
   return properties.filter((prop) =>
     PROPERTY_SORT_ORDER.includes(
       prop.propertyDefinitionId as (typeof PROPERTY_SORT_ORDER)[number]

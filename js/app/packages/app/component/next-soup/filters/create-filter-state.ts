@@ -15,7 +15,7 @@ export type FilterGroupConfig = {
 
 type FilterIdInput<TId extends string> = TId | (string & {});
 
-export type SetFiltersInput<
+type SetFiltersInput<
   TFilter extends FilterConfig<unknown>,
   TId extends string = TFilter['id'],
 > = {
@@ -25,7 +25,7 @@ export type SetFiltersInput<
   readonly or?: readonly (TFilter | FilterIdInput<TId>)[];
 };
 
-export type CurrentFilterState<TId extends string> = {
+type CurrentFilterState<TId extends string> = {
   readonly andIds: readonly TId[];
   readonly orIds: readonly TId[];
 };
@@ -33,7 +33,7 @@ export type CurrentFilterState<TId extends string> = {
 /**
  * Callback function for updating filters based on current state.
  */
-export type SetFiltersCallback<
+type SetFiltersCallback<
   TFilter extends FilterConfig<unknown>,
   TId extends string,
 > = (current: CurrentFilterState<TId>) => SetFiltersInput<TFilter, TId>;
@@ -44,7 +44,7 @@ type ActiveFiltersState<TFilter> = {
   readonly orFilters: readonly TFilter[];
 };
 
-export type FilterStateOptions<T, TFilter extends FilterConfig<T, string>> = {
+type FilterStateOptions<T, TFilter extends FilterConfig<T, string>> = {
   /** All available filter configurations */
   readonly filters: readonly TFilter[];
   /** Filter group configurations for controlling mutual exclusivity */
@@ -53,7 +53,7 @@ export type FilterStateOptions<T, TFilter extends FilterConfig<T, string>> = {
   readonly initialFilters?: readonly string[];
 };
 
-export type FilterState<
+type FilterState<
   T,
   TFilter extends FilterConfig<T, string>,
   TId extends string = TFilter['id'],

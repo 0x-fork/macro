@@ -24,11 +24,7 @@ const [globalAttachableHistory, setGlobalAttachableHistory] = createSignal<
 
 const [globalAttachmentsReady, setGlobalAttachmentsReady] = createSignal(false);
 
-export {
-  globalTabAttachments,
-  globalAttachableHistory,
-  globalAttachmentsReady,
-};
+export { globalTabAttachments, globalAttachableHistory };
 
 // ---- Init component (mount once at app root) ----
 

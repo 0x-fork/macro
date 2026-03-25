@@ -6,7 +6,6 @@ import { createEffect } from 'solid-js';
 
 export { mockMessages } from '@core/component/AI/util/mockMessage';
 export * from '@core/component/AI/util/stream';
-export { limitStream } from '@core/component/AI/util/stream';
 
 const TABLE = `Here's a comparison table:
 
@@ -64,19 +63,6 @@ export function table() {
       text: TABLE,
     },
   ]);
-}
-
-export function test() {
-  const stream = poem();
-  createEffect(() => {
-    const data = stream.data();
-    const latest = data.at(-1);
-    console.log(JSON.stringify(latest, null, 2));
-  });
-
-  createEffect(() => {
-    if (stream.isDone()) console.log('Stream Done');
-  });
 }
 
 export function simpleMessageChain(): ChatMessageWithAttachments[] {

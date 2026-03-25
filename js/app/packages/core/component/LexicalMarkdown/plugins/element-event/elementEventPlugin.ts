@@ -38,30 +38,3 @@ function registerElementEventPlugin<T extends LexicalNode, E extends Event>(
     }
   });
 }
-
-/**
- * A plugin that can attach event listeners to specific nodes in the editor.
- * The event listener will be called with the node that matches the guard.
- * @param props the props for the plugin.
- * @param props.eventName the name of the event to listen for.
- * @param props.guard a function that takes a node and returns true if the even
- *     should be called with the node.
- * @param props.callback a function that is called with the event and the node
- *     that matches the guard.
- * @returns a plugin that can attach event listeners to specific nodes in the editor.
- * @example
- * const imageClickPlugin = elementEventPlugin<ImageNode, MouseEvent>({
- *   eventName: 'click',
- *   guard: (node) => node instanceof ImageNode,
- *   callback: (event, node, key) => {
- *     console.log('Image clicked:', node.gerUrl(), key);
- *   },
- * });
- *
- * plugins.use(linkClickPlugin);
- */
-export function elementEventPlugin<T extends LexicalNode, E extends Event>(
-  props: ElementEventProps<T, E>
-) {
-  return (editor: LexicalEditor) => registerElementEventPlugin(editor, props);
-}

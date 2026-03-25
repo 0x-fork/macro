@@ -137,9 +137,7 @@ function isSerializedParagraphNode(
   return node.type === 'paragraph';
 }
 
-function stateHasOnlyEmptyParagraphs(
-  state: SerializedEditorState
-): boolean {
+function stateHasOnlyEmptyParagraphs(state: SerializedEditorState): boolean {
   const { root } = state;
   if (!root || !root.children) return true;
 
@@ -559,10 +557,7 @@ export function nodeByKey(editor: LexicalEditor | EditorState, key: NodeKey) {
   return editor.read(() => $getNodeByKey(key));
 }
 
-function nodeTextByKey(
-  editor: LexicalEditor | EditorState,
-  key: NodeKey
-) {
+function nodeTextByKey(editor: LexicalEditor | EditorState, key: NodeKey) {
   return editor.read(() => $getNodeByKey(key)?.getTextContent());
 }
 
@@ -596,45 +591,6 @@ export function editorFocusSignal(
 
 export const isEmptyOrMatches = (str: string, regex: RegExp) =>
   str === '' || regex.test(str);
-export const isEmptyOrEndsWithSpace = (str: string) =>
-  isEmptyOrMatches(str, /\s$/);
-export const isEmptyOrStartsWithSpace = (str: string) =>
-  isEmptyOrMatches(str, /^\s/);
-
-/**
- * This is an internal lexical function that is not exported.
- */
-export default function caretFromPoint(
-  x: number,
-  y: number
-): null | {
-  offset: number;
-  node: Node;
-} {
-  if (typeof document.caretRangeFromPoint !== 'undefined') {
-    const range = document.caretRangeFromPoint(x, y);
-    if (range === null) {
-      return null;
-    }
-    return {
-      node: range.startContainer,
-      offset: range.startOffset,
-    };
-    // @ts-ignore
-  } else if (document.caretPositionFromPoint !== 'undefined') {
-    // @ts-ignore FF - no types
-    const range = document.caretPositionFromPoint(x, y);
-    if (range === null) {
-      return null;
-    }
-    return {
-      node: range.offsetNode,
-      offset: range.offset,
-    };
-  } else {
-    return null;
-  }
-}
 
 export function $insertWrappedBefore(
   key: NodeKey,
@@ -663,10 +619,7 @@ export function $insertWrappedAfter(
  * Moving from this to the cleanState functionality as the bottom of this file.
  * This will work pre-stringification both for current save and coming LORO.
  */
-function stringifyEditorState(
-  editor: LexicalEditor,
-  filters?: string[]
-) {
+function stringifyEditorState(editor: LexicalEditor, filters?: string[]) {
   if (!filters) return JSON.stringify(editor.getEditorState().toJSON());
 
   const filter = (key: string, value: any) => {
@@ -760,9 +713,7 @@ function transformSerializedEditorState(
  * Transform a serialized editor state into one that is safe to the LORO sync plugin.
  * NOTE: this is no longer true for loro. but is being used for legacy DSS save.
  */
-function cleanState(
-  state: SerializedEditorState
-): SerializedEditorState {
+function cleanState(state: SerializedEditorState): SerializedEditorState {
   return transformSerializedEditorState(state, [
     // custom code nodes must have no children.
     (node) => {

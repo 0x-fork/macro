@@ -17,15 +17,15 @@ const searchServiceHost = `${SERVER_HOSTS['document-storage-service']}`;
 import type { UnifiedSearchRequest } from './generated/models/unifiedSearchRequest';
 import type { UnifiedSearchResponse } from './generated/models/unifiedSearchResponse';
 
-export function searchServiceFetch(
+function searchServiceFetch(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeError<FetchWithTokenErrorCode>>;
-export function searchServiceFetch<T extends ObjectLike>(
+function searchServiceFetch<T extends ObjectLike>(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
-export function searchServiceFetch<T extends ObjectLike = never>(
+function searchServiceFetch<T extends ObjectLike = never>(
   url: string,
   init?: SafeFetchInit
 ):

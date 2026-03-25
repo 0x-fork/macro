@@ -7,8 +7,6 @@ import {
 } from './macroId';
 import type { IUser } from './types';
 
-export { emailToMacroId, macroIdToEmail, tryMacroId, type MacroId };
-
 // TODO: consolidate idToEmail, see idToEmail in email.ts
 /**
  * Converts a user id to an email address.

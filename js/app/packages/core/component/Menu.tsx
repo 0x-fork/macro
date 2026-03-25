@@ -123,7 +123,7 @@ type GenericMenuItemProps = BaseMenuItemProps & {
   value?: undefined;
 };
 
-export type MenuItemProps =
+type MenuItemProps =
   | GenericMenuItemProps
   | CheckboxMenuItemProps
   | RadioMenuItemProps;
@@ -276,7 +276,7 @@ function MenuGroup(props: { children: JSX.Element; class?: string }) {
   );
 }
 
-export function GroupLabel(props: { children: JSX.Element }) {
+function GroupLabel(props: { children: JSX.Element }) {
   return (
     <ContextMenu.GroupLabel
       class={`${MENU_ITEM_CLASS} text-xs! text-ink-extra-muted`}

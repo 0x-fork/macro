@@ -30,15 +30,13 @@ function resolveEmojiTerms(emoji: string): string[] {
   return EmojiLib[emoji] ?? [];
 }
 
-const ORDERED_EMOJI_DATA: SimpleEmoji[] = OrderedEmojiData.map(
-  (emoji) => {
-    return {
-      emoji: emoji,
-      slug: resolveEmojiSlug(emoji) ?? emoji,
-      terms: resolveEmojiTerms(emoji),
-    };
-  }
-);
+const ORDERED_EMOJI_DATA: SimpleEmoji[] = OrderedEmojiData.map((emoji) => {
+  return {
+    emoji: emoji,
+    slug: resolveEmojiSlug(emoji) ?? emoji,
+    terms: resolveEmojiTerms(emoji),
+  };
+});
 
 const EMOJI_DATA_GROUPED = GroupedEmojiData.map((group) => {
   return {

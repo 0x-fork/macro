@@ -43,7 +43,7 @@ const AUTH_URLS = [
   `${ROUTER_BASE_CONCAT}welcome`,
 ];
 
-export const [sidebarState, setSidebarState] = makePersisted(
+const [sidebarState, setSidebarState] = makePersisted(
   createSignal<SidebarState>(!isMobile() ? 'expanded' : 'hidden'),
   {
     name: 'sidebar-state',

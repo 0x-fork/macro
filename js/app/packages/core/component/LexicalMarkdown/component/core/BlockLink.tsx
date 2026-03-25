@@ -20,7 +20,7 @@ function isBlockNameWithLocation(name: string): name is BlockNameWithLocations {
   return blockNamesWithLocations.includes(name as BlockNameWithLocations);
 }
 
-export async function openLocation<T extends BlockNameWithLocations>(
+async function openLocation<T extends BlockNameWithLocations>(
   _blockName: T,
   id: string,
   params?: Record<string, string>

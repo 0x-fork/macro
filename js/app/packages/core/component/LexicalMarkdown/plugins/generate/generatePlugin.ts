@@ -31,13 +31,6 @@ import { createEffect, createSignal, on, type Setter } from 'solid-js';
 import { theme } from '../../theme';
 import { $traverseNodes, setEditorStateFromMarkdown } from '../../utils';
 
-export {
-  $createCompletionNode,
-  $isCompletionNode,
-  COMPLETION_NODE_TYPE,
-  CompletionNode,
-} from '@lexical-core';
-
 import type { createBlockSignal } from '@core/block';
 import type { SetStoreFunction } from 'solid-js/store';
 import { GenerateAccessory } from '../../component/accessory/GenerateAccessory';
@@ -60,9 +53,7 @@ export type Completion = {
 };
 
 // ai generated content
-type CompletionSignal = ReturnType<
-  typeof createSignal<Completion | undefined>
->;
+type CompletionSignal = ReturnType<typeof createSignal<Completion | undefined>>;
 // where is this open
 export type GenerateMenuOpen = ReturnType<
   typeof createSignal<boolean | undefined>

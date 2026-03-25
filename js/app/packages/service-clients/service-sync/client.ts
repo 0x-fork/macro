@@ -44,15 +44,15 @@ const cancelIdleTask =
     : (id: number) =>
         window.clearTimeout(id as unknown as ReturnType<typeof setTimeout>);
 
-export function syncFetch(
+function syncFetch(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeError<FetchWithTokenErrorCode>>;
-export function syncFetch<T extends ObjectLike>(
+function syncFetch<T extends ObjectLike>(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
-export function syncFetch<T extends ObjectLike = never>(
+function syncFetch<T extends ObjectLike = never>(
   url: string,
   init?: SafeFetchInit
 ):

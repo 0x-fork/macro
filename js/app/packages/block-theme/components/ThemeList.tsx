@@ -4,7 +4,7 @@ import { applyTheme } from '../utils/themeUtils';
 import { ColorSwatch } from './ColorSwatch';
 import { useAnalytics } from 'app/component/analytics-context';
 
-export function ThemeList() {
+function ThemeList() {
   const analytics = useAnalytics()
 
   return (

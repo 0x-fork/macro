@@ -8,10 +8,11 @@ export const [isThemeSaved, setIsThemeSaved] = createSignal<boolean>(true);
 
 export const [themeUpdate, setThemeUpdate] = createSignal<undefined>(undefined, {equals: () => false});
 
-export const [htmlColor, setHtmlColor] = makePersisted(
+const [, setHtmlColor] = makePersisted(
   createSignal({ color: '' }),
   {name: 'html-color-theme'}
 );
+export { setHtmlColor };
 
 export const [userThemes, setUserThemes] = makePersisted(
   createSignal<ThemeV1[]>([]),
@@ -29,10 +30,11 @@ let convertedDefaultThemes = DEFAULT_THEMES.map((theme) => {
   else{return theme}
 });
 
-export const [currentThemeId, setCurrentThemeId_] = makePersisted(
+const [currentThemeId, setCurrentThemeId_] = makePersisted(
   createSignal<string>(DEFAULT_DARK_THEME),
   {name: 'macro-selected-theme'}
 );
+export { currentThemeId };
 
 // If theme should match system, when we set current theme, we also set the corresponding mode's theme
 // This avoids the issue where a user sets a theme, and then refreshes, and gets reverted to their preferred mode's theme.
@@ -60,9 +62,10 @@ export const [themeShouldMatchSystem, setThemeShouldMatchSystem] = makePersisted
   {name: 'macro-theme-should-match-system'}
 );
 
-export const [systemMode, setSystemMode] = createSignal<'dark' | 'light'>(
+const [systemMode, setSystemMode] = createSignal<'dark' | 'light'>(
   window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 );
+export { systemMode };
 
 const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 darkModeQuery.addEventListener('change', (e: MediaQueryListEvent) => {
@@ -74,18 +77,18 @@ export const [monochromeIcons, setMonochromeIcons] = makePersisted(
   {name: 'enable-monochrome-icons'}
 );
 
-
-export const [beveledCorners, setBeveledCorners] = makePersisted(
+const [beveledCorners] = makePersisted(
   createSignal<boolean>(BEVELED_CORNERS),
   {name: 'macro-beveled-corners'}
 );
+export { beveledCorners };
 
-export const [blackBezels, setBlackBezels] = makePersisted(
+const [blackBezels] = makePersisted(
   createSignal<boolean>(BLACK_BEZELS),
   {name: 'macro-beveled-corners'}
 );
 
-export const [gutterSize, setGutterSize] = makePersisted(
+const [gutterSize] = makePersisted(
   createSignal<number>(8),
   {name: 'macro-gutter-size'}
 );

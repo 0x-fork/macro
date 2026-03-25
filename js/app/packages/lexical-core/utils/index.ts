@@ -20,12 +20,6 @@ export function $isSerializedNode(
 export const isEmptyOrMatches = (str: string, regex: RegExp) =>
   str === '' || regex.test(str);
 
-export const isEmptyOrEndsWithSpace = (str: string) =>
-  isEmptyOrMatches(str, /\s$/);
-
-export const isEmptyOrStartsWithSpace = (str: string) =>
-  isEmptyOrMatches(str, /^\s/);
-
 export function $isChildOfCode(node: LexicalNode) {
   const parent = $findMatchingParent(node, (node) => {
     // TODO!! : seamus - add custom code node check.

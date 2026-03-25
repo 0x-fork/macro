@@ -121,8 +121,6 @@ async function getAccessToken(): Promise<string | null> {
   return accessToken;
 }
 
-export type { GetLegacyUserPermissionsResponse, UserOrganizationResponse };
-
 export const authServiceClient = {
   async logout() {
     setAccessTokenData(null);

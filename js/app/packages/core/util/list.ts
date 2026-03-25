@@ -28,11 +28,3 @@ export async function filterMapAsync<T, U>(
 
   return results;
 }
-
-export function intersection<T>(
-  a: T[],
-  b: T[],
-  equal: (a: T, b: T) => boolean
-): T[] {
-  return a.filter((item) => b.some((other) => equal(item, other)));
-}

@@ -3,16 +3,16 @@ import type { PolymorphicProps } from '@kobalte/core/polymorphic';
 import { cn } from '@ui/utils/classname';
 import { type ParentProps, splitProps, type ValidComponent } from 'solid-js';
 
-export type ButtonVariant =
+type ButtonVariant =
   | 'primary'
   | 'secondary'
   | 'tertiary'
   | 'destructive'
   | 'ghost'
   | 'link';
-export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon-sm' | 'icon-md' | 'icon-lg';
+type ButtonSize = 'sm' | 'md' | 'lg' | 'icon-sm' | 'icon-md' | 'icon-lg';
 
-export type ButtonProps<T extends ValidComponent = 'button'> = ParentProps<
+type ButtonProps<T extends ValidComponent = 'button'> = ParentProps<
   PolymorphicProps<T, ButtonRootProps<T>> & {
     variant?: ButtonVariant;
     size?: ButtonSize;

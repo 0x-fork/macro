@@ -140,17 +140,11 @@ export const isChannelEntity = (
   return entity.type === 'channel';
 };
 
-export const isChatEntity = (entity: EntityData): entity is ChatEntity => {
-  return entity.type === 'chat';
-};
-
 export const isEmailEntity = (entity: EntityData): entity is EmailEntity => {
   return entity.type === 'email';
 };
 
-const isProjectEntity = (
-  entity: EntityData
-): entity is ProjectEntity => {
+const isProjectEntity = (entity: EntityData): entity is ProjectEntity => {
   return entity.type === 'project';
 };
 
@@ -160,17 +154,13 @@ export const isDocumentEntity = (
   return entity.type === 'document';
 };
 
-const isMarkdownEntity = (
-  entity: EntityData
-): entity is MarkdownEntity => {
+const isMarkdownEntity = (entity: EntityData): entity is MarkdownEntity => {
   return (
     entity.type === 'document' && entity.fileType === 'md' && !entity.subType
   );
 };
 
-const isPureDocumentEntity = (
-  entity: EntityData
-): entity is DocumentEntity => {
+const isPureDocumentEntity = (entity: EntityData): entity is DocumentEntity => {
   return entity.type === 'document' && entity.subType?.type !== 'task';
 };
 
@@ -185,8 +175,6 @@ export type EntityWithProperties<T extends EntityData> = T & {
 export type TaskEntityWithProperties = EntityWithProperties<TaskEntity>;
 
 type EntityOf<K extends EntityType> = Extract<EntityData, { type: K }>;
-
-export type EntityMapper<T extends EntityData> = (entity: EntityData) => T;
 
 type EntityEnhancer<T extends EntityData> = (
   entity: EntityData,

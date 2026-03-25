@@ -19,15 +19,15 @@ import { Suspense } from 'solid-js';
 import { createContextProvider } from '@solid-primitives/context';
 import { throttledDependent } from '@core/util/debounce';
 
-export const [PreviewPanelContext, useMaybePreviewPanel] =
-  createContextProvider(
-    (props: { previewEntity: EntityData; onFocusOut?: VoidFunction }) => {
-      return {
-        previewEntity: () => props.previewEntity,
-        onFocusOut: () => props.onFocusOut?.(),
-      };
-    }
-  );
+const [PreviewPanelContext, useMaybePreviewPanel] = createContextProvider(
+  (props: { previewEntity: EntityData; onFocusOut?: VoidFunction }) => {
+    return {
+      previewEntity: () => props.previewEntity,
+      onFocusOut: () => props.onFocusOut?.(),
+    };
+  }
+);
+export { useMaybePreviewPanel };
 
 type PreviewPanel = {
   selectedEntity: EntityData | undefined;

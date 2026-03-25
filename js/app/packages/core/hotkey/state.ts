@@ -20,8 +20,8 @@ const initialTree = new Map<string, ScopeNode>([
 
 export const hotkeyScopeTree = initialTree;
 
-export const [activeScope, setActiveScopeInner] =
-  createSignal<string>('global');
+const [activeScope, setActiveScopeInner] = createSignal<string>('global');
+export { activeScope };
 
 export function setActiveScope(
   ...params: Parameters<typeof setActiveScopeInner>
@@ -38,12 +38,13 @@ export const clearPressedKeys = () => {
   setPressedKeys(new Set<string>());
 };
 
-export const [executedTokens, setExecutedTokens] = makePersisted(
+const [executedTokens, setExecutedTokens] = makePersisted(
   createSignal<string[]>([]),
   {
     name: 'executedTokens',
   }
 );
+export { setExecutedTokens };
 
 export const [lastExecutedCommand, setLastExecutedCommand] =
   createSignal<HotkeyCommand>();

@@ -133,22 +133,3 @@ export const formatOptionValue = (option: {
   }
   return 'No value';
 };
-
-/**
- * Get the raw option value (for comparison/selection)
- * Takes a PropertyOption object and extracts its raw value
- */
-export const getOptionValue = (option: {
-  value: PropertyOptionValue;
-}): string => {
-  const optionValue = option.value;
-  if ('type' in optionValue && 'value' in optionValue) {
-    if (optionValue.type === 'string') {
-      return optionValue.value;
-    }
-    if (optionValue.type === 'number') {
-      return optionValue.value.toString();
-    }
-  }
-  return '';
-};

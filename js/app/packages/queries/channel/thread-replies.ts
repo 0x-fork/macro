@@ -16,10 +16,7 @@ type ThreadRepliesQueryKey = ReturnType<
   typeof channelKeys.threadReplies
 >['queryKey'];
 
-function threadRepliesQueryOptions(
-  channelId: string,
-  messageId: string
-) {
+function threadRepliesQueryOptions(channelId: string, messageId: string) {
   return {
     queryKey: channelKeys.threadReplies(channelId, messageId).queryKey,
     queryFn: async (): Promise<Array<ApiThreadReply>> => {

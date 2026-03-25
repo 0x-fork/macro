@@ -4,8 +4,6 @@ import { queryReadyGate } from '@queries/gate';
 import { createAssertedContextProvider } from './createContext';
 import { shouldQueryUserInfo, enableUserInfoQuery } from './user-info-gate';
 
-export { enableUserInfoQuery };
-
 type UserContextValue = {
   userInfo: Accessor<UserInfoData | undefined>;
   isLoading: Accessor<boolean>;
@@ -94,18 +92,6 @@ export function useAuthor() {
 
 export function useLicenseStatus() {
   return useUserContext().licenseStatus;
-}
-
-export function useTutorialCompleted() {
-  return useUserContext().tutorialCompleted;
-}
-
-export function useGroup() {
-  return useUserContext().group;
-}
-
-export function useHasChromeExt() {
-  return useUserContext().hasChromeExt;
 }
 
 export function useHasTrialed() {

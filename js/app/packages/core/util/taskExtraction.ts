@@ -9,8 +9,6 @@ import {
   extractTitleFromMarkdown,
 } from '@core/component/LexicalMarkdown/plugins/checkbox-to-task/checkboxParsing';
 
-export { extractUserMentions, extractDateMention, extractTitleFromMarkdown };
-
 /**
  * Represents a potential task extracted from markdown text.
  * Unlike ParsedCheckbox (which requires Lexical node context),

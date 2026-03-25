@@ -7,7 +7,7 @@ type ThreadPreviewState = {
   latest_reply_at?: string | null;
 };
 
-export type ThreadPreviewReplySnapshot = {
+type ThreadPreviewReplySnapshot = {
   previewIndex: number;
   reply: ApiThreadReply;
 };

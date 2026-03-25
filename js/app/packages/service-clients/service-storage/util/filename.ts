@@ -36,26 +36,7 @@ export function fileExtension(
     : filename.substring(lastDotIndex + 1).toLowerCase();
 }
 
-/**
- * Checks if the filename has a valid extension from the list of allowed extensions.
- * @param filename - The filename to check.
- * @param extensions - An array of allowed extensions.
- * @returns True if the filename has a valid extension, false otherwise.
- */
-export function hasExtension(filename: string, extensions: string[]): boolean {
-  const extension = fileExtension(filename);
-  if (!extension) return false;
-  return extensions.some(
-    (ext) =>
-      ext.toLowerCase() ===
-      extension /* we can assume it is lower case from fileExtension */
-  );
-}
-
-const reverseFormatDocumentName = (
-  name: string,
-  fileType?: string | null
-) => {
+const reverseFormatDocumentName = (name: string, fileType?: string | null) => {
   if (!fileType) return name;
 
   const blockName = fileTypeToBlockName(fileType);

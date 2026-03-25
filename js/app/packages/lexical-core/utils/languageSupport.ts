@@ -266,7 +266,6 @@ export const langAliasesToFileExtension: Record<string, string> = {
   xml: 'svg',
 };
 
-export const supportedLanguageSet = new Set(SupportedLanguages);
 export const supportedExtensions = Object.keys(
   fileExtensionToMdSupportedLanguage
 );
@@ -295,20 +294,9 @@ export function getSupportedLanguageFromFileExtension(
   return fileExtensionToMdSupportedLanguage[normalized] ?? DEFAULT_LANGUAGE;
 }
 
-export function detectLanguageFromExtension(
-  fileExtension: string
-): string | null {
-  const normalizedExt = fileExtension.toLowerCase().replace(/^\./, '');
-  return fileExtensionToMdSupportedLanguage[normalizedExt] || null;
-}
-
 export function isExtensionSupported(fileExtension: string): boolean {
   const normalizedExt = fileExtension.toLowerCase().replace(/^\./, '');
   return normalizedExt in fileExtensionToMdSupportedLanguage;
-}
-
-export function getSupportedExtensions(): string[] {
-  return Object.keys(fileExtensionToMdSupportedLanguage);
 }
 
 function getLanguageLabel(language: string): string {

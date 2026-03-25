@@ -17,15 +17,15 @@ import type { PutFileResponse } from './generated/schemas/putFileResponse';
 
 const staticFileHost = `${SERVER_HOSTS['static-file']}`;
 
-export function staticFetch(
+function staticFetch(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeError<FetchWithTokenErrorCode>>;
-export function staticFetch<T extends ObjectLike>(
+function staticFetch<T extends ObjectLike>(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
-export function staticFetch<T extends ObjectLike = never>(
+function staticFetch<T extends ObjectLike = never>(
   url: string,
   init?: SafeFetchInit
 ):

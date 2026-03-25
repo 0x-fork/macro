@@ -68,19 +68,6 @@ function $removePinnedProperty(propertyId: string): void {
 }
 
 /**
- * Get property IDs from the root node (with automatic editor.read)
- * @param editor - The Lexical editor instance
- * @returns Promise that resolves to array of property IDs
- */
-export function getPinnedProperties(editor: LexicalEditor): Promise<string[]> {
-  return new Promise((resolve) => {
-    editor.getEditorState().read(() => {
-      resolve($getPinnedProperties());
-    });
-  });
-}
-
-/**
  * Command to add a pinned property ID to the document
  */
 export const ADD_PINNED_PROPERTY_COMMAND: LexicalCommand<string> =

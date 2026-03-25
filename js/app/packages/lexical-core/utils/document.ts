@@ -19,4 +19,3 @@ import { $isSearchMatchNode } from '../nodes/SearchMatchNode';
  *
  * @param rootNode The root ElementNode to start traversal from.
  */
-

@@ -88,26 +88,6 @@ export function delayStream(
 }
 
 // stop a stream at chunk n
-export function limitStream(
-  stream: ChatMessageStream,
-  itemLimit: number
-): ChatMessageStream {
-  const [data, setData] = createSignal<StreamItem[]>(stream.data());
-  const [isDone, setIsDone] = createSignal<boolean>(stream.isDone());
-
-  createEffect(() => {
-    const data = stream.data();
-    if (data.length > itemLimit) return;
-    setData(data);
-    setIsDone(stream.isDone());
-  });
-
-  return {
-    data,
-    isDone,
-    id: mock_id,
-  };
-}
 
 export function blockDone(stream: ChatMessageStream): ChatMessageStream {
   return {

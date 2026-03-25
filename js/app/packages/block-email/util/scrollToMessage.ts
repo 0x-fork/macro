@@ -40,23 +40,3 @@ export function scrollToMessage(
 
   return true;
 }
-
-/**
- * Scrolls to the last message in the thread
- * @param messagesContainer - The DOM container holding the message elements
- * @param behavior - Scroll behavior ('smooth' | 'instant' | 'auto')
- */
-export function scrollToLastMessage(
-  messagesContainer: HTMLDivElement,
-  behavior: ScrollBehavior | 'instant' = 'instant'
-): void {
-  const nativeBehavior: ScrollBehavior =
-    behavior === 'instant' ? 'auto' : behavior;
-  const lastChild = messagesContainer.children[
-    messagesContainer.children.length - 1
-  ] as HTMLElement | undefined;
-
-  if (!lastChild) return;
-  // Align the last child to the bottom of the nearest scrolling container
-  lastChild.scrollIntoView({ behavior: nativeBehavior, block: 'start' });
-}

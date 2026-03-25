@@ -40,7 +40,7 @@ function createGroupAlias(alias: string): Entity<'group'> {
   };
 }
 
-export type EntityMap = {
+type EntityMap = {
   item: Item;
   user: IUser;
   channel: ChannelWithParticipants;
@@ -49,7 +49,7 @@ export type EntityMap = {
   group: GroupItem;
 };
 
-export type Entity<T extends keyof EntityMap> = {
+type Entity<T extends keyof EntityMap> = {
   kind: T;
   id: EntityMap[T]['id'];
   data: EntityMap[T];
@@ -59,7 +59,7 @@ type PickEntity<K extends keyof EntityMap> = {
   [P in K]: Entity<P>;
 }[K];
 
-export type CombinedEntity<K extends keyof EntityMap = keyof EntityMap> =
+type CombinedEntity<K extends keyof EntityMap = keyof EntityMap> =
   PickEntity<K>;
 
 // mapper fn that converts  entity data to its entity type
@@ -397,8 +397,6 @@ function isDateMentionItem(item: MentionItem): item is DateMentionItem {
 /**
  * Type guard for GroupMentionItem.
  */
-function isGroupMentionItem(
-  item: MentionItem
-): item is GroupMentionItem {
+function isGroupMentionItem(item: MentionItem): item is GroupMentionItem {
   return item.kind === 'group';
 }

@@ -16,15 +16,15 @@ const contactsHost = `${SERVER_HOSTS['contacts']}`;
 
 import type { GetContactsResponse } from './generated/schemas/getContactsResponse';
 
-export function contactsFetch(
+function contactsFetch(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeError<FetchWithTokenErrorCode>>;
-export function contactsFetch<T extends ObjectLike>(
+function contactsFetch<T extends ObjectLike>(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
-export function contactsFetch<T extends ObjectLike = never>(
+function contactsFetch<T extends ObjectLike = never>(
   url: string,
   init?: SafeFetchInit
 ):

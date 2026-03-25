@@ -21,8 +21,6 @@ import {
 import { createStore, type SetStoreFunction } from 'solid-js/store';
 import type { LexicalWrapper } from '../../context/LexicalWrapperContext';
 
-export type Selection = NodeSelection | RangeSelection | null;
-
 /**
  * Useful data about Lexical's current selection. If the selection is Lexical
  * RangeSelection then the elementsInRange set will be populated with the names
@@ -69,9 +67,7 @@ function createSelectionData() {
   return createStore<SelectionData>(structuredClone(defaultSelectionData));
 }
 
-function $getSelectionData(
-  selection: BaseSelection | null
-): SelectionData {
+function $getSelectionData(selection: BaseSelection | null): SelectionData {
   const data = structuredClone(defaultSelectionData);
   if (selection === null) return data;
 

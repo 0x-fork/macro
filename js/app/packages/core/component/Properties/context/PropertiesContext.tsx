@@ -86,7 +86,7 @@ interface PropertiesProviderProps extends ParentProps {
   saveHandler: PropertySaveHandler;
 }
 
-export const PropertiesContext = createContext<PropertiesContextValue>();
+const PropertiesContext = createContext<PropertiesContextValue>();
 
 export function PropertiesProvider(props: PropertiesProviderProps) {
   // Modal state signals

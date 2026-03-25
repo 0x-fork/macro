@@ -26,8 +26,6 @@ function stripOwnerId({
   return rest;
 }
 
-export { notificationKeys } from './keys';
-
 const DEFAULT_NOTIFICATION_LIMIT = 20;
 const NOTIFICATION_STALE_TIME = 5 * 60 * 1000; // 5 minutes
 const NOTIFICATION_GC_TIME = 10 * 60 * 1000; // 10 minutes

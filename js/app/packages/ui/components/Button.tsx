@@ -5,7 +5,7 @@ import CorvuTooltip from '@corvu/tooltip';
 import type { Placement } from '@floating-ui/dom';
 import { type JSX, Show, splitProps, type ValidComponent } from 'solid-js';
 
-export type ButtonVariant =
+type ButtonVariant =
   | 'primary'
   | 'secondary'
   | 'tertiary'
@@ -14,9 +14,9 @@ export type ButtonVariant =
   | 'link'
   | 'accent';
 
-export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon-sm' | 'icon-md' | 'icon-lg';
+type ButtonSize = 'sm' | 'md' | 'lg' | 'icon-sm' | 'icon-md' | 'icon-lg';
 
-export type ButtonProps<T extends ValidComponent = 'button'> = PolymorphicProps<
+type ButtonProps<T extends ValidComponent = 'button'> = PolymorphicProps<
   T,
   ButtonRootProps<T>
 > & {

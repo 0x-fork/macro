@@ -24,7 +24,7 @@ import {
 
 // ---- Uncreated state (always present) ----
 
-export type ChatInputState = {
+type ChatInputState = {
   model: Accessor<Model>;
   setModel: (model?: Model) => void;
   isGenerating: Accessor<boolean>;
@@ -96,7 +96,7 @@ export function useChatInputContext(): ChatInputState {
 
 // ---- Created state (only when chat exists) ----
 
-export type ChatState = {
+type ChatState = {
   chatId: Accessor<string>;
   messages: Accessor<ChatMessageWithAttachments[]>;
   setMessages: Setter<ChatMessageWithAttachments[]>;
@@ -211,8 +211,4 @@ export function useChatContext(): ChatState {
     throw new Error('useChatContext must be used within <ChatProvider />');
   }
   return ctx;
-}
-
-export function useChatContextOptional(): ChatState | undefined {
-  return useContext(ChatCtx);
 }

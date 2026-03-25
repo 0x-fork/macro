@@ -37,7 +37,7 @@ import {
 import { $insertNodesAndSplitList } from '../../utils';
 import { mapRegisterDelete } from '../shared';
 
-export type DSSMedia = {
+type DSSMedia = {
   type: 'dss';
   id: string;
 };

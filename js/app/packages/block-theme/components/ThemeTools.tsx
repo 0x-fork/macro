@@ -10,9 +10,9 @@ import { randomizeTheme } from './ThemeEditorBasic';
 import IconDice from '@macro-icons/macro-dice.svg';
 import IconSave from '@macro-icons/macro-save.svg';
 
-export function ThemeTools() {
+function ThemeTools() {
   let themeName!: HTMLDivElement;
-  
+
   const defaultThemeName = 'New Theme';
 
   const currentThemeName = createMemo(() => {

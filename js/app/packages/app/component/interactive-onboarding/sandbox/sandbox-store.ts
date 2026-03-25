@@ -253,7 +253,7 @@ function matchesFilter(
   }
 }
 
-export function sandboxEntities() {
+function sandboxEntities() {
   return entities();
 }
 

@@ -116,21 +116,6 @@ type BulkEditEntityModalProps = {
   entities: Accessor<EntityData[]>;
 };
 
-export const BulkEditEntityModal: ParentComponent<BulkEditEntityModalProps> = (
-  props
-) => {
-  return (
-    <Show when={props.isOpen()}>
-      <BulkEditEntityModalContent
-        isOpen={props.isOpen}
-        setIsOpen={props.setIsOpen}
-        view={props.view}
-        entities={props.entities()}
-      />
-    </Show>
-  );
-};
-
 const [globalModalProps, setGlobalModalProps] = createSignal<{
   view: 'rename' | 'moveToProject' | 'delete';
   entities: EntityData[];

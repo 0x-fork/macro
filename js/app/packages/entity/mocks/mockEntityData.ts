@@ -125,7 +125,7 @@ const MOCK_PROPERTIES: Property[] = [
   },
 ];
 
-export const createMockNotification = (
+const createMockNotification = (
   overrides?: Partial<Notification>
 ): Notification => ({
   id: 'notif_123',

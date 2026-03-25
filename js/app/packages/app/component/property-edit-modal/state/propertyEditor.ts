@@ -8,8 +8,11 @@ import { createControlledOpenSignal } from '@core/util/createControlledOpenSigna
 
 type PropertyEditorMode = 'selector' | 'direct';
 
-export const [propertyEditorOpen, setPropertyEditorOpen] =
-  createControlledOpenSignal(false, { id: 'property-edit' });
+const [propertyEditorOpen, setPropertyEditorOpen] = createControlledOpenSignal(
+  false,
+  { id: 'property-edit' }
+);
+export { propertyEditorOpen };
 
 interface PropertyEditorState {
   mode: PropertyEditorMode;

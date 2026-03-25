@@ -11,7 +11,7 @@ type TaskData = {
   dueDate: Date | null;
 };
 
-export type TaskCreationOptions = {
+type TaskCreationOptions = {
   currentUserId?: string;
   parentTaskId?: string;
 };

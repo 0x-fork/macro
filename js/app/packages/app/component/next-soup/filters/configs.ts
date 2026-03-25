@@ -51,7 +51,7 @@ import type { NotificationSource } from '@notifications';
 
 type EntityFilterConfig = FilterConfig<EntityData> & { label?: string };
 
-export const ENTITY_TYPE_FILTER_CONFIGS = [
+const ENTITY_TYPE_FILTER_CONFIGS = [
   {
     id: 'document',
     label: 'Docs',

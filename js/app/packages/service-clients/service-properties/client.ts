@@ -68,15 +68,15 @@ type GetBulkEntityPropertiesArgs = {
 
 const propertiesHost: string = SERVER_HOSTS['document-storage-service'];
 
-export function propertiesFetch(
+function propertiesFetch(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeError<FetchWithTokenErrorCode>>;
-export function propertiesFetch<T extends ObjectLike>(
+function propertiesFetch<T extends ObjectLike>(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
-export function propertiesFetch<T extends ObjectLike = never>(
+function propertiesFetch<T extends ObjectLike = never>(
   url: string,
   init?: SafeFetchInit
 ):

@@ -35,15 +35,15 @@ import type { EmptyResponse } from './generated/schemas/emptyResponse';
 
 const emailHost: string = SERVER_HOSTS['email-service'];
 
-export function emailFetch(
+function emailFetch(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeError<FetchWithTokenErrorCode>>;
-export function emailFetch<T extends ObjectLike>(
+function emailFetch<T extends ObjectLike>(
   url: string,
   init?: SafeFetchInit
 ): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
-export function emailFetch<T extends ObjectLike = never>(
+function emailFetch<T extends ObjectLike = never>(
   url: string,
   init?: SafeFetchInit
 ):

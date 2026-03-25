@@ -23,7 +23,7 @@ type SelectedCategory = string | null;
 /** result of bin computation - how many items to show per bucket */
 type MentionBins = Record<string, number>;
 
-export class MentionsMenuController {
+class MentionsMenuController {
   private buckets: Accessor<BucketConfig[]>;
   private maxItems: number;
   private ignoredIds: Accessor<string[]> = () => [];

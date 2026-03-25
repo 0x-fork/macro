@@ -39,7 +39,7 @@ type BarContext = {
   truncation: Accessor<{ stage: TruncationStage; index: number }>;
 };
 
-export const BarContext = createContext<BarContext>();
+const BarContext = createContext<BarContext>();
 
 type TruncationStage = {
   fileNameLength: number;

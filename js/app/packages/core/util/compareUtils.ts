@@ -42,10 +42,7 @@ function mapFromListsByKey<T extends Record<string, any>>(
   return map;
 }
 
-function uniqueByKey<T>(
-  items: readonly T[],
-  keyOf: (item: T) => string
-): T[] {
+function uniqueByKey<T>(items: readonly T[], keyOf: (item: T) => string): T[] {
   const map = new Map<string, T>();
   for (const item of items) {
     const key = keyOf(item);

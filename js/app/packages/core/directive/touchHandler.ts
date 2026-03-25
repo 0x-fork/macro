@@ -18,11 +18,8 @@ declare module 'solid-js' {
   }
 }
 
-/**
- * This signal is used to check if a long press is currently active.
- * For example, it is used to prevent the clickOutside directive from triggering when a long press is active.
- */
-export const [longPressActivated, setLongPressActivated] = createSignal(false);
+const [longPressActivated, setLongPressActivated] = createSignal(false);
+export { longPressActivated };
 
 /**
  * This directive can be used to trigger callbacks on long press and short touch events.
