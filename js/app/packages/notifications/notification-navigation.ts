@@ -200,21 +200,45 @@ export function openNotificationFromId(
   notificationSource: NotificationSource
 ): ResultAsync<void, OpenNotificationFromIdError> {
   // Check notification source first
+  const cacheSize = notificationSource.notifications().length;
   const cached = notificationSource
     .notifications()
     .find((n) => n.id === notificationId);
   if (cached) {
+    console.info('[push-notification] openNotificationFromId: found in cache', {
+      notificationId,
+      type: cached.notification_metadata.tag,
+      cacheSize,
+    });
     return openNotification(cached, layoutManager);
   }
 
   // Fetch if not in notification source
+  console.info(
+    '[push-notification] openNotificationFromId: not in cache, fetching from API',
+    {
+      notificationId,
+      cacheSize,
+    }
+  );
   return ResultAsync.fromSafePromise(
     getNotificationById(notificationId)
   ).andThen((unified) => {
     if (!unified) {
+      console.warn(
+        '[push-notification] openNotificationFromId: not found in API',
+        { notificationId }
+      );
       const err: NotFoundError = { tag: 'NotFoundError', notificationId };
       return errAsync(err);
     }
+    console.info(
+      '[push-notification] openNotificationFromId: fetched from API',
+      {
+        notificationId,
+        type: unified.notification_metadata.tag,
+      }
+    );
     return openNotification(unified, layoutManager);
   });
 }

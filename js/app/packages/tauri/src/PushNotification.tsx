@@ -160,12 +160,27 @@ export function MaybePushNotificationRegistration(props: {
   const push = usePushNotifications(os, (event) => {
     const notificationId: string | undefined = event.payload.notificationId;
 
+    console.info('[push-notification] event received', {
+      type: event.type,
+      hasNotificationId: !!notificationId,
+    });
+
     const tapped =
       event.type === 'BACKGROUND_TAP' || event.type === 'FOREGROUND_TAP';
     // Only navigate on explicit user interaction.
     if (!tapped) return;
-    if (!notificationId) return;
+    if (!notificationId) {
+      console.warn('[push-notification] tap event missing notificationId', {
+        type: event.type,
+        payload: event.payload,
+      });
+      return;
+    }
 
+    console.info('[push-notification] navigating to notification', {
+      notificationId,
+      type: event.type,
+    });
     invalidateUserNotifications();
     triggerNavigation(
       `/component/notification?notificationId=${notificationId}`

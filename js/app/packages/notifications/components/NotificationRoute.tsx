@@ -22,6 +22,10 @@ export default function NotificationRoute() {
 
   const replaceWithUnifiedList = (cause?: Error) => {
     logger.error('Failed to open notification.', { cause });
+    console.error(
+      '[push-notification] NotificationRoute failed to open notification',
+      { cause }
+    );
     toast.failure('Failed to open notification.');
     split.handle.replace({
       next: { type: 'component', id: LIST_VIEW_ID.inbox },
@@ -31,9 +35,16 @@ export default function NotificationRoute() {
 
   // Give the router a tick to populate params before falling back to unified-list
   onMount(() => {
+    const notificationId = getNotificationId();
+    console.info('[push-notification] NotificationRoute mounted', {
+      notificationId,
+    });
     const timeout = window.setTimeout(() => {
       const notificationId = getNotificationId();
       if (!notificationId) {
+        console.warn(
+          '[push-notification] NotificationRoute: no notificationId in params after tick'
+        );
         replaceWithUnifiedList(new Error('No notification ID found.'));
       }
     }, 0);
@@ -46,8 +57,18 @@ export default function NotificationRoute() {
     const notificationId = getNotificationId();
     const layoutManager = globalSplitManager();
     if (!notificationId) return;
-    if (!layoutManager) return;
+    if (!layoutManager) {
+      console.warn(
+        '[push-notification] NotificationRoute: layoutManager not ready yet',
+        { notificationId }
+      );
+      return;
+    }
 
+    console.info(
+      '[push-notification] NotificationRoute: calling openNotificationFromId',
+      { notificationId }
+    );
     openNotificationFromId(
       notificationId,
       layoutManager,
@@ -60,6 +81,10 @@ export default function NotificationRoute() {
         // away from the notification. Only close if we're still the bridge.
         const current = split.handle.content();
         if (current.type === 'component' && current.id === 'notification') {
+          console.info(
+            '[push-notification] NotificationRoute: openNotificationFromId succeeded',
+            { notificationId }
+          );
           split.handle.close();
         }
       },

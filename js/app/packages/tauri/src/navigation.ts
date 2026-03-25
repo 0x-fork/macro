@@ -32,10 +32,12 @@ export function registerNavigate(fn: (path: string) => void) {
  */
 export function triggerNavigation(path: string) {
   if (registeredNavigate) {
+    console.info('[push-notification] triggerNavigation called', { path });
     registeredNavigate(path);
   } else {
     console.warn(
-      `[navigation] triggerNavigation: router not ready, buffering path ${path}`
+      '[push-notification] triggerNavigation: router not ready, buffering path',
+      { path }
     );
     pendingNavigation = path;
   }
