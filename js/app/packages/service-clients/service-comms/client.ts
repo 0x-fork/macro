@@ -48,7 +48,7 @@ import type { ApiThreadReply } from '@service-storage/generated/schemas';
 export type { ApiChannelMessage } from '@service-storage/generated/schemas/apiChannelMessage';
 export type { ApiChannelMessagesPage as ChannelMessagesPage } from '@service-storage/generated/schemas/apiChannelMessagesPage';
 export type { ApiChannelAttachment } from '@service-storage/generated/schemas/apiChannelAttachment';
-export type { ApiChannelAttachmentsPage as ChannelAttachmentsPage } from '@service-storage/generated/schemas/apiChannelAttachmentsPage';
+
 export type { ApiChannelParticipant } from '@service-storage/generated/schemas/apiChannelParticipant';
 export type { ApiThreadReply } from '@service-storage/generated/schemas/apiThreadReply';
 

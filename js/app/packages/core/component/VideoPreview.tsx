@@ -1,6 +1,6 @@
 import { staticFileIdEndpoint } from '@core/constant/servers';
 
-export type VideoPreviewProps = {
+type VideoPreviewProps = {
   id: string;
   variant: 'small' | 'dynamic';
   width?: string | number | undefined | null;

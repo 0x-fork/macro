@@ -2,7 +2,7 @@
  * Modal positioning and viewport constraint utilities
  */
 
-export type ModalPosition = {
+type ModalPosition = {
   top: number;
   left: number;
 };
@@ -15,7 +15,7 @@ export type ModalPosition = {
  * @param margin Minimum margin from viewport edges (default: 16px)
  * @returns Constrained position that fits within viewport
  */
-export const constrainModalToViewport = (
+const constrainModalToViewport = (
   position: { top: number; left: number },
   modalWidth: number,
   modalHeight: number,
@@ -53,7 +53,7 @@ export const constrainModalToViewport = (
  * @param margin Minimum margin from viewport edges
  * @returns Optimal position that avoids going off-screen
  */
-export const calculateModalPosition = (
+const calculateModalPosition = (
   triggerElement: HTMLElement,
   modalWidth: number,
   modalHeight: number,
@@ -111,7 +111,7 @@ export const MODAL_VIEWPORT_CLASSES =
  * @param modalHeight Height of the modal
  * @returns Cleanup function to remove the resize listener
  */
-export const createModalResizeHandler = (
+const createModalResizeHandler = (
   modalElement: HTMLElement,
   originalPosition: { top: number; left: number },
   modalWidth: number,

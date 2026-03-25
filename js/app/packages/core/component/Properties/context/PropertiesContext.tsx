@@ -10,21 +10,21 @@ import {
 import type { Property, PropertyApiValues } from '../types';
 
 // Specific modal state types with proper typing
-export interface PropertySelectorModalState {
+interface PropertySelectorModalState {
   isOpen: boolean;
 }
 
-export interface PropertyEditorModalState {
+interface PropertyEditorModalState {
   property: Property;
   anchor?: HTMLElement;
 }
 
-export interface DatePickerModalState {
+interface DatePickerModalState {
   property: Property & { valueType: 'DATE' };
   anchor?: HTMLElement;
 }
 
-export interface CreatePropertyModalState {
+interface CreatePropertyModalState {
   isOpen: boolean;
 }
 
@@ -33,7 +33,7 @@ export interface PropertySaveHandler {
   saveDate: (property: Property, date: Date) => Promise<void>;
 }
 
-export interface PropertiesContextValue {
+interface PropertiesContextValue {
   entityType: EntityType;
   canEdit: boolean;
   documentName?: string;
@@ -72,7 +72,7 @@ export interface PropertiesContextValue {
   closeAllModals: () => void;
 }
 
-export interface PropertiesProviderProps extends ParentProps {
+interface PropertiesProviderProps extends ParentProps {
   entityType: EntityType;
   canEdit: boolean;
   documentName?: string;

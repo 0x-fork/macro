@@ -80,5 +80,3 @@ export function createOnboardingState(options: OnboardingStateOptions) {
     dismiss,
   };
 }
-
-export type OnboardingState = ReturnType<typeof createOnboardingState>;

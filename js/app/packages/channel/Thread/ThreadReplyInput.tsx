@@ -1,3 +1,4 @@
+import '@core/directive/droppable';
 import { useUserId } from '@core/context/user';
 import { useSendMessageMutation } from '@queries/channel/message';
 import type { Accessor, Setter } from 'solid-js';

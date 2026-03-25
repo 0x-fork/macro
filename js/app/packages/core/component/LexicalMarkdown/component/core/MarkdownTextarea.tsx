@@ -73,7 +73,7 @@ import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
  * @param onEscape - A callback function that is called when the user presses Escape in the textarea. If the function
  *     returns true Lexical's default behavior will be prevented.
  */
-export interface MarkdownTextareaProps {
+interface MarkdownTextareaProps {
   editable: Accessor<boolean>;
   onChange?: (value: string, editor?: LexicalEditor) => void;
   initialValue?: string;

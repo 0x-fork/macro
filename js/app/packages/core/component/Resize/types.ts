@@ -1,6 +1,6 @@
 export type PanelId = string;
 
-export const HORIZONTAL = 'horizontal' as const;
+const HORIZONTAL = 'horizontal' as const;
 export const VERTICAL = 'vertical' as const;
 
 // TODO (seamus): next version should use these to as default sizes instead of

@@ -92,7 +92,7 @@ type GetHotkeyCommandOptions = {
  * // Sort by displayPriority instead
  * const commands = getHotkeyCommands(scopeNode, 'h', { sortBy: 'displayPriority' });
  */
-export function getHotkeyCommands(
+function getHotkeyCommands(
   scopeOrId: ScopeNode | string,
   hotkey: ValidHotkey,
   options: GetHotkeyCommandOptions = {}

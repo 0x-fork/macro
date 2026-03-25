@@ -177,22 +177,3 @@ export function EditableLabel(props: EditableLabelProps) {
     </>
   );
 }
-
-export type EditableComponentProps = {
-  editingComponent: JSX.Element;
-  isEditing?: boolean;
-} & (
-  | { component: JSX.Element; children?: never }
-  | { component?: never; children: JSX.Element }
-);
-
-export function EditableProvider(props: EditableComponentProps) {
-  const [isEditing, setIsEditing] = createSignal(props.isEditing ?? false);
-  return (
-    <EditingContext.Provider value={[isEditing, setIsEditing]}>
-      <Show when={!isEditing()} fallback={props.editingComponent}>
-        {props.children ?? props.component}
-      </Show>
-    </EditingContext.Provider>
-  );
-}

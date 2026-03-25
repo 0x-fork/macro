@@ -48,7 +48,7 @@ export const BUCKET_COMBINATIONS: Record<BucketCombination, Bucket[]> = {
   documents: ['document', 'note', 'task', 'chat', 'project'],
 };
 
-export type ItemTimestamps = {
+type ItemTimestamps = {
   viewedAt?: DateValue | null;
   updatedAt?: DateValue | null;
   createdAt?: DateValue | null;

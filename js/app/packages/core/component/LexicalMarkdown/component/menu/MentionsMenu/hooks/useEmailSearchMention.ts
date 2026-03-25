@@ -7,11 +7,11 @@ import {
   useSearchSoupQuery,
 } from '@queries/soup/search';
 
-export type UseEmailSearchMentionOptions = {
+type UseEmailSearchMentionOptions = {
   searchTerm: Accessor<string>;
 };
 
-export type UseEmailSearchMentionResult = {
+type UseEmailSearchMentionResult = {
   emails: Accessor<EntityItem[]>;
   emailSearchQuery: ReturnType<typeof useSearchSoupQuery>;
 };

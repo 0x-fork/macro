@@ -71,7 +71,7 @@ export function useProjectPreviewQuery(projectId: Accessor<string>) {
  * Fetch and cache project preview data
  * Useful for prefetching or ensuring data is available
  */
-export async function fetchAndCacheProjectPreview(
+async function fetchAndCacheProjectPreview(
   projectId: string
 ): Promise<MaybeResult<string, { project: ProjectPreviewData }>> {
   const result = await catchToResult(async () =>
@@ -88,7 +88,7 @@ export async function fetchAndCacheProjectPreview(
 /**
  * Invalidate project preview cache
  */
-export function invalidateProjectPreview(projectId: string) {
+function invalidateProjectPreview(projectId: string) {
   return queryClient.invalidateQueries({
     queryKey: projectsKeys.preview(projectId).queryKey,
   });
@@ -97,7 +97,7 @@ export function invalidateProjectPreview(projectId: string) {
 /**
  * Set project preview data directly in cache
  */
-export function setProjectPreviewData(
+function setProjectPreviewData(
   projectId: string,
   data: ProjectPreviewData
 ) {

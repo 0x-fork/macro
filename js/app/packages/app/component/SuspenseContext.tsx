@@ -7,23 +7,11 @@ import {
   onCleanup,
   type ParentComponent,
   Suspense,
-  useContext,
 } from 'solid-js';
 
 const SuspenseContext = createContext<{
   isPending: Accessor<boolean>;
 }>();
-
-export const useSuspenseContext = () => {
-  const context = useContext(SuspenseContext);
-  if (!context) {
-    throw new Error(
-      `SuspenseContext is not found. Make sure you're calling it within a SuspenseContextProvider.`
-    );
-  }
-
-  return context;
-};
 
 const [isPending, setIsPending] = createSignal(false);
 

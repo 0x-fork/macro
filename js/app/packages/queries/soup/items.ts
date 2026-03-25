@@ -27,7 +27,7 @@ export type SoupItemsQueryArgs = {
   body: SoupBody;
 };
 
-export type UseSoupQueryResult = UseInfiniteQueryResult<EntityData[], Error>;
+type UseSoupQueryResult = UseInfiniteQueryResult<EntityData[], Error>;
 
 export type SoupApiItemFilter = (item: SoupApiItem) => boolean;
 

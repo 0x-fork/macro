@@ -7,7 +7,7 @@ import { isBefore } from 'date-fns/isBefore';
 import { endOfDay } from 'date-fns/endOfDay';
 import { startOfDay } from 'date-fns/startOfDay';
 
-export type DatePickerUIProps = {
+type DatePickerUIProps = {
   value: Date;
   onChange: (date: Date) => void;
   disablePriorToDate?: Date;

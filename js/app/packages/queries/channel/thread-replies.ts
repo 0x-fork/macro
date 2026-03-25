@@ -12,11 +12,11 @@ export type ThreadReplySnapshot = {
   reply: ApiThreadReply;
 };
 
-export type ThreadRepliesQueryKey = ReturnType<
+type ThreadRepliesQueryKey = ReturnType<
   typeof channelKeys.threadReplies
 >['queryKey'];
 
-export function threadRepliesQueryOptions(
+function threadRepliesQueryOptions(
   channelId: string,
   messageId: string
 ) {
@@ -55,7 +55,7 @@ export function getThreadRepliesQueryKey(
 }
 
 /** Returns the shared prefix for all thread reply queries in a channel. */
-export function getThreadRepliesQueryKeyPrefix(channelId: string) {
+function getThreadRepliesQueryKeyPrefix(channelId: string) {
   return [...channelKeys.threadReplies._def, channelId];
 }
 

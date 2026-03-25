@@ -109,7 +109,7 @@ const BulkEditEntityModalContent = (props: {
   );
 };
 
-export type BulkEditEntityModalProps = {
+type BulkEditEntityModalProps = {
   isOpen: Accessor<boolean>;
   setIsOpen: Setter<boolean>;
   view: 'rename' | 'moveToProject' | 'delete';

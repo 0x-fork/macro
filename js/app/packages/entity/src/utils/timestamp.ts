@@ -63,7 +63,7 @@ export function formatRelativeTimestamp(date: DateValue): string {
   return format(date, 'M/d/yy');
 }
 
-export interface TimestampData {
+interface TimestampData {
   formatted: string;
   raw: number;
 }

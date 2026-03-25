@@ -47,7 +47,7 @@ type LexicalTransformer =
   | TextMatchTransformer
   | TextFormatTransformer;
 
-export type ConversionOnlyTransformer<T extends LexicalTransformer> = T & {
+type ConversionOnlyTransformer<T extends LexicalTransformer> = T & {
   conversionOnly: true;
 };
 
@@ -80,7 +80,7 @@ export const PRESERVE_LINES: ConversionOnlyTransformer<ElementTransformer> = {
 };
 
 // Strip br tags from external markdown.
-export const BR_TAG_TO_SPACE: ConversionOnlyTransformer<TextMatchTransformer> =
+const BR_TAG_TO_SPACE: ConversionOnlyTransformer<TextMatchTransformer> =
   {
     dependencies: [],
     export: () => {
@@ -134,31 +134,31 @@ function createEntityToUnicodeTransformer(
   };
 }
 
-export const AMP_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
+const AMP_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
   '&amp;',
   '&'
 );
-export const NBSP_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
+const NBSP_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
   '&nbsp;',
   '\u00A0'
 );
-export const LT_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
+const LT_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
   '&lt;',
   '<'
 );
-export const GT_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
+const GT_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
   '&gt;',
   '>'
 );
-export const COPY_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
+const COPY_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
   '&copy;',
   '©'
 );
-export const REG_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
+const REG_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
   '&reg;',
   '®'
 );
-export const TRADE_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
+const TRADE_ENTITY_TRANSFORMER = createEntityToUnicodeTransformer(
   '&trade;',
   '™'
 );

@@ -1,3 +1,4 @@
+import '@core/directive/droppable';
 import { CommentsProvider } from '@block-md/comments/CommentsProvider';
 import { keyNavigationPlugin } from '@block-md/plugins/keyboardNavigation';
 import { markdownBlockErrorSignal } from '@block-md/signal/error';

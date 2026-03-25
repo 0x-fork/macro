@@ -24,7 +24,7 @@ import { ChatAttachMenu } from './ChatAttachMenu';
 import { useAiDataConsentGate } from './useAiDataConsent';
 import { useAnalytics } from '@app/component/analytics-context';
 
-export type ChatInputProps = {
+type ChatInputProps = {
   onSend: (args: ChatSendInput) => void;
   onStop?: () => void;
   onEscape?: (e: KeyboardEvent) => boolean;
@@ -35,7 +35,7 @@ export type ChatInputProps = {
   extraRightControls?: () => import('solid-js').JSX.Element;
 };
 
-export type ChatInputComponentProps = {
+type ChatInputComponentProps = {
   editor: EditorConfigBuilder;
   initialValue?: string;
   onChange?: (markdown: string) => void;

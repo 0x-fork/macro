@@ -34,7 +34,7 @@ false && floatWithElement;
 // py-2 on the menu container = 8px top + 8px bottom
 const MENU_DECORATION_HEIGHT = 16;
 
-export function ActionsMenuItem(props: {
+function ActionsMenuItem(props: {
   action: Action;
   index: number;
   selected: boolean;

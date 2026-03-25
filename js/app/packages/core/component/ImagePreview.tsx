@@ -28,7 +28,7 @@ type ImageData = {
   height?: string | number | undefined;
 };
 
-export type ImagePreviewProps = {
+type ImagePreviewProps = {
   image: ImageData;
   variant: 'small' | 'dynamic';
   square?: boolean;

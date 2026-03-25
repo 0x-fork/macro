@@ -50,10 +50,7 @@ type VisorLabel = {
 };
 
 const [isVisorOpen, setIsVisorOpen] = createSignal(false);
-export const fireVisor = () => {
-  setIsVisorOpen(true);
-};
-export const resetVisor = () => {
+const resetVisor = () => {
   setIsVisorOpen(false);
 };
 

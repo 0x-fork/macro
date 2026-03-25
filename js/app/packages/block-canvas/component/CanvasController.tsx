@@ -1,3 +1,4 @@
+import '@core/directive/droppable';
 import { useCanvasFileDrop } from '@block-canvas/signal/fileDrop';
 import { withAnalytics } from '@coparse/analytics';
 import { type BlockName, useBlockId, useIsNestedBlock } from '@core/block';

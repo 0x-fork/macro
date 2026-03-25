@@ -81,7 +81,7 @@ const ARCHIVE_EXTENSIONS = new Set(
     .map((ft) => ft.extension)
 );
 
-export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
+const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
   canvas: {
     icon: Canvas,
     foreground: 'text-canvas',
@@ -265,7 +265,7 @@ function validateEntity(entity: string): EntityWithValidIcon {
   }
 }
 
-export const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
+const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
   canvas: WideDiagram,
   html: WideFileCode,
   channel: WideChannel,
@@ -294,7 +294,7 @@ export const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
   task: WideTask,
 };
 
-export const ICON_SIZES = {
+const ICON_SIZES = {
   xs: 'w-4 h-4',
   sm: 'w-4.5 h-4.5',
   md: 'w-8 h-8',

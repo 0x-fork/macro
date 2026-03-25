@@ -224,21 +224,12 @@ export function hasAssignees(entity: EntityData): boolean {
   return getTaskAssigneeIds(entity).length > 0;
 }
 
-export function isAssignedTo(entity: EntityData, userId: string): boolean {
-  if (!isTaskEntity(entity)) return false;
-
-  const assigneeIds = getTaskAssigneeIds(entity);
-  // If no assignees, consider it assigned to everyone (or unassigned)
-  if (assigneeIds.length === 0) return false;
-  return assigneeIds.includes(userId);
-}
-
 export function isUnassigned(entity: EntityData): boolean {
   if (!isTaskEntity(entity)) return false;
   return getTaskAssigneeIds(entity).length === 0;
 }
 
-export function hasStatus(entity: EntityData, statusOptionId: string): boolean {
+function hasStatus(entity: EntityData, statusOptionId: string): boolean {
   if (!isTaskEntity(entity)) return false;
   return getTaskStatusOptionId(entity) === statusOptionId;
 }

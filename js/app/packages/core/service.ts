@@ -11,7 +11,7 @@ type ErrorDef = {
 /**
  * Defines the types of actors that can interact with the service.
  */
-export const ACTORS = {
+const ACTORS = {
   user: 'Human users of a service, acted upon through UI',
   ai: 'Chat or other AI users of a service that act on behalf of the user',
   producer: 'The block that produced the block can access these services',
@@ -20,7 +20,7 @@ export const ACTORS = {
 /**
  * Represents the type of an actor in the system.
  */
-export type Actor = keyof typeof ACTORS;
+type Actor = keyof typeof ACTORS;
 
 /**
  * Access controls should be used sparingly. If there are functions or services
@@ -110,7 +110,7 @@ export interface FunctionDefinition<
   access?: Access;
 }
 
-export interface SvcDefinition {
+interface SvcDefinition {
   /**
    * A description of the overall functionality this service represents.
    * Use cases by user/AI/blocks or examples of inter-service behavior should be
@@ -269,7 +269,7 @@ type ClientFunctionResult<T> = T extends FunctionDefinition<
       : void
   : never;
 
-export type ClientFunction<T extends FunctionDefinition<any, any, any, any>> =
+type ClientFunction<T extends FunctionDefinition<any, any, any, any>> =
   ClientFunctionArgs<T> extends undefined
     ? () => Promise<ClientFunctionResult<T>>
     : (args: ClientFunctionArgs<T>) => Promise<ClientFunctionResult<T>>;

@@ -7,7 +7,7 @@ import { Hotkey } from './Hotkey';
 
 const TOOLTIP_DELAY = 250;
 
-export type TooltipProps = ParentProps<{
+type TooltipProps = ParentProps<{
   tooltip: JSX.Element;
   placement?: Placement;
   floatingOptions?: FloatingOptions;
@@ -105,12 +105,12 @@ export const NullTooltip = (props: ParentProps<{}>) => {
   );
 };
 
-export type HotkeySequenceStep = {
+type HotkeySequenceStep = {
   token?: HotkeyToken;
   shortcut?: string;
 };
 
-export type LabelAndHotKeyProps = {
+type LabelAndHotKeyProps = {
   label: string;
   hotkeyToken?: HotkeyToken;
   shortcut?: string;

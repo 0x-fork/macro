@@ -29,7 +29,7 @@ type WithReactionState<T> = T & {
   threadId?: string;
 };
 
-export type AddReactionContext = {
+type AddReactionContext = {
   messageId: string;
   emoji: string;
   userId: string;
@@ -37,7 +37,7 @@ export type AddReactionContext = {
   target: MessageTarget;
 };
 
-export type RemoveReactionContext = {
+type RemoveReactionContext = {
   messageId: string;
   emoji: string;
   userId: string;

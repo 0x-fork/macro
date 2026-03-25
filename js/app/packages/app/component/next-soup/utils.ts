@@ -134,7 +134,7 @@ const getEntityTimestamp = (entity: EntityData): DateValue => {
 /**
  * Returns true if the new entity should replace the existing one based on timestamp. If the timestamp is the same, prefer to use the newer entity to handle optimistic updates
  */
-export const isNewerEntity = (
+const isNewerEntity = (
   newEntity: EntityData,
   existing: EntityData
 ): boolean => {
@@ -256,7 +256,7 @@ export const restoreSoupFocus = async (
   }
 };
 
-export interface OpenEntityOptions {
+interface OpenEntityOptions {
   openInNewSplit?: boolean;
   location?: SearchLocation;
   splitHandle?: SplitHandle;
@@ -431,7 +431,7 @@ export async function archiveEmail(
   }
 }
 
-export type TrashEmailsHandle = {
+type TrashEmailsHandle = {
   /** Fire-and-forget promise for the API calls. Rejects on failure (rolls back optimistic update). */
   done: Promise<void>;
   /** Optimistically restores all entities and calls the API to remove the TRASH label. */

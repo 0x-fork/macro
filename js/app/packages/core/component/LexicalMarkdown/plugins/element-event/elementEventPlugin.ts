@@ -6,7 +6,7 @@ import {
   type NodeKey,
 } from 'lexical';
 
-export type ElementEventProps<T extends LexicalNode, E extends Event> = {
+type ElementEventProps<T extends LexicalNode, E extends Event> = {
   eventName: string;
   guard: (node: LexicalNode) => node is T;
   callback: (event: E, node: T, key: NodeKey) => void;

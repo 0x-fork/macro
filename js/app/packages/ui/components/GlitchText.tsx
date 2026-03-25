@@ -180,7 +180,7 @@ function createGlitchAnimation(config: AnimationConfig): () => void {
   };
 }
 
-export interface GlitchTextProps {
+interface GlitchTextProps {
   /** Source text to animate from. If only `from` provided, corrupts then randomizes. @default undefined */
   from?: string;
 

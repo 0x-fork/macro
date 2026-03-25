@@ -33,7 +33,7 @@ export function InviteBadge() {
   return <Badge class="text-accent-30 border-edge-muted px-2">invite</Badge>;
 }
 
-export function ImportantBadge() {
+function ImportantBadge() {
   return (
     <Badge class="text-accent bg-accent/10 px-2 border-accent/10">
       important

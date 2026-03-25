@@ -103,7 +103,7 @@ export const formatPropertyValue = (
  * @param options - The property's options array (from property.options)
  * @returns Formatted display value or the ID if not found
  */
-export const formatOptionValueById = (
+const formatOptionValueById = (
   optionId: string,
   options: Array<{ id: string; value: PropertyOptionValue }> | undefined
 ): string => {

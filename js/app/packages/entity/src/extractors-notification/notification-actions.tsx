@@ -33,7 +33,7 @@ export function useNotificationStackActions(props: NotificationActionsProps) {
   return { markStackAsDone, markStackAsRead };
 }
 
-export function useNotificationActions(props: SingleNotificationActionsProps) {
+function useNotificationActions(props: SingleNotificationActionsProps) {
   const notificationSource = useGlobalNotificationSource();
 
   const markAsDone = async () => {

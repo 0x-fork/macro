@@ -14,7 +14,7 @@ export function arrayEquals<T extends ArrayLike<any>>(a: T, b: T): boolean {
   return true;
 }
 
-export function mergeByKey<T extends Record<string, any>, K extends keyof T>(
+function mergeByKey<T extends Record<string, any>, K extends keyof T>(
   key: K,
   ...lists: T[][]
 ): T[] {
@@ -28,7 +28,7 @@ export function mergeByKey<T extends Record<string, any>, K extends keyof T>(
   return Array.from(map.values());
 }
 
-export function mapFromListsByKey<T extends Record<string, any>>(
+function mapFromListsByKey<T extends Record<string, any>>(
   extractor: (item: T) => string,
   ...lists: T[][]
 ): Map<string, T> {
@@ -42,7 +42,7 @@ export function mapFromListsByKey<T extends Record<string, any>>(
   return map;
 }
 
-export function uniqueByKey<T>(
+function uniqueByKey<T>(
   items: readonly T[],
   keyOf: (item: T) => string
 ): T[] {
@@ -54,7 +54,7 @@ export function uniqueByKey<T>(
   return [...map.values()];
 }
 
-export function uniqueByKeySorted<T>(
+function uniqueByKeySorted<T>(
   items: readonly T[],
   keyOf: (item: T) => string
 ): T[] {

@@ -23,10 +23,10 @@ import type { UserUnsubscribe } from './generated/schemas/userUnsubscribe';
 const notificationHost: string = SERVER_HOSTS['notification-service'];
 // const notificationHost: string = 'http://localhost:8086';
 
-export const NOTIFICATION_WEBSOCKET_EVENT = 'notification';
+const NOTIFICATION_WEBSOCKET_EVENT = 'notification';
 type NotificationEventType = typeof NOTIFICATION_WEBSOCKET_EVENT;
 
-export type IncomingNotification = {
+type IncomingNotification = {
   type: NotificationEventType;
   data: string;
 };

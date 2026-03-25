@@ -45,7 +45,7 @@ type IconButton = ComponentProps<'button'> & {
   showShortcut?: boolean;
 };
 
-export type IconButtonProps = IconButton;
+type IconButtonProps = IconButton;
 
 /**
  * IconButton component

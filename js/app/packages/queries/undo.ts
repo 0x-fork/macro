@@ -120,7 +120,7 @@ export const [MutationUndoProvider, useMutationUndoContext] =
     }
   );
 
-export function useUndoableMutation<
+function useUndoableMutation<
   TData = unknown,
   TError = Error,
   TVariables = void,

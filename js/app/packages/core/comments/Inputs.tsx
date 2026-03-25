@@ -6,7 +6,7 @@ import XIcon from '@icon/regular/x.svg';
 import { batch, createEffect, createSignal, Show, useContext } from 'solid-js';
 import { CommentsContext, ThreadContext } from './Thread';
 
-export function EditBottomRow(props: {
+function EditBottomRow(props: {
   handleCancel: (e: MouseEvent) => void;
   handleSend: () => void;
   hideHorizontalPadding?: boolean;

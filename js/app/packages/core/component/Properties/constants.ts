@@ -36,7 +36,7 @@ export const SYSTEM_PROPERTY_IDS = {
  * These properties are automatically attached to entities of this block type
  * and cannot be removed. Order matches backend (display order).
  */
-export const BUILTIN_PROPERTIES_BY_BLOCK: Partial<
+const BUILTIN_PROPERTIES_BY_BLOCK: Partial<
   Record<BlockName | BlockAlias, readonly string[]>
 > = {
   task: [
@@ -57,7 +57,7 @@ export const BUILTIN_PROPERTIES_BY_BLOCK: Partial<
  * Default pinned properties by block type.
  * These are automatically pinned when a new entity of this block type is created.
  */
-export const DEFAULT_PINNED_PROPERTIES_BY_BLOCK: Partial<
+const DEFAULT_PINNED_PROPERTIES_BY_BLOCK: Partial<
   Record<BlockName | BlockAlias, readonly string[]>
 > = {
   task: [

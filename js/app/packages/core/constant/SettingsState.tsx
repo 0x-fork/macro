@@ -18,7 +18,7 @@ export type SettingsTab =
   | 'Shortcuts';
 
 export const settingsOpen = isSettingsPanelOpen;
-export const setSettingsOpen = setIsSettingsPanelOpen;
+const setSettingsOpen = setIsSettingsPanelOpen;
 export const [activeTabId, setActiveTabId] =
   createSignal<SettingsTab>('Appearance');
 

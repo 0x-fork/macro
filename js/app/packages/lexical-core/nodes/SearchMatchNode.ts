@@ -3,7 +3,7 @@ import { $applyNodeReplacement, type EditorConfig } from 'lexical';
 import { $applyIdFromSerialized } from '../plugins/nodeIdPlugin';
 import { $applyPeerIdFromSerialized } from '../plugins/peerIdPlugin';
 
-export type SerializedSearchMatchNode = SerializedMarkNode;
+type SerializedSearchMatchNode = SerializedMarkNode;
 
 export function $createSearchMatchNode(
   ids: readonly string[]

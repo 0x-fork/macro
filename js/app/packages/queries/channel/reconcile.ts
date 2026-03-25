@@ -67,14 +67,14 @@ export type DeleteTargetSnapshot =
       preview?: ThreadPreviewReplySnapshot;
     };
 
-export type TargetMessageState = {
+type TargetMessageState = {
   content: string;
   editedAt: string | null | undefined;
   updatedAt: string;
   attachments: ApiMessageAttachment[];
 };
 
-export function makeMessageTarget(args: {
+function makeMessageTarget(args: {
   messageId: string;
   threadId?: string;
 }): MessageTarget {
@@ -99,7 +99,7 @@ function getCachedChannel(channelId: string): GetChannelResponse | undefined {
 }
 
 /** Finds a reply's parent thread id from cached channel data. */
-export function findThreadIdForMessage(
+function findThreadIdForMessage(
   channelId: string,
   messageId: string
 ): string | undefined {

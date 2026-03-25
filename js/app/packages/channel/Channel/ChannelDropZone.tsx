@@ -1,3 +1,4 @@
+import '@core/directive/droppable';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { handleFileFolderDrop } from '@core/util/upload';
 import type { ParentProps } from 'solid-js';

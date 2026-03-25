@@ -114,7 +114,7 @@ export type EntityData =
   | EmailEntity
   | ProjectEntity;
 
-export const isEntityData = (item: unknown): item is EntityData => {
+const isEntityData = (item: unknown): item is EntityData => {
   if (typeof item !== 'object') return false;
 
   if (!item) return false;
@@ -148,7 +148,7 @@ export const isEmailEntity = (entity: EntityData): entity is EmailEntity => {
   return entity.type === 'email';
 };
 
-export const isProjectEntity = (
+const isProjectEntity = (
   entity: EntityData
 ): entity is ProjectEntity => {
   return entity.type === 'project';
@@ -160,7 +160,7 @@ export const isDocumentEntity = (
   return entity.type === 'document';
 };
 
-export const isMarkdownEntity = (
+const isMarkdownEntity = (
   entity: EntityData
 ): entity is MarkdownEntity => {
   return (
@@ -168,7 +168,7 @@ export const isMarkdownEntity = (
   );
 };
 
-export const isPureDocumentEntity = (
+const isPureDocumentEntity = (
   entity: EntityData
 ): entity is DocumentEntity => {
   return entity.type === 'document' && entity.subType?.type !== 'task';
@@ -184,23 +184,23 @@ export type EntityWithProperties<T extends EntityData> = T & {
 
 export type TaskEntityWithProperties = EntityWithProperties<TaskEntity>;
 
-export type EntityOf<K extends EntityType> = Extract<EntityData, { type: K }>;
+type EntityOf<K extends EntityType> = Extract<EntityData, { type: K }>;
 
 export type EntityMapper<T extends EntityData> = (entity: EntityData) => T;
 
-export type EntityEnhancer<T extends EntityData> = (
+type EntityEnhancer<T extends EntityData> = (
   entity: EntityData,
   index?: number,
   array?: EntityData[]
 ) => T;
 
-export type EntityFilter<T extends EntityData> = (entity: T) => boolean;
+type EntityFilter<T extends EntityData> = (entity: T) => boolean;
 
-export type EntitiesFilter<T extends EntityData> = (entities: T[]) => T[];
+type EntitiesFilter<T extends EntityData> = (entities: T[]) => T[];
 
-export type EntityComparator<T extends EntityData> = (a: T, b: T) => number;
+type EntityComparator<T extends EntityData> = (a: T, b: T) => number;
 
-export type EntityRenderer<T extends EntityData> = (props: {
+type EntityRenderer<T extends EntityData> = (props: {
   entity: T;
   index: number;
 }) => JSX.Element;
@@ -221,7 +221,7 @@ export const isProjectContainedEntity = <T extends EntityData>(
  * @example
  * type MinimalEntity = PartialEntity<'id' | 'name'>;
  */
-export type PartialEntity<K extends keyof EntityData = keyof EntityData> = Pick<
+type PartialEntity<K extends keyof EntityData = keyof EntityData> = Pick<
   EntityData,
   K
 > &

@@ -18,7 +18,7 @@ import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { Tooltip } from '@core/component/Tooltip';
 
-export const MOCK_SIDEBAR_LINKS = [
+const MOCK_SIDEBAR_LINKS = [
   {
     id: 'channels',
     label: 'Channels',

@@ -12,23 +12,13 @@ const LOGIN_SUCCESS = 'login-success';
  *
  * @returns The broadcast channel.
  */
-export function getOrCreateAuthChannel(): BroadcastChannel {
+function getOrCreateAuthChannel(): BroadcastChannel {
   let channel = broadcastChannels().get(AUTH_CHANNEL);
   if (!channel) {
     channel = new BroadcastChannel(AUTH_CHANNEL);
     setBroadcastChannels(broadcastChannels().set(AUTH_CHANNEL, channel));
   }
   return channel;
-}
-
-export function waitForAuthSuccess(channel: BroadcastChannel): Promise<void> {
-  return new Promise((resolve) => {
-    channel.onmessage = (event) => {
-      if (event.data.type === LOGIN_SUCCESS) {
-        resolve();
-      }
-    };
-  });
 }
 
 /** Errot type for a promise timing out. */
@@ -41,7 +31,7 @@ export type TimeoutError = { tag: 'TimeoutError'; message: string };
  * @param timeout The timeout in milliseconds.
  * @returns A promise that resolves when the auth success message is received.
  */
-export function waitForAuthSuccessOrTimeout(
+function waitForAuthSuccessOrTimeout(
   channel: BroadcastChannel,
   timeout: number
 ): ResultAsync<void, TimeoutError> {

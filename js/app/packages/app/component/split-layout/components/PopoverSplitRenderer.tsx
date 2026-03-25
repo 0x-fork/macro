@@ -16,7 +16,7 @@ import { SoupContextProvider } from '@app/component/next-soup/soup-context';
 
 false && clickOutside;
 
-export type PopoverSplitData = {
+type PopoverSplitData = {
   id: string;
   content: SplitContent;
   mount: SplitMount;

@@ -75,7 +75,7 @@ type EntityRowContextValue = {
   collapseEntity: (entityId: string) => Promise<void>;
 };
 
-export const EntityRowContext = createContext<EntityRowContextValue>();
+const EntityRowContext = createContext<EntityRowContextValue>();
 
 export function EntityRowProvider(
   props: ParentProps<{

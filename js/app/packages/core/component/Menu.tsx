@@ -23,7 +23,7 @@ import { Hotkey } from './Hotkey';
 
 false && clickOutside;
 
-export const MENU_ITEM_HEIGHT = 28;
+const MENU_ITEM_HEIGHT = 28;
 
 type BaseMenuItemWrapperProps = {
   children: JSX.Element;
@@ -90,7 +90,7 @@ function MenuItemWrapper(props: MenuItemWrapperProps) {
   );
 }
 
-export type BaseMenuItemProps = {
+type BaseMenuItemProps = {
   text?: string | JSX.Element;
   icon?: Component<JSX.SvgSVGAttributes<SVGSVGElement>> | JSX.Element;
   iconClass?: string;
@@ -101,14 +101,14 @@ export type BaseMenuItemProps = {
   hotkeyToken?: HotkeyToken;
 };
 
-export type CheckboxMenuItemProps = BaseMenuItemProps & {
+type CheckboxMenuItemProps = BaseMenuItemProps & {
   selectorType: 'checkbox';
   checked: boolean;
   onChange?: (value: boolean) => void;
   value?: undefined;
 };
 
-export type RadioMenuItemProps = BaseMenuItemProps & {
+type RadioMenuItemProps = BaseMenuItemProps & {
   selectorType: 'radio';
   value: string;
   groupValue: string;
@@ -116,7 +116,7 @@ export type RadioMenuItemProps = BaseMenuItemProps & {
   onChange?: undefined;
 };
 
-export type GenericMenuItemProps = BaseMenuItemProps & {
+type GenericMenuItemProps = BaseMenuItemProps & {
   selectorType?: undefined;
   onChange?: undefined;
   checked?: undefined;
@@ -128,7 +128,7 @@ export type MenuItemProps =
   | CheckboxMenuItemProps
   | RadioMenuItemProps;
 
-export const MENU_ITEM_CLASS = `flex flex-row w-full gap-1.5 tracking-tight ${isMobile() ? 'py-2 px-1 text-base' : 'py-1 pl-2 pr-2 text-sm'} font-medium justify-between items-center focus-bracket rounded-xs`;
+const MENU_ITEM_CLASS = `flex flex-row w-full gap-1.5 tracking-tight ${isMobile() ? 'py-2 px-1 text-base' : 'py-1 pl-2 pr-2 text-sm'} font-medium justify-between items-center focus-bracket rounded-xs`;
 
 /**
  * A menu item component that can be used interchangeably within either a ContextMenu or DropdownMenu.
@@ -268,7 +268,7 @@ export function SubTrigger(props: {
   );
 }
 
-export function MenuGroup(props: { children: JSX.Element; class?: string }) {
+function MenuGroup(props: { children: JSX.Element; class?: string }) {
   return (
     <ContextMenu.Group class={`w-full ${props.class ?? ''}`}>
       {props.children}
@@ -294,7 +294,7 @@ type MenuItemRenameTriggerProps = Omit<GenericMenuItemProps, 'onClick'> & {
   sideEffect?: () => void;
 };
 
-export function MenuItemRenameTrigger(props: MenuItemRenameTriggerProps) {
+function MenuItemRenameTrigger(props: MenuItemRenameTriggerProps) {
   const [_, setIsRenaming] = useContext(EditingContext);
   return (
     <MenuItem

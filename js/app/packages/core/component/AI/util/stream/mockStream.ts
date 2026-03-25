@@ -117,7 +117,7 @@ export function blockDone(stream: ChatMessageStream): ChatMessageStream {
   };
 }
 
-export function splitStream(
+function splitStream(
   stream: ChatMessageStream,
   split: Splitter
 ): ChatMessageStream {

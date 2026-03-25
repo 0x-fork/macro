@@ -7,7 +7,7 @@ export interface GlobalAppState {
   blockOrchestrator: BlockOrchestrator;
 }
 
-export const GlobalAppStateContext = createContext<GlobalAppState>();
+const GlobalAppStateContext = createContext<GlobalAppState>();
 
 function tryGetContext(): GlobalAppState {
   const context = useContext(GlobalAppStateContext);
@@ -20,10 +20,6 @@ function tryGetContext(): GlobalAppState {
   return context;
 }
 
-export function useGlobalAppStateContext(): GlobalAppState {
-  return tryGetContext();
-}
-
 export function useGlobalNotificationSource(): NotificationSource {
   return tryGetContext().notificationSource;
 }
@@ -32,7 +28,7 @@ export function useGlobalBlockOrchestrator(): BlockOrchestrator {
   return tryGetContext().blockOrchestrator;
 }
 
-export type GlobalAppStateProps = {
+type GlobalAppStateProps = {
   notificationSource: NotificationSource;
   blockOrchestrator: BlockOrchestrator;
 };

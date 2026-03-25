@@ -25,11 +25,11 @@ export type ChannelMessagesData = InfiniteData<
   ChannelMessagesPageParam | null
 >;
 
-export type ChannelMessagesQueryKey = ReturnType<
+type ChannelMessagesQueryKey = ReturnType<
   typeof channelKeys.messages
 >['queryKey'];
 
-export type IndexedChannelMessages = {
+type IndexedChannelMessages = {
   items: ApiChannelMessage[];
   keys: string[];
   byId: Map<string, ApiChannelMessage>;
@@ -51,7 +51,7 @@ type ChannelMessagesPageParam = {
   previous_cursor: string | null;
 };
 
-export function channelMessagesQueryOptions(
+function channelMessagesQueryOptions(
   channelId: string,
   loadAroundMessageId: string | null
 ) {
@@ -101,7 +101,7 @@ export function useChannelMessagesQuery(
   );
 }
 
-export function useChannelMessagesWithIndex(channelId: Accessor<string>) {
+function useChannelMessagesWithIndex(channelId: Accessor<string>) {
   const query = useChannelMessagesQuery(channelId, () => undefined);
   const index = createMemo(() =>
     makeMessageIndex(query.data as ChannelMessagesData | undefined)
@@ -122,7 +122,7 @@ export function getChannelMessagesQueryKey(
 }
 
 /** Returns the shared prefix for all channel message query variants. */
-export function getChannelMessagesQueryKeyPrefix(channelId: string) {
+function getChannelMessagesQueryKeyPrefix(channelId: string) {
   return [...channelKeys.messages._def, channelId];
 }
 
@@ -140,7 +140,7 @@ export function setChannelMessagesData(
 }
 
 /** Returns all cached message query entries for a channel. */
-export function getChannelMessagesEntries(channelId: string) {
+function getChannelMessagesEntries(channelId: string) {
   return queryClient.getQueriesData<ChannelMessagesData>({
     queryKey: getChannelMessagesQueryKeyPrefix(channelId),
   });
@@ -287,7 +287,7 @@ export function replaceTopLevelMessageStateInChannelMessages(
   );
 }
 
-export function getTopLevelMessageSnapshot(
+function getTopLevelMessageSnapshot(
   data: ChannelMessagesData | undefined,
   messageId: string
 ): TopLevelMessageSnapshot | undefined {
@@ -473,7 +473,7 @@ export function replaceThreadReplyStateInChannelMessages(
   });
 }
 
-export function getThreadPreviewReplySnapshot(
+function getThreadPreviewReplySnapshot(
   data: ChannelMessagesData | undefined,
   threadId: string,
   replyId: string
@@ -510,7 +510,7 @@ export function restoreThreadPreviewReplyInChannelMessages(
 }
 
 /** Finds a top-level message across all cached variants for a channel. */
-export function findTopLevelMessageInChannelMessages(
+function findTopLevelMessageInChannelMessages(
   channelId: string,
   messageId: string
 ): ApiChannelMessage | undefined {

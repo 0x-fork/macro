@@ -51,7 +51,7 @@ export function $getDocumentMetadata(): DocumentMetadata {
   return $getState(root, documentMetadataState);
 }
 
-export function $setDocumentMetadata(
+function $setDocumentMetadata(
   metadata: Partial<DocumentMetadata>
 ): void {
   const root = $getRoot();
@@ -60,41 +60,8 @@ export function $setDocumentMetadata(
   $setState(root, documentMetadataState, newMetadata);
 }
 
-export function $addEnvironmentTags(tags: string[]): void {
-  const currentMetadata = $getDocumentMetadata();
-  const existingTags = currentMetadata.environmentTags || [];
-  const newTags = [...new Set([...existingTags, ...tags])];
-
-  $setDocumentMetadata({
-    environmentTags: newTags,
-  });
-}
-
-export function $removeEnvironmentTags(tags: string[]): void {
-  const currentMetadata = $getDocumentMetadata();
-  const existingTags = currentMetadata.environmentTags || [];
-  const filteredTags = existingTags.filter((tag) => !tags.includes(tag));
-
-  $setDocumentMetadata({
-    environmentTags: filteredTags.length > 0 ? filteredTags : undefined,
-  });
-}
-
-export function $setDocumentVersion(version: number): void {
+function $setDocumentVersion(version: number): void {
   $setDocumentMetadata({ version });
-}
-
-export function $hasEnvironmentTag(tag: string): boolean {
-  const metadata = $getDocumentMetadata();
-  return metadata.environmentTags?.includes(tag) ?? false;
-}
-
-/**
- * Get document version
- */
-export function $getDocumentVersion(): number {
-  const metadata = $getDocumentMetadata();
-  return metadata.version;
 }
 
 export function $applyDocumentMetadataFromSerialized(

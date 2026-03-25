@@ -128,9 +128,6 @@ createEffect(
   )
 );
 
-export function createThemeEffect(cb: () => void) {
-  return createEffect(on(ALL_THEME_SIGNALS, cb));
-}
 
 export function useReactiveColorString(colorKey: keyof ThemeReactive) {
   const  [l, c, h] = [themeReactive[colorKey].l[0], themeReactive[colorKey].c[0], themeReactive[colorKey].h[0]];

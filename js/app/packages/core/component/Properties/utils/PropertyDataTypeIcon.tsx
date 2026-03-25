@@ -19,7 +19,7 @@ import { match } from 'ts-pattern';
 import { twMerge } from 'tailwind-merge';
 import { Dynamic } from 'solid-js/web';
 
-export const EntityDataTypeIcon: Component<{
+const EntityDataTypeIcon: Component<{
   property: Pick<Property, 'specificEntityType'>;
   class?: string;
 }> = (props) => {

@@ -18,9 +18,9 @@ import { createMemo, createSignal } from 'solid-js';
 
 type SoupEntity = EntityData | WithSearch<EntityData>;
 
-export type NavigationResult<T> = { item: T; index: number } | undefined;
+type NavigationResult<T> = { item: T; index: number } | undefined;
 
-export type GroupConfig<T> = {
+type GroupConfig<T> = {
   id: string;
   getValue: (item: T) => unknown;
 };

@@ -9,7 +9,7 @@ import type {
 } from '@app/component/next-soup/soup-view/sort-options';
 import { Button } from '@app/component/next-soup/soup-view/filters-bar/button';
 
-export interface SortDropdownProps {
+interface SortDropdownProps {
   /** Current sort value */
   value: () => SystemSortOption;
   /** Handler for sort change */

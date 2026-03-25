@@ -214,14 +214,14 @@ export function isCloudStorageItem(
   return Object.values(CloudStorageItemTypeMap).includes(item as any);
 }
 
-export type ProcessingResultType = 'PREPROCESS' | 'SPLIT_TEXTS';
+type ProcessingResultType = 'PREPROCESS' | 'SPLIT_TEXTS';
 export type ProcessingResultResponseType<T extends ProcessingResultType> =
   T extends 'PREPROCESS'
     ? ICoParse
     : T extends 'SPLIT_TEXTS'
       ? TSegment[]
       : never;
-export type UserPins = UserPinsResponse;
+type UserPins = UserPinsResponse;
 
 function withVersionId(version_id?: string | undefined | null): string {
   return version_id ? `?version_id=${version_id}` : '';
@@ -1253,7 +1253,7 @@ export const storageServiceClient = {
   },
 } satisfies StorageServiceClient & typeof enhancements;
 
-export const uploadFileToPresignedUrl = async (
+const uploadFileToPresignedUrl = async (
   presignedUrl: URL,
   file: IDocumentStorageServiceFile,
   signal?: AbortSignal

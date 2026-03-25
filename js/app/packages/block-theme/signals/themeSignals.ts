@@ -97,10 +97,6 @@ createEffect(() => {
   for now its only reachable via GlobalHotkeys.tsx
   so this will do
 */
-export function toggleGutterSize(){
-  if(gutterSize() === 8){setGutterSize(5)}
-  else(setGutterSize(8));
-}
 
 createEffect(() => {
     if(blackBezels()){

@@ -14,7 +14,7 @@ import {
 import { createResizeSolver } from './solver';
 import type { PanelConfig, PanelId, ResizeZoneCtx } from './types';
 
-export const ResizeZoneContext = createContext<ResizeZoneCtx>();
+const ResizeZoneContext = createContext<ResizeZoneCtx>();
 
 /**
  * Props for the Resize Zone component.

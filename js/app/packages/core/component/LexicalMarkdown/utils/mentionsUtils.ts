@@ -20,7 +20,7 @@ import {
 } from '../plugins/mentions';
 import { handleSnapshotMention, supportsSnapshotNode } from './snapshotMention';
 
-export type GroupItem = {
+type GroupItem = {
   id: string;
   groupAlias: string;
 };
@@ -29,7 +29,7 @@ export type GroupItem = {
  * Creates a group mention entity from an alias.
  * Use this to define new group aliases (e.g., @here, @team, @online).
  */
-export function createGroupAlias(alias: string): Entity<'group'> {
+function createGroupAlias(alias: string): Entity<'group'> {
   return {
     kind: 'group',
     id: alias,
@@ -73,7 +73,7 @@ export function entityMapper<K extends keyof EntityMap>(
   return (data: EntityMap[K]) => ({ kind, data, id: data.id });
 }
 
-export type DateItem = ParsedDate & {
+type DateItem = ParsedDate & {
   id: string;
 };
 
@@ -186,7 +186,7 @@ export async function handleUserMention(
  * @param date
  * @param dependencies
  */
-export async function handleDateMention(
+async function handleDateMention(
   date: DateItem,
   dependencies: HandlerDependencies
 ) {
@@ -197,7 +197,7 @@ export async function handleDateMention(
   });
 }
 
-export async function handleGroupMention(
+async function handleGroupMention(
   group: GroupItem,
   dependencies: HandlerDependencies
 ) {
@@ -207,7 +207,7 @@ export async function handleGroupMention(
   });
 }
 
-export async function handleEmailMention(
+async function handleEmailMention(
   email: EmailEntity,
   dependencies: HandlerDependencies
 ) {
@@ -319,7 +319,7 @@ export async function handleBasicMention(
  * @param channel
  * @param dependencies
  */
-export async function handleChannelMention(
+async function handleChannelMention(
   channel: ChannelWithParticipants,
   dependencies: HandlerDependencies
 ) {
@@ -390,14 +390,14 @@ export type MentionItem = QuickAccessItem | DateMentionItem | GroupMentionItem;
 /**
  * Type guard for DateMentionItem.
  */
-export function isDateMentionItem(item: MentionItem): item is DateMentionItem {
+function isDateMentionItem(item: MentionItem): item is DateMentionItem {
   return item.kind === 'date';
 }
 
 /**
  * Type guard for GroupMentionItem.
  */
-export function isGroupMentionItem(
+function isGroupMentionItem(
   item: MentionItem
 ): item is GroupMentionItem {
   return item.kind === 'group';

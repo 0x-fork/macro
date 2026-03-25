@@ -80,7 +80,7 @@ interface SoupViewContextValues {
   setActiveTab: Setter<string | undefined>;
 }
 
-export const SoupViewContext = createContext<SoupViewContextValues>();
+const SoupViewContext = createContext<SoupViewContextValues>();
 
 export const useSoupView = () => {
   const context = useContext(SoupViewContext);
@@ -93,8 +93,6 @@ export const useSoupView = () => {
 
   return context;
 };
-
-export const useMaybeSoupView = () => useContext(SoupViewContext);
 
 interface SoupViewContextProviderProps {
   soup?: SoupState;

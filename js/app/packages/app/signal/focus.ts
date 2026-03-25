@@ -43,4 +43,3 @@ export function mountGlobalFocusListener(withDebug?: boolean) {
 }
 
 export const activeElement = rawActiveElement;
-export const recheckFocus = () => setDirty();

@@ -12,7 +12,7 @@ import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import type { Accessor } from 'solid-js';
 import { For } from 'solid-js';
 
-export type ModelSelectorProps = {
+type ModelSelectorProps = {
   selectedModel?: TModel;
   availableModels?: Accessor<TModel[]>;
   onSelect: (model: TModel) => void;

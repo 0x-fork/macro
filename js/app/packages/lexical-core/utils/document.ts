@@ -20,19 +20,3 @@ import { $isSearchMatchNode } from '../nodes/SearchMatchNode';
  * @param rootNode The root ElementNode to start traversal from.
  */
 
-export function $sanitizeLexicalTree(rootNode: ElementNode): void {
-  for (const { node } of $dfsIterator(rootNode)) {
-    // Remove entirely - these are temporary UI state with no meaningful content
-    if ($isCompletionNode(node) || $isInlineSearchNode(node)) {
-      node.remove();
-    }
-    // Unwrap - these wrap real content, keep the content but remove the markup
-    else if ($isCommentNode(node) || $isSearchMatchNode(node)) {
-      // CommentNode and SearchMatchNode extend MarkNode
-      $unwrapMarkNode(node);
-    } else if ($isDiffNode(node)) {
-      // DiffNode extends ElementNode, so use $unwrapNode instead
-      $unwrapNode(node);
-    }
-  }
-}

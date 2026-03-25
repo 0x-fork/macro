@@ -58,7 +58,7 @@ export const themeStyles: Record<Theme, string> = {
   reverse: 'bg-current hover:bg-current/90',
 };
 
-export const themeSelectedColors: Record<Theme, string> = {
+const themeSelectedColors: Record<Theme, string> = {
   base: 'bg-hover!',
   accent: 'bg-accent/20!',
   accentFill: 'bg-acent/80',
@@ -76,7 +76,7 @@ export const themeSelectedColors: Record<Theme, string> = {
   reverse: 'bg-current',
 };
 
-export const shortcutBadgeStyles: Record<Theme, string> = {
+const shortcutBadgeStyles: Record<Theme, string> = {
   base: 'bg-dialog border border-ink',
   accent: 'bg-accent/10',
   accentFill: 'bg-accent/90',

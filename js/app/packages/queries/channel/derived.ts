@@ -42,14 +42,14 @@ export function isChannelAdminOrOwner(data: GetChannelResponse): boolean {
   return ['admin', 'owner'].includes(access.Access.role);
 }
 
-export function getReactionsForMessage(
+function getReactionsForMessage(
   reactions: GetChannelResponseReactions,
   messageId: string
 ) {
   return reactions[messageId] ?? [];
 }
 
-export function getAttachmentsByMessageId(
+function getAttachmentsByMessageId(
   attachments: Attachment[]
 ): Record<string, Attachment[]> {
   return attachments.reduce(
@@ -68,7 +68,7 @@ export function getAttachmentsByMessageId(
 /**
  * Get a message by ID from the channel data
  */
-export function getMessageById(
+function getMessageById(
   data: GetChannelResponse,
   messageId: string
 ): Message | undefined {
@@ -78,7 +78,7 @@ export function getMessageById(
 /**
  * Get attachments for a specific message
  */
-export function getAttachmentsForMessage(
+function getAttachmentsForMessage(
   attachments: Attachment[],
   messageId: string
 ): Attachment[] {
@@ -88,14 +88,14 @@ export function getAttachmentsForMessage(
 /**
  * Get a participant by user ID
  */
-export function getParticipantById(data: GetChannelResponse, userId: string) {
+function getParticipantById(data: GetChannelResponse, userId: string) {
   return data.participants.find((p) => p.user_id === userId);
 }
 
 /**
  * Check if a user has reacted to a message with a specific emoji
  */
-export function hasUserReacted(
+function hasUserReacted(
   reactions: GetChannelResponseReactions,
   messageId: string,
   userId: string,

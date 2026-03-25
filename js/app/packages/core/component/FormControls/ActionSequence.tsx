@@ -1,13 +1,13 @@
 import { For, type JSX } from 'solid-js';
 
-export interface ActionSequenceStep {
+interface ActionSequenceStep {
   label: string;
   onClick: () => void;
   disabled?: boolean;
   completed?: boolean;
 }
 
-export interface ActionSequenceProps {
+interface ActionSequenceProps {
   steps: ActionSequenceStep[];
   classList?: JSX.CustomAttributes<HTMLOListElement>['classList'];
 }

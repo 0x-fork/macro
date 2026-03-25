@@ -1,4 +1,3 @@
-import { authServiceClient } from '@service-auth/client';
 import type { JSX } from 'solid-js';
 import { createSignal, onMount, Show } from 'solid-js';
 
@@ -8,12 +7,6 @@ export function setCookie(name: string, value: string, days: number) {
     : '';
   document.cookie = `${name}=${encodeURIComponent(value)}${expires}; path=/`;
 }
-
-export const assignABGroup = async () => {
-  const randomGroup = Math.random() < 0.5 ? 'A' : 'B';
-  await authServiceClient.setGroup({ group: randomGroup });
-  return randomGroup;
-};
 
 export enum Stage {
   Verify = 'verify',

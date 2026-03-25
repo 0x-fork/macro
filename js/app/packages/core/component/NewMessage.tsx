@@ -266,7 +266,7 @@ export function NewMessage(props: NewMessageProps) {
   );
 }
 
-export function useNewMessageModal(
+function useNewMessageModal(
   props: Pick<NewMessageProps, 'title' | 'source'>
 ) {
   const isOpenSignal = createSignal(false);
@@ -287,7 +287,7 @@ export function useNewMessageModal(
   };
 }
 
-export function ForwardButton() {
+function ForwardButton() {
   return (
     <NewMessage
       source="block"

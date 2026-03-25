@@ -4,7 +4,7 @@ import { getPrettyHotkeyStringByToken } from '@core/hotkey/utils';
 import { createMemo, For, type JSX, Show, splitProps } from 'solid-js';
 import type { Theme } from './Themes';
 
-export const modifierMap = {
+const modifierMap = {
   cmd: IS_MAC ? '⌘' : 'Ctrl',
   opt: IS_MAC ? '⌥' : 'Alt',
   shift: IS_MAC ? '⇧' : 'Shift',
@@ -24,7 +24,7 @@ const symbolMap = {
   ESCAPE: 'ESC',
 };
 
-export const hotkeyStyles: Record<Theme, { label: string; hotkey: string }> = {
+const hotkeyStyles: Record<Theme, { label: string; hotkey: string }> = {
   base: {
     label: 'bg-ink border border-ink text-dialog',
     hotkey: 'bg-dialog border border-ink text-ink',

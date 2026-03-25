@@ -13,7 +13,7 @@ export type RenderContext = {
 
 import type { Component } from 'solid-js';
 
-export interface ToolRendererConfig<TName extends ToolName, RenderContext> {
+interface ToolRendererConfig<TName extends ToolName, RenderContext> {
   name: TName;
   renderCall: Component<ToolContext<NamedTool<TName, 'call'>> & RenderContext>;
   renderResponse: Component<

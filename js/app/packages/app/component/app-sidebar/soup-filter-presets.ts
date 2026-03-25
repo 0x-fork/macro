@@ -12,7 +12,7 @@ import type { SoupBody } from '@queries/soup/items';
 import { SharedEmailFilter } from '@service-storage/generated/schemas';
 
 /** Shared query filters for the "Signal" tab across Inbox and Email views. */
-export const SIGNAL_QUERY_FILTERS = {
+const SIGNAL_QUERY_FILTERS = {
   email_filters: {
     importance: true as const,
     shared: SharedEmailFilter.exclude,
@@ -21,7 +21,7 @@ export const SIGNAL_QUERY_FILTERS = {
 };
 
 /** Shared query filters for the "Noise" tab across Inbox and Email views. */
-export const NOISE_QUERY_FILTERS = {
+const NOISE_QUERY_FILTERS = {
   email_filters: {
     importance: false as const,
     shared: SharedEmailFilter.exclude,
@@ -29,7 +29,7 @@ export const NOISE_QUERY_FILTERS = {
   emailView: 'inbox' as const,
 };
 
-export type SoupFiltersPreset = {
+type SoupFiltersPreset = {
   queryFilters: SoupBody;
   clientFilters: {
     and?: FilterID[];
@@ -43,13 +43,13 @@ export type PresetContext = {
   email: string | undefined;
 };
 
-export type TabPresetResolver = (
+type TabPresetResolver = (
   ctx: PresetContext
 ) => SoupFiltersPreset | undefined;
 
-export type TabConfig = Record<string, TabPresetResolver>;
+type TabConfig = Record<string, TabPresetResolver>;
 
-export type ViewTabConfig = {
+type ViewTabConfig = {
   default: string;
   tabs: TabConfig;
 };

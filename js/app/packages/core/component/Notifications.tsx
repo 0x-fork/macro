@@ -11,7 +11,7 @@ import {
 import { openNotification } from '@notifications/notification-navigation';
 import { createMemo, For, Show } from 'solid-js';
 
-export type NotificationsProps = {
+type NotificationsProps = {
   entity: Entity;
   notificationSource: NotificationSource;
 };

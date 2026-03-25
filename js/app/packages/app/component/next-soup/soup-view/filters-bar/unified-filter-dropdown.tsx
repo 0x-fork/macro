@@ -36,7 +36,7 @@ export type FilterOption = {
   icon?: () => JSX.Element;
 };
 
-export type FilterCategory = {
+type FilterCategory = {
   id: string;
   label: string;
   options: FilterOption[];

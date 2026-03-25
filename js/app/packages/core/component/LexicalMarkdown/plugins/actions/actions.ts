@@ -22,7 +22,7 @@ import { TRY_INSERT_LINK_COMMAND } from '../links';
 import { TRY_INSERT_MEDIA_UPLOAD_COMMAND } from '../media';
 import { NODE_TRANSFORM } from '../node-transform';
 
-export type ActionIcon = string;
+type ActionIcon = string;
 
 export type Action = {
   id: string;
@@ -35,7 +35,7 @@ export type Action = {
 };
 
 // TODO (seamus): Actaully oragnize the items based on category.
-export enum ActionCategory {
+enum ActionCategory {
   BASIC = 'Basic',
   FORMAT = 'Formatting',
   ELEMENT = 'Elements',

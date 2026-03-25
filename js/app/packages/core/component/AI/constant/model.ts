@@ -25,6 +25,4 @@ export const MODEL_PROVIDER_ICON: ExhaustiveMap = {
   'claude-opus-4-6': AnthropicIcon,
 };
 
-export const SMART_MODE_MODEL: Model = 'claude-opus-4-6';
-
 export const DEFAULT_MODEL: Model = 'claude-opus-4-6';

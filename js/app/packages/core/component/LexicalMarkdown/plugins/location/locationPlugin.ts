@@ -47,26 +47,7 @@ export type EphemeralLocation = {
 
 export type MarkdownLocation = PersistentLocation | EphemeralLocation;
 
-export function $selectionToEphemeralLocation(
-  selection: BaseSelection | null
-): EphemeralLocation | null {
-  if (!$isRangeSelection(selection) || selection.isCollapsed()) {
-    return null;
-  }
-  return {
-    type: 'ephemeral',
-    anchor: {
-      key: selection.anchor.key,
-      offset: selection.anchor.offset,
-    },
-    focus: {
-      key: selection.focus.key,
-      offset: selection.focus.offset,
-    },
-  };
-}
-
-export function getNodesFromEphemeralLocation(
+function getNodesFromEphemeralLocation(
   editor: LexicalEditor,
   loc: EphemeralLocation
 ): [LexicalNode, LexicalNode] | null {
@@ -154,7 +135,7 @@ function persistentLocationToSearchParams(location: PersistentLocation) {
  * @param location - The highlight location to serialize
  * @returns A string in the format `anchor=<id>::<offset>&focus=<id>::<offset>`
  */
-export function getPersitentLocationString(
+function getPersitentLocationString(
   location: PersistentLocation
 ): string {
   return persistentLocationToSearchParams(location).toString();
@@ -171,7 +152,7 @@ export function parsePersistentLocation(
   return deserializePersistentLocation(serialized);
 }
 
-export function locationCompare(a: PersistentLocation, b: PersistentLocation) {
+function locationCompare(a: PersistentLocation, b: PersistentLocation) {
   for (const key in a) {
     const k = key as keyof PersistentLocation;
     if (b[k] !== a[k]) return false;
@@ -188,7 +169,7 @@ export const GO_TO_LOCATION_COMMAND = createCommand<
 
 export const GO_TO_NODE_ID_COMMAND = createCommand<string>('SCROLL_TO_NODE_ID');
 
-export type LocationPluginProps = {
+type LocationPluginProps = {
   mapping: NodeIdMappings;
   onGotoLocation?: (location: PersistentLocation) => void;
   revokeOptions?: {

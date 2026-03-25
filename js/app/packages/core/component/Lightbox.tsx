@@ -409,7 +409,7 @@ type LightboxToolbarProps = {
   children: JSX.Element;
 };
 
-export function LightboxToolbar(props: LightboxToolbarProps) {
+function LightboxToolbar(props: LightboxToolbarProps) {
   return (
     <div
       class="absolute top-4 right-4 bg-dialog backdrop-blur-sm rounded-lg border border-edge p-1 flex flex-row items-center gap-1 shadow-md transition-opacity duration-300"

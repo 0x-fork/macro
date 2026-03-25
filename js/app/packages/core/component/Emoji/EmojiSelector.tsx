@@ -27,7 +27,7 @@ export function renderEmoji(emoji: string, size?: string): JSX.Element {
   );
 }
 
-export type EmojiEventHandler<T extends Event> = (
+type EmojiEventHandler<T extends Event> = (
   emoji: string,
   event: T & {
     currentTarget: HTMLButtonElement;
@@ -35,12 +35,12 @@ export type EmojiEventHandler<T extends Event> = (
   }
 ) => void;
 
-export interface EmojiPickerProps {
+interface EmojiPickerProps {
   nameFilter?: string;
   onEmojiClick: (emoji: SimpleEmoji) => void;
 }
 
-export interface EmojiOptionProps {
+interface EmojiOptionProps {
   emoji: SimpleEmoji;
   onEmojiClick: (emoji: SimpleEmoji) => void;
   isSelected: boolean;

@@ -11,7 +11,7 @@ import { cn } from '@ui/utils/classname';
 import Terminal from '@phosphor-icons/core/regular/terminal.svg?component-solid';
 import { Dynamic } from 'solid-js/web';
 
-export interface CommandItemProps {
+interface CommandItemProps {
   item: CommandMenuItem;
   index: number;
   selected: boolean;

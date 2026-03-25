@@ -4,16 +4,6 @@ import type { ResultAsync } from 'neverthrow';
 import type { Accessor } from 'solid-js';
 import type { RawUpdate } from './shared';
 
-export const SYNC_SOURCE_EVENT_TYPES = {
-  Connect: 'connect',
-  Awareness: 'awareness',
-  Reconnect: 'reconnect',
-  Disconnect: 'disconnect',
-  IncrementalSnapshot: 'incremental_snapshot',
-  Update: 'update',
-  Error: 'error',
-} as const;
-
 export type InitialSync = {
   snapshot: RawUpdate;
   awareness: RawUpdate;
@@ -27,8 +17,6 @@ export type SyncSourceEvent =
   | { type: 'incremental_snapshot'; snapshot: RawUpdate }
   | { type: 'update'; update: RawUpdate }
   | { type: 'error'; error: Error };
-
-export type SyncSourceEventType = SyncSourceEvent['type'];
 
 export type AuthorizationError = {
   type: 'authorization_error';

@@ -106,7 +106,7 @@ function isNoiseEmail(entity: EmailEntity): boolean {
  * - they are not completed or canceled
  * - the current user is an assignee (or the task has no assignees)
  */
-export const isSignalTask = (
+const isSignalTask = (
   entity: TaskEntityWithProperties,
   currentUserId: string | undefined
 ): boolean => {

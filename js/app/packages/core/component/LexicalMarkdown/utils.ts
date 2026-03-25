@@ -82,7 +82,7 @@ import { MARKDOWN_VERSION_COUNTER, STAGING_TAG } from './version';
 /**
  * Type guard to check if the object is a LexicalEditor
  */
-export function isLexicalEditor(
+function isLexicalEditor(
   editor: LexicalEditor | EditorState
 ): editor is LexicalEditor {
   return 'getEditorState' in editor;
@@ -131,13 +131,13 @@ export function isStateEmpty(state: SerializedEditorState) {
   );
 }
 
-export function isSerializedParagraphNode(
+function isSerializedParagraphNode(
   node: SerializedLexicalNode
 ): node is SerializedParagraphNode {
   return node.type === 'paragraph';
 }
 
-export function stateHasOnlyEmptyParagraphs(
+function stateHasOnlyEmptyParagraphs(
   state: SerializedEditorState
 ): boolean {
   const { root } = state;
@@ -396,7 +396,7 @@ export function setEditorStateFromHtml(
   }
 }
 
-export function $isEmpty() {
+function $isEmpty() {
   const root = $getRoot();
   const children = root.getChildren();
   if (children.length === 0) return true;
@@ -546,61 +546,6 @@ export function isRectFlushWith(
   return Math.abs(edgeValue - outerValue) < tolerance;
 }
 
-/**
- * Returns true if the caret is at the bottom of the lexical top level node.
- * @param selection The selection to check
- * @param editor The editor to check
- */
-export function $isCaretAtContainingElementBottom(
-  selection: BaseSelection | null,
-  editor: LexicalEditor
-) {
-  if (!selection) return false;
-  if (!$isRangeSelection(selection)) return false;
-
-  const focusNode = selection.focus.getNode();
-  const parent = focusNode?.getTopLevelElement();
-  if (!parent) return false;
-
-  const domElem = editor.getElementByKey(parent.getKey());
-  if (!domElem) return false;
-
-  const caretRect = $getCaretRect();
-  if (!caretRect) return false;
-
-  return isRectFlushWith(
-    caretRect,
-    domElem.getBoundingClientRect(),
-    'bottom',
-    5
-  );
-}
-
-/**
- * Returns true if the caret is at the top of the lexical top level node.
- * @param selection The selection to check
- * @param editor The editor to check
- */
-export function $isCaretAtContainingElementTop(
-  slection: BaseSelection | null,
-  editor: LexicalEditor
-) {
-  if (!slection) return false;
-  if (!$isRangeSelection(slection)) return false;
-
-  const focusNode = slection.focus.getNode();
-  const parent = focusNode?.getTopLevelElement();
-  if (!parent) return false;
-
-  const domElem = editor.getElementByKey(parent.getKey());
-  if (!domElem) return false;
-
-  const caretRect = $getCaretRect();
-  if (!caretRect) return false;
-
-  return isRectFlushWith(caretRect, domElem.getBoundingClientRect(), 'top', 5);
-}
-
 export function $traverseNodes(
   start: LexicalNode,
   callback: (node: LexicalNode) => void
@@ -614,7 +559,7 @@ export function nodeByKey(editor: LexicalEditor | EditorState, key: NodeKey) {
   return editor.read(() => $getNodeByKey(key));
 }
 
-export function nodeTextByKey(
+function nodeTextByKey(
   editor: LexicalEditor | EditorState,
   key: NodeKey
 ) {
@@ -655,88 +600,6 @@ export const isEmptyOrEndsWithSpace = (str: string) =>
   isEmptyOrMatches(str, /\s$/);
 export const isEmptyOrStartsWithSpace = (str: string) =>
   isEmptyOrMatches(str, /^\s/);
-
-export function $setCodeLangauge(language: string) {
-  const selection = $getSelection();
-  if (!$isRangeSelection(selection)) return;
-
-  const anchorNode = selection.anchor.getNode();
-  const focusNode = selection.focus.getNode();
-
-  const anchorParent = anchorNode.getTopLevelElement();
-  const focusParent = focusNode.getTopLevelElement();
-
-  if (anchorParent === focusParent && $isCodeNode(anchorParent)) {
-    anchorParent.setLanguage(language);
-  }
-}
-
-export function $getCodeLanguage(): string | null {
-  const selection = $getSelection();
-  if (!$isRangeSelection(selection)) return null;
-
-  const anchorNode = selection.anchor.getNode();
-  const focusNode = selection.focus.getNode();
-
-  const anchorParent = anchorNode.getTopLevelElement();
-  const focusParent = focusNode.getTopLevelElement();
-
-  if (!$isCodeNode(anchorParent) || !$isCodeNode(focusParent)) {
-    return null;
-  }
-
-  const anchorLanguage = anchorParent.getLanguage() || 'plaintext';
-  const focusLanguage = focusParent.getLanguage() || 'plaintext';
-
-  if (anchorLanguage !== focusLanguage) {
-    return null;
-  }
-
-  const nodes = selection.getNodes();
-  for (const node of nodes) {
-    const parent = node.getTopLevelElement();
-    if (!parent) continue;
-
-    if (!$isCodeNode(parent)) {
-      return null;
-    }
-
-    const language = parent.getLanguage() || 'plaintext';
-    if (language !== anchorLanguage) {
-      return null;
-    }
-  }
-  return anchorLanguage;
-}
-
-/**
- * Set the selection to a collapsed caret bases on a client position.
- */
-export function $setCaretSelecitonFromClientPos(
-  clientX: number,
-  clientY: number
-): RangeSelection | null {
-  const eventRange = caretFromPoint(clientX, clientY);
-  if (eventRange !== null) {
-    const { offset: domOffset, node: domNode } = eventRange;
-    const node = $getNearestNodeFromDOMNode(domNode);
-    if (node === null) return null;
-    const selection = $createRangeSelection();
-    if ($isTextNode(node)) {
-      selection.anchor.set(node.getKey(), domOffset, 'text');
-      selection.focus.set(node.getKey(), domOffset, 'text');
-    } else {
-      const parentKey = node.getParentOrThrow().getKey();
-      const offset = node.getIndexWithinParent() + 1;
-      selection.anchor.set(parentKey, offset, 'element');
-      selection.focus.set(parentKey, offset, 'element');
-    }
-    const normalizedSelection = $normalizeSelection__EXPERIMENTAL(selection);
-    $setSelection(normalizedSelection);
-    return normalizedSelection;
-  }
-  return null;
-}
 
 /**
  * This is an internal lexical function that is not exported.
@@ -800,7 +663,7 @@ export function $insertWrappedAfter(
  * Moving from this to the cleanState functionality as the bottom of this file.
  * This will work pre-stringification both for current save and coming LORO.
  */
-export function stringifyEditorState(
+function stringifyEditorState(
   editor: LexicalEditor,
   filters?: string[]
 ) {
@@ -880,7 +743,7 @@ function transformNode<T extends SerializedLexicalNode>(
 /**
  * Walk a serialized editor state and apply **IN PLACE** transforms on nodes.
  */
-export function transformSerializedEditorState(
+function transformSerializedEditorState(
   state: SerializedEditorState,
   transforms: Array<SerializedNodeTransform<SerializedLexicalNode>>
 ): SerializedEditorState {
@@ -897,7 +760,7 @@ export function transformSerializedEditorState(
  * Transform a serialized editor state into one that is safe to the LORO sync plugin.
  * NOTE: this is no longer true for loro. but is being used for legacy DSS save.
  */
-export function cleanState(
+function cleanState(
   state: SerializedEditorState
 ): SerializedEditorState {
   return transformSerializedEditorState(state, [
@@ -943,7 +806,7 @@ export function loroSyncState(state: EditorState): SerializedEditorState {
   ]);
 }
 
-export function serializedSateWithSearchText(
+function serializedSateWithSearchText(
   state: EditorState
 ): SerializedEditorState {
   const nodeIdToSearchText = new Map<string, string>();
@@ -980,7 +843,7 @@ export function getSaveState(state: EditorState): SerializedEditorState {
 /**
  * Get the top most list parent for a list item or something inside a list item.
  */
-export function $getTopListNode(listItem: LexicalNode): ListNode {
+function $getTopListNode(listItem: LexicalNode): ListNode {
   let list = listItem.getParent<ListNode>();
   if (!$isListNode(list)) {
     throw new Error('Expected list node to be a parent of list item');
@@ -1004,7 +867,7 @@ export function $getTopListNode(listItem: LexicalNode): ListNode {
  * @returns A tuple of the parent node and the offset where the new node can be inserted.
  *     To be used with `parent.splice(offset, 0, [newNode])`
  */
-export function $splitListNodeToRoot(
+function $splitListNodeToRoot(
   startNode: ElementNode,
   offset: number
 ): [ElementNode, number] {

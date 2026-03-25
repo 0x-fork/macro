@@ -98,7 +98,7 @@ export function ReferencesDrawer(props: {
   );
 }
 
-export type ReferencesModalProps = {
+type ReferencesModalProps = {
   documentId: string;
   documentName?: string;
   buttonSize?: 'sm';

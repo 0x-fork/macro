@@ -32,7 +32,7 @@ export function useEntityPermissions(
   );
 }
 
-export async function fetchEntityPermissions(
+async function fetchEntityPermissions(
   entityType: string,
   entityId: string
 ): Promise<MaybeResult<string, EntityPermissionResponse>> {

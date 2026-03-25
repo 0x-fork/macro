@@ -2,7 +2,7 @@ import PencilSimpleLine from '@icon/regular/pencil-simple-line.svg';
 import { createSignal, Show } from 'solid-js';
 import { DeprecatedEditingTextButton } from './DeprecatedTextButton';
 
-export interface EditableFieldProps {
+interface EditableFieldProps {
   label?: string;
   value?: string;
   placeholder?: string;

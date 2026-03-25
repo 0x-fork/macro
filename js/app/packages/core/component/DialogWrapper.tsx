@@ -3,7 +3,7 @@ import { cn } from '@ui/utils/classname';
 import type { JSXElement, Ref } from 'solid-js';
 import { ClippedPanel } from './ClippedPanel';
 
-export interface DialogWrapperProps {
+interface DialogWrapperProps {
   children: JSXElement;
   class?: string;
   width?: string;

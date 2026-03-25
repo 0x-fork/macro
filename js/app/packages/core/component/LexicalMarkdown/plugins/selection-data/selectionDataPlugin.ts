@@ -65,11 +65,11 @@ function resetSelectionData(setSelectionData: SetStoreFunction<SelectionData>) {
   setSelectionData(structuredClone(defaultSelectionData));
 }
 
-export function createSelectionData() {
+function createSelectionData() {
   return createStore<SelectionData>(structuredClone(defaultSelectionData));
 }
 
-export function $getSelectionData(
+function $getSelectionData(
   selection: BaseSelection | null
 ): SelectionData {
   const data = structuredClone(defaultSelectionData);
@@ -122,7 +122,7 @@ export function nodeType(node: ElementNode): ElementName {
   return t as ElementName;
 }
 
-export function $extractNodeTypes(selection: RangeSelection): Set<ElementName> {
+function $extractNodeTypes(selection: RangeSelection): Set<ElementName> {
   const anchorParent = selection.anchor.getNode().getTopLevelElement();
   const focusParent = selection.focus.getNode().getTopLevelElement();
   const nodeTypes = new Set<ElementName>();

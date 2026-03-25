@@ -2,7 +2,7 @@ import CheckIcon from '@icon/regular/check.svg';
 import { cn } from '@ui/utils/classname';
 import { Show } from 'solid-js';
 
-export interface MultiSelectCheckboxProps {
+interface MultiSelectCheckboxProps {
   checked?: boolean;
   onChecked?: (checked: boolean, shiftKey: boolean) => void;
 }

@@ -12,9 +12,9 @@ import { version } from './package.json';
 
 const PLATFORMS = ['web', 'desktop', 'ios', 'android'] as const;
 
-export type AppPlatform = (typeof PLATFORMS)[number];
+type AppPlatform = (typeof PLATFORMS)[number];
 
-export interface CreateAppViteConfigOptions {
+interface CreateAppViteConfigOptions {
   platform: AppPlatform;
 }
 

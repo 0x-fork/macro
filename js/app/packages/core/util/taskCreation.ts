@@ -5,7 +5,7 @@ import {
 import type { PropertyInput } from '@service-storage/generated/schemas/propertyInput';
 import { createTask } from './create';
 
-export type TaskData = {
+type TaskData = {
   title: string;
   assigneeUserIds: string[];
   dueDate: Date | null;

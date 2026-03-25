@@ -65,7 +65,7 @@ export function useEntityPropertiesQuery(
   );
 }
 
-export function invalidatePropertiesForEntity(
+function invalidatePropertiesForEntity(
   entityType: EntityType,
   entityId: string
 ) {
@@ -74,7 +74,7 @@ export function invalidatePropertiesForEntity(
   });
 }
 
-export type SaveEntityPropertyParams = {
+type SaveEntityPropertyParams = {
   entityId: string;
   entityType: EntityType;
   property: Property;
@@ -197,7 +197,7 @@ export function useSaveEntityPropertyMutation(
   }));
 }
 
-export type DeleteEntityPropertyParams = {
+type DeleteEntityPropertyParams = {
   entityPropertyId: string;
   entityType: EntityType;
   entityId: string;
@@ -233,7 +233,7 @@ export function useDeleteEntityPropertyMutation(
   }));
 }
 
-export type AddEntityPropertyParams = {
+type AddEntityPropertyParams = {
   entityId: string;
   entityType: EntityType;
   propertyDefinitionId: string;
@@ -275,7 +275,7 @@ export function useAddEntityPropertyMutation(
   }));
 }
 
-export type SetPropertyStatusCompleteParams = {
+type SetPropertyStatusCompleteParams = {
   entityType: PropertiesEntityType;
   entityId: string;
 };
@@ -452,7 +452,7 @@ export function useSetPropertyStatusCompleteMutation(
   }));
 }
 
-export type BulkSaveEntityPropertiesParams = {
+type BulkSaveEntityPropertiesParams = {
   properties: Array<{
     entityId: string;
     entityType: EntityType;

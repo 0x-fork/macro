@@ -86,7 +86,7 @@ type BlockInstance = {
   handle: OwnedBlockHandle<any>;
 };
 
-export type CreateBlockOptions<Name extends BlockName = BlockName> = {
+type CreateBlockOptions<Name extends BlockName = BlockName> = {
   params?: BlockComponentProps[Name];
   location?: Location;
   nested?: NestedState<any>;
@@ -233,7 +233,7 @@ export type BlockInstanceHandle = {
  *
  * NOTE: This handle is meant to be consumed by other blocks
  */
-export type BlockHandle<S> = {
+type BlockHandle<S> = {
   block: Block;
   isMethodAvailable: (methodName: string) => boolean;
   awaitMethodAvailable: (methodName: string, timeout?: number) => Promise<void>;

@@ -69,7 +69,7 @@ export const AddPropertyValueButton: Component<{
  * Container for clickable property values (used by Date, Select, Entity)
  * Provides consistent button styling with optional hover states
  */
-export const PropertyValueButton: Component<{
+const PropertyValueButton: Component<{
   onClick?: (e: MouseEvent) => void;
   isReadOnly: boolean;
   disabled?: boolean;

@@ -57,7 +57,7 @@ export function setHistoryItemName(itemId: string, name: string) {
   }));
 }
 
-export const historyQueryOptions = queryOptions({
+const historyQueryOptions = queryOptions({
   queryKey: historyKeys.list.queryKey,
   queryFn: async (): Promise<HistoryQueryFnResult> => {
     const result = await throwOnErr(
@@ -235,7 +235,7 @@ export function getHistoryItems() {
  * Recursively fetches project content and adds all items to history.
  * NOTE: this is currently not used since the block loader only calls upsertItemToUserHistory
  */
-export async function insertProjectIntoHistory(projectId: string) {
+async function insertProjectIntoHistory(projectId: string) {
   const prevData = getHistoryItems();
   const newData: HistoryItem[] = [];
   const ids = [projectId];

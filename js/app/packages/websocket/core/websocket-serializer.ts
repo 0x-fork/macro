@@ -25,18 +25,6 @@ export interface WebsocketSerializer<
 }
 
 /**
- * Type guard to check if this is default websocket data.
- */
-export function isDefaultWebsocketData(data: unknown): data is WebsocketData {
-  return (
-    typeof data === 'string' ||
-    data instanceof ArrayBuffer ||
-    data instanceof Blob ||
-    ArrayBuffer.isView(data)
-  );
-}
-
-/**
  * Serializes data send, if a serializer is provided.
  * @param data the data to serialize
  * @param serializer the serializer to use

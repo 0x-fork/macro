@@ -42,25 +42,25 @@ export type DSSMedia = {
   id: string;
 };
 
-export type SFSMedia = {
+type SFSMedia = {
   type: 'sfs';
   id: string;
 };
 
-export type LocalMedia = {
+type LocalMedia = {
   type: 'local';
   url: string;
   file: File;
 };
 
-export type URLMedia = {
+type URLMedia = {
   type: 'url';
   url: string;
 };
 
-export type MediaSource = DSSMedia | SFSMedia | LocalMedia | URLMedia;
-export type MediaSourceType = MediaSource['type'];
-export type MediaCreationPayload = Exclude<MediaSource, 'file'> & {
+type MediaSource = DSSMedia | SFSMedia | LocalMedia | URLMedia;
+type MediaSourceType = MediaSource['type'];
+type MediaCreationPayload = Exclude<MediaSource, 'file'> & {
   alt?: string;
   mediaType: MediaType;
   constrainedMediaDimensions?: { width: number; height: number };
@@ -91,7 +91,7 @@ export const UPDATE_MEDIA_SIZE_COMMAND: LexicalCommand<
 export const TRY_INSERT_MEDIA_UPLOAD_COMMAND: LexicalCommand<MediaType> =
   createCommand('TRY_INSERT_MEDIA_UPLOAD_COMMAND');
 
-export function validateMediaFile(file: File, mediaType: MediaType): boolean {
+function validateMediaFile(file: File, mediaType: MediaType): boolean {
   const ext = fileExtension(file.name);
   return ext != null && blockNameToFileExtensionSet[mediaType].has(ext);
 }
@@ -197,7 +197,7 @@ function $staticUploadSuccess(key: NodeKey, id: string, mediaType: MediaType) {
 /**
  * Delete any media nodes that are part of the current node selection.
  */
-export function $deleteSelectedMedia() {
+function $deleteSelectedMedia() {
   const sel = $getSelection();
   if (!$isNodeSelection(sel)) return false;
   let foundNodesToBeDeleted = false;
@@ -216,7 +216,7 @@ export function $deleteSelectedMedia() {
 /**
  * Safely insert media node handling various selection states.
  */
-export function $safeInsertMediaNode(node: ImageNode | VideoNode) {
+function $safeInsertMediaNode(node: ImageNode | VideoNode) {
   const selection = $getSelection();
 
   if (!selection) {

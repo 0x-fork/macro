@@ -3,25 +3,14 @@ import type { BlockAlias, BlockName } from '@core/block';
 import { isBlockAlias, resolveBlockAlias } from '@core/constant/allBlocks';
 import { createCallback } from '@solid-primitives/rootless';
 import {
-  type Accessor,
-  createMemo,
   createSignal,
   onCleanup,
   type Setter,
   type Signal,
   useContext,
 } from 'solid-js';
-import {
-  SplitLayoutContext,
-  SplitPanelContext,
-  type CollapsibleItemInput,
-} from './context';
-import type {
-  SplitContent,
-  SplitContentType,
-  SplitHandle,
-  SplitManager,
-} from './layoutManager';
+import { SplitPanelContext, type CollapsibleItemInput } from './context';
+import type { SplitContent, SplitManager } from './layoutManager';
 import { LIST_VIEW_ID } from '@app/constants/list-views';
 
 export function decodePairs(segments: string[]): SplitContent[] {
@@ -53,22 +42,6 @@ export function decodePairs(segments: string[]): SplitContent[] {
   }
   return pairs.length ? pairs : [{ type: 'component', id: LIST_VIEW_ID.inbox }];
 }
-
-export function encodePairs(splits: ReadonlyArray<SplitContent>): string[] {
-  return splits.flatMap((s) => [
-    // Use the alias type if available, otherwise use the base type
-    s.type === 'component' ? s.type : s.aliasContext?.alias || s.type,
-    s.id,
-  ]);
-}
-
-export const isInSplit = createCallback(() => {
-  return !!useContext(SplitPanelContext);
-});
-
-export const isInSplitLayout = createCallback(() => {
-  return !!useContext(SplitLayoutContext);
-});
 
 export const getSplitPanelRef = createCallback(() => {
   const ctx = useContext(SplitPanelContext);
@@ -140,21 +113,6 @@ export function focusAdjacentSplit(direction: 'left' | 'right') {
   if (!adjacentSplitId) return;
   splitManager.activateSplit(adjacentSplitId);
   splitManager.returnFocus();
-}
-
-/**
- * Reactive boolean accessor indicating whether the active split is currently
- * showing a specific component content id.
- */
-export function createIsActiveSplitContentMemo(
-  activeSplit: Accessor<SplitHandle | undefined>,
-  contentType: SplitContentType,
-  id: string
-) {
-  return createMemo(() => {
-    const content = activeSplit()?.content();
-    return content?.type === contentType && content.id === id;
-  });
 }
 
 export function useRegisterCollapsibleHeaderItem(

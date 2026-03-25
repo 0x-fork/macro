@@ -73,7 +73,7 @@ export function parseGroupMentions(text: string): string {
   );
 }
 
-export function parseDocumentCards(text: string): string {
+function parseDocumentCards(text: string): string {
   return text.replace(
     /<m-document-card>(.*?)<\/m-document-card>/g,
     (_, json) => {
@@ -87,7 +87,7 @@ export function parseDocumentCards(text: string): string {
   );
 }
 
-export function parseSnapshots(text: string): string {
+function parseSnapshots(text: string): string {
   return text.replace(/<m-snapshot>(.*?)<\/m-snapshot>/g, (_, encoded) => {
     try {
       // Decode base64 (may also be raw JSON for backward compat)

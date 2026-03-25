@@ -79,7 +79,7 @@ export function extractTitleFromMarkdown(markdownText: string): string {
  * Must be called within Lexical update context (not read) because
  * $elementNodeToMarkdown requires update context.
  */
-export function $parseCheckboxNode(node: ListItemNode): ParsedCheckbox {
+function $parseCheckboxNode(node: ListItemNode): ParsedCheckbox {
   const rawMarkdown = $elementNodeToMarkdown(node, 'internal');
 
   return {

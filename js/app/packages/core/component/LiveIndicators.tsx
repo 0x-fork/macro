@@ -7,7 +7,7 @@ import { UserIcon } from './UserIcon';
 
 const MAX_USER_INDICATORS = 3;
 
-export function UserIndicator(props: { userId: string }) {
+function UserIndicator(props: { userId: string }) {
   return (
     <Tooltip tooltip={props.userId?.split('|').at(1)?.split('@')[0]}>
       <div class="bg-panel size-6 rounded-full p-[2px] -mr-3">

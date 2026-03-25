@@ -46,12 +46,7 @@ import {
   explicitNoiseFilter,
 } from '@app/component/next-soup/filters/inbox-filters';
 import { codeFileExtensions } from '@block-code/util/languageSupport';
-import {
-  type EntityData,
-  isEmailEntity,
-  isDocumentEntity,
-  getEntityProjectId,
-} from '@entity';
+import { type EntityData, isDocumentEntity, getEntityProjectId } from '@entity';
 import type { NotificationSource } from '@notifications';
 
 type EntityFilterConfig = FilterConfig<EntityData> & { label?: string };
@@ -101,30 +96,7 @@ export const ENTITY_TYPE_FILTER_CONFIGS = [
   },
 ] as const satisfies EntityFilterConfig[];
 
-export const EMAIL_CONTEXTUAL_FILTERS = [
-  {
-    id: 'email-unread',
-    label: 'Unread',
-    predicate: (entity) => isEmailEntity(entity) && !entity.isRead,
-  },
-  {
-    id: 'email-read',
-    label: 'Read',
-    predicate: (entity) => isEmailEntity(entity) && entity.isRead,
-  },
-  {
-    id: 'email-done',
-    label: 'Done',
-    predicate: (entity) => isEmailEntity(entity) && entity.done,
-  },
-  {
-    id: 'email-not-done',
-    label: 'Not Done',
-    predicate: (entity) => isEmailEntity(entity) && !entity.done,
-  },
-] as const satisfies EntityFilterConfig[];
-
-export const TASK_STATUS_FILTERS = [
+const TASK_STATUS_FILTERS = [
   {
     id: 'task-not-started',
     label: 'Not Started',
@@ -152,7 +124,7 @@ export const TASK_STATUS_FILTERS = [
   },
 ] as const satisfies EntityFilterConfig[];
 
-export const TASK_PRIORITY_FILTERS = [
+const TASK_PRIORITY_FILTERS = [
   {
     id: 'task-critical',
     label: 'Critical',
@@ -180,25 +152,6 @@ export const TASK_PRIORITY_FILTERS = [
   },
 ] as const satisfies EntityFilterConfig[];
 
-export const TASK_ASSIGNEE_FILTERS = [
-  {
-    id: 'task-has-assignee',
-    label: 'Has Assignee',
-    predicate: hasAssignees,
-  },
-  {
-    id: 'task-unassigned',
-    label: 'Unassigned',
-    predicate: isUnassigned,
-  },
-] as const satisfies EntityFilterConfig[];
-
-export const TASK_CONTEXTUAL_FILTERS = [
-  ...TASK_STATUS_FILTERS,
-  ...TASK_PRIORITY_FILTERS,
-  ...TASK_ASSIGNEE_FILTERS,
-] as const satisfies EntityFilterConfig[];
-
 const DOCUMENT_CONTEXTUAL_FILTERS = [
   {
     id: 'in-folder',
@@ -220,7 +173,7 @@ const DOCUMENT_CONTEXTUAL_FILTERS = [
 
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'] as const;
 
-export const FILE_TYPE_FILTERS = [
+const FILE_TYPE_FILTERS = [
   {
     id: 'file-code',
     label: 'Code',

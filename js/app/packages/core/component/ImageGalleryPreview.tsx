@@ -22,7 +22,7 @@ type ImageData = {
   height?: string | number | undefined;
 };
 
-export type ImageGalleryPreviewProps = {
+type ImageGalleryPreviewProps = {
   images: ImageData[];
   initialIndex?: number;
   variant: 'small' | 'dynamic';

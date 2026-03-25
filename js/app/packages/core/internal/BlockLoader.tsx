@@ -45,7 +45,7 @@ const blockOpenEvents: Partial<Record<BlockName, AllTrackingEventValues>> = {
   video: TrackingEvents.BLOCKVIDEO.OPEN,
 } as const;
 
-export type BlockLoaderProps<
+type BlockLoaderProps<
   D extends ObjectLike | FileOrTextLike,
   P extends SourcePreload<ObjectLike>,
   L extends LoadFunction<D, P>,

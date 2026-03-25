@@ -237,60 +237,6 @@ export function registerToggleAppendedThread(editor: LexicalEditor) {
   );
 }
 
-export async function appendItemsAsMacroMentions(
-  editor: LexicalEditor | undefined,
-  items: DocumentMentionInfo[]
-) {
-  if (!editor) return;
-  if (!items || items.length === 0) return;
-  editor.update(() => {
-    const root = $getRoot();
-
-    // Find an existing mentions wrapper (search from the end for the most recent)
-    const children = root.getChildren();
-    let wrapper: ClassedBlockNode | null = null;
-    for (let i = children.length - 1; i >= 0; i--) {
-      const candidate = children[i];
-      if (
-        $isClassedBlockNode(candidate) &&
-        (candidate as any).__classes?.includes('macro_mentions')
-      ) {
-        wrapper = candidate as any;
-        break;
-      }
-    }
-
-    // If no wrapper, create one and add an empty line above it
-    if (!wrapper) {
-      const spacer = $createParagraphNode();
-      root.append(spacer);
-      wrapper = $createClassedBlockNode({
-        tag: 'div',
-        classes: ['macro_mentions'],
-      });
-      root.append(wrapper);
-    }
-
-    // Append each mention as its own paragraph at the bottom of the wrapper
-    items.forEach((item) => {
-      const last = wrapper.getLastChild();
-      if (last && !$isLineBreakNode(last)) {
-        wrapper.append($createLineBreakNode());
-      }
-
-      const mention = $createDocumentMentionNode({
-        documentId: item.documentId,
-        documentName: item.documentName,
-        blockName: item.blockName,
-      });
-
-      wrapper.append(mention);
-      // Trailing break to keep future insertions on a new line
-      wrapper.append($createLineBreakNode());
-    });
-  });
-}
-
 function getAppendedReplyElement(
   replyingTo: ApiMessage,
   replyType: ReplyType | undefined

@@ -52,7 +52,7 @@ export function hasExtension(filename: string, extensions: string[]): boolean {
   );
 }
 
-export const reverseFormatDocumentName = (
+const reverseFormatDocumentName = (
   name: string,
   fileType?: string | null
 ) => {

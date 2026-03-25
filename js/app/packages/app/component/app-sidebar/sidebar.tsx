@@ -130,7 +130,7 @@ type SidebarHotkeyDeps = {
   openWithSplit: ReturnType<typeof useSplitLayout>['openWithSplit'];
 };
 
-export const registerSidebarHotkeys = ({
+const registerSidebarHotkeys = ({
   isSlim,
   onOpenChange,
   openWithSplit,

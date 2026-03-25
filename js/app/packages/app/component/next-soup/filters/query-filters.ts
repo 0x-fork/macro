@@ -8,15 +8,6 @@ export const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 export const EXCLUDE: string[] = [NIL_UUID];
 
-// Base filter that excludes all entity types by default
-export const QUERY_FILTERS_BASE: SoupItemsQueryFilters = {
-  channel_filters: { channel_ids: EXCLUDE },
-  chat_filters: { chat_ids: EXCLUDE },
-  document_filters: { document_ids: EXCLUDE },
-  email_filters: { recipients: EXCLUDE },
-  project_filters: { project_ids: EXCLUDE },
-};
-
 function isIdFilteredOut(ids: string[] | undefined, value: string): boolean {
   if (!ids || ids.length === 0) return false;
   return !ids.includes(value);
@@ -68,12 +59,7 @@ export function filterSoupItemByRequestBody(
     .exhaustive();
 }
 
-export const FILE_ASSOCIATION_TYPES = [
-  'code',
-  'image',
-  'pdf',
-  'unknown',
-] as const;
+const FILE_ASSOCIATION_TYPES = ['code', 'image', 'pdf', 'unknown'] as const;
 
 /** Expands file association types to file extensions for soup or search */
 export const getFileAssociations = (type: 'soup' | 'search') => {

@@ -24,7 +24,7 @@ type ChannelQueryOptions = UseBaseQueryOptions<
   getChannelResponseError
 >;
 
-export function channelQueryOptions(channelId: string): ChannelQueryOptions {
+function channelQueryOptions(channelId: string): ChannelQueryOptions {
   return {
     queryKey: channelKeys.withID(channelId).queryKey,
     queryFn: async () => {

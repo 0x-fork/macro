@@ -98,7 +98,7 @@ export const NonDocumentBlockTypes = [
  * The key is block on the left of the the split and the value is a set of
  * allowed blocks on the right.
  */
-export type BlockCombinationRules = {
+type BlockCombinationRules = {
   [Key in BlockName]: Set<BlockName>;
 };
 
@@ -117,30 +117,6 @@ export type NestedState<Name extends BlockName> = {
   parentName?: Name;
   parentContext?: PreviewState;
 };
-
-const allBlockNames = new Set([...BlockRegistry]);
-function exclude(excludeSet: BlockName[]) {
-  return new Set(BlockRegistry.filter((x) => !excludeSet.includes(x)));
-}
-/**
- * Defines the block combinations that are valid.
- */
-export const ValidBlockCombinations: BlockCombinationRules = {
-  chat: allBlockNames,
-  pdf: ENABLE_PDF_MULTISPLIT ? allBlockNames : exclude(['pdf']),
-  write: exclude(['write']),
-  md: allBlockNames,
-  code: exclude(['code']),
-  image: allBlockNames,
-  channel: allBlockNames,
-  email: allBlockNames,
-  canvas: allBlockNames,
-  project: allBlockNames,
-  unknown: allBlockNames,
-  video: allBlockNames,
-  contact: allBlockNames,
-  task: allBlockNames,
-} as const;
 
 // maps block name to valid parents
 export const ValidNestingCombinations: BlockCombinationRules = {
@@ -175,7 +151,7 @@ type LoadErrorCodes = keyof typeof LoadErrors;
  * @param {MaybeResult<string, T>} maybeResult - The result to convert.
  * @returns {MaybeResult<keyof typeof LoadErrors, T>} A new MaybeResult with a load error code.
  */
-export function toLoadResult<E extends string, T extends ObjectLike>(
+function toLoadResult<E extends string, T extends ObjectLike>(
   maybeResult: MaybeResult<E, T>
 ): MaybeResult<keyof typeof LoadErrors, T> {
   if (isErr(maybeResult, 'GONE')) return LoadErrors.GONE;
@@ -199,23 +175,6 @@ export async function loadResult<
   MaybeResult<keyof typeof LoadErrors, ExtractSuccessType<Awaited<T>>>
 > {
   return toLoadResult(await result) as any; // any because TypeScript gets confused and loses the ObjectLike's specific type
-}
-
-/**
- * Maps over an ok result, or passes through a load error.
- * @template T - The type of the input result value.
- * @template U - The type of the output result value.
- * @param {MaybeResult<string, T>} result - The result to map.
- * @param {(value: T) => U} fn - The function to apply to the ok value.
- * @returns {MaybeResult<LoadErrorCodes, U>} A new MaybeResult with the mapped value or a load error.
- */
-export function mapLoadResult<T extends ObjectLike, U extends ObjectLike>(
-  result: MaybeResult<string, T>,
-  fn: (value: T) => U
-): MaybeResult<LoadErrorCodes, U> {
-  const [error, data] = toLoadResult(result);
-  if (error) return [error, null];
-  return [null, fn(data)];
 }
 
 // Magic type that when used at sites where generic types are inferred from, will prevent those sites from being involved in the inference.
@@ -389,7 +348,7 @@ export function defineBlock<
 /**
  * Represents a function that can be used as a block effect.
  */
-export type BlockEffect = (...args: any[]) => any;
+type BlockEffect = (...args: any[]) => any;
 
 /**
  * After the the render phase, automatically reruns the function whenever the block's signal and
@@ -716,7 +675,7 @@ If you are calling a block signal directly in an async method, you need to destr
   };
 }
 
-export type BlockSignal<T> = [get: Accessor<T>, set: Setter<T>] & {
+type BlockSignal<T> = [get: Accessor<T>, set: Setter<T>] & {
   (): T;
   get: Accessor<T>;
   set: Setter<T>;
@@ -830,7 +789,7 @@ export function createBlockStore<T extends object>(
   return createBlockEntity(createStore, structuredClone(initialValue)) as any;
 }
 
-export type BlockInitializedResource<T, R = unknown> = [
+type BlockInitializedResource<T, R = unknown> = [
   get: InitializedResource<T>,
   set: ResourceActions<T, R>,
 ] & {
@@ -839,7 +798,7 @@ export type BlockInitializedResource<T, R = unknown> = [
   set: ResourceActions<T, R>;
 };
 
-export type BlockResource<T, R = unknown> = [
+type BlockResource<T, R = unknown> = [
   get: Resource<T>,
   set: ResourceActions<T, R>,
 ] & {
@@ -925,7 +884,7 @@ export function createBlockResource<T, S, R>(
   ) as any;
 }
 
-export type BlockMemo<T> = Accessor<T>;
+type BlockMemo<T> = Accessor<T>;
 
 /**
  * Creates a block-scoped memo that derives a value from other reactive dependencies.
@@ -1043,21 +1002,6 @@ export const blockDataSignalAs = <T extends Record<string, any>>(
     },
   });
 };
-
-/**
- * Binds block signal/store getters to a function's first arguments.
- *
- * @param fn Function to bind getters to
- * @param args Block signals or stores
- * @returns New function with bound getters
- */
-export function withBlock<A extends any[], B extends any[], R>(
-  fn: (...args: [...A, ...B]) => R,
-  ...args: A
-): (...args: B) => R {
-  // @ts-ignore (too strict)
-  return fn.bind(this, ...args.map((arg) => arg.get));
-}
 
 function isInBlockFn(x: any): x is { block: BlockState | undefined } {
   return x != null && 'block' in x && 'block' != null;

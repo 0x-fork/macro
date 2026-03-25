@@ -31,7 +31,7 @@ export const [PosthogProvider, usePosthog] = createAssertedContextProvider(
 
 type FeatureFlagResult<T> = { enabled: boolean; payload: T };
 
-export function useFeatureFlag<T extends JsonType>(
+function useFeatureFlag<T extends JsonType>(
   key: string,
   opts?: {
     fallbackPayload?: T;

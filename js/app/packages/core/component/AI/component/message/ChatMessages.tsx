@@ -38,7 +38,7 @@ function OnMount(props: {
   return <div ref={ref}>{props.children}</div>;
 }
 
-export type ChatMessagesProps = {
+type ChatMessagesProps = {
   messageActions?: MessageActions;
   editDisabled?: boolean;
   pendingLocationParams?: Accessor<Record<string, string> | undefined>;

@@ -22,7 +22,7 @@ import { UserIcon } from './UserIcon';
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import { compareDateDesc, type DateValue } from '@core/util/date';
 
-export type ReferenceProps = {
+type ReferenceProps = {
   documentId: string;
   entityType?: ItemType;
 };

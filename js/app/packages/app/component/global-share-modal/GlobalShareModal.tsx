@@ -9,7 +9,7 @@ import { createSignal, Show } from 'solid-js';
 
 type ShareableEntityType = 'document' | 'chat' | 'project';
 
-export type GlobalShareModalProps = {
+type GlobalShareModalProps = {
   entity: EntityData;
   onClose?: () => void;
 };
@@ -45,7 +45,7 @@ export const openGlobalShareModal = (props: GlobalShareModalProps) => {
   setModalOpen(true);
 };
 
-export const closeGlobalShareModal = () => {
+const closeGlobalShareModal = () => {
   const props = globalModalProps();
   setModalOpen(false);
   setGlobalModalProps(null);

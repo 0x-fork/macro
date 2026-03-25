@@ -30,7 +30,7 @@ function resolveEmojiTerms(emoji: string): string[] {
   return EmojiLib[emoji] ?? [];
 }
 
-export const ORDERED_EMOJI_DATA: SimpleEmoji[] = OrderedEmojiData.map(
+const ORDERED_EMOJI_DATA: SimpleEmoji[] = OrderedEmojiData.map(
   (emoji) => {
     return {
       emoji: emoji,
@@ -40,7 +40,7 @@ export const ORDERED_EMOJI_DATA: SimpleEmoji[] = OrderedEmojiData.map(
   }
 );
 
-export const EMOJI_DATA_GROUPED = GroupedEmojiData.map((group) => {
+const EMOJI_DATA_GROUPED = GroupedEmojiData.map((group) => {
   return {
     name: group.name,
     emojis: group.emojis.map((emoji) => {

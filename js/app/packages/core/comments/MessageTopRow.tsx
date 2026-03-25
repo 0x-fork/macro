@@ -33,7 +33,7 @@ export enum Color {
   rose,
 }
 
-export function MessageRow(
+function MessageRow(
   props: ParentProps<{
     authorId: string | null;
     date?: DateValue | null;
@@ -54,7 +54,7 @@ export function MessageRow(
   );
 }
 
-export function MessageRowUI(
+function MessageRowUI(
   props: ParentProps<{
     authorId: string;
     date?: DateValue | null;

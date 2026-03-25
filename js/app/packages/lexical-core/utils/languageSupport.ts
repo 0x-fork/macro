@@ -311,12 +311,12 @@ export function getSupportedExtensions(): string[] {
   return Object.keys(fileExtensionToMdSupportedLanguage);
 }
 
-export function getLanguageLabel(language: string): string {
+function getLanguageLabel(language: string): string {
   const lang = normalizedLanguage(language);
   return LanguageDefinitions[lang].label;
 }
 
-export function getSelectableLanguages(): LanguageDefinition[] {
+function getSelectableLanguages(): LanguageDefinition[] {
   return Object.values(LanguageDefinitions)
     .filter((def) => def.show)
     .sort((a, b) => a.label.localeCompare(b.label));

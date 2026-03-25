@@ -3,7 +3,7 @@ import { UserIcon } from './UserIcon';
 import { cn } from '@ui/utils/classname';
 import { match } from 'ts-pattern';
 
-export type UserGroupProps = {
+type UserGroupProps = {
   userIds: string[];
   maxUsers?: number;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';

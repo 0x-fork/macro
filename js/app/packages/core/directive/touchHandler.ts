@@ -1,8 +1,8 @@
 import { type Accessor, createSignal, type JSX, onCleanup } from 'solid-js';
 
-export const hasHaptics = false;
+const hasHaptics = false;
 
-export interface TouchHandlerOptions {
+interface TouchHandlerOptions {
   onLongPress?: JSX.EventHandler<HTMLElement, TouchEvent>;
   onShortTouch?: JSX.EventHandler<HTMLElement, TouchEvent>;
   onCancel?: () => void;

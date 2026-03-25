@@ -6,7 +6,7 @@ import { useSplitNavigationHandler } from '@core/util/useSplitNavigationHandler'
 import { createCallback } from '@solid-primitives/rootless';
 import type { ParentProps } from 'solid-js';
 
-export const blockNamesWithLocations = [
+const blockNamesWithLocations = [
   'pdf',
   'canvas',
   'channel',
@@ -14,7 +14,7 @@ export const blockNamesWithLocations = [
   'email',
   'chat',
 ] as const;
-export type BlockNameWithLocations = (typeof blockNamesWithLocations)[number];
+type BlockNameWithLocations = (typeof blockNamesWithLocations)[number];
 
 function isBlockNameWithLocation(name: string): name is BlockNameWithLocations {
   return blockNamesWithLocations.includes(name as BlockNameWithLocations);

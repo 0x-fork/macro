@@ -87,7 +87,7 @@ type NotFoundError = {
   notificationId: string;
 };
 
-export type OpenNotificationFromIdError = NotSupportedError | NotFoundError;
+type OpenNotificationFromIdError = NotSupportedError | NotFoundError;
 
 function getSupportedHandler(
   notification: UnifiedNotification

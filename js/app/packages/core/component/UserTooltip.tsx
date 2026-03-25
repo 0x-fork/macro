@@ -14,7 +14,7 @@ import { createSignal, Match, Show, Switch } from 'solid-js';
 import { debounce } from '@solid-primitives/scheduled';
 import { ProfilePicture } from './ProfilePicture';
 
-export type UserTooltipProps = {
+type UserTooltipProps = {
   displayName: string;
   email?: string;
   id?: string;

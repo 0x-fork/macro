@@ -78,7 +78,7 @@ export const INSERT_CONTACT_MENTION_COMMAND: LexicalCommand<ContactMentionInfo> 
 export const INSERT_DATE_MENTION_COMMAND: LexicalCommand<DateMentionInfo> =
   createCommand('INSERT_DATE_MENTION_COMMAND');
 
-export const OPEN_INLINE_SEARCH_COMMAND: LexicalCommand<void> = createCommand(
+const OPEN_INLINE_SEARCH_COMMAND: LexicalCommand<void> = createCommand(
   'OPEN_INLINE_SEARCH_COMMAND'
 );
 
@@ -86,7 +86,7 @@ export const CLOSE_INLINE_SEARCH_COMMAND: LexicalCommand<void> = createCommand(
   'CLOSE_INLINE_SEARCH_COMMAND'
 );
 
-export const TYPE_AT_SYMBOL_COMMAND: LexicalCommand<void> = createCommand(
+const TYPE_AT_SYMBOL_COMMAND: LexicalCommand<void> = createCommand(
   'TYPE_AT_SYMBOL_COMMAND'
 );
 
@@ -128,7 +128,7 @@ export type ItemMention = {
   groupAlias?: string;
 };
 
-export function $isMentionNode(
+function $isMentionNode(
   node: LexicalNode
 ): node is
   | UserMentionNode
@@ -144,7 +144,7 @@ export function $isMentionNode(
     $isGroupMentionNode(node)
   );
 }
-export function $mentionItemFromNode(node: MentionNode): ItemMention {
+function $mentionItemFromNode(node: MentionNode): ItemMention {
   if ($isDocumentMentionNode(node)) {
     let fileType = '';
     let itemType: ItemMention['itemType'] = 'document';
@@ -255,7 +255,7 @@ const getDocumentMentionItemType = (
   }
 };
 
-export type MentionsPluginProps = {
+type MentionsPluginProps = {
   menu?: MenuOperations;
   onCreateMention?: (mention: ItemMention) => void;
   onRemoveMention?: (mention: ItemMention) => void;

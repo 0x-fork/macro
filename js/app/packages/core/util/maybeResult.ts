@@ -306,7 +306,7 @@ export function onErr<
   return false;
 }
 
-export type ResultType<T extends MaybeResult<any, any>> = T extends MaybeResult<
+type ResultType<T extends MaybeResult<any, any>> = T extends MaybeResult<
   any,
   infer R
 >

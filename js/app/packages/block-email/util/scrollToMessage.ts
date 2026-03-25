@@ -60,13 +60,3 @@ export function scrollToLastMessage(
   // Align the last child to the bottom of the nearest scrolling container
   lastChild.scrollIntoView({ behavior: nativeBehavior, block: 'start' });
 }
-
-/**
- * Gets the last message ID from a thread
- * @param messages - Array of messages in the current thread
- * @returns The db_id of the last message, or undefined if no messages
- */
-export function getLastMessageId(messages: ApiMessage[]): string | undefined {
-  const lastMessage = messages[messages.length - 1];
-  return lastMessage?.db_id?.toString();
-}

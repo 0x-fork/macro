@@ -2,7 +2,6 @@ import { $isCodeNode } from '@lexical/code';
 import { $findMatchingParent } from '@lexical/utils';
 import type { LexicalNode, SerializedLexicalNode } from 'lexical';
 
-export * from './document';
 export * from './languageSupport';
 export * from './media';
 export * from './mentions';
