@@ -7,6 +7,13 @@ const config: KnipConfig = {
     'scripts/**',
     'packages/loro-mirror/**',
     'packages/service-storage/**',
+    // Tooling and standalone test entrypoints are not imported through the app graph
+    '**/vite*.config.ts',
+    '**/vitest.config.ts',
+    '**/playwright.config.ts',
+    '**/*.pw.ts',
+    '**/orval.config.ts',
+    'packages/service-clients/service-sync/scripts/**',
   ],
 
   // Dependencies that are used but hard to detect statically
