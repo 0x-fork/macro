@@ -663,12 +663,12 @@ const SidebarLink = (props: SidebarLinkProps) => {
           }}
         >
           <Show when={props.icon}>
-            <div class="shrink-0 [&_svg]:size-4">
+            <div class="relative shrink-0 [&_svg]:size-4">
               <Dynamic component={props.icon} triggerAnimation={isHovering()} />
+              <Show when={props.hasNotifications(notificationSource)}>
+                <UnreadIndicator class="absolute -top-1 -right-1" active />
+              </Show>
             </div>
-            <Show when={props.hasNotifications(notificationSource)}>
-              <UnreadIndicator class="absolute -top-1 -right-1" active />
-            </Show>
           </Show>
           <span class="whitespace-nowrap group-data-[slim=true]/sidebar:invisible">
             {props.label}
