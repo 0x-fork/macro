@@ -127,6 +127,9 @@ export const attachPolicyToBucket = ({
     's3:PutReplicationConfiguration',
     's3:PutBucketNotification',
     's3:PutLifecycleConfiguration',
+    's3:GetObject',
+    's3:PutObject',
+    's3:DeleteObject',
   ];
 
   const policy: aws.iam.PolicyDocument = {
