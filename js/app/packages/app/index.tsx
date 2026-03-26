@@ -100,7 +100,7 @@ function main() {
           integrations: [
             Sentry.captureConsoleIntegration({ levels: ['error', 'warn'] }),
             Sentry.consoleLoggingIntegration({
-              levels: ['warn', 'error'],
+              levels: ['info', 'warn', 'error'],
             }),
             // Sentry.browserTracingIntegration(),
           ],
