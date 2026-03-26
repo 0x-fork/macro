@@ -32,7 +32,7 @@ import { useSettingsState } from '@core/constant/SettingsState';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
-import type { NotificationSource } from '@notifications';
+import type { NotificationSource, UnifiedNotification } from '@notifications';
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { UnreadIndicator } from '@entity';
 import { debounce } from '@solid-primitives/scheduled';
@@ -44,6 +44,18 @@ import { ContextMenuContent, MenuItem } from '@core/component/Menu';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import { useAnalytics } from '@app/component/analytics-context';
 import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
+
+const hasMatchingUnreadNotifications = (
+  cb?: (n: UnifiedNotification) => boolean
+) => {
+  return (source: NotificationSource) => {
+    const notifications = source.notifications();
+
+    return (
+      notifications.filter((n) => !n.viewed_at && cb?.(n) !== false).length > 0
+    );
+  };
+};
 
 interface SidebarItem {
   id: ListView;
@@ -64,11 +76,7 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.inbox,
     icon: AnimatedInboxIcon,
     hotkey: 'i',
-    hasNotifications(notificationSource) {
-      const notifications = notificationSource.notifications();
-
-      return notifications.filter((n) => !n.viewed_at).length > 0;
-    },
+    hasNotifications: hasMatchingUnreadNotifications(),
   },
   {
     id: 'search',
@@ -87,15 +95,9 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.agents,
     icon: AnimatedStarIcon,
     hotkey: 'a',
-    hasNotifications(notificationSource) {
-      const allNotifications = notificationSource.notifications();
-
-      const agentNotifications = allNotifications.filter(
-        (n) => n.entity_type === 'chat' && !n.viewed_at
-      );
-
-      return agentNotifications.length > 0;
-    },
+    hasNotifications: hasMatchingUnreadNotifications(
+      (n) => n.entity_type === 'chat'
+    ),
   },
   {
     id: 'mail',
@@ -103,17 +105,9 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.mail,
     icon: AnimatedEmailIcon,
     hotkey: 'e',
-    hasNotifications(notificationSource) {
-      const allNotifications = notificationSource.notifications();
-
-      const mailNotifications = allNotifications.filter((n) => {
-        const isUnreadEmail = n.entity_type === 'email_thread' && !n.viewed_at;
-
-        return isUnreadEmail && !n.done;
-      });
-
-      return mailNotifications.length > 0;
-    },
+    hasNotifications: hasMatchingUnreadNotifications(
+      (n) => n.entity_type === 'email_thread' && !n.done
+    ),
   },
   {
     id: 'documents',
@@ -121,23 +115,16 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.documents,
     icon: AnimatedFileMdIcon,
     hotkey: 'd',
-    hasNotifications(notificationSource) {
-      const allNotifications = notificationSource.notifications();
+    hasNotifications: hasMatchingUnreadNotifications((n) => {
+      const isDoc = n.entity_type === 'document';
+      const meta = n.notification_metadata;
 
-      const documentNotifications = allNotifications.filter((n) => {
-        const isDoc = n.entity_type === 'document';
-        const meta = n.notification_metadata;
-
-        return (
-          isDoc &&
-          (meta.tag === 'document_mention' ||
-            meta.tag === 'mentioned_in_document_comment') &&
-          !n.viewed_at
-        );
-      });
-
-      return documentNotifications.length > 0;
-    },
+      return (
+        isDoc &&
+        (meta.tag === 'document_mention' ||
+          meta.tag === 'mentioned_in_document_comment')
+      );
+    }),
   },
   {
     id: 'tasks',
@@ -145,18 +132,12 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.tasks,
     icon: AnimatedTaskIcon,
     hotkey: 't',
-    hasNotifications(notificationSource) {
-      const allNotifications = notificationSource.notifications();
+    hasNotifications: hasMatchingUnreadNotifications((n) => {
+      const isDoc = n.entity_type === 'document';
+      const meta = n.notification_metadata;
 
-      const taskNotifications = allNotifications.filter((n) => {
-        const isDoc = n.entity_type === 'document';
-        const meta = n.notification_metadata;
-
-        return isDoc && meta.tag === 'task_assigned' && !n.viewed_at;
-      });
-
-      return taskNotifications.length > 0;
-    },
+      return isDoc && meta.tag === 'task_assigned' && !n.viewed_at;
+    }),
   },
   {
     id: 'channels',
@@ -164,15 +145,9 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.channels,
     icon: AnimatedChannelIcon,
     hotkey: 'c',
-    hasNotifications(notificationSource) {
-      const allNotifications = notificationSource.notifications();
-
-      const channelNotifications = allNotifications.filter(
-        (n) => n.entity_type === 'channel' && !n.viewed_at
-      );
-
-      return channelNotifications.length > 0;
-    },
+    hasNotifications: hasMatchingUnreadNotifications(
+      (n) => n.entity_type === 'channel'
+    ),
   },
   {
     id: 'folders',
@@ -180,19 +155,9 @@ export const SIDEBAR_LINKS = [
     href: LIST_VIEW_PATHS.folders,
     icon: AnimatedFolderIcon,
     hotkey: 'f',
-    hasNotifications(notificationSource) {
-      const allNotifications = notificationSource.notifications();
-
-      const fileNotifications = allNotifications.filter((n) => {
-        const isFile =
-          n.entity_type === 'document' || n.entity_type === 'project';
-        const meta = n.notification_metadata;
-
-        return isFile && meta.tag !== 'task_assigned' && !n.viewed_at;
-      });
-
-      return fileNotifications.length > 0;
-    },
+    hasNotifications: hasMatchingUnreadNotifications(
+      (n) => n.entity_type === 'project'
+    ),
   },
 ] satisfies SidebarItem[];
 
