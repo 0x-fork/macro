@@ -2,6 +2,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { DEFAULT_THREAD_MESSAGES_LIMIT } from '@core/constant/pagination';
 import { catchToResult, isErr, ok, throwOnErr } from '@core/util/maybeResult';
 import { optimisticUpdateSoupEntity } from '../soup/cache';
+import { invalidateAllSoup } from '../soup/normalized-cache';
 import { emailClient } from '@service-email/client';
 import type {
   ApiDraftInput,
@@ -411,3 +412,48 @@ export async function blockSenderWithToast(senderEmail: string) {
     }
   );
 }
+
+async function upsertSenderFilterWithToast(
+  senderEmail: string,
+  isImportant: boolean
+) {
+  const label = isImportant ? 'Signal' : 'Noise';
+
+  const result = await emailClient.upsertEmailFilter({
+    email_address: senderEmail,
+    is_important: isImportant,
+  });
+
+  if (isErr(result)) {
+    toast.failure(`Failed to mark sender as ${label}`, senderEmail);
+    return;
+  }
+
+  const filterId = result[1].filter.id;
+  invalidateAllSoup();
+
+  toast.success(
+    `Sender marked as ${label}`,
+    `Messages from ${senderEmail} will appear in ${label}`,
+    {
+      text: 'Undo',
+      onClick: async () => {
+        const undoResult = await emailClient.deleteEmailFilter({
+          id: filterId,
+        });
+        if (isErr(undoResult)) {
+          toast.failure('Failed to undo', senderEmail);
+        } else {
+          invalidateAllSoup();
+          toast.success('Sender filter removed');
+        }
+      },
+    }
+  );
+}
+
+export const markSenderSignalWithToast = (senderEmail: string) =>
+  upsertSenderFilterWithToast(senderEmail, true);
+
+export const markSenderNoiseWithToast = (senderEmail: string) =>
+  upsertSenderFilterWithToast(senderEmail, false);
