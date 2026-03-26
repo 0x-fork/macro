@@ -17,6 +17,8 @@ import type { SoupState } from '../create-soup-state';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import { VIEW_TAB_PRESETS } from '@app/component/app-sidebar/soup-filter-presets';
+import { VIEW_TAB_LISTS, type TabbedListView } from './soup-view-tabs';
+import { useAnalytics } from '@app/component/analytics-context';
 
 type UseSoupViewHotkeysOptions = {
   splitId: string;
@@ -43,6 +45,8 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     activeTab,
     applyTabPreset,
   } = options;
+
+  const analytics = useAnalytics();
 
   const splitIsUnifiedList = () => isListViewID(splitHandle.content().id);
 
@@ -84,16 +88,6 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
       }
       return true;
     },
-    hide: true,
-  }).withGroup(group);
-
-  // g g - Jump to top of list (vim-style, uses global GO_TO command scope)
-  registerHotkey({
-    hotkey: GO_TO_LEADER_KEY,
-    scopeId,
-    description: 'Go to top of list',
-    keyDownHandler: () => false,
-    activateCommandScopeId: GO_TO_COMMAND_SCOPE,
     hide: true,
   }).withGroup(group);
 
@@ -232,16 +226,24 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     description: () => {
       return CommandState.isOpen() ? 'Close command menu' : 'Open command menu';
     },
+    hotkeyToken: TOKENS.global.commandMenu,
     hotkey: 'cmd+k',
     condition: () => !CommandState.isOpen(),
     keyDownHandler: (e) => {
+      console.log('## CMD K - soup view');
       e?.preventDefault();
       const multiSelectEntities = soup.selection.selected();
 
       if (multiSelectEntities.length > 0) {
+        analytics.track('command_menu_open', {
+          from: 'soup_view_entity_action',
+        });
         // Open in entity action mode with selection
         CommandState.openForEntityAction(multiSelectEntities.slice());
       } else {
+        analytics.track('command_menu_open', {
+          from: 'soup_view',
+        });
         // Normal toggle
         CommandState.toggle();
       }
@@ -302,12 +304,12 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     hide: true,
   }).withGroup(group);
 
+  const isTabbedView = (v: string): v is TabbedListView => v in VIEW_TAB_LISTS;
+
   const getTabKeys = () => {
     const view = currentView();
-    if (!view) return [];
-    const config = VIEW_TAB_PRESETS[view];
-    if (!config) return [];
-    return Object.keys(config.tabs);
+    if (!view || !isTabbedView(view)) return [];
+    return VIEW_TAB_LISTS[view].map((t) => t.value);
   };
 
   const switchToTabIndex = (index: number) => {

@@ -2,7 +2,7 @@ use crate::GmailClient;
 use anyhow::Context;
 use models_email::gmail::GmailUserProfile;
 
-#[tracing::instrument(skip(client, access_token), level = "debug")]
+#[tracing::instrument(skip(client, access_token), err)]
 pub async fn get_profile_threads_total(
     client: &GmailClient,
     access_token: &str,
@@ -17,9 +17,18 @@ pub async fn get_profile_threads_total(
         .await
         .context("Failed to send request to Gmail API (get user profile)")?;
 
-    let response = response
-        .error_for_status()
-        .context("Gmail API returned an error status (get user profile)")?;
+    let status = response.status();
+    if !status.is_success() {
+        let error_body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Failed to read error body".to_string());
+        anyhow::bail!(
+            "Gmail API error {} (get user profile): {}",
+            status,
+            error_body
+        );
+    }
 
     // Parse the response directly into our GmailUserProfile structure
     let user_profile = response

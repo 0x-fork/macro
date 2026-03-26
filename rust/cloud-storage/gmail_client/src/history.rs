@@ -6,7 +6,7 @@ const MAX_RESULTS: usize = 500;
 
 /// Gets the changes to a user's inbox that have occurred since start_history_id.
 /// Returns raw HistoryListResponse - callers should map to InboxChanges using convert module.
-#[tracing::instrument(skip(client, access_token))]
+#[tracing::instrument(skip(client, access_token), err)]
 pub(crate) async fn get_history(
     client: &GmailClient,
     access_token: &str,
@@ -43,12 +43,19 @@ pub(crate) async fn get_history(
                 )
             })?;
 
-        let response = response.error_for_status().with_context(|| {
-            format!(
-                "Gmail API returned an error status (list history), start_history_id: {}",
-                start_history_id
-            )
-        })?;
+        let status = response.status();
+        if !status.is_success() {
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to read error body".to_string());
+            anyhow::bail!(
+                "Gmail API error {} (list history) for start_history_id: {}: {}",
+                status,
+                start_history_id,
+                error_body
+            );
+        }
 
         let page_response = response.json::<HistoryListResponse>()
             .await
@@ -79,6 +86,7 @@ pub(crate) async fn get_history(
 }
 
 /// returns the current history id for the user's inbox using the /profile endpoint
+#[tracing::instrument(skip(client, access_token), err)]
 pub async fn get_current_history_id(
     client: &GmailClient,
     access_token: &str,
@@ -94,7 +102,18 @@ pub async fn get_current_history_id(
         .await
         .context("Failed to send request to Gmail API (get profile)")?;
 
-    let response = response.error_for_status()?;
+    let status = response.status();
+    if !status.is_success() {
+        let error_body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Failed to read error body".to_string());
+        anyhow::bail!(
+            "Gmail API error {} (get current history id): {}",
+            status,
+            error_body
+        );
+    }
 
     let profile_response = response
         .json::<UserProfileResponse>()

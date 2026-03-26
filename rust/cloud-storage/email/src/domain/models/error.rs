@@ -38,4 +38,13 @@ pub enum EmailErr {
     /// No messages found for thread.
     #[error("No messages found for thread")]
     ThreadEmpty,
+    /// Thread not found.
+    #[error("Thread not found")]
+    ThreadNotFound,
+    /// The caller does not have permission to perform this action.
+    #[error("You do not have permission to perform this action")]
+    Unauthorized,
+    /// Invalid email filter input.
+    #[error("{0}")]
+    InvalidEmailFilter(String),
 }

@@ -6,12 +6,15 @@ mod thread_labels;
 
 use crate::domain::{
     models::{
-        CreateDraftInput, CreatedDraft, EmailErr, EnrichedEmailThreadPreview, GetEmailsRequest,
-        Link, LinkLabel, ParsedThread, Thread, UpdateThreadLabelsResult,
+        CreateDraftInput, CreatedDraft, EmailErr, EmailFilter, EnrichedEmailThreadPreview,
+        GetEmailsRequest, Link, LinkLabel, ParsedThread, Thread, UpdateThreadLabelsResult,
+        UpsertEmailFilterInput,
     },
     ports::{EmailMessageEnqueuer, EmailRepo, EmailService, GmailLabelModifier},
 };
-use entity_access::domain::models::{EntityAccessReceipt, ViewAccessLevel};
+use entity_access::domain::models::{
+    AccessLevel, EditAccessLevel, EntityAccessReceipt, EntityPermission, ViewAccessLevel,
+};
 use frecency::domain::ports::FrecencyQueryService;
 use models_pagination::{PaginatedCursor, SimpleSortMethod};
 use uuid::Uuid;
@@ -49,6 +52,66 @@ where
     }
 }
 
+impl<T, U, E, G> EmailServiceImpl<T, U, E, G> {
+    /// Validate and normalize email filter input.
+    fn validate_email_filter_input(
+        input: UpsertEmailFilterInput,
+    ) -> Result<UpsertEmailFilterInput, EmailErr> {
+        match (&input.email_address, &input.email_domain) {
+            (Some(addr), None) => {
+                let addr = addr.trim().to_lowercase();
+                if addr.is_empty() {
+                    return Err(EmailErr::InvalidEmailFilter(
+                        "Email address cannot be empty".to_string(),
+                    ));
+                }
+                if !addr.contains('@') {
+                    return Err(EmailErr::InvalidEmailFilter(
+                        "Invalid email address format".to_string(),
+                    ));
+                }
+                if addr.len() > 320 {
+                    return Err(EmailErr::InvalidEmailFilter(
+                        "Email address is too long".to_string(),
+                    ));
+                }
+                Ok(UpsertEmailFilterInput {
+                    email_address: Some(addr),
+                    email_domain: None,
+                    is_important: input.is_important,
+                })
+            }
+            (None, Some(domain)) => {
+                let domain = domain.trim().to_lowercase();
+                if domain.is_empty() {
+                    return Err(EmailErr::InvalidEmailFilter(
+                        "Email domain cannot be empty".to_string(),
+                    ));
+                }
+                if domain.contains('@') {
+                    return Err(EmailErr::InvalidEmailFilter(
+                        "Domain must not contain '@'; use email_address for full addresses"
+                            .to_string(),
+                    ));
+                }
+                if domain.len() > 255 {
+                    return Err(EmailErr::InvalidEmailFilter(
+                        "Email domain is too long".to_string(),
+                    ));
+                }
+                Ok(UpsertEmailFilterInput {
+                    email_address: None,
+                    email_domain: Some(domain),
+                    is_important: input.is_important,
+                })
+            }
+            _ => Err(EmailErr::InvalidEmailFilter(
+                "Exactly one of email_address or email_domain must be provided".to_string(),
+            )),
+        }
+    }
+}
+
 impl<T, U, E, G> EmailService for EmailServiceImpl<T, U, E, G>
 where
     T: EmailRepo,
@@ -73,6 +136,16 @@ where
     ) -> Result<Option<crate::domain::models::Link>, EmailErr> {
         self.get_link_by_auth_id_and_macro_id_impl(auth_id, macro_id)
             .await
+    }
+
+    async fn get_link_by_macro_id(
+        &self,
+        macro_id: macro_user_id::user_id::MacroUserIdStr<'_>,
+    ) -> Result<Option<crate::domain::models::Link>, EmailErr> {
+        self.email_repo
+            .link_by_macro_id(macro_id)
+            .await
+            .map_err(|e| EmailErr::RepoErr(e.into()))
     }
 
     async fn get_thread_with_messages(
@@ -127,5 +200,74 @@ where
     ) -> Result<UpdateThreadLabelsResult, EmailErr> {
         self.update_thread_labels_impl(access_token, link, thread_id, label_id, add)
             .await
+    }
+
+    async fn update_thread_project(
+        &self,
+        thread_receipt: EntityAccessReceipt<EditAccessLevel>,
+        project_receipt: Option<EntityAccessReceipt<EditAccessLevel>>,
+    ) -> Result<Option<String>, EmailErr> {
+        let is_owner = matches!(
+            thread_receipt.entity_permission(),
+            EntityPermission::AccessLevel {
+                access_level: AccessLevel::Owner
+            }
+        );
+
+        if !is_owner {
+            return Err(EmailErr::Unauthorized);
+        }
+
+        let thread_id = Uuid::parse_str(&thread_receipt.entity().entity_id)
+            .map_err(|e| EmailErr::RepoErr(anyhow::anyhow!("invalid thread id: {}", e)))?;
+
+        let project_id = project_receipt
+            .as_ref()
+            .map(|r| r.entity().entity_id.as_str());
+
+        let old_project_id = self
+            .email_repo
+            .get_thread_project_id(thread_id)
+            .await
+            .map_err(|e| EmailErr::RepoErr(e.into()))?;
+
+        let updated = self
+            .email_repo
+            .update_thread_project(thread_id, project_id)
+            .await
+            .map_err(|e| EmailErr::RepoErr(e.into()))?;
+
+        if !updated {
+            return Err(EmailErr::ThreadNotFound);
+        }
+
+        Ok(old_project_id)
+    }
+
+    async fn upsert_email_filter(
+        &self,
+        link: &Link,
+        input: UpsertEmailFilterInput,
+    ) -> Result<EmailFilter, EmailErr> {
+        let validated = Self::validate_email_filter_input(input)?;
+
+        self.email_repo
+            .upsert_email_filter(link.id, validated)
+            .await
+            .map_err(|e| EmailErr::RepoErr(e.into()))
+    }
+
+    async fn delete_email_filter(&self, link: &Link, filter_id: Uuid) -> Result<bool, EmailErr> {
+        self.email_repo
+            .delete_email_filter(filter_id, link.id)
+            .await
+            .map_err(|e| EmailErr::RepoErr(e.into()))
+    }
+
+    async fn list_email_filters(&self, link: &Link) -> Result<Vec<EmailFilter>, EmailErr> {
+        self.email_repo
+            .list_email_filters(link.id)
+            .await
+            .map_err(|e| EmailErr::RepoErr(e.into()))
     }
 }

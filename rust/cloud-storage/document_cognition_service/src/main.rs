@@ -1,13 +1,12 @@
 #![recursion_limit = "256"]
 use crate::api::context::ApiContext;
-use ai_tools::{NoOpConnectionService, NoOpTaskProperties};
+use ai_tools::{NoOpConnectionService, NoOpNotificationService, NoOpTaskProperties};
 use anyhow::Context;
 use comms::domain::service::ChannelServiceImpl;
 use comms::outbound::postgres::comms_repo::PgCommsRepo;
 use comms::outbound::postgres::user_repo::PgUserRepo;
 use comms_service_client::CommsServiceClient;
 use config::{Config, EnvVars, Environment};
-use document_cognition_service_client::DocumentCognitionServiceClient;
 use document_storage_service_client::DocumentStorageServiceClient;
 use documents::{
     domain::{models::CloudFrontConfig, service::DocumentServiceImpl},
@@ -23,15 +22,8 @@ use frecency::outbound::postgres::FrecencyPgStorage;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_entrypoint::MacroEntrypoint;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
-use notification::domain::models::email_notification_digest::{
-    EmailBlockList, ExplicitInviteAllowList, NotificationSetBuilder, StateMachineDriverA,
-};
-use notification::domain::service::NotificationIngressService;
-use notification::outbound::{
-    digest_batcher::RedisDigestBatcher, last_online_checker::LastOnlineCheckerImpl,
-    push_notification_checker::PushNotificationCheckerImpl, queue::SqsNotificationQueue,
-    repository::DbNotificationRepository, user_existence_checker::DbUserExistenceChecker,
-};
+use notification::domain::service::SqsNotificationIngress;
+use notification::outbound::queue::SqsIngressQueue;
 use scribe::{ScribeClient, document::DocumentClient};
 use search_service_client::SearchServiceClient;
 use secretsmanager_client::SecretManager;
@@ -143,11 +135,6 @@ async fn main() -> anyhow::Result<()> {
         config.email_service_url.clone(),
     ));
 
-    let document_cognition_service_client = Arc::new(DocumentCognitionServiceClient::new(
-        internal_auth_key.as_ref().to_string(),
-        config.document_cognition_service_url.clone(),
-    ));
-
     let static_file_service_client = Arc::new(StaticFileServiceClient::new(
         internal_auth_key.as_ref().to_string(),
         config.static_file_service_url.clone(),
@@ -204,39 +191,12 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("initialized connection repo");
 
-    let redis_multiplexed_conn = redis_client
-        .get_multiplexed_async_connection()
-        .await
-        .context("failed to get multiplexed redis connection for notification state machine")?;
-
-    let notification_ingress_service = Arc::new({
-        let notification_repository = DbNotificationRepository::new(db.clone());
-        let notification_queue = SqsNotificationQueue::new(
-            aws_sdk_sqs::Client::new(&aws_config),
-            config.notification_queue.clone(),
-        );
-        let state_machine = StateMachineDriverA {
-            user_checker: DbUserExistenceChecker::new(db.clone()),
-            notification_checker: PushNotificationCheckerImpl::new(DbNotificationRepository::new(
-                db.clone(),
-            )),
-            online_checker: LastOnlineCheckerImpl::new(
-                last_online_tracker::domain::services::LastOnlineService::new(
-                    last_online_tracker::outbound::time::DefaultTime,
-                    last_online_tracker::outbound::redis::RedisLastOnlineRepo::new(
-                        redis_multiplexed_conn.clone(),
-                    ),
-                ),
-            ),
-            digest_batcher: RedisDigestBatcher::new(redis_multiplexed_conn.clone()),
-            block_list: EmailBlockList::new::<model_notifications::NewEmailMetadata>(),
-            invite_list: ExplicitInviteAllowList::new::<model_notifications::InviteToTeamMetadata>(
-            )
-            .append::<model_notifications::ChannelInviteMetadata>(),
-            digest_window: std::time::Duration::from_secs(30 * 60),
-            online_duration_threshold: std::time::Duration::from_secs(60 * 60),
-        };
-        NotificationIngressService::new(notification_repository, notification_queue, state_machine)
+    let ingress_queue = SqsIngressQueue {
+        client: aws_sdk_sqs::Client::new(&aws_config),
+        queue_url: config.notification_queue.clone(),
+    };
+    let notification_ingress_service = Arc::new(SqsNotificationIngress {
+        queue: ingress_queue,
     });
 
     tracing::info!("initialized notification ingress service");
@@ -282,30 +242,65 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("initialized document tool context");
 
+    let email_service_client_external = Arc::new(EmailServiceClientExternal::new(
+        email_service_client.url().to_owned(),
+    ));
+
+    let scribe = Arc::new(
+        ScribeClient::new()
+            .with_document_client(
+                DocumentClient::builder()
+                    .with_dss_client(document_storage_client.clone())
+                    .with_lexical_client(lexical_client)
+                    .with_sync_service_client(sync_service_client.clone())
+                    .with_macro_db(db.clone())
+                    .build(),
+            )
+            .with_channel_client(db.clone())
+            .with_dcs_client(db.clone())
+            .with_email_client(email_service_client)
+            .with_static_file_client(static_file_service_client.clone()),
+    );
+    let search_service_client = Arc::new(search_service_client);
+
+    // Build properties tool context for AI tools
+    let properties_service = properties::PropertiesServiceImpl::new(
+        properties::PropertiesPgRepo::new(db.clone()),
+        Some(properties::PermissionServiceImpl::new(db.clone())),
+        Some(NoOpNotificationService),
+    );
+    let properties_tool_context =
+        properties::inbound::toolset::PropertiesToolContext::new(properties_service);
+
+    tracing::info!("initialized properties tool context");
+
+    // Build memory service
+    let memory_tool_context = ai_tools::ToolServiceContext {
+        search_service_client: search_service_client.clone(),
+        email_service_client: email_service_client_external.clone(),
+        scribe: scribe.clone(),
+        soup_service: soup_service.clone(),
+        document_tool_context: document_tool_context.clone(),
+        properties_tool_context: properties_tool_context.clone(),
+    };
+    let memory_repo = memory::outbound::pg_memory_repo::PgMemoryRepo::new(db.clone());
+    let memory_service = Arc::new(memory::domain::service::MemoryServiceImpl::new(
+        db.clone(),
+        memory_repo,
+        memory_tool_context,
+        ai_tools::all_tools(),
+    ));
+
+    tracing::info!("initialized memory service");
+
     api::setup_and_serve(ApiContext {
         db: db.clone(),
-        email_service_client_external: Arc::new(EmailServiceClientExternal::new(
-            email_service_client.url().to_owned(),
-        )),
-        scribe: Arc::new(
-            ScribeClient::new()
-                .with_document_client(
-                    DocumentClient::builder()
-                        .with_dss_client(document_storage_client.clone())
-                        .with_lexical_client(lexical_client)
-                        .with_sync_service_client(sync_service_client.clone())
-                        .with_macro_db(db.clone())
-                        .build(),
-                )
-                .with_channel_client_and_db(comms_service_client.clone(), db.clone())
-                .with_dcs_client(document_cognition_service_client)
-                .with_email_client(email_service_client)
-                .with_static_file_client(static_file_service_client.clone()),
-        ),
+        email_service_client_external,
+        scribe,
         sqs_client: Arc::new(sqs_client),
         document_storage_client: Arc::new(document_storage_client),
         comms_service_client: Arc::new(comms_service_client),
-        search_service_client: Arc::new(search_service_client),
+        search_service_client,
         jwt_args,
         config: Arc::new(config),
         internal_auth_key,
@@ -314,6 +309,8 @@ async fn main() -> anyhow::Result<()> {
         soup_service,
         stream_repo,
         document_tool_context,
+        memory_service,
+        properties_tool_context,
     })
     .await
     .context("failed to setup and serve api")?;

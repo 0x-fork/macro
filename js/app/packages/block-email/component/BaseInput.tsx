@@ -1,6 +1,7 @@
 import { fileSelector } from '@core/directive/fileSelector';
 import { FormatRibbon } from '@block-channel/component/FormatRibbon';
 import { MacroSignatureButton } from '@block-email/component/MacroSignatureButton';
+import { convertContactInfoToEmailRecipient } from '@block-email/util/recipientConversion';
 import {
   MACRO_EMAIL_SIGNATURE,
   MAX_ATTACHMENTS_BYTES_SIZE,
@@ -24,6 +25,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import { trackMention } from '@core/signal/mention';
 import { tryMacroId, useDisplayName } from '@core/user';
 import { handleFileFolderDrop } from '@core/util/upload';
+import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
 import ArrowUp from '@icon/bold/arrow-up-bold.svg';
 import Spinner from '@icon/bold/spinner-gap-bold.svg';
 import ReplyAll from '@icon/regular/arrow-bend-double-up-left.svg';
@@ -46,7 +48,6 @@ import { useEmailLinksQuery } from '@queries/email/link';
 import { invalidateSoupEntity } from '@queries/soup/cache';
 import { emailClient } from '@service-email/client';
 import {
-  useScheduleMessageMutation,
   useSendMessageMutation,
   useUnscheduleMessageMutation,
 } from '@queries/email/thread';
@@ -96,6 +97,7 @@ import { makeAttachmentPublic } from '../util/makeAttachmentPublic';
 import { getFirstName } from '../util/name';
 import {
   clearEmailBody,
+  hasDraftContent,
   prepareEmailBody,
   prepareMacroBody,
   registerToggleAppendedThread,
@@ -141,6 +143,7 @@ const getRecipientDisplayName = (item: EmailRecipient): string => {
 };
 
 // Shared constants for recipient display - used in both measurement and rendering
+const MAX_VISIBLE_RECIPIENTS = 3;
 const RECIPIENT_SEPARATOR = ',\u00A0'; // comma + non-breaking space
 const MORE_SUFFIX_TEMPLATE = '+99 more'; // worst-case for measurement
 
@@ -267,7 +270,8 @@ function TruncatedRecipientList(props: {
     let usedWidth = 0;
     let count = 0;
 
-    for (let i = 0; i < recipients.length; i++) {
+    const maxRecipients = Math.min(recipients.length, MAX_VISIBLE_RECIPIENTS);
+    for (let i = 0; i < maxRecipients; i++) {
       const { recipient, prefix } = recipients[i];
       const displayName = getRecipientDisplayName(recipient);
       // Show separator if not the last recipient OR if there will be hidden recipients
@@ -547,13 +551,16 @@ export function BaseInput(props: {
         'Email sent',
         undefined,
         draftId
-          ? {
-              text: 'Undo',
-              onClick: () => {
-                if (toastId != null) toast.dismiss(toastId);
-                void undoSend(draftId);
+          ? [
+              {
+                label: 'Undo',
+                icon: ArrowCounterClockwise,
+                onClick: () => {
+                  if (toastId != null) toast.dismiss(toastId);
+                  void undoSend(draftId);
+                },
               },
-            }
+            ]
           : undefined,
         10_000
       );
@@ -635,11 +642,12 @@ export function BaseInput(props: {
       );
       return null;
     }
-    // Fail if no body text, no attachments, and no subject
     if (
-      prepared.bodyText.trim() === '' &&
-      form().attachments.list().length === 0 &&
-      !form().subject()?.trim()
+      !hasDraftContent(
+        prepared.bodyText,
+        form().subject(),
+        form().attachments.list().length
+      )
     ) {
       return null;
     }
@@ -686,12 +694,6 @@ export function BaseInput(props: {
       return;
     }
 
-    const existingDraft = savedDraftId() !== undefined;
-
-    // If there's an existing draft, we should send the sendTime so that the send time
-    // stays up to date and is not removed
-    const sendTime = existingDraft ? form().sendTime() : undefined;
-
     const draftResponse = await saveDraftMutation.mutateAsync({
       draft: {
         ...draftToSave,
@@ -699,7 +701,6 @@ export function BaseInput(props: {
         provider_thread_id: currentThread?.provider_id,
         thread_db_id: currentThread?.db_id,
       },
-      sendTime,
     });
 
     const draftId = draftResponse.draft.db_id;
@@ -841,15 +842,6 @@ export function BaseInput(props: {
     useHotkeyDOMScope('compose-message');
   let composeContainerRef: HTMLDivElement | undefined;
 
-  const scheduleMessageMutation = useScheduleMessageMutation({
-    onSuccess: () => {
-      toast.success('Email scheduled');
-    },
-    onError: () => {
-      toast.failure('Failed to schedule email');
-    },
-  });
-
   const sendEmail = async (markDone = false) => {
     if (sendMutation.isPending || uploadAttachmentMutation.isPending) return;
 
@@ -954,22 +946,8 @@ export function BaseInput(props: {
 
     const currentDraftID = savedDraftId();
 
-    const sendTime = form().sendTime();
-
-    if (sendTime) {
-      if (!currentDraftID) {
-        console.error('No draft');
-        toast.failure('Failed to schedule message', 'Draft required');
-        cleanupWatermark();
-        return;
-      }
-
-      scheduleMessageMutation.mutate({
-        draftID: currentDraftID,
-        sendTime,
-        threadID: currentThread?.db_id,
-      });
-
+    // Failsafe: don't send if a scheduled send time is set
+    if (form().sendTime()) {
       cleanupWatermark();
       return;
     }
@@ -1046,18 +1024,17 @@ export function BaseInput(props: {
 
     // If not already in To or CC, add user to CC
     if (!isInTo && !isInCc) {
-      // Find the user in recipient options
-      const userOption = ctx.recipientOptions().find((recipient) => {
-        const email = recipient.data.email;
-        if (!email) return false;
-        return email === mentionEmail;
-      });
+      // Find the user in recipient options, or construct from mention data
+      const userOption =
+        ctx.recipientOptions().find((recipient) => {
+          const email = recipient.data.email;
+          if (!email) return false;
+          return email === mentionEmail;
+        }) ?? convertContactInfoToEmailRecipient({ email: mentionEmail });
 
-      if (userOption) {
-        // Add to CC recipients
-        form().setRecipients('cc', [...form().recipients().cc, userOption]);
-        toast.success(`${mentionEmail} added to CC`);
-      }
+      // Add to CC recipients
+      form().setRecipients('cc', [...form().recipients().cc, userOption]);
+      toast.success(`${mentionEmail} added to CC`);
     }
   };
 
@@ -1070,6 +1047,7 @@ export function BaseInput(props: {
         scopeId: composeHotkeyScope,
         description: 'Send email',
         keyDownHandler: () => {
+          if (form().sendTime()) return false;
           sendEmail();
           return true;
         },
@@ -1083,6 +1061,7 @@ export function BaseInput(props: {
         scopeId: composeHotkeyScope,
         description: 'Send and mark done',
         keyDownHandler: () => {
+          if (form().sendTime()) return false;
           sendEmail(true);
           return true;
         },
@@ -1210,7 +1189,7 @@ export function BaseInput(props: {
     },
   });
 
-  const handleSendTimeChange = (date: Date | null) => {
+  const handleSendTimeChange = async (date: Date | null) => {
     const currentSendTime = form().sendTime();
     const currentDraft = savedDraftId();
 
@@ -1219,10 +1198,31 @@ export function BaseInput(props: {
       unscheduleMessageMutation.mutate({
         draftID: currentDraft,
       });
+      form().setSendTime(date);
+      return;
     }
 
     form().setSendTime(date);
-    scheduleDraftSave();
+
+    if (date) {
+      // Ensure draft is saved before scheduling
+      const draftID = currentDraft ?? (await executeSaveDraft());
+      if (!draftID) {
+        toast.failure('Failed to schedule message', 'Draft required');
+        return;
+      }
+
+      await emailClient.scheduleMessage({
+        draftID,
+        send_time: date.toISOString(),
+      });
+
+      // Mark the thread as done
+      const threadID = ctx.thread()?.db_id;
+      if (threadID) {
+        await emailClient.flagArchived({ id: threadID, value: true });
+      }
+    }
   };
 
   const isDraftSaving = () => saveDraftMutation.isPending;
@@ -1482,7 +1482,7 @@ export function BaseInput(props: {
               setEditor(editor);
               form().setCapturedEditor(editor);
             }}
-            class={`cursor-text text-sm break-words text-ink ${isDragging() && 'blur'}`}
+            class={`ph-no-capture cursor-text text-sm break-words text-ink ${isDragging() && 'blur'}`}
             editable={() => !sendMutation.isPending}
             initialValue={props.preloadedBody}
             initialHtml={restoredSnapshot?.bodyHtml ?? props.preloadedHtml}
@@ -1520,7 +1520,7 @@ export function BaseInput(props: {
               );
             }}
           />
-          <div class="flex gap-1 flex-wrap w-full py-2">
+          <div class="ph-no-capture flex gap-1 flex-wrap w-full py-2">
             <For each={form().attachments.list()}>
               {(attachment) => (
                 <Switch>
@@ -1629,6 +1629,7 @@ export function BaseInput(props: {
               <EmailDateSelector
                 sendTime={form().sendTime() ?? null}
                 onSendTimeChange={handleSendTimeChange}
+                disablePortal={isMobile()}
               />
             </Show>
             <Show when={savedDraftId() && !laggedIsDraftSaving()}>
@@ -1647,22 +1648,30 @@ export function BaseInput(props: {
             </Show>
           </div>
 
-          <button
-            disabled={
-              uploadAttachmentMutation.isPending || sendMutation.isPending
-            }
-            onClick={() => sendEmail()}
-            class="text-ink-muted hover:scale-115 transition ease-in-out flex-col items-center rounded-full p-[0.25lh] hover:bg-transparent disabled:opacity-30"
+          <Tooltip
+            tooltip={form().sendTime() ? 'Send time is scheduled' : undefined}
           >
-            <Show
-              when={!sendMutation.isPending}
-              fallback={<Spinner class="size-6 animate-spin cursor-disabled" />}
+            <button
+              disabled={
+                uploadAttachmentMutation.isPending ||
+                sendMutation.isPending ||
+                !!form().sendTime()
+              }
+              onClick={() => sendEmail()}
+              class="text-ink-muted hover:scale-115 transition ease-in-out flex-col items-center rounded-full p-[0.25lh] hover:bg-transparent disabled:opacity-30"
             >
-              <div class="group hover:bg-accent transition ease-in-out size-6 border border-accent rounded-full flex items-center justify-center p-0">
-                <ArrowUp class="group-hover:!text-input group-hover:!fill-input !text-accent-ink !fill-accent size-4 transition ease-in-out" />
-              </div>
-            </Show>
-          </button>
+              <Show
+                when={!sendMutation.isPending}
+                fallback={
+                  <Spinner class="size-6 animate-spin cursor-disabled" />
+                }
+              >
+                <div class="group hover:bg-accent transition ease-in-out size-6 border border-accent rounded-full flex items-center justify-center p-0">
+                  <ArrowUp class="group-hover:!text-input group-hover:!fill-input !text-accent-ink !fill-accent size-4 transition ease-in-out" />
+                </div>
+              </Show>
+            </button>
+          </Tooltip>
         </div>
       </div>
     </div>

@@ -39,16 +39,17 @@ import {
 } from '@core/signal/blockElement';
 import { blockHandleSignal } from '@core/signal/load';
 import { useCanEdit } from '@core/signal/permissions';
-import { withAnalytics } from '@coparse/analytics';
+import { useAnalytics } from '@app/component/analytics-context';
+import { deriveChatName } from '@core/component/AI/util/deriveName';
+import { createRenameDssEntityMutation } from '@macro-entity';
 import { invalidateUserQuota } from '@queries/auth';
 import { createCallback } from '@solid-primitives/rootless';
 import { ChatInput } from 'core/component/AI/component/input/ChatInput';
 import { createEffect, createSignal, Show } from 'solid-js';
 
-const { track, TrackingEvents } = withAnalytics();
-
 export function Chat(props: { data: ChatData }) {
   const loadedState = getChatInputStoredState(props.data.chat.id);
+  const { showPaywall } = usePaywallState();
 
   return (
     <ChatInputProvider
@@ -58,6 +59,7 @@ export function Chat(props: { data: ChatData }) {
       <ChatProvider
         chatId={props.data.chat.id}
         messages={props.data.chat.messages}
+        controllerOptions={{ onShowPaywall: showPaywall }}
       >
         <ChatInner data={props.data} loadedInputText={loadedState.input} />
       </ChatProvider>
@@ -69,6 +71,7 @@ function ChatInner(props: {
   data: ChatData;
   loadedInputText: string | undefined;
 }) {
+  const analytics = useAnalytics();
   const input = useChatInputContext();
   const chat = useChatContext();
   const canEdit = useCanEdit();
@@ -86,7 +89,7 @@ function ChatInner(props: {
 
   const editor = buildChatEditor().withMentions({
     onCreate: (mention) => {
-      track(TrackingEvents.CHAT.MENTION.SELECT);
+      analytics.track('mentions_menu_use', { itemType: 'chat' });
       const attachment = getAttachmentFromMention(mention);
       if (attachment) input.attachments.addAttachment(attachment);
     },
@@ -95,16 +98,10 @@ function ChatInner(props: {
     useSnapshotForDocuments: ENABLE_SNAPSHOT_NODE,
   });
 
-  // Local stream signal for registerToolHandler
-
+  // Sync isGenerating from controller phase
   createEffect(() => {
-    const chatStream = chat.stream();
-    if (!chatStream || chatStream.isDone()) {
-      input.setIsGenerating(false);
-      return;
-    }
-    input.setIsGenerating(true);
-    if (chatStream.data().length > 0) invalidateUserQuota();
+    input.setIsGenerating(chat.isGenerating());
+    if (chat.isGenerating()) invalidateUserQuota();
   });
 
   const blockHandle = blockHandleSignal.get;
@@ -122,33 +119,48 @@ function ChatInner(props: {
     if (!s) return undefined;
     return { data: s.data };
   });
-  const { showPaywall } = usePaywallState();
 
   const sendChatMessage = useSendChatMessage();
+  const renameMutation = createRenameDssEntityMutation();
 
   const onSend = createCallback(async (request: ChatSendInput) => {
-    chat.addMessage({
-      id: crypto.randomUUID(),
-      content: request.content,
-      role: 'user',
-      attachments: request.attachments ?? [],
+    const isFirstMessage = chat.messages().length === 0;
+    const optimisticId = crypto.randomUUID();
+
+    chat.dispatch({
+      type: 'send_started',
+      optimisticMessage: {
+        id: optimisticId,
+        content: request.content,
+        role: 'user',
+        attachments: request.attachments ?? [],
+      },
     });
-    chat.setWaitingForStream(true);
+
+    if (isFirstMessage) {
+      const name = deriveChatName(request.content);
+      if (name) {
+        renameMutation.mutate({
+          entity: { type: 'chat', id: chat.chatId(), name: '', ownerId: '' },
+          newName: name,
+        });
+      }
+    }
 
     const result = await sendChatMessage({
       ...request,
       chatId: chat.chatId(),
     });
 
-    chat.setWaitingForStream(false);
-
     if ('error' in result) {
-      if (result.paymentError) showPaywall();
+      chat.dispatch({
+        type: 'send_failed',
+        paymentError: result.paymentError,
+      });
       return;
     }
 
-    chat.setStream(result.stream);
-    input.setIsGenerating(true);
+    chat.attachStream(result.stream);
     invalidateUserQuota();
   });
 

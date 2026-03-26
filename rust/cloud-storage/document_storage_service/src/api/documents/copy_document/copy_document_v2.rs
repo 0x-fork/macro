@@ -7,13 +7,11 @@ use macro_user_id::user_id::MacroUserIdStr;
 use model::document::response::{DocumentResponse, DocumentResponseMetadata};
 use model::{document::FileTypeExt, sync_service::SyncServiceVersionID};
 use model::{
-    document::{
-        BomPart, CONVERTED_DOCUMENT_FILE_NAME, DocumentMetadata, FileType,
-        build_cloud_storage_bucket_document_key,
-    },
+    document::{BomPart, DocumentMetadata, FileType},
     response::GenericResponse,
 };
 use models_permissions::share_permission::SharePermissionV2;
+use s3_key::{build_cloud_storage_bucket_document_key, build_docx_to_pdf_converted_document_key};
 use system_properties::SystemPropertiesService;
 
 #[tracing::instrument(skip(ctx))]
@@ -74,16 +72,14 @@ pub async fn copy_document<'a>(
             // we need to also copy this over into the new dss file
             let url_encoded_owner = urlencoding::encode(original_document_metadata.owner.as_ref());
             // Get the source document key
-            let source_key = format!(
-                "{}/{}/{}.pdf",
-                url_encoded_owner,
-                original_document_metadata.document_id,
-                CONVERTED_DOCUMENT_FILE_NAME
+            let source_key = build_docx_to_pdf_converted_document_key(
+                &url_encoded_owner,
+                &original_document_metadata.document_id,
             );
 
-            let dest_key = format!(
-                "{}/{}/{}.pdf",
-                user_id, updated_document_metadata.document_id, CONVERTED_DOCUMENT_FILE_NAME
+            let dest_key = build_docx_to_pdf_converted_document_key(
+                user_id.as_ref(),
+                &updated_document_metadata.document_id,
             );
 
             if let Err(e) = ctx.s3_client.copy_document(&source_key, &dest_key).await {
@@ -133,22 +129,16 @@ pub async fn copy_document<'a>(
             })?
             .0;
 
-            let url_encoded_owner = urlencoding::encode(original_document_metadata.owner.as_ref());
-            let file_type_str = file_type.map(|s| s.as_str());
-
-            // Get the source document key
-            let source_key = build_cloud_storage_bucket_document_key(
-                &url_encoded_owner,
-                &original_document_metadata.document_id,
-                document_version_id,
-                file_type_str,
-            );
-
             let dest_key = build_cloud_storage_bucket_document_key(
                 user_id.as_ref(),
                 &updated_document_metadata.document_id,
                 updated_document_metadata.document_version_id,
-                file_type_str,
+            );
+
+            let source_key = build_cloud_storage_bucket_document_key(
+                original_document_metadata.owner.as_ref(),
+                &original_document_metadata.document_id,
+                document_version_id,
             );
 
             let _ = ctx
@@ -211,22 +201,16 @@ pub async fn copy_document<'a>(
                 .0
             };
 
-            let url_encoded_owner = urlencoding::encode(original_document_metadata.owner.as_ref());
-            let file_type_str = file_type.map(|s| s.as_str());
-
-            // Get the source document key
-            let source_key = build_cloud_storage_bucket_document_key(
-                &url_encoded_owner,
-                &original_document_metadata.document_id,
-                document_version_id,
-                file_type_str,
-            );
-
             let dest_key = build_cloud_storage_bucket_document_key(
                 user_id.as_ref(),
                 &updated_document_metadata.document_id,
                 updated_document_metadata.document_version_id,
-                file_type_str,
+            );
+
+            let source_key = build_cloud_storage_bucket_document_key(
+                original_document_metadata.owner.as_ref(),
+                &original_document_metadata.document_id,
+                document_version_id,
             );
 
             // handle non live collab

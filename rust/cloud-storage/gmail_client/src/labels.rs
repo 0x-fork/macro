@@ -12,7 +12,7 @@ use uuid::Uuid;
 #[tracing::instrument(
     skip(client, access_token),
     fields(provider_message_id = %provider_message_id),
-    level = "debug"
+    err
 )]
 pub async fn modify_message_labels(
     client: &GmailClient,
@@ -41,9 +41,19 @@ pub async fn modify_message_labels(
         .await
         .context("Failed to send request to Gmail API (modify message labels)")?;
 
-    response
-        .error_for_status()
-        .context("Gmail API returned an error status (modify message labels)")?;
+    let status = response.status();
+    if !status.is_success() {
+        let error_body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Failed to read error body".to_string());
+        anyhow::bail!(
+            "Gmail API error {} (modify message labels) for provider_message_id: {}: {}",
+            status,
+            provider_message_id,
+            error_body
+        );
+    }
 
     Ok(())
 }
@@ -116,7 +126,7 @@ pub async fn batch_modify_labels(
     (successful_msg_ids, failed_msg_ids)
 }
 
-#[tracing::instrument(skip(client, access_token))]
+#[tracing::instrument(skip(client, access_token), err)]
 pub async fn fetch_user_labels(
     client: &GmailClient,
     access_token: &str,
@@ -133,9 +143,14 @@ pub async fn fetch_user_labels(
         .await
         .context("Failed to send request to Gmail API (fetch labels)")?;
 
-    let response = response
-        .error_for_status()
-        .context("Gmail API returned an error status (fetch labels)")?;
+    let status = response.status();
+    if !status.is_success() {
+        let error_body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Failed to read error body".to_string());
+        anyhow::bail!("Gmail API error {} (fetch labels): {}", status, error_body);
+    }
 
     let labels_response = response
         .json::<GmailLabelsResponse>()
@@ -150,7 +165,7 @@ pub async fn fetch_user_labels(
     Ok(service_labels)
 }
 
-#[tracing::instrument(skip(client, access_token))]
+#[tracing::instrument(skip(client, access_token), err)]
 pub async fn create_label(
     client: &GmailClient,
     access_token: &str,
@@ -204,7 +219,7 @@ pub async fn create_label(
 #[tracing::instrument(
     skip(client, access_token),
     fields(label_id = %label_id),
-    level = "info"
+    err
 )]
 pub async fn delete_gmail_label(
     client: &GmailClient,

@@ -8,7 +8,10 @@ pub(super) fn has_thread_literals(ast: &Expr<EmailLiteral>) -> bool {
     ast.collapse_frames(|frame| match frame {
         filter_ast::ExprFrame::And(a, b) | filter_ast::ExprFrame::Or(a, b) => a || b,
         filter_ast::ExprFrame::Not(a) => a,
-        filter_ast::ExprFrame::Literal(EmailLiteral::ThreadId(_)) => true,
+        filter_ast::ExprFrame::Literal(EmailLiteral::ThreadId(_) | EmailLiteral::ProjectId(_)) => {
+            true
+        }
+        filter_ast::ExprFrame::Literal(EmailLiteral::Shared(_)) => false,
         filter_ast::ExprFrame::Literal(_) => false,
     })
 }
@@ -17,7 +20,9 @@ pub(super) fn has_message_literals(ast: &Expr<EmailLiteral>) -> bool {
     ast.collapse_frames(|frame| match frame {
         filter_ast::ExprFrame::And(a, b) | filter_ast::ExprFrame::Or(a, b) => a || b,
         filter_ast::ExprFrame::Not(a) => a,
-        filter_ast::ExprFrame::Literal(EmailLiteral::ThreadId(_)) => false,
+        filter_ast::ExprFrame::Literal(
+            EmailLiteral::ThreadId(_) | EmailLiteral::ProjectId(_) | EmailLiteral::Shared(_),
+        ) => false,
         filter_ast::ExprFrame::Literal(_) => true,
     })
 }
@@ -48,13 +53,53 @@ fn build_email_match(preamble: &str, email: &Email) -> SqlFragment {
     }
 }
 
+fn build_sender_importance_override_filter(is_important: bool) -> SqlFragment {
+    let importance_literal = if is_important { "TRUE" } else { "FALSE" };
+    let opposite_importance_literal = if is_important { "FALSE" } else { "TRUE" };
+
+    SqlFragment::raw(format!(
+        r#"(
+                    EXISTS (
+                        SELECT 1
+                        FROM email_contacts sender_c
+                        JOIN email_filters ef
+                          ON ef.link_id = m.link_id
+                         AND ef.email_address IS NOT NULL
+                         AND LOWER(ef.email_address) = LOWER(sender_c.email_address)
+                        WHERE sender_c.id = m.from_contact_id
+                          AND ef.is_important = {importance_literal}
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM email_contacts sender_c
+                        JOIN email_filters ef
+                          ON ef.link_id = m.link_id
+                         AND ef.email_domain IS NOT NULL
+                         AND LOWER(ef.email_domain) = LOWER(split_part(sender_c.email_address, '@', 2))
+                        WHERE sender_c.id = m.from_contact_id
+                          AND ef.is_important = {importance_literal}
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM email_filters ef_addr
+                              WHERE ef_addr.link_id = m.link_id
+                                AND ef_addr.email_address IS NOT NULL
+                                AND LOWER(ef_addr.email_address) = LOWER(sender_c.email_address)
+                                AND ef_addr.is_important = {opposite_importance_literal}
+                          )
+                    )
+                )"#,
+    ))
+}
+
 pub(super) fn build_message_email_filter(ast: &Expr<EmailLiteral>) -> SqlFragment {
     let fragment = ast.collapse_frames(|frame| match frame {
         filter_ast::ExprFrame::And(a, b) => SqlFragment::and(a, b),
         filter_ast::ExprFrame::Or(a, b) => SqlFragment::or(a, b),
         filter_ast::ExprFrame::Not(a) => SqlFragment::not(a),
 
-        filter_ast::ExprFrame::Literal(EmailLiteral::ThreadId(_)) => SqlFragment::raw("TRUE"),
+        filter_ast::ExprFrame::Literal(
+            EmailLiteral::ThreadId(_) | EmailLiteral::ProjectId(_),
+        ) => SqlFragment::raw("TRUE"),
 
         filter_ast::ExprFrame::Literal(EmailLiteral::Sender(email)) => build_email_match(
             r#"EXISTS (
@@ -91,41 +136,77 @@ pub(super) fn build_message_email_filter(ast: &Expr<EmailLiteral>) -> SqlFragmen
         ),
 
         filter_ast::ExprFrame::Literal(EmailLiteral::Importance(true)) => {
-            SqlFragment::raw(
-                r#"(
-                m.is_draft = TRUE
-                OR EXISTS (
-                    SELECT 1 FROM email_message_labels ml
-                    JOIN email_labels l ON ml.label_id = l.id
-                    WHERE ml.message_id = m.id
-                    AND l.name IN ('CATEGORY_PERSONAL', 'SENT', 'DRAFT')
-                )
-                OR NOT EXISTS (
-                    SELECT 1 FROM email_message_labels ml
-                    JOIN email_labels l ON ml.label_id = l.id
-                    WHERE ml.message_id = m.id
-                    AND l.name IN ('CATEGORY_UPDATES', 'CATEGORY_PROMOTIONS', 'CATEGORY_SOCIAL', 'CATEGORY_FORUMS')
-                )
-            )"#,
-            )
-        }
-        filter_ast::ExprFrame::Literal(EmailLiteral::Importance(false)) => {
-            SqlFragment::raw(
+            let mut f = SqlFragment::raw(
                 r#"(
                 NOT EXISTS (
                     SELECT 1 FROM email_message_labels ml
                     JOIN email_labels l ON ml.label_id = l.id
                     WHERE ml.message_id = m.id
-                    AND l.name IN ('CATEGORY_PERSONAL', 'SENT', 'DRAFT')
+                    AND l.name = 'TRASH'
                 )
-                AND EXISTS (
-                    SELECT 1 FROM email_message_labels ml
-                    JOIN email_labels l ON ml.label_id = l.id
-                    WHERE ml.message_id = m.id
-                    AND l.name IN ('CATEGORY_UPDATES', 'CATEGORY_PROMOTIONS', 'CATEGORY_SOCIAL', 'CATEGORY_FORUMS')
+                AND (
+                    "#,
+            );
+            f.extend(build_sender_importance_override_filter(true));
+            f.push_raw(
+                r#"
+                    OR (
+                        NOT "#,
+            );
+            f.extend(build_sender_importance_override_filter(false));
+            f.push_raw(
+                r#"
+                        AND (
+                            m.is_draft = TRUE
+                            OR EXISTS (
+                                SELECT 1 FROM email_message_labels ml
+                                JOIN email_labels l ON ml.label_id = l.id
+                                WHERE ml.message_id = m.id
+                                AND l.name IN ('CATEGORY_PERSONAL', 'SENT', 'DRAFT')
+                            )
+                            OR NOT EXISTS (
+                                SELECT 1 FROM email_message_labels ml
+                                JOIN email_labels l ON ml.label_id = l.id
+                                WHERE ml.message_id = m.id
+                                AND l.name IN ('CATEGORY_UPDATES', 'CATEGORY_PROMOTIONS', 'CATEGORY_SOCIAL', 'CATEGORY_FORUMS')
+                            )
+                        )
+                    )
                 )
             )"#,
-            )
+            );
+            f
+        }
+        filter_ast::ExprFrame::Literal(EmailLiteral::Importance(false)) => {
+            let mut f = SqlFragment::raw(
+                r#"(
+                "#,
+            );
+            f.extend(build_sender_importance_override_filter(false));
+            f.push_raw(
+                r#"
+                OR (
+                    NOT "#,
+            );
+            f.extend(build_sender_importance_override_filter(true));
+            f.push_raw(
+                r#"
+                    AND NOT EXISTS (
+                        SELECT 1 FROM email_message_labels ml
+                        JOIN email_labels l ON ml.label_id = l.id
+                        WHERE ml.message_id = m.id
+                        AND l.name IN ('CATEGORY_PERSONAL', 'SENT', 'DRAFT')
+                    )
+                    AND EXISTS (
+                        SELECT 1 FROM email_message_labels ml
+                        JOIN email_labels l ON ml.label_id = l.id
+                        WHERE ml.message_id = m.id
+                        AND l.name IN ('CATEGORY_UPDATES', 'CATEGORY_PROMOTIONS', 'CATEGORY_SOCIAL', 'CATEGORY_FORUMS')
+                    )
+                )
+            )"#,
+            );
+            f
         }
         filter_ast::ExprFrame::Literal(EmailLiteral::NotificationDone(_)) => {
             SqlFragment::raw("TRUE")
@@ -133,6 +214,7 @@ pub(super) fn build_message_email_filter(ast: &Expr<EmailLiteral>) -> SqlFragmen
         filter_ast::ExprFrame::Literal(EmailLiteral::NotificationSeen(_)) => {
             SqlFragment::raw("TRUE")
         }
+        filter_ast::ExprFrame::Literal(EmailLiteral::Shared(_)) => SqlFragment::raw("TRUE"),
     });
 
     fragment.with_and_prefix()
@@ -151,6 +233,12 @@ pub(super) fn build_thread_email_filter(ast: &Expr<EmailLiteral>) -> SqlFragment
             f
         }
 
+        filter_ast::ExprFrame::Literal(EmailLiteral::ProjectId(id)) => {
+            let mut f = SqlFragment::raw("t.project_id = ");
+            f.extend(SqlFragment::bind_string(id));
+            f
+        }
+
         filter_ast::ExprFrame::Literal(
             EmailLiteral::Sender(_)
             | EmailLiteral::Cc(_)
@@ -158,7 +246,8 @@ pub(super) fn build_thread_email_filter(ast: &Expr<EmailLiteral>) -> SqlFragment
             | EmailLiteral::Recipient(_)
             | EmailLiteral::Importance(_)
             | EmailLiteral::NotificationDone(_)
-            | EmailLiteral::NotificationSeen(_),
+            | EmailLiteral::NotificationSeen(_)
+            | EmailLiteral::Shared(_),
         ) => SqlFragment::raw("TRUE"),
     });
 

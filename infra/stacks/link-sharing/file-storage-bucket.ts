@@ -45,6 +45,7 @@ export const attachPolicyToBucket = ({
   bulkUploadLambdaRoleArn,
   convertServiceRoleArn,
   documentCognitionRoleArn,
+  mcpServerRoleArn,
 }: {
   cloudfrontDistributionArn: pulumi.Output<string>;
   bucket: pulumi.Output<GetStorageBucketResult>;
@@ -59,6 +60,7 @@ export const attachPolicyToBucket = ({
   bulkUploadLambdaRoleArn: pulumi.Output<string>;
   convertServiceRoleArn: pulumi.Output<string>;
   documentCognitionRoleArn: pulumi.Output<string>;
+  mcpServerRoleArn: pulumi.Output<string>;
 }) => {
   const groupName = config.require('adminGroupName');
 
@@ -88,11 +90,43 @@ export const attachPolicyToBucket = ({
         bulkUploadLambdaRoleArn,
         convertServiceRoleArn,
         documentCognitionRoleArn,
+        mcpServerRoleArn,
       ];
     });
 
   const additionalAdminActions =
     stack === 'dev' ? ['s3:GetObject', 's3:PutObject'] : [];
+
+  const adminBucketActions = [
+    ...additionalAdminActions,
+    's3:PutBucketCORS',
+    's3:ListBucket',
+    's3:PutBucketLogging',
+    's3:PutBucketPolicy',
+    's3:DeleteBucketPolicy',
+    's3:GetBucketVersioning',
+    's3:GetBucketTagging',
+    's3:GetEncryptionConfiguration',
+    's3:GetIntelligentTieringConfiguration',
+    's3:GetBucketLogging',
+    's3:GetBucketNotification',
+    's3:GetAccelerateConfiguration',
+    's3:GetBucketObjectLockConfiguration',
+    's3:GetBucketRequestPayment',
+    's3:GetBucketWebsite',
+    's3:GetBucketPublicAccessBlock',
+    's3:GetBucketPolicy',
+    's3:GetBucketOwnershipControls',
+    's3:GetBucketAcl',
+    's3:GetBucketCORS',
+    's3:GetAnalyticsConfiguration',
+    's3:GetReplicationConfiguration',
+    's3:GetLifecycleConfiguration',
+    's3:GetInventoryConfiguration',
+    's3:PutReplicationConfiguration',
+    's3:PutBucketNotification',
+    's3:PutLifecycleConfiguration',
+  ];
 
   const policy: aws.iam.PolicyDocument = {
     Version: '2012-10-17',
@@ -226,6 +260,20 @@ export const attachPolicyToBucket = ({
         Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
       },
       {
+        Sid: 'AllowAccessForMcpServer',
+        Effect: 'Allow',
+        Principal: {
+          AWS: mcpServerRoleArn,
+        },
+        Action: [
+          's3:ListBucket',
+          's3:GetObject',
+          's3:PutObject',
+          's3:DeleteObject',
+        ],
+        Resource: [bucket.arn, pulumi.interpolate`${bucket.arn}/*`],
+      },
+      {
         Sid: 'AllowCloudFrontServicePrincipal',
         Effect: 'Allow',
         Principal: {
@@ -245,37 +293,7 @@ export const attachPolicyToBucket = ({
         Principal: {
           AWS: adminUserArns,
         },
-        Action: [
-          ...additionalAdminActions,
-          's3:PutBucketCORS',
-          's3:ListBucket',
-          's3:PutBucketLogging',
-          's3:GetBucketPolicy',
-          's3:PutBucketPolicy',
-          's3:DeleteBucketPolicy',
-          's3:GetBucketVersioning',
-          's3:GetBucketTagging',
-          's3:GetEncryptionConfiguration',
-          's3:GetIntelligentTieringConfiguration',
-          's3:GetBucketLogging',
-          's3:GetBucketNotification',
-          's3:GetAccelerateConfiguration',
-          's3:GetBucketObjectLockConfiguration',
-          's3:GetBucketRequestPayment',
-          's3:GetBucketWebsite',
-          's3:GetBucketPublicAccessBlock',
-          's3:GetBucketPolicy',
-          's3:GetBucketOwnershipControls',
-          's3:GetBucketAcl',
-          's3:GetBucketCORS',
-          's3:GetAnalyticsConfiguration',
-          's3:GetReplicationConfiguration',
-          's3:GetLifecycleConfiguration',
-          's3:GetInventoryConfiguration',
-          's3:PutReplicationConfiguration',
-          's3:PutBucketNotification',
-          's3:PutLifecycleConfiguration',
-        ],
+        Action: adminBucketActions,
         Resource: [
           pulumi.interpolate`${bucket.arn}`,
           pulumi.interpolate`${bucket.arn}/*`,
@@ -287,37 +305,7 @@ export const attachPolicyToBucket = ({
         Principal: {
           AWS: adminUserArns,
         },
-        NotAction: [
-          ...additionalAdminActions,
-          's3:PutBucketCORS',
-          's3:ListBucket',
-          's3:PutBucketLogging',
-          's3:GetBucketPolicy',
-          's3:PutBucketPolicy',
-          's3:DeleteBucketPolicy',
-          's3:GetBucketVersioning',
-          's3:GetBucketTagging',
-          's3:GetEncryptionConfiguration',
-          's3:GetIntelligentTieringConfiguration',
-          's3:GetBucketLogging',
-          's3:GetBucketNotification',
-          's3:GetAccelerateConfiguration',
-          's3:GetBucketObjectLockConfiguration',
-          's3:GetBucketRequestPayment',
-          's3:GetBucketWebsite',
-          's3:GetBucketPublicAccessBlock',
-          's3:GetBucketPolicy',
-          's3:GetBucketOwnershipControls',
-          's3:GetBucketAcl',
-          's3:GetBucketCORS',
-          's3:GetAnalyticsConfiguration',
-          's3:GetReplicationConfiguration',
-          's3:GetLifecycleConfiguration',
-          's3:GetInventoryConfiguration',
-          's3:PutReplicationConfiguration',
-          's3:PutBucketNotification',
-          's3:PutLifecycleConfiguration',
-        ],
+        NotAction: adminBucketActions,
         Resource: [
           pulumi.interpolate`${bucket.arn}`,
           pulumi.interpolate`${bucket.arn}/*`,

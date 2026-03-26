@@ -6,7 +6,7 @@ use std::{rc::Rc, sync::Arc};
 use uuid::Uuid;
 
 use crate::{
-    model::key::DocumentKeyParts,
+    model::key::DocumentKey,
     service::{self},
 };
 
@@ -149,24 +149,37 @@ pub async fn extract_text_from_document(
     pdfium: Rc<pdfium_render::prelude::Pdfium>,
     s3_client: Arc<service::s3::S3>,
     db: Arc<service::db::DB>,
-) -> Result<Option<DocumentKeyParts>, Error> {
-    // If the key does not end with .pdf, we don't care about it
-    // No need to error out, since this is the expected behavior
-    if !key.ends_with(".pdf") {
-        tracing::info!("skipping non-pdf file for extraction");
-        return Ok(None);
-    }
-
-    let document_key_parts = DocumentKeyParts::from_s3_key(key).map_err(|e| {
+) -> Result<Option<DocumentKey>, Error> {
+    let document_key = DocumentKey::from_s3_key(key).map_err(|e| {
         tracing::error!(error=?e, "invalid key format");
         Error::from("invalid key format")
     })?;
 
-    let document_id = &document_key_parts.document_id;
+    let document_id = document_key.document_id();
+
+    let file_type = if document_key.is_converted_pdf() {
+        Some(model::document::FileType::Pdf)
+    } else if document_key.is_temp() {
+        None
+    } else {
+        db.get_document_file_type(document_id).await.map_err(|e| {
+            tracing::error!(error=?e, "unable to get file type from db");
+            Error::from("unable to get file type from db")
+        })?
+    };
+
+    match file_type {
+        Some(model::document::FileType::Pdf) => {}
+        _ => {
+            tracing::info!(file_type=?file_type, "skipping non-pdf file for extraction");
+            return Ok(None);
+        }
+    }
+
     tracing::info!(document_id=%document_id, "starting extracting text process for document");
 
     let raw_file = match s3_client
-        .get_document_bytes(bucket, &document_key_parts.to_key())
+        .get_document_bytes(bucket, &document_key.to_key())
         .await
     {
         Ok(bytes) => bytes,
@@ -205,7 +218,7 @@ pub async fn extract_text_from_document(
         .await
         .context("coult not insert sentences")?;
     tracing::info!(document_id=%document_id, "extraction complete");
-    Ok(Some(document_key_parts))
+    Ok(Some(document_key))
 }
 
 // locally run extraction

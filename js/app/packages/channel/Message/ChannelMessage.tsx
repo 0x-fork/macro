@@ -2,7 +2,8 @@ import { Match, Show, Switch } from 'solid-js';
 import type { MessageActions, MessageData } from './types';
 import { Message } from './Message';
 import type { ChannelMessageListMeta } from './list-meta';
-import { useMessage } from './context';
+import { useMessage, MessageSelectionProvider } from './context';
+import type { MessageSelectionState } from './context';
 import type { MessageEditor } from '../Channel/create-message-editor';
 import { MessageEditorContent } from '../Channel/InlineMessageEditor';
 
@@ -12,6 +13,8 @@ type ChannelMessageProps = {
   actions?: MessageActions;
   listMeta?: ChannelMessageListMeta;
   messageEditor?: MessageEditor;
+  highlighted?: boolean;
+  selectionState?: MessageSelectionState;
 };
 
 function isEditingMessage(
@@ -36,6 +39,7 @@ function MessageContentSlot(props: {
           <MessageEditorContent
             channelId={props.channelId}
             messageEditor={messageEditor()}
+            class={props.class}
           />
         )}
       </Match>
@@ -85,22 +89,25 @@ function RegularMessageLayout(props: {
   messageEditor?: MessageEditor;
 }) {
   return (
-    <Message.Layout>
+    <Message.Layout class="pt-(--regular-message-padding-t)">
       <Message.Slot placement="icon">
         <Message.SenderIcon />
       </Message.Slot>
-      <Message.Slot placement="header" class="flex items-center gap-2 min-w-0">
+      <Message.Slot placement="header" class="flex items-center gap-1 min-w-0">
         <Message.SenderName />
         <Message.EditedIndicator />
         <Message.Timestamp class="ml-auto" />
       </Message.Slot>
-      <Message.Slot placement="content" class="mt-0.5">
+      <Message.Slot placement="content" class="ph-no-capture">
         <MessageContentSlot
           channelId={props.channelId}
           messageEditor={props.messageEditor}
         />
       </Message.Slot>
-      <Message.Slot placement="footer" class="flex flex-col min-w-0">
+      <Message.Slot
+        placement="footer"
+        class="ph-no-capture flex flex-col min-w-0"
+      >
         <MessageFooter messageEditor={props.messageEditor} />
       </Message.Slot>
       <Message.Slot placement="actions">
@@ -118,13 +125,13 @@ function GroupedMessageLayout(props: {
   const isEditing = () => isEditingMessage(props.messageEditor, message().id);
 
   return (
-    <Message.Layout class="py-1">
+    <Message.Layout>
       <Message.Slot placement="icon">
         <Message.SenderIcon hidden />
       </Message.Slot>
-      <Message.Slot placement="content" class="mt-0.5">
+      <Message.Slot placement="content">
         <div
-          class="flex gap-3 min-w-0"
+          class="ph-no-capture flex gap-3 min-w-0"
           classList={{
             'items-center': !isEditing(),
             'items-start': isEditing(),
@@ -138,7 +145,10 @@ function GroupedMessageLayout(props: {
           <GroupedMeta messageEditor={props.messageEditor} />
         </div>
       </Message.Slot>
-      <Message.Slot placement="footer" class="flex flex-col min-w-0">
+      <Message.Slot
+        placement="footer"
+        class="ph-no-capture flex flex-col min-w-0"
+      >
         <MessageFooter messageEditor={props.messageEditor} />
       </Message.Slot>
       <Message.Slot placement="actions">
@@ -152,21 +162,27 @@ export function ChannelMessage(props: ChannelMessageProps) {
   const isGrouped = () => props.listMeta?.isGroupedWithPrevious === true;
 
   return (
-    <Message.Root message={props.message} actions={props.actions}>
-      <Switch>
-        <Match when={isGrouped()}>
-          <GroupedMessageLayout
-            channelId={props.channelId}
-            messageEditor={props.messageEditor}
-          />
-        </Match>
-        <Match when={true}>
-          <RegularMessageLayout
-            channelId={props.channelId}
-            messageEditor={props.messageEditor}
-          />
-        </Match>
-      </Switch>
+    <Message.Root
+      message={props.message}
+      actions={props.actions}
+      highlighted={props.highlighted}
+    >
+      <MessageSelectionProvider value={props.selectionState}>
+        <Switch>
+          <Match when={isGrouped()}>
+            <GroupedMessageLayout
+              channelId={props.channelId}
+              messageEditor={props.messageEditor}
+            />
+          </Match>
+          <Match when={true}>
+            <RegularMessageLayout
+              channelId={props.channelId}
+              messageEditor={props.messageEditor}
+            />
+          </Match>
+        </Switch>
+      </MessageSelectionProvider>
     </Message.Root>
   );
 }

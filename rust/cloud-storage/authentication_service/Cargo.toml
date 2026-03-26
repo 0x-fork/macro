@@ -23,6 +23,7 @@ local = []
 rate_limit = []
 
 [dependencies]
+analytics_client = { path = "../analytics_client" }
 anyhow = { workspace = true }
 async-stripe = { workspace = true, default-features = false, features = [
   "billing",
@@ -88,7 +89,9 @@ non_empty = { path = "../non_empty" }
 notification = { path = "../notification" }
 openssl = { workspace = true }
 rand = { workspace = true }
+rate_limit = { path = "../rate_limit" }
 redis = { workspace = true }
+referral = { path = "../referral" }
 remote_env_var = { path = "../remote_env_var" }
 reqwest = { workspace = true }
 roles_and_permissions = { path = "../roles_and_permissions" }
@@ -102,6 +105,7 @@ sha1 = "0.10.6"
 sqlx = { workspace = true }
 sqs_client = { path = "../sqs_client", default-features = false, features = [
   "search",
+  "email",
 ] }
 teams = { path = "../teams" }
 thiserror = { workspace = true }

@@ -1,3 +1,4 @@
+import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
 import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
 import {
   SplitHeaderBadge,
@@ -7,11 +8,9 @@ import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useHasPaidAccess } from '@core/auth';
 import { CircleSpinner } from '@core/component/CircleSpinner';
 import { ClippedPanel } from '@core/component/ClippedPanel';
-import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
+import { EmailPermissionsBanner } from '@core/component/EmailPermissionsBanner';
 import { RecipientSelector } from '@core/component/RecipientSelector';
 import { toast } from '@core/component/Toast/Toast';
-import { usePaywallState } from '@core/constant/PaywallState';
-import { useEmailLinks } from '@core/email-link';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
@@ -21,10 +20,9 @@ import {
   useDisplayName,
   type WithCustomUserInput,
 } from '@core/user';
-import Caution from '@icon/regular/warning.svg';
+
 import { useEmailLinksQuery } from '@queries/email/link';
 import {
-  useScheduleMessageMutation,
   useSendMessageMutation,
   useUnscheduleMessageMutation,
 } from '@queries/email/thread';
@@ -33,13 +31,11 @@ import {
   createMemo,
   createSignal,
   type JSX,
-  Match,
   onMount,
   Show,
   Suspense,
-  Switch,
 } from 'solid-js';
-import { beveledCorners } from '../../block-theme/signals/themeSignals';
+import { beveledCorners } from '../../core/signal/beveledCorners';
 import { ComposeEmailInput } from './ComposeEmailInput';
 import {
   createEmailFormState,
@@ -54,6 +50,7 @@ import {
 } from '@lexical-core';
 import {
   clearEmailBody,
+  hasDraftContent,
   prepareEmailBody,
 } from '@block-email/util/prepareEmailBody';
 import { convertEmailRecipientToContactInfo } from '@block-email/util/recipientConversion';
@@ -83,7 +80,6 @@ import { unwrap } from 'solid-js/store';
 import { emailClient } from '@service-email/client';
 import { queryClient } from '@queries/client';
 import { emailKeys } from '@queries/email/keys';
-import { LIST_VIEW_ID } from '@app/constants/list-views';
 
 const DRAFT_DEBOUNCE_MS = 1000;
 
@@ -180,8 +176,6 @@ function ComposeFieldRow(props: {
 
 export function EmailCompose(props: EmailComposeProps) {
   const hasPaidAccess = useHasPaidAccess();
-  const { showPaywall } = usePaywallState();
-
   const emailLinksQuery = useEmailLinksQuery();
 
   const [refs, setRefs] = createSignal<EmailComposeElementRefs>({
@@ -275,11 +269,12 @@ export function EmailCompose(props: EmailComposeProps) {
       );
       return null;
     }
-    // Fail if no body text, no attachments, and no subject
     if (
-      prepared.bodyText.trim() === '' &&
-      form.attachments.list().length === 0 &&
-      !form.subject()?.trim()
+      !hasDraftContent(
+        prepared.bodyText,
+        form.subject(),
+        form.attachments.list().length
+      )
     ) {
       return null;
     }
@@ -307,18 +302,11 @@ export function EmailCompose(props: EmailComposeProps) {
       return;
     }
 
-    const existingDraft = currentDraftID() !== undefined;
-
-    // If there's an existing draft, we should send the sendTime so that the send time
-    // stays up to date and is not removed
-    const sendTime = existingDraft ? form.sendTime() : undefined;
-
     const draftResponse = await saveDraftMutation.mutateAsync({
       draft: {
         ...draftToSave,
         db_id: currentDraftID(),
       },
-      sendTime,
     });
 
     const draftId = draftResponse.draft.db_id;
@@ -506,8 +494,6 @@ export function EmailCompose(props: EmailComposeProps) {
     shouldReturnFocusOnClose: false,
   });
 
-  const { connect: connectEmail } = useEmailLinks();
-
   const previewName = createMemo(() => {
     const recipients = form.recipients().to;
     if (recipients.length === 0) {
@@ -573,13 +559,16 @@ export function EmailCompose(props: EmailComposeProps) {
         'Email sent',
         undefined,
         draftId
-          ? {
-              text: 'Undo',
-              onClick: () => {
-                if (toastId != null) toast.dismiss(toastId);
-                void undoSend(draftId);
+          ? [
+              {
+                label: 'Undo',
+                icon: ArrowCounterClockwise,
+                onClick: () => {
+                  if (toastId != null) toast.dismiss(toastId);
+                  void undoSend(draftId);
+                },
               },
-            }
+            ]
           : undefined,
         10_000
       );
@@ -592,20 +581,6 @@ export function EmailCompose(props: EmailComposeProps) {
     },
     onError: () => {
       toast.failure('Failed to send email');
-    },
-  });
-
-  const scheduleMessageMutation = useScheduleMessageMutation({
-    onSuccess: () => {
-      toast.success('Email scheduled');
-
-      replaceSplit({
-        content: { type: 'component', id: LIST_VIEW_ID.mail },
-        mergeHistory: true,
-      });
-    },
-    onError: () => {
-      toast.failure('Failed to schedule email');
     },
   });
 
@@ -685,26 +660,8 @@ export function EmailCompose(props: EmailComposeProps) {
       return;
     }
 
-    const sendTime = form.sendTime();
-
-    if (sendTime) {
-      // Just in case, always get a fresh save of the draft so we don't miss any information
-      const draftID = await executeSaveDraft();
-
-      if (!draftID) {
-        console.error('No draft');
-        toast.failure('Failed to schedule message', 'Draft required');
-        cleanupWatermark();
-        return;
-      }
-
-      scheduleMessageMutation.mutate({
-        draftID,
-        sendTime,
-        threadID: saveDraftMutation.data?.draft.thread_db_id ?? undefined,
-      });
-
-      cleanupWatermark();
+    // Failsafe: don't send if a scheduled send time is set
+    if (form.sendTime()) {
       return;
     }
 
@@ -740,7 +697,7 @@ export function EmailCompose(props: EmailComposeProps) {
     },
   });
 
-  const handleSendTimeChange = (date: Date | null) => {
+  const handleSendTimeChange = async (date: Date | null) => {
     const currentSendTime = form.sendTime();
     const currentDraft = currentDraftID();
 
@@ -749,10 +706,31 @@ export function EmailCompose(props: EmailComposeProps) {
       unscheduleMessageMutation.mutate({
         draftID: currentDraft,
       });
+      form.setSendTime(date);
+      return;
     }
 
     form.setSendTime(date);
-    scheduleDraftSave();
+
+    if (date) {
+      // Ensure draft is saved before scheduling
+      const draftID = currentDraft ?? (await executeSaveDraft());
+      if (!draftID) {
+        toast.failure('Failed to schedule message', 'Draft required');
+        return;
+      }
+
+      await emailClient.scheduleMessage({
+        draftID,
+        send_time: date.toISOString(),
+      });
+
+      // Mark the thread as done
+      const threadID = saveDraftMutation.data?.draft.thread_db_id;
+      if (threadID) {
+        await emailClient.flagArchived({ id: threadID, value: true });
+      }
+    }
   };
 
   const resetState = () => {
@@ -850,6 +828,7 @@ export function EmailCompose(props: EmailComposeProps) {
       <Show when={!isMobile()}>
         <SplitHeaderLeft>
           <StaticSplitLabel
+            class="ph-no-capture"
             label={form.subject() || previewName()}
             iconType={isMobile() ? undefined : 'email'}
             badges={
@@ -869,40 +848,9 @@ export function EmailCompose(props: EmailComposeProps) {
         ref={registerRef('containerRef')}
         class="relative flex flex-col w-full h-full min-h-0 overflow-hidden text-sm"
       >
-        <Switch>
-          <Match when={hasLinkError()}>
-            <div class="w-full bg-alert-bg border-b border-t border-alert/20 text-alert-ink p-2">
-              <div class="flex items-center justify-between gap-2">
-                <Caution class="size-4" />
-                <span class="text-sm">
-                  You have not connected an email account.
-                </span>
-                <span class="grow" />
-                <DeprecatedTextButton
-                  theme="base"
-                  text="Connect Email"
-                  onClick={connectEmail}
-                />
-              </div>
-            </div>
-          </Match>
-          <Match when={!hasPaidAccess()}>
-            <div class="w-full bg-alert-bg border-b border-t border-alert/20 text-alert-ink p-2">
-              <div class="flex items-center justify-between gap-2">
-                <Caution class="size-4" />
-                <span>You must upgrade to send email.</span>
-                <span class="grow" />
-                <DeprecatedTextButton
-                  theme="base"
-                  text="Upgrade"
-                  onClick={() => {
-                    showPaywall(null);
-                  }}
-                />
-              </div>
-            </div>
-          </Match>
-        </Switch>
+        <Show when={hasLinkError()}>
+          <EmailPermissionsBanner />
+        </Show>
 
         <div
           ref={mobileScrollRef}

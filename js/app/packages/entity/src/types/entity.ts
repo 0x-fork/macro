@@ -19,7 +19,12 @@ export type EntityBase = {
 
 export type ChannelEntity = EntityBase & {
   type: 'channel';
-  channelType: 'direct_message' | 'private' | 'organization' | 'public';
+  channelType:
+    | 'direct_message'
+    | 'private'
+    | 'organization'
+    | 'public'
+    | 'team';
   interactedAt?: DateValue | null;
   participantIds?: string[];
   latestMessage?: {
@@ -48,6 +53,7 @@ export type BaseDocumentEntity = EntityBase & {
   fileType?: string;
   projectId?: string;
   subType?: SubType;
+  properties?: SoupProperty[];
 };
 
 export type TaskEntity = EntityBase & {
@@ -87,6 +93,7 @@ export type EmailEntity = EntityBase & {
   snippet?: string;
   isImportant: boolean;
   done: boolean;
+  projectId?: string;
   participants?: EmailThreadParticipants;
   senderEmail?: string;
   senderName?: string;

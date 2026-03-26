@@ -2,7 +2,10 @@ import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { channelTheme } from '@core/component/LexicalMarkdown/theme';
 import { DEV_MODE_ENV } from '@core/constant/featureFlags';
-import { SERVER_HOSTS } from '@core/constant/servers';
+import {
+  fetchImagesViaPlatform,
+  resolveCidImages,
+} from '../util/resolveEmailImages';
 import {
   parseEmailContent,
   processEmailColors,
@@ -17,6 +20,7 @@ import {
   createMemo,
   createSignal,
   Match,
+  onCleanup,
   Show,
   Switch,
   untrack,
@@ -125,43 +129,36 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     shadow.appendChild(styleEl);
     const messageDiv = document.createElement('div');
     messageDiv.innerHTML = source()?.mainContent ?? '';
+    // Open links in a new tab instead of navigating the current one
+    for (const a of messageDiv.querySelectorAll('a[href]')) {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener noreferrer');
+    }
     messageDiv.style.userSelect = 'text';
     messageDiv.style.cursor = 'var(--cursor-auto)';
-    messageDiv.style.overflow = 'auto';
     shadow.appendChild(messageDiv);
     return hostContainer;
   });
 
-  // Resolve inline images that reference attachments via cid: URLs
+  // Resolve images in two sequential steps, resolving cid urls and then fetching images on tauri via plaformFetch
   createEffect(() => {
     const root = host().shadowRoot;
-    if (root) {
-      queueMicrotask(() => {
-        // Build a map from normalized content-id => sfs_id
-        const contentIdToSfsId = new Map<string, string>();
-        for (const att of props.message.attachments ?? []) {
-          const contentId = att.content_id;
-          const sfsId = att.sfs_id;
-          if (!contentId || !sfsId) continue;
-          const normalized = contentId.replace(/[<>]/g, '');
-          contentIdToSfsId.set(normalized, sfsId);
-        }
+    if (!root) return;
+    const attachments = props.message.attachments;
 
-        const images = root.querySelectorAll('img[src^="cid:"]');
-        for (const img of images) {
-          if (!(img instanceof HTMLImageElement)) continue;
-          if (img.dataset.cidResolved === 'true') continue;
-          const src = img.getAttribute('src');
-          if (!src?.startsWith('cid:')) continue;
-          const rawCid = src.slice(4);
-          const normalizedCid = rawCid.replace(/[<>]/g, '');
-          const sfsId = contentIdToSfsId.get(normalizedCid);
-          if (!sfsId) continue;
-          img.src = `${SERVER_HOSTS['static-file']}/file/${sfsId}`;
-          img.dataset.cidResolved = 'true';
-        }
-      });
-    }
+    const blobUrls: string[] = [];
+    let disposed = false;
+    onCleanup(() => {
+      disposed = true;
+      for (const url of blobUrls) URL.revokeObjectURL(url);
+    });
+
+    queueMicrotask(async () => {
+      if (disposed) return;
+      resolveCidImages(root, attachments);
+      if (disposed) return;
+      await fetchImagesViaPlatform(root, blobUrls, () => disposed);
+    });
   });
 
   // Process the email colors when: the theme changes, or the source HTML changes.
@@ -210,9 +207,78 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     );
   });
 
+  // Scale down wide HTML emails to fit the container width (like Gmail on mobile)
+  createEffect(() => {
+    const container = host();
+    // Re-run when source changes
+    source();
+
+    const clearScale = () => {
+      const root = container.shadowRoot;
+      if (!root) return;
+      const messageDiv = root.querySelector('div');
+      if (messageDiv instanceof HTMLElement) {
+        messageDiv.style.zoom = '';
+        messageDiv.style.overflow = '';
+      }
+    };
+
+    if (!props.isBodyExpanded()) {
+      clearScale();
+      return;
+    }
+
+    const applyScale = () => {
+      const root = container.shadowRoot;
+      if (!root) return;
+      const messageDiv = root.querySelector('div');
+      if (!messageDiv || !(messageDiv instanceof HTMLElement)) return;
+
+      // Reset any previous scaling before measuring
+      messageDiv.style.zoom = '';
+      messageDiv.style.overflow = '';
+
+      const containerWidth = container.clientWidth;
+      const contentWidth = messageDiv.scrollWidth;
+
+      if (containerWidth > 0 && contentWidth > containerWidth) {
+        const scale = containerWidth / contentWidth;
+        // Use zoom instead of transform: scale() so that backgrounds,
+        // borders, and layout all shrink together without clipping.
+        messageDiv.style.zoom = `${scale}`;
+      } else {
+        messageDiv.style.overflow = 'auto';
+      }
+    };
+
+    // Re-run on container resize (e.g. orientation change, split resize)
+    const resizeObserver = new ResizeObserver(() => applyScale());
+    resizeObserver.observe(container);
+
+    // Re-run when images inside the shadow DOM finish loading
+    const root = container.shadowRoot;
+    const images = root ? Array.from(root.querySelectorAll('img')) : [];
+    const onImageLoad = () => applyScale();
+    for (const img of images) {
+      if (!img.complete) {
+        img.addEventListener('load', onImageLoad);
+      }
+    }
+
+    // Initial measurement after layout
+    requestAnimationFrame(() => applyScale());
+
+    onCleanup(() => {
+      resizeObserver.disconnect();
+      for (const img of images) {
+        img.removeEventListener('load', onImageLoad);
+      }
+    });
+  });
+
   return (
     <div
-      class="flex flex-col pt-2"
+      class="ph-no-capture flex flex-col pt-2"
       onPointerDown={() => {
         if (!props.isBodyExpanded() && props.message.db_id) {
           props.setExpandedMessageBody(props.message.db_id);

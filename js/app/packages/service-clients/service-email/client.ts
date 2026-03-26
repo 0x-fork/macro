@@ -14,12 +14,14 @@ import type {
   AddDraftAttachmentRequest,
   AddDraftAttachmentResponse,
   ApiPaginatedThreadCursor,
+  BlockSenderResponse,
   CreateDraftRequest,
   CreateDraftResponse,
   GetAttachmentDocumentIDResponse,
   GetAttachmentResponse,
   GetThreadResponse,
   ListContactsResponse,
+  ListEmailFiltersResponse,
   ListLabelsResponse,
   ListLinksResponse,
   SendMessageRequest,
@@ -28,6 +30,8 @@ import type {
   UpdateLabelBatchResponse,
   UpdateThreadLabelRequest,
   UpdateThreadLabelsResponse,
+  UpsertEmailFilterRequest,
+  UpsertEmailFilterResponse,
   UpsertScheduledRequest,
   UpsertScheduledResponse,
 } from './generated/schemas';
@@ -135,6 +139,19 @@ export const emailClient = {
         }
       ),
       (result) => result
+    );
+  },
+  async updateThreadProject(args: {
+    thread_id: string;
+    projectId: string | null;
+  }) {
+    const { thread_id, projectId } = args;
+    return emailFetch<{ oldProjectId: string | null }>(
+      `/email/threads/${thread_id}/project`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ projectId }),
+      }
     );
   },
   async flagArchived(args: { value: boolean; id: string }) {
@@ -321,5 +338,42 @@ export const emailClient = {
       }),
       (result) => result
     );
+  },
+  async blockSender(args: { email_address: string }) {
+    return mapOk(
+      await emailFetch<BlockSenderResponse>('/email/contacts/block', {
+        method: 'POST',
+        body: JSON.stringify({ email_address: args.email_address }),
+      }),
+      (result) => result
+    );
+  },
+  async unblockSender(args: { email_address: string }) {
+    return emailFetch('/email/contacts/unblock', {
+      method: 'POST',
+      body: JSON.stringify({ email_address: args.email_address }),
+    });
+  },
+  async listEmailFilters() {
+    return mapOk(
+      await emailFetch<ListEmailFiltersResponse>('/email/filters', {
+        method: 'GET',
+      }),
+      (result) => result
+    );
+  },
+  async upsertEmailFilter(args: UpsertEmailFilterRequest) {
+    return mapOk(
+      await emailFetch<UpsertEmailFilterResponse>('/email/filters', {
+        method: 'PUT',
+        body: JSON.stringify(args),
+      }),
+      (result) => result
+    );
+  },
+  async deleteEmailFilter(args: { id: string }) {
+    return emailFetch(`/email/filters/${args.id}`, {
+      method: 'DELETE',
+    });
   },
 };

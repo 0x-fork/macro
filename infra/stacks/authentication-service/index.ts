@@ -2,6 +2,7 @@ import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
 import {
   config,
+  getLinkManagerQueue,
   getMacroApiToken,
   getMacroNotify,
   getSearchEventQueue,
@@ -115,14 +116,20 @@ const googleClientSecretKeyArn: pulumi.Output<string> = aws.secretsmanager
   .getSecretVersionOutput({ secretId: GOOGLE_CLIENT_SECRET_KEY })
   .apply((secret) => secret.arn);
 
-const STRIPE_PRICE_ID_KEY = config.require(`stripe_price_id`);
-const STRIPE_PREMIUM_PRICE_ID = aws.secretsmanager
-  .getSecretVersionOutput({ secretId: STRIPE_PRICE_ID_KEY })
-  .apply((secret) => secret.secretString);
+// -- STRIPE PRICE IDs
+const STRIPE_PRICE_ID_HAIKU = aws.secretsmanager
+  .getSecretVersionOutput({ secretId: config.require('stripe_price_id_haiku') })
+  .apply((s) => s.secretString);
 
-const stripePriceIdArn: pulumi.Output<string> = aws.secretsmanager
-  .getSecretVersionOutput({ secretId: STRIPE_PRICE_ID_KEY })
-  .apply((secret) => secret.arn);
+const STRIPE_PRICE_ID_SONNET = aws.secretsmanager
+  .getSecretVersionOutput({
+    secretId: config.require('stripe_price_id_sonnet'),
+  })
+  .apply((s) => s.secretString);
+
+const STRIPE_PRICE_ID_OPUS = aws.secretsmanager
+  .getSecretVersionOutput({ secretId: config.require('stripe_price_id_opus') })
+  .apply((s) => s.secretString);
 
 const MACRO_API_TOKEN_EXPIRY_SECONDS = config.require(
   `macro_api_token_expiry_seconds`
@@ -143,6 +150,18 @@ const stripeWebhookSecretKeyArn: pulumi.Output<string> = aws.secretsmanager
 
 const MACRO_API_TOKENS = getMacroApiToken();
 
+const GA_ANALYTICS_MEASUREMENT_ID = config.require('ga_measurement_id');
+
+const GA_API_SECRET: pulumi.Output<string> = aws.secretsmanager
+  .getSecretVersionOutput({ secretId: config.require('ga_api_secret') })
+  .apply((secret) => secret.secretString);
+
+const META_PIXEL_ID = config.require('meta_pixel_id');
+
+// const META_ACCESS_TOKEN: pulumi.Output<string> = aws.secretsmanager
+//   .getSecretVersionOutput({ secretId: config.require('meta_access_token') })
+//   .apply((secret) => secret.secretString);
+
 const secretKeyArns = [
   pulumi.interpolate`${jwtSecretKeyArn}`,
   pulumi.interpolate`${fusionauthApiKeySecretKeyArn}`,
@@ -153,7 +172,6 @@ const secretKeyArns = [
   pulumi.interpolate`${MACRO_API_TOKENS.macroApiTokenPublicKeyArn}`,
   pulumi.interpolate`${macroApiTokenSecretPrivateKeyArn}`,
   pulumi.interpolate`${stripeWebhookSecretKeyArn}`,
-  pulumi.interpolate`${stripePriceIdArn}`,
 ];
 
 const vpc = get_coparse_api_vpc();
@@ -170,9 +188,12 @@ const fusionAuthClusterName: pulumi.Output<string> = fusionAuthStack
   .getOutput('fusionAuthClusterName')
   .apply((fusionAuthClusterName) => fusionAuthClusterName as string);
 
-const { notificationQueueName, notificationQueueArn } = getMacroNotify();
+const { notificationIngressQueueName, notificationIngressQueueArn } =
+  getMacroNotify();
 
 const { searchEventQueueName, searchEventQueueArn } = getSearchEventQueue();
+
+const { linkManagerQueueName, linkManagerQueueArn } = getLinkManagerQueue();
 
 const service = new AuthenticationService('authentication-service', {
   secretKeyArns,
@@ -187,7 +208,11 @@ const service = new AuthenticationService('authentication-service', {
   isPrivate: false,
   healthCheckPath: '/health',
   tags,
-  queueArns: [notificationQueueArn, searchEventQueueArn],
+  queueArns: [
+    notificationIngressQueueArn,
+    searchEventQueueArn,
+    linkManagerQueueArn,
+  ],
   containerEnvVars: [
     { name: 'ENVIRONMENT', value: stack },
     {
@@ -265,11 +290,15 @@ const service = new AuthenticationService('authentication-service', {
     },
     {
       name: 'NOTIFICATION_QUEUE',
-      value: pulumi.interpolate`${notificationQueueName}`,
+      value: pulumi.interpolate`${notificationIngressQueueName}`,
     },
     {
       name: 'SEARCH_EVENT_QUEUE',
       value: pulumi.interpolate`${searchEventQueueName}`,
+    },
+    {
+      name: 'LINK_MANAGER_QUEUE',
+      value: pulumi.interpolate`${linkManagerQueueName}`,
     },
     {
       name: 'MACRO_API_TOKEN_ISSUER',
@@ -291,16 +320,20 @@ const service = new AuthenticationService('authentication-service', {
       name: 'STRIPE_WEBHOOK_SECRET_KEY',
       value: pulumi.interpolate`${stripeWebhookSecretKeyArn}`,
     },
+    // Stripe price ids
     {
-      name: 'STRIPE_PRICE_ID',
-      value: pulumi.interpolate`${STRIPE_PRICE_ID_KEY}`,
+      name: 'STRIPE_PRICE_ID_HAIKU',
+      value: pulumi.interpolate`${STRIPE_PRICE_ID_HAIKU}`,
     },
     {
-      // NOTE: this is the fetched secret value of the STRIPE_PRICE_ID
-      // from above. Will unify these in a separate PR.
-      name: 'STRIPE_PREMIUM_PRICE_ID',
-      value: pulumi.interpolate`${STRIPE_PREMIUM_PRICE_ID}`,
+      name: 'STRIPE_PRICE_ID_SONNET',
+      value: pulumi.interpolate`${STRIPE_PRICE_ID_SONNET}`,
     },
+    {
+      name: 'STRIPE_PRICE_ID_OPUS',
+      value: pulumi.interpolate`${STRIPE_PRICE_ID_OPUS}`,
+    },
+    // Github
     {
       name: 'GITHUB_CLIENT_ID',
       value: pulumi.interpolate`${GITHUB_CLIENT_ID}`,
@@ -321,6 +354,19 @@ const service = new AuthenticationService('authentication-service', {
     {
       name: 'DD_ENV',
       value: stack,
+    },
+    // Analytics
+    {
+      name: 'GA_MEASUREMENT_ID',
+      value: GA_ANALYTICS_MEASUREMENT_ID,
+    },
+    {
+      name: 'GA_API_SECRET',
+      value: pulumi.interpolate`${GA_API_SECRET}`,
+    },
+    {
+      name: 'META_PIXEL_ID',
+      value: META_PIXEL_ID,
     },
   ],
 });

@@ -10,7 +10,7 @@ use model::user::UserContext;
 use models_email::email::service::cache::TokenCacheKey;
 use models_email::email::service::link::Link;
 use models_email::email::service::link::UserProvider;
-use models_email::email::service::pubsub::{LinkManagerMessage, LinkManagerOperation};
+use models_email::email::service::pubsub::LinkManagerMessage;
 use models_email::gmail::inbox_sync::KeyMap;
 use sqs_client::SQS;
 use std::sync::Arc;
@@ -35,9 +35,8 @@ pub async fn fetch_token_or_delete_on_revocation(
             );
 
             sqs_client
-                .enqueue_link_manager_notification(LinkManagerMessage {
+                .enqueue_link_manager_notification(LinkManagerMessage::DeleteLink {
                     link_id: link.id,
-                    operation: LinkManagerOperation::Delete,
                 })
                 .await
                 .inspect_err(|e| {
@@ -98,7 +97,50 @@ pub async fn fetch_gmail_token_usercontext_response(
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    message: "unable to get gmail access token",
+                    message: "unable to get gmail access token".into(),
+                }),
+            )
+                .into_response()
+        })
+}
+
+/// Fetches a user's gmail token directly from the auth service, bypassing the Redis cache.
+/// Used by the init endpoint where we always want a fresh token.
+#[tracing::instrument(skip(user_context, redis_client, auth_service_client))]
+pub async fn fetch_gmail_token_no_cache(
+    user_context: &UserContext,
+    redis_client: &RedisClient,
+    auth_service_client: &AuthServiceClient,
+) -> Result<String, Response> {
+    let key = TokenCacheKey::new(
+        &user_context.fusion_user_id,
+        &user_context.user_id,
+        UserProvider::Gmail.as_str(),
+    );
+
+    let conn = redis_client
+        .inner
+        .get_multiplexed_async_connection()
+        .await
+        .map_err(|e| {
+            tracing::error!(error=?e, "unable to connect to redis");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    message: "unable to get gmail access token".into(),
+                }),
+            )
+                .into_response()
+        })?;
+
+    email::outbound::fetch_gmail_access_token_no_cache(&key, &conn, auth_service_client)
+        .await
+        .map_err(|e| {
+            tracing::error!(error=?e, "unable to get gmail access token from auth service");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    message: "unable to get gmail access token".into(),
                 }),
             )
                 .into_response()

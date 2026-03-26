@@ -14,10 +14,9 @@ import {
 import { ClippedPanel } from '@core/component/ClippedPanel';
 import { toast } from '@core/component/Toast/Toast';
 import {
-  type AccessiblePreviewItem,
   isAccessiblePreviewItem,
   isChannelPreviewItem,
-  type PreviewItemNoAccess,
+  isPreviewItemNoAccess,
 } from '@queries/preview';
 import { blockNameToItemType } from '@service-storage/client';
 import { copyBranchNameToClipboard } from '@core/util/branchName';
@@ -38,8 +37,8 @@ import MapPinIcon from '@icon/regular/map-pin-simple.svg';
 import SparkleIcon from '@icon/regular/sparkle.svg';
 import LoadingSpinner from '@icon/regular/spinner.svg';
 import TrashSimple from '@icon/regular/trash-simple.svg';
-import UserIcon from '@icon/regular/user.svg';
 import MacroEmbed from '@macro-icons/macro-embed.svg';
+import { useBinaryDocumentQuery } from '@queries/storage/binary-document';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { channelTheme } from '@core/component/LexicalMarkdown/theme';
 import { UserIcon as UserIconComponent } from '@core/component/UserIcon';
@@ -47,9 +46,9 @@ import { createCallback } from '@solid-primitives/rootless';
 import { useNavigate } from '@solidjs/router';
 import { globalSplitManager } from 'app/signal/splitLayout';
 import type { Component, JSX } from 'solid-js';
-import { Match, Show, Switch } from 'solid-js';
+import { Match, Show, Suspense, Switch } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { beveledCorners } from '../../block-theme/signals/themeSignals';
+import { beveledCorners } from '../signal/beveledCorners';
 import { formatDate } from '../util/date';
 import NotFound from './AccessErrorViews/NotFound';
 import Unauthorized from './AccessErrorViews/Unauthorized';
@@ -232,11 +231,8 @@ function MetadataInfo(props: {
     <div
       class={`${props.align === 'right' ? 'justify-right' : 'justify-left'} mt-2 ${props.align === 'left' ? 'w-fit max-w-[66%]' : ''} text-ink-muted ${props.align === 'left' ? 'overflow-hidden whitespace-nowrap text-ellipsis' : ''}`}
     >
-      <span class="relative text-[0.8em] text-ink-muted max-w-full">
-        <Dynamic
-          component={props.icon}
-          class="relative top-[-0.125em] size-4 inline-flex items-center mr-1"
-        />
+      <span class="relative text-[0.8em] text-ink-muted max-w-full flex items-center">
+        <Dynamic component={props.icon} class="relative size-3 mx-1" />
         {props.children}
       </span>
     </div>
@@ -266,6 +262,48 @@ function UserInfo(props: { userId: string }) {
 /**
  * Popup preview component for document references
  */
+function ImageCoverStrip(props: { documentId: string; class?: string }) {
+  const query = useBinaryDocumentQuery(() => props.documentId);
+
+  // Captured once at mount: true means the spinner was shown and we should fade in.
+  // Reading .isLoading (not .data) avoids triggering Suspense here.
+  const shouldFadeIn = query.isLoading;
+
+  return (
+    <div
+      class={`w-full overflow-hidden relative bg-edge-muted ${props.class ?? 'h-32'}`}
+    >
+      <Suspense
+        fallback={
+          <div class="absolute inset-0 flex items-center justify-center">
+            <LoadingSpinner class="size-5 animate-spin text-ink-muted" />
+          </div>
+        }
+      >
+        <Show when={query.data}>
+          {(url) => (
+            <img
+              src={url()}
+              class={`absolute inset-0 w-full h-full object-cover ${shouldFadeIn ? 'opacity-0 transition-opacity duration-300' : ''}`}
+              onLoad={
+                shouldFadeIn
+                  ? (e) => {
+                      const img = e.target as HTMLImageElement;
+                      requestAnimationFrame(() => {
+                        img.style.opacity = '1';
+                      });
+                    }
+                  : undefined
+              }
+              alt=""
+            />
+          )}
+        </Show>
+      </Suspense>
+    </div>
+  );
+}
+
 export function PopupPreview(props: {
   mouseEnter: () => void;
   mouseLeave: () => void;
@@ -516,86 +554,6 @@ export function PopupPreview(props: {
     ));
   };
 
-  /**
-   * Renders the metadata info for the document
-   */
-  const renderDocumentMetadata = (
-    accessibleItem: NonNullable<AccessiblePreviewItem>
-  ) => {
-    const accessories = mentionsAccessories(
-      props.documentInfo.type,
-      props.documentInfo.params
-    );
-
-    const messageContext = isChannelPreviewItem(accessibleItem)
-      ? accessibleItem.messageContext
-      : undefined;
-
-    return (
-      <>
-        <div class="text-sm font-semibold select-text">
-          {props.documentInfo.name || accessibleItem.name}
-          {accessories && (
-            <div class="relative text-[0.8em] text-current/60 rounded-md mt-1.5 select-none">
-              {`${accessories.note} `}
-              {getMentionsIcon(accessories.icon)}
-            </div>
-          )}
-        </div>
-
-        <Show when={messageContext}>
-          {(context) => (
-            <div class="mt-2 mb-1 text-sm text-ink-muted border-l-2 border-edge pl-3 py-1">
-              <div class="line-clamp-3 break-words">
-                <StaticMarkdown
-                  markdown={context().content}
-                  theme={channelTheme}
-                  target="internal"
-                />
-              </div>
-            </div>
-          )}
-        </Show>
-
-        <div class="flex justify-between items-center w-full text-sm font-medium">
-          <Show
-            when={messageContext}
-            fallback={
-              <Show when={item().owner}>
-                {(owner) => (
-                  <MetadataInfo icon={UserIcon} align="left">
-                    {owner().replace('macro|', '')}
-                  </MetadataInfo>
-                )}
-              </Show>
-            }
-          >
-            {(context) => <UserInfo userId={context().sender_id} />}
-          </Show>
-
-          <Show
-            when={messageContext}
-            fallback={
-              <Show when={item().updatedAt}>
-                {(time) => (
-                  <MetadataInfo icon={ClockIcon} align="right">
-                    {formatDate(time())}
-                  </MetadataInfo>
-                )}
-              </Show>
-            }
-          >
-            {(context) => (
-              <MetadataInfo icon={ClockIcon} align="right">
-                {formatDate(context().created_at)}
-              </MetadataInfo>
-            )}
-          </Show>
-        </div>
-      </>
-    );
-  };
-
   return (
     <div
       class="select-none overflow-hidden w-80 text-ink"
@@ -603,69 +561,145 @@ export function PopupPreview(props: {
       onMouseLeave={props.mouseLeave}
     >
       <ClippedPanel tl={!beveledCorners()} active>
-        <div class="p-3">
-          <Switch>
-            {/* Loading state */}
-            <Match when={item().loading}>
+        <Switch>
+          {/* Loading state */}
+          <Match when={item().loading}>
+            <div class="p-3 flex items-center justify-center">
               <Loading />
-            </Match>
+            </div>
+          </Match>
 
-            {/* Accessible preview */}
-            <Match when={matches(item(), isAccessiblePreviewItem)}>
-              {(accessibleItem) => (
-                <div class="w-full h-full flex-col">
-                  {/* Header with icon and actions */}
-                  <div class="flex w-full mb-2">
-                    <div class="w-full size-10">
-                      <ItemEntityIcon size="md" />
+          {/* Accessible preview */}
+          <Match when={matches(item(), isAccessiblePreviewItem)}>
+            {(accessibleItem) => {
+              const accessories = () =>
+                mentionsAccessories(
+                  props.documentInfo.type,
+                  props.documentInfo.params
+                );
+              const messageContext = () => {
+                const item = accessibleItem();
+                return isChannelPreviewItem(item)
+                  ? item.messageContext
+                  : undefined;
+              };
+
+              return (
+                <div class="w-full flex flex-col">
+                  {/* Header: icon + filename + action buttons */}
+                  <div class="flex items-center justify-between gap-2 px-3 pt-3 pb-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <ItemEntityIcon size="sm" />
+                      <div class="text-sm font-semibold select-text min-w-0">
+                        <Show when={accessories()}>
+                          {(acc) => (
+                            <div class="text-[0.8em] text-ink-muted mt-1 select-none">
+                              {`${acc().note} `}
+                              {getMentionsIcon(acc().icon)}
+                            </div>
+                          )}
+                        </Show>
+                      </div>
                     </div>
-                    <div class="flex w-fit h-full justify-right">
-                      {renderActionButtons()}
-                    </div>
+                    <div class="flex shrink-0">{renderActionButtons()}</div>
                   </div>
 
-                  {/* Document metadata */}
-                  {renderDocumentMetadata(accessibleItem())}
+                  <div class="line-clamp-2 break-words px-2 mb-2">
+                    {props.documentInfo.name || accessibleItem().name}
+                  </div>
 
-                  {/* Snapshot info */}
-                  <Show when={props.snapshotInfo}>
-                    {(snapshot) => (
-                      <div class="mt-3 pt-2 border-t border-edge">
-                        <div class="flex items-center gap-1.5 text-ink-muted">
-                          <ClockIcon class="size-4" />
-                          <span class="text-xs font-medium">
-                            Snapshot from{' '}
-                            {formatDate(new Date(snapshot().date), {
-                              showTime: true,
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                  {/* Visual preview for images */}
+                  <Show when={props.documentInfo.type === 'image'}>
+                    <ImageCoverStrip
+                      documentId={accessibleItem().id}
+                      class="shrink-0 h-32"
+                    />
                   </Show>
+
+                  {/* Footer: message context + owner/timestamp */}
+                  <div class="px-2 py-2 border-t border-edge-muted">
+                    <Show when={messageContext()}>
+                      {(context) => (
+                        <div class="mb-2 text-sm text-ink-muted border-l-2 border-edge pl-3 py-1">
+                          <div class="line-clamp-3 break-words">
+                            <StaticMarkdown
+                              markdown={context().content}
+                              theme={channelTheme}
+                              target="internal"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </Show>
+
+                    <div class="flex justify-between items-center text-sm font-medium">
+                      <Show
+                        when={messageContext()}
+                        fallback={
+                          <Show when={accessibleItem().owner}>
+                            {(owner) => <UserInfo userId={owner()} />}
+                          </Show>
+                        }
+                      >
+                        {(context) => <UserInfo userId={context().sender_id} />}
+                      </Show>
+
+                      <Show
+                        when={messageContext()}
+                        fallback={
+                          <Show when={accessibleItem().updatedAt}>
+                            {(time) => (
+                              <MetadataInfo icon={ClockIcon} align="right">
+                                <span class="text-xxs font-mono uppercase">
+                                  {formatDate(time())}
+                                </span>
+                              </MetadataInfo>
+                            )}
+                          </Show>
+                        }
+                      >
+                        {(context) => (
+                          <MetadataInfo icon={ClockIcon} align="right">
+                            {formatDate(context().created_at)}
+                          </MetadataInfo>
+                        )}
+                      </Show>
+                    </div>
+
+                    <Show when={props.snapshotInfo}>
+                      {(snapshot) => (
+                        <div class="mt-2 pt-2 border-t border-edge">
+                          <div class="flex items-center gap-1.5 text-ink-muted">
+                            <ClockIcon class="size-3" />
+                            <span class="text-xxs font-medium font-mono uppercase">
+                              Snapshot from{' '}
+                              {formatDate(new Date(snapshot().date), {
+                                showTime: true,
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </Show>
+                  </div>
                 </div>
-              )}
-            </Match>
+              );
+            }}
+          </Match>
 
-            {/* No access error */}
-            <Match
-              when={(item() as PreviewItemNoAccess).access === 'no_access'}
-            >
+          {/* No access / does not exist errors */}
+          <Match when={matches(item(), isPreviewItemNoAccess)}>
+            {(noAccessItem) => (
               <div class="text-sm p-4">
-                <Unauthorized />
+                {noAccessItem().access === 'no_access' ? (
+                  <Unauthorized />
+                ) : (
+                  <NotFound />
+                )}
               </div>
-            </Match>
-
-            {/* Does not exist error */}
-            <Match
-              when={(item() as PreviewItemNoAccess).access === 'does_not_exist'}
-            >
-              <div class="text-sm p-4">
-                <NotFound />
-              </div>
-            </Match>
-          </Switch>
-        </div>
+            )}
+          </Match>
+        </Switch>
       </ClippedPanel>
     </div>
   );

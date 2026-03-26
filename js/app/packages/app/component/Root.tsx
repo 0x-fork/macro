@@ -7,9 +7,12 @@ import { TabAttachmentsInit } from '@core/component/AI/signal/globalAttachments'
 import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
 import { toast } from '@core/component/Toast/Toast';
 import { ToastRegion } from '@core/component/Toast/ToastRegion';
-import { PROD_MODE_ENV } from '@core/constant/featureFlags';
 import { ChannelsContextProvider } from '@core/context/channels';
-import { UserContextProvider, useUserId } from '@core/context/user';
+import {
+  UserContextProvider,
+  useUserId,
+  useUserInfo,
+} from '@core/context/user';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { createBlockOrchestrator } from '@core/orchestrator';
 import { formatTabTitle, tabTitleSignal } from '@core/signal/tabTitle';
@@ -23,9 +26,10 @@ import {
   createNotificationSource,
   type UnifiedNotification,
   usePlatformNotificationState,
+  PlatformNotificationProvider,
 } from '@notifications';
 import { maybeHandlePlatformNotification } from '@notifications/notification-platform';
-import { setUser, useObserveRouting } from '@observability';
+import { useObserveRouting } from '@observability';
 import {
   invalidateUserInfo,
   prefetchUserInfo,
@@ -51,6 +55,7 @@ import {
   createEffect,
   type JSX,
   Match,
+  on,
   onCleanup,
   onMount,
   type ParentProps,
@@ -64,21 +69,30 @@ import {
 } from '../../block-theme/utils/themeUtils';
 import { TauriRouteListener } from '../../tauri/src/TauriProvider';
 import { Login } from './auth/Login';
+import { Signup } from './auth/Signup';
 import { setCookie } from './auth/Shared';
 import { makeEmailAuthComponents } from './EmailAuth';
 import { GlobalAppStateProvider } from './GlobalAppState';
 import { SearchProvider } from './next-soup/search-context';
 import { Layout } from './Layout';
 import MacroJump from './MacroJump';
-import Onboarding from './Onboarding';
 import { ReactiveFavicon } from './ReactiveFavicon';
 import { SuspenseContextComp } from './SuspenseContext';
+import { lazy } from 'solid-js';
 import { LAYOUT_ROUTE } from './split-layout/SplitLayoutRoute';
+
+const InteractiveOnboarding = lazy(
+  () => import('./interactive-onboarding/InteractiveOnboarding')
+);
 import Visor from './Visor';
 import { QuickAccessProvider } from '@core/context/quickAccess';
-import { AnalyticsContextProvider } from '@app/component/analytics-context';
+import {
+  AnalyticsContextProvider,
+  useAnalytics,
+} from '@app/component/analytics-context';
+import { PosthogProvider, usePosthog } from '@app/lib/analytics/posthog';
 
-const { track, identify, TrackingEvents } = withAnalytics();
+const { track, TrackingEvents } = withAnalytics();
 
 /** Syncs login cookie with auth state. Only updates on successful query (not errors/loading). */
 function useSyncLoginCookie() {
@@ -178,7 +192,9 @@ function BasePathComponent() {
       <Match
         when={!userInfoQuery.isLoading && !userInfoQuery.data?.authenticated}
       >
-        <Navigate href={isNativeMobilePlatform() ? '/login' : '/signup'} />
+        <Navigate
+          href={`${isNativeMobilePlatform() ? '/login' : '/signup'}${window.location.search}`}
+        />
       </Match>
       <Match when={userInfoQuery.data?.authenticated}>
         <Navigate href={redirectPath} />
@@ -193,7 +209,7 @@ function NotFound() {
   return '';
 }
 
-const { EmailSignUp, EmailCallback, CALLBACK_PATH } = makeEmailAuthComponents({
+const { EmailCallback, CALLBACK_PATH } = makeEmailAuthComponents({
   callbackPath: '/email-signup-callback',
   successPath: '/',
 });
@@ -237,7 +253,7 @@ const ROUTES: RouteDefinition[] = [
   },
   {
     path: '/signup',
-    component: EmailSignUp,
+    component: Signup,
   },
   {
     path: CALLBACK_PATH,
@@ -281,10 +297,10 @@ const ROUTES: RouteDefinition[] = [
     component: () => <Login />,
   },
   {
-    path: '/onboarding',
+    path: '/welcome',
     component: () => (
       <div class="flex *:flex-1 w-full h-dvh overflow-y-hidden">
-        <Onboarding />
+        <InteractiveOnboarding />
       </div>
     ),
   },
@@ -340,32 +356,34 @@ export function ConfiguredGlobalAppStateProvider(props: ParentProps) {
 
 /** Sets user info for observability, analytics, and login cookie. Must be inside QueryClientProvider. */
 function UserInfoSideEffects() {
+  const analytics = useAnalytics();
+  const posthog = usePosthog();
+
   useSyncLoginCookie();
 
   // Set user info for observability and analytics
-  const userInfoQuery = useUserInfoQuery();
-  createEffect(() => {
-    if (userInfoQuery.isLoading) return;
-    const data = userInfoQuery.data;
-    if (!data?.id) return;
+  const userInfo = useUserInfo();
 
-    const platform = detect(navigator.userAgent);
-    const os = platform?.os?.replaceAll(' ', '') ?? '';
+  let identified = false;
+  createEffect(
+    on(userInfo, (user) => {
+      if (!user || !user.authenticated) return;
 
-    setUser({
-      id: data.id,
-      email: data.email,
-      hasChromeExt: data.hasChromeExt,
-    });
+      if (posthog.instance._isIdentified() || identified) {
+        return;
+      }
 
-    if (PROD_MODE_ENV) {
-      identify(data.id, {
-        email: data.email,
+      identified = true;
+
+      const platform = detect(navigator.userAgent);
+      const os = platform?.os?.replaceAll(' ', '');
+
+      analytics.identify(user.id, {
+        email: user.email,
         os,
-        hasChromeExt: data.hasChromeExt,
       });
-    }
-  });
+    })
+  );
 
   return null;
 }
@@ -430,40 +448,46 @@ export function Root() {
     <MaybeTauriProvider>
       <MetaProvider>
         <AnalyticsContextProvider>
-          <EntityProvider>
-            <UserContextProvider>
-              <QuerySyncProviderWithUserId />
-              <UserInfoSideEffects />
-              <ConfiguredGlobalAppStateProvider>
-                <ChannelsContextProvider>
-                  <QuickAccessProvider>
-                    <SearchProvider>
-                      <TabAttachmentsInit />
-                      <ReactiveFavicon />
-                      <Title>{tabTitle()}</Title>
-                      <MacroJump />
-                      <Visor />
-                      <SuspenseContextComp fallback={<RootSuspenseFallback />}>
-                        <IsomorphicRouter
-                          transformUrl={transformShortIdInUrlPathname}
-                          root={Layout}
-                          rootPreload={rootPreload}
-                          base={ROUTER_BASE}
-                        >
-                          {{
-                            path: '/',
-                            component: TauriRouteListener,
-                            children: ROUTES,
-                          }}
-                        </IsomorphicRouter>
-                      </SuspenseContextComp>
-                      <ToastRegion />
-                    </SearchProvider>
-                  </QuickAccessProvider>
-                </ChannelsContextProvider>
-              </ConfiguredGlobalAppStateProvider>
-            </UserContextProvider>
-          </EntityProvider>
+          <PosthogProvider>
+            <EntityProvider>
+              <UserContextProvider>
+                <PlatformNotificationProvider>
+                  <QuerySyncProviderWithUserId />
+                  <UserInfoSideEffects />
+                  <ConfiguredGlobalAppStateProvider>
+                    <ChannelsContextProvider>
+                      <QuickAccessProvider>
+                        <SearchProvider>
+                          <TabAttachmentsInit />
+                          <ReactiveFavicon />
+                          <Title>{tabTitle()}</Title>
+                          <MacroJump />
+                          <Visor />
+                          <SuspenseContextComp
+                            fallback={<RootSuspenseFallback />}
+                          >
+                            <IsomorphicRouter
+                              transformUrl={transformShortIdInUrlPathname}
+                              root={Layout}
+                              rootPreload={rootPreload}
+                              base={ROUTER_BASE}
+                            >
+                              {{
+                                path: '/',
+                                component: TauriRouteListener,
+                                children: ROUTES,
+                              }}
+                            </IsomorphicRouter>
+                          </SuspenseContextComp>
+                          <ToastRegion />
+                        </SearchProvider>
+                      </QuickAccessProvider>
+                    </ChannelsContextProvider>
+                  </ConfiguredGlobalAppStateProvider>
+                </PlatformNotificationProvider>
+              </UserContextProvider>
+            </EntityProvider>
+          </PosthogProvider>
         </AnalyticsContextProvider>
       </MetaProvider>
     </MaybeTauriProvider>

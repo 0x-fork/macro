@@ -1,7 +1,8 @@
 //! Contains the service logic for teams
 
-use std::{collections::HashSet, str::FromStr, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 
+use anyhow::Context;
 use macro_user_id::{
     cowlike::CowLike, email::Email, lowercased::Lowercase, user_id::MacroUserIdStr,
 };
@@ -17,20 +18,22 @@ use notification::domain::{models::SendNotificationRequestBuilder, service::Noti
 use crate::domain::{
     customer_repo::CustomerRepository,
     model::{
-        CreateSubscriptionArgs, CreateTeamError, CustomerError, DeleteTeamError,
-        InviteUsersToTeamError, JoinTeamError, PatchTeamRequest, ReinviteError,
-        RemoveTeamInviteError, RemoveUserFromTeamError, RevokePermissionsForTeamMembersError, Team,
-        TeamError, TeamInvite, TeamInviteDetails, TeamMember, TeamRole, TeamWithMembers,
+        CreateTeamError, DeleteTeamError, InviteUsersToTeamError, JoinTeamError, PatchTeamRequest,
+        ReinviteError, RemoveTeamInviteError, RemoveUserFromTeamError,
+        RestorePermissionsForTeamMembersError, RevokePermissionsForTeamMembersError, Team,
+        TeamError, TeamInvite, TeamInviteDetails, TeamMember, TeamRole, TeamUserTier,
+        TeamWithMembers,
     },
-    team_repo::{TeamRepository, TeamService},
+    team_repo::{TeamChannelsRepository, TeamRepository, TeamService},
 };
 
 /// Implementation of the TeamService using a TeamRepository
 #[derive(Debug)]
-pub struct TeamServiceImpl<TR, CR, URPS, NI>
+pub struct TeamServiceImpl<TR, CR, TCR, URPS, NI>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
+    TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
 {
@@ -38,16 +41,19 @@ where
     team_repository: TR,
     /// The underlying customer repository
     customer_repository: CR,
+    /// The team channels repository
+    team_channels_repository: TCR,
     /// The underlying user roles and permissions service
     user_roles_and_permissions_service: URPS,
     /// The notification ingress service
     notification_ingress: Arc<NI>,
 }
 
-impl<TR, CR, URPS, NI> Clone for TeamServiceImpl<TR, CR, URPS, NI>
+impl<TR, CR, TCR, URPS, NI> Clone for TeamServiceImpl<TR, CR, TCR, URPS, NI>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
+    TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
 {
@@ -55,16 +61,18 @@ where
         Self {
             team_repository: self.team_repository.clone(),
             customer_repository: self.customer_repository.clone(),
+            team_channels_repository: self.team_channels_repository.clone(),
             user_roles_and_permissions_service: self.user_roles_and_permissions_service.clone(),
             notification_ingress: self.notification_ingress.clone(),
         }
     }
 }
 
-impl<TR, CR, URPS, NI> TeamServiceImpl<TR, CR, URPS, NI>
+impl<TR, CR, TCR, URPS, NI> TeamServiceImpl<TR, CR, TCR, URPS, NI>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
+    TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
 {
@@ -72,26 +80,76 @@ where
     pub fn new(
         team_repository: TR,
         customer_repository: CR,
+        team_channels_repository: TCR,
         user_roles_and_permissions_service: URPS,
         notification_ingress: Arc<NI>,
     ) -> Self {
         Self {
             team_repository,
             customer_repository,
+            team_channels_repository,
             user_roles_and_permissions_service,
             notification_ingress,
         }
     }
 }
 
-impl<TR, CR, URPS, NI> TeamServiceImpl<TR, CR, URPS, NI>
+impl<TR, CR, TCR, URPS, NI> TeamServiceImpl<TR, CR, TCR, URPS, NI>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
+    TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
 {
+    /// Gets the teams subscription id
+    /// If the team doesn't have a subscription yet, it will convert the owners personal subscription into a team subscription
+    #[tracing::instrument(skip(self), err)]
+    async fn get_team_subscription(
+        &self,
+        team_id: &uuid::Uuid,
+    ) -> anyhow::Result<stripe::SubscriptionId> {
+        let subscription_id = self
+            .team_repository
+            .get_team_subscription_id(team_id)
+            .await?;
+
+        // stripe subscription is already tracked for team
+        if let Some(subscription_id) = subscription_id {
+            return Ok(subscription_id);
+        }
+
+        tracing::info!("no subscription found for team");
+
+        // Get the team to get owner
+        let team = self.team_repository.get_team_by_id(team_id).await?;
+
+        let customer_id = self
+            .team_repository
+            .get_stripe_customer_id(&team.team.owner_id)
+            .await?
+            .context("expected customer id")?;
+
+        let customer_subscription_id = self
+            .customer_repository
+            .get_subscription_id_for_customer(&customer_id)
+            .await?;
+
+        // update the customers subscription to a team sub
+        self.team_repository
+            .update_team_subscription(team_id, &customer_subscription_id)
+            .await?;
+
+        // convert the customers subscription to a team subscription
+        self.customer_repository
+            .convert_subscription_to_team(&customer_subscription_id, team_id, &team.team.owner_id)
+            .await?;
+
+        Ok(customer_subscription_id)
+    }
+
     /// Sends an invite notification for a team invite
+    #[tracing::instrument(skip(self), err)]
     async fn send_invite_notification(
         &self,
         team_id: &uuid::Uuid,
@@ -129,21 +187,35 @@ where
     }
 }
 
-impl<TR, CR, URPS, NI> TeamService for TeamServiceImpl<TR, CR, URPS, NI>
+impl<TR, CR, TCR, URPS, NI> TeamService for TeamServiceImpl<TR, CR, TCR, URPS, NI>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
+    TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
 {
+    #[tracing::instrument(skip(self), err)]
     async fn create_team(
         &self,
         user_id: &MacroUserIdStr<'_>,
         team_name: &str,
     ) -> Result<Team, CreateTeamError> {
-        self.team_repository.create_team(user_id, team_name).await
+        let user_roles = self
+            .user_roles_and_permissions_service
+            .get_user_roles(user_id)
+            .await
+            .map_err(|e| CreateTeamError::StorageLayerError(e.into()))?;
+
+        let team_user_tier =
+            TeamUserTier::try_from_roles(user_roles).map_err(CreateTeamError::StorageLayerError)?;
+
+        self.team_repository
+            .create_team(user_id, team_name, &team_user_tier)
+            .await
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn invite_users_to_team(
         &self,
         team_id: &uuid::Uuid,
@@ -154,54 +226,6 @@ where
             .team_repository
             .invite_users_to_team(team_id, invited_by, emails)
             .await?;
-
-        if !invited.is_empty() {
-            let subscription_id = self
-                .team_repository
-                .get_team_subscription_id(team_id)
-                .await?;
-
-            // Increase the quantity of the subscription
-            if let Some(subscription_id) = subscription_id {
-                let subscription_id = stripe::SubscriptionId::from_str(&subscription_id)
-                    .map_err(|e| InviteUsersToTeamError::StorageLayerError(e.into()))?;
-
-                // Increment the quantity of the subscription by the number of emails
-                self.customer_repository
-                    .increase_subscription_quantity(&subscription_id, invited.len() as u64)
-                    .await?;
-            } else {
-                // Create new subscription
-                let customer_id = self
-                    .team_repository
-                    .get_stripe_customer_id(invited_by)
-                    .await?
-                    .ok_or(InviteUsersToTeamError::CustomerError(
-                        CustomerError::NoStripeCustomerId,
-                    ))?;
-
-                let subscription_id = self
-                    .customer_repository
-                    .create_subscription(CreateSubscriptionArgs {
-                        customer_id,
-                        quantity: invited.len() as u64,
-                        metadata: Some(
-                            vec![
-                                ("team_id".to_string(), team_id.to_string()),
-                                ("owner_id".to_string(), invited_by.as_ref().to_string()),
-                            ]
-                            .into_iter()
-                            .collect(),
-                        ),
-                    })
-                    .await?;
-
-                // Update team with the new subscription id
-                self.team_repository
-                    .update_team_subscription(team_id, &subscription_id)
-                    .await?;
-            }
-        }
 
         // Send notifications for new invites
         if !invited.is_empty() {
@@ -229,45 +253,54 @@ where
         Ok(invited)
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn remove_user_from_team(
         &self,
         team_id: &uuid::Uuid,
         user_id: &MacroUserIdStr<'_>,
     ) -> Result<(), RemoveUserFromTeamError> {
-        let result = self
+        let tier = self
             .team_repository
             .remove_user_from_team(team_id, user_id)
             .await;
 
         // The user was part of the team and was removed
-        if result.is_ok() {
-            let subscription_id = self
-                .team_repository
-                .get_team_subscription_id(team_id)
+        if let Ok(tier) = tier {
+            self.team_channels_repository
+                .remove_team_member_from_channels(team_id, user_id)
                 .await?;
 
-            if let Some(subscription_id) = subscription_id {
-                // Decrement the quantity of the subscription
-                self.customer_repository
-                    .decrease_subscription_quantity(&subscription_id, 1)
-                    .await?;
-            } else {
-                return Err(RemoveUserFromTeamError::NoSubscription);
+            let subscription_id = self.get_team_subscription(team_id).await?;
+
+            // Decrement the quantity of the subscription
+            self.customer_repository
+                .decrease_subscription_quantity(&subscription_id, tier)
+                .await?;
+
+            let remaining_tiers = self
+                .team_repository
+                .get_user_remaining_tiers(user_id, team_id)
+                .await?;
+
+            let mut roles_to_remove = vec![];
+            if remaining_tiers.is_empty() {
+                roles_to_remove.push(RoleId::TeamSubscriber);
+            }
+            if !remaining_tiers.contains(&tier) {
+                roles_to_remove.push(RoleId::from(tier));
+            }
+            if let Ok(roles) = non_empty::NonEmpty::new(roles_to_remove.as_slice()) {
+                self.user_roles_and_permissions_service
+                    .dangerous_remove_roles_from_user(user_id, &roles)
+                    .await
+                    .map_err(RemoveUserFromTeamError::RemoveRolesFromUserError)?;
             }
         }
 
-        if !self.team_repository.is_user_member_of_team(user_id).await? {
-            let roles = vec![RoleId::TeamSubscriber];
-            let roles = non_empty::NonEmpty::new(roles.as_slice()).unwrap();
-            self.user_roles_and_permissions_service
-                .dangerous_remove_roles_from_user(user_id, &roles)
-                .await
-                .map_err(RemoveUserFromTeamError::RemoveRolesFromUserError)?;
-        }
-
-        result
+        tier.map(|_| ())
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn reject_invitation(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -286,23 +319,10 @@ where
             .delete_team_invite(&team_invite.team_id, team_invite_id)
             .await?;
 
-        let subscription_id = self
-            .team_repository
-            .get_team_subscription_id(&team_invite.team_id)
-            .await?;
-
-        if let Some(subscription_id) = subscription_id {
-            // Decrement the quantity of the subscription
-            self.customer_repository
-                .decrease_subscription_quantity(&subscription_id, 1)
-                .await?;
-        } else {
-            return Err(TeamError::NoSubscription.into());
-        }
-
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn delete_team_invite(
         &self,
         team_id: &uuid::Uuid,
@@ -312,23 +332,10 @@ where
             .delete_team_invite(team_id, team_invite_id)
             .await?;
 
-        let subscription_id = self
-            .team_repository
-            .get_team_subscription_id(team_id)
-            .await?;
-
-        if let Some(subscription_id) = subscription_id {
-            // Decrement the quantity of the subscription
-            self.customer_repository
-                .decrease_subscription_quantity(&subscription_id, 1)
-                .await?;
-        } else {
-            return Err(TeamError::NoSubscription.into());
-        }
-
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn delete_team(&self, team_id: &uuid::Uuid) -> Result<(), DeleteTeamError> {
         let members = self.team_repository.get_all_team_members(team_id).await?;
 
@@ -336,14 +343,8 @@ where
             .team_repository
             .get_team_subscription_id(team_id)
             .await?;
-
         if let Some(subscription_id) = subscription_id {
             // Cancel subscription
-            let subscription_id =
-                stripe::SubscriptionId::from_str(&subscription_id).map_err(|_| {
-                    DeleteTeamError::StorageLayerError(anyhow::anyhow!("Invalid subscription id"))
-                })?;
-
             self.customer_repository
                 .cancel_subscription(&subscription_id)
                 .await
@@ -376,6 +377,7 @@ where
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn join_team(
         &self,
         team_invite_id: &uuid::Uuid,
@@ -387,8 +389,9 @@ where
             .await
             .map_err(JoinTeamError::TeamError)?;
 
-        // subscribe the user to professional features from the TeamSubscriber role
-        let roles = vec![RoleId::TeamSubscriber];
+        // subscribe the user to professional features from the TeamSubscriber role and the role associated with their tier
+        let roles = vec![RoleId::TeamSubscriber, RoleId::from(team_member.tier)];
+
         let roles = non_empty::NonEmpty::new(roles.as_slice()).unwrap();
 
         self.user_roles_and_permissions_service
@@ -396,9 +399,21 @@ where
             .await
             .map_err(JoinTeamError::AddRolesToUserError)?;
 
+        self.team_channels_repository
+            .add_team_member_to_channels(&team_member.team_id, user_id)
+            .await?;
+
+        let subscription_id = self.get_team_subscription(&team_member.team_id).await?;
+
+        // Increment the quantity of the subscription by the number of emails
+        self.customer_repository
+            .increase_subscription_quantity(&subscription_id, team_member.tier)
+            .await?;
+
         Ok(team_member)
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn revoke_permissions_for_team_members(
         &self,
         team_id: &uuid::Uuid,
@@ -409,47 +424,66 @@ where
             return Ok(());
         }
 
-        let members: Vec<MacroUserIdStr<'_>> = members.into_iter().map(|m| m.user_id).collect();
+        // For each member, check remaining tiers and remove roles accordingly
+        for member in members {
+            let remaining_tiers = self
+                .team_repository
+                .get_user_remaining_tiers(&member.user_id, team_id)
+                .await?;
 
-        // Ignore the current team
-        let ignore_team_ids = vec![*team_id];
-
-        let members_of_team = self
-            .team_repository
-            .bulk_is_member_of_other_team(
-                non_empty::NonEmpty::new(ignore_team_ids.as_slice()).unwrap(),
-                non_empty::NonEmpty::new(members.as_slice()).unwrap(),
-            )
-            .await?;
-
-        let members_of_team: HashSet<&str> = members_of_team.iter().map(|m| m.as_ref()).collect();
-        // Get all members that are not in the other team
-        let members_to_revoke: Vec<_> = members
-            .into_iter()
-            .filter(|m| !members_of_team.contains(m.as_ref()))
-            .collect();
-
-        // Revoke permissions for all members
-        let roles = vec![RoleId::TeamSubscriber];
-        let roles = non_empty::NonEmpty::new(roles.as_slice()).unwrap();
-        for member in members_to_revoke {
-            self.user_roles_and_permissions_service
-                .dangerous_remove_roles_from_user(&member, &roles)
-                .await
-                .map_err(RevokePermissionsForTeamMembersError::RemoveRolesFromUserError)?;
+            let mut roles_to_remove = vec![];
+            if remaining_tiers.is_empty() {
+                roles_to_remove.push(RoleId::TeamSubscriber);
+            }
+            if !remaining_tiers.contains(&member.tier) {
+                roles_to_remove.push(RoleId::from(member.tier));
+            }
+            if let Ok(roles) = non_empty::NonEmpty::new(roles_to_remove.as_slice()) {
+                self.user_roles_and_permissions_service
+                    .dangerous_remove_roles_from_user(&member.user_id, &roles)
+                    .await
+                    .map_err(RevokePermissionsForTeamMembersError::RemoveRolesFromUserError)?;
+            }
         }
 
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), err)]
+    async fn restore_permissions_for_team_members(
+        &self,
+        team_id: &uuid::Uuid,
+    ) -> Result<(), RestorePermissionsForTeamMembersError> {
+        let members = self.team_repository.get_team_members(team_id).await?;
+
+        if members.is_empty() {
+            return Ok(());
+        }
+
+        for member in members {
+            let roles = vec![RoleId::TeamSubscriber, RoleId::from(member.tier)];
+            let roles = non_empty::NonEmpty::new(roles.as_slice()).unwrap();
+
+            self.user_roles_and_permissions_service
+                .dangerous_upsert_roles_for_user(&member.user_id, roles)
+                .await
+                .map_err(RestorePermissionsForTeamMembersError::AddRolesToUserError)?;
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self), err)]
     async fn get_team(&self, team_id: &uuid::Uuid) -> Result<TeamWithMembers, TeamError> {
         self.team_repository.get_team_by_id(team_id).await
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn get_user_teams(&self, user_id: &MacroUserIdStr<'_>) -> Result<Vec<Team>, TeamError> {
         self.team_repository.get_user_teams(user_id).await
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn get_user_invites(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -457,6 +491,7 @@ where
         self.team_repository.get_user_team_invites(user_id).await
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn get_team_invites(
         &self,
         team_id: &uuid::Uuid,
@@ -464,6 +499,7 @@ where
         self.team_repository.get_team_invites(team_id).await
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn patch_team(
         &self,
         team_id: &uuid::Uuid,
@@ -472,6 +508,7 @@ where
         self.team_repository.patch_team(team_id, req).await
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn reinvite_to_team(
         &self,
         team_invite_id: &uuid::Uuid,
@@ -519,11 +556,23 @@ where
         Ok(invite)
     }
 
+    #[tracing::instrument(skip(self), err)]
     async fn get_team_role(
         &self,
         team_id: &uuid::Uuid,
         user_id: &MacroUserIdStr<'_>,
     ) -> Result<Option<TeamRole>, TeamError> {
         self.team_repository.get_team_role(team_id, user_id).await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_team_user_permissions(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+    ) -> Result<HashSet<roles_and_permissions::domain::model::PermissionId>, TeamError> {
+        self.user_roles_and_permissions_service
+            .get_user_permissions(user_id)
+            .await
+            .map_err(|e| TeamError::StorageLayerError(e.into()))
     }
 }

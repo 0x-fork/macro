@@ -116,7 +116,7 @@ const TopBar: Component<MessageTopBarProps> = (props) => {
     <Show when={!context.isConsecutive()}>
       <div class="font-mono flex flex-row items-center justify-between">
         {/*  Name */}
-        <div class="shrink-1 min-w-0 text-sm truncate text-ink-muted">
+        <div class="ph-no-capture shrink-1 min-w-0 text-sm truncate text-ink-muted">
           {local.name}
         </div>
         {/* Tag */}
@@ -156,7 +156,7 @@ const Body: Component<MessageBodyProps> = (props) => {
         <div class="text-xs text-ink-muted font-mono">Message Deleted</div>
       }
     >
-      <div class="text-sm text-ink pr-4">{props.children}</div>
+      <div class="ph-no-capture text-sm text-ink pr-4">{props.children}</div>
     </Show>
   );
 };
@@ -256,7 +256,7 @@ const Root: Component<MessageRootProps> = (props) => {
           >
             <div
               class={cn(
-                'relative flex flex-col pl-[calc(var(--user-icon-width)/2+var(--body-padding))] ml-[var(--left-of-connector)]',
+                'relative flex flex-col pl-[calc(var(--user-icon-width)/2+var(--message-padding-x))] ml-[var(--left-of-connector)]',
                 !props.hideConnectors && 'border-l',
                 props.isNewMessage ? 'border-accent' : 'border-edge-muted',
                 !(

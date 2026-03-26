@@ -1,4 +1,5 @@
 use doppleganger::Doppleganger;
+use macro_user_id::cowlike::CowLike;
 use macro_user_id::{email::ReadEmailParts, user_id::MacroUserIdStr};
 use mention_utils::parse::{ParsedXmlText, XmlFormatter};
 use model_entity::Entity;
@@ -8,6 +9,8 @@ use notification::domain::models::{
     NotifCollapseKey, NotificationExtIos,
     apple::{APNSPushNotification, AlertDictionary, Aps, PushNotificationData},
 };
+use rootcause::Report;
+use rootcause::report;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -31,6 +34,8 @@ pub enum ChannelType {
     Private,
     #[serde(alias = "DirectMessage", alias = "direct_message")]
     DirectMessage,
+    #[serde(alias = "Team", alias = "team")]
+    Team,
 }
 
 impl ChannelType {
@@ -40,6 +45,7 @@ impl ChannelType {
             ChannelType::Organization => models_comms::channel::ChannelType::Organization,
             ChannelType::Private => models_comms::channel::ChannelType::Private,
             ChannelType::DirectMessage => models_comms::channel::ChannelType::DirectMessage,
+            ChannelType::Team => models_comms::channel::ChannelType::Team,
         }
     }
 }
@@ -217,6 +223,22 @@ impl notification::domain::models::Notification for NewEmailMetadata {
     const TYPE_NAME: &'static str = "new_email";
 }
 
+impl NotificationTitle for NewEmailMetadata {
+    fn format_title(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        Ok(self.subject.clone())
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        Ok(self.snippet.clone())
+    }
+}
+
 impl notification::domain::models::Notification for ChannelInviteMetadata {
     const TYPE_NAME: &'static str = "channel_invite";
 }
@@ -243,6 +265,171 @@ impl notification::domain::models::Notification for DocumentMentionMetadata {
 
 impl notification::domain::models::Notification for InviteToTeamMetadata {
     const TYPE_NAME: &'static str = "invite_to_team";
+}
+
+pub trait NotificationTitle {
+    /// format the notification into a user facing title
+    fn format_title(
+        &self,
+        sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report>;
+
+    fn format_body(
+        &self,
+        sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report>;
+}
+
+impl NotificationTitle for ChannelMentionMetadata {
+    fn format_title(
+        &self,
+        sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let sender =
+            sender_id.ok_or_else(|| report!("Expected sender id to exist for {:?}", &self))?;
+        Ok(match self.common.channel_type {
+            ChannelType::DirectMessage => {
+                format!("{} mentioned you", sender.email_part().local_part())
+            }
+            _ => format!(
+                "{} mentioned you in #{}",
+                sender.email_part().local_part(),
+                self.common.channel_name
+            ),
+        })
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        parse_message_plain_text(&self.message_content)
+    }
+}
+
+impl NotificationTitle for DocumentMentionMetadata {
+    fn format_title(
+        &self,
+        sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let sender =
+            sender_id.ok_or_else(|| report!("Expected sender id to exist for {:?}", &self))?;
+        let sender = sender.0.email_part().email_str().to_string();
+        Ok(format!("{sender} sent a document",))
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let file_type_str = self.file_type.as_deref().unwrap_or("");
+        Ok(format!("{}.{}", self.document_name, file_type_str))
+    }
+}
+
+impl NotificationTitle for ChannelMessageSendMetadata {
+    fn format_title(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let title = match self.common.channel_type {
+            ChannelType::DirectMessage => self.sender.email_part().local_part().to_string(),
+            _ => format!(
+                "{} <{}>",
+                self.sender.email_part().local_part(),
+                self.common.channel_name
+            ),
+        };
+        Ok(title)
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        parse_message_plain_text(&self.message_content)
+    }
+}
+
+impl NotificationTitle for MentionedInDocumentCommentMetadata {
+    fn format_title(
+        &self,
+        sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let sender =
+            sender_id.ok_or_else(|| report!("Expected sender id to exist for {:?}", &self))?;
+        let email = sender.0.email_part();
+        let sender = email.email_str();
+        let title = match &self.file_type {
+            Some(ft) => format!("{sender} mentioned you in {}.{ft}", self.document_name),
+            None => format!("{sender} mentioned you in {}", self.document_name),
+        };
+        Ok(title)
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        parse_message_plain_text(&self.text)
+    }
+}
+
+impl NotificationTitle for ChannelReplyMetadata {
+    fn format_title(
+        &self,
+        sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let sender =
+            sender_id.ok_or_else(|| report!("Expected sender id to exist for {:?}", &self))?;
+
+        Ok(format!("Reply from {}", sender.0.email_part().email_str()))
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        parse_message_plain_text(&self.message_content)
+    }
+}
+
+impl NotificationTitle for ChannelInviteMetadata {
+    fn format_title(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let email = self.invited_by.email_part();
+        let sender = email.email_str();
+        let channel = &self.common.channel_name;
+        Ok(format!("{sender} invited you to join #{channel}"))
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        Ok("Open macro to continue".to_string())
+    }
+}
+
+impl NotificationTitle for InviteToTeamMetadata {
+    fn format_title(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let email = self.invited_by.email_part();
+        let sender = email.email_str();
+
+        Ok(format!("{sender} invited you to join a team"))
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        Ok(self.team_name.clone())
+    }
 }
 
 /// Metadata for when a user is assigned to a task
@@ -275,7 +462,7 @@ impl XmlFormatter for PlainTextFormatter {
         link: &mention_utils::parse::ParsedLink<'_>,
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
-        write!(f, "{}", link.text)
+        write!(f, "{}", link.url)
     }
 
     fn format_doc(
@@ -315,24 +502,27 @@ impl XmlFormatter for PlainTextFormatter {
 }
 
 /// Helper to parse XML message content to plain text, returning None on failure.
-fn parse_message_plain_text(content: &str) -> Option<String> {
-    let parsed = ParsedXmlText::parse(content).ok()?;
-    Some(PlainTextFormatter::format_xml_text(parsed).0)
+fn parse_message_plain_text(content: &str) -> Result<String, Report> {
+    let parsed = ParsedXmlText::parse(content)?;
+    Ok(PlainTextFormatter::format_xml_text(parsed).0)
 }
 
 /// Helper to create an alert-style APNS notification with title and body.
-fn alert_apns(
-    title: String,
-    body: String,
+fn alert_apns<T: NotificationTitle>(
+    notif: &T,
+    sender_id: Option<MacroUserIdStr<'_>>,
     notification_id: Uuid,
     sender_profile_picture_url: Option<String>,
-) -> APNSPushNotification<PushNotificationData> {
+) -> Result<APNSPushNotification<PushNotificationData>, Report> {
+    let title = notif.format_title(sender_id.as_ref().map(CowLike::copied))?;
+    let body = notif.format_body(sender_id)?;
+
     let mutable_content = if sender_profile_picture_url.is_some() {
         Some(1)
     } else {
         None
     };
-    APNSPushNotification {
+    Ok(APNSPushNotification {
         aps: Aps {
             alert: Some(notification::domain::models::apple::Alert::Dictionary(
                 AlertDictionary {
@@ -348,7 +538,7 @@ fn alert_apns(
             notification_id,
             sender_profile_picture_url,
         },
-    }
+    })
 }
 
 impl NotificationExtIos for ChannelInviteMetadata {
@@ -359,18 +549,30 @@ impl NotificationExtIos for ChannelInviteMetadata {
         NotifCollapseKey::new(entity_type).append(&entity.entity_id)
     }
 
-    fn into_apns<'a>(
-        self,
-        _sender_id: Option<MacroUserIdStr<'a>>,
+    fn as_apns<'a>(
+        &self,
+        sender_id: Option<MacroUserIdStr<'a>>,
         _entity: &Entity<'_>,
         notification_id: Uuid,
     ) -> Option<APNSPushNotification<Self::NotifData>> {
-        Some(alert_apns(
-            format!("{} Invite", self.common.channel_name),
-            format!("{} invited you to join the channel", self.invited_by),
-            notification_id,
-            self.sender_profile_picture_url,
-        ))
+        let profile_pic = self.sender_profile_picture_url.clone();
+        alert_apns(self, sender_id, notification_id, profile_pic).ok()
+    }
+}
+
+impl NotificationTitle for AiResponseMetadata {
+    fn format_title(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        Ok("AI Response".to_string())
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        Ok(self.summary.clone())
     }
 }
 
@@ -380,18 +582,13 @@ impl NotificationExtIos for AiResponseMetadata {
         NotifCollapseKey::new(&self.message_id)
     }
 
-    fn into_apns<'a>(
-        self,
-        _sender_id: Option<MacroUserIdStr<'a>>,
+    fn as_apns<'a>(
+        &self,
+        sender_id: Option<MacroUserIdStr<'a>>,
         _entity: &Entity<'_>,
         notification_id: Uuid,
     ) -> Option<APNSPushNotification<Self::NotifData>> {
-        Some(alert_apns(
-            "Ai Response".into(),
-            self.summary,
-            notification_id,
-            None,
-        ))
+        alert_apns(self, sender_id, notification_id, None).ok()
     }
 }
 
@@ -402,27 +599,14 @@ impl NotificationExtIos for ChannelMessageSendMetadata {
         NotifCollapseKey::new(&self.message_id)
     }
 
-    fn into_apns<'a>(
-        self,
-        _sender_id: Option<MacroUserIdStr<'a>>,
+    fn as_apns<'a>(
+        &self,
+        sender_id: Option<MacroUserIdStr<'a>>,
         _entity: &Entity<'_>,
         notification_id: Uuid,
     ) -> Option<APNSPushNotification<Self::NotifData>> {
-        let title = match self.common.channel_type {
-            ChannelType::DirectMessage => self.sender.email_part().local_part().to_string(),
-            _ => format!(
-                "{} <{}>",
-                self.sender.email_part().local_part(),
-                self.common.channel_name
-            ),
-        };
-        let body = parse_message_plain_text(&self.message_content)?;
-        Some(alert_apns(
-            title,
-            body,
-            notification_id,
-            self.sender_profile_picture_url,
-        ))
+        let profile_pic = self.sender_profile_picture_url.clone();
+        alert_apns(self, sender_id, notification_id, profile_pic).ok()
     }
 }
 
@@ -433,30 +617,14 @@ impl NotificationExtIos for ChannelMentionMetadata {
         NotifCollapseKey::new(&self.message_id)
     }
 
-    fn into_apns<'a>(
-        self,
+    fn as_apns<'a>(
+        &self,
         sender_id: Option<MacroUserIdStr<'a>>,
         _entity: &Entity<'_>,
         notification_id: Uuid,
     ) -> Option<APNSPushNotification<Self::NotifData>> {
-        let sender = sender_id?;
-        let title = match self.common.channel_type {
-            ChannelType::DirectMessage => {
-                format!("{} mentioned you", sender.email_part().local_part())
-            }
-            _ => format!(
-                "{} mentioned you in #{}",
-                sender.email_part().local_part(),
-                self.common.channel_name
-            ),
-        };
-        let body = parse_message_plain_text(&self.message_content)?;
-        Some(alert_apns(
-            title,
-            body,
-            notification_id,
-            self.sender_profile_picture_url,
-        ))
+        let profile_pic = self.sender_profile_picture_url.clone();
+        alert_apns(self, sender_id, notification_id, profile_pic).ok()
     }
 }
 
@@ -467,21 +635,14 @@ impl NotificationExtIos for ChannelReplyMetadata {
         NotifCollapseKey::new(&self.message_id)
     }
 
-    fn into_apns<'a>(
-        self,
+    fn as_apns<'a>(
+        &self,
         sender_id: Option<MacroUserIdStr<'a>>,
         _entity: &Entity<'_>,
         notification_id: Uuid,
     ) -> Option<APNSPushNotification<Self::NotifData>> {
-        let sender = sender_id?;
-        let title = format!("{} Replied", sender.0.email_part().email_str());
-        let body = parse_message_plain_text(&self.message_content)?;
-        Some(alert_apns(
-            title,
-            body,
-            notification_id,
-            self.sender_profile_picture_url,
-        ))
+        let profile_pic = self.sender_profile_picture_url.clone();
+        alert_apns(self, sender_id, notification_id, profile_pic).ok()
     }
 }
 
@@ -493,30 +654,42 @@ impl NotificationExtIos for DocumentMentionMetadata {
         NotifCollapseKey::new(entity_type).append(&entity.entity_id)
     }
 
-    fn into_apns<'a>(
-        self,
+    fn as_apns<'a>(
+        &self,
         sender_id: Option<MacroUserIdStr<'a>>,
         _entity: &Entity<'_>,
         notification_id: Uuid,
     ) -> Option<APNSPushNotification<Self::NotifData>> {
-        let sender = sender_id?;
-        let file_type_str = self.file_type.as_ref()?;
-        let title = sender.0.email_part().email_str().to_string();
-        let body = format!(
-            "You were mentioned in {}.{}",
-            self.document_name, file_type_str
-        );
-        Some(alert_apns(
-            title,
-            body,
-            notification_id,
-            self.sender_profile_picture_url,
-        ))
+        let profile_pic = self.sender_profile_picture_url.clone();
+        alert_apns(self, sender_id, notification_id, profile_pic).ok()
     }
 }
 
 impl notification::domain::models::Notification for TaskAssignedMetadata {
     const TYPE_NAME: &'static str = "task_assigned";
+}
+
+impl NotificationTitle for TaskAssignedMetadata {
+    fn format_title(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let email = self.assigned_by.email_part();
+        let sender = email.email_str();
+        Ok(format!("Task assigned by {sender}"))
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let body = if let Some(ref task_name) = self.task_name {
+            format!("assigned you to {}", task_name)
+        } else {
+            "New Task".to_string()
+        };
+        Ok(body)
+    }
 }
 
 impl NotificationExtIos for TaskAssignedMetadata {
@@ -527,24 +700,14 @@ impl NotificationExtIos for TaskAssignedMetadata {
         NotifCollapseKey::new(entity_type).append(&entity.entity_id)
     }
 
-    fn into_apns<'a>(
-        self,
-        _sender_id: Option<MacroUserIdStr<'a>>,
+    fn as_apns<'a>(
+        &self,
+        sender_id: Option<MacroUserIdStr<'a>>,
         _entity: &Entity<'_>,
         notification_id: Uuid,
     ) -> Option<APNSPushNotification<Self::NotifData>> {
-        let title = self.assigned_by.email_part().email_str().to_string();
-        let body = if let Some(ref task_name) = self.task_name {
-            format!("assigned you to {}", task_name)
-        } else {
-            "assigned you a task".to_string()
-        };
-        Some(alert_apns(
-            title,
-            body,
-            notification_id,
-            self.sender_profile_picture_url,
-        ))
+        let profile_pic = self.sender_profile_picture_url.clone();
+        alert_apns(self, sender_id, notification_id, profile_pic).ok()
     }
 }
 
@@ -583,25 +746,149 @@ impl NotificationExtIos for MentionedInDocumentCommentMetadata {
         NotifCollapseKey::new(entity_type).append(&entity.entity_id)
     }
 
-    fn into_apns<'a>(
-        self,
+    fn as_apns<'a>(
+        &self,
         sender_id: Option<MacroUserIdStr<'a>>,
         _entity: &Entity<'_>,
         notification_id: Uuid,
     ) -> Option<APNSPushNotification<Self::NotifData>> {
-        let sender = sender_id?;
-        let file_type_str = self.file_type.as_ref()?;
-        let title = sender.0.email_part().email_str().to_string();
-        let body = format!(
-            "You were mentioned in {}.{}",
-            self.document_name, file_type_str
-        );
+        let profile_pic = self.sender_profile_picture_url.clone();
+        alert_apns(self, sender_id, notification_id, profile_pic).ok()
+    }
+}
 
-        Some(alert_apns(
-            title,
-            body,
-            notification_id,
-            self.sender_profile_picture_url,
-        ))
+/// Notification sent when someone replies to a document comment thread.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RepliedToDocumentCommentThreadMetadata {
+    /// The name of the document.
+    pub document_name: String,
+    /// The owner of the document.
+    #[schema(value_type = String)]
+    pub owner: MacroUserIdStr<'static>,
+    /// The file type of the document.
+    pub file_type: Option<String>,
+    /// the comment id
+    pub comment_id: i64,
+    /// the thread id
+    pub thread_id: i64,
+    /// the text of the comment
+    pub text: String,
+    #[serde(default)]
+    pub sender_profile_picture_url: Option<String>,
+}
+
+impl Notification for RepliedToDocumentCommentThreadMetadata {
+    const TYPE_NAME: &'static str = "replied_to_document_comment_thread";
+}
+
+impl NotificationTitle for RepliedToDocumentCommentThreadMetadata {
+    fn format_title(
+        &self,
+        sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let sender =
+            sender_id.ok_or_else(|| report!("Expected sender id to exist for {:?}", &self))?;
+        let email = sender.0.email_part();
+        let sender = email.email_str();
+        let title = match &self.file_type {
+            Some(ft) => format!("{sender} replied in {}.{ft}", self.document_name),
+            None => format!("{sender} replied in {}", self.document_name),
+        };
+        Ok(title)
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        parse_message_plain_text(&self.text)
+    }
+}
+
+impl NotificationExtIos for RepliedToDocumentCommentThreadMetadata {
+    type NotifData = ::notification::domain::models::apple::PushNotificationData;
+
+    fn collapse_key(&self, entity: &Entity<'_>) -> NotifCollapseKey {
+        let entity_type: &'static str = entity.entity_type.into();
+        NotifCollapseKey::new(entity_type).append(&entity.entity_id)
+    }
+
+    fn as_apns<'a>(
+        &self,
+        sender_id: Option<MacroUserIdStr<'a>>,
+        _entity: &Entity<'_>,
+        notification_id: Uuid,
+    ) -> Option<APNSPushNotification<Self::NotifData>> {
+        let profile_pic = self.sender_profile_picture_url.clone();
+        alert_apns(self, sender_id, notification_id, profile_pic).ok()
+    }
+}
+
+/// Notification sent when someone comments on a document the user owns.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CommentedOnDocumentMetadata {
+    /// The name of the document.
+    pub document_name: String,
+    /// The owner of the document.
+    #[schema(value_type = String)]
+    pub owner: MacroUserIdStr<'static>,
+    /// The file type of the document.
+    pub file_type: Option<String>,
+    /// the comment id
+    pub comment_id: i64,
+    /// the thread id
+    pub thread_id: i64,
+    /// the text of the comment
+    pub text: String,
+    #[serde(default)]
+    pub sender_profile_picture_url: Option<String>,
+}
+
+impl Notification for CommentedOnDocumentMetadata {
+    const TYPE_NAME: &'static str = "commented_on_document";
+}
+
+impl NotificationTitle for CommentedOnDocumentMetadata {
+    fn format_title(
+        &self,
+        sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        let sender =
+            sender_id.ok_or_else(|| report!("Expected sender id to exist for {:?}", &self))?;
+        let email = sender.0.email_part();
+        let sender = email.email_str();
+        let title = match &self.file_type {
+            Some(ft) => format!("{sender} commented on {}.{ft}", self.document_name),
+            None => format!("{sender} commented on {}", self.document_name),
+        };
+        Ok(title)
+    }
+
+    fn format_body(
+        &self,
+        _sender_id: Option<MacroUserIdStr<'_>>,
+    ) -> Result<String, rootcause::Report> {
+        parse_message_plain_text(&self.text)
+    }
+}
+
+impl NotificationExtIos for CommentedOnDocumentMetadata {
+    type NotifData = ::notification::domain::models::apple::PushNotificationData;
+
+    fn collapse_key(&self, entity: &Entity<'_>) -> NotifCollapseKey {
+        let entity_type: &'static str = entity.entity_type.into();
+        NotifCollapseKey::new(entity_type).append(&entity.entity_id)
+    }
+
+    fn as_apns<'a>(
+        &self,
+        sender_id: Option<MacroUserIdStr<'a>>,
+        _entity: &Entity<'_>,
+        notification_id: Uuid,
+    ) -> Option<APNSPushNotification<Self::NotifData>> {
+        let profile_pic = self.sender_profile_picture_url.clone();
+        alert_apns(self, sender_id, notification_id, profile_pic).ok()
     }
 }

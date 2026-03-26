@@ -47,6 +47,13 @@ impl EmailService for NoopEmailService {
         Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
     }
 
+    async fn get_link_by_macro_id(
+        &self,
+        _macro_id: MacroUserIdStr<'_>,
+    ) -> Result<Option<email::domain::models::Link>, email::domain::models::EmailErr> {
+        Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
+    }
+
     async fn get_thread_with_messages(
         &self,
         _receipt: EntityAccessReceipt<ViewAccessLevel>,
@@ -96,6 +103,39 @@ impl EmailService for NoopEmailService {
         _label_id: uuid::Uuid,
         _add: bool,
     ) -> Result<email::domain::models::UpdateThreadLabelsResult, EmailErr> {
+        Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
+    }
+
+    async fn update_thread_project(
+        &self,
+        _thread_receipt: EntityAccessReceipt<entity_access::domain::models::EditAccessLevel>,
+        _project_receipt: Option<
+            EntityAccessReceipt<entity_access::domain::models::EditAccessLevel>,
+        >,
+    ) -> Result<Option<String>, EmailErr> {
+        Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
+    }
+
+    async fn upsert_email_filter(
+        &self,
+        _link: &email::domain::models::Link,
+        _input: email::domain::models::UpsertEmailFilterInput,
+    ) -> Result<email::domain::models::EmailFilter, EmailErr> {
+        Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
+    }
+
+    async fn delete_email_filter(
+        &self,
+        _link: &email::domain::models::Link,
+        _filter_id: Uuid,
+    ) -> Result<bool, EmailErr> {
+        Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
+    }
+
+    async fn list_email_filters(
+        &self,
+        _link: &email::domain::models::Link,
+    ) -> Result<Vec<email::domain::models::EmailFilter>, EmailErr> {
         Err(EmailErr::RepoErr(anyhow::anyhow!("not implemented")))
     }
 }

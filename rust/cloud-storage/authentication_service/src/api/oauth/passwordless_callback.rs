@@ -27,7 +27,7 @@ pub struct Params {
         operation_id = "passwordless_callback",
         params(
             ("code" = String, Path, description = "Code"),
-            ("email" = String, Query, description = "Email")
+            ("email" = String, Query, description = "Email"),
         ),
         responses(
             (status = 200, body = UserTokensResponse),
@@ -81,7 +81,7 @@ pub async fn handler(
                 FusionAuthClientError::IncorrectCode => (
                     StatusCode::UNAUTHORIZED,
                     Json(ErrorResponse {
-                        message: "invalid code",
+                        message: "invalid code".into(),
                     }),
                 )
                     .into_response(),

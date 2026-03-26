@@ -36,6 +36,8 @@ pub struct GetLegacyUserPermissionsResponse {
     has_trialed: bool,
     /// Whether the user has consented to AI data sharing
     ai_data_consent: bool,
+    /// The referral code for the user
+    referral_code: String,
 }
 
 #[derive(serde::Serialize, Debug, utoipa::ToSchema)]
@@ -64,13 +66,13 @@ impl IntoResponse for GetLegacyUserPermissionsError {
             GetLegacyUserPermissionsError::InternalError(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
-                    message: "internal error",
+                    message: "internal error".into(),
                 }),
             ),
             GetLegacyUserPermissionsError::InvalidMacroUserId => (
                 StatusCode::BAD_REQUEST,
                 Json(ErrorResponse {
-                    message: "invalid user id",
+                    message: "invalid user id".into(),
                 }),
             ),
         }
@@ -134,5 +136,6 @@ pub async fn handler(
         has_chrome_ext: legacy_user_info.has_chrome_ext,
         has_trialed: legacy_user_info.has_trialed,
         ai_data_consent: legacy_user_info.ai_data_consent,
+        referral_code: legacy_user_info.referral_code,
     })
 }
