@@ -40,6 +40,9 @@
         },
         {
           "url": "http://localhost:*"
+        },
+        {
+          "url": "https://*.sentry.io"
         }
       ]
     },
