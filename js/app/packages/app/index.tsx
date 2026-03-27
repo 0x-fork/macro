@@ -91,6 +91,9 @@ function main() {
 
     // Lazy load and init Sentry for error tracking, tracing, and replay
     scheduleIdleTask(() => {
+      import('@observability').then((Observability) => {
+        Observability.init(import.meta.env.__APP_VERSION__);
+      });
       import('@sentry/solid').then((Sentry) => {
         const isProd = import.meta.env.MODE === 'production';
         Sentry.init({
