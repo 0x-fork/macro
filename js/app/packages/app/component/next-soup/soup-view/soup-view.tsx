@@ -89,6 +89,7 @@ import {
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
 import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
+import { SettingsButton } from '@app/component/settings/SettingsButton';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import {
   SplitHeaderLeft,
@@ -163,6 +164,7 @@ const listStateCache = new Map<
   string,
   {
     focus: string | undefined;
+    searchText: string;
     virtualCache?: CacheSnapshot;
     scrollOffset?: number;
   }
@@ -257,6 +259,9 @@ export const SoupView = (props: SoupViewProps) => {
               </div>
             </SplitHeaderLeft>
             <SplitHeaderRight>
+              <Show when={isMobile()}>
+                <SettingsButton />
+              </Show>
               <Show when={!isComponentListView('search')}>
                 <CollapsibleHeaderItem
                   id="search"
@@ -332,6 +337,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     source,
     rows,
     searchText,
+    setSearchText,
     setQueryFilters,
     queryFilters,
     featuredIds,
@@ -686,6 +692,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     if (isProjectList) return;
     const virtualHandle = virtualizerHandle();
     listStateCache.set(cacheKey, {
+      searchText: searchText(),
       focus: soup.focus.id(),
       virtualCache: virtualHandle?.cache,
       scrollOffset: virtualHandle?.scrollOffset,
@@ -700,6 +707,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
     const cached = listStateCache.get(cacheKey);
     if (cached) {
+      setSearchText(cached.searchText);
       soup.focus.set(cached.focus);
       virtualizerHandle()?.scrollTo(cached.scrollOffset ?? 0);
       registerFocusEffects(false);
@@ -791,6 +799,8 @@ export const SoupViewList = (props: SoupViewListProps) => {
                   >
                     {(row, i) => {
                       const timestamp = () => {
+                        if (row.original.sortTs) return row.original.sortTs;
+
                         const sort_ = soup.sort.active();
                         if (!sort_.length) return;
 
