@@ -248,7 +248,8 @@ impl From<Hit<UnifiedSearchIndex>> for SearchHit {
                             Keys {
                                 title_key: ChannelMessageSearchConfig::TITLE_KEY,
                                 content_key: ChannelMessageSearchConfig::CONTENT_KEY,
-                                content_prefixed_key: ChannelMessageSearchConfig::CONTENT_PREFIXED_KEY,
+                                content_prefixed_key:
+                                    ChannelMessageSearchConfig::CONTENT_PREFIXED_KEY,
                             },
                         )
                     })
