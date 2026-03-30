@@ -87,7 +87,10 @@ export function resolveComponent(
   params?: Record<string, any>
 ): ResolvedComponent {
   const registration = REGISTRY.get(name);
-  if (!registration) throw new Error(`Component '${name}' not registered`);
+  if (!registration)
+    throw new Error(`Component '${name}' not registered`, {
+      cause: 'unknown_component',
+    });
   return {
     element: () => registration.factory(params),
     initialMeta: registration.initialMeta,
