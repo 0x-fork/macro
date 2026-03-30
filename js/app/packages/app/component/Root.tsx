@@ -90,6 +90,7 @@ import {
   useAnalytics,
 } from '@app/component/analytics-context';
 import { PosthogProvider, usePosthog } from '@app/lib/analytics/posthog';
+import { KnownErrorBoundary } from '@app/component/KnownErrorBoundary';
 
 /** Syncs login cookie with auth state. Only updates on successful query (not errors/loading). */
 function useSyncLoginCookie() {
@@ -454,22 +455,24 @@ export function Root() {
                         <Title>{tabTitle()}</Title>
                         <MacroJump />
                         <Visor />
-                        <SuspenseContextComp
-                          fallback={<RootSuspenseFallback />}
-                        >
-                          <IsomorphicRouter
-                            transformUrl={transformShortIdInUrlPathname}
-                            root={Layout}
-                            rootPreload={rootPreload}
-                            base={ROUTER_BASE}
+                        <KnownErrorBoundary>
+                          <SuspenseContextComp
+                            fallback={<RootSuspenseFallback />}
                           >
-                            {{
-                              path: '/',
-                              component: TauriRouteListener,
-                              children: ROUTES,
-                            }}
-                          </IsomorphicRouter>
-                        </SuspenseContextComp>
+                            <IsomorphicRouter
+                              transformUrl={transformShortIdInUrlPathname}
+                              root={Layout}
+                              rootPreload={rootPreload}
+                              base={ROUTER_BASE}
+                            >
+                              {{
+                                path: '/',
+                                component: TauriRouteListener,
+                                children: ROUTES,
+                              }}
+                            </IsomorphicRouter>
+                          </SuspenseContextComp>
+                        </KnownErrorBoundary>
                         <ToastRegion />
                       </SearchProvider>
                     </QuickAccessProvider>
