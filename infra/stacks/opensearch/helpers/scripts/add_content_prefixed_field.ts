@@ -9,11 +9,7 @@ import {
 } from '../constants';
 import { copyFieldData } from '../utils/copy_field';
 
-const INDICES_TO_UPDATE = [
-  DOCUMENT_INDEX,
-  CHAT_INDEX,
-  CHANNEL_INDEX,
-];
+const INDICES_TO_UPDATE = [DOCUMENT_INDEX, CHAT_INDEX, CHANNEL_INDEX];
 
 async function addContentPrefixedField(dryRun: boolean) {
   const opensearchClient = client();
@@ -26,12 +22,8 @@ async function addContentPrefixedField(dryRun: boolean) {
   console.log(
     '\nThis script adds a text field with index_prefixes to eliminate'
   );
-  console.log(
-    'the max_expansions limit on match_phrase_prefix queries.'
-  );
-  console.log(
-    "It replaces the slow wildcard(*foo*) query pattern.\n"
-  );
+  console.log('the max_expansions limit on match_phrase_prefix queries.');
+  console.log('It replaces the slow wildcard(*foo*) query pattern.\n');
   console.log(
     "Safe to run multiple times - backfill only updates documents where the new field doesn't exist."
   );
