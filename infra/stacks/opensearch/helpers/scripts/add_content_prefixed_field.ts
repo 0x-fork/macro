@@ -5,7 +5,6 @@ import {
   CHANNEL_INDEX,
   CHAT_INDEX,
   DOCUMENT_INDEX,
-  EMAIL_ALIAS,
   IS_DRY_RUN,
 } from '../constants';
 import { copyFieldData } from '../utils/copy_field';
@@ -14,7 +13,6 @@ const INDICES_TO_UPDATE = [
   DOCUMENT_INDEX,
   CHAT_INDEX,
   CHANNEL_INDEX,
-  EMAIL_ALIAS,
 ];
 
 async function addContentPrefixedField(dryRun: boolean) {

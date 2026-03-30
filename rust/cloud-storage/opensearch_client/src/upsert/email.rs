@@ -45,8 +45,6 @@ pub struct UpsertEmailArgs {
     pub sent_at_seconds: Option<EpochSeconds>,
     /// The content of the email message
     pub content: String,
-    /// Content with index_prefixes for efficient match_phrase_prefix queries
-    pub content_prefixed: String,
 }
 
 #[tracing::instrument(skip(client))]

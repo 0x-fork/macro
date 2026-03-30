@@ -356,14 +356,6 @@ async function createEmailIndex(opensearchClient: Client) {
               type: 'text',
               analyzer: 'standard',
             },
-            content_prefixed: {
-              type: 'text',
-              analyzer: 'standard',
-              index_prefixes: {
-                min_chars: 2,
-                max_chars: 5,
-              },
-            },
           },
         },
       },
