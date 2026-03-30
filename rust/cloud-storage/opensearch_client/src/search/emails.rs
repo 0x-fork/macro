@@ -14,6 +14,7 @@ pub(crate) struct EmailSearchConfig;
 impl SearchQueryConfig for EmailSearchConfig {
     const USER_ID_KEY: &'static str = "user_id";
     const TITLE_KEY: &'static str = "name";
+    const CONTENT_PREFIXED_KEY: &'static str = "content";
     const ENTITY_INDEX: SearchEntityType = SearchEntityType::Emails;
 }
 
