@@ -248,6 +248,7 @@ impl From<Hit<UnifiedSearchIndex>> for SearchHit {
                             Keys {
                                 title_key: ChannelMessageSearchConfig::TITLE_KEY,
                                 content_key: ChannelMessageSearchConfig::CONTENT_KEY,
+                                content_prefixed_key: ChannelMessageSearchConfig::CONTENT_PREFIXED_KEY,
                             },
                         )
                     })
@@ -275,6 +276,7 @@ impl From<Hit<UnifiedSearchIndex>> for SearchHit {
                             Keys {
                                 title_key: DocumentSearchConfig::TITLE_KEY,
                                 content_key: DocumentSearchConfig::CONTENT_KEY,
+                                content_prefixed_key: DocumentSearchConfig::CONTENT_PREFIXED_KEY,
                             },
                         )
                     })
@@ -299,6 +301,7 @@ impl From<Hit<UnifiedSearchIndex>> for SearchHit {
                             Keys {
                                 title_key: EmailSearchConfig::TITLE_KEY,
                                 content_key: EmailSearchConfig::CONTENT_KEY,
+                                content_prefixed_key: EmailSearchConfig::CONTENT_PREFIXED_KEY,
                             },
                         )
                     })
@@ -330,6 +333,7 @@ impl From<Hit<UnifiedSearchIndex>> for SearchHit {
                             Keys {
                                 title_key: ChatSearchConfig::TITLE_KEY,
                                 content_key: ChatSearchConfig::CONTENT_KEY,
+                                content_prefixed_key: ChatSearchConfig::CONTENT_PREFIXED_KEY,
                             },
                         )
                     })
@@ -416,14 +420,18 @@ fn build_unified_search_request(args: &UnifiedSearchArgs) -> Result<SearchReques
         search_request_builder.add_sort(sort);
     }
 
-    let highlight = Highlight::new().require_field_match(true).field(
-        "content",
-        HighlightField::new()
-            .highlight_type("plain")
-            .pre_tags(vec![MacroEm::Open.to_string()])
-            .post_tags(vec![MacroEm::Close.to_string()])
-            .number_of_fragments(1),
-    );
+    let highlight_field = HighlightField::new()
+        .pre_tags(vec![MacroEm::Open.to_string()])
+        .post_tags(vec![MacroEm::Close.to_string()])
+        .number_of_fragments(1);
+
+    let highlight = Highlight::new()
+        .require_field_match(true)
+        .field("content", highlight_field.clone().highlight_type("plain"))
+        .field(
+            "content_prefixed",
+            highlight_field.highlight_type("unified"),
+        );
 
     search_request_builder.highlight(highlight);
 

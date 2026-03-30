@@ -469,6 +469,12 @@ fn test_build_unified_search_request_content() -> anyhow::Result<()> {
             "post_tags": ["</macro_em>"],
             "pre_tags": ["<macro_em>"],
             "type": "plain"
+          },
+          "content_prefixed": {
+            "number_of_fragments": 1,
+            "post_tags": ["</macro_em>"],
+            "pre_tags": ["<macro_em>"],
+            "type": "unified"
           }
         },
         "require_field_match": true
@@ -868,6 +874,12 @@ fn test_build_unified_search_request_single_index() -> anyhow::Result<()> {
             "post_tags": ["</macro_em>"],
             "pre_tags": ["<macro_em>"],
             "type": "plain"
+          },
+          "content_prefixed": {
+            "number_of_fragments": 1,
+            "post_tags": ["</macro_em>"],
+            "pre_tags": ["<macro_em>"],
+            "type": "unified"
           }
         },
         "require_field_match": true

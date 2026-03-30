@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 use serde_json::{Map, Value};
 
+use crate::QueryType;
 use crate::ToOpenSearchJson;
 use crate::util::is_empty_slice;
 
@@ -79,6 +80,9 @@ pub struct HighlightField<'a> {
     /// Post-tags
     #[serde(skip_serializing_if = "is_empty_slice", default, borrow)]
     pub post_tags: Cow<'a, [Cow<'a, str>]>,
+    /// Per-field highlight query override
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub highlight_query: Option<QueryType<'a>>,
 }
 
 impl<'a> Default for HighlightField<'a> {
@@ -95,6 +99,7 @@ impl<'a> HighlightField<'a> {
             number_of_fragments: None,
             pre_tags: Cow::Borrowed(&[]),
             post_tags: Cow::Borrowed(&[]),
+            highlight_query: None,
         }
     }
 
@@ -127,6 +132,12 @@ impl<'a> HighlightField<'a> {
         S: Into<Cow<'a, str>>,
     {
         self.post_tags = post_tags.into_iter().map(|s| s.into()).collect();
+        self
+    }
+
+    /// Set a per-field highlight query
+    pub fn highlight_query(mut self, query: QueryType<'a>) -> Self {
+        self.highlight_query = Some(query);
         self
     }
 }
@@ -165,6 +176,10 @@ impl<'a> ToOpenSearchJson for HighlightField<'a> {
                 .map(|tag| Value::String(tag.to_string()))
                 .collect();
             result.insert("post_tags".to_string(), Value::Array(post_tags));
+        }
+
+        if let Some(ref query) = self.highlight_query {
+            result.insert("highlight_query".to_string(), query.to_json());
         }
 
         Value::Object(result)

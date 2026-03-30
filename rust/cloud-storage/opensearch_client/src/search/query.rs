@@ -12,6 +12,8 @@ pub struct Keys<'a> {
     pub title_key: &'a str,
     /// The content field key
     pub content_key: &'a str,
+    /// The content field with index_prefixes
+    pub content_prefixed_key: &'a str,
 }
 
 /// The different types of ways we can match terms
