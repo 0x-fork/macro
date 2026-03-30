@@ -78,7 +78,6 @@ fn test_build_filter_query() -> anyhow::Result<()> {
 
 #[test]
 fn test_build_contentquery_empty_ids() -> anyhow::Result<()> {
-    // Empty ids ok with ids only false
     let term = vec!["test".to_string()];
     let ids: Vec<String> = vec![];
     let user_id = "user123";
@@ -94,10 +93,8 @@ fn test_build_contentquery_empty_ids() -> anyhow::Result<()> {
         .ids_only(false);
 
     let result = builder.build_content_bool_query();
-
     assert!(result.is_ok());
 
-    // Empty ids fails with ids only true
     let builder = SearchQueryBuilder::<TestSearchConfig>::new(term.clone())
         .match_type("exact")
         .page_size(page_size)
@@ -107,7 +104,6 @@ fn test_build_contentquery_empty_ids() -> anyhow::Result<()> {
         .ids_only(true);
 
     let error = builder.build_content_bool_query().err().unwrap();
-
     assert_eq!(
         OpensearchClientError::EmptyIdsWithIdsOnly(SearchEntityType::Documents),
         error
@@ -124,6 +120,7 @@ fn test_build_bool_query() -> anyhow::Result<()> {
     let page = 1;
     let page_size = 20;
 
+    // exact match uses content field
     let builder = SearchQueryBuilder::<TestSearchConfig>::new(terms.clone())
         .match_type("exact")
         .page_size(page_size)
@@ -135,37 +132,30 @@ fn test_build_bool_query() -> anyhow::Result<()> {
 
     let expected = serde_json::json!({
         "bool": {
-            "must": [
-            {
+            "must": [{
                 "bool": {
                     "minimum_should_match": 1,
-                    "should": [
-                        {
-                            "match_phrase": {
-                                "content": "test"
-                            }
-                        },
-                    ],
+                    "should": [{"match_phrase": {"content": "test"}}],
                 }
-            },
-            ],
+            }],
             "filter": [
-              {
-              "bool": {
-              "minimum_should_match": 1,
-              "should": [
-                {"terms": {"entity_id": ["id1", "id2"]}},
-                {"term": {"test_user_id": "user123"}}
-              ]
-            }
-          },
-          {"term": {"_index": "documents"}}
-        ]
+                {
+                    "bool": {
+                        "minimum_should_match": 1,
+                        "should": [
+                            {"terms": {"entity_id": ["id1", "id2"]}},
+                            {"term": {"test_user_id": "user123"}}
+                        ]
+                    }
+                },
+                {"term": {"_index": "documents"}}
+            ]
         }
     });
 
     assert_eq!(query.build().to_json(), expected);
 
+    // partial match uses content_prefixed field
     let builder = SearchQueryBuilder::<TestSearchConfig>::new(terms)
         .match_type("partial")
         .page_size(page_size)
@@ -178,28 +168,23 @@ fn test_build_bool_query() -> anyhow::Result<()> {
 
     let expected = serde_json::json!({
         "bool": {
-            "must": [
-            {
+            "must": [{
                 "bool": {
                     "minimum_should_match": 1,
-                    "should": [
-                        {
-                            "match_phrase_prefix": {
-                                "content": {
-                                    "query": "test",
-                                    "max_expansions": 256
-                                }
+                    "should": [{
+                        "match_phrase_prefix": {
+                            "content_prefixed": {
+                                "query": "test"
                             }
-                        },
-                    ],
+                        }
+                    }],
                 }
-            },
-            ],
+            }],
             "filter": [
                 {"terms": {"entity_id": ["id1", "id2"]}},
                 {"term": {"_index": "documents"}}
-        ]
-    }
+            ]
+        }
     });
 
     assert_eq!(query.build().to_json(), expected);
@@ -212,31 +197,18 @@ fn test_build_must_term_query() -> anyhow::Result<()> {
     let terms = vec!["test".to_string()];
 
     let builder = SearchQueryBuilder::<TestSearchConfig>::new(terms.clone()).match_type("exact");
-
     let terms_must_vec = builder.build_must_term_query()?;
 
-    let expected = serde_json::json!({
-        "match_phrase": {
-            "content": "test"
-        }
-    });
-
+    let expected = serde_json::json!({"match_phrase": {"content": "test"}});
     assert_eq!(terms_must_vec.len(), 1);
     assert_eq!(terms_must_vec[0].to_json(), expected);
 
     let builder = SearchQueryBuilder::<TestSearchConfig>::new(terms.clone()).match_type("partial");
-
     let terms_must_vec = builder.build_must_term_query()?;
 
     let expected = serde_json::json!({
-        "match_phrase_prefix": {
-            "content": {
-                "query": "test",
-                "max_expansions": 256
-            }
-        }
+        "match_phrase_prefix": {"content_prefixed": {"query": "test"}}
     });
-
     assert_eq!(terms_must_vec.len(), 1);
     assert_eq!(terms_must_vec[0].to_json(), expected);
 
@@ -248,23 +220,14 @@ fn test_build_must_term_query_multiple_terms() -> anyhow::Result<()> {
     let terms = vec!["test1".to_string(), "test2".to_string()];
 
     let builder = SearchQueryBuilder::<TestSearchConfig>::new(terms.clone()).match_type("exact");
-
     let terms_must_vec = builder.build_must_term_query()?;
 
     let expected = serde_json::json!({
         "bool": {
             "minimum_should_match": 1,
             "should": [
-                {
-                    "match_phrase": {
-                        "content": "test1"
-                    }
-                },
-                {
-                    "match_phrase": {
-                        "content": "test2"
-                    }
-                }
+                {"match_phrase": {"content": "test1"}},
+                {"match_phrase": {"content": "test2"}}
             ]
         }
     });
@@ -284,9 +247,8 @@ fn test_build_must_term_query_short_last_word_no_wildcard() -> anyhow::Result<()
 
     let expected = serde_json::json!({
         "match_phrase_prefix": {
-            "content": {
-                "query": "test Ab",
-                "max_expansions": 256
+            "content_prefixed": {
+                "query": "test Ab"
             }
         }
     });

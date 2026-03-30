@@ -103,6 +103,7 @@ pub async fn process_upsert_message(
             .iter()
             .map(|label| label.name.clone())
             .collect(),
+        content_prefixed: content.clone(),
         content,
         updated_at_seconds: updated_at,
         sent_at_seconds: message_info
@@ -213,6 +214,7 @@ pub async fn process_upsert_thread_message(
                         .iter()
                         .map(|label| label.name.clone())
                         .collect(),
+                    content_prefixed: content.clone(),
                     content,
                     updated_at_seconds: updated_at,
                     sent_at_seconds: sent_at,
@@ -328,6 +330,7 @@ pub async fn process_upsert_thread_batch_message(
                     .iter()
                     .map(|label| label.name.clone())
                     .collect(),
+                content_prefixed: content.clone(),
                 content,
                 updated_at_seconds: updated_at,
                 sent_at_seconds: sent_at,

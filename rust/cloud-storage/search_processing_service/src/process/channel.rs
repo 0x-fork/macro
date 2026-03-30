@@ -44,6 +44,7 @@ pub async fn process_channel_message_update(
             .map(|id| id.to_string()),
         sender_id: channel_message_info.channel_message.sender_id,
         mentions: channel_message_info.channel_message.mentions,
+        content_prefixed: transformed_content.0.trim().to_string(),
         content: transformed_content.0.trim().to_string(),
         created_at_seconds: EpochSeconds::new(
             channel_message_info.channel_message.created_at.timestamp(),

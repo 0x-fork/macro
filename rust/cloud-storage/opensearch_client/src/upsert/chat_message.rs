@@ -22,6 +22,8 @@ pub struct UpsertChatMessageArgs {
     pub title: String,
     /// The content of the chat message
     pub content: String,
+    /// Content with index_prefixes for efficient match_phrase_prefix queries
+    pub content_prefixed: String,
 }
 
 #[tracing::instrument(skip(client))]

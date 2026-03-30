@@ -24,21 +24,18 @@ fn test_query_key_from_match_type() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_query_key_create_query() -> anyhow::Result<()> {
-    let field = "test";
-    let term = "test";
-    let query_key = QueryKey::from_match_type("exact")?;
-
+fn test_query_key_create_query_exact() -> anyhow::Result<()> {
     let expected = serde_json::json!({
         "match_phrase": {
-            "test": "test"
+            "content": "test"
         }
     });
 
     let result = create_query(CreateQueryParams {
-        query_key,
-        field,
-        term,
+        query_key: QueryKey::MatchPhrase,
+        field: "content",
+        prefixed_field: "content_prefixed",
+        term: "test",
     })
     .to_json();
 
@@ -49,22 +46,19 @@ fn test_query_key_create_query() -> anyhow::Result<()> {
 
 #[test]
 fn test_query_key_create_query_partial() -> anyhow::Result<()> {
-    let field = "test";
-    let term = "test Ab";
-
     let expected = serde_json::json!({
         "match_phrase_prefix": {
-            "test": {
-                "query": "test Ab",
-                "max_expansions": 256
+            "content_prefixed": {
+                "query": "test Ab"
             }
         }
     });
 
     let result = create_query(CreateQueryParams {
         query_key: QueryKey::MatchPhrasePrefix,
-        field,
-        term,
+        field: "content",
+        prefixed_field: "content_prefixed",
+        term: "test Ab",
     })
     .to_json();
 
@@ -77,18 +71,24 @@ fn test_query_key_create_query_partial() -> anyhow::Result<()> {
 fn test_generate_terms_must_query() -> anyhow::Result<()> {
     let terms: Cow<'_, [&str]> = Cow::Borrowed(&["test"]);
 
-    let result = generate_terms_must_query(QueryKey::MatchPhrase, "test", terms);
+    let result =
+        generate_terms_must_query(QueryKey::MatchPhrase, "content", "content_prefixed", terms);
 
     let expected = serde_json::json!({
         "match_phrase": {
-            "test": "test"
+            "content": "test"
         }
     });
 
     assert_eq!(result.to_json(), expected);
 
     let terms: Cow<'_, [&str]> = Cow::Borrowed(&["test", "test2"]);
-    let result = generate_terms_must_query(QueryKey::MatchPhrasePrefix, "test", terms);
+    let result = generate_terms_must_query(
+        QueryKey::MatchPhrasePrefix,
+        "content",
+        "content_prefixed",
+        terms,
+    );
 
     let expected = serde_json::json!({
         "bool": {
@@ -96,17 +96,15 @@ fn test_generate_terms_must_query() -> anyhow::Result<()> {
             "should": [
                 {
                     "match_phrase_prefix": {
-                        "test": {
-                            "query": "test",
-                            "max_expansions": 256
+                        "content_prefixed": {
+                            "query": "test"
                         }
                     }
                 },
                 {
                     "match_phrase_prefix": {
-                        "test": {
-                            "query": "test2",
-                            "max_expansions": 256
+                        "content_prefixed": {
+                            "query": "test2"
                         }
                     }
                 }

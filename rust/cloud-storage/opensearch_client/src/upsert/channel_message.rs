@@ -14,6 +14,7 @@ pub struct UpsertChannelMessageArgs {
     pub sender_id: String,
     pub mentions: Vec<String>,
     pub content: String,
+    pub content_prefixed: String,
     pub created_at_seconds: EpochSeconds,
     pub updated_at_seconds: EpochSeconds,
 }

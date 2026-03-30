@@ -29,6 +29,7 @@ pub async fn insert_chat_message(
                 created_at_seconds: EpochSeconds::new(chat_message.created_at.clone().timestamp())?,
                 updated_at_seconds: EpochSeconds::new(chat_message.updated_at.clone().timestamp())?,
                 title,
+                content_prefixed: content.clone(),
                 content,
                 role,
             })

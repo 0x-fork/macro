@@ -25,13 +25,13 @@ pub enum QueryKey {
     Regexp,
 }
 
-const MATCH_PHRASE_PREFIX_MAX_EXPANSIONS: u32 = 256;
-
 pub(crate) struct CreateQueryParams<'a> {
     /// The query key to use
     pub query_key: QueryKey,
     /// The field to search on
     pub field: &'a str,
+    /// The field with index_prefixes for match_phrase_prefix queries
+    pub prefixed_field: &'a str,
     /// The term to search for
     pub term: &'a str,
 }
@@ -41,6 +41,7 @@ pub(crate) fn create_query<'a>(params: CreateQueryParams<'a>) -> QueryType<'a> {
     let CreateQueryParams {
         query_key,
         field,
+        prefixed_field,
         term,
     } = params;
 
@@ -48,10 +49,10 @@ pub(crate) fn create_query<'a>(params: CreateQueryParams<'a>) -> QueryType<'a> {
         QueryKey::MatchPhrase => {
             QueryType::MatchPhrase(MatchPhraseQuery::new(field.to_string(), term.to_string()))
         }
-        QueryKey::MatchPhrasePrefix => QueryType::MatchPhrasePrefix(
-            MatchPhrasePrefixQuery::new(field.to_string(), term.to_string())
-                .max_expansions(MATCH_PHRASE_PREFIX_MAX_EXPANSIONS),
-        ),
+        QueryKey::MatchPhrasePrefix => QueryType::MatchPhrasePrefix(MatchPhrasePrefixQuery::new(
+            prefixed_field.to_string(),
+            term.to_string(),
+        )),
         QueryKey::Regexp => {
             QueryType::Regexp(RegexpQuery::new(field.to_string(), term.to_string()))
         }
@@ -76,17 +77,18 @@ impl QueryKey {
 pub(crate) fn generate_terms_must_query<'a>(
     query_key: QueryKey,
     field: &'a str,
+    prefixed_field: &'a str,
     terms: impl Into<Cow<'a, [&'a str]>>,
 ) -> QueryType<'a> {
     let terms = terms.into();
 
-    // Map terms to queries
     let queries: Vec<_> = terms
         .iter()
         .map(|term| {
             create_query(CreateQueryParams {
                 query_key,
                 field,
+                prefixed_field,
                 term,
             })
         })

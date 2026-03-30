@@ -28,6 +28,8 @@ pub struct UpsertDocumentArgs {
     pub raw_content: Option<String>,
     /// The content of the document
     pub content: String,
+    /// Content with index_prefixes for efficient match_phrase_prefix queries
+    pub content_prefixed: String,
     /// The updated at time of the document
     pub updated_at_seconds: EpochSeconds,
     /// The sub type of the document (e.g. task)

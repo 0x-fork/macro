@@ -82,6 +82,8 @@ pub trait SearchQueryConfig {
     const TITLE_KEY: &'static str;
     /// Content field
     const CONTENT_KEY: &'static str = "content";
+    /// Content field with index_prefixes for match_phrase_prefix queries
+    const CONTENT_PREFIXED_KEY: &'static str = "content_prefixed";
     /// The entity index for the search query
     const ENTITY_INDEX: SearchEntityType;
 }
@@ -242,7 +244,12 @@ impl<T: SearchQueryConfig> SearchQueryBuilder<T> {
         let terms: Cow<'_, [&str]> =
             Cow::Owned(self.terms.iter().map(|t| t.as_str()).collect::<Vec<&str>>());
 
-        let must_array = vec![generate_terms_must_query(query_key, T::CONTENT_KEY, terms)];
+        let must_array = vec![generate_terms_must_query(
+            query_key,
+            T::CONTENT_KEY,
+            T::CONTENT_PREFIXED_KEY,
+            terms,
+        )];
 
         Ok(must_array)
     }
