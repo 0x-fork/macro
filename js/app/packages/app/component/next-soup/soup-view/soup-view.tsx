@@ -88,7 +88,6 @@ import {
   CollapsedSoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
-import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
 import { SettingsButton } from '@app/component/settings/SettingsButton';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import {
@@ -248,7 +247,6 @@ export const SoupView = (props: SoupViewProps) => {
                     }
                     collapsed={<CollapsedSoupViewTabs />}
                   />
-                  <SoupViewCreateButton />
                 </Show>
                 <Show when={narrowSearchExpanded()}>
                   <div class="flex-1 min-w-0">
