@@ -62,8 +62,8 @@ async function createChannelIndex(opensearchClient: Client) {
               type: 'text',
               analyzer: 'standard',
               index_prefixes: {
-                min_chars: 1,
-                max_chars: 10,
+                min_chars: 2,
+                max_chars: 5,
               },
             },
             created_at_seconds: {
@@ -147,8 +147,8 @@ async function createDocumentIndex(opensearchClient: Client) {
               type: 'text',
               analyzer: 'standard',
               index_prefixes: {
-                min_chars: 1,
-                max_chars: 10,
+                min_chars: 2,
+                max_chars: 5,
               },
             },
             updated_at_seconds: {
@@ -233,8 +233,8 @@ async function createChatIndex(opensearchClient: Client) {
               type: 'text',
               analyzer: 'standard',
               index_prefixes: {
-                min_chars: 1,
-                max_chars: 10,
+                min_chars: 2,
+                max_chars: 5,
               },
             },
           },
@@ -360,8 +360,8 @@ async function createEmailIndex(opensearchClient: Client) {
               type: 'text',
               analyzer: 'standard',
               index_prefixes: {
-                min_chars: 1,
-                max_chars: 10,
+                min_chars: 2,
+                max_chars: 5,
               },
             },
           },

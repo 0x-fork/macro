@@ -48,8 +48,8 @@ async function addContentPrefixedField(dryRun: boolean) {
         type: 'text' as const,
         analyzer: 'standard',
         index_prefixes: {
-          min_chars: 1,
-          max_chars: 10,
+          min_chars: 2,
+          max_chars: 5,
         },
       },
     },
