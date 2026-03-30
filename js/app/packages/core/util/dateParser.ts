@@ -274,11 +274,13 @@ export function parseDateString(input: string): ParsedDate | null {
 }
 
 export function formatDate(date: Date): string {
-  // Check if it's today or tomorrow for special formatting
+  // Check if it's today/tomorrow/yesterday for special formatting
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
 
   const dateOnly = new Date(date);
   dateOnly.setHours(0, 0, 0, 0);
@@ -287,6 +289,8 @@ export function formatDate(date: Date): string {
     return 'Today';
   } else if (dateOnly.getTime() === tomorrow.getTime()) {
     return 'Tomorrow';
+  } else if (dateOnly.getTime() === yesterday.getTime()) {
+    return 'Yesterday';
   }
 
   // Calculate if we should show the year
