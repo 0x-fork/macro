@@ -414,7 +414,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       </div>
 
       <nav>
-        <ul class="w-full h-full px-2 flex flex-col gap-1">
+        <ul class="w-full h-full px-2 flex flex-col gap-0">
           <For each={SIDEBAR_LINKS}>
             {(link) => (
               <li class="flex items-center justify-center">
