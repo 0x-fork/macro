@@ -35,11 +35,11 @@ const QUICK_LINKS = [
 ];
 
 const HINTS = [
-  'Double-check the URL for typos.',
-  'This link may have expired.',
-  'The page might have been moved.',
-  'Try searching for what you need.',
-  'Links can be fickle sometimes.',
+  'Check the URL for typos.',
+  'This link may be outdated.',
+  'The page may have been moved or deleted.',
+  'We looked everywhere. No luck.',
+  'This page has left the building.',
 ];
 
 function getRandomHint(): string {
@@ -116,7 +116,7 @@ export function NotFoundPage() {
           </div>
         </div>
 
-        <p class="text-ink-extra-muted text-sm">{hint}</p>
+        <p class="text-ink-extra-muted text-xs">{hint}</p>
       </div>
     </div>
   );
