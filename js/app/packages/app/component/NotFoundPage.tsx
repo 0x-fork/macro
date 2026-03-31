@@ -86,7 +86,7 @@ export function NotFoundPage() {
             variant="accent"
             class="px-6 rounded-xs"
             onClick={() => {
-              window.location.href = window.location.origin + '/app';
+              window.location.href = `${window.location.origin}${ROUTER_BASE_CONCAT}component${LIST_VIEW_PATHS.inbox}`;
             }}
           >
             <AnimatedInboxIcon class="size-5" />
@@ -104,9 +104,7 @@ export function NotFoundPage() {
                   class="rounded-xs"
                   tooltip={`Go to ${link.label}`}
                   onClick={() => {
-                    window.location.href =
-                      window.location.origin +
-                      `${ROUTER_BASE_CONCAT}component${link.href}`;
+                    window.location.href = `${window.location.origin}${ROUTER_BASE_CONCAT}component${link.href}`;
                   }}
                 >
                   <link.icon class="size-5" />
