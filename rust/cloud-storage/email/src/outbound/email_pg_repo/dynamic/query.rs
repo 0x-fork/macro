@@ -27,8 +27,61 @@ enum ThreadCandidateSource {
     Shared,
 }
 
+/// Format a bind value as a SQL literal for debug printing.
+trait SqlLiteral {
+    fn to_sql_literal(&self) -> String;
+}
+
+impl SqlLiteral for String {
+    fn to_sql_literal(&self) -> String {
+        format!("'{}'", self.replace('\'', "''"))
+    }
+}
+
+impl SqlLiteral for Uuid {
+    fn to_sql_literal(&self) -> String {
+        format!("'{}'", self)
+    }
+}
+
+impl SqlLiteral for bool {
+    fn to_sql_literal(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl SqlLiteral for i64 {
+    fn to_sql_literal(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl<T: SqlLiteral> SqlLiteral for Option<T> {
+    fn to_sql_literal(&self) -> String {
+        match self {
+            Some(v) => v.to_sql_literal(),
+            None => "NULL".to_string(),
+        }
+    }
+}
+
+impl SqlLiteral for DateTime<Utc> {
+    fn to_sql_literal(&self) -> String {
+        format!("'{}'", self.to_rfc3339())
+    }
+}
+
+macro_rules! bind_tracked {
+    ($builder:expr, $binds:expr, $val:expr) => {{
+        let val = $val;
+        $binds.push(SqlLiteral::to_sql_literal(&val));
+        $builder.push_bind(val);
+    }};
+}
+
 fn push_thread_candidate_select(
     builder: &mut QueryBuilder<'static, Postgres>,
+    binds: &mut Vec<String>,
     view: &PreviewView,
     email_filter: &Expr<EmailLiteral>,
     params: &QueryParams,
@@ -56,7 +109,7 @@ fn push_thread_candidate_select(
         sort_ts_field
     ));
 
-    builder.push_bind(params.sort_method_str.clone());
+    bind_tracked!(builder, binds, params.sort_method_str.clone());
 
     builder.push(format!(
         r#"
@@ -74,7 +127,7 @@ fn push_thread_candidate_select(
     match source {
         ThreadCandidateSource::Owned => {
             builder.push("t.link_id = ");
-            builder.push_bind(params.link_id);
+            bind_tracked!(builder, binds, params.link_id);
         }
         ThreadCandidateSource::Shared => {
             builder.push("t.id IN (SELECT thread_id FROM SharedEmailThreads)");
@@ -83,11 +136,11 @@ fn push_thread_candidate_select(
 
     let view_thread_filter = build_view_thread_filter(view);
     if !view_thread_filter.is_empty() {
-        view_thread_filter.push_into(builder);
+        view_thread_filter.push_into_tracked(builder, binds);
     }
 
     if has_thread_literals(email_filter) {
-        build_thread_email_filter(email_filter).push_into(builder);
+        build_thread_email_filter(email_filter).push_into_tracked(builder, binds);
     }
 
     builder.push(
@@ -96,14 +149,14 @@ fn push_thread_candidate_select(
                   AND (("#,
     );
 
-    builder.push_bind(params.cursor_timestamp);
+    bind_tracked!(builder, binds, params.cursor_timestamp);
 
     builder.push(
         r#"::timestamptz IS NULL) OR (
                       CASE "#,
     );
 
-    builder.push_bind(params.sort_method_str.clone());
+    bind_tracked!(builder, binds, params.sort_method_str.clone());
 
     builder.push(format!(
         r#"
@@ -115,9 +168,9 @@ fn push_thread_candidate_select(
         sort_ts_field, sort_ts_field
     ));
 
-    builder.push_bind(params.cursor_timestamp);
+    bind_tracked!(builder, binds, params.cursor_timestamp);
     builder.push("::timestamptz, ");
-    builder.push_bind(params.cursor_id_str.clone());
+    bind_tracked!(builder, binds, params.cursor_id_str.clone());
     builder.push("::uuid))");
 }
 
@@ -127,9 +180,10 @@ fn build_query(
     view: &PreviewView,
     email_filter: &Expr<EmailLiteral>,
     params: QueryParams,
-) -> QueryBuilder<'static, Postgres> {
+) -> (QueryBuilder<'static, Postgres>, Vec<String>) {
     let sort_ts_field = get_sort_timestamp_field(view);
     let view_message_filter = build_view_message_filter(view);
+    let mut binds: Vec<String> = Vec::new();
 
     let needs_shared_cte = !matches!(params.shared, SharedEmailFilter::Exclude);
 
@@ -142,7 +196,7 @@ fn build_query(
             JOIN "UserItemAccess" uia ON p.id = uia.item_id AND uia.item_type = 'project'
             WHERE uia.user_id = "#,
         );
-        b.push_bind(params.user_id.clone());
+        bind_tracked!(b, binds, params.user_id.clone());
         b.push(
             r#" AND p."deletedAt" IS NULL
             UNION ALL
@@ -156,7 +210,7 @@ fn build_query(
             FROM "UserItemAccess"
             WHERE user_id = "#,
         );
-        b.push_bind(params.user_id.clone());
+        bind_tracked!(b, binds, params.user_id.clone());
         b.push(
             r#" AND item_type = 'thread'
             UNION
@@ -192,7 +246,7 @@ fn build_query(
                 WHEN "#,
     );
 
-    builder.push_bind(params.is_important);
+    bind_tracked!(builder, binds, params.is_important);
 
     builder.push(
         r#" THEN TRUE
@@ -222,6 +276,7 @@ fn build_query(
     match params.shared {
         SharedEmailFilter::Exclude => push_thread_candidate_select(
             &mut builder,
+            &mut binds,
             view,
             email_filter,
             &params,
@@ -231,6 +286,7 @@ fn build_query(
         SharedEmailFilter::Include => {
             push_thread_candidate_select(
                 &mut builder,
+                &mut binds,
                 view,
                 email_filter,
                 &params,
@@ -244,6 +300,7 @@ fn build_query(
             );
             push_thread_candidate_select(
                 &mut builder,
+                &mut binds,
                 view,
                 email_filter,
                 &params,
@@ -253,6 +310,7 @@ fn build_query(
         }
         SharedEmailFilter::Only => push_thread_candidate_select(
             &mut builder,
+            &mut binds,
             view,
             email_filter,
             &params,
@@ -268,7 +326,7 @@ fn build_query(
             LIMIT "#,
     );
 
-    builder.push_bind(params.query_limit);
+    bind_tracked!(builder, binds, params.query_limit);
 
     builder.push(
         r#"
@@ -291,11 +349,11 @@ fn build_query(
 
     // Add view-specific message filters
     if !view_message_filter.is_empty() {
-        view_message_filter.push_into(&mut builder);
+        view_message_filter.push_into_tracked(&mut builder, &mut binds);
     }
 
     if has_message_literals(email_filter) {
-        build_message_email_filter(email_filter).push_into(&mut builder);
+        build_message_email_filter(email_filter).push_into_tracked(&mut builder, &mut binds);
     }
 
     builder.push(
@@ -311,7 +369,7 @@ fn build_query(
         "#,
     );
 
-    builder
+    (builder, binds)
 }
 
 #[cfg(test)]
@@ -341,6 +399,7 @@ pub(super) fn debug_build_query_sql(
             user_id: "test-user".to_string(),
         },
     )
+    .0
     .build()
     .sql()
     .to_string()
@@ -408,7 +467,7 @@ pub(crate) async fn dynamic_email_thread_cursor(
         PreviewView::StandardLabel(PreviewViewStandardLabel::Important)
     );
 
-    let mut qb = build_query(
+    let (mut qb, binds) = build_query(
         view,
         email_filter,
         QueryParams {
@@ -422,7 +481,20 @@ pub(crate) async fn dynamic_email_thread_cursor(
             user_id: user_id.to_string(),
         },
     );
-    qb.build()
+
+    let query = qb.build();
+
+    {
+        use sqlx::Execute;
+        let mut sql = query.sql().to_string();
+        // Replace $N placeholders in reverse order so $10 is replaced before $1
+        for (i, val) in binds.iter().enumerate().rev() {
+            sql = sql.replace(&format!("${}", i + 1), val);
+        }
+        println!("=== Dynamic Email Query ===\n{}\n=== End Query ===", sql);
+    }
+
+    query
         .try_map(|row| {
             Ok(ThreadPreviewCursorDbRow {
                 id: row.try_get("id")?,

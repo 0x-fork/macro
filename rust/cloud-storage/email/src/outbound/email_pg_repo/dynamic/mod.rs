@@ -115,6 +115,24 @@ impl SqlFragment {
             }
         }
     }
+
+    fn push_into_tracked(self, builder: &mut QueryBuilder<'_, Postgres>, binds: &mut Vec<String>) {
+        for segment in self.segments {
+            match segment {
+                SqlSegment::Raw(s) => {
+                    builder.push(s);
+                }
+                SqlSegment::BindString(s) => {
+                    binds.push(format!("'{}'", s.replace('\'', "''")));
+                    builder.push_bind(s);
+                }
+                SqlSegment::BindUuid(u) => {
+                    binds.push(format!("'{}'", u));
+                    builder.push_bind(u);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
