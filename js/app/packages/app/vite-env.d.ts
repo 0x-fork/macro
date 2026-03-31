@@ -8,6 +8,7 @@ interface ImportMetaEnv {
   readonly VITE_DD_WEB_APP_TOKEN: string;
   readonly VITE_DD_HASH: string;
   readonly VITE_POSTHOG_API_KEY: string;
+  readonly VITE_POSTHOG_API_HOST: string;
 }
 
 interface ImportMeta {

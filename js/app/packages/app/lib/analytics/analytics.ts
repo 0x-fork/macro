@@ -37,7 +37,7 @@ const initializePosthog = (instance: PostHog) => {
   if (!key) return;
 
   instance.init(key, {
-    api_host: 'https://macro-prox.macroverse.workers.dev/i/ph',
+    api_host: import.meta.env.VITE_POSTHOG_API_HOST,
     ui_host: 'https://us.posthog.com',
     defaults: '2026-01-30',
   });
