@@ -45,6 +45,7 @@ jobs:
           VITE_DD_HASH: ${{ github.sha }}
           VITE_SEGMENT_WRITE_KEY: ${{ secrets.SEGMENT_WRITE_KEY_PRODUCTION }}
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v5

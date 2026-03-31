@@ -38,4 +38,5 @@ jobs:
       DD_WEB_APP_TOKEN: ${{ secrets.DD_WEB_APP_TOKEN }}
       SEGMENT_WRITE_KEY: ${{ secrets.SEGMENT_WRITE_KEY_PRODUCTION }}
       POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+      POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
       NPMRC_GH_TOKEN: ${{ secrets.NPMRC_GH_TOKEN }}
