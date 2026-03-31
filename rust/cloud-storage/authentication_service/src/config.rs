@@ -82,7 +82,7 @@ pub struct Config {
     /// Meta test event code for testing (optional)
     pub meta_test_event_code: Option<String>,
 
-    /// PostHog API key (optional)
+    /// PostHog project key (optional, NOT your personal api key)
     pub posthog_api_key: Option<String>,
     /// PostHog host (optional)
     pub posthog_host: Option<String>,
