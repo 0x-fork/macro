@@ -99,15 +99,15 @@ export function NotFoundPage() {
             <For each={QUICK_LINKS}>
               {(link) => (
                 <Button
-                  as="a"
                   variant="ghost"
                   size="icon-md"
                   class="rounded-xs"
                   tooltip={`Go to ${link.label}`}
-                  href={`${ROUTER_BASE_CONCAT}component${link.href}`}
-                  // onClick={() => {
-                  //   window.location.href = window.location.origin + link.href;
-                  // }}
+                  onClick={() => {
+                    window.location.href =
+                      window.location.origin +
+                      `${ROUTER_BASE_CONCAT}component${link.href}`;
+                  }}
                 >
                   <link.icon class="size-5" />
                 </Button>
