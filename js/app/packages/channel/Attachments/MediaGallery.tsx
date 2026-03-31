@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, Show } from 'solid-js';
+import { createSignal, createUniqueId, onCleanup, Show } from 'solid-js';
 import ChevronDownIcon from '@icon/regular/caret-down.svg';
 import { MediaGrid } from '@channel/Media/MediaGrid';
 import { MediaViewerDialog } from '@channel/Media/MediaViewerDialog';
@@ -12,6 +12,7 @@ export function MediaGallery(props: {
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
 }) {
+  const galleryId = createUniqueId();
   const [expanded, setExpanded] = createSignal(false);
   const [containerWidth, setContainerWidth] = createSignal(0);
   const [lightboxIndex, setLightboxIndex] = createSignal(0);
@@ -39,10 +40,13 @@ export function MediaGallery(props: {
           <button
             type="button"
             class="flex items-center gap-1 text-xs font-medium text-ink-muted/70 hover:text-ink-muted transition-colors"
+            aria-controls={galleryId}
+            aria-expanded={expanded()}
             onClick={() => setExpanded((prev) => !prev)}
           >
             {expanded() ? 'Show less' : 'See all'}
             <ChevronDownIcon
+              aria-hidden="true"
               class="w-3 h-3 transition-transform"
               classList={{ 'rotate-180': expanded() }}
             />
@@ -60,6 +64,9 @@ export function MediaGallery(props: {
         <Show when={hasMedia()}>
           <div>
             <div
+              id={galleryId}
+              aria-label="Photos and videos gallery"
+              data-expanded={expanded() ? 'true' : 'false'}
               class="flex flex-row flex-wrap gap-1.5 overflow-hidden transition-[max-height] duration-200"
               style={{
                 'max-height': expanded() ? 'none' : `${collapsedMaxHeight()}px`,

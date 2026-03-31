@@ -25,7 +25,7 @@ const DOCUMENT_SKELETON_COUNT = 6;
 export function MediaGallerySkeleton() {
   return (
     <AttachmentSection label="Photos and videos">
-      <div class="flex flex-row flex-wrap gap-1.5 pt-3">
+      <div class="flex flex-row flex-wrap gap-1.5">
         <For each={Array.from({ length: MEDIA_SKELETON_COUNT })}>
           {() => <ThumbnailSkeleton />}
         </For>
