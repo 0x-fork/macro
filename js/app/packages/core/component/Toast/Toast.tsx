@@ -303,7 +303,7 @@ function ToastContent(props: {
         highlightColor={accentColor()}
         active
         cornerRadius={'8px'}
-        class="relative sm:w-md px-2 sm:p-3 overflow-clip"
+        class="relative w-[90vw] sm:w-md px-2 sm:p-3 overflow-clip"
       >
         <Switch>
           {/* ── Embed layout ── */}
