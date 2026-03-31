@@ -1,24 +1,37 @@
 import { LIST_VIEW_PATHS } from '@app/constants/list-views';
 import { PcNoiseGrid } from '@core/component/PcNoiseGrid';
-import HomeIcon from '@icon/regular/house.svg';
 import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
 import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
 import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
 import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
+import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
 import UnknownIcon from '@macro-icons/pixel/unknown.svg';
 import { logger } from '@observability';
 import { Button } from '@ui/components/Button';
 import { For } from 'solid-js';
+import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 
 const QUICK_LINKS = [
-  { label: 'Inbox', href: LIST_VIEW_PATHS.inbox, icon: AnimatedInboxIcon },
   { label: 'Agents', href: LIST_VIEW_PATHS.agents, icon: AnimatedStarIcon },
   { label: 'Email', href: LIST_VIEW_PATHS.mail, icon: AnimatedEmailIcon },
-  { label: 'Documents', href: LIST_VIEW_PATHS.documents, icon: AnimatedFileMdIcon },
+  {
+    label: 'Documents',
+    href: LIST_VIEW_PATHS.documents,
+    icon: AnimatedFileMdIcon,
+  },
   { label: 'Tasks', href: LIST_VIEW_PATHS.tasks, icon: AnimatedTaskIcon },
-  { label: 'Channels', href: LIST_VIEW_PATHS.channels, icon: AnimatedChannelIcon },
+  {
+    label: 'Channels',
+    href: LIST_VIEW_PATHS.channels,
+    icon: AnimatedChannelIcon,
+  },
+  {
+    label: 'Folders',
+    href: LIST_VIEW_PATHS.folders,
+    icon: AnimatedFolderIcon,
+  },
 ];
 
 const HINTS = [
@@ -68,32 +81,39 @@ export function NotFoundPage() {
           </p>
         </div>
 
-        <Button
-          variant="accent"
-          class="px-6"
-          onClick={() => {
-            window.location.href = window.location.origin + '/app';
-          }}
-        >
-          <HomeIcon class="size-5" />
-          Take me home
-        </Button>
+        <div class="flex flex-col gap-4 items-center justify-center">
+          <Button
+            variant="accent"
+            class="px-6 rounded-xs"
+            onClick={() => {
+              window.location.href = window.location.origin + '/app';
+            }}
+          >
+            <AnimatedInboxIcon class="size-5" />
+            Back to inbox
+          </Button>
 
-        <div class="flex gap-2">
-          <For each={QUICK_LINKS}>
-            {(link) => (
-              <Button
-                variant="ghost"
-                size="icon-md"
-                tooltip={link.label}
-                onClick={() => {
-                  window.location.href = window.location.origin + link.href;
-                }}
-              >
-                <link.icon class="size-5" />
-              </Button>
-            )}
-          </For>
+          <span class="font-mono">OR</span>
+
+          <div class="flex gap-2">
+            <For each={QUICK_LINKS}>
+              {(link) => (
+                <Button
+                  as="a"
+                  variant="ghost"
+                  size="icon-md"
+                  class="rounded-xs"
+                  tooltip={`Go to ${link.label}`}
+                  href={`${ROUTER_BASE_CONCAT}component${link.href}`}
+                  // onClick={() => {
+                  //   window.location.href = window.location.origin + link.href;
+                  // }}
+                >
+                  <link.icon class="size-5" />
+                </Button>
+              )}
+            </For>
+          </div>
         </div>
 
         <p class="text-ink-extra-muted text-sm">{hint}</p>
