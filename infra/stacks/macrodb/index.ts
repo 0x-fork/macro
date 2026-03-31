@@ -94,6 +94,7 @@ const readReplica = enableReadReplica
         applyImmediately: stack !== 'prod',
         identifier: `macro-db-${stack}-read-replica`,
         replicateSourceDb: database.identifier,
+        availabilityZone: database.availabilityZone,
         instanceClass: config.require('read_replica_instance_size'),
         storageType: config.require('storage_type'),
         iops: config.getNumber('storage_iops'),
@@ -122,7 +123,7 @@ const readReplica = enableReadReplica
           role: 'read-replica',
         },
       },
-      { dependsOn: [database] }
+      { dependsOn: [database], deleteBeforeReplace: true }
     )
   : undefined;
 
