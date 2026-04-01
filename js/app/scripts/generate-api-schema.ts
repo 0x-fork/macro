@@ -11,6 +11,7 @@ import { $, write } from 'bun';
 import { type Service, services } from './services';
 
 const elapsed = (start: number) => `${((performance.now() - start) / 1000).toFixed(1)}s`;
+const ORVAL_LOG_INTERVAL_MS = 30_000;
 
 // Map service names to Rust crate names
 const serviceToCrate: Record<string, string> = {
@@ -102,10 +103,40 @@ const getServicesToProcess = (targetServices: string[]) => {
     servicesToProcess = services;
   }
 
-  return servicesToProcess
+  return servicesToProcess;
+};
+
+let orvalQueue: Promise<void> = Promise.resolve();
+
+async function runOrvalProject(
+  service: Service,
+  { serviceClientsDir }: { serviceClientsDir: string },
+): Promise<void> {
+  console.log(
+    `[${service.name}] Queued Orval project "${service.orvalKey}" for sequential execution`,
+  );
+
+  const queuedRun = orvalQueue.then(async () => {
+    const stepStart = performance.now();
+    console.log(`[${service.name}] Starting Orval project "${service.orvalKey}"...`);
+
+    const heartbeat = setInterval(() => {
+      console.log(
+        `[${service.name}] Orval project "${service.orvalKey}" still running (${elapsed(stepStart)})`,
+      );
+    }, ORVAL_LOG_INTERVAL_MS);
+
+    try {
+      await $`cd ${serviceClientsDir} && bun run orval --config orval.config.ts --project ${service.orvalKey}`.quiet();
+      console.log(`[${service.name}] Orval finished (${elapsed(stepStart)})`);
+    } finally {
+      clearInterval(heartbeat);
+    }
+  });
+
+  orvalQueue = queuedRun.catch(() => {});
+  await queuedRun;
 }
-
-
 // Process a single service (assumes binary is already built)
 const processService = async (service: Service, { serviceClientsDir }: { serviceClientsDir: string }) => {
   const crateName = serviceToCrate[service.name];
@@ -133,10 +164,8 @@ const processService = async (service: Service, { serviceClientsDir }: { service
     await write(openApiPath, openApiJson);
     console.log(`[${service.name}] Saved OpenAPI spec`);
 
-    // Run orval to generate types
-    stepStart = performance.now();
-    await $`cd ${serviceClientsDir} && bun run orval --config orval.config.ts --project ${service.orvalKey}`.quiet();
-    console.log(`[${service.name}] Orval finished (${elapsed(stepStart)})`);
+    // Run Orval sequentially because concurrent invocations can hang nondeterministically.
+    await runOrvalProject(service, { serviceClientsDir });
 
     // Special handling for document-cognition
     if (service.name === 'document-cognition') {
@@ -164,8 +193,6 @@ const processService = async (service: Service, { serviceClientsDir }: { service
     return { service: service.name, status: 'failed' as const, error };
   }
 };
-
-
 async function main() {
   const serviceClientsDir = getServiceClientsDir();
   const checkMode = process.argv.includes('--check');
@@ -184,8 +211,9 @@ async function main() {
   await buildOpenApiBinaries(crateNames);
   console.log(`Phase 1 (cargo build) total: ${elapsed(buildStart)}`);
 
-  // Phase 2: Run binaries and generate TypeScript in parallel
+  // Phase 2: Run OpenAPI binaries in parallel while serializing Orval generation.
   console.log('\nGenerating TypeScript clients...\n');
+  console.log('Orval projects will run sequentially to avoid concurrent generation hangs.\n');
   const results = await Promise.all(
     servicesToProcess.map(service => processService(service, { serviceClientsDir }))
   );
