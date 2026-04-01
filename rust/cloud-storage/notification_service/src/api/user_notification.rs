@@ -170,7 +170,9 @@ async fn list_typed_notifications<S: ::notification::domain::service::Notificati
     State(state): State<::notification::inbound::http::NotificationRouterState<S>>,
     macro_user: model_user::axum_extractor::MacroUserExtractor,
     query: axum::extract::Query<::notification::inbound::http::Params>,
-    cursor: models_pagination::CursorExtractor<uuid::Uuid, models_pagination::CreatedAt, ()>,
+    cursor: Option<
+        models_pagination::CursorWithValAndFilter<uuid::Uuid, models_pagination::CreatedAt, ()>,
+    >,
 ) -> Result<
     axum::Json<GetAllUserNotificationsResponse>,
     (
@@ -236,7 +238,8 @@ where
 
             (err_str.contains("channel_message_document")
                 || err_str.contains("missing field `toEmail`")
-                || err_str.contains("missing field `sender`"))
+                || err_str.contains("missing field `sender`")
+                || err_str.contains("missing field `threadId`"))
             .then_some(uuid)
         }
 
@@ -275,7 +278,9 @@ async fn bulk_get_typed_notifications_by_event_item_ids<
     state: axum::extract::State<::notification::inbound::http::NotificationRouterState<S>>,
     macro_user: model_user::axum_extractor::MacroUserExtractor,
     query: axum::extract::Query<::notification::inbound::http::Params>,
-    cursor: models_pagination::CursorExtractor<uuid::Uuid, models_pagination::CreatedAt, ()>,
+    cursor: Option<
+        models_pagination::CursorWithValAndFilter<uuid::Uuid, models_pagination::CreatedAt, ()>,
+    >,
     body: axum::Json<::notification::inbound::http::BulkGetByEventItemIdsRequest>,
 ) -> Result<
     axum::Json<GetAllUserNotificationsResponse>,
@@ -329,7 +334,9 @@ async fn get_typed_by_event_item_id<S: ::notification::domain::service::Notifica
     macro_user: model_user::axum_extractor::MacroUserExtractor,
     path: axum::extract::Path<::notification::inbound::http::EventItemIdPath>,
     query: axum::extract::Query<::notification::inbound::http::Params>,
-    cursor: models_pagination::CursorExtractor<uuid::Uuid, models_pagination::CreatedAt, ()>,
+    cursor: Option<
+        models_pagination::CursorWithValAndFilter<uuid::Uuid, models_pagination::CreatedAt, ()>,
+    >,
 ) -> Result<
     axum::Json<GetAllUserNotificationsResponse>,
     (

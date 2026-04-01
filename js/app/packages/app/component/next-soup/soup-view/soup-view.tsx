@@ -86,9 +86,11 @@ import type { FilterID } from '@app/component/next-soup/filters';
 import {
   SoupViewTabs,
   CollapsedSoupViewTabs,
+  MobileSoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
 import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
+import { MobileFilterDrawer } from '@app/component/next-soup/soup-view/filters-bar/mobile-filter-drawer';
 import { SettingsButton } from '@app/component/settings/SettingsButton';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import {
@@ -148,6 +150,7 @@ const useSoupNotificationInvalidators = () => {
 };
 
 type PersistedSoupViewState = {
+  version?: number;
   activeTab: string | undefined;
   filters: { and: string[]; or: string[] };
   queryFilters: SoupItemsQueryFilters;
@@ -155,6 +158,8 @@ type PersistedSoupViewState = {
   previewEntity: string | undefined;
   assigneeFilter: string[];
 };
+
+const PERSISTED_STATE_VERSION = 1;
 
 // Tracks how many SoupViewList instances are mounted per contentId.
 // Used to detect duplicate splits showing the same view.
@@ -174,6 +179,7 @@ interface SoupViewProps {
   viewName: string;
   initialClientFilters?: { and?: FilterID[]; or?: FilterID[] };
   queryFilters?: SoupItemsQueryFilters;
+  disableLocalSearch?: boolean;
 }
 
 export const SoupView = (props: SoupViewProps) => {
@@ -219,7 +225,11 @@ export const SoupView = (props: SoupViewProps) => {
           soup.previewEntity() ? { side: 'left', percentage: 30 } : undefined,
       }}
     >
-      <SoupViewContextProvider soup={soup} queryFilters={props.queryFilters}>
+      <SoupViewContextProvider
+        soup={soup}
+        queryFilters={props.queryFilters}
+        disableLocalSearch={props.disableLocalSearch}
+      >
         <div class="size-full flex flex-col">
           <div class="flex flex-col w-full">
             <SplitHeaderLeft>
@@ -235,17 +245,20 @@ export const SoupView = (props: SoupViewProps) => {
                   </h1>
                 </Show>
                 <Show when={!narrowSearchExpanded()}>
-                  <CollapsibleHeaderItem
-                    id="tabs"
-                    priority={1}
-                    expanded={
-                      <div classList={{ 'pr-1': isMobile() }}>
-                        <SoupViewTabs />
-                      </div>
-                    }
-                    collapsed={<CollapsedSoupViewTabs />}
-                  />
-                  <SoupViewCreateButton />
+                  <Show when={!isMobile()}>
+                    <CollapsibleHeaderItem
+                      id="tabs"
+                      priority={1}
+                      expanded={<SoupViewTabs />}
+                      collapsed={<CollapsedSoupViewTabs />}
+                    />
+                  </Show>
+                  <Show when={!isMobile()}>
+                    <SoupViewCreateButton />
+                  </Show>
+                  <Show when={isMobile()}>
+                    <MobileFilterDrawer />
+                  </Show>
                 </Show>
                 <Show when={narrowSearchExpanded()}>
                   <div class="flex-1 min-w-0">
@@ -259,7 +272,7 @@ export const SoupView = (props: SoupViewProps) => {
               </div>
             </SplitHeaderLeft>
             <SplitHeaderRight>
-              <Show when={isMobile()}>
+              <Show when={isMobile() && !narrowSearchExpanded()}>
                 <SettingsButton />
               </Show>
               <Show when={!isComponentListView('search')}>
@@ -286,7 +299,7 @@ export const SoupView = (props: SoupViewProps) => {
                           class="p-1 rounded-xs"
                           onClick={() => setNarrowSearchExpanded(true)}
                         >
-                          <SearchIcon class="size-4" />
+                          <SearchIcon class="size-4 touch:size-6" />
                         </Button>
                       </Tooltip>
                     </Show>
@@ -313,6 +326,9 @@ export const SoupView = (props: SoupViewProps) => {
               </SoupViewFileDropzone>
             </Suspense>
           </div>
+          <Show when={isMobile()}>
+            <MobileSoupViewTabs />
+          </Show>
         </div>
         <Suspense>
           <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
@@ -653,11 +669,26 @@ export const SoupViewList = (props: SoupViewListProps) => {
   // Set initial state
   onMount(() => {
     if (initialPersistedState) {
+      const isStale =
+        (initialPersistedState.version ?? 0) < PERSISTED_STATE_VERSION;
+      const applied =
+        isStale &&
+        isListViewID(contentId) &&
+        initialPersistedState.activeTab &&
+        applyTabPreset(contentId, initialPersistedState.activeTab);
+      if (!applied) {
+        batch(() => {
+          soup.filters.set(
+            isStale
+              ? (props.initialClientFilters ?? { and: [], or: [] })
+              : (initialPersistedState.filters ?? { and: [], or: [] })
+          );
+          setQueryFilters(initialPersistedState.queryFilters ?? {});
+          setActiveTab(initialPersistedState.activeTab);
+        });
+      }
       batch(() => {
-        soup.filters.set(initialPersistedState.filters ?? { and: [], or: [] });
-        setQueryFilters(initialPersistedState.queryFilters ?? {});
         soup.sort.setAll(initialPersistedState.sort ?? []);
-        setActiveTab(initialPersistedState.activeTab);
         setAssigneeFilter(initialPersistedState.assigneeFilter ?? []);
       });
     } else {
@@ -671,6 +702,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     on(
       () =>
         ({
+          version: PERSISTED_STATE_VERSION,
           activeTab: activeTab(),
           filters: {
             and: soup.filters.andFilters().map((f) => f.id),
