@@ -1,5 +1,5 @@
 pub use macro_env::Environment;
-use macro_env_var::env_var;
+use macro_env_var::{env_var, maybe_env_var};
 use secretsmanager_client::LocalOrRemoteSecret;
 
 /// The configuration parameters for the application.
@@ -39,6 +39,7 @@ pub struct Config {
 env_var! {
     struct EnvVars {
         pub DatabaseUrl,
+        pub DatabaseUrlReadonly,
         pub DocumentStorageBucket,
         pub DocxDocumentUploadBucket,
         pub DocumentDeleteQueue,
@@ -60,7 +61,15 @@ env_var! {
         pub ContactsQueue,
         pub GithubSyncAppUrl,
         pub GithubSyncAppClientId,
+        pub LivekitServerUrl,
+        pub LivekitApiKey,
+        pub LivekitApiSecret,
     }
+}
+
+maybe_env_var! {
+    /// Optional name of the LiveKit agent to dispatch for call transcription.
+    pub struct LivekitTranscriptionAgentName;
 }
 
 env_var! { struct Port; }

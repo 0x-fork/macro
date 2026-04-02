@@ -55,7 +55,7 @@ function MobileDockButton(props: MobileDockButtonProps) {
       onTouchMove={props.onTouchMove}
       onTouchEnd={props.onTouchEnd}
       class={cn(
-        'flex flex-col items-center justify-center flex-1 pt-3 pb-2 bg-page border-t border-edge-muted',
+        'flex flex-col items-center justify-center flex-1 pt-3 pb-2 bg-panel border-t border-edge-muted',
         props.active && 'text-accent'
       )}
     >
@@ -142,7 +142,7 @@ function FloatingCreateButton(props: {
     <Show when={createAction()}>
       <button
         type="button"
-        class="absolute bottom-full right-4 mb-14 w-11 h-11 rounded-full bg-page text-accent flex items-center justify-center shadow-lg"
+        class="absolute bottom-full right-4 mb-14 w-11 h-11 rounded-full bg-panel text-accent flex items-center justify-center shadow-lg"
         onPointerDown={() => {
           impactFeedback('light');
           setAnimating(true);
@@ -187,7 +187,7 @@ export function MobileDock() {
 
   return (
     <div class="relative z-mobile-nav-bar flex flex-row justify-between">
-      <div class="-z-1 absolute left-0 top-0 right-0 w-screen h-40 bg-page" />
+      <div class="-z-1 absolute left-0 top-0 right-0 w-screen h-40 bg-panel" />
       <FloatingCreateButton activeView={activeView} />
       <MobileDockButton
         icon={AnimatedInboxIcon}

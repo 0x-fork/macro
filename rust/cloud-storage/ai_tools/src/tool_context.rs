@@ -9,7 +9,10 @@ use documents::{
     inbound::toolset::DocumentToolContext,
     outbound::{pg_document_repo::PgDocumentRepo, s3_upload_url::S3UploadUrlAdapter},
 };
-use email::{domain::service::EmailServiceImpl, outbound::EmailPgRepo};
+use email::{
+    domain::{ports::ReadonlyEmailPreviewAdapter, service::EmailServiceImpl},
+    outbound::EmailPgRepo,
+};
 use entity_access::{domain::service::EntityAccessServiceImpl, outbound::PgAccessRepository};
 use frecency::{domain::services::FrecencyQueryServiceImpl, outbound::postgres::FrecencyPgStorage};
 use properties::inbound::toolset::PropertiesToolContext;
@@ -32,12 +35,8 @@ pub type ToolScribe =
 pub type ToolFrecencyService = FrecencyQueryServiceImpl<FrecencyPgStorage>;
 
 /// Type alias for the email service implementation
-pub type ToolEmailService = EmailServiceImpl<
-    EmailPgRepo,
-    ToolFrecencyService,
-    email::domain::ports::NoOpEnqueuer,
-    email::domain::ports::NoOpGmailLabelModifier,
->;
+pub type ToolEmailService =
+    EmailServiceImpl<EmailPgRepo, ToolFrecencyService, email::domain::ports::NoOpEnqueuer>;
 
 /// Type alias for the comms/channels service implementation
 pub type ToolCommsService = ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage>;
@@ -93,8 +92,12 @@ pub type ToolDocumentToolContext =
     DocumentToolContext<ToolDocumentService, ToolEntityAccessService>;
 
 /// Type alias for the soup service implementation
-pub type ToolSoupService =
-    SoupImpl<PgSoupRepo, ToolFrecencyService, ToolEmailService, ToolCommsService>;
+pub type ToolSoupService = SoupImpl<
+    PgSoupRepo,
+    ToolFrecencyService,
+    ReadonlyEmailPreviewAdapter<ToolEmailService>,
+    ToolCommsService,
+>;
 
 /// No-op notification service for properties (tools don't send assignment notifications)
 #[derive(Clone)]

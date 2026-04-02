@@ -8,6 +8,11 @@ use crate::{
     service::s3::S3,
 };
 use anyhow::Context;
+use call::{
+    domain::service::CallServiceImpl,
+    inbound::axum_router::{CallRouterState, WebhookRouterState},
+    outbound::{livekit_rtc_client::LivekitRtcClient, pg_call_repo::PgCallRepo},
+};
 use channels::{
     domain::service::ChannelMessagesServiceImpl, inbound::axum_router::ChannelsRouterState,
     outbound::pg_channels_repo::PgChannelMessagesRepo,
@@ -29,7 +34,10 @@ use documents_hex::inbound::axum_router::DocumentRouterState;
 use documents_hex::outbound::pg_document_repo::PgDocumentRepo;
 use documents_hex::outbound::s3_upload_url::S3UploadUrlAdapter;
 use dynamodb_client::DynamodbClient;
-use email::{domain::service::EmailServiceImpl, outbound::EmailPgRepo};
+use email::{
+    domain::{ports::ReadonlyEmailPreviewAdapter, service::EmailServiceImpl},
+    outbound::EmailPgRepo,
+};
 use frecency::{domain::services::FrecencyQueryServiceImpl, outbound::postgres::FrecencyPgStorage};
 use github::domain::service::{GithubSyncConfig, GithubSyncServiceImpl};
 use github::outbound::github_sync_client::GithubSyncClientImpl;
@@ -113,6 +121,22 @@ async fn main() -> anyhow::Result<()> {
         max_connections,
         "initialized db connection"
     );
+
+    let readonly_db = match PgPoolOptions::new()
+        .min_connections(min_connections)
+        .max_connections(max_connections)
+        .connect(&config.vars.database_url_readonly)
+        .await
+    {
+        Ok(pool) => {
+            tracing::trace!("initialized readonly db connection");
+            pool
+        }
+        Err(e) => {
+            tracing::warn!(error=?e, "failed to connect to readonly db, falling back to primary");
+            db.clone()
+        }
+    };
 
     let dynamo_db = aws_sdk_dynamodb::Client::new(&aws_config);
 
@@ -205,9 +229,14 @@ async fn main() -> anyhow::Result<()> {
         EmailPgRepo::new(db.clone()),
         frecency_service.clone(),
         email::domain::ports::NoOpEnqueuer,
-        email::domain::ports::NoOpGmailLabelModifier,
         0,
     );
+    let readonly_email_service = ReadonlyEmailPreviewAdapter(EmailServiceImpl::new(
+        EmailPgRepo::new(readonly_db.clone()),
+        frecency_service.clone(),
+        email::domain::ports::NoOpEnqueuer,
+        0,
+    ));
     let system_properties_service =
         SystemPropertiesServiceImpl::new(PgSystemPropertiesRepository::new(db.clone()));
     let ingress_queue = SqsIngressQueue {
@@ -231,12 +260,12 @@ async fn main() -> anyhow::Result<()> {
 
     // Create the ChannelServiceImpl - we need to create separate instances as it doesn't impl Clone
     let channel_service_for_soup = ChannelServiceImpl::new(
-        PgCommsRepo { pool: db.clone() },
-        PgUserRepo::new(db.clone()),
+        PgCommsRepo::new(readonly_pool::ReadOnlyPool(readonly_db.clone())),
+        PgUserRepo::new(readonly_db.clone()),
         frecency_storage.clone(),
     );
     let channel_service_for_comms = ChannelServiceImpl::new(
-        PgCommsRepo { pool: db.clone() },
+        PgCommsRepo::new(readonly_pool::ReadOnlyPool(db.clone())),
         PgUserRepo::new(db.clone()),
         frecency_storage.clone(),
     );
@@ -321,6 +350,24 @@ async fn main() -> anyhow::Result<()> {
         GithubSyncClientImpl::default(),
     );
 
+    // Call service (LiveKit)
+    let transcription_agent_name =
+        config::LivekitTranscriptionAgentName::new().map(|v| v.as_ref().to_owned());
+    let livekit_rtc_client = LivekitRtcClient::new(
+        config.vars.livekit_server_url.as_ref(),
+        config.vars.livekit_api_key.as_ref(),
+        config.vars.livekit_api_secret.as_ref(),
+        transcription_agent_name,
+    );
+    let call_repo = PgCallRepo::new(db.clone());
+    let call_service = Arc::new(CallServiceImpl::new(
+        call_repo,
+        livekit_rtc_client,
+        config.vars.livekit_server_url.as_ref(),
+    ));
+    let call_state = CallRouterState::new(call_service.clone(), entity_access_service.clone());
+    let call_webhook_state = WebhookRouterState::new(call_service.clone());
+
     // Create the SQS worker for delete document processing before config is moved
     let delete_document_worker = sqs_worker::SQSWorker::new(
         aws_sdk_sqs::Client::new(&aws_config),
@@ -332,9 +379,9 @@ async fn main() -> anyhow::Result<()> {
     let api_context = ApiContext {
         soup_router_state: SoupRouterState::new(
             SoupImpl::new(
-                PgSoupRepo::new(db.clone()),
+                PgSoupRepo::new(readonly_pool::ReadOnlyPool(readonly_db.clone())),
                 frecency_service,
-                email_service.clone(),
+                readonly_email_service,
                 channel_service_for_soup,
             ),
             email_service,
@@ -369,6 +416,8 @@ async fn main() -> anyhow::Result<()> {
             ChannelMessagesServiceImpl::new(PgChannelMessagesRepo::new(db.clone())),
             (*entity_access_service).clone(),
         ),
+        call_state,
+        call_webhook_state,
     };
 
     // Spawn the delete document worker

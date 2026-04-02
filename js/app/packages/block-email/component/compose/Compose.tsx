@@ -23,7 +23,6 @@ import {
   useDisplayName,
   type WithCustomUserInput,
 } from '@core/user';
-import { stickyGate } from '@core/util/debounce';
 import { $generateHtmlFromNodes } from '@lexical/html';
 import {
   $appendWatermarkNodeToLast,
@@ -61,7 +60,7 @@ import {
 import { ComposeLayout } from './ComposeLayout';
 import { EmailComposeToolbar } from './ComposeToolbar';
 
-const DRAFT_DEBOUNCE_MS = 1000;
+const DRAFT_DEBOUNCE_MS = 500;
 
 type UndoComposeSnapshot = {
   draftId: string;
@@ -357,22 +356,6 @@ export function EmailCompose(props: EmailComposeProps) {
       }
     }
 
-    const cleanupWatermark = $appendWatermarkNodeToLast(
-      currentEditor,
-      !hasPaidAccess() ? MACRO_EMAIL_SIGNATURE : undefined
-    );
-
-    const prepared = prepareEmailBody(currentEditor, undefined);
-    if (!prepared) return;
-
-    const bodyMacro = content();
-
-    const data = {
-      text: prepared.bodyText,
-      html: prepared.bodyHtml,
-      raw: bodyMacro,
-    };
-
     const currentLink = link();
     const recipients = form.recipients();
 
@@ -384,7 +367,7 @@ export function EmailCompose(props: EmailComposeProps) {
       return;
     }
 
-    if (!data.raw.trim()) {
+    if (!content().trim()) {
       setValidationError({
         type: 'no_message',
         message: 'Please enter a message',
@@ -413,6 +396,21 @@ export function EmailCompose(props: EmailComposeProps) {
       return;
     }
 
+    // Append watermark after all validation passes so failed sends don't
+    // leave orphaned watermark nodes in the editor tree.
+    const cleanupWatermark = $appendWatermarkNodeToLast(
+      currentEditor,
+      !hasPaidAccess() ? MACRO_EMAIL_SIGNATURE : undefined
+    );
+
+    const prepared = prepareEmailBody(currentEditor, undefined);
+    if (!prepared) {
+      cleanupWatermark();
+      return;
+    }
+
+    const bodyMacro = content();
+
     sendMutation.mutate({
       message: {
         to: convertToContactInfoArray(recipients.to),
@@ -425,9 +423,9 @@ export function EmailCompose(props: EmailComposeProps) {
             ? convertToContactInfoArray(recipients.bcc)
             : [],
         subject: form.subject(),
-        body_text: data.text,
-        body_html: data.html,
-        body_macro: data.raw,
+        body_text: prepared.bodyText,
+        body_html: prepared.bodyHtml,
+        body_macro: bodyMacro,
         db_id: currentDraftID(),
       },
     });
@@ -571,9 +569,6 @@ export function EmailCompose(props: EmailComposeProps) {
     return `Email to ${names.join(' and ')}`;
   });
 
-  const isDraftSaving = () => saveDraftMutation.isPending;
-  const laggedIsDraftSaving = stickyGate(isDraftSaving, 250);
-
   // --- Context value ---
 
   const ctxValue: ComposeContextValue = {
@@ -608,7 +603,6 @@ export function EmailCompose(props: EmailComposeProps) {
     // Status
     disabled: () => hasLinkError() || sendMutation.isPending,
     isSending: () => sendMutation.isPending,
-    isDraftSaving: () => laggedIsDraftSaving(),
     hasDraft: () => currentDraftID() != null,
 
     // Validation
