@@ -1,4 +1,10 @@
-import { type Accessor, type JSX, createSignal } from 'solid-js';
+import {
+  type Accessor,
+  type JSX,
+  createEffect,
+  createSignal,
+} from 'solid-js';
+import { observedSize } from '@core/directive/observedSize';
 import { type VirtualizerHandle, Virtualizer } from 'virtua/solid';
 import type { ScrollToIndexOpts } from 'virtua/unstable_core';
 import {
@@ -78,6 +84,8 @@ export const DEFAULT_INITIAL_SCROLL_TARGET: ThreadListScrollTarget = {
   align: 'end',
 };
 
+false && observedSize;
+
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(value, max));
 
@@ -100,14 +108,21 @@ export function ThreadList(props: ThreadListProps) {
   const [virtualHandle, setVirtualHandle] = createSignal<VirtualizerHandle>();
   const [isNearBottom, setIsNearBottom] = createSignal(true);
   const [didInitialScroll, setDidInitialScroll] = createSignal(false);
+  const [scrollRect, setScrollRect] = createSignal<DOMRect>();
 
   let scrollRef: HTMLDivElement | undefined;
   let nearTopFired = false;
   let nearBottomFired = false;
   let previousScrollOffset: number | undefined;
+  let previousScrollSize: number | undefined;
   let explicitScrollDownDistance = 0;
+  let initialScrollRequested = false;
 
   const scrollIntent = createScrollIntentTracker();
+
+  const hasUsableViewport = (handle: VirtualizerHandle): boolean => {
+    return handle.viewportSize > 0 && (scrollRect()?.height ?? 0) > 0;
+  };
 
   const resolveTargetIndex = (target: ThreadListScrollTarget): number => {
     const keys = props.keys();
@@ -162,6 +177,15 @@ export function ThreadList(props: ThreadListProps) {
     });
   };
 
+  const completeInitialScroll = (handle: VirtualizerHandle) => {
+    if (didInitialScroll() || !initialScrollRequested || !hasUsableViewport(handle)) {
+      return;
+    }
+    initialScrollRequested = false;
+    setDidInitialScroll(true);
+    emitScrollState(handle, false);
+  };
+
   const createNavigation = (
     handle: VirtualizerHandle
   ): ThreadListNavigation => ({
@@ -206,13 +230,6 @@ export function ThreadList(props: ThreadListProps) {
     markUserIntent: scrollIntent.markUserIntent,
   });
 
-  function scrollOnMount(handle: VirtualizerHandle) {
-    const target = props.initialScrollTarget ?? DEFAULT_INITIAL_SCROLL_TARGET;
-    scrollToTarget(handle, target);
-    setDidInitialScroll(true);
-    emitScrollState(handle, false);
-  }
-
   const handleScroll = () => {
     const handle = virtualHandle();
     if (!handle) {
@@ -225,6 +242,8 @@ export function ThreadList(props: ThreadListProps) {
     const distanceFromTop = handle.scrollOffset;
     const distanceFromBottom =
       handle.scrollSize - handle.viewportSize - handle.scrollOffset;
+    const scrollSizeChanged =
+      previousScrollSize !== undefined && previousScrollSize !== handle.scrollSize;
 
     const nearTop = distanceFromTop <= NEAR_TOP_THRESHOLD;
     const nearBottom = distanceFromBottom <= NEAR_BOTTOM_THRESHOLD;
@@ -237,6 +256,7 @@ export function ThreadList(props: ThreadListProps) {
       // Accumulate downward scroll distance only during user interaction
       // and only when the user is scrolling down. Used by the scroll-to-bottom overlay.
       if (
+        !scrollSizeChanged &&
         scrollIntent.isUserInteracting() &&
         delta > 0 &&
         scrollIntent.lastDirection() === 'down'
@@ -249,6 +269,7 @@ export function ThreadList(props: ThreadListProps) {
         explicitScrollDownDistance >= EXPLICIT_SCROLL_DOWN_TRIGGER_DISTANCE;
     }
     previousScrollOffset = handle.scrollOffset;
+    previousScrollSize = handle.scrollSize;
     emitScrollState(handle, nextIsScrollingDown);
 
     if (!didInitialScroll()) return;
@@ -257,7 +278,7 @@ export function ThreadList(props: ThreadListProps) {
     // interacting with the scroll surface. This prevents synthetic
     // scroll events from the virtualizer (content resizes, layout
     // reflows, shift adjustments) from incorrectly loading more pages.
-    const hasUserIntent = scrollIntent.isUserInteracting();
+    const hasUserIntent = scrollIntent.isUserInteracting() && !scrollSizeChanged;
 
     if (nearTop && !nearTopFired && hasUserIntent) {
       nearTopFired = true;
@@ -274,11 +295,31 @@ export function ThreadList(props: ThreadListProps) {
     }
   };
 
+  const handleScrollEnd = () => {
+    const handle = virtualHandle();
+    if (!handle || !hasUsableViewport(handle)) return;
+
+    if (!didInitialScroll()) {
+      completeInitialScroll(handle);
+    }
+  };
+
+  createEffect(() => {
+    const handle = virtualHandle();
+    props.keys();
+    const target = props.initialScrollTarget ?? DEFAULT_INITIAL_SCROLL_TARGET;
+    scrollRect();
+
+    if (didInitialScroll() || !handle || !hasUsableViewport(handle)) return;
+    initialScrollRequested = scrollToTarget(handle, target);
+  });
+
   return (
     <div
       ref={scrollRef}
       data-channel-scroll
       {...scrollIntent.handlers}
+      use:observedSize={{ setSize: setScrollRect }}
       style={{
         width: '100%',
         'overflow-y': 'auto',
@@ -296,13 +337,13 @@ export function ThreadList(props: ThreadListProps) {
           if (props.onNavigationReady) {
             props.onNavigationReady(createNavigation(ref));
           }
-          scrollOnMount(ref);
         }}
         scrollRef={scrollRef}
         itemSize={BASE_ITEM_SIZE}
         bufferSize={BASE_BUFFER_SIZE}
         data={props.keys()}
         onScroll={handleScroll}
+        onScrollEnd={handleScrollEnd}
         shift={props.shift?.() ?? false}
       >
         {(key) => props.children({ id: key })}
