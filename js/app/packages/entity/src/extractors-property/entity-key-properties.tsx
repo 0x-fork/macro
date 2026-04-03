@@ -31,6 +31,9 @@ function getEntityType(entity: EntityData): EntityType {
     .with({ type: 'email' }, () => EntityType.THREAD)
     .with({ type: 'document' }, () => EntityType.DOCUMENT)
     .with({ type: 'channel_message' }, () => EntityType.CHANNEL)
+    .with({ type: 'automation' }, () => {
+      throw new Error('automation entities do not support properties');
+    })
     .exhaustive();
 }
 

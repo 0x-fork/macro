@@ -16,7 +16,7 @@ import { Button } from '@ui/components/Button';
 const VIEW_CREATE_BLOCKNAMES: Partial<Record<ListView, BlockName[]>> = {
   documents: ['md', 'canvas', 'code'],
   tasks: ['task'],
-  agents: ['chat'],
+  agents: ['chat', 'automation'],
   mail: ['email'],
   channels: ['channel'],
   folders: ['project'],
@@ -29,12 +29,23 @@ type CreateOption = {
 
 const IMPORT_OPTION: CreateOption = { id: 'import', label: 'Import' };
 
+/**
+ * Fallback labels for blocks that shouldn't appear in the global launcher
+ * (and thus aren't in CREATABLE_BLOCKS) but still need a create entry in
+ * specific list views.
+ */
+const VIEW_ONLY_BLOCK_LABELS: Partial<Record<BlockName, string>> = {
+  'automation': 'Automation',
+};
+
 function getViewCreateOptions(view: ListView): CreateOption[] {
   const createNames = VIEW_CREATE_BLOCKNAMES[view] ?? [];
   const options: CreateOption[] = createNames.flatMap((name) => {
     const block = CREATABLE_BLOCKS.find((b) => b.blockName === name);
-    if (!block) return [];
-    return [{ id: block.blockName, label: block.label }];
+    if (block) return [{ id: block.blockName, label: block.label }];
+    const viewOnlyLabel = VIEW_ONLY_BLOCK_LABELS[name];
+    if (viewOnlyLabel) return [{ id: name, label: viewOnlyLabel }];
+    return [];
   });
   if (view === 'documents') options.push(IMPORT_OPTION);
   return options;

@@ -1,4 +1,3 @@
-import { isEntityType } from '@core/types/utils';
 import type { DateValue } from '@core/util/date';
 import type { ApiLabel } from '@service-email/generated/schemas';
 import type {
@@ -119,6 +118,18 @@ export type ProjectEntity = EntityBase & {
   projectId?: string;
 };
 
+export type AutomationEntity = EntityBase & {
+  type: 'automation';
+  /** Cron expression controlling when the automation runs. */
+  cron: string;
+  /** Whether the automation is currently enabled. */
+  enabled: boolean;
+  /** ISO timestamp of the next scheduled run, or null when paused / unscheduled. */
+  nextRunAt?: string | null;
+  /** ISO timestamp of the last completed run. */
+  lastRunAt?: string | null;
+};
+
 export type EntityData =
   | ChannelEntity
   | ChannelMessageEntity
@@ -126,7 +137,18 @@ export type EntityData =
   | DocumentEntity
   | TaskEntity
   | EmailEntity
-  | ProjectEntity;
+  | ProjectEntity
+  | AutomationEntity;
+
+const ENTITY_TYPE_VALUES = new Set<EntityData['type']>([
+  'channel',
+  'channel_message',
+  'chat',
+  'document',
+  'email',
+  'project',
+  'automation',
+]);
 
 export const isEntityData = (item: unknown): item is EntityData => {
   if (typeof item !== 'object') return false;
@@ -137,7 +159,7 @@ export const isEntityData = (item: unknown): item is EntityData => {
 
   if (typeof item.type !== 'string') return false;
 
-  return isEntityType(item.type);
+  return ENTITY_TYPE_VALUES.has(item.type as EntityData['type']);
 };
 
 export const isTaskEntity = (entity: EntityData): entity is TaskEntity => {
@@ -172,6 +194,12 @@ export const isProjectEntity = (
   entity: EntityData
 ): entity is ProjectEntity => {
   return entity.type === 'project';
+};
+
+export const isAutomationEntity = (
+  entity: EntityData
+): entity is AutomationEntity => {
+  return entity.type === 'automation';
 };
 
 export const isDocumentEntity = (

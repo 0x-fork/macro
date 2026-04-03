@@ -68,6 +68,7 @@ export function EntityIcon(props: EntityIconProps) {
       .with({ type: 'email' }, ({ isRead, hasIcsAttachment }) =>
         hasIcsAttachment ? 'emailInvite' : isRead ? 'emailRead' : 'email'
       )
+      .with({ type: 'automation' }, () => 'automation')
       .otherwise(() => 'default');
   };
 

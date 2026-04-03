@@ -47,7 +47,7 @@ jobs:
   test:
     needs: path-check
     if: needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false
-    runs-on: linux-latest-beefy 
+    runs-on: linux-latest-beefy
     services:
       postgres:
         image: postgres:16
@@ -96,6 +96,7 @@ jobs:
     if: needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     outputs:
+      agent_schedule_runner: ${{ steps.changes.outputs.agent_schedule_runner }}
       docx-unzip-handler: ${{ steps.changes.outputs.docx-unzip-handler }}
       worker-trigger: ${{ steps.changes.outputs.worker-trigger }}
       document-text-extractor: ${{ steps.changes.outputs.document-text-extractor }}
@@ -118,6 +119,7 @@ jobs:
         with:
           token: ${{ GITHUB.TOKEN }}
           diff: |
+            agent_schedule_runner: ./rust/cloud-storage/agent_schedule_service/**
             docx-unzip-handler: ./rust/cloud-storage/docx-unzip-handler/*
             worker-trigger: ./rust/cloud-storage/worker-trigger/*
             document-text-extractor: ./rust/cloud-storage/document-text-extractor/*
@@ -144,6 +146,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - service: agent_schedule_runner
           - service: docx-unzip-handler
           - service: worker-trigger
           - service: document-text-extractor

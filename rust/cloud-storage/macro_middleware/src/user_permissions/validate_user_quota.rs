@@ -18,6 +18,10 @@ pub async fn document_handler(
     req: Request,
     next: Next,
 ) -> Result<Response, Response> {
+    if cfg!(feature = "local_auth") {
+        return Ok(next.run(req).await);
+    }
+
     if let Some(permissions) = user_context.permissions.as_ref() {
         // This is hard-coded for the permission since we don't want to introduce another
         // dependency here
@@ -51,6 +55,10 @@ pub async fn ai_chat_message_handler(
     req: Request,
     next: Next,
 ) -> Result<Response, Response> {
+    if cfg!(feature = "local_auth") {
+        return Ok(next.run(req).await);
+    }
+
     if let Some(permissions) = user_context.permissions.as_ref() {
         // This is hard-coded for the permission since we don't want to introduce another
         // dependency here

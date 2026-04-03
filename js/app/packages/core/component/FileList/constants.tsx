@@ -76,4 +76,5 @@ export const fileTypeColors: Record<
   project: defaultFileColor,
   unknown: defaultFileColor,
   task: defaultFileColor,
+  'automation': defaultFileColor,
 };

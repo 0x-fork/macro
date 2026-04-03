@@ -192,6 +192,9 @@
     "packages/block-project": {
       "name": "block-project",
     },
+    "packages/block-scheduled-agent": {
+      "name": "block-scheduled-agent",
+    },
     "packages/block-unknown": {
       "name": "block-unknown",
     },
@@ -1466,6 +1469,8 @@
     "block-pdf": ["block-pdf@workspace:packages/block-pdf"],
 
     "block-project": ["block-project@workspace:packages/block-project"],
+
+    "block-scheduled-agent": ["block-scheduled-agent@workspace:packages/block-scheduled-agent"],
 
     "block-unknown": ["block-unknown@workspace:packages/block-unknown"],
 

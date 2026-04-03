@@ -1,156 +1,121 @@
 {
-  "services": {
-    "authentication-service": {
-      "source_paths": [
-        "rust/cloud-storage/authentication_service/**",
-        "rust/cloud-storage/referral/**",
-        "rust/cloud-storage/teams/**"
-      ],
-      "stack_path": "infra/stacks/authentication-service/**"
-    },
-    "bulk-upload": {
-      "source_paths": [
-        "rust/cloud-storage/upload_extractor_lambda_handler/**",
-        "rust/cloud-storage/upload_extractor_lambda_trigger/**"
-      ],
-      "stack_path": "infra/stacks/bulk-upload/**"
-    },
-    "connection-gateway": {
-      "source_paths": [
-        "rust/cloud-storage/connection_gateway/**"
-      ],
-      "stack_path": "infra/stacks/connection-gateway/**"
-    },
-    "contacts-service": {
-      "source_paths": [
-        "rust/cloud-storage/contacts_service/**"
-      ],
-      "stack_path": "infra/stacks/contacts-service/**"
-    },
-    "convert-service": {
-      "source_paths": [
-        "rust/cloud-storage/convert_service/**"
-      ],
-      "stack_path": "infra/stacks/convert-service/**"
-    },
-    "deleted-item-poller": {
-      "source_paths": [
-        "rust/cloud-storage/deleted_item_poller/**"
-      ],
-      "stack_path": "infra/stacks/deleted-item-poller/**"
-    },
-    "document-cognition-service": {
-      "source_paths": [
-        "rust/cloud-storage/document_cognition_service/**"
-      ],
-      "stack_path": "infra/stacks/document-cognition-service/**"
-    },
-    "document-storage-service": {
-      "source_paths": [
-        "rust/cloud-storage/document_storage_service/**",
-        "rust/cloud-storage/github/**"
-      ],
-      "stack_path": "infra/stacks/cloud-storage-service/**"
-    },
-    "document-storage": {
-      "source_paths": [
-        "rust/cloud-storage/document_storage_service/**"
-      ],
-      "stack_path": "infra/stacks/document-storage/**"
-    },
-    "document-text-extractor": {
-      "source_paths": [
-        "rust/cloud-storage/document_text_extractor/**"
-      ],
-      "stack_path": "infra/stacks/document-text-extractor/**"
-    },
-    "email-service": {
-      "source_paths": [
-        "rust/cloud-storage/email_service/**"
-      ],
-      "stack_path": "infra/stacks/email-service/**"
-    },
-    "notification-service": {
-      "source_paths": [
-        "rust/cloud-storage/notification_service/**"
-      ],
-      "stack_path": "infra/stacks/notification-service/**"
-    },
-    "organization-retention": {
-      "source_paths": [
-        "rust/cloud-storage/organization_retention/**"
-      ],
-      "stack_path": "infra/stacks/organization-retention/**"
-    },
-    "search-processing-service": {
-      "source_paths": [
-        "rust/cloud-storage/search_processing_service/**"
-      ],
-      "stack_path": "infra/stacks/search-processing-service/**"
-    },
-    "search-upload": {
-      "source_paths": [
-        "rust/cloud-storage/search_upload/**"
-      ],
-      "stack_path": "infra/stacks/search-upload/**"
-    },
-    "email-sfs-delete-handler": {
-      "source_paths": [
-        "rust/cloud-storage/email_sfs_delete_handler/**"
-      ],
-      "stack_path": "infra/stacks/email-sfs-delete-handler/**"
-    },
-    "static-file-service": {
-      "source_paths": [
-        "rust/cloud-storage/static_file_service/**"
-      ],
-      "stack_path": "infra/stacks/static-file-service/**"
-    },
-    "unfurl-service": {
-      "source_paths": [
-        "rust/cloud-storage/unfurl_service/**"
-      ],
-      "stack_path": "infra/stacks/unfurl-service/**"
-    },
-    "opensearch": {
-      "stack_path": "infra/stacks/opensearch/**"
-    },
-    "search-event-queue": {
-      "stack_path": "infra/stacks/search-event-queue/**"
-    },
-    "search-text-extractor-queue": {
-      "stack_path": "infra/stacks/search-text-extractor-queue/**"
-    },
-    "document-storage-bucket-integrations": {
-      "stack_path": "infra/stacks/document-storage-bucket-integrations/**"
-    },
-    "link-sharing": {
-      "stack_path": "infra/stacks/link-sharing/**"
-    },
-    "email-suppression": {
-      "source_paths": [
-        "rust/cloud-storage/email_suppression/**"
-      ],
-      "stack_path": "infra/stacks/email-suppression/**"
-    },
-    "dlp-handler": {
-      "source_paths": [
-        "rust/cloud-storage/dlp_handler/**"
-      ],
-      "stack_path": "infra/stacks/dlp-handler/**"
-    },
-    "image-proxy-service": {
-      "source_paths": [
-        "rust/cloud-storage/image_proxy_service/**"
-      ],
-      "stack_path": "infra/stacks/image-proxy-service/**"
-    },
-    "mcp-server": {
-      "source_paths": [
-        "rust/cloud-storage/document_cognition_service/src/bin/mcp_server.rs",
-        "rust/cloud-storage/document_cognition_service/src/mcp_oauth/**"
-      ],
-      "stack_path": "infra/stacks/mcp-server/**"
-    }
-  }
+	"services": {
+		"authentication-service": {
+			"source_paths": [
+				"rust/cloud-storage/authentication_service/**",
+				"rust/cloud-storage/referral/**",
+				"rust/cloud-storage/teams/**"
+			],
+			"stack_path": "infra/stacks/authentication-service/**"
+		},
+		"agent-schedule-service": {
+			"source_paths": ["rust/cloud-storage/agent_schedule_service/**"],
+			"stack_path": "infra/stacks/agent-schedule-service/**"
+		},
+		"bulk-upload": {
+			"source_paths": [
+				"rust/cloud-storage/upload_extractor_lambda_handler/**",
+				"rust/cloud-storage/upload_extractor_lambda_trigger/**"
+			],
+			"stack_path": "infra/stacks/bulk-upload/**"
+		},
+		"connection-gateway": {
+			"source_paths": ["rust/cloud-storage/connection_gateway/**"],
+			"stack_path": "infra/stacks/connection-gateway/**"
+		},
+		"contacts-service": {
+			"source_paths": ["rust/cloud-storage/contacts_service/**"],
+			"stack_path": "infra/stacks/contacts-service/**"
+		},
+		"convert-service": {
+			"source_paths": ["rust/cloud-storage/convert_service/**"],
+			"stack_path": "infra/stacks/convert-service/**"
+		},
+		"deleted-item-poller": {
+			"source_paths": ["rust/cloud-storage/deleted_item_poller/**"],
+			"stack_path": "infra/stacks/deleted-item-poller/**"
+		},
+		"document-cognition-service": {
+			"source_paths": ["rust/cloud-storage/document_cognition_service/**"],
+			"stack_path": "infra/stacks/document-cognition-service/**"
+		},
+		"document-storage-service": {
+			"source_paths": [
+				"rust/cloud-storage/document_storage_service/**",
+				"rust/cloud-storage/github/**"
+			],
+			"stack_path": "infra/stacks/cloud-storage-service/**"
+		},
+		"document-storage": {
+			"source_paths": ["rust/cloud-storage/document_storage_service/**"],
+			"stack_path": "infra/stacks/document-storage/**"
+		},
+		"document-text-extractor": {
+			"source_paths": ["rust/cloud-storage/document_text_extractor/**"],
+			"stack_path": "infra/stacks/document-text-extractor/**"
+		},
+		"email-service": {
+			"source_paths": ["rust/cloud-storage/email_service/**"],
+			"stack_path": "infra/stacks/email-service/**"
+		},
+		"notification-service": {
+			"source_paths": ["rust/cloud-storage/notification_service/**"],
+			"stack_path": "infra/stacks/notification-service/**"
+		},
+		"organization-retention": {
+			"source_paths": ["rust/cloud-storage/organization_retention/**"],
+			"stack_path": "infra/stacks/organization-retention/**"
+		},
+		"search-processing-service": {
+			"source_paths": ["rust/cloud-storage/search_processing_service/**"],
+			"stack_path": "infra/stacks/search-processing-service/**"
+		},
+		"search-upload": {
+			"source_paths": ["rust/cloud-storage/search_upload/**"],
+			"stack_path": "infra/stacks/search-upload/**"
+		},
+		"email-sfs-delete-handler": {
+			"source_paths": ["rust/cloud-storage/email_sfs_delete_handler/**"],
+			"stack_path": "infra/stacks/email-sfs-delete-handler/**"
+		},
+		"static-file-service": {
+			"source_paths": ["rust/cloud-storage/static_file_service/**"],
+			"stack_path": "infra/stacks/static-file-service/**"
+		},
+		"unfurl-service": {
+			"source_paths": ["rust/cloud-storage/unfurl_service/**"],
+			"stack_path": "infra/stacks/unfurl-service/**"
+		},
+		"opensearch": {
+			"stack_path": "infra/stacks/opensearch/**"
+		},
+		"search-event-queue": {
+			"stack_path": "infra/stacks/search-event-queue/**"
+		},
+		"search-text-extractor-queue": {
+			"stack_path": "infra/stacks/search-text-extractor-queue/**"
+		},
+		"document-storage-bucket-integrations": {
+			"stack_path": "infra/stacks/document-storage-bucket-integrations/**"
+		},
+		"link-sharing": {
+			"stack_path": "infra/stacks/link-sharing/**"
+		},
+		"email-suppression": {
+			"source_paths": ["rust/cloud-storage/email_suppression/**"],
+			"stack_path": "infra/stacks/email-suppression/**"
+		},
+		"dlp-handler": {
+			"source_paths": ["rust/cloud-storage/dlp_handler/**"],
+			"stack_path": "infra/stacks/dlp-handler/**"
+		},
+		"image-proxy-service": {
+			"source_paths": ["rust/cloud-storage/image_proxy_service/**"],
+			"stack_path": "infra/stacks/image-proxy-service/**"
+		},
+		"mcp-server": {
+			"source_paths": ["rust/cloud-storage/mcp_service/**"],
+			"stack_path": "infra/stacks/mcp-server/**"
+		}
+	}
 }

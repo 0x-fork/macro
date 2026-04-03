@@ -4,6 +4,7 @@ import { stack } from '../../shared';
 export function getMacroNotify(): {
   notificationIngressQueueName: pulumi.Output<string>;
   notificationIngressQueueArn: pulumi.Output<string>;
+  notificationIngressQueueUrl: pulumi.Output<string>;
 } {
   const notificationServiceStack = new pulumi.StackReference(
     'notification-service-stack',
@@ -21,9 +22,14 @@ export function getMacroNotify(): {
     notificationServiceStack
       .getOutput('notificationIngressQueueName')
       .apply((name) => name as string);
+  const notificationIngressQueueUrl: pulumi.Output<string> =
+    notificationServiceStack
+      .getOutput('notificationIngressQueueUrl')
+      .apply((url) => url as string);
 
   return {
     notificationIngressQueueName,
     notificationIngressQueueArn,
+    notificationIngressQueueUrl,
   };
 }

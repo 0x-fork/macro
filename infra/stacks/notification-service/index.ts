@@ -146,6 +146,7 @@ const notificationQueueArn = notificationQueue.queue.arn;
 const notificationQueueName = notificationQueue.queue.name;
 export const notificationIngressQueueArn = notificationIngressQueue.queue.arn;
 export const notificationIngressQueueName = notificationIngressQueue.queue.name;
+export const notificationIngressQueueUrl = notificationIngressQueue.queue.id;
 export const notificationSnsPlatformArns = [
   notificationApnsPlatform.arn,
   notificationFcmPlatform.arn,

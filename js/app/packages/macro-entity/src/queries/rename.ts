@@ -108,7 +108,11 @@ const renameDssSetData = (
           frecency_score: score,
         })
       );
-    } else if (itemType !== 'email' && itemType !== 'channel_message') {
+    } else if (
+      itemType !== 'email' &&
+      itemType !== 'channel_message' &&
+      itemType !== 'automation'
+    ) {
       txns.set(
         id,
         optimisticUpdateSoupEntity({

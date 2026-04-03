@@ -157,5 +157,6 @@ export const connectionGatewayAlbSgId = connectionGateway.serviceAlbSg.id;
 export const connectionGatewayUrl = pulumi.interpolate`${connectionGateway.domain}`;
 export const connectionGatewayRedisUrl = pulumi.interpolate`${connectionGatewayRedis.endpoint}`;
 export const connectionGatewayTableName = connectionGatewayTable.table.name;
+export const connectionGatewayTableArn = connectionGatewayTable.table.arn;
 export const connectionGatewayTablePolicyArn =
   connectionGatewayTable.policy.arn;

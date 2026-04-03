@@ -27,6 +27,7 @@ const serviceToCrate: Record<string, string> = {
 	"unfurl-service": "unfurl_service",
 	"email-service": "email_service",
 	"search-service": "search_service",
+	"scheduled-action": "scheduled_action",
 };
 
 const getRustCloudStorageDir = () =>
@@ -89,14 +90,14 @@ async function runBinary(
 }
 
 // Recursively sort all object keys in JSON to ensure deterministic output
-function sortJsonKeys(obj: unknown): unknown {
+function _sortJsonKeys(obj: unknown): unknown {
 	if (Array.isArray(obj)) {
-		return obj.map(sortJsonKeys);
+		return obj.map(_sortJsonKeys);
 	}
 	if (obj !== null && typeof obj === "object") {
 		const sorted: Record<string, unknown> = {};
 		for (const key of Object.keys(obj).sort()) {
-			sorted[key] = sortJsonKeys((obj as Record<string, unknown>)[key]);
+			sorted[key] = _sortJsonKeys((obj as Record<string, unknown>)[key]);
 		}
 		return sorted;
 	}
@@ -272,7 +273,7 @@ async function main() {
 			);
 			console.error("The following files have changed:");
 			if (diff.trim()) console.error(diff);
-			if (untrackedFiles.trim()) console.error("Untracked:\n" + untrackedFiles);
+			if (untrackedFiles.trim()) console.error(`Untracked:\n${untrackedFiles}`);
 			const gitStatus = await $`git status`.text();
 			console.error("`git status` output:");
 			console.error(gitStatus.trim());

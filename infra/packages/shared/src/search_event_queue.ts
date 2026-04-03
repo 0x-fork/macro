@@ -4,6 +4,7 @@ import { stack } from '../../shared';
 export function getSearchEventQueue(): {
   searchEventQueueName: pulumi.Output<string>;
   searchEventQueueArn: pulumi.Output<string>;
+  searchEventQueueUrl: pulumi.Output<string>;
 } {
   const searchServiceStack = new pulumi.StackReference(
     'search-event-queue-stack',
@@ -19,9 +20,13 @@ export function getSearchEventQueue(): {
   const searchEventQueueName: pulumi.Output<string> = searchServiceStack
     .getOutput('searchEventQueueName')
     .apply((arn) => arn as string);
+  const searchEventQueueUrl: pulumi.Output<string> = searchServiceStack
+    .getOutput('searchEventQueueUrl')
+    .apply((url) => url as string);
 
   return {
     searchEventQueueName,
     searchEventQueueArn,
+    searchEventQueueUrl,
   };
 }

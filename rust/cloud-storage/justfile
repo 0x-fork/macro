@@ -31,6 +31,7 @@ build_dev_service_images:
 
 # Build all lambda functions
 build_lambdas:
+    ulimit -n 10240 && just agent_schedule_service/build
     ulimit -n 10240 && just docx_unzip_handler/build
     ulimit -n 10240 && just delete_chat_handler/build
     ulimit -n 10240 && just organization_retention_handler/build

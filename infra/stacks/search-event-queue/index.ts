@@ -106,4 +106,5 @@ if (stack === 'prod') {
 
 export const searchEventQueueArn = pulumi.interpolate`${queue.arn}`;
 export const searchEventQueueName = pulumi.interpolate`${queue.name}`;
+export const searchEventQueueUrl = pulumi.interpolate`${queue.id}`;
 export const emailTopicArn = pulumi.interpolate`${emailTopic.arn}`;
