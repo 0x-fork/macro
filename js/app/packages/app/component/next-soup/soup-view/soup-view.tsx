@@ -18,9 +18,7 @@ import {
 } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
-import { registerPreviewEntity } from '@app/signal/splitLayout';
 import { useSplitLayout } from '@app/component/split-layout/layout';
-import { fileTypeToResolvedBlockName } from '@core/constant/allBlocks';
 import {
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
@@ -118,6 +116,16 @@ const useSoupNotificationInvalidators = () => {
     'channel',
     (notification) => {
       refetchSoupEntity(notification.entity_id, 'channel');
+      invalidateSoupEntity(notification.entity_id);
+      invalidateEntityNotifications(notification.entity_id);
+    }
+  );
+
+  createEffectOnEntityTypeNotification(
+    notificationSource,
+    'chat',
+    (notification) => {
+      refetchSoupEntity(notification.entity_id, 'chat');
       invalidateSoupEntity(notification.entity_id);
       invalidateEntityNotifications(notification.entity_id);
     }
@@ -472,25 +480,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
     applyTabPreset,
   });
 
-  // Register previewed entity for auto-attach
-  createEffect(() => {
-    const entity = soup.previewEntity() ? soup.focus.item() : undefined;
-    if (!entity) {
-      registerPreviewEntity(panel.handle.id, undefined);
-      return;
-    }
-    const type =
-      entity.type === 'document'
-        ? fileTypeToResolvedBlockName(
-            (entity as { fileType?: string }).fileType
-          )
-        : entity.type;
-    registerPreviewEntity(panel.handle.id, { type, id: entity.id });
-  });
-  onCleanup(() => {
-    registerPreviewEntity(panel.handle.id, undefined);
-  });
-
   // Create markDone action for swipe/click handlers
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
@@ -528,6 +517,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
       type === 'entity' ? args.entity : args.projectEntity
     ) as EntityData;
 
+    // FIXME: this never gets called because we have overrides
     if (event.metaKey || event.ctrlKey) {
       openEntityInNewTab({ entity, location });
       return;

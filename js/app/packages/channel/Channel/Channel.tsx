@@ -1,14 +1,13 @@
 import {
-  makeMessageIndex,
   type ChannelMessagesData,
   useChannelMessagesQuery,
+  createMessageIndex,
 } from '@queries/channel/channel-messages';
 import {
   createEffect,
   createMemo,
   createSignal,
   on,
-  onCleanup,
   onMount,
   Show,
   type Accessor,
@@ -58,6 +57,7 @@ import { createStickyScrollEffect } from './sticky-scroll';
 import { createMessageEditor } from './create-message-editor';
 import { createMessageSelection } from './create-message-selection';
 import { createChannelHotkeys } from './create-channel-hotkeys';
+import { createInlineInputKeyboardHandler } from './create-inline-input-keyboard-handler';
 import type { ChannelInputProps } from '@channel/Input/ChannelInput';
 import {
   createTargetMessageController,
@@ -68,18 +68,13 @@ import {
   useRemoveReactionMutation,
 } from '@queries/channel/reaction';
 import { resetKeyboardModality } from './util';
-import { focusAndOpenKeyboard } from '@core/mobile/focus-and-open-keyboard';
-import { isMobile } from '@core/mobile/isMobile';
 import { DebugSuspense } from '@channel/DebugSuspense';
 import { MaybeMessageActionDrawerManager } from '@channel/Mobile/MessageActionDrawerManager';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { usePostTypingUpdateMutation } from '@queries/channel/typing';
-import {
-  scrollReplyInputAboveKeyboard,
-  scrollReplyInputIntoView,
-} from '../scroll-utils';
+import { scrollReplyInputIntoView } from '../scroll-utils';
 
-type ChannelProps = {
+export type ChannelProps = {
   channelId: string;
   targetMessageId?: string | undefined;
   targetMessageReplyId?: string | undefined;
@@ -93,23 +88,26 @@ export type ChannelHandle = {
 
 export function Channel(props: ChannelProps) {
   const userId = useUserId();
+
   const sendMessageMutation = useSendMessageMutation();
   const patchMessageMutation = usePatchMessageMutation();
   const deleteMessageMutation = useDeleteMessageMutation();
   const typingMutation = usePostTypingUpdateMutation();
   const addReactionMutation = useAddReactionMutation();
   const removeReactionMutation = useRemoveReactionMutation();
+
   const [threadListNavigation, setThreadListNavigation] =
     createSignal<ThreadListNavigation>();
   const [threadListScrollState, setThreadListScrollState] =
     createSignal<ThreadListScrollState>();
-  let messageListElement: HTMLDivElement | undefined;
+  const [messageListElement, setMessageListElement] =
+    createSignal<HTMLDivElement>();
 
   const targetMessageController = createTargetMessageController({
     channelId: () => props.channelId,
     initialTargetMessageId: props.targetMessageId,
     initialTargetMessageReplyId: props.targetMessageReplyId,
-    messageKeys: () => messageIndex().keys,
+    messageKeys: () => messageIndex.keys(),
     navigation: threadListNavigation,
   });
 
@@ -120,11 +118,13 @@ export function Channel(props: ChannelProps) {
     () => props.channelId,
     targetMessageController.loadAroundMessageId
   );
-  const messageIndex = createMemo(() =>
-    makeMessageIndex(messagesQuery.data as ChannelMessagesData | undefined)
+
+  const messageIndex = createMessageIndex(
+    () => messagesQuery.data as ChannelMessagesData | undefined
   );
-  const messages = createMemo(() => messageIndex().items);
-  const messageById = createMemo(() => messageIndex().byId);
+
+  const messages = createMemo(() => messageIndex.items());
+  const messageById = () => messageIndex.byId();
 
   const participants = useChannelParticipants(() => props.channelId);
 
@@ -193,13 +193,6 @@ export function Channel(props: ChannelProps) {
     removeReaction: removeReactionMutation.mutate,
     onReply: (ctx) => {
       const state = threadManager.getOrCreateThreadState(ctx.message.id);
-      focusAndOpenKeyboard(
-        () =>
-          document.querySelector(
-            `[data-input-id="thread-reply-input-${ctx.message.id}"] [contenteditable]`
-          ) as HTMLElement | null,
-        ctx.event?.target as HTMLElement | undefined
-      );
       state.setIsReplying(true);
       requestAnimationFrame(() => scrollReplyInputIntoView(ctx.message.id));
     },
@@ -209,7 +202,7 @@ export function Channel(props: ChannelProps) {
   });
 
   const selection = createMessageSelection({
-    keys: () => messageIndex().keys,
+    keys: () => messageIndex.keys(),
   });
 
   const { messageListScopeId, attachMessageListRef, attachInputRef } =
@@ -230,6 +223,9 @@ export function Channel(props: ChannelProps) {
     messages,
     scrollToBottom: () => threadListNavigation()?.scrollToBottom(),
   });
+
+  // On Mobile when a thread reply input is focused, we want to hide the main Channel input
+  createInlineInputKeyboardHandler(messageListElement, setIsChannelInputHidden);
 
   const onSend: ChannelInputProps['onSend'] = (snapshot) => {
     const senderId = userId();
@@ -255,9 +251,8 @@ export function Channel(props: ChannelProps) {
   };
 
   const goToMessage: ChannelHandle['goToMessage'] = (messageId, replyId) => {
-    if (messageListElement) {
-      resetKeyboardModality(messageListElement);
-    }
+    const el = messageListElement();
+    if (el) resetKeyboardModality(el);
     targetMessageController.goToMessage(messageId, replyId);
   };
 
@@ -279,7 +274,7 @@ export function Channel(props: ChannelProps) {
               <div
                 class="ph-no-capture relative flex-1 min-h-0 suppress-css-brackets suppress-css-bracket outline-none"
                 ref={(element) => {
-                  messageListElement = element;
+                  setMessageListElement(element);
                   attachMessageListRef(element);
                 }}
                 tabIndex={-1}
@@ -293,7 +288,7 @@ export function Channel(props: ChannelProps) {
                 }}
               >
                 <ThreadList
-                  keys={() => messageIndex().keys}
+                  keys={() => messageIndex.keys()}
                   initialScrollTarget={threadListInitialScrollTarget()}
                   shift={shift}
                   prepend={threadPaginator.isPrepending}
@@ -306,78 +301,8 @@ export function Channel(props: ChannelProps) {
                     const message = () => messageById().get(item.id);
                     const state = threadManager.getOrCreateThreadState(item.id);
                     const isNewestThread = () =>
-                      item.id === messageIndex().keys.at(-1);
+                      item.id === messageIndex.keys().at(-1);
 
-                    if (isMobile()) {
-                      createEffect(() => {
-                        const el = state.replyInputEl?.();
-                        if (!el) return;
-
-                        let keyboardWillShowHandler:
-                          | ((e: Event) => void)
-                          | undefined;
-
-                        const handleFocusIn = () => {
-                          setIsChannelInputHidden(true);
-                          const currentKeyboardHeight = parseFloat(
-                            getComputedStyle(
-                              document.documentElement
-                            ).getPropertyValue('--virtual-keyboard-height')
-                          );
-                          if (currentKeyboardHeight > 0) {
-                            scrollReplyInputAboveKeyboard(
-                              item.id,
-                              currentKeyboardHeight
-                            );
-                          } else {
-                            keyboardWillShowHandler = (event: Event) => {
-                              const height =
-                                (event as CustomEvent<{ height: number }>)
-                                  .detail?.height ?? 0;
-                              scrollReplyInputAboveKeyboard(item.id, height);
-                              keyboardWillShowHandler = undefined;
-                            };
-                            window.addEventListener(
-                              'keyboardWillShow',
-                              keyboardWillShowHandler,
-                              { once: true }
-                            );
-                          }
-                        };
-
-                        const handleFocusOut = (e: FocusEvent) => {
-                          if (!el.contains(e.relatedTarget as Node)) {
-                            setIsChannelInputHidden(false);
-                            if (keyboardWillShowHandler) {
-                              window.removeEventListener(
-                                'keyboardWillShow',
-                                keyboardWillShowHandler
-                              );
-                              keyboardWillShowHandler = undefined;
-                            }
-                          }
-                        };
-
-                        el.addEventListener('focusin', handleFocusIn);
-                        el.addEventListener(
-                          'focusout',
-                          handleFocusOut as EventListener
-                        );
-                        onCleanup(() => {
-                          el.removeEventListener('focusin', handleFocusIn);
-                          el.removeEventListener(
-                            'focusout',
-                            handleFocusOut as EventListener
-                          );
-                          if (keyboardWillShowHandler) {
-                            window.removeEventListener(
-                              'keyboardWillShow',
-                              keyboardWillShowHandler
-                            );
-                          }
-                        });
-                      });
-                    }
                     return (
                       <Show when={message()}>
                         {(m) => (
