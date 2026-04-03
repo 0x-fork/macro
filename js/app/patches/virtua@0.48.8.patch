@@ -1,8 +1,59 @@
 diff --git a/lib/solid/index.jsx b/lib/solid/index.jsx
-index 029201a2c88fe71645242b3f6f11493a7f91fa86..19392eed983d16cdad923b2dc5ce2aaeec8e20fc 100644
+index 029201a2c..ac888b74c 100644
 --- a/lib/solid/index.jsx
 +++ b/lib/solid/index.jsx
-@@ -1068,7 +1068,7 @@ const createResizeObserver = (cb) => {
+@@ -269,6 +269,8 @@ const ACTION_MANUAL_SCROLL = 7;
+ /** @internal */
+ const ACTION_BEFORE_MANUAL_SMOOTH_SCROLL = 8;
+ /** @internal */
++const ACTION_SCROLL_JUMP_SYNC = 9;
++/** @internal */
+ const UPDATE_VIRTUAL_STATE = 0b0001;
+ /** @internal */
+ const UPDATE_SIZE_EVENT = 0b0010;
+@@ -454,6 +456,26 @@ const createVirtualStore = (elementsCount, itemSize = 40, ssrCount = 0, cacheSna
+                     }
+                     break;
+                 }
++                case ACTION_SCROLL_JUMP_SYNC: {
++                    const flushedJump = _flushedJump;
++                    const prevScrollOffset = scrollOffset;
++                    _flushedJump = 0;
++                    if (isSSR) {
++                        isSSR = false;
++                    }
++                    scrollOffset = payload;
++                    if (payload !== prevScrollOffset) {
++                        mutated = UPDATE_SCROLL_EVENT;
++                    }
++                    const relativeOffset = getRelativeScrollOffset();
++                    if (flushedJump ||
++                        (relativeOffset >= -viewportSize &&
++                            relativeOffset <= getTotalSize())) {
++                        mutated += UPDATE_VIRTUAL_STATE;
++                        shouldSync = true;
++                    }
++                    break;
++                }
+                 case ACTION_SCROLL_END: {
+                     mutated = UPDATE_SCROLL_END_EVENT;
+                     if (_scrollDirection !== SCROLL_IDLE) {
+@@ -701,11 +723,9 @@ const createScrollObserver = (store, viewport, isHorizontal, getScrollOffset, up
+                 return;
+             updateScrollOffset(jump, shift, stillMomentumScrolling);
+             stillMomentumScrolling = false;
+-            if (shift && store.$getViewportSize() > store.$getTotalSize()) {
+-                // In this case applying jump may not cause scroll.
+-                // Current logic expects scroll event occurs after applying jump so we dispatch it manually.
+-                store.$update(ACTION_SCROLL, getScrollOffset());
+-            }
++            // Read back the actual native position immediately. The browser can clamp
++            // or drop the correction without guaranteeing a follow-up scroll event.
++            store.$update(ACTION_SCROLL_JUMP_SYNC, getScrollOffset());
+         },
+     };
+ };
+@@ -1068,7 +1088,7 @@ const createResizeObserver = (cb) => {
              // https://www.w3.org/TR/resize-observer/#intro
              (ro ||
                  // https://bugs.chromium.org/p/chromium/issues/detail?id=1491739
