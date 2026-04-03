@@ -89,7 +89,10 @@ export function channelMessagesQueryOptions(
             previous_cursor: firstPage.previous_cursor,
           }
         : null,
-    staleTime: Infinity,
+    staleTime: 0,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    gcTime: 0,
   };
 }
 
