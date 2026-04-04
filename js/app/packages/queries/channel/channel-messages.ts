@@ -90,6 +90,27 @@ export function channelMessagesQueryOptions(
           }
         : null,
     staleTime: Infinity,
+    // Prevent @tanstack/solid-query from triggering Suspense.
+    //
+    // solid-query's Proxy handler calls `queryResource()` (a Solid
+    // createResource) whenever `state.data` is `undefined`, which triggers
+    // the nearest <Suspense> boundary.  DebugSuspense wraps Channel with a
+    // null fallback, so the entire component blanks until the fetch
+    // resolves.
+    //
+    // Providing placeholder data keeps `state.data` defined at all times:
+    //   • On key change (channel switch / goToMessage): `prev` is the
+    //     previous query's InfiniteData, so the old page stays visible.
+    //   • On first mount with no cache: the empty InfiniteData fallback
+    //     means `state.data` is `{ pages: [], pageParams: [] }` rather
+    //     than `undefined`, avoiding the suspending code-path entirely.
+    placeholderData: (prev) =>
+      prev ?? ({ pages: [], pageParams: [] } as ChannelMessagesData),
+    // loadAround variants are ephemeral – their data is copied to the
+    // default (null) key once the target message scrolls into view, so we
+    // GC them immediately to stop softInvalidateChannelMessages from
+    // re-fetching stale variants on every WS event.
+    ...(loadAroundMessageId != null && { gcTime: 0 }),
   };
 }
 
