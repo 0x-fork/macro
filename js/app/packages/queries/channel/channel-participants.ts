@@ -20,6 +20,10 @@ export function channelParticipantsQueryOptions(channelId: string) {
       );
     },
     staleTime: Infinity,
+    // Prevent @tanstack/solid-query from triggering Suspense.
+    // solid-query's Proxy calls `queryResource()` (a Solid createResource)
+    // when `state.data` is undefined, which suspends the nearest boundary.
+    placeholderData: (prev: ApiChannelParticipant[] | undefined) => prev ?? [],
   };
 }
 

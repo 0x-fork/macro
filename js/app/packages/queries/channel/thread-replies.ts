@@ -32,6 +32,12 @@ export function threadRepliesQueryOptions(
       );
     },
     staleTime: Infinity,
+    // Prevent @tanstack/solid-query from triggering Suspense.
+    // solid-query's Proxy calls `queryResource()` (a Solid createResource)
+    // when `state.data` is undefined, which suspends the nearest boundary.
+    // ChannelThread's function body runs in the Channel.root Suspense scope,
+    // so an unguarded `.data` access blanks the entire channel.
+    placeholderData: (prev: Array<ApiThreadReply> | undefined) => prev ?? [],
   };
 }
 
