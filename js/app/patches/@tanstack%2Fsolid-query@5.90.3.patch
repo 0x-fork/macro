@@ -1,0 +1,321 @@
+diff --git a/build/dev.cjs b/build/dev.cjs
+index d989a2917065e5fcc4559203afe7e5869b57e559..3e424def57707f4a195b07d002f1f501e13c43ef 100644
+--- a/build/dev.cjs
++++ b/build/dev.cjs
+@@ -126,11 +126,11 @@ function useBaseQuery(options, Observer, queryClient) {
+     const obs = observer();
+     return obs.subscribe((result) => {
+       observerResult = result;
+-      queueMicrotask(() => {
+-        if (unsubscribe) {
+-          refetch();
+-        }
+-      });
++      setStateWithReconciliation(result);
++      if (resolver && !result.isLoading) {
++        resolver(hydratableObserverResult(obs.getCurrentQuery(), result));
++        resolver = null;
++      }
+     });
+   };
+   function setStateWithReconciliation(res) {
+@@ -242,7 +242,13 @@ function useBaseQuery(options, Observer, queryClient) {
+       isRestoring,
+       (restoring) => {
+         if (!restoring && !web.isServer) {
+-          refetch();
++          const obs = observer();
++          const optimistic = obs.getOptimisticResult(defaultedOptions());
++          setStateWithReconciliation(optimistic);
++          if (resolver && !optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic));
++            resolver = null;
++          }
+         }
+       },
+       { defer: true }
+@@ -257,18 +263,21 @@ function useBaseQuery(options, Observer, queryClient) {
+       unsubscribe();
+       unsubscribe = null;
+     }
+-    if (resolver && !web.isServer) {
+-      resolver(observerResult);
+-      resolver = null;
+-    }
++    resolver = null;
+   });
+   solidJs.createComputed(
+     solidJs.on(
+       [observer, defaultedOptions],
+       ([obs, opts]) => {
+         obs.setOptions(opts);
+-        setStateWithReconciliation(obs.getOptimisticResult(opts));
+-        refetch();
++        const optimistic = obs.getOptimisticResult(opts);
++        setStateWithReconciliation(optimistic);
++        if (resolver) {
++          if (!optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic));
++            resolver = null;
++          }
++        }
+       },
+       { defer: true }
+     )
+diff --git a/build/dev.js b/build/dev.js
+index d1b3addc6fc214c5508f903fda375f38e14acfd7..f4702f656f9ab33ad628ea9c3d75d01506296606 100644
+--- a/build/dev.js
++++ b/build/dev.js
+@@ -125,11 +125,11 @@ function useBaseQuery(options, Observer, queryClient) {
+     const obs = observer();
+     return obs.subscribe((result) => {
+       observerResult = result;
+-      queueMicrotask(() => {
+-        if (unsubscribe) {
+-          refetch();
+-        }
+-      });
++      setStateWithReconciliation(result);
++      if (resolver && !result.isLoading) {
++        resolver(hydratableObserverResult(obs.getCurrentQuery(), result));
++        resolver = null;
++      }
+     });
+   };
+   function setStateWithReconciliation(res) {
+@@ -241,7 +241,13 @@ function useBaseQuery(options, Observer, queryClient) {
+       isRestoring,
+       (restoring) => {
+         if (!restoring && !isServer) {
+-          refetch();
++          const obs = observer();
++          const optimistic = obs.getOptimisticResult(defaultedOptions());
++          setStateWithReconciliation(optimistic);
++          if (resolver && !optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic));
++            resolver = null;
++          }
+         }
+       },
+       { defer: true }
+@@ -256,18 +262,21 @@ function useBaseQuery(options, Observer, queryClient) {
+       unsubscribe();
+       unsubscribe = null;
+     }
+-    if (resolver && !isServer) {
+-      resolver(observerResult);
+-      resolver = null;
+-    }
++    resolver = null;
+   });
+   createComputed(
+     on(
+       [observer, defaultedOptions],
+       ([obs, opts]) => {
+         obs.setOptions(opts);
+-        setStateWithReconciliation(obs.getOptimisticResult(opts));
+-        refetch();
++        const optimistic = obs.getOptimisticResult(opts);
++        setStateWithReconciliation(optimistic);
++        if (resolver) {
++          if (!optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic));
++            resolver = null;
++          }
++        }
+       },
+       { defer: true }
+     )
+diff --git a/build/index.cjs b/build/index.cjs
+index 07a07000712323f4f35832d7bc7402291c8c434d..ec995f110733a43f3a29f6a565ec58f963e34caf 100644
+--- a/build/index.cjs
++++ b/build/index.cjs
+@@ -117,11 +117,11 @@ function useBaseQuery(options, Observer, queryClient) {
+     const obs = observer();
+     return obs.subscribe((result) => {
+       observerResult = result;
+-      queueMicrotask(() => {
+-        if (unsubscribe) {
+-          refetch();
+-        }
+-      });
++      setStateWithReconciliation(result);
++      if (resolver && !result.isLoading) {
++        resolver(hydratableObserverResult(obs.getCurrentQuery(), result));
++        resolver = null;
++      }
+     });
+   };
+   function setStateWithReconciliation(res) {
+@@ -233,7 +233,13 @@ function useBaseQuery(options, Observer, queryClient) {
+       isRestoring,
+       (restoring) => {
+         if (!restoring && !web.isServer) {
+-          refetch();
++          const obs = observer();
++          const optimistic = obs.getOptimisticResult(defaultedOptions());
++          setStateWithReconciliation(optimistic);
++          if (resolver && !optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic));
++            resolver = null;
++          }
+         }
+       },
+       { defer: true }
+@@ -248,18 +254,21 @@ function useBaseQuery(options, Observer, queryClient) {
+       unsubscribe();
+       unsubscribe = null;
+     }
+-    if (resolver && !web.isServer) {
+-      resolver(observerResult);
+-      resolver = null;
+-    }
++    resolver = null;
+   });
+   solidJs.createComputed(
+     solidJs.on(
+       [observer, defaultedOptions],
+       ([obs, opts]) => {
+         obs.setOptions(opts);
+-        setStateWithReconciliation(obs.getOptimisticResult(opts));
+-        refetch();
++        const optimistic = obs.getOptimisticResult(opts);
++        setStateWithReconciliation(optimistic);
++        if (resolver) {
++          if (!optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic));
++            resolver = null;
++          }
++        }
+       },
+       { defer: true }
+     )
+diff --git a/build/index.js b/build/index.js
+index afe1550d6dd52e4dd7cacf1dc8850463f0a55986..b0bbb6f326ac61f6955bb7acc719dc698482557f 100644
+--- a/build/index.js
++++ b/build/index.js
+@@ -116,11 +116,11 @@ function useBaseQuery(options, Observer, queryClient) {
+     const obs = observer();
+     return obs.subscribe((result) => {
+       observerResult = result;
+-      queueMicrotask(() => {
+-        if (unsubscribe) {
+-          refetch();
+-        }
+-      });
++      setStateWithReconciliation(result);
++      if (resolver && !result.isLoading) {
++        resolver(hydratableObserverResult(obs.getCurrentQuery(), result));
++        resolver = null;
++      }
+     });
+   };
+   function setStateWithReconciliation(res) {
+@@ -232,7 +232,13 @@ function useBaseQuery(options, Observer, queryClient) {
+       isRestoring,
+       (restoring) => {
+         if (!restoring && !isServer) {
+-          refetch();
++          const obs = observer();
++          const optimistic = obs.getOptimisticResult(defaultedOptions());
++          setStateWithReconciliation(optimistic);
++          if (resolver && !optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic));
++            resolver = null;
++          }
+         }
+       },
+       { defer: true }
+@@ -247,18 +253,21 @@ function useBaseQuery(options, Observer, queryClient) {
+       unsubscribe();
+       unsubscribe = null;
+     }
+-    if (resolver && !isServer) {
+-      resolver(observerResult);
+-      resolver = null;
+-    }
++    resolver = null;
+   });
+   createComputed(
+     on(
+       [observer, defaultedOptions],
+       ([obs, opts]) => {
+         obs.setOptions(opts);
+-        setStateWithReconciliation(obs.getOptimisticResult(opts));
+-        refetch();
++        const optimistic = obs.getOptimisticResult(opts);
++        setStateWithReconciliation(optimistic);
++        if (resolver) {
++          if (!optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic));
++            resolver = null;
++          }
++        }
+       },
+       { defer: true }
+     )
+diff --git a/src/useBaseQuery.ts b/src/useBaseQuery.ts
+index d312e95f38581f4b40983b50fb498c389fd62d3d..c0de44d2f3e3eb82e84deb2671422e9b4f6e55f3 100644
+--- a/src/useBaseQuery.ts
++++ b/src/useBaseQuery.ts
+@@ -178,11 +178,11 @@ export function useBaseQuery<
+     const obs = observer()
+     return obs.subscribe((result) => {
+       observerResult = result
+-      queueMicrotask(() => {
+-        if (unsubscribe) {
+-          refetch()
+-        }
+-      })
++      setStateWithReconciliation(result)
++      if (resolver && !result.isLoading) {
++        resolver(hydratableObserverResult(obs.getCurrentQuery(), result))
++        resolver = null
++      }
+     })
+   }
+ 
+@@ -333,7 +333,13 @@ export function useBaseQuery<
+       isRestoring,
+       (restoring) => {
+         if (!restoring && !isServer) {
+-          refetch()
++          const obs = observer()
++          const optimistic = obs.getOptimisticResult(defaultedOptions())
++          setStateWithReconciliation(optimistic)
++          if (resolver && !optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic))
++            resolver = null
++          }
+         }
+       },
+       { defer: true },
+@@ -349,10 +355,7 @@ export function useBaseQuery<
+       unsubscribe()
+       unsubscribe = null
+     }
+-    if (resolver && !isServer) {
+-      resolver(observerResult)
+-      resolver = null
+-    }
++    resolver = null
+   })
+ 
+   createComputed(
+@@ -360,8 +363,14 @@ export function useBaseQuery<
+       [observer, defaultedOptions],
+       ([obs, opts]) => {
+         obs.setOptions(opts)
+-        setStateWithReconciliation(obs.getOptimisticResult(opts))
+-        refetch()
++        const optimistic = obs.getOptimisticResult(opts)
++        setStateWithReconciliation(optimistic)
++        if (resolver) {
++          if (!optimistic.isLoading) {
++            resolver(hydratableObserverResult(obs.getCurrentQuery(), optimistic))
++            resolver = null
++          }
++        }
+       },
+       { defer: true },
+     ),

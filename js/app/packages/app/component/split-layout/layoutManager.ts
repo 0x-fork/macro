@@ -17,6 +17,7 @@ import {
   createMemo,
   createSignal,
   type JSXElement,
+  useTransition,
 } from 'solid-js';
 import { createStore, produce, reconcile, type Store } from 'solid-js/store';
 import {
@@ -431,6 +432,7 @@ export function createSplitLayout(
   });
 
   const [resizeContext, setResizeContext] = createSignal<ResizeZoneCtx>();
+  const [isPending, startTransition] = useTransition();
 
   const canAppendSplit = createMemo(
     () => resizeContext()?.canFit({ minSize: 400 }) ?? true
