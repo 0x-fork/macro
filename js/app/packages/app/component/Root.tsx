@@ -58,6 +58,7 @@ import {
   onCleanup,
   onMount,
   type ParentProps,
+  Show,
   Suspense,
   Switch,
 } from 'solid-js';
@@ -90,6 +91,8 @@ import {
   useAnalytics,
 } from '@app/component/analytics-context';
 import { PosthogProvider, usePosthog } from '@app/lib/analytics/posthog';
+import MobileOnboardingPlaceholder from '@app/component/MobileOnboardingPlaceholder';
+import { isMobile } from '@core/mobile/isMobile';
 
 /** Syncs login cookie with auth state. Only updates on successful query (not errors/loading). */
 function useSyncLoginCookie() {
@@ -296,7 +299,9 @@ const ROUTES: RouteDefinition[] = [
     path: '/welcome',
     component: () => (
       <div class="flex *:flex-1 w-full h-dvh overflow-y-hidden">
-        <InteractiveOnboarding />
+        <Show when={!isMobile()} fallback={<MobileOnboardingPlaceholder />}>
+          <InteractiveOnboarding />
+        </Show>
       </div>
     ),
   },
