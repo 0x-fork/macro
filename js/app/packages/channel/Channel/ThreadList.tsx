@@ -1,4 +1,4 @@
-import { type Accessor, type JSX, createSignal } from 'solid-js';
+import { type Accessor, type JSX, createSignal, createEffect, onCleanup } from 'solid-js';
 import { type VirtualizerHandle, Virtualizer } from 'virtua/solid';
 import type { ScrollToIndexOpts } from 'virtua/unstable_core';
 import {
@@ -273,6 +273,20 @@ export function ThreadList(props: ThreadListProps) {
       nearBottomFired = false;
     }
   };
+
+  const RESTORE_INTERVAL = 100;
+
+  // HACK: defensive desync catch
+  createEffect(() => {
+    const id = setInterval(() => {
+      const handle = virtualHandle();
+      if (scrollRef && handle && scrollRef.scrollTop === 0 && handle.scrollOffset > 0) {
+        scrollRef.scrollTop = handle.scrollOffset;
+        console.log("[Channel.ThreadList] defensive scroll desync resotration")
+      }
+    }, RESTORE_INTERVAL);
+    onCleanup(() => clearInterval(id));
+  });
 
   return (
     <div
