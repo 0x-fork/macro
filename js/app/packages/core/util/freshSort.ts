@@ -30,7 +30,7 @@ type BooleanFn<T> = (item: T) => boolean;
 
 type EmailFn<T> = (item: T) => string | undefined;
 
-export interface FreshSortConfig<T> {
+export interface FreshSortConfig<T = unknown> {
   /** Weight for fuzzy match (0-1). Higher values prioritize search relevance. Default: 0.7 */
   fuzzyWeight?: number;
   /** Weight for time recency (0-1). Higher values prioritize recent items. Default: 0.3 */
