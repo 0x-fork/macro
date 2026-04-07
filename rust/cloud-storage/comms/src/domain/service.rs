@@ -166,7 +166,7 @@ where
         if req.name.is_empty() {
             return Err(BotError::Validation("bot name is required".into()));
         }
-        if req.name.len() > 32 {
+        if req.name.chars().count() > 32 {
             return Err(BotError::Validation(
                 "bot name must not exceed 32 characters".into(),
             ));
@@ -178,6 +178,7 @@ where
         let channel_id = Uuid::parse_str(&receipt.entity().entity_id)
             .map_err(|_| BotError::Validation("invalid channel_id".into()))?;
 
+        // rand::rng() returns ThreadRng which is backed by a CSPRNG
         let bytes: [u8; 32] = rand::Rng::random(&mut rand::rng());
         let token: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
 
