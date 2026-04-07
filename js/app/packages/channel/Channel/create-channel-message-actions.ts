@@ -52,6 +52,8 @@ export type CreateChannelMessageActionsOptions = {
   deleteMessage: (input: DeleteMessageInput) => void;
   addReaction: (input: AddReactionInput) => void;
   removeReaction: (input: RemoveReactionInput) => void;
+  createAiTask?: (message: MessageData) => Promise<void>;
+  isCreatingAiTask?: (messageId: string) => boolean;
   onReply?: MessageActionHandler;
   onEdit?: MessageActionHandler;
   effects?: Partial<ChannelMessageActionEffects>;
@@ -138,18 +140,20 @@ export function createChannelMessageActions(
         : undefined,
       onCopyLink: async () => {
         try {
-          const channelId = options.channelId();
-          const url = buildMessageLink(
-            channelId,
-            message.id,
-            message.thread_id
-          );
+          const url = buildMessageLink(effects.getLocationHref(), message.id);
           await effects.copyToClipboard(url);
           effects.notifyCopyLinkSuccess();
         } catch (error) {
           effects.notifyCopyLinkFailure(error);
         }
       },
+      onCreateAiTask:
+        !isDeleted && options.createAiTask
+          ? async () => {
+              await options.createAiTask?.(message);
+            }
+          : undefined,
+      createAiTaskPending: options.isCreatingAiTask?.(message.id) ?? false,
       onEdit: canEditDelete ? options.onEdit : undefined,
       onDelete: canEditDelete
         ? () => {

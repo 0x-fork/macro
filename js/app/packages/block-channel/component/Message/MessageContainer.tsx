@@ -736,6 +736,8 @@ export function MessageContainer(props: MessageProps) {
                         onClick={a.onClick}
                         text={a.text}
                         icon={a.icon}
+                        disabled={a.disabled}
+                        closeOnSelect={a.closeOnSelect}
                       />
                     </>
                   )}

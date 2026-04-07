@@ -1,24 +1,40 @@
 import { getUrlToMessage } from '@block-channel/utils/link';
+import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useBlockId } from '@core/block';
+import { useUserId } from '@core/context/user';
+import { createAiTaskFromMessage } from '@core/util/createAiTaskFromMessage';
+import { showTaskCreatedToast } from '@core/util/showTaskCreatedToast';
 import { logger } from '@observability';
 import ReplyIcon from '@phosphor-icons/core/regular/arrow-bend-up-left.svg?component-solid';
 import CopyIcon from '@phosphor-icons/core/regular/copy.svg?component-solid';
 import LinkIcon from '@phosphor-icons/core/regular/link.svg?component-solid';
 import Pencil from '@phosphor-icons/core/regular/pencil.svg?component-solid';
 import Trash from '@phosphor-icons/core/regular/trash.svg?component-solid';
+import Spinner from '@icon/regular/spinner.svg';
+import StatusCreated from '@macro-icons/square/task-created.svg';
 import { useDeleteMessageMutation } from '@queries/channel/message';
-import { useUserId } from '@core/context/user';
 import { toast } from 'core/component/Toast/Toast';
-import type { Accessor, Component } from 'solid-js';
-import { createMemo } from 'solid-js';
+import type { Accessor, Component, JSX } from 'solid-js';
+import { createMemo, createSignal } from 'solid-js';
 
 export type MessageAction = {
   text: string;
-  icon: Component;
-  onClick: () => void;
+  icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
+  onClick: () => void | Promise<void>;
   enabled: boolean;
+  disabled?: boolean;
   dividerBefore?: boolean;
+  closeOnSelect?: boolean;
+  showInActionMenu?: boolean;
 };
+
+const CreateTaskIcon: Component<JSX.SvgSVGAttributes<SVGSVGElement>> = (
+  props
+) => StatusCreated({ class: props.class });
+
+const LoadingTaskIcon: Component<JSX.SvgSVGAttributes<SVGSVGElement>> = (
+  props
+) => Spinner({ class: `${props.class ?? ''} animate-spin` });
 
 export function createMessageActions(params: {
   channelId: string;
@@ -31,8 +47,10 @@ export function createMessageActions(params: {
 }): Accessor<MessageAction[]> {
   const blockId = useBlockId();
   const userId = useUserId();
+  const { openWithSplit } = useSplitLayout();
 
   const deleteMessageMutation = useDeleteMessageMutation();
+  const [creatingTask, setCreatingTask] = createSignal(false);
 
   const deleteMessage = () => {
     deleteMessageMutation.mutate({
@@ -64,6 +82,44 @@ export function createMessageActions(params: {
       });
   }
 
+  async function createAiTask() {
+    if (creatingTask()) return;
+
+    setCreatingTask(true);
+
+    try {
+      const task = await createAiTaskFromMessage({
+        messageContent: params.messageContent,
+        currentUserId: userId(),
+      });
+
+      if (!task) {
+        toast.failure('Failed to create task');
+        return;
+      }
+
+      await showTaskCreatedToast({
+        documentId: task.documentId,
+        taskTitle: task.title,
+        taskContent: task.content,
+        openTask: ({ preferNewSplit } = {}) => {
+          openWithSplit(
+            { type: 'task', id: task.documentId },
+            { referredFrom: null, preferNewSplit }
+          );
+        },
+      });
+    } catch (cause) {
+      logger.error('failed to create ai task from message', {
+        cause,
+        messageId: params.messageId,
+      });
+      toast.failure('Failed to create task');
+    } finally {
+      setCreatingTask(false);
+    }
+  }
+
   return createMemo<MessageAction[]>(() => [
     {
       text: 'Reply',
@@ -82,6 +138,14 @@ export function createMessageActions(params: {
       onClick: copyMessageText,
       icon: CopyIcon,
       enabled: true,
+    },
+    {
+      text: 'Create AI Task',
+      onClick: createAiTask,
+      icon: creatingTask() ? LoadingTaskIcon : CreateTaskIcon,
+      enabled: true,
+      disabled: creatingTask(),
+      closeOnSelect: false,
     },
     {
       text: 'Edit Message',

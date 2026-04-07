@@ -21,6 +21,7 @@ import {
   type ThreadListScrollTarget,
 } from './ThreadList';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+import { toast } from '@core/component/Toast/Toast';
 import { createThreadManager } from './thread-manager';
 import { createThreadPaginator } from './thread-paginator';
 import { useUserId } from '@core/context/user';
@@ -40,6 +41,7 @@ import {
 } from '../Input';
 import { ChannelInputContainer } from '../Input/ChannelInputContainer';
 import { createChannelMessageActions } from './create-channel-message-actions';
+import { useSplitLayout } from '@app/component/split-layout/layout';
 import { createActivityTracker } from '@channel/activity-tracker';
 import { useChannelActivity } from '@core/context/channels';
 import {
@@ -72,6 +74,8 @@ import { DebugSuspense } from '@channel/DebugSuspense';
 import { MaybeMessageActionDrawerManager } from '@channel/Mobile/MessageActionDrawerManager';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { usePostTypingUpdateMutation } from '@queries/channel/typing';
+import { createAiTaskFromMessage } from '@core/util/createAiTaskFromMessage';
+import { showTaskCreatedToast } from '@core/util/showTaskCreatedToast';
 import { scrollReplyInputIntoView } from '../scroll-utils';
 
 export type ChannelProps = {
@@ -88,6 +92,7 @@ export type ChannelHandle = {
 
 export function Channel(props: ChannelProps) {
   const userId = useUserId();
+  const { openWithSplit } = useSplitLayout();
 
   const sendMessageMutation = useSendMessageMutation();
   const patchMessageMutation = usePatchMessageMutation();
@@ -169,6 +174,52 @@ export function Channel(props: ChannelProps) {
     lastViewedAt: () => activity()?.viewed_at,
     userId,
   });
+  const [pendingAiTaskMessageIds, setPendingAiTaskMessageIds] = createSignal(
+    new Set<string>()
+  );
+
+  const isCreatingAiTask = (messageId: string) =>
+    pendingAiTaskMessageIds().has(messageId);
+
+  const createAiTask = async (message: { id: string; content: string }) => {
+    if (isCreatingAiTask(message.id)) return;
+
+    setPendingAiTaskMessageIds((prev) => {
+      const next = new Set(prev);
+      next.add(message.id);
+      return next;
+    });
+
+    try {
+      const task = await createAiTaskFromMessage({
+        messageContent: message.content,
+        currentUserId: userId(),
+      });
+
+      if (!task) {
+        toast.failure('Failed to create task');
+        return;
+      }
+
+      await showTaskCreatedToast({
+        documentId: task.documentId,
+        taskTitle: task.title,
+        taskContent: task.content,
+        openTask: ({ preferNewSplit } = {}) => {
+          openWithSplit(
+            { type: 'task', id: task.documentId },
+            { referredFrom: null, preferNewSplit }
+          );
+        },
+      });
+    } finally {
+      setPendingAiTaskMessageIds((prev) => {
+        const next = new Set(prev);
+        next.delete(message.id);
+        return next;
+      });
+    }
+  };
 
   const listMetaByMessageId = createMemo(() =>
     buildChannelMessageListMeta(messages(), activityTracker.isNewMessage)
@@ -191,6 +242,8 @@ export function Channel(props: ChannelProps) {
     deleteMessage: deleteMessageMutation.mutate,
     addReaction: addReactionMutation.mutate,
     removeReaction: removeReactionMutation.mutate,
+    createAiTask,
+    isCreatingAiTask,
     onReply: (ctx) => {
       const state = threadManager.getOrCreateThreadState(ctx.message.id);
       state.setIsReplying(true);

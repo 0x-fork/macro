@@ -81,7 +81,7 @@ export function ThreadReplyList(props: {
               <ChannelMessage
                 channelId={props.channelId}
                 message={reply}
-                actions={props.getMessageActions?.(replyMessage())}
+                actions={() => props.getMessageActions?.(replyMessage())}
                 listMeta={listMetaByReplyId()[reply.id]}
                 messageEditor={props.messageEditor}
                 highlighted={

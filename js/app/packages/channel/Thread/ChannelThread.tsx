@@ -183,7 +183,7 @@ export function ChannelThread(props: ThreadProps) {
               <ChannelMessage
                 channelId={props.channelId()}
                 message={props.data()}
-                actions={props.getMessageActions?.(props.data())}
+                actions={() => props.getMessageActions?.(props.data())}
                 listMeta={props.listMeta}
                 messageEditor={props.messageEditor}
                 highlighted={

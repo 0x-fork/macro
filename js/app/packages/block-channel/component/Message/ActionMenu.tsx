@@ -84,12 +84,17 @@ export function ActionMenu(props: {
         </Popover.Portal>
       </Popover>
 
-      <For each={props.actions.filter((a) => a.enabled)}>
+      <For
+        each={props.actions.filter(
+          (a) => a.enabled && a.showInActionMenu !== false
+        )}
+      >
         {(a) => (
           <DeprecatedIconButton
             onMouseDown={a.onClick}
             icon={a.icon}
             tooltip={{ label: a.text, delayOverride: 0 }}
+            disabled={a.disabled}
             tabIndex={-1}
           />
         )}

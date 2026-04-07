@@ -4,8 +4,10 @@ import ReplyIcon from '@icon/regular/arrow-bend-up-left.svg';
 import LinkIcon from '@icon/regular/link.svg';
 import PencilIcon from '@icon/regular/pencil.svg';
 import PlusIcon from '@icon/regular/plus.svg';
+import SpinnerIcon from '@icon/regular/spinner.svg';
 import TrashIcon from '@icon/regular/trash.svg';
 import { focusInput } from '@core/directive/focusInput';
+import StatusCreatedIcon from '@macro-icons/square/task-created.svg';
 import {
   createSignal,
   For,
@@ -24,13 +26,14 @@ import type {
 
 const QUICK_REACTION_EMOJIS = ['❤️', '👍', '👎', '😂', '😡'] as const;
 
-type ActionId = 'reply' | 'copy-link' | 'edit' | 'delete';
+type ActionId = 'reply' | 'copy-link' | 'create-ai-task' | 'edit' | 'delete';
 
 type ActionItem = {
   id: ActionId;
   label: string;
   icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>> | string;
   onClick?: MessageActionHandler;
+  disabled?: boolean;
   destructive?: boolean;
   getFocusTarget?: () => HTMLElement | null | undefined;
 };
@@ -57,6 +60,13 @@ function buildActionItems(
       label: 'Copy Link',
       icon: LinkIcon,
       onClick: actions?.onCopyLink,
+    },
+    {
+      id: 'create-ai-task',
+      label: 'Create AI Task',
+      icon: actions?.createAiTaskPending ? SpinnerIcon : StatusCreatedIcon,
+      onClick: actions?.onCreateAiTask,
+      disabled: actions?.createAiTaskPending,
     },
     {
       id: 'edit',
@@ -145,13 +155,17 @@ export function ActionDrawer() {
     setShowEmojiSearch(false);
   };
 
-  const handleAction = (
-    handler: MessageActionHandler | undefined,
-    event: MouseEvent
-  ) => {
+  const handleAction = (action: ActionItem, event: MouseEvent) => {
     const msg = message();
     if (!msg) return;
-    void handler?.({ message: msg, event });
+    const result = action.onClick?.({ message: msg, event });
+    if (action.id === 'create-ai-task') {
+      Promise.resolve(result).then(() => {
+        drawerState.close();
+      });
+      return;
+    }
+    void result;
     drawerState.close();
   };
 
@@ -230,15 +244,21 @@ export function ActionDrawer() {
                     <button
                       type="button"
                       data-message-action={action.id}
+                      disabled={action.disabled}
                       class="flex items-center gap-3 px-4 py-3 text-sm text-ink hover:bg-hover hover-transition-bg text-left not-last:border-b border-page"
                       ref={(el) => {
                         const getTarget = action.getFocusTarget;
                         if (getTarget) focusInput(el, () => ({ getTarget }));
                       }}
-                      onClick={(event) => handleAction(action.onClick, event)}
+                      onClick={(event) =>
+                        !action.disabled && handleAction(action, event)
+                      }
                     >
                       <span class="size-5 flex items-center justify-center shrink-0">
-                        {renderIcon(action.icon)}
+                        {renderIcon(
+                          action.icon,
+                          action.disabled ? 'animate-spin' : ''
+                        )}
                       </span>
                       {action.label}
                     </button>
@@ -255,12 +275,15 @@ export function ActionDrawer() {
                     <button
                       type="button"
                       data-message-action={action.id}
+                      disabled={action.disabled}
                       class="flex items-center gap-3 px-4 py-3 text-sm text-failure-ink hover:bg-hover hover-transition-bg text-left not-last:border-b border-panel"
                       ref={(el) => {
                         const getTarget = action.getFocusTarget;
                         if (getTarget) focusInput(el, () => ({ getTarget }));
                       }}
-                      onClick={(event) => handleAction(action.onClick, event)}
+                      onClick={(event) =>
+                        !action.disabled && handleAction(action, event)
+                      }
                     >
                       <span class="size-5 flex items-center justify-center shrink-0">
                         {renderIcon(action.icon)}

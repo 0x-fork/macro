@@ -5,8 +5,6 @@ import { EntityIcon } from '@core/component/EntityIcon';
 import { MiniToggleSwitch } from '@core/component/FormControls/MiniToggleSwitch';
 import { Hotkey } from '@core/component/Hotkey';
 
-import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
-import { unifiedListMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
 import { initializeEditorEmpty } from '@core/component/LexicalMarkdown/utils';
 import {
   propertyApiValuesToNormalized,
@@ -28,15 +26,11 @@ import type {
   PropertyOption,
 } from '@core/component/Properties/types';
 import { toast } from '@core/component/Toast/Toast';
-import { itemToSafeName } from '@core/constant/allBlocks';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { createTask } from '@core/util/create';
 import { filterMap } from '@core/util/list';
 import { isErr } from '@core/util/maybeResult';
-import { buildSimpleEntityUrl } from '@core/util/url';
-import ArrowSquareOutIcon from '@icon/regular/arrow-square-out.svg';
-import LinkIcon from '@icon/regular/link-simple.svg';
-import SplitIcon from '@icon/regular/square-half.svg';
+import { showTaskCreatedToast } from '@core/util/showTaskCreatedToast';
 import TrashIcon from '@icon/regular/trash.svg';
 import XIcon from '@icon/regular/x.svg';
 import { refetchSoupEntity } from '@queries/soup/cache';
@@ -59,7 +53,6 @@ import {
 } from '../util/taskComposerStorage';
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
-import CheckIcon from '@icon/regular/check.svg';
 
 // Show these props in the composer.
 const COMPOSER_PROPERTIES = [
@@ -325,81 +318,6 @@ export function ComposeTask(props: ComposeTaskProps) {
     },
   };
 
-  const showTaskCreatedToast = async (
-    documentId: string,
-    taskTitle: string,
-    taskContent: string
-  ) => {
-    const TaskEntityIcon = (p: { class?: string }) => (
-      <EntityIcon targetType="task" class={p.class} />
-    );
-
-    // Auto-copy link to clipboard
-    const url = buildSimpleEntityUrl({ type: 'task', id: documentId });
-    let linkCopied = false;
-    try {
-      await navigator.clipboard.writeText(url);
-      linkCopied = true;
-    } catch {
-      toast.failure('Failed to copy link to clipboard');
-    }
-
-    toast.custom(
-      {
-        title:
-          taskTitle ||
-          itemToSafeName({ type: 'document', subType: { type: 'task' } }),
-        icon: TaskEntityIcon,
-        color: 'var(--color-task)',
-        content: () => (
-          <div class="text-xs text-ink-extra-muted line-clamp-2 mb-4">
-            <StaticMarkdown
-              markdown={taskContent}
-              theme={unifiedListMarkdownTheme}
-              singleLine
-            />
-            <Show when={linkCopied}>
-              <div class="bg-hover/50 flex items-center gap-1 rounded-xs p-1">
-                <CheckIcon class="size-3" />
-                <span>Link copied to clipboard</span>
-              </div>
-            </Show>
-          </div>
-        ),
-        actions: [
-          {
-            label: 'Open',
-            icon: ArrowSquareOutIcon,
-            onClick: () => {
-              openWithSplit(
-                { type: 'task', id: documentId },
-                { referredFrom: null }
-              );
-            },
-          },
-          {
-            label: 'Open in New Split',
-            icon: SplitIcon,
-            onClick: () => {
-              openWithSplit(
-                { type: 'task', id: documentId },
-                { referredFrom: null, preferNewSplit: true }
-              );
-            },
-          },
-          {
-            label: 'Copy Link',
-            icon: LinkIcon,
-            onClick: () => {
-              navigator.clipboard.writeText(url);
-            },
-          },
-        ],
-      },
-      { duration: 5_000 }
-    );
-  };
-
   const handleCreateTask = async () => {
     if (isCreating()) return;
 
@@ -446,7 +364,17 @@ export function ComposeTask(props: ComposeTaskProps) {
         return;
       }
 
-      showTaskCreatedToast(documentId, taskTitle, taskContent);
+      void showTaskCreatedToast({
+        documentId,
+        taskTitle,
+        taskContent,
+        openTask: ({ preferNewSplit } = {}) => {
+          openWithSplit(
+            { type: 'task', id: documentId },
+            { referredFrom: null, preferNewSplit }
+          );
+        },
+      });
       props.onCreateTask?.(taskTitle, taskContent);
       return;
     }
@@ -467,7 +395,17 @@ export function ComposeTask(props: ComposeTaskProps) {
 
     // Success: clear draft and notify
     clearTaskComposerDraft();
-    showTaskCreatedToast(documentId, taskTitle, taskContent);
+    void showTaskCreatedToast({
+      documentId,
+      taskTitle,
+      taskContent,
+      openTask: ({ preferNewSplit } = {}) => {
+        openWithSplit(
+          { type: 'task', id: documentId },
+          { referredFrom: null, preferNewSplit }
+        );
+      },
+    });
     props.onCreateTask?.(taskTitle, taskContent);
 
     if (createMore()) {

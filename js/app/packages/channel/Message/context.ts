@@ -2,7 +2,8 @@ import { createContext, useContext, type Accessor } from 'solid-js';
 import type { MessageActions, MessageData } from './types';
 
 const MessageContext = createContext<Accessor<MessageData>>();
-const MessageActionsContext = createContext<MessageActions>();
+const MessageActionsContext =
+  createContext<Accessor<MessageActions | undefined>>();
 
 export const MessageProvider = MessageContext.Provider;
 export const MessageActionsProvider = MessageActionsContext.Provider;
@@ -13,7 +14,9 @@ export function useMessage(): Accessor<MessageData> {
   return ctx;
 }
 
-export function useMessageActions(): MessageActions | undefined {
+export function useMessageActions():
+  | Accessor<MessageActions | undefined>
+  | undefined {
   return useContext(MessageActionsContext);
 }
 

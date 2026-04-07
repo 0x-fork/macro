@@ -18,7 +18,7 @@ export function Reactions(props: ReactionsProps) {
   const userId = useUserId();
   const [emojiMenuOpen, setEmojiMenuOpen] = createSignal(false);
 
-  const canReact = () => actions?.onReact !== undefined;
+  const canReact = () => actions?.()?.onReact !== undefined;
 
   return (
     <Show when={message().reactions.length > 0}>
@@ -43,7 +43,7 @@ export function Reactions(props: ReactionsProps) {
                 selected={didCurrentUserReact()}
                 interactive={canReact()}
                 onClick={(event) => {
-                  void actions?.onReact?.({
+                  void actions?.()?.onReact?.({
                     message: message(),
                     event,
                     emoji: reaction.emoji,
@@ -60,7 +60,7 @@ export function Reactions(props: ReactionsProps) {
             open={emojiMenuOpen()}
             onOpenChange={setEmojiMenuOpen}
             onEmojiSelect={(emoji) => {
-              void actions?.onReact?.({
+              void actions?.()?.onReact?.({
                 message: message(),
                 emoji,
               });

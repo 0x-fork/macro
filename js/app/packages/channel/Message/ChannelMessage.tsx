@@ -1,4 +1,4 @@
-import { Match, Show, Switch } from 'solid-js';
+import { Match, Show, Switch, type Accessor } from 'solid-js';
 import { cn } from '@ui/utils/classname';
 import type { MessageActions, MessageData } from './types';
 import { Message } from './Message';
@@ -13,7 +13,7 @@ import { longPressHighlight } from '@core/directive/longPressHighlight';
 type ChannelMessageProps = {
   channelId: string;
   message: MessageData;
-  actions?: MessageActions;
+  actions?: Accessor<MessageActions | undefined>;
   listMeta?: ChannelMessageListMeta;
   messageEditor?: MessageEditor;
   highlighted?: boolean;
@@ -163,6 +163,7 @@ function GroupedMessageLayout(props: {
 export function ChannelMessage(props: ChannelMessageProps) {
   const drawerManager = useMessageActionDrawer();
   const isGrouped = () => props.listMeta?.isGroupedWithPrevious === true;
+  const resolvedActions = () => props.actions?.();
 
   return (
     <Message.Root
@@ -171,7 +172,8 @@ export function ChannelMessage(props: ChannelMessageProps) {
       highlighted={props.highlighted}
       ref={(el) =>
         longPressHighlight(el, () => ({
-          onLongPress: () => drawerManager?.open(props.message, props.actions),
+          onLongPress: () =>
+            drawerManager?.open(props.message, resolvedActions()),
         }))
       }
     >
