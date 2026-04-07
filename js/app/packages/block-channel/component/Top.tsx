@@ -21,12 +21,14 @@ import Bell from '@icon/regular/bell.svg';
 import HashIcon from '@icon/regular/hash.svg';
 import LinkIcon from '@icon/regular/link.svg';
 import PaperclipIcon from '@phosphor-icons/core/regular/paperclip.svg?component-solid';
+import PhoneIcon from '@icon/regular/phone.svg';
+import PhoneDisconnectIcon from '@icon/regular/phone-disconnect.svg';
 import UsersIcon from '@icon/regular/users.svg';
 import type { ChannelParticipant } from '@queries/channel/types';
 import type { ChannelType } from '@service-comms/generated/models/channelType';
 import { ChannelTypeEnum } from '@service-comms/client';
 import { useUserId } from '@core/context/user';
-import { createMemo, Show } from 'solid-js';
+import { type Component, createMemo, Show } from 'solid-js';
 import { AttachmentsButton } from './AttachmentsModal';
 import { useChannelContext } from '@block-channel/hooks/channel';
 import { isChannelAdminOrOwner } from '@queries/channel/derived';
@@ -35,6 +37,7 @@ import { ParticipantManagerButton } from './ParticipantManager';
 import { useAnalytics } from '@app/component/analytics-context';
 import { Tabs, type TabItem } from '@core/component/Tabs';
 import type { ChannelTabId } from '@channel/Channel/channel-tabs';
+import { ENABLE_CALLS } from '@core/constant/featureFlags';
 
 type TopIconProps = {
   channelType: ChannelType;
@@ -111,6 +114,18 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
   );
 }
 
+const CallIcon: Component = (iconProps) => {
+  const channelModals = useChannelModals();
+  return (
+    <Show
+      when={channelModals.isInCall()}
+      fallback={<PhoneIcon {...iconProps} />}
+    >
+      <PhoneDisconnectIcon {...iconProps} />
+    </Show>
+  );
+};
+
 export function Top(props: TopProps) {
   const analytics = useAnalytics();
 
@@ -172,6 +187,30 @@ export function Top(props: TopProps) {
       buttonComponent: () => (
         <AttachmentsButton attachments={channelModals.attachments} />
       ),
+    },
+    {
+      label: () => (channelModals.isInCall() ? 'Leave Call' : 'Call'),
+      icon: CallIcon,
+      action: (() => {
+        let isTogglingCall = false;
+        return async () => {
+          if (isTogglingCall) return;
+          isTogglingCall = true;
+          try {
+            if (channelModals.isInCall()) {
+              await channelModals.leaveCall();
+            } else {
+              await channelModals.joinCall();
+            }
+          } catch (e) {
+            console.error('Call action failed', e);
+          } finally {
+            isTogglingCall = false;
+          }
+        };
+      })(),
+      isActive: () => channelModals.isInCall(),
+      condition: () => ENABLE_CALLS(),
     },
     {
       label: 'Participants',

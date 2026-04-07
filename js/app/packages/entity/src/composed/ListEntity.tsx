@@ -56,7 +56,7 @@ import { SearchSender } from '../extractors-search/search-sender';
 import { createEntityDraggable } from '../utils/draggable';
 import { UnreadIndicator } from '../components/UnreadIndicator';
 import { MultiSelectCheckbox } from '../components/MultiSelectCheckbox';
-import { DraftBadge, InviteBadge, SharedBadge } from '../components/Badges';
+import { DraftBadge, SharedBadge } from '../components/Badges';
 import { useIsShared } from '../utils/shared';
 import { ProjectBreadCrumb } from '../components/ProjectBreadCrumb';
 import {
@@ -205,14 +205,9 @@ function InboxDivider() {
 function EmailIdentity(props: { entity: EmailEntity }) {
   return (
     <>
-      <Switch>
-        <Match when={props.entity.isDraft}>
-          <DraftBadge />
-        </Match>
-        <Match when={props.entity.hasIcsAttachment}>
-          <InviteBadge />
-        </Match>
-      </Switch>
+      <Show when={props.entity.isDraft}>
+        <DraftBadge />
+      </Show>
       <span class="truncate">
         <Entity.EmailParticipants entity={props.entity} />
       </span>
@@ -989,6 +984,7 @@ export function ListEntity(props: ListEntityProps) {
       onMouseMove={props.onMouseMove}
     >
       <div
+        data-accent-bar
         class={cn('absolute h-full w-[3px] left-0 top-0 bg-accent opacity-0', {
           'opacity-100': props.highlighted && !isMobile(),
         })}
