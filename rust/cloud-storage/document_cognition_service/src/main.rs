@@ -3,6 +3,7 @@ use crate::api::context::ApiContext;
 use ai_tools::{NoOpConnectionService, NoOpNotificationService, NoOpTaskProperties};
 use anyhow::Context;
 use comms::domain::service::ChannelServiceImpl;
+use comms::outbound::postgres::bot_integration_repo::PgBotIntegrationRepo;
 use comms::outbound::postgres::comms_repo::PgCommsRepo;
 use comms::outbound::postgres::user_repo::PgUserRepo;
 use comms_service_client::CommsServiceClient;
@@ -157,6 +158,7 @@ async fn main() -> anyhow::Result<()> {
         PgCommsRepo::new(readonly_pool::ReadOnlyPool(db.clone())),
         PgUserRepo::new(db.clone()),
         frecency_storage,
+        PgBotIntegrationRepo::new(db.clone()),
     );
     let email_service_for_tools: Arc<ai_tools::ToolEmailService> = Arc::new(email_service.clone());
     let soup_service = Arc::new(SoupImpl::new(

@@ -109,6 +109,7 @@ impl StreamRepo for MockStreamRepo {
 pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Arc<ApiContext> {
     use aws_sdk_sqs;
     use comms::domain::service::ChannelServiceImpl;
+    use comms::outbound::postgres::bot_integration_repo::PgBotIntegrationRepo;
     use comms::outbound::postgres::comms_repo::PgCommsRepo;
     use comms::outbound::postgres::user_repo::PgUserRepo;
     use comms_service_client::CommsServiceClient;
@@ -197,6 +198,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         PgCommsRepo::new(readonly_pool::ReadOnlyPool(pool.clone())),
         user_repo,
         frecency_storage,
+        PgBotIntegrationRepo::new(pool.clone()),
     );
     let email_service_for_tools: Arc<ai_tools::ToolEmailService> = Arc::new(email_service.clone());
     let soup_service = Arc::new(SoupImpl::new(

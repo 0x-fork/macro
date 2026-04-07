@@ -20,7 +20,9 @@ use channels::{
 use comms::{
     domain::service::ChannelServiceImpl,
     inbound::CommsRouterState,
-    outbound::postgres::{comms_repo::PgCommsRepo, user_repo::PgUserRepo},
+    outbound::postgres::{
+        bot_integration_repo::PgBotIntegrationRepo, comms_repo::PgCommsRepo, user_repo::PgUserRepo,
+    },
 };
 use config::{Config, Environment};
 use connection::{
@@ -263,21 +265,24 @@ async fn main() -> anyhow::Result<()> {
         PgCommsRepo::new(readonly_pool::ReadOnlyPool(readonly_db.clone())),
         PgUserRepo::new(readonly_db.clone()),
         frecency_storage.clone(),
+        PgBotIntegrationRepo::new(readonly_db.clone()),
     );
     let channel_service_for_comms = ChannelServiceImpl::new(
         PgCommsRepo::new(readonly_pool::ReadOnlyPool(db.clone())),
         PgUserRepo::new(db.clone()),
         frecency_storage.clone(),
+        PgBotIntegrationRepo::new(db.clone()),
     );
-
-    // Create the CommsRouterState for comms_service routes
-    let comms_state = CommsRouterState::new(channel_service_for_comms);
 
     let entity_access_service = Arc::new(
         entity_access::domain::service::EntityAccessServiceImpl::new(
             entity_access::outbound::PgAccessRepository::new(db.clone()),
         ),
     );
+
+    // Create the CommsRouterState for comms_service routes
+    let comms_state =
+        CommsRouterState::new(channel_service_for_comms, entity_access_service.clone());
 
     let s3 = Arc::new(S3::new(
         s3_client,

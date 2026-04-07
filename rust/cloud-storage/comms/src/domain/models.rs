@@ -7,6 +7,68 @@ use uuid::Uuid;
 
 pub mod channel_name;
 
+/// The tier of a bot integration, determining how it receives webhook payloads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IntegrationTier {
+    /// Dedicated endpoint that parses the service's native payload format.
+    Native,
+    /// Uses the generic endpoint, but with suggested payload templates.
+    TemplateGuided,
+    /// Uses the generic endpoint with a simple `{ "text": "..." }` contract.
+    Generic,
+}
+
+/// A bot integration type that can be used to create channel bots.
+#[derive(Debug, Clone)]
+pub struct BotIntegration {
+    /// Unique identifier.
+    pub id: uuid::Uuid,
+    /// Short key used for routing (e.g. "github", "datadog", "generic").
+    pub key: String,
+    /// Human-readable display name.
+    pub name: String,
+    /// URL or path to the integration's icon.
+    pub icon_url: Option<String>,
+    /// Integration tier.
+    pub tier: IntegrationTier,
+    /// Suggested payload template for template-guided integrations.
+    pub payload_template: Option<String>,
+    /// Markdown setup instructions shown during bot creation.
+    pub setup_instructions: Option<String>,
+}
+
+/// Errors from bot operations.
+#[derive(Debug, thiserror::Error)]
+pub enum BotError {
+    /// Validation failure (bad input).
+    #[error("{0}")]
+    Validation(String),
+    /// Something went wrong internally.
+    #[error("internal error: {0}")]
+    Internal(rootcause::Report),
+}
+
+/// Parameters for creating a new channel bot.
+#[derive(Debug)]
+pub struct CreateBotRequest {
+    /// The integration type (FK to comms_webhook_integrations).
+    pub integration_id: Uuid,
+    /// Display name for the bot in messages.
+    pub name: String,
+}
+
+/// The result of creating a bot.
+#[derive(Debug)]
+pub struct CreatedBot {
+    /// The generated bot ID.
+    pub id: Uuid,
+    /// The webhook authentication token (only returned once at creation).
+    pub token: String,
+    /// The integration key (e.g. "github", "generic") for building the webhook URL.
+    pub integration_key: String,
+}
+
 pub struct ChannelPreviewsRequest<'a> {
     pub channel_ids: &'a [Uuid],
     pub user: MacroUserIdStr<'a>,

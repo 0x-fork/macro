@@ -2,6 +2,7 @@ use ai_tools::{
     NoOpConnectionService, NoOpNotificationService, NoOpTaskProperties, ToolServiceContext,
 };
 use comms::domain::service::ChannelServiceImpl;
+use comms::outbound::postgres::bot_integration_repo::PgBotIntegrationRepo;
 use comms::outbound::postgres::comms_repo::PgCommsRepo;
 use comms::outbound::postgres::user_repo::PgUserRepo;
 use document_storage_service_client::DocumentStorageServiceClient;
@@ -110,6 +111,7 @@ pub async fn build_tool_service_context(pool: sqlx::PgPool) -> anyhow::Result<To
         PgCommsRepo::new(readonly_pool::ReadOnlyPool(pool.clone())),
         PgUserRepo::new(pool.clone()),
         frecency_storage,
+        PgBotIntegrationRepo::new(pool.clone()),
     );
     let email_service_for_tools: Arc<ai_tools::ToolEmailService> = Arc::new(email_service.clone());
     let soup_service = Arc::new(SoupImpl::new(

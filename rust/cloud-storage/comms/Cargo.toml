@@ -5,7 +5,7 @@ publish = false
 version = "0.1.0"
 
 [features]
-inbound = ["dep:axum", "dep:model_user", "dep:utoipa"]
+inbound = ["dep:axum", "dep:model_user", "dep:utoipa", "dep:entity_access", "dep:model-error-response"]
 outbound = ["dep:readonly_pool", "dep:sqlx"]
 
 
@@ -13,13 +13,18 @@ outbound = ["dep:readonly_pool", "dep:sqlx"]
 axum = { workspace = true, optional = true }
 chrono = { workspace = true }
 doppleganger = { workspace = true, features = ["chrono", "uuid"] }
+entity_access = { path = "../entity_access", default-features = false, features = ["inbound"], optional = true }
 filter_ast = { path = "../filter_ast" }
 frecency = { path = "../frecency", features = ["ports"] }
 item_filters = { path = "../item_filters" }
 macro_user_id = { path = "../macro_user_id" }
+macro_uuid = { path = "../macro_uuid" }
 model-entity = { path = "../model-entity" }
+model-error-response = { path = "../model-error-response", optional = true }
 model_user = { path = "../model_user", optional = true, features = ["axum"] }
 models_comms = { path = "../models_comms" }
+rand = { workspace = true }
+sha2 = { workspace = true }
 models_pagination = { path = "../models_pagination" }
 readonly_pool = { path = "../readonly_pool", optional = true }
 recursion = { workspace = true }

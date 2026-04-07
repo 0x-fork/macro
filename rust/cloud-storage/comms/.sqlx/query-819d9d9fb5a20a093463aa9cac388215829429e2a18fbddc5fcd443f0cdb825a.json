@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            key,\n            name,\n            icon_url,\n            tier as \"tier: DbIntegrationTier\",\n            payload_template,\n            setup_instructions\n        FROM comms_webhook_integrations\n        ORDER BY name ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "icon_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "tier: DbIntegrationTier",
+        "type_info": {
+          "Custom": {
+            "name": "comms_integration_tier",
+            "kind": {
+              "Enum": [
+                "native",
+                "template_guided",
+                "generic"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "payload_template",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "setup_instructions",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "819d9d9fb5a20a093463aa9cac388215829429e2a18fbddc5fcd443f0cdb825a"
+}

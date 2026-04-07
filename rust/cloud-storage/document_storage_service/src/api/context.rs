@@ -12,7 +12,9 @@ use channels::{
 use comms::{
     domain::service::ChannelServiceImpl,
     inbound::CommsRouterState,
-    outbound::postgres::{comms_repo::PgCommsRepo, user_repo::PgUserRepo},
+    outbound::postgres::{
+        bot_integration_repo::PgBotIntegrationRepo, comms_repo::PgCommsRepo, user_repo::PgUserRepo,
+    },
 };
 use comms_service::CommsHandlerState;
 use connection::{
@@ -75,7 +77,7 @@ type DssSoupState = SoupRouterState<
         PgSoupRepo,
         FrecencyQueryServiceImpl<FrecencyPgStorage>,
         ReadonlyEmailPreviewAdapter<DssEmailService>,
-        ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage>,
+        ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage, PgBotIntegrationRepo>,
     >,
     DssEmailService,
 >;
@@ -149,10 +151,10 @@ pub(crate) type DocumentsState = DocumentRouterState<DocumentService, EntityAcce
 
 /// Type alias for the ChannelServiceImpl used by comms
 pub(crate) type CommsChannelService =
-    ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage>;
+    ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage, PgBotIntegrationRepo>;
 
 /// Type alias for the CommsRouterState
-pub(crate) type CommsState = CommsRouterState<CommsChannelService>;
+pub(crate) type CommsState = CommsRouterState<CommsChannelService, EntityAccessService>;
 
 /// Type alias for the channels router state.
 pub(crate) type DssChannelsState =

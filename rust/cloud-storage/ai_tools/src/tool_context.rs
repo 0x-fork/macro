@@ -1,7 +1,9 @@
 use axum::extract::FromRef;
 use comms::{
     domain::service::ChannelServiceImpl,
-    outbound::postgres::{comms_repo::PgCommsRepo, user_repo::PgUserRepo},
+    outbound::postgres::{
+        bot_integration_repo::PgBotIntegrationRepo, comms_repo::PgCommsRepo, user_repo::PgUserRepo,
+    },
 };
 use connection::domain::ports::ConnectionService;
 use documents::{
@@ -43,7 +45,8 @@ pub type ToolEmailService =
 pub type ToolUserEmailService = EmailServiceImpl<EmailPgRepo, ToolFrecencyService, sqs_client::SQS>;
 
 /// Type alias for the comms/channels service implementation
-pub type ToolCommsService = ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage>;
+pub type ToolCommsService =
+    ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage, PgBotIntegrationRepo>;
 
 /// No-op task properties service (not needed for AI tools)
 #[derive(Clone)]

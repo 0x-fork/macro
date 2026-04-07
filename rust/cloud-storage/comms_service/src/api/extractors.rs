@@ -15,6 +15,7 @@ use comms_db_client::{
     participants::get_participants::get_participants,
 };
 use doppleganger::Mirror;
+use entity_access::domain::ports::EntityAccessService;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 use model::{
     comms::ParticipantRole,
@@ -31,11 +32,15 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ChannelName<T>(pub String, pub PhantomData<T>);
+pub struct ChannelName<T, A = ()>(
+    pub String,
+    pub PhantomData<T>,
+    #[serde(skip)] pub PhantomData<A>,
+);
 
-impl<T> Clone for ChannelName<T> {
+impl<T, A> Clone for ChannelName<T, A> {
     fn clone(&self) -> Self {
-        Self(self.0.clone(), PhantomData)
+        Self(self.0.clone(), PhantomData, PhantomData)
     }
 }
 
@@ -155,12 +160,13 @@ where
     }
 }
 
-impl<S, U> FromRequestParts<S> for ChannelName<U>
+impl<S, U, A> FromRequestParts<S> for ChannelName<U, A>
 where
     S: Send + Sync,
     PgPool: FromRef<S>,
-    CommsRouterState<U>: FromRef<S>,
+    CommsRouterState<U, A>: FromRef<S>,
     U: ChannelsService,
+    A: EntityAccessService,
 {
     type Rejection = Response;
 
@@ -181,7 +187,7 @@ where
             .map(|p| p.user_id.copied())
             .collect::<HashSet<_>>();
 
-        let service = <CommsRouterState<U>>::from_ref(state);
+        let service = <CommsRouterState<U, A>>::from_ref(state);
         let name_lookup = service
             .inner
             .get_names(user_ids)
@@ -207,7 +213,7 @@ where
             &name_lookup,
         );
 
-        Ok(ChannelName(channel_name, PhantomData))
+        Ok(ChannelName(channel_name, PhantomData, PhantomData))
     }
 }
 

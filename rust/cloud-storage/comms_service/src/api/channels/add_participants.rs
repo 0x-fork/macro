@@ -1,5 +1,5 @@
 use crate::api::channels::create_channel::to_lowercase;
-use crate::api::context::{AppState, ChannelImpl};
+use crate::api::context::{AppState, ChannelImpl, EntityAccessImpl};
 use crate::api::extractors::{
     ChannelId, ChannelMember, ChannelName, ChannelParticipants, ChannelTypeExtractor,
 };
@@ -44,7 +44,7 @@ pub struct AddParticipantsRequest {
 pub async fn handler(
     State(ctx): State<AppState>,
     Cached(ChannelMember(channel_member)): Cached<ChannelMember>,
-    Cached(ChannelName(channel_name, ..)): Cached<ChannelName<ChannelImpl>>,
+    Cached(ChannelName(channel_name, ..)): Cached<ChannelName<ChannelImpl, EntityAccessImpl>>,
     Cached(ChannelTypeExtractor(channel_type)): Cached<ChannelTypeExtractor>,
     Cached(ChannelParticipants(channel_participants)): Cached<ChannelParticipants>,
     Cached(ChannelId(channel_id)): Cached<ChannelId>,

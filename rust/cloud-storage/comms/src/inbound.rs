@@ -1,41 +1,70 @@
-use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::get};
+use axum::{
+    Json, Router,
+    extract::{FromRef, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+};
 use doppleganger::{Doppleganger, Mirror};
+use entity_access::domain::models::OwnerParticipantRole;
+use entity_access::domain::ports::EntityAccessService;
+use entity_access::inbound::axum_extractors::ChannelAccessLevelExtractor;
 use frecency::domain::models::AggregateFrecency;
 use macro_user_id::user_id::MacroUserIdStr;
+use model_error_response::ErrorResponse;
 use model_user::axum_extractor::MacroUserExtractor;
 use models_comms::channel::{ChannelId, OrganizationId};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::{models::GetChannelsRequest, ports::ChannelsService};
+use crate::domain::{
+    models::{BotError, CreateBotRequest, GetChannelsRequest},
+    ports::ChannelsService,
+};
 
-pub struct CommsRouterState<S> {
+pub struct CommsRouterState<S, Svc> {
     pub inner: Arc<S>,
+    pub access_service: Arc<Svc>,
 }
 
-impl<S> Clone for CommsRouterState<S> {
+impl<S, Svc> Clone for CommsRouterState<S, Svc> {
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
+            access_service: Arc::clone(&self.access_service),
         }
     }
 }
 
-impl<S: ChannelsService> CommsRouterState<S> {
-    pub fn new(s: S) -> Self {
-        CommsRouterState { inner: Arc::new(s) }
+impl<S: ChannelsService, Svc: EntityAccessService> CommsRouterState<S, Svc> {
+    pub fn new(s: S, access_service: Arc<Svc>) -> Self {
+        CommsRouterState {
+            inner: Arc::new(s),
+            access_service,
+        }
     }
 }
 
-pub fn comms_router<S: ChannelsService, T: Send + Sync + 'static>(
-    s: CommsRouterState<S>,
+impl<S, Svc> FromRef<CommsRouterState<S, Svc>> for Arc<Svc> {
+    fn from_ref(state: &CommsRouterState<S, Svc>) -> Self {
+        state.access_service.clone()
+    }
+}
+
+pub fn comms_router<S: ChannelsService, Svc: EntityAccessService, T: Send + Sync + 'static>(
+    s: CommsRouterState<S, Svc>,
 ) -> Router<T> {
     Router::new()
         .route("/channels", get(get_channels_handler))
         .route("/activity", get(get_activity_handler))
+        .route("/webhooks/integrations", get(get_integrations_handler))
+        .route(
+            "/channels/{channel_id}/webhooks",
+            post(create_bot_handler::<S, Svc>),
+        )
         .with_state(s)
 }
 
@@ -67,8 +96,8 @@ impl IntoResponse for CommsErr {
         (status = 500, body=String),
     )
 )]
-async fn get_channels_handler<S: ChannelsService>(
-    State(service): State<CommsRouterState<S>>,
+async fn get_channels_handler<S: ChannelsService, Svc: EntityAccessService>(
+    State(service): State<CommsRouterState<S, Svc>>,
     MacroUserExtractor { macro_user_id, .. }: MacroUserExtractor,
 ) -> Result<Json<Vec<ApiChannelWithLatest>>, CommsErr> {
     let res = service
@@ -97,8 +126,8 @@ async fn get_channels_handler<S: ChannelsService>(
     (status = 404, body=String),
     (status = 500, body=String),
 ))]
-pub async fn get_activity_handler<S: ChannelsService>(
-    State(service): State<CommsRouterState<S>>,
+pub async fn get_activity_handler<S: ChannelsService, Svc: EntityAccessService>(
+    State(service): State<CommsRouterState<S, Svc>>,
     MacroUserExtractor { macro_user_id, .. }: MacroUserExtractor,
 ) -> Result<Json<Vec<ApiActivity>>, CommsErr> {
     let res = service
@@ -229,4 +258,159 @@ pub struct ApiActivity {
     /// the last time the user intereacted with the channel
     /// eg. reacting, replying, sending a message
     pub interacted_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/webhooks/integrations",
+    tag = "bots",
+    operation_id = "get_bot_integrations",
+    responses(
+        (status = 200, body = Vec<ApiBotIntegration>),
+        (status = 500, body = String),
+    )
+)]
+async fn get_integrations_handler<S: ChannelsService, Svc: EntityAccessService>(
+    State(service): State<CommsRouterState<S, Svc>>,
+) -> Result<Json<Vec<ApiBotIntegration>>, CommsErr> {
+    let integrations = service
+        .inner
+        .get_integrations()
+        .await
+        .map_err(|_| CommsErr::Internal)?;
+
+    Ok(Json(<Vec<ApiBotIntegration>>::mirror(integrations)))
+}
+
+/// API response type for a bot integration.
+#[derive(Debug, Clone, Serialize, ToSchema, Doppleganger)]
+#[dg(backward = crate::domain::models::BotIntegration)]
+pub struct ApiBotIntegration {
+    /// Unique identifier.
+    pub id: Uuid,
+    /// Short key (e.g. "github", "datadog", "generic").
+    pub key: String,
+    /// Human-readable display name.
+    pub name: String,
+    /// URL or path to the integration's icon.
+    pub icon_url: Option<String>,
+    /// Integration tier.
+    pub tier: ApiIntegrationTier,
+    /// Suggested payload template for template-guided integrations.
+    pub payload_template: Option<String>,
+    /// Markdown setup instructions shown during bot creation.
+    pub setup_instructions: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, ToSchema, Doppleganger)]
+#[dg(backward = crate::domain::models::IntegrationTier)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiIntegrationTier {
+    /// Dedicated endpoint that parses the service's native payload format.
+    Native,
+    /// Uses the generic endpoint, but with suggested payload templates.
+    TemplateGuided,
+    /// Uses the generic endpoint with a simple `{ "text": "..." }` contract.
+    Generic,
+}
+
+// ── Create Bot ──────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreateBotApiRequest {
+    /// Display name for the bot in messages.
+    pub name: String,
+    /// The integration type ID (from GET /webhooks/integrations).
+    pub integration_id: Uuid,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CreateBotResponse {
+    /// The created bot's ID.
+    pub id: Uuid,
+    /// The webhook authentication token (only shown once).
+    pub token: String,
+    /// The integration key (e.g. "github", "generic") for building the webhook URL.
+    pub integration_key: String,
+}
+
+#[derive(Debug, Error)]
+pub enum CreateBotError {
+    #[error("{0}")]
+    Validation(String),
+    #[error("Internal error")]
+    Internal,
+}
+
+impl IntoResponse for CreateBotError {
+    fn into_response(self) -> axum::response::Response {
+        if matches!(self, CreateBotError::Internal) {
+            tracing::error!(error=?self, "create bot error");
+        }
+
+        let status = match &self {
+            CreateBotError::Validation(_) => StatusCode::BAD_REQUEST,
+            CreateBotError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+
+        let message = self.to_string();
+        (
+            status,
+            Json(ErrorResponse {
+                message: message.into(),
+            }),
+        )
+            .into_response()
+    }
+}
+
+impl From<BotError> for CreateBotError {
+    fn from(err: BotError) -> Self {
+        match err {
+            BotError::Validation(msg) => CreateBotError::Validation(msg),
+            BotError::Internal(_) => CreateBotError::Internal,
+        }
+    }
+}
+
+#[utoipa::path(
+    post,
+    tag = "bots",
+    operation_id = "create_channel_bot",
+    path = "/channels/{channel_id}/webhooks",
+    params(
+        ("channel_id" = String, Path, description = "id of the channel")
+    ),
+    responses(
+        (status = 201, body = CreateBotResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(err, skip(service, access))]
+async fn create_bot_handler<S: ChannelsService, Svc: EntityAccessService>(
+    State(service): State<CommsRouterState<S, Svc>>,
+    access: ChannelAccessLevelExtractor<OwnerParticipantRole, Svc>,
+    Json(req): Json<CreateBotApiRequest>,
+) -> Result<(StatusCode, Json<CreateBotResponse>), CreateBotError> {
+    let created = service
+        .inner
+        .create_bot(
+            &access.entity_access_receipt,
+            CreateBotRequest {
+                integration_id: req.integration_id,
+                name: req.name,
+            },
+        )
+        .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(CreateBotResponse {
+            id: created.id,
+            token: created.token,
+            integration_key: created.integration_key,
+        }),
+    ))
 }

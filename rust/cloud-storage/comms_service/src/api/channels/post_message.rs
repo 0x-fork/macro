@@ -1,4 +1,4 @@
-use crate::api::context::ChannelImpl;
+use crate::api::context::{ChannelImpl, EntityAccessImpl};
 use crate::api::{context::AppState, extractors::ChannelName};
 use crate::channel_permissions;
 use crate::notification as comms_notification;
@@ -69,7 +69,7 @@ pub async fn post_message_handler(
     State(ctx): State<AppState>,
     ChannelMember(channel_member): ChannelMember,
     Cached(ChannelParticipants(channel_participants)): Cached<ChannelParticipants>,
-    Cached(ChannelName(channel_name, ..)): Cached<ChannelName<ChannelImpl>>,
+    Cached(ChannelName(channel_name, ..)): Cached<ChannelName<ChannelImpl, EntityAccessImpl>>,
     Cached(ChannelId(channel_id)): Cached<ChannelId>,
     Cached(ChannelTypeExtractor(channel_type)): Cached<ChannelTypeExtractor>,
     extract::Json(req): extract::Json<PostMessageRequest>,

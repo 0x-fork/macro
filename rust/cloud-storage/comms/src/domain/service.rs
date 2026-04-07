@@ -9,37 +9,46 @@ use model_entity::EntityType;
 use models_comms::channel::{Activity, ChannelId, ChannelWithLatest};
 use uuid::Uuid;
 
+use entity_access::domain::models::{EntityAccessReceipt, OwnerParticipantRole};
+
 use crate::domain::{
-    models::{GetChannelsRequest, channel_name::resolve_channel_name},
-    ports::{ChannelsService, CommsRepo, UserRepo},
+    models::{
+        BotError, BotIntegration, CreateBotRequest, CreatedBot, GetChannelsRequest,
+        channel_name::resolve_channel_name,
+    },
+    ports::{BotIntegrationRepo, ChannelsService, CommsRepo, UserRepo},
 };
 
-pub struct ChannelServiceImpl<Comms, Auth, Frec> {
+pub struct ChannelServiceImpl<Comms, Auth, Frec, Bots> {
     comms: Comms,
     auth: Auth,
     frecency: Frec,
+    bots: Bots,
 }
 
-impl<Comms, Auth, Frec> ChannelServiceImpl<Comms, Auth, Frec>
+impl<Comms, Auth, Frec, Bots> ChannelServiceImpl<Comms, Auth, Frec, Bots>
 where
     Comms: CommsRepo,
     Auth: UserRepo,
     Frec: AggregateFrecencyStorage,
+    Bots: BotIntegrationRepo,
 {
-    pub fn new(comms: Comms, auth: Auth, frecency: Frec) -> Self {
+    pub fn new(comms: Comms, auth: Auth, frecency: Frec, bots: Bots) -> Self {
         ChannelServiceImpl {
             comms,
             auth,
             frecency,
+            bots,
         }
     }
 }
 
-impl<Comms, Auth, Frec> ChannelsService for ChannelServiceImpl<Comms, Auth, Frec>
+impl<Comms, Auth, Frec, Bots> ChannelsService for ChannelServiceImpl<Comms, Auth, Frec, Bots>
 where
     Comms: CommsRepo,
     Auth: UserRepo,
     Frec: AggregateFrecencyStorage,
+    Bots: BotIntegrationRepo,
 {
     #[tracing::instrument(err, skip(self))]
     async fn get_channels(
@@ -141,5 +150,46 @@ where
         names: HashSet<macro_user_id::user_id::MacroUserIdStr<'_>>,
     ) -> impl Future<Output = Result<Vec<super::models::UserName>, rootcause::Report>> + Send {
         self.auth.get_names_for_ids(names)
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn get_integrations(&self) -> Result<Vec<BotIntegration>, rootcause::Report> {
+        self.bots.get_all_integrations().await
+    }
+
+    #[tracing::instrument(err, skip(self, receipt))]
+    async fn create_bot(
+        &self,
+        receipt: &EntityAccessReceipt<OwnerParticipantRole>,
+        req: CreateBotRequest,
+    ) -> Result<CreatedBot, BotError> {
+        if req.name.is_empty() {
+            return Err(BotError::Validation("bot name is required".into()));
+        }
+        if req.name.len() > 32 {
+            return Err(BotError::Validation(
+                "bot name must not exceed 32 characters".into(),
+            ));
+        }
+
+        let user_id = receipt
+            .get_authenticated_user()
+            .map_err(|_| BotError::Validation("authentication required".into()))?;
+        let channel_id = Uuid::parse_str(&receipt.entity().entity_id)
+            .map_err(|_| BotError::Validation("invalid channel_id".into()))?;
+
+        let bytes: [u8; 32] = rand::Rng::random(&mut rand::rng());
+        let token: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+
+        use sha2::{Digest, Sha256};
+        let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+
+        let mut created = self
+            .bots
+            .create_bot(channel_id, user_id.to_string(), &token_hash, req)
+            .await
+            .map_err(BotError::Internal)?;
+        created.token = token;
+        Ok(created)
     }
 }
