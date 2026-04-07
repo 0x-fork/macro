@@ -53,9 +53,9 @@ export interface FreshSortConfig<T = unknown> {
   commaSeparatedChannelMatch?: boolean;
   /** Function to calculate per-item boost. Returns a boost multiplier (e.g., 0.2 for +20% boost). Default: undefined */
   boostFn?: BoostFn<T>;
-  /** How much to penalize matches with gaps between characters (0-1). Higher values penalize spread-out matches more. Default: 1.0 */
+  /** How much to penalize matches with gaps between characters (0-1). Higher values penalize spread-out matches more. Default: 0 */
   gapPenaltyWeight?: number;
-  /** How much to penalize matches that start later in the string. Higher values penalize later starts more. Default: 0.05 */
+  /** How much to penalize matches that start later in the string. Higher values penalize later starts more. Default: 0 */
   startBonusDecay?: number;
 }
 
@@ -87,8 +87,8 @@ const DEFAULT_CONFIG = {
   dmBoost: 1.0,
   commaSeparatedChannelMatch: false,
   boostFn: undefined,
-  gapPenaltyWeight: 1.0,
-  startBonusDecay: 0.05,
+  gapPenaltyWeight: 0,
+  startBonusDecay: 0,
 } as const;
 
 function extractTimestamp(
