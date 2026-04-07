@@ -30,6 +30,7 @@ export const VIDEO_MIMES: Record<
       flv: 'video/x-flv',
       f4v: 'video/mp4',
       threegp: 'video/3gpp',
+      mp3: 'audio/mpeg',
     }
   : {};
 
@@ -47,6 +48,7 @@ export const PLAYBACK_ENABLED_MIMES: Record<keyof typeof VIDEO_MIMES, boolean> =
     flv: true,
     f4v: true,
     threegp: true,
+    mp3: true,
   };
 
 export const definition = defineBlock({
@@ -87,7 +89,7 @@ export const definition = defineBlock({
         });
       } else {
         toast.failure(
-          'Video playback is not supported for this file type',
+          'Media playback is not supported for this file type',
           `File type: ${fileType}`
         );
       }

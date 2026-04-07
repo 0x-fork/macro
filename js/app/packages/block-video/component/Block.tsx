@@ -1,13 +1,14 @@
 import { DocumentBlockContainer } from '@core/component/DocumentBlockContainer';
 import { useBlockEntityCommands } from '@app/component/next-soup/actions';
 import { toast } from 'core/component/Toast/Toast';
-import { createEffect, createSignal, Show } from 'solid-js';
+import { Show } from 'solid-js';
 import { blockData } from '../signal/blockData';
 import { ModalsProvider } from './ModalsProvider';
 import { TopBar } from './TopBar';
 
 export default function BlockVideo() {
   useBlockEntityCommands();
+
   return (
     <DocumentBlockContainer>
       <div class="w-full h-full bg-panel select-none overscroll-none overflow-hidden flex flex-col relative">
@@ -16,7 +17,7 @@ export default function BlockVideo() {
             <TopBar />
           </div>
           <div class="w-full grow-1 relative overflow-hidden">
-            <Video />
+            <Media />
           </div>
         </ModalsProvider>
       </div>
@@ -24,30 +25,32 @@ export default function BlockVideo() {
   );
 }
 
-const Video = () => {
-  const videoUrl = () => blockData()?.videoUrl;
-  const [playbackError, setPlaybackError] = createSignal<string>();
+const Media = () => {
+  const mediaUrl = () => blockData()?.videoUrl;
+  const fileType = () => blockData()?.documentMetadata?.fileType;
+  const isAudio = () => fileType() === 'mp3';
 
-  createEffect(() => {
-    const err = playbackError();
-    if (err) {
-      toast.failure(err);
-    }
-  });
+  const handleError = () => {
+    toast.failure('Media playback failed');
+  };
 
   return (
     <div class="w-full h-full flex flex-col items-center justify-center gap-3 text-ink">
-      <Show when={videoUrl()}>
-        <video
-          class="w-full h-full"
-          controls
-          autoplay
-          src={videoUrl()}
-          onError={(e) => {
-            console.error('video error', e);
-            setPlaybackError('Video playback failed');
-          }}
-        />
+      <Show when={mediaUrl()}>
+        <Show
+          when={isAudio()}
+          fallback={
+            <video
+              class="w-full h-full"
+              controls
+              autoplay
+              src={mediaUrl()}
+              onError={handleError}
+            />
+          }
+        >
+          <audio class="w-full max-w-[720px]" controls autoplay src={mediaUrl()} onError={handleError} />
+        </Show>
       </Show>
     </div>
   );
