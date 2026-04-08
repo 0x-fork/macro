@@ -39,6 +39,9 @@ pub type ToolFrecencyService = FrecencyQueryServiceImpl<FrecencyPgStorage>;
 pub type ToolEmailService =
     EmailServiceImpl<EmailPgRepo, ToolFrecencyService, email::domain::ports::NoOpEnqueuer>;
 
+/// Type alias for the send-capable email service implementation used by user tools.
+pub type ToolUserEmailService = EmailServiceImpl<EmailPgRepo, ToolFrecencyService, sqs_client::SQS>;
+
 /// Type alias for the comms/channels service implementation
 pub type ToolCommsService = ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage>;
 
@@ -72,6 +75,16 @@ impl ConnectionService for NoOpConnectionService {
     async fn send_invalidation_event<'a, T: std::fmt::Debug + serde::Serialize + Send>(
         &self,
         _invalidation_event: connection::domain::models::InvalidationEvent<'a, T>,
+    ) -> Result<(), connection::domain::models::ConnectionError> {
+        Ok(())
+    }
+
+    async fn send_channel_message(
+        &self,
+        _channel_id: &str,
+        _message_type: &str,
+        _message: serde_json::Value,
+        _triggered_by: connection::domain::models::EntityAccessAuth,
     ) -> Result<(), connection::domain::models::ConnectionError> {
         Ok(())
     }
@@ -122,7 +135,7 @@ impl properties::NotificationService for NoOpNotificationService {
 /// Type alias for the properties service implementation used by AI tools
 pub type ToolPropertiesService = properties::PropertiesServiceImpl<
     properties::PropertiesPgRepo,
-    properties::PermissionServiceImpl,
+    properties::PermissionServiceImpl<ToolEntityAccessService>,
     NoOpNotificationService,
 >;
 
@@ -130,7 +143,7 @@ pub type ToolPropertiesService = properties::PropertiesServiceImpl<
 pub type ToolPropertiesToolContext = PropertiesToolContext<ToolPropertiesService>;
 
 /// Type alias for the email tool context
-pub type ToolEmailToolContext = EmailToolContext<ToolEmailService>;
+pub type ToolEmailToolContext = EmailToolContext<ToolUserEmailService>;
 
 /// The full service context containing all API clients.
 /// Individual tools should extract only the clients they need via `FromRef`.

@@ -248,7 +248,13 @@ async fn main() -> anyhow::Result<()> {
     });
     tracing::trace!("initialized notification ingress service");
 
-    let permission_checker = PermissionServiceImpl::new(db.clone());
+    let entity_access_service = Arc::new(
+        entity_access::domain::service::EntityAccessServiceImpl::new(
+            entity_access::outbound::PgAccessRepository::new(db.clone()),
+        ),
+    );
+
+    let permission_checker = PermissionServiceImpl::new(db.clone(), entity_access_service.clone());
     let notification_service = NotificationServiceImpl::new(SqsNotificationIngress {
         queue: ingress_queue,
     });
@@ -272,12 +278,6 @@ async fn main() -> anyhow::Result<()> {
 
     // Create the CommsRouterState for comms_service routes
     let comms_state = CommsRouterState::new(channel_service_for_comms);
-
-    let entity_access_service = Arc::new(
-        entity_access::domain::service::EntityAccessServiceImpl::new(
-            entity_access::outbound::PgAccessRepository::new(db.clone()),
-        ),
-    );
 
     let s3 = Arc::new(S3::new(
         s3_client,
@@ -313,10 +313,10 @@ async fn main() -> anyhow::Result<()> {
         config.vars.docx_document_upload_bucket.as_ref(),
     );
 
-    let connection_service = ConnectionServiceImpl::new(
-        entity_access_service.clone(),
-        Arc::new(ConnectionGatewayImpl::new(conn_gateway_client.clone())),
-    );
+    let connection_gateway = Arc::new(ConnectionGatewayImpl::new(conn_gateway_client.clone()));
+
+    let connection_service =
+        ConnectionServiceImpl::new(entity_access_service.clone(), connection_gateway.clone());
 
     let document_service = Arc::new(DocumentServiceImpl::new(
         document_repo,
@@ -365,16 +365,36 @@ async fn main() -> anyhow::Result<()> {
         config.vars.livekit_api_secret.as_ref(),
         transcription_agent_name,
     );
+    let call_connection_service =
+        ConnectionServiceImpl::new(entity_access_service.clone(), connection_gateway.clone());
     let call_repo = PgCallRepo::new(db.clone());
     let mut call_service_builder = CallServiceImpl::new(
         call_repo,
         livekit_rtc_client,
+        call_connection_service,
         config.vars.livekit_server_url.as_ref(),
     );
     if let Some(secret) = internal_call_secret {
         call_service_builder = call_service_builder.with_internal_call_secret(secret);
     }
+    if let (Some(bucket), Some(region), Some(access_key), Some(secret)) = (
+        config::CallRecordingS3Bucket::new(),
+        config::CallRecordingS3Region::new(),
+        config::CallRecordingS3AccessKey::new(),
+        config::CallRecordingS3Secret::new(),
+    ) {
+        tracing::info!(bucket = bucket.as_ref(), "call recording enabled");
+        call_service_builder =
+            call_service_builder.with_egress(call::domain::models::EgressS3Config {
+                bucket: bucket.as_ref().to_string(),
+                region: region.as_ref().to_string(),
+                access_key: access_key.as_ref().to_string(),
+                secret: secret.as_ref().to_string(),
+            });
+    }
+
     let call_service = Arc::new(call_service_builder);
+
     let call_state = CallRouterState::new(call_service.clone(), entity_access_service.clone());
     let call_webhook_state = WebhookRouterState::new(call_service.clone());
     let call_internal_state = InternalCallRouterState::new(call_service.clone());

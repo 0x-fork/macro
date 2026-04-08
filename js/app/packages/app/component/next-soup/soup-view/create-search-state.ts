@@ -6,6 +6,7 @@ import {
   intersectEntityPools,
   nameFuzzySearchFilter,
 } from '@app/component/next-soup/search-utils';
+import { arrayEquals } from '@core/util/compareUtils';
 import { debouncedDependent } from '@core/util/debounce';
 import { isChannelEntity, type EntityData } from '@entity';
 import type { SoupItemsQueryFilters } from '@queries/soup/items';
@@ -115,8 +116,15 @@ export const createSearchState = ({
     return filterToResultMap;
   });
 
+  // we will hide local results if there are channel filters because we only want message results
+  const hasChannelQueryFilters = () => {
+    const cf = queryFilters().channel_filters;
+    return !!(cf?.channel_ids?.length || cf?.sender_ids?.length);
+  };
+
   const filteredLocalFuzzyResults = createMemo(() => {
     if (!localFuzzyResults()) return [];
+    if (hasChannelQueryFilters()) return [];
     const activeFilters = getValidSearchFilters(soup.filters.active());
     const results =
       activeFilters.length === 0
@@ -138,10 +146,11 @@ export const createSearchState = ({
     return searchQuery.data ?? [];
   });
 
-  const featuredIds = createMemo(() => {
-    const ids = filteredLocalFuzzyResults().map((r) => r.id);
-    return ids;
-  });
+  const featuredIds = createMemo<string[]>(
+    () => filteredLocalFuzzyResults().map((r) => r.id),
+    [],
+    { equals: arrayEquals }
+  );
 
   const isLocalSearchSettling = createMemo(
     () => isSearching() && trimmedSearchText() !== debouncedSearchForLocal()

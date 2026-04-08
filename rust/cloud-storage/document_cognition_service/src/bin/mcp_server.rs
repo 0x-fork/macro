@@ -47,6 +47,7 @@ use sync_service_client::SyncServiceClient;
 env_var!(
     struct McpEnvVars {
         DatabaseUrl,
+        EmailScheduledQueue,
         DocumentStorageServiceUrl,
         SyncServiceUrl,
         SyncServiceAuthKey,
@@ -102,6 +103,9 @@ async fn main() -> anyhow::Result<()> {
 
     let macro_env = macro_env::Environment::new_or_prod();
     let aws_config = macro_aws_config::get_macro_aws_config().await;
+    let queue_aws_client = aws_sdk_sqs::Client::new(&aws_config);
+    let sqs_client = sqs_client::SQS::new(queue_aws_client)
+        .email_scheduled_queue(env_vars.email_scheduled_queue.as_ref());
 
     let secretsmanager_client = secretsmanager_client::SecretsManager::new(
         aws_sdk_secretsmanager::Client::new(&aws_config),
@@ -218,18 +222,23 @@ async fn main() -> anyhow::Result<()> {
         NoOpTaskProperties,
         NoOpConnectionService,
     );
-    let entity_access_service = EntityAccessServiceImpl::new(PgAccessRepository::new(db.clone()));
+    let entity_access_service = Arc::new(EntityAccessServiceImpl::new(PgAccessRepository::new(
+        db.clone(),
+    )));
     let lexical_client_for_tools = (*lexical_client).clone();
     let document_tool_context = DocumentToolContext::new(
         document_service,
-        entity_access_service,
+        (*entity_access_service).clone(),
         lexical_client_for_tools,
     );
 
     // Build properties tool context
     let properties_service = properties::PropertiesServiceImpl::new(
         properties::PropertiesPgRepo::new(db.clone()),
-        Some(properties::PermissionServiceImpl::new(db.clone())),
+        Some(properties::PermissionServiceImpl::new(
+            db.clone(),
+            entity_access_service.clone(),
+        )),
         Some(NoOpNotificationService),
     );
     let properties_tool_context =
@@ -240,7 +249,7 @@ async fn main() -> anyhow::Result<()> {
         Arc::new(EmailServiceImpl::new(
             EmailPgRepo::new(db.clone()),
             FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(db.clone())),
-            email::domain::ports::NoOpEnqueuer,
+            sqs_client.clone(),
             0,
         )),
         Arc::new(email::domain::ports::NoOpGmailTokenProvider),

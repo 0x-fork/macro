@@ -754,7 +754,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
   return (
     <MaybeSoupEntityActionDrawerManager>
       <div
-        class="size-full flex bracket-never"
+        class="size-full flex bracket-never no-select-children"
         ref={(el) => {
           setSoupViewRef(el);
           attachHotkeys(el);
@@ -928,6 +928,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                 <Spinner class="size-3 animate-spin" />
                                 Searching...
                               </div>
+                            </Show>
+                            <Show when={i() === rows().length - 1}>
+                              <div class="h-15" />
                             </Show>
                           </>
                         );

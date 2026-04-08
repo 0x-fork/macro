@@ -40,8 +40,10 @@ import {
 } from '../Input';
 import { ChannelInputContainer } from '../Input/ChannelInputContainer';
 import { createChannelMessageActions } from './create-channel-message-actions';
+import { useSplitLayout } from '@app/component/split-layout/layout';
+import { useChannelName, useChannelActivity } from '@core/context/channels';
+import { buildMentionMarkdownString } from '@lexical-core';
 import { createActivityTracker } from '@channel/activity-tracker';
-import { useChannelActivity } from '@core/context/channels';
 import {
   invalidateChannelsActivity,
   useUpdateChannelsActivityMutation,
@@ -58,8 +60,10 @@ import { createMessageEditor } from './create-message-editor';
 import { createMessageSelection } from './create-message-selection';
 import { createChannelHotkeys } from './create-channel-hotkeys';
 import { createInlineInputKeyboardHandler } from './create-inline-input-keyboard-handler';
+import { createMainInputKeyboardHandler } from './create-main-input-keyboard-handler';
 import type { ChannelInputProps } from '@channel/Input/ChannelInput';
 import {
+  clearStaleRestoredChannelData,
   createTargetMessageController,
   type TargetMessageController,
 } from './create-target-message-controller';
@@ -80,6 +84,8 @@ export type ChannelProps = {
   targetMessageReplyId?: string | undefined;
   lastViewedAt?: DateValue | null;
   onHandleReady?: (handle: ChannelHandle) => void;
+  /** Whether to auto-focus the channel input on mount. Defaults to `!isMobile()`. */
+  autofocus?: boolean;
 };
 
 export type ChannelHandle = {
@@ -103,12 +109,19 @@ export function Channel(props: ChannelProps) {
   const [messageListElement, setMessageListElement] =
     createSignal<HTMLDivElement>();
 
+  // When opening without a target, clear stale data that was previously
+  // restored from a load-around session so the query fetches from the bottom.
+  if (!props.targetMessageId) {
+    clearStaleRestoredChannelData(props.channelId);
+  }
+
   const targetMessageController = createTargetMessageController({
     channelId: () => props.channelId,
     initialTargetMessageId: props.targetMessageId,
     initialTargetMessageReplyId: props.targetMessageReplyId,
     messageKeys: () => messageIndex.keys(),
     navigation: threadListNavigation,
+    didInitialScroll: () => threadListScrollState()?.didInitialScroll ?? false,
   });
 
   const [channelInputSnapshot, setChannelInputSnapshot] =
@@ -152,6 +165,7 @@ export function Channel(props: ChannelProps) {
 
   const threadManager = createThreadManager();
   const [isChannelInputHidden, setIsChannelInputHidden] = createSignal(false);
+  const [channelInputEl, setChannelInputEl] = createSignal<HTMLDivElement>();
   const threadPaginator = createThreadPaginator(messagesQuery);
   const messageEditor = createMessageEditor({
     channelId: () => props.channelId,
@@ -185,6 +199,9 @@ export function Channel(props: ChannelProps) {
     attachmentTracker,
   });
 
+  const channelName = useChannelName(props.channelId);
+  const { popoverSplit } = useSplitLayout();
+
   const getMessageActions = createChannelMessageActions({
     channelId: () => props.channelId,
     userId,
@@ -198,6 +215,21 @@ export function Channel(props: ChannelProps) {
     },
     onEdit: ({ message }) => {
       messageEditor.start(message);
+    },
+    onCreateTask: (ctx) => {
+      popoverSplit({
+        type: 'component',
+        id: 'task-compose',
+        params: {
+          initialContent: buildMentionMarkdownString({
+            type: 'document',
+            documentId: props.channelId,
+            documentName: channelName() ?? '',
+            blockName: 'channel',
+            blockParams: { channel_message_id: ctx.message.id },
+          }),
+        },
+      });
     },
   });
 
@@ -226,6 +258,12 @@ export function Channel(props: ChannelProps) {
 
   // On Mobile when a thread reply input is focused, we want to hide the main Channel input
   createInlineInputKeyboardHandler(messageListElement, setIsChannelInputHidden);
+  // On Native iOS app, when the main channel input is focused, scroll to bottom if already near bottom
+  createMainInputKeyboardHandler(
+    channelInputEl,
+    threadListNavigation,
+    messageListElement
+  );
 
   const onSend: ChannelInputProps['onSend'] = (snapshot) => {
     const senderId = userId();
@@ -353,10 +391,14 @@ export function Channel(props: ChannelProps) {
             </Show>
             <DebugSuspense name="Channel.input">
               <ChannelInputContainer
-                ref={attachInputRef}
+                ref={(el) => {
+                  attachInputRef(el);
+                  setChannelInputEl(el);
+                }}
                 isHidden={isChannelInputHidden()}
               >
                 <ChannelInput
+                  autofocus={props.autofocus}
                   input={{
                     mode: 'channel',
                     id: `channel-input-${props.channelId}`,

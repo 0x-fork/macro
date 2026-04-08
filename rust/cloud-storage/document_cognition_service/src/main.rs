@@ -79,6 +79,7 @@ async fn main() -> anyhow::Result<()> {
     let sqs_client = sqs_client::SQS::new(queue_aws_client)
         .document_text_extractor_queue(&config.document_text_extractor_queue)
         .chat_delete_queue(&config.chat_delete_queue)
+        .email_scheduled_queue(&config.email_scheduled_queue)
         .search_event_queue(&config.search_event_queue);
 
     let secretsmanager_client = secretsmanager_client::SecretsManager::new(
@@ -233,11 +234,13 @@ async fn main() -> anyhow::Result<()> {
         NoOpTaskProperties,
         NoOpConnectionService,
     );
-    let entity_access_service = EntityAccessServiceImpl::new(PgAccessRepository::new(db.clone()));
+    let entity_access_service = Arc::new(EntityAccessServiceImpl::new(PgAccessRepository::new(
+        db.clone(),
+    )));
     let lexical_client_for_tools = (*lexical_client).clone();
     let document_tool_context = DocumentToolContext::new(
         document_service,
-        entity_access_service,
+        (*entity_access_service).clone(),
         lexical_client_for_tools,
     );
 
@@ -267,7 +270,10 @@ async fn main() -> anyhow::Result<()> {
     // Build properties tool context for AI tools
     let properties_service = properties::PropertiesServiceImpl::new(
         properties::PropertiesPgRepo::new(db.clone()),
-        Some(properties::PermissionServiceImpl::new(db.clone())),
+        Some(properties::PermissionServiceImpl::new(
+            db.clone(),
+            entity_access_service.clone(),
+        )),
         Some(NoOpNotificationService),
     );
     let properties_tool_context =
@@ -280,7 +286,7 @@ async fn main() -> anyhow::Result<()> {
         Arc::new(EmailServiceImpl::new(
             EmailPgRepo::new(db.clone()),
             FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(db.clone())),
-            email::domain::ports::NoOpEnqueuer,
+            sqs_client.clone(),
             0,
         )),
         Arc::new(email::domain::ports::NoOpGmailTokenProvider),
@@ -340,6 +346,7 @@ async fn main() -> anyhow::Result<()> {
         tool_service_context,
         all_tools: all_tools_toolset,
         all_tools_prompt,
+        entity_access_service,
     })
     .await
     .context("failed to setup and serve api")?;

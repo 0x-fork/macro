@@ -39,12 +39,11 @@ import { useAnalytics } from '@app/component/analytics-context';
 const CATEGORIES: { id: CategoryFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'channels', label: 'Channels' },
-  { id: 'dms', label: 'Dms' },
-  { id: 'notes', label: 'Docs' },
+  { id: 'dms', label: 'DMs' },
+  { id: 'documents', label: 'Documents' },
   { id: 'tasks', label: 'Tasks' },
-  { id: 'documents', label: 'Files' },
   { id: 'chats', label: 'Agents' },
-  { id: 'projects', label: 'Projects' },
+  { id: 'projects', label: 'Folders' },
   { id: 'commands', label: 'Commands' },
 ];
 

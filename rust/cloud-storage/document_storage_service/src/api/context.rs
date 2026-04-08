@@ -84,7 +84,7 @@ type SystemPropertiesService = SystemPropertiesServiceImpl<PgSystemPropertiesRep
 pub(crate) type NotificationIngressType = SqsNotificationIngress<SqsIngressQueue>;
 type PropertiesService = PropertiesServiceImpl<
     PropertiesPgRepo,
-    PermissionServiceImpl,
+    PermissionServiceImpl<EntityAccessService>,
     NotificationServiceImpl<NotificationIngressType>,
 >;
 
@@ -158,8 +158,13 @@ pub(crate) type CommsState = CommsRouterState<CommsChannelService>;
 pub(crate) type DssChannelsState =
     ChannelsRouterState<ChannelMessagesServiceImpl<PgChannelMessagesRepo>, EntityAccessService>;
 
+/// Type alias for the call connection service.
+pub(crate) type CallConnectionService =
+    ConnectionServiceImpl<EntityAccessService, ConnectionGatewayImpl>;
+
 /// Type alias for the call service.
-pub(crate) type DssCallService = CallServiceImpl<PgCallRepo, LivekitRtcClient>;
+pub(crate) type DssCallService =
+    CallServiceImpl<PgCallRepo, LivekitRtcClient, CallConnectionService>;
 
 /// Type alias for the call router state.
 pub(crate) type DssCallState = CallRouterState<DssCallService, EntityAccessService>;
@@ -216,6 +221,7 @@ impl From<&ApiContext> for PropertiesHandlerState {
         PropertiesHandlerState {
             db: ctx.db.clone(),
             properties_service: ctx.properties_service.clone(),
+            entity_access_service: ctx.entity_access_service.clone(),
         }
     }
 }
@@ -252,6 +258,7 @@ impl From<&ApiContext> for CommsHandlerState {
             permissions_token_secret: ctx.permissions_token_secret.clone(),
             frecency_storage: ctx.frecency_storage.clone(),
             comms_state: ctx.comms_state.clone(),
+            entity_access_service: ctx.entity_access_service.clone(),
         }
     }
 }

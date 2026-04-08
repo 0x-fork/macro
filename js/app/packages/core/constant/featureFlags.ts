@@ -280,6 +280,11 @@ export const ENABLE_FEATURED_SEARCH_RESULTS = resolveFeatureFlag(
   true
 );
 
+export const ENABLE_SEARCH_QUERY_OPERATORS = resolveFeatureFlag(
+  'ENABLE_SEARCH_QUERY_OPERATORS',
+  false
+);
+
 const ENABLE_NEW_CHANNELS_OVERRIDE = true;
 
 export function ENABLE_NEW_CHANNELS(): boolean {
@@ -299,3 +304,14 @@ export const ENABLE_CLIENT_EMAIL_SIGNAL_FILTER = resolveFeatureFlag(
   'ENABLE_CLIENT_EMAIL_SIGNAL_FILTER',
   false
 );
+
+// skips over posthog and sets the ENABLE_CALLS feature to true if we are in dev mode
+const ENABLE_CALLS_OVERRIDE = DEV_MODE_ENV ? true : undefined;
+
+export function ENABLE_CALLS(): boolean {
+  if (ENABLE_CALLS_OVERRIDE !== undefined) {
+    return ENABLE_CALLS_OVERRIDE;
+  }
+
+  return analytics.posthog.isFeatureEnabled('enable-calls') ?? false;
+}
