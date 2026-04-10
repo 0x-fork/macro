@@ -125,6 +125,7 @@ export const createAppViteConfig = ({
         },
       },
       resolve: {
+        preserveSymlinks: true,
         dedupe: [
           '@codingame/monaco-vscode-api',
           '@codingame/monaco-vscode-*-common',
