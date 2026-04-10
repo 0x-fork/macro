@@ -1,50 +1,87 @@
 import XIcon from '@icon/regular/x.svg';
 import { EntityIcon } from '@core/component/EntityIcon';
+import { EntityIcon as EntityIconWithAvatar } from '@entity/extractors/entity-icon';
 import { UserIcon } from '@core/component/UserIcon';
 import { useQuickAccess } from '@core/context/quickAccess';
 import { useUserId } from '@core/context/user';
 import { QUERY_FILTERS } from '@app/component/next-soup/filters/query-filters';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
+import {
+  soupViewCacheKey,
+  activeSoupViewCounts,
+} from '@app/component/next-soup/soup-view/soup-view-cache-key';
+import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { SoupBody } from '@queries/soup/items';
-import { batch, createMemo, Show } from 'solid-js';
+import { batch, createEffect, createMemo, Show } from 'solid-js';
 import { FilterCombobox, FilterSelect, type Option } from './filter-primitives';
 import type { FilterID } from '@app/component/next-soup/filters/configs';
+import type { ChannelFilters } from '@service-storage/generated/schemas';
+
+type ChannelSubFilters = Pick<ChannelFilters, 'channel_ids' | 'sender_ids'>;
+
+function getCachedChannelSubFilters(contentId: string): ChannelSubFilters {
+  if ((activeSoupViewCounts.get(contentId) ?? 0) > 1) return {};
+  try {
+    const raw = localStorage.getItem(
+      soupViewCacheKey(contentId, 'channel-sub-filters')
+    );
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function cacheChannelSubFilters(contentId: string, filters: ChannelSubFilters) {
+  if ((activeSoupViewCounts.get(contentId) ?? 0) > 1) return;
+  try {
+    localStorage.setItem(
+      soupViewCacheKey(contentId, 'channel-sub-filters'),
+      JSON.stringify(filters)
+    );
+  } catch {
+    // best-effort: quota or security errors should not break filter flow
+  }
+}
 
 export const INDEX_OPTIONS: (Option & { queryFilters: SoupBody })[] = [
   {
     value: 'channels',
     label: 'Channels',
-    icon: () => <EntityIcon targetType="channel" size="xs" />,
+    icon: () => (
+      <EntityIcon targetType="channel" size="xs" theme="monochrome" />
+    ),
     queryFilters: QUERY_FILTERS.channels,
   },
   {
-    value: 'document',
+    value: 'document-or-file',
     label: 'Documents',
-    icon: () => <EntityIcon targetType="md" size="xs" />,
+    icon: () => <EntityIcon targetType="md" size="xs" theme="monochrome" />,
     queryFilters: QUERY_FILTERS.documentAndFile,
   },
   {
     value: 'task',
     label: 'Tasks',
-    icon: () => <EntityIcon targetType="task" size="xs" />,
+    icon: () => <EntityIcon targetType="task" size="xs" theme="monochrome" />,
     queryFilters: QUERY_FILTERS.task,
   },
   {
     value: 'email',
     label: 'Email',
-    icon: () => <EntityIcon targetType="email" size="xs" />,
+    icon: () => <EntityIcon targetType="email" size="xs" theme="monochrome" />,
     queryFilters: QUERY_FILTERS.email,
   },
   {
     value: 'folders',
     label: 'Folders',
-    icon: () => <EntityIcon targetType="project" size="xs" />,
+    icon: () => (
+      <EntityIcon targetType="project" size="xs" theme="monochrome" />
+    ),
     queryFilters: QUERY_FILTERS.folders,
   },
   {
     value: 'agent',
     label: 'Agents',
-    icon: () => <EntityIcon targetType="chat" size="xs" />,
+    icon: () => <EntityIcon targetType="chat" size="xs" theme="monochrome" />,
     queryFilters: QUERY_FILTERS.agent,
   },
 ];
@@ -57,12 +94,26 @@ const INDEX_SELECT_OPTIONS: Option[] = INDEX_OPTIONS.map((o) => ({
 
 export const SearchIndexFilter = () => {
   const { soup, queryFilters, setQueryFilters } = useSoupView();
+  const panel = useSplitPanelOrThrow();
+  const contentId = panel.handle.content().id;
 
   const activeIndex = createMemo((): Option[] => {
     const found = INDEX_OPTIONS.find((opt) => soup.filters.isActive(opt.value));
     return found
       ? [{ value: found.value, label: found.label, icon: found.icon }]
       : [];
+  });
+
+  const isChannelsActive = () =>
+    activeIndex().some((o) => o.value === 'channels');
+
+  createEffect(() => {
+    if (!isChannelsActive()) return;
+    const cf = queryFilters().channel_filters;
+    const sub: ChannelSubFilters = {};
+    if (cf?.channel_ids?.length) sub.channel_ids = cf.channel_ids;
+    if (cf?.sender_ids?.length) sub.sender_ids = cf.sender_ids;
+    cacheChannelSubFilters(contentId, sub);
   });
 
   const handleChange = (selected: Option[]) => {
@@ -73,30 +124,28 @@ export const SearchIndexFilter = () => {
         }
       }
 
-      const prevChannelFilters = queryFilters().channel_filters;
-      const channelSubFilters = {
-        channel_ids: prevChannelFilters?.channel_ids,
-        sender_ids: prevChannelFilters?.sender_ids,
-      };
-
       if (selected.length > 0) {
         const opt = INDEX_OPTIONS.find((o) => o.value === selected[0].value);
         if (opt) {
           soup.filters.toggle({ or: [opt.value as FilterID] });
-          setQueryFilters({
-            ...opt.queryFilters,
-            channel_filters: {
-              ...opt.queryFilters.channel_filters,
-              ...channelSubFilters,
-            },
-          });
+          if (opt.value === 'channels') {
+            const cached = getCachedChannelSubFilters(contentId);
+            setQueryFilters({
+              ...opt.queryFilters,
+              channel_filters: {
+                ...opt.queryFilters.channel_filters,
+                ...cached,
+              },
+            });
+          } else {
+            setQueryFilters({
+              ...opt.queryFilters,
+            });
+          }
         }
       } else {
         setQueryFilters({
           ...QUERY_FILTERS.default,
-          channel_filters: {
-            ...channelSubFilters,
-          },
         });
       }
     });
@@ -107,8 +156,12 @@ export const SearchIndexFilter = () => {
     return active.length > 0 ? active[0].label : 'All';
   });
 
-  const isChannelsActive = () =>
-    activeIndex().some((o) => o.value === 'channels');
+  const hasActiveIndex = () => activeIndex().length > 0;
+
+  const clearFilters = () => {
+    cacheChannelSubFilters(contentId, {});
+    handleChange([]);
+  };
 
   return (
     <div class="flex items-center gap-1.5">
@@ -122,6 +175,15 @@ export const SearchIndexFilter = () => {
       <Show when={isChannelsActive()}>
         <InChannelFilter />
         <FromSenderFilter />
+      </Show>
+      <Show when={hasActiveIndex()}>
+        <button
+          type="button"
+          class="flex items-center px-1 py-1 text-ink-muted rounded-xs hover:bg-ink/5 hover:text-ink"
+          onClick={clearFilters}
+        >
+          <XIcon class="size-3.5" />
+        </button>
       </Show>
     </div>
   );
@@ -139,7 +201,9 @@ const InChannelFilter = () => {
         value: ch.id,
         label: ch.data.name,
         icon: () => (
-          <EntityIcon targetType={ch.data.channelType || 'channel'} size="xs" />
+          <div class="size-4">
+            <EntityIconWithAvatar entity={ch.data} />
+          </div>
         ),
       }))
   );
