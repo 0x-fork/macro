@@ -811,6 +811,95 @@ export const createCommentResponse = zod
   );
 
 /**
+ * Returns the full [`CallRecord`] (metadata + participants + transcript)
+for a call identified by its own id. Covers both active and archived calls.
+Access is validated via channel membership (MemberParticipantRole).
+ * @summary Handler for `GET /call/record/{call_id}`.
+ */
+export const getCallRecordParams = zod.object({
+  call_id: zod.string().uuid().describe('Call ID'),
+});
+
+export const getCallRecordResponse = zod
+  .object({
+    callId: zod.string().uuid().describe('The call identifier.'),
+    channelId: zod
+      .string()
+      .uuid()
+      .describe('The channel this call belongs to.'),
+    createdBy: zod.string().describe('User who created the call.'),
+    durationMs: zod
+      .number()
+      .nullish()
+      .describe('Call duration in milliseconds (None if still active).'),
+    egressId: zod.string().nullish().describe('Recording egress ID, if any.'),
+    endedAt: zod
+      .string()
+      .datetime({})
+      .nullish()
+      .describe('When the call ended (None if still active).'),
+    isActive: zod
+      .boolean()
+      .describe('Whether the call is currently active (from `calls` table).'),
+    participants: zod
+      .array(
+        zod
+          .object({
+            joinedAt: zod
+              .string()
+              .datetime({})
+              .describe('When the user joined the call.'),
+            leftAt: zod
+              .string()
+              .datetime({})
+              .nullish()
+              .describe(
+                'When the user left (None if still in an active call).'
+              ),
+            userId: zod.string().describe('The user id.'),
+          })
+          .describe(
+            'A participant as returned in a [`CallRecord`] (historic — includes `left_at`).'
+          )
+      )
+      .describe('Participants (both active and historic).'),
+    roomName: zod.string().describe('The RTC room name.'),
+    startedAt: zod
+      .string()
+      .datetime({})
+      .describe(
+        'When the call started (created_at for active, started_at for archived).'
+      ),
+    transcript: zod
+      .array(
+        zod
+          .object({
+            content: zod.string().describe('The transcribed text content.'),
+            endedAt: zod
+              .string()
+              .datetime({})
+              .nullish()
+              .describe('When the speaker stopped (if known).'),
+            segmentId: zod
+              .string()
+              .nullish()
+              .describe('LiveKit segment ID (nullable for archived records).'),
+            sequenceNum: zod.number().describe('Ordering within the call.'),
+            speakerId: zod.string().describe("The speaker's user ID."),
+            startedAt: zod
+              .string()
+              .datetime({})
+              .describe('When the speaker started this segment.'),
+          })
+          .describe('A transcript segment as returned in a [`CallRecord`].')
+      )
+      .describe('Transcript segments ordered by `sequence_num`.'),
+  })
+  .describe(
+    'Full record of a call, unifying rows from `calls` (active) and\n`call_records` (archived) into a single response shape.'
+  );
+
+/**
  * Gets or creates a call for the channel. If a call already exists, joins it;
 otherwise creates a new one. Always returns a join token.
  * @summary Handler for `GET /call/{channel_id}`.
@@ -2660,17 +2749,15 @@ export const editDocumentResponse = zod
   .describe('Edit document response.');
 
 /**
- * @summary Handles copying a given document. This is the similar to
-create_document_handler where you provide the branched_from_id,
-branched_from_version_id and document_family_id in the request body. Except
-this will not require you to re-upload the document when it's made saving
-time and resources.
+ * Copies an existing document, creating a new document with the same content.
+Does not require re-uploading the document file.
+ * @summary Handler for `POST /documents/{document_id}/copy`.
  */
-export const copyDocumentHandlerParams = zod.object({
+export const copyDocumentParams = zod.object({
   document_id: zod.string().describe('Document ID'),
 });
 
-export const copyDocumentHandlerQueryParams = zod.object({
+export const copyDocumentQueryParams = zod.object({
   version_id: zod
     .number()
     .optional()
@@ -2679,124 +2766,111 @@ export const copyDocumentHandlerQueryParams = zod.object({
     ),
 });
 
-export const copyDocumentHandlerBody = zod.object({
-  documentName: zod
-    .string()
-    .describe('The name of the document without extension.'),
-  versionId: zod
-    .union([
-      zod.null(),
-      zod.object({
-        counter: zod.number(),
-        peer: zod.string(),
-      }),
-    ])
-    .optional(),
-});
-
-export const copyDocumentHandlerResponse = zod.object({
-  data: zod.object({
-    documentMetadata: zod.object({
-      branchedFromId: zod
-        .string()
-        .nullish()
-        .describe('The id of the document this document branched from'),
-      branchedFromVersionId: zod
-        .number()
-        .nullish()
-        .describe(
-          'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-        ),
-      createdAt: zod
-        .string()
-        .datetime({})
-        .nullish()
-        .describe('The time the document was created'),
-      deletedAt: zod
-        .string()
-        .datetime({})
-        .nullish()
-        .describe('The time the document was deleted'),
-      documentBom: zod
-        .array(
-          zod.object({
-            id: zod.string().describe('The uuid of the bom part'),
-            path: zod
-              .string()
-              .describe('The file path of the bom part content'),
-            sha: zod
-              .string()
-              .describe(
-                'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
-              ),
-          })
-        )
-        .nullish()
-        .describe(
-          'If the document is a DOCX document and unzipped, the document_bom will be present'
-        ),
-      documentFamilyId: zod
-        .number()
-        .nullish()
-        .describe('The id of the document family this document belongs to'),
-      documentId: zod.string().describe('The document id'),
-      documentName: zod.string().describe('The name of the document'),
-      documentVersionId: zod
-        .number()
-        .describe(
-          'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-        ),
-      fileType: zod
-        .string()
-        .nullish()
-        .describe('The file type of the document (file extension)'),
-      modificationData: zod
-        .any()
-        .optional()
-        .describe(
-          'The modification data for the document instance.\nThis is only used for PDF documents.'
-        ),
-      owner: zod.string().describe('The owner of the document'),
-      projectId: zod
-        .string()
-        .nullish()
-        .describe('The id of the project that this document belongs to'),
-      projectName: zod
-        .string()
-        .nullish()
-        .describe('The name of the project that this document belongs to'),
-      sha: zod
-        .string()
-        .nullish()
-        .describe(
-          'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
-        ),
-      subType: zod
-        .union([
-          zod.null(),
-          zod
-            .enum(['task'])
-            .describe(
-              'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
-            ),
-        ])
-        .optional(),
-      updatedAt: zod
-        .string()
-        .datetime({})
-        .nullish()
-        .describe('The time the document instance / document BOM was updated'),
-    }),
-    userAccessLevel: zod
-      .enum(['view', 'comment', 'edit', 'owner'])
-      .describe('Ordered from least to most access top -> bottom'),
-    viewLocation: zod
+export const copyDocumentBody = zod
+  .object({
+    documentName: zod
       .string()
-      .nullish()
-      .describe('The users view location if there is one'),
-  }),
-  error: zod.boolean().describe('Indicates if an error occurred'),
-});
+      .describe('The name of the new document (without extension).'),
+    versionId: zod
+      .union([
+        zod.null(),
+        zod.object({
+          counter: zod.number(),
+          peer: zod.string(),
+        }),
+      ])
+      .optional(),
+  })
+  .describe('Request body for copying a document.');
+
+export const copyDocumentResponse = zod
+  .object({
+    data: zod.object({
+      documentMetadata: zod.object({
+        branchedFromId: zod
+          .string()
+          .nullish()
+          .describe('The id of the document this document branched from'),
+        branchedFromVersionId: zod
+          .number()
+          .nullish()
+          .describe(
+            'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+          ),
+        createdAt: zod
+          .string()
+          .datetime({})
+          .nullish()
+          .describe('The time the document was created'),
+        documentBom: zod
+          .array(
+            zod.object({
+              id: zod.string().describe('The uuid of the bom part'),
+              path: zod
+                .string()
+                .describe('The file path of the bom part content'),
+              sha: zod
+                .string()
+                .describe(
+                  'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                ),
+            })
+          )
+          .nullish()
+          .describe(
+            'If the document is a DOCX document, the document_bom will be present'
+          ),
+        documentFamilyId: zod
+          .number()
+          .nullish()
+          .describe('The id of the document family this document belongs to'),
+        documentId: zod.string().describe('The document id'),
+        documentName: zod.string().describe('The name of the document'),
+        documentVersionId: zod
+          .number()
+          .describe(
+            'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+          ),
+        fileType: zod
+          .string()
+          .nullish()
+          .describe('The file type of the document'),
+        modificationData: zod
+          .any()
+          .optional()
+          .describe(
+            'The modification data for the document instance.\nThis is only used for PDF documents.'
+          ),
+        owner: zod.string().describe('The owner of the document'),
+        sha: zod
+          .string()
+          .nullish()
+          .describe(
+            'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+          ),
+        subType: zod
+          .union([
+            zod.null(),
+            zod
+              .enum(['task'])
+              .describe(
+                'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+              ),
+          ])
+          .optional(),
+        updatedAt: zod
+          .string()
+          .datetime({})
+          .nullish()
+          .describe(
+            'The time the document instance / document BOM was updated'
+          ),
+      }),
+      presignedUrl: zod.string().nullish(),
+    }),
+    error: zod.boolean().describe('Indicates if an error occurred.'),
+  })
+  .describe('Response wrapper for the copy document endpoint.');
 
 /**
  * @summary Generates a presigned url to download the raw content of the document

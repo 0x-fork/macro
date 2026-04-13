@@ -58,13 +58,15 @@ export function EditPropertyValueModal(props: PropertyEditorProps) {
     false
   );
 
-  const [selectedEntityRefs, setSelectedEntityRefs] = createSignal<
-    EntityReference[]
-  >(
+  const initialEntityRefs =
     props.property.valueType === 'ENTITY' && props.property.value != null
       ? props.property.value
-      : []
-  );
+      : [];
+
+  const originalEntityOptions = entityReferencesToIdSet(initialEntityRefs);
+
+  const [selectedEntityRefs, setSelectedEntityRefs] =
+    createSignal<EntityReference[]>(initialEntityRefs);
 
   const [selectedDate, setSelectedDate] = createSignal<Date | null>(
     props.property.valueType === 'DATE' && props.property.value != null
@@ -258,6 +260,7 @@ export function EditPropertyValueModal(props: PropertyEditorProps) {
                           const refs = selectedEntityRefs();
                           return entityReferencesToIdSet(refs);
                         }}
+                        originalOptions={() => originalEntityOptions}
                         setSelectedOptions={(newOptions, entityInfo) => {
                           const currentRefs = selectedEntityRefs();
                           const updatedRefs = updateEntityReferences(
@@ -307,6 +310,22 @@ export function EditPropertyValueModal(props: PropertyEditorProps) {
                   />
                 </Show>
               </div>
+              <Show when={props.property.isMultiSelect}>
+                <div class="border-t border-edge-muted px-2 py-1.5 flex justify-end gap-1">
+                  <button
+                    class="text-xs text-ink-muted hover:text-ink px-2 py-1"
+                    onClick={() => props.onClose()}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    class="text-xs text-ink-muted hover:text-ink px-2 py-1"
+                    onClick={handleClose}
+                  >
+                    Done
+                  </button>
+                </div>
+              </Show>
             </div>
           </Show>
         </div>
