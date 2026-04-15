@@ -111,6 +111,7 @@
         darwinLibraries = with pkgs; [
           openssl
           libiconv
+          libimobiledevice
         ];
 
         libraries = if isDarwin then darwinLibraries else linuxLibraries;
