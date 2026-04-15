@@ -24,6 +24,7 @@ pub mod job;
 pub mod macro_user;
 pub mod macro_user_email_verification;
 pub mod macros;
+pub mod mobile_welcome_email;
 pub mod notification;
 pub mod organization;
 pub mod pins;
