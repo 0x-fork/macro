@@ -16,7 +16,7 @@ async fn test_search_email_contacts_empty_term(pool: Pool<Postgres>) -> anyhow::
         .map(|l| l.lowercase())
         .unwrap();
 
-    let result = search_email_contacts(&pool, user_id, "".to_string(), 10).await;
+    let result = search_email_contacts(&pool, user_id, "".to_string(), 10, None, None).await;
 
     assert!(result.is_err());
     assert!(matches!(
@@ -36,8 +36,15 @@ async fn test_search_email_contacts_finds_sender(pool: Pool<Postgres>) -> anyhow
         .map(|l| l.lowercase())
         .unwrap();
 
-    let response =
-        search_email_contacts(&pool, user_id, "alice@example.com".to_string(), 10, None).await?;
+    let response = search_email_contacts(
+        &pool,
+        user_id,
+        "alice@example.com".to_string(),
+        10,
+        None,
+        None,
+    )
+    .await?;
 
     assert!(!response.items.is_empty());
 
@@ -90,8 +97,15 @@ async fn test_search_email_contacts_finds_bcc_recipients(
         .map(|l| l.lowercase())
         .unwrap();
 
-    let response =
-        search_email_contacts(&pool, user_id, "david@example.com".to_string(), 10, None).await?;
+    let response = search_email_contacts(
+        &pool,
+        user_id,
+        "david@example.com".to_string(),
+        10,
+        None,
+        None,
+    )
+    .await?;
 
     assert!(!response.items.is_empty());
 
@@ -117,8 +131,15 @@ async fn test_search_email_contacts_sorted_by_latest_message(
         .unwrap();
 
     // alice@example.com appears in thread 1 (Dec 6) and thread 2 (Dec 5)
-    let response =
-        search_email_contacts(&pool, user_id, "alice@example.com".to_string(), 10, None).await?;
+    let response = search_email_contacts(
+        &pool,
+        user_id,
+        "alice@example.com".to_string(),
+        10,
+        None,
+        None,
+    )
+    .await?;
 
     assert!(!response.items.is_empty());
 
@@ -157,8 +178,15 @@ async fn test_search_email_contacts_case_insensitive(pool: Pool<Postgres>) -> an
         None,
     )
     .await?;
-    let response_mixed =
-        search_email_contacts(&pool, user_id, "Alice@Example.Com".to_string(), 10, None).await?;
+    let response_mixed = search_email_contacts(
+        &pool,
+        user_id,
+        "Alice@Example.Com".to_string(),
+        10,
+        None,
+        None,
+    )
+    .await?;
 
     assert_eq!(response_lower.items.len(), response_upper.items.len());
     assert_eq!(response_lower.items.len(), response_mixed.items.len());
@@ -177,8 +205,15 @@ async fn test_search_email_contacts_user_isolation(pool: Pool<Postgres>) -> anyh
         .unwrap();
 
     // frank@example.com belongs to user2, not user1
-    let response =
-        search_email_contacts(&pool, user_id, "frank@example.com".to_string(), 10, None).await?;
+    let response = search_email_contacts(
+        &pool,
+        user_id,
+        "frank@example.com".to_string(),
+        10,
+        None,
+        None,
+    )
+    .await?;
 
     assert_eq!(response.items.len(), 0);
     assert!(response.cursor.is_done());
