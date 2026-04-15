@@ -47,7 +47,7 @@ mod tests {
     use super::*;
     use sqlx::{Pool, Postgres};
 
-    #[sqlx::test(migrations = "migrations")]
+    #[sqlx::test]
     async fn test_insert_and_get_mobile_welcome_email(pool: Pool<Postgres>) -> anyhow::Result<()> {
         let email = "Test@Example.com";
 
