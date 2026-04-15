@@ -29,8 +29,44 @@ import { useIsAuthenticated } from '@core/auth';
 import { fetchToken } from '@core/util/fetchWithToken';
 import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import MobileWebWelcome from './MobileWebWelcome';
+import MobileWebSignupSent from './MobileWebSignupSent';
 
 export default function InteractiveOnboarding() {
+  const analytics = useAnalytics();
+  const isAuthenticated = useIsAuthenticated();
+  const [mobileWebStep, setMobileWebStep] = createSignal<
+    'welcome' | 'signup-sent'
+  >('welcome');
+
+  // Mobile web users who aren't authenticated get a dedicated welcome screen
+  // with email signup instead of the full lesson flow.
+  const isMobileWeb = isTouchDevice() && !isNativeMobilePlatform();
+
+  const handleMobileSignUp = (email: string) => {
+    // TODO: implement actual sign up logic
+    setMobileWebStep('signup-sent');
+  };
+
+  return (
+    <Show
+      when={!isMobileWeb || isAuthenticated() === true}
+      fallback={
+        <Show
+          when={mobileWebStep() === 'welcome'}
+          fallback={<MobileWebSignupSent />}
+        >
+          <MobileWebWelcome onSignUp={handleMobileSignUp} />
+        </Show>
+      }
+    >
+      <InteractiveOnboardingInner />
+    </Show>
+  );
+}
+
+function InteractiveOnboardingInner() {
   const analytics = useAnalytics();
 
   const splitPanel = useSplitPanel();
