@@ -100,7 +100,7 @@ pub async fn search_email_contacts<'a>(
         return Err(EmailContactSearchError::EmptySearchTerm);
     }
 
-    let search_pattern = format!("%{term}%");
+    let lower_term = term.to_lowercase();
 
     let (cursor_updated_at, cursor_entity_id) = cursor
         .as_ref()
@@ -111,8 +111,7 @@ pub async fn search_email_contacts<'a>(
     let fetch_limit = limit as i64 + 1;
 
     // Find threads with matching contacts, sorted by most recent activity.
-    // Uses trigram indexes on contact_name/email for the ILIKE search, then
-    // joins email_threads for timestamp-based ordering and cursor pagination.
+    // Uses idx_ecsi_link_email_btree for fast exact email lookups.
     let thread_rows = sqlx::query!(
         r#"
         SELECT t.id as "thread_id!", t.latest_non_spam_message_ts as "updated_at!"
@@ -121,7 +120,7 @@ pub async fn search_email_contacts<'a>(
             SELECT DISTINCT ecsi.thread_id
             FROM email_contact_search_index ecsi
             WHERE ecsi.link_id = (SELECT id FROM email_links WHERE macro_id = $1)
-              AND (ecsi.contact_name ILIKE $2 OR ecsi.contact_email ILIKE $2)
+              AND LOWER(ecsi.contact_email) = $2
         )
         AND t.latest_non_spam_message_ts IS NOT NULL
         AND (
@@ -132,7 +131,7 @@ pub async fn search_email_contacts<'a>(
         LIMIT $3
         "#,
         macro_user_id.as_ref(),
-        search_pattern,
+        lower_term,
         fetch_limit,
         cursor_updated_at,
         cursor_entity_id,
@@ -170,7 +169,7 @@ pub async fn search_email_contacts<'a>(
         .collect();
 
     // Fetch contact details for the paginated threads using the idx_ecsi_link_thread
-    // btree index. This avoids re-running the expensive trigram scan from the previous query.
+    // btree index. This avoids re-running the expensive search from the previous query.
     let contact_rows = sqlx::query!(
         r#"
         SELECT
@@ -182,11 +181,11 @@ pub async fn search_email_contacts<'a>(
         FROM email_contact_search_index ecsi
         WHERE ecsi.link_id = (SELECT id FROM email_links WHERE macro_id = $1)
           AND ecsi.thread_id = ANY($2)
-          AND (ecsi.contact_name ILIKE $3 OR ecsi.contact_email ILIKE $3)
+          AND LOWER(ecsi.contact_email) = $3
         "#,
         macro_user_id.as_ref(),
         &thread_ids,
-        search_pattern,
+        lower_term,
     )
     .fetch_all(db)
     .await?;
