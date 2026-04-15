@@ -39,6 +39,7 @@ interface TauriContextValue {
 const TauriContext = createContext<TauriContextValue | undefined>(undefined);
 
 function TauriProvider(props: { children: JSX.Element }) {
+  console.log('[TauriProvider] start');
   // we only care about this value on android.
   // ios should use the env(safe-area-inset-top) css properties
   // this css is not reliably set on android
@@ -47,6 +48,12 @@ function TauriProvider(props: { children: JSX.Element }) {
   );
   const [bundleUpdateStatus, setBundleUpdateStatus] =
     createSignal<BundleUpdateStatus>({ status: 'Idle' });
+
+  // osType() is synchronous - call it once upfront
+  // This should be fast, but if it blocks, the issue is in the native IPC
+  console.log('[TauriProvider] about to call osType()');
+  const os = osType();
+  console.log('[TauriProvider] osType resolved:', os);
 
   const value: TauriContextValue = {
     runtimeInsets: insets,
@@ -83,6 +90,7 @@ function TauriProvider(props: { children: JSX.Element }) {
     onCleanup(() => {
       unlistenPromise.then((unlisten) => unlisten());
     });
+    console.log('[TauriProvider] onMount completed');
 
     if (value.os === 'android') {
       getInsets().then((insets) => {
@@ -119,7 +127,9 @@ function TauriProvider(props: { children: JSX.Element }) {
 }
 
 export function MaybeTauriProvider(props: { children: JSX.Element }) {
+  console.log('[MaybeTauriProvider] isTauri:', isTauri());
   if (isTauri()) {
+    console.log('[MaybeTauriProvider] entering TauriProvider');
     return (
       <TauriProvider>
         <MaybePushNotificationRegistration>

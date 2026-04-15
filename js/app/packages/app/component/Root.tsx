@@ -404,9 +404,12 @@ function QuerySyncProviderWithUserId() {
 }
 
 export function Root() {
+  console.log('[Root] start');
   setHotkeyRoot(useHotKeyRoot());
+  console.log('[Root] hotkeyRoot set');
 
   clearBodyInlineStyleColor();
+  console.log('[Root] clearBodyInlineStyleColor done');
 
   createEffect(() => {
     const cleanup = licenseChannel.subscribe(() => {
@@ -425,20 +428,34 @@ export function Root() {
   const [tabInfo] = tabTitleSignal;
   const tabTitle = () => formatTabTitle(tabInfo());
 
+  console.log('[Root] returning JSX');
   return (
     <MaybeTauriProvider>
+      {(() => { console.log('[Root] inside MaybeTauriProvider'); return null; })()}
       <MetaProvider>
+        {(() => { console.log('[Root] inside MetaProvider'); return null; })()}
         <AnalyticsContextProvider>
+          {(() => { console.log('[Root] inside AnalyticsContextProvider'); return null; })()}
           <PosthogProvider>
+            {(() => { console.log('[Root] inside PosthogProvider'); return null; })()}
             <EntityProvider>
+              {(() => { console.log('[Root] inside EntityProvider'); return null; })()}
               <UserContextProvider>
+                {(() => { console.log('[Root] inside UserContextProvider'); return null; })()}
                 <BrowserNotificationModal />
+                {(() => { console.log('[Root] after BrowserNotificationModal'); return null; })()}
                 <QuerySyncProviderWithUserId />
+                {(() => { console.log('[Root] after QuerySyncProviderWithUserId'); return null; })()}
                 <UserInfoSideEffects />
+                {(() => { console.log('[Root] after UserInfoSideEffects'); return null; })()}
                 <ConfiguredGlobalAppStateProvider>
+                  {(() => { console.log('[Root] inside ConfiguredGlobalAppStateProvider'); return null; })()}
                   <ChannelsContextProvider>
+                    {(() => { console.log('[Root] inside ChannelsContextProvider'); return null; })()}
                     <QuickAccessProvider>
+                      {(() => { console.log('[Root] inside QuickAccessProvider'); return null; })()}
                       <SearchProvider>
+                        {(() => { console.log('[Root] inside SearchProvider'); return null; })()}
                         <ChatAttachmentsInit />
                         <ReactiveFavicon />
                         <Title>{tabTitle()}</Title>

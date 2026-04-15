@@ -145,9 +145,12 @@ const PushNotificationContext = createContext<
 export function MaybePushNotificationRegistration(props: {
   children: JSX.Element;
 }) {
+  console.log('[MaybePushNotificationRegistration] start');
   const { os } = useExpectTauri();
+  console.log('[MaybePushNotificationRegistration] os:', os);
 
   if (os !== 'android' && os !== 'ios') {
+    console.log('[MaybePushNotificationRegistration] not mobile, returning not-supported');
     return (
       <PushNotificationContext.Provider value={'not-supported'}>
         <PlatformNotificationProvider
@@ -159,6 +162,7 @@ export function MaybePushNotificationRegistration(props: {
     );
   }
 
+  console.log('[MaybePushNotificationRegistration] calling usePushNotifications');
   const push = usePushNotifications(os, (event) => {
     const notificationId: string | undefined = event.payload.notificationId;
 
@@ -173,6 +177,7 @@ export function MaybePushNotificationRegistration(props: {
       `/component/notification?notificationId=${notificationId}`
     );
   });
+  console.log('[MaybePushNotificationRegistration] usePushNotifications returned');
 
   // now we compose the standard tauri notif plugin with the push notification plugin
   function curriedTauriPushNotification(
