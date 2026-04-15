@@ -139,6 +139,16 @@
             # Unset nix darwin flags that conflict with iOS cross-compilation
             NIX_CFLAGS_COMPILE = "";
             NIX_LDFLAGS = "";
+            # Use system clang for iOS cross-compilation to avoid Nix wrapper conflicts
+            CC_aarch64_apple_ios = "/usr/bin/clang";
+            CXX_aarch64_apple_ios = "/usr/bin/clang++";
+            AR_aarch64_apple_ios = "/usr/bin/ar";
+            CC_x86_64_apple_ios = "/usr/bin/clang";
+            CXX_x86_64_apple_ios = "/usr/bin/clang++";
+            AR_x86_64_apple_ios = "/usr/bin/ar";
+            CC_aarch64_apple_ios_sim = "/usr/bin/clang";
+            CXX_aarch64_apple_ios_sim = "/usr/bin/clang++";
+            AR_aarch64_apple_ios_sim = "/usr/bin/ar";
           }
           // pkgs.lib.optionalAttrs isLinux {
             LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath libraries}:$LD_LIBRARY_PATH";

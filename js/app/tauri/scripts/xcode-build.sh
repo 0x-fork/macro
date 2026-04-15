@@ -14,8 +14,19 @@ unset NIX_APPLE_SDK_VERSION
 # Keep SDKROOT as set by Xcode - don't unset it here since xcode-script needs it
 # DEVELOPER_DIR should already be set correctly by Xcode
 
-# Prioritize rustup's cargo in ~/.cargo/bin
-export PATH="$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+# Use system clang for iOS cross-compilation (cc-rs uses these env vars)
+export CC_aarch64_apple_ios=/usr/bin/clang
+export CXX_aarch64_apple_ios=/usr/bin/clang++
+export AR_aarch64_apple_ios=/usr/bin/ar
+export CC_x86_64_apple_ios=/usr/bin/clang
+export CXX_x86_64_apple_ios=/usr/bin/clang++
+export AR_x86_64_apple_ios=/usr/bin/ar
+export CC_aarch64_apple_ios_sim=/usr/bin/clang
+export CXX_aarch64_apple_ios_sim=/usr/bin/clang++
+export AR_aarch64_apple_ios_sim=/usr/bin/ar
+
+# Prioritize rustup's cargo in ~/.cargo/bin, and use system toolchain
+export PATH="$HOME/.cargo/bin:/usr/bin:/usr/local/bin:/bin:$PATH"
 
 # Debug: show which cargo is being used
 echo "DEBUG: Using cargo at: $(which cargo)" >&2
