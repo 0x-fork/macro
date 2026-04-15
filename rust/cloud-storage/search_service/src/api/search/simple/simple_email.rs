@@ -79,6 +79,10 @@ pub(in crate::api::search::simple) async fn search_contacts<'a>(
     limit: u32,
     cursor: models_search_cursor::SearchCursorOption,
 ) -> Result<(Vec<SearchHit>, models_search_cursor::SearchCursorOption), SearchError> {
+    if !term.contains('@') {
+        return Ok((vec![], models_search_cursor::SearchCursorOption::Done));
+    }
+
     // If cursor is Done, no more results to fetch
     let inner_cursor = match cursor {
         models_search_cursor::SearchCursorOption::Done => {
