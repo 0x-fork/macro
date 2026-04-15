@@ -1,5 +1,5 @@
 /// Checks if a mobile welcome email has already been sent to the given email address.
-#[tracing::instrument(skip(db))]
+#[tracing::instrument(skip(db), err)]
 pub async fn get_mobile_welcome_email(
     db: &sqlx::Pool<sqlx::Postgres>,
     email: &str,
@@ -21,14 +21,15 @@ pub async fn get_mobile_welcome_email(
 }
 
 /// Inserts a record indicating a mobile welcome email was sent.
-#[tracing::instrument(skip(db))]
+/// Returns `true` if a new row was inserted, `false` if the email already existed.
+#[tracing::instrument(skip(db), err)]
 pub async fn insert_mobile_welcome_email(
     db: &sqlx::Pool<sqlx::Postgres>,
     email: &str,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<bool> {
     let email = email.to_lowercase();
 
-    sqlx::query!(
+    let result = sqlx::query!(
         r#"
             INSERT INTO mobile_welcome_email (email)
             VALUES ($1)
@@ -39,31 +40,8 @@ pub async fn insert_mobile_welcome_email(
     .execute(db)
     .await?;
 
-    Ok(())
+    Ok(result.rows_affected() > 0)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use sqlx::{Pool, Postgres};
-
-    #[sqlx::test]
-    async fn test_insert_and_get_mobile_welcome_email(pool: Pool<Postgres>) -> anyhow::Result<()> {
-        let email = "Test@Example.com";
-
-        // Should not exist initially
-        assert!(!get_mobile_welcome_email(&pool, email).await?);
-
-        // Insert
-        insert_mobile_welcome_email(&pool, email).await?;
-
-        // Should exist now (case-insensitive)
-        assert!(get_mobile_welcome_email(&pool, email).await?);
-        assert!(get_mobile_welcome_email(&pool, "test@example.com").await?);
-
-        // Duplicate insert should not error
-        insert_mobile_welcome_email(&pool, email).await?;
-
-        Ok(())
-    }
-}
+mod test;

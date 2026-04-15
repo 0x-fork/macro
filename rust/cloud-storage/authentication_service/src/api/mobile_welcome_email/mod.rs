@@ -95,12 +95,14 @@ pub async fn handler(
         return Err(SendMobileWelcomeEmailError::EmailBlocked);
     }
 
-    // Check if we already sent a welcome email to this address
-    let already_sent =
-        macro_db_client::mobile_welcome_email::get_mobile_welcome_email(&ctx.db, &lowercase_email)
-            .await?;
+    // Atomically claim the slot — returns false if the email was already sent
+    let inserted = macro_db_client::mobile_welcome_email::insert_mobile_welcome_email(
+        &ctx.db,
+        &lowercase_email,
+    )
+    .await?;
 
-    if already_sent {
+    if !inserted {
         return Err(SendMobileWelcomeEmailError::AlreadySent);
     }
 
@@ -112,10 +114,6 @@ pub async fn handler(
             "Welcome to Macro",
             &welcome_email_content,
         )
-        .await?;
-
-    // Record that we sent the email
-    macro_db_client::mobile_welcome_email::insert_mobile_welcome_email(&ctx.db, &lowercase_email)
         .await?;
 
     Ok(Json(EmptyResponse {}))
