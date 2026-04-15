@@ -30,7 +30,7 @@ const parameterGroup = new aws.rds.ParameterGroup(
       { name: 'vacuum_cost_page_miss', value: '10' },
       {
         name: 'shared_preload_libraries',
-        value: 'pg_stat_statements,auto_explain',
+        value: 'pg_stat_statements,pg_tle,auto_explain',
         applyMethod: 'pending-reboot',
       },
       { name: 'auto_explain.log_format', value: 'json' },
