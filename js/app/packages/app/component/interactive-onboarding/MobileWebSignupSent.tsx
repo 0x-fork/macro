@@ -2,6 +2,7 @@ import { onMount } from 'solid-js';
 import LogoIcon from '@macro-icons/macro-logo.svg';
 import { PcNoiseGrid } from '@core/component/PcNoiseGrid';
 import { useAnalytics } from '@app/component/analytics-context';
+import { getWebOrigin } from '@core/util/webOrigin';
 
 export default function MobileWebSignupSent() {
   const analytics = useAnalytics();
@@ -38,7 +39,7 @@ export default function MobileWebSignupSent() {
         <button
           type="button"
           onClick={() => {
-            window.location.href = 'https://macro.com';
+            window.location.href = getWebOrigin();
           }}
           class="w-full px-3 py-2.5 text-lg font-bold rounded-xs bg-accent text-panel border-none mt-16"
         >

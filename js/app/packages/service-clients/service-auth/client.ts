@@ -483,6 +483,13 @@ export const authServiceClient = {
       (_result) => {}
     );
   },
+
+  async sendMobileWelcomeEmail(email: string) {
+    return authApiFetch<EmptyResponse>(`/mobile-welcome-email`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
 };
 
 registerClient('auth', authServiceClient);

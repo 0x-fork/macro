@@ -32,6 +32,9 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import MobileWebWelcome from './MobileWebWelcome';
 import MobileWebSignupSent from './MobileWebSignupSent';
+import { authServiceClient } from '@service-auth/client';
+import { isOk } from '@core/util/maybeResult';
+import { toast } from '@core/component/Toast/Toast';
 
 export default function InteractiveOnboarding() {
   const analytics = useAnalytics();
@@ -44,9 +47,26 @@ export default function InteractiveOnboarding() {
   // with email signup instead of the full lesson flow.
   const isMobileWeb = isTouchDevice() && !isNativeMobilePlatform();
 
-  const handleMobileSignUp = (email: string) => {
-    // TODO: implement actual sign up logic
-    setMobileWebStep('signup-sent');
+  const handleMobileSignUp = async (email: string) => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.failure('Invalid email address.');
+      return;
+    }
+
+    const result = await authServiceClient.sendMobileWelcomeEmail(email);
+
+    if (isOk(result)) {
+      setMobileWebStep('signup-sent');
+    } else {
+      const msg = result[0]?.[0]?.message ?? '';
+      if (msg.includes('409')) {
+        toast.failure('Email already sent.');
+      } else if (msg.includes('400')) {
+        toast.failure('Invalid email address.');
+      } else {
+        toast.failure('Internal error. Please try again.');
+      }
+    }
   };
 
   return (

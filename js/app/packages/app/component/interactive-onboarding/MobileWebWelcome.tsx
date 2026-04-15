@@ -44,7 +44,13 @@ export default function MobileWebWelcome(props: MobileWebWelcomeProps) {
           <strong>speed</strong> and <strong>focus</strong>.
         </p>
 
-        <div class="w-full flex flex-col gap-3 mt-10">
+        <form
+          class="w-full flex flex-col gap-3 mt-10"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSignUp();
+          }}
+        >
           <input
             type="email"
             placeholder="name@company.com"
@@ -53,13 +59,12 @@ export default function MobileWebWelcome(props: MobileWebWelcomeProps) {
             class="w-full px-3 py-2.5 text-base border border-edge-muted rounded-xs bg-panel text-ink placeholder:text-ink/30 outline-none focus:border-accent/50"
           />
           <button
-            type="button"
-            onClick={handleSignUp}
+            type="submit"
             class="w-full px-3 py-2.5 text-lg font-bold rounded-xs bg-accent text-panel border-none"
           >
             Sign Up
           </button>
-        </div>
+        </form>
 
         <p class="text-sm text-ink/50 mt-20">Already have an account?</p>
         <A
