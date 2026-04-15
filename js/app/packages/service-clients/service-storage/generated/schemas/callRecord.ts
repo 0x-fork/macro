@@ -4,10 +4,12 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
+import type { CallRecordChannelName } from './callRecordChannelName';
 import type { CallRecordDurationMs } from './callRecordDurationMs';
 import type { CallRecordEgressId } from './callRecordEgressId';
 import type { CallRecordEndedAt } from './callRecordEndedAt';
 import type { CallRecordParticipant } from './callRecordParticipant';
+import type { CallRecordRecordingUrl } from './callRecordRecordingUrl';
 import type { CallRecordTranscriptSegment } from './callRecordTranscriptSegment';
 
 /**
@@ -19,6 +21,8 @@ export interface CallRecord {
   callId: string;
   /** The channel this call belongs to. */
   channelId: string;
+  /** Resolved display name for the channel. */
+  channelName?: CallRecordChannelName;
   /** User who created the call. */
   createdBy: string;
   /** Call duration in milliseconds (None if still active). */
@@ -31,6 +35,8 @@ export interface CallRecord {
   isActive: boolean;
   /** Participants (both active and historic). */
   participants: CallRecordParticipant[];
+  /** Presigned URL for the call recording, if available. */
+  recordingUrl?: CallRecordRecordingUrl;
   /** The RTC room name. */
   roomName: string;
   /** When the call started (created_at for active, started_at for archived). */

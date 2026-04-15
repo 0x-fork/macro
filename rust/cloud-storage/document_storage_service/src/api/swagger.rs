@@ -103,6 +103,7 @@ use model::{
     version::DocumentStorageServiceApiVersion,
 };
 use models_permissions::share_permission::channel_share_permission::UpdateOperation;
+use models_soup::call_record::{SoupCallRecord, SoupCallRecordParticipant};
 use models_soup::chat::SoupChat;
 use models_soup::document::SoupDocument;
 use models_soup::email_thread::{
@@ -343,6 +344,8 @@ use utoipa::OpenApi;
             call::domain::models::CallRecord,
             call::domain::models::CallRecordParticipant,
             call::domain::models::CallRecordTranscriptSegment,
+            SoupCallRecord,
+            SoupCallRecordParticipant,
 
             DocumentSubType,
 
