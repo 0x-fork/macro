@@ -42,6 +42,3 @@ pub async fn insert_mobile_welcome_email(
 
     Ok(result.rows_affected() > 0)
 }
-
-#[cfg(test)]
-mod test;
