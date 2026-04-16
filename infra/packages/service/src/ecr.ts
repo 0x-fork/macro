@@ -1,10 +1,11 @@
 import * as aws from '@pulumi/aws';
 import * as awsx from '@pulumi/awsx';
+import * as docker_build from '@pulumi/docker-build';
 import * as pulumi from '@pulumi/pulumi';
 
 export class EcrImage extends pulumi.ComponentResource {
   public ecr: awsx.ecr.Repository;
-  public image: awsx.ecr.Image;
+  public image: { imageUri: pulumi.Output<string> };
   public tags: { [key: string]: string };
 
   constructor(
@@ -73,17 +74,47 @@ export class EcrImage extends pulumi.ComponentResource {
       { parent: this }
     );
 
-    this.image = new awsx.ecr.Image(
+    const authToken = aws.ecr.getAuthorizationTokenOutput({
+      registryId: this.ecr.repository.registryId,
+    });
+
+    const cacheRef = pulumi.interpolate`${this.ecr.url}:cache`;
+
+    const dockerImage = new docker_build.Image(
       imageId,
       {
-        imageTag: 'latest',
-        context: imagePath,
-        platform: `${platform.family}/${platform.architecture}`,
-        dockerfile: dockerfile ? `${imagePath}/${dockerfile}` : undefined,
-        repositoryUrl: this.ecr.url,
-        args: buildArgs,
+        tags: [pulumi.interpolate`${this.ecr.url}:latest`],
+        context: { location: imagePath },
+        dockerfile: dockerfile
+          ? { location: `${imagePath}/${dockerfile}` }
+          : undefined,
+        platforms: [
+          `${platform.family}/${platform.architecture}` as docker_build.Platform,
+        ],
+        push: true,
+        buildArgs,
+        registries: [
+          {
+            address: this.ecr.url,
+            password: authToken.apply((t) => t.password),
+            username: authToken.apply((t) => t.userName),
+          },
+        ],
+        cacheFrom: [{ registry: { ref: cacheRef } }],
+        cacheTo: [
+          {
+            registry: {
+              ref: cacheRef,
+              imageManifest: true,
+              ociMediaTypes: true,
+              mode: docker_build.CacheMode.Max,
+            },
+          },
+        ],
       },
       { parent: this }
     );
+
+    this.image = { imageUri: dockerImage.ref };
   }
 }
