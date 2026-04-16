@@ -22,9 +22,6 @@ pub enum SendMobileWelcomeEmailError {
     #[error("Email is blocked")]
     EmailBlocked,
 
-    #[error("Welcome email already sent")]
-    AlreadySent,
-
     #[error("Internal error")]
     InternalError(#[from] anyhow::Error),
 }
@@ -34,7 +31,6 @@ impl IntoResponse for SendMobileWelcomeEmailError {
         let status_code = match &self {
             SendMobileWelcomeEmailError::InvalidEmail
             | SendMobileWelcomeEmailError::EmailBlocked => StatusCode::BAD_REQUEST,
-            SendMobileWelcomeEmailError::AlreadySent => StatusCode::CONFLICT,
             SendMobileWelcomeEmailError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
@@ -74,8 +70,8 @@ pub fn router(state: ApiContext) -> Router<ApiContext> {
     operation_id = "send_mobile_welcome_email",
     responses(
         (status = 200, body = EmptyResponse),
+        (status = 204),
         (status = 400, body = ErrorResponse),
-        (status = 409, body = ErrorResponse),
         (status = 429, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
@@ -84,7 +80,7 @@ pub fn router(state: ApiContext) -> Router<ApiContext> {
 pub async fn handler(
     State(ctx): State<ApiContext>,
     extract::Json(req): extract::Json<SendMobileWelcomeEmailRequest>,
-) -> Result<Json<EmptyResponse>, SendMobileWelcomeEmailError> {
+) -> Result<Response, SendMobileWelcomeEmailError> {
     if !email_validator::is_valid_email(&req.email) {
         return Err(SendMobileWelcomeEmailError::InvalidEmail);
     }
@@ -114,7 +110,7 @@ pub async fn handler(
         .await?;
 
     if !inserted {
-        return Err(SendMobileWelcomeEmailError::AlreadySent);
+        return Ok(StatusCode::NO_CONTENT.into_response());
     }
 
     let welcome_email_content = WELCOME_EMAIL_TEMPLATE.to_string();
@@ -127,5 +123,5 @@ pub async fn handler(
         )
         .await?;
 
-    Ok(Json(EmptyResponse {}))
+    Ok((StatusCode::OK, Json(EmptyResponse {})).into_response())
 }
