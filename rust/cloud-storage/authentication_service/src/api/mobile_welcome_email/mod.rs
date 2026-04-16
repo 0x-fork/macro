@@ -7,9 +7,10 @@ use axum::{
 };
 use model::response::{EmptyResponse, ErrorResponse};
 use thiserror::Error;
+use tower::ServiceBuilder;
 use utoipa::ToSchema;
 
-use crate::api::context::ApiContext;
+use crate::api::{context::ApiContext, middleware};
 
 static WELCOME_EMAIL_TEMPLATE: &str = include_str!("./_welcome_email_template.html");
 
@@ -53,8 +54,16 @@ pub struct SendMobileWelcomeEmailRequest {
     pub email: String,
 }
 
-pub fn router() -> Router<ApiContext> {
-    Router::new().route("/mobile-welcome-email", post(handler))
+pub fn router(state: ApiContext) -> Router<ApiContext> {
+    Router::new().route(
+        "/mobile-welcome-email",
+        post(handler).layer(
+            ServiceBuilder::new().layer(axum::middleware::from_fn_with_state(
+                state,
+                middleware::rate_limit::mobile_welcome_email::handler,
+            )),
+        ),
+    )
 }
 
 /// Sends a mobile welcome email to the given address, if it hasn't already been sent
@@ -67,6 +76,7 @@ pub fn router() -> Router<ApiContext> {
         (status = 200, body = EmptyResponse),
         (status = 400, body = ErrorResponse),
         (status = 409, body = ErrorResponse),
+        (status = 429, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
 )]

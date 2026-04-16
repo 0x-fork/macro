@@ -59,6 +59,7 @@ macro_cache_client = { path = "../macro_cache_client", default-features = false,
   "auth",
   "auth_rate_limit",
   "login_code_rate_limit",
+  "mobile_welcome_email_rate_limit",
   "verify_email_rate_limit",
 ] }
 macro_cors = { path = "../macro_cors" }
