@@ -393,7 +393,9 @@ function InteractiveOnboardingInner() {
   onMount(() => {
     if (state.currentIndex() > 0) return;
 
-    analytics.track('onboarding_start');
+    analytics.track('onboarding_start', {
+      source: params.has('mobile_welcome_email') ? 'mobile_welcome_email' : undefined,
+    });
   });
 
   createEffect(
