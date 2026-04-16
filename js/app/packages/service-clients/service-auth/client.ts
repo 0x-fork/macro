@@ -17,6 +17,7 @@ import { fetchWithAuth as _fetchWithAuth } from './fetch';
 import type {
   InitGithubLinkResponse,
   PatchUserTutorialRequest,
+  SendMobileWelcomeEmailResponse,
   UserQuota,
 } from './generated/schemas';
 import type { AppleLoginRequest } from './generated/schemas/appleLoginRequest';
@@ -485,10 +486,13 @@ export const authServiceClient = {
   },
 
   async sendMobileWelcomeEmail(email: string) {
-    return authApiFetch<EmptyResponse>(`/mobile-welcome-email`, {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
+    return authApiFetch<SendMobileWelcomeEmailResponse>(
+      `/mobile-welcome-email`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }
+    );
   },
 };
 

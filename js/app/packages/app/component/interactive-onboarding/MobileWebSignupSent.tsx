@@ -33,7 +33,8 @@ export default function MobileWebSignupSent() {
           Macro is better on desktop.
         </h2>
         <p class="text-base text-ink/60 mt-4">
-          We sent a link to your inbox - open it on your computer for the full Macro experience.
+          We sent a link to your inbox - open it on your computer for the full
+          Macro experience.
         </p>
 
         <button

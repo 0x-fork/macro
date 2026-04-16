@@ -56,11 +56,15 @@ export default function InteractiveOnboarding() {
     const result = await authServiceClient.sendMobileWelcomeEmail(email);
 
     if (isOk(result)) {
-      setMobileWebStep('signup-sent');
+      if (result[1].sent) {
+        setMobileWebStep('signup-sent');
+      } else {
+        toast.failure('Email already sent.');
+      }
     } else {
       const msg = result[0]?.[0]?.message ?? '';
-      if (msg.includes('409')) {
-        toast.failure('Email already sent.');
+      if (msg.includes('429')) {
+        toast.failure('Rate limit exceeded.');
       } else if (msg.includes('400')) {
         toast.failure('Invalid email address.');
       } else {
@@ -394,7 +398,9 @@ function InteractiveOnboardingInner() {
     if (state.currentIndex() > 0) return;
 
     analytics.track('onboarding_start', {
-      source: params.has('mobile_welcome_email') ? 'mobile_welcome_email' : undefined,
+      source: params.has('mobile_welcome_email')
+        ? 'mobile_welcome_email'
+        : undefined,
     });
   });
 
