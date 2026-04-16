@@ -921,6 +921,9 @@
               }
             }
           },
+          "204": {
+            "description": ""
+          },
           "400": {
             "description": "",
             "content": {
@@ -931,7 +934,7 @@
               }
             }
           },
-          "409": {
+          "429": {
             "description": "",
             "content": {
               "application/json": {

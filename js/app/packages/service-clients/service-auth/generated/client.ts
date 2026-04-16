@@ -1072,14 +1072,19 @@ export type sendMobileWelcomeEmailResponse200 = {
   status: 200;
 };
 
+export type sendMobileWelcomeEmailResponse204 = {
+  data: void;
+  status: 204;
+};
+
 export type sendMobileWelcomeEmailResponse400 = {
   data: ErrorResponse;
   status: 400;
 };
 
-export type sendMobileWelcomeEmailResponse409 = {
+export type sendMobileWelcomeEmailResponse429 = {
   data: ErrorResponse;
-  status: 409;
+  status: 429;
 };
 
 export type sendMobileWelcomeEmailResponse500 = {
@@ -1087,13 +1092,15 @@ export type sendMobileWelcomeEmailResponse500 = {
   status: 500;
 };
 
-export type sendMobileWelcomeEmailResponseSuccess =
-  sendMobileWelcomeEmailResponse200 & {
-    headers: Headers;
-  };
+export type sendMobileWelcomeEmailResponseSuccess = (
+  | sendMobileWelcomeEmailResponse200
+  | sendMobileWelcomeEmailResponse204
+) & {
+  headers: Headers;
+};
 export type sendMobileWelcomeEmailResponseError = (
   | sendMobileWelcomeEmailResponse400
-  | sendMobileWelcomeEmailResponse409
+  | sendMobileWelcomeEmailResponse429
   | sendMobileWelcomeEmailResponse500
 ) & {
   headers: Headers;
