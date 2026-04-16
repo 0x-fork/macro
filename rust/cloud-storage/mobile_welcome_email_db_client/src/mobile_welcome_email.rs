@@ -1,3 +1,5 @@
+//! Queries for the `mobile_welcome_email` table.
+
 /// Checks if a mobile welcome email has already been sent to the given email address.
 #[tracing::instrument(skip(db), err)]
 pub async fn get_mobile_welcome_email(
@@ -42,3 +44,6 @@ pub async fn insert_mobile_welcome_email(
 
     Ok(result.rows_affected() > 0)
 }
+
+#[cfg(test)]
+mod test;

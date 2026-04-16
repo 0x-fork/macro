@@ -96,11 +96,12 @@ pub async fn handler(
     }
 
     // Atomically claim the slot — returns false if the email was already sent
-    let inserted = macro_db_client::mobile_welcome_email::insert_mobile_welcome_email(
-        &ctx.db,
-        &lowercase_email,
-    )
-    .await?;
+    let inserted =
+        mobile_welcome_email_db_client::mobile_welcome_email::insert_mobile_welcome_email(
+            &ctx.db,
+            &lowercase_email,
+        )
+        .await?;
 
     if !inserted {
         return Err(SendMobileWelcomeEmailError::AlreadySent);
