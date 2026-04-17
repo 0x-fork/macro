@@ -10,6 +10,7 @@ import {
   on,
   onMount,
 } from 'solid-js';
+import ChannelIcon from '@macro-icons/wide/channel.svg?component-solid';
 import { UserIcon } from '@core/component/UserIcon';
 import { useSenderName } from '@app/component/app-sidebar/utils';
 import { globalSplitManager } from '@app/signal/splitLayout';
@@ -203,7 +204,18 @@ function ChannelGroupItem(props: {
       <div class="relative flex items-center justify-center flex-shrink-0 size-5">
         <Show
           when={isDM() && senderId()}
-          fallback={<ChannelLetterIcon letters={props.channelLetters ?? '?'} />}
+          fallback={
+            <Show
+              when={isSlim()}
+              fallback={
+                <div class="text-ink-muted size-4">
+                  <ChannelIcon />
+                </div>
+              }
+            >
+              <ChannelLetterIcon letters={props.channelLetters ?? '?'} />
+            </Show>
+          }
         >
           <UserIcon
             id={senderId()!}
