@@ -561,7 +561,7 @@ export const UnifiedFilterDropdown = () => {
             as={Button}
             variant="secondary"
             size="sm"
-            class="rounded-xs [&_svg]:size-4"
+            class="rounded-xs [&_svg]:size-4 suppress-css-bracket"
           >
             <SlidersHorizontalIcon />
             <span class="font-medium">Filter</span>
@@ -688,6 +688,14 @@ export const UnifiedFilterDropdown = () => {
                                 onPointerDown={() =>
                                   handleIndexChange(option.value)
                                 }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleIndexChange(option.value);
+                                    setOpen(false);
+                                  }
+                                }}
                               >
                                 <TypeIndicator active={active()} />
                                 <Show when={option.icon}>

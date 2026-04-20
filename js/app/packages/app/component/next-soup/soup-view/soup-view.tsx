@@ -23,7 +23,6 @@ import {
 } from '@app/component/next-soup/soup-view/soup-view-cache-key';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
-import { useSplitLayout } from '@app/component/split-layout/layout';
 import {
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
@@ -174,7 +173,7 @@ type PersistedSoupViewState = {
   assigneeFilter: string[];
 };
 
-const PERSISTED_STATE_VERSION = 2;
+const PERSISTED_STATE_VERSION = 3;
 
 const listStateCache = new Map<
   string,
@@ -408,7 +407,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
     assigneeFilter,
     setAssigneeFilter,
   } = useSoupView();
-  const { getSplitCount } = useSplitLayout();
   const { hasActiveRefinements, resetToTabDefaults } = useFilterRefinements();
 
   const { isKeypressActive } = useIsKeyPressActive();
@@ -417,10 +415,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
     createSignal<VirtualizerHandle>();
 
   const [soupViewRef, setSoupViewRef] = createSignal<HTMLElement | undefined>();
-
-  const [previewPanelRef, setPreviewPanelRef] = createSignal<
-    HTMLElement | undefined
-  >();
 
   const focusFirstEntity = () => {
     const next = soup.navigate.toFirst();
@@ -485,7 +479,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
     soup,
     splitHandle: panel.handle,
     virtualizerHandle,
-    previewPanelRef,
   });
 
   // Register entity action hotkeys
@@ -510,7 +503,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
     splitHandle: panel.handle,
     virtualizerHandle,
     previewState: () => !!soup.previewEntity(),
-    getSplitCount,
     currentView,
     activeTab,
     applyTabPreset,
@@ -1008,7 +1000,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
           }
         >
           <PreviewPanel
-            ref={setPreviewPanelRef}
             selectedEntity={soup.focus.item()}
             orchestrator={orchestrator}
             splitPanelContext={panel}
