@@ -11,6 +11,7 @@ use entity::EntityCommand;
 use fusionauth::FusionAuthClient;
 use macro_entrypoint::MacroEntrypoint;
 use macro_env::Environment;
+use pg_pool_util::PgPoolOptionsExt;
 use service::{auth::Auth, db::Db};
 use sqlx::postgres::PgPoolOptions;
 
@@ -39,7 +40,7 @@ pub async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(1)
         .max_connections(95)
-        .connect(
+        .connect_with_app_name(
             &env_vars
                 .database_url
                 .replace("postgres:5432", "localhost:5432"),

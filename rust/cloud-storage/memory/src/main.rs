@@ -6,6 +6,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use memory::config::Config;
 use memory::domain::{MemoryService, service::MemoryServiceImpl};
 use memory::outbound::pg_memory_repo::PgMemoryRepo;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 
 #[tokio::main]
@@ -16,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
 
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&config.database_url)
+        .connect_with_app_name(&config.database_url)
         .await?;
 
     let tool_context = build_tool_service_context_from_env(pool.clone()).await?;

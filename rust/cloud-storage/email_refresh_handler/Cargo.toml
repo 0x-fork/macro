@@ -15,6 +15,7 @@ macro_entrypoint = { path = "../macro_entrypoint" }
 macro_env = { path = "../macro_env" }
 model = { path = "../model" }
 models_email = { path = "../models_email" }
+pg_pool_util = { path = "../pg_pool_util" }
 sqlx = { workspace = true }
 sqs_client = { path = "../sqs_client" }
 tokio = { workspace = true }

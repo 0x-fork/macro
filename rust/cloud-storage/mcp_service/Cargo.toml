@@ -35,6 +35,7 @@ macro_middleware = { path = "../macro_middleware", default-features = false, fea
   "user_permissions",
 ] }
 macro_user_id = { path = "../macro_user_id" }
+pg_pool_util = { path = "../pg_pool_util" }
 properties = { path = "../properties", features = ["ai_tools"] }
 readonly_pool = { path = "../readonly_pool" }
 redis = { workspace = true, features = ["aio", "tokio-comp"] }

@@ -49,6 +49,7 @@ use macro_sha_count_client::Redis;
 use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
 use opensearch_client::OpensearchClient;
+use pg_pool_util::PgPoolOptionsExt;
 use properties::{
     NotificationServiceImpl, PermissionServiceImpl, PropertiesPgRepo, PropertiesServiceImpl,
 };
@@ -112,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(min_connections)
         .max_connections(max_connections)
-        .connect(&config.vars.database_url)
+        .connect_with_app_name(&config.vars.database_url)
         .await
         .context("could not connect to db")?;
 
@@ -125,7 +126,7 @@ async fn main() -> anyhow::Result<()> {
     let readonly_db = match PgPoolOptions::new()
         .min_connections(min_connections)
         .max_connections(max_connections)
-        .connect(&config.vars.database_url_readonly)
+        .connect_with_app_name(&config.vars.database_url_readonly)
         .await
     {
         Ok(pool) => {

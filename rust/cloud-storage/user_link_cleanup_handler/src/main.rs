@@ -5,6 +5,7 @@ use lambda_runtime::{
     tracing::{self},
 };
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 
 #[tokio::main]
@@ -19,7 +20,7 @@ async fn main() -> Result<(), Error> {
     let db = PgPoolOptions::new()
         .min_connections(1)
         .max_connections(1) // We want 1 db connection per dss item (document, project, chat)
-        .connect(&database_url)
+        .connect_with_app_name(&database_url)
         .await
         .context("could not connect to db")?;
 

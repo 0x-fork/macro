@@ -11,6 +11,7 @@ macro_entrypoint = { path = "../macro_entrypoint" }
 macro_env_var = { path = "../macro_env_var" }
 macro_uuid = { path = "../macro_uuid" }
 models_permissions = { path = "../models_permissions" }
+pg_pool_util = { path = "../pg_pool_util" }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

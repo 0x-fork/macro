@@ -11,6 +11,7 @@ use lexical_client::LexicalClient;
 use macro_entrypoint::MacroEntrypoint;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
 use opensearch_client::OpensearchClient;
+use pg_pool_util::PgPoolOptionsExt;
 use rust_embed::RustEmbed;
 use secretsmanager_client::{LocalOrRemoteSecret, SecretManager};
 use sqlx::postgres::PgPoolOptions;
@@ -71,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(min_connections)
         .max_connections(max_connections)
-        .connect(&database_url)
+        .connect_with_app_name(&database_url)
         .await
         .context("could not connect to db")?;
 

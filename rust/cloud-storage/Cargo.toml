@@ -102,6 +102,7 @@ members = [
   "organization_retention_handler",
   "organization_retention_trigger",
   "permission",
+  "pg_pool_util",
   "properties",
   "properties_db_client",
   "properties_service",

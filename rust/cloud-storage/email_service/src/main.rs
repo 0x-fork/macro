@@ -14,6 +14,7 @@ use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_entrypoint::MacroEntrypoint;
 use macro_env::Environment;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
+use pg_pool_util::PgPoolOptionsExt;
 use secretsmanager_client::{LocalOrRemoteSecret, SecretManager};
 use sqlx::postgres::PgPoolOptions;
 use static_file_service_client::StaticFileServiceClient;
@@ -64,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(min_connections)
         .max_connections(max_connections)
-        .connect(&config.macro_db_url)
+        .connect_with_app_name(&config.macro_db_url)
         .await
         .context("could not connect to db")?;
 

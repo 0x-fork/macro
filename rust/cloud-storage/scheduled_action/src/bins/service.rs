@@ -11,6 +11,7 @@ use macro_env_var::env_var;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
 use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
+use pg_pool_util::PgPoolOptionsExt;
 use scheduled_action::domain::ports::ScheduledActionDispatcher;
 use scheduled_action::domain::service::ScheduledActionServiceImpl;
 use scheduled_action::inbound::axum_router::{
@@ -46,7 +47,7 @@ async fn main() -> Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(3)
         .max_connections(10)
-        .connect(&env.database_url)
+        .connect_with_app_name(&env.database_url)
         .await
         .context("failed to connect to macrodb")?;
 

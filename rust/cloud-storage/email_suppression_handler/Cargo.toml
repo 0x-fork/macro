@@ -12,6 +12,7 @@ lambda_runtime = { workspace = true }
 macro_db_client = { path = "../macro_db_client" }
 macro_entrypoint = { path = "../macro_entrypoint" }
 openssl = { workspace = true }
+pg_pool_util = { path = "../pg_pool_util" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }

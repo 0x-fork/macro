@@ -25,6 +25,7 @@ use macro_entrypoint::MacroEntrypoint;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
 use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
+use pg_pool_util::PgPoolOptionsExt;
 use readonly_pool::ReadOnlyPool;
 use scribe::{ScribeClient, document::DocumentClient};
 use search_service_client::SearchServiceClient;
@@ -61,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(min_connections)
         .max_connections(max_connections)
-        .connect(&config.database_url)
+        .connect_with_app_name(&config.database_url)
         .await
         .context("failed to connect to macrodb")?;
 

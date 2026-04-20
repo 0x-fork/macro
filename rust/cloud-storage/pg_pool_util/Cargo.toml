@@ -1,0 +1,8 @@
+[package]
+edition = "2024"
+name = "pg_pool_util"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+sqlx = { workspace = true }

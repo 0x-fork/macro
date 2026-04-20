@@ -28,6 +28,7 @@ use mcp_auth_proxy::{
     domain::service::McpAuthProxyServiceImpl,
     outbound::{fusionauth::FusionAuthOAuthProvider, redis::RedisInflightAuth},
 };
+use pg_pool_util::PgPoolOptionsExt;
 use scribe::{ScribeClient, document::DocumentClient};
 use search_service_client::SearchServiceClient;
 use secretsmanager_client::LocalOrRemoteSecret;
@@ -76,7 +77,7 @@ pub async fn build_context() -> anyhow::Result<McpContext> {
     let db = PgPoolOptions::new()
         .min_connections(3)
         .max_connections(10)
-        .connect(&env_vars.database_url)
+        .connect_with_app_name(&env_vars.database_url)
         .await
         .context("failed to connect to macrodb")?;
 

@@ -3,6 +3,7 @@ use email_db_client::attachments::provider::upload_filters::{
     ATTACHMENT_MIME_TYPE_FILTERS, ATTACHMENT_WHITELISTED_DOMAINS,
 };
 use models_email::service::attachment::AttachmentUploadMetadata;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
@@ -159,7 +160,7 @@ pub async fn create_db_pool(database_url: &str, min_connections: u32) -> anyhow:
     PgPoolOptions::new()
         .min_connections(min_connections)
         .max_connections(60)
-        .connect(database_url)
+        .connect_with_app_name(database_url)
         .await
         .context("Could not connect to db")
 }

@@ -10,6 +10,7 @@ use macro_entrypoint::MacroEntrypoint;
 use macro_env_var::env_var;
 use model::IncomingEvent;
 use pdfium_render::prelude::*;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 use std::{rc::Rc, sync::Arc};
 
@@ -33,7 +34,7 @@ async fn main() -> Result<(), Error> {
         PgPoolOptions::new()
             .min_connections(1)
             .max_connections(1) // we only ever need one connection per lambda
-            .connect(&config.database_url)
+            .connect_with_app_name(&config.database_url)
             .await
             .map_err(|err| {
                 tracing::error!(error=?err, "unable to connect to database");

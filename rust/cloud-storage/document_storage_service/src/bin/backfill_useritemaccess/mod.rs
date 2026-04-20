@@ -7,6 +7,7 @@ mod project;
 
 use anyhow::Context;
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 
 // the number of useritemaccess records we insert at once
@@ -59,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(10)
         .max_connections(60)
-        .connect(&database_url)
+        .connect_with_app_name(&database_url)
         .await
         .context("could not connect to db")?;
 

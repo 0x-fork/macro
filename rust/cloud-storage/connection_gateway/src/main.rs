@@ -32,6 +32,7 @@ use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_entrypoint::MacroEntrypoint;
 use macro_env_var::env_var;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
+use pg_pool_util::PgPoolOptionsExt;
 use secretsmanager_client::LocalOrRemoteSecret;
 use service::dynamodb::create_dynamo_db_connection_manager;
 use service::redis::poll_messages;
@@ -103,7 +104,7 @@ async fn main() -> Result<()> {
     let pgpool = PgPoolOptions::new()
         .min_connections(3)
         .max_connections(20)
-        .connect(
+        .connect_with_app_name(
             LocalOrRemoteSecret::new_from_secret_manager(
                 MacroDbUrl::new()?,
                 &secretsmanager_client,

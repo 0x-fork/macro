@@ -57,6 +57,7 @@ models_pagination = { path = "../models_pagination", features = ["axum"] }
 notification = { path = "../notification", features = ["axum"] }
 notification_db_client = { path = "../notification_db_client" }
 paste = { workspace = true }
+pg_pool_util = { path = "../pg_pool_util" }
 rate_limit = { path = "../rate_limit" }
 redis = { workspace = true }
 regex = { workspace = true }

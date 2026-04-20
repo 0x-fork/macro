@@ -7,6 +7,7 @@ use macro_env::Environment;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
 use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
+use pg_pool_util::PgPoolOptionsExt;
 use secretsmanager_client::SecretManager;
 use sqlx::postgres::PgPoolOptions;
 use static_file_service_client::StaticFileServiceClient;
@@ -61,14 +62,14 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(min_connections)
         .max_connections(max_connections)
-        .connect(&config.macro_db_url)
+        .connect_with_app_name(&config.macro_db_url)
         .await
         .context("could not connect to db")?;
 
     let db_backfill = PgPoolOptions::new()
         .min_connections(min_connections_backfill)
         .max_connections(max_connections_backfill)
-        .connect(&config.macro_db_url)
+        .connect_with_app_name(&config.macro_db_url)
         .await
         .context("could not connect to backfill db")?;
 

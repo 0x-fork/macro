@@ -9,6 +9,7 @@ use lambda_runtime::{
     tracing::{self},
 };
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 
 #[tracing::instrument(skip(db, sqs_client, event))]
@@ -39,7 +40,7 @@ async fn main() -> Result<(), Error> {
         PgPoolOptions::new()
             .min_connections(1)
             .max_connections(1) // we only ever need one connection per lambda
-            .connect(&database_url)
+            .connect_with_app_name(&database_url)
             .await
             .context("could not connect to db")?,
     );

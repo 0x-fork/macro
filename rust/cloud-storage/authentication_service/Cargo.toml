@@ -92,6 +92,7 @@ native_app_service = { path = "../native_app_service" }
 non_empty = { path = "../non_empty" }
 notification = { path = "../notification" }
 openssl = { workspace = true }
+pg_pool_util = { path = "../pg_pool_util" }
 rand = { workspace = true }
 rate_limit = { path = "../rate_limit" }
 redis = { workspace = true }

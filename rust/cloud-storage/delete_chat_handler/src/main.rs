@@ -7,6 +7,7 @@ use aws_lambda_events::sqs::SqsEvent;
 use handler::handler;
 use lambda_runtime::{Error, LambdaEvent, run, service_fn, tracing};
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 
 #[tokio::main]
@@ -20,7 +21,7 @@ async fn main() -> Result<(), Error> {
         PgPoolOptions::new()
             .min_connections(1)
             .max_connections(1) // we only ever need one connection per lambda
-            .connect(&database_url)
+            .connect_with_app_name(&database_url)
             .await
             .context("could not connect to db")?,
     );

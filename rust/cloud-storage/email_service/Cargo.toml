@@ -121,6 +121,7 @@ models_pagination = { path = "../models_pagination", features = ["axum"] }
 models_permissions = { path = "../models_permissions" }
 once_cell = { workspace = true }
 models_properties = { path = "../models_properties" }
+pg_pool_util = { path = "../pg_pool_util" }
 redis = { workspace = true, features = [
   "cluster-async",
   "tokio-native-tls-comp",

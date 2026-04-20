@@ -13,6 +13,7 @@ use contacts_service::queue::MessageQueue;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_entrypoint::MacroEntrypoint;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
+use pg_pool_util::PgPoolOptionsExt;
 use rate_limit::{RateLimitServiceImpl, RedisRateLimitAdapter};
 use secretsmanager_client::SecretManager;
 use sqlx::PgPool;
@@ -34,7 +35,7 @@ async fn connect_to_database(config: &Config) -> anyhow::Result<PgPool> {
     let db = PgPoolOptions::new()
         .min_connections(min_connections)
         .max_connections(max_connections)
-        .connect(database_url)
+        .connect_with_app_name(database_url)
         .await
         .context("could not connect to db")?;
     Ok(db)

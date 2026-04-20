@@ -16,6 +16,7 @@ futures = { workspace = true }
 macro_entrypoint = { path = "../macro_entrypoint" }
 macro_env = { path = "../macro_env" }
 mockall = { workspace = true }
+pg_pool_util = { path = "../pg_pool_util" }
 redis = { workspace = true, features = [
   "aio",
   "tokio-native-tls-comp",

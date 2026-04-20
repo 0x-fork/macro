@@ -65,6 +65,7 @@ models_permissions = { path = "../models_permissions" }
 last_online_tracker = { path = "../last_online_tracker" }
 notification_hex = { path = "../notification", package = "notification" }
 reqwest.workspace = true
+pg_pool_util = { path = "../pg_pool_util" }
 secretsmanager_client = { path = "../secretsmanager_client" }
 serde = { workspace = true }
 serde_json = { workspace = true }

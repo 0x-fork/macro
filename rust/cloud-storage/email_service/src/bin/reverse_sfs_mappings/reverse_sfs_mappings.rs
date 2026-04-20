@@ -21,6 +21,7 @@ use std::time::Instant;
 
 use anyhow::Context;
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 
 struct Stats {
@@ -54,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = PgPoolOptions::new()
         .min_connections(2)
         .max_connections(10)
-        .connect(&config.database_url)
+        .connect_with_app_name(&config.database_url)
         .await
         .context("Failed to connect to database")?;
     println!("Connected.\n");

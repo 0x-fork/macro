@@ -19,6 +19,7 @@ macro_env = { path = "../macro_env" }
 macro_uuid = { path = "../macro_uuid" }
 model = { path = "../model" }
 openssl = { workspace = true }
+pg_pool_util = { path = "../pg_pool_util" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }

@@ -5,6 +5,7 @@ use config::Config;
 use macro_entrypoint::MacroEntrypoint;
 use macro_env::Environment;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
+use pg_pool_util::PgPoolOptionsExt;
 use process::runner::run_worker;
 use secretsmanager_client::SecretManager;
 use sqlx::postgres::PgPoolOptions;
@@ -37,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(1)
         .max_connections(5)
-        .connect(&config.database_url)
+        .connect_with_app_name(&config.database_url)
         .await
         .context("could not connect to db")?;
 

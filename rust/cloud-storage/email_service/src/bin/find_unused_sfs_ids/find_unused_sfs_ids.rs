@@ -20,6 +20,7 @@ use std::time::Instant;
 
 use anyhow::Context;
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 
 #[tokio::main]
@@ -119,7 +120,7 @@ async fn fetch_mappings_from_database(
     let db_pool = PgPoolOptions::new()
         .min_connections(1)
         .max_connections(5)
-        .connect(&config.database_url)
+        .connect_with_app_name(&config.database_url)
         .await
         .context("Failed to connect to database")?;
 

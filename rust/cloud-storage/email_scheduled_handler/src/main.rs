@@ -10,6 +10,7 @@ use config::Config;
 use handler::handler;
 use lambda_runtime::{Error, LambdaEvent, run, service_fn};
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 
@@ -23,7 +24,7 @@ async fn main() -> Result<(), Error> {
     let db = PgPoolOptions::new()
         .min_connections(1)
         .max_connections(1)
-        .connect(&config.database_url)
+        .connect_with_app_name(&config.database_url)
         .await
         .context("could not connect to db")?;
 

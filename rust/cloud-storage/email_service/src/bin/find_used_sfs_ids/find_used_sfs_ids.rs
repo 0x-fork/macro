@@ -26,6 +26,7 @@ use std::time::Instant;
 use anyhow::Context;
 use futures::future::join_all;
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::mpsc;
@@ -123,7 +124,7 @@ async fn connect_to_database(database_url: &str) -> anyhow::Result<PgPool> {
     PgPoolOptions::new()
         .min_connections(5)
         .max_connections(20)
-        .connect(database_url)
+        .connect_with_app_name(database_url)
         .await
         .context("Failed to connect to database")
 }

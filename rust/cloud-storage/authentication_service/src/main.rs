@@ -24,6 +24,7 @@ use notification::outbound::queue::SqsQueue;
 use notification::{
     domain::service::SqsNotificationIngress, outbound::rate_limit::RedisRateLimitAdapter,
 };
+use pg_pool_util::PgPoolOptionsExt;
 use rate_limit::domain::service::RateLimitServiceImpl;
 use roles_and_permissions::{
     domain::service::UserRolesAndPermissionsServiceImpl, outbound::pgpool::MacroDB,
@@ -85,7 +86,7 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(min_connections)
         .max_connections(max_connections)
-        .connect(&config.database_url)
+        .connect_with_app_name(&config.database_url)
         .await
         .context("could not connect to db")?;
 

@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use macro_entrypoint::MacroEntrypoint;
 use model::document::FileType;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 
 #[derive(clap::Parser, Debug)]
@@ -46,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(10)
         .max_connections(60)
-        .connect(&database_url)
+        .connect_with_app_name(&database_url)
         .await
         .context("could not connect to db")?;
 

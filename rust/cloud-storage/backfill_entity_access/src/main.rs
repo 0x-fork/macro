@@ -9,6 +9,7 @@ use config::EnvVars;
 use futures::stream::{self, StreamExt};
 use macro_entrypoint::MacroEntrypoint;
 use models_permissions::share_permission::access_level::AccessLevel;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::QueryBuilder;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
@@ -41,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
     let db = PgPoolOptions::new()
         .min_connections(1)
         .max_connections(50)
-        .connect(&env_vars.database_url)
+        .connect_with_app_name(&env_vars.database_url)
         .await
         .context("could not connect to db")?;
 

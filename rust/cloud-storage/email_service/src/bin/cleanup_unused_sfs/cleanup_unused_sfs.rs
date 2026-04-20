@@ -26,6 +26,7 @@ use std::time::Instant;
 use anyhow::Context;
 use futures::stream::{StreamExt as FuturesStreamExt, TryStreamExt};
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
@@ -160,7 +161,7 @@ async fn connect_to_database(config: &config::Config) -> anyhow::Result<PgPool> 
     PgPoolOptions::new()
         .min_connections(5)
         .max_connections(config.bulk_concurrency as u32 + 5)
-        .connect(&config.database_url)
+        .connect_with_app_name(&config.database_url)
         .await
         .context("Failed to connect to database")
 }

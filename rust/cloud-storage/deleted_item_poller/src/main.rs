@@ -11,6 +11,7 @@ use lambda_runtime::{
     tracing::{self},
 };
 use macro_entrypoint::MacroEntrypoint;
+use pg_pool_util::PgPoolOptionsExt;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 
@@ -27,7 +28,7 @@ async fn main() -> Result<(), Error> {
     let db = PgPoolOptions::new()
         .min_connections(3)
         .max_connections(3) // We want 1 db connection per dss item (document, project, chat)
-        .connect(&config.database_url)
+        .connect_with_app_name(&config.database_url)
         .await
         .context("could not connect to db")?;
 
