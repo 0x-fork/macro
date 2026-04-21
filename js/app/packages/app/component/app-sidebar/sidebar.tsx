@@ -54,7 +54,7 @@ import {
   setInviteModalOpen,
 } from '@app/component/app-sidebar/invite-modal';
 import { ENABLE_CALLS } from '@core/constant/featureFlags';
-import PhoneCallIcon from '@icon/duotone/phone-call-duotone.svg';
+import { AnimatedCallIcon } from '@macro-icons/wide/animating/call';
 
 interface SidebarItem {
   id: ListView;
@@ -353,7 +353,7 @@ const CALLS_LINK: SidebarItem = {
   id: 'calls',
   label: 'Calls',
   href: LIST_VIEW_PATHS.calls,
-  icon: PhoneCallIcon,
+  icon: AnimatedCallIcon,
   hotkey: 'l',
 };
 
