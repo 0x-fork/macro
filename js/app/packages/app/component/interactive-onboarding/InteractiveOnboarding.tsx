@@ -361,6 +361,7 @@ function InteractiveOnboardingInner() {
       () => state.isFinished(),
       (finished) => {
         if (finished && !testMode) {
+          console.log('Tutorial complete!');
           analytics.track('onboarding_completed');
           navigateAway();
         }
