@@ -690,11 +690,10 @@ export function StackedListEntity(props: StackedListEntityProps) {
       class={cn(
         'soup-stacked-entity w-full relative group/stacked rounded-xs',
         {
-          'bg-accent/5': props.checked,
+          'bg-accent/5': props.checked || (props.highlighted && !isMobile()),
           'hover:bg-hover/10':
             !props.checked && !props.highlighted && !props.hovered,
           'bg-hover/10': props.hovered && !props.highlighted && !props.checked,
-          'bg-accent/5': props.highlighted && !isMobile(),
         }
       )}
       onMouseMove={props.onMouseMove}

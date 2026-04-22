@@ -666,6 +666,13 @@ export const SoupViewList = (props: SoupViewListProps) => {
   const isProjectList = panel.handle.content().type === 'project';
   const contentId = panel.handle.content().id;
 
+  const shouldDimWhenRead = createMemo(() => {
+    const tab = activeTab();
+    if (contentId === 'channels') return false;
+    if (tab === 'drafts' || tab === 'sent' || tab === 'shared') return false;
+    return true;
+  });
+
   // If another SoupViewList with the same contentId is already mounted (e.g.
   // same view open in two splits), disable all persistence for this instance
   const prevCount = activeSoupViewCounts.get(contentId) ?? 0;
@@ -900,6 +907,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                               <StackedListEntity
                                 entity={row.original}
                                 timestamp={timestamp()}
+                                dimWhenRead={shouldDimWhenRead()}
                                 highlighted={
                                   panel.isPanelActive() && row.isFocused()
                                 }
