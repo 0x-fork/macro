@@ -617,19 +617,21 @@ function DefaultLayout(props: BaseLayoutProps) {
         <Show when={props.isShared}>
           <SharedIndicator ownerId={props.entity.ownerId} />
         </Show>
-        <Show when={isProjectContainedEntity(props.entity) && props.entity}>
-          {(entity) => (
-            <span class="ph-no-capture text-ink-extra-muted text-xs shrink-0">
-              <ProjectBreadCrumb
-                entity={entity()}
-                onClick={props.onProjectClick}
-              />
-            </span>
-          )}
-        </Show>
-        <span class="ml-auto text-xs text-ink-extra-muted font-light text-right w-12 shrink-0">
-          <Entity.Timestamp entity={props.entity} />
-        </span>
+        <div class="ml-auto flex items-center gap-2 shrink-0">
+          <Show when={isProjectContainedEntity(props.entity) && props.entity}>
+            {(entity) => (
+              <span class="ph-no-capture text-ink-extra-muted text-xs">
+                <ProjectBreadCrumb
+                  entity={entity()}
+                  onClick={props.onProjectClick}
+                />
+              </span>
+            )}
+          </Show>
+          <span class="text-xs text-ink-extra-muted font-light text-right w-12">
+            <Entity.Timestamp entity={props.entity} />
+          </span>
+        </div>
       </div>
     </LayoutShell>
   );
