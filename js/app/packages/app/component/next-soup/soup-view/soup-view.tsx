@@ -41,6 +41,7 @@ import {
   type EntityData,
   ListEntity,
   ListLayoutProvider,
+  StackedListEntity,
   type SearchLocation,
   type ProjectEntity,
 } from '@entity';
@@ -892,7 +893,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                               </div>
                             </Show>
                             <SoupEntityContextMenu entity={row.original}>
-                              <ListEntity
+                              <StackedListEntity
                                 entity={row.original}
                                 timestamp={timestamp()}
                                 highlighted={
@@ -1073,7 +1074,7 @@ const SoupList = (props: SoupListProps) => {
   return (
     <div
       ref={props.ref}
-      class={cn('unified-table-body size-full relative', props.class)}
+      class={cn('unified-table-body size-full relative px-2', props.class)}
     >
       <VList
         cache={props.cache}

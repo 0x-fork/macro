@@ -10,6 +10,7 @@ export { createEntityDraggable } from './utils/draggable';
 
 export { InlineEntity } from './composed/InlineEntity';
 export { ListEntity, ListLayoutProvider } from './composed/ListEntity';
+export { StackedListEntity } from './composed/StackedListEntity';
 
 export { UnreadIndicator } from './components/UnreadIndicator';
 export { MultiSelectCheckbox } from './components/MultiSelectCheckbox';
