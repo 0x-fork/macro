@@ -193,7 +193,9 @@ function ChannelGroupItem(props: {
   };
 
   const _openFullscreen = () => {
-    const { params } = getChannelNotificationParams(latestNotification());
+    const notification = latestNotification();
+    if (!notification) return;
+    const { params } = getChannelNotificationParams(notification);
     globalSplitManager()?.createPopoverSplit({
       content: {
         type: 'channel',
@@ -220,12 +222,12 @@ function ChannelGroupItem(props: {
         'opacity-0 -translate-y-2': !isVisible(),
         'opacity-100 translate-y-0': isVisible(),
       }}
-      onClick={(e) => {
-        if (e.button === 1) return;
-
+      onMouseDown={(e) => {
+        if (e.button !== 0) return;
         e.preventDefault();
         navigateToLatestNotification(e.shiftKey);
       }}
+      onClick={(e) => e.preventDefault()}
     >
       <div class="relative flex items-center justify-center flex-shrink-0 size-5">
         <Show
@@ -380,12 +382,12 @@ export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
           </section>
         }
       >
-        <section class="w-full h-full flex flex-col justify-center px-2 py-1.5">
+        <section class="w-full flex flex-col px-2 py-1.5">
           <header class="text-xs font-medium text-ink-muted ml-2 mb-1">
             <h1>Recent channels</h1>
           </header>
 
-          <div class="flex-1">
+          <div class="min-h-0 overflow-y-auto">
             <For each={visibleGroups()}>
               {(group) => (
                 <ChannelGroupItem

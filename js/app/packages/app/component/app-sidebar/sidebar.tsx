@@ -502,28 +502,32 @@ export const AppSidebar = (props: AppSidebarProps) => {
         <hr class="border-ink/5 mb-[8px]" />
       </div>
 
-      <nav>
-        <ul class="w-full h-full px-2 flex flex-col gap-1">
-          <For each={visibleLinks()}>
-            {(link) => (
-              <li class="flex items-center justify-center">
-                <SidebarLink
-                  {...link}
-                  sidebarState={props.sidebarState ?? 'expanded'}
-                  hotkeyVisible={hotkeyVisible()}
-                />
-              </li>
-            )}
-          </For>
-        </ul>
-      </nav>
+      <div class="flex-1 min-h-0 overflow-y-auto">
+        <nav>
+          <ul class="w-full px-2 flex flex-col gap-1">
+            <For each={visibleLinks()}>
+              {(link) => (
+                <li class="flex items-center justify-center">
+                  <SidebarLink
+                    {...link}
+                    sidebarState={props.sidebarState ?? 'expanded'}
+                    hotkeyVisible={hotkeyVisible()}
+                  />
+                </li>
+              )}
+            </For>
+          </ul>
+        </nav>
 
-      <div class="px-2">
-        <hr class="border-ink/5 my-[8px]" />
-      </div>
+        <div class="px-2">
+          <hr class="border-ink/5 my-[8px]" />
+        </div>
 
-      <div class="block max-h-[clamp(10%,60%,20rem)]">
-        <ChannelsUnreadWidget sidebarState={props.sidebarState ?? 'expanded'} />
+        <div class="block">
+          <ChannelsUnreadWidget
+            sidebarState={props.sidebarState ?? 'expanded'}
+          />
+        </div>
       </div>
 
       <div class="px-2 mt-auto w-full">
