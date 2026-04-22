@@ -295,7 +295,7 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
             </span>
           </Show>
         </span>
-        <span class="text-xs text-ink-extra-muted font-light">
+        <span class="text-xs text-ink-extra-muted font-light text-right w-12">
           <Entity.Timestamp entity={props.entity} />
         </span>
       </div>
@@ -376,7 +376,7 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
             !(isChannelEntity(props.entity) && isSearchEntity(props.entity))
           }
         >
-          <span class="ml-auto text-xs text-ink-extra-muted font-light shrink-0">
+          <span class="ml-auto text-xs text-ink-extra-muted font-light text-right w-12">
             <Entity.Timestamp entity={props.entity} />
           </span>
         </Show>
@@ -414,7 +414,7 @@ function ChannelMessageLayout(
         <span class="text-ink/50 truncate min-w-0">
           {props.message.content}
         </span>
-        <span class="ml-auto text-xs text-ink-extra-muted font-light shrink-0">
+        <span class="ml-auto text-xs text-ink-extra-muted font-light text-right w-12">
           <Entity.Timestamp entity={props.entity} />
         </span>
       </div>
@@ -429,14 +429,17 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
       onChecked={props.onChecked}
       unread={props.unread}
     >
-      <div class="flex items-center gap-2 min-w-0 w-full">
-        <div class="[&_svg]:size-4 shrink-0">
+      <div
+        class="grid items-center gap-x-2 min-w-0 w-full"
+        style={{ 'grid-template-columns': 'auto 1fr auto 1.25rem auto auto' }}
+      >
+        <div class="[&_svg]:size-4">
           <TaskPropertyGroup
             entity={props.entity}
             include={[SYSTEM_PROPERTY_IDS.STATUS]}
           />
         </div>
-        <span class="flex items-center gap-1.5 min-w-0 flex-1">
+        <span class="flex items-center gap-1.5 min-w-0">
           <span class="ph-no-capture font-medium truncate">
             <Entity.Title entity={props.entity} />
           </span>
@@ -444,9 +447,12 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
             <SharedIndicator ownerId={props.entity.ownerId} />
           </Show>
         </span>
-        <Show when={isProjectContainedEntity(props.entity) && props.entity}>
+        <Show
+          when={isProjectContainedEntity(props.entity) && props.entity}
+          fallback={<span />}
+        >
           {(entity) => (
-            <span class="ph-no-capture text-ink-extra-muted text-xs shrink-0">
+            <span class="ph-no-capture text-ink-extra-muted text-xs truncate max-w-32">
               <ProjectBreadCrumb
                 entity={entity()}
                 onClick={props.onProjectClick}
@@ -454,19 +460,21 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
             </span>
           )}
         </Show>
-        <div class="shrink-0 flex items-center gap-3 ml-auto">
+        <div class="flex justify-end">
           <TaskPropertyGroup
             entity={props.entity}
             include={[SYSTEM_PROPERTY_IDS.PRIORITY]}
           />
+        </div>
+        <div class="flex justify-end">
           <TaskPropertyGroup
             entity={props.entity}
             include={[SYSTEM_PROPERTY_IDS.ASSIGNEES]}
           />
-          <span class="text-xs text-ink-extra-muted font-light">
-            <Entity.Timestamp entity={props.entity} />
-          </span>
         </div>
+        <span class="text-xs text-ink-extra-muted font-light text-right w-12">
+          <Entity.Timestamp entity={props.entity} />
+        </span>
       </div>
     </LayoutShell>
   );
@@ -540,7 +548,7 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
               </Show>
             </div>
           </Show>
-          <span class="text-xs text-ink-extra-muted font-light">
+          <span class="text-xs text-ink-extra-muted font-light text-right w-12">
             <Entity.Timestamp entity={props.entity} />
           </span>
         </div>
@@ -621,7 +629,7 @@ function DefaultLayout(props: BaseLayoutProps) {
             </span>
           )}
         </Show>
-        <span class="ml-auto text-xs text-ink-extra-muted font-light shrink-0">
+        <span class="ml-auto text-xs text-ink-extra-muted font-light text-right w-12">
           <Entity.Timestamp entity={props.entity} />
         </span>
       </div>

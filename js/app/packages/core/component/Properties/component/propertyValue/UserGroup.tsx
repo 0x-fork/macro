@@ -1,6 +1,7 @@
 import { createMemo, For, Show } from 'solid-js';
 import type { EntityReference } from '../../types';
 import { UserIcon } from '@core/component/UserIcon';
+import { cn } from '@ui/utils/classname';
 
 type UserEntityPillProps = {
   entities: EntityReference[];
@@ -22,8 +23,8 @@ export const UserGroup = (props: UserEntityPillProps) => {
   return (
     <div class="flex items-center shrink-0 w-fit">
       <For each={displayEntities()}>
-        {(entity) => (
-          <div class="bg-panel rounded-full">
+        {(entity, index) => (
+          <div class={cn('bg-panel rounded-full', index() > 0 && '-ml-1.5')}>
             <UserIcon
               id={entity.entity_id}
               isDeleted={false}
@@ -35,10 +36,8 @@ export const UserGroup = (props: UserEntityPillProps) => {
         )}
       </For>
       <Show when={remaining()}>
-        <div class="z-4">
-          <div class="size-5 bg-menu border-2 text-[10px] -mr-2 text-ink border-panel rounded-full flex flex-col justify-center items-center">
-            <span>+{remaining()}</span>
-          </div>
+        <div class="-ml-1.5 size-5 bg-menu border-2 text-[10px] text-ink border-panel rounded-full flex flex-col justify-center items-center">
+          <span>+{remaining()}</span>
         </div>
       </Show>
     </div>
