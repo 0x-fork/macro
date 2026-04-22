@@ -10,7 +10,7 @@ import { tryMacroId, useDisplayNameParts } from '@core/user';
 import type { DateValue } from '@core/util/date';
 import { DisplayName } from '@entity/components/DisplayName';
 import ArrowDownLeftIcon from '@icon/regular/arrow-down-left.svg';
-import CalendarBlankIcon from '@icon/regular/calendar-blank.svg';
+import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg';
 import EnvelopeOpenIcon from '@icon/regular/envelope-open.svg';
 import FileDashedIcon from '@icon/regular/file-dashed.svg';
 import PhoneXIcon from '@phosphor-icons/core/bold/phone-x-bold.svg';
@@ -97,6 +97,8 @@ interface StackedListEntityProps {
   onChecked?: (checked: boolean, shiftKey: boolean) => void;
   onMouseMove?: () => void;
   showUnrollNotifications?: boolean;
+  /** Whether to dim read entities (default: true for emails/channels) */
+  dimWhenRead?: boolean;
   onProjectClick?: (
     entity: ProjectEntity,
     e: PointerEvent | MouseEvent
@@ -115,6 +117,7 @@ interface BaseLayoutProps {
   unread: boolean;
   isShared: boolean;
   hasNotifications: boolean;
+  dimWhenRead?: boolean;
   streamState?: StreamEvent;
   onProjectClick?: (
     entity: ProjectEntity,
@@ -138,6 +141,10 @@ function LayoutShell(props: {
       }}
     >
       <div class="row-span-full flex items-center justify-center relative group">
+        <UnreadIndicator
+          active={props.unread}
+          class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+        />
         <div
           class={cn(
             'absolute inset-0 grid place-items-center',
@@ -161,16 +168,6 @@ function LayoutShell(props: {
   );
 }
 
-function IconWithUnread(props: { unread: boolean; children: JSX.Element }) {
-  return (
-    <div class="relative shrink-0">
-      {props.children}
-      <Show when={props.unread}>
-        <div class="absolute -top-0.5 -right-0.5 size-2 bg-accent rounded-full" />
-      </Show>
-    </div>
-  );
-}
 
 function SharedIndicator(props: { ownerId: string }) {
   return (
@@ -256,42 +253,50 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
       checked={props.checked}
       onChecked={props.onChecked}
       unread={props.unread}
-      dimWhenRead
+      dimWhenRead={props.dimWhenRead ?? true}
     >
-      <div class="flex items-center gap-2 min-w-0 w-full">
-        <IconWithUnread unread={props.unread}>
-          <div class="[&_svg]:size-4">
-            <Switch>
-              <Match when={props.email.isDraft}>
-                <FileDashedIcon class="size-4 text-ink-muted" />
-              </Match>
-              <Match when={props.email.hasIcsAttachment}>
-                <CalendarBlankIcon class="size-4 text-ink-muted" />
-              </Match>
-              <Match when={!props.unread}>
-                <EnvelopeOpenIcon class="size-4 text-ink-muted" />
-              </Match>
-              <Match when={true}>
-                <Entity.Icon
-                  entity={props.entity}
-                  streamState={props.streamState}
-                />
-              </Match>
-            </Switch>
-          </div>
-        </IconWithUnread>
-        <span class="flex items-center gap-1.5 min-w-0 flex-1">
-          <span class="ph-no-capture font-medium shrink-0">
+      <div
+        class="grid items-center gap-x-2 min-w-0 w-full"
+        style={{ 'grid-template-columns': 'auto 12rem 1fr auto' }}
+      >
+        <div class="[&_svg]:size-4">
+          <Switch>
+            <Match when={props.email.isDraft}>
+              <FileDashedIcon class="size-4 text-ink-muted" />
+            </Match>
+            <Match when={props.email.hasIcsAttachment}>
+              <CalendarBlankIcon class="size-4 text-ink-muted" />
+            </Match>
+            <Match when={!props.unread}>
+              <EnvelopeOpenIcon class="size-4 text-ink-muted" />
+            </Match>
+            <Match when={true}>
+              <Entity.Icon
+                entity={props.entity}
+                streamState={props.streamState}
+              />
+            </Match>
+          </Switch>
+        </div>
+        <span class="flex items-center gap-1.5 min-w-0">
+          <span class="ph-no-capture font-medium truncate whitespace-nowrap">
             <Entity.EmailParticipants entity={props.email} />
           </span>
           <Show when={props.isShared}>
             <SharedIndicator ownerId={props.entity.ownerId} />
           </Show>
-          <span class="truncate text-ink-muted">
+        </span>
+        <span class="flex items-center gap-1.5 min-w-0">
+          <span class="shrink-0 font-medium">
             <Entity.Title entity={props.entity} />
           </span>
+          <Show when={props.email.snippet}>
+            <span class="truncate text-ink/60 font-normal">
+              {props.email.snippet}
+            </span>
+          </Show>
         </span>
-        <span class="text-xs text-ink-extra-muted font-light shrink-0">
+        <span class="text-xs text-ink-extra-muted font-light">
           <Entity.Timestamp entity={props.entity} />
         </span>
       </div>
@@ -309,29 +314,27 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
       checked={props.checked}
       onChecked={props.onChecked}
       unread={props.unread}
-      dimWhenRead
+      dimWhenRead={props.dimWhenRead ?? true}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
-        <IconWithUnread unread={props.unread}>
-          <div class="size-4">
-            <Show
-              when={
-                props.channel.channelType === 'direct_message' &&
-                props.channel.participantIds?.[0]
-              }
-              fallback={
-                <div class="[&_svg]:size-4">
-                  <Entity.Icon
-                    entity={props.entity}
-                    streamState={props.streamState}
-                  />
-                </div>
-              }
-            >
-              {(participantId) => <UserIcon id={participantId()} size="fill" />}
-            </Show>
-          </div>
-        </IconWithUnread>
+        <div class="size-4 shrink-0">
+          <Show
+            when={
+              props.channel.channelType === 'direct_message' &&
+              props.channel.participantIds?.[0]
+            }
+            fallback={
+              <div class="[&_svg]:size-4">
+                <Entity.Icon
+                  entity={props.entity}
+                  streamState={props.streamState}
+                />
+              </div>
+            }
+          >
+            {(participantId) => <UserIcon id={participantId()} size="fill" />}
+          </Show>
+        </div>
         <span class="flex items-center gap-1.5 shrink-0 max-w-[25%]">
           <span class="ph-no-capture font-medium truncate">
             <Entity.Title entity={props.entity} />
@@ -393,14 +396,12 @@ function ChannelMessageLayout(
       unread={props.unread}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
-        <IconWithUnread unread={props.unread}>
-          <div class="[&_svg]:size-4">
-            <Entity.Icon
-              entity={props.entity}
-              streamState={props.streamState}
-            />
-          </div>
-        </IconWithUnread>
+        <div class="[&_svg]:size-4 shrink-0">
+          <Entity.Icon
+            entity={props.entity}
+            streamState={props.streamState}
+          />
+        </div>
         <span class="text-ink-muted text-xs shrink-0">
           {props.message.channelName}
         </span>
@@ -433,14 +434,12 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
       unread={props.unread}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
-        <IconWithUnread unread={props.unread}>
-          <div class="[&_svg]:size-4">
-            <TaskPropertyGroup
-              entity={props.entity}
-              include={[SYSTEM_PROPERTY_IDS.STATUS]}
-            />
-          </div>
-        </IconWithUnread>
+        <div class="[&_svg]:size-4 shrink-0">
+          <TaskPropertyGroup
+            entity={props.entity}
+            include={[SYSTEM_PROPERTY_IDS.STATUS]}
+          />
+        </div>
         <span class="flex items-center gap-1.5 min-w-0 flex-1">
           <span class="ph-no-capture font-medium truncate">
             <Entity.Title entity={props.entity} />
@@ -459,13 +458,14 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
             </span>
           )}
         </Show>
-        <div class="shrink-0 flex items-center gap-2 ml-auto">
+        <div class="shrink-0 flex items-center gap-3 ml-auto">
           <TaskPropertyGroup
             entity={props.entity}
-            include={[
-              SYSTEM_PROPERTY_IDS.PRIORITY,
-              SYSTEM_PROPERTY_IDS.ASSIGNEES,
-            ]}
+            include={[SYSTEM_PROPERTY_IDS.PRIORITY]}
+          />
+          <TaskPropertyGroup
+            entity={props.entity}
+            include={[SYSTEM_PROPERTY_IDS.ASSIGNEES]}
           />
           <span class="text-xs text-ink-extra-muted font-light">
             <Entity.Timestamp entity={props.entity} />
@@ -491,21 +491,19 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
       unread={props.unread}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
-        <IconWithUnread unread={props.unread}>
-          <div class="[&_svg]:size-4">
-            <Show
-              when={showMissedIcon()}
-              fallback={
-                <Entity.Icon
-                  entity={props.entity}
-                  streamState={props.streamState}
-                />
-              }
-            >
-              <PhoneXIcon class="size-4 text-red-500" />
-            </Show>
-          </div>
-        </IconWithUnread>
+        <div class="[&_svg]:size-4 shrink-0">
+          <Show
+            when={showMissedIcon()}
+            fallback={
+              <Entity.Icon
+                entity={props.entity}
+                streamState={props.streamState}
+              />
+            }
+          >
+            <PhoneXIcon class="size-4 text-failure" />
+          </Show>
+        </div>
         <span class="ph-no-capture font-medium truncate min-w-0">
           <Entity.Title entity={props.entity} />
         </span>
@@ -565,14 +563,12 @@ function AutomationLayout(
       unread={props.unread}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
-        <IconWithUnread unread={props.unread}>
-          <div class="[&_svg]:size-4">
-            <Entity.Icon
-              entity={props.entity}
-              streamState={props.streamState}
-            />
-          </div>
-        </IconWithUnread>
+        <div class="[&_svg]:size-4 shrink-0">
+          <Entity.Icon
+            entity={props.entity}
+            streamState={props.streamState}
+          />
+        </div>
         <span class="ph-no-capture font-medium truncate">
           <Entity.Title entity={props.entity} />
         </span>
@@ -611,14 +607,12 @@ function DefaultLayout(props: BaseLayoutProps) {
       unread={props.unread}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
-        <IconWithUnread unread={props.unread}>
-          <div class="[&_svg]:size-4">
-            <Entity.Icon
-              entity={props.entity}
-              streamState={props.streamState}
-            />
-          </div>
-        </IconWithUnread>
+        <div class="[&_svg]:size-4 shrink-0">
+          <Entity.Icon
+            entity={props.entity}
+            streamState={props.streamState}
+          />
+        </div>
         <span class="flex items-center gap-1.5 min-w-0">
           <span class="ph-no-capture font-medium truncate">
             <Entity.Title entity={props.entity} />
@@ -674,6 +668,7 @@ export function StackedListEntity(props: StackedListEntityProps) {
     unread: unread(),
     isShared: isShared(),
     hasNotifications: hasNotifications(),
+    dimWhenRead: props.dimWhenRead,
     streamState: streamState(),
     onProjectClick: props.onProjectClick,
   });
