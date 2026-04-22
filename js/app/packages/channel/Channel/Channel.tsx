@@ -142,8 +142,33 @@ export function Channel(props: ChannelProps) {
     () => messagesQuery.data as ChannelMessagesData | undefined
   );
 
-  const messages = createMemo(() => [...messageIndex.items]);
-  const messageById = () => messageIndex.byId;
+  const [stickyMessageIndex, setStickyMessageIndex] = createSignal<{
+    items: typeof messageIndex.items;
+    keys: typeof messageIndex.keys;
+    byId: typeof messageIndex.byId;
+  }>({ items: [], keys: [], byId: new Map() });
+
+  createEffect(() => {
+    const items = messageIndex.items;
+    const keys = messageIndex.keys;
+    const byId = messageIndex.byId;
+    if (items.length > 0) {
+      setStickyMessageIndex({ items: [...items], keys: [...keys], byId: new Map(byId) });
+    }
+  });
+
+  const messages = () =>
+    messageIndex.items.length > 0
+      ? [...messageIndex.items]
+      : stickyMessageIndex().items;
+  const stickyKeys = () =>
+    messageIndex.keys.length > 0
+      ? messageIndex.keys
+      : stickyMessageIndex().keys;
+  const messageById = () =>
+    messageIndex.byId.size > 0
+      ? messageIndex.byId
+      : stickyMessageIndex().byId;
 
   const participants = useChannelParticipants(() => props.channelId);
 
@@ -254,7 +279,7 @@ export function Channel(props: ChannelProps) {
   });
 
   const selection = createMessageSelection({
-    keys: () => messageIndex.keys,
+    keys: stickyKeys,
   });
 
   const selectMessage = (messageId: string) => {
@@ -367,7 +392,7 @@ export function Channel(props: ChannelProps) {
             >
               <Show when={messages().length > 0}>
                 <ThreadList
-                  keys={() => messageIndex.keys}
+                  keys={stickyKeys}
                   initialScrollTarget={threadListInitialScrollTarget()}
                   shift={shift}
                   prepend={threadPaginator.isPrepending}
@@ -380,7 +405,7 @@ export function Channel(props: ChannelProps) {
                     const message = () => messageById().get(item.id);
                     const state = threadManager.getOrCreateThreadState(item.id);
                     const isNewestThread = () =>
-                      item.id === messageIndex.keys.at(-1);
+                      item.id === stickyKeys().at(-1);
 
                     return (
                       <Show when={message()}>
