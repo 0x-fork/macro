@@ -1,4 +1,6 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
+import { useChannelsContext } from '@core/context/channels';
+import { useUserId } from '@core/context/user';
 import type { UnifiedNotification } from '@notifications/types';
 import { openNotification } from '@notifications';
 import {
@@ -6,8 +8,6 @@ import {
   Show,
   createSignal,
   createMemo,
-  createEffect,
-  on,
   onMount,
 } from 'solid-js';
 import { UserIcon } from '@core/component/UserIcon';
@@ -22,6 +22,7 @@ import { isChannelNotification } from '@notifications/notification-helpers';
 import type { SidebarState } from '@app/component/app-sidebar/sidebar';
 import { cn } from '@ui/utils/classname';
 import { Button } from '@ui/components/Button';
+import { ChannelTypeEnum } from '@service-comms/client';
 
 function getChannelInfo(notification: UnifiedNotification): {
   channelName: string | null;
@@ -45,8 +46,10 @@ interface ChannelGroup {
   channelName: string | null;
   channelType: string | null;
   isDM: boolean;
-  notifications: UnifiedNotification[];
+  unreadCount: number;
   latestSenderId: string | null;
+  latestNotification: UnifiedNotification | null;
+  activityAt: string | null;
 }
 
 function computeChannelLetters(groups: ChannelGroup[]): Map<string, string> {
@@ -96,13 +99,25 @@ function groupByChannel(
         channelName: info.channelName,
         channelType: info.channelType,
         isDM: info.isDM,
-        notifications: [],
+        unreadCount: 0,
         latestSenderId: null,
+        latestNotification: null,
+        activityAt: null,
       });
     }
 
     const group = groups.get(entityId)!;
-    group.notifications.push(notification);
+    group.unreadCount += 1;
+    if (
+      !group.latestNotification ||
+      compareDateDesc(
+        notification.created_at,
+        group.latestNotification.created_at
+      ) < 0
+    ) {
+      group.latestNotification = notification;
+      group.activityAt = notification.created_at;
+    }
 
     // Track latest sender for DMs
     if (info.isDM && notification.sender_id) {
@@ -130,7 +145,7 @@ function ChannelGroupItem(props: {
   });
 
   const senderName = useSenderName(props.group.latestSenderId);
-  const count = () => props.group.notifications.length;
+  const count = () => props.group.unreadCount;
 
   const isDM = () => props.group.isDM;
   const senderId = () => props.group.latestSenderId;
@@ -144,7 +159,7 @@ function ChannelGroupItem(props: {
       : 'Unknown Channel';
   };
 
-  const latestNotification = () => props.group.notifications[0];
+  const latestNotification = () => props.group.latestNotification;
 
   const canOpenInNewSplit = () =>
     globalSplitManager()?.canAppendSplit() ?? false;
@@ -153,7 +168,19 @@ function ChannelGroupItem(props: {
     const manager = globalSplitManager();
     if (!manager) return;
     const notification = latestNotification();
-    openNotification(notification, manager, newSplit);
+    if (notification) {
+      openNotification(notification, manager, newSplit);
+      return;
+    }
+
+    manager.openWithSplit(
+      { type: 'channel', id: props.group.entityId },
+      {
+        activate: true,
+        referredFrom: null,
+        preferNewSplit: newSplit,
+      }
+    );
   };
 
   const openInCurrentSplit = () => {
@@ -271,46 +298,58 @@ function filterUnreadNotDone(notifications: UnifiedNotification[]) {
 
 export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
   const notificationSource = useGlobalNotificationSource();
+  const channelsContext = useChannelsContext();
+  const userId = useUserId();
   const allNotifications = () => [...notificationSource.notifications()];
 
   const filteredNotifications = () => filterUnreadNotDone(allNotifications());
 
-  const channelGroupsMap = createMemo(() =>
+  const unreadGroupsMap = createMemo(() =>
     groupByChannel(filteredNotifications())
   );
 
-  const [orderedIds, setOrderedIds] = createSignal<string[]>([]);
-
-  createEffect(
-    on(channelGroupsMap, (groups) => {
-      const currentIds = new Set(groups.keys());
-      const prev = orderedIds();
-      const kept = prev.filter((id) => currentIds.has(id));
-      const keptSet = new Set(kept);
-      const added = [...currentIds].filter((id) => !keptSet.has(id));
-
-      if (added.length === 0 && kept.length === prev.length) return;
-
-      added.sort((a, b) => {
-        const aTime = groups.get(a)?.notifications[0]?.created_at;
-        const bTime = groups.get(b)?.notifications[0]?.created_at;
-        return compareDateDesc(aTime, bTime);
-      });
-
-      setOrderedIds([...added, ...kept]);
-    })
-  );
-
   const channelGroups = createMemo(() => {
-    const groups = channelGroupsMap();
-    return orderedIds()
-      .map((id) => groups.get(id))
-      .filter((g): g is ChannelGroup => g != null);
+    const unreadGroups = unreadGroupsMap();
+    const currentUserId = userId();
+
+    return channelsContext
+      .channels()
+      .map<ChannelGroup>((channel) => {
+        const unreadGroup = unreadGroups.get(channel.id);
+        const isDM = channel.channel_type === ChannelTypeEnum.DirectMessage;
+        const dmOtherParticipantId = isDM
+          ? (channel.participants.find((p) => p.user_id !== currentUserId)
+              ?.user_id ?? null)
+          : null;
+
+        return {
+          entityId: channel.id,
+          channelName: channel.name ?? null,
+          channelType: channel.channel_type,
+          isDM,
+          unreadCount: unreadGroup?.unreadCount ?? 0,
+          latestSenderId: unreadGroup?.latestSenderId ?? dmOtherParticipantId,
+          latestNotification: unreadGroup?.latestNotification ?? null,
+          activityAt:
+            unreadGroup?.activityAt ??
+            channel.interacted_at ??
+            channel.updated_at ??
+            null,
+        };
+      })
+      .sort((a, b) => compareDateDesc(a.activityAt, b.activityAt));
   });
 
   const channelLettersMap = createMemo(() =>
     computeChannelLetters(channelGroups())
   );
+
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = createSignal(PAGE_SIZE);
+  const visibleGroups = createMemo(() =>
+    channelGroups().slice(0, visibleCount())
+  );
+  const hasMore = () => channelGroups().length > visibleCount();
 
   const isSlim = () => props.sidebarState === 'slim';
   const SLIM_MAX = 4;
@@ -343,11 +382,11 @@ export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
       >
         <section class="w-full h-full flex flex-col justify-center px-2 py-1.5">
           <header class="text-xs font-medium text-ink-muted ml-2 mb-1">
-            <h1>Unread</h1>
+            <h1>Recent channels</h1>
           </header>
 
           <div class="flex-1">
-            <For each={channelGroups()}>
+            <For each={visibleGroups()}>
               {(group) => (
                 <ChannelGroupItem
                   group={group}
@@ -356,6 +395,16 @@ export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
                 />
               )}
             </For>
+            <Show when={hasMore()}>
+              <Button
+                variant="ghost"
+                size="sm"
+                class="mt-1 ml-1 text-xs text-ink-muted"
+                onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}
+              >
+                Show more
+              </Button>
+            </Show>
           </div>
         </section>
       </Show>
