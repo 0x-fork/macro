@@ -315,7 +315,10 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
     >
-      <div class="flex items-center gap-2 min-w-0 w-full">
+      <div
+        class="grid items-center gap-x-2 min-w-0 w-full"
+        style={{ 'grid-template-columns': 'auto 12rem minmax(0, 1fr) auto' }}
+      >
         <div class="size-4 shrink-0">
           <Show
             when={
@@ -334,49 +337,51 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
             {(participantId) => <UserIcon id={participantId()} size="fill" />}
           </Show>
         </div>
-        <span class="flex items-center gap-1.5 shrink-0 max-w-[25%]">
-          <span class="ph-no-capture font-medium truncate">
+        <span class="flex items-center gap-1.5 min-w-0">
+          <span class="ph-no-capture font-medium truncate whitespace-nowrap">
             <Entity.Title entity={props.entity} />
           </span>
           <Show when={props.isShared}>
             <SharedIndicator ownerId={props.entity.ownerId} />
           </Show>
         </span>
-        <Show when={props.channel.latestMessage}>
-          {(msg) => (
-            <>
-              <Show when={msg().senderId}>
-                {(id) => (
-                  <span class="flex items-center gap-1 text-ink-muted shrink-0">
-                    <UserIcon id={id()} size="xs" />
-                    <Show when={senderName?.firstName()}>
-                      {(name) => <span class="text-xs">{name()}</span>}
-                    </Show>
-                  </span>
-                )}
-              </Show>
-              <span class="truncate min-w-0 text-ink/50">
-                <Show
-                  when={msg().content?.trim()}
-                  fallback={<span class="italic">Attached Items</span>}
-                >
-                  <StaticMarkdown
-                    theme={twoLineClampMarkdownTheme}
-                    markdown={msg().content.trim()}
-                    singleLine
-                  />
+        <span class="flex items-center gap-1.5 min-w-0 mr-8">
+          <Show when={props.channel.latestMessage}>
+            {(msg) => (
+              <>
+                <Show when={msg().senderId}>
+                  {(id) => (
+                    <span class="flex items-center gap-1 text-ink-muted shrink-0">
+                      <UserIcon id={id()} size="xs" />
+                      <Show when={senderName?.firstName()}>
+                        {(name) => <span class="text-xs">{name()}</span>}
+                      </Show>
+                    </span>
+                  )}
                 </Show>
-              </span>
-            </>
-          )}
-        </Show>
+                <span class="truncate min-w-0 text-ink/50">
+                  <Show
+                    when={msg().content?.trim()}
+                    fallback={<span class="italic">Attached Items</span>}
+                  >
+                    <StaticMarkdown
+                      theme={twoLineClampMarkdownTheme}
+                      markdown={msg().content.trim()}
+                      singleLine
+                    />
+                  </Show>
+                </span>
+              </>
+            )}
+          </Show>
+        </span>
         <Show
           when={
             !props.hasNotifications &&
             !(isChannelEntity(props.entity) && isSearchEntity(props.entity))
           }
         >
-          <span class="ml-auto text-xs text-ink-extra-muted font-light text-right w-12">
+          <span class="text-xs text-ink-extra-muted font-light text-right w-12">
             <Entity.Timestamp entity={props.entity} />
           </span>
         </Show>
