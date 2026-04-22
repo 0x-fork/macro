@@ -134,7 +134,7 @@ function LayoutShell(props: {
 }) {
   return (
     <div
-      class="grid w-full text-sm py-2.5 px-2"
+      class="grid w-full text-sm py-2 px-2"
       style={{
         'grid-template-columns': '1.5rem 1fr',
         gap: '0 0.5rem',
@@ -167,7 +167,6 @@ function LayoutShell(props: {
     </div>
   );
 }
-
 
 function SharedIndicator(props: { ownerId: string }) {
   return (
@@ -257,7 +256,7 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
     >
       <div
         class="grid items-center gap-x-2 min-w-0 w-full"
-        style={{ 'grid-template-columns': 'auto 12rem 1fr auto' }}
+        style={{ 'grid-template-columns': 'auto 12rem minmax(0, 1fr) auto' }}
       >
         <div class="[&_svg]:size-4">
           <Switch>
@@ -286,8 +285,8 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
             <SharedIndicator ownerId={props.entity.ownerId} />
           </Show>
         </span>
-        <span class="flex items-center gap-1.5 min-w-0">
-          <span class="shrink-0 font-medium">
+        <span class="flex items-center gap-1.5 min-w-0 mr-8">
+          <span class="shrink-0">
             <Entity.Title entity={props.entity} />
           </span>
           <Show when={props.email.snippet}>
@@ -397,10 +396,7 @@ function ChannelMessageLayout(
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
         <div class="[&_svg]:size-4 shrink-0">
-          <Entity.Icon
-            entity={props.entity}
-            streamState={props.streamState}
-          />
+          <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </div>
         <span class="text-ink-muted text-xs shrink-0">
           {props.message.channelName}
@@ -564,10 +560,7 @@ function AutomationLayout(
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
         <div class="[&_svg]:size-4 shrink-0">
-          <Entity.Icon
-            entity={props.entity}
-            streamState={props.streamState}
-          />
+          <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </div>
         <span class="ph-no-capture font-medium truncate">
           <Entity.Title entity={props.entity} />
@@ -608,10 +601,7 @@ function DefaultLayout(props: BaseLayoutProps) {
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
         <div class="[&_svg]:size-4 shrink-0">
-          <Entity.Icon
-            entity={props.entity}
-            streamState={props.streamState}
-          />
+          <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </div>
         <span class="flex items-center gap-1.5 min-w-0">
           <span class="ph-no-capture font-medium truncate">
