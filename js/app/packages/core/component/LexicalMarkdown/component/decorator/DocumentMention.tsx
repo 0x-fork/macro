@@ -101,7 +101,11 @@ function Loading(props: { collapsed?: boolean }) {
   );
 }
 
-function InlineTaskProperties(props: { taskId: string }) {
+function InlineTaskProperties(props: {
+  taskId: string;
+  showStatus?: boolean;
+  showOther?: boolean;
+}) {
   const { properties, isLoading } = useEntityProperties(
     props.taskId,
     'TASK',
@@ -129,36 +133,37 @@ function InlineTaskProperties(props: { taskId: string }) {
     return p?.valueType === 'ENTITY' ? p.value?.[0]?.entity_id : undefined;
   });
 
-  const hasAny = createMemo(
-    () =>
-      !isLoading() &&
-      !!(statusOptionId() || priorityOptionId() || firstAssigneeId())
+  const hasStatus = createMemo(() => !isLoading() && !!statusOptionId());
+  const hasOther = createMemo(
+    () => !isLoading() && !!(priorityOptionId() || firstAssigneeId())
   );
 
   return (
-    <Show when={hasAny()}>
-      <span class="inline-flex items-center gap-1 mx-1 align-middle relative top-[-0.05em]">
-        <Show when={statusOptionId()}>
-          {(id) => <PropertyValueIcon optionId={id()} class="size-3" />}
-        </Show>
-        <Show when={priorityOptionId()}>
-          {(id) => <PropertyValueIcon optionId={id()} class="size-3" />}
-        </Show>
-        <Show when={firstAssigneeId()}>
-          {(id) => (
-            <span class="inline-flex ml-0.5 size-3.25">
-              <UserIcon
-                id={id()}
-                isDeleted={false}
-                size="fill"
-                suppressClick
-                showTooltip={false}
-              />
-            </span>
-          )}
-        </Show>
-      </span>
-    </Show>
+    <>
+      <Show when={props.showStatus && hasStatus()}>
+        <PropertyValueIcon optionId={statusOptionId()!} class="size-[1em]" />
+      </Show>
+      <Show when={props.showOther && hasOther()}>
+        <span class="inline-flex items-center gap-1 mx-1 align-middle relative top-[-0.05em]">
+          <Show when={priorityOptionId()}>
+            {(id) => <PropertyValueIcon optionId={id()} class="size-3" />}
+          </Show>
+          <Show when={firstAssigneeId()}>
+            {(id) => (
+              <span class="inline-flex ml-0.5 size-3.25">
+                <UserIcon
+                  id={id()}
+                  isDeleted={false}
+                  size="fill"
+                  suppressClick
+                  showTooltip={false}
+                />
+              </span>
+            )}
+          </Show>
+        </span>
+      </Show>
+    </>
   );
 }
 
@@ -180,15 +185,38 @@ function InlinePreview(props: {
         {(accessibleItem) => (
           <MentionContainer
             icon={
-              <ItemEntityIcon
-                size="fill"
-                theme={
-                  accessibleItem().type !== 'channel' &&
-                  props.theme?.['document-mention'] === 'chat-blue'
-                    ? 'monochrome'
-                    : undefined
+              <Show
+                when={props.blockName === 'task'}
+                fallback={
+                  <ItemEntityIcon
+                    size="fill"
+                    theme={
+                      accessibleItem().type !== 'channel' &&
+                      props.theme?.['document-mention'] === 'chat-blue'
+                        ? 'monochrome'
+                        : undefined
+                    }
+                  />
                 }
-              />
+              >
+                <Suspense
+                  fallback={
+                    <ItemEntityIcon
+                      size="fill"
+                      theme={
+                        props.theme?.['document-mention'] === 'chat-blue'
+                          ? 'monochrome'
+                          : undefined
+                      }
+                    />
+                  }
+                >
+                  <InlineTaskProperties
+                    taskId={accessibleItem().id}
+                    showStatus
+                  />
+                </Suspense>
+              </Show>
             }
             text={
               <span
@@ -216,7 +244,10 @@ function InlinePreview(props: {
                 </span>
                 <Show when={props.blockName === 'task'}>
                   <Suspense>
-                    <InlineTaskProperties taskId={accessibleItem().id} />
+                    <InlineTaskProperties
+                      taskId={accessibleItem().id}
+                      showOther
+                    />
                   </Suspense>
                 </Show>
               </span>

@@ -1,4 +1,4 @@
-import { createEffect } from 'solid-js';
+import { createEffect, Suspense } from 'solid-js';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { UserIcon } from '@core/component/UserIcon';
 import ClockIcon from '@icon/regular/clock.svg';
@@ -10,6 +10,7 @@ import {
   getBlockNameFromEntity,
   getMentionItemName,
 } from '../utils/entityUtils';
+import { TaskStatusIcon } from './TaskStatusIcon';
 
 export function MentionsMenuItem(props: {
   item: MentionItem;
@@ -53,6 +54,13 @@ export function MentionsMenuItem(props: {
               size="xs"
               targetType={entity.channelType || 'channel'}
             />
+          );
+        }
+        if (props.item.bucket === 'task') {
+          return (
+            <Suspense fallback={<EntityIcon targetType="task" size="xs" />}>
+              <TaskStatusIcon taskId={props.item.id} />
+            </Suspense>
           );
         }
         return (
