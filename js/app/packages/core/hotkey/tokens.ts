@@ -51,6 +51,7 @@ export const TOKENS = {
       copyLink: 'entity.action.copyLink',
       share: 'entity.action.share',
       copyBranchName: 'entity.action.copyBranchName',
+      copyEntityId: 'entity.action.copyEntityId',
       properties: 'entity.action.properties',
       priority: 'entity.action.priority',
       status: 'entity.action.status',
@@ -76,6 +77,8 @@ export const TOKENS = {
     createNewSplit: 'global.createNewSplit',
     toggleVisor: 'global.toggleVisor',
     inviteTeam: 'global.inviteTeam',
+    undo: 'global.undo',
+    redo: 'global.redo',
   },
 
   // email

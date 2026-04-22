@@ -32,6 +32,7 @@ import {
 } from 'solid-js';
 import { isReplyInput } from './types';
 import type { IUser } from '@core/user/types';
+import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 
 export type ChannelInputProps = InputCallbacks & {
   input: InputData;
@@ -136,6 +137,7 @@ export function ChannelInput(props: ChannelInputProps) {
         inputState.commands.attachFiles(entries.map((entry) => entry.file))
       );
     },
+    onAttachFromDisk: (files) => inputState.commands.attachFiles(files),
   });
   // On iOS, blur before clearing so dictation finalizes and discards its buffer
   // (otherwise it re-injects the sent text into the cleared editor). Re-focus
@@ -160,6 +162,19 @@ export function ChannelInput(props: ChannelInputProps) {
       attachmentTracker.setAttachments(snapshot.attachments);
       mentionsTracker.setMentions(snapshot.mentions);
       markdownEditor.controls.focus();
+    },
+  });
+
+  const [attach, scopeId] = useHotkeyDOMScope('channel-input-intercept');
+  registerHotkey({
+    scopeId,
+    description: 'block escape from moving up scope',
+    hotkey: ['escape'],
+    runWithInputFocused: true,
+    hide: true,
+    keyDownHandler: () => {
+      // Block upstream escape handlers when ESC should close inline menus.
+      return markdownEditor.controls.isInlineMenuOpen();
     },
   });
 
@@ -198,6 +213,7 @@ export function ChannelInput(props: ChannelInputProps) {
                 initialValue={inputState.view().value}
                 autofocus={!isMobile() && (props.autofocus ?? true)}
                 class="text-sm"
+                refFn={attach}
               />
             </Input.Editor>
           </Input.EditorShell>

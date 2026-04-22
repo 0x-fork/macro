@@ -275,6 +275,7 @@ registerComponent('task-compose', (params) => {
       initialContent={params?.initialContent}
       initialTitle={params?.initialTitle}
       initialAssigneeId={params?.initialAssigneeId}
+      onSuccess={params?.onSuccess}
     />
   );
 });
@@ -369,6 +370,11 @@ if (LOCAL_ONLY) {
   registerComponent(
     'quick-access-list',
     lazy(() => import('@core/context/quickAccess/debug/QuickAccessAll'))
+  );
+
+  registerComponent(
+    'hotkey-debugger',
+    lazy(() => import('@app/component/HotkeyDebugger'))
   );
 }
 

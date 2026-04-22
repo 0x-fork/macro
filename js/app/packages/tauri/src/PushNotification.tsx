@@ -211,6 +211,10 @@ export function MaybePushNotificationRegistration(props: {
         return baseShowNotification(data);
       },
       getCurrentPermission: async () => {
+        const sysPerm = await checkPermissions();
+        if (sysPerm.status === 'prompt') {
+          return 'default';
+        }
         const appNotification = await getCurrentPermission();
         if (appNotification === 'granted' && push.permission() === 'granted') {
           return 'granted';

@@ -2,12 +2,19 @@
 use crate::{
     api::context::{ApiContext, DocumentStorageServiceAuthKey, TaskPropertiesAdapter},
     config::{
-        DocumentPermissionJwtSecretKey, DocumentStorageServiceCloudfrontSignerPrivateKeySecretName,
-        GithubSyncAppPemSecretKey, GithubWebhookSecretKey,
+        CalEventTypeContentNamesKey, CalWebhookSecretKey, DocumentPermissionJwtSecretKey,
+        DocumentStorageServiceCloudfrontSignerPrivateKeySecretName, GithubSyncAppPemSecretKey,
+        GithubWebhookSecretKey, MetaAccessToken, MetaPixelId, MetaTestEventCode,
     },
     service::s3::S3,
 };
+use analytics_client::{AnalyticsClient, AnalyticsClientConfig, MetaConfig};
 use anyhow::Context;
+use cal::{
+    domain::service::{CalConfig, CalWebhookServiceImpl},
+    inbound::cal_webhook_router::CalWebhookRouterState,
+    outbound::analytics_client::AnalyticsClientSink,
+};
 use call::{
     domain::service::CallServiceImpl,
     inbound::axum_router::{CallRouterState, InternalCallRouterState, WebhookRouterState},
@@ -318,6 +325,11 @@ async fn main() -> anyhow::Result<()> {
     let connection_service =
         ConnectionServiceImpl::new(entity_access_service.clone(), connection_gateway.clone());
 
+    let entity_access_management_service =
+        entity_access_management::domain::service::EntityAccessManagementServiceImpl::new(
+            entity_access_management::outbound::PgRepository::new(db.clone()),
+        );
+
     let document_service = Arc::new(DocumentServiceImpl::new(
         document_repo,
         cloudfront_config,
@@ -328,6 +340,7 @@ async fn main() -> anyhow::Result<()> {
             properties: properties_service.clone(),
         },
         connection_service,
+        entity_access_management_service.clone(),
     ));
 
     let github_webhook_secret = secretsmanager_client
@@ -349,6 +362,37 @@ async fn main() -> anyhow::Result<()> {
         PgGithubSyncRepo::new(db.clone()),
         GithubSyncClientImpl::default(),
     );
+
+    // Cal.com webhooks → Meta Lead events. Both secrets are loaded here
+    // (rather than on Config) to keep cal/Meta wiring colocated.
+    let cal_webhook_secret = secretsmanager_client
+        .get_maybe_secret_value(env, CalWebhookSecretKey::new()?)
+        .await?;
+    let cal_event_type_content_names_secret = secretsmanager_client
+        .get_maybe_secret_value(env, CalEventTypeContentNamesKey::new()?)
+        .await?;
+
+    let analytics_client = Arc::new(AnalyticsClient::new(AnalyticsClientConfig {
+        google_analytics: None,
+        meta: Some(MetaConfig {
+            pixel_id: MetaPixelId::new()?.as_ref().to_string(),
+            access_token: MetaAccessToken::new()?.as_ref().to_string(),
+            test_event_code: MetaTestEventCode::new().map(|v| v.as_ref().to_string()),
+        }),
+        posthog: None,
+    }));
+
+    let cal_event_type_content_names: std::collections::HashMap<u64, String> =
+        serde_json::from_str(cal_event_type_content_names_secret.as_ref())
+            .context("CalEventTypeContentNames secret must be a JSON object mapping eventTypeId (u64) to content_name")?;
+    let cal_webhook_service = CalWebhookServiceImpl::new(
+        CalConfig {
+            webhook_secret: cal_webhook_secret.as_ref().to_string(),
+            event_type_content_names: cal_event_type_content_names,
+        },
+        AnalyticsClientSink::new(analytics_client.clone()),
+    );
+    let cal_webhook_state = CalWebhookRouterState::new(cal_webhook_service);
 
     // Call service (LiveKit)
     let transcription_agent_name =
@@ -471,6 +515,8 @@ async fn main() -> anyhow::Result<()> {
         call_state,
         call_webhook_state,
         call_internal_state,
+        cal_webhook_state,
+        entity_access_management_service,
     };
 
     // Spawn the delete document worker

@@ -1,5 +1,9 @@
 use crate::{config::Config, service::s3::S3};
 use axum::extract::FromRef;
+use cal::{
+    domain::service::CalWebhookServiceImpl, inbound::cal_webhook_router::CalWebhookRouterState,
+    outbound::analytics_client::AnalyticsClientSink,
+};
 use call::{
     domain::service::CallServiceImpl,
     inbound::axum_router::{CallRouterState, InternalCallRouterState, WebhookRouterState},
@@ -84,7 +88,7 @@ type DssSoupState = SoupRouterState<
 
 type SystemPropertiesService = SystemPropertiesServiceImpl<PgSystemPropertiesRepository>;
 pub(crate) type NotificationIngressType = SqsNotificationIngress<SqsQueue>;
-type PropertiesService = PropertiesServiceImpl<
+pub(crate) type PropertiesService = PropertiesServiceImpl<
     PropertiesPgRepo,
     PermissionServiceImpl<EntityAccessService>,
     NotificationServiceImpl<NotificationIngressType>,
@@ -152,11 +156,17 @@ impl TaskPropertiesPort for TaskPropertiesAdapter {
     }
 }
 
+pub(crate) type EntityAccessManagementService =
+    entity_access_management::domain::service::EntityAccessManagementServiceImpl<
+        entity_access_management::outbound::PgRepository,
+    >;
+
 pub(crate) type DocumentService = DocumentServiceImpl<
     PgDocumentRepo,
     S3UploadUrlAdapter,
     TaskPropertiesAdapter,
     ConnectionServiceImpl<EntityAccessService, ConnectionGatewayImpl>,
+    EntityAccessManagementService,
 >;
 
 /// Type alias for the documents router state.
@@ -200,6 +210,12 @@ pub(crate) type DssCallInternalState = InternalCallRouterState<DssCallService>;
 pub(crate) type GithubSyncServiceType =
     GithubSyncServiceImpl<DocumentService, PgGithubSyncRepo, GithubSyncClientImpl>;
 
+/// Type alias for the cal.com webhook service.
+pub(crate) type CalWebhookServiceType = CalWebhookServiceImpl<AnalyticsClientSink>;
+
+/// Type alias for the cal.com webhook router state.
+pub(crate) type DssCalWebhookState = CalWebhookRouterState<CalWebhookServiceType>;
+
 #[derive(Clone, FromRef)]
 pub(crate) struct ApiContext {
     pub db: PgPool,
@@ -231,6 +247,8 @@ pub(crate) struct ApiContext {
     pub call_state: DssCallState,
     pub call_webhook_state: DssCallWebhookState,
     pub call_internal_state: DssCallInternalState,
+    pub cal_webhook_state: DssCalWebhookState,
+    pub entity_access_management_service: EntityAccessManagementService,
 }
 
 env_var! {
