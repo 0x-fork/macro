@@ -1,8 +1,8 @@
-import StatusCanceled from '@macro-icons/square/task-cancelled.svg';
-import StatusCreated from '@macro-icons/square/task-created.svg';
-import StatusDone from '@macro-icons/square/task-done.svg';
-import StatusInProgress from '@macro-icons/square/task-in-progress.svg';
-import StatusInReview from '@macro-icons/square/task-in-review.svg';
+import StatusCanceled from '@macro-icons/square/task-cancelled-circle.svg';
+import StatusCreated from '@macro-icons/square/task-created-circle.svg';
+import StatusDone from '@macro-icons/square/task-done-circle.svg';
+import StatusInProgress from '@macro-icons/square/task-in-progress-circle.svg';
+import StatusInReview from '@macro-icons/square/task-in-review-circle.svg';
 import PriorityHigh from '@macro-icons/wide/priority-high.svg';
 import PriorityLow from '@macro-icons/wide/priority-low.svg';
 import PriorityMedium from '@macro-icons/wide/priority-medium.svg';
@@ -59,9 +59,7 @@ export const PropertyValueIcon: Component<PropertyValueIconProps> = (props) => {
 
       {/* Status */}
       <Match when={props.optionId === PROPERTY_OPTION_IDS.STATUS.NOT_STARTED}>
-        <StatusCreated
-          class={twMerge('size-3', props.class, 'text-task')}
-        />
+        <StatusCreated class={twMerge('size-3', props.class, 'text-task')} />
       </Match>
       <Match when={props.optionId === PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS}>
         <StatusInProgress
@@ -69,14 +67,10 @@ export const PropertyValueIcon: Component<PropertyValueIconProps> = (props) => {
         />
       </Match>
       <Match when={props.optionId === PROPERTY_OPTION_IDS.STATUS.IN_REVIEW}>
-        <StatusInReview
-          class={twMerge('size-3', props.class, 'text-note')}
-        />
+        <StatusInReview class={twMerge('size-3', props.class, 'text-note')} />
       </Match>
       <Match when={props.optionId === PROPERTY_OPTION_IDS.STATUS.COMPLETED}>
-        <StatusDone
-          class={twMerge('size-3', props.class, 'text-accent')}
-        />
+        <StatusDone class={twMerge('size-3', props.class, 'text-accent')} />
       </Match>
       <Match when={props.optionId === PROPERTY_OPTION_IDS.STATUS.CANCELED}>
         <StatusCanceled
