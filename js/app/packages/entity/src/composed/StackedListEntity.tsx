@@ -508,7 +508,7 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
             <PhoneXIcon class="size-4 text-failure" />
           </Show>
         </div>
-        <span class="ph-no-capture font-medium truncate min-w-0">
+        <span class="ph-no-capture font-medium truncate max-w-[50%]">
           <Entity.Title entity={props.entity} />
         </span>
         <Show
@@ -570,7 +570,7 @@ function AutomationLayout(
         <div class="[&_svg]:size-4 shrink-0">
           <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </div>
-        <span class="ph-no-capture font-medium truncate">
+        <span class="ph-no-capture font-medium truncate max-w-[50%]">
           <Entity.Title entity={props.entity} />
         </span>
         <span class="ml-auto text-xs shrink-0">
@@ -611,17 +611,15 @@ function DefaultLayout(props: BaseLayoutProps) {
         <div class="[&_svg]:size-4 shrink-0">
           <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </div>
-        <span class="flex items-center gap-1.5 min-w-0">
-          <span class="ph-no-capture font-medium truncate">
-            <Entity.Title entity={props.entity} />
-          </span>
-          <Show when={props.isShared}>
-            <SharedIndicator ownerId={props.entity.ownerId} />
-          </Show>
+        <span class="ph-no-capture font-medium truncate max-w-[50%]">
+          <Entity.Title entity={props.entity} />
         </span>
+        <Show when={props.isShared}>
+          <SharedIndicator ownerId={props.entity.ownerId} />
+        </Show>
         <Show when={isProjectContainedEntity(props.entity) && props.entity}>
           {(entity) => (
-            <span class="ph-no-capture text-ink-extra-muted text-xs">
+            <span class="ph-no-capture text-ink-extra-muted text-xs shrink-0">
               <ProjectBreadCrumb
                 entity={entity()}
                 onClick={props.onProjectClick}
@@ -629,7 +627,7 @@ function DefaultLayout(props: BaseLayoutProps) {
             </span>
           )}
         </Show>
-        <span class="ml-auto text-xs text-ink-extra-muted font-light text-right w-12">
+        <span class="ml-auto text-xs text-ink-extra-muted font-light text-right w-12 shrink-0">
           <Entity.Timestamp entity={props.entity} />
         </span>
       </div>
