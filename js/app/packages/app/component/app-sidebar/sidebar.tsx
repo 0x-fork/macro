@@ -29,7 +29,11 @@ import {
   type ListView,
 } from '@app/constants/list-views';
 import { LabelAndHotKey } from '@core/component/Tooltip';
-import { createMenuOpen, setCreateMenuOpen } from '@app/component/Launcher';
+import {
+  createMenuOpen,
+  runCreateAction,
+  setCreateMenuOpen,
+} from '@app/component/Launcher';
 import { CommandState } from '@app/component/command';
 import { cn } from '@ui/utils/classname';
 import { Button } from '@ui/components/Button';
@@ -639,6 +643,43 @@ const SidebarLink = (props: SidebarLinkProps) => {
     split?.toggleSpotlight(true);
   };
 
+  const createAction = () => {
+    switch (props.id) {
+      case 'documents':
+        return {
+          text: 'New document',
+          onClick: () => runCreateAction('md'),
+        };
+      case 'tasks':
+        return {
+          text: 'New task',
+          onClick: () => runCreateAction('task'),
+        };
+      case 'mail':
+        return {
+          text: 'New email',
+          onClick: () => runCreateAction('email'),
+        };
+      case 'folders':
+        return {
+          text: 'New folder',
+          onClick: () => runCreateAction('project'),
+        };
+      case 'agents':
+        return {
+          text: 'New agent',
+          onClick: () => runCreateAction('chat'),
+        };
+      case 'channels':
+        return {
+          text: 'New message',
+          onClick: () => runCreateAction('channel'),
+        };
+      default:
+        return null;
+    }
+  };
+
   return (
     <ContextMenu>
       <ContextMenu.Trigger class="w-full">
@@ -738,6 +779,11 @@ const SidebarLink = (props: SidebarLinkProps) => {
           />
           <MenuItem text="Open fullscreen" onClick={openFullscreen} />
           <MenuItem text="Open in current split" onClick={openInCurrentSplit} />
+          <Show when={createAction()}>
+            {(action) => (
+              <MenuItem text={action().text} onClick={action().onClick} />
+            )}
+          </Show>
         </ContextMenuContent>
       </ContextMenu.Portal>
     </ContextMenu>
