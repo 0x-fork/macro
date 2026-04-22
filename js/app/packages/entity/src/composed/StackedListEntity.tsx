@@ -13,7 +13,7 @@ import ArrowDownLeftIcon from '@icon/regular/arrow-down-left.svg';
 import CalendarBlankIcon from '@icon/regular/calendar-blank.svg';
 import EnvelopeOpenIcon from '@icon/regular/envelope-open.svg';
 import FileDashedIcon from '@icon/regular/file-dashed.svg';
-import PhoneXIcon from '@icon/regular/phone-x.svg';
+import PhoneXIcon from '@phosphor-icons/core/bold/phone-x-bold.svg';
 import type { StreamEvent } from '@service-connection/generated/schemas';
 import {
   getStreamState,
