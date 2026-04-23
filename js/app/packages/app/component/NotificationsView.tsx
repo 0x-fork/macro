@@ -25,8 +25,9 @@ import type { UnifiedNotification } from '@notifications';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { Button } from '@ui/components/Button';
 import { cn } from '@ui/utils/classname';
-import { createEffect, createMemo, createSignal, Show, Suspense } from 'solid-js';
+import { createEffect, createMemo, createSignal, For, Show, Suspense } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import CaretDownIcon from '@icon/regular/caret-down.svg';
 import { VList } from 'virtua/solid';
 import { isNotificationUnread } from '@entity/utils/notification';
 import { useNotificationStackActions } from '@entity/extractors-notification/notification-actions';
@@ -37,6 +38,21 @@ import { NotificationSenderIcon } from '@entity/extractors-notification/notifica
 import { NotificationTimestamp } from '@entity/extractors-notification/notification-timestamp';
 import { MultiSelectCheckbox } from '@entity/components/MultiSelectCheckbox';
 import { UnreadIndicator } from '@entity/components/UnreadIndicator';
+import { DropdownMenu } from '@kobalte/core/dropdown-menu';
+
+type FilterTab = 'all' | 'unread' | 'read';
+type SortOption = 'newest' | 'oldest';
+
+const FILTER_TABS: { value: FilterTab; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'unread', label: 'Unread' },
+  { value: 'read', label: 'Read' },
+];
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+];
 
 function getNotificationUrl(notification: UnifiedNotification): string {
   const { params } = getChannelNotificationParams(notification);
@@ -285,6 +301,60 @@ function NotificationPreviewPanel(props: { notification: UnifiedNotification }) 
   );
 }
 
+function NotificationFilterBar(props: {
+  filter: FilterTab;
+  onFilterChange: (filter: FilterTab) => void;
+  sort: SortOption;
+  onSortChange: (sort: SortOption) => void;
+}) {
+  return (
+    <div class="flex items-center justify-between px-4 py-2 border-b border-edge-muted/50">
+      <div class="flex gap-1">
+        <For each={FILTER_TABS}>
+          {(tab) => (
+            <button
+              class={cn(
+                'px-2 py-1 text-xs rounded-xs transition-colors',
+                props.filter === tab.value
+                  ? 'bg-accent/10 text-accent font-medium'
+                  : 'text-ink-muted hover:bg-hover/10'
+              )}
+              onClick={() => props.onFilterChange(tab.value)}
+            >
+              {tab.label}
+            </button>
+          )}
+        </For>
+      </div>
+      <DropdownMenu>
+        <DropdownMenu.Trigger class="flex items-center gap-1 px-2 py-1 text-xs text-ink-muted hover:bg-hover/10 rounded-xs">
+          {SORT_OPTIONS.find((o) => o.value === props.sort)?.label}
+          <CaretDownIcon class="size-3" />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content class="bg-panel border border-edge-muted rounded-sm shadow-lg py-1 min-w-32 z-50">
+            <For each={SORT_OPTIONS}>
+              {(option) => (
+                <DropdownMenu.Item
+                  class={cn(
+                    'px-3 py-1.5 text-xs cursor-pointer outline-none',
+                    props.sort === option.value
+                      ? 'bg-accent/10 text-accent'
+                      : 'text-ink-muted hover:bg-hover/10'
+                  )}
+                  onSelect={() => props.onSortChange(option.value)}
+                >
+                  {option.label}
+                </DropdownMenu.Item>
+              )}
+            </For>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 export function NotificationsView() {
   const panel = useSplitPanelOrThrow();
   const notificationSource = useGlobalNotificationSource();
@@ -294,6 +364,8 @@ export function NotificationsView() {
     string | null
   >(null);
   const [checkedIds, setCheckedIds] = createSignal<Set<string>>(new Set());
+  const [filter, setFilter] = createSignal<FilterTab>('all');
+  const [sort, setSort] = createSignal<SortOption>('newest');
 
   createEffect(() => {
     panel.handle.setDisplayName('Notifications');
@@ -304,7 +376,21 @@ export function NotificationsView() {
     notifications().filter((n) => !n.done)
   );
 
-  const stacks = createMemo(() => stackNotifications(activeNotifications()));
+  const stacks = createMemo(() => {
+    let filtered = stackNotifications(activeNotifications());
+
+    if (filter() === 'unread') {
+      filtered = filtered.filter((stack) => isNotificationUnread(stack));
+    } else if (filter() === 'read') {
+      filtered = filtered.filter((stack) => !isNotificationUnread(stack));
+    }
+
+    if (sort() === 'oldest') {
+      filtered = [...filtered].reverse();
+    }
+
+    return filtered;
+  });
 
   const getStackId = (stack: NotificationStack) =>
     getMostRecentNotification(stack).id;
@@ -326,24 +412,31 @@ export function NotificationsView() {
         </h1>
       </SplitHeaderLeft>
       <div class="flex-1 flex min-h-0">
-        <div class="w-[40%] min-w-72 max-w-[28rem] border-r border-edge-muted">
-          <Show
-            when={!isLoading()}
-            fallback={
-              <div class="p-4">
-                <LoadingBlock />
-              </div>
-            }
-          >
+        <div class="w-[40%] min-w-72 max-w-[28rem] border-r border-edge-muted flex flex-col">
+          <NotificationFilterBar
+            filter={filter()}
+            onFilterChange={setFilter}
+            sort={sort()}
+            onSortChange={setSort}
+          />
+          <div class="flex-1 min-h-0">
             <Show
-              when={stacks().length > 0}
+              when={!isLoading()}
               fallback={
-                <div class="flex items-center justify-center h-full text-ink-muted text-sm">
-                  No notifications
+                <div class="p-4">
+                  <LoadingBlock />
                 </div>
               }
             >
-              <VList data={stacks()} class="py-2">
+              <Show
+                when={stacks().length > 0}
+                fallback={
+                  <div class="flex items-center justify-center h-full text-ink-muted text-sm">
+                    No notifications
+                  </div>
+                }
+              >
+                <VList data={stacks()} class="py-2 h-full">
                 {(stack) => {
                   const stackId = getStackId(stack);
                   return (
@@ -367,8 +460,9 @@ export function NotificationsView() {
                   );
                 }}
               </VList>
+              </Show>
             </Show>
-          </Show>
+          </div>
         </div>
         <div class="flex-1 min-w-0">
           <Show
