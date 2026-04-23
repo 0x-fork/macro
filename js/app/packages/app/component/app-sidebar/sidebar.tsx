@@ -15,6 +15,7 @@ import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
 import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
 import { AnimatedFolderIcon } from '@macro-icons/wide/animating/folder';
+import { AnimatedBellIcon } from '@macro-icons/wide/animating/bell';
 import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
 import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
 import { AnimatedSidebarIcon } from '@macro-icons/wide/animating/sidebar';
@@ -70,6 +71,13 @@ interface SidebarItem {
 }
 
 export const SIDEBAR_LINKS = [
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    href: LIST_VIEW_PATHS.notifications,
+    icon: AnimatedBellIcon,
+    hotkey: 'n',
+  },
   {
     id: 'inbox',
     label: 'Inbox',

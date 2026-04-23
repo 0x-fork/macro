@@ -1086,7 +1086,7 @@ const SoupList = (props: SoupListProps) => {
   return (
     <div
       ref={props.ref}
-      class={cn('unified-table-body size-full relative px-2', props.class)}
+      class={cn('unified-table-body size-full relative p-2', props.class)}
     >
       <VList
         cache={props.cache}

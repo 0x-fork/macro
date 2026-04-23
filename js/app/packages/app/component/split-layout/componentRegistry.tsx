@@ -9,6 +9,7 @@ import { DEV_MODE_ENV, LOCAL_ONLY } from '@core/constant/featureFlags';
 import { useUserContext } from '@core/context/user';
 import type { ViewId } from '@core/types/view';
 import NotificationRoute from '@notifications/components/NotificationRoute';
+import { NotificationsView } from '@app/component/NotificationsView';
 import { useAutomationEntities } from '@queries/agent-schedule/entities';
 import { type Component, type JSXElement, lazy, onMount, Show } from 'solid-js';
 import { EmailCompose } from '../../../block-email/component/compose/Compose';
@@ -100,6 +101,14 @@ registerComponent('unified-list', () => (
 ));
 
 /** BEGIN - APP ROUTES */
+registerComponent(
+  'notifications',
+  withAuth(() => {
+    usePageViewTracking('notifications');
+    return <NotificationsView />;
+  })
+);
+
 registerComponent(
   'inbox',
   withAuth(() => {

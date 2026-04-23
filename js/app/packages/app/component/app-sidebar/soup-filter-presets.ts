@@ -59,6 +59,15 @@ export type ViewTabConfig = {
 };
 
 export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
+  notifications: {
+    default: 'all',
+    tabs: {
+      all: () => ({
+        queryFilters: {},
+        clientFilters: {},
+      }),
+    },
+  },
   inbox: {
     default: 'signal',
     tabs: {
