@@ -4,6 +4,7 @@ import {
   createMemo,
   createSignal,
   on,
+  Suspense,
   type ParentProps,
   Show,
 } from 'solid-js';
@@ -14,6 +15,7 @@ import { SplitToolbar } from './SplitToolbar';
 import { RoundPanel, type RoundPanelProps } from '@core/component/RoundPanel';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { isMobile } from '@core/mobile/isMobile';
+import { FloatingChatInput } from '@app/component/FloatingChatInput';
 
 export function SplitContainer(
   props: ParentProps<{
@@ -107,6 +109,11 @@ export function SplitContainer(
             <SplitToolbar ref={setToolbarRef} />
             <div class="@container/split size-full overflow-hidden relative">
               {props.children}
+              <Show when={!isMobile()}>
+                <Suspense>
+                  <FloatingChatInput />
+                </Suspense>
+              </Show>
             </div>
           </div>
         </MaybeRoundPanel>
