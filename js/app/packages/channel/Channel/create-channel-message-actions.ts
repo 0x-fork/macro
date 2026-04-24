@@ -55,6 +55,7 @@ export type CreateChannelMessageActionsOptions = {
   addReaction: (input: AddReactionInput) => void;
   removeReaction: (input: RemoveReactionInput) => void;
   onReply?: MessageActionHandler;
+  onExplain?: MessageActionHandler;
   onEdit?: MessageActionHandler;
   onCreateTask?: MessageActionHandler;
   effects?: Partial<ChannelMessageActionEffects>;
@@ -171,6 +172,7 @@ export function createChannelMessageActions(
               }
             }
           : undefined,
+      onExplain: !isDeleted ? options.onExplain : undefined,
       onEdit: canEditDelete ? options.onEdit : undefined,
       onDelete: canEditDelete
         ? () => {

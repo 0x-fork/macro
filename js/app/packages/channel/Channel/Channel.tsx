@@ -48,6 +48,8 @@ import { createChannelMessageActions } from './create-channel-message-actions';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useChannelName, useChannelActivity } from '@core/context/channels';
 import { buildMentionMarkdownString, markdownToPlainText } from '@lexical-core';
+import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
+import { createChat } from '@core/util/create';
 import { createActivityTracker } from '@channel/activity-tracker';
 import {
   invalidateChannelsActivity,
@@ -211,7 +213,7 @@ export function Channel(props: ChannelProps) {
   });
 
   const channelName = useChannelName(props.channelId);
-  const { popoverSplit } = useSplitLayout();
+  const { popoverSplit, replaceOrInsertSplit } = useSplitLayout();
 
   const getMessageActions = createChannelMessageActions({
     channelId: () => props.channelId,
@@ -226,6 +228,32 @@ export function Channel(props: ChannelProps) {
     },
     onEdit: ({ message }) => {
       messageEditor.start(message);
+    },
+    onExplain: async (ctx) => {
+      const result = await createChat();
+      if ('error' in result) return;
+
+      const messageMention = buildMentionMarkdownString({
+        type: 'document',
+        documentId: props.channelId,
+        documentName: channelName() ?? '',
+        blockName: 'channel',
+        blockParams: {
+          channel_message_id: ctx.message.id,
+          ...(ctx.message.thread_id && {
+            channel_thread_id: ctx.message.thread_id,
+          }),
+        },
+      });
+
+      setPendingSendData({
+        content: `Explain this message:\n\n${messageMention}`,
+      });
+
+      replaceOrInsertSplit(
+        { type: 'chat', id: result.chatId },
+        'entity-actions-menu'
+      );
     },
     onCreateTask: (ctx) => {
       const plainText = markdownToPlainText(ctx.message.content).trim();

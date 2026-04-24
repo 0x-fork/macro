@@ -5,6 +5,7 @@ import CopyIcon from '@icon/regular/copy.svg';
 import LinkIcon from '@icon/regular/link.svg';
 import PencilIcon from '@icon/regular/pencil.svg';
 import SmileyIcon from '@icon/regular/smiley.svg';
+import SparkleIcon from '@icon/regular/sparkle.svg';
 import TrashIcon from '@icon/regular/trash.svg';
 import { focusInput } from '@core/directive/focusInput';
 import {
@@ -25,7 +26,13 @@ import type {
 
 const QUICK_REACTION_EMOJIS = ['❤️', '👍', '👎', '😂', '😡'] as const;
 
-type ActionId = 'reply' | 'copy-link' | 'copy-message-text' | 'edit' | 'delete';
+type ActionId =
+  | 'reply'
+  | 'explain'
+  | 'copy-link'
+  | 'copy-message-text'
+  | 'edit'
+  | 'delete';
 
 type ActionItem = {
   id: ActionId;
@@ -52,6 +59,12 @@ function buildActionItems(
               `[data-input-id="thread-reply-input-${messageId}"] [contenteditable]`
             )
         : undefined,
+    },
+    {
+      id: 'explain',
+      label: 'Explain',
+      icon: SparkleIcon,
+      onClick: actions?.onExplain,
     },
     {
       id: 'copy-message-text',

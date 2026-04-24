@@ -4,6 +4,7 @@ import EditIcon from '@macro-icons/square/edit.svg';
 import AddEmojiIcon from '@macro-icons/square/add-emoji.svg';
 import TrashIcon from '@macro-icons/square/trash.svg';
 import TaskIcon from '@macro-icons/wide/task.svg';
+import SparkleIcon from '@icon/regular/sparkle.svg';
 import { cn } from '@ui/utils/classname';
 import { createSignal, For, Show, type Component, type JSX } from 'solid-js';
 import { useMessage, useMessageActions } from './context';
@@ -14,7 +15,13 @@ import type { MessageActionEvent, MessageActionHandler } from './types';
 
 const QUICK_REACTION_EMOJIS = ['❤️', '👍', '😂'] as const;
 
-type ActionId = 'reply' | 'copy-link' | 'create-task' | 'edit' | 'delete';
+type ActionId =
+  | 'reply'
+  | 'copy-link'
+  | 'explain'
+  | 'create-task'
+  | 'edit'
+  | 'delete';
 
 type ActionItem = {
   id: ActionId;
@@ -68,6 +75,13 @@ export function ActionMenu(props: ActionMenuProps) {
   const hasReactAction = () => actions?.onReact !== undefined;
 
   const actionItems: ActionItem[] = [
+    {
+      id: 'explain',
+      label: 'Explain',
+      icon: SparkleIcon,
+      onClick: actions?.onExplain,
+      class: 'px-1.5',
+    },
     {
       id: 'create-task',
       label: 'Task',

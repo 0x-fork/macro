@@ -29,6 +29,7 @@ export type MessageActionHandler = (
 export type MessageActions = {
   onReply?: MessageActionHandler;
   onReact?: MessageActionHandler;
+  onExplain?: MessageActionHandler;
   onCopyLink?: MessageActionHandler;
   onCopyMessageText?: MessageActionHandler;
   onEdit?: MessageActionHandler;
