@@ -53,6 +53,7 @@
     "notification:default",
     "notifications:default",
     "os:default",
-    "log:default"
+    "log:default",
+    "device-info:default"
   ]
 }
