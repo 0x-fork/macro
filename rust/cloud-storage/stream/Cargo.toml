@@ -30,5 +30,4 @@ sqlx = { workspace = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-tokio-test = "0.4"
 serial_test = "3.3.1"

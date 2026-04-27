@@ -12,7 +12,6 @@ local_queue = []
 [dependencies]
 anyhow = { workspace = true }
 aws-sdk-lambda = { workspace = true }
-aws-sdk-s3 = { workspace = true }
 aws-sdk-secretsmanager = { workspace = true }
 aws-sdk-sqs = { workspace = true }
 axum = { workspace = true }

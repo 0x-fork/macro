@@ -13,5 +13,4 @@ doppleganger = { workspace = true }
 nom = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 utoipa = { workspace = true, optional = true }

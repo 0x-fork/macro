@@ -36,7 +36,6 @@ macro_user_id = { path = "../macro_user_id" }
 model = { path = "../model" }
 non_empty = { path = "../non_empty" }
 model-entity = { path = "../model-entity" }
-models_entity_access_management = { path = "../models_entity_access_management", default-features = false }
 models_permissions = { path = "../models_permissions" }
 serde = { workspace = true }
 serde_json = { workspace = true }

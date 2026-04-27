@@ -37,7 +37,6 @@ tokio = { workspace = true, optional = true }
 
 # Axum dependencies (for inbound)
 axum = { workspace = true, optional = true }
-axum-extra = { workspace = true, optional = true }
 model = { path = "../model", optional = true }
 model-error-response = { path = "../model-error-response", optional = true }
 model_user = { path = "../model_user", optional = true, features = ["axum"] }
@@ -50,8 +49,6 @@ cached = { workspace = true, optional = true }
 sqlx = { workspace = true }
 
 [dev-dependencies]
-cool_asserts = "2"
 macro_db_migrator = { path = "../macro_db_migrator" }
-mockall = { workspace = true }
 sqlx = { workspace = true, features = ["postgres", "runtime-tokio-rustls"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

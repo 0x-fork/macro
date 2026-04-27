@@ -11,4 +11,3 @@ macro_env_var = { path = "../macro_env_var" }
 macro_uuid = { path = "../macro_uuid" }
 sqlx = { workspace = true }
 tokio = { workspace = true }
-tracing = { workspace = true }

@@ -14,25 +14,18 @@ path = "src/openapi.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-aws-sdk-secretsmanager = { workspace = true }
-macro_aws_config = { path = "../macro_aws_config" }
 axum = { workspace = true }
 chrono = { workspace = true }
 comms_db_client = { path = "../comms_db_client" }
 document_sub_type = { path = "../document_sub_type" }
 email_db_client = { path = "../email_db_client" }
-futures = { workspace = true }
-http-body-util = { workspace = true }
 indexmap = "2"
 item_filters = { path = "../item_filters" }
-macro_auth = { path = "../macro_auth" }
-macro_cors = { path = "../macro_cors" }
 macro_db_client = { path = "../macro_db_client" }
 models_properties = { path = "../models_properties" }
 models_soup = { path = "../models_soup" }
 properties_db_client = { path = "../properties_db_client" }
 readonly_pool = { path = "../readonly_pool" }
-macro_entrypoint = { path = "../macro_entrypoint" }
 macro_env = { path = "../macro_env" }
 macro_middleware = { path = "../macro_middleware", default-features = false, features = [
   "auth",
@@ -47,16 +40,10 @@ name_search = { path = "../name_search" }
 opensearch_client = { path = "../opensearch_client" }
 secretsmanager_client = { path = "../secretsmanager_client" }
 serde = { workspace = true }
-serde_json = { workspace = true }
 sqlx = { workspace = true }
-strum = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-tower = { workspace = true }
-tower-http = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
-utoipa-swagger-ui = { workspace = true }
 
 [dev-dependencies]
-macro_auth = { path = "../macro_auth", features = ["testing"] }

@@ -48,7 +48,6 @@ macro_entrypoint = { path = "../macro_entrypoint" }
 macro_env = { path = "../macro_env" }
 macro_env_var = { path = "../macro_env_var" }
 macro_middleware = { path = "../macro_middleware", features = ["auth"] }
-mockall.workspace = true
 model = { path = "../model" }
 model-entity = { path = "../model-entity" }
 models_bulk_upload = { path = "../models_bulk_upload" }
@@ -63,14 +62,12 @@ serde_dynamo = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
-strum_macros = { workspace = true }
 stream = { path = "../stream" }
 tokio = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true, features = ["attributes"] }
 tungstenite = "0.28"
-url = { workspace = true }
 utoipa = { workspace = true, features = ["axum_extras"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 uuid = { workspace = true }

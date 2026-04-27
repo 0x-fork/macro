@@ -12,9 +12,7 @@ name = "test_highlight_deserialization"
 
 [dependencies]
 anyhow = { workspace = true }
-chrono = { workspace = true }
 model = { path = "../../model" }
-serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }

@@ -9,5 +9,4 @@ db = ["dep:sqlx"]
 default = ["db"]
 
 [dependencies]
-serde = { workspace = true }
 sqlx = { workspace = true, optional = true }

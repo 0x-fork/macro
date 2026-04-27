@@ -17,4 +17,3 @@ tracing = { workspace = true }
 urlencoding = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true }

@@ -9,7 +9,6 @@ mock = []
 schema = ["dep:utoipa"]
 
 [dependencies]
-anyhow = { workspace = true }
 call = { path = "../call", default-features = false }
 chrono = { workspace = true }
 comms = { path = "../comms" }
@@ -21,6 +20,5 @@ model-entity = { path = "../model-entity" }
 models_pagination = { path = "../models_pagination" }
 models_properties = { path = "../models_properties/" }
 serde = { workspace = true }
-strum = { workspace = true }
 utoipa = { workspace = true, optional = true }
 uuid = { workspace = true }

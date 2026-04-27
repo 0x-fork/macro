@@ -9,7 +9,6 @@ mock = []
 schema = ["dep:schemars", "dep:utoipa"]
 
 [dependencies]
-chrono = { workspace = true }
 document_sub_type = { path = "../document_sub_type" }
 either = { workspace = true }
 filter_ast = { path = "../filter_ast" }

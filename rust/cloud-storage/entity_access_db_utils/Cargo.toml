@@ -8,7 +8,6 @@ version = "0.1.0"
 # Core
 anyhow = { workspace = true }
 macro_uuid = { path = "../macro_uuid" }
-serde = { workspace = true }
 sqlx = { workspace = true }
 tracing = { workspace = true }
 
@@ -21,4 +20,3 @@ models_permissions = { path = "../models_permissions" }
 
 [dev-dependencies]
 macro_db_migrator = { path = "../macro_db_migrator" }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

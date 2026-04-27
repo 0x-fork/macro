@@ -14,27 +14,17 @@ path = "src/openapi.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-async-trait = { workspace = true }
-aws-sdk-secretsmanager = { workspace = true }
-macro_aws_config = { path = "../macro_aws_config" }
 axum = { workspace = true, features = ["tower-log", "ws"] }
 chrono = { workspace = true }
 email_db_client = { path = "../email_db_client" }
 entity_access = { path = "../entity_access" }
-http-body-util = { workspace = true }
 macro_user_id = { path = "../macro_user_id" }
 model-entity = { path = "../model-entity" }
-macro_auth = { path = "../macro_auth" }
-macro_cors = { path = "../macro_cors" }
-macro_entrypoint = { path = "../macro_entrypoint" }
-macro_env = { path = "../macro_env" }
 macro_middleware = { path = "../macro_middleware", default-features = false, features = [
   "auth",
   "cloud_storage",
 ] }
-last_online_tracker = { path = "../last_online_tracker" }
 notification = { path = "../notification" }
-aws-sdk-sqs = { workspace = true }
 macro_uuid = { path = "../macro_uuid" }
 model = { path = "../model" }
 models_permissions = { path = "../models_permissions" }
@@ -42,17 +32,11 @@ models_properties = { path = "../models_properties" }
 properties_db_client = { path = "../properties_db_client" }
 properties = { path = "../properties" }
 system_properties = { path = "../system_properties" }
-secretsmanager_client = { path = "../secretsmanager_client" }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_with = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-tower = { workspace = true }
-tower-http = { workspace = true }
 tracing = { workspace = true }
-tracing-tree = { workspace = true }
 utoipa = { workspace = true }
-utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 uuid = { workspace = true }

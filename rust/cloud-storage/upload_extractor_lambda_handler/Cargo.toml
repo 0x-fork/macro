@@ -10,9 +10,7 @@ local = []
 [dependencies]
 anyhow = { workspace = true }
 aws-sdk-s3 = { workspace = true }
-aws-sdk-sqs = { workspace = true }
 aws_lambda_events = { workspace = true, features = ["sqs"] }
-chrono = { workspace = true }
 connection_gateway_client = { path = "../connection_gateway_client" }
 document_storage_service_client = { path = "../document_storage_service_client" }
 dynamodb_client = { path = "../dynamodb_client" }
@@ -24,7 +22,6 @@ model = { path = "../model" }
 model-entity = { path = "../model-entity" }
 models_bulk_upload = { path = "../models_bulk_upload" }
 openssl = { workspace = true }
-serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 sqs_client = { path = "../sqs_client" }

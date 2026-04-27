@@ -22,7 +22,6 @@ ports = []
 [dependencies]
 # Core
 anyhow = { workspace = true }
-chrono = { workspace = true }
 rootcause = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -55,7 +54,6 @@ async-stripe = { workspace = true, default-features = false, features = [
 ], optional = true } # Outbound dependencies
 sqlx = { workspace = true, optional = true }
 url = { workspace = true }
-urlencoding = { workspace = true }
 
 [dev-dependencies]
 http-body-util = { workspace = true }

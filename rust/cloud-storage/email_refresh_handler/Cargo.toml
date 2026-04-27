@@ -13,7 +13,6 @@ chrono = { workspace = true }
 lambda_runtime = { workspace = true }
 macro_entrypoint = { path = "../macro_entrypoint" }
 macro_env = { path = "../macro_env" }
-model = { path = "../model" }
 models_email = { path = "../models_email" }
 sqlx = { workspace = true }
 sqs_client = { path = "../sqs_client" }

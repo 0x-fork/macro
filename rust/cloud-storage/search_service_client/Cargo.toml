@@ -8,4 +8,3 @@ version = "0.1.0"
 anyhow = { workspace = true }
 models_search = { path = "../models_search" }
 reqwest = { workspace = true }
-tracing = { workspace = true }

@@ -11,7 +11,6 @@ chrono = { workspace = true }
 macro_user_id = { path = "../macro_user_id" }
 models_opensearch = { path = "../models_opensearch" }
 models_search_cursor = { path = "../models_search_cursor" }
-non_empty = { path = "../non_empty" }
 regex = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }
@@ -21,4 +20,3 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 macro_db_migrator = { path = "../macro_db_migrator" }
-tokio = { workspace = true }

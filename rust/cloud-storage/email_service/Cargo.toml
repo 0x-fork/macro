@@ -69,11 +69,9 @@ sfs_delete = []
 
 [dependencies]
 ammonia = "4.1.0"
-openssl = { workspace = true }
 anyhow = { workspace = true }
 authentication_service_client = { path = "../authentication_service_client" }
 macro_aws_config = { path = "../macro_aws_config", features = ["s3", "sqs"] }
-aws-sdk-s3 = { workspace = true }
 aws-sdk-secretsmanager = { workspace = true }
 aws-sdk-sqs = { workspace = true }
 axum = { workspace = true }
@@ -84,7 +82,6 @@ chrono = { workspace = true }
 cloudfront_sign = { workspace = true }
 connection_gateway_client = { path = "../connection_gateway_client" }
 document_storage_service_client = { path = "../document_storage_service_client" }
-doppleganger = { workspace = true }
 ego-tree = { workspace = true }
 email = { path = "../email", features = ["axum", "gmail_token", "inbound", "outbound"] }
 entity_access = { path = "../entity_access", default-features = false, features = ["outbound"] }
@@ -106,7 +103,6 @@ macro_env_var = { path = "../macro_env_var" }
 macro_middleware = { path = "../macro_middleware", default-features = false, features = [
   "auth", "cloud_storage"
 ] }
-last_online_tracker = { path = "../last_online_tracker" }
 notification = { path = "../notification" }
 macro_user_id = { path = "../macro_user_id" }
 macro_uuid = { path = "../macro_uuid" }
@@ -116,9 +112,6 @@ model-entity = { path = "../model-entity" }
 model_file_type = { path = "../model_file_type" }
 model_notifications = { path = "../model_notifications" }
 models_email = { path = "../models_email" }
-models_opensearch = { path = "../models_opensearch" }
-models_pagination = { path = "../models_pagination", features = ["axum"] }
-models_permissions = { path = "../models_permissions" }
 once_cell = { workspace = true }
 models_properties = { path = "../models_properties" }
 redis = { workspace = true, features = [
@@ -128,7 +121,6 @@ redis = { workspace = true, features = [
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["stream"] }
 s3_client = { path = "../s3_client" }
-schemars = { workspace = true }
 scraper = { workspace = true }
 secretsmanager_client = { path = "../secretsmanager_client" }
 serde = { workspace = true }

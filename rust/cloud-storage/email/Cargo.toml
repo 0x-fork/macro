@@ -54,7 +54,6 @@ either = { workspace = true }
 email_utils = { path = "../email_utils" }
 filter_ast = { path = "../filter_ast" }
 frecency = { path = "../frecency" }
-gmail_client = { path = "../gmail_client", optional = true }
 item_filters = { path = "../item_filters" }
 macro_user_id = { path = "../macro_user_id" }
 macro_uuid = { path = "../macro_uuid" }

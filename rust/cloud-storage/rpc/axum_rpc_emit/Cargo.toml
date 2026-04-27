@@ -14,4 +14,3 @@ quote = { workspace = true }
 unsynn = { workspace = true }
 
 [dev-dependencies]
-cool_asserts = "2"

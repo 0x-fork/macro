@@ -14,12 +14,8 @@ path = "src/bin/cli.rs"
 anyhow = { workspace = true }
 async-openai = { workspace = true }
 async-stream = { workspace = true }
-async-trait = { workspace = true }
-chrono = { workspace = true }
-const_format = "0.2.34"
 futures = { workspace = true }
 lazy_static = { workspace = true }
-rand.workspace = true
 reqwest = { workspace = true }
 schemars = { workspace = true }
 secrecy = "0.10.3"

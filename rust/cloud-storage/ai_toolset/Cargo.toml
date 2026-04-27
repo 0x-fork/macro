@@ -6,7 +6,6 @@ publish = false
 
 [dependencies]
 serde_json = { workspace = true }
-futures = { workspace = true }
 serde = { workspace = true }
 utoipa = { workspace = true }
 schemars = { workspace = true }
@@ -15,5 +14,4 @@ thiserror = { workspace = true }
 anyhow = { workspace = true }
 macro_user_id = { path = "../macro_user_id" }
 axum = { workspace = true }
-axum-macros = { workspace = true }
 tracing = { workspace = true }
