@@ -15,6 +15,8 @@ type sortAndFilterOptions = {
   limitToCurrentScope?: boolean;
   // skips the runWithInputFocused filter — use for the command menu where all commands should be shown regardless of input focus
   ignoreInputFocused?: boolean;
+  // also walks DOWN through DOM child scopes of the starting scope. Block-entity commands register on a block's own scope, which is a *child* of the surrounding split panel scope; without this, focusing the panel's top bar (active scope = split panel) misses them.
+  includeDescendantDomScopes?: boolean;
 };
 
 // This is reactive on active scope (if scope not specified), activeElement, and commmand conditions.
@@ -69,6 +71,44 @@ export function getActiveCommandsFromScope(
     );
     scopeLevel++;
   }
+
+  if (displayOptions.includeDescendantDomScopes && scopeId !== 'global') {
+    const startNode = hotkeyScopeTree.get(scopeId);
+    if (startNode) {
+      const visited = new Set<string>([scopeId]);
+      const queue: { id: string; level: number }[] = [];
+      for (const childId of startNode.childScopeIds) {
+        queue.push({ id: childId, level: -1 });
+      }
+      while (queue.length) {
+        const { id, level } = queue.shift()!;
+        if (visited.has(id)) continue;
+        visited.add(id);
+        const node = hotkeyScopeTree.get(id);
+        if (!node || node.type !== 'dom') continue;
+        const allHotkeyCommands = Array.from(
+          node.hotkeyCommands.values()
+        ).flat();
+        const scopeCommands = [...allHotkeyCommands, ...node.unkeyedCommands]
+          .filter(filterCommands(displayOptions))
+          .map((command) => {
+            const hotkeys = command.hotkeys ?? [];
+            const isShadowed = hotkeys.some((hk) => hotkeySet.has(hk));
+            hotkeys.forEach((hk) => hotkeySet.add(hk));
+            return {
+              ...command,
+              scopeLevel: level,
+              hotkeyIsShadowed: isShadowed,
+            };
+          });
+        commands.push(...scopeCommands);
+        for (const childId of node.childScopeIds) {
+          queue.push({ id: childId, level: level - 1 });
+        }
+      }
+    }
+  }
+
   commands.sort((a, b) => {
     if (displayOptions.sortByScopeLevel) {
       if (a.scopeLevel !== b.scopeLevel) {

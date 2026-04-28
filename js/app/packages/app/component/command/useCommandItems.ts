@@ -124,6 +124,11 @@ function useCommandsList(): () => CommandItem[] {
     hideShadowedCommands: false,
     hideCommandsWithoutHotkeys: false,
     ignoreInputFocused: true,
+    // Block-entity commands (Copy ID, Mark done, Rename, etc.) register on the
+    // block's own scope, which is a *child* of the panel's split scope. When
+    // the user clicks the task top bar, active scope = split scope and the
+    // block scope is below it, so the up-walk alone misses those commands.
+    includeDescendantDomScopes: true,
   });
   const goToCommands = getActiveCommandsFromScope(GO_TO_COMMAND_SCOPE, {
     sortByScopeLevel: false,
