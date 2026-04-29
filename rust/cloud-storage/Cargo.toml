@@ -81,6 +81,7 @@ members = [
   "model",
   "model_notifications",
   "model_user",
+  "models_call",
   "models_dcs",
   "models_email",
   "models_opensearch",

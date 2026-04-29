@@ -1139,6 +1139,89 @@ async fn get_call_records_by_user_attended_none_returns_all(
     Ok(())
 }
 
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("call_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn get_call_records_by_user_includes_direct_user_grant(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    // user-d is not a channel member and never participated, but holds a
+    // direct entity_access grant on the archived call (e.g. via mention).
+    let user_d = MacroUserIdStr::parse_from_str("macro|user-d@test.com")?;
+    sqlx::query!(
+        r#"INSERT INTO entity_access (entity_id, entity_type, source_id, source_type, access_level)
+           VALUES ($1, 'call', $2, 'user', 'view')"#,
+        CALL_ARCHIVED,
+        user_d.as_ref(),
+    )
+    .execute(&pool)
+    .await?;
+
+    let repo = repo(pool);
+    let records = repo
+        .get_call_records_by_user(user_d.copied(), 10, &None)
+        .await?;
+
+    assert_eq!(
+        records.len(),
+        1,
+        "user-d should see the directly granted call"
+    );
+    assert_eq!(records[0].call_id, CALL_ARCHIVED);
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("call_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn get_call_records_by_user_includes_team_share(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    // user-e belongs to a team that the archived call has been shared with;
+    // they are not a channel member and never participated.
+    let user_e = MacroUserIdStr::parse_from_str("macro|user-e@test.com")?;
+    let team_id = Uuid::now_v7();
+    give_user_a_team(&pool, user_e.as_ref(), &team_id).await?;
+
+    sqlx::query!(
+        r#"INSERT INTO entity_access (entity_id, entity_type, source_id, source_type, access_level)
+           VALUES ($1, 'call', $2, 'team', 'view')"#,
+        CALL_ARCHIVED,
+        team_id.to_string(),
+    )
+    .execute(&pool)
+    .await?;
+
+    let repo = repo(pool);
+    let records = repo
+        .get_call_records_by_user(user_e.copied(), 10, &None)
+        .await?;
+
+    assert_eq!(records.len(), 1, "user-e should see the team-shared call");
+    assert_eq!(records[0].call_id, CALL_ARCHIVED);
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("call_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn get_call_records_by_user_excludes_users_without_access(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    // user-z has no channel membership, no participation, and no entity_access
+    // grant — they must not see the call.
+    let user_z = MacroUserIdStr::parse_from_str("macro|user-z@test.com")?;
+    let repo = repo(pool);
+
+    let records = repo
+        .get_call_records_by_user(user_z.copied(), 10, &None)
+        .await?;
+
+    assert!(records.is_empty(), "user-z must not see any calls");
+    Ok(())
+}
+
 // -- delete_call_record -------------------------------------------------------
 
 #[sqlx::test(

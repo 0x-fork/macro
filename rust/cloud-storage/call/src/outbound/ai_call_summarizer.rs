@@ -12,7 +12,8 @@ use ai::chat_completion::get_chat_completion;
 use ai::types::{Model, RequestBuilder};
 use uuid::Uuid;
 
-use crate::domain::models::CallRecordTranscriptSegment;
+use models_call::CallRecordTranscriptSegment;
+
 use crate::domain::ports::CallSummarizer;
 
 /// Default model used when summarizing a call transcript.

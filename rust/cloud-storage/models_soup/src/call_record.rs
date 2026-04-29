@@ -50,7 +50,7 @@ impl SoupCallRecord {
     /// Build a `SoupCallRecord` from a domain `CallRecord` in the context of a
     /// specific viewer: `attended` is set by checking whether `user_id` appears
     /// in `record.participants`.
-    pub fn from_record_for_user(record: call::domain::models::CallRecord, user_id: &str) -> Self {
+    pub fn from_record_for_user(record: models_call::CallRecord, user_id: &str) -> Self {
         let attended = record.participants.iter().any(|p| p.user_id == user_id);
         SoupCallRecord {
             call_id: record.call_id,

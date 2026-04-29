@@ -15,11 +15,13 @@ use crate::domain::models::{
     CustomSpeakerAssignment, EditCallRecordRequest, EditCallTranscriptRequest,
 };
 
+use models_call::{CallRecord, CallRecordTranscriptSegment};
+
 use super::models::{
-    AddParticipantError, Call, CallActiveResponse, CallError, CallParticipant, CallRecord,
-    CallRecordPreview, CallRecordTranscriptSegment, CallTokenResponse, CallWebhookEvent,
-    EgressS3Config, GetBatchCallRecordPreviewRequest, GetBatchCallRecordPreviewResponse,
-    GetCallRecordsRequest, LeaveCallResponse, TranscriptSegmentRequest,
+    AddParticipantError, Call, CallActiveResponse, CallError, CallParticipant, CallRecordPreview,
+    CallTokenResponse, CallWebhookEvent, EgressS3Config, GetBatchCallRecordPreviewRequest,
+    GetBatchCallRecordPreviewResponse, GetCallRecordsRequest, LeaveCallResponse,
+    TranscriptSegmentRequest,
 };
 
 /// Repository port for persisting call state to the database.

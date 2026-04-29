@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH user_source_ids AS (\n            SELECT cp.channel_id::text AS source_id\n            FROM comms_channel_participants cp\n            WHERE cp.user_id = $1 AND cp.left_at IS NULL\n            UNION ALL\n            SELECT t.team_id::text\n            FROM team_user t\n            WHERE t.user_id = $1\n            UNION ALL\n            SELECT $1\n        ),\n        all_calls AS (\n            SELECT id, channel_id, share_permission_id\n            FROM call_records\n            UNION ALL\n            SELECT id, channel_id, share_permission_id\n            FROM calls\n            WHERE $5::bool = true\n        ),\n        accessible_call_ids AS (\n            SELECT DISTINCT ac.id AS call_id\n            FROM all_calls ac\n            WHERE (\n                EXISTS (\n                    SELECT 1 FROM entity_access ea\n                    WHERE ea.entity_id = ac.id\n                      AND ea.entity_type = 'call'\n                      AND ea.source_id IN (SELECT source_id FROM user_source_ids)\n                ) OR ($6::bool = true AND EXISTS (\n                    SELECT 1 FROM \"SharePermission\" sp\n                    WHERE sp.id = ac.share_permission_id\n                      AND sp.\"isPublic\" = true\n                      AND sp.\"publicAccessLevel\" IS NOT NULL\n                ))\n            )\n            AND ($3::bool IS FALSE OR ac.channel_id = ANY($4))\n            AND ($2::bool IS NULL OR (\n                EXISTS (\n                    SELECT 1 FROM call_record_participants crp\n                    WHERE crp.call_record_id = ac.id AND crp.user_id = $1\n                ) OR EXISTS (\n                    SELECT 1 FROM call_participants cp\n                    WHERE cp.call_id = ac.id AND cp.user_id = $1\n                )\n            ) = $2)\n        )\n        SELECT call_id AS \"id!\" FROM accessible_call_ids\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Bool",
+        "UuidArray",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "00e4e030eed6d0b2f9393ab7f9ce1e9eb640f02f0efa43e8d25f2620d7b440f0"
+}

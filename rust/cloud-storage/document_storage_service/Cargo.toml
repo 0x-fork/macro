@@ -36,6 +36,7 @@ bzip2 = { workspace = true, default-features = false, features = [
 analytics_client = { path = "../analytics_client" }
 cal = { path = "../cal", features = ["axum", "outbound"] }
 call = { path = "../call" }
+models_call = { path = "../models_call", features = ["schema"] }
 channels = { path = "../channels", features = ["inbound", "outbound"] }
 chrono = { workspace = true }
 clap = { workspace = true }

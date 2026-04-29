@@ -23,11 +23,12 @@ use uuid::Uuid;
 
 use crate::domain::models::{EditCallRecordRequest, EditCallTranscriptRequest};
 
+use models_call::{CallRecord, CallRecordTranscriptSegment};
+
 use super::models::{
-    AddParticipantError, CallActiveResponse, CallError, CallRecord, CallRecordTranscriptSegment,
-    CallTokenResponse, EgressS3Config, GetBatchCallRecordPreviewRequest,
-    GetBatchCallRecordPreviewResponse, GetCallRecordsRequest, LeaveCallResponse,
-    TranscriptSegmentRequest,
+    AddParticipantError, CallActiveResponse, CallError, CallTokenResponse, EgressS3Config,
+    GetBatchCallRecordPreviewRequest, GetBatchCallRecordPreviewResponse, GetCallRecordsRequest,
+    LeaveCallResponse, TranscriptSegmentRequest,
 };
 use super::ports::{
     CallRecordQueryService, CallRepository, CallRtcClient, CallSearchIndexer, CallService,

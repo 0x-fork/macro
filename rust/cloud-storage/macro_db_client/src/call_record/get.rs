@@ -38,13 +38,53 @@ pub struct CallRecordSearchPayload {
     pub segments: Vec<CallRecordTranscriptSegment>,
 }
 
-/// `attended` optionally narrows by participation.
+/// Arguments for [`get_accessible_call_ids`].
+#[derive(Debug, Clone, Copy)]
+pub struct AccessibleCallIdsArgs<'a> {
+    /// User whose access we are evaluating.
+    pub user_id: &'a str,
+    /// `Some(true)` keeps only calls the user joined; `Some(false)` keeps only
+    /// calls they did not join; `None` skips the filter.
+    pub attended: Option<bool>,
+    /// Optional channel filter — empty means no filter.
+    pub channel_ids: &'a [Uuid],
+    /// When `true`, also returns active (un-archived) call ids from the
+    /// `calls` table. When `false`, only `call_records` rows are considered
+    /// (which is what search needs because OpenSearch only indexes archived
+    /// calls).
+    pub include_active: bool,
+    /// When `true`, calls with a public share permission are returned even if
+    /// the user has no `entity_access` grant. Search wants this so query
+    /// results surface publicly-shared calls; the soup feed leaves it `false`
+    /// to stay consistent with how documents/chats/projects appear in soup
+    /// (entity_access only).
+    pub include_public_share: bool,
+}
+
+/// Returns the call ids a user can access via `entity_access` grants
+/// (channel/team/user) or, if `include_public_share` is set, a public
+/// share permission.
+///
+/// The access CTE in this query is asserted (in tests) to match the
+/// canonical [`models_call::sql::ACCESSIBLE_CALL_IDS_CTE`], which is
+/// the same fragment the soup feed pastes into
+/// `call::outbound::pg_call_repo::get_call_records_by_user`. sqlx's
+/// `query!` proc macro requires its SQL to be a single string literal at
+/// the call site (no `concat!`/`include_str!`/macro_rules! indirection),
+/// so the SQL is duplicated by necessity — the test guards against drift.
 #[tracing::instrument(skip(db))]
 pub async fn get_accessible_call_ids(
     db: &sqlx::Pool<sqlx::Postgres>,
-    user_id: &str,
-    attended: Option<bool>,
+    args: AccessibleCallIdsArgs<'_>,
 ) -> anyhow::Result<Vec<Uuid>> {
+    let AccessibleCallIdsArgs {
+        user_id,
+        attended,
+        channel_ids,
+        include_active,
+        include_public_share,
+    } = args;
+    let has_channel_filter = !channel_ids.is_empty();
     sqlx::query_scalar!(
         r#"
         WITH user_source_ids AS (
@@ -57,29 +97,50 @@ pub async fn get_accessible_call_ids(
             WHERE t.user_id = $1
             UNION ALL
             SELECT $1
-        )
-        SELECT DISTINCT cr.id AS "id!"
-        FROM call_records cr
-        WHERE (
-            EXISTS (
-                SELECT 1 FROM entity_access ea
-                WHERE ea.entity_id = cr.id
-                  AND ea.entity_type = 'call'
-                  AND ea.source_id IN (SELECT source_id FROM user_source_ids)
-            ) OR EXISTS (
-                SELECT 1 FROM "SharePermission" sp
-                WHERE sp.id = cr.share_permission_id
-                  AND sp."isPublic" = true
-                  AND sp."publicAccessLevel" IS NOT NULL
+        ),
+        all_calls AS (
+            SELECT id, channel_id, share_permission_id
+            FROM call_records
+            UNION ALL
+            SELECT id, channel_id, share_permission_id
+            FROM calls
+            WHERE $5::bool = true
+        ),
+        accessible_call_ids AS (
+            SELECT DISTINCT ac.id AS call_id
+            FROM all_calls ac
+            WHERE (
+                EXISTS (
+                    SELECT 1 FROM entity_access ea
+                    WHERE ea.entity_id = ac.id
+                      AND ea.entity_type = 'call'
+                      AND ea.source_id IN (SELECT source_id FROM user_source_ids)
+                ) OR ($6::bool = true AND EXISTS (
+                    SELECT 1 FROM "SharePermission" sp
+                    WHERE sp.id = ac.share_permission_id
+                      AND sp."isPublic" = true
+                      AND sp."publicAccessLevel" IS NOT NULL
+                ))
             )
+            AND ($3::bool IS FALSE OR ac.channel_id = ANY($4))
+            AND ($2::bool IS NULL OR (
+                EXISTS (
+                    SELECT 1 FROM call_record_participants crp
+                    WHERE crp.call_record_id = ac.id AND crp.user_id = $1
+                ) OR EXISTS (
+                    SELECT 1 FROM call_participants cp
+                    WHERE cp.call_id = ac.id AND cp.user_id = $1
+                )
+            ) = $2)
         )
-        AND ($2::bool IS NULL OR EXISTS (
-            SELECT 1 FROM call_record_participants crp
-            WHERE crp.call_record_id = cr.id AND crp.user_id = $1
-        ) = $2)
+        SELECT call_id AS "id!" FROM accessible_call_ids
         "#,
         user_id,
         attended,
+        has_channel_filter,
+        channel_ids,
+        include_active,
+        include_public_share,
     )
     .fetch_all(db)
     .await
@@ -204,4 +265,73 @@ pub async fn get_call_records_metadata(
     .fetch_all(db)
     .await
     .map_err(Into::into)
+}
+
+#[cfg(test)]
+mod access_cte_drift {
+    use models_call::sql::{ACCESSIBLE_CALL_IDS_CTE, normalize};
+
+    /// Mirror of the `WITH ... accessible_call_ids AS (...)` block inside
+    /// `get_accessible_call_ids`. If you edit the live query, update this
+    /// copy so the drift test still matches; the soup query in
+    /// `call::outbound::pg_call_repo` has the same constant + check.
+    const INLINED_CTE: &str = r#"
+        WITH user_source_ids AS (
+            SELECT cp.channel_id::text AS source_id
+            FROM comms_channel_participants cp
+            WHERE cp.user_id = $1 AND cp.left_at IS NULL
+            UNION ALL
+            SELECT t.team_id::text
+            FROM team_user t
+            WHERE t.user_id = $1
+            UNION ALL
+            SELECT $1
+        ),
+        all_calls AS (
+            SELECT id, channel_id, share_permission_id
+            FROM call_records
+            UNION ALL
+            SELECT id, channel_id, share_permission_id
+            FROM calls
+            WHERE $5::bool = true
+        ),
+        accessible_call_ids AS (
+            SELECT DISTINCT ac.id AS call_id
+            FROM all_calls ac
+            WHERE (
+                EXISTS (
+                    SELECT 1 FROM entity_access ea
+                    WHERE ea.entity_id = ac.id
+                      AND ea.entity_type = 'call'
+                      AND ea.source_id IN (SELECT source_id FROM user_source_ids)
+                ) OR ($6::bool = true AND EXISTS (
+                    SELECT 1 FROM "SharePermission" sp
+                    WHERE sp.id = ac.share_permission_id
+                      AND sp."isPublic" = true
+                      AND sp."publicAccessLevel" IS NOT NULL
+                ))
+            )
+            AND ($3::bool IS FALSE OR ac.channel_id = ANY($4))
+            AND ($2::bool IS NULL OR (
+                EXISTS (
+                    SELECT 1 FROM call_record_participants crp
+                    WHERE crp.call_record_id = ac.id AND crp.user_id = $1
+                ) OR EXISTS (
+                    SELECT 1 FROM call_participants cp
+                    WHERE cp.call_id = ac.id AND cp.user_id = $1
+                )
+            ) = $2)
+        )
+        "#;
+
+    #[test]
+    fn cte_matches_canonical() {
+        assert_eq!(
+            normalize(INLINED_CTE),
+            normalize(ACCESSIBLE_CALL_IDS_CTE),
+            "search's inline access CTE diverged from \
+             models_call::sql::ACCESSIBLE_CALL_IDS_CTE — update both sides \
+             together (and the matching copy in call::outbound::pg_call_repo)",
+        );
+    }
 }

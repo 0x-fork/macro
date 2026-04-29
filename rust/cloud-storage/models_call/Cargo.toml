@@ -1,0 +1,14 @@
+[package]
+edition = "2024"
+name = "models_call"
+publish = false
+version = "0.1.0"
+
+[features]
+schema = ["dep:utoipa"]
+
+[dependencies]
+chrono = { workspace = true }
+serde = { workspace = true }
+utoipa = { workspace = true, optional = true }
+uuid = { workspace = true }

@@ -13,6 +13,7 @@ inbound = [
   "dep:model_user",
   "dep:utoipa",
   "entity_access/inbound",
+  "models_call/schema",
   "ports",
 ]
 outbound = [
@@ -51,6 +52,7 @@ macro_aws_config = { path = "../macro_aws_config", optional = true, features = [
 macro_user_id = { path = "../macro_user_id" }
 macro_uuid = { path = "../macro_uuid" }
 model-entity = { path = "../model-entity" }
+models_call = { path = "../models_call" }
 model-error-response = { path = "../model-error-response", optional = true }
 model_user = { path = "../model_user", optional = true, features = ["axum"] }
 models_pagination = { path = "../models_pagination" }

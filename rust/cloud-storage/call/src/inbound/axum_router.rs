@@ -31,8 +31,10 @@ use model_error_response::ErrorResponse;
 use model_user::axum_extractor::MacroUserExtractor;
 use uuid::Uuid;
 
+use models_call::CallRecord;
+
 use crate::domain::models::{
-    CallActiveResponse, CallError, CallRecord, CallTokenResponse, EditCallRecordRequest,
+    CallActiveResponse, CallError, CallTokenResponse, EditCallRecordRequest,
     EditCallTranscriptRequest, GetBatchCallRecordPreviewRequest, GetBatchCallRecordPreviewResponse,
     LeaveCallResponse, MAX_BATCH_CALL_IDS, TranscriptSegmentRequest,
 };

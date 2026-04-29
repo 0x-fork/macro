@@ -17,8 +17,13 @@ pub(in crate::api::search) async fn filter_calls(
 ) -> Result<FilterCallResponse, SearchError> {
     let accessible = macro_db_client::call_record::get::get_accessible_call_ids(
         &ctx.db,
-        user_id,
-        filters.attended,
+        macro_db_client::call_record::get::AccessibleCallIdsArgs {
+            user_id,
+            attended: filters.attended,
+            channel_ids: &[],
+            include_active: false,
+            include_public_share: true,
+        },
     )
     .await
     .map_err(SearchError::InternalError)?;

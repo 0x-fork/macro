@@ -1,6 +1,6 @@
 use super::*;
-use call::domain::models::{CallRecord, CallRecordParticipant};
 use chrono::Utc;
+use models_call::{CallRecord, CallRecordParticipant};
 use uuid::Uuid;
 
 fn record_with_participants(user_ids: &[&str]) -> CallRecord {

@@ -70,7 +70,7 @@ impl CallRecordQueryService for NoopCallRecordQueryService {
     async fn get_user_call_records(
         &self,
         _req: call::domain::models::GetCallRecordsRequest,
-    ) -> Result<Vec<call::domain::models::CallRecord>, call::domain::models::CallError> {
+    ) -> Result<Vec<models_call::CallRecord>, call::domain::models::CallError> {
         Ok(Vec::new())
     }
 }
