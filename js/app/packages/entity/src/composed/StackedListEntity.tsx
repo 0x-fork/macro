@@ -719,7 +719,7 @@ function NarrowIconShell(props: {
         <button
           type="button"
           class={cn(
-            'size-12 rounded-full grid place-items-center [&_svg]:size-6 [&>*]:size-6 transition-colors',
+            'size-10 rounded-full grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
             props.checked
               ? 'bg-accent text-white'
               : 'bg-ink/5'
@@ -847,7 +847,7 @@ function NarrowChannelShell(props: {
         <button
           type="button"
           class={cn(
-            'size-12 rounded-full grid place-items-center transition-colors',
+            'size-10 rounded-full grid place-items-center transition-colors',
             props.checked
               ? 'bg-accent text-white'
               : props.dmParticipantId
@@ -866,7 +866,7 @@ function NarrowChannelShell(props: {
                 when={props.dmParticipantId}
                 fallback={props.icon}
               >
-                {(participantId) => <UserIcon id={participantId()} size="fill" class="size-12 rounded-full" />}
+                {(participantId) => <UserIcon id={participantId()} size="fill" class="size-10 rounded-full" />}
               </Show>
             }
           >
@@ -1131,7 +1131,7 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
         <button
           type="button"
           class={cn(
-            'size-12 rounded-full grid place-items-center [&_svg]:size-6 [&>*]:size-6 transition-colors',
+            'size-10 rounded-full grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
             props.checked
               ? 'bg-accent text-white'
               : 'bg-ink/5'
