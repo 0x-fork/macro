@@ -142,6 +142,7 @@ members = [
   "user_quota",
   "worker_trigger",
   "tools/native_app_server", "attachment",
+  "linear_backfill_poc",
 ]
 
 [workspace.dependencies]
