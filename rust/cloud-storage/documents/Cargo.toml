@@ -42,7 +42,13 @@ outbound = [
   "dep:sqlx",
   "ports",
 ]
-ports = ["dep:entity_access_management", "dep:tokio"]
+ports = [
+  "dep:entity_access_management",
+  "dep:tokio",
+  "dep:base64",
+  "dep:sha2",
+  "dep:reqwest",
+]
 
 [dependencies]
 # Core

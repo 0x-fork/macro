@@ -120,6 +120,7 @@ where
                         project_id: None,
                         property_values: None, // uses default properties
                         share_with_team: true,
+                        file_content: None,
                     },
                 )
                 .await

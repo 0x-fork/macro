@@ -100,6 +100,15 @@ pub fn router(state: ApiContext) -> Router<ApiContext> {
             ),
         )
         .route(
+            "/documents/create_task",
+            post(
+                documents_hex::inbound::axum_router::create_task_handler::<
+                    DocumentService,
+                    EntityAccessService,
+                >,
+            ),
+        )
+        .route(
             "/documents/list_with_access",
             get(list_documents_with_access::list_documents_with_access_handler),
         )

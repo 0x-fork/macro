@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use clap::Parser;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -7,8 +7,29 @@ use serde_json::{Value, json};
 const LINEAR_GRAPHQL_URL: &str = "https://api.linear.app/graphql";
 const PAGE_SIZE: u32 = 50;
 
+const MACRO_AUTH_HEADER: &str = "x-document-storage-service-auth-key";
+const MACRO_USER_HEADER: &str = "x-document-storage-service-user-id";
+
+// Task system property IDs (mirror system_properties::SystemPropertyKey).
+const STATUS_PROPERTY_ID: &str = "00000001-0000-0000-0000-000000000002";
+const PRIORITY_PROPERTY_ID: &str = "00000001-0000-0000-0000-000000000003";
+const DUE_DATE_PROPERTY_ID: &str = "00000001-0000-0000-0000-000000000004";
+const STORY_POINTS_PROPERTY_ID: &str = "00000001-0000-0000-0000-000000000009";
+
+// Status option IDs (mirror StatusOption).
+const STATUS_NOT_STARTED: &str = "00000001-0000-0000-0002-000000000001";
+const STATUS_IN_PROGRESS: &str = "00000001-0000-0000-0002-000000000002";
+const STATUS_COMPLETED: &str = "00000001-0000-0000-0002-000000000004";
+const STATUS_CANCELED: &str = "00000001-0000-0000-0002-000000000005";
+
+// Priority option IDs (mirror PriorityOption).
+const PRIORITY_LOW: &str = "00000001-0000-0000-0003-000000000001";
+const PRIORITY_MEDIUM: &str = "00000001-0000-0000-0003-000000000002";
+const PRIORITY_HIGH: &str = "00000001-0000-0000-0003-000000000003";
+const PRIORITY_CRITICAL: &str = "00000001-0000-0000-0003-000000000004";
+
 #[derive(Parser, Debug)]
-#[command(about = "POC: backfill a Linear workspace into Macro tasks (logs only)")]
+#[command(about = "POC: backfill a Linear workspace into Macro tasks")]
 struct Args {
     /// Only fetch issues that are not done (state.type != completed && != canceled)
     #[arg(long, default_value_t = false)]
@@ -17,6 +38,19 @@ struct Args {
     /// Only fetch issues updated in the last N days
     #[arg(long)]
     last_updated_window_days: Option<i64>,
+
+    /// Base URL for the Macro document_storage_service (e.g. http://localhost:8080).
+    /// Falls back to MACRO_BASE_URL env var if not provided.
+    #[arg(long)]
+    macro_base_url: Option<String>,
+
+    /// Macro user ID to impersonate as the task creator (e.g. auth0|abc123)
+    #[arg(long)]
+    as_user: Option<String>,
+
+    /// Skip making API calls; only log the issues we would create
+    #[arg(long, default_value_t = false)]
+    dry_run: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -120,6 +154,13 @@ struct Attachment {
 }
 
 #[derive(Debug, Deserialize)]
+struct UserRef {
+    email: Option<String>,
+    #[serde(rename = "displayName")]
+    display_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 struct Issue {
     identifier: String,
     title: String,
@@ -128,8 +169,13 @@ struct Issue {
     priority_label: Option<String>,
     #[serde(rename = "updatedAt")]
     updated_at: DateTime<Utc>,
+    #[serde(rename = "dueDate")]
+    due_date: Option<String>,
+    estimate: Option<f64>,
     state: Option<State>,
     cycle: Option<Cycle>,
+    creator: Option<UserRef>,
+    assignee: Option<UserRef>,
     parent: Option<IssueRef>,
     children: Connection<IssueRef>,
     relations: Connection<RelationEdge>,
@@ -181,8 +227,12 @@ query Issues($filter: IssueFilter, $first: Int!, $after: String) {
       description
       priorityLabel
       updatedAt
+      dueDate
+      estimate
       state { name type }
       cycle { number endsAt }
+      creator { email displayName }
+      assignee { email displayName }
       parent { identifier title }
       children { nodes { identifier title } }
       relations { nodes { type relatedIssue { identifier title } } }
@@ -279,7 +329,24 @@ fn log_issue(issue: &Issue, project: &Project) {
     if let Some(p) = &issue.priority_label {
         println!("  Priority: {}", p);
     }
+    if let Some(est) = issue.estimate {
+        println!("  Estimate: {}", est);
+    }
+    if let Some(due) = issue.due_date.as_deref() {
+        println!("  Due date: {}", due);
+    }
     println!("  Updated: {}", issue.updated_at);
+
+    if let Some(creator) = &issue.creator {
+        let name = creator.display_name.as_deref().unwrap_or("?");
+        let email = creator.email.as_deref().unwrap_or("?");
+        println!("  Creator: {} <{}>", name, email);
+    }
+    if let Some(a) = &issue.assignee {
+        let name = a.display_name.as_deref().unwrap_or("?");
+        let email = a.email.as_deref().unwrap_or("?");
+        println!("  Assignee: {} <{}>", name, email);
+    }
 
     if let Some(c) = &issue.cycle {
         let ends = c
@@ -357,11 +424,235 @@ fn log_issue(issue: &Issue, project: &Project) {
     }
 }
 
+fn map_status(state_type: &str) -> Option<&'static str> {
+    match state_type {
+        "triage" | "backlog" | "unstarted" => Some(STATUS_NOT_STARTED),
+        "started" => Some(STATUS_IN_PROGRESS),
+        "completed" => Some(STATUS_COMPLETED),
+        "canceled" => Some(STATUS_CANCELED),
+        _ => None,
+    }
+}
+
+fn map_priority(label: &str) -> Option<&'static str> {
+    match label {
+        "Urgent" => Some(PRIORITY_CRITICAL),
+        "High" => Some(PRIORITY_HIGH),
+        "Medium" => Some(PRIORITY_MEDIUM),
+        "Low" => Some(PRIORITY_LOW),
+        _ => None,
+    }
+}
+
+/// Prefer Linear's explicit dueDate; fall back to the cycle end date.
+fn compute_due_date(issue: &Issue) -> Option<DateTime<Utc>> {
+    if let Some(date_str) = issue.due_date.as_deref()
+        && let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+        && let Some(dt) = date.and_hms_opt(0, 0, 0)
+    {
+        return Some(dt.and_utc());
+    }
+    issue.cycle.as_ref().and_then(|c| c.ends_at)
+}
+
+fn build_task_body(issue: &Issue) -> String {
+    let mut out = String::new();
+
+    if let Some(desc) = issue.description.as_deref()
+        && !desc.trim().is_empty()
+    {
+        out.push_str(desc.trim_end());
+        out.push_str("\n\n");
+    }
+
+    if !issue.attachments.nodes.is_empty() {
+        out.push_str("## Attachments\n\n");
+        for a in &issue.attachments.nodes {
+            let title = if a.title.trim().is_empty() {
+                a.url.as_str()
+            } else {
+                a.title.as_str()
+            };
+            let src = a
+                .source
+                .as_ref()
+                .and_then(|s| s.get("type"))
+                .and_then(|s| s.as_str());
+            match src {
+                Some(s) => out.push_str(&format!("- [{}]({}) — _{}_\n", title, a.url, s)),
+                None => out.push_str(&format!("- [{}]({})\n", title, a.url)),
+            }
+        }
+        out.push('\n');
+    }
+
+    if !issue.comments.nodes.is_empty() {
+        out.push_str("## Comments\n\n");
+        for (i, c) in issue.comments.nodes.iter().enumerate() {
+            if i > 0 {
+                out.push_str("---\n\n");
+            }
+            let who = c
+                .user
+                .as_ref()
+                .and_then(|u| u.name.as_deref())
+                .unwrap_or("Unknown");
+            out.push_str(&format!(
+                "**{}** — {}\n\n",
+                who,
+                c.created_at.format("%Y-%m-%d %H:%M UTC")
+            ));
+            out.push_str(c.body.trim_end());
+            out.push_str("\n\n");
+        }
+    }
+
+    out.trim_end().to_string()
+}
+
+fn build_property_values(issue: &Issue) -> Vec<Value> {
+    let mut props = Vec::new();
+
+    if let Some(state) = &issue.state
+        && let Some(option_id) = map_status(&state.type_)
+    {
+        props.push(json!({
+            "propertyId": STATUS_PROPERTY_ID,
+            "value": { "type": "select_option", "option_id": option_id },
+        }));
+    }
+
+    if let Some(label) = issue.priority_label.as_deref()
+        && let Some(option_id) = map_priority(label)
+    {
+        props.push(json!({
+            "propertyId": PRIORITY_PROPERTY_ID,
+            "value": { "type": "select_option", "option_id": option_id },
+        }));
+    }
+
+    if let Some(due) = compute_due_date(issue) {
+        props.push(json!({
+            "propertyId": DUE_DATE_PROPERTY_ID,
+            "value": { "type": "date", "value": due.to_rfc3339() },
+        }));
+    }
+
+    if let Some(est) = issue.estimate {
+        props.push(json!({
+            "propertyId": STORY_POINTS_PROPERTY_ID,
+            "value": { "type": "number", "value": est },
+        }));
+    }
+
+    props
+}
+
+fn print_planned_task(issue: &Issue) {
+    let task_name = format!("[{}] {}", issue.identifier, issue.title);
+    let body = build_task_body(issue);
+    let props = build_property_values(issue);
+
+    println!("  --- planned create_task payload ---");
+    println!("  taskName: {}", task_name);
+    if props.is_empty() {
+        println!("  propertyValues: (none)");
+    } else {
+        println!("  propertyValues:");
+        for p in &props {
+            let property_id = p.get("propertyId").and_then(|v| v.as_str()).unwrap_or("?");
+            let label = match property_id {
+                STATUS_PROPERTY_ID => "status",
+                PRIORITY_PROPERTY_ID => "priority",
+                DUE_DATE_PROPERTY_ID => "dueDate",
+                STORY_POINTS_PROPERTY_ID => "storyPoints",
+                _ => "?",
+            };
+            let value = p.get("value").map(|v| v.to_string()).unwrap_or_default();
+            println!("    - {} ({}): {}", label, property_id, value);
+        }
+    }
+    if body.is_empty() {
+        println!("  fileContent: (empty)");
+    } else {
+        println!("  fileContent (markdown):");
+        println!("  ┌─────────────────────────────");
+        for line in body.lines() {
+            println!("  │ {}", line);
+        }
+        println!("  └─────────────────────────────");
+    }
+}
+
+async fn create_macro_task(
+    client: &reqwest::Client,
+    base_url: &str,
+    auth_key: &str,
+    as_user: &str,
+    issue: &Issue,
+) -> Result<String> {
+    let payload = json!({
+        "taskName": format!("[{}] {}", issue.identifier, issue.title),
+        "projectId": null,
+        "propertyValues": build_property_values(issue),
+        "shareWithTeam": true,
+        "fileContent": build_task_body(issue),
+    });
+
+    let url = format!(
+        "{}/internal/documents/create_task",
+        base_url.trim_end_matches('/')
+    );
+
+    let resp = client
+        .post(&url)
+        .header(MACRO_AUTH_HEADER, auth_key)
+        .header(MACRO_USER_HEADER, as_user)
+        .header("content-type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .context("create_task request failed")?;
+
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        bail!("create_task http {}: {}", status, text);
+    }
+
+    let parsed: Value = serde_json::from_str(&text)
+        .with_context(|| format!("parse create_task response: {}", text))?;
+    let document_id = parsed
+        .get("documentId")
+        .and_then(|v| v.as_str())
+        .with_context(|| format!("no documentId in response: {}", text))?;
+    Ok(document_id.to_string())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
 
     let api_key = std::env::var("LINEAR_API_KEY").context("LINEAR_API_KEY env var not set")?;
+
+    let macro_base_url = args
+        .macro_base_url
+        .clone()
+        .or_else(|| std::env::var("MACRO_BASE_URL").ok());
+    let auth_key = if args.dry_run {
+        None
+    } else {
+        if macro_base_url.is_none() {
+            bail!("--macro-base-url or MACRO_BASE_URL is required unless --dry-run");
+        }
+        if args.as_user.is_none() {
+            bail!("--as-user is required unless --dry-run");
+        }
+        Some(
+            std::env::var("MACRO_INTERNAL_AUTH_KEY")
+                .context("MACRO_INTERNAL_AUTH_KEY env var not set")?,
+        )
+    };
 
     let updated_after = args
         .last_updated_window_days
@@ -372,8 +663,8 @@ async fn main() -> Result<()> {
         .context("build reqwest client")?;
 
     println!(
-        "Args: only_not_done={}, last_updated_window_days={:?}",
-        args.only_not_done, args.last_updated_window_days
+        "Args: only_not_done={}, last_updated_window_days={:?}, dry_run={}",
+        args.only_not_done, args.last_updated_window_days, args.dry_run
     );
     println!("Fetching projects…");
     let mut projects = fetch_projects(&client, &api_key).await?;
@@ -392,6 +683,8 @@ async fn main() -> Result<()> {
         );
     }
 
+    let mut created = 0usize;
+    let mut failed = 0usize;
     for project in &projects {
         println!("\n--- Project: {} ({}) ---", project.name, project.id);
         let issues = fetch_issues(
@@ -405,7 +698,34 @@ async fn main() -> Result<()> {
         println!("Found {} issues", issues.len());
         for issue in &issues {
             log_issue(issue, project);
+
+            if args.dry_run {
+                print_planned_task(issue);
+                continue;
+            }
+            let base_url = macro_base_url.as_deref().unwrap();
+            let as_user = args.as_user.as_deref().unwrap();
+            let auth = auth_key.as_deref().unwrap();
+            match create_macro_task(&client, base_url, auth, as_user, issue).await {
+                Ok(doc_id) => {
+                    created += 1;
+                    println!("  → created macro task {}", doc_id);
+                }
+                Err(e) => {
+                    failed += 1;
+                    println!("  → FAILED to create macro task: {:#}", e);
+                }
+            }
         }
+    }
+
+    if !args.dry_run {
+        println!(
+            "\nDone. Created {} tasks, {} failures across {} projects.",
+            created,
+            failed,
+            projects.len()
+        );
     }
 
     Ok(())

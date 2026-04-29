@@ -13,6 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use unicode_segmentation::UnicodeSegmentation;
 
 use anyhow::anyhow;
+use base64::Engine;
 use cloudfront_sign::{SignedOptions, get_signed_url};
 use connection::domain::models::{InvalidationEvent, InvalidationReason};
 use connection::domain::ports::ConnectionService;
@@ -31,6 +32,7 @@ use s3_key::{
     build_cloud_storage_bucket_document_key, build_docx_staging_bucket_document_key,
     build_docx_to_pdf_converted_document_key,
 };
+use sha2::{Digest, Sha256};
 use tracing;
 
 use crate::domain::models::{
@@ -991,12 +993,25 @@ impl<
         plain_user_id: String,
         request: CreateTaskRequest,
     ) -> Result<CreateTaskResponse, DocumentError> {
+        let upload = request.file_content.as_deref().map(|content| {
+            let bytes = content.as_bytes().to_vec();
+            let digest = Sha256::digest(&bytes);
+            let sha_hex = format!("{:x}", digest);
+            let sha_b64 = base64::engine::general_purpose::STANDARD.encode(digest);
+            (bytes, sha_hex, sha_b64)
+        });
+
+        let sha = upload
+            .as_ref()
+            .map(|(_, hex, _)| hex.clone())
+            .unwrap_or_else(|| EMPTY_SHA256.to_string());
+
         let response_data = self
             .create_document(
                 user_id.clone(),
                 CreateDocumentRepoArgs {
                     id: None,
-                    sha: EMPTY_SHA256.to_string(),
+                    sha,
                     document_name: request.task_name.clone(),
                     user_id: user_id.clone(),
                     file_type: Some(FileType::Md),
@@ -1015,6 +1030,36 @@ impl<
             .document_metadata
             .document_id
             .clone();
+
+        if let Some((bytes, _, sha_b64)) = upload {
+            let presigned_url = response_data
+                .document_response
+                .presigned_url
+                .as_deref()
+                .ok_or_else(|| {
+                    DocumentError::Internal(anyhow!("expected presigned url for task upload"))
+                })?;
+            let content_type = response_data.content_type.clone();
+            let upload_resp = reqwest::Client::new()
+                .put(presigned_url)
+                .header("content-type", &content_type)
+                .header("x-amz-checksum-sha256", &sha_b64)
+                .body(bytes)
+                .send()
+                .await
+                .map_err(|e| {
+                    tracing::error!(error=?e, document_id=?document_id, "failed to upload task content");
+                    DocumentError::Internal(anyhow!("failed to upload task content"))
+                })?;
+            if !upload_resp.status().is_success() {
+                let status = upload_resp.status();
+                let body = upload_resp.text().await.unwrap_or_default();
+                tracing::error!(?status, body=%body, document_id=?document_id, "task content upload failed");
+                return Err(DocumentError::Internal(anyhow!(
+                    "task content upload failed: {status}"
+                )));
+            }
+        }
 
         let _ = self
             .handle_task_properties(user_id, &document_id, &request)
