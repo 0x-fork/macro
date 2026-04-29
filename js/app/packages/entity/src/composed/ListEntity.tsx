@@ -111,7 +111,7 @@ export function ListLayoutProvider(props: {
   );
 }
 
-const useListLayout = () => useContext(ListLayoutContext);
+export const useListLayout = () => useContext(ListLayoutContext);
 
 const hasSearchContentHits = (entity: EntityData) =>
   isSearchEntity(entity) && !!entity.search.contentHitData?.length;

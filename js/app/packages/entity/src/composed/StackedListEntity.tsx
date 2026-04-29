@@ -5,7 +5,6 @@ import { twoLineClampMarkdownTheme } from '@core/component/LexicalMarkdown/theme
 import { Tooltip } from '@core/component/Tooltip';
 import { UserIcon } from '@core/component/UserIcon';
 import { isMobile } from '@core/mobile/isMobile';
-import type { NotificationType } from '@core/types';
 import { tryMacroId, useDisplayNameParts } from '@core/user';
 import type { DateValue } from '@core/util/date';
 import { DisplayName } from '@entity/components/DisplayName';
@@ -14,6 +13,9 @@ import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg
 import EnvelopeOpenIcon from '@icon/regular/envelope-open.svg';
 import FileDashedIcon from '@icon/regular/file-dashed.svg';
 import PhoneXIcon from '@phosphor-icons/core/bold/phone-x-bold.svg';
+import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg';
+import CircleDashedIcon from '@phosphor-icons/core/regular/circle-dashed.svg';
+import ListChecksIcon from '@phosphor-icons/core/regular/list-checks.svg';
 import type { StreamEvent } from '@service-connection/generated/schemas';
 import {
   getStreamState,
@@ -36,7 +38,6 @@ import { ProjectBreadCrumb } from '../components/ProjectBreadCrumb';
 import { UnreadIndicator } from '../components/UnreadIndicator';
 import { Entity } from '../entity';
 import type { EntityRowConfig } from '../extractors-notification';
-import { getActionVerb } from '../extractors-notification/notification-description-helpers';
 import { PropertyValue } from '@core/component/Properties/component/propertyValue/PropertyValue';
 import {
   PropertiesProvider,
@@ -48,6 +49,8 @@ import type {
   PropertyApiValues,
 } from '@core/component/Properties/types';
 import { SYSTEM_PROPERTY_IDS } from '@core/component/Properties/constants';
+import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
+import { formatPropertyValue } from '@core/component/Properties/utils/formatting';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
 import { soupPropertyToProperty } from '../extractors-property/property-helpers';
@@ -84,6 +87,7 @@ import {
 import { useIsShared } from '../utils/shared';
 import { formatDateAndTime } from '../utils/timestamp';
 import { formatCallDuration } from '@block-call/utils';
+import { useListLayout } from './ListEntity';
 
 interface StackedListEntityProps {
   entity: WithNotification<EntityData>;
@@ -167,6 +171,7 @@ function LayoutShell(props: {
     </div>
   );
 }
+
 
 function SharedIndicator(props: { ownerId: string }) {
   return (
@@ -295,7 +300,7 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
             </span>
           </Show>
         </span>
-        <span class="text-xs text-ink-extra-muted font-light text-right w-12">
+        <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
           <Entity.Timestamp entity={props.entity} />
         </span>
       </div>
@@ -351,15 +356,15 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
               <>
                 <Show when={msg().senderId}>
                   {(id) => (
-                    <span class="flex items-center gap-1 text-ink-muted shrink-0">
+                    <span class="flex items-center gap-1 text-ink-muted shrink-0 max-w-24">
                       <UserIcon id={id()} size="xs" />
                       <Show when={senderName?.firstName()}>
-                        {(name) => <span class="text-xs">{name()}</span>}
+                        {(name) => <span class="text-xs truncate">{name()}</span>}
                       </Show>
                     </span>
                   )}
                 </Show>
-                <span class="truncate min-w-0 text-ink/50">
+                <span class="truncate min-w-0 text-ink/50 max-w-[50%]">
                   <Show
                     when={msg().content?.trim()}
                     fallback={<span class="italic">Attached Items</span>}
@@ -381,7 +386,7 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
             !(isChannelEntity(props.entity) && isSearchEntity(props.entity))
           }
         >
-          <span class="text-xs text-ink-extra-muted font-light text-right w-12">
+          <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
             <Entity.Timestamp entity={props.entity} />
           </span>
         </Show>
@@ -419,7 +424,7 @@ function ChannelMessageLayout(
         <span class="text-ink/50 truncate min-w-0">
           {props.message.content}
         </span>
-        <span class="ml-auto text-xs text-ink-extra-muted font-light text-right w-12">
+        <span class="ml-auto text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
           <Entity.Timestamp entity={props.entity} />
         </span>
       </div>
@@ -428,6 +433,14 @@ function ChannelMessageLayout(
 }
 
 function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
+  const hasStatus = createMemo(() => {
+    const entity = props.entity as EntityWithProperties<EntityData>;
+    const soupProperties = entity.properties ?? [];
+    return soupProperties.some(
+      (p) => soupPropertyToProperty(p).propertyDefinitionId === SYSTEM_PROPERTY_IDS.STATUS
+    );
+  });
+
   return (
     <LayoutShell
       checked={props.checked}
@@ -439,10 +452,15 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
         style={{ 'grid-template-columns': 'auto 1fr auto 1.25rem auto auto' }}
       >
         <div class="[&_svg]:size-4">
-          <TaskPropertyGroup
-            entity={props.entity}
-            include={[SYSTEM_PROPERTY_IDS.STATUS]}
-          />
+          <Show
+            when={hasStatus()}
+            fallback={<CircleDashedIcon class="size-4 text-ink-extra-muted" />}
+          >
+            <TaskPropertyGroup
+              entity={props.entity}
+              include={[SYSTEM_PROPERTY_IDS.STATUS]}
+            />
+          </Show>
         </div>
         <span class="flex items-center gap-1.5 min-w-0">
           <span class="ph-no-capture font-medium truncate">
@@ -477,7 +495,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
             include={[SYSTEM_PROPERTY_IDS.ASSIGNEES]}
           />
         </div>
-        <span class="text-xs text-ink-extra-muted font-light text-right w-12">
+        <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
           <Entity.Timestamp entity={props.entity} />
         </span>
       </div>
@@ -553,7 +571,7 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
               </Show>
             </div>
           </Show>
-          <span class="text-xs text-ink-extra-muted font-light text-right w-12">
+          <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
             <Entity.Timestamp entity={props.entity} />
           </span>
         </div>
@@ -633,12 +651,558 @@ function DefaultLayout(props: BaseLayoutProps) {
               </span>
             )}
           </Show>
-          <span class="text-xs text-ink-extra-muted font-light text-right w-12">
+          <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
             <Entity.Timestamp entity={props.entity} />
           </span>
         </div>
       </div>
     </LayoutShell>
+  );
+}
+
+function NarrowIconShell(props: {
+  checked?: boolean;
+  onChecked?: (checked: boolean, shiftKey: boolean) => void;
+  unread: boolean;
+  dimWhenRead?: boolean;
+  icon: JSX.Element;
+  children: JSX.Element;
+  trailing?: JSX.Element;
+}) {
+  const mobile = isMobile();
+
+  return (
+    <div
+      class="grid w-full text-sm py-2 px-2"
+      style={{
+        'grid-template-columns': mobile ? '2.5rem 1fr auto' : '1.5rem 2.5rem 1fr auto',
+        gap: '0 0.75rem',
+      }}
+    >
+      <Show when={!mobile}>
+        <div class="row-span-full flex items-start justify-center relative group" style={{ 'grid-column': '1' }}>
+          <UnreadIndicator
+            active={props.unread}
+            class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+          />
+          <div
+            class={cn(
+              'absolute inset-0 flex items-start justify-center pt-0.5',
+              props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            )}
+          >
+            <MultiSelectCheckbox
+              checked={props.checked}
+              onChecked={props.onChecked}
+            />
+          </div>
+        </div>
+      </Show>
+      <div
+        class="row-span-full flex items-center justify-center"
+        style={{ 'grid-column': mobile ? '1' : '2' }}
+      >
+        <button
+          type="button"
+          class={cn(
+            'size-10 rounded-full grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
+            props.checked
+              ? 'bg-accent text-white'
+              : 'bg-ink/5'
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onChecked?.(!props.checked, e.shiftKey);
+          }}
+        >
+          <Show when={props.checked} fallback={props.icon}>
+            <CheckIcon />
+          </Show>
+        </button>
+      </div>
+      <div
+        class={cn('flex flex-col gap-0.5 min-w-0 justify-center', {
+          'opacity-60': props.dimWhenRead && !props.unread,
+        })}
+        style={{ 'grid-column': mobile ? '2' : '3' }}
+      >
+        {props.children}
+      </div>
+      <div
+        class="row-span-full flex items-start pt-0.5"
+        style={{ 'grid-column': mobile ? '3' : '4' }}
+      >
+        {props.trailing}
+      </div>
+    </div>
+  );
+}
+
+function NarrowEmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
+  const icon = (
+    <Switch>
+      <Match when={props.email.isDraft}>
+        <FileDashedIcon class="text-ink-muted" />
+      </Match>
+      <Match when={props.email.hasIcsAttachment}>
+        <CalendarBlankIcon class="text-ink-muted" />
+      </Match>
+      <Match when={!props.unread}>
+        <EnvelopeOpenIcon class="text-ink-muted" />
+      </Match>
+      <Match when={true}>
+        <Entity.Icon entity={props.entity} streamState={props.streamState} />
+      </Match>
+    </Switch>
+  );
+
+  return (
+    <NarrowIconShell
+      checked={props.checked}
+      onChecked={props.onChecked}
+      unread={props.unread}
+      dimWhenRead={props.dimWhenRead ?? true}
+      icon={icon}
+      trailing={
+        <span class="text-xs text-ink-extra-muted font-light whitespace-nowrap">
+          <Entity.Timestamp entity={props.entity} />
+        </span>
+      }
+    >
+      <span class="ph-no-capture font-medium truncate">
+        <Entity.EmailParticipants entity={props.email} />
+      </span>
+      <span class="text-sm text-ink-muted truncate">
+        <Entity.Title entity={props.entity} />
+      </span>
+      <Show when={props.email.snippet}>
+        <span class="text-xs text-ink-extra-muted truncate">
+          {props.email.snippet}
+        </span>
+      </Show>
+    </NarrowIconShell>
+  );
+}
+
+function NarrowChannelShell(props: {
+  checked?: boolean;
+  onChecked?: (checked: boolean, shiftKey: boolean) => void;
+  unread: boolean;
+  dimWhenRead?: boolean;
+  dmParticipantId?: string;
+  icon: JSX.Element;
+  children: JSX.Element;
+  trailing?: JSX.Element;
+}) {
+  const mobile = isMobile();
+
+  return (
+    <div
+      class="grid w-full text-sm py-2 px-2"
+      style={{
+        'grid-template-columns': mobile ? '2.5rem 1fr auto' : '1.5rem 2.5rem 1fr auto',
+        gap: '0 0.75rem',
+      }}
+    >
+      <Show when={!mobile}>
+        <div class="row-span-full flex items-start justify-center relative group" style={{ 'grid-column': '1' }}>
+          <UnreadIndicator
+            active={props.unread}
+            class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+          />
+          <div
+            class={cn(
+              'absolute inset-0 flex items-start justify-center pt-0.5',
+              props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            )}
+          >
+            <MultiSelectCheckbox
+              checked={props.checked}
+              onChecked={props.onChecked}
+            />
+          </div>
+        </div>
+      </Show>
+      <div
+        class="row-span-full flex items-center justify-center"
+        style={{ 'grid-column': mobile ? '1' : '2' }}
+      >
+        <button
+          type="button"
+          class={cn(
+            'size-10 rounded-full grid place-items-center transition-colors',
+            props.checked
+              ? 'bg-accent text-white'
+              : props.dmParticipantId
+                ? ''
+                : 'bg-ink/5 [&_svg]:size-5 [&>*]:size-5'
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onChecked?.(!props.checked, e.shiftKey);
+          }}
+        >
+          <Show
+            when={props.checked}
+            fallback={
+              <Show
+                when={props.dmParticipantId}
+                fallback={props.icon}
+              >
+                {(participantId) => <UserIcon id={participantId()} size="fill" class="size-10 rounded-full" />}
+              </Show>
+            }
+          >
+            <CheckIcon class="size-5" />
+          </Show>
+        </button>
+      </div>
+      <div
+        class={cn('flex flex-col gap-0.5 min-w-0 justify-center', {
+          'opacity-60': props.dimWhenRead && !props.unread,
+        })}
+        style={{ 'grid-column': mobile ? '2' : '3' }}
+      >
+        {props.children}
+      </div>
+      <div
+        class="row-span-full flex items-start pt-0.5"
+        style={{ 'grid-column': mobile ? '3' : '4' }}
+      >
+        {props.trailing}
+      </div>
+    </div>
+  );
+}
+
+function NarrowChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
+  const senderName = props.channel.latestMessage?.senderId
+    ? useDisplayNameParts(tryMacroId(props.channel.latestMessage.senderId))
+    : undefined;
+
+  const dmParticipantId = () =>
+    props.channel.channelType === 'direct_message'
+      ? props.channel.participantIds?.[0]
+      : undefined;
+
+  return (
+    <NarrowChannelShell
+      checked={props.checked}
+      onChecked={props.onChecked}
+      unread={props.unread}
+      dimWhenRead={props.dimWhenRead ?? true}
+      dmParticipantId={dmParticipantId()}
+      icon={<Entity.Icon entity={props.entity} streamState={props.streamState} />}
+      trailing={
+        <Show
+          when={
+            !props.hasNotifications &&
+            !(isChannelEntity(props.entity) && isSearchEntity(props.entity))
+          }
+        >
+          <span class="text-xs text-ink-extra-muted font-light whitespace-nowrap">
+            <Entity.Timestamp entity={props.entity} />
+          </span>
+        </Show>
+      }
+    >
+      <span class="ph-no-capture font-medium truncate">
+        <Entity.Title entity={props.entity} />
+      </span>
+      <Show
+        when={props.channel.latestMessage}
+        fallback={<span class="text-ink-extra-muted text-xs">No messages</span>}
+      >
+        {(msg) => (
+          <span class="flex items-center gap-1.5 min-w-0 text-sm text-ink-muted">
+            <Show when={msg().senderId}>
+              {(id) => (
+                <span class="flex items-center gap-1 shrink-0">
+                  <UserIcon id={id()} size="xs" />
+                  <Show when={senderName?.firstName()}>
+                    {(name) => <span class="text-xs">{name()}</span>}
+                  </Show>
+                </span>
+              )}
+            </Show>
+            <span class="truncate min-w-0 text-ink-extra-muted text-xs">
+              <Show
+                when={msg().content?.trim()}
+                fallback={<span class="italic">Attached Items</span>}
+              >
+                <StaticMarkdown
+                  theme={twoLineClampMarkdownTheme}
+                  markdown={msg().content.trim()}
+                  singleLine
+                />
+              </Show>
+            </span>
+          </span>
+        )}
+      </Show>
+    </NarrowChannelShell>
+  );
+}
+
+function StatusPillContent(props: { entity: EntityWithProperties<EntityData> }) {
+  const statusData = createMemo(() => {
+    const soupProperties = props.entity.properties ?? [];
+    const prop = soupProperties
+      .map(soupPropertyToProperty)
+      .find((p) => p.propertyDefinitionId === SYSTEM_PROPERTY_IDS.STATUS);
+    if (!prop || prop.valueType !== 'SELECT_STRING') return null;
+    const selectedId = prop.value?.[0];
+    if (!selectedId) return null;
+    const label = formatPropertyValue(prop, selectedId);
+    return { id: selectedId, label };
+  });
+
+  return (
+    <Show
+      when={statusData()}
+      fallback={
+        <>
+          <CircleDashedIcon class="size-3 text-ink-extra-muted" />
+          <span>No status</span>
+        </>
+      }
+    >
+      {(status) => (
+        <>
+          <PropertyValueIcon optionId={status().id} class="size-3" />
+          <span>{status().label}</span>
+        </>
+      )}
+    </Show>
+  );
+}
+
+function PriorityPillContent(props: { entity: EntityWithProperties<EntityData> }) {
+  const priorityData = createMemo(() => {
+    const soupProperties = props.entity.properties ?? [];
+    const prop = soupProperties
+      .map(soupPropertyToProperty)
+      .find((p) => p.propertyDefinitionId === SYSTEM_PROPERTY_IDS.PRIORITY);
+    if (!prop || prop.valueType !== 'SELECT_STRING') return null;
+    const selectedId = prop.value?.[0];
+    if (!selectedId) return null;
+    const label = formatPropertyValue(prop, selectedId);
+    return { id: selectedId, label };
+  });
+
+  return (
+    <Show
+      when={priorityData()}
+      fallback={
+        <>
+          <CircleDashedIcon class="size-3 text-ink-extra-muted" />
+          <span>No priority</span>
+        </>
+      }
+    >
+      {(priority) => (
+        <>
+          <PropertyValueIcon optionId={priority().id} class="size-3" />
+          <span>{priority().label}</span>
+        </>
+      )}
+    </Show>
+  );
+}
+
+function AssigneesPillContent(props: { entity: EntityWithProperties<EntityData> }) {
+  const assigneesProperty = createMemo(() => {
+    const soupProperties = props.entity.properties ?? [];
+    const prop = soupProperties
+      .map(soupPropertyToProperty)
+      .find((p) => p.propertyDefinitionId === SYSTEM_PROPERTY_IDS.ASSIGNEES);
+    if (!prop || prop.valueType !== 'ENTITY') return null;
+    return prop.value ?? null;
+  });
+
+  const assigneeIds = () => assigneesProperty()?.map((e) => e.entity_id) ?? [];
+
+  return (
+    <Show
+      when={assigneeIds().length > 0}
+      fallback={
+        <>
+          <CircleDashedIcon class="size-3 text-ink-extra-muted" />
+          <span>Unassigned</span>
+        </>
+      }
+    >
+      <div class="flex items-center">
+        <For each={assigneeIds().slice(0, 3)}>
+          {(id, index) => (
+            <div class={cn(index() > 0 && '-ml-1')}>
+              <UserIcon id={id} size="xs" />
+            </div>
+          )}
+        </For>
+      </div>
+      <Show
+        when={assigneeIds().length === 1}
+        fallback={
+          <span>
+            <DisplayName id={assigneeIds()[0]} format="firstName" />
+            {assigneeIds().length > 1 && ` +${assigneeIds().length - 1}`}
+          </span>
+        }
+      >
+        <DisplayName id={assigneeIds()[0]} format="firstName" />
+      </Show>
+    </Show>
+  );
+}
+
+function TaskPropertyPills(props: {
+  entity: EntityWithProperties<EntityData>;
+}) {
+  return (
+    <div class="flex items-center gap-2">
+      <span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-edge-muted text-xs text-ink-muted shrink-0">
+        <StatusPillContent entity={props.entity} />
+      </span>
+      <span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-edge-muted text-xs text-ink-muted shrink-0">
+        <PriorityPillContent entity={props.entity} />
+      </span>
+      <span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-edge-muted text-xs text-ink-muted shrink-0">
+        <AssigneesPillContent entity={props.entity} />
+      </span>
+    </div>
+  );
+}
+
+function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
+  const mobile = isMobile();
+
+  return (
+    <div
+      class="grid w-full text-sm py-2 px-2"
+      style={{
+        'grid-template-columns': mobile ? '2.5rem 1fr' : '1.5rem 2.5rem 1fr',
+        gap: '0 0.75rem',
+      }}
+    >
+      <Show when={!mobile}>
+        <div class="row-span-full flex items-start justify-center relative group" style={{ 'grid-column': '1' }}>
+          <UnreadIndicator
+            active={props.unread}
+            class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+          />
+          <div
+            class={cn(
+              'absolute inset-0 flex items-start justify-center pt-0.5',
+              props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            )}
+          >
+            <MultiSelectCheckbox
+              checked={props.checked}
+              onChecked={props.onChecked}
+            />
+          </div>
+        </div>
+      </Show>
+      <div
+        class="row-span-full flex items-center justify-center"
+        style={{ 'grid-column': mobile ? '1' : '2' }}
+      >
+        <button
+          type="button"
+          class={cn(
+            'size-10 rounded-full grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
+            props.checked
+              ? 'bg-accent text-white'
+              : 'bg-ink/5'
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onChecked?.(!props.checked, e.shiftKey);
+          }}
+        >
+          <Show when={props.checked} fallback={<Entity.Icon entity={props.entity} />}>
+            <CheckIcon />
+          </Show>
+        </button>
+      </div>
+      <div
+        class="flex flex-col gap-0.5 min-w-0 justify-center"
+        style={{ 'grid-column': mobile ? '2' : '3' }}
+      >
+        <span class="flex items-center gap-2 min-w-0">
+          <span class="ph-no-capture font-medium truncate">
+            <Entity.Title entity={props.entity} />
+          </span>
+          <span class="ml-auto text-xs text-ink-extra-muted font-light whitespace-nowrap shrink-0">
+            <Entity.Timestamp entity={props.entity} />
+          </span>
+        </span>
+        <div class="flex items-center gap-2 min-w-0 mt-1 overflow-x-auto overflow-y-hidden scrollbar-none">
+          <Show
+            when={mobile}
+            fallback={
+              <div class="flex items-center gap-2 shrink-0">
+                <TaskPropertyGroup
+                  entity={props.entity}
+                  include={[SYSTEM_PROPERTY_IDS.STATUS]}
+                />
+                <TaskPropertyGroup
+                  entity={props.entity}
+                  include={[SYSTEM_PROPERTY_IDS.PRIORITY]}
+                />
+                <TaskPropertyGroup
+                  entity={props.entity}
+                  include={[SYSTEM_PROPERTY_IDS.ASSIGNEES]}
+                />
+              </div>
+            }
+          >
+            <TaskPropertyPills entity={props.entity as EntityWithProperties<EntityData>} />
+          </Show>
+          <Show when={isProjectContainedEntity(props.entity) && props.entity}>
+            {(entity) => (
+              <span class="ph-no-capture text-ink-extra-muted text-xs shrink-0">
+                <ProjectBreadCrumb
+                  entity={entity()}
+                  onClick={props.onProjectClick}
+                />
+              </span>
+            )}
+          </Show>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NarrowDefaultLayout(props: BaseLayoutProps) {
+  return (
+    <NarrowIconShell
+      checked={props.checked}
+      onChecked={props.onChecked}
+      unread={props.unread}
+      icon={<Entity.Icon entity={props.entity} streamState={props.streamState} />}
+      trailing={
+        <span class="text-xs text-ink-extra-muted font-light whitespace-nowrap">
+          <Entity.Timestamp entity={props.entity} />
+        </span>
+      }
+    >
+      <span class="ph-no-capture font-medium truncate">
+        <Entity.Title entity={props.entity} />
+      </span>
+      <Show when={isProjectContainedEntity(props.entity) && props.entity}>
+        {(entity) => (
+          <span class="ph-no-capture text-ink-extra-muted text-xs truncate">
+            <ProjectBreadCrumb
+              entity={entity()}
+              onClick={props.onProjectClick}
+            />
+          </span>
+        )}
+      </Show>
+    </NarrowIconShell>
   );
 }
 
@@ -681,6 +1245,8 @@ export function StackedListEntity(props: StackedListEntityProps) {
     splitId: useSplitPanel()?.handle?.id,
   });
 
+  const isWide = useListLayout()?.isWide ?? (() => true);
+
   return (
     <Entity.Root
       entity={props.entity}
@@ -712,30 +1278,47 @@ export function StackedListEntity(props: StackedListEntityProps) {
         )}
       />
 
-      <Switch fallback={<DefaultLayout {...baseProps()} />}>
-        <Match when={isEmailEntity(props.entity) && props.entity}>
-          {(email) => <EmailLayout {...baseProps()} email={email()} />}
-        </Match>
-        <Match when={isChannelMessageEntity(props.entity) && props.entity}>
-          {(message) => (
-            <ChannelMessageLayout {...baseProps()} message={message()} />
-          )}
-        </Match>
-        <Match when={isChannelEntity(props.entity) && props.entity}>
-          {(channel) => <ChannelLayout {...baseProps()} channel={channel()} />}
-        </Match>
-        <Match when={isTaskEntity(props.entity) && props.entity}>
-          {(task) => <TaskLayout {...baseProps()} task={task()} />}
-        </Match>
-        <Match when={isCallEntity(props.entity) && props.entity}>
-          {(call) => <CallLayout {...baseProps()} call={call()} />}
-        </Match>
-        <Match when={isAutomationEntity(props.entity) && props.entity}>
-          {(automation) => (
-            <AutomationLayout {...baseProps()} automation={automation()} />
-          )}
-        </Match>
-      </Switch>
+      <Show
+        when={isWide()}
+        fallback={
+          <Switch fallback={<NarrowDefaultLayout {...baseProps()} />}>
+            <Match when={isEmailEntity(props.entity) && props.entity}>
+              {(email) => <NarrowEmailLayout {...baseProps()} email={email()} />}
+            </Match>
+            <Match when={isChannelEntity(props.entity) && props.entity}>
+              {(channel) => <NarrowChannelLayout {...baseProps()} channel={channel()} />}
+            </Match>
+            <Match when={isTaskEntity(props.entity) && props.entity}>
+              {(task) => <NarrowTaskLayout {...baseProps()} task={task()} />}
+            </Match>
+          </Switch>
+        }
+      >
+        <Switch fallback={<DefaultLayout {...baseProps()} />}>
+          <Match when={isEmailEntity(props.entity) && props.entity}>
+            {(email) => <EmailLayout {...baseProps()} email={email()} />}
+          </Match>
+          <Match when={isChannelMessageEntity(props.entity) && props.entity}>
+            {(message) => (
+              <ChannelMessageLayout {...baseProps()} message={message()} />
+            )}
+          </Match>
+          <Match when={isChannelEntity(props.entity) && props.entity}>
+            {(channel) => <ChannelLayout {...baseProps()} channel={channel()} />}
+          </Match>
+          <Match when={isTaskEntity(props.entity) && props.entity}>
+            {(task) => <TaskLayout {...baseProps()} task={task()} />}
+          </Match>
+          <Match when={isCallEntity(props.entity) && props.entity}>
+            {(call) => <CallLayout {...baseProps()} call={call()} />}
+          </Match>
+          <Match when={isAutomationEntity(props.entity) && props.entity}>
+            {(automation) => (
+              <AutomationLayout {...baseProps()} automation={automation()} />
+            )}
+          </Match>
+        </Switch>
+      </Show>
 
       <Show when={hasNotifications() && !isMobile()}>
         <div class="pl-[1.875rem] pr-2 pb-1.5">
