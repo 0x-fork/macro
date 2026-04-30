@@ -1149,13 +1149,13 @@ function TaskPropertyPills(props: {
 }) {
   return (
     <>
-      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
+      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap basis-20 grow max-w-fit overflow-hidden">
         <StatusPillContent entity={props.entity} />
       </span>
-      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
+      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap basis-16 grow max-w-fit overflow-hidden">
         <PriorityPillContent entity={props.entity} />
       </span>
-      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap max-w-32 overflow-hidden">
+      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap basis-24 grow max-w-fit overflow-hidden">
         <AssigneesPillContent entity={props.entity} />
       </span>
     </>
