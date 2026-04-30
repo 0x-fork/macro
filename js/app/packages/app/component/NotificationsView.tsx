@@ -5,40 +5,36 @@ import {
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
 import { SplitPanelContext } from '@app/component/split-layout/context';
-import { globalSplitManager } from '@app/signal/splitLayout';
 import type { BlockName } from '@core/block';
-import { ContextMenuContent, MenuItem } from '@core/component/Menu';
 import { LoadingBlock } from '@core/component/LoadingBlock';
-import { toast } from '@core/component/Toast/Toast';
-import { buildSimpleEntityUrl } from '@core/util/url';
-import CheckIcon from '@icon/regular/check.svg';
-import { ContextMenu } from '@kobalte/core/context-menu';
 import {
   CHANNEL_EVENT_TYPES,
   getChannelNotificationParams,
-  getMostRecentNotification,
-  type NotificationStack,
-  openNotification,
-  stackNotifications,
+  useNotificationsForEntity,
 } from '@notifications';
 import type { UnifiedNotification } from '@notifications';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
-import { Button } from '@ui/components/Button';
 import { cn } from '@ui/utils/classname';
-import { createEffect, createMemo, createSignal, For, Show, Suspense } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Show,
+  Suspense,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import CaretDownIcon from '@icon/regular/caret-down.svg';
 import { VList } from 'virtua/solid';
-import { isNotificationUnread } from '@entity/utils/notification';
-import { useNotificationStackActions } from '@entity/extractors-notification/notification-actions';
-import { NotificationContent } from '@entity/extractors-notification/notification-content';
-import { NotificationDescription } from '@entity/extractors-notification/notification-description';
-import { NotificationIcon } from '@entity/extractors-notification/notification-icon';
-import { NotificationSenderIcon } from '@entity/extractors-notification/notification-sender-icon';
-import { NotificationTimestamp } from '@entity/extractors-notification/notification-timestamp';
-import { MultiSelectCheckbox } from '@entity/components/MultiSelectCheckbox';
-import { UnreadIndicator } from '@entity/components/UnreadIndicator';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
+import {
+  type EntityData,
+  ListLayoutProvider,
+  StackedListEntity,
+  type WithNotification,
+} from '@entity';
+import { useSoupItemsQuery, type SoupBody } from '@queries/soup/items';
+import { unreadFilterFn } from '@entity/utils/filter';
 
 type FilterTab = 'all' | 'unread' | 'read';
 type SortOption = 'newest' | 'oldest';
@@ -53,153 +49,6 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'newest', label: 'Newest first' },
   { value: 'oldest', label: 'Oldest first' },
 ];
-
-function getNotificationUrl(notification: UnifiedNotification): string {
-  const { params } = getChannelNotificationParams(notification);
-  return buildSimpleEntityUrl(
-    { type: notification.entity_type, id: notification.entity_id },
-    params
-  );
-}
-
-function NotificationRow(props: {
-  stack: NotificationStack;
-  highlighted?: boolean;
-  checked?: boolean;
-  onChecked?: (checked: boolean, shiftKey: boolean) => void;
-  onMouseEnter?: () => void;
-}) {
-  const notificationSource = useGlobalNotificationSource();
-  const unread = () => isNotificationUnread(props.stack);
-
-  const { markStackAsDone, markStackAsRead } = useNotificationStackActions({
-    stack: props.stack,
-  });
-
-  const handleClick = async (e: PointerEvent | MouseEvent | KeyboardEvent) => {
-    const mostRecent = getMostRecentNotification(props.stack);
-    const splitManager = globalSplitManager();
-    if (!splitManager) return;
-
-    e.stopPropagation();
-    await openNotification(mostRecent, splitManager, e.shiftKey);
-    await notificationSource.markAsRead(mostRecent);
-  };
-
-  const handleMarkAsDone = (e?: PointerEvent | MouseEvent) => {
-    e?.stopPropagation();
-    markStackAsDone();
-  };
-
-  const handleMarkAsRead = async () => {
-    await markStackAsRead();
-  };
-
-  const handleCopyLink = async () => {
-    const mostRecent = getMostRecentNotification(props.stack);
-    const url = getNotificationUrl(mostRecent);
-    await navigator.clipboard.writeText(url);
-    toast.success('Link copied to clipboard');
-  };
-
-  return (
-    <ContextMenu>
-      <ContextMenu.Trigger class="w-full">
-        <div
-          class={cn(
-            'relative w-full rounded-xs cursor-pointer group/notification-row',
-            props.highlighted ? 'bg-accent/5' : 'hover:bg-hover/10'
-          )}
-          onClick={handleClick}
-          onMouseEnter={props.onMouseEnter}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleClick(e);
-            }
-            if (e.key === 'e') {
-              e.preventDefault();
-              e.stopPropagation();
-              handleMarkAsDone();
-            }
-          }}
-        >
-          <div
-            class={cn(
-              'absolute h-full w-[3px] left-0 top-0 bg-accent rounded-r-full',
-              props.highlighted ? 'opacity-100' : 'opacity-0'
-            )}
-          />
-          <div
-            class={cn('flex p-2 px-4 gap-3 min-w-0', {
-              'opacity-60': !unread(),
-            })}
-          >
-            <div class="flex items-center justify-center w-6 pt-1 shrink-0 relative group/checkbox">
-              <UnreadIndicator
-                active={unread()}
-                class={cn(
-                  props.checked && 'opacity-0',
-                  'group-hover/checkbox:opacity-0'
-                )}
-              />
-              <div
-                class={cn(
-                  'absolute inset-0 grid place-items-center',
-                  props.checked
-                    ? 'opacity-100'
-                    : 'opacity-0 group-hover/checkbox:opacity-100'
-                )}
-              >
-                <MultiSelectCheckbox
-                  checked={props.checked}
-                  onChecked={props.onChecked}
-                />
-              </div>
-            </div>
-            <div class="shrink-0 pt-1">
-              <NotificationIcon stack={props.stack} class="size-4" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2 min-w-0">
-                <div class="shrink-0">
-                  <NotificationSenderIcon stack={props.stack} size="xs" />
-                </div>
-                <span class="ph-no-capture text-sm truncate min-w-0 font-medium">
-                  <NotificationDescription stack={props.stack} />
-                </span>
-                <span class="text-xs text-ink-extra-muted shrink-0 ml-auto">
-                  <NotificationTimestamp stack={props.stack} />
-                </span>
-                <Button
-                  onClick={handleMarkAsDone}
-                  tooltip="Mark done"
-                  class="opacity-0 group-hover/notification-row:opacity-100 border border-edge-muted text-xs text-ink-muted grid p-0 place-items-center size-6 shrink-0"
-                >
-                  <CheckIcon class="size-3" />
-                </Button>
-              </div>
-              <div class="ph-no-capture mt-1 text-ink-muted text-sm truncate">
-                <NotificationContent stack={props.stack} singleLine />
-              </div>
-            </div>
-          </div>
-        </div>
-      </ContextMenu.Trigger>
-      <ContextMenu.Portal>
-        <div onClick={(e) => e.stopPropagation()}>
-          <ContextMenuContent class="text-xs text-ink-muted">
-            <MenuItem text="Mark Done" onClick={() => handleMarkAsDone()} />
-            <MenuItem text="Mark Read" onClick={handleMarkAsRead} />
-            <MenuItem text="Copy Link" onClick={handleCopyLink} />
-          </ContextMenuContent>
-        </div>
-      </ContextMenu.Portal>
-    </ContextMenu>
-  );
-}
 
 function resolveNotificationBlock(
   notification: UnifiedNotification
@@ -242,11 +91,15 @@ function resolveNotificationBlock(
   }
 }
 
-function NotificationPreviewPanel(props: { notification: UnifiedNotification }) {
+function NotificationPreviewPanel(props: {
+  notification: UnifiedNotification;
+}) {
   const orchestrator = useGlobalBlockOrchestrator();
   const panel = useSplitPanelOrThrow();
 
-  const blockInfo = createMemo(() => resolveNotificationBlock(props.notification));
+  const blockInfo = createMemo(() =>
+    resolveNotificationBlock(props.notification)
+  );
 
   const blockInstance = createMemo(() => {
     const info = blockInfo();
@@ -358,51 +211,84 @@ function NotificationFilterBar(props: {
 export function NotificationsView() {
   const panel = useSplitPanelOrThrow();
   const notificationSource = useGlobalNotificationSource();
-  const isLoading = () => notificationSource.isLoading();
 
-  const [highlightedStackId, setHighlightedStackId] = createSignal<
+  const [hoveredEntityId, setHoveredEntityId] = createSignal<string | null>(
+    null
+  );
+  const [highlightedEntityId, setHighlightedEntityId] = createSignal<
     string | null
   >(null);
   const [checkedIds, setCheckedIds] = createSignal<Set<string>>(new Set());
   const [filter, setFilter] = createSignal<FilterTab>('all');
   const [sort, setSort] = createSignal<SortOption>('newest');
+  const [listRef, setListRef] = createSignal<HTMLElement | undefined>();
 
   createEffect(() => {
     panel.handle.setDisplayName('Notifications');
   });
 
-  const notifications = () => notificationSource.notifications();
-  const activeNotifications = createMemo(() =>
-    notifications().filter((n) => !n.done)
+  const queryBody = createMemo(
+    (): SoupBody => ({
+      channel_filters: { notification_filters: { done: false } },
+      chat_filters: { notification_filters: { done: false } },
+      project_filters: { notification_filters: { done: false } },
+      email_filters: { importance: true },
+    })
   );
 
-  const stacks = createMemo(() => {
-    let filtered = stackNotifications(activeNotifications());
+  const itemsQuery = useSoupItemsQuery(
+    () => ({
+      params: {
+        limit: 100,
+        sort_method: sort() === 'newest' ? 'updated_at' : 'created_at',
+      },
+      body: queryBody(),
+    }),
+    () => ({ enabled: true })
+  );
+
+  const attachNotifications = (
+    entity: EntityData
+  ): WithNotification<EntityData> => ({
+    ...entity,
+    notifications: useNotificationsForEntity(notificationSource, entity),
+  });
+
+  const entities = createMemo((): WithNotification<EntityData>[] => {
+    const data = itemsQuery.data ?? [];
+    let result = data.map((e) =>
+      'notifications' in e
+        ? (e as WithNotification<EntityData>)
+        : attachNotifications(e)
+    );
 
     if (filter() === 'unread') {
-      filtered = filtered.filter((stack) => isNotificationUnread(stack));
+      result = result.filter((e) => unreadFilterFn(e));
     } else if (filter() === 'read') {
-      filtered = filtered.filter((stack) => !isNotificationUnread(stack));
+      result = result.filter((e) => !unreadFilterFn(e));
     }
 
     if (sort() === 'oldest') {
-      filtered = [...filtered].reverse();
+      result = [...result].reverse();
     }
 
-    return filtered;
+    return result;
   });
 
-  const getStackId = (stack: NotificationStack) =>
-    getMostRecentNotification(stack).id;
-
-  const highlightedStack = createMemo(() =>
-    stacks().find((s) => getStackId(s) === highlightedStackId())
+  const highlightedEntity = createMemo(() =>
+    entities().find((e) => e.id === highlightedEntityId())
   );
 
-  const highlightedNotification = createMemo(() => {
-    const stack = highlightedStack();
-    return stack ? getMostRecentNotification(stack) : undefined;
-  });
+  const highlightedNotification = createMemo(
+    (): UnifiedNotification | undefined => {
+      const entity = highlightedEntity();
+      if (!entity?.notifications) return undefined;
+      const notifs = entity.notifications();
+      return notifs.length > 0 ? notifs[0] : undefined;
+    }
+  );
+
+  const isLoading = () => itemsQuery.isLoading;
 
   return (
     <div class="h-full flex flex-col">
@@ -429,37 +315,45 @@ export function NotificationsView() {
               }
             >
               <Show
-                when={stacks().length > 0}
+                when={entities().length > 0}
                 fallback={
                   <div class="flex items-center justify-center h-full text-ink-muted text-sm">
                     No notifications
                   </div>
                 }
               >
-                <VList data={stacks()} class="py-2 h-full">
-                {(stack) => {
-                  const stackId = getStackId(stack);
-                  return (
-                    <NotificationRow
-                      stack={stack}
-                      highlighted={highlightedStackId() === stackId}
-                      checked={checkedIds().has(stackId)}
-                      onChecked={(checked) => {
-                        setCheckedIds((prev) => {
-                          const next = new Set(prev);
-                          if (checked) {
-                            next.add(stackId);
-                          } else {
-                            next.delete(stackId);
-                          }
-                          return next;
-                        });
-                      }}
-                      onMouseEnter={() => setHighlightedStackId(stackId)}
-                    />
-                  );
-                }}
-              </VList>
+                <ListLayoutProvider ref={listRef}>
+                  <div ref={setListRef} class="h-full">
+                    <VList data={entities()} class="py-2 h-full">
+                      {(entity) => (
+                        <StackedListEntity
+                          entity={entity}
+                          highlighted={highlightedEntityId() === entity.id}
+                          hovered={hoveredEntityId() === entity.id}
+                          checked={checkedIds().has(entity.id)}
+                          showUnrollNotifications
+                          onChecked={(checked, shiftKey) => {
+                            setCheckedIds((prev) => {
+                              const next = new Set(prev);
+                              if (checked) {
+                                next.add(entity.id);
+                              } else {
+                                next.delete(entity.id);
+                              }
+                              return next;
+                            });
+                          }}
+                          onMouseMove={() => {
+                            setHoveredEntityId(entity.id);
+                          }}
+                          onClick={() => {
+                            setHighlightedEntityId(entity.id);
+                          }}
+                        />
+                      )}
+                    </VList>
+                  </div>
+                </ListLayoutProvider>
               </Show>
             </Show>
           </div>
