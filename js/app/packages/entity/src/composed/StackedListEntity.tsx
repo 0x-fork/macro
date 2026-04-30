@@ -1079,14 +1079,14 @@ function PriorityPillContent(props: {
       when={priorityData()}
       fallback={
         <>
-          <CircleDashedIcon class="size-3 text-ink-extra-muted" />
+          <CircleDashedIcon class="size-3 text-ink-extra-muted shrink-0" />
           <span>No priority</span>
         </>
       }
     >
       {(priority) => (
         <>
-          <PropertyValueIcon optionId={priority().id} class="size-3" />
+          <PropertyValueIcon optionId={priority().id} class="size-3 shrink-0" />
           <span>{priority().label}</span>
         </>
       )}
@@ -1149,10 +1149,10 @@ function TaskPropertyPills(props: {
 }) {
   return (
     <>
-      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap basis-20 grow max-w-fit overflow-hidden">
+      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap shrink-0">
         <StatusPillContent entity={props.entity} />
       </span>
-      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap basis-16 grow max-w-fit overflow-hidden">
+      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap shrink-0">
         <PriorityPillContent entity={props.entity} />
       </span>
       <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap basis-24 grow max-w-fit overflow-hidden">
