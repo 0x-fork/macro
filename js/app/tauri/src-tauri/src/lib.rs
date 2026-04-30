@@ -111,18 +111,18 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .plugin(MacroNavigationPlugin::new(ALLOWED_DOMAINS).expect("Domains must be valid urls"))
-        .plugin(
+        .plugin(MacroNavigationPlugin::new(ALLOWED_DOMAINS).expect("Domains must be valid urls"));
+
+    #[cfg(not(debug_assertions))]
+    {
+        builder = builder.plugin(
             macro_bundle_updater_plugin::inbound::plugin::MacroBundleUpdaterPlugin::new(
-                if cfg!(debug_assertions) {
-                    "https://auth-service-dev.macro.com/"
-                } else {
-                    "https://auth-service.macro.com/"
-                }
-                .parse()
-                .expect("valid url"),
+                "https://auth-service.macro.com/"
+                    .parse()
+                    .expect("valid url"),
             ),
         );
+    }
 
     #[cfg(mobile)]
     {
