@@ -10,6 +10,7 @@ import type { DateValue } from '@core/util/date';
 import { DisplayName } from '@entity/components/DisplayName';
 import ArrowDownLeftIcon from '@icon/regular/arrow-down-left.svg';
 import UsersIcon from '@icon/fill/users-fill.svg';
+import UserFillIcon from '@icon/fill/user-fill.svg';
 import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg';
 import EnvelopeOpenIcon from '@icon/regular/envelope-open.svg';
 import FileDashedIcon from '@icon/regular/file-dashed.svg';
@@ -692,104 +693,108 @@ function NarrowIconShell(props: {
 
   return (
     <div
-      class="grid w-full text-sm py-2 px-2 min-h-[5.25rem]"
+      class={cn('grid w-full text-sm py-2 px-2', mobile && 'min-h-[5.25rem]')}
       style={{
         'grid-template-columns': mobile
           ? '3rem 1fr auto'
-          : '1.5rem 3rem 1fr auto',
+          : '1.5rem 1fr auto',
         gap: '0 0.75rem',
       }}
     >
-      <Show when={!mobile}>
+      <Show
+        when={mobile}
+        fallback={
+          <div
+            class="row-span-full flex justify-center relative group pt-1.5"
+            style={{ 'grid-column': '1' }}
+          >
+            <UnreadIndicator
+              active={props.unread}
+              class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+            />
+            <div
+              class={cn(
+                'absolute inset-0 flex justify-center pt-1.5',
+                props.checked
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100'
+              )}
+            >
+              <MultiSelectCheckbox
+                checked={props.checked}
+                onChecked={props.onChecked}
+              />
+            </div>
+          </div>
+        }
+      >
         <div
-          class="row-span-full flex items-start justify-center relative group"
+          class="row-span-full flex items-start justify-center"
           style={{ 'grid-column': '1' }}
         >
-          <UnreadIndicator
-            active={props.unread}
-            class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
-          />
-          <div
-            class={cn(
-              'absolute inset-0 flex items-start justify-center pt-0.5',
-              props.checked
-                ? 'opacity-100'
-                : 'opacity-0 group-hover:opacity-100'
-            )}
-          >
-            <MultiSelectCheckbox
-              checked={props.checked}
-              onChecked={props.onChecked}
-            />
+          <div class="relative flex">
+            <Show
+              when={props.ownerId}
+              fallback={
+                <button
+                  type="button"
+                  class={cn(
+                    'size-10 rounded-md grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
+                    props.checked ? 'bg-accent text-white' : 'bg-ink/5'
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.onChecked?.(!props.checked, e.shiftKey);
+                  }}
+                >
+                  <Show when={props.checked} fallback={props.icon}>
+                    <CheckIcon />
+                  </Show>
+                </button>
+              }
+            >
+              {(ownerId) => (
+                <button
+                  type="button"
+                  class={cn(
+                    'size-10 rounded-md overflow-hidden transition-colors',
+                    props.checked && 'ring-2 ring-accent'
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.onChecked?.(!props.checked, e.shiftKey);
+                  }}
+                >
+                  <Show
+                    when={props.checked}
+                    fallback={<UserIcon id={ownerId()} size="fill" rounded="md" suppressClick />}
+                  >
+                    <div class="size-full bg-accent grid place-items-center text-white">
+                      <CheckIcon class="size-5" />
+                    </div>
+                  </Show>
+                </button>
+              )}
+            </Show>
+            <Show when={props.isShared}>
+              <div class="absolute -bottom-px -right-px rounded-sm bg-surface-0 p-0.5">
+                <UsersIcon class="size-3 opacity-70" />
+              </div>
+            </Show>
           </div>
         </div>
       </Show>
       <div
-        class="row-span-full flex items-start justify-center"
-        style={{ 'grid-column': mobile ? '1' : '2' }}
-      >
-        <div class="relative flex">
-          <Show
-            when={props.ownerId}
-            fallback={
-              <button
-                type="button"
-                class={cn(
-                  'size-10 rounded-md grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
-                  props.checked ? 'bg-accent text-white' : 'bg-ink/5'
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  props.onChecked?.(!props.checked, e.shiftKey);
-                }}
-              >
-                <Show when={props.checked} fallback={props.icon}>
-                  <CheckIcon />
-                </Show>
-              </button>
-            }
-          >
-            {(ownerId) => (
-              <button
-                type="button"
-                class={cn(
-                  'size-10 rounded-md overflow-hidden transition-colors',
-                  props.checked && 'ring-2 ring-accent'
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  props.onChecked?.(!props.checked, e.shiftKey);
-                }}
-              >
-                <Show
-                  when={props.checked}
-                  fallback={<UserIcon id={ownerId()} size="fill" rounded="md" suppressClick />}
-                >
-                  <div class="size-full bg-accent grid place-items-center text-white">
-                    <CheckIcon class="size-5" />
-                  </div>
-                </Show>
-              </button>
-            )}
-          </Show>
-          <Show when={props.isShared}>
-            <div class="absolute -bottom-px -right-px rounded-sm bg-surface-0 p-0.5">
-              <UsersIcon class="size-3 opacity-70" />
-            </div>
-          </Show>
-        </div>
-      </div>
-      <div
         class={cn('flex flex-col gap-0.5 min-w-0 pt-1.5', {
           'opacity-60': props.dimWhenRead && !props.unread,
         })}
-        style={{ 'grid-column': mobile ? '2' : '3' }}
+        style={{ 'grid-column': '2' }}
       >
         {props.children}
       </div>
       <div
         class="row-span-full flex items-start pt-1.5"
-        style={{ 'grid-column': mobile ? '3' : '4' }}
+        style={{ 'grid-column': '3' }}
       >
         {props.trailing}
       </div>
@@ -822,6 +827,8 @@ function NarrowEmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
       icon={icon}
+      ownerId={props.entity.ownerId}
+      isShared={props.isShared}
       trailing={
         <span class="flex items-center gap-1.5 text-xs text-ink-extra-muted font-light whitespace-nowrap">
           <Show when={props.isShared}>
@@ -831,8 +838,13 @@ function NarrowEmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
         </span>
       }
     >
-      <span class="ph-no-capture text-sm font-medium truncate">
-        <Entity.EmailParticipants entity={props.email} />
+      <span class="flex items-center gap-1.5 min-w-0">
+        <span class="shrink-0 [&_svg]:size-4">
+          {icon}
+        </span>
+        <span class="ph-no-capture text-sm font-medium truncate">
+          <Entity.EmailParticipants entity={props.email} />
+        </span>
       </span>
       <span class="text-sm text-ink-muted truncate">
         <Entity.Title entity={props.entity} />
@@ -860,87 +872,91 @@ function NarrowChannelShell(props: {
 
   return (
     <div
-      class="grid w-full text-sm py-2 px-2 min-h-[5.25rem]"
+      class={cn('grid w-full text-sm py-2 px-2', mobile && 'min-h-[5.25rem]')}
       style={{
         'grid-template-columns': mobile
           ? '3rem 1fr auto'
-          : '1.5rem 3rem 1fr auto',
+          : '1.5rem 1fr auto',
         gap: '0 0.75rem',
       }}
     >
-      <Show when={!mobile}>
+      <Show
+        when={mobile}
+        fallback={
+          <div
+            class="row-span-full flex justify-center relative group pt-1.5"
+            style={{ 'grid-column': '1' }}
+          >
+            <UnreadIndicator
+              active={props.unread}
+              class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+            />
+            <div
+              class={cn(
+                'absolute inset-0 flex justify-center pt-1.5',
+                props.checked
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100'
+              )}
+            >
+              <MultiSelectCheckbox
+                checked={props.checked}
+                onChecked={props.onChecked}
+              />
+            </div>
+          </div>
+        }
+      >
         <div
-          class="row-span-full flex items-start justify-center relative group"
+          class="row-span-full flex items-start justify-center"
           style={{ 'grid-column': '1' }}
         >
-          <UnreadIndicator
-            active={props.unread}
-            class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
-          />
-          <div
+          <button
+            type="button"
             class={cn(
-              'absolute inset-0 flex items-start justify-center pt-0.5',
+              'size-10 rounded-md grid place-items-center transition-colors',
               props.checked
-                ? 'opacity-100'
-                : 'opacity-0 group-hover:opacity-100'
+                ? 'bg-accent text-white'
+                : props.dmParticipantId
+                  ? ''
+                  : 'bg-ink/5 [&_svg]:size-6 [&>*]:size-6'
             )}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onChecked?.(!props.checked, e.shiftKey);
+            }}
           >
-            <MultiSelectCheckbox
-              checked={props.checked}
-              onChecked={props.onChecked}
-            />
-          </div>
+            <Show
+              when={props.checked}
+              fallback={
+                <Show when={props.dmParticipantId} fallback={props.icon}>
+                  {(participantId) => (
+                    <UserIcon
+                      id={participantId()}
+                      size="fill"
+                      rounded="md"
+                      class="size-10"
+                    />
+                  )}
+                </Show>
+              }
+            >
+              <CheckIcon class="size-5" />
+            </Show>
+          </button>
         </div>
       </Show>
-      <div
-        class="row-span-full flex items-start justify-center"
-        style={{ 'grid-column': mobile ? '1' : '2' }}
-      >
-        <button
-          type="button"
-          class={cn(
-            'size-10 rounded-md grid place-items-center transition-colors',
-            props.checked
-              ? 'bg-accent text-white'
-              : props.dmParticipantId
-                ? ''
-                : 'bg-ink/5 [&_svg]:size-6 [&>*]:size-6'
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            props.onChecked?.(!props.checked, e.shiftKey);
-          }}
-        >
-          <Show
-            when={props.checked}
-            fallback={
-              <Show when={props.dmParticipantId} fallback={props.icon}>
-                {(participantId) => (
-                  <UserIcon
-                    id={participantId()}
-                    size="fill"
-                    rounded="md"
-                    class="size-10"
-                  />
-                )}
-              </Show>
-            }
-          >
-            <CheckIcon class="size-5" />
-          </Show>
-        </button>
-      </div>
       <div
         class={cn('flex flex-col gap-0.5 min-w-0 pt-1.5', {
           'opacity-60': props.dimWhenRead && !props.unread,
         })}
-        style={{ 'grid-column': mobile ? '2' : '3' }}
+        style={{ 'grid-column': '2' }}
       >
         {props.children}
       </div>
       <div
         class="row-span-full flex items-start pt-1.5"
-        style={{ 'grid-column': mobile ? '3' : '4' }}
+        style={{ 'grid-column': '3' }}
       >
         {props.trailing}
       </div>
@@ -986,8 +1002,13 @@ function NarrowChannelLayout(
         </Show>
       }
     >
-      <span class="ph-no-capture text-sm font-medium truncate">
-        <Entity.Title entity={props.entity} />
+      <span class="flex items-center gap-1.5 min-w-0">
+        <span class="shrink-0 [&_svg]:size-4">
+          <Entity.Icon entity={props.entity} streamState={props.streamState} />
+        </span>
+        <span class="ph-no-capture text-sm font-medium truncate">
+          <Entity.Title entity={props.entity} />
+        </span>
       </span>
       <Show
         when={props.channel.latestMessage}
@@ -1165,79 +1186,103 @@ function TaskPropertyPills(props: {
 function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
   const mobile = isMobile();
 
+  const hasStatus = createMemo(() => {
+    const entity = props.entity as EntityWithProperties<EntityData>;
+    const soupProperties = entity.properties ?? [];
+    return soupProperties.some(
+      (p) =>
+        soupPropertyToProperty(p).propertyDefinitionId ===
+        SYSTEM_PROPERTY_IDS.STATUS
+    );
+  });
+
   return (
     <div
-      class="grid w-full text-sm py-2 px-2 min-h-[5.25rem]"
+      class={cn('grid w-full text-sm py-2 px-2', mobile && 'min-h-[5.25rem]')}
       style={{
-        'grid-template-columns': mobile ? '3rem 1fr' : '1.5rem 3rem 1fr',
+        'grid-template-columns': mobile ? '3rem 1fr' : '1.5rem 1fr',
         gap: '0 0.75rem',
       }}
     >
-      <Show when={!mobile}>
+      <Show
+        when={mobile}
+        fallback={
+          <div
+            class="row-span-full flex justify-center relative group pt-1.5"
+            style={{ 'grid-column': '1' }}
+          >
+            <UnreadIndicator
+              active={props.unread}
+              class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+            />
+            <div
+              class={cn(
+                'absolute inset-0 flex justify-center pt-1.5',
+                props.checked
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100'
+              )}
+            >
+              <MultiSelectCheckbox
+                checked={props.checked}
+                onChecked={props.onChecked}
+              />
+            </div>
+          </div>
+        }
+      >
         <div
-          class="row-span-full flex items-start justify-center relative group"
+          class="row-span-full flex items-start justify-center"
           style={{ 'grid-column': '1' }}
         >
-          <UnreadIndicator
-            active={props.unread}
-            class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
-          />
-          <div
-            class={cn(
-              'absolute inset-0 flex items-start justify-center pt-0.5',
-              props.checked
-                ? 'opacity-100'
-                : 'opacity-0 group-hover:opacity-100'
-            )}
-          >
-            <MultiSelectCheckbox
-              checked={props.checked}
-              onChecked={props.onChecked}
-            />
+          <div class="relative flex">
+            <button
+              type="button"
+              class={cn(
+                'size-10 rounded-md overflow-hidden transition-colors',
+                props.checked && 'ring-2 ring-accent'
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onChecked?.(!props.checked, e.shiftKey);
+              }}
+            >
+              <Show
+                when={props.checked}
+                fallback={<UserIcon id={props.entity.ownerId} size="fill" rounded="md" suppressClick />}
+              >
+                <div class="size-full bg-accent grid place-items-center text-white">
+                  <CheckIcon class="size-5" />
+                </div>
+              </Show>
+            </button>
+            <Show when={props.isShared}>
+              <div class="absolute -bottom-px -right-px rounded-sm bg-surface-0 p-0.5">
+                <UsersIcon class="size-3 opacity-70" />
+              </div>
+            </Show>
           </div>
         </div>
       </Show>
       <div
-        class="row-span-full flex items-start justify-center"
-        style={{ 'grid-column': mobile ? '1' : '2' }}
-      >
-        <div class="relative flex">
-          <button
-            type="button"
-            class={cn(
-              'size-10 rounded-md overflow-hidden transition-colors',
-              props.checked && 'ring-2 ring-accent'
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              props.onChecked?.(!props.checked, e.shiftKey);
-            }}
-          >
-            <Show
-              when={props.checked}
-              fallback={<UserIcon id={props.entity.ownerId} size="fill" rounded="md" suppressClick />}
-            >
-              <div class="size-full bg-accent grid place-items-center text-white">
-                <CheckIcon class="size-5" />
-              </div>
-            </Show>
-          </button>
-          <Show when={props.isShared}>
-            <div class="absolute -bottom-px -right-px rounded-sm bg-surface-0 p-0.5">
-              <UsersIcon class="size-3 opacity-70" />
-            </div>
-          </Show>
-        </div>
-      </div>
-      <div
         class="flex flex-col gap-0.5 min-w-0 pt-1.5"
-        style={{ 'grid-column': mobile ? '2' : '3' }}
+        style={{ 'grid-column': '2' }}
       >
         <span class="flex items-center gap-2 min-w-0">
           <span class="flex items-center gap-1.5 min-w-0">
-            <span class="shrink-0 [&_svg]:size-4">
-              <Entity.Icon entity={props.entity} />
-            </span>
+            <Show when={!mobile}>
+              <span class="shrink-0 [&_svg]:size-4">
+                <Show
+                  when={hasStatus()}
+                  fallback={<CircleDashedIcon class="size-4 text-ink-extra-muted" />}
+                >
+                  <TaskPropertyGroup
+                    entity={props.entity}
+                    include={[SYSTEM_PROPERTY_IDS.STATUS]}
+                  />
+                </Show>
+              </span>
+            </Show>
             <span class="ph-no-capture text-sm font-medium truncate">
               <Entity.Title entity={props.entity} />
             </span>
@@ -1247,21 +1292,39 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           </span>
         </span>
         <span class="text-sm text-ink-muted truncate min-h-[1.25rem]">
-          <Show when={isProjectContainedEntity(props.entity) && props.entity}>
-            {(entity) => (
-              <span class="ph-no-capture">
-                <ProjectBreadCrumb
-                  entity={entity()}
-                  onClick={props.onProjectClick}
-                />
-              </span>
-            )}
-          </Show>
+          <span class="flex items-center gap-1 text-xs text-ink/50">
+            <Show
+              when={props.isShared}
+              fallback={
+                <>
+                  <UserFillIcon class="size-3 shrink-0" />
+                  <DisplayName id={props.entity.ownerId} />
+                </>
+              }
+            >
+              <UsersIcon class="size-3 shrink-0" />
+              <DisplayName id={props.entity.ownerId} />
+            </Show>
+          </span>
         </span>
         <div class="flex flex-wrap items-center gap-1 min-w-0">
-          <TaskPropertyPills
-            entity={props.entity as EntityWithProperties<EntityData>}
-          />
+          <Show
+            when={mobile}
+            fallback={
+              <>
+                <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap shrink-0">
+                  <PriorityPillContent entity={props.entity as EntityWithProperties<EntityData>} />
+                </span>
+                <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap basis-24 grow max-w-fit overflow-hidden">
+                  <AssigneesPillContent entity={props.entity as EntityWithProperties<EntityData>} />
+                </span>
+              </>
+            }
+          >
+            <TaskPropertyPills
+              entity={props.entity as EntityWithProperties<EntityData>}
+            />
+          </Show>
         </div>
       </div>
     </div>
@@ -1271,6 +1334,8 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
 function NarrowDocumentLayout(
   props: BaseLayoutProps & { document: DocumentEntity }
 ) {
+  const mobile = isMobile();
+
   return (
     <NarrowIconShell
       checked={props.checked}
@@ -1295,16 +1360,20 @@ function NarrowDocumentLayout(
           <Entity.Title entity={props.entity} />
         </span>
       </span>
-      <Show when={isProjectContainedEntity(props.entity) && props.entity}>
-        {(entity) => (
-          <span class="ph-no-capture text-sm text-ink/50">
-            <ProjectBreadCrumb
-              entity={entity()}
-              onClick={props.onProjectClick}
-            />
-          </span>
-        )}
-      </Show>
+      <span class="flex items-center gap-1 text-xs text-ink/50">
+        <Show
+          when={props.isShared}
+          fallback={
+            <>
+              <UserFillIcon class="size-3 shrink-0" />
+              <DisplayName id={props.entity.ownerId} />
+            </>
+          }
+        >
+          <UsersIcon class="size-3 shrink-0" />
+          <DisplayName id={props.entity.ownerId} />
+        </Show>
+      </span>
     </NarrowIconShell>
   );
 }
@@ -1390,16 +1459,20 @@ function NarrowChatLayout(props: BaseLayoutProps & { chat: ChatEntity }) {
           <Entity.Title entity={props.entity} />
         </span>
       </span>
-      <Show when={isProjectContainedEntity(props.entity) && props.entity}>
-        {(entity) => (
-          <span class="ph-no-capture text-sm text-ink/50">
-            <ProjectBreadCrumb
-              entity={entity()}
-              onClick={props.onProjectClick}
-            />
-          </span>
-        )}
-      </Show>
+      <span class="flex items-center gap-1 text-xs text-ink/50">
+        <Show
+          when={props.isShared}
+          fallback={
+            <>
+              <UserFillIcon class="size-3 shrink-0" />
+              <DisplayName id={props.entity.ownerId} />
+            </>
+          }
+        >
+          <UsersIcon class="size-3 shrink-0" />
+          <DisplayName id={props.entity.ownerId} />
+        </Show>
+      </span>
     </NarrowIconShell>
   );
 }
