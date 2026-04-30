@@ -18,6 +18,7 @@ export type UserIconProps = {
   imageURL?: string;
   fetchUrl?: boolean;
   class?: string;
+  rounded?: 'full' | 'md' | 'sm' | 'none';
 } & ({ id: string; email?: never } | { email: string; id?: never });
 
 export type SizeClass = {
@@ -99,11 +100,21 @@ export function UserIcon(props: UserIconProps) {
     }
   };
 
+  const roundedClass = () => {
+    switch (props.rounded ?? 'full') {
+      case 'full': return 'rounded-full';
+      case 'md': return 'rounded-md';
+      case 'sm': return 'rounded-sm';
+      case 'none': return '';
+    }
+  };
+
   const icon = createMemo(() => (
     <div
       onMouseDown={props.suppressClick ? undefined : getOrCreateDm}
       class={cn(
-        'shrink-0 rounded-full bg-ink-extra-muted text-panel',
+        'shrink-0 bg-ink-extra-muted text-panel',
+        roundedClass(),
         sizeClasses().container,
         props.class
       )}
@@ -111,13 +122,13 @@ export function UserIcon(props: UserIconProps) {
       <Switch>
         <Match when={props.isDeleted}>
           <div
-            class={`${sizeClasses().container} shrink-0 rounded-full bg-ink-extra-muted/50 items-center`}
+            class={cn(sizeClasses().container, 'shrink-0 bg-ink-extra-muted/50 items-center', roundedClass())}
           >
             <Trash class={`${sizeClasses().icon} shrink-0`} />
           </div>
         </Match>
         <Match when={props.id} keyed>
-          {(id) => <ProfilePicture id={id} sizeClass={sizeClasses()} />}
+          {(id) => <ProfilePicture id={id} sizeClass={sizeClasses()} rounded={props.rounded} />}
         </Match>
         <Match when={!props.id && props.email} keyed>
           {(email) => (
@@ -125,6 +136,7 @@ export function UserIcon(props: UserIconProps) {
               id={undefined}
               email={email}
               sizeClass={sizeClasses()}
+              rounded={props.rounded}
             />
           )}
         </Match>

@@ -15,6 +15,7 @@ type ProfilePictureProps = {
   // TODO: remove. Not being used.
   imageUrl?: string;
   fetchUrl?: boolean;
+  rounded?: 'full' | 'md' | 'sm' | 'none';
 };
 
 // 16 megabytes
@@ -47,6 +48,15 @@ export function ProfilePicture(props: ProfilePictureProps) {
     return idToEmail(id);
   });
 
+  const roundedClass = () => {
+    switch (props.rounded ?? 'full') {
+      case 'full': return 'rounded-full';
+      case 'md': return 'rounded-md';
+      case 'sm': return 'rounded-sm';
+      case 'none': return '';
+    }
+  };
+
   if (!ENABLE_PROFILE_PICTURES) {
     return (
       <div class={`flex-shrink-0 ${props.sizeClass.text}`}>
@@ -75,11 +85,11 @@ export function ProfilePicture(props: ProfilePictureProps) {
     >
       {(url) => (
         <div
-          class={`${props.sizeClass.container} flex-shrink-0 overflow-hidden rounded-full`}
+          class={`${props.sizeClass.container} flex-shrink-0 overflow-hidden ${roundedClass()}`}
         >
           <img
             src={url}
-            class="object-cover rounded-full w-full h-full origin-[50%_20%]"
+            class={`object-cover w-full h-full origin-[50%_20%] ${roundedClass()}`}
           />
         </div>
       )}
