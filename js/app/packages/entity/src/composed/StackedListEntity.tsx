@@ -295,11 +295,11 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
           </Show>
         </span>
         <span class="flex items-center gap-1.5 min-w-0 mr-8">
-          <span class="shrink-0">
+          <span class="shrink-0 max-w-[50%] truncate">
             <Entity.Title entity={props.entity} />
           </span>
           <Show when={props.email.snippet}>
-            <span class="truncate text-ink/60 font-normal">
+            <span class="truncate text-ink/60 font-normal max-w-[50%]">
               {props.email.snippet}
             </span>
           </Show>
@@ -1259,29 +1259,9 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           </Show>
         </span>
         <div class="flex flex-wrap items-center gap-1 min-w-0">
-          <Show
-            when={mobile}
-            fallback={
-              <div class="flex items-center gap-1 shrink-0">
-                <TaskPropertyGroup
-                  entity={props.entity}
-                  include={[SYSTEM_PROPERTY_IDS.STATUS]}
-                />
-                <TaskPropertyGroup
-                  entity={props.entity}
-                  include={[SYSTEM_PROPERTY_IDS.PRIORITY]}
-                />
-                <TaskPropertyGroup
-                  entity={props.entity}
-                  include={[SYSTEM_PROPERTY_IDS.ASSIGNEES]}
-                />
-              </div>
-            }
-          >
-            <TaskPropertyPills
-              entity={props.entity as EntityWithProperties<EntityData>}
-            />
-          </Show>
+          <TaskPropertyPills
+            entity={props.entity as EntityWithProperties<EntityData>}
+          />
         </div>
       </div>
     </div>
