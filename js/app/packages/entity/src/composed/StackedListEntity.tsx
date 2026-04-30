@@ -169,7 +169,8 @@ function LayoutShell(props: {
       </div>
       <div
         class={cn('flex items-center min-w-0', {
-          'opacity-60': props.dimWhenRead && !props.unread,
+          'opacity-80 font-normal': props.dimWhenRead && !props.unread,
+          'font-semibold': props.unread,
         })}
       >
         {props.children}
@@ -288,7 +289,7 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
           </Switch>
         </div>
         <span class="flex items-center gap-1.5 min-w-0">
-          <span class="ph-no-capture font-medium truncate whitespace-nowrap">
+          <span class="ph-no-capture truncate whitespace-nowrap">
             <Entity.EmailParticipants entity={props.email} />
           </span>
           <Show when={props.isShared}>
@@ -348,7 +349,7 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
           </Show>
         </div>
         <span class="flex items-center gap-1.5 min-w-0">
-          <span class="ph-no-capture font-medium truncate whitespace-nowrap">
+          <span class="ph-no-capture truncate whitespace-nowrap">
             <Entity.Title entity={props.entity} />
           </span>
           <Show when={props.isShared}>
@@ -422,7 +423,7 @@ function ChannelMessageLayout(
           {(id) => (
             <span class="flex items-center gap-1 shrink-0">
               <UserIcon id={id()} size="xs" />
-              <span class="ph-no-capture font-medium">
+              <span class="ph-no-capture">
                 <DisplayName id={id()} format="firstName" />
               </span>
             </span>
@@ -472,7 +473,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           </Show>
         </div>
         <span class="flex items-center gap-1.5 min-w-0">
-          <span class="ph-no-capture text-sm font-medium truncate">
+          <span class="ph-no-capture text-sm truncate">
             <Entity.Title entity={props.entity} />
           </span>
           <Show when={props.isShared}>
@@ -540,7 +541,7 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
             <PhoneXIcon class="size-4 text-failure" />
           </Show>
         </div>
-        <span class="ph-no-capture font-medium truncate max-w-[50%]">
+        <span class="ph-no-capture truncate max-w-[50%]">
           <Entity.Title entity={props.entity} />
         </span>
         <Show
@@ -602,7 +603,7 @@ function AutomationLayout(
         <div class="[&_svg]:size-4 shrink-0">
           <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </div>
-        <span class="ph-no-capture font-medium truncate max-w-[50%]">
+        <span class="ph-no-capture truncate max-w-[50%]">
           <Entity.Title entity={props.entity} />
         </span>
         <Show when={props.isShared}>
@@ -652,7 +653,7 @@ function DefaultLayout(props: BaseLayoutProps) {
         <div class="[&_svg]:size-4 shrink-0">
           <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </div>
-        <span class="ph-no-capture font-medium truncate max-w-[50%]">
+        <span class="ph-no-capture truncate max-w-[50%]">
           <Entity.Title entity={props.entity} />
         </span>
         <Show when={props.isShared}>
@@ -786,7 +787,8 @@ function NarrowIconShell(props: {
       </Show>
       <div
         class={cn('flex flex-col gap-0.5 min-w-0 pt-1.5', {
-          'opacity-60': props.dimWhenRead && !props.unread,
+          'opacity-80 font-normal': props.dimWhenRead && !props.unread,
+          'font-semibold': props.unread,
         })}
         style={{ 'grid-column': '2' }}
       >
@@ -842,7 +844,7 @@ function NarrowEmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
         <span class="shrink-0 [&_svg]:size-4">
           {icon}
         </span>
-        <span class="ph-no-capture text-sm font-medium truncate">
+        <span class="ph-no-capture text-sm truncate">
           <Entity.EmailParticipants entity={props.email} />
         </span>
       </span>
@@ -948,7 +950,8 @@ function NarrowChannelShell(props: {
       </Show>
       <div
         class={cn('flex flex-col gap-0.5 min-w-0 pt-1.5', {
-          'opacity-60': props.dimWhenRead && !props.unread,
+          'opacity-80 font-normal': props.dimWhenRead && !props.unread,
+          'font-semibold': props.unread,
         })}
         style={{ 'grid-column': '2' }}
       >
@@ -1006,7 +1009,7 @@ function NarrowChannelLayout(
         <span class="shrink-0 [&_svg]:size-4">
           <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </span>
-        <span class="ph-no-capture text-sm font-medium truncate">
+        <span class="ph-no-capture text-sm truncate">
           <Entity.Title entity={props.entity} />
         </span>
       </span>
@@ -1283,7 +1286,7 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
                 </Show>
               </span>
             </Show>
-            <span class="ph-no-capture text-sm font-medium truncate">
+            <span class="ph-no-capture text-sm truncate">
               <Entity.Title entity={props.entity} />
             </span>
           </span>
@@ -1356,7 +1359,7 @@ function NarrowDocumentLayout(
         <span class="shrink-0 [&_svg]:size-4">
           <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </span>
-        <span class="ph-no-capture text-sm font-medium truncate">
+        <span class="ph-no-capture text-sm truncate">
           <Entity.Title entity={props.entity} />
         </span>
       </span>
@@ -1408,7 +1411,7 @@ function NarrowAutomationLayout(
         </span>
       }
     >
-      <span class="ph-no-capture text-sm font-medium truncate">
+      <span class="ph-no-capture text-sm truncate">
         <Entity.Title entity={props.entity} />
       </span>
       <div class="flex flex-wrap items-center gap-2 min-w-0 mt-1">
@@ -1455,7 +1458,7 @@ function NarrowChatLayout(props: BaseLayoutProps & { chat: ChatEntity }) {
         <span class="shrink-0 [&_svg]:size-4">
           <Entity.Icon entity={props.entity} streamState={props.streamState} />
         </span>
-        <span class="ph-no-capture text-sm font-medium truncate">
+        <span class="ph-no-capture text-sm truncate">
           <Entity.Title entity={props.entity} />
         </span>
       </span>
@@ -1495,7 +1498,7 @@ function NarrowDefaultLayout(props: BaseLayoutProps) {
         </span>
       }
     >
-      <span class="ph-no-capture text-sm font-medium truncate">
+      <span class="ph-no-capture text-sm truncate">
         <Entity.Title entity={props.entity} />
       </span>
       <Show when={isProjectContainedEntity(props.entity)}>
