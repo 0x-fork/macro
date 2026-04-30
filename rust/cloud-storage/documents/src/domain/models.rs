@@ -205,9 +205,9 @@ pub struct CreateTaskRequest {
     /// Defaults to true
     #[serde(default = "default_true")]
     pub share_with_team: bool,
-    /// Optional task body. When set, the bytes are uploaded to the
-    /// document's presigned URL after creation. When `None`, the task is
-    /// created with an empty body (sha = `EMPTY_SHA256`).
+    /// Optional task body. When set to a non-empty string, the bytes are
+    /// uploaded to the document's presigned URL after creation. When `None`
+    /// or empty, the task is created with an empty body (sha = `EMPTY_SHA256`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_content: Option<String>,
 }

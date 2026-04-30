@@ -993,13 +993,17 @@ impl<
         plain_user_id: String,
         request: CreateTaskRequest,
     ) -> Result<CreateTaskResponse, DocumentError> {
-        let upload = request.file_content.as_deref().map(|content| {
-            let bytes = content.as_bytes().to_vec();
-            let digest = Sha256::digest(&bytes);
-            let sha_hex = format!("{:x}", digest);
-            let sha_b64 = base64::engine::general_purpose::STANDARD.encode(digest);
-            (bytes, sha_hex, sha_b64)
-        });
+        let upload = request
+            .file_content
+            .as_deref()
+            .filter(|c| !c.is_empty())
+            .map(|content| {
+                let bytes = content.as_bytes().to_vec();
+                let digest = Sha256::digest(&bytes);
+                let sha_hex = format!("{:x}", digest);
+                let sha_b64 = base64::engine::general_purpose::STANDARD.encode(digest);
+                (bytes, sha_hex, sha_b64)
+            });
 
         let sha = upload
             .as_ref()

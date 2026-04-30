@@ -591,13 +591,16 @@ async fn create_macro_task(
     as_user: &str,
     issue: &Issue,
 ) -> Result<String> {
-    let payload = json!({
+    let body = build_task_body(issue);
+    let mut payload = json!({
         "taskName": format!("[{}] {}", issue.identifier, issue.title),
         "projectId": null,
         "propertyValues": build_property_values(issue),
         "shareWithTeam": true,
-        "fileContent": build_task_body(issue),
     });
+    if !body.is_empty() {
+        payload["fileContent"] = Value::String(body);
+    }
 
     let url = format!(
         "{}/internal/documents/create_task",
