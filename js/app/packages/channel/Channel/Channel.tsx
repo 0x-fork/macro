@@ -46,8 +46,10 @@ import { hasSendableInputContent } from '../Input/utils/sendable-content';
 import { ChannelInputContainer } from '../Input/ChannelInputContainer';
 import { createChannelMessageActions } from './create-channel-message-actions';
 import { useSplitLayout } from '@app/component/split-layout/layout';
+import { openChatWithInput } from '@app/component/ChatWithAgentButton';
 import { useChannelName, useChannelActivity } from '@core/context/channels';
 import { buildMentionMarkdownString, markdownToPlainText } from '@lexical-core';
+import { extractUserMentions } from '@core/util/taskExtraction';
 import { createActivityTracker } from '@channel/activity-tracker';
 import {
   invalidateChannelsActivity,
@@ -213,6 +215,21 @@ export function Channel(props: ChannelProps) {
   const channelName = useChannelName(props.channelId);
   const { popoverSplit } = useSplitLayout();
 
+  const buildChannelMessageMention = (message: {
+    id: string;
+    thread_id?: string | null;
+  }) =>
+    buildMentionMarkdownString({
+      type: 'document',
+      documentId: props.channelId,
+      documentName: channelName() ?? '',
+      blockName: 'channel',
+      blockParams: {
+        channel_message_id: message.id,
+        ...(message.thread_id && { channel_thread_id: message.thread_id }),
+      },
+    });
+
   const getMessageActions = createChannelMessageActions({
     channelId: () => props.channelId,
     userId,
@@ -231,25 +248,20 @@ export function Channel(props: ChannelProps) {
       const plainText = markdownToPlainText(ctx.message.content).trim();
       const title =
         plainText.length > 70 ? `${plainText.slice(0, 70)}...` : plainText;
+      const mentionedUserIds = extractUserMentions(ctx.message.content);
       popoverSplit({
         type: 'component',
         id: 'task-compose',
         params: {
           initialTitle: title,
-          initialContent: buildMentionMarkdownString({
-            type: 'document',
-            documentId: props.channelId,
-            documentName: channelName() ?? '',
-            blockName: 'channel',
-            blockParams: {
-              channel_message_id: ctx.message.id,
-              ...(ctx.message.thread_id && {
-                channel_thread_id: ctx.message.thread_id,
-              }),
-            },
-          }),
+          initialContent: buildChannelMessageMention(ctx.message),
+          initialAssigneeIds:
+            mentionedUserIds.length > 0 ? mentionedUserIds : undefined,
         },
       });
+    },
+    onChat: (ctx) => {
+      openChatWithInput(`${buildChannelMessageMention(ctx.message)}\n\n`);
     },
   });
 

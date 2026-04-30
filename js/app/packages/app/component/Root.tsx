@@ -91,6 +91,7 @@ import {
   useAnalytics,
 } from '@app/component/analytics-context';
 import { PosthogProvider, usePosthog } from '@app/lib/analytics/posthog';
+import { CallProvider } from '@channel/Call/CallContext';
 
 /** Syncs login cookie with auth state. Only updates on successful query (not errors/loading). */
 function useSyncLoginCookie() {
@@ -304,7 +305,7 @@ const ROUTES: RouteDefinition[] = [
   {
     path: '/welcome',
     component: () => (
-      <div class="flex *:flex-1 w-full h-dvh overflow-y-hidden">
+      <div class="flex *:flex-1 w-full h-full overflow-y-hidden">
         <InteractiveOnboarding />
       </div>
     ),
@@ -448,28 +449,30 @@ export function Root() {
                 <ConfiguredGlobalAppStateProvider>
                   <MutationUndoProvider>
                     <ChannelsContextProvider>
-                      <QuickAccessProvider>
-                        <SearchProvider>
-                          <ChatAttachmentsInit />
-                          <ReactiveFavicon />
-                          <Title>{tabTitle()}</Title>
-                          <Suspense>
-                            <IsomorphicRouter
-                              transformUrl={transformShortIdInUrlPathname}
-                              root={Layout}
-                              rootPreload={rootPreload}
-                              base={ROUTER_BASE}
-                            >
-                              {{
-                                path: '/',
-                                component: TauriRouteListener,
-                                children: ROUTES,
-                              }}
-                            </IsomorphicRouter>
-                          </Suspense>
-                          <ToastRegion />
-                        </SearchProvider>
-                      </QuickAccessProvider>
+                      <CallProvider>
+                        <QuickAccessProvider>
+                          <SearchProvider>
+                            <ChatAttachmentsInit />
+                            <ReactiveFavicon />
+                            <Title>{tabTitle()}</Title>
+                            <Suspense>
+                              <IsomorphicRouter
+                                transformUrl={transformShortIdInUrlPathname}
+                                root={Layout}
+                                rootPreload={rootPreload}
+                                base={ROUTER_BASE}
+                              >
+                                {{
+                                  path: '/',
+                                  component: TauriRouteListener,
+                                  children: ROUTES,
+                                }}
+                              </IsomorphicRouter>
+                            </Suspense>
+                            <ToastRegion />
+                          </SearchProvider>
+                        </QuickAccessProvider>
+                      </CallProvider>
                     </ChannelsContextProvider>
                   </MutationUndoProvider>
                 </ConfiguredGlobalAppStateProvider>

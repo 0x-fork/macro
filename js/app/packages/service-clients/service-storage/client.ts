@@ -34,6 +34,7 @@ import type { IDocumentStorageServiceFile } from '@filesystem/file';
 import { platformFetch } from 'core/util/platformFetch';
 import type {
   AccessLevel,
+  PostSoupAstRequest,
   CallRecordPreview,
   PostSoupRequest,
   SoupPage,
@@ -230,6 +231,20 @@ export const storageServiceClient = {
       : '';
 
     return await dssFetch<SoupPage>(`/items/soup${searchParams}`, {
+      method: 'POST',
+      body: JSON.stringify(args.body),
+    });
+  },
+
+  async getSoupAstItems(args: {
+    params: { cursor?: string | null };
+    body: PostSoupAstRequest;
+  }) {
+    const searchParams = args.params.cursor
+      ? `?cursor=${args.params.cursor}`
+      : '';
+
+    return await dssFetch<SoupPage>(`/items/soup/ast${searchParams}`, {
       method: 'POST',
       body: JSON.stringify(args.body),
     });
@@ -1044,20 +1059,16 @@ export const storageServiceClient = {
   getDocxExpandedParts,
 
   async upsertDocumentViewLocation({ documentId, location }) {
-    return ok(
-      await dssFetch<{}>(`/user_document_view_location/${documentId}`, {
-        method: 'POST',
-        body: JSON.stringify({ location }),
-      })
-    );
+    return await dssFetch<{}>(`/user_document_view_location/${documentId}`, {
+      method: 'POST',
+      body: JSON.stringify({ location }),
+    });
   },
 
   async deleteDocumentViewLocation({ documentId }) {
-    return ok(
-      await dssFetch<{}>(`/user_document_view_location/${documentId}`, {
-        method: 'DELETE',
-      })
-    );
+    return await dssFetch<{}>(`/user_document_view_location/${documentId}`, {
+      method: 'DELETE',
+    });
   },
 
   projects: {
@@ -1130,7 +1141,6 @@ export const storageServiceClient = {
       );
     },
 
-    // @ts-expect-error - TODO: we need to be able to return a string, the record<string, any> constraint is too strict
     async getUserAccessLevel({
       id,
     }): Promise<MaybeResult<FetchWithTokenErrorCode, AccessLevel>> {
@@ -1247,7 +1257,9 @@ export const storageServiceClient = {
       (result) => result.data
     );
   },
-} satisfies StorageServiceClient & typeof enhancements;
+} satisfies StorageServiceClient &
+  typeof enhancements &
+  Record<string, unknown>;
 
 export const uploadFileToPresignedUrl = async (
   presignedUrl: URL,
