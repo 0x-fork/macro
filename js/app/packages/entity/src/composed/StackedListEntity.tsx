@@ -682,6 +682,7 @@ function NarrowIconShell(props: {
   icon: JSX.Element;
   children: JSX.Element;
   trailing?: JSX.Element;
+  ownerId?: string;
 }) {
   const mobile = isMobile();
 
@@ -716,23 +717,32 @@ function NarrowIconShell(props: {
         class="row-span-full flex items-start justify-center"
         style={{ 'grid-column': mobile ? '1' : '2' }}
       >
-        <button
-          type="button"
-          class={cn(
-            'size-10 rounded-full grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
-            props.checked
-              ? 'bg-accent text-white'
-              : 'bg-ink/5'
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            props.onChecked?.(!props.checked, e.shiftKey);
-          }}
-        >
-          <Show when={props.checked} fallback={props.icon}>
-            <CheckIcon />
+        <div class="relative">
+          <button
+            type="button"
+            class={cn(
+              'size-10 rounded-full grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
+              props.checked
+                ? 'bg-accent text-white'
+                : 'bg-ink/5'
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onChecked?.(!props.checked, e.shiftKey);
+            }}
+          >
+            <Show when={props.checked} fallback={props.icon}>
+              <CheckIcon />
+            </Show>
+          </button>
+          <Show when={props.ownerId}>
+            {(ownerId) => (
+              <div class="absolute bottom-0 right-0 ring-2 ring-surface-0 rounded-full">
+                <UserIcon id={ownerId()} size="xs" />
+              </div>
+            )}
           </Show>
-        </button>
+        </div>
       </div>
       <div
         class={cn('flex flex-col gap-0.5 min-w-0 pt-1.5', {
@@ -1081,13 +1091,13 @@ function TaskPropertyPills(props: {
 }) {
   return (
     <>
-      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-full border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
+      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
         <StatusPillContent entity={props.entity} />
       </span>
-      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-full border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
+      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
         <PriorityPillContent entity={props.entity} />
       </span>
-      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-full border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
+      <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
         <AssigneesPillContent entity={props.entity} />
       </span>
     </>
@@ -1128,23 +1138,28 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
         class="row-span-full flex items-start justify-center"
         style={{ 'grid-column': mobile ? '1' : '2' }}
       >
-        <button
-          type="button"
-          class={cn(
-            'size-10 rounded-full grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
-            props.checked
-              ? 'bg-accent text-white'
-              : 'bg-ink/5'
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            props.onChecked?.(!props.checked, e.shiftKey);
-          }}
-        >
-          <Show when={props.checked} fallback={<Entity.Icon entity={props.entity} />}>
-            <CheckIcon />
-          </Show>
-        </button>
+        <div class="relative">
+          <button
+            type="button"
+            class={cn(
+              'size-10 rounded-full grid place-items-center [&_svg]:size-5 [&>*]:size-5 transition-colors',
+              props.checked
+                ? 'bg-accent text-white'
+                : 'bg-ink/5'
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onChecked?.(!props.checked, e.shiftKey);
+            }}
+          >
+            <Show when={props.checked} fallback={<Entity.Icon entity={props.entity} />}>
+              <CheckIcon />
+            </Show>
+          </button>
+          <div class="absolute bottom-0 right-0 ring-2 ring-surface-0 rounded-full">
+            <UserIcon id={props.entity.ownerId} size="xs" />
+          </div>
+        </div>
       </div>
       <div
         class="flex flex-col gap-0.5 min-w-0 pt-1.5"
@@ -1161,21 +1176,7 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
             <Entity.Timestamp entity={props.entity} />
           </span>
         </span>
-        <span class="flex items-center gap-1.5 text-sm text-ink/50">
-          Created by <UserIcon id={props.entity.ownerId} size="xs" /> <DisplayName id={props.entity.ownerId} format="firstName" />
-          <Show when={isProjectContainedEntity(props.entity) && props.entity}>
-            {(entity) => (
-              <span class="ph-no-capture text-ink-extra-muted">
-                {' · '}
-                <ProjectBreadCrumb
-                  entity={entity()}
-                  onClick={props.onProjectClick}
-                />
-              </span>
-            )}
-          </Show>
-        </span>
-        <div class="flex flex-wrap items-center gap-1 min-w-0 mt-1">
+        <div class="flex flex-wrap items-center gap-1 min-w-0">
           <Show
             when={mobile}
             fallback={
@@ -1210,6 +1211,7 @@ function NarrowDocumentLayout(props: BaseLayoutProps & { document: DocumentEntit
       onChecked={props.onChecked}
       unread={props.unread}
       icon={<Entity.Icon entity={props.entity} streamState={props.streamState} />}
+      ownerId={props.entity.ownerId}
       trailing={
         <span class="flex items-center gap-1.5 text-xs text-ink-extra-muted font-light whitespace-nowrap">
           <Show when={props.isShared}>
@@ -1222,20 +1224,16 @@ function NarrowDocumentLayout(props: BaseLayoutProps & { document: DocumentEntit
       <span class="ph-no-capture font-medium truncate">
         <Entity.Title entity={props.entity} />
       </span>
-      <span class="flex items-center gap-1.5 text-sm text-ink/50">
-        Owned by <UserIcon id={props.entity.ownerId} size="xs" /> <DisplayName id={props.entity.ownerId} format="firstName" />
-        <Show when={isProjectContainedEntity(props.entity) && props.entity}>
-          {(entity) => (
-            <span class="ph-no-capture text-ink-extra-muted">
-              {' · '}
-              <ProjectBreadCrumb
-                entity={entity()}
-                onClick={props.onProjectClick}
-              />
-            </span>
-          )}
-        </Show>
-      </span>
+      <Show when={isProjectContainedEntity(props.entity) && props.entity}>
+        {(entity) => (
+          <span class="ph-no-capture text-sm text-ink/50">
+            <ProjectBreadCrumb
+              entity={entity()}
+              onClick={props.onProjectClick}
+            />
+          </span>
+        )}
+      </Show>
     </NarrowIconShell>
   );
 }
@@ -1271,7 +1269,7 @@ function NarrowAutomationLayout(props: BaseLayoutProps & { automation: Automatio
       <div class="flex flex-wrap items-center gap-2 min-w-0 mt-1">
         <span
           class={cn(
-            'flex items-center gap-1.5 px-1 py-0.5 rounded-full border text-xs whitespace-nowrap',
+            'flex items-center gap-1.5 px-1 py-0.5 rounded-xs border text-xs whitespace-nowrap',
             isRunning()
               ? 'border-accent/30 text-accent'
               : 'border-edge-muted text-ink-muted'
@@ -1282,7 +1280,7 @@ function NarrowAutomationLayout(props: BaseLayoutProps & { automation: Automatio
           </Show>
           {statusText()}
         </span>
-        <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-full border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
+        <span class="flex items-center gap-1.5 px-1 py-0.5 rounded-xs border border-edge-muted text-xs text-ink-muted whitespace-nowrap">
           <UserIcon id={props.entity.ownerId} size="xs" />
           <DisplayName id={props.entity.ownerId} format="firstName" />
         </span>
@@ -1298,6 +1296,7 @@ function NarrowChatLayout(props: BaseLayoutProps & { chat: ChatEntity }) {
       onChecked={props.onChecked}
       unread={props.unread}
       icon={<Entity.Icon entity={props.entity} streamState={props.streamState} />}
+      ownerId={props.entity.ownerId}
       trailing={
         <span class="flex items-center gap-1.5 text-xs text-ink-extra-muted font-light whitespace-nowrap">
           <Show when={props.isShared}>
@@ -1310,20 +1309,16 @@ function NarrowChatLayout(props: BaseLayoutProps & { chat: ChatEntity }) {
       <span class="ph-no-capture font-medium truncate">
         <Entity.Title entity={props.entity} />
       </span>
-      <span class="flex items-center gap-1.5 text-sm text-ink/50">
-        Owned by <UserIcon id={props.entity.ownerId} size="xs" /> <DisplayName id={props.entity.ownerId} format="firstName" />
-        <Show when={isProjectContainedEntity(props.entity) && props.entity}>
-          {(entity) => (
-            <span class="ph-no-capture text-ink-extra-muted">
-              {' · '}
-              <ProjectBreadCrumb
-                entity={entity()}
-                onClick={props.onProjectClick}
-              />
-            </span>
-          )}
-        </Show>
-      </span>
+      <Show when={isProjectContainedEntity(props.entity) && props.entity}>
+        {(entity) => (
+          <span class="ph-no-capture text-sm text-ink/50">
+            <ProjectBreadCrumb
+              entity={entity()}
+              onClick={props.onProjectClick}
+            />
+          </span>
+        )}
+      </Show>
     </NarrowIconShell>
   );
 }
