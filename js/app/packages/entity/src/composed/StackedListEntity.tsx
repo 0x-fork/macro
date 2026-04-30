@@ -189,7 +189,7 @@ function SharedIndicator(props: { ownerId: string }) {
         </div>
       }
     >
-      <ArrowDownLeftIcon class="size-3 text-ink-muted shrink-0" />
+      <UsersIcon class="size-3.5 text-ink-muted opacity-70 shrink-0" />
     </Tooltip>
   );
 }
