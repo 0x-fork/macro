@@ -92,9 +92,7 @@ function NotificationStackRow(props: {
     <ContextMenu>
       <ContextMenu.Trigger class="size-full">
         <div
-          class={cn(
-            'flex p-2 pr-0 my-1 border-l-2 border-edge-muted bg-edge/10 gap-4 hover:bg-edge/20 min-w-0 overflow-hidden'
-          )}
+          class="flex py-1.5 px-2 gap-3 hover:bg-hover/20 rounded-xs min-w-0 overflow-hidden cursor-pointer group/notification-row transition-colors"
           onClick={handleClick}
           role="button"
           tabIndex={0}
@@ -110,48 +108,33 @@ function NotificationStackRow(props: {
             }
           }}
         >
-          <div class="pt-1 flex-shrink-0">
+          <div class="flex items-center justify-center w-4 shrink-0">
+            <UnreadIndicator active={unread()} />
+          </div>
+          <div class="shrink-0">
             <NotificationIcon stack={props.stack} class="size-4" />
           </div>
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1 text-xs min-w-0 overflow-hidden">
-              <span
-                class={cn(
-                  'w-0 transition-[width] overflow-hidden duration-500 ease flex-shrink-0',
-                  {
-                    'w-4': unread(),
-                  }
-                )}
-              >
-                <UnreadIndicator active />
-              </span>
-              <div class="flex-shrink-0">
+            <div class="flex items-center gap-2 text-sm min-w-0">
+              <div class="shrink-0">
                 <NotificationSenderIcon stack={props.stack} size="xs" />
               </div>
               <span class="ph-no-capture truncate min-w-0">
                 <NotificationDescription stack={props.stack} />
               </span>
-              <span class="text-ink-extra-muted/50 flex-shrink-0">
-                {' - '}
+              <span class="text-xs text-ink-extra-muted shrink-0 ml-auto">
                 <NotificationTimestamp stack={props.stack} />
               </span>
-              <div class="ml-auto flex items-center gap-1 pr-2 flex-shrink-0">
-                <Button
-                  onClick={handleMarkAsDone}
-                  tooltip={'Mark notification done'}
-                  class="border border-edge-muted text-xs text-ink-muted grid p-0 place-items-center size-6"
-                >
-                  <CheckIcon class="size-3" />
-                </Button>
-              </div>
+              <Button
+                onClick={handleMarkAsDone}
+                tooltip="Mark done"
+                class="opacity-0 group-hover/notification-row:opacity-100 border border-edge-muted text-xs text-ink-muted grid p-0 place-items-center size-5 shrink-0"
+              >
+                <CheckIcon class="size-3" />
+              </Button>
             </div>
-            <div
-              class={cn('ph-no-capture mt-1 min-w-0', {
-                'truncate overflow-hidden':
-                  props.stack.type !== 'document_mention' && !props.content,
-              })}
-            >
-              {props.content ?? <NotificationContent stack={props.stack} />}
+            <div class="ph-no-capture text-xs text-ink-muted truncate mt-0.5">
+              <NotificationContent stack={props.stack} singleLine />
             </div>
           </div>
         </div>
