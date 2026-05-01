@@ -92,6 +92,7 @@ import {
 } from '@app/component/analytics-context';
 import { PosthogProvider, usePosthog } from '@app/lib/analytics/posthog';
 import { CallProvider } from '@channel/Call/CallContext';
+import { CallStartedNotifier } from '@channel/Call/CallStartedNotifier';
 
 /** Syncs login cookie with auth state. Only updates on successful query (not errors/loading). */
 function useSyncLoginCookie() {
@@ -450,6 +451,7 @@ export function Root() {
                   <MutationUndoProvider>
                     <ChannelsContextProvider>
                       <CallProvider>
+                        <CallStartedNotifier />
                         <QuickAccessProvider>
                           <SearchProvider>
                             <ChatAttachmentsInit />
