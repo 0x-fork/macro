@@ -414,6 +414,10 @@
   }
 }
 
+@utility custom-scrollbar {
+  scrollbar-width: thin;
+}
+
 :root {
   --viewport-padding: 16px;
   --keyboard-height: 0px;
@@ -762,9 +766,9 @@ html[data-modality="keyboard"] [contenteditable="true"]:focus-visible::after {
 }
 
 ::-webkit-scrollbar {
-    height: 8px;
+    height: 6px;
     /* Thickness of horizontal scrollbar */
-    width: 8px;
+    width: 6px;
     /* Thickness of vertical scrollbar */
     overflow: auto;
 }

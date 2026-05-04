@@ -220,7 +220,7 @@ export function ChannelCompose() {
         <div class="h-full items-center flex" p-1></div>
       </SplitToolbarLeft>
       <div class="relative flex flex-col w-full h-full panel">
-        <div class="pt-2 h-full grow w-full overflow-y-auto @min-[40rem]:px-4">
+        <div class="pt-2 h-full grow w-full overflow-y-auto custom-scrollbar @min-[40rem]:px-4">
           <div class="macro-message-width macro-message-padding mx-auto pb-1 h-full">
             <input
               type="text"

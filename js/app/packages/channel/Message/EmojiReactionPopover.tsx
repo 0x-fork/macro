@@ -66,7 +66,7 @@ export function EmojiReactionPopover(props: EmojiReactionPopoverProps) {
                   />
                 </div>
               </div>
-              <div class="grow overflow-y-auto overflow-x-hidden mt-2">
+              <div class="grow overflow-y-auto overflow-x-hidden custom-scrollbar mt-2">
                 <EmojiSelector
                   nameFilter={query()}
                   onEmojiClick={(emoji) => {
