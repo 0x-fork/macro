@@ -16,7 +16,7 @@ export function CallRecordingMediaColumn(props: {
   setVideoRef: Setter<HTMLVideoElement | undefined>;
 }) {
   return (
-    <div class="flex min-h-0 min-w-0 flex-col overflow-hidden">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <Show when={props.record().recordingUrl}>
         {(url) => (
           <div class="min-h-0 flex-1 overflow-hidden">

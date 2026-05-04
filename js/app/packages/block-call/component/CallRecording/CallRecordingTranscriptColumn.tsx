@@ -21,7 +21,7 @@ export function CallRecordingTranscriptColumn(props: {
   return (
     <div
       class={cn(
-        'relative flex min-h-0 min-w-0 flex-col overflow-hidden border-t border-edge-muted/50'
+        'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-edge-muted/50'
       )}
     >
       <Show

@@ -16,7 +16,7 @@ export function CallRecordingInfoColumn(props: {
   return (
     <div
       class={cn(
-        'flex min-h-0 min-w-0 flex-col overflow-hidden',
+        'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
         !props.isStacked() && 'border-l border-edge-muted/50'
       )}
     >

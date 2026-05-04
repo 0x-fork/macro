@@ -214,7 +214,7 @@ export function CallRecordingBody(props: {
       >
         <div
           class={cn(
-            'min-h-0 min-w-0 overflow-hidden',
+            'flex min-h-0 min-w-0 flex-col overflow-hidden',
             !isStacked() && 'col-start-1 row-start-1'
           )}
         >
@@ -227,8 +227,8 @@ export function CallRecordingBody(props: {
         </div>
         <div
           class={cn(
-            'min-h-0 min-w-0 overflow-hidden',
-            !isStacked() && 'col-start-2 row-start-1'
+            'flex min-h-0 min-w-0 flex-col overflow-hidden',
+            !isStacked() && 'col-start-2 row-start-1 row-end-3'
           )}
         >
           <CallRecordingInfoColumn
@@ -240,8 +240,8 @@ export function CallRecordingBody(props: {
         </div>
         <div
           class={cn(
-            'min-h-0 min-w-0 overflow-hidden',
-            !isStacked() && 'col-start-1 col-end-3 row-start-2'
+            'flex min-h-0 min-w-0 flex-col overflow-hidden',
+            !isStacked() && 'col-start-1 row-start-2'
           )}
         >
           <CallRecordingTranscriptColumn
