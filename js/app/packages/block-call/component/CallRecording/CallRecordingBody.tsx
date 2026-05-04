@@ -207,7 +207,7 @@ export function CallRecordingBody(props: {
                 'grid-cols-[minmax(0,6fr)_minmax(0,4fr)]',
                 'transition-[grid-template-rows] duration-300 linear',
                 transcriptOpen()
-                  ? 'grid-rows-[minmax(0,3fr)_minmax(0,2fr)]'
+                  ? 'grid-rows-[minmax(0,2fr)_minmax(0,3fr)]'
                   : 'grid-rows-[minmax(0,1fr)_minmax(0,0fr)]'
               )
         )}
