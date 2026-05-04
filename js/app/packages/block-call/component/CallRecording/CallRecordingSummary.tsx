@@ -1,4 +1,6 @@
 import Notepad from '@phosphor-icons/core/assets/regular/notepad.svg';
+import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+import { channelTheme } from '@core/component/LexicalMarkdown/theme';
 import type { CallRecord } from '@service-storage/generated/schemas/callRecord';
 import type { Accessor } from 'solid-js';
 import { Show, createMemo, createSignal } from 'solid-js';
@@ -26,8 +28,12 @@ export function CallRecordingSummarySection(props: {
           open={open()}
           onToggle={() => setOpen((v) => !v)}
         >
-          <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden px-4 py-3">
-            <p class="whitespace-pre-wrap text-sm text-ink">{text()}</p>
+          <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden px-4 py-3 text-sm text-ink">
+            <StaticMarkdown
+              markdown={text()}
+              theme={channelTheme}
+              target="internal"
+            />
           </div>
         </CallRecordingSectionShell>
       )}

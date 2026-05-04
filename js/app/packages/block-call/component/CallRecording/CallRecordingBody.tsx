@@ -15,6 +15,7 @@ import {
   sortTranscriptSegments,
 } from '../transcript-playback';
 import type { CallTranscriptTarget } from '../CallBlockAdapter';
+import { CallRecordingInfoColumn } from './CallRecordingInfoColumn';
 import {
   CallRecordingMediaColumn,
   type CallRecordingTimeUpdateSource,
@@ -58,12 +59,6 @@ export function CallRecordingBody(props: {
   const [transcriptOpen, setTranscriptOpen] = createSignal(true);
   const [participantsOpen, setParticipantsOpen] = createSignal(false);
   const [layoutDefaultsSeeded, setLayoutDefaultsSeeded] = createSignal(false);
-  const [suppressWideParticipantsMotion, setSuppressWideParticipantsMotion] =
-    createSignal(false);
-  const [participantsContentRef, setParticipantsContentRef] =
-    createSignal<HTMLDivElement>();
-  const [participantsContentHeight, setParticipantsContentHeight] =
-    createSignal(0);
   const [videoSeekGeneration, setVideoSeekGeneration] = createSignal(0);
   let lastVideoSeekBumpKey: string | null = null;
   let lastVideoSeekBumpAtMs = 0;
@@ -166,11 +161,9 @@ export function CallRecordingBody(props: {
       setIsStacked(stacked);
 
       if (!layoutDefaultsSeeded()) {
-        if (!stacked) setSuppressWideParticipantsMotion(true);
         setParticipantsOpen(!stacked);
         setLayoutDefaultsSeeded(true);
         prevLayoutStacked = stacked;
-        queueMicrotask(() => setSuppressWideParticipantsMotion(false));
         return;
       }
 
@@ -180,10 +173,8 @@ export function CallRecordingBody(props: {
           if (transcriptOpen() && participantsOpen())
             setParticipantsOpen(false);
         } else {
-          setSuppressWideParticipantsMotion(true);
           setTranscriptOpen(hasTranscripts());
           setParticipantsOpen(true);
-          queueMicrotask(() => setSuppressWideParticipantsMotion(false));
         }
       }
 
@@ -193,16 +184,6 @@ export function CallRecordingBody(props: {
     const observer = new ResizeObserver(updateLayout);
     observer.observe(el);
     untrack(() => updateLayout());
-    onCleanup(() => observer.disconnect());
-  });
-
-  createEffect(() => {
-    const el = participantsContentRef();
-    if (!el) return;
-    const updateHeight = () => setParticipantsContentHeight(el.scrollHeight);
-    updateHeight();
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(el);
     onCleanup(() => observer.disconnect());
   });
 
@@ -219,39 +200,59 @@ export function CallRecordingBody(props: {
       <div
         ref={setContainerRef}
         class={cn(
-          'grid min-h-0 flex-1 overflow-hidden grid-cols-1',
+          'grid min-h-0 flex-1 overflow-hidden',
           isStacked()
-            ? 'grid-rows-1'
-            : 'transition-[grid-template-columns] duration-300 linear grid-rows-1',
-          !isStacked() &&
-            (transcriptOpen()
-              ? 'grid-cols-[minmax(0,6fr)_minmax(0,4fr)]'
-              : 'grid-cols-[minmax(0,1fr)_minmax(0,0fr)]')
+            ? 'grid-cols-1 grid-rows-[minmax(0,1fr)_auto_auto]'
+            : cn(
+                'grid-cols-[minmax(0,6fr)_minmax(0,4fr)]',
+                'transition-[grid-template-rows] duration-300 linear',
+                transcriptOpen()
+                  ? 'grid-rows-[minmax(0,3fr)_minmax(0,2fr)]'
+                  : 'grid-rows-[minmax(0,1fr)_minmax(0,0fr)]'
+              )
         )}
       >
-        <div class="contents @[860px]:contents">
+        <div
+          class={cn(
+            'min-h-0 min-w-0 overflow-hidden',
+            !isStacked() && 'col-start-1 row-start-1'
+          )}
+        >
           <CallRecordingMediaColumn
             record={record}
             hasTranscripts={hasTranscripts}
-            isStacked={isStacked}
-            participantsOpen={participantsOpen}
-            suppressWideParticipantsMotion={suppressWideParticipantsMotion}
-            participantsContentHeight={participantsContentHeight}
-            setParticipantsContentRef={setParticipantsContentRef}
             onTimeUpdate={handleTimeUpdate}
             setVideoRef={setVideoRef}
           />
+        </div>
+        <div
+          class={cn(
+            'min-h-0 min-w-0 overflow-hidden',
+            !isStacked() && 'col-start-2 row-start-1'
+          )}
+        >
+          <CallRecordingInfoColumn
+            record={record}
+            isStacked={isStacked}
+            participantsOpen={participantsOpen}
+            onToggleParticipants={toggleParticipants}
+          />
+        </div>
+        <div
+          class={cn(
+            'min-h-0 min-w-0 overflow-hidden',
+            !isStacked() && 'col-start-1 col-end-3 row-start-2'
+          )}
+        >
           <CallRecordingTranscriptColumn
             record={record}
             hasTranscripts={hasTranscripts}
             isStacked={isStacked}
             transcriptOpen={transcriptOpen}
-            participantsOpen={participantsOpen}
             activeSequenceNum={activeSequenceNum}
             timelineStartMs={timelineStartMs}
             videoSeekGeneration={videoSeekGeneration}
             onToggleTranscript={toggleTranscript}
-            onToggleParticipants={toggleParticipants}
             onSeekToSeconds={seekToSeconds}
           />
         </div>
