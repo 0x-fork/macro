@@ -92,7 +92,6 @@ import {
   MobileSoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
-import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
 import { MobileFilterDrawer } from '@app/component/next-soup/soup-view/filters-bar/mobile-filter-drawer';
 import { SettingsButton } from '@app/component/settings/SettingsButton';
 import { isListViewID, type ListView } from '@app/constants/list-views';
@@ -102,7 +101,7 @@ import {
   SplitHeaderRight,
 } from '@app/component/split-layout/components/SplitHeader';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
-import { SoupFiltersBar, SoupPreviewButton } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
+import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import {
@@ -283,12 +282,7 @@ export const SoupView = (props: SoupViewProps) => {
           <div class="flex flex-col w-full">
             <SplitHeaderLeft>
               <div
-                class={cn('h-full flex gap-3 items-center', {
-                  'shrink-0':
-                    !narrowSearchExpanded() && !isComponentListView('search'),
-                  'flex-1 min-w-0':
-                    narrowSearchExpanded() || isComponentListView('search'),
-                })}
+                class="h-full flex gap-3 items-center min-w-0 flex-1"
               >
                 <Show
                   when={isComponentListView('search')}
@@ -299,7 +293,7 @@ export const SoupView = (props: SoupViewProps) => {
                           {props.viewName}
                         </h1>
                         <Show when={!isComponentListView('search')}>
-                          <SoupViewTabs />
+                          <SoupViewTabs overflow />
                         </Show>
                       </Show>
                       <Show when={!narrowSearchExpanded()}>
@@ -331,10 +325,6 @@ export const SoupView = (props: SoupViewProps) => {
               </div>
             </SplitHeaderLeft>
             <SplitHeaderRight>
-              <Show when={!isMobile()}>
-                <SoupViewCreateButton />
-                <SoupPreviewButton />
-              </Show>
               <Show when={isMobile() && !narrowSearchExpanded()}>
                 <SettingsButton />
               </Show>

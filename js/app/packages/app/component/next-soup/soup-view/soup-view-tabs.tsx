@@ -10,7 +10,19 @@ import { isListViewID, type ListView } from '@app/constants/list-views';
 import { useUserContext } from '@core/context/user';
 import { cn } from '@ui/utils/classname';
 import { Tabs } from '@core/component/Tabs';
-import { batch, createMemo, For, Match, Switch } from 'solid-js';
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+  Switch,
+} from 'solid-js';
 
 type TabItem = {
   value: string;
@@ -19,6 +31,7 @@ type TabItem = {
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import { Layer } from '@ui';
 import ChevronDownIcon from '@icon/regular/caret-down.svg';
+import DotsThreeIcon from '@icon/regular/dots-three.svg';
 
 /** Views that have tab definitions. Shared between VIEW_TAB_LISTS and VIEW_TAB_PRESETS. */
 export type TabbedListView = Extract<
@@ -118,15 +131,16 @@ export const useApplyPreset = () => {
   return { applyTabPreset };
 };
 
-export const SoupViewTabs = () => {
+export const SoupViewTabs = (props: { overflow?: boolean }) => {
   const listView = useCurrentListView();
+  const TabsComponent = props.overflow ? OverflowViewTabs : ViewTabs;
 
   return (
     <Switch>
       <For each={Object.keys(VIEW_TAB_LISTS) as TabbedListView[]}>
         {(v) => (
           <Match when={listView() === v}>
-            <ViewTabs view={v} />
+            <TabsComponent view={v} />
           </Match>
         )}
       </For>
@@ -157,6 +171,160 @@ const ViewTabs = (props: { view: TabbedListView }) => {
           </button>
         )}
       </For>
+    </div>
+  );
+};
+
+const TAB_BUTTON_CLASS = cn(
+  'px-2 py-0.5 text-xs rounded-sm transition-colors whitespace-nowrap'
+);
+
+const OverflowViewTabs = (props: { view: TabbedListView }) => {
+  const { applyTabPreset } = useApplyPreset();
+  const { activeTab } = useSoupView();
+  const list = () => VIEW_TAB_LISTS[props.view];
+
+  let measureRef: HTMLDivElement | undefined;
+  let rafId: number | undefined;
+  let tabWidths: number[] = [];
+
+  const [visibleCount, setVisibleCount] = createSignal(list().length);
+  const [containerRef, setContainerRef] = createSignal<HTMLDivElement | null>(null);
+
+  const measureTabWidths = () => {
+    if (!measureRef) return;
+    const buttons = measureRef.querySelectorAll('button');
+    tabWidths = Array.from(buttons).map((btn) => btn.offsetWidth);
+  };
+
+  const calculateVisibleTabs = () => {
+    const container = containerRef();
+    if (!container || tabWidths.length === 0) return;
+
+    const containerWidth = container.offsetWidth;
+    const items = list();
+    const overflowButtonWidth = 32;
+    const gap = 4;
+
+    let totalWidth = 0;
+    let count = 0;
+
+    for (let i = 0; i < items.length; i++) {
+      const btnWidth = tabWidths[i] || 50;
+      const widthWithGap = totalWidth + btnWidth + (count > 0 ? gap : 0);
+      const needsOverflow = i < items.length - 1;
+      const availableWidth = needsOverflow
+        ? containerWidth - overflowButtonWidth - gap
+        : containerWidth;
+
+      if (widthWithGap <= availableWidth) {
+        totalWidth = widthWithGap;
+        count++;
+      } else {
+        break;
+      }
+    }
+
+    setVisibleCount(Math.max(1, count));
+  };
+
+  createEffect(
+    on(list, () => {
+      measureTabWidths();
+      calculateVisibleTabs();
+    })
+  );
+
+  createEffect(() => {
+    const container = containerRef();
+    if (!container) return;
+
+    measureTabWidths();
+
+    const observer = new ResizeObserver(calculateVisibleTabs);
+    observer.observe(container);
+
+    calculateVisibleTabs();
+
+    onCleanup(() => observer.disconnect());
+  });
+
+  const visibleTabs = () => list().slice(0, visibleCount());
+  const overflowTabs = () => list().slice(visibleCount());
+  const hasOverflow = () => overflowTabs().length > 0;
+
+  return (
+    <div ref={setContainerRef} class="relative flex-1 min-w-0">
+      {/* Hidden measure container */}
+      <div
+        ref={measureRef}
+        class="fixed invisible pointer-events-none flex items-center gap-1"
+        aria-hidden="true"
+      >
+        <For each={list()}>
+          {(item) => (
+            <button type="button" class={TAB_BUTTON_CLASS}>
+              {item.label}
+            </button>
+          )}
+        </For>
+      </div>
+
+      {/* Visible tabs */}
+      <div class="flex items-center gap-1">
+        <For each={visibleTabs()}>
+          {(item) => (
+            <button
+              type="button"
+              class={cn(
+                TAB_BUTTON_CLASS,
+                activeTab() === item.value
+                  ? 'bg-ink/10 text-ink'
+                  : 'text-ink-extra-muted hover:text-ink hover:bg-ink/5'
+              )}
+              onClick={() => applyTabPreset(props.view, item.value)}
+            >
+              {item.label}
+            </button>
+          )}
+        </For>
+
+        {/* Overflow dropdown */}
+        <Show when={hasOverflow()}>
+          <DropdownMenu placement="bottom-start" gutter={4}>
+            <DropdownMenu.Trigger
+              class={cn(
+                TAB_BUTTON_CLASS,
+                overflowTabs().some((t) => t.value === activeTab())
+                  ? 'bg-ink/10 text-ink'
+                  : 'text-ink-extra-muted hover:text-ink hover:bg-ink/5'
+              )}
+            >
+              <DotsThreeIcon class="size-4" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <Layer depth={2}>
+                <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-sm p-1 min-w-[100px]">
+                  <For each={overflowTabs()}>
+                    {(item) => (
+                      <DropdownMenu.Item
+                        class="w-full px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+                        classList={{
+                          'font-medium text-ink': activeTab() === item.value,
+                          'text-ink-muted': activeTab() !== item.value,
+                        }}
+                        onSelect={() => applyTabPreset(props.view, item.value)}
+                      >
+                        {item.label}
+                      </DropdownMenu.Item>
+                    )}
+                  </For>
+                </DropdownMenu.Content>
+              </Layer>
+            </DropdownMenu.Portal>
+          </DropdownMenu>
+        </Show>
+      </div>
     </div>
   );
 };
