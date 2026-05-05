@@ -102,3 +102,8 @@ fn debug_output_is_simple_string() {
     let id_str = MacroUserIdStr::parse_from_str("macro|hutch@macro.com").unwrap();
     assert_eq!(format!("{:?}", id_str), "macro|hutch@macro.com");
 }
+
+#[test]
+fn temp_cache_bust_test() {
+    assert!(temp());
+}

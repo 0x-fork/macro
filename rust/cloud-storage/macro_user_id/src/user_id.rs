@@ -125,6 +125,7 @@ impl<'a> Deref for MacroUserIdStr<'a> {
 impl<'a> MacroUserIdStr<'a> {
     /// parse the inner value from the input string
     pub fn parse_from_str(s: &'a str) -> Result<Self, ParseErr> {
+        tracing::info!("temp");
         MacroUserId::parse_from_str(s)
             .map(|id| id.lowercase())
             .map(MacroUserIdStr)
@@ -256,4 +257,9 @@ impl<'a> MacroUserId<ArcCowStr<'a>> {
     pub fn lowercase(self) -> MacroUserId<Lowercase<'a>> {
         self.map(Lowercase::new)
     }
+}
+
+/// temp
+pub fn temp() -> bool {
+    true
 }

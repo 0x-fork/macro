@@ -287,6 +287,16 @@ jobs:
         run: |
           cd rust/cloud-storage
 
+          CACHE_BUST="$(date +%s)"
+          export SCCACHE_DISABLE=1
+          unset RUSTC_WRAPPER
+          export RUSTFLAGS="${RUSTFLAGS:-} --cfg sccache_bust_${CACHE_BUST}"
+          export CFLAGS="${CFLAGS:-} -DSCCACHE_BUST_${CACHE_BUST}=1"
+          export CXXFLAGS="${CXXFLAGS:-} -DSCCACHE_BUST_${CACHE_BUST}=1"
+          export CPPFLAGS="${CPPFLAGS:-} -DSCCACHE_BUST_${CACHE_BUST}=1"
+          export CFLAGS_x86_64_unknown_linux_gnu="${CFLAGS_x86_64_unknown_linux_gnu:-} -DSCCACHE_BUST_${CACHE_BUST}=1"
+          export CXXFLAGS_x86_64_unknown_linux_gnu="${CXXFLAGS_x86_64_unknown_linux_gnu:-} -DSCCACHE_BUST_${CACHE_BUST}=1"
+
           args=(--all-features --lib --bins --tests --test-threads "$NEXTEST_TEST_THREADS")
           if [ -n "$NEXTEST_FILTER" ]; then
             args+=(-E "$NEXTEST_FILTER")
