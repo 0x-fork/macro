@@ -149,7 +149,7 @@ const ViewTabs = (props: { view: TabbedListView }) => {
               'px-2 py-0.5 text-xs rounded-sm transition-colors',
               activeTab() === item.value
                 ? 'bg-ink/10 text-ink'
-                : 'text-ink-muted hover:text-ink hover:bg-ink/5'
+                : 'text-ink-extra-muted hover:text-ink hover:bg-ink/5'
             )}
             onClick={() => applyTabPreset(props.view, item.value)}
           >

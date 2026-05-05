@@ -906,6 +906,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                           onScrollBottom={debouncedFetchMore}
                           scrollBottomOffset={300}
                           rows={rows()}
+                          hasMoreData={source.hasNextPage()}
                         >
                           {(row, i) => {
                             const timestamp = () => {
@@ -1021,7 +1022,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                   </div>
                                 </Show>
                                 <Show when={i() === rows().length - 1}>
-                                  <div class="h-15" />
+                                  <div class="h-8" />
                                 </Show>
                               </>
                             );
@@ -1088,6 +1089,7 @@ interface SoupListProps {
   scrollBottomOffset?: number;
   rows: SoupRow[];
   cache?: CacheSnapshot;
+  hasMoreData?: boolean;
 }
 
 const SoupList = (props: SoupListProps) => {
@@ -1126,22 +1128,42 @@ const SoupList = (props: SoupListProps) => {
     }
   };
 
+  const EndOfListIndicator = () => (
+    <div class="flex flex-col items-center justify-center py-4 text-ink-extra-muted">
+      <div class="w-full h-px bg-edge-muted mb-3" />
+      <span class="text-xs">You're all caught up ✨</span>
+    </div>
+  );
+
+  const dataWithEnd = () =>
+    stableRows.length > 0 && !props.hasMoreData
+      ? [...stableRows, { id: '__end__', type: 'end' } as unknown as SoupRow]
+      : stableRows;
+
   return (
     <div
       ref={props.ref}
       class={cn('unified-table-body size-full relative p-2', props.class)}
     >
+      <div class="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none" />
+      <div class="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-panel to-transparent z-10 pointer-events-none" />
       <VList
         cache={props.cache}
         ref={registerVirtualizerHandler}
         class={props.virtualizerClass}
-        data={stableRows}
+        data={dataWithEnd()}
         itemSize={itemSize()}
         bufferSize={overscan() * itemSize()}
         onScroll={handleScroll}
         data-soup-list-container
       >
-        {(row, i) => props.children(row, i)}
+        {(row, i) =>
+          row.id === '__end__' ? (
+            <EndOfListIndicator />
+          ) : (
+            props.children(row, i)
+          )
+        }
       </VList>
     </div>
   );
