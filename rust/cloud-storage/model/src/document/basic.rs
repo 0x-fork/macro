@@ -5,6 +5,50 @@ use crate::document::FileTypeExt;
 use macro_user_id::user_id::MacroUserIdStr;
 use utoipa::ToSchema;
 
+/// Metadata DSS keeps about a markdown document's sync-service state.
+///
+/// The sync service remains the source of truth for collaboration. These fields are a DSS-side
+/// cache/pointer used to avoid hot-path `/exists` checks and to locate the latest mirrored Loro
+/// snapshot in the document storage bucket.
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Eq,
+    PartialEq,
+    Debug,
+    Clone,
+    ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentSyncServiceState {
+    /// When DSS first learned that this document was initialized in sync-service.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initialized_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// The sync-service/Loro frontier string for the mirrored snapshot.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version_id: Option<String>,
+    /// S3 object key for the latest mirrored Loro snapshot.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_key: Option<String>,
+    /// Hex SHA-256 of the latest mirrored Loro snapshot bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_sha256: Option<String>,
+    /// Size in bytes of the latest mirrored Loro snapshot.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_size_bytes: Option<i64>,
+    /// Timestamp supplied by sync-service for the latest mirrored snapshot.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_updated_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl DocumentSyncServiceState {
+    /// Returns true when DSS can treat the document as initialized in sync-service.
+    pub fn is_initialized(&self) -> bool {
+        self.initialized_at.is_some()
+    }
+}
+
 #[derive(sqlx::FromRow, serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct Document {
@@ -108,6 +152,8 @@ pub struct DocumentBasic {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_id: Option<String>,
     pub deleted_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sync_service: Option<DocumentSyncServiceState>,
 }
 
 /// Returns basic information of a document used for document context
@@ -133,5 +179,11 @@ impl DocumentBasic {
             .as_deref()
             .map(FileType::from_str)
             .and_then(Result::ok)
+    }
+
+    pub fn is_sync_service_initialized(&self) -> bool {
+        self.sync_service
+            .as_ref()
+            .is_some_and(DocumentSyncServiceState::is_initialized)
     }
 }

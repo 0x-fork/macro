@@ -31,6 +31,8 @@ bucket_name = "document-snapshot-bucket-dev"
 
 [vars]
 INTERNAL_API_SECRET_KEY = "LOCAL_API_KEY"
+DSS_INTERNAL_API_SECRET_KEY = "LOCAL_API_KEY"
+DSS_URL = "http://localhost:8086"
 SPS_URL = "https://search-processing-dev.macro.com"
 
 [[kv_namespaces]]
@@ -51,6 +53,8 @@ name = "sync-service-dev3"
 
 [env.dev.vars]
 INTERNAL_API_SECRET_KEY = "SYNC_SERVICE_KEY_DEV"
+DSS_INTERNAL_API_SECRET_KEY = "DOCUMENT_STORAGE_SERVICE_AUTH_KEY_DEV"
+DSS_URL = "https://cloud-storage-dev.macro.com"
 ENVIRONMENT = "development"
 SPS_URL = "https://search-processing-dev.macro.com"
 
@@ -88,6 +92,8 @@ name = "sync-service-prod2"
 
 [env.prod.vars]
 INTERNAL_API_SECRET_KEY = "SYNC_SERVICE_KEY_PROD"
+DSS_INTERNAL_API_SECRET_KEY = "DOCUMENT_STORAGE_SERVICE_AUTH_KEY_PROD"
+DSS_URL = "https://cloud-storage.macro.com"
 ENVIRONMENT = "production"
 SPS_URL = "https://search-processing.macro.com"
 

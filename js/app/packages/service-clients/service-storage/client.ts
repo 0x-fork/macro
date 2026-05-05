@@ -124,6 +124,14 @@ export type Success = {
 };
 type SuccessResponse = { data: Success };
 
+export type SyncServiceSnapshotLocation = {
+  snapshotUrl: string;
+  versionId?: string | null;
+  sha256?: string | null;
+  sizeBytes?: number | null;
+  snapshotUpdatedAt?: string | null;
+};
+
 export type ItemType =
   | CloudStorageItemType
   | 'channel'
@@ -1038,6 +1046,18 @@ export const storageServiceClient = {
       return mapOk(maybeResult, (result) => ({
         data: result,
       }));
+    },
+    {
+      minutes: MINUTES_BEFORE_PRESIGNED_EXPIRES,
+    }
+  ),
+
+  getSyncServiceSnapshotLocation: cache(
+    async function getSyncServiceSnapshotLocation(args) {
+      const { documentId } = args;
+      return await dssFetch<SyncServiceSnapshotLocation>(
+        `/documents/${documentId}/sync_service/snapshot`
+      );
     },
     {
       minutes: MINUTES_BEFORE_PRESIGNED_EXPIRES,

@@ -6,6 +6,9 @@ pub const CONVERTED_DOCUMENT_FILE_NAME: &str = "converted";
 /// The prefix used for temporary files in S3.
 pub const TEMP_FILE_PREFIX: &str = "temp_files";
 
+/// The prefix used for sync-service Loro snapshots mirrored into the document storage bucket.
+pub const SYNC_SERVICE_SNAPSHOT_PREFIX: &str = "sync_service_snapshots";
+
 /// The file extension for PDF files.
 pub const PDF_EXTENSION: &str = "pdf";
 
@@ -19,6 +22,8 @@ pub const DOCX_EXTENSION: &str = "docx";
 /// - `ConvertedPdf`: `{user_id}/{document_id}/converted.pdf` — a DOCX converted to PDF
 /// - `TempDocx`: `temp_files/{document_id}.docx` — a temporary DOCX export
 /// - `BomPart`: `{sha}` — a content-addressable BOM part from DOCX uploads
+/// - `SyncServiceSnapshot`: `sync_service_snapshots/{document_id}/{millis}-{sha256}.loro`
+///   — a DSS-mirrored sync-service Loro snapshot cache entry
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum DocumentKey {
     /// A versioned document: `{user_id}/{document_id}/{version_id}`
@@ -47,6 +52,15 @@ pub enum DocumentKey {
         /// The SHA hash of the BOM part.
         sha: String,
     },
+    /// A DSS-mirrored sync-service Loro snapshot cache entry.
+    SyncServiceSnapshot {
+        /// The document ID.
+        document_id: String,
+        /// Sync-service supplied snapshot timestamp in milliseconds.
+        snapshot_updated_at_ms: i64,
+        /// Hex SHA-256 of the snapshot bytes.
+        sha256: String,
+    },
 }
 
 const SHA256_HEX_LEN: usize = 64;
@@ -69,6 +83,28 @@ impl DocumentKey {
                     .context(format!("expected .docx extension, got '{filename}'"))?;
                 Ok(Self::TempDocx {
                     document_id: document_id.to_string(),
+                })
+            }
+            3 if split[0] == SYNC_SERVICE_SNAPSHOT_PREFIX => {
+                let document_id = split[1].to_string();
+                let filename = split[2];
+                let snapshot_suffix = ".loro";
+                let stem = filename
+                    .strip_suffix(snapshot_suffix)
+                    .context(format!("expected .loro extension, got '{filename}'"))?;
+                let (millis, sha256) = stem.split_once('-').context(format!(
+                    "expected '<millis>-<sha256>' snapshot filename, got '{filename}'"
+                ))?;
+                let snapshot_updated_at_ms: i64 = millis
+                    .parse()
+                    .context(format!("invalid snapshot timestamp: '{millis}'"))?;
+                if !is_sha256_hex(sha256) {
+                    anyhow::bail!("invalid snapshot sha256: '{sha256}'");
+                }
+                Ok(Self::SyncServiceSnapshot {
+                    document_id,
+                    snapshot_updated_at_ms,
+                    sha256: sha256.to_string(),
                 })
             }
             3 => {
@@ -108,7 +144,8 @@ impl DocumentKey {
         match self {
             Self::Versioned { document_id, .. }
             | Self::ConvertedPdf { document_id, .. }
-            | Self::TempDocx { document_id } => Some(document_id),
+            | Self::TempDocx { document_id }
+            | Self::SyncServiceSnapshot { document_id, .. } => Some(document_id),
             Self::BomPart { .. } => None,
         }
     }
@@ -128,6 +165,11 @@ impl DocumentKey {
         matches!(self, Self::BomPart { .. })
     }
 
+    /// Returns `true` if this is a sync-service Loro snapshot cache key.
+    pub fn is_sync_service_snapshot(&self) -> bool {
+        matches!(self, Self::SyncServiceSnapshot { .. })
+    }
+
     /// Returns `true` if this is a converted DOCX-to-PDF key.
     pub fn is_converted_pdf(&self) -> bool {
         matches!(self, Self::ConvertedPdf { .. })
@@ -142,7 +184,7 @@ impl DocumentKey {
         match self {
             Self::Versioned { version_id, .. } => Some(version_id.to_string()),
             Self::ConvertedPdf { .. } => Some(CONVERTED_DOCUMENT_FILE_NAME.to_string()),
-            Self::TempDocx { .. } | Self::BomPart { .. } => None,
+            Self::TempDocx { .. } | Self::BomPart { .. } | Self::SyncServiceSnapshot { .. } => None,
         }
     }
 
@@ -160,6 +202,11 @@ impl DocumentKey {
             } => build_docx_to_pdf_converted_document_key(user_id, document_id),
             Self::TempDocx { document_id } => build_temp_docx_key(document_id),
             Self::BomPart { sha } => sha.clone(),
+            Self::SyncServiceSnapshot {
+                document_id,
+                snapshot_updated_at_ms,
+                sha256,
+            } => build_sync_service_snapshot_key(document_id, *snapshot_updated_at_ms, sha256),
         }
     }
 }
@@ -231,6 +278,16 @@ pub fn build_docx_staging_bucket_document_key(
 /// Format: `temp_files/{document_id}.docx`
 pub fn build_temp_docx_key(document_id: &str) -> String {
     format!("{}/{}.{}", TEMP_FILE_PREFIX, document_id, DOCX_EXTENSION)
+}
+
+/// Builds the S3 key for a sync-service Loro snapshot mirrored into the document storage bucket.
+/// Format: `sync_service_snapshots/{document_id}/{snapshot_updated_at_ms}-{sha256}.loro`.
+pub fn build_sync_service_snapshot_key(
+    document_id: &str,
+    snapshot_updated_at_ms: i64,
+    sha256: &str,
+) -> String {
+    format!("{SYNC_SERVICE_SNAPSHOT_PREFIX}/{document_id}/{snapshot_updated_at_ms}-{sha256}.loro")
 }
 
 #[cfg(test)]

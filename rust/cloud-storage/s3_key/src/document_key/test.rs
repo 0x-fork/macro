@@ -141,3 +141,39 @@ fn test_build_temp_docx_key() {
     let key = build_temp_docx_key("document-id");
     assert_eq!(key, "temp_files/document-id.docx");
 }
+
+#[test]
+fn test_build_sync_service_snapshot_key() {
+    let key = build_sync_service_snapshot_key(
+        "document-id",
+        1_715_020_000_123,
+        "7b5ce90c96ec3c24d8764ba75076bc0c2c5256b2d44e71cf9a8f001ea21ed678",
+    );
+    assert_eq!(
+        key,
+        "sync_service_snapshots/document-id/1715020000123-7b5ce90c96ec3c24d8764ba75076bc0c2c5256b2d44e71cf9a8f001ea21ed678.loro"
+    );
+}
+
+#[test]
+fn test_sync_service_snapshot_key_from_s3_key() {
+    let key = DocumentKey::from_s3_key(
+        "sync_service_snapshots/document-id/1715020000123-7b5ce90c96ec3c24d8764ba75076bc0c2c5256b2d44e71cf9a8f001ea21ed678.loro",
+    )
+    .unwrap();
+    assert_eq!(
+        key,
+        DocumentKey::SyncServiceSnapshot {
+            document_id: "document-id".to_string(),
+            snapshot_updated_at_ms: 1_715_020_000_123,
+            sha256: "7b5ce90c96ec3c24d8764ba75076bc0c2c5256b2d44e71cf9a8f001ea21ed678".to_string(),
+        }
+    );
+    assert_eq!(key.document_id(), Some("document-id"));
+    assert!(key.is_sync_service_snapshot());
+    assert_eq!(key.version_id_string(), None);
+    assert_eq!(
+        key.to_key(),
+        "sync_service_snapshots/document-id/1715020000123-7b5ce90c96ec3c24d8764ba75076bc0c2c5256b2d44e71cf9a8f001ea21ed678.loro"
+    );
+}

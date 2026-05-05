@@ -89,6 +89,7 @@ pub async fn copy_docx_document(
         created_at: document.created_at,
         updated_at: document.updated_at,
         sub_type: None,
+        sync_service: None,
         deleted_at: None,
     })
 }
@@ -204,6 +205,7 @@ pub async fn copy_non_docx_document(
         created_at: document.created_at,
         updated_at: document.updated_at,
         sub_type: original_document.sub_type,
+        sync_service: None,
         deleted_at: None,
     })
 }

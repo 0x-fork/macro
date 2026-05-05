@@ -11001,7 +11001,13 @@ name = "sync_service"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "chrono",
+ "hex",
+ "s3_key",
  "serde",
+ "sha2",
+ "sqlx",
+ "tracing",
  "utoipa",
 ]
 

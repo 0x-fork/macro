@@ -124,6 +124,9 @@ pub struct DocumentResponseMetadata {
     /// The sub type of the document if present.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sub_type: Option<DocumentSubType>,
+    /// DSS-side cache/pointer for markdown documents initialized in sync-service.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sync_service: Option<crate::document::DocumentSyncServiceState>,
 }
 
 impl DocumentResponseMetadata {
@@ -144,6 +147,7 @@ impl DocumentResponseMetadata {
             created_at: document_metadata.created_at,
             updated_at: document_metadata.updated_at,
             sub_type: document_metadata.sub_type,
+            sync_service: document_metadata.sync_service.clone(),
         }
     }
 

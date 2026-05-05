@@ -20,7 +20,7 @@ use model_entity::Entity;
 use super::models::{
     CommentThread, CopyDocumentRepoArgs, CreateDocumentRepoArgs, CreateTaskRequest,
     CreateTaskResponse, DocumentError, EditDocumentRepoArgs, EditDocumentServiceArgs,
-    LocationQueryParams,
+    LocationQueryParams, SyncServiceSnapshotLocationResponse,
 };
 
 /// Repository for accessing document data from the database.
@@ -262,6 +262,13 @@ pub trait DocumentService: Send + Sync + 'static {
         entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
         params: LocationQueryParams,
     ) -> impl Future<Output = Result<LocationResponseV3, DocumentError>> + Send;
+
+    /// Get the latest DSS-mirrored sync-service snapshot location.
+    fn get_sync_service_snapshot_location(
+        &self,
+        document_context: &DocumentBasic,
+        entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> impl Future<Output = Result<SyncServiceSnapshotLocationResponse, DocumentError>> + Send;
 
     /// Soft-delete a document and update project modified timestamp.
     fn delete_document(

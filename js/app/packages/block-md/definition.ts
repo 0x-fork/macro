@@ -15,8 +15,6 @@ import { fetchBinary } from '@service-storage/util/fetchBinary';
 import { makeFileFromBlob } from '@service-storage/util/makeFileFromBlob';
 import { syncServiceClient } from '@service-sync/client';
 import { createSyncServiceSource } from '@service-sync/source';
-import { untrack } from 'solid-js';
-import { createStore } from 'solid-js/store';
 import MarkdownBlock from './component/Block';
 import type { MarkdownRewriteOutput } from './signal/rewriteSignal';
 
@@ -51,19 +49,6 @@ export const MARKDOWN_LORO_SCHEMA = schema({
   root: nodeSchema,
 });
 
-/** 5 second cache timeout */
-const CACHE_THRESHOLD = 5000;
-const [existsCache, setExistsCache] = createStore<
-  Record<
-    string,
-    | {
-        exists: boolean;
-        fetchedAt: number;
-      }
-    | undefined
-  >
->({});
-
 const getExists = async (documentId: string): Promise<boolean> => {
   const existsResult = await syncServiceClient.exists({
     documentId,
@@ -73,23 +58,17 @@ const getExists = async (documentId: string): Promise<boolean> => {
   return existsResultExists;
 };
 
-const prefetchExists = async (documentId: string) => {
-  const exists = await getExists(documentId);
-  setExistsCache(documentId, {
-    exists,
-    fetchedAt: Date.now(),
-  });
+type DocumentMetadataSyncServiceState = {
+  syncService?:
+    | {
+        initializedAt?: string | null;
+      }
+    | null;
 };
 
-const fetchExists = async (documentId: string) => {
-  const cached = untrack(() => existsCache[documentId]);
-  if (cached && cached.fetchedAt + CACHE_THRESHOLD > Date.now()) {
-    setExistsCache(documentId, undefined);
-    return cached.exists;
-  }
-  const exists = await getExists(documentId);
-  return exists;
-};
+const isSyncServiceInitialized = (
+  documentMetadata: DocumentMetadataSyncServiceState
+) => Boolean(documentMetadata.syncService?.initializedAt);
 
 /**
  * Migrates a document from dss to the sync-service.
@@ -154,16 +133,14 @@ export const definition = defineBlock({
     if (source.type === 'sync-service') {
       const documentId = source.id;
       if (intent === 'preload') {
-        await prefetchExists(documentId);
         return ok({
           type: 'preload',
           origin: source,
         });
       }
 
-      const [maybeDocument, exists, maybeToken] = await Promise.all([
+      const [maybeDocument, maybeToken] = await Promise.all([
         loadResult(storageServiceClient.getDocumentMetadata({ documentId })),
-        fetchExists(documentId),
         storageServiceClient.permissionsTokens.createPermissionToken({
           document_id: documentId,
         }),
@@ -179,6 +156,12 @@ export const definition = defineBlock({
 
       const [, documentResult] = maybeDocument;
       const { documentMetadata, userAccessLevel } = documentResult;
+
+      const exists = isSyncServiceInitialized(
+        documentMetadata as DocumentMetadataSyncServiceState
+      )
+        ? true
+        : await getExists(documentId);
 
       // If the document does not exist in the sync-service,
       // but it does exist in dss we should try and initialize it.

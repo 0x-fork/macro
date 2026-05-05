@@ -175,6 +175,27 @@ pub struct LocationQueryParams {
     pub get_converted_docx_url: Option<bool>,
 }
 
+/// Signed URL and metadata for the latest DSS-mirrored sync-service snapshot.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct SyncServiceSnapshotLocationResponse {
+    /// Signed URL for the Loro snapshot bytes.
+    pub snapshot_url: String,
+    /// Sync-service/Loro frontier string for the mirrored snapshot.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version_id: Option<String>,
+    /// Hex SHA-256 of the mirrored snapshot bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+    /// Size in bytes of the mirrored snapshot.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size_bytes: Option<i64>,
+    /// Timestamp supplied by sync-service for the mirrored snapshot.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_updated_at: Option<DateTime<Utc>>,
+}
+
 /// Property input for setting a property value on a task.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]

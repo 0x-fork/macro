@@ -365,11 +365,33 @@ impl DocumentSyncSession {
             debug!(document_id = document_id, "Initializing snapshot");
             let body_raw = req.bytes().await?;
             let body = InitializeFromSnapshotRequest::deserialize(&body_raw).with_context(|| format!("Failed to deserialize InitializeFromSnapshotRequest with document_id: [{document_id}]"))?;
-            storage.store_snapshot(&body.snapshot).await?;
+            let snapshot = body.snapshot.as_ref();
+            let document_state = DocumentState::try_from_snapshot(snapshot)
+                .context("failed to import initial snapshot")?;
+            let version_id = document_state.version_id();
+            storage.store_snapshot(snapshot).await?;
+
+            if let Err(err) = crate::dss::put_sync_snapshot(
+                &self.env,
+                document_id,
+                &version_id,
+                Date::now().as_millis() as i64,
+                snapshot,
+                false,
+            )
+            .await
+            {
+                warn!(error=?err, document_id=?document_id, "failed to mirror initial snapshot to DSS");
+            }
+
             *self
                 .document_id
                 .lock("DocumentSyncSession::document_id set within initialize_handler") =
                 Some(Arc::new(document_id.to_string()));
+            *self
+                .document_state
+                .lock("DocumentSyncSession::document_state set within initialize_handler") =
+                Some(Arc::new(document_state));
             self.state
                 .storage()
                 .put(DOCUMENT_ID_KEY, document_id.to_string())
@@ -839,12 +861,31 @@ impl DurableObject for DocumentSyncSession {
             // Keeps the worker alive for DEFAULT_TIME_TO_LIVE
             keepalive(DEFAULT_TIME_TO_LIVE);
 
+            let document_id = self.document_id().await?;
             let doc_state = self.document_state().await?;
             let (sf, of) = doc_state.frontiers();
+            let snapshot = doc_state
+                .export_snapshot(None)
+                .context("failed to export snapshot for alarm save")?;
+            let version_id = doc_state.version_id();
+            let snapshot_updated_at_ms = Date::now().as_millis() as i64;
             seshs
-                .store_snapshot(&doc_state)
+                .store_snapshot_bytes(&snapshot, &doc_state)
                 .await
                 .context("failed to store snapshot")?;
+
+            if let Err(err) = crate::dss::put_sync_snapshot(
+                &self.env,
+                &document_id,
+                &version_id,
+                snapshot_updated_at_ms,
+                &snapshot,
+                true,
+            )
+            .await
+            {
+                warn!(error=?err, document_id=?document_id, "failed to mirror saved snapshot to DSS");
+            }
 
             debug!(state_frontiers =? sf, oplog_frontiers =? of, "Stored new DocumentState");
             seshs

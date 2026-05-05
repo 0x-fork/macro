@@ -73,8 +73,17 @@ impl SessionStorage {
     /// Store a new snapshot in the snapshot storage
     pub async fn store_snapshot(&self, doc_state: &DocumentState) -> Result<()> {
         let snapshot = doc_state.export_snapshot(None)?;
+        self.store_snapshot_bytes(&snapshot, doc_state).await
+    }
+
+    /// Store an already-exported snapshot in the snapshot storage.
+    pub async fn store_snapshot_bytes(
+        &self,
+        snapshot: &[u8],
+        doc_state: &DocumentState,
+    ) -> Result<()> {
         let num_bytes = snapshot.len();
-        let (res, elap) = timeit!(self.snapshot_storage.store_snapshot(&snapshot).await?);
+        let (res, elap) = timeit!(self.snapshot_storage.store_snapshot(snapshot).await?);
         trace!(
             num_bytes = num_bytes,
             duration_ms = elap.as_millis(),

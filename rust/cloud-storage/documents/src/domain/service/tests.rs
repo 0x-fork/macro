@@ -26,6 +26,7 @@ fn make_test_metadata() -> DocumentMetadata {
         updated_at: None,
         deleted_at: None,
         sub_type: None,
+        sync_service: None,
     }
 }
 

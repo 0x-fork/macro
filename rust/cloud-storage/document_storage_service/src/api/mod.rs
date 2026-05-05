@@ -240,7 +240,22 @@ fn api_router(state: ApiContext) -> Router {
                         sync_service_hex::inbound::axum_router::SyncServiceRouterState {
                             service: state.sync_service_client.clone(),
                         },
-                    ),
+                    )
+                    .merge(sync_service_hex::inbound::axum_router::sync_snapshot_mirror_router(
+                        sync_service_hex::inbound::axum_router::SyncSnapshotMirrorRouterState {
+                            service: std::sync::Arc::new(
+                                sync_service_hex::domain::service::SyncSnapshotMirrorServiceImpl::new(
+                                    sync_service_hex::outbound::pg_snapshot_metadata_repo::PgSyncSnapshotMetadataRepo::new(
+                                        state.db.clone(),
+                                    ),
+                                    crate::service::sync_service_snapshot::DssSyncSnapshotStore::new(
+                                        state.s3_client.clone(),
+                                    ),
+                                    state.sync_service_client.as_ref().clone(),
+                                ),
+                            ),
+                        },
+                    )),
                 )
                 .layer(
                     ServiceBuilder::new()
