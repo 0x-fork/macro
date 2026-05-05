@@ -298,6 +298,9 @@ export const SoupView = (props: SoupViewProps) => {
                         <h1 class="font-semibold text-ink select-none text-base shrink-0">
                           {props.viewName}
                         </h1>
+                        <Show when={!isComponentListView('search')}>
+                          <SoupViewTabs />
+                        </Show>
                       </Show>
                       <Show when={!narrowSearchExpanded()}>
                         <Show when={isMobile()}>
@@ -336,11 +339,6 @@ export const SoupView = (props: SoupViewProps) => {
                 <SettingsButton />
               </Show>
             </SplitHeaderRight>
-            <Show when={!isMobile() && !isComponentListView('search')}>
-              <div class="px-4 pt-2 pb-1">
-                <SoupViewTabs />
-              </div>
-            </Show>
             <SoupFiltersBar />
           </div>
           <Show when={hasLinkError()}>
