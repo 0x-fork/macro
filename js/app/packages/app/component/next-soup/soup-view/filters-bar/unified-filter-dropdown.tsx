@@ -19,7 +19,7 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import SlidersHorizontalIcon from '@macro-icons/wide/sliders-horizontal.svg';
+import SlidersIcon from '@icon/regular/sliders-horizontal.svg';
 import CaretRightIcon from '@icon/regular/caret-right.svg';
 import CheckIcon from '@icon/regular/check.svg';
 import CircleDashedIcon from '@icon/regular/circle-dashed.svg';
@@ -803,10 +803,9 @@ export const UnifiedFilterDropdown = () => {
             as={Button}
             variant="secondary"
             size="sm"
-            class="rounded-xs [&_svg]:size-4"
+            class="rounded-xs [&_svg]:size-4 py-1.5"
           >
-            <SlidersHorizontalIcon />
-            <span class="font-medium">Filter</span>
+            <SlidersIcon />
           </DropdownMenu.Trigger>
         </Tooltip>
 

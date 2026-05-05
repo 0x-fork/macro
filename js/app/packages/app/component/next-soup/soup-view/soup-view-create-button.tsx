@@ -10,11 +10,13 @@ import {
 } from '@core/util/upload';
 import { useHandleFileUpload } from '@app/util/handleFileUpload';
 import type { BlockAlias, BlockName } from '@core/block';
-import ChevronDownIcon from '@icon/regular/caret-down.svg';
+import CaretDownIcon from '@icon/regular/caret-down.svg';
+import PlusIcon from '@icon/regular/plus.svg';
 import UploadIcon from '@icon/regular/upload-simple.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
+import { cn } from '@ui/utils/classname';
 import { createMemo, For, Show } from 'solid-js';
-import { Button } from '@ui/components/Button';
+import { Button } from './filters-bar/button';
 import { NewCallButton } from './NewCallButton';
 
 // Which blocks to show as create options per view, in order
@@ -123,6 +125,9 @@ export const SoupViewCreateButton = () => {
     runCreateAction(option.id);
   };
 
+  const primaryOption = () => options()[0];
+  const hasMultipleOptions = () => options().length > 1;
+
   return (
     <>
       <Show when={currentView() === 'calls'}>
@@ -130,43 +135,47 @@ export const SoupViewCreateButton = () => {
       </Show>
       <Show when={options().length > 0}>
         <Show
-          when={options().length > 1}
+          when={hasMultipleOptions()}
           fallback={
             <Button
-              variant="secondary"
+              variant="tertiary"
               size="sm"
-              class="rounded-xs whitespace-nowrap px-2 text-ink-muted hover:text-ink"
-              onClick={() => handleSelect(options()[0])}
+              class="rounded-xs py-1.5 [&_svg]:size-4"
+              onClick={() => handleSelect(primaryOption())}
             >
-              <CreateOptionIcon id={options()[0].id} />
-              Create
+              <PlusIcon />
+              <span>New</span>
             </Button>
           }
         >
-          <DropdownMenu placement="bottom-start" gutter={4}>
-            <DropdownMenu.Trigger
-              as={Button}
-              variant="secondary"
-              size="sm"
-              class="rounded-xs whitespace-nowrap px-2 text-ink-muted hover:text-ink"
+          <div class="flex items-center rounded-xs bg-ink/10 text-ink-muted overflow-hidden">
+            <button
+              type="button"
+              class="flex items-center gap-1 px-2 py-1.5 text-xs hover:bg-ink/20 hover:text-ink transition-colors"
+              onClick={() => handleSelect(primaryOption())}
             >
-              <span>Create</span>
-              <ChevronDownIcon class="size-3" />
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenuContent class="z-action-menu min-w-[160px]">
-                <For each={options()}>
-                  {(item) => (
-                    <MenuItem
-                      text={item.label}
-                      icon={<CreateOptionIcon id={item.id} />}
-                      onClick={() => handleSelect(item)}
-                    />
-                  )}
-                </For>
-              </DropdownMenuContent>
-            </DropdownMenu.Portal>
-          </DropdownMenu>
+              <PlusIcon class="size-4" />
+              <span>{primaryOption().label}</span>
+            </button>
+            <DropdownMenu placement="bottom-end" gutter={4}>
+              <DropdownMenu.Trigger class="flex items-center px-1.5 py-1.5 hover:bg-ink/20 hover:text-ink border-l border-ink/10 transition-colors">
+                <CaretDownIcon class="size-3" />
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenuContent class="z-action-menu min-w-[160px]">
+                  <For each={options().slice(1)}>
+                    {(item) => (
+                      <MenuItem
+                        text={item.label}
+                        icon={<CreateOptionIcon id={item.id} />}
+                        onClick={() => handleSelect(item)}
+                      />
+                    )}
+                  </For>
+                </DropdownMenuContent>
+              </DropdownMenu.Portal>
+            </DropdownMenu>
+          </div>
         </Show>
       </Show>
     </>

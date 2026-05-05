@@ -102,7 +102,7 @@ import {
   SplitHeaderRight,
 } from '@app/component/split-layout/components/SplitHeader';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
-import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
+import { SoupFiltersBar, SoupPreviewButton } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import {
@@ -295,23 +295,11 @@ export const SoupView = (props: SoupViewProps) => {
                   fallback={
                     <>
                       <Show when={!isMobile()}>
-                        <h1 class="font-semibold text-ink select-none text-sm shrink-0">
+                        <h1 class="font-semibold text-ink select-none text-base shrink-0">
                           {props.viewName}
                         </h1>
                       </Show>
                       <Show when={!narrowSearchExpanded()}>
-                        <Show when={!isMobile()}>
-                          <CollapsibleHeaderItem
-                            id="tabs"
-                            priority={1}
-                            expanded={() => <SoupViewTabs />}
-                            collapsed={() => <CollapsedSoupViewTabs />}
-                            containerClass="h-full"
-                          />
-                        </Show>
-                        <Show when={!isMobile()}>
-                          <SoupViewCreateButton />
-                        </Show>
                         <Show when={isMobile()}>
                           <MobileFilterDrawer />
                         </Show>
@@ -340,45 +328,19 @@ export const SoupView = (props: SoupViewProps) => {
               </div>
             </SplitHeaderLeft>
             <SplitHeaderRight>
+              <Show when={!isMobile()}>
+                <SoupViewCreateButton />
+                <SoupPreviewButton />
+              </Show>
               <Show when={isMobile() && !narrowSearchExpanded()}>
                 <SettingsButton />
               </Show>
-              <Show when={!isComponentListView('search')}>
-                <CollapsibleHeaderItem
-                  id="search"
-                  priority={0}
-                  onCollapsedChange={(isCollapsed) => {
-                    setSearchIsCollapsed(isCollapsed);
-                    if (!isCollapsed) setNarrowSearchExpanded(false);
-                  }}
-                  expanded={() => (
-                    <div class="w-52">
-                      <SoupSearchbar
-                        variant="secondary"
-                        initialValue={props.initialSearchText}
-                      />
-                    </div>
-                  )}
-                  collapsed={() => (
-                    <Show when={!narrowSearchExpanded()}>
-                      <Tooltip
-                        tooltip={
-                          <LabelAndHotKey label="Search" shortcut="⌘F" />
-                        }
-                      >
-                        <Button
-                          variant="ghost"
-                          class="p-1 rounded-xs"
-                          onClick={() => setNarrowSearchExpanded(true)}
-                        >
-                          <SearchIcon class="size-4 touch:size-6" />
-                        </Button>
-                      </Tooltip>
-                    </Show>
-                  )}
-                />
-              </Show>
             </SplitHeaderRight>
+            <Show when={!isMobile() && !isComponentListView('search')}>
+              <div class="px-4 pt-2 pb-1">
+                <SoupViewTabs />
+              </div>
+            </Show>
             <SoupFiltersBar />
           </div>
           <Show when={hasLinkError()}>

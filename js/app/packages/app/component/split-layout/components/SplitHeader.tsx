@@ -184,12 +184,12 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
 
   return (
     <div
-      class="isolate relative w-full h-10 touch:h-11 overflow-clip text-ink shrink-0 border-b border-edge-muted"
+      class="isolate relative w-full h-12 touch:h-12 overflow-clip text-ink shrink-0"
       data-split-header
       ref={props.ref}
     >
       <div class="absolute inset-0 flex justify-start items-center bg-panel">
-        <div class="z-annotation-layer relative flex items-center bg-panel pl-2 mobile:pl-0 h-full">
+        <div class="z-annotation-layer relative flex items-center bg-panel pl-4 mobile:pl-0 h-full">
           <div class="mobile:hidden">
             <SplitCloseButton />
           </div>
@@ -207,8 +207,8 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
 
         <div
           class={cn(
-            'min-w-4 h-full shrink-0 flex items-center gap-0.5 pl-2',
-            !shouldShowRightmost() && 'pr-2'
+            'min-w-4 h-full shrink-0 flex items-center gap-0.5 pl-4',
+            !shouldShowRightmost() && 'pr-4'
           )}
           ref={(ref) => {
             panel.layoutRefs.headerRight = ref;
@@ -218,7 +218,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         <Show when={shouldShowRightmost()}>
           <div
             class={
-              'pl-0.5 pr-2 z-annotation-layer relative flex items-center gap-0.5 h-full order-last'
+              'pl-0.5 pr-4 z-annotation-layer relative flex items-center gap-0.5 h-full order-last'
             }
           >
             <SplitSpotlightButton />

@@ -333,7 +333,7 @@ export const ActiveFilterChips = (props: ActiveFilterChipsProps) => {
 
   return (
     <Show when={props.filters.length > 0}>
-      <div class="flex items-center gap-1.5 flex-wrap px-2">
+      <div class="flex items-center gap-1.5 flex-wrap">
         <For each={props.filters}>
           {(filter, index) => (
             // To make sure that the Clear all button never wraps to a new line on its own, we wrap it with the last FilterChip

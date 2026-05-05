@@ -39,10 +39,9 @@ export const SortDropdown: Component<SortDropdownProps> = (props) => {
           as={Button}
           variant="secondary"
           size="sm"
-          class="whitespace-nowrap rounded-xs [&_svg]:size-4"
+          class="whitespace-nowrap rounded-xs [&_svg]:size-4 py-1.5"
         >
           <SortIcon />
-          <ChevronDownIcon class="size-4" />
         </DropdownMenu.Trigger>
       </Tooltip>
       <DropdownMenu.Portal>

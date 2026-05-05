@@ -8,8 +8,14 @@ import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-contex
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import { useUserContext } from '@core/context/user';
-import { Tabs, type TabItem } from '@core/component/Tabs';
+import { cn } from '@ui/utils/classname';
+import { Tabs } from '@core/component/Tabs';
 import { batch, createMemo, For, Match, Switch } from 'solid-js';
+
+type TabItem = {
+  value: string;
+  label: string;
+};
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import { Layer } from '@ui';
 import ChevronDownIcon from '@icon/regular/caret-down.svg';
@@ -134,12 +140,24 @@ const ViewTabs = (props: { view: TabbedListView }) => {
   const list = () => VIEW_TAB_LISTS[props.view];
 
   return (
-    <Tabs
-      list={list()}
-      value={activeTab()}
-      defaultValue={VIEW_TAB_PRESETS[props.view].default}
-      onChange={(value) => applyTabPreset(props.view, value)}
-    />
+    <div class="flex items-center gap-1">
+      <For each={list()}>
+        {(item) => (
+          <button
+            type="button"
+            class={cn(
+              'px-2 py-0.5 text-xs rounded-sm transition-colors',
+              activeTab() === item.value
+                ? 'bg-ink/10 text-ink'
+                : 'text-ink-muted hover:text-ink hover:bg-ink/5'
+            )}
+            onClick={() => applyTabPreset(props.view, item.value)}
+          >
+            {item.label}
+          </button>
+        )}
+      </For>
+    </div>
   );
 };
 

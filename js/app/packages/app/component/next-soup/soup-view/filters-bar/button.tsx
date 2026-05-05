@@ -10,7 +10,7 @@ export type ButtonVariant =
   | 'destructive'
   | 'ghost'
   | 'link';
-export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon-sm' | 'icon-md' | 'icon-lg';
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon-sm' | 'icon-md' | 'icon-lg';
 
 export type ButtonProps<T extends ValidComponent = 'button'> = ParentProps<
   PolymorphicProps<T, ButtonRootProps<T>> & {
@@ -41,6 +41,7 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
+  xs: 'px-1.5 py-0.5 text-xs gap-1',
   sm: 'px-2 py-1 text-xs gap-1',
   md: 'px-3 py-2 text-sm gap-1.5',
   lg: 'px-4 py-2.5 text-base gap-2',

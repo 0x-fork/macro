@@ -7,26 +7,17 @@ import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-ba
 import { isMobile } from '@core/mobile/isMobile';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import { Button } from './button';
+import { SoupSearchbar } from './soup-view-search-bar';
 import { AnimatedPreviewIcon } from '@macro-icons/wide/animating/preview';
 import { useSoup } from '../../soup-context';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { useAnalytics } from '@app/component/analytics-context';
 
-export const SoupFiltersBar = () => {
-  const {
-    resetToTabDefaults,
-    activeFiltersList,
-    removeFilter,
-    replaceFilter,
-    isOptionActive,
-  } = useFilterRefinements();
-
-  const analytics = useAnalytics();
-
+export const SoupPreviewButton = () => {
   const [previewBtnHovering, setPreviewBtnHovering] = createSignal(false);
-
   const soup = useSoup();
   const panel = useSplitPanelOrThrow();
+  const analytics = useAnalytics();
 
   const togglePreview = () => {
     const currentPreview = soup.previewEntity();
@@ -36,7 +27,6 @@ export const SoupFiltersBar = () => {
     }
 
     const focused = soup.focus.id();
-
     if (!focused) return;
 
     analytics.track('preview_panel_use');
@@ -53,6 +43,33 @@ export const SoupFiltersBar = () => {
     },
   });
 
+  return (
+    <Tooltip tooltip={<LabelAndHotKey label="Preview" shortcut="space" />}>
+      <Button
+        variant={soup.previewEntity() ? 'primary' : 'secondary'}
+        size="sm"
+        class="rounded-xs [&_svg]:size-4 p-1.5 aspect-square"
+        onClick={togglePreview}
+        onMouseEnter={() => setPreviewBtnHovering(true)}
+        onMouseLeave={() => setPreviewBtnHovering(false)}
+      >
+        <AnimatedPreviewIcon triggerAnimation={previewBtnHovering()} />
+      </Button>
+    </Tooltip>
+  );
+};
+
+export const SoupFiltersBar = () => {
+  const {
+    resetToTabDefaults,
+    activeFiltersList,
+    removeFilter,
+    replaceFilter,
+    isOptionActive,
+  } = useFilterRefinements();
+
+  const panel = useSplitPanelOrThrow();
+
   const isSearchView = createMemo(() => {
     const content = panel.handle.content();
     return content.type === 'component' && content.id === 'search';
@@ -60,36 +77,33 @@ export const SoupFiltersBar = () => {
 
   return (
     <Show when={!isMobile()}>
-      <div
-        class="flex items-start gap-2 border-b border-edge-muted w-full"
-        classList={{
-          'p-2': isSearchView(),
-          'px-2 py-1.5': !isSearchView(),
-        }}
-      >
-        <UnifiedFilterDropdown />
-        <ActiveFilterChips
-          filters={activeFiltersList()}
-          onRemove={removeFilter}
-          onReplace={replaceFilter}
-          onClearAll={resetToTabDefaults}
-          isOptionActive={isOptionActive}
-        />
-        <div class="flex-1" />
-        <Tooltip tooltip={<LabelAndHotKey label="Preview" shortcut="space" />}>
-          <Button
-            variant={soup.previewEntity() ? 'primary' : 'ghost'}
-            size="sm"
-            class="rounded-xs [&_svg]:size-4 px-1 border border-transparent"
-            onClick={togglePreview}
-            onMouseEnter={() => setPreviewBtnHovering(true)}
-            onMouseLeave={() => setPreviewBtnHovering(false)}
-          >
-            <AnimatedPreviewIcon triggerAnimation={previewBtnHovering()} />
-          </Button>
-        </Tooltip>
-        <Show when={!isSearchView()}>
-          <SoupViewContextSort />
+      <div class="flex flex-col w-full">
+        <div
+          class="flex items-center gap-2 w-full"
+          classList={{
+            'px-4 py-2': isSearchView(),
+            'px-4 py-1.5': !isSearchView(),
+          }}
+        >
+          <div class="w-56 shrink-0">
+            <SoupSearchbar variant="secondary" />
+          </div>
+          <div class="flex-1" />
+          <UnifiedFilterDropdown />
+          <Show when={!isSearchView()}>
+            <SoupViewContextSort />
+          </Show>
+        </div>
+        <Show when={activeFiltersList().length > 0}>
+          <div class="px-4 pb-1.5">
+            <ActiveFilterChips
+              filters={activeFiltersList()}
+              onRemove={removeFilter}
+              onReplace={replaceFilter}
+              onClearAll={resetToTabDefaults}
+              isOptionActive={isOptionActive}
+            />
+          </div>
         </Show>
       </div>
     </Show>
