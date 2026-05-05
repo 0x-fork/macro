@@ -1,5 +1,5 @@
 use super::chat::Chat;
-use crate::tool::types::AsyncToolSet;
+use crate::tool::types::AsyncToolCollection;
 use crate::types::AnthropicClient;
 use crate::types::ExtendedClient;
 use anthropic::openai::request::{AnthropicRequestExtension, AnthropicRequestExtensions};
@@ -12,14 +12,14 @@ where
 {
     client: I,
     context: T,
-    toolset: Arc<AsyncToolSet<T>>,
+    toolset: Arc<AsyncToolCollection<T>>,
 }
 
 impl<T> ToolLoop<AnthropicClient, T>
 where
     T: Clone + Send + Sync,
 {
-    pub fn new(toolset: Arc<AsyncToolSet<T>>, context: T) -> Self {
+    pub fn new(toolset: Arc<AsyncToolCollection<T>>, context: T) -> Self {
         let extensions = AnthropicRequestExtensions(vec![
             AnthropicRequestExtension::WebSearchTool,
             AnthropicRequestExtension::FetchTool,

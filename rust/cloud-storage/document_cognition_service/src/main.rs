@@ -349,7 +349,7 @@ async fn main() -> anyhow::Result<()> {
     let chat_tool_context = chat::inbound::toolset::ChatToolContext::new(
         chat::domain::service::ChatServiceImpl::new(
             chat::outbound::postgres::PgChatRepo::new(db.clone()),
-            Arc::new(ai_toolset::AsyncToolSet::new()),
+            Arc::new(ai_toolset::AsyncToolCollection::new()),
             (),
             entity_access_management::domain::service::EntityAccessManagementServiceImpl::new(
                 entity_access_management::outbound::PgRepository::new(db.clone()),

@@ -45,7 +45,7 @@
 
 use crate::prompts::CLI_PROMPT;
 use crate::tool::ToolLoop;
-use crate::tool::types::{AsyncToolSet, RequestContext, StreamPart, ToolResponse};
+use crate::tool::types::{AsyncToolCollection, RequestContext, StreamPart, ToolResponse};
 use crate::types::{ChatMessage, MessageBuilder, Model, RequestBuilder, Role};
 use futures::stream::StreamExt;
 use macro_user_id::user_id::MacroUserIdStr;
@@ -61,7 +61,7 @@ where
     T: Clone + Send + Sync + 'static,
     F: Fn() -> RequestContext,
 {
-    toolset: AsyncToolSet<T>,
+    toolset: AsyncToolCollection<T>,
     service_context: T,
     system_prompt: String,
     model: Model,
@@ -71,7 +71,7 @@ where
 impl Default for Cli<(), fn() -> RequestContext> {
     fn default() -> Self {
         Self {
-            toolset: AsyncToolSet::new(),
+            toolset: AsyncToolCollection::new(),
             service_context: (),
             system_prompt: CLI_PROMPT.to_string(),
             model: Model::Claude45Opus,
@@ -97,7 +97,7 @@ where
     /// * `model` - The model to use for completions
     /// * `request_context_fn` - A function that creates a request context for each message
     pub fn new(
-        toolset: AsyncToolSet<T>,
+        toolset: AsyncToolCollection<T>,
         service_context: T,
         system_prompt: impl Into<String>,
         model: Model,

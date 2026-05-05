@@ -1,13 +1,14 @@
 use super::MAX_RECURSIONS;
 use crate::openai_toolset::OpenAIToolSetExt;
 use crate::tool::types::{
-    AsyncToolSet, PartialToolCall, RequestContext, StreamPart, ToolCall, ToolResult,
+    AsyncToolCollection, PartialToolCall, RequestContext, StreamPart, ToolCall, ToolResult,
 };
 use crate::tool::types::{ChatCompletionStream, ExtendedPartStream, PartOrExt, ToolResponse};
 use crate::types::openai::message::convert_message;
 use crate::types::traits::{ExtendedOpenAIStream, ExtendedOpenAIStreamItem};
 use crate::types::{ChatCompletionRequest, ChatMessage, ChatMessages};
 use crate::types::{ExtendedClient, Result};
+use ai_toolset::ToolSet;
 use async_openai::types::chat::{
     ChatCompletionMessageToolCall, ChatCompletionMessageToolCalls,
     ChatCompletionRequestAssistantMessage, ChatCompletionRequestAssistantMessageContent,
@@ -30,7 +31,7 @@ where
     T: Clone + Send + Sync + 'static,
 {
     client: I,
-    toolset: Arc<AsyncToolSet<T>>,
+    toolset: Arc<AsyncToolCollection<T>>,
     request: CreateChatCompletionRequest,
     pub(crate) messages: Vec<ChatCompletionRequestMessage>,
     context: T,
@@ -44,7 +45,7 @@ where
     I: ExtendedClient + Send + Sync,
     T: Clone + Send + Sync,
 {
-    pub fn new(client: I, toolset: Arc<AsyncToolSet<T>>, context: T) -> Chat<I, T> {
+    pub fn new(client: I, toolset: Arc<AsyncToolCollection<T>>, context: T) -> Chat<I, T> {
         Chat {
             client,
             toolset,

@@ -10,9 +10,10 @@ use crate::model::stream::{ChatStream, JwtPayload, SendChatMessagePayload, Strea
 use crate::service::ai_stream_registry::CancellationSubscription;
 use crate::service::get_chat::get_chat;
 use crate::service::notification::notify;
-use ai::tool::ToolLoop;
+use agent::domain::agent_loop::AgentLoop;
+use agent::outbound::anthropic::AnthropicProvider;
 use ai::tool::types::StreamPart;
-use ai::types::{AssistantMessagePart, ChatMessageContent, Model};
+use ai::types::{AssistantMessagePart, Model};
 use ai_tools::RequestContext;
 use async_stream::stream;
 use attachment::FormattedParts;
@@ -376,50 +377,6 @@ async fn create_new_chat(
     Ok((chat, new_chat_id))
 }
 
-/// For every `ToolCall` in `parts` that has no matching response, insert a
-/// synthetic `ToolCallErr { description: "cancelled", .. }` immediately after
-/// it. Used on cancellation so the persisted assistant message stays
-/// well-formed: every tool call has a matching response (so future
-/// conversation turns don't break on an unmatched `tool_call_id`) and the UI
-/// can render the cancellation via the existing `ToolCallErr` variant.
-fn resolve_pending_tool_calls(parts: Vec<AssistantMessagePart>) -> Vec<AssistantMessagePart> {
-    use std::collections::HashSet;
-    let mut pending: HashSet<String> = HashSet::new();
-    for part in &parts {
-        match part {
-            AssistantMessagePart::ToolCall { id, .. } => {
-                pending.insert(id.clone());
-            }
-            AssistantMessagePart::ToolCallResponseJson { id, .. }
-            | AssistantMessagePart::ToolCallErr { id, .. } => {
-                pending.remove(id);
-            }
-            _ => {}
-        }
-    }
-    if pending.is_empty() {
-        return parts;
-    }
-    let mut out: Vec<AssistantMessagePart> = Vec::with_capacity(parts.len() + pending.len());
-    for part in parts {
-        let synthetic = match &part {
-            AssistantMessagePart::ToolCall { id, name, .. } if pending.contains(id) => {
-                Some(AssistantMessagePart::ToolCallErr {
-                    name: name.clone(),
-                    id: id.clone(),
-                    description: "cancelled".to_string(),
-                })
-            }
-            _ => None,
-        };
-        out.push(part);
-        if let Some(s) = synthetic {
-            out.push(s);
-        }
-    }
-    out
-}
-
 /// Streams the AI response and saves conversation messages when complete.
 ///
 /// Creates a payload stream, publishes it via `from_async_stream`, and stores
@@ -443,7 +400,6 @@ fn stream_and_save_message(
     cancellation_sub: CancellationSubscription,
 ) {
     tracing::trace!(request=?request, "streaming chat request");
-    let model = Model::Claude45Haiku;
     let tool_context = ctx.tool_service_context.clone();
     let toolset = ctx.all_tools.clone();
 
@@ -475,43 +431,13 @@ fn stream_and_save_message(
             yield json;
         }
 
-        let client = ToolLoop::new(toolset, tool_context);
-        let mut chat = client.chat();
-
-        // Create the AI stream - yield error if it fails
-        let mut ai_stream = match chat
-            .send_message(request, request_context, user_id.as_ref().to_string())
-            .await
-        {
-            Ok(stream) => stream,
-            Err(e) => {
-                tracing::error!(error=?e, chat_id = %chat_id, user_id = %user_id, stream_id = %stream_id, "failed to create AI stream");
-                let stream_error = match e {
-                    ai::types::AiError::ContextWindowExceeded => {
-                        StreamError::ModelContextOverflow {
-                            stream_id: stream_id.clone(),
-                        }
-                    }
-                    ai::types::AiError::Generic(_) => StreamError::InternalError {
-                        stream_id: stream_id.clone(),
-                    },
-                };
-                if let Ok(json) = serde_json::to_value(ChatStream::Error(stream_error)) {
-                    yield json;
-                }
-                return;
-            }
-        };
+        let provider = AnthropicProvider::from_env();
+        let mut agent_loop = AgentLoop::new(provider, toolset, tool_context);
+        let mut ai_stream = Box::pin(agent_loop.send_message(request, request_context));
 
         let mut is_first_token = false;
         let idle_timeout = std::time::Duration::from_secs(3 * 60);
         let mut was_cancelled = false;
-        // Track every AssistantMessagePart we yield so we can persist the
-        // exact partial response if the stream is cancelled. The ToolLoop's
-        // internal conversation state is only flushed after its inner stream
-        // completes, so on cancellation `chat.get_new_conversation_messages()`
-        // returns empty — we build the partial message from this buffer instead.
-        let mut yielded_parts: Vec<AssistantMessagePart> = Vec::new();
 
         loop {
             let next_item = tokio::select! {
@@ -581,8 +507,6 @@ fn stream_and_save_message(
                         },
                     };
 
-                    yielded_parts.push(message_part.clone());
-
                     let response = ChatStream::ChatMessageResponse {
                         stream_id: stream_id.clone(),
                         chat_id: chat_id.clone(),
@@ -614,7 +538,6 @@ fn stream_and_save_message(
             }
         }
 
-        // Drop the AI stream before accessing chat
         drop(ai_stream);
 
         // Send stream end message
@@ -624,38 +547,8 @@ fn stream_and_save_message(
         if let Ok(json) = serde_json::to_value(&end_msg) {
             yield json;
         }
-        // Build the set of messages to persist.
-        //
-        // Natural completion: the ToolLoop has flushed its in-progress stream
-        // into its own `self.messages`, so `get_new_conversation_messages`
-        // returns the full assistant (+ any tool) messages. Use those.
-        //
-        // Early termination (cancellation or mid-stream error): the ToolLoop
-        // never flushed, so that call returns empty. Build a ChatMessage from
-        // the parts we actually yielded — that's exactly what the user saw in
-        // the chunks pushed to the durable stream, so the saved message
-        // matches the UI deterministically.
-        let new_messages = {
-            let flushed = if was_cancelled {
-                vec![]
-            } else {
-                chat.get_new_conversation_messages()
-            };
-            if !flushed.is_empty() {
-                flushed
-            } else {
-                let resolved_parts = resolve_pending_tool_calls(yielded_parts);
-                if resolved_parts.is_empty() {
-                    vec![]
-                } else {
-                    vec![ai::types::ChatMessage {
-                        role: ai::types::Role::Assistant,
-                        content: ChatMessageContent::AssistantMessageParts(resolved_parts),
-                        attachments: None,
-                    }]
-                }
-            }
-        };
+
+        let new_messages = agent_loop.into_messages();
 
         // Extract assistant response text before moving new_messages into store
         let assistant_text = new_messages
@@ -699,111 +592,4 @@ fn stream_and_save_message(
         Box::pin(payload_stream),
         Some(std::time::Duration::from_secs(30 * 60)),
     );
-}
-
-#[cfg(test)]
-mod resolve_pending_tool_calls_tests {
-    use super::*;
-
-    fn text(s: &str) -> AssistantMessagePart {
-        AssistantMessagePart::Text { text: s.into() }
-    }
-    fn call(id: &str) -> AssistantMessagePart {
-        AssistantMessagePart::ToolCall {
-            name: "t".into(),
-            json: serde_json::json!({}),
-            id: id.into(),
-        }
-    }
-    fn resp(id: &str) -> AssistantMessagePart {
-        AssistantMessagePart::ToolCallResponseJson {
-            name: "t".into(),
-            json: serde_json::json!({}),
-            id: id.into(),
-        }
-    }
-    fn cancelled_err(id: &str) -> AssistantMessagePart {
-        AssistantMessagePart::ToolCallErr {
-            name: "t".into(),
-            id: id.into(),
-            description: "cancelled".to_string(),
-        }
-    }
-
-    #[test]
-    fn noop_when_no_tool_calls() {
-        let parts = vec![text("a"), text("b")];
-        assert_eq!(resolve_pending_tool_calls(parts.clone()), parts);
-    }
-
-    #[test]
-    fn noop_when_all_tool_calls_resolved() {
-        let parts = vec![text("a"), call("1"), resp("1"), text("b")];
-        assert_eq!(resolve_pending_tool_calls(parts.clone()), parts);
-    }
-
-    #[test]
-    fn inserts_cancelled_err_after_trailing_unmatched_call() {
-        let parts = vec![text("a"), call("1")];
-        let out = resolve_pending_tool_calls(parts);
-        assert_eq!(out, vec![text("a"), call("1"), cancelled_err("1")]);
-    }
-
-    #[test]
-    fn inserts_cancelled_err_immediately_after_unmatched_call() {
-        // Cancel between tool call emission and its response: inject the
-        // synthetic err right after the call, keep any later yielded parts.
-        let parts = vec![text("a"), call("1"), text("b")];
-        let out = resolve_pending_tool_calls(parts);
-        assert_eq!(
-            out,
-            vec![text("a"), call("1"), cancelled_err("1"), text("b")]
-        );
-    }
-
-    #[test]
-    fn leaves_resolved_calls_alone_resolves_pending_ones() {
-        let parts = vec![
-            text("a"),
-            call("1"),
-            resp("1"),
-            text("b"),
-            call("2"),
-            text("c"),
-        ];
-        let out = resolve_pending_tool_calls(parts);
-        assert_eq!(
-            out,
-            vec![
-                text("a"),
-                call("1"),
-                resp("1"),
-                text("b"),
-                call("2"),
-                cancelled_err("2"),
-                text("c"),
-            ]
-        );
-    }
-
-    #[test]
-    fn resolves_multiple_unmatched_calls() {
-        let parts = vec![call("1"), text("x"), call("2")];
-        let out = resolve_pending_tool_calls(parts);
-        assert_eq!(
-            out,
-            vec![
-                call("1"),
-                cancelled_err("1"),
-                text("x"),
-                call("2"),
-                cancelled_err("2"),
-            ]
-        );
-    }
-
-    #[test]
-    fn empty_input_stays_empty() {
-        assert!(resolve_pending_tool_calls(vec![]).is_empty());
-    }
 }

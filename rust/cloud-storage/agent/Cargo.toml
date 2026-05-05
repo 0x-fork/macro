@@ -1,0 +1,23 @@
+[package]
+name = "agent"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+ai = { path = "../ai" }
+ai_toolset = { path = "../ai_toolset" }
+anthropic = { path = "../anthropic" }
+async-stream = { workspace = true }
+thiserror = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+non_empty = { path = "../non_empty" }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+schemars = { workspace = true }
+macro_user_id = { path = "../macro_user_id" }

@@ -18,4 +18,8 @@ impl ChatCompletionRequest {
     pub fn messages(&self) -> &[ChatMessage] {
         &self.messages
     }
+
+    pub fn system_prompt(&self) -> &SystemPrompt {
+        &self.system_prompt
+    }
 }

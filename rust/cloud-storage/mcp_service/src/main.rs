@@ -37,11 +37,9 @@ async fn main() -> anyhow::Result<()> {
             ))
         },
         Arc::new(LocalSessionManager::default()),
-        StreamableHttpServerConfig {
-            stateful_mode: false,
-            json_response: true,
-            ..Default::default()
-        },
+        StreamableHttpServerConfig::default()
+            .with_stateful_mode(false)
+            .with_json_response(true),
     );
 
     // Spawn background cleanup for expired OAuth entries

@@ -293,7 +293,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
     let chat_tool_context = chat::inbound::toolset::ChatToolContext::new(
         chat::domain::service::ChatServiceImpl::new(
             chat::outbound::postgres::PgChatRepo::new(pool.clone()),
-            Arc::new(ai_toolset::AsyncToolSet::new()),
+            Arc::new(ai_toolset::AsyncToolCollection::new()),
             (),
             entity_access_management::domain::service::EntityAccessManagementServiceImpl::new(
                 entity_access_management::outbound::PgRepository::new(pool.clone()),
