@@ -27,11 +27,12 @@ export const GetWriterPartsResponse = z.object({
   presignedUrls: z.array(DocxDocumentPartLocation),
 });
 
-export const SyncServiceSnapshotLocationResponse = z.object({
-  snapshotUrl: z.string(),
+export const SyncServiceStateResponse = z.object({
+  initialized: z.boolean(),
+  initializedAt: z.string().nullish(),
   versionId: z.string().nullish(),
-  sha256: z.string().nullish(),
-  sizeBytes: z.number().nullish(),
+  snapshotSha256: z.string().nullish(),
+  snapshotSizeBytes: z.number().nullish(),
   snapshotUpdatedAt: z.string().nullish(),
 });
 
@@ -599,12 +600,12 @@ export const StorageService = new Svc('Document++ Storage Service API')
     result: z.object({ data: schemas.getLocationHandlerResponse }).shape,
     throws: withFetchErrors(),
   })
-  .fn('getSyncServiceSnapshotLocation', {
-    description: 'Get the presigned URL for the DSS-mirrored sync-service Loro snapshot',
+  .fn('getSyncServiceState', {
+    description: 'Get DSS-side sync-service state for a document',
     args: {
       documentId: z.string().describe(`Document UUID`),
     },
-    result: SyncServiceSnapshotLocationResponse.shape,
+    result: SyncServiceStateResponse.shape,
     throws: withFetchErrors(),
   })
   .fn('getDocumentPermissions', {

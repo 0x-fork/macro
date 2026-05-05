@@ -124,11 +124,12 @@ export type Success = {
 };
 type SuccessResponse = { data: Success };
 
-export type SyncServiceSnapshotLocation = {
-  snapshotUrl: string;
+export type SyncServiceState = {
+  initialized: boolean;
+  initializedAt?: string | null;
   versionId?: string | null;
-  sha256?: string | null;
-  sizeBytes?: number | null;
+  snapshotSha256?: string | null;
+  snapshotSizeBytes?: number | null;
   snapshotUpdatedAt?: string | null;
 };
 
@@ -1052,15 +1053,15 @@ export const storageServiceClient = {
     }
   ),
 
-  getSyncServiceSnapshotLocation: cache(
-    async function getSyncServiceSnapshotLocation(args) {
+  getSyncServiceState: cache(
+    async function getSyncServiceState(args) {
       const { documentId } = args;
-      return await dssFetch<SyncServiceSnapshotLocation>(
-        `/documents/${documentId}/sync_service/snapshot`
+      return await dssFetch<SyncServiceState>(
+        `/documents/${documentId}/sync_service/state`
       );
     },
     {
-      minutes: MINUTES_BEFORE_PRESIGNED_EXPIRES,
+      seconds: 5,
     }
   ),
 

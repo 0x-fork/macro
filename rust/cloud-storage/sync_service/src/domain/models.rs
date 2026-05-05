@@ -18,6 +18,37 @@ pub struct BulkWakeupResponse {
     pub dispatched: usize,
 }
 
+/// Public DSS-side state for a document's sync-service mirror/cache.
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct SyncServiceStateResponse {
+    pub initialized: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initialized_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_size_bytes: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_updated_at: Option<DateTime<Utc>>,
+}
+
+impl SyncServiceStateResponse {
+    pub fn uninitialized() -> Self {
+        Self {
+            initialized: false,
+            initialized_at: None,
+            version_id: None,
+            snapshot_sha256: None,
+            snapshot_size_bytes: None,
+            snapshot_updated_at: None,
+        }
+    }
+}
+
 /// Snapshot mirror request sent by the sync-service durable object into DSS.
 pub struct PutSnapshotRequest {
     pub document_id: String,

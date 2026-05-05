@@ -58,18 +58,6 @@ const getExists = async (documentId: string): Promise<boolean> => {
   return existsResultExists;
 };
 
-type DocumentMetadataSyncServiceState = {
-  syncService?:
-    | {
-        initializedAt?: string | null;
-      }
-    | null;
-};
-
-const isSyncServiceInitialized = (
-  documentMetadata: DocumentMetadataSyncServiceState
-) => Boolean(documentMetadata.syncService?.initializedAt);
-
 /**
  * Migrates a document from dss to the sync-service.
  * Should only be called if the document does not exist in the sync-service
@@ -139,8 +127,9 @@ export const definition = defineBlock({
         });
       }
 
-      const [maybeDocument, maybeToken] = await Promise.all([
+      const [maybeDocument, maybeSyncState, maybeToken] = await Promise.all([
         loadResult(storageServiceClient.getDocumentMetadata({ documentId })),
+        loadResult(storageServiceClient.getSyncServiceState({ documentId })),
         storageServiceClient.permissionsTokens.createPermissionToken({
           document_id: documentId,
         }),
@@ -157,9 +146,7 @@ export const definition = defineBlock({
       const [, documentResult] = maybeDocument;
       const { documentMetadata, userAccessLevel } = documentResult;
 
-      const exists = isSyncServiceInitialized(
-        documentMetadata as DocumentMetadataSyncServiceState
-      )
+      const exists = !isErr(maybeSyncState) && maybeSyncState[1].initialized
         ? true
         : await getExists(documentId);
 

@@ -347,7 +347,6 @@ mod tests {
             created_at: None,
             updated_at: None,
             sub_type: None,
-            sync_service: None,
             deleted_at: None,
         };
 
@@ -393,7 +392,6 @@ mod tests {
             created_at: None,
             updated_at: None,
             sub_type: Some(DocumentSubType::Task),
-            sync_service: None,
             deleted_at: None,
         };
 

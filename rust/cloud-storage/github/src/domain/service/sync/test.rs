@@ -101,7 +101,6 @@ impl StubDocumentService {
             updated_at: None,
             deleted_at: None,
             sub_type: Some(DocumentSubType::Task),
-            sync_service: None,
         }
     }
 }
@@ -149,13 +148,6 @@ impl DocumentService for StubDocumentService {
         _receipt: EntityAccessReceipt<ViewAccessLevel>,
         _params: LocationQueryParams,
     ) -> Result<LocationResponseV3, DocumentError> {
-        unimplemented!()
-    }
-    async fn get_sync_service_snapshot_location(
-        &self,
-        _ctx: &DocumentBasic,
-        _receipt: EntityAccessReceipt<ViewAccessLevel>,
-    ) -> Result<documents::domain::models::SyncServiceSnapshotLocationResponse, DocumentError> {
         unimplemented!()
     }
     async fn delete_document(

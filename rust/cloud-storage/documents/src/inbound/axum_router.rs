@@ -5,7 +5,6 @@
 //! - `GET /{document_id}` — get document metadata
 //! - `GET /{document_id}/location_v3` — get document content location (presigned URL)
 //! - `GET /{document_id}/short_id` — get document short ID
-//! - `GET /{document_id}/sync_service/snapshot` — get mirrored sync-service snapshot URL
 //! - `DELETE /{document_id}` — soft-delete a document
 
 #[cfg(test)]
@@ -19,7 +18,6 @@ mod edit_document;
 mod get_document;
 mod get_location;
 mod get_short_id;
-mod get_sync_service_snapshot;
 
 use std::sync::Arc;
 
@@ -48,7 +46,6 @@ pub use edit_document::*;
 pub use get_document::*;
 pub use get_location::*;
 pub use get_short_id::*;
-pub use get_sync_service_snapshot::*;
 
 impl IntoResponse for DocumentError {
     fn into_response(self) -> axum::response::Response {
@@ -131,10 +128,6 @@ where
         .route(
             "/{document_id}/short_id",
             axum::routing::get(get_short_id_handler::<T, Svc>),
-        )
-        .route(
-            "/{document_id}/sync_service/snapshot",
-            axum::routing::get(get_sync_service_snapshot_handler::<T, Svc>),
         )
         .route(
             "/{document_id}/copy",

@@ -1,13 +1,14 @@
-ALTER TABLE "Document"
-ADD COLUMN "syncServiceInitializedAt" TIMESTAMPTZ,
-ADD COLUMN "syncServiceVersionId" TEXT,
-ADD COLUMN "syncServiceSnapshotKey" TEXT,
-ADD COLUMN "syncServiceSnapshotSha256" TEXT,
-ADD COLUMN "syncServiceSnapshotSizeBytes" BIGINT,
-ADD COLUMN "syncServiceSnapshotUpdatedAt" TIMESTAMPTZ;
+CREATE TABLE "DocumentSyncServiceState" (
+    "documentId" TEXT PRIMARY KEY REFERENCES "Document"(id) ON DELETE CASCADE,
+    "initializedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "versionId" TEXT,
+    "snapshotKey" TEXT,
+    "snapshotSha256" TEXT,
+    "snapshotSizeBytes" BIGINT,
+    "snapshotUpdatedAt" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-CREATE INDEX "Document_md_syncServiceInitializedAt_idx"
-ON "Document" ("syncServiceInitializedAt")
-WHERE "fileType" = 'md'
-  AND "deletedAt" IS NULL
-  AND "syncServiceInitializedAt" IS NOT NULL;
+CREATE INDEX "DocumentSyncServiceState_snapshotUpdatedAt_idx"
+ON "DocumentSyncServiceState" ("snapshotUpdatedAt");

@@ -104,6 +104,13 @@ where
     Store: SyncSnapshotStore,
     Source: SyncSnapshotSource,
 {
+    async fn get_state(
+        &self,
+        document_id: &str,
+    ) -> Result<super::models::SyncServiceStateResponse, SnapshotMirrorError> {
+        self.repo.get_state(document_id).await
+    }
+
     async fn put_snapshot(
         &self,
         request: PutSnapshotRequest,

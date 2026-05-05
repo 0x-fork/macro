@@ -41,7 +41,6 @@ use super::models::{
     CloudFrontConfig, CommentThread, CopyDocumentRepoArgs, CreateDocumentRepoArgs,
     CreateTaskRequest, CreateTaskResponse, DocumentError, EMPTY_SHA256, EditDocumentRepoArgs,
     EditDocumentServiceArgs, FileTypeUpdate, LocationQueryParams,
-    SyncServiceSnapshotLocationResponse,
 };
 use super::ports::{DocumentRepo, DocumentService, PresignedUploadUrlPort, TaskPropertiesPort};
 
@@ -365,23 +364,8 @@ impl<
 
         let document_id = entity_access_receipt.entity().entity_id.clone();
 
-        // For markdown files, prefer DSS's sync-service marker over the old `/exists` call.
-        // Absence of the marker means legacy/manual-upload docs still take the migration fallback.
+        // For markdown files, check sync service first.
         if matches!(file_type, Some(FileType::Md)) {
-            if document_context.is_sync_service_initialized() {
-                let sync_service = document_context.sync_service.as_ref();
-                return Ok(LocationResponseV3::SyncServiceContent {
-                    metadata: document_context.clone(),
-                    sync_service_metadata: model::sync_service::DocumentMetadata {
-                        id: document_id.clone(),
-                        peers: vec![],
-                        version_id: sync_service
-                            .and_then(|state| state.version_id.clone())
-                            .unwrap_or_default(),
-                    },
-                });
-            }
-
             match self.try_get_from_sync_service(&document_id).await {
                 Ok(Some(sync_service_metadata)) => {
                     return Ok(LocationResponseV3::SyncServiceContent {
@@ -428,40 +412,6 @@ impl<
             })?;
 
         Ok(response_data)
-    }
-
-    #[tracing::instrument(err, skip(self, document_context))]
-    async fn get_sync_service_snapshot_location(
-        &self,
-        document_context: &DocumentBasic,
-        entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
-    ) -> Result<SyncServiceSnapshotLocationResponse, DocumentError> {
-        let document_id = entity_access_receipt.entity().entity_id.clone();
-
-        if !document_context.is_sync_service_initialized() {
-            return Err(DocumentError::NotFound(document_id));
-        }
-
-        let sync_service = document_context
-            .sync_service
-            .as_ref()
-            .ok_or_else(|| DocumentError::NotFound(document_id.clone()))?;
-
-        let snapshot_key = sync_service.snapshot_key.as_deref().ok_or_else(|| {
-            DocumentError::Conflict("sync-service snapshot is not mirrored yet".to_string())
-        })?;
-
-        let snapshot_url = self
-            .make_presigned_url(snapshot_key)
-            .map_err(DocumentError::Internal)?;
-
-        Ok(SyncServiceSnapshotLocationResponse {
-            snapshot_url,
-            version_id: sync_service.version_id.clone(),
-            sha256: sync_service.snapshot_sha256.clone(),
-            size_bytes: sync_service.snapshot_size_bytes,
-            snapshot_updated_at: sync_service.snapshot_updated_at,
-        })
     }
 
     #[tracing::instrument(err, skip(self))]

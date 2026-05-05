@@ -210,11 +210,6 @@ pub struct DocumentMetadata {
     /// The sub type of the document if present.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sub_type: Option<DocumentSubType>,
-
-    /// DSS-side cache/pointer for markdown documents initialized in sync-service.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[sqlx(skip)]
-    pub sync_service: Option<DocumentSyncServiceState>,
 }
 
 impl DocumentMetadata {
@@ -253,7 +248,6 @@ impl DocumentMetadata {
             created_at,
             updated_at,
             sub_type: None,
-            sync_service: None,
             deleted_at: None, // New documents should never be deleted
         }
     }
@@ -297,7 +291,6 @@ impl DocumentMetadata {
             updated_at,
             deleted_at: None, // New documents should never be deleted
             sub_type,
-            sync_service: None,
         }
     }
 }

@@ -13,7 +13,6 @@ fn test_document_basic_serde_roundtrip() {
         document_family_id: Some(100),
         project_id: Some("project-789".to_string()),
         deleted_at: None,
-        sync_service: None,
     };
 
     let serialized = serde_json::to_string(&original).expect("Failed to serialize DocumentBasic");
@@ -35,7 +34,6 @@ fn test_document_basic_serde_minimal() {
         document_family_id: None,
         project_id: None,
         deleted_at: None,
-        sync_service: None,
     };
 
     let serialized = serde_json::to_string(&original).expect("Failed to serialize DocumentBasic");
@@ -58,7 +56,6 @@ fn test_document_basic_serde_with_deleted_at() {
         document_family_id: None,
         project_id: None,
         deleted_at: Some(deleted_time),
-        sync_service: None,
     };
 
     let serialized = serde_json::to_string(&original).expect("Failed to serialize DocumentBasic");

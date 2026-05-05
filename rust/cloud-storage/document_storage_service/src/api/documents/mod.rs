@@ -31,6 +31,7 @@ pub(in crate::api) mod put_document_update;
 pub(in crate::api) mod revert_delete_document;
 pub(in crate::api) mod save_document;
 pub(in crate::api) mod simple_save;
+pub(in crate::api) mod sync_service_state;
 
 mod utils;
 
@@ -85,6 +86,11 @@ pub fn router(state: ApiContext) -> Router<ApiContext> {
         .route(
             "/{document_id}/text",
             get(get_document_text::handler).layer(ensure_document_exists_middleware.clone()),
+        )
+        .route(
+            "/{document_id}/sync_service/state",
+            get(sync_service_state::get_state_handler)
+                .layer(ensure_document_exists_middleware.clone()),
         )
         .route(
             "/{document_id}/{document_version_id}/key",

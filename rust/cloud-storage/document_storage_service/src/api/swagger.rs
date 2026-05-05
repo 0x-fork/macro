@@ -153,7 +153,6 @@ use utoipa::OpenApi;
         documents::get_document_views::get_document_views_handler,
         documents::location::get_location_handler,
         documents_hex::inbound::axum_router::get_location_v3_handler,
-        documents_hex::inbound::axum_router::get_sync_service_snapshot_handler,
         documents_hex::inbound::axum_router::get_short_id_handler,
         documents::simple_save::handler,
         documents::initialize_user_documents::handler,
@@ -284,7 +283,6 @@ use utoipa::OpenApi;
             documents_hex::domain::models::CopyDocumentQueryParams,
             documents_hex::domain::models::CopyDocumentResponse, // Copy document
             documents_hex::domain::models::EditDocumentServiceArgs,
-            documents_hex::domain::models::SyncServiceSnapshotLocationResponse,
             documents_hex::inbound::axum_router::EditDocumentResponse, // Edit document
             UserDocumentsResponse,
             GetDocumentsResponse, // Get user documents

@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 
 use super::models::{
     PutSnapshotRequest, SnapshotMetadataUpdate, SnapshotMirrorError, SnapshotMirrorResponse,
-    SyncDocumentMetadata,
+    SyncDocumentMetadata, SyncServiceStateResponse,
 };
 
 pub trait SyncWakeupService: Send + Sync + 'static {
@@ -15,6 +15,12 @@ pub trait SyncWakeupService: Send + Sync + 'static {
 }
 
 pub trait SyncSnapshotMetadataRepo: Send + Sync + 'static {
+    /// Return public DSS-side sync-service state for a document.
+    fn get_state(
+        &self,
+        document_id: &str,
+    ) -> impl Future<Output = Result<SyncServiceStateResponse, SnapshotMirrorError>> + Send;
+
     /// Return the latest mirrored snapshot timestamp for a document.
     ///
     /// Missing documents should be reported as [`SnapshotMirrorError::NotFound`].
@@ -62,6 +68,12 @@ pub trait SyncSnapshotSource: Send + Sync + 'static {
 }
 
 pub trait SyncSnapshotMirrorService: Send + Sync + 'static {
+    /// Return public DSS-side sync-service state for a document.
+    fn get_state(
+        &self,
+        document_id: &str,
+    ) -> impl Future<Output = Result<SyncServiceStateResponse, SnapshotMirrorError>> + Send;
+
     /// Mirror a sync-service snapshot into DSS storage/metadata.
     fn put_snapshot(
         &self,

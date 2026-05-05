@@ -12,7 +12,7 @@ mod share;
 
 use document_sub_type::DocumentSubType;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
-use model::document::{DocumentBasic, DocumentMetadata, DocumentSyncServiceState};
+use model::document::{DocumentBasic, DocumentMetadata};
 use sqlx::PgPool;
 
 use model_entity::{Entity, EntityType};
@@ -60,12 +60,6 @@ impl DocumentRepo for PgDocumentRepo {
                 db.bom_parts as "document_bom?",
                 di.modification_data as "modification_data?",
                 d."projectId" as "project_id",
-                d."syncServiceInitializedAt"::timestamptz as "sync_service_initialized_at",
-                d."syncServiceVersionId" as "sync_service_version_id",
-                d."syncServiceSnapshotKey" as "sync_service_snapshot_key",
-                d."syncServiceSnapshotSha256" as "sync_service_snapshot_sha256",
-                d."syncServiceSnapshotSizeBytes" as "sync_service_snapshot_size_bytes",
-                d."syncServiceSnapshotUpdatedAt"::timestamptz as "sync_service_snapshot_updated_at",
                 p.name as "project_name?",
                 di.sha as "sha?",
                 dt.sub_type as "sub_type?: DocumentSubType",
@@ -153,16 +147,6 @@ impl DocumentRepo for PgDocumentRepo {
                 updated_at: row.updated_at,
                 sub_type: row.sub_type,
                 deleted_at: row.deleted_at,
-                sync_service: row.sync_service_initialized_at.map(|initialized_at| {
-                    DocumentSyncServiceState {
-                        initialized_at: Some(initialized_at),
-                        version_id: row.sync_service_version_id,
-                        snapshot_key: row.sync_service_snapshot_key,
-                        snapshot_sha256: row.sync_service_snapshot_sha256,
-                        snapshot_size_bytes: row.sync_service_snapshot_size_bytes,
-                        snapshot_updated_at: row.sync_service_snapshot_updated_at,
-                    }
-                }),
             })
         })
         .fetch_one(&self.pool)
@@ -203,12 +187,6 @@ impl DocumentRepo for PgDocumentRepo {
                 d."documentFamilyId" as "document_family_id",
                 d."fileType" as "file_type",
                 d."projectId" as "project_id",
-                d."syncServiceInitializedAt"::timestamptz as "sync_service_initialized_at",
-                d."syncServiceVersionId" as "sync_service_version_id",
-                d."syncServiceSnapshotKey" as "sync_service_snapshot_key",
-                d."syncServiceSnapshotSha256" as "sync_service_snapshot_sha256",
-                d."syncServiceSnapshotSizeBytes" as "sync_service_snapshot_size_bytes",
-                d."syncServiceSnapshotUpdatedAt"::timestamptz as "sync_service_snapshot_updated_at",
                 d."deletedAt"::timestamptz as "deleted_at"
             FROM
                 "Document" d
@@ -231,16 +209,6 @@ impl DocumentRepo for PgDocumentRepo {
                 document_family_id: row.document_family_id,
                 project_id: row.project_id,
                 deleted_at: row.deleted_at,
-                sync_service: row.sync_service_initialized_at.map(|initialized_at| {
-                    DocumentSyncServiceState {
-                        initialized_at: Some(initialized_at),
-                        version_id: row.sync_service_version_id,
-                        snapshot_key: row.sync_service_snapshot_key,
-                        snapshot_sha256: row.sync_service_snapshot_sha256,
-                        snapshot_size_bytes: row.sync_service_snapshot_size_bytes,
-                        snapshot_updated_at: row.sync_service_snapshot_updated_at,
-                    }
-                }),
             })
         })
         .fetch_one(&self.pool)
@@ -622,12 +590,6 @@ impl DocumentRepo for PgDocumentRepo {
                 db.bom_parts as "document_bom?",
                 di.modification_data as "modification_data?",
                 d."projectId" as "project_id",
-                d."syncServiceInitializedAt"::timestamptz as "sync_service_initialized_at",
-                d."syncServiceVersionId" as "sync_service_version_id",
-                d."syncServiceSnapshotKey" as "sync_service_snapshot_key",
-                d."syncServiceSnapshotSha256" as "sync_service_snapshot_sha256",
-                d."syncServiceSnapshotSizeBytes" as "sync_service_snapshot_size_bytes",
-                d."syncServiceSnapshotUpdatedAt"::timestamptz as "sync_service_snapshot_updated_at",
                 p.name as "project_name?",
                 di.sha as "sha?",
                 dt.sub_type as "sub_type?: DocumentSubType",
@@ -714,16 +676,6 @@ impl DocumentRepo for PgDocumentRepo {
                 updated_at: row.updated_at,
                 sub_type: row.sub_type,
                 deleted_at: row.deleted_at,
-                sync_service: row.sync_service_initialized_at.map(|initialized_at| {
-                    DocumentSyncServiceState {
-                        initialized_at: Some(initialized_at),
-                        version_id: row.sync_service_version_id,
-                        snapshot_key: row.sync_service_snapshot_key,
-                        snapshot_sha256: row.sync_service_snapshot_sha256,
-                        snapshot_size_bytes: row.sync_service_snapshot_size_bytes,
-                        snapshot_updated_at: row.sync_service_snapshot_updated_at,
-                    }
-                }),
             })
         })
         .fetch_one(&self.pool)

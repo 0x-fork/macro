@@ -2,25 +2,7 @@ use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 use sqlx::{Pool, Postgres, Transaction};
 
 use document_sub_type::DocumentSubType;
-use model::document::{BomPart, DocumentBasic, DocumentMetadata, DocumentSyncServiceState};
-
-fn sync_service_state(
-    initialized_at: Option<chrono::DateTime<chrono::Utc>>,
-    version_id: Option<String>,
-    snapshot_key: Option<String>,
-    snapshot_sha256: Option<String>,
-    snapshot_size_bytes: Option<i64>,
-    snapshot_updated_at: Option<chrono::DateTime<chrono::Utc>>,
-) -> Option<DocumentSyncServiceState> {
-    initialized_at.map(|initialized_at| DocumentSyncServiceState {
-        initialized_at: Some(initialized_at),
-        version_id,
-        snapshot_key,
-        snapshot_sha256,
-        snapshot_size_bytes,
-        snapshot_updated_at,
-    })
-}
+use model::document::{BomPart, DocumentBasic, DocumentMetadata};
 
 /// Gets the documents name
 #[tracing::instrument(skip(db))]
@@ -159,12 +141,6 @@ pub async fn get_basic_document(
             d."documentFamilyId" as "document_family_id",
             d."fileType" as "file_type",
             d."projectId" as "project_id",
-            d."syncServiceInitializedAt"::timestamptz as "sync_service_initialized_at",
-            d."syncServiceVersionId" as "sync_service_version_id",
-            d."syncServiceSnapshotKey" as "sync_service_snapshot_key",
-            d."syncServiceSnapshotSha256" as "sync_service_snapshot_sha256",
-            d."syncServiceSnapshotSizeBytes" as "sync_service_snapshot_size_bytes",
-            d."syncServiceSnapshotUpdatedAt"::timestamptz as "sync_service_snapshot_updated_at",
             d."deletedAt"::timestamptz as "deleted_at"
         FROM
             "Document" d
@@ -187,14 +163,6 @@ pub async fn get_basic_document(
             document_family_id: row.document_family_id,
             project_id: row.project_id,
             deleted_at: row.deleted_at,
-            sync_service: sync_service_state(
-                row.sync_service_initialized_at,
-                row.sync_service_version_id,
-                row.sync_service_snapshot_key,
-                row.sync_service_snapshot_sha256,
-                row.sync_service_snapshot_size_bytes,
-                row.sync_service_snapshot_updated_at,
-            ),
         })
     })
     .fetch_one(db)
@@ -222,12 +190,6 @@ pub async fn get_basic_documents(
             d."documentFamilyId" as "document_family_id",
             d."fileType" as "file_type",
             d."projectId" as "project_id",
-            d."syncServiceInitializedAt"::timestamptz as "sync_service_initialized_at",
-            d."syncServiceVersionId" as "sync_service_version_id",
-            d."syncServiceSnapshotKey" as "sync_service_snapshot_key",
-            d."syncServiceSnapshotSha256" as "sync_service_snapshot_sha256",
-            d."syncServiceSnapshotSizeBytes" as "sync_service_snapshot_size_bytes",
-            d."syncServiceSnapshotUpdatedAt"::timestamptz as "sync_service_snapshot_updated_at",
             d."deletedAt"::timestamptz as "deleted_at"
         FROM
             "Document" d
@@ -249,14 +211,6 @@ pub async fn get_basic_documents(
             document_family_id: row.document_family_id,
             project_id: row.project_id,
             deleted_at: row.deleted_at,
-            sync_service: sync_service_state(
-                row.sync_service_initialized_at,
-                row.sync_service_version_id,
-                row.sync_service_snapshot_key,
-                row.sync_service_snapshot_sha256,
-                row.sync_service_snapshot_size_bytes,
-                row.sync_service_snapshot_updated_at,
-            ),
         })
     })
     .fetch_all(db)
@@ -281,12 +235,6 @@ pub async fn get_deleted_document_info(
             d."documentFamilyId" as "document_family_id",
             d."fileType" as "file_type",
             d."projectId" as "project_id",
-            d."syncServiceInitializedAt"::timestamptz as "sync_service_initialized_at",
-            d."syncServiceVersionId" as "sync_service_version_id",
-            d."syncServiceSnapshotKey" as "sync_service_snapshot_key",
-            d."syncServiceSnapshotSha256" as "sync_service_snapshot_sha256",
-            d."syncServiceSnapshotSizeBytes" as "sync_service_snapshot_size_bytes",
-            d."syncServiceSnapshotUpdatedAt"::timestamptz as "sync_service_snapshot_updated_at",
             d."deletedAt"::timestamptz as "deleted_at"
         FROM
             "Document" d
@@ -308,14 +256,6 @@ pub async fn get_deleted_document_info(
             document_family_id: row.document_family_id,
             project_id: row.project_id,
             deleted_at: row.deleted_at,
-            sync_service: sync_service_state(
-                row.sync_service_initialized_at,
-                row.sync_service_version_id,
-                row.sync_service_snapshot_key,
-                row.sync_service_snapshot_sha256,
-                row.sync_service_snapshot_size_bytes,
-                row.sync_service_snapshot_updated_at,
-            ),
         })
     })
     .fetch_one(db)
@@ -346,12 +286,6 @@ pub async fn get_document(
             db.bom_parts as "document_bom?",
             di.modification_data as "modification_data?",
             d."projectId" as "project_id",
-            d."syncServiceInitializedAt"::timestamptz as "sync_service_initialized_at",
-            d."syncServiceVersionId" as "sync_service_version_id",
-            d."syncServiceSnapshotKey" as "sync_service_snapshot_key",
-            d."syncServiceSnapshotSha256" as "sync_service_snapshot_sha256",
-            d."syncServiceSnapshotSizeBytes" as "sync_service_snapshot_size_bytes",
-            d."syncServiceSnapshotUpdatedAt"::timestamptz as "sync_service_snapshot_updated_at",
             p.name as "project_name?",
             di.sha as "sha?",
             dt.sub_type as "sub_type?: DocumentSubType",
@@ -438,14 +372,6 @@ pub async fn get_document(
             created_at: row.created_at,
             updated_at: row.updated_at,
             sub_type: row.sub_type,
-            sync_service: sync_service_state(
-                row.sync_service_initialized_at,
-                row.sync_service_version_id,
-                row.sync_service_snapshot_key,
-                row.sync_service_snapshot_sha256,
-                row.sync_service_snapshot_size_bytes,
-                row.sync_service_snapshot_updated_at,
-            ),
             deleted_at: row.deleted_at,
         })
     })
@@ -477,12 +403,6 @@ pub async fn get_document_version(
             db.bom_parts as "document_bom?",
             di.modification_data as "modification_data?",
             d."projectId" as "project_id?",
-            d."syncServiceInitializedAt"::timestamptz as "sync_service_initialized_at",
-            d."syncServiceVersionId" as "sync_service_version_id",
-            d."syncServiceSnapshotKey" as "sync_service_snapshot_key",
-            d."syncServiceSnapshotSha256" as "sync_service_snapshot_sha256",
-            d."syncServiceSnapshotSizeBytes" as "sync_service_snapshot_size_bytes",
-            d."syncServiceSnapshotUpdatedAt"::timestamptz as "sync_service_snapshot_updated_at",
             p.name as "project_name?",
             di.sha as "sha?",
             dt.sub_type as "sub_type?: DocumentSubType",
@@ -568,14 +488,6 @@ pub async fn get_document_version(
             created_at: row.created_at,
             updated_at: row.updated_at,
             sub_type: row.sub_type,
-            sync_service: sync_service_state(
-                row.sync_service_initialized_at,
-                row.sync_service_version_id,
-                row.sync_service_snapshot_key,
-                row.sync_service_snapshot_sha256,
-                row.sync_service_snapshot_size_bytes,
-                row.sync_service_snapshot_updated_at,
-            ),
             deleted_at: row.deleted_at,
         })
     })
