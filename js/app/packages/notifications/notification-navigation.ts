@@ -1,6 +1,10 @@
 import type { SplitManager } from '@app/component/split-layout/layoutManager';
 import type { BlockAlias, BlockName } from '@core/block';
-import { fileTypeToBlockName } from '@core/constant/allBlocks';
+import {
+  type ItemLike,
+  itemToBlockName,
+  resolveBlockAlias,
+} from '@core/constant/allBlocks';
 import type { NotificationType } from '@core/types';
 import type { UnifiedNotification } from './types';
 import { getNotificationById } from '@queries/notification/user-notifications';
@@ -13,10 +17,27 @@ import {
 } from '@block-channel/utils/link';
 import { isChannelNotification } from './notification-helpers';
 import { CHANNEL_EVENT_TYPES } from './notification-source';
+import { URL_PARAMS as PDF_URL_PARAMS } from '@block-pdf/signal/location';
+import { URL_PARAMS as MD_URL_PARAMS } from '@block-md/constants';
 import {
   stackNotifications,
   getMostRecentNotification,
 } from './notification-stacking';
+
+/**
+ * Go to location via global block orchestrator.
+ */
+async function goToLocationInSplit(
+  layoutManager: SplitManager,
+  type: BlockName | BlockAlias,
+  id: string,
+  params: Record<string, string>
+) {
+  const orchestrator = layoutManager.getOrchestrator();
+  if (!orchestrator) return;
+  const handle = await orchestrator.getBlockHandle(id, resolveBlockAlias(type));
+  await handle?.goToLocationFromParams(params);
+}
 
 /**
  * Opens a split if it is not already open.
@@ -30,16 +51,19 @@ function openSplitIfNotOpen(
   const existing = layoutManager.getSplitByContent(type, id);
   if (existing) {
     existing.activate();
-    return;
+  } else {
+    layoutManager.openWithSplit(
+      { type, id },
+      {
+        activate: true,
+        referredFrom: null,
+        preferNewSplit: options.newSplit,
+      }
+    );
   }
-  layoutManager.openWithSplit(
-    { type, id, params: options.params },
-    {
-      activate: true,
-      referredFrom: null,
-      preferNewSplit: options.newSplit,
-    }
-  );
+  if (options.params && type !== 'component') {
+    goToLocationInSplit(layoutManager, type, id, options.params);
+  }
 }
 
 export function getChannelNotificationParams(
@@ -90,8 +114,33 @@ async function openChannelNotification(
   });
 }
 
-function safeFileTypeToBlockName(fileType: string | undefined | null) {
-  return fileTypeToBlockName(fileType) ?? 'unknown';
+// Minimal entity shape — the live entity from the UI is authoritative when
+// available (notification metadata is a snapshot at notification time and may
+// lack `subType` for older events).
+export type NotificationEntityOverride = {
+  fileType?: string | null;
+  subType?: { type: string } | null;
+};
+
+// Resolve the block type for a document notification, honoring `subType` so
+// that e.g. a markdown doc with `subType: { type: 'task' }` routes to the
+// 'task' block alias instead of raw 'md'. Prefers the live entity's fields
+// over the notification-metadata snapshot when provided.
+function safeDocumentContentToBlockName(
+  content: NotificationEntityOverride,
+  entity?: NotificationEntityOverride
+) {
+  return itemToBlockName({
+    type: 'document',
+    fileType: entity?.fileType ?? content.fileType ?? undefined,
+    subType: entity?.subType ?? content.subType ?? undefined,
+  } as ItemLike);
+}
+
+function resolveBlockCommentParamName(type: BlockName | BlockAlias) {
+  const resolved = resolveBlockAlias(type);
+  if (resolved === 'md') return MD_URL_PARAMS.commentId;
+  if (resolved === 'pdf') return PDF_URL_PARAMS.annotationId;
 }
 
 type NotSupportedError = {
@@ -107,7 +156,8 @@ type NotFoundError = {
 export type OpenNotificationFromIdError = NotSupportedError | NotFoundError;
 
 function getSupportedHandler(
-  notification: UnifiedNotification
+  notification: UnifiedNotification,
+  entity?: NotificationEntityOverride
 ): ((layoutManager: SplitManager, newSplit?: boolean) => Promise<void>) | null {
   const tag = notification.notification_metadata.tag;
 
@@ -145,7 +195,7 @@ function getSupportedHandler(
       return async (lm: SplitManager, newSplit: boolean = false) =>
         openSplitIfNotOpen(
           lm,
-          safeFileTypeToBlockName(meta.content.fileType),
+          safeDocumentContentToBlockName(meta.content, entity),
           notification.entity_id,
           { newSplit }
         );
@@ -161,35 +211,56 @@ function getSupportedHandler(
     .with('mentioned_in_document_comment', () => {
       const meta = notification.notification_metadata;
       if (meta.tag !== 'mentioned_in_document_comment') return null;
+
+      const blockName = safeDocumentContentToBlockName(meta.content, entity);
+      const commentParamName = resolveBlockCommentParamName(blockName);
+      const params = commentParamName
+        ? {
+            [commentParamName]: meta.content.commentId.toString(),
+          }
+        : undefined;
+
       return async (lm: SplitManager, newSplit: boolean = false) =>
-        openSplitIfNotOpen(
-          lm,
-          safeFileTypeToBlockName(meta.content.fileType),
-          notification.entity_id,
-          { newSplit }
-        );
+        openSplitIfNotOpen(lm, blockName, notification.entity_id, {
+          newSplit,
+          params,
+        });
     })
     .with('replied_to_document_comment_thread', () => {
       const meta = notification.notification_metadata;
       if (meta.tag !== 'replied_to_document_comment_thread') return null;
+
+      const blockName = safeDocumentContentToBlockName(meta.content, entity);
+      const commentParamName = resolveBlockCommentParamName(blockName);
+      const params = commentParamName
+        ? {
+            [commentParamName]: meta.content.commentId.toString(),
+          }
+        : undefined;
+
       return async (lm: SplitManager, newSplit: boolean = false) =>
-        openSplitIfNotOpen(
-          lm,
-          safeFileTypeToBlockName(meta.content.fileType),
-          notification.entity_id,
-          { newSplit }
-        );
+        openSplitIfNotOpen(lm, blockName, notification.entity_id, {
+          newSplit,
+          params,
+        });
     })
     .with('commented_on_document', () => {
       const meta = notification.notification_metadata;
       if (meta.tag !== 'commented_on_document') return null;
+
+      const blockName = safeDocumentContentToBlockName(meta.content, entity);
+      const commentParamName = resolveBlockCommentParamName(blockName);
+      const params = commentParamName
+        ? {
+            [commentParamName]: meta.content.commentId.toString(),
+          }
+        : undefined;
+
       return async (lm: SplitManager, newSplit: boolean = false) =>
-        openSplitIfNotOpen(
-          lm,
-          safeFileTypeToBlockName(meta.content.fileType),
-          notification.entity_id,
-          { newSplit }
-        );
+        openSplitIfNotOpen(lm, blockName, notification.entity_id, {
+          newSplit,
+          params,
+        });
     })
     .exhaustive();
 }
@@ -201,9 +272,10 @@ function getSupportedHandler(
 export function openNotification(
   notification: UnifiedNotification,
   layoutManager: SplitManager,
-  newSplit: boolean = false
+  newSplit: boolean = false,
+  entity?: NotificationEntityOverride
 ): ResultAsync<void, NotSupportedError> {
-  const handler = getSupportedHandler(notification);
+  const handler = getSupportedHandler(notification, entity);
   if (!handler) {
     return errAsync({
       tag: 'NotSupportedError',

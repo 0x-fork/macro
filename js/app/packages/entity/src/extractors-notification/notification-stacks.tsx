@@ -14,6 +14,7 @@ import {
 } from '@notifications';
 import type { UnifiedNotification } from '@notifications';
 import { Button } from '@ui/components/Button';
+import { Layer } from '@ui/components/Layer';
 import { cn } from '@ui/utils/classname';
 import { createEffect, type JSX, Show } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
@@ -51,6 +52,7 @@ interface NotificationStacksProps {
 
 function NotificationStackRow(props: {
   stack: NotificationStack;
+  entity: EntityData;
   onClick?: (e: PointerEvent | MouseEvent | KeyboardEvent) => void;
   content?: JSX.Element;
 }) {
@@ -59,6 +61,7 @@ function NotificationStackRow(props: {
 
   const { markStackAsDone, markStackAsRead } = useNotificationStackActions({
     stack: props.stack,
+    entityId: props.entity.id,
   });
 
   const handleClick = async (e: PointerEvent | MouseEvent | KeyboardEvent) => {
@@ -67,7 +70,17 @@ function NotificationStackRow(props: {
     if (!splitManager) return;
 
     e.stopPropagation();
-    await openNotification(mostRecent, splitManager, e.shiftKey);
+    const entity = props.entity;
+    const entityOverride = {
+      fileType: 'fileType' in entity ? entity.fileType : undefined,
+      subType: 'subType' in entity ? entity.subType : undefined,
+    };
+    await openNotification(
+      mostRecent,
+      splitManager,
+      e.shiftKey,
+      entityOverride
+    );
     await notificationSource.markAsRead(mostRecent);
     props.onClick?.(e);
   };
@@ -89,66 +102,70 @@ function NotificationStackRow(props: {
   };
 
   return (
-    <ContextMenu>
-      <ContextMenu.Trigger class="size-full">
-        <div
-          class="flex py-1.5 px-2 gap-3 hover:bg-hover/20 rounded-xs min-w-0 overflow-hidden cursor-pointer group/notification-row transition-colors"
-          onClick={handleClick}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleClick(e);
-            }
-            if (e.key === 'e') {
-              e.preventDefault();
-              e.stopPropagation();
-              handleMarkAsDone();
-            }
-          }}
-        >
-          <div class="flex items-center justify-center w-4 shrink-0">
-            <UnreadIndicator active={unread()} />
-          </div>
-          <div class="shrink-0">
-            <NotificationIcon stack={props.stack} class="size-4" />
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2 text-sm min-w-0">
-              <div class="shrink-0">
-                <NotificationSenderIcon stack={props.stack} size="xs" />
+    <Layer depth={0}>
+      <ContextMenu>
+        <ContextMenu.Trigger class="size-full">
+          <div
+            class={cn(
+              'flex py-1.5 px-2 gap-3 hover:bg-hover/20 rounded-xs min-w-0 overflow-hidden cursor-pointer group/notification-row transition-colors'
+            )}
+            onClick={handleClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick(e);
+              }
+              if (e.key === 'e') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleMarkAsDone();
+              }
+            }}
+          >
+            <div class="flex items-center justify-center w-4 shrink-0">
+              <UnreadIndicator active={unread()} />
+            </div>
+            <div class="shrink-0">
+              <NotificationIcon stack={props.stack} class="size-4" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 text-sm min-w-0">
+                <div class="shrink-0">
+                  <NotificationSenderIcon stack={props.stack} size="xs" />
+                </div>
+                <span class="ph-no-capture truncate min-w-0">
+                  <NotificationDescription stack={props.stack} />
+                </span>
+                <span class="text-xs text-ink-extra-muted shrink-0 ml-auto">
+                  <NotificationTimestamp stack={props.stack} />
+                </span>
+                <Button
+                  onClick={handleMarkAsDone}
+                  tooltip="Mark done"
+                  class="opacity-0 group-hover/notification-row:opacity-100 border border-edge-muted text-xs text-ink-muted grid p-0 place-items-center size-5 shrink-0"
+                >
+                  <CheckIcon class="size-3" />
+                </Button>
               </div>
-              <span class="ph-no-capture truncate min-w-0">
-                <NotificationDescription stack={props.stack} />
-              </span>
-              <span class="text-xs text-ink-extra-muted shrink-0 ml-auto">
-                <NotificationTimestamp stack={props.stack} />
-              </span>
-              <Button
-                onClick={handleMarkAsDone}
-                tooltip="Mark done"
-                class="opacity-0 group-hover/notification-row:opacity-100 border border-edge-muted text-xs text-ink-muted grid p-0 place-items-center size-5 shrink-0"
-              >
-                <CheckIcon class="size-3" />
-              </Button>
-            </div>
-            <div class="ph-no-capture text-xs text-ink-muted truncate mt-0.5">
-              <NotificationContent stack={props.stack} singleLine />
+              <div class="ph-no-capture text-xs text-ink-muted truncate mt-0.5">
+                <NotificationContent stack={props.stack} singleLine />
+              </div>
             </div>
           </div>
-        </div>
-      </ContextMenu.Trigger>
-      <ContextMenu.Portal>
-        <div onClick={(e) => e.stopPropagation()}>
-          <ContextMenuContent class="text-xs text-ink-muted">
-            <MenuItem text="Mark Done" onClick={() => handleMarkAsDone()} />
-            <MenuItem text="Mark Read" onClick={handleMarkAsRead} />
-            <MenuItem text="Copy Link" onClick={handleCopyLink} />
-          </ContextMenuContent>
-        </div>
-      </ContextMenu.Portal>
-    </ContextMenu>
+        </ContextMenu.Trigger>
+        <ContextMenu.Portal>
+          <div onClick={(e) => e.stopPropagation()}>
+            <ContextMenuContent class="text-xs text-ink-muted">
+              <MenuItem text="Mark Done" onClick={() => handleMarkAsDone()} />
+              <MenuItem text="Mark Read" onClick={handleMarkAsRead} />
+              <MenuItem text="Copy Link" onClick={handleCopyLink} />
+            </ContextMenuContent>
+          </div>
+        </ContextMenu.Portal>
+      </ContextMenu>
+    </Layer>
   );
 }
 
@@ -172,7 +189,11 @@ export function NotificationStacks(props: NotificationStacksProps) {
         togglePosition="bottom"
       >
         {(stack) => (
-          <NotificationStackRow stack={stack} onClick={props.onClick} />
+          <NotificationStackRow
+            stack={stack}
+            entity={props.entity}
+            onClick={props.onClick}
+          />
         )}
       </CollapsibleList>
     </Show>

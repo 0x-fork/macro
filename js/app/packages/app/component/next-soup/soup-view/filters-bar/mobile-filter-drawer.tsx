@@ -25,7 +25,6 @@ import type { ListView } from '@app/constants/list-views';
 import { isListViewID } from '@app/constants/list-views';
 import { useContacts } from '@queries/contacts/contacts';
 import { useUserId } from '@core/context/user';
-import { NO_ASSIGNEE } from '@app/component/next-soup/soup-view/task-sub-filter-matcher';
 import { UserIcon } from '@core/component/UserIcon';
 import {
   DEFAULT_SORT_OPTIONS,
@@ -36,6 +35,10 @@ import {
   type SystemSortOption,
   type SortOption,
 } from '@app/component/next-soup/soup-view/sort-options';
+import {
+  NO_ASSIGNEE,
+  type FilterContext,
+} from '@app/component/next-soup/filters';
 
 function scrollAccordionItemToTop(
   e: MouseEvent,
@@ -66,7 +69,8 @@ export const MobileFilterDrawer = () => {
     isOptionActive,
   } = useFilterRefinements();
 
-  const { soup, assigneeFilter, setAssigneeFilter } = useSoupView();
+  const { soup, queryFilters, assigneeFilter, setAssigneeFilter } =
+    useSoupView();
   const panel = useSplitPanelOrThrow();
   const contacts = useContacts();
   const userId = useUserId();
@@ -113,7 +117,24 @@ export const MobileFilterDrawer = () => {
     categories().length > 0 || isTasksView() || sortOptions().length > 0;
 
   const toggleFilter = (optionId: FilterOption['id']) => {
-    soup.filters.toggle({ or: [optionId] });
+    const wasActive = soup.predicates.isActive(optionId);
+    soup.predicates.toggle({ or: [optionId] });
+
+    const filter = soup.predicates.getConfig(optionId);
+    if (!filter?.query) return;
+
+    const ctx: FilterContext = {
+      userId: userId(),
+      assignees: assigneeFilter(),
+    };
+    const query =
+      typeof filter.query === 'function' ? filter.query(ctx) : filter.query;
+
+    if (wasActive) {
+      queryFilters.remove(query);
+    } else {
+      queryFilters.add(query);
+    }
   };
 
   const toggleAssignee = (id: string) => {
@@ -287,7 +308,7 @@ export const MobileFilterDrawer = () => {
                         const activeCount = createMemo(
                           () =>
                             category.options.filter((o) =>
-                              soup.filters.isActive(o.id)
+                              soup.predicates.isActive(o.id)
                             ).length
                         );
                         return (
@@ -308,11 +329,11 @@ export const MobileFilterDrawer = () => {
                                 </span>
                                 <div class="flex items-center gap-2">
                                   <Show when={activeCount() > 0}>
-                                    <span class="group-data-[expanded]:hidden size-4 flex items-center justify-center rounded-full bg-accent text-page text-[10px] font-medium leading-none">
+                                    <span class="group-data-expanded:hidden size-4 flex items-center justify-center rounded-full bg-accent text-page text-[10px] font-medium leading-none">
                                       {activeCount()}
                                     </span>
                                   </Show>
-                                  <ChevronDownIcon class="size-3.5 text-ink-muted transition-transform duration-200 group-data-[expanded]:rotate-180" />
+                                  <ChevronDownIcon class="size-3.5 text-ink-muted transition-transform duration-200 group-data-expanded:rotate-180" />
                                 </div>
                               </Accordion.Trigger>
                             </Accordion.Header>
@@ -320,7 +341,7 @@ export const MobileFilterDrawer = () => {
                               <For each={category.options}>
                                 {(option) => {
                                   const active = () =>
-                                    soup.filters.isActive(option.id);
+                                    soup.predicates.isActive(option.id);
                                   return (
                                     <button
                                       type="button"
@@ -379,17 +400,17 @@ export const MobileFilterDrawer = () => {
                           <span class="font-medium">Assignee</span>
                           <div class="flex items-center gap-2">
                             <Show when={assigneeFilter().length > 0}>
-                              <span class="group-data-[expanded]:hidden size-4 flex items-center justify-center rounded-full bg-accent text-page text-[10px] font-medium leading-none">
+                              <span class="group-data-expanded:hidden size-4 flex items-center justify-center rounded-full bg-accent text-page text-[10px] font-medium leading-none">
                                 {assigneeFilter().length}
                               </span>
                             </Show>
-                            <ChevronDownIcon class="size-3.5 text-ink-muted transition-transform duration-200 group-data-[expanded]:rotate-180" />
+                            <ChevronDownIcon class="size-3.5 text-ink-muted transition-transform duration-200 group-data-expanded:rotate-180" />
                           </div>
                         </Accordion.Trigger>
                       </Accordion.Header>
                       <Accordion.Content class="pb-1">
                         {/* Search */}
-                        <div class="flex items-center gap-2 px-3 py-2 border-b border-edge-muted/50 mb-1">
+                        <div class="flex items-center gap-2 px-3 py-2 border-b border-edge-muted mb-1">
                           <SearchIcon class="size-3.5 text-ink-muted shrink-0" />
                           <input
                             type="text"
@@ -458,7 +479,7 @@ export const MobileFilterDrawer = () => {
 
             {/* Active filter chips footer */}
             <Show when={activeCount() > 0}>
-              <div class="shrink-0 border-t border-edge-muted/50 py-2">
+              <div class="shrink-0 border-t border-edge-muted py-2">
                 <ActiveFilterChips
                   filters={activeFiltersList()}
                   onRemove={removeFilter}

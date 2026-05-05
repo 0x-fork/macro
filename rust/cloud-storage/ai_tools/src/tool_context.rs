@@ -1,4 +1,16 @@
 use axum::extract::FromRef;
+use call::domain::models::{CallError, CallWebhookEvent, EgressS3Config};
+use call::domain::ports::CallRtcClient;
+use call::domain::service::{CallRecordQueryServiceImpl, CallServiceImpl};
+use call::inbound::toolset::CallToolContext;
+use call::outbound::pg_call_repo::PgCallRepo;
+use call::outbound::s3_recording_storage::S3RecordingStorage;
+use channels::domain::service::ChannelMessagesServiceImpl;
+use channels::inbound::toolset::ChannelToolContext;
+use channels::outbound::pg_channels_repo::PgChannelMessagesRepo;
+use chat::domain::service::ChatServiceImpl;
+use chat::inbound::toolset::ChatToolContext;
+use chat::outbound::postgres::PgChatRepo;
 use connection::domain::ports::ConnectionService;
 use documents::{domain::ports::TaskPropertiesPort, inbound::toolset::DocumentToolContext};
 use email::{
@@ -6,17 +18,10 @@ use email::{
 };
 use macro_user_id::user_id::MacroUserIdStr;
 use properties::inbound::toolset::PropertiesToolContext;
-use scribe::{
-    ScribeClient, channel::ChannelClient, dcs::DcsClient, document::DocumentClient,
-    email::EmailClient, static_file::StaticFileClient,
-};
 use soup::{domain::service::SoupImpl, inbound::toolset::SoupToolContext};
 use std::sync::Arc;
 
 pub use ai_toolset::RequestContext;
-
-pub type ToolScribe =
-    ScribeClient<DocumentClient, ChannelClient, DcsClient, EmailClient, StaticFileClient>;
 
 /// Type alias for the frecency service implementation
 pub type ToolFrecencyService = frecency::domain::services::FrecencyQueryServiceImpl<
@@ -36,6 +41,23 @@ pub type ToolCommsService = comms::domain::service::ChannelServiceImpl<
     comms::outbound::postgres::user_repo::PgUserRepo,
     frecency::outbound::postgres::FrecencyPgStorage,
 >;
+
+/// Type alias for the channel messages service implementation used by AI tools.
+pub type ToolChannelMessagesService = ChannelMessagesServiceImpl<PgChannelMessagesRepo>;
+
+/// Type alias for the channel AI tool context.
+pub type ToolChannelToolContext =
+    ChannelToolContext<ToolChannelMessagesService, ToolEntityAccessService>;
+
+/// Build the channel AI tool context from a Postgres pool.
+pub fn build_channel_tool_context(pool: sqlx::PgPool) -> ToolChannelToolContext {
+    ChannelToolContext::new(
+        ChannelMessagesServiceImpl::new(PgChannelMessagesRepo::new(pool.clone())),
+        entity_access::domain::service::EntityAccessServiceImpl::new(
+            entity_access::outbound::PgAccessRepository::new(pool),
+        ),
+    )
+}
 
 /// No-op task properties service (not needed for AI tools)
 #[derive(Clone)]
@@ -85,6 +107,82 @@ impl ConnectionService for NoOpConnectionService {
         _message: serde_json::Value,
     ) -> Result<(), connection::domain::models::ConnectionError> {
         Ok(())
+    }
+}
+
+/// No-op RTC client used by the call tool context — the AI read-only tools
+/// never touch RTC, so token/egress methods bail rather than silently succeed.
+#[derive(Clone)]
+pub struct NoOpCallRtcClient;
+
+impl CallRtcClient for NoOpCallRtcClient {
+    async fn create_room(&self, _room_name: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn delete_room(&self, _room_name: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn generate_token<'a>(
+        &self,
+        _room_name: &str,
+        _participant_identity: MacroUserIdStr<'a>,
+    ) -> anyhow::Result<String> {
+        anyhow::bail!("call RTC client not configured")
+    }
+
+    async fn remove_participant<'a>(
+        &self,
+        _room_name: &str,
+        _participant_identity: MacroUserIdStr<'a>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn start_room_composite_egress(
+        &self,
+        _room_name: &str,
+        _s3_config: &EgressS3Config,
+    ) -> anyhow::Result<String> {
+        anyhow::bail!("call RTC client not configured")
+    }
+
+    async fn stop_egress(&self, _egress_id: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn receive_webhook(
+        &self,
+        _body: &str,
+        _auth_token: &str,
+    ) -> Result<CallWebhookEvent, CallError> {
+        Err(CallError::Auth)
+    }
+
+    async fn dispatch_transcription_agent(&self, _room_name: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+/// No-op notification ingress used by the call tool context — reads never
+/// push notifications.
+#[derive(Clone)]
+pub struct NoOpNotificationIngress;
+
+impl notification::domain::service::NotificationIngress for NoOpNotificationIngress {
+    async fn send_notification<
+        'a,
+        T: notification::domain::models::Notification + Clone + 'static,
+        U: serde::Serialize + Send + Sync + 'static,
+    >(
+        &'a self,
+        _req: notification::domain::models::SendNotificationRequest<'a, T, U>,
+    ) -> Result<
+        Option<notification::domain::models::NotificationResult<'a>>,
+        rootcause::Report<notification::domain::service::SendNotificationError>,
+    > {
+        Ok(None)
     }
 }
 
@@ -153,6 +251,33 @@ pub type ToolPropertiesToolContext = PropertiesToolContext<ToolPropertiesService
 /// Type alias for the email tool context
 pub type ToolEmailToolContext = EmailToolContext<ToolUserEmailService>;
 
+/// Type alias for the call service implementation used by AI tools.
+/// Wired with NoOp RTC/connection/notification clients and no recording
+/// storage — the AI tools are read-only, so those capabilities are never
+/// exercised.
+pub type ToolCallService = CallServiceImpl<
+    PgCallRepo,
+    NoOpCallRtcClient,
+    NoOpConnectionService,
+    ToolEntityAccessService,
+    NoOpNotificationIngress,
+    Option<S3RecordingStorage>,
+>;
+
+/// Type alias for the read-only call record query service.
+pub type ToolCallRecordQueryService = CallRecordQueryServiceImpl<PgCallRepo>;
+
+/// Type alias for the call tool context
+pub type ToolCallToolContext =
+    CallToolContext<ToolCallService, ToolCallRecordQueryService, ToolEntityAccessService>;
+
+/// Type alias for the chat service implementation used by AI tools.
+/// Uses an empty toolset — the read-only tool never invokes tool execution.
+pub type ToolChatService = ChatServiceImpl<PgChatRepo, (), ToolEntityAccessManagementService>;
+
+/// Type alias for the chat tool context
+pub type ToolChatToolContext = ChatToolContext<ToolChatService, ToolEntityAccessService>;
+
 #[derive(Clone, Default)]
 pub struct NoOpScheduleContext;
 
@@ -167,12 +292,14 @@ pub fn no_op_schedule_context() -> NoOpScheduleContext {
 pub struct ToolServiceContext {
     pub search_service_client: Arc<search_service_client::SearchServiceClient>,
     pub email_service_client: Arc<email_service_client::EmailServiceClientExternal>,
-    pub scribe: Arc<ToolScribe>,
     pub soup_service: Arc<ToolSoupService>,
     pub email_service: Arc<ToolEmailService>,
     pub document_tool_context: ToolDocumentToolContext,
     pub properties_tool_context: ToolPropertiesToolContext,
     pub email_tool_context: ToolEmailToolContext,
+    pub call_tool_context: ToolCallToolContext,
+    pub chat_tool_context: ToolChatToolContext,
+    pub channel_tool_context: ToolChannelToolContext,
     pub schedule_tool_context: NoOpScheduleContext,
 }
 

@@ -31,11 +31,22 @@ export {
 
 export { unreadFilterFn } from './utils/filter';
 export {
+  buildEntityData,
+  type BuildEntityDataArgs,
+} from './utils/buildEntityData';
+export {
   TASK_STATUS_OPTIONS,
   getTaskAssigneeIds,
   getTaskStatusOptionId,
   isTaskClosed,
   isCurrentUserAssigned,
 } from './utils/task-properties';
+
+export {
+  getSnippetHit,
+  isHitSnippetComplete,
+  isSnippetEntity,
+  type SnippetEntity,
+} from './extractors-search/snippet-entity';
 
 export { default as DebugEntityView } from './debug/DebugEntityView';

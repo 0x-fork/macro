@@ -3,7 +3,7 @@ import type { SendBuilder } from '@block-chat/blockClient';
 import { TopBar } from '@block-chat/component/TopBar';
 import type { ChatData } from '@block-chat/definition';
 import { pendingLocationParamsSignal } from '@block-chat/signal/pendingLocationParams';
-import { useBlockId } from '@core/block';
+import { useBlockId, useIsNestedBlock } from '@core/block';
 import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
 import { useSendChatMessage } from '@core/component/AI/component/input/buildRequest';
@@ -25,10 +25,7 @@ import {
 } from '@core/component/AI/util/storage';
 import { buildChatEditor } from '@core/component/AI/component/input/buildChatEditor';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
-import {
-  DEV_MODE_ENV,
-  ENABLE_SNAPSHOT_NODE,
-} from '@core/constant/featureFlags';
+import { DEV_MODE_ENV } from '@core/constant/featureFlags';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { TOKENS } from '@core/hotkey/tokens';
 import { registerScopeSignalHotkey } from '@core/hotkey/utils';
@@ -46,7 +43,10 @@ import { invalidateUserQuota } from '@queries/auth';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { ChatInput } from 'core/component/AI/component/input/ChatInput';
-import { createEffect, createSignal, getOwner, Show } from 'solid-js';
+import { createEffect, createSignal, getOwner, Show, Suspense } from 'solid-js';
+import { SplitToolbarLeft } from '@app/component/split-layout/components/SplitToolbar';
+import { Button } from '@ui/components/Button';
+import ChatDebugIcon from '@icon/regular/chat-text.svg';
 
 export function Chat(props: { data: ChatData }) {
   const loadedState = getChatInputStoredState(props.data.chat.id);
@@ -97,7 +97,6 @@ function ChatInner(props: {
     },
     block: 'chat',
     showOpenTabs: true,
-    useSnapshotForDocuments: ENABLE_SNAPSHOT_NODE,
   });
 
   // Sync isGenerating from controller phase
@@ -247,20 +246,33 @@ function ChatInner(props: {
     hasRun = true;
   });
 
+  const isNestedBlock = useIsNestedBlock();
+
   return (
     <DragDropWrapper
       class="size-full bg-panel overscroll-none overflow-hidden flex flex-col"
       isEntityDraggingOver={isDraggingOver}
     >
-      <TopBar />
-      <Show when={DEV_MODE_ENV}>
-        <button
-          class="text-xs px-2 py-0.5 text-secondary hover:text-ink"
-          onClick={() => setShowStreamDebug((p) => !p)}
-        >
-          {showStreamDebug() ? 'Hide' : 'Show'} Stream Debug
-        </button>
+      <Show when={!isNestedBlock}>
+        <Suspense>
+          <TopBar />
+        </Suspense>
       </Show>
+      <SplitToolbarLeft>
+        <Show when={DEV_MODE_ENV}>
+          <Button
+            size="icon-sm"
+            class="rounded-xs"
+            onClick={() => setShowStreamDebug((p) => !p)}
+            tooltip={
+              showStreamDebug() ? 'Hide Stream Debug' : 'Show Stream Debug'
+            }
+          >
+            <ChatDebugIcon />
+            {/*{showStreamDebug() ? 'Hide' : 'Show'} Stream Debug*/}
+          </Button>
+        </Show>
+      </SplitToolbarLeft>
       <Show when={showStreamDebug()}>
         <div class="px-2 py-1 bg-menu border-b border-edge text-ink font-mono text-sm">
           <Show when={chat.stream()} fallback={<div>No active stream</div>}>
@@ -273,7 +285,7 @@ function ChatInner(props: {
           </Show>
         </div>
       </Show>
-      <div class="size-full flex-1 min-h-0 p-2 relative">
+      <div class="size-full flex-1 min-h-0 px-2 relative">
         <div class="absolute inset-0 pointer-events-none" use:droppable />
         <div
           data-chat-scroll

@@ -1,3 +1,5 @@
+import { internalDrag } from '@core/directive/internalDragState';
+false && internalDrag;
 import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
 import { toast } from '@core/component/Toast/Toast';
 import { debouncedDependent } from '@core/util/debounce';
@@ -318,9 +320,7 @@ export function MarkdownImage(props: ImageDecoratorProps) {
             (state() === 'loading' || state() === 'error') && 'invisible'
           )}
           draggable={true}
-          onDragStart={(e) => {
-            e.dataTransfer?.setData('application/x-macro-internal', '1');
-          }}
+          use:internalDrag={true}
           ref={imageRef}
           src={imageUrl()}
           style={{
@@ -356,7 +356,7 @@ export function MarkdownImage(props: ImageDecoratorProps) {
             (state() === 'ok' || state() === 'error')
           }
         >
-          <div class="w-full h-full absolute top-0 left-0 pointer-events-none bg-edge/20" />
+          <div class="w-full h-full absolute top-0 left-0 pointer-events-none bg-edge/10" />
           <MediaButtons
             delete={interactable() ? deleteImage : undefined}
             enlarge={state() === 'ok' ? viewFull : undefined}

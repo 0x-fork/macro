@@ -5,13 +5,13 @@
 //! instead of duplicating the wiring logic.
 
 use crate::tool_context::{
-    NoOpConnectionService, NoOpNotificationService, NoOpTaskProperties, ToolServiceContext,
+    NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress, NoOpNotificationService,
+    NoOpTaskProperties, ToolServiceContext,
 };
 use anyhow::Context;
 use comms::domain::service::ChannelServiceImpl;
 use comms::outbound::postgres::comms_repo::PgCommsRepo;
 use comms::outbound::postgres::user_repo::PgUserRepo;
-use document_storage_service_client::DocumentStorageServiceClient;
 use documents::domain::models::CloudFrontConfig;
 use documents::inbound::toolset::DocumentToolContext;
 use documents::outbound::pg_document_repo::PgDocumentRepo;
@@ -19,7 +19,7 @@ use documents::outbound::s3_upload_url::S3UploadUrlAdapter;
 use email::domain::ports::ReadonlyEmailPreviewAdapter;
 use email::domain::service::EmailServiceImpl;
 use email::outbound::EmailPgRepo;
-use email_service_client::{EmailServiceClient, EmailServiceClientExternal};
+use email_service_client::EmailServiceClientExternal;
 use entity_access::domain::service::EntityAccessServiceImpl;
 use entity_access::outbound::PgAccessRepository;
 use frecency::domain::services::FrecencyQueryServiceImpl;
@@ -28,13 +28,10 @@ use lexical_client::LexicalClient;
 use macro_env::Environment;
 use macro_env_var::{env_var, maybe_env_var};
 use readonly_pool::ReadOnlyPool;
-use scribe::ScribeClient;
-use scribe::document::DocumentClient;
 use search_service_client::SearchServiceClient;
 use secretsmanager_client::{SecretManager, SecretsManager};
 use soup::domain::service::SoupImpl;
 use soup::outbound::pg_soup_repo::PgSoupRepo;
-use static_file_service_client::StaticFileServiceClient;
 use std::sync::Arc;
 use sync_service_client::SyncServiceClient;
 
@@ -124,10 +121,6 @@ pub async fn build_tool_service_context_from_env(
         .as_ref()
         .to_string();
 
-    let dss_client = Arc::new(DocumentStorageServiceClient::new(
-        internal_api_secret_key.to_string(),
-        env.document_storage_service_url.to_string(),
-    ));
     let search_client = Arc::new(SearchServiceClient::new(
         internal_api_secret_key.to_string(),
         env.search_service_url.to_string(),
@@ -136,34 +129,10 @@ pub async fn build_tool_service_context_from_env(
         sync_service_auth_key.clone(),
         env.sync_service_url.to_string(),
     ));
-    let email_client = Arc::new(EmailServiceClient::new(
-        internal_api_secret_key.to_string(),
-        env.email_service_url.to_string(),
-    ));
-    let sfs_client = Arc::new(StaticFileServiceClient::new(
-        internal_api_secret_key.to_string(),
-        env.static_file_service_url.to_string(),
-    ));
     let email_ext_client = Arc::new(EmailServiceClientExternal::new(
         env.email_service_url.to_string(),
     ));
     let lexical_client = LexicalClient::new(sync_service_auth_key, lexical_service_url.to_string());
-
-    let scribe = Arc::new(
-        ScribeClient::new()
-            .with_document_client(
-                DocumentClient::builder()
-                    .with_dss_client(dss_client.clone())
-                    .with_lexical_client(Arc::new(lexical_client.clone()))
-                    .with_sync_service_client(sync_client.clone())
-                    .with_macro_db(pool.clone())
-                    .build(),
-            )
-            .with_channel_client(pool.clone())
-            .with_dcs_client(pool.clone())
-            .with_email_client(email_client)
-            .with_static_file_client(sfs_client),
-    );
 
     let frecency_storage = FrecencyPgStorage::new(pool.clone());
     let frecency_service = FrecencyQueryServiceImpl::new(frecency_storage.clone());
@@ -178,6 +147,7 @@ pub async fn build_tool_service_context_from_env(
         PgUserRepo::new(pool.clone()),
         frecency_storage,
     );
+    let channel_tool_context = crate::tool_context::build_channel_tool_context(pool.clone());
     let email_service_for_tools: Arc<crate::tool_context::ToolEmailService> =
         Arc::new(email_service.clone());
     let soup_service = Arc::new(SoupImpl::new(
@@ -250,15 +220,49 @@ pub async fn build_tool_service_context_from_env(
         ))),
     );
 
+    let call_service = call::domain::service::CallServiceImpl::new(
+        call::outbound::pg_call_repo::PgCallRepo::new(pool.clone()),
+        NoOpCallRtcClient,
+        NoOpConnectionService,
+        (*entity_access_service).clone(),
+        NoOpNotificationIngress,
+        None::<call::outbound::s3_recording_storage::S3RecordingStorage>,
+        String::new(),
+    );
+    let call_query_service = call::domain::service::CallRecordQueryServiceImpl::new(
+        call::outbound::pg_call_repo::PgCallRepo::new(pool.clone()),
+    );
+    let call_tool_context = call::inbound::toolset::CallToolContext::new(
+        call_service,
+        call_query_service,
+        (*entity_access_service).clone(),
+    );
+
+    let chat_repo = chat::outbound::postgres::PgChatRepo::new(pool.clone());
+    let chat_service = chat::domain::service::ChatServiceImpl::new(
+        chat_repo,
+        Arc::new(ai_toolset::AsyncToolSet::new()),
+        (),
+        entity_access_management::domain::service::EntityAccessManagementServiceImpl::new(
+            entity_access_management::outbound::PgRepository::new(pool.clone()),
+        ),
+    );
+    let chat_tool_context = chat::inbound::toolset::ChatToolContext::new(
+        chat_service,
+        (*entity_access_service).clone(),
+    );
+
     Ok(ToolServiceContext {
         search_service_client: search_client,
         email_service_client: email_ext_client,
-        scribe,
         soup_service,
         email_service: email_service_for_tools,
         document_tool_context,
         properties_tool_context,
         email_tool_context,
+        call_tool_context,
+        chat_tool_context,
+        channel_tool_context,
         schedule_tool_context: crate::NoOpScheduleContext,
     })
 }

@@ -22,11 +22,6 @@
   }
 }
 
-.sender-message * ::selection {
-  background-color: rgb(from white r g b / 0.9);
-  color: var(--color-accent);
-}
-
 .md-p:empty {
   min-height: 1.5em;
 }
@@ -570,6 +565,11 @@ mark {
 
 .md-highlight-replaced-nodes-background-color {
   background-color: rgb(from var(--color-accent) r g b / 0.2);
+}
+
+/* Await placeholders are visible only on the originating peer. */
+.macro-await-node:not(.local) {
+  display: none;
 }
 
 .md-diff:not(.external) .md-diff-delete {

@@ -10,10 +10,6 @@ name = "document_storage_service"
 path = "src/main.rs"
 
 [[bin]]
-name = "backfill_document_search"
-path = "src/bin/backfill_search.rs"
-
-[[bin]]
 name = "document_storage_service_openapi"
 path = "src/openapi.rs"
 
@@ -37,6 +33,8 @@ bytes = { workspace = true }
 bzip2 = { workspace = true, default-features = false, features = [
   "libbz2-rs-sys",
 ] }
+analytics_client = { path = "../analytics_client" }
+cal = { path = "../cal", features = ["axum", "outbound"] }
 call = { path = "../call" }
 channels = { path = "../channels", features = ["inbound", "outbound"] }
 chrono = { workspace = true }

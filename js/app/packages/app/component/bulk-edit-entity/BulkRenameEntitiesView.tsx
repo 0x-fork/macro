@@ -13,6 +13,7 @@ export const BulkRenameEntitiesView = (props: {
   entities: EntityData[];
   onFinish: () => void;
   onCancel: () => void;
+  onError?: (error: unknown) => void;
 }) => {
   const renameMutation = createBulkRenameDssEntityMutation();
 
@@ -88,16 +89,20 @@ export const BulkRenameEntitiesView = (props: {
       default:
     }
 
-    await renameMutation.mutateAsync(
-      props.entities.map((e) => ({ entity: e, newName: renameFn(e.name) }))
-    );
-
-    props.onFinish();
+    try {
+      await renameMutation.mutateAsync(
+        props.entities.map((e) => ({ entity: e, newName: renameFn(e.name) }))
+      );
+      props.onFinish();
+    } catch (error) {
+      console.error('Failed to rename entities:', error);
+      props.onError?.(error);
+    }
   };
 
   return (
     <>
-      <div class="shrink-0 flex flex-row items-center px-2 gap-1 border-b-1 border-b-edge-muted h-[40px]">
+      <div class="shrink-0 flex flex-row items-center px-2 gap-1 border-b border-b-edge-muted h-10">
         <Dialog.CloseButton as={Button} variant="ghost" size="icon-sm">
           <CloseIcon />
         </Dialog.CloseButton>
@@ -111,7 +116,7 @@ export const BulkRenameEntitiesView = (props: {
           <For each={props.entities.slice(0, 2)}>
             {(entity) => (
               <div
-                class={cn('bg-edge/20 px-2 py-1 truncate text-xs rounded-xs', {
+                class={cn('bg-edge px-2 py-1 truncate text-xs rounded-xs', {
                   'max-w-[50%]': props.entities.length === 2,
                 })}
               >
@@ -152,7 +157,7 @@ export const BulkRenameEntitiesView = (props: {
             value={editValue()}
             onInput={(e) => setEditValue(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
-            class="w-full p-2 text-sm border-1 border-edge/20 bg-menu text-ink
+            class="w-full p-2 text-sm border border-edge bg-menu text-ink
                    placeholder:text-ink-placeholder focus:outline-none
                    selection:bg-ink selection:text-panel"
             placeholder="Enter new text..."
@@ -162,13 +167,13 @@ export const BulkRenameEntitiesView = (props: {
         <Show when={multi() && mode() === 'replace'}>
           <div class="flex flex-col gap-2">
             <input
-              class="p-1 text-sm border border-edge/20 bg-menu"
+              class="p-1 text-sm border border-edge bg-menu"
               placeholder="Find…"
               value={replaceFind()}
               onInput={(e) => setReplaceFind(e.currentTarget.value)}
             />
             <input
-              class="p-1 text-sm border border-edge/20 bg-menu"
+              class="p-1 text-sm border border-edge bg-menu"
               placeholder="Replace with…"
               value={replaceWith()}
               onInput={(e) => setReplaceWith(e.currentTarget.value)}
@@ -179,7 +184,7 @@ export const BulkRenameEntitiesView = (props: {
         <Show when={multi() && mode() !== 'total'}>
           <div class="text-xs opacity-70">
             Preview (first item):
-            <div class="mt-1 p-2 bg-surface border border-edge/10 rounded">
+            <div class="mt-1 p-2 bg-surface border border-edge rounded">
               {previewName()}
             </div>
           </div>

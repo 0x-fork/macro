@@ -1,12 +1,16 @@
 import { MobileDrawer } from '@app/component/mobile/MobileDrawer';
+import { triggerFocusInput } from '@core/directive/focusInput';
+import { getShareDrawerRecipientInput } from '@core/component/TopBar/ShareButton';
 import { InlineEntity } from '@entity';
 import { cn } from '@ui/utils/classname';
 import { For, Show } from 'solid-js';
 import { createSoupEntityActions } from './create-soup-entity-actions';
 import { useSoupEntityActionDrawer } from './soup-entity-action-drawer-context';
 import { useSoupView } from './soup-view-context';
+import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 
 export function SoupEntityActionDrawer() {
+  const panel = useSplitPanelOrThrow();
   const drawerState = useSoupEntityActionDrawer();
   const { activeTab } = useSoupView();
   const { buildActionGroups } = createSoupEntityActions();
@@ -20,7 +24,10 @@ export function SoupEntityActionDrawer() {
     const e = drawerState.entity();
     const s = drawerState.soup();
     if (!e || !s) return [];
-    return buildActionGroups([e], s, activeTab());
+    return buildActionGroups(s, [e], {
+      activeTab: activeTab(),
+      activeListView: panel.handle.content().id,
+    });
   };
 
   return (
@@ -69,7 +76,13 @@ export function SoupEntityActionDrawer() {
                           'flex items-center gap-3 px-4 py-3 text-sm hover:bg-hover hover-transition-bg text-left not-last:border-b border-page',
                           action.destructive ? 'text-failure-ink' : 'text-ink'
                         )}
-                        onClick={async () => {
+                        onClick={async (e: MouseEvent) => {
+                          if (action.id === 'share') {
+                            triggerFocusInput(
+                              getShareDrawerRecipientInput,
+                              e.currentTarget as HTMLElement
+                            );
+                          }
                           await action.onClick();
                           drawerState.close();
                         }}

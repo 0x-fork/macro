@@ -2,8 +2,7 @@
 resolver = "2"
 
 members = [
-    "ai",
-  "ai_format",
+  "ai",
   "ai_tools",
   "ai_toolset",
   "analytics_client",
@@ -11,6 +10,7 @@ members = [
   "authentication_service",
   "authentication_service_client",
   "backfill_entity_access",
+  "cal",
   "call",
   "channels",
   "chat",
@@ -53,6 +53,7 @@ members = [
   "fusionauth",
   "github",
   "gmail_client",
+  "image_optimizer",
   "image_proxy_service",
   "integration_tests/*",
   "invite_email",
@@ -109,12 +110,8 @@ members = [
   "readonly_pool",
   "referral",
   "roles_and_permissions",
-  "rpc/axum_rpc",
-  "rpc/axum_rpc_emit",
-  "rpc/axum_rpc_parse",
   "s3_client",
   "s3_key",
-  "scribe",
   "scheduled_action",
   "search_processing_service",
   "search_service",
@@ -128,6 +125,7 @@ members = [
   "soup",
   "sqs_client",
   "sqs_worker",
+  "static_file",
   "static_file_service",
   "static_file_service_client",
   "sync_service_client",
@@ -139,13 +137,13 @@ members = [
   "user_link_cleanup_handler",
   "user_quota",
   "worker_trigger",
-  "tools/native_app_server",
+  "tools/native_app_server", "attachment",
 ]
 
 [workspace.dependencies]
 anyhow = "1.0.93"
 askama = "0.14"
-async-openai = { version = "0.28.3", features = ["byot"] }
+async-openai = { version = "0.36.1", features = ["byot", "chat-completion", "completions"] }
 async-stream = "0.3.6"
 async-trait = "0.1.86"
 aws-config = { version = "1.8.12", features = ["behavior-version-latest"] }
@@ -177,6 +175,7 @@ hex = "0.4.3"
 hmac = "0.12.1"
 http = "1"
 http-body-util = "0.1.2"
+image = "0.25"
 inquire = "0.7"
 itertools = "0.14"
 jsonwebtoken = { git = "https://github.com/whutchinson98/jsonwebtoken", features = [
@@ -201,8 +200,7 @@ rand = "0.9.0"
 recursion = "0.5.4"
 redis = "1.0.3"
 regex = "1.11.1"
-reqwest = { version = "0.12.12", features = ["hickory-dns", "json"] }
-reqwest-middleware = { git = "https://github.com/seanaye/reqwest-middleware" }
+reqwest = { version = "0.13", features = ["form", "hickory-dns", "json"] }
 rootcause = "0.11"
 schemars = { version = "1.0.4", features = ["chrono04", "uuid1"] }
 semver = { version = "1", features = ["serde"] }
@@ -263,5 +261,6 @@ once_cell = "1.21.3"
 scraper = "0.18"
 strum_macros = "0.27.1"
 unicode-segmentation = "1.9.0"
+serde_urlencoded = "0.7.1"
 url = "2.5.0"
 zip = "=2.4.2"

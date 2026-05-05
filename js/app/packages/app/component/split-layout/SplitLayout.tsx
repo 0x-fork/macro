@@ -245,7 +245,11 @@ function createSplitFocusTracker(props: {
       if (!element) return;
 
       const parentId = getParentSplitId(element);
-      if (parentId && element instanceof HTMLElement) {
+      if (
+        parentId &&
+        element instanceof HTMLElement &&
+        !element.closest('[data-no-focus-restore]')
+      ) {
         lastFocusedChildBySplitId.set(parentId, element);
       }
 
@@ -316,7 +320,7 @@ export function SplitLayoutContainer(props: SplitLayoutContainerProps) {
             // Desktop: side-by-side resizable splits.
             <Resize.Zone
               direction="horizontal"
-              gutter={4}
+              gutter={8}
               captureResizeCtx={splitManager.setResizeContext}
             >
               <For each={ids()}>
