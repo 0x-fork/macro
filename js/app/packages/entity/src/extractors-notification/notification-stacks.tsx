@@ -165,7 +165,7 @@ export function NotificationStackRow(props: {
                 </Show>
               </div>
               <div
-                class={cn('ph-no-capture mt-1 min-w-0', {
+                class={cn('ph-no-capture mt-1 min-w-0 text-xs', {
                   'truncate overflow-hidden':
                     props.stack.type !== 'document_mention' && !props.content,
                 })}
