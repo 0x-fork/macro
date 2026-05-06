@@ -3,6 +3,7 @@ import {
   useChannelMessagesQuery,
   createMessageIndex,
   getChannelMessagesQueryKey,
+  isMissingChannelMessageError,
 } from '@queries/channel/channel-messages';
 import { queryClient } from '@queries/client';
 import {
@@ -24,6 +25,7 @@ import {
   type ThreadListScrollTarget,
 } from './ThreadList';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+import { toast } from '@core/component/Toast/Toast';
 import { createThreadManager } from './thread-manager';
 import { createThreadPaginator } from './thread-paginator';
 import { useUserId } from '@core/context/user';
@@ -141,6 +143,23 @@ export function Channel(props: ChannelProps) {
   const messagesQuery = useChannelMessagesQuery(
     () => props.channelId,
     targetMessageController.loadAroundMessageId
+  );
+
+  createEffect(
+    on(
+      [targetMessageController.loadAroundMessageId, () => messagesQuery.error],
+      ([loadAroundMessageId, error]) => {
+        if (!loadAroundMessageId || !isMissingChannelMessageError(error))
+          return;
+
+        toast.alert(
+          'Message no longer available',
+          'Showing the latest messages instead.'
+        );
+        clearStaleRestoredChannelData(props.channelId);
+        targetMessageController.reset();
+      }
+    )
   );
 
   const messageIndex = createMessageIndex(

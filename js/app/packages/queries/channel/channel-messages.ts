@@ -1,4 +1,4 @@
-import { throwOnErr } from '@core/util/maybeResult';
+import { MaybeResultError, throwOnErr } from '@core/util/maybeResult';
 import {
   commsServiceClient,
   type ApiChannelMessage,
@@ -56,6 +56,13 @@ type ChannelMessagesPageParam = {
   previous_cursor: string | null;
 };
 
+export function isMissingChannelMessageError(error: unknown): boolean {
+  return (
+    error instanceof MaybeResultError &&
+    error.errors.some(({ code }) => code === 'NOT_FOUND' || code === 'GONE')
+  );
+}
+
 export function channelMessagesQueryOptions(
   channelId: string,
   loadAroundMessageId: string | null
@@ -94,6 +101,12 @@ export function channelMessagesQueryOptions(
           }
         : null,
     staleTime: Infinity,
+    retry: (failureCount: number, error: unknown) => {
+      if (loadAroundMessageId && isMissingChannelMessageError(error)) {
+        return false;
+      }
+      return failureCount < 1;
+    },
   };
 }
 
