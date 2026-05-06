@@ -550,12 +550,7 @@ export function PopupPreview(props: {
   };
 
   const handleCopyBranchName = () => {
-    const previewItem = item();
-    const docName =
-      props.documentInfo.name ||
-      ('name' in previewItem ? (previewItem.name as string) : '') ||
-      '';
-    copyBranchNameToClipboard(props.documentInfo.id, docName);
+    copyBranchNameToClipboard(props.documentInfo.id);
   };
 
   const isSplitAlreadyOpen = () => {
@@ -774,7 +769,7 @@ export function PopupPreview(props: {
                   {/* Task properties: status, priority, assignees */}
                   <Show when={props.documentInfo.type === 'task'}>
                     <Suspense
-                      fallback={<div class="w-full bg-hover/50 h-4 m-2" />}
+                      fallback={<div class="w-full bg-active h-4 m-2" />}
                     >
                       <TaskPropertiesPreview taskId={props.documentInfo.id} />
                     </Suspense>

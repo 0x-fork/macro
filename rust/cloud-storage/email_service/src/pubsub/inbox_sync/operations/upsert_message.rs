@@ -1,5 +1,3 @@
-use contacts::domain::ports::ContactsIngress;
-
 use crate::convert::{map_message_resource_to_service, map_thread_resources_to_service};
 use crate::pubsub::context::PubSubContext;
 use crate::pubsub::inbox_sync::operations::shared::notify_search;
@@ -8,13 +6,13 @@ use crate::pubsub::inbox_sync::process::check_gmail_rate_limit_inbox_sync;
 use crate::pubsub::util::cg_refresh_email;
 use crate::util::process_pre_insert::{process_message_pre_insert, process_threads_pre_insert};
 use crate::util::upload_attachment::{UploadAttachmentContext, upload_attachment};
+use contacts::domain::ports::ContactsIngress;
 use email_db_client::threads;
 use email_utils::dedupe_emails;
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::EntityType;
 use model_notifications::NewEmailMetadata;
 use models_email::db::address::EmailRecipientType;
-use models_email::email::service;
 use models_email::email::service::link;
 use models_email::email::service::message::SimpleMessage;
 use models_email::gmail::inbox_sync::{InboxSyncOperation, UpsertMessagePayload};
@@ -540,6 +538,7 @@ async fn send_notifications(
         recipient_ids: HashSet::from([recipient]),
     }
     .into_request()
+    .with_apns()
     .with_conn_gateway();
 
     if let Err(e) = ctx
@@ -578,28 +577,20 @@ async fn filter_notifiable_message(
         return Ok(None);
     };
 
-    // 1. filter out sent and draft messages
+    // 1. Sent and draft messages never generate notifications.
     if new_message.is_sent || new_message.is_draft {
         return Ok(None);
     }
 
-    // 2. filter out messages that don't make it to the user's inbox (spam, etc)
-    let labels = email_db_client::labels::get::fetch_message_labels(&ctx.db, new_message.db_id)
+    // 2. Single query mirroring Importance(true): sender override or label-based signal.
+    let important = email_importance::is_message_important(&ctx.db, new_message.db_id)
         .await
         .map_err(|e| {
             ProcessingError::Retryable(DetailedError {
                 reason: FailureReason::DatabaseQueryFailed,
-                source: e.context("Failed to fetch message labels".to_string()),
+                source: e.context("Failed to evaluate message importance".to_string()),
             })
         })?;
 
-    let is_inbox = labels
-        .iter()
-        .any(|label| label.name == service::label::system_labels::INBOX);
-
-    if !is_inbox {
-        return Ok(None);
-    }
-
-    Ok(Some(new_message))
+    Ok(important.then_some(new_message))
 }

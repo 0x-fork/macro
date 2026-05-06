@@ -553,6 +553,28 @@ export const storageServiceClient = {
     );
   },
 
+  async getDocumentBranchName({
+    documentId,
+  }: {
+    documentId: string;
+  }): Promise<
+    MaybeResult<
+      FetchWithTokenErrorCode,
+      { shortId: string; branchName: string }
+    >
+  > {
+    return mapOk(
+      await dssFetch<{ shortId: string; branchName: string }>(
+        `/documents/${documentId}/branch_name`,
+        { method: 'GET' }
+      ),
+      (result) => ({
+        shortId: result.shortId,
+        branchName: result.branchName,
+      })
+    );
+  },
+
   async exportDocument({ documentId }) {
     return mapOk(
       await dssFetch<ExportDocumentResponse>(
