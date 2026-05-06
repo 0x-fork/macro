@@ -356,13 +356,11 @@ function TimelineRow(props: {
   };
 
   return (
-    <div class="group relative pl-6">
+    <div class="group relative pl-8">
       {/* Vertical rail */}
-      <Show when={!props.isLast}>
-        <div class="absolute left-0 top-0 bottom-0 border-l border-ink/15" />
-      </Show>
+      <div class="absolute left-2 top-0 bottom-0 border-l border-ink/15" />
       {/* Curved connector */}
-      <div class="absolute left-0 top-0 w-4 h-4 text-ink/15">
+      <div class="absolute left-2 top-0 w-4 h-4 text-ink/15">
         <svg viewBox="0 0 16 16" fill="none" class="size-full">
           <path
             d="M0 0 L0 10 Q0 14 4 14 L16 14"
@@ -374,13 +372,13 @@ function TimelineRow(props: {
       </div>
       {/* Content */}
       <div
-        class="relative min-w-0 mb-2 p-2 cursor-pointer rounded-md bg-ink/5 hover:bg-ink/10 group/row"
+        class="relative min-w-0 mb-2 p-2 cursor-pointer rounded-md hover:bg-ink/5 group/row"
         onClick={handleClick}
         role="button"
         tabIndex={0}
       >
         <div class="flex items-center gap-2 text-xs pr-2">
-          <NotificationSenderIcon stack={props.stack} size="sm" />
+          <NotificationSenderIcon stack={props.stack} size="xs" />
           <span class="ph-no-capture shrink-0 font-medium text-ink">
             <NotificationDescription stack={props.stack} />
           </span>
@@ -450,8 +448,8 @@ export function NotificationStacks(
             )}
           </For>
           <Show when={hasMore()}>
-            <div class="relative pl-6">
-              <div class="absolute left-0 top-0 h-3 border-l border-ink/15" />
+            <div class="relative pl-8">
+              <div class="absolute left-2 top-0 h-3 border-l border-ink/15" />
               <button
                 type="button"
                 class="text-xs text-ink-muted hover:text-ink hover:bg-ink/5 px-2 py-1 rounded-md transition-colors"

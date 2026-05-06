@@ -140,42 +140,80 @@ function LayoutShell(props: {
   onChecked?: (checked: boolean, shiftKey: boolean) => void;
   unread: boolean;
   dimWhenRead?: boolean;
+  hasNotifications?: boolean;
   children: JSX.Element;
 }) {
   return (
-    <div
-      class="grid w-full text-sm py-2 px-2 items-center"
-      style={{
-        'grid-template-columns': '1.5rem 1fr',
-        gap: '0 0.5rem',
-      }}
-    >
-      <div class="self-center size-4 flex items-center justify-center relative group">
-        <UnreadIndicator
-          active={props.unread}
-          class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
-        />
+    <Show
+      when={props.hasNotifications}
+      fallback={
         <div
-          class={cn(
-            'absolute inset-0 flex items-center justify-center',
-            props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-          )}
+          class="grid w-full text-sm py-2 px-2 items-center"
+          style={{
+            'grid-template-columns': '1.5rem 1fr',
+            gap: '0 0.5rem',
+          }}
         >
-          <MultiSelectCheckbox
-            checked={props.checked}
-            onChecked={props.onChecked}
+          <div class="self-center size-4 flex items-center justify-center relative group">
+            <UnreadIndicator
+              active={props.unread}
+              class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+            />
+            <div
+              class={cn(
+                'absolute inset-0 flex items-center justify-center',
+                props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              )}
+            >
+              <MultiSelectCheckbox
+                checked={props.checked}
+                onChecked={props.onChecked}
+              />
+            </div>
+          </div>
+          <div
+            class={cn('flex items-center min-w-0', {
+              'opacity-80 font-normal': props.dimWhenRead && !props.unread,
+              'font-semibold': props.unread,
+            })}
+          >
+            {props.children}
+          </div>
+        </div>
+      }
+    >
+      <div
+        class={cn(
+          'grid w-full text-xs font-medium text-ink-muted py-2 px-2 rounded-sm items-center',
+          props.checked ? 'bg-accent/10' : 'bg-ink/5 hover:bg-ink/10'
+        )}
+        style={{
+          'grid-template-columns': '1.5rem 1fr',
+          gap: '0 0.5rem',
+        }}
+      >
+        <div class="self-center size-4 flex items-center justify-center relative group">
+          <UnreadIndicator
+            active={props.unread}
+            class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
           />
+          <div
+            class={cn(
+              'absolute inset-0 flex items-center justify-center',
+              props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            )}
+          >
+            <MultiSelectCheckbox
+              checked={props.checked}
+              onChecked={props.onChecked}
+            />
+          </div>
+        </div>
+        <div class="flex items-center min-w-0">
+          {props.children}
         </div>
       </div>
-      <div
-        class={cn('flex items-center min-w-0', {
-          'opacity-80 font-normal': props.dimWhenRead && !props.unread,
-          'font-semibold': props.unread,
-        })}
-      >
-        {props.children}
-      </div>
-    </div>
+    </Show>
   );
 }
 
@@ -264,6 +302,7 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
     >
       <div
         class="grid items-center gap-x-2 min-w-0 w-full"
@@ -325,6 +364,7 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
     >
       <div
         class="grid items-center gap-x-2 min-w-0 w-full"
@@ -412,6 +452,7 @@ function ChannelMessageLayout(
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
         <div class="[&_svg]:size-4 shrink-0">
@@ -458,6 +499,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
     >
       <div
         class="grid items-center gap-x-2 min-w-0 w-full"
@@ -529,6 +571,7 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
         <div class="[&_svg]:size-4 shrink-0">
@@ -602,6 +645,7 @@ function AutomationLayout(
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
         <div class="[&_svg]:size-4 shrink-0">
@@ -653,6 +697,7 @@ function DefaultLayout(props: BaseLayoutProps) {
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
         <div class="[&_svg]:size-4 shrink-0">
@@ -1743,13 +1788,15 @@ export function StackedListEntity(props: StackedListEntityProps) {
       ref={mergeRefs(props.ref, draggable)}
       class={cn(
         'soup-stacked-entity w-full relative group/stacked rounded-sm',
-        {
-          'border-b border-edge-muted': !isWide() && isMobile(),
-          'bg-accent/5': props.checked || (props.highlighted && !isMobile()),
-          'hover:bg-ink/5':
-            !props.checked && !props.highlighted && !props.hovered,
-          'bg-ink/5': props.hovered && !props.highlighted && !props.checked,
-        }
+        hasNotifications()
+          ? 'pt-2'
+          : {
+              'border-b border-edge-muted': !isWide() && isMobile(),
+              'bg-accent/5': props.checked || (props.highlighted && !isMobile()),
+              'hover:bg-ink/5':
+                !props.checked && !props.highlighted && !props.hovered,
+              'bg-ink/5': props.hovered && !props.highlighted && !props.checked,
+            }
       )}
       onMouseMove={props.onMouseMove}
     >
@@ -1830,7 +1877,7 @@ export function StackedListEntity(props: StackedListEntityProps) {
       </Show>
 
       <Show when={hasNotifications() && !isMobile()}>
-        <div class="pl-12 pr-2 pb-1.5">
+        <div class="pl-2 pr-4 pb-2 pt-1">
           <Show when={isWithNotification(props.entity) && !showContentHits()}>
             <Entity.Notification.Stacks
               entity={props.entity}
