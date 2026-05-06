@@ -432,6 +432,83 @@ const SidebarActionButton = (props: SidebarActionButtonProps) => {
   );
 };
 
+type SidebarCreateButtonProps = {
+  label: string;
+  hotkeyToken?: HotkeyToken;
+  isSlim: () => boolean;
+  onClick: () => void;
+  icon: () => JSX.Element;
+};
+
+const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
+  const [hovering, setHovering] = createSignal(false);
+
+  return (
+    <Button
+      class="flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-md py-1.5"
+      variant="ghost"
+      tooltipPlacement="right"
+      tooltip={
+        props.isSlim() ? (
+          <LabelAndHotKey label={props.label} hotkeyToken={props.hotkeyToken} />
+        ) : undefined
+      }
+      onClick={props.onClick}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+    >
+      <div class="size-4 shrink-0">{props.icon()}</div>
+      <span class="whitespace-nowrap group-data-[slim=true]/sidebar:invisible">
+        {props.label}
+      </span>
+      <Show when={props.hotkeyToken}>
+        {(token) => (
+          <div class="text-xxs text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:invisible">
+            <Hotkey token={token()} class="flex gap-1" />
+          </div>
+        )}
+      </Show>
+    </Button>
+  );
+};
+
+type SidebarIconButtonProps = {
+  label: string;
+  hotkeyToken?: HotkeyToken;
+  onClick: () => void;
+  disabled?: boolean | (() => boolean);
+  icon: Component<{ triggerAnimation?: boolean; class?: string }>;
+  isSlim: () => boolean;
+};
+
+const SidebarIconButton = (props: SidebarIconButtonProps) => {
+  const [hovering, setHovering] = createSignal(false);
+
+  const isDisabled = () =>
+    typeof props.disabled === 'function'
+      ? props.disabled()
+      : (props.disabled ?? false);
+
+  return (
+    <Button
+      class="flex items-center justify-center size-7 p-0 rounded-md"
+      variant={props.isSlim() ? 'ghost' : 'tertiary'}
+      tooltipPlacement="top"
+      tooltip={
+        <LabelAndHotKey label={props.label} hotkeyToken={props.hotkeyToken} />
+      }
+      onClick={props.onClick}
+      disabled={isDisabled()}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+    >
+      <div class="size-4 shrink-0">
+        <Dynamic component={props.icon} triggerAnimation={hovering()} />
+      </div>
+    </Button>
+  );
+};
+
 const CALLS_LINK: SidebarItem = {
   id: 'calls',
   label: 'Calls',
@@ -577,12 +654,8 @@ export const AppSidebar = (props: AppSidebarProps) => {
         </div>
       </div>
 
-      <div class="px-2">
-        <hr class="border-edge-muted" />
-      </div>
-
-      <div class="w-full px-2 my-[4.5px]">
-        <SidebarActionButton
+      <div class="w-full px-2 mt-1 mb-3">
+        <SidebarCreateButton
           label="Create"
           hotkeyToken={TOKENS.global.createCommand}
           isSlim={isSlim}
@@ -591,15 +664,11 @@ export const AppSidebar = (props: AppSidebarProps) => {
         />
       </div>
 
-      <div class="px-2">
-        <hr class="border-edge-muted mb-2" />
-      </div>
-
       <nav>
         <ul class="w-full h-full px-2 flex flex-col gap-1">
           <For each={visibleLinks()}>
             {(link) => (
-              <li class="flex items-center justify-center">
+              <li>
                 <SidebarLink
                   {...link}
                   sidebarState={props.sidebarState ?? 'expanded'}
@@ -611,11 +680,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
         </ul>
       </nav>
 
-      <div class="px-2">
-        <hr class="border-edge-muted my-2" />
-      </div>
-
-      <div class="block max-h-[clamp(10%,60%,20rem)]">
+      <div class="block max-h-[clamp(10%,60%,20rem)] mt-2">
         <ChannelsUnreadWidget sidebarState={props.sidebarState ?? 'expanded'} />
       </div>
 
@@ -625,11 +690,12 @@ export const AppSidebar = (props: AppSidebarProps) => {
         </div>
       </Show>
 
-      <div class={cn('px-2 w-full', !callCtx?.isInCall() && 'mt-auto')}>
-        <hr class="border-edge-muted mb-2" />
-      </div>
-
-      <div class="w-full px-2 flex flex-col">
+      <div
+        class={cn(
+          'w-full px-2 flex flex-col gap-1',
+          !callCtx?.isInCall() && 'mt-auto'
+        )}
+      >
         <Show when={showEnableNotifications()}>
           <SidebarActionButton
             label="Enable Notifications"
@@ -645,30 +711,33 @@ export const AppSidebar = (props: AppSidebarProps) => {
           icon={AnimatedUsersIcon}
         />
 
-        <SidebarActionButton
-          label="New Split"
-          hotkeyToken={TOKENS.global.createNewSplit}
-          isSlim={isSlim}
-          onClick={handleNewSplitClick}
-          disabled={() => !canCreateNewSplit()}
-          icon={AnimatedNewSplitIcon}
-        />
-
-        <SidebarActionButton
-          label="Command"
-          hotkeyToken={TOKENS.global.commandMenu}
-          isSlim={isSlim}
-          onClick={handleCommandPaletteClick}
-          icon={AnimatedCommandIcon}
-        />
-
-        <SidebarActionButton
-          label="Settings"
-          hotkeyToken={TOKENS.global.toggleSettings}
-          isSlim={isSlim}
-          onClick={toggleSettings}
-          icon={AnimatedGearIcon}
-        />
+        <div class="flex gap-1 items-center justify-between group-data-[slim=true]/sidebar:flex-col group-data-[slim=true]/sidebar:items-stretch">
+          <div class="flex-1 h-full pattern-edge pattern-diagonal-4 group-data-[slim=true]/sidebar:hidden" />
+          <div class="flex items-center gap-1 group-data-[slim=true]/sidebar:flex-col">
+            <SidebarIconButton
+              label="New Split"
+              hotkeyToken={TOKENS.global.createNewSplit}
+              onClick={handleNewSplitClick}
+              disabled={() => !canCreateNewSplit()}
+              icon={AnimatedNewSplitIcon}
+              isSlim={isSlim}
+            />
+            <SidebarIconButton
+              label="Command"
+              hotkeyToken={TOKENS.global.commandMenu}
+              onClick={handleCommandPaletteClick}
+              icon={AnimatedCommandIcon}
+              isSlim={isSlim}
+            />
+            <SidebarIconButton
+              label="Settings"
+              hotkeyToken={TOKENS.global.toggleSettings}
+              onClick={toggleSettings}
+              icon={AnimatedGearIcon}
+              isSlim={isSlim}
+            />
+          </div>
+        </div>
       </div>
       <InviteModal />
     </div>
@@ -745,8 +814,9 @@ const SidebarLink = (props: SidebarLinkProps) => {
           draggable={false}
           variant="ghost"
           class={cn(
-            'flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-xs py-1 text-ink-extra-muted',
-            isActive() && 'bg-ink/5 not-disabled:hover:bg-ink/10 text-ink'
+            'flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-md py-1 text-ink-extra-muted',
+            isActive() &&
+              'bg-ink/10 not-disabled:hover:bg-ink/15 text-ink shadow-sm'
           )}
           tooltipPlacement="right"
           onMouseEnter={() => setIsHovering(true)}
