@@ -1,4 +1,3 @@
-import { SplitHeaderRight } from '@app/component/split-layout/components/SplitHeader';
 import { useBlockId } from '@core/block';
 import { BlockLiveIndicators } from '@core/component/LiveIndicators';
 import { isTabFocused } from '@core/signal/tabFocus';
@@ -33,9 +32,5 @@ export function ChannelTopBarLiveIndicators() {
     if (pingInterval) clearInterval(pingInterval);
   });
 
-  return (
-    <SplitHeaderRight>
-      <BlockLiveIndicators />
-    </SplitHeaderRight>
-  );
+  return <BlockLiveIndicators />;
 }

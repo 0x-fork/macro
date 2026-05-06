@@ -51,7 +51,7 @@ export function StaticSplitLabel(props: {
         <div class="shrink-0">{props.icon}</div>
       </Show>
       <Show when={props.badges}>{props.badges}</Show>
-      <span class="inline-block text-sm truncate">{props.label}</span>
+      <span class="inline-block text-base truncate">{props.label}</span>
     </div>
   );
 }
@@ -100,7 +100,7 @@ export function SplitLabel(props: {
 
   return (
     <span
-      class="inline-block text-sm truncate"
+      class="inline-block text-base truncate"
       onContextMenu={startEditing}
       onDblClick={startEditing}
     >

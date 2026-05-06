@@ -35,18 +35,19 @@ import { useChannelName, useChannelType } from '@core/context/channels';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import { ChannelTypeEnum } from '@service-comms/client';
 import {
-  CHANNEL_TABS,
   DEFAULT_CHANNEL_TAB,
   type ChannelTabId,
 } from '@channel/Channel/channel-tabs';
 import { ChannelAttachmentsTab } from '@channel/Attachments/ChannelAttachmentsTab';
+import PaperclipIcon from '@icon/regular/paperclip.svg';
+import UsersIcon from '@icon/regular/users.svg';
+import { Button } from '@ui/components/Button';
 import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
 import {
   CallEventSync,
   ChannelCallAutoJoin,
   ChannelCallButton,
   ChannelCallTab,
-  useCall,
   useCallContextOptional,
 } from '@channel/Call';
 import { ENABLE_CALLS } from '@core/constant/featureFlags';
@@ -72,40 +73,16 @@ type ChannelPropsTargetMessage = Pick<
   'targetMessageId' | 'targetMessageReplyId'
 >;
 
-function CallTabLabel() {
-  return (
-    <span class="flex items-center gap-1.5">
-      <span class="size-1.5 rounded-full bg-accent animate-pulse" />
-      Call
-    </span>
-  );
-}
-
 function NewTop(props: { channelId: string }) {
   const { activeTab, setActiveTab } = useChannelTab();
   const channelName = useChannelName(props.channelId);
   const channelType = useChannelType(props.channelId);
   const chatChannelType = () => toChatChannelType(channelType());
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
-  const call = useCall(() => props.channelId);
   const participants = () =>
     participantsQuery.isLoading ? [] : participantsQuery.data;
-  // Show the Call tab whenever we're actually in the call, mid-join, or
-  // the tab is being displayed (e.g. via the auto-join flow that flips
-  // `activeTab` to `call` before the join request resolves).
-  const showCallTab = () =>
-    ENABLE_CALLS() &&
-    (call.isInThisChannel() || call.isJoining() || activeTab() === 'call');
-  const tabs = () => {
-    let filtered = [...CHANNEL_TABS];
-    if (channelType() === ChannelTypeEnum.DirectMessage)
-      filtered = filtered.filter((tab) => tab.value !== 'participants');
-    if (!showCallTab())
-      filtered = filtered.filter((tab) => tab.value !== 'call');
-    return filtered.map((tab) =>
-      tab.value === 'call' ? { ...tab, label: <CallTabLabel /> } : tab
-    );
-  };
+  const showParticipantsButton = () =>
+    channelType() !== ChannelTypeEnum.DirectMessage;
 
   return (
     <Suspense>
@@ -114,32 +91,57 @@ function NewTop(props: { channelId: string }) {
         channelType={channelType()!}
         participants={participants() ?? []}
         channelName={channelName() ?? 'New Channel'}
-        tabs={tabs()}
-        activeTab={activeTab()}
-        onTabChange={setActiveTab}
+        callButton={
+          <Show when={ENABLE_CALLS()}>
+            <ChannelCallButton channelId={props.channelId} />
+          </Show>
+        }
       />
-      <Show when={chatChannelType() || ENABLE_CALLS()}>
-        <SplitHeaderRight>
-          <div class="flex items-center gap-1.5">
-            <Show when={chatChannelType()}>
-              {(type) => (
-                <ChatWithAgentButton
-                  entity={{
-                    type: 'channel',
-                    id: props.channelId,
-                    name: channelName() ?? 'Channel',
-                    channelType: type(),
-                  }}
-                />
-              )}
-            </Show>
-            <Show when={ENABLE_CALLS()}>
-              <ChannelCallButton channelId={props.channelId} />
-            </Show>
-          </div>
-        </SplitHeaderRight>
-      </Show>
-      <ChannelTopBarLiveIndicators />
+      <SplitHeaderRight>
+        <ChannelTopBarLiveIndicators />
+        <div class="flex items-center gap-1">
+          <Button
+            class="rounded-md"
+            size="icon-sm"
+            tooltip="Attachments"
+            onClick={() =>
+              setActiveTab(
+                activeTab() === 'attachments' ? 'messages' : 'attachments'
+              )
+            }
+            classList={{ 'bg-hover': activeTab() === 'attachments' }}
+          >
+            <PaperclipIcon class="size-4" />
+          </Button>
+          <Show when={showParticipantsButton()}>
+            <Button
+              class="rounded-md"
+              size="icon-sm"
+              tooltip="Participants"
+              onClick={() =>
+                setActiveTab(
+                  activeTab() === 'participants' ? 'messages' : 'participants'
+                )
+              }
+              classList={{ 'bg-hover': activeTab() === 'participants' }}
+            >
+              <UsersIcon class="size-4" />
+            </Button>
+          </Show>
+          <Show when={chatChannelType()}>
+            {(type) => (
+              <ChatWithAgentButton
+                entity={{
+                  type: 'channel',
+                  id: props.channelId,
+                  name: channelName() ?? 'Channel',
+                  channelType: type(),
+                }}
+              />
+            )}
+          </Show>
+        </div>
+      </SplitHeaderRight>
     </Suspense>
   );
 }

@@ -65,6 +65,7 @@ type ChannelTopLeftProps = TopProps & {
   tabs?: readonly TabItem[];
   activeTab?: ChannelTabId;
   onTabChange?: (value: ChannelTabId) => void;
+  callButton?: JSX.Element;
 };
 
 export function ChannelTopLeft(props: ChannelTopLeftProps) {
@@ -96,6 +97,7 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
           renameOverrides={{ channelType: props.channelType }}
           maxDisplayLength={48}
         />
+        <Show when={props.callButton}>{props.callButton}</Show>
       </div>
       <Show when={props.tabs && props.activeTab && props.onTabChange}>
         <Show
