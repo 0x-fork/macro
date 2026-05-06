@@ -374,12 +374,12 @@ function TimelineRow(props: {
       </div>
       {/* Content */}
       <div
-        class="relative min-w-0 mb-2 p-2 cursor-pointer rounded-md bg-ink/5 hover:bg-ink/10 transition-colors group/row"
+        class="relative min-w-0 mb-2 p-2 cursor-pointer rounded-md bg-ink/5 hover:bg-ink/10 group/row"
         onClick={handleClick}
         role="button"
         tabIndex={0}
       >
-        <div class="flex items-center gap-2 text-xs pr-6">
+        <div class="flex items-center gap-2 text-xs pr-2">
           <NotificationSenderIcon stack={props.stack} size="sm" />
           <span class="ph-no-capture shrink-0 font-medium text-ink">
             <NotificationDescription stack={props.stack} />
@@ -388,7 +388,7 @@ function TimelineRow(props: {
           <span class="ph-no-capture truncate text-ink-extra-muted">
             <NotificationContent stack={props.stack} singleLine />
           </span>
-          <span class="text-ink-extra-muted shrink-0 ml-auto">
+          <span class="text-ink-extra-muted/50 shrink-0 ml-auto">
             <NotificationTimestamp stack={props.stack} />
           </span>
         </div>
@@ -398,7 +398,7 @@ function TimelineRow(props: {
             markStackAsDone();
           }}
           tooltip="Mark done"
-          class="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/row:opacity-100 border border-edge-muted text-ink-muted p-0 size-5 grid place-items-center transition-opacity"
+          class="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/row:opacity-100 bg-edge-muted! hover:bg-edge! text-ink-muted p-0 size-5 grid place-items-center rounded"
         >
           <CheckIcon class="size-2.5" />
         </Button>
