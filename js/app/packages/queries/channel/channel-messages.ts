@@ -101,7 +101,7 @@ export function channelMessagesQueryOptions(
           }
         : null,
     staleTime: Infinity,
-    retry: (failureCount: number, error: unknown) => {
+    retry: (failureCount: number, error: Error) => {
       if (loadAroundMessageId && isMissingChannelMessageError(error)) {
         return false;
       }
