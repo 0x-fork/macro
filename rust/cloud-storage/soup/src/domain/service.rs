@@ -1,7 +1,8 @@
 use crate::domain::{
     models::{
-        AdvancedSortParams, FrecencyQueryInner, FrecencySoupItem, IntoSoupReqAst, SimpleQueryInner,
-        SimpleSortQuery, SimpleSortRequest, SoupErr, SoupQuery, SoupRequest, SoupType,
+        AdvancedSortParams, FrecencyQueryInner, FrecencySoupItem, GroupedSortRequest,
+        GroupedSoupItem, IntoSoupReqAst, SimpleQueryInner, SimpleSortQuery, SimpleSortRequest,
+        SoupErr, SoupQuery, SoupRequest, SoupType,
     },
     ports::{SoupOutput, SoupRepo, SoupService},
 };
@@ -466,5 +467,17 @@ where
                     .into_page(),
             )),
         }
+    }
+
+    #[tracing::instrument(err, skip(self, req))]
+    async fn get_user_soup_grouped(
+        &self,
+        req: GroupedSortRequest<'_>,
+    ) -> Result<Vec<GroupedSoupItem>, SoupErr> {
+        self.soup_storage
+            .expanded_grouped_cursor_soup(req)
+            .await
+            .map_err(anyhow::Error::from)
+            .map_err(SoupErr::SoupDbErr)
     }
 }

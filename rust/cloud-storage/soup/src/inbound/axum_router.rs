@@ -1,5 +1,9 @@
 use crate::domain::{
-    models::{FrecencySoupItem, IntoSoupReqAst, SoupErr, SoupQuery, SoupRequest, SoupType},
+    models::{
+        FrecencySoupItem, GroupByField, GroupMeta, GroupedSortRequest, GroupingConfig,
+        IntoSoupReqAst, NO_VALUE_KEY, SoupErr, SoupQuery, SoupRequest, SoupType, date_buckets,
+        entity_type_labels,
+    },
     ports::SoupService,
 };
 use axum::{
@@ -21,9 +25,14 @@ use filter_ast::{Expr, ExprFrame};
 use item_filters::{
     EntityFilters,
     ast::{
-        EntityFilterAst, ExpandErr, LiteralTree, call::CallLiteral, channel::ChannelLiteral,
-        chat::ChatLiteral, document::DocumentLiteral, email::EmailLiteral, project::ProjectLiteral,
-        properties::PropertiesLiteral,
+        EntityFilterAst, ExpandErr, LiteralTree,
+        call::CallLiteral,
+        channel::ChannelLiteral,
+        chat::ChatLiteral,
+        document::DocumentLiteral,
+        email::EmailLiteral,
+        project::ProjectLiteral,
+        properties::{PropertiesLiteral, PropertyEntityType},
     },
 };
 use macro_user_id::user_id::MacroUserIdStr;
@@ -57,6 +66,13 @@ pub struct Params {
     /// Sort method. Options are viewed_at, created_at, updated_at, viewed_updated. Defaults to viewed_at.
     #[serde(default)]
     sort_method: Option<SoupApiSort>,
+    /// Field to group results by. When set, response includes group metadata.
+    #[serde(default)]
+    #[param(value_type = Option<String>)]
+    group_by: Option<ApiGroupByField>,
+    /// Filter to a specific group key (for "load more in group X").
+    #[serde(default)]
+    group_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
@@ -81,10 +97,132 @@ impl SoupApiSort {
     }
 }
 
+/// Entity type for property lookups (API representation).
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ApiPropertyEntityType {
+    /// Channel entity
+    Channel,
+    /// Chat entity
+    Chat,
+    /// Company entity
+    Company,
+    /// Document entity
+    Document,
+    /// Project entity
+    Project,
+    /// Task entity
+    Task,
+    /// Thread entity
+    Thread,
+    /// User entity
+    User,
+}
+
+impl From<ApiPropertyEntityType> for PropertyEntityType {
+    fn from(api: ApiPropertyEntityType) -> Self {
+        match api {
+            ApiPropertyEntityType::Channel => PropertyEntityType::Channel,
+            ApiPropertyEntityType::Chat => PropertyEntityType::Chat,
+            ApiPropertyEntityType::Company => PropertyEntityType::Company,
+            ApiPropertyEntityType::Document => PropertyEntityType::Document,
+            ApiPropertyEntityType::Project => PropertyEntityType::Project,
+            ApiPropertyEntityType::Task => PropertyEntityType::Task,
+            ApiPropertyEntityType::Thread => PropertyEntityType::Thread,
+            ApiPropertyEntityType::User => PropertyEntityType::User,
+        }
+    }
+}
+
+/// API representation of group-by field.
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiGroupByField {
+    /// Smart date buckets: Today, Yesterday, This Week, Last Week, This Month, Last Month, Older
+    Date,
+    /// Group by entity type (document, email, channel, etc.)
+    EntityType,
+    /// Group by project
+    Project,
+    /// Group by a property value (e.g., status, priority, or custom properties)
+    #[serde(rename = "property")]
+    Property {
+        /// The property definition UUID to group by
+        property_definition_id: Uuid,
+        /// Optional entity type filter for the property lookup
+        #[serde(skip_serializing_if = "Option::is_none")]
+        entity_type: Option<ApiPropertyEntityType>,
+    },
+}
+
+impl From<ApiGroupByField> for GroupByField {
+    fn from(api: ApiGroupByField) -> Self {
+        match api {
+            ApiGroupByField::Date => GroupByField::Date,
+            ApiGroupByField::EntityType => GroupByField::EntityType,
+            ApiGroupByField::Project => GroupByField::Project,
+            ApiGroupByField::Property {
+                property_definition_id,
+                entity_type,
+            } => GroupByField::Property {
+                property_definition_id,
+                entity_type: entity_type.map(|et| et.into()),
+            },
+        }
+    }
+}
+
+/// API representation of group metadata.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ApiGroupMeta {
+    /// Group key - format depends on group_by field
+    pub key: String,
+    /// Human-readable label for the group
+    pub label: String,
+    /// Display order for sorting groups (lower = first)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_order: Option<i32>,
+    /// Total count of items in this group across all pages
+    pub total_count: u32,
+    /// Number of items from this group in the current page
+    pub page_count: u32,
+    /// Index in the items array where this group starts (current page)
+    pub start_index: u32,
+    /// Cursor to load more items specifically from this group
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_cursor: Option<String>,
+}
+
+impl From<GroupMeta> for ApiGroupMeta {
+    fn from(meta: GroupMeta) -> Self {
+        Self {
+            key: meta.key,
+            label: meta.label,
+            display_order: meta.display_order,
+            total_count: meta.total_count,
+            page_count: meta.page_count,
+            start_index: meta.start_index,
+            next_cursor: meta.next_cursor,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct SoupPage {
     items: Vec<SoupApiItem>,
     next_cursor: Option<String>,
+}
+
+/// Response for grouped soup queries.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct GroupedSoupPage {
+    /// Items in this page (flat list, ordered by group then sort)
+    pub items: Vec<SoupApiItem>,
+    /// Cursor to load the next page (global pagination)
+    pub next_cursor: Option<String>,
+    /// Group metadata - present when group_by is specified in the request
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub groups: Option<Vec<ApiGroupMeta>>,
 }
 
 pub struct SoupRouterState<T, U> {
@@ -174,6 +312,113 @@ where
         Ok(Json(
             res.type_erase().map(SoupApiItem::from_frecency_soup_item),
         ))
+    }
+
+    async fn handle_grouped(
+        &self,
+        macro_user_id: MacroUserIdStr<'static>,
+        filters: EntityFilterAst,
+        params: Params,
+    ) -> Result<Json<GroupedSoupPage>, SoupHandlerErr> {
+        let group_by = params.group_by.ok_or(SoupHandlerErr::Expand)?;
+        let limit = params.limit.unwrap_or(20).clamp(20, 500);
+        let sort_method = params
+            .sort_method
+            .map(|s| match s.into_sort_method() {
+                SortMethod::Simple(m) => m,
+                SortMethod::Advanced(_) => SimpleSortMethod::ViewedUpdated,
+            })
+            .unwrap_or(SimpleSortMethod::ViewedUpdated);
+
+        let grouping = GroupingConfig {
+            field: GroupByField::from(group_by.clone()),
+            group_key: params.group_key,
+        };
+
+        let req = GroupedSortRequest {
+            limit,
+            cursor: models_pagination::Query::Sort(sort_method, filters),
+            user_id: macro_user_id,
+            grouping,
+        };
+
+        let items = self.service.get_user_soup_grouped(req).await?;
+
+        let (api_items, groups) = build_grouped_response(items, &group_by);
+
+        Ok(Json(GroupedSoupPage {
+            items: api_items,
+            next_cursor: None,
+            groups: Some(groups),
+        }))
+    }
+}
+
+fn build_grouped_response(
+    items: Vec<crate::domain::models::GroupedSoupItem>,
+    group_by: &ApiGroupByField,
+) -> (Vec<SoupApiItem>, Vec<ApiGroupMeta>) {
+    use std::collections::HashMap;
+
+    let mut group_stats: HashMap<String, (u32, u32, u32)> = HashMap::new();
+    let mut api_items = Vec::with_capacity(items.len());
+
+    for (idx, grouped_item) in items.into_iter().enumerate() {
+        let key = grouped_item.group_key.clone();
+        let entry =
+            group_stats
+                .entry(key)
+                .or_insert((grouped_item.group_total_count, 0, idx as u32));
+        entry.1 += 1;
+
+        api_items.push(SoupApiItem::from_frecency_soup_item(FrecencySoupItem {
+            item: grouped_item.item,
+            frecency_score: grouped_item.frecency_score,
+        }));
+    }
+
+    let mut groups: Vec<ApiGroupMeta> = group_stats
+        .into_iter()
+        .map(|(key, (total_count, page_count, start_index))| {
+            let (label, display_order) = resolve_group_label_and_order(&key, group_by);
+            ApiGroupMeta {
+                key,
+                label,
+                display_order,
+                total_count,
+                page_count,
+                start_index,
+                next_cursor: None,
+            }
+        })
+        .collect();
+
+    groups.sort_by(|a, b| {
+        a.display_order
+            .unwrap_or(i32::MAX)
+            .cmp(&b.display_order.unwrap_or(i32::MAX))
+    });
+
+    (api_items, groups)
+}
+
+fn resolve_group_label_and_order(key: &str, group_by: &ApiGroupByField) -> (String, Option<i32>) {
+    match group_by {
+        ApiGroupByField::Date => (
+            date_buckets::label(key).to_string(),
+            Some(date_buckets::display_order(key)),
+        ),
+        ApiGroupByField::EntityType => (
+            entity_type_labels::label(key).to_string(),
+            Some(entity_type_labels::display_order(key)),
+        ),
+        ApiGroupByField::Project if key == NO_VALUE_KEY => {
+            ("No Project".to_string(), Some(i32::MAX))
+        }
+        ApiGroupByField::Property { .. } if key == NO_VALUE_KEY => {
+            ("Not Set".to_string(), Some(i32::MAX))
+        }
+        _ => (key.to_string(), None),
     }
 }
 
@@ -404,19 +649,27 @@ pub async fn post_soup_ast_handler<T, U>(
         params,
         email_view,
     }): Json<PostSoupAstRequest>,
-) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr>
+) -> Result<Either<Json<PaginatedOpaqueCursor<SoupApiItem>>, Json<GroupedSoupPage>>, SoupHandlerErr>
 where
     T: SoupService,
     U: EmailService,
 {
+    let filters = filters
+        .into_entity_ast()
+        .map_err(|_| SoupHandlerErr::Expand)?;
+
+    if params.group_by.is_some() {
+        return service
+            .handle_grouped(macro_user_id, filters, params)
+            .await
+            .map(Either::E2);
+    }
+
     let link = match email_link {
         Ok(l) => Some(l.0.0),
         Err(EmailLinkErr::NotFound) => None,
         Err(e) => Err(e)?,
     };
-    let filters = filters
-        .into_entity_ast()
-        .map_err(|_| SoupHandlerErr::Expand)?;
     service
         .handle(
             macro_user_id,
@@ -429,6 +682,7 @@ where
             cursor,
         )
         .await
+        .map(Either::E1)
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

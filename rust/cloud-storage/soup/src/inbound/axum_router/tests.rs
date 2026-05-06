@@ -92,6 +92,13 @@ impl SoupService for MockSoup {
         });
         Err(SoupErr::SoupDbErr(anyhow::anyhow!("Not implemented")))
     }
+
+    async fn get_user_soup_grouped(
+        &self,
+        _req: crate::domain::models::GroupedSortRequest<'_>,
+    ) -> Result<Vec<crate::domain::models::GroupedSoupItem>, SoupErr> {
+        Err(SoupErr::SoupDbErr(anyhow::anyhow!("Not implemented")))
+    }
 }
 
 struct MockEmail;
