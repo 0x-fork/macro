@@ -109,6 +109,10 @@ export const ViewOptionsPopover: Component = () => {
     return count;
   });
 
+  const hasActiveOptions = createMemo(() => {
+    return activeFilterCount() > 0 || isPreviewActive();
+  });
+
   registerHotkey({
     hotkey: 'v',
     scopeId: panel.splitHotkeyScope,
@@ -136,10 +140,13 @@ export const ViewOptionsPopover: Component = () => {
           as={Button}
           variant="ghost"
           size="sm"
-          class="rounded-md [&_svg]:size-4 p-1.5"
+          class="relative rounded-md [&_svg]:size-4 p-1.5"
           tabIndex={0}
         >
           <SlidersIcon />
+          <Show when={hasActiveOptions()}>
+            <span class="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-accent" />
+          </Show>
         </Popover.Trigger>
       </Tooltip>
       <Popover.Portal>
@@ -241,7 +248,12 @@ const FilterCategoryDropdown: Component<{
 
   return (
     <div class="flex items-center justify-between gap-3">
-      <span class="text-xs text-ink-muted">{props.category.label}</span>
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs text-ink-muted">{props.category.label}</span>
+        <Show when={activeCount() > 0}>
+          <span class="size-1.5 rounded-full bg-accent" />
+        </Show>
+      </div>
       <DropdownMenu placement="bottom-end" gutter={4}>
         <DropdownMenu.Trigger class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors" tabIndex={0}>
           <span class={activeCount() > 0 ? 'text-ink' : 'text-ink-muted'}>
