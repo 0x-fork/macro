@@ -140,7 +140,7 @@ export const SoupViewCreateButton = () => {
             <Button
               variant="tertiary"
               size="sm"
-              class="rounded-xs py-1.5 [&_svg]:size-4"
+              class="rounded-md py-1.5 [&_svg]:size-4"
               onClick={() => handleSelect(primaryOption())}
             >
               <PlusIcon />
@@ -148,7 +148,7 @@ export const SoupViewCreateButton = () => {
             </Button>
           }
         >
-          <div class="flex items-center rounded-xs bg-ink/10 text-ink-muted overflow-hidden">
+          <div class="flex items-center rounded-md bg-ink/10 text-ink-muted overflow-hidden">
             <button
               type="button"
               class="flex items-center gap-1 px-2 py-1.5 text-xs hover:bg-ink/20 hover:text-ink transition-colors"

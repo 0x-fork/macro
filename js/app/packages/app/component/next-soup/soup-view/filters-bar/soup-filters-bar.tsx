@@ -178,7 +178,7 @@ export const SoupFiltersBar = () => {
             when={searchExpanded()}
             fallback={
               <>
-                <div class="hidden @md:block w-40 min-w-24 shrink">
+                <div class="hidden @md:block w-52 min-w-32 shrink">
                   <SoupSearchbar variant="filled" />
                 </div>
                 <Button
