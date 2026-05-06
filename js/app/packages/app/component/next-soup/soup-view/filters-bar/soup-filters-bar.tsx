@@ -131,6 +131,7 @@ export const SoupFiltersBar = () => {
             </div>
           </Show>
           <div class="flex-1" />
+          <SoupViewCreateButton />
           <Show
             when={searchExpanded()}
             fallback={
@@ -159,7 +160,6 @@ export const SoupFiltersBar = () => {
           </Show>
           <Show when={!searchExpanded()}>
             <ViewOptionsPopover />
-            <SoupViewCreateButton />
           </Show>
         </div>
         <Show when={activeFiltersList().length > 0}>
