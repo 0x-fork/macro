@@ -17,7 +17,7 @@ use models_pagination::{
 use models_soup::document::{SoupDocument, SoupDocumentSubType};
 use ordered_float::OrderedFloat;
 use rootcause::Report;
-use sqlx::types::chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use super::*;
