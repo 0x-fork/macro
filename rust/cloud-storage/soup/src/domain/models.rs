@@ -1,3 +1,9 @@
+mod grouping;
+
+pub use grouping::{
+    GroupByField, GroupMeta, GroupingConfig, NO_VALUE_KEY, date_buckets, entity_type_labels,
+};
+
 use call::domain::models::GetCallRecordsRequest;
 use comms::domain::models::GetChannelsRequest;
 use email::domain::models::{GetEmailsRequest, PreviewView};
@@ -32,6 +38,19 @@ pub struct SimpleSortRequest<'a> {
     pub(crate) cursor: SimpleSortQuery,
     /// the id of the user
     pub(crate) user_id: MacroUserIdStr<'a>,
+}
+
+/// Parameters for grouped soup queries.
+#[derive(Debug)]
+pub struct GroupedSortRequest<'a> {
+    /// the limit of the number of items to return
+    pub limit: u16,
+    /// the cursor/query
+    pub cursor: Query<Uuid, SimpleSortMethod, EntityFilterAst>,
+    /// the id of the user
+    pub user_id: MacroUserIdStr<'a>,
+    /// grouping configuration
+    pub grouping: GroupingConfig,
 }
 
 #[derive(Debug)]
@@ -367,6 +386,34 @@ impl SortOn<SimpleSortMethod> for FrecencySoupItem {
         let mut cb = SoupItem::sort_on(sort);
         move |v| cb(&v.item)
     }
+}
+
+/// A soup request with optional grouping configuration.
+#[derive(Debug)]
+pub struct GroupedSoupRequest<T> {
+    /// Base soup request parameters
+    pub base: SoupRequest<T>,
+    /// Optional grouping configuration
+    pub grouping: Option<GroupingConfig>,
+}
+
+/// A soup item with group metadata attached (returned from grouped queries).
+#[derive(Debug)]
+pub struct GroupedSoupItem {
+    /// The soup item
+    pub item: SoupItem,
+    /// The frecency score (if available)
+    pub frecency_score: Option<AggregateFrecency>,
+    /// Which group this item belongs to
+    pub group_key: String,
+    /// Total items in this group (computed via window function)
+    pub group_total_count: u32,
+    /// This item's position within the group (1-indexed)
+    pub row_in_group: u32,
+    /// Label for this group (from property_options or computed)
+    pub group_label: Option<String>,
+    /// Display order for this group
+    pub group_display_order: Option<i32>,
 }
 
 #[derive(Debug, Error)]
