@@ -137,6 +137,7 @@ export const ViewOptionsPopover: Component = () => {
           variant="ghost"
           size="sm"
           class="rounded-md [&_svg]:size-4 p-1.5"
+          tabIndex={0}
         >
           <SlidersIcon />
         </Popover.Trigger>
@@ -159,7 +160,7 @@ export const ViewOptionsPopover: Component = () => {
             <div class="flex items-center justify-between gap-3">
               <span class="text-xs text-ink-muted">Sort</span>
               <DropdownMenu placement="bottom-end" gutter={4}>
-                <DropdownMenu.Trigger class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 transition-colors">
+                <DropdownMenu.Trigger class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors" tabIndex={0}>
                   <span class="text-ink">{currentSortLabel()}</span>
                   <CaretDownIcon class="size-3 text-ink-muted" />
                 </DropdownMenu.Trigger>
@@ -201,10 +202,11 @@ export const ViewOptionsPopover: Component = () => {
               <button
                 type="button"
                 class={cn(
-                  'relative w-7 h-4 rounded-full transition-colors p-0.5',
+                  'relative w-7 h-4 rounded-full transition-colors p-0.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent',
                   isPreviewActive() ? 'bg-accent/40' : 'bg-edge'
                 )}
                 onClick={togglePreview}
+                tabIndex={0}
               >
                 <span
                   class={cn(
@@ -241,7 +243,7 @@ const FilterCategoryDropdown: Component<{
     <div class="flex items-center justify-between gap-3">
       <span class="text-xs text-ink-muted">{props.category.label}</span>
       <DropdownMenu placement="bottom-end" gutter={4}>
-        <DropdownMenu.Trigger class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 transition-colors">
+        <DropdownMenu.Trigger class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors" tabIndex={0}>
           <span class={activeCount() > 0 ? 'text-ink' : 'text-ink-muted'}>
             {activeLabel()}
           </span>
