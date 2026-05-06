@@ -379,17 +379,18 @@ function TimelineRow(props: {
         role="button"
         tabIndex={0}
       >
-        <div class="flex items-center gap-2 text-xs">
+        <div class="flex items-center gap-2 text-xs pr-6">
           <NotificationSenderIcon stack={props.stack} size="sm" />
-          <span class="ph-no-capture truncate font-medium text-ink">
+          <span class="ph-no-capture shrink-0 font-medium text-ink">
             <NotificationDescription stack={props.stack} />
+          </span>
+          <span class="text-ink-extra-muted">·</span>
+          <span class="ph-no-capture truncate text-ink-extra-muted">
+            <NotificationContent stack={props.stack} singleLine />
           </span>
           <span class="text-ink-extra-muted shrink-0 ml-auto">
             <NotificationTimestamp stack={props.stack} />
           </span>
-        </div>
-        <div class="ph-no-capture text-xs text-ink-muted mt-1 line-clamp-2 pr-8">
-          <NotificationContent stack={props.stack} singleLine />
         </div>
         <Button
           onClick={(e) => {
@@ -397,7 +398,7 @@ function TimelineRow(props: {
             markStackAsDone();
           }}
           tooltip="Mark done"
-          class="absolute bottom-2 right-2 opacity-0 group-hover/row:opacity-100 border border-edge-muted text-ink-muted p-0 size-5 grid place-items-center transition-opacity"
+          class="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/row:opacity-100 border border-edge-muted text-ink-muted p-0 size-5 grid place-items-center transition-opacity"
         >
           <CheckIcon class="size-2.5" />
         </Button>
