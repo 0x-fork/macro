@@ -1828,11 +1828,12 @@ export function StackedListEntity(props: StackedListEntityProps) {
       </Show>
 
       <Show when={hasNotifications() && !isMobile()}>
-        <div class="pl-[1.875rem] pr-2 pb-1.5">
+        <div class="pl-12 pr-2 pb-1.5">
           <Show when={isWithNotification(props.entity) && !showContentHits()}>
             <Entity.Notification.Stacks
               entity={props.entity}
               visibleCount={3}
+              variant="timeline"
             />
           </Show>
         </div>
