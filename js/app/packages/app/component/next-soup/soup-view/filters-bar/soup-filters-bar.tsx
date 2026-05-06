@@ -140,9 +140,9 @@ export const SoupFiltersBar = () => {
                   <SoupSearchbar variant="filled" />
                 </div>
                 <Button
-                  variant="secondary"
+                  variant="tertiary"
                   size="sm"
-                  class="@md:hidden rounded-xs p-1.5 [&_svg]:size-4 aspect-square"
+                  class="@md:hidden rounded-md p-1.5 [&_svg]:size-4 aspect-square"
                   onClick={() => setSearchExpanded(true)}
                 >
                   <SearchIcon />

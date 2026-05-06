@@ -110,7 +110,7 @@ export function NotificationStackRow(props: {
         <ContextMenu.Trigger class="size-full">
           <div
             class={cn(
-              'flex p-2 pr-0 my-1 border-l-2 border-edge bg-message gap-4 hover:bg-hover min-w-0 overflow-hidden'
+              'relative flex p-2 my-1 border-l-2 border-edge bg-message gap-2 hover:bg-hover min-w-0 overflow-hidden'
             )}
             onClick={handleClick}
             role="button"
@@ -127,7 +127,7 @@ export function NotificationStackRow(props: {
               }
             }}
           >
-            <div class="pt-1 shrink-0">
+            <div class="pt-0.5 shrink-0 text-ink-muted">
               <NotificationIcon stack={props.stack} class="size-4" />
             </div>
             <div class="min-w-0 flex-1">
@@ -152,17 +152,6 @@ export function NotificationStackRow(props: {
                   {' - '}
                   <NotificationTimestamp stack={props.stack} />
                 </span>
-                <Show when={canMarkDone()}>
-                  <div class="ml-auto flex items-center gap-1 pr-2 shrink-0">
-                    <Button
-                      onClick={handleMarkAsDone}
-                      tooltip={'Mark notification done'}
-                      class="border border-edge-muted text-xs text-ink-muted grid p-0 place-items-center size-6"
-                    >
-                      <CheckIcon class="size-3" />
-                    </Button>
-                  </div>
-                </Show>
               </div>
               <div
                 class={cn('ph-no-capture mt-1 min-w-0 text-xs', {
@@ -173,6 +162,17 @@ export function NotificationStackRow(props: {
                 {props.content ?? <NotificationContent stack={props.stack} />}
               </div>
             </div>
+            <Show when={canMarkDone()}>
+              <div class="absolute bottom-2 right-2">
+                <Button
+                  onClick={handleMarkAsDone}
+                  tooltip={'Mark notification done'}
+                  class="border border-edge-muted text-xs text-ink-muted grid p-0 place-items-center size-6"
+                >
+                  <CheckIcon class="size-3" />
+                </Button>
+              </div>
+            </Show>
           </div>
         </ContextMenu.Trigger>
         <ContextMenu.Portal>
@@ -374,7 +374,7 @@ function TimelineRow(props: {
       </div>
       {/* Content */}
       <div
-        class="min-w-0 mb-2 p-2 cursor-pointer rounded-md bg-ink/5 hover:bg-ink/10 transition-colors"
+        class="relative min-w-0 mb-2 p-2 cursor-pointer rounded-md bg-ink/5 hover:bg-ink/10 transition-colors group/row"
         onClick={handleClick}
         role="button"
         tabIndex={0}
@@ -387,20 +387,20 @@ function TimelineRow(props: {
           <span class="text-ink-extra-muted shrink-0 ml-auto">
             <NotificationTimestamp stack={props.stack} />
           </span>
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              markStackAsDone();
-            }}
-            tooltip="Mark done"
-            class="opacity-0 group-hover:opacity-100 border border-edge-muted text-ink-muted p-0 size-5 grid place-items-center transition-opacity"
-          >
-            <CheckIcon class="size-2.5" />
-          </Button>
         </div>
-        <div class="ph-no-capture text-xs text-ink-muted mt-1 line-clamp-2">
+        <div class="ph-no-capture text-xs text-ink-muted mt-1 line-clamp-2 pr-8">
           <NotificationContent stack={props.stack} singleLine />
         </div>
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            markStackAsDone();
+          }}
+          tooltip="Mark done"
+          class="absolute bottom-2 right-2 opacity-0 group-hover/row:opacity-100 border border-edge-muted text-ink-muted p-0 size-5 grid place-items-center transition-opacity"
+        >
+          <CheckIcon class="size-2.5" />
+        </Button>
       </div>
     </div>
   );

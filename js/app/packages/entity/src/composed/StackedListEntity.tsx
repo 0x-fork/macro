@@ -144,20 +144,20 @@ function LayoutShell(props: {
 }) {
   return (
     <div
-      class="grid w-full text-sm py-2 px-2"
+      class="grid w-full text-sm py-2 px-2 items-center"
       style={{
         'grid-template-columns': '1.5rem 1fr',
         gap: '0 0.5rem',
       }}
     >
-      <div class="row-span-full flex items-center justify-center relative group">
+      <div class="self-center size-4 flex items-center justify-center relative group">
         <UnreadIndicator
           active={props.unread}
           class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
         />
         <div
           class={cn(
-            'absolute inset-0 grid place-items-center',
+            'absolute inset-0 flex items-center justify-center',
             props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           )}
         >
@@ -357,7 +357,7 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
           </Show>
         </span>
         <span class="flex items-center gap-1.5 min-w-0 mr-8">
-          <Show when={props.channel.latestMessage}>
+          <Show when={!props.hasNotifications && props.channel.latestMessage}>
             {(msg) => (
               <>
                 <Show when={msg().senderId}>
@@ -1019,10 +1019,11 @@ function NarrowChannelLayout(
           <Entity.Title entity={props.entity} />
         </span>
       </span>
-      <Show
-        when={props.channel.latestMessage}
-        fallback={<span class="text-ink-extra-muted text-xs">No messages</span>}
-      >
+      <Show when={!props.hasNotifications}>
+        <Show
+          when={props.channel.latestMessage}
+          fallback={<span class="text-ink-extra-muted text-xs">No messages</span>}
+        >
         {(msg) => (
           <span class="flex items-center gap-1.5 min-w-0 text-sm text-ink-muted">
             <Show
@@ -1053,6 +1054,7 @@ function NarrowChannelLayout(
             </span>
           </span>
         )}
+        </Show>
       </Show>
     </NarrowChannelShell>
   );
@@ -1740,7 +1742,7 @@ export function StackedListEntity(props: StackedListEntityProps) {
       }}
       ref={mergeRefs(props.ref, draggable)}
       class={cn(
-        'soup-stacked-entity w-full relative group/stacked rounded-xs',
+        'soup-stacked-entity w-full relative group/stacked rounded-sm',
         {
           'border-b border-edge-muted': !isWide() && isMobile(),
           'bg-accent/5': props.checked || (props.highlighted && !isMobile()),
