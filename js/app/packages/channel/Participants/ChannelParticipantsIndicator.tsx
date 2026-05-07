@@ -13,7 +13,7 @@ import { useUserId } from '@core/context/user';
 import { useChannelType } from '@core/context/channels';
 import { useRemoveParticipantsMutation } from '@queries/channel/participants';
 import { ENABLE_LIVE_INDICATORS } from '@core/constant/featureFlags';
-import { Layer } from '@ui';
+import { Layer, Button } from '@ui';
 import { cn } from '@ui/utils/classname';
 import UsersIcon from '@icon/regular/users.svg';
 import DotsThreeIcon from '@icon/regular/dots-three.svg';
@@ -213,7 +213,7 @@ export function ChannelParticipantsIndicator(props: {
           when={ENABLE_LIVE_INDICATORS && hasActiveUsers()}
           fallback={
             <div class={cn(
-              "size-7 flex items-center justify-center rounded-md hover:bg-hover",
+              "size-7 flex items-center justify-center rounded-sm hover:bg-ink/10",
               isOpen() && "bg-ink/10"
             )}>
               <UsersIcon class="size-4 text-ink-muted" />
@@ -221,7 +221,7 @@ export function ChannelParticipantsIndicator(props: {
           }
         >
           <div class={cn(
-            "flex items-center justify-center shrink-0 overflow-hidden isolate rounded-md",
+            "flex items-center justify-center shrink-0 overflow-hidden isolate rounded-sm hover:bg-ink/10",
             activeUserIdsExcludingSelf().length === 1 ? "size-7" : "pl-2 pr-4",
             isOpen() && "bg-ink/10"
           )}>
