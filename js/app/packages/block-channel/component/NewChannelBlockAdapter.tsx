@@ -119,6 +119,7 @@ function ChannelHeader(props: { channelId: string }) {
           </Show>
           <Show when={showParticipants()}>
             <ChannelParticipantsIndicator
+              channelId={props.channelId}
               participants={participants() ?? []}
               activeUserIds={activeUserIds() ?? []}
             />

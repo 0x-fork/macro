@@ -53,8 +53,8 @@ export function ChannelCallButton(props: { channelId: string }) {
       }
       size={isTouchDevice() ? 'icon-md' : 'icon-sm'}
     >
-      <Show when={call.isInThisChannel()} fallback={<PhoneIcon />}>
-        <PhoneDisconnectIcon />
+      <Show when={call.isInThisChannel()} fallback={<PhoneIcon class="size-4" />}>
+        <PhoneDisconnectIcon class="size-4" />
       </Show>
     </Button>
   );
