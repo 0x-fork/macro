@@ -977,6 +977,10 @@ impl<'a> FromRow<'a, PgRow> for GroupedSoupRow {
     }
 }
 
+/// Per-group limit for initial grouped queries.
+/// Each group will return at most this many items initially.
+const PER_GROUP_LIMIT: i32 = 10;
+
 /// Build the GroupedItems CTE based on the grouping configuration.
 fn build_grouped_items_cte(builder: &mut QueryBuilder<'_, Postgres>, grouping: &GroupingConfig) {
     let select_expr = group_select_expr(&grouping.field);
@@ -995,6 +999,7 @@ fn build_grouped_items_cte(builder: &mut QueryBuilder<'_, Postgres>, grouping: &
     }
 
     if let Some(ref key) = grouping.group_key {
+        // Single group mode: fetch items for a specific group (for "load more")
         builder.push("WHERE (");
         builder.push(&select_expr);
         builder.push(") = '");
@@ -1003,6 +1008,13 @@ fn build_grouped_items_cte(builder: &mut QueryBuilder<'_, Postgres>, grouping: &
     }
 
     builder.push("), ");
+
+    // FilteredGroupedItems: apply per-group limit when not fetching a specific group
+    if grouping.group_key.is_none() {
+        builder.push("FilteredGroupedItems AS (SELECT * FROM GroupedItems WHERE row_in_group <= ");
+        builder.push(&PER_GROUP_LIMIT.to_string());
+        builder.push("), ");
+    }
 }
 
 /// Build the grouped query with grouping CTE.
@@ -1075,16 +1087,23 @@ fn build_grouped_query<'a>(
     builder.push(" ORDER BY all_items.sort_ts DESC, all_items.id DESC");
     builder.push("), ");
 
-    // GroupedItems CTE: adds group metadata
+    // GroupedItems CTE: adds group metadata (and FilteredGroupedItems if not single-group mode)
     build_grouped_items_cte(&mut builder, grouping);
 
-    // Combined CTE: full detail joins from GroupedItems
+    // Combined CTE: full detail joins from GroupedItems (or FilteredGroupedItems)
+    // When fetching a specific group, use GroupedItems directly; otherwise use FilteredGroupedItems
+    let source_table = if grouping.group_key.is_some() {
+        "GroupedItems"
+    } else {
+        "FilteredGroupedItems"
+    };
+
     builder.push("Combined AS (");
-    builder.push(GROUPED_DOCUMENT_DETAIL_CLAUSE);
+    builder.push(&GROUPED_DOCUMENT_DETAIL_CLAUSE.replace("GroupedItems gi", &format!("{} gi", source_table)));
     builder.push(" UNION ALL ");
-    builder.push(GROUPED_CHAT_DETAIL_CLAUSE);
+    builder.push(&GROUPED_CHAT_DETAIL_CLAUSE.replace("GroupedItems gi", &format!("{} gi", source_table)));
     builder.push(" UNION ALL ");
-    builder.push(GROUPED_PROJECT_DETAIL_CLAUSE);
+    builder.push(&GROUPED_PROJECT_DETAIL_CLAUSE.replace("GroupedItems gi", &format!("{} gi", source_table)));
     builder.push(") ");
 
     // Final SELECT with group-aware ordering

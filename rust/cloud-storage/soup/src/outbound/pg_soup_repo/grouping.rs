@@ -83,7 +83,9 @@ pub fn group_select_expr(field: &GroupByField) -> String {
         GroupByField::EntityType => "item_type".to_string(),
         GroupByField::Project => "COALESCE(project_id::text, '__none__')".to_string(),
         GroupByField::Property { .. } => {
-            "COALESCE((ep_group.values->'value'->0->>'id'), (ep_group.values->>'value'), '__none__')".to_string()
+            // For select options, value is an array of option IDs like ["uuid1", "uuid2"]
+            // Extract the first element as text
+            "COALESCE(ep_group.values->'value'->>0, '__none__')".to_string()
         }
     }
 }
