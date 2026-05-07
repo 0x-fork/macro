@@ -56,7 +56,7 @@ export function MobileActionsMenu() {
           <PlusIcon class="size-5" />
         </MobileDrawer.Trigger>
         <MobileDrawer.Portal>
-          <MobileDrawer.Overlay class="fixed inset-0 z-modal bg-black/50" />
+          <MobileDrawer.Overlay class="fixed inset-0 z-modal-overlay bg-modal-overlay" />
           <MobileDrawer.Content>
             <MobileDrawer.Handle />
             <MobileDrawer.Section class="mb-3">

@@ -7,7 +7,7 @@ import { useSplitLayout } from '@app/component/split-layout/layout';
 import { commsServiceClient } from '@service-comms/client';
 import { ChannelType } from '@service-comms/generated/models/channelType';
 import { isOk } from '@core/util/maybeResult';
-import { createMemo, createSignal, For, Show } from 'solid-js';
+import { createMemo, createSignal, For, Show, type JSX } from 'solid-js';
 import type { ChannelParticipant } from '@queries/channel/types';
 import { useUserId } from '@core/context/user';
 import { useChannelType } from '@core/context/channels';
@@ -15,6 +15,8 @@ import { useRemoveParticipantsMutation } from '@queries/channel/participants';
 import { ENABLE_LIVE_INDICATORS } from '@core/constant/featureFlags';
 import { Layer, Button } from '@ui';
 import { cn } from '@ui/utils/classname';
+import { isMobile } from '@core/mobile/isMobile';
+import { MobileDrawer } from '@app/component/mobile/MobileDrawer';
 import UsersIcon from '@icon/regular/users.svg';
 import DotsThreeIcon from '@icon/regular/dots-three.svg';
 import ChatIcon from '@icon/regular/chat-text.svg';
@@ -206,107 +208,136 @@ export function ChannelParticipantsIndicator(props: {
   const canRemoveParticipant = (participantId: string) =>
     canManageParticipants() && participantId !== currentUserId();
 
+  const triggerContent = () => (
+    <Show
+      when={ENABLE_LIVE_INDICATORS && hasActiveUsers()}
+      fallback={
+        <div class={cn(
+          "size-7 flex items-center justify-center rounded-sm text-ink-muted hover:text-ink hover:bg-ink/10",
+          isOpen() && "bg-ink/10"
+        )}>
+          <UsersIcon class="size-4" />
+        </div>
+      }
+    >
+      <div class={cn(
+        "flex items-center justify-center shrink-0 overflow-hidden isolate rounded-sm hover:bg-ink/10",
+        activeUserIdsExcludingSelf().length === 1 ? "size-7" : "pl-2 pr-4",
+        isOpen() && "bg-ink/10"
+      )}>
+        <For each={activeUserIdsExcludingSelf().slice(0, MAX_USER_INDICATORS)}>
+          {(userId) => (
+            <UserIndicator
+              userId={userId}
+              isOnly={activeUserIdsExcludingSelf().length === 1}
+            />
+          )}
+        </For>
+        <Show when={remaining()}>
+          <div class="z-placeable">
+            <Tooltip
+              tooltip={activeUserIdsExcludingSelf()
+                .slice(MAX_USER_INDICATORS)
+                .map((user) => idToEmail(user).split('@')[0])
+                .join(', ')}
+            >
+              <div class="size-6 bg-menu border-2 text-xxs -mr-3 border-panel rounded-full flex flex-col justify-center items-center">
+                <span>{`+${remaining()}`}</span>
+              </div>
+            </Tooltip>
+          </div>
+        </Show>
+      </div>
+    </Show>
+  );
+
+  const participantsList = () => (
+    <>
+      <div class="px-3 pt-3 pb-2 shrink-0">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-sm font-medium text-ink">Participants</span>
+          <span class="text-xs text-ink-muted">{props.participants.length}</span>
+        </div>
+        <div class="relative">
+          <SearchIcon class="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-ink-faint z-10 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Filter by name or role"
+            value={searchQuery()}
+            onInput={(e) => setSearchQuery(e.currentTarget.value)}
+            class="w-full pl-8 pr-3 py-1 text-sm bg-menu rounded-md border border-edge-muted focus:outline-none focus:ring-1 focus:ring-accent placeholder:text-ink-faint"
+          />
+        </div>
+      </div>
+      <div class="overflow-y-auto px-3 pb-3 flex-1">
+        <Show when={activeParticipants().length > 0}>
+          <div class="text-xs font-medium text-ink-muted py-1.5">
+            Active
+          </div>
+          <For each={activeParticipants()}>
+            {(participant) => (
+              <ParticipantRow
+                participant={participant}
+                isActive
+                canRemove={canRemoveParticipant(participant.user_id)}
+                onMessage={() => openDirectMessage(participant.user_id)}
+                onCall={() => startCall(participant.user_id)}
+                onRemove={() => removeParticipant(participant.user_id)}
+              />
+            )}
+          </For>
+        </Show>
+        <Show when={otherParticipants().length > 0}>
+          <Show when={activeParticipants().length > 0}>
+            <div class="text-xs font-medium text-ink-muted py-1.5 mt-1">
+              Members
+            </div>
+          </Show>
+          <For each={otherParticipants()}>
+            {(participant) => (
+              <ParticipantRow
+                participant={participant}
+                canRemove={canRemoveParticipant(participant.user_id)}
+                onMessage={() => openDirectMessage(participant.user_id)}
+                onCall={() => startCall(participant.user_id)}
+                onRemove={() => removeParticipant(participant.user_id)}
+              />
+            )}
+          </For>
+        </Show>
+      </div>
+    </>
+  );
+
+  if (isMobile()) {
+    return (
+      <MobileDrawer open={isOpen()} onOpenChange={setIsOpen}>
+        <MobileDrawer.Trigger class="flex items-center cursor-pointer">
+          {triggerContent()}
+        </MobileDrawer.Trigger>
+        <MobileDrawer.Portal>
+          <MobileDrawer.Overlay class="fixed inset-0 z-modal-overlay bg-modal-overlay" />
+          <MobileDrawer.Content class="max-h-[70vh]">
+            <MobileDrawer.Handle />
+            <div class="flex flex-col flex-1 min-h-0">
+              {participantsList()}
+            </div>
+          </MobileDrawer.Content>
+        </MobileDrawer.Portal>
+      </MobileDrawer>
+    );
+  }
+
   return (
     <Popover open={isOpen()} onOpenChange={setIsOpen} placement="bottom-end">
       <Popover.Trigger class="flex items-center cursor-pointer">
-        <Show
-          when={ENABLE_LIVE_INDICATORS && hasActiveUsers()}
-          fallback={
-            <div class={cn(
-              "size-7 flex items-center justify-center rounded-sm text-ink-muted hover:text-ink hover:bg-ink/10",
-              isOpen() && "bg-ink/10"
-            )}>
-              <UsersIcon class="size-4" />
-            </div>
-          }
-        >
-          <div class={cn(
-            "flex items-center justify-center shrink-0 overflow-hidden isolate rounded-sm hover:bg-ink/10",
-            activeUserIdsExcludingSelf().length === 1 ? "size-7" : "pl-2 pr-4",
-            isOpen() && "bg-ink/10"
-          )}>
-            <For each={activeUserIdsExcludingSelf().slice(0, MAX_USER_INDICATORS)}>
-              {(userId, index) => (
-                <UserIndicator
-                  userId={userId}
-                  isOnly={activeUserIdsExcludingSelf().length === 1}
-                />
-              )}
-            </For>
-            <Show when={remaining()}>
-              <div class="z-placeable">
-                <Tooltip
-                  tooltip={activeUserIdsExcludingSelf()
-                    .slice(MAX_USER_INDICATORS)
-                    .map((user) => idToEmail(user).split('@')[0])
-                    .join(', ')}
-                >
-                  <div class="size-6 bg-menu border-2 text-xxs -mr-3 border-panel rounded-full flex flex-col justify-center items-center">
-                    <span>{`+${remaining()}`}</span>
-                  </div>
-                </Tooltip>
-              </div>
-            </Show>
-          </div>
-        </Show>
+        {triggerContent()}
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content class="z-50 w-72 flex flex-col">
           <Layer depth={3}>
             <div class="bg-panel rounded-lg ring-1 ring-edge-muted shadow-md flex flex-col max-h-[420px]">
-              <div class="px-3 pt-3 pb-2 shrink-0">
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="text-sm font-medium text-ink">Participants</span>
-                  <span class="text-xs text-ink-muted">{props.participants.length}</span>
-                </div>
-                <div class="relative">
-                  <SearchIcon class="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-ink-faint z-10 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Filter by name or role"
-                    value={searchQuery()}
-                    onInput={(e) => setSearchQuery(e.currentTarget.value)}
-                    class="w-full pl-8 pr-3 py-1 text-sm bg-menu rounded-md border border-edge-muted focus:outline-none focus:ring-1 focus:ring-accent placeholder:text-ink-faint"
-                  />
-                </div>
-              </div>
-              <div class="overflow-y-auto px-3 pb-3 flex-1">
-                <Show when={activeParticipants().length > 0}>
-                  <div class="text-xs font-medium text-ink-muted py-1.5">
-                    Active
-                  </div>
-                  <For each={activeParticipants()}>
-                    {(participant) => (
-                      <ParticipantRow
-                        participant={participant}
-                        isActive
-                        canRemove={canRemoveParticipant(participant.user_id)}
-                        onMessage={() => openDirectMessage(participant.user_id)}
-                        onCall={() => startCall(participant.user_id)}
-                        onRemove={() => removeParticipant(participant.user_id)}
-                      />
-                    )}
-                  </For>
-                </Show>
-                <Show when={otherParticipants().length > 0}>
-                  <Show when={activeParticipants().length > 0}>
-                    <div class="text-xs font-medium text-ink-muted py-1.5 mt-1">
-                      Members
-                    </div>
-                  </Show>
-                  <For each={otherParticipants()}>
-                    {(participant) => (
-                      <ParticipantRow
-                        participant={participant}
-                        canRemove={canRemoveParticipant(participant.user_id)}
-                        onMessage={() => openDirectMessage(participant.user_id)}
-                        onCall={() => startCall(participant.user_id)}
-                        onRemove={() => removeParticipant(participant.user_id)}
-                      />
-                    )}
-                  </For>
-                </Show>
-              </div>
+              {participantsList()}
             </div>
           </Layer>
         </Popover.Content>
