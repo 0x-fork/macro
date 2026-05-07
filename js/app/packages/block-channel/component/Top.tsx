@@ -90,7 +90,7 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
     <SplitHeaderLeft>
       {/* Hidden tracking component for channel presence */}
       <div class="hidden">{props.trackingIndicator}</div>
-      <div class="ph-no-capture z-page-overlay relative flex items-center gap-2 max-w-full h-full shrink min-w-15">
+      <div class="ph-no-capture z-page-overlay relative flex items-center gap-1 max-w-full h-full shrink min-w-15">
         <TopIcon
           channelType={props.channelType}
           participants={props.participants}

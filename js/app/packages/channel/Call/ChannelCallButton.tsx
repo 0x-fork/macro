@@ -6,7 +6,6 @@ import PhoneIcon from '@macro-icons/wide/call.svg';
 import PhoneDisconnectIcon from '@macro-icons/wide/call-disconnect.svg';
 import { useActiveCallQuery } from '@queries/call/call';
 import { useCall } from './use-call';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
 
 export function ChannelCallButton(props: { channelId: string }) {
   const { setActiveTab } = useChannelTab();
@@ -48,10 +47,10 @@ export function ChannelCallButton(props: { channelId: string }) {
       tooltip={tooltip()}
       class={
         isHighlighted()
-          ? 'px-1 bg-accent/20 hover:bg-accent/30 text-accent-ink'
-          : 'px-1'
+          ? 'px-1 bg-accent/20 hover:bg-accent/30 text-accent-ink touch:[&_svg]:size-4'
+          : 'px-1 touch:[&_svg]:size-4'
       }
-      size={isTouchDevice() ? 'icon-md' : 'icon-sm'}
+      size="icon-sm"
     >
       <Show when={call.isInThisChannel()} fallback={<PhoneIcon class="size-4" />}>
         <PhoneDisconnectIcon class="size-4" />

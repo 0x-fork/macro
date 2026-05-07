@@ -104,7 +104,14 @@ function ChannelHeader(props: { channelId: string }) {
         trackingIndicator={<ChannelTopBarLiveIndicators />}
       />
       <SplitHeaderRight>
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-1 touch:gap-0.5">
+          <Show when={showParticipants()}>
+            <ChannelParticipantsIndicator
+              channelId={props.channelId}
+              participants={participants() ?? []}
+              activeUserIds={activeUserIds() ?? []}
+            />
+          </Show>
           <Show when={chatChannelType()}>
             {(type) => (
               <ChatWithAgentButton
@@ -117,20 +124,13 @@ function ChannelHeader(props: { channelId: string }) {
               />
             )}
           </Show>
-          <Show when={showParticipants()}>
-            <ChannelParticipantsIndicator
-              channelId={props.channelId}
-              participants={participants() ?? []}
-              activeUserIds={activeUserIds() ?? []}
-            />
-          </Show>
           <Button
-            class={cn('rounded-md', detailsDrawer.isOpen() && 'bg-ink/10')}
+            class={cn('rounded-md touch:[&_svg]:size-4', detailsDrawer.isOpen() && 'bg-ink/10')}
             size="icon-sm"
             tooltip="Details"
             onClick={detailsDrawer.toggle}
           >
-            <SidebarIcon class="size-4" />
+            <SidebarIcon class="size-4 touch:size-5" />
           </Button>
         </div>
       </SplitHeaderRight>

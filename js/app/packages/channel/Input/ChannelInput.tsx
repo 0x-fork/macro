@@ -1,4 +1,4 @@
-import { Panel } from '@ui/components/Panel';
+import { Layer } from '@ui/components/Layer';
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
 import { isMobile } from '@core/mobile/isMobile';
 import { isIOS } from '@solid-primitives/platform';
@@ -33,6 +33,7 @@ import { isReplyInput } from './types';
 import type { IUser } from '@core/user/types';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import ReplyIcon from '@phosphor-icons/core/regular/arrow-bend-up-left.svg?component-solid';
+import { MobileActionsMenu } from './MobileActionsMenu';
 
 export type ChannelInputProps = InputCallbacks & {
   input: InputData;
@@ -163,7 +164,8 @@ export function ChannelInput(props: ChannelInputProps) {
 
   return (
     <Input.Root input={inputState.view()} commands={inputState.commands}>
-      <Panel depth={2}>
+      <Layer depth={2}>
+        <div class="bg-panel rounded-md border border-edge-muted mobile:rounded-none mobile:border-none">
         <Input.DropZone
           onDragStart={(valid) => inputState.setIsDraggedOver(valid)}
           onDragEnd={() => inputState.setIsDraggedOver(false)}
@@ -199,12 +201,12 @@ export function ChannelInput(props: ChannelInputProps) {
               />
             </Input.FormatRibbon>
             <div class="flex flex-row items-end gap-1 px-2 py-1.5">
-              <div class="shrink-0">
+              <div class="shrink-0 mobile:hidden">
                 <Input.AttachFilesAction />
               </div>
               <div
                 ref={setScrollContainer}
-                class="flex-1 min-w-0 max-h-32 overflow-y-auto"
+                class="flex-1 min-w-0 max-h-32 overflow-y-auto self-center"
                 onClick={(event) => {
                   if (!isMobile()) {
                     event.stopPropagation();
@@ -218,12 +220,15 @@ export function ChannelInput(props: ChannelInputProps) {
                     placeholder={inputState.view().placeholder}
                     initialValue={inputState.view().value}
                     autofocus={!isMobile() && (props.autofocus ?? true)}
-                    class="text-sm"
+                    class="text-sm mobile:text-xs"
                     refFn={attach}
                   />
                 </Input.Editor>
               </div>
-              <div class="shrink-0">
+              <div class="shrink-0 hidden mobile:block">
+                <MobileActionsMenu />
+              </div>
+              <div class="shrink-0 mobile:hidden">
                 <Input.ToggleFormatAction />
               </div>
               <div class="shrink-0">
@@ -234,7 +239,8 @@ export function ChannelInput(props: ChannelInputProps) {
             <Input.Attachments kind="document" />
           </div>
         </Input.DropZone>
-      </Panel>
+        </div>
+      </Layer>
     </Input.Root>
   );
 }

@@ -13,6 +13,7 @@ import CaretRight from '@icon/regular/caret-right.svg';
 import SplitIcon from '@icon/regular/square-half.svg';
 import CloseIcon from '@icon/regular/x.svg';
 import { Button } from '@ui/components/Button';
+import { Layer } from '@ui/components/Layer';
 import {
   createEffect,
   createMemo,
@@ -184,12 +185,13 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
 
   return (
     <div
-      class="isolate relative w-full overflow-clip text-ink shrink-0 shadow-md"
+      class="isolate relative w-full overflow-clip text-ink shrink-0 shadow-lg"
       data-split-header
       ref={props.ref}
     >
-      <div class="flex justify-start items-center bg-panel py-2 px-2">
-        <div class="z-annotation-layer relative flex items-center bg-panel mobile:pl-0">
+      <Layer depth={2}>
+        <div class="flex justify-start items-center py-1.5 px-1.5 bg-panel">
+        <div class="z-annotation-layer relative flex items-center mobile:pl-0">
           <div class="mobile:hidden">
             <SplitCloseButton />
           </div>
@@ -225,6 +227,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
           </div>
         </Show>
       </div>
+      </Layer>
     </div>
   );
 }

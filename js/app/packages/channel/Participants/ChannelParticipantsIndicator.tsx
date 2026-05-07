@@ -213,10 +213,10 @@ export function ChannelParticipantsIndicator(props: {
           when={ENABLE_LIVE_INDICATORS && hasActiveUsers()}
           fallback={
             <div class={cn(
-              "size-7 flex items-center justify-center rounded-sm hover:bg-ink/10",
+              "size-7 flex items-center justify-center rounded-sm text-ink-muted hover:text-ink hover:bg-ink/10",
               isOpen() && "bg-ink/10"
             )}>
-              <UsersIcon class="size-4 text-ink-muted" />
+              <UsersIcon class="size-4" />
             </div>
           }
         >
