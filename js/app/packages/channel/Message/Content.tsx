@@ -14,8 +14,10 @@ export function Content(props: ContentProps) {
   const message = useMessage();
   const bigEmoji = createMemo(() => isEmojiOnly(message().content ?? ''));
 
+  const hasContent = () => !!message().content?.trim();
+
   return (
-    <Show when={message().content}>
+    <Show when={hasContent()}>
       <div
         class={cn(
           'whitespace-pre-wrap wrap-break-word max-w-full',

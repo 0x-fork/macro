@@ -2,15 +2,7 @@ import { UserIcon } from '@core/component/UserIcon';
 import { formatRelativeDate } from '@core/util/time';
 import CaretRight from '@icon/regular/caret-right.svg';
 import { cn } from '@ui/utils/classname';
-import {
-  For,
-  Match,
-  Show,
-  Switch,
-  createSignal,
-  splitProps,
-  type JSX,
-} from 'solid-js';
+import { For, Show, splitProps, type JSX } from 'solid-js';
 import { getThreadReplyCountLabel } from './utils/thread-reply-indicator-helpers';
 
 type ThreadCollapsedIndicatorProps =
@@ -21,7 +13,7 @@ type ThreadCollapsedIndicatorProps =
     hasNewMessages?: boolean;
   };
 
-const MAX_VISIBLE_PARTICIPANTS = 4;
+const MAX_VISIBLE_PARTICIPANTS = 3;
 
 export function ThreadCollapsedIndicator(props: ThreadCollapsedIndicatorProps) {
   const [local, rest] = splitProps(props, [
@@ -31,74 +23,49 @@ export function ThreadCollapsedIndicator(props: ThreadCollapsedIndicatorProps) {
     'latestReplyAt',
     'hasNewMessages',
   ]);
-  const [hover, setHover] = createSignal(false);
+
   const visibleParticipants = () =>
     local.participants.slice(0, MAX_VISIBLE_PARTICIPANTS);
-  const hiddenParticipants = () =>
-    Math.max(local.participants.length - visibleParticipants().length, 0);
 
   return (
     <button
       type="button"
       class={cn(
-        'flex flex-row gap-2 items-center text-xs w-fit h-(--user-icon-width) touch:min-h-(--user-icon-width) border bg-menu hover:bg-hover hover-transition-bg pr-2 pl-1 mb-2 select-none outline-none focus:bg-active',
-        local.hasNewMessages ? 'border-accent' : 'border-edge-muted',
+        'flex flex-row gap-2 items-center text-xs rounded-md px-2 py-1.5 bg-panel border border-edge-muted hover:bg-hover hover-transition-bg select-none outline-none',
+        local.hasNewMessages && 'border border-accent',
         local.class
       )}
-      onMouseEnter={() => {
-        setHover(true);
-      }}
-      onMouseLeave={() => {
-        setHover(false);
-      }}
       {...rest}
     >
-      <div class="flex flex-row items-center gap-2 px-1">
-        <Show when={local.participants.length > 0}>
-          <div class="flex flex-row items-center">
-            <For each={visibleParticipants()}>
-              {(userId, index) => (
-                <div
-                  class={cn(
-                    'size-[18px] *:size-full *:rounded-full',
-                    index() > 0 ? '-ml-1' : ''
-                  )}
-                >
-                  <UserIcon
-                    id={userId}
-                    size="fill"
-                    suppressClick
-                    showTooltip={false}
-                    isDeleted={false}
-                    fetchUrl={false}
-                  />
-                </div>
-              )}
-            </For>
-            <Show when={hiddenParticipants() > 0}>
-              <p class="ml-1 text-[10px] text-ink-muted">
-                +{hiddenParticipants()}
-              </p>
-            </Show>
-          </div>
-        </Show>
-        <p class="text-accent-ink font-medium whitespace-nowrap">
+      <Show when={local.participants.length > 0}>
+        <div class="flex flex-row items-center -space-x-2">
+          <For each={visibleParticipants()}>
+            {(userId) => (
+              <div class="size-4 rounded-full ring-1 ring-panel">
+                <UserIcon
+                  id={userId}
+                  size="fill"
+                  suppressClick
+                  showTooltip={false}
+                  isDeleted={false}
+                  fetchUrl={false}
+                />
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+      <div class="flex flex-col items-start">
+        <p class={cn('font-medium whitespace-nowrap leading-tight', local.hasNewMessages ? 'text-accent-ink' : 'text-ink-muted')}>
           {getThreadReplyCountLabel(local.collapsedRepliesCount)}
         </p>
-        <div class="hidden @min-[40rem]:block min-w-[15ch]">
-          <Switch>
-            <Match when={hover()}>
-              <p class="text-ink-muted whitespace-nowrap">Expand thread</p>
-            </Match>
-            <Match when={!!local.latestReplyAt && !hover()}>
-              <p class="text-ink-muted whitespace-nowrap">
-                Last reply {formatRelativeDate(local.latestReplyAt!)}
-              </p>
-            </Match>
-          </Switch>
-        </div>
+        <Show when={local.latestReplyAt}>
+          <p class="text-[10px] text-ink-placeholder whitespace-nowrap leading-tight">
+            {formatRelativeDate(local.latestReplyAt!)}
+          </p>
+        </Show>
       </div>
-      <CaretRight class={cn('size-4', hover() ? '' : 'invisible')} />
+      <CaretRight class="size-3.5 text-ink-muted" />
     </button>
   );
 }

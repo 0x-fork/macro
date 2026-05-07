@@ -116,23 +116,29 @@ function RegularMessageLayout(props: {
   channelId: string;
   messageEditor?: MessageEditor;
 }) {
+  const message = useMessage();
+  const hasContent = () => !!message().content?.trim();
+  const isEditing = () => isEditingMessage(props.messageEditor, message().id);
+
   return (
     <Message.Layout class="pt-(--regular-message-padding-t)">
       <Message.Slot placement="icon">
         <Message.SenderIcon />
       </Message.Slot>
-      <Message.Slot placement="header" class="flex items-center gap-1 min-w-0">
+      <Message.Slot placement="header" class="flex items-center gap-1 min-w-0 leading-tight">
         <Message.SenderName />
-        <span class="text-ink-muted text-xs">•</span>
+        <span class="text-ink-placeholder text-xs">•</span>
         <Message.Timestamp format="dateAndTime" />
         <Message.EditedIndicator />
       </Message.Slot>
-      <Message.Slot placement="content" class="ph-no-capture">
-        <MessageContentSlot
-          channelId={props.channelId}
-          messageEditor={props.messageEditor}
-        />
-      </Message.Slot>
+      <Show when={hasContent() || isEditing()}>
+        <Message.Slot placement="content" class="ph-no-capture -mt-1">
+          <MessageContentSlot
+            channelId={props.channelId}
+            messageEditor={props.messageEditor}
+          />
+        </Message.Slot>
+      </Show>
       <Message.Slot
         placement="footer"
         class="ph-no-capture flex flex-col min-w-0"
