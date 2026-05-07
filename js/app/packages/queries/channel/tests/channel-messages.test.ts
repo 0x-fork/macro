@@ -57,7 +57,10 @@ describe('channelMessagesQueryOptions', () => {
       error = err;
     }
 
-    expect(error).toBeInstanceOf(MaybeResultError);
+    if (!(error instanceof MaybeResultError)) {
+      throw new Error(`Expected MaybeResultError, got ${String(error)}`);
+    }
+
     expect(isMissingChannelMessageError(error)).toBe(true);
     expect(options.retry(0, error)).toBe(false);
     expect(mocks.getChannelMessages).toHaveBeenCalledTimes(1);
