@@ -278,7 +278,7 @@ function UserInfo(props: { userId: string }) {
     <div class="justify-left mt-2 w-fit max-w-[66%] text-ink-muted overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-1.5">
       <UserIconComponent
         id={props.userId}
-        size="xs"
+        size="sm"
         suppressClick
         showTooltip={false}
       />
@@ -550,12 +550,7 @@ export function PopupPreview(props: {
   };
 
   const handleCopyBranchName = () => {
-    const previewItem = item();
-    const docName =
-      props.documentInfo.name ||
-      ('name' in previewItem ? (previewItem.name as string) : '') ||
-      '';
-    copyBranchNameToClipboard(props.documentInfo.id, docName);
+    copyBranchNameToClipboard(props.documentInfo.id);
   };
 
   const isSplitAlreadyOpen = () => {

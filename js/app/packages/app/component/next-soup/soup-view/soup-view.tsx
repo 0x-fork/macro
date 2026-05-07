@@ -13,7 +13,6 @@ import { useSoup } from '@app/component/next-soup/soup-context';
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
 import { MaybeSoupEntityActionDrawerManager } from '@app/component/next-soup/soup-view/SoupEntityActionDrawerManager';
 import {
-  type SoupRow,
   SoupViewContextProvider,
   useSoupView,
 } from '@app/component/next-soup/soup-view/soup-view-context';
@@ -108,12 +107,13 @@ import {
   invalidateSoupEntity,
   refetchSoupEntity,
 } from '@queries/soup/normalized-cache';
-import { Button } from '@app/component/next-soup/soup-view/filters-bar/button';
+import { Button } from '@ui';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import { VIEW_TAB_PRESETS } from '@app/component/app-sidebar/soup-filter-presets';
 import { canExecuteMarkDoneOnView } from '@app/component/next-soup/actions/make-mark-done-action';
+import type { SoupRow } from '@app/component/next-soup/create-soup-state';
 
 const useSoupNotificationInvalidators = () => {
   const notificationSource = useGlobalNotificationSource();
@@ -173,6 +173,8 @@ type PersistedSoupViewState = {
   sort: SystemSortOption[];
   previewEntity: string | undefined;
   assigneeFilter: string[];
+  groupBy: string | undefined;
+  collapsedGroups: string[];
 };
 
 const PERSISTED_STATE_VERSION = 6;
@@ -763,6 +765,8 @@ export const SoupViewList = (props: SoupViewListProps) => {
       batch(() => {
         soup.sort.setAll(initialPersistedState.sort ?? []);
         setAssigneeFilter(initialPersistedState.assigneeFilter ?? []);
+        soup.grouping.setActiveGroupId(initialPersistedState.groupBy);
+        soup.grouping.collapseAll(initialPersistedState.collapsedGroups ?? []);
       });
     } else {
       if (props.initialClientFilters) {
@@ -792,6 +796,8 @@ export const SoupViewList = (props: SoupViewListProps) => {
           sort: soup.sort.active().map((s) => s.id),
           previewEntity: soup.previewEntity(),
           assigneeFilter: assigneeFilter(),
+          groupBy: soup.grouping.activeGroupId(),
+          collapsedGroups: [...soup.grouping.collapsedGroups()],
         }) satisfies PersistedSoupViewState,
       (state) => {
         if (!persistenceDisabled) setPersistedState(state);
@@ -974,6 +980,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                     More Results
                                   </div>
                                 </Show>
+
                                 <SoupEntityContextMenu entity={row.original}>
                                   <ListEntity
                                     entity={row.original}
@@ -984,7 +991,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                     onMouseMove={() => {
                                       if (isKeypressActive()) return;
                                       if (soup.previewEntity()) return;
-                                      soup.focus.set(row.original.id);
+                                      soup.focus.set(row.id);
                                     }}
                                     showUnrollNotifications={
                                       soup.predicates.isActive('inbox') &&

@@ -1,7 +1,6 @@
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import { Layer } from '@ui';
+import { Button, Layer } from '@ui';
 import { cn } from '@ui/utils/classname';
-import { Button } from '@app/component/next-soup/soup-view/filters-bar/button';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
 import { isListViewID } from '@app/constants/list-views';
@@ -718,7 +717,7 @@ export const UnifiedFilterDropdown = () => {
         icon: () => (
           <UserIcon
             id={contact.id}
-            size="xs"
+            size="sm"
             suppressClick
             showTooltip={false}
           />
@@ -800,7 +799,7 @@ export const UnifiedFilterDropdown = () => {
         <Tooltip tooltip={<LabelAndHotKey label="Filter" shortcut="F" />}>
           <DropdownMenu.Trigger
             as={Button}
-            variant="secondary"
+            variant="base"
             size="sm"
             class="rounded-xs [&_svg]:size-4"
           >

@@ -6,7 +6,7 @@ import { UnifiedFilterDropdown } from '@app/component/next-soup/soup-view/filter
 import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-bar/active-filter-chips';
 import { isMobile } from '@core/mobile/isMobile';
 import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
-import { Button } from './button';
+import { Button } from '@ui';
 import { AnimatedPreviewIcon } from '@macro-icons/wide/animating/preview';
 import { useSoup } from '../../soup-context';
 import { registerHotkey } from '@core/hotkey/hotkeys';
@@ -78,7 +78,7 @@ export const SoupFiltersBar = () => {
         <div class="flex-1" />
         <Tooltip tooltip={<LabelAndHotKey label="Preview" shortcut="space" />}>
           <Button
-            variant={soup.previewEntity() ? 'primary' : 'ghost'}
+            variant={soup.previewEntity() ? 'base' : 'ghost'}
             size="sm"
             class="rounded-xs [&_svg]:size-4 px-1 border border-transparent"
             onClick={togglePreview}

@@ -12,7 +12,7 @@ import CheckIcon from '@icon/regular/check.svg';
 import { toast } from '@core/component/Toast/Toast';
 import { Tooltip } from '@core/component/Tooltip';
 import { Button } from '@ui/components/Button';
-import { Dialog, Panel } from '@ui';
+import { Dialog, Window } from '@ui';
 import { cn } from '@ui/utils/classname';
 import { Select } from '@kobalte/core/select';
 import { useUserId } from '@core/context/user';
@@ -232,7 +232,7 @@ function InviteEntryRow(props: {
         <Show when={props.showRemove}>
           <Tooltip tooltip="Remove">
             <Button
-              variant="secondary"
+              variant="base"
               size="icon-sm"
               class="rounded-xs shrink-0 focus:border-accent/50"
               tabIndex={0}
@@ -365,7 +365,7 @@ function InviteEmailsInput(props: {
         </div>
       </Show>
       <Button
-        variant="secondary"
+        variant="base"
         class="rounded-xs w-full justify-center focus:border-accent/50"
         tabIndex={0}
         disabled={!canAddRow()}
@@ -530,7 +530,7 @@ function UserInviteRow(props: {
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <Button
-          variant="tertiary"
+          variant="base"
           class="px-2 py-1 rounded-xs"
           disabled={props.isAccepting || props.isDeclining}
           onClick={props.onDecline}
@@ -540,7 +540,7 @@ function UserInviteRow(props: {
           </Show>
         </Button>
         <Button
-          variant="accent"
+          variant="active"
           class="px-2 py-1 rounded-xs"
           disabled={props.isAccepting || props.isDeclining}
           onClick={props.onAccept}
@@ -569,31 +569,38 @@ function TeamInvites() {
     rejectMutation.variables?.teamInviteId === inviteId;
 
   return (
-    <Show when={invites().length > 0}>
-      <section class="px-6 py-4">
-        <header class="mb-2">
-          <h3 class="text-sm font-medium">You've been invited to join a team</h3>
-        </header>
-        <div class="border border-edge rounded-sm px-3">
-          <For each={invites()}>
-            {(invite) => (
-              <UserInviteRow
-                invite={invite}
-                onAccept={() =>
-                  joinTeamMutation.mutate({ teamInviteId: invite.id })
-                }
-                onDecline={() =>
-                  rejectMutation.mutate({ teamInviteId: invite.id })
-                }
-                isAccepting={isAccepting(invite.id)}
-                isDeclining={isDeclining(invite.id)}
-              />
-            )}
-          </For>
-        </div>
-      </section>
-    </Show>
-  );
+      <>
+        <Window.Header class="px-6">
+          <div class="text-sm font-semibold">Team</div>
+        </Window.Header>
+        <Window.Body>
+          <Show when={invites().length > 0}>
+            <section class="px-6 py-4">
+              <header class="mb-2">
+                <h3 class="text-sm font-medium">You've been invited to join a team</h3>
+              </header>
+              <div class="border border-edge rounded-sm px-3">
+                <For each={invites()}>
+                  {(invite) => (
+                    <UserInviteRow
+                      invite={invite}
+                      onAccept={() =>
+                        joinTeamMutation.mutate({ teamInviteId: invite.id })
+                      }
+                      onDecline={() =>
+                        rejectMutation.mutate({ teamInviteId: invite.id })
+                      }
+                      isAccepting={isAccepting(invite.id)}
+                      isDeclining={isDeclining(invite.id)}
+                    />
+                  )}
+                </For>
+              </div>
+            </section>
+          </Show>
+        </Window.Body>
+      </>
+    );
 }
 
 const TEAM_NAME_MAX_LENGTH = 50;
@@ -678,18 +685,16 @@ function CreateTeamDialog(props: { open: boolean; onClose: () => void }) {
         teamNameInputRef?.focus();
       }}
     >
-      <Panel depth={2} active>
-        <div class="*:max-h-[75vh]">
-          <div class="flex flex-col text-ink">
-            <div class="shrink-0 flex flex-row items-center px-2 gap-1 border-b border-b-edge-muted h-10">
-              <Dialog.CloseButton as={Button} variant="ghost" size="icon-sm">
-                <XIcon />
-              </Dialog.CloseButton>
-              <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
-                Create Team
-              </Dialog.Title>
-            </div>
-            <div class="p-3 flex flex-col gap-3">
+      <Window depth={2} active class="max-h-[75vh] text-ink">
+        <Window.Header class="px-2 gap-1">
+          <Dialog.CloseButton as={Button} variant="ghost" size="icon-sm">
+            <XIcon />
+          </Dialog.CloseButton>
+          <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
+            Create Team
+          </Dialog.Title>
+        </Window.Header>
+        <Window.Body scroll class="p-3 flex flex-col gap-3">
               <div class="flex flex-col gap-1">
                 <div class="flex items-center justify-between">
                   <label class="text-sm text-ink-muted">Team name</label>
@@ -736,7 +741,7 @@ function CreateTeamDialog(props: { open: boolean; onClose: () => void }) {
                   Cancel
                 </Button>
                 <Button
-                  variant="accent"
+                  variant="active"
                   class="rounded-xs"
                   disabled={
                     createTeamMutation.isPending ||
@@ -753,10 +758,8 @@ function CreateTeamDialog(props: { open: boolean; onClose: () => void }) {
                   </Show>
                 </Button>
               </div>
-            </div>
-          </div>
-        </div>
-      </Panel>
+        </Window.Body>
+      </Window>
     </Dialog>
   );
 }
@@ -767,52 +770,57 @@ function EmptyTeamState() {
   const { showPaywall } = usePaywallState();
 
   return (
-    <>
-      <div class="flex flex-col items-center justify-center py-12 text-center px-6">
-        <div class="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4">
-          <UsersIcon class="size-6 text-accent" />
-        </div>
-        <h3 class="text-sm font-medium text-ink mb-1">No team yet</h3>
-        <Show
-          when={hasPaidAccess()}
-          fallback={
-            <>
+      <>
+        <Window.Header class="px-6">
+          <div class="text-sm font-semibold">Team</div>
+        </Window.Header>
+        <Window.Body>
+          <div class="flex flex-col items-center justify-center py-12 text-center px-6">
+            <div class="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4">
+              <UsersIcon class="size-6 text-accent" />
+            </div>
+            <h3 class="text-sm font-medium text-ink mb-1">No team yet</h3>
+            <Show
+              when={hasPaidAccess()}
+              fallback={
+                <>
+                  <p class="text-xs text-ink-muted max-w-xs mb-4">
+                    Teams are available on paid plans. Upgrade to create and manage
+                    teams.
+                  </p>
+                  <Button
+                    variant="active"
+                    class="rounded-xs"
+                    onClick={() => showPaywall()}
+                  >
+                    Upgrade
+                  </Button>
+                </>
+              }
+            >
               <p class="text-xs text-ink-muted max-w-xs mb-4">
-                Teams are available on paid plans. Upgrade to create and manage
-                teams.
+                Create a team to collaborate with others and manage access together.
               </p>
               <Button
-                variant="accent"
+                variant="active"
                 class="rounded-xs"
-                onClick={() => showPaywall()}
+                onClick={() => setShowCreateModal(true)}
               >
-                Upgrade
+                <PlusIcon class="size-4" />
+                Create Team
               </Button>
-            </>
-          }
-        >
-          <p class="text-xs text-ink-muted max-w-xs mb-4">
-            Create a team to collaborate with others and manage access together.
-          </p>
-          <Button
-            variant="accent"
-            class="rounded-xs"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <PlusIcon class="size-4" />
-            Create Team
-          </Button>
-        </Show>
-      </div>
+            </Show>
+          </div>
+        </Window.Body>
 
-      <Show when={showCreateModal()}>
-        <CreateTeamDialog
-          open={showCreateModal()}
-          onClose={() => setShowCreateModal(false)}
-        />
-      </Show>
-    </>
-  );
+        <Show when={showCreateModal()}>
+          <CreateTeamDialog
+            open={showCreateModal()}
+            onClose={() => setShowCreateModal(false)}
+          />
+        </Show>
+      </>
+    );
 }
 
 function TeamManagement(props: {
@@ -974,32 +982,34 @@ function TeamManagement(props: {
   };
 
   return (
-    <div class="flex flex-col h-full overflow-hidden">
-      <div class="relative flex items-center justify-between h-10 px-6 shrink-0 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-edge-muted after:content-['']">
-        <div class="text-sm font-semibold">Team</div>
-        <Show when={isOwner()}>
-          <div class="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              class="rounded-xs"
-              onClick={() => setShowInviteModal(true)}
-            >
-              <PlusIcon class="size-4" />
-              Invite
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              class="rounded-xs"
-              onClick={() => setShowDeleteTeamModal(true)}
-            >
-              <TrashIcon class="size-4" />
-              Delete Team
-            </Button>
-          </div>
-        </Show>
-      </div>
+      <>
+        <Window.Header class="justify-between px-6">
+          <div class="text-sm font-semibold">Team</div>
+          <Show when={isOwner()}>
+            <div class="flex items-center gap-2">
+              <Button
+                variant="base"
+                size="sm"
+                class="rounded-xs"
+                onClick={() => setShowInviteModal(true)}
+              >
+                <PlusIcon class="size-4" />
+                Invite
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                class="rounded-xs"
+                onClick={() => setShowDeleteTeamModal(true)}
+              >
+                <TrashIcon class="size-4" />
+                Delete Team
+              </Button>
+            </div>
+          </Show>
+        </Window.Header>
+
+        <Window.Body class="flex flex-col h-full overflow-hidden">
 
       <div class="flex items-center px-2 h-15.25 border-b border-edge-muted shrink-0">
         <div class="flex items-center justify-between w-full border border-edge rounded-sm px-4 py-2">
@@ -1020,7 +1030,7 @@ function TeamManagement(props: {
                 <div class="flex items-center gap-1 shrink-0">
                   <Tooltip tooltip="Save">
                     <Button
-                      variant="accent"
+                      variant="active"
                       size="icon-sm"
                       class="rounded-xs"
                       disabled={
@@ -1123,27 +1133,26 @@ function TeamManagement(props: {
           </section>
         </Show>
       </div>
+      </Window.Body>
 
       <Dialog
         open={showDeleteTeamModal()}
         onOpenChange={handleDeleteTeamModalClose}
       >
-        <Panel depth={2} active>
-          <div class="*:max-h-[75vh]">
-            <div class="flex flex-col text-ink">
-              <div class="shrink-0 flex flex-row items-center px-2 gap-1 border-b border-b-edge-muted h-10">
-                <Dialog.CloseButton
-                  as={Button}
-                  variant="ghost"
-                  size="icon-sm"
-                >
-                  <XIcon />
-                </Dialog.CloseButton>
-                <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
-                  Delete Team
-                </Dialog.Title>
-              </div>
-              <div class="p-3 flex flex-col gap-3">
+        <Window depth={2} active class="max-h-[75vh] text-ink">
+          <Window.Header class="px-2 gap-1">
+            <Dialog.CloseButton
+              as={Button}
+              variant="ghost"
+              size="icon-sm"
+            >
+              <XIcon />
+            </Dialog.CloseButton>
+            <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
+              Delete Team
+            </Dialog.Title>
+          </Window.Header>
+          <Window.Body scroll class="p-3 flex flex-col gap-3">
                 <p>
                   Are you sure you want to delete{' '}
                   <span class="font-medium">{props.teamName}</span>? This action
@@ -1173,7 +1182,7 @@ function TeamManagement(props: {
                     Cancel
                   </Button>
                   <Button
-                    variant="destructive"
+                    variant="danger"
                     class="rounded-xs"
                     disabled={!canDeleteTeam() || deleteTeamMutation.isPending}
                     onClick={handleDeleteTeam}
@@ -1186,32 +1195,28 @@ function TeamManagement(props: {
                     </Show>
                   </Button>
                 </div>
-              </div>
-            </div>
-          </div>
-        </Panel>
+          </Window.Body>
+        </Window>
       </Dialog>
 
       <Dialog
         open={!!showRemoveModal()}
         onOpenChange={() => setShowRemoveModal(null)}
       >
-        <Panel depth={2} active>
-          <div class="*:max-h-[75vh]">
-            <div class="flex flex-col text-ink">
-              <div class="shrink-0 flex flex-row items-center px-2 gap-1 border-b border-b-edge-muted h-10">
-                <Dialog.CloseButton
-                  as={Button}
-                  variant="ghost"
-                  size="icon-sm"
-                >
-                  <XIcon />
-                </Dialog.CloseButton>
-                <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
-                  Remove Member
-                </Dialog.Title>
-              </div>
-              <div class="p-3 flex flex-col gap-3">
+        <Window depth={2} active class="max-h-[75vh] text-ink">
+          <Window.Header class="px-2 gap-1">
+            <Dialog.CloseButton
+              as={Button}
+              variant="ghost"
+              size="icon-sm"
+            >
+              <XIcon />
+            </Dialog.CloseButton>
+            <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
+              Remove Member
+            </Dialog.Title>
+          </Window.Header>
+          <Window.Body scroll class="p-3 flex flex-col gap-3">
                 <p>
                   Are you sure you want to remove{' '}
                   <Show when={showRemoveModal()}>
@@ -1229,7 +1234,7 @@ function TeamManagement(props: {
                     Cancel
                   </Button>
                   <Button
-                    variant="destructive"
+                    variant="danger"
                     class="rounded-xs"
                     disabled={removeUserMutation.isPending}
                     onClick={handleRemoveMember}
@@ -1239,32 +1244,28 @@ function TeamManagement(props: {
                     </Show>
                   </Button>
                 </div>
-              </div>
-            </div>
-          </div>
-        </Panel>
+          </Window.Body>
+        </Window>
       </Dialog>
 
       <Dialog
         open={!!showCancelInviteModal()}
         onOpenChange={() => setShowCancelInviteModal(null)}
       >
-        <Panel depth={2} active>
-          <div class="*:max-h-[75vh]">
-            <div class="flex flex-col text-ink">
-              <div class="shrink-0 flex flex-row items-center px-2 gap-1 border-b border-b-edge-muted h-[40px]">
-                <Dialog.CloseButton
-                  as={Button}
-                  variant="ghost"
-                  size="icon-sm"
-                >
-                  <XIcon />
-                </Dialog.CloseButton>
-                <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
-                  Cancel Invitation
-                </Dialog.Title>
-              </div>
-              <div class="p-3 flex flex-col gap-3">
+        <Window depth={2} active class="max-h-[75vh] text-ink">
+          <Window.Header class="px-2 gap-1">
+            <Dialog.CloseButton
+              as={Button}
+              variant="ghost"
+              size="icon-sm"
+            >
+              <XIcon />
+            </Dialog.CloseButton>
+            <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
+              Cancel Invitation
+            </Dialog.Title>
+          </Window.Header>
+          <Window.Body scroll class="p-3 flex flex-col gap-3">
                 <p>
                   Are you sure you want to cancel the invitation for{' '}
                   <span class="font-medium">
@@ -1282,7 +1283,7 @@ function TeamManagement(props: {
                     Keep
                   </Button>
                   <Button
-                    variant="destructive"
+                    variant="danger"
                     class="rounded-xs"
                     disabled={deleteInviteMutation.isPending}
                     onClick={handleCancelInvite}
@@ -1295,32 +1296,28 @@ function TeamManagement(props: {
                     </Show>
                   </Button>
                 </div>
-              </div>
-            </div>
-          </div>
-        </Panel>
+          </Window.Body>
+        </Window>
       </Dialog>
 
       <Dialog
         open={showInviteModal()}
         onOpenChange={handleInviteModalClose}
       >
-        <Panel depth={2} active>
-          <div class="*:max-h-[75vh]">
-            <div class="flex flex-col text-ink">
-              <div class="shrink-0 flex flex-row items-center px-2 gap-1 border-b border-b-edge-muted h-10">
-                <Dialog.CloseButton
-                  as={Button}
-                  variant="ghost"
-                  size="icon-sm"
-                >
-                  <XIcon />
-                </Dialog.CloseButton>
-                <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
-                  Invite to Team
-                </Dialog.Title>
-              </div>
-              <div class="p-3 flex flex-col gap-3">
+        <Window depth={2} active class="max-h-[75vh] text-ink">
+          <Window.Header class="px-2 gap-1">
+            <Dialog.CloseButton
+              as={Button}
+              variant="ghost"
+              size="icon-sm"
+            >
+              <XIcon />
+            </Dialog.CloseButton>
+            <Dialog.Title as="span" class="text-sm font-medium p-0 m-0">
+              Invite to Team
+            </Dialog.Title>
+          </Window.Header>
+          <Window.Body scroll class="p-3 flex flex-col gap-3">
                 <InviteEmailsInput
                   invites={invites()}
                   onChange={setInvites}
@@ -1337,7 +1334,7 @@ function TeamManagement(props: {
                     Cancel
                   </Button>
                   <Button
-                    variant={hasValidInvites() ? 'accent' : 'ghost'}
+                    variant={hasValidInvites() ? 'active' : 'ghost'}
                     class="rounded-xs"
                     disabled={
                       !hasValidInvites() || inviteToTeamMutation.isPending
@@ -1356,12 +1353,10 @@ function TeamManagement(props: {
                     </Show>
                   </Button>
                 </div>
-              </div>
-            </div>
-          </div>
-        </Panel>
+          </Window.Body>
+        </Window>
       </Dialog>
-    </div>
+    </>
   );
 }
 
@@ -1404,13 +1399,11 @@ export function Team() {
       class="h-full overflow-hidden flex justify-center p-2"
     >
       <div class="max-w-200 w-full h-full">
-        <Panel depth={2} class="h-full overflow-hidden">
-          <div class="text-ink h-full">
-            <Suspense fallback={<div class="animate-pulse bg-ink-extra-muted rounded h-4 w-32 m-6" />}>
-              <TeamContent />
-            </Suspense>
-          </div>
-        </Panel>
+        <Window depth={2} class="h-full overflow-hidden text-ink">
+                  <Suspense fallback={<div class="animate-pulse bg-ink-extra-muted rounded h-4 w-32 m-6" />}>
+                    <TeamContent />
+                  </Suspense>
+                </Window>
       </div>
     </div>
   );

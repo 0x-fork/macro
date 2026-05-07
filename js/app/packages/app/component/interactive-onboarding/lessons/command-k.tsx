@@ -1,7 +1,6 @@
 import { CommandMenuInner, CommandState } from '@app/component/command';
 import type { CategoryFilter } from '@app/component/command';
 import { createSoupState } from '@app/component/next-soup/create-soup-state';
-import { Panel } from '@ui';
 import { createFreshSearch } from '@core/util/freshSort';
 import { Dialog } from '@kobalte/core/dialog';
 import {
@@ -71,8 +70,6 @@ function CommandKContent(_props: LessonContentProps) {
 }
 
 function CommandKDemo(props: LessonContentProps) {
-  const [commandMenuRef, setCommandMenuRef] = createSignal<HTMLDivElement>();
-
   const [hasOpened, setHasOpened] = createSignal(false);
 
   onMount(() => {
@@ -136,13 +133,10 @@ function CommandKDemo(props: LessonContentProps) {
 
   let contentEl: HTMLDivElement | undefined;
 
-  const soup = createSoupState({
-    initialData: filteredSandboxEntities(),
-    wrapNavigation: true,
-  });
+  const soup = createSoupState({ wrapNavigation: true });
 
   createEffect(() => {
-    soup.setData(filteredSandboxEntities());
+    soup.setRows(filteredSandboxEntities().map((e) => soup.buildRow(e)));
   });
 
   return (
@@ -164,18 +158,13 @@ function CommandKDemo(props: LessonContentProps) {
               class="max-w-[calc(100vw-16px)] overflow-hidden portal-scope"
               style={{ width: '800px' }}
             >
-              <Panel active>
-                <div class="*:max-h-[75vh]" ref={setCommandMenuRef}>
-                  <CommandMenuInner
-                    commandMenuRef={commandMenuRef}
-                    items={filteredItems}
-                    onSelect={() => {
-                      setCompleted(true);
-                      props.onComplete();
-                    }}
-                  />
-                </div>
-              </Panel>
+              <CommandMenuInner
+                items={filteredItems}
+                onSelect={() => {
+                  setCompleted(true);
+                  props.onComplete();
+                }}
+              />
             </Dialog.Content>
           </div>
         </Dialog.Portal>

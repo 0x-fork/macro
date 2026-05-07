@@ -3181,6 +3181,24 @@ export const editDocumentResponse = zod
   .describe('Edit document response.');
 
 /**
+ * Returns the short UUID and git branch name for a task document.
+Returns 400 if the document is not a task.
+ * @summary Handler for `GET /documents/{document_id}/branch_name`.
+ */
+export const getDocumentBranchNameParams = zod.object({
+  document_id: zod.string().describe('Document ID'),
+});
+
+export const getDocumentBranchNameResponse = zod
+  .object({
+    branchName: zod
+      .string()
+      .describe('The git branch name for the task document.'),
+    shortId: zod.string().describe('The short id of the document.'),
+  })
+  .describe('Branch name response.');
+
+/**
  * Copies an existing document, creating a new document with the same content.
 Does not require re-uploading the document file.
  * @summary Handler for `POST /documents/{document_id}/copy`.

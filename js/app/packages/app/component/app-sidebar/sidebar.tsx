@@ -413,7 +413,7 @@ const SidebarActionButton = (props: SidebarActionButtonProps) => {
       <span class="whitespace-nowrap group-data-[slim=true]/sidebar:invisible">
         {props.label}
       </span>
-      <Show when={props.hotkeyToken}>
+      <Show when={hovering() && props.hotkeyToken}>
         {(token) => (
           <div class="text-xxs text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:invisible">
             <Hotkey token={token()} class="flex gap-1" />
@@ -570,7 +570,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       </div>
 
       <div class="px-2">
-        <hr class="border-edge-muted" />
+        <hr class="border-transparent" />
       </div>
 
       <div class="w-full px-2 my-[4.5px]">
@@ -584,7 +584,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       </div>
 
       <div class="px-2">
-        <hr class="border-edge-muted mb-2" />
+        <hr class="border-transparent mb-2" />
       </div>
 
       <nav>
@@ -604,7 +604,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       </nav>
 
       <div class="px-2">
-        <hr class="border-edge-muted my-2" />
+        <hr class="border-transparent my-2" />
       </div>
 
       <div class="block max-h-[clamp(10%,60%,20rem)]">
@@ -618,7 +618,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       </Show>
 
       <div class={cn('px-2 w-full', !callCtx?.isInCall() && 'mt-auto')}>
-        <hr class="border-edge-muted mb-2" />
+        <hr class="border-transparent mb-2" />
       </div>
 
       <div class="w-full px-2 flex flex-col">
@@ -733,7 +733,6 @@ const SidebarLink = (props: SidebarLinkProps) => {
     <ContextMenu>
       <ContextMenu.Trigger class="w-full">
         <Button
-          as="button"
           draggable={false}
           variant="ghost"
           class={cn(
@@ -823,12 +822,11 @@ const SidebarLink = (props: SidebarLinkProps) => {
           <Show when={props.hotkeyVisible}>
             <div
               class={cn(
-                'text-xs size-4 outline-1 outline-accent/50 rounded-xs bg-page text-ink flex items-center justify-center overflow-hidden',
+                'text-xs size-4 rounded-xs flex items-center justify-center overflow-hidden bg-accent/10 border border-accent/30 text-accent',
                 props.sidebarState === 'slim' && 'absolute -bottom-1 -right-1',
                 props.sidebarState !== 'slim' && 'relative p-1 ml-auto'
               )}
             >
-              <div class="absolute inset-0 size-full bg-accent/20" />
               <Hotkey shortcut={props.hotkey} />
             </div>
           </Show>

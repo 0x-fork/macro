@@ -232,7 +232,7 @@ const Root: Component<MessageRootProps> = (props) => {
           />
         </Show>
         <div
-          class="flex flex-row"
+          class="flex flex-row flex-1 min-w-0"
           style={{
             'margin-bottom': props.isLastInThread //|| props.showReply?.()
               ? `${replyHeight()}px`
@@ -254,7 +254,7 @@ const Root: Component<MessageRootProps> = (props) => {
             <div
               class={cn(
                 'relative flex flex-col pl-[calc(var(--user-icon-width)/2+var(--message-padding-x))] ml-(--left-of-connector)',
-                !props.hideConnectors && 'border-l',
+                !props.hideConnectors && !props.isLastMessage && 'border-l',
                 props.isNewMessage ? 'border-accent' : 'border-edge-muted',
                 !(
                   props.isConsecutive ||

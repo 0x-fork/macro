@@ -1,9 +1,9 @@
-import { DeprecatedTextButton } from '@core/component/DeprecatedTextButton';
 import ResetIcon from '@icon/regular/arrow-clockwise.svg';
 import HomeIcon from '@icon/regular/house.svg';
 import { logger } from '@observability';
 import { Show } from 'solid-js';
 import { Dialog, Panel } from '@ui';
+import { Button } from '@ui/components/Button';
 
 interface FatalErrorProps {
   error?: Error;
@@ -40,20 +40,17 @@ export function FatalError(props: FatalErrorProps) {
             </p>
 
             <div class="flex flex-row gap-3 justify-center">
-              <DeprecatedTextButton
-                theme="accent"
+              <Button
+                variant="active"
                 onClick={() => {
                   window.location.href = window.location.origin + '/app';
                 }}
-                text="Home"
-                icon={HomeIcon}
-              />
-              <DeprecatedTextButton
-                theme="base"
-                onClick={props.reset}
-                text="Try Again"
-                icon={ResetIcon}
-              />
+              >
+                <HomeIcon class="size-4" /> Home
+              </Button>
+              <Button variant="base" onClick={props.reset}>
+                <ResetIcon class="size-4" /> Try Again
+              </Button>
             </div>
           </div>
         </div>

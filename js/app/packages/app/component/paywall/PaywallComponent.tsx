@@ -1,4 +1,5 @@
 import { Button } from '@ui/components/Button';
+import { cn } from '@ui/utils/classname';
 import { useHasPaidAccess } from '@core/auth';
 import { toast } from '@core/component/Toast/Toast';
 import { type PaywallKey, PaywallMessages } from '@core/constant/PaywallState';
@@ -169,12 +170,12 @@ const PaywallComponent = (props: PaywallComponent) => {
             {(plan) => (
               <button
                 onClick={() => setUserSelectedTier(plan.tier)}
-                class="p-4 sm:p-5 border flex flex-col transition-all relative text-left"
-                classList={{
-                  'border-accent-ink bg-active': selectedTier() === plan.tier,
-                  'border-edge hover:border-edge': selectedTier() !== plan.tier,
-                }}
-                style={{ 'border-radius': '2px' }}
+                class={cn(
+                  selectedTier() === plan.tier
+                    ? 'border-accent-ink bg-active'
+                    : 'border-edge hover:border-edge',
+                  'p-4 sm:p-5 border flex flex-col transition-all relative text-left rounded-sm'
+                )}
               >
                 <div class="flex flex-col gap-3 w-full">
                   <div class="flex justify-between items-start">
@@ -218,7 +219,7 @@ const PaywallComponent = (props: PaywallComponent) => {
           fallback={
             <Button
               onClick={handleContinue}
-              variant="secondary"
+              variant="base"
               size="lg"
               depth={3}
               class="w-full"
@@ -243,7 +244,7 @@ const PaywallComponent = (props: PaywallComponent) => {
         <Show when={!hasPaid() && props.handleGuest}>
           <Button
             onClick={() => props.handleGuest?.()}
-            variant="link"
+            variant="base"
             size="sm"
             class="mt-3 text-ink/40 hover:text-ink/60"
           >
