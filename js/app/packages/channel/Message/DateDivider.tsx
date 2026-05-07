@@ -1,4 +1,6 @@
-import { formatRelativeDate, isSameDay } from '@core/util/time';
+import { isSameDay } from '@core/util/time';
+import { formatEmailDate } from '@core/util/date';
+import { toDate, isToday, isYesterday } from 'date-fns';
 import { Show, createMemo } from 'solid-js';
 import type { ChannelMessageListMeta } from './list-meta';
 import { MessageFlag } from './MessageFlag';
@@ -22,10 +24,24 @@ export function DateDivider(props: DateDividerProps) {
     return !isSameDay(new Date(props.createdAt), new Date(previousCreatedAt));
   });
 
+  const formattedDate = () => {
+    const date = toDate(props.createdAt);
+    if (isToday(date)) return 'Today';
+    if (isYesterday(date)) return 'Yesterday';
+    return date.toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const fullDateTime = () => formatEmailDate(props.createdAt);
+
   return (
     <Show when={shouldRender()}>
       <MessageFlag
-        text={formatRelativeDate(props.createdAt)}
+        text={formattedDate()}
+        tooltip={fullDateTime()}
         highlightAbove={props.listMeta?.isNewMessage}
         highlightBelow={props.listMeta?.isNewMessage}
       />

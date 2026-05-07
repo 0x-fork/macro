@@ -1,7 +1,9 @@
+import { Tooltip } from '@core/component/Tooltip';
 import { cn } from '@ui/utils/classname';
 
 type MessageFlagProps = {
   text: string;
+  tooltip?: string;
   highlightAbove?: boolean;
   highlightBelow?: boolean;
   class?: string;
@@ -11,40 +13,34 @@ export function MessageFlag(props: MessageFlagProps) {
   return (
     <div
       class={cn(
-        'flex flex-row items-stretch justify-start ml-(--left-of-connector)',
+        'relative flex items-center justify-center gap-3 py-6',
         props.class
       )}
     >
-      <div class="flex flex-col items-center justify-center">
-        <div
-          class={cn(
-            'border-l border-edge-muted min-h-1/2',
-            props.highlightAbove && 'border-accent'
-          )}
-        />
-        <div
-          class={cn(
-            'border-l border-edge-muted min-h-1/2',
-            props.highlightBelow && 'border-accent'
-          )}
-        />
-      </div>
-      <div class="flex flex-col items-center justify-center">
-        <div
-          class={cn(
-            'w-7 border-b border-edge-muted',
-            props.highlightBelow && 'border-accent'
-          )}
-        />
-      </div>
+      {/* Top connector terminator square */}
       <div
         class={cn(
-          'text-xs text-panel uppercase font-mono p-1 my-6 mt bg-edge',
+          'absolute left-(--left-of-connector) top-0 size-1.5 -translate-x-1/2 bg-edge-muted',
+          props.highlightAbove && 'bg-accent'
+        )}
+      />
+      {/* Bottom connector terminator square */}
+      <div
+        class={cn(
+          'absolute left-(--left-of-connector) bottom-0 size-1.5 -translate-x-1/2 bg-edge-muted',
           props.highlightBelow && 'bg-accent'
         )}
-      >
-        {props.text}
-      </div>
+      />
+      <Tooltip tooltip={props.tooltip} placement="top">
+        <span
+          class={cn(
+            'text-xs text-ink-muted shrink-0 bg-ink/10 px-2 py-0.5 rounded cursor-default',
+            props.highlightBelow && 'text-accent-ink bg-accent/15'
+          )}
+        >
+          {props.text}
+        </span>
+      </Tooltip>
     </div>
   );
 }
