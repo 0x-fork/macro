@@ -31,8 +31,8 @@ export function ThreadCollapsedIndicator(props: ThreadCollapsedIndicatorProps) {
     <button
       type="button"
       class={cn(
-        'flex flex-row gap-2 items-center text-xs rounded-md px-2 py-1.5 bg-panel border border-edge-muted hover:bg-hover hover-transition-bg select-none outline-none',
-        local.hasNewMessages && 'border border-accent',
+        'flex flex-row gap-2 items-center text-xs rounded-md px-2 py-1.5 bg-ink/5 hover:bg-ink/10 hover-transition-bg select-none outline-none',
+        local.hasNewMessages && 'bg-accent/10 hover:bg-accent/15',
         local.class
       )}
       {...rest}
@@ -56,16 +56,18 @@ export function ThreadCollapsedIndicator(props: ThreadCollapsedIndicatorProps) {
         </div>
       </Show>
       <div class="flex flex-col items-start">
-        <p class={cn('font-medium whitespace-nowrap leading-tight', local.hasNewMessages ? 'text-accent-ink' : 'text-ink-muted')}>
-          {getThreadReplyCountLabel(local.collapsedRepliesCount)}
-        </p>
+        <div class="flex items-center gap-1">
+          <p class={cn('font-medium whitespace-nowrap', local.hasNewMessages ? 'text-accent-ink' : 'text-ink-muted')}>
+            {getThreadReplyCountLabel(local.collapsedRepliesCount)}
+          </p>
+          <CaretRight class="size-3.5 text-ink-muted" />
+        </div>
         <Show when={local.latestReplyAt}>
-          <p class="text-[10px] text-ink-placeholder whitespace-nowrap leading-tight">
+          <p class="text-[10px] text-ink-placeholder whitespace-nowrap">
             {formatRelativeDate(local.latestReplyAt!)}
           </p>
         </Show>
       </div>
-      <CaretRight class="size-3.5 text-ink-muted" />
     </button>
   );
 }
