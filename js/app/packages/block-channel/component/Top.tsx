@@ -67,6 +67,7 @@ type ChannelTopLeftProps = TopProps & {
   onTabChange?: (value: ChannelTabId) => void;
   participantsIndicator?: JSX.Element;
   trackingIndicator?: JSX.Element;
+  callButton?: JSX.Element;
 };
 
 export function ChannelTopLeft(props: ChannelTopLeftProps) {
@@ -100,7 +101,7 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
           renameOverrides={{ channelType: props.channelType }}
           maxDisplayLength={48}
         />
-        <Show when={props.participantsIndicator}>{props.participantsIndicator}</Show>
+        <Show when={props.callButton}>{props.callButton}</Show>
       </div>
       <Show when={props.tabs && props.activeTab && props.onTabChange}>
         <Show

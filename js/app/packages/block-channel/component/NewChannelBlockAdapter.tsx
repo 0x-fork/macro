@@ -87,12 +87,9 @@ function ChannelHeader(props: { channelId: string }) {
     channelType() !== ChannelTypeEnum.DirectMessage;
   const activeUserIds = useUserIndicators();
 
-  const participantsIndicator = () => (
-    <Show when={showParticipants()}>
-      <ChannelParticipantsIndicator
-        participants={participants() ?? []}
-        activeUserIds={activeUserIds() ?? []}
-      />
+  const callButton = () => (
+    <Show when={ENABLE_CALLS()}>
+      <ChannelCallButton channelId={props.channelId} />
     </Show>
   );
 
@@ -103,14 +100,11 @@ function ChannelHeader(props: { channelId: string }) {
         channelType={channelType()!}
         participants={participants() ?? []}
         channelName={channelName() ?? 'New Channel'}
-        participantsIndicator={participantsIndicator()}
+        callButton={callButton()}
         trackingIndicator={<ChannelTopBarLiveIndicators />}
       />
       <SplitHeaderRight>
         <div class="flex items-center gap-1">
-          <Show when={ENABLE_CALLS()}>
-            <ChannelCallButton channelId={props.channelId} />
-          </Show>
           <Show when={chatChannelType()}>
             {(type) => (
               <ChatWithAgentButton
@@ -122,6 +116,12 @@ function ChannelHeader(props: { channelId: string }) {
                 }}
               />
             )}
+          </Show>
+          <Show when={showParticipants()}>
+            <ChannelParticipantsIndicator
+              participants={participants() ?? []}
+              activeUserIds={activeUserIds() ?? []}
+            />
           </Show>
           <Button
             class={cn('rounded-md', detailsDrawer.isOpen() && 'bg-ink/10')}
