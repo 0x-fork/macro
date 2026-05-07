@@ -10,7 +10,7 @@ import type { MediaItem } from './media-items';
 
 const ATTACHMENT_TILE_SIZE = 92;
 const SINGLE_IMAGE_MAX_WIDTH = 400;
-const SINGLE_IMAGE_MAX_HEIGHT = 400;
+const SINGLE_IMAGE_MAX_HEIGHT = 300;
 const MESSAGE_GALLERY_IMAGE_MAX_WIDTH = 200;
 const MESSAGE_GALLERY_IMAGE_MAX_HEIGHT = 200;
 
@@ -79,7 +79,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
   const videoHeight = () => props.item.height ?? undefined;
 
   return (
-    <div class="group relative flex min-h-20 max-h-120 max-w-120 min-w-0 overflow-hidden rounded-2xl border border-edge bg-menu">
+    <div class="group relative flex min-h-20 max-h-75 max-w-100 min-w-0 overflow-hidden rounded-2xl border border-edge bg-menu">
       <Show
         when={isInlinePlaying()}
         fallback={
@@ -92,7 +92,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
             >
               <MediaVideo.Preview
                 src={props.item.src}
-                class="block max-h-120 max-w-full"
+                class="block max-h-75 max-w-full"
                 width={videoWidth()}
                 height={videoHeight()}
               />
@@ -112,7 +112,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
         }
       >
         <video
-          class="block max-h-120 max-w-full"
+          class="block max-h-75 max-w-full"
           controls
           autoplay
           playsinline

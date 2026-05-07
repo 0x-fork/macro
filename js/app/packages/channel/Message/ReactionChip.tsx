@@ -89,12 +89,12 @@ export function ReactionChip(props: ReactionChipProps) {
               }))
             }
             class={cn(
-              'flex flex-row items-center gap-2 py-1 px-2 bg-menu border h-8',
+              'size-7 flex items-center justify-center rounded-md text-sm',
               {
-                'text-accent-ink border-accent': props.selected,
-                'border-edge-muted hover:bg-hover hover:scale-105 transition-none hover:transition':
+                'bg-accent/15 border border-accent': props.selected,
+                'bg-menu border border-edge-muted hover:bg-hover hover:scale-105 transition-none hover:transition':
                   !props.selected && props.interactive,
-                'border-edge-muted': !props.selected && !props.interactive,
+                'bg-menu border border-edge-muted': !props.selected && !props.interactive,
                 'cursor-default': !props.interactive,
                 'pointer-events-auto': !props.interactive,
               }
@@ -105,10 +105,7 @@ export function ReactionChip(props: ReactionChipProps) {
               props.onClick?.(event);
             }}
           >
-            <span class="text-md">{props.emoji}</span>
-            <Show when={props.count > 1}>
-              <span class="text-xs">{props.count}</span>
-            </Show>
+            <span class="text-base/none">{props.emoji}</span>
           </button>
         </Tooltip>
       </Popover.Anchor>
