@@ -1,10 +1,10 @@
 import PlayIcon from '@icon/fill/play-fill.svg';
 import { cn } from '@ui/utils/classname';
-import type { ParentProps } from 'solid-js';
+import type { JSX, ParentProps } from 'solid-js';
 
-function Root(props: ParentProps<{ class?: string }>) {
+function Root(props: ParentProps<{ class?: string; style?: JSX.CSSProperties }>) {
   return (
-    <div class={cn('relative flex rounded-2xl', props.class)}>
+    <div class={cn('relative flex rounded-2xl', props.class)} style={props.style}>
       {props.children}
     </div>
   );

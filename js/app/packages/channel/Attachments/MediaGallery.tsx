@@ -3,7 +3,7 @@ import ChevronDownIcon from '@icon/regular/caret-down.svg';
 import { MediaGrid } from '@channel/Media/MediaGrid';
 import { MediaViewerDialog } from '@channel/Media/MediaViewerDialog';
 import type { MediaItem } from '@channel/Media/media-items';
-import { THUMB_SIZE, itemsPerRow } from './attachment-utils';
+import { THUMB_SIZE, THUMB_SIZE_EXPANDED } from './attachment-utils';
 import { AttachmentSection, LoadMoreButton } from './SectionHeader';
 
 export function MediaGallery(props: {
@@ -27,10 +27,26 @@ export function MediaGallery(props: {
     onCleanup(() => observer.disconnect());
   };
 
-  const rowLimit = () => itemsPerRow(containerWidth());
   const hasMedia = () => props.items.length > 0;
-  const hiddenCount = () => Math.max(0, props.items.length - rowLimit());
-  const collapsedMaxHeight = () => THUMB_SIZE;
+  const collapsedRowCount = 2;
+  const gap = 6;
+  const thumbSize = () => expanded() ? THUMB_SIZE_EXPANDED : THUMB_SIZE;
+
+  const columnsCount = () => {
+    const width = containerWidth();
+    if (width <= 0) return 1;
+    return Math.floor((width + gap) / (thumbSize() + gap));
+  };
+
+  const actualTileSize = () => {
+    const cols = columnsCount();
+    const totalGap = (cols - 1) * gap;
+    return (containerWidth() - totalGap) / cols;
+  };
+
+  const collapsedItemCount = () => columnsCount() * collapsedRowCount;
+  const hiddenCount = () => Math.max(0, props.items.length - collapsedItemCount());
+  const collapsedMaxHeight = () => actualTileSize() * collapsedRowCount + gap * (collapsedRowCount - 1);
 
   return (
     <AttachmentSection
@@ -67,7 +83,7 @@ export function MediaGallery(props: {
               id={galleryId}
               aria-label="Photos and videos gallery"
               data-expanded={expanded() ? 'true' : 'false'}
-              class="flex flex-row flex-wrap gap-1.5 overflow-hidden transition-[max-height] duration-200"
+              class="overflow-hidden transition-[max-height] duration-200"
               style={{
                 'max-height': expanded() ? 'none' : `${collapsedMaxHeight()}px`,
               }}
@@ -76,6 +92,7 @@ export function MediaGallery(props: {
               <MediaGrid
                 items={props.items}
                 variant="attachments"
+                tileSize={thumbSize()}
                 onOpen={(index) => {
                   setLightboxIndex(index);
                   setViewerOpen(true);

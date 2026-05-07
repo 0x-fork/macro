@@ -13,16 +13,15 @@ export function AttachmentSection(props: {
   return (
     <div
       class={cn(
-        'rounded-sm border border-edge-muted bg-menu py-3',
+        'rounded-sm py-3',
         props.class
       )}
     >
-      <div class="flex items-center justify-between px-3 pb-3">
+      <div class="flex items-center justify-between pb-2">
         <h3 class="text-sm font-medium text-ink">{props.label}</h3>
         <div class="shrink-0">{props.action}</div>
       </div>
-      <div class="border-b border-edge-muted" />
-      <div class={cn('px-3 pt-3', props.contentClass)}>{props.children}</div>
+            <div class={cn('pt-2', props.contentClass)}>{props.children}</div>
     </div>
   );
 }

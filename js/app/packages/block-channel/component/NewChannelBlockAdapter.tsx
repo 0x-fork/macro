@@ -4,10 +4,9 @@ import {
   type ChannelProps,
 } from '@channel/Channel/Channel';
 import { ChannelTopBarLiveIndicators } from '@channel/Channel/ChannelTopBarLiveIndicators';
-import {
-  ChannelTabProvider,
-  useChannelTab,
-} from '@channel/Channel/ChannelTabContext';
+import { ChannelParticipantsIndicator } from '@channel/Participants/ChannelParticipantsIndicator';
+import { useUserIndicators } from '@core/state/liveIndicators';
+import { ChannelTabProvider } from '@channel/Channel/ChannelTabContext';
 import {
   isJoinCallRequested,
   isOpenCallTabRequested,
@@ -32,17 +31,20 @@ import { URL_PARAMS } from '@block-channel/constants';
 import { useBlockEntityCommands } from '@app/component/next-soup/actions';
 import { ChannelTopLeft } from './Top';
 import { useChannelName, useChannelType } from '@core/context/channels';
-import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import { ChannelTypeEnum } from '@service-comms/client';
+import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import {
   DEFAULT_CHANNEL_TAB,
   type ChannelTabId,
 } from '@channel/Channel/channel-tabs';
-import { ChannelAttachmentsTab } from '@channel/Attachments/ChannelAttachmentsTab';
-import PaperclipIcon from '@icon/regular/paperclip.svg';
-import UsersIcon from '@icon/regular/users.svg';
+import {
+  ChannelDetailsDrawer,
+  CHANNEL_DETAILS_DRAWER_ID,
+} from '@channel/Channel/ChannelDetailsDrawer';
+import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
+import SidebarIcon from '@icon/regular/sidebar-simple.svg';
 import { Button } from '@ui/components/Button';
-import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
+import { cn } from '@ui/utils/classname';
 import {
   CallEventSync,
   ChannelCallAutoJoin,
@@ -73,16 +75,26 @@ type ChannelPropsTargetMessage = Pick<
   'targetMessageId' | 'targetMessageReplyId'
 >;
 
-function NewTop(props: { channelId: string }) {
-  const { activeTab, setActiveTab } = useChannelTab();
+function ChannelHeader(props: { channelId: string }) {
   const channelName = useChannelName(props.channelId);
   const channelType = useChannelType(props.channelId);
   const chatChannelType = () => toChatChannelType(channelType());
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
   const participants = () =>
     participantsQuery.isLoading ? [] : participantsQuery.data;
-  const showParticipantsButton = () =>
+  const detailsDrawer = useDrawerControl(CHANNEL_DETAILS_DRAWER_ID);
+  const showParticipants = () =>
     channelType() !== ChannelTypeEnum.DirectMessage;
+  const activeUserIds = useUserIndicators();
+
+  const participantsIndicator = () => (
+    <Show when={showParticipants()}>
+      <ChannelParticipantsIndicator
+        participants={participants() ?? []}
+        activeUserIds={activeUserIds() ?? []}
+      />
+    </Show>
+  );
 
   return (
     <Suspense>
@@ -91,42 +103,13 @@ function NewTop(props: { channelId: string }) {
         channelType={channelType()!}
         participants={participants() ?? []}
         channelName={channelName() ?? 'New Channel'}
-        callButton={
-          <Show when={ENABLE_CALLS()}>
-            <ChannelCallButton channelId={props.channelId} />
-          </Show>
-        }
+        participantsIndicator={participantsIndicator()}
+        trackingIndicator={<ChannelTopBarLiveIndicators />}
       />
       <SplitHeaderRight>
-        <ChannelTopBarLiveIndicators />
         <div class="flex items-center gap-1">
-          <Button
-            class="rounded-md"
-            size="icon-sm"
-            tooltip="Attachments"
-            onClick={() =>
-              setActiveTab(
-                activeTab() === 'attachments' ? 'messages' : 'attachments'
-              )
-            }
-            classList={{ 'bg-hover': activeTab() === 'attachments' }}
-          >
-            <PaperclipIcon class="size-4" />
-          </Button>
-          <Show when={showParticipantsButton()}>
-            <Button
-              class="rounded-md"
-              size="icon-sm"
-              tooltip="Participants"
-              onClick={() =>
-                setActiveTab(
-                  activeTab() === 'participants' ? 'messages' : 'participants'
-                )
-              }
-              classList={{ 'bg-hover': activeTab() === 'participants' }}
-            >
-              <UsersIcon class="size-4" />
-            </Button>
+          <Show when={ENABLE_CALLS()}>
+            <ChannelCallButton channelId={props.channelId} />
           </Show>
           <Show when={chatChannelType()}>
             {(type) => (
@@ -140,6 +123,14 @@ function NewTop(props: { channelId: string }) {
               />
             )}
           </Show>
+          <Button
+            class={cn('rounded-md', detailsDrawer.isOpen() && 'bg-ink/10')}
+            size="icon-sm"
+            tooltip="Details"
+            onClick={detailsDrawer.toggle}
+          >
+            <SidebarIcon class="size-4" />
+          </Button>
         </div>
       </SplitHeaderRight>
     </Suspense>
@@ -292,29 +283,33 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
           onHandled={() => setPendingJoinCall(false)}
         />
         <div class="h-full flex flex-col px-2 mobile:px-0">
-          <Switch>
-            <Match when={activeTab() === 'messages'}>
-              <NewChannel
-                channelId={channelId}
-                onHandleReady={onChannelReady}
-                autofocus={!isPreview}
-                {...convertTargetMessage(initialTargetMessageParams())}
-              />
-            </Match>
-            <Match when={activeTab() === 'attachments'}>
-              <ChannelAttachmentsTab channelId={channelId} />
-            </Match>
-            <Match when={activeTab() === 'participants'}>
-              <ChannelParticipantsTab channelId={channelId} />
-            </Match>
-            <Match when={activeTab() === 'call'}>
-              <ChannelCallTab
-                channelId={channelId}
-                pendingJoin={pendingJoinCall}
-              />
-            </Match>
-          </Switch>
-          <NewTop channelId={channelId} />
+          <ChannelHeader channelId={channelId} />
+          {(() => {
+            let containerRef!: HTMLDivElement;
+            return (
+              <div ref={containerRef} class="flex-1 flex flex-row min-h-0 relative">
+                <div class="flex-1 min-w-0 flex flex-col">
+                  <Switch>
+                    <Match when={activeTab() === 'messages'}>
+                      <NewChannel
+                        channelId={channelId}
+                        onHandleReady={onChannelReady}
+                        autofocus={!isPreview}
+                        {...convertTargetMessage(initialTargetMessageParams())}
+                      />
+                    </Match>
+                    <Match when={activeTab() === 'call'}>
+                      <ChannelCallTab
+                        channelId={channelId}
+                        pendingJoin={pendingJoinCall}
+                      />
+                    </Match>
+                  </Switch>
+                </div>
+                <ChannelDetailsDrawer channelId={channelId} containerRef={() => containerRef} />
+              </div>
+            );
+          })()}
         </div>
       </ChannelTabProvider>
     </EntityPermissionsGate>
