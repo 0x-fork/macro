@@ -24,9 +24,7 @@ import type {
 } from './types';
 import { applyInlineFormat, applyNodeFormat } from './utils/formatting';
 import {
-  Match,
   Show,
-  Switch,
   createSignal,
   type Accessor,
   type JSX,
@@ -34,6 +32,7 @@ import {
 import { isReplyInput } from './types';
 import type { IUser } from '@core/user/types';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import ReplyIcon from '@phosphor-icons/core/regular/arrow-bend-up-left.svg?component-solid';
 
 export type ChannelInputProps = InputCallbacks & {
   input: InputData;
@@ -42,27 +41,10 @@ export type ChannelInputProps = InputCallbacks & {
   attachmentTracker?: InputAttachmentTracker;
   participants?: Accessor<IUser[]>;
   onReady?: (handle: InputHandle) => void;
-  children?: JSX.Element;
   /** Whether to auto-focus the input on mount. Defaults to `!isMobile()`. */
   autofocus?: boolean;
 };
 
-function DefaultActions(props: { input: InputData }) {
-  return (
-    <Input.Actions>
-      <Input.Actions.Left>
-        <Input.AttachFilesAction />
-        <Input.ToggleFormatAction />
-        <Show when={isReplyInput(props.input)}>
-          <Input.CloseReplyAction />
-        </Show>
-      </Input.Actions.Left>
-      <Input.Actions.Right>
-        <Input.SendAction />
-      </Input.Actions.Right>
-    </Input.Actions>
-  );
-}
 
 export function ChannelInput(props: ChannelInputProps) {
   const [scrollContainer, setScrollContainer] = createSignal<HTMLElement>();
@@ -186,8 +168,25 @@ export function ChannelInput(props: ChannelInputProps) {
           onDragStart={(valid) => inputState.setIsDraggedOver(valid)}
           onDragEnd={() => inputState.setIsDraggedOver(false)}
         >
-          <Input.Layout>
+          <div class="flex flex-col w-full">
             <Input.DropOverlay />
+            <Show when={isReplyInput(inputState.view())}>
+              <div class="flex items-center justify-between px-3 py-0.5 bg-ink/5 border-b border-edge-muted">
+                <div class="flex items-center gap-1 text-ink-muted">
+                  <ReplyIcon class="size-3" />
+                  <span class="text-xxs">Replying to thread</span>
+                </div>
+                <button
+                  type="button"
+                  class="size-5 flex items-center justify-center rounded-sm text-ink-muted hover:text-ink hover:bg-ink/10"
+                  onClick={() => inputState.commands.close()}
+                >
+                  <svg class="size-3" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" />
+                  </svg>
+                </button>
+              </div>
+            </Show>
             <Input.FormatRibbon>
               <FormatButtons
                 selectionState={() => markdownEditor.selection}
@@ -199,37 +198,41 @@ export function ChannelInput(props: ChannelInputProps) {
                 }
               />
             </Input.FormatRibbon>
-            <Input.EditorShell
-              ref={setScrollContainer}
-              onClick={(event) => {
-                if (!isMobile()) {
-                  event.stopPropagation();
-                  markdownEditor.controls.focus();
-                }
-              }}
-            >
-              <Input.Editor>
-                <MarkdownShell
-                  config={markdownEditor}
-                  placeholder={inputState.view().placeholder}
-                  initialValue={inputState.view().value}
-                  autofocus={!isMobile() && (props.autofocus ?? true)}
-                  class="text-sm"
-                  refFn={attach}
-                />
-              </Input.Editor>
-            </Input.EditorShell>
+            <div class="flex flex-row items-end gap-1 px-2 py-1.5">
+              <div class="shrink-0">
+                <Input.AttachFilesAction />
+              </div>
+              <div
+                ref={setScrollContainer}
+                class="flex-1 min-w-0 max-h-32 overflow-y-auto"
+                onClick={(event) => {
+                  if (!isMobile()) {
+                    event.stopPropagation();
+                    markdownEditor.controls.focus();
+                  }
+                }}
+              >
+                <Input.Editor>
+                  <MarkdownShell
+                    config={markdownEditor}
+                    placeholder={inputState.view().placeholder}
+                    initialValue={inputState.view().value}
+                    autofocus={!isMobile() && (props.autofocus ?? true)}
+                    class="text-sm"
+                    refFn={attach}
+                  />
+                </Input.Editor>
+              </div>
+              <div class="shrink-0">
+                <Input.ToggleFormatAction />
+              </div>
+              <div class="shrink-0">
+                <Input.SendAction />
+              </div>
+            </div>
             <Input.Attachments kind="media" />
             <Input.Attachments kind="document" />
-            <Input.Footer>
-              <Switch>
-                <Match when={props.children}>{props.children}</Match>
-                <Match when>
-                  <DefaultActions input={inputState.view()} />
-                </Match>
-              </Switch>
-            </Input.Footer>
-          </Input.Layout>
+          </div>
         </Input.DropZone>
       </Panel>
     </Input.Root>
