@@ -37,7 +37,6 @@ jobs:
               - 'flake.nix'
               - 'flake.lock'
               - '.github/actions/setup-cachix/**'
-              - '.github/actions/setup-nix-dev-shell/**'
               - '.github/actions/setup-sccache/**'
               - .github/workflows/code-check-cloud-storage.yml
       - name: compute nextest package filter
@@ -62,7 +61,7 @@ jobs:
           printf '%s\n' "$changed_files" > /tmp/changed-files
 
           # Root cargo/toolchain/CI changes can affect the whole workspace, so run all tests.
-          if printf '%s\n' "$changed_files" | grep -qE '^(rust/rust-toolchain\.toml|flake\.nix|flake\.lock|rust/cloud-storage/Cargo\.(toml|lock)|rust/cloud-storage/\.cargo/.*|\.github/actions/(setup-rust|setup-cachix|setup-nix-dev-shell|setup-sccache)/.*|\.github/workflows/code-check-cloud-storage\.yml)$'; then
+          if printf '%s\n' "$changed_files" | grep -qE '^(rust/rust-toolchain\.toml|flake\.nix|flake\.lock|rust/cloud-storage/Cargo\.(toml|lock)|rust/cloud-storage/\.cargo/.*|\.github/actions/(setup-rust|setup-cachix|setup-sccache)/.*|\.github/workflows/code-check-cloud-storage\.yml)$'; then
             echo "Workspace-level change detected; running all tests"
             echo "nextest_filter=" >> "$GITHUB_OUTPUT"
             exit 0
@@ -172,9 +171,10 @@ jobs:
         with:
           clean: false
       - name: Setup Nix dev shell
-        uses: ./.github/actions/setup-nix-dev-shell
+        uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          dev-shell: 'true'
       - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
         with:
           workspaces: rust/cloud-storage
@@ -241,9 +241,10 @@ jobs:
         with:
           clean: false
       - name: Setup Nix dev shell
-        uses: ./.github/actions/setup-nix-dev-shell
+        uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          dev-shell: 'true'
       - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
         with:
           workspaces: rust/cloud-storage

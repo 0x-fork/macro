@@ -10,6 +10,10 @@ inputs:
     description: Cachix cache name.
     required: false
     default: macro-inc
+  dev-shell:
+    description: Enter the repository Nix dev shell after configuring Cachix.
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -36,3 +40,13 @@ runs:
           cachix authtoken "$CACHIX_AUTH_TOKEN"
         fi
         cachix use "$CACHIX_CACHE_NAME"
+
+    - name: Enter Nix dev shell
+      if: ${{ inputs.dev-shell == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        nix print-dev-env --accept-flake-config > /tmp/dev-env
+        echo "BASH_ENV=/tmp/dev-env" >> "$GITHUB_ENV"
+        source /tmp/dev-env
+        printf '%s\n' "$PATH" | tr ':' '\n' >> "$GITHUB_PATH"
