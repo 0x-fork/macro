@@ -50,12 +50,12 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'p-1 text-xs gap-1',
-  md: 'p-2 text-sm gap-1.5',
-  lg: 'p-2.5 text-base gap-2',
-  'icon-sm': 'p-1 size-7 [&_svg]:size-5',
-  'icon-md': 'p-1.5 size-9 [&_svg]:size-6',
-  'icon-lg': 'p-2 size-11 [&_svg]:size-7',
+  sm: 'p-1.5 text-xs gap-1 [&_svg]:size-4',
+  md: 'p-2 text-sm gap-1.5 [&_svg]:size-5',
+  lg: 'p-2.5 text-base gap-2 [&_svg]:size-6',
+  'icon-sm': 'p-1.5 size-7 [&_svg]:size-4',
+  'icon-md': 'p-1.5 size-9 [&_svg]:size-5',
+  'icon-lg': 'p-2 size-11 [&_svg]:size-6',
 };
 
 const TOOLTIP_DELAY = 250;
@@ -120,7 +120,7 @@ export const Button = <T extends ValidComponent = 'button'>(
 
   const cls = () =>
     cn(
-      'relative inline-flex items-center justify-center font-medium leading-none border border-transparent rounded-xs',
+      'relative inline-flex items-center justify-center font-medium leading-none border border-transparent rounded-md',
       'outline-none focus-visible:bg-active',
       'data-disabled:cursor-not-allowed',
       'touch:min-h-11 touch:min-w-11 touch:[&_svg]:size-6',

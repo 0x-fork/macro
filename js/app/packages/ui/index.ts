@@ -5,6 +5,8 @@ export { Keyboard } from './components/Keyboard';
 export { Button } from './components/Button';
 export { Layer } from './components/Layer';
 export { Panel } from './components/Panel';
+export { Chip, ChipGroup } from './components/Chip';
+export { TabGroup, OverflowTabGroup } from './components/TabGroup';
 
 /* utils */
 export { cn } from './utils/classname';
