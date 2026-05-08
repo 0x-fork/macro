@@ -1099,11 +1099,17 @@ fn build_grouped_query<'a>(
     };
 
     builder.push("Combined AS (");
-    builder.push(&GROUPED_DOCUMENT_DETAIL_CLAUSE.replace("GroupedItems gi", &format!("{} gi", source_table)));
+    builder.push(
+        &GROUPED_DOCUMENT_DETAIL_CLAUSE.replace("GroupedItems gi", &format!("{} gi", source_table)),
+    );
     builder.push(" UNION ALL ");
-    builder.push(&GROUPED_CHAT_DETAIL_CLAUSE.replace("GroupedItems gi", &format!("{} gi", source_table)));
+    builder.push(
+        &GROUPED_CHAT_DETAIL_CLAUSE.replace("GroupedItems gi", &format!("{} gi", source_table)),
+    );
     builder.push(" UNION ALL ");
-    builder.push(&GROUPED_PROJECT_DETAIL_CLAUSE.replace("GroupedItems gi", &format!("{} gi", source_table)));
+    builder.push(
+        &GROUPED_PROJECT_DETAIL_CLAUSE.replace("GroupedItems gi", &format!("{} gi", source_table)),
+    );
     builder.push(") ");
 
     // Final SELECT with group-aware ordering

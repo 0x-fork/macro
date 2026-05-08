@@ -1,8 +1,8 @@
 use crate::domain::{
     models::{
-        FrecencySoupItem, GroupByField, GroupMeta, GroupedSortRequest, GroupingConfig,
-        IntoSoupReqAst, NO_VALUE_KEY, SoupErr, SoupQuery, SoupRequest, SoupType, date_buckets,
-        entity_type_labels,
+        FrecencyQueryInner, FrecencySoupItem, GroupByField, GroupMeta, GroupedSortRequest,
+        GroupingConfig, IntoSoupReqAst, NO_VALUE_KEY, SimpleQueryInner, SoupErr, SoupQuery,
+        SoupRequest, SoupType, date_buckets, entity_type_labels,
     },
     ports::SoupService,
 };
@@ -43,6 +43,7 @@ use models_pagination::{
     TypeEraseCursor,
 };
 use models_soup::item::SoupItem;
+use non_empty::IsEmpty;
 use recursion::CollapsibleExt;
 use rootcause::{Report, report};
 use serde::{Deserialize, Serialize};
@@ -351,8 +352,13 @@ where
 
         let items = self.service.get_user_soup_grouped(req).await?;
 
-        let (api_items, groups, page_cursor) =
-            build_grouped_response_with_cursors(items, &group_by, sort_method, params.group_key, filters);
+        let (api_items, groups, page_cursor) = build_grouped_response_with_cursors(
+            items,
+            &group_by,
+            sort_method,
+            params.group_key,
+            filters,
+        );
 
         Ok(Json(GroupedSoupPage {
             items: api_items,
@@ -373,7 +379,13 @@ fn build_grouped_response_with_cursors(
     use std::collections::HashMap;
 
     // Track: (total_count, page_count, start_index, last_item_id, last_cursor_val)
-    type GroupData = (u32, u32, u32, Option<Uuid>, Option<CursorVal<SimpleSortMethod>>);
+    type GroupData = (
+        u32,
+        u32,
+        u32,
+        Option<Uuid>,
+        Option<CursorVal<SimpleSortMethod>>,
+    );
     let mut group_stats: HashMap<String, GroupData> = HashMap::new();
     let mut api_items = Vec::with_capacity(items.len());
 
@@ -387,9 +399,13 @@ fn build_grouped_response_with_cursors(
         let item_id = grouped_item.item.id();
         let cursor_val = get_cursor_val(&grouped_item.item);
 
-        let entry = group_stats
-            .entry(key)
-            .or_insert((grouped_item.group_total_count, 0, idx as u32, None, None));
+        let entry = group_stats.entry(key).or_insert((
+            grouped_item.group_total_count,
+            0,
+            idx as u32,
+            None,
+            None,
+        ));
         entry.1 += 1;
         // Track last item's cursor info
         entry.3 = Some(item_id);
@@ -403,38 +419,43 @@ fn build_grouped_response_with_cursors(
 
     let mut groups: Vec<ApiGroupMeta> = group_stats
         .into_iter()
-        .map(|(key, (total_count, page_count, start_index, last_id, last_val))| {
-            let (label, display_order) = resolve_group_label_and_order(&key, group_by);
+        .map(
+            |(key, (total_count, page_count, start_index, last_id, last_val))| {
+                let (label, display_order) = resolve_group_label_and_order(&key, group_by);
 
-            // Compute cursor if there are more items in this group
-            let has_more = page_count < total_count;
-            let next_cursor = if has_more {
-                last_id.and_then(|id| {
-                    last_val.map(|val| {
-                        let cursor: CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst> =
-                            CursorWithValAndFilter {
+                // Compute cursor if there are more items in this group
+                let has_more = page_count < total_count;
+                let next_cursor = if has_more {
+                    last_id.and_then(|id| {
+                        last_val.map(|val| {
+                            let cursor: CursorWithValAndFilter<
+                                Uuid,
+                                SimpleSortMethod,
+                                EntityFilterAst,
+                            > = CursorWithValAndFilter {
                                 id,
                                 limit: page_count as usize,
                                 val,
                                 filter: filters.clone(),
                             };
-                        Base64Str::encode_json(cursor).type_erase()
+                            Base64Str::encode_json(cursor).type_erase()
+                        })
                     })
-                })
-            } else {
-                None
-            };
+                } else {
+                    None
+                };
 
-            ApiGroupMeta {
-                key,
-                label,
-                display_order,
-                total_count,
-                page_count,
-                start_index,
-                next_cursor,
-            }
-        })
+                ApiGroupMeta {
+                    key,
+                    label,
+                    display_order,
+                    total_count,
+                    page_count,
+                    start_index,
+                    next_cursor,
+                }
+            },
+        )
         .collect();
 
     groups.sort_by(|a, b| {
@@ -694,7 +715,7 @@ pub async fn post_soup_ast_handler<T, U>(
     State(service): State<SoupRouterState<T, U>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
     email_link: Result<Cached<EmailLinkExtractor<U>>, EmailLinkErr>,
-    cursor: SoupCursor<EntityFilterAst>,
+    cursor: SoupCursor<ApiEntityFilterAst>,
     Json(PostSoupAstRequest {
         filters,
         params,
@@ -708,6 +729,16 @@ where
     let filters = filters
         .into_entity_ast()
         .map_err(|_| SoupHandlerErr::Expand)?;
+
+    // Convert cursor filter from ApiEntityFilterAst to EntityFilterAst
+    let cursor: SoupCursor<EntityFilterAst> = match cursor {
+        axum_extra::either::Either::E1(c) => axum_extra::either::Either::E1(
+            c.map(|c| c.map_filter(|f| f.into_entity_ast().expect("cursor filter conversion"))),
+        ),
+        axum_extra::either::Either::E2(c) => axum_extra::either::Either::E2(
+            c.map(|c| c.map_filter(|f| f.into_entity_ast().expect("cursor filter conversion"))),
+        ),
+    };
 
     if params.group_by.is_some() {
         // Extract simple cursor for grouped queries (frecency not supported for grouped)
@@ -779,7 +810,47 @@ pub enum CompoundDocumentLiteral {
     FileAssoc(String),
 }
 
+impl IntoSoupReqAst for SoupRequest<ApiEntityFilterAst> {
+    fn into_ast(self) -> Result<SoupRequest<Option<EntityFilterAst>>, ExpandErr> {
+        let SoupRequest {
+            soup_type,
+            limit,
+            cursor,
+            user,
+            email_preview_view,
+            link_id,
+        } = self;
+
+        let cursor = match cursor {
+            SoupQuery::Simple(SimpleQueryInner(query)) => SoupQuery::Simple(SimpleQueryInner(
+                query.try_map_filter(ApiEntityFilterAst::into_optional_entity_ast)?,
+            )),
+            SoupQuery::Frecency(FrecencyQueryInner(query)) => {
+                SoupQuery::Frecency(FrecencyQueryInner(
+                    query.try_map_filter(ApiEntityFilterAst::into_optional_entity_ast)?,
+                ))
+            }
+        };
+
+        Ok(SoupRequest {
+            soup_type,
+            limit,
+            cursor,
+            user,
+            email_preview_view,
+            link_id,
+        })
+    }
+}
+
 impl ApiEntityFilterAst {
+    fn into_optional_entity_ast(self) -> Result<Option<EntityFilterAst>, ExpandErr> {
+        let ast = self
+            .into_entity_ast()
+            .map_err(|e| ExpandErr::ApiAst(e.to_string()))?;
+        Ok((!ast.is_empty()).then_some(ast))
+    }
+
     #[tracing::instrument(err, skip(self))]
     fn into_entity_ast(self) -> Result<EntityFilterAst, Report> {
         let ApiEntityFilterAst {

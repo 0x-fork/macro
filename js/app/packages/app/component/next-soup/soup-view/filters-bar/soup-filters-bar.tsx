@@ -60,13 +60,7 @@ export const SoupFiltersBar = () => {
 
   return (
     <Show when={!isMobile()}>
-      <div
-        class="flex items-start gap-2 border-b border-edge-muted w-full"
-        classList={{
-          'p-2': isSearchView(),
-          'px-2 py-1.5': !isSearchView(),
-        }}
-      >
+      <div class="flex items-start gap-2 border-b border-edge-muted w-full px-2 py-1.5">
         <UnifiedFilterDropdown />
         <ActiveFilterChips
           filters={activeFiltersList()}
@@ -78,7 +72,7 @@ export const SoupFiltersBar = () => {
         <div class="flex-1" />
         <Tooltip tooltip={<LabelAndHotKey label="Preview" shortcut="space" />}>
           <Button
-            variant={soup.previewEntity() ? 'base' : 'ghost'}
+            variant={soup.previewEntity() ? 'active' : 'ghost'}
             size="sm"
             class="rounded-xs [&_svg]:size-4 px-1 border border-transparent"
             onClick={togglePreview}

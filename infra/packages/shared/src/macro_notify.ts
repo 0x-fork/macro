@@ -25,7 +25,7 @@ export function getMacroNotify(): {
 
   const notificationApnsVoipPlatformArn: pulumi.Output<string> =
     notificationServiceStack
-      .getOutput('notificationApnsVoipPlatformArn')
+      .requireOutput('notificationApnsVoipPlatformArn')
       .apply((arn) => arn as string);
 
   return {

@@ -20,8 +20,6 @@ module.exports = {
   external: [
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.peerDependencies || {}),
-    'react',
-    'react-dom',
   ],
   plugins: [
     nodeResolve(),
@@ -32,9 +30,8 @@ module.exports = {
         compilerOptions: {
           declaration: true,
           declarationDir: 'dist',
-          jsx: 'react',
         },
-        exclude: ['**/*.test.ts', '**/*.test.tsx', 'tests'],
+        exclude: ['**/*.test.ts', 'tests'],
       },
     }),
   ],
