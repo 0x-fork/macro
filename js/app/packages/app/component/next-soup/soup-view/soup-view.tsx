@@ -102,8 +102,10 @@ import {
 } from '@app/component/split-layout/components/SplitHeader';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
-import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
+import { ViewOptionsPopover } from '@app/component/next-soup/soup-view/filters-bar/view-options-popover';
+import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-bar/active-filter-chips';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
+import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import {
   invalidateSoupEntity,
   refetchSoupEntity,
@@ -114,6 +116,7 @@ import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import { VIEW_TAB_PRESETS } from '@app/component/app-sidebar/soup-filter-presets';
 import { canExecuteMarkDoneOnView } from '@app/component/next-soup/actions/make-mark-done-action';
+import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
 
 const useSoupNotificationInvalidators = () => {
   const notificationSource = useGlobalNotificationSource();
@@ -162,6 +165,30 @@ const useSoupNotificationInvalidators = () => {
         invalidateEntityNotifications(notification.entity_id);
       }
     }
+  );
+};
+
+const SoupViewFilterChipsRow = () => {
+  const {
+    resetToTabDefaults,
+    activeFiltersList,
+    removeFilter,
+    replaceFilter,
+    isOptionActive,
+  } = useFilterRefinements();
+
+  return (
+    <Show when={activeFiltersList().length > 0}>
+      <div class="px-4 pb-2">
+        <ActiveFilterChips
+          filters={activeFiltersList()}
+          onRemove={removeFilter}
+          onReplace={replaceFilter}
+          onClearAll={resetToTabDefaults}
+          isOptionActive={isOptionActive}
+        />
+      </div>
+    </Show>
   );
 };
 
@@ -281,46 +308,35 @@ export const SoupView = (props: SoupViewProps) => {
         <div class="size-full flex flex-col">
           <div class="flex flex-col w-full">
             <SplitHeaderLeft>
-              <div
-                class="h-full flex gap-3 items-center min-w-0 flex-1"
-              >
+              <div class="flex gap-3 items-center min-w-0 flex-1">
                 <Show
-                  when={isComponentListView('search')}
-                  fallback={
-                    <>
-                      <Show when={!isMobile()}>
-                        <h1 class="font-semibold text-ink select-none text-base shrink-0">
-                          {props.viewName}
-                        </h1>
-                        <Show when={!isComponentListView('search')}>
-                          <SoupViewTabs overflow />
-                        </Show>
-                      </Show>
-                      <Show when={!narrowSearchExpanded()}>
-                        <Show when={isMobile()}>
+                  when={!isComponentListView('search')}
+                >
+                  <Show
+                    when={!isMobile()}
+                    fallback={
+                      <>
+                        <Show when={!narrowSearchExpanded()}>
                           <MobileFilterDrawer />
                         </Show>
-                      </Show>
-                      <Show when={narrowSearchExpanded()}>
-                        <div class="flex-1 min-w-0">
-                          <SoupSearchbar
-                            variant="secondary"
-                            autoFocus
-                            initialValue={props.initialSearchText}
-                            onDismiss={() => setNarrowSearchExpanded(false)}
-                          />
-                        </div>
-                      </Show>
-                    </>
-                  }
-                >
-                  <div class="flex-1 min-w-0">
-                    <SoupSearchbar
-                      variant="secondary"
-                      placeholder="Search, @mention contacts"
-                      initialValue={props.initialSearchText}
-                    />
-                  </div>
+                        <Show when={narrowSearchExpanded()}>
+                          <div class="flex-1 min-w-0">
+                            <SoupSearchbar
+                              variant="secondary"
+                              autoFocus
+                              initialValue={props.initialSearchText}
+                              onDismiss={() => setNarrowSearchExpanded(false)}
+                            />
+                          </div>
+                        </Show>
+                      </>
+                    }
+                  >
+                    <h1 class="font-bold text-ink select-none text-xl tracking-tight leading-none">
+                      {props.viewName}
+                    </h1>
+                    <SoupViewTabs overflow />
+                  </Show>
                 </Show>
               </div>
             </SplitHeaderLeft>
@@ -328,8 +344,14 @@ export const SoupView = (props: SoupViewProps) => {
               <Show when={isMobile() && !narrowSearchExpanded()}>
                 <SettingsButton />
               </Show>
+              <Show when={!isMobile() && !isComponentListView('search')}>
+                <SoupViewCreateButton />
+              </Show>
             </SplitHeaderRight>
-            <SoupFiltersBar />
+            <SoupFiltersBar
+              searchView={isComponentListView('search')}
+              initialSearchText={props.initialSearchText}
+            />
           </div>
           <Show when={hasLinkError()}>
             <EmailPermissionsBanner />

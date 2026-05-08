@@ -201,7 +201,7 @@ export const ViewOptionsPopover: Component = () => {
               </DropdownMenu>
             </div>
 
-            <div class="h-px bg-edge-muted -mx-2" />
+            <div class="h-px bg-edge-muted" />
 
             {/* Preview Toggle */}
             <div class="flex items-center justify-between gap-3">

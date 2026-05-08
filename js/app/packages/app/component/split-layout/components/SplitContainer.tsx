@@ -11,7 +11,8 @@ import { useSplitPanelOrThrow } from '../layoutUtils';
 import { SplitDrawerGroup } from './SplitDrawerContext';
 import { SplitHeader } from './SplitHeader';
 import { SplitToolbar } from './SplitToolbar';
-import { Layer, Panel } from '@ui';
+import { Layer } from '@ui';
+import { cn } from '@ui/utils/classname';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { isMobile } from '@core/mobile/isMobile';
 
@@ -55,6 +56,10 @@ export function SplitContainer(
     return Boolean(splits && splits.length > 1);
   }
 
+  const isActive = createMemo(() =>
+    panel.isPanelActive() && multipleSplits() && !panel.handle.isSpotLight()
+  );
+
   return (
     <SplitDrawerGroup contentOffsetTop={offsetTop} panelSize={panel.panelSize}>
       <Show when={panel.handle.isSpotLight()}>
@@ -95,22 +100,24 @@ export function SplitContainer(
             </Layer>
           }
         >
-          <Panel
-            active={
-              panel.isPanelActive() &&
-              multipleSplits() &&
-              !panel.handle.isSpotLight()
-            }
-            depth={1}
-          >
-            <div class="flex flex-col min-h-0 size-full bg-panel overflow-hidden">
-              <SplitHeader ref={setHeaderRef} />
-              <SplitToolbar ref={setToolbarRef} />
-              <div class="@container/split size-full overflow-hidden relative">
-                {props.children}
+          <Layer depth={2}>
+            <div
+              class="p-px h-full w-full box-border rounded-lg overflow-clip min-h-0 transition-colors"
+              style={{
+                'background-image': isActive()
+                  ? 'linear-gradient(var(--color-accent), var(--color-edge) 80%)'
+                  : 'none'
+              }}
+            >
+              <div class="flex flex-col min-h-0 size-full bg-panel overflow-hidden rounded-[7px]">
+                <SplitHeader ref={setHeaderRef} />
+                <SplitToolbar ref={setToolbarRef} />
+                <div class="@container/split size-full overflow-hidden relative">
+                  {props.children}
+                </div>
               </div>
             </div>
-          </Panel>
+          </Layer>
         </Show>
       </div>
     </SplitDrawerGroup>

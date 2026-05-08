@@ -2,7 +2,7 @@ import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import { Combobox } from '@kobalte/core/combobox';
 import { Layer } from '@ui';
 import { cn } from '@ui/utils/classname';
-import { type Accessor, createSignal, For, type JSX, Show } from 'solid-js';
+import { type Accessor, createMemo, createSignal, For, type JSX, Show } from 'solid-js';
 import XIcon from '@icon/regular/x.svg';
 import CheckIcon from '@icon/regular/check.svg';
 import type { FilterOption } from './unified-filter-dropdown';
@@ -91,7 +91,7 @@ const ChipContent = (props: {
     <>
       <Show when={props.filter.icon}>
         {(icon) => (
-          <span class="size-3 flex items-center justify-center shrink-0">
+          <span class="size-2.5 flex items-center justify-center shrink-0">
             {icon()()}
           </span>
         )}
@@ -105,21 +105,21 @@ const ChipContent = (props: {
 };
 
 const CHIP_WRAPPER_CLASS = cn(
-  'flex text-xs rounded-xs',
+  'flex text-xs rounded-md',
   'bg-ink/10 text-ink-muted border border-edge-muted',
   'group transition-colors'
 );
 
 const CHIP_TRIGGER_CLASS = cn(
-  'inline-flex items-center gap-1.5 pl-2 pr-1 py-1',
-  'hover:text-ink hover:bg-edge-muted'
+  'inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5',
+  'hover:text-ink hover:bg-edge-muted rounded-l-md'
 );
 
 const ChipRemoveButton = (props: { onRemove: () => void }) => (
   <button
     type="button"
     class={cn(
-      'px-1 min-h-full',
+      'px-1 min-h-full rounded-r-md',
       'hover:bg-edge-muted hover:text-ink transition-colors'
     )}
     onClick={(e) => {
@@ -127,9 +127,151 @@ const ChipRemoveButton = (props: { onRemove: () => void }) => (
       props.onRemove();
     }}
   >
-    <XIcon class="size-3" />
+    <XIcon class="size-2.5" />
   </button>
 );
+
+type FilterGroup = {
+  categoryLabel: string;
+  filters: ActiveFilter[];
+  categoryOptions?: FilterOption[];
+};
+
+const GroupedFilterChip = (props: {
+  group: FilterGroup;
+  onRemove: (optionId: string) => void;
+  onReplace: (oldOptionId: string, newOptionId: string) => void;
+  isOptionActive: (optionId: string) => boolean;
+  chipClass?: string;
+}) => {
+  const [open, setOpen] = createSignal(false);
+
+  const hasOptions = () =>
+    props.group.categoryOptions && props.group.categoryOptions.length > 0;
+
+  const handleRemoveAll = () => {
+    props.group.filters.forEach((f) => {
+      if (f.onRemove) {
+        f.onRemove();
+      } else {
+        props.onRemove(f.optionId());
+      }
+    });
+  };
+
+  return (
+    <div class={cn(CHIP_WRAPPER_CLASS, props.chipClass)}>
+      <Show
+        when={hasOptions()}
+        fallback={
+          <span class="inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5">
+            <div class="flex items-center -space-x-2">
+              <For each={props.group.filters}>
+                {(filter) => (
+                  <Show when={filter.icon}>
+                    {(icon) => (
+                      <span class="size-3.5 shrink-0 flex items-center justify-center rounded-full bg-page text-ink [&>*]:size-2.5 [&_svg]:size-2.5">
+                        {icon()()}
+                      </span>
+                    )}
+                  </Show>
+                )}
+              </For>
+            </div>
+            <span class="font-medium">{props.group.categoryLabel}</span>
+          </span>
+        }
+      >
+        <DropdownMenu open={open()} onOpenChange={setOpen} gutter={4}>
+          <DropdownMenu.Trigger class={cn(CHIP_TRIGGER_CLASS, 'rounded-l-md')}>
+            <div class="flex items-center -space-x-2">
+              <For each={props.group.filters}>
+                {(filter) => (
+                  <Show when={filter.icon}>
+                    {(icon) => (
+                      <span class="size-4 shrink-0 flex items-center justify-center rounded-full bg-page text-ink [&>*]:size-3 [&_svg]:size-3">
+                        {icon()()}
+                      </span>
+                    )}
+                  </Show>
+                )}
+              </For>
+            </div>
+            <span class="font-medium">{props.group.categoryLabel}</span>
+          </DropdownMenu.Trigger>
+
+          <DropdownMenu.Portal>
+            <Layer depth={2}>
+              <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-md shadow-xl min-w-[160px] p-1">
+                <For each={props.group.categoryOptions}>
+                  {(option) => {
+                    const active = () => props.isOptionActive(option.id);
+                    return (
+                      <DropdownMenu.Item
+                        class="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left text-xs transition-colors hover:bg-ink/5 outline-none data-highlighted:bg-ink/5 cursor-default"
+                        onSelect={() => {
+                          const currentFilter = props.group.filters.find(
+                            (f) => f.optionId() === option.id
+                          );
+                          if (active() && currentFilter) {
+                            if (currentFilter.onRemove) {
+                              currentFilter.onRemove();
+                            } else {
+                              props.onRemove(option.id);
+                            }
+                          } else if (!active()) {
+                            const firstFilter = props.group.filters[0];
+                            if (firstFilter?.onReplace) {
+                              firstFilter.onReplace(option.id);
+                            } else {
+                              props.onReplace(props.group.filters[0]?.optionId() ?? '', option.id);
+                            }
+                          }
+                        }}
+                      >
+                        <span
+                          class={cn(
+                            'size-4 flex items-center justify-center shrink-0 rounded border transition-colors',
+                            active()
+                              ? 'bg-accent border-accent'
+                              : 'border-edge'
+                          )}
+                        >
+                          <Show when={active()}>
+                            <CheckIcon class="size-2.5 text-page" />
+                          </Show>
+                        </span>
+
+                        <Show when={option.icon}>
+                          {(icon) => (
+                            <span class="size-4 flex items-center justify-center shrink-0">
+                              {icon()()}
+                            </span>
+                          )}
+                        </Show>
+
+                        <span
+                          class={cn(
+                            'flex-1 truncate',
+                            active() ? 'text-ink' : 'text-ink-muted'
+                          )}
+                        >
+                          {option.label}
+                        </span>
+                      </DropdownMenu.Item>
+                    );
+                  }}
+                </For>
+              </DropdownMenu.Content>
+            </Layer>
+          </DropdownMenu.Portal>
+        </DropdownMenu>
+      </Show>
+
+      <ChipRemoveButton onRemove={handleRemoveAll} />
+    </div>
+  );
+};
 
 const SearchableFilterChip = (props: {
   filter: ActiveFilter;
@@ -294,7 +436,46 @@ const FilterChip = (props: {
 };
 
 export const ActiveFilterChips = (props: ActiveFilterChipsProps) => {
-  const lastIndex = () => props.filters.length - 1;
+  // Group filters by categoryLabel
+  const groupedFilters = createMemo(() => {
+    const groups = new Map<string, FilterGroup>();
+    const searchableFilters: ActiveFilter[] = [];
+
+    for (const filter of props.filters) {
+      // Searchable filters are not grouped
+      if (filter.searchableOptions) {
+        searchableFilters.push(filter);
+        continue;
+      }
+
+      const existing = groups.get(filter.categoryLabel);
+      if (existing) {
+        existing.filters.push(filter);
+        // Merge category options
+        if (filter.categoryOptions && !existing.categoryOptions) {
+          existing.categoryOptions = filter.categoryOptions;
+        }
+      } else {
+        groups.set(filter.categoryLabel, {
+          categoryLabel: filter.categoryLabel,
+          filters: [filter],
+          categoryOptions: filter.categoryOptions,
+        });
+      }
+    }
+
+    return {
+      groups: Array.from(groups.values()),
+      searchableFilters,
+    };
+  });
+
+  const allItems = createMemo(() => {
+    const { groups, searchableFilters } = groupedFilters();
+    return [...groups, ...searchableFilters];
+  });
+
+  const lastIndex = () => allItems().length - 1;
 
   const renderChip = (filter: ActiveFilter) => {
     const onRemove = () => {
@@ -306,45 +487,73 @@ export const ActiveFilterChips = (props: ActiveFilterChipsProps) => {
     };
 
     return (
-      <Show
-        when={filter.searchableOptions}
-        fallback={
-          <FilterChip
-            filter={filter}
-            onRemove={onRemove}
-            onReplace={(newOptionId) =>
-              props.onReplace(filter.optionId(), newOptionId)
-            }
-            isOptionActive={props.isOptionActive}
-            chipClass={props.chipClass}
-            hideCategoryLabel={props.hideCategoryLabel}
-          />
+      <SearchableFilterChip
+        filter={filter}
+        onRemove={onRemove}
+        chipClass={props.chipClass}
+        hideCategoryLabel={props.hideCategoryLabel}
+      />
+    );
+  };
+
+  const renderGroup = (group: FilterGroup) => {
+    // Single filter in group - render as regular chip
+    if (group.filters.length === 1) {
+      const filter = group.filters[0];
+      const onRemove = () => {
+        if (filter.onRemove) {
+          filter.onRemove();
+        } else {
+          props.onRemove(filter.optionId());
         }
-      >
-        <SearchableFilterChip
+      };
+
+      return (
+        <FilterChip
           filter={filter}
           onRemove={onRemove}
+          onReplace={(newOptionId) =>
+            props.onReplace(filter.optionId(), newOptionId)
+          }
+          isOptionActive={props.isOptionActive}
           chipClass={props.chipClass}
           hideCategoryLabel={props.hideCategoryLabel}
         />
-      </Show>
+      );
+    }
+
+    // Multiple filters in group - render as grouped chip
+    return (
+      <GroupedFilterChip
+        group={group}
+        onRemove={props.onRemove}
+        onReplace={props.onReplace}
+        isOptionActive={props.isOptionActive}
+        chipClass={props.chipClass}
+      />
     );
+  };
+
+  const renderItem = (item: FilterGroup | ActiveFilter) => {
+    if ('filters' in item) {
+      return renderGroup(item);
+    }
+    return renderChip(item);
   };
 
   return (
     <Show when={props.filters.length > 0}>
       <div class="flex items-center gap-1.5 flex-wrap">
-        <For each={props.filters}>
-          {(filter, index) => (
-            // To make sure that the Clear all button never wraps to a new line on its own, we wrap it with the last FilterChip
+        <For each={allItems()}>
+          {(item, index) => (
             <Show
-              when={props.filters.length > 1 && index() === lastIndex()}
-              fallback={renderChip(filter)}
+              when={allItems().length > 1 && index() === lastIndex()}
+              fallback={renderItem(item)}
             >
               <span class="inline-flex items-center gap-1.5">
-                {renderChip(filter)}
+                {renderItem(item)}
                 <Button
-                  class="rounded-xs whitespace-nowrap"
+                  class="rounded-md whitespace-nowrap"
                   size="sm"
                   variant="ghost"
                   onClick={() => props.onClearAll()}

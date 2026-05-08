@@ -203,19 +203,24 @@ const OverflowViewTabs = (props: { view: TabbedListView }) => {
 
     const containerWidth = container.offsetWidth;
     const items = list();
-    const overflowButtonWidth = 32;
+    const overflowButtonWidth = 28;
     const gap = 4;
 
+    // First check if all tabs fit
+    const totalAllTabs = tabWidths.reduce((sum, w, i) => sum + w + (i > 0 ? gap : 0), 0);
+    if (totalAllTabs <= containerWidth) {
+      setVisibleCount(items.length);
+      return;
+    }
+
+    // Otherwise, find how many fit with overflow button
     let totalWidth = 0;
     let count = 0;
+    const availableWidth = containerWidth - overflowButtonWidth - gap;
 
     for (let i = 0; i < items.length; i++) {
       const btnWidth = tabWidths[i] || 50;
       const widthWithGap = totalWidth + btnWidth + (count > 0 ? gap : 0);
-      const needsOverflow = i < items.length - 1;
-      const availableWidth = needsOverflow
-        ? containerWidth - overflowButtonWidth - gap
-        : containerWidth;
 
       if (widthWithGap <= availableWidth) {
         totalWidth = widthWithGap;

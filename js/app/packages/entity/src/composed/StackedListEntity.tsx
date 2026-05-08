@@ -1792,7 +1792,7 @@ export function StackedListEntity(props: StackedListEntityProps) {
           ? 'pt-2'
           : {
               'border-b border-edge-muted': !isWide() && isMobile(),
-              'bg-accent/5': props.checked || (props.highlighted && !isMobile()),
+              'bg-accent/10': props.checked || (props.highlighted && !isMobile()),
               'hover:bg-ink/5':
                 !props.checked && !props.highlighted && !props.hovered,
               'bg-ink/5': props.hovered && !props.highlighted && !props.checked,
@@ -1802,7 +1802,7 @@ export function StackedListEntity(props: StackedListEntityProps) {
     >
       <div
         class={cn(
-          'absolute h-full w-[3px] left-0 top-0 bg-accent rounded-r-full opacity-0',
+          'absolute h-full w-[2px] left-0 top-0 bg-accent rounded-r-full opacity-0',
           {
             'opacity-100': props.highlighted && !isMobile(),
           }
