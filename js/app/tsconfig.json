@@ -135,6 +135,9 @@
       "@block-channel/*": [
         "./packages/block-channel/*"
       ],
+      "@block-contact/*": [
+        "./packages/block-contact/*"
+      ],
       "@block-automation/*": [
         "./packages/block-automation/*"
       ],
