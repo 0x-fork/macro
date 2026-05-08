@@ -64,11 +64,22 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
 
   return (
     <Show when={!isMobile()}>
-      <div class="@container/filters flex flex-col w-full pt-2">
-        <div class={cn(
-          'flex flex-col gap-1.5 mx-2 px-2 py-1.5 bg-ink/5',
-          hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg'
-        )}>
+      <div class="@container/filters flex flex-col w-full pt-2 gap-2">
+        <Show when={props.searchView}>
+          <div class="mx-2">
+            <SoupSearchbar
+              variant="filled"
+              placeholder="Search, @mention contacts"
+              initialValue={props.initialSearchText}
+              class="py-3 shadow-sm"
+            />
+          </div>
+        </Show>
+        <div class="mx-2 shadow-sm rounded-lg">
+          <div class={cn(
+            'flex flex-col gap-1.5 px-2 py-1.5 bg-ink/5',
+            hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg'
+          )}>
           <div class="flex items-center gap-2">
           <Show when={!props.hideSelectAll}>
             <Checkbox
@@ -177,19 +188,13 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
               </>
             }
           >
-            <div class="w-52">
-              <SoupSearchbar
-                variant="filled"
-                placeholder="Search, @mention contacts"
-                initialValue={props.initialSearchText}
-              />
-            </div>
+            <div class="flex-1" />
           </Show>
           <ViewOptionsPopover />
           </div>
         </div>
         <Show when={hasActiveFilters()}>
-          <div class="mx-2 px-2 py-1.5 bg-ink/5 rounded-b-lg">
+          <div class="px-2 py-1.5 bg-ink/5 rounded-b-lg">
             <ActiveFilterChips
               filters={activeFiltersList()}
               onRemove={removeFilter}
@@ -199,6 +204,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
             />
           </div>
         </Show>
+        </div>
       </div>
     </Show>
   );

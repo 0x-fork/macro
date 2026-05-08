@@ -33,6 +33,7 @@ interface SoupSearchbarProps {
   onDismiss?: () => void;
   placeholder?: string;
   initialValue?: string;
+  class?: string;
 }
 
 const variantStyles: Record<SearchbarVariant, string> = {
@@ -164,7 +165,8 @@ export const SoupSearchbar = (props: SoupSearchbarProps) => {
       <div
         class={cn(
           'w-full relative flex items-center gap-1 rounded-md py-1.5 mobile:h-9 pl-2 pr-1 mobile:min-w-35 border text-xs',
-          variantStyles[props.variant ?? 'secondary']
+          variantStyles[props.variant ?? 'secondary'],
+          props.class
         )}
       >
         <SearchIcon class="size-4 shrink-0" />

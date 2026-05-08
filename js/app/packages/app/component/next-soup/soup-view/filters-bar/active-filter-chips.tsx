@@ -105,14 +105,14 @@ const ChipContent = (props: {
 };
 
 const CHIP_WRAPPER_CLASS = cn(
-  'flex text-xs rounded-md',
+  'flex text-xs rounded-md shadow-sm',
   'bg-ink/10 text-ink-muted border border-edge-muted',
   'group transition-colors'
 );
 
 const CHIP_TRIGGER_CLASS = cn(
-  'inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5',
-  'hover:text-ink hover:bg-edge-muted rounded-l-md'
+  'inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5 rounded-l-md',
+  'hover:text-ink hover:bg-ink/15 transition-colors'
 );
 
 const ChipRemoveButton = (props: { onRemove: () => void }) => (
@@ -120,7 +120,7 @@ const ChipRemoveButton = (props: { onRemove: () => void }) => (
     type="button"
     class={cn(
       'px-1 min-h-full rounded-r-md',
-      'hover:bg-edge-muted hover:text-ink transition-colors'
+      'hover:bg-ink/15 hover:text-ink transition-colors'
     )}
     onClick={(e) => {
       e.stopPropagation();
@@ -164,7 +164,7 @@ const GroupedFilterChip = (props: {
       <Show
         when={hasOptions()}
         fallback={
-          <span class="inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5">
+          <span class="inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5 rounded-l-md hover:bg-ink/15 hover:text-ink transition-colors">
             <div class="flex items-center -space-x-2">
               <For each={props.group.filters}>
                 {(filter) => (
@@ -183,7 +183,7 @@ const GroupedFilterChip = (props: {
         }
       >
         <DropdownMenu open={open()} onOpenChange={setOpen} gutter={4}>
-          <DropdownMenu.Trigger class={cn(CHIP_TRIGGER_CLASS, 'rounded-l-md')}>
+          <DropdownMenu.Trigger class={CHIP_TRIGGER_CLASS}>
             <div class="flex items-center -space-x-2">
               <For each={props.group.filters}>
                 {(filter) => (
