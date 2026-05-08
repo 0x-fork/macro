@@ -1,11 +1,10 @@
 import { SegmentedControl } from '@core/component/FormControls/SegmentControls';
-import { createMemo, createSignal, For, onMount, Show } from 'solid-js';
-import { createBulkRenameDssEntityMutation } from '@macro-entity';
 import { type EntityData, InlineEntity } from '@entity';
 import { Dialog } from '@kobalte/core/dialog';
-import { Button } from '@ui/components/Button';
-import { cn } from '@ui/utils/classname';
+import { createBulkRenameDssEntityMutation } from '@macro-entity';
 import CloseIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
+import { Button, cn } from '@ui';
+import { createMemo, createSignal, For, onMount, Show } from 'solid-js';
 
 type RenameMode = 'total' | 'prepend' | 'append' | 'replace';
 
@@ -143,7 +142,7 @@ export const BulkRenameEntitiesView = (props: {
           />
         </Show>
 
-        <div class="w-full focus-within:bracket-offset-2">
+        <div class="w-full">
           <input
             ref={(el) => {
               inputRef = el;
@@ -158,7 +157,7 @@ export const BulkRenameEntitiesView = (props: {
             onInput={(e) => setEditValue(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
             class="w-full p-2 text-sm border border-edge bg-menu text-ink
-                   placeholder:text-ink-placeholder focus:outline-none
+                   placeholder:text-ink-placeholder focus:outline-none focus:bg-active
                    selection:bg-ink selection:text-panel"
             placeholder="Enter new text..."
           />
@@ -196,7 +195,7 @@ export const BulkRenameEntitiesView = (props: {
           </Button>
           <Button
             type="button"
-            variant="secondary"
+            variant="base"
             class="rounded-xs"
             onClick={finishEditing}
           >

@@ -1,11 +1,30 @@
-import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import { Layer } from '@ui';
-import { cn } from '@ui/utils/classname';
-import { Button } from '@app/component/next-soup/soup-view/filters-bar/button';
+import type { FilterID } from '@app/component/next-soup/filters';
+import {
+  type FilterContext,
+  NO_ASSIGNEE,
+} from '@app/component/next-soup/filters/configs/';
+import type { PropertyFilter } from '@app/component/next-soup/filters/filter-store';
+import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
 import { isListViewID } from '@app/constants/list-views';
-import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
+import { EntityIcon } from '@core/component/EntityIcon';
+import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
+import {
+  PROPERTY_OPTION_IDS,
+  SYSTEM_PROPERTY_IDS,
+} from '@core/component/Properties/constants';
+import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
+import { UserIcon } from '@core/component/UserIcon';
+import { useUserId } from '@core/context/user';
+import { registerHotkey } from '@core/hotkey/hotkeys';
+import CaretRightIcon from '@icon/regular/caret-right.svg';
+import CheckIcon from '@icon/regular/check.svg';
+import CircleDashedIcon from '@icon/regular/circle-dashed.svg';
+import { DropdownMenu } from '@kobalte/core/dropdown-menu';
+import SlidersHorizontalIcon from '@macro-icons/wide/sliders-horizontal.svg';
+import { useContacts } from '@queries/contacts/contacts';
+import { Button, cn, Layer } from '@ui';
 import {
   type Accessor,
   batch,
@@ -19,36 +38,16 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import SlidersHorizontalIcon from '@macro-icons/wide/sliders-horizontal.svg';
-import CaretRightIcon from '@icon/regular/caret-right.svg';
-import CheckIcon from '@icon/regular/check.svg';
-import CircleDashedIcon from '@icon/regular/circle-dashed.svg';
-import { SearchableMultiSelectInline } from './searchable-multi-select';
-import { EntityIcon } from '@core/component/EntityIcon';
-import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
-import { PROPERTY_OPTION_IDS } from '@core/component/Properties/constants';
-
-import { useContacts } from '@queries/contacts/contacts';
-import { useUserId } from '@core/context/user';
-import { UserIcon } from '@core/component/UserIcon';
-import type { FilterID } from '@app/component/next-soup/filters';
-import {
-  NO_ASSIGNEE,
-  type FilterContext,
-} from '@app/component/next-soup/filters/configs/';
-import type { PropertyFilter } from '@app/component/next-soup/filters/filter-store';
-import { SYSTEM_PROPERTY_IDS } from '@core/component/Properties/constants';
-import { registerHotkey } from '@core/hotkey/hotkeys';
-import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import {
   INDEX_OPTIONS,
+  type SearchableOption,
   useCallSearchFilter,
   useChannelSearchFilter,
   useEmailSearchFilter,
   useSearchFilterOptions,
   useSearchIndexController,
-  type SearchableOption,
 } from './search-filter-controls';
+import { SearchableMultiSelectInline } from './searchable-multi-select';
 
 const TypeIndicator = (props: { active: boolean }) => (
   <span
@@ -413,7 +412,7 @@ const SearchableFilterSubmenu = (props: {
 
       <DropdownMenu.Portal>
         <Layer depth={2}>
-          <DropdownMenu.SubContent class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl w-[260px] max-w-[90vw] overflow-hidden">
+          <DropdownMenu.SubContent class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl w-65 max-w-[90vw] overflow-hidden">
             <SearchableMultiSelectInline
               options={props.options}
               activeIds={props.activeIds}
@@ -444,7 +443,7 @@ function SingleValueSubmenu<T>(props: {
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <Layer depth={2}>
-          <DropdownMenu.SubContent class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl min-w-[160px] p-1">
+          <DropdownMenu.SubContent class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl min-w-40 p-1">
             <For each={props.options}>
               {(option) => {
                 const active = () => props.current() === option.value;
@@ -646,7 +645,7 @@ const SearchIndexSubRow = (props: {
     </DropdownMenu.SubTrigger>
     <DropdownMenu.Portal>
       <Layer depth={2}>
-        <DropdownMenu.SubContent class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl min-w-[180px] p-1">
+        <DropdownMenu.SubContent class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl min-w-45 p-1">
           {props.children}
         </DropdownMenu.SubContent>
       </Layer>
@@ -718,7 +717,7 @@ export const UnifiedFilterDropdown = () => {
         icon: () => (
           <UserIcon
             id={contact.id}
-            size="xs"
+            size="sm"
             suppressClick
             showTooltip={false}
           />
@@ -800,9 +799,9 @@ export const UnifiedFilterDropdown = () => {
         <Tooltip tooltip={<LabelAndHotKey label="Filter" shortcut="F" />}>
           <DropdownMenu.Trigger
             as={Button}
-            variant="secondary"
+            variant="base"
             size="sm"
-            class="rounded-xs [&_svg]:size-4 suppress-css-bracket"
+            class="rounded-xs [&_svg]:size-4"
           >
             <SlidersHorizontalIcon />
             <span class="font-medium">Filter</span>
@@ -811,7 +810,7 @@ export const UnifiedFilterDropdown = () => {
 
         <DropdownMenu.Portal>
           <Layer depth={2}>
-            <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl min-w-[180px] p-1">
+            <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl min-w-45 p-1">
               <Show
                 when={
                   categories().length === 1 && !isTasksView() && !isSearchView()
@@ -828,14 +827,14 @@ export const UnifiedFilterDropdown = () => {
 
                           <DropdownMenu.Portal>
                             <Layer depth={2}>
-                              <DropdownMenu.SubContent class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl min-w-[160px] p-1">
+                              <DropdownMenu.SubContent class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-xl min-w-40 p-1">
                                 <For each={category.options}>
                                   {(option) => {
                                     const active = () =>
                                       isOptionActive(option.id);
                                     return (
                                       <DropdownMenu.Item
-                                        class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xs text-left text-xs transition-colors hover:bg-hover outline-none data-highlighted:bg-hover cursor-pointer"
+                                        class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xs text-left text-xs transition-colors hover:bg-hover outline-none data-highlighted:bg-hover"
                                         onSelect={() => toggleFilter(option.id)}
                                         closeOnSelect={!category.multiple}
                                       >
@@ -961,7 +960,7 @@ export const UnifiedFilterDropdown = () => {
                     const active = () => isOptionActive(option.id);
                     return (
                       <DropdownMenu.Item
-                        class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xs text-left text-xs transition-colors hover:bg-hover outline-none data-highlighted:bg-hover cursor-pointer"
+                        class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xs text-left text-xs transition-colors hover:bg-hover outline-none data-highlighted:bg-hover"
                         onSelect={() => toggleFilter(option.id)}
                         closeOnSelect={!categories()[0]!.multiple}
                       >

@@ -1,4 +1,5 @@
 import { analytics } from '@app/lib/analytics';
+import { setAutomationComposerOpen } from '@block-automation/component';
 import type { BlockAlias, BlockName } from '@core/block';
 import { getIconConfig } from '@core/component/EntityIcon';
 import { Hotkey } from '@core/component/Hotkey';
@@ -38,6 +39,7 @@ import WideFolder from '@macro-icons/wide/folder.svg';
 import WideStar from '@macro-icons/wide/star.svg';
 import WideTask from '@macro-icons/wide/task.svg';
 import { createProject } from '@queries/storage/projects';
+import { cn, Layer } from '@ui';
 import {
   type Component,
   createEffect,
@@ -50,9 +52,6 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { type FocusableElement, tabbable } from 'tabbable';
 import { useSplitLayout } from './split-layout/layout';
-import { cn } from '@ui/utils/classname';
-import { setAutomationComposerOpen } from '@block-automation/component';
-import { Layer } from '@ui';
 
 const createBlock = async (spec: {
   blockName: BlockName | BlockAlias;
@@ -397,7 +396,7 @@ const LauncherMenuItem = (props: LauncherMenuItemProps) => {
           ' size-28 relative flex flex-col sm:gap-4 gap-2 items-center isolate justify-center bg-panel border border-edge-muted transition-transform ease-click duration-200',
           `create-menu-${props.creatableBlock.label.toLowerCase()}`,
           {
-            '-translate-y-2 text-ink bracket-offset-1': props.focused,
+            '-translate-y-2 text-ink bg-active': props.focused,
             'text-ink-extra-muted': !props.focused,
           }
         )}

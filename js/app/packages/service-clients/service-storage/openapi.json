@@ -2624,6 +2624,77 @@
         }
       }
     },
+    "/documents/{document_id}/branch_name": {
+      "get": {
+        "tags": ["document"],
+        "summary": "Handler for `GET /documents/{document_id}/branch_name`.",
+        "description": "Returns the short UUID and git branch name for a task document.\nReturns 400 if the document is not a task.",
+        "operationId": "get_document_branch_name",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "description": "Document ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchNameResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/documents/{document_id}/copy": {
       "post": {
         "tags": ["document"],
@@ -6393,6 +6464,21 @@
           "sha": {
             "type": "string",
             "description": "The sha of the bom part content\nThere is an index on sha for more performant queries based on it."
+          }
+        }
+      },
+      "BranchNameResponse": {
+        "type": "object",
+        "description": "Branch name response.",
+        "required": ["shortId", "branchName"],
+        "properties": {
+          "branchName": {
+            "type": "string",
+            "description": "The git branch name for the task document."
+          },
+          "shortId": {
+            "type": "string",
+            "description": "The short id of the document."
           }
         }
       },

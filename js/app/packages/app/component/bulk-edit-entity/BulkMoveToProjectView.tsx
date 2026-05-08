@@ -1,7 +1,12 @@
 import { EntityIcon } from '@core/component/EntityIcon';
 import { scrollToKeepGap } from '@core/util/scrollToKeepGap';
+import { type EntityData, InlineEntity } from '@entity';
+import { Dialog } from '@kobalte/core/dialog';
+import { createBulkMoveToProjectDssEntityMutation } from '@macro-entity';
+import CloseIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
 import { useProjectsQuery } from '@queries/storage/projects';
 import type { Project } from '@service-storage/generated/schemas';
+import { Button, cn } from '@ui';
 import { registerHotkey, useHotkeyDOMScope } from 'core/hotkey/hotkeys';
 import {
   createEffect,
@@ -12,12 +17,6 @@ import {
   Show,
   untrack,
 } from 'solid-js';
-import { createBulkMoveToProjectDssEntityMutation } from '@macro-entity';
-import { type EntityData, InlineEntity } from '@entity';
-import { Dialog } from '@kobalte/core/dialog';
-import { Button } from '@ui/components/Button';
-import { cn } from '@ui/utils/classname';
-import CloseIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
 
 type ProjectWithDepth = Project & { depth?: number; path?: string };
 
@@ -363,7 +362,7 @@ export const BulkMoveToProjectView = (props: {
 
   return (
     <div ref={rootScopeId}>
-      <div class="shrink-0 flex flex-row items-center px-2 gap-1 border-b border-b-edge-muted h-[40px]">
+      <div class="shrink-0 flex flex-row items-center px-2 gap-1 border-b border-b-edge-muted h-10">
         <Dialog.CloseButton as={Button} variant="ghost" size="icon-sm">
           <CloseIcon />
         </Dialog.CloseButton>
@@ -448,7 +447,7 @@ export const BulkMoveToProjectView = (props: {
                 return (
                   <div
                     class={cn(
-                      'flex items-center px-2 py-1 cursor-pointer hover:bg-accent/10',
+                      'flex items-center px-2 py-1 hover:bg-accent/10',
                       isFocused() && 'focused bg-accent/20',
                       isSelected() && 'bg-accent/10'
                     )}
@@ -469,8 +468,8 @@ export const BulkMoveToProjectView = (props: {
                   >
                     <div
                       class={cn(
-                        'mr-2 w-4 h-4 flex items-center justify-center text-xs',
-                        hasChildren() ? 'cursor-pointer' : 'opacity-20'
+                        'mr-2 size-4 flex items-center justify-center text-xs',
+                        !hasChildren() && 'opacity-20'
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -503,7 +502,7 @@ export const BulkMoveToProjectView = (props: {
           </Button>
           <Button
             type="button"
-            variant="secondary"
+            variant="base"
             class="rounded-xs"
             onClick={finishEditing}
             disabled={!selectedProject()}

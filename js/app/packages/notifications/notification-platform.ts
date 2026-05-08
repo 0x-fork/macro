@@ -1,7 +1,6 @@
 import type { SplitManager } from '@app/component/split-layout/layoutManager';
 import { getFaviconUrl } from '@app/util/favicon';
 import { markdownToPlainText } from '@lexical-core';
-import type { UnifiedNotification } from './types';
 import { themeReactive } from '../theme/signals/themeReactive';
 import type { PlatformNotificationState } from './components/PlatformNotificationProvider';
 import {
@@ -17,6 +16,7 @@ import {
   type DocumentNameResolver,
   type UserNameResolver,
 } from './notification-resolvers';
+import type { UnifiedNotification } from './types';
 
 /// the interface for a singular notification on this device
 export interface PlatformNotificationHandle {
@@ -81,10 +81,7 @@ export async function maybeHandlePlatformNotification(
   splitLayoutManager: SplitManager
 ) {
   // Ignore notification types that should not show as browser notifications
-  if (
-    notification.notification_metadata.tag === 'document_mention' ||
-    notification.notification_metadata.tag === 'new_email'
-  ) {
+  if (notification.notification_metadata.tag === 'document_mention') {
     return;
   }
 
