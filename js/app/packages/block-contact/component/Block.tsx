@@ -14,6 +14,7 @@ import WideChat from '@macro-icons/wide/chat.svg';
 import { commsServiceClient } from '@service-comms/client';
 import { Button } from '@ui';
 import { Show } from 'solid-js';
+import { ContactEmailsSection } from './EmailsSection';
 
 export function ContactBlock() {
   // Block id is the email portion only (no `macro|` prefix); reconstruct the
@@ -138,6 +139,8 @@ export function ContactBlock() {
             </div>
           </dl>
         </section>
+
+        <ContactEmailsSection email={email()} />
       </div>
     </div>
   );
