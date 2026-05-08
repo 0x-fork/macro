@@ -224,6 +224,139 @@ pub(super) fn build_message_email_filter(ast: &Expr<EmailLiteral>) -> SqlFragmen
     fragment.with_and_prefix()
 }
 
+/// True if the AST contains any address-typed literal (Sender/Cc/Bcc/Recipient).
+pub(super) fn has_address_literals(ast: &Expr<EmailLiteral>) -> bool {
+    ast.collapse_frames(|frame| match frame {
+        filter_ast::ExprFrame::And(a, b) | filter_ast::ExprFrame::Or(a, b) => a || b,
+        filter_ast::ExprFrame::Not(a) => a,
+        filter_ast::ExprFrame::Literal(
+            EmailLiteral::Sender(_)
+            | EmailLiteral::Cc(_)
+            | EmailLiteral::Bcc(_)
+            | EmailLiteral::Recipient(_),
+        ) => true,
+        filter_ast::ExprFrame::Literal(_) => false,
+    })
+}
+
+/// True if the subtree contains only address literals (Sender/Cc/Bcc/Recipient)
+/// composed via And/Or/Not. Used to decide whether a top-level conjunct can be
+/// safely pushed into the candidate-thread pre-filter without risking false
+/// negatives (e.g., `Sender(X) OR Importance(true)` cannot be reduced to just
+/// `Sender(X)` at the candidate stage).
+fn is_pure_address_subtree(expr: &Expr<EmailLiteral>) -> bool {
+    expr.collapse_frames(|frame| match frame {
+        filter_ast::ExprFrame::And(a, b) | filter_ast::ExprFrame::Or(a, b) => a && b,
+        filter_ast::ExprFrame::Not(a) => a,
+        filter_ast::ExprFrame::Literal(
+            EmailLiteral::Sender(_)
+            | EmailLiteral::Cc(_)
+            | EmailLiteral::Bcc(_)
+            | EmailLiteral::Recipient(_),
+        ) => true,
+        filter_ast::ExprFrame::Literal(_) => false,
+    })
+}
+
+/// Walks the top-level AND-chain and returns subtrees that are pure-address.
+/// Non-pure subtrees (e.g. `Or(Sender, Importance)`) are skipped because pushing
+/// them into the candidate-thread filter would change semantics.
+fn extract_address_only_conjuncts(expr: &Expr<EmailLiteral>) -> Vec<&Expr<EmailLiteral>> {
+    fn walk<'a>(e: &'a Expr<EmailLiteral>, out: &mut Vec<&'a Expr<EmailLiteral>>) {
+        match e {
+            Expr::And(a, b) => {
+                walk(a, out);
+                walk(b, out);
+            }
+            other => {
+                if is_pure_address_subtree(other) {
+                    out.push(other);
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(expr, &mut out);
+    out
+}
+
+/// Builds the per-message address predicate, reusing the same `m`/`m.id`/
+/// `m.from_contact_id` references that `build_message_email_filter` uses.
+/// Caller guarantees the input is a pure-address subtree.
+fn build_address_message_predicate(expr: &Expr<EmailLiteral>) -> SqlFragment {
+    expr.collapse_frames(|frame| match frame {
+        filter_ast::ExprFrame::And(a, b) => SqlFragment::and(a, b),
+        filter_ast::ExprFrame::Or(a, b) => SqlFragment::or(a, b),
+        filter_ast::ExprFrame::Not(a) => SqlFragment::not(a),
+
+        filter_ast::ExprFrame::Literal(EmailLiteral::Sender(email)) => build_email_match(
+            r#"EXISTS (
+                    SELECT 1 FROM email_contacts c
+                    WHERE c.id = m.from_contact_id"#,
+            &email,
+        ),
+        filter_ast::ExprFrame::Literal(EmailLiteral::Recipient(email)) => build_email_match(
+            r#"EXISTS (
+                    SELECT 1 FROM email_message_recipients mr
+                    JOIN email_contacts c ON mr.contact_id = c.id
+                    WHERE mr.message_id = m.id
+                    AND mr.recipient_type = 'TO'"#,
+            &email,
+        ),
+        filter_ast::ExprFrame::Literal(EmailLiteral::Cc(email)) => build_email_match(
+            r#"EXISTS (
+                    SELECT 1 FROM email_message_recipients mr
+                    JOIN email_contacts c ON mr.contact_id = c.id
+                    WHERE mr.message_id = m.id
+                    AND mr.recipient_type = 'CC'"#,
+            &email,
+        ),
+        filter_ast::ExprFrame::Literal(EmailLiteral::Bcc(email)) => build_email_match(
+            r#"EXISTS (
+                    SELECT 1 FROM email_message_recipients mr
+                    JOIN email_contacts c ON mr.contact_id = c.id
+                    WHERE mr.message_id = m.id
+                    AND mr.recipient_type = 'BCC'"#,
+            &email,
+        ),
+
+        filter_ast::ExprFrame::Literal(_) => SqlFragment::raw("TRUE"),
+    })
+}
+
+/// Pushes the address (Sender/Cc/Bcc/Recipient) constraint into the
+/// candidate-thread WHERE so pagination's `LIMIT` counts threads that actually
+/// have a matching message — instead of being silently shrunk by the LATERAL
+/// drop. Only top-level AND-conjuncts that are pure-address are pushed; mixed
+/// disjunctions are left to the LATERAL to keep semantics correct.
+pub(super) fn build_thread_address_filter(ast: &Expr<EmailLiteral>) -> SqlFragment {
+    let conjuncts = extract_address_only_conjuncts(ast);
+    if conjuncts.is_empty() {
+        return SqlFragment::empty();
+    }
+
+    let predicate = conjuncts
+        .into_iter()
+        .map(build_address_message_predicate)
+        .reduce(SqlFragment::and)
+        .expect("non-empty checked above");
+
+    let mut f = SqlFragment::raw(
+        r#"EXISTS (
+                SELECT 1 FROM email_messages m
+                WHERE m.thread_id = t.id
+                  AND NOT EXISTS (
+                      SELECT 1 FROM email_message_labels ml
+                      JOIN email_labels l ON ml.label_id = l.id
+                      WHERE ml.message_id = m.id AND l.name = 'TRASH' AND l.link_id = t.link_id
+                  )
+                  AND "#,
+    );
+    f.extend(predicate);
+    f.push_raw(")");
+    f.with_and_prefix()
+}
+
 /// Builds thread-level SQL WHERE conditions. Message-level literals map to TRUE.
 pub(super) fn build_thread_email_filter(ast: &Expr<EmailLiteral>) -> SqlFragment {
     let fragment = ast.collapse_frames(|frame| match frame {

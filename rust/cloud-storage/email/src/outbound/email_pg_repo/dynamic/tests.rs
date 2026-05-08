@@ -584,6 +584,121 @@ fn test_sql_injection_thread_id_not_in_raw_sql() {
 }
 
 #[test]
+fn test_build_thread_address_filter_sender_alone_emits_exists() {
+    let email = Email::Complete(
+        EmailStr::parse_from_str("a@b.com")
+            .unwrap()
+            .into_owned(),
+    );
+    let expr = Expr::Literal(EmailLiteral::Sender(email));
+    let result = build_thread_address_filter(&expr);
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("EXISTS"));
+    assert!(debug.contains("FROM email_messages m"));
+    assert!(debug.contains("m.thread_id = t.id"));
+    assert!(debug.contains("c.id = m.from_contact_id"));
+    assert!(result.has_bind_string("a@b.com"));
+}
+
+#[test]
+fn test_build_thread_address_filter_or_of_address_kinds() {
+    let mk = |s: &str| {
+        Email::Complete(EmailStr::parse_from_str(s).unwrap().into_owned())
+    };
+    let expr = Expr::or(
+        Expr::or(
+            Expr::or(
+                Expr::Literal(EmailLiteral::Sender(mk("x@y.com"))),
+                Expr::Literal(EmailLiteral::Cc(mk("x@y.com"))),
+            ),
+            Expr::Literal(EmailLiteral::Bcc(mk("x@y.com"))),
+        ),
+        Expr::Literal(EmailLiteral::Recipient(mk("x@y.com"))),
+    );
+    let result = build_thread_address_filter(&expr);
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("EXISTS"));
+    assert!(debug.contains("OR"));
+    assert!(debug.contains("recipient_type = 'TO'"));
+    assert!(debug.contains("recipient_type = 'CC'"));
+    assert!(debug.contains("recipient_type = 'BCC'"));
+}
+
+#[test]
+fn test_build_thread_address_filter_extracts_address_conjunct_from_mixed_and() {
+    let email = Email::Complete(
+        EmailStr::parse_from_str("a@b.com")
+            .unwrap()
+            .into_owned(),
+    );
+    let expr = Expr::and(
+        Expr::Literal(EmailLiteral::Sender(email)),
+        Expr::Literal(EmailLiteral::Importance(true)),
+    );
+    let result = build_thread_address_filter(&expr);
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("EXISTS"));
+    assert!(debug.contains("c.id = m.from_contact_id"));
+    assert!(result.has_bind_string("a@b.com"));
+    // Importance shouldn't be pushed into the candidate filter — handled in LATERAL.
+    assert!(!debug.contains("ef.is_important"));
+}
+
+#[test]
+fn test_build_thread_address_filter_skips_mixed_or_to_avoid_false_negatives() {
+    // `Sender(X) OR Importance(true)` cannot be safely reduced to `Sender(X)`
+    // at the candidate stage — a thread matching only Importance would be
+    // wrongly excluded. Expect no EXISTS pushdown.
+    let email = Email::Complete(
+        EmailStr::parse_from_str("a@b.com")
+            .unwrap()
+            .into_owned(),
+    );
+    let expr = Expr::or(
+        Expr::Literal(EmailLiteral::Sender(email)),
+        Expr::Literal(EmailLiteral::Importance(true)),
+    );
+    let result = build_thread_address_filter(&expr);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn test_build_thread_address_filter_empty_when_no_address_literals() {
+    let id = Uuid::new_v4();
+    let expr = Expr::Literal(EmailLiteral::ThreadId(id));
+    let result = build_thread_address_filter(&expr);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn test_full_query_includes_address_pre_filter_in_candidate_where() {
+    // End-to-end: the full query should now contain an address-EXISTS inside
+    // the candidate-thread subquery (before the `LIMIT`), so pagination counts
+    // matching threads rather than scanned threads.
+    let email = Email::Complete(
+        EmailStr::parse_from_str("a@b.com")
+            .unwrap()
+            .into_owned(),
+    );
+    let view = PreviewView::StandardLabel(PreviewViewStandardLabel::Inbox);
+    let expr = Expr::Literal(EmailLiteral::Sender(email));
+    let sql = super::query::debug_build_query_sql(&view, &expr);
+
+    let candidate_end = sql.find("ORDER BY effective_ts DESC, id DESC").expect(
+        "candidate ORDER BY missing",
+    );
+    let candidate_section = &sql[..candidate_end];
+    assert!(
+        candidate_section.contains("EXISTS")
+            && candidate_section.contains("FROM email_messages m"),
+        "address EXISTS pre-filter not found inside candidate-thread WHERE: {sql}",
+    );
+}
+
+#[test]
 fn test_build_thread_email_filter_calendar_only_true_emits_ics_exists() {
     let expr = Expr::Literal(EmailLiteral::CalendarOnly(true));
     let result = build_thread_email_filter(&expr);

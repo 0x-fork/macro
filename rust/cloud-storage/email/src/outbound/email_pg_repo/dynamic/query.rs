@@ -90,6 +90,14 @@ fn push_thread_candidate_select(
         build_thread_email_filter(email_filter).push_into(builder);
     }
 
+    // Push address (Sender/Cc/Bcc/Recipient) constraints into the candidate
+    // WHERE as an EXISTS so pagination's LIMIT counts threads that actually
+    // contain a matching message; without this, the LATERAL silently drops
+    // non-matching threads and `next_cursor` advances past unfilled pages.
+    if has_address_literals(email_filter) {
+        build_thread_address_filter(email_filter).push_into(builder);
+    }
+
     builder.push(
         r#"
                   -- Cursor logic
