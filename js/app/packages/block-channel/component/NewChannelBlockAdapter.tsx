@@ -4,8 +4,6 @@ import {
   type ChannelProps,
 } from '@channel/Channel/Channel';
 import { ChannelTopBarLiveIndicators } from '@channel/Channel/ChannelTopBarLiveIndicators';
-import { ChannelParticipantsIndicator } from '@channel/Participants/ChannelParticipantsIndicator';
-import { useUserIndicators } from '@core/state/liveIndicators';
 import { ChannelTabProvider } from '@channel/Channel/ChannelTabContext';
 import {
   isJoinCallRequested,
@@ -31,7 +29,6 @@ import { URL_PARAMS } from '@block-channel/constants';
 import { useBlockEntityCommands } from '@app/component/next-soup/actions';
 import { ChannelTopLeft } from './Top';
 import { useChannelName, useChannelType } from '@core/context/channels';
-import { ChannelTypeEnum } from '@service-comms/client';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import {
   DEFAULT_CHANNEL_TAB,
@@ -83,9 +80,6 @@ function ChannelHeader(props: { channelId: string }) {
   const participants = () =>
     participantsQuery.isLoading ? [] : participantsQuery.data;
   const detailsDrawer = useDrawerControl(CHANNEL_DETAILS_DRAWER_ID);
-  const showParticipants = () =>
-    channelType() !== ChannelTypeEnum.DirectMessage;
-  const activeUserIds = useUserIndicators();
 
   const callButton = () => (
     <Show when={ENABLE_CALLS()}>
@@ -105,13 +99,6 @@ function ChannelHeader(props: { channelId: string }) {
       />
       <SplitHeaderRight>
         <div class="flex items-center gap-1 touch:gap-0.5">
-          <Show when={showParticipants()}>
-            <ChannelParticipantsIndicator
-              channelId={props.channelId}
-              participants={participants() ?? []}
-              activeUserIds={activeUserIds() ?? []}
-            />
-          </Show>
           <Show when={chatChannelType()}>
             {(type) => (
               <ChatWithAgentButton
