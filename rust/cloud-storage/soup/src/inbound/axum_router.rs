@@ -319,6 +319,7 @@ where
         macro_user_id: MacroUserIdStr<'static>,
         filters: EntityFilterAst,
         params: Params,
+        cursor: Option<CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>>,
     ) -> Result<Json<GroupedSoupPage>, SoupHandlerErr> {
         let group_by = params.group_by.ok_or(SoupHandlerErr::Expand)?;
         let limit = params.limit.unwrap_or(20).clamp(20, 500);
@@ -332,44 +333,67 @@ where
 
         let grouping = GroupingConfig {
             field: GroupByField::from(group_by.clone()),
-            group_key: params.group_key,
+            group_key: params.group_key.clone(),
+        };
+
+        // Use cursor if provided, otherwise start fresh
+        let query_cursor = match cursor {
+            Some(c) => models_pagination::Query::Cursor(c),
+            None => models_pagination::Query::Sort(sort_method, filters.clone()),
         };
 
         let req = GroupedSortRequest {
             limit,
-            cursor: models_pagination::Query::Sort(sort_method, filters),
+            cursor: query_cursor,
             user_id: macro_user_id,
             grouping,
         };
 
         let items = self.service.get_user_soup_grouped(req).await?;
 
-        let (api_items, groups) = build_grouped_response(items, &group_by);
+        let (api_items, groups, page_cursor) =
+            build_grouped_response_with_cursors(items, &group_by, sort_method, params.group_key, filters);
 
         Ok(Json(GroupedSoupPage {
             items: api_items,
-            next_cursor: None,
+            next_cursor: page_cursor,
             groups: Some(groups),
         }))
     }
 }
 
-fn build_grouped_response(
+fn build_grouped_response_with_cursors(
     items: Vec<crate::domain::models::GroupedSoupItem>,
     group_by: &ApiGroupByField,
-) -> (Vec<SoupApiItem>, Vec<ApiGroupMeta>) {
+    sort_method: SimpleSortMethod,
+    requested_group_key: Option<String>,
+    filters: EntityFilterAst,
+) -> (Vec<SoupApiItem>, Vec<ApiGroupMeta>, Option<String>) {
+    use models_pagination::{Base64Str, CursorVal, CursorWithValAndFilter, Identify, SortOn};
     use std::collections::HashMap;
 
-    let mut group_stats: HashMap<String, (u32, u32, u32)> = HashMap::new();
+    // Track: (total_count, page_count, start_index, last_item_id, last_cursor_val)
+    type GroupData = (u32, u32, u32, Option<Uuid>, Option<CursorVal<SimpleSortMethod>>);
+    let mut group_stats: HashMap<String, GroupData> = HashMap::new();
     let mut api_items = Vec::with_capacity(items.len());
+
+    // Get the sort function once
+    let mut get_cursor_val = SoupItem::sort_on(sort_method);
 
     for (idx, grouped_item) in items.into_iter().enumerate() {
         let key = grouped_item.group_key.clone();
-        let entry =
-            group_stats
-                .entry(key)
-                .or_insert((grouped_item.group_total_count, 0, idx as u32));
+
+        // Extract cursor info before moving the item
+        let item_id = grouped_item.item.id();
+        let cursor_val = get_cursor_val(&grouped_item.item);
+
+        let entry = group_stats
+            .entry(key)
+            .or_insert((grouped_item.group_total_count, 0, idx as u32, None, None));
         entry.1 += 1;
+        // Track last item's cursor info
+        entry.3 = Some(item_id);
+        entry.4 = Some(cursor_val);
 
         api_items.push(SoupApiItem::from_frecency_soup_item(FrecencySoupItem {
             item: grouped_item.item,
@@ -379,8 +403,28 @@ fn build_grouped_response(
 
     let mut groups: Vec<ApiGroupMeta> = group_stats
         .into_iter()
-        .map(|(key, (total_count, page_count, start_index))| {
+        .map(|(key, (total_count, page_count, start_index, last_id, last_val))| {
             let (label, display_order) = resolve_group_label_and_order(&key, group_by);
+
+            // Compute cursor if there are more items in this group
+            let has_more = page_count < total_count;
+            let next_cursor = if has_more {
+                last_id.and_then(|id| {
+                    last_val.map(|val| {
+                        let cursor: CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst> =
+                            CursorWithValAndFilter {
+                                id,
+                                limit: page_count as usize,
+                                val,
+                                filter: filters.clone(),
+                            };
+                        Base64Str::encode_json(cursor).type_erase()
+                    })
+                })
+            } else {
+                None
+            };
+
             ApiGroupMeta {
                 key,
                 label,
@@ -388,7 +432,7 @@ fn build_grouped_response(
                 total_count,
                 page_count,
                 start_index,
-                next_cursor: None,
+                next_cursor,
             }
         })
         .collect();
@@ -399,7 +443,14 @@ fn build_grouped_response(
             .cmp(&b.display_order.unwrap_or(i32::MAX))
     });
 
-    (api_items, groups)
+    // For page-level cursor: if we're fetching a specific group and there are more items
+    let page_cursor = if requested_group_key.is_some() {
+        groups.first().and_then(|g| g.next_cursor.clone())
+    } else {
+        None
+    };
+
+    (api_items, groups, page_cursor)
 }
 
 fn resolve_group_label_and_order(key: &str, group_by: &ApiGroupByField) -> (String, Option<i32>) {
@@ -659,8 +710,13 @@ where
         .map_err(|_| SoupHandlerErr::Expand)?;
 
     if params.group_by.is_some() {
+        // Extract simple cursor for grouped queries (frecency not supported for grouped)
+        let simple_cursor = match cursor {
+            axum_extra::either::Either::E1(c) => c,
+            axum_extra::either::Either::E2(_) => None,
+        };
         return service
-            .handle_grouped(macro_user_id, filters, params)
+            .handle_grouped(macro_user_id, filters, params, simple_cursor)
             .await
             .map(Either::E2);
     }
