@@ -77,8 +77,8 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
         </Show>
         <div class="mx-2 shadow-sm rounded-lg">
           <div class={cn(
-            'flex flex-col gap-1.5 px-2 py-1.5 bg-ink/5',
-            hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg'
+            'flex flex-col gap-1.5 px-2 pt-1.5 bg-ink/5',
+            hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg pb-1.5'
           )}>
           <div class="flex items-center gap-2">
           <Show when={!props.hideSelectAll}>
