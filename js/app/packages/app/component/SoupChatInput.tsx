@@ -135,14 +135,10 @@ function SoupChatInputInner() {
   return (
     <div
       ref={containerRef}
-      class="absolute bottom-0 right-px left-px pb-2 px-2 flex justify-center pointer-events-none"
-      classList={{ hidden: !!soup.previewEntity() }}
-      style={{
-        'background-image': `linear-gradient(transparent, var(--color-panel) 85%)`,
-      }}
+      class="w-full"
     >
-      <div class="w-full max-w-3xl">
-        <div class="pointer-events-auto">
+      <div class="w-full">
+        <div class="">
           <ChatInput
             editor={editor}
             onSend={handleSend}

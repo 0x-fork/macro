@@ -1,5 +1,6 @@
 import CheckIcon from '@icon/bold/check-bold.svg';
 import Spinner from '@icon/regular/spinner.svg';
+import RowsIcon from '@icon/regular/rows.svg';
 import {
   useGlobalBlockOrchestrator,
   useGlobalNotificationSource,
@@ -117,6 +118,7 @@ import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter
 import { VIEW_TAB_PRESETS } from '@app/component/app-sidebar/soup-filter-presets';
 import { canExecuteMarkDoneOnView } from '@app/component/next-soup/actions/make-mark-done-action';
 import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
+import { Hotkey } from '@core/component/Hotkey';
 
 const useSoupNotificationInvalidators = () => {
   const notificationSource = useGlobalNotificationSource();
@@ -187,6 +189,61 @@ const SoupViewFilterChipsRow = () => {
           onClearAll={resetToTabDefaults}
           isOptionActive={isOptionActive}
         />
+      </div>
+    </Show>
+  );
+};
+
+const HotkeyHint = (props: { shortcut: string; label: string }) => (
+  <span class="flex items-center gap-1">
+    <span class="flex border border-edge-muted text-xxs rounded-xs items-center px-1.5 py-0.25 font-normal">
+      <Hotkey shortcut={props.shortcut} class="space-x-1" />
+    </span>
+    {props.label}
+  </span>
+);
+
+const SoupViewFooter = () => {
+  const soup = useSoup();
+  const { rows, source } = useSoupView();
+
+  const totalCount = () => {
+    const count = rows().length;
+    if (source.hasNextPage?.()) return `${count}+`;
+    return count.toString();
+  };
+
+  const isFetching = () => source.isFetching() || source.isFetchingNextPage();
+
+  return (
+    <Show when={!soup.previewEntity() && !isMobile()}>
+      <div class="relative shrink-0 px-4 py-1.5 border-t border-edge-muted bg-panel text-xs text-ink-extra-muted/60">
+        <div class="flex items-center justify-between gap-4">
+          <span class="flex items-center gap-1.5">
+            <span class="size-3 flex items-center justify-center">
+              <Show when={isFetching()} fallback={<RowsIcon class="size-3" />}>
+                <Spinner class="size-3 animate-spin" />
+              </Show>
+            </span>
+            {totalCount()} items
+          </span>
+
+          <div class="flex items-center gap-4">
+            <HotkeyHint shortcut="ArrowUp" label="Navigate" />
+            <HotkeyHint shortcut="Enter" label="Open" />
+            <HotkeyHint shortcut="cmd+k" label="Actions" />
+          </div>
+        </div>
+
+        <Show when={ENABLE_UNIFIED_LIST_AI_INPUT}>
+          <div class="absolute -top-4 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 pointer-events-none">
+            <div class="pointer-events-auto">
+              <Suspense>
+                <SoupChatInput />
+              </Suspense>
+            </div>
+          </div>
+        </Show>
       </div>
     </Show>
   );
@@ -332,7 +389,7 @@ export const SoupView = (props: SoupViewProps) => {
                       </>
                     }
                   >
-                    <h1 class="font-bold text-ink select-none text-xl tracking-tight leading-none">
+                    <h1 class="font-semibold text-ink select-none text-sm leading-none">
                       {props.viewName}
                     </h1>
                     <SoupViewTabs overflow />
@@ -374,15 +431,11 @@ export const SoupView = (props: SoupViewProps) => {
               <SoupViewMobileCreateButton activeView={activeListView} />
             </Show>
           </div>
+          <SoupViewFooter />
           <Show when={isMobile()}>
             <MobileSoupViewTabs />
           </Show>
         </div>
-        <Suspense>
-          <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
-            <SoupChatInput />
-          </Show>
-        </Suspense>
       </SoupViewContextProvider>
     </SplitPanelContext.Provider>
   );
@@ -1153,7 +1206,7 @@ const SoupList = (props: SoupListProps) => {
   return (
     <div
       ref={props.ref}
-      class={cn('unified-table-body size-full relative px-2 pb-2', props.class)}
+      class={cn('unified-table-body size-full relative px-2 pt-1 pb-2', props.class)}
     >
       <div class="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none" />
       <div class="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-panel to-transparent z-10 pointer-events-none" />

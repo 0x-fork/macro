@@ -33,6 +33,7 @@ function SplitBackButton() {
   if (!context) return null;
   return (
     <Button
+      size="sm"
       class="p-1"
       tooltip={
         <LabelAndHotKey label="Go Back" hotkeyToken={TOKENS.split.go.back} />
@@ -40,7 +41,7 @@ function SplitBackButton() {
       disabled={!context.handle.canGoBack()}
       onClick={context.handle.goBack}
     >
-      <CaretLeft class="h-4" />
+      <CaretLeft />
     </Button>
   );
 }
@@ -50,6 +51,7 @@ function SplitForwardButton() {
   if (!context) return '';
   return (
     <Button
+      size="sm"
       tooltip={
         <LabelAndHotKey
           label="Go Forward"
@@ -63,7 +65,7 @@ function SplitForwardButton() {
         isMobile() && !context.handle.canGoForward() && 'hidden'
       )}
     >
-      <CaretRight class="h-4" />
+      <CaretRight />
     </Button>
   );
 }
@@ -75,7 +77,8 @@ function SplitSpotlightButton() {
   return (
     <Show when={canSpotlight(layout.manager)}>
       <Button
-        class="p-1 rounded-xs"
+        size="sm"
+        class="p-1"
         tooltip={
           <LabelAndHotKey
             label={
@@ -89,9 +92,9 @@ function SplitSpotlightButton() {
         onClick={() => context.handle.toggleSpotlight()}
       >
         {context.handle.isSpotLight() ? (
-          <CollapseIcon class="h-4" />
+          <CollapseIcon />
         ) : (
-          <ExpandIcon class="h-4" />
+          <ExpandIcon />
         )}
       </Button>
     </Show>
@@ -112,13 +115,14 @@ function SplitCloseButton() {
   return (
     <Show when={layout.manager.splits().length > 1}>
       <Button
+        size="sm"
         class="p-1"
         tooltip={
           <LabelAndHotKey label={label()} hotkeyToken={TOKENS.split.close} />
         }
         onClick={context.handle.close}
       >
-        <CloseIcon class="w-4 h-4" />
+        <CloseIcon />
       </Button>
     </Show>
   );
@@ -184,7 +188,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
 
   return (
     <div
-      class="isolate w-full pt-2 pb-2 overflow-clip text-ink shrink-0 bg-panel"
+      class="isolate w-full py-2 overflow-clip text-ink shrink-0 bg-panel"
       data-split-header
       ref={props.ref}
     >

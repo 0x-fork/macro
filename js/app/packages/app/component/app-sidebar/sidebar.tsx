@@ -402,6 +402,7 @@ const SidebarActionButton = (props: SidebarActionButtonProps) => {
 
   return (
     <Button
+      size="sm"
       class="flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-xs py-1"
       variant="ghost"
       tooltipPlacement="right"
@@ -415,7 +416,7 @@ const SidebarActionButton = (props: SidebarActionButtonProps) => {
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
-      <div class="size-4 shrink-0">
+      <div class="size-4 shrink-0 [&_svg]:size-4">
         <Dynamic component={props.icon} triggerAnimation={hovering()} />
       </div>
       <span class="whitespace-nowrap group-data-[slim=true]/sidebar:invisible">
@@ -491,7 +492,8 @@ const SidebarIconButton = (props: SidebarIconButtonProps) => {
 
   return (
     <Button
-      class="flex items-center justify-center size-7 p-0 rounded-md"
+      size="sm"
+      class="flex items-center justify-center size-6 p-0 rounded-md [&_svg]:size-4"
       variant={props.isSlim() ? 'ghost' : 'tertiary'}
       tooltipPlacement="top"
       tooltip={
@@ -502,7 +504,7 @@ const SidebarIconButton = (props: SidebarIconButtonProps) => {
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
-      <div class="size-4 shrink-0">
+      <div class="size-4 shrink-0 [&_svg]:size-4">
         <Dynamic component={props.icon} triggerAnimation={hovering()} />
       </div>
     </Button>

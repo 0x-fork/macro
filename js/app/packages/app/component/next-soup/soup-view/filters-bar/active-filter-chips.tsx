@@ -165,12 +165,12 @@ const GroupedFilterChip = (props: {
         when={hasOptions()}
         fallback={
           <span class="inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5 rounded-l-md hover:bg-ink/15 hover:text-ink transition-colors">
-            <div class="flex items-center -space-x-2">
+            <div class="flex items-center -space-x-1.5">
               <For each={props.group.filters}>
                 {(filter) => (
                   <Show when={filter.icon}>
                     {(icon) => (
-                      <span class="size-3.5 shrink-0 flex items-center justify-center rounded-full bg-page text-ink [&>*]:size-2.5 [&_svg]:size-2.5">
+                      <span class="size-4 shrink-0 flex items-center justify-center rounded-full bg-page text-ink ring-1 ring-edge-muted [&>*]:size-2.5 [&_svg]:size-2.5">
                         {icon()()}
                       </span>
                     )}
@@ -184,12 +184,12 @@ const GroupedFilterChip = (props: {
       >
         <DropdownMenu open={open()} onOpenChange={setOpen} gutter={4}>
           <DropdownMenu.Trigger class={CHIP_TRIGGER_CLASS}>
-            <div class="flex items-center -space-x-2">
+            <div class="flex items-center -space-x-1.5">
               <For each={props.group.filters}>
                 {(filter) => (
                   <Show when={filter.icon}>
                     {(icon) => (
-                      <span class="size-4 shrink-0 flex items-center justify-center rounded-full bg-page text-ink [&>*]:size-3 [&_svg]:size-3">
+                      <span class="size-4 shrink-0 flex items-center justify-center rounded-full bg-page text-ink ring-1 ring-edge-muted [&>*]:size-2.5 [&_svg]:size-2.5">
                         {icon()()}
                       </span>
                     )}
