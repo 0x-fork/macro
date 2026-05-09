@@ -28,6 +28,7 @@ import { cn } from '@ui/utils/classname';
 import {
   createMemo,
   For,
+  Index,
   type JSX,
   Match,
   type Ref,
@@ -50,8 +51,15 @@ import type {
   Property,
   PropertyApiValues,
 } from '@core/component/Properties/types';
-import { SYSTEM_PROPERTY_IDS } from '@core/component/Properties/constants';
+import {
+  SYSTEM_PROPERTY_IDS,
+  PROPERTY_OPTION_IDS,
+} from '@core/component/Properties/constants';
 import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
+import {
+  TaskCircleIcon,
+  type TaskStatus,
+} from '@macro-icons/square/TaskCircleIcon';
 import { formatPropertyValue } from '@core/component/Properties/utils/formatting';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
@@ -234,6 +242,38 @@ function SharedIndicator(props: { ownerId: string }) {
   );
 }
 
+const STATUS_TO_TASK_STATUS: Record<string, TaskStatus> = {
+  [PROPERTY_OPTION_IDS.STATUS.NOT_STARTED]: 'created',
+  [PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS]: 'in-progress',
+  [PROPERTY_OPTION_IDS.STATUS.IN_REVIEW]: 'in-review',
+  [PROPERTY_OPTION_IDS.STATUS.COMPLETED]: 'done',
+  [PROPERTY_OPTION_IDS.STATUS.CANCELED]: 'cancelled',
+};
+
+const STATUS_TO_COLOR: Record<string, string> = {
+  [PROPERTY_OPTION_IDS.STATUS.NOT_STARTED]: 'text-task',
+  [PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS]: 'text-alert-ink',
+  [PROPERTY_OPTION_IDS.STATUS.IN_REVIEW]: 'text-note',
+  [PROPERTY_OPTION_IDS.STATUS.COMPLETED]: 'text-accent',
+  [PROPERTY_OPTION_IDS.STATUS.CANCELED]: 'text-ink-muted',
+};
+
+function useTaskStatus(entity: EntityWithProperties<EntityData>) {
+  return createMemo(() => {
+    const soupProperties = entity.properties ?? [];
+    const statusProp = soupProperties
+      .map(soupPropertyToProperty)
+      .find((p) => p.propertyDefinitionId === SYSTEM_PROPERTY_IDS.STATUS);
+    if (!statusProp || statusProp.valueType !== 'SELECT_STRING') return null;
+    const optionId = statusProp.value?.[0];
+    if (!optionId) return null;
+    return {
+      status: STATUS_TO_TASK_STATUS[optionId] ?? 'created',
+      color: STATUS_TO_COLOR[optionId] ?? 'text-task',
+    };
+  });
+}
+
 function TaskPropertyGroup(props: {
   entity: EntityWithProperties<EntityData>;
   include: string[];
@@ -278,14 +318,14 @@ function TaskPropertyGroup(props: {
         saveHandler={saveHandler}
       >
         <div class="flex items-center gap-1 [&_div[role='button']]:!p-0 [&_div[role='button']]:!h-fit">
-          <For each={properties()}>
+          <Index each={properties()}>
             {(property) => (
               <PropertyValue
-                property={property}
+                property={property()}
                 condensed={props.condensed ?? true}
               />
             )}
-          </For>
+          </Index>
         </div>
         <Suspense>
           <Modals />
@@ -483,15 +523,7 @@ function ChannelMessageLayout(
 }
 
 function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
-  const hasStatus = createMemo(() => {
-    const entity = props.entity as EntityWithProperties<EntityData>;
-    const soupProperties = entity.properties ?? [];
-    return soupProperties.some(
-      (p) =>
-        soupPropertyToProperty(p).propertyDefinitionId ===
-        SYSTEM_PROPERTY_IDS.STATUS
-    );
-  });
+  const taskStatus = useTaskStatus(props.entity as EntityWithProperties<EntityData>);
 
   return (
     <LayoutShell
@@ -507,7 +539,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
       >
         <div class="[&_svg]:size-4">
           <Show
-            when={hasStatus()}
+            when={taskStatus()}
             fallback={<CircleDashedIcon class="size-4 text-ink-extra-muted" />}
           >
             <TaskPropertyGroup
@@ -1267,16 +1299,7 @@ function TaskPropertyPills(props: {
 
 function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
   const mobile = isMobile();
-
-  const hasStatus = createMemo(() => {
-    const entity = props.entity as EntityWithProperties<EntityData>;
-    const soupProperties = entity.properties ?? [];
-    return soupProperties.some(
-      (p) =>
-        soupPropertyToProperty(p).propertyDefinitionId ===
-        SYSTEM_PROPERTY_IDS.STATUS
-    );
-  });
+  const taskStatus = useTaskStatus(props.entity as EntityWithProperties<EntityData>);
 
   return (
     <div
@@ -1366,7 +1389,7 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
             <Show when={!mobile}>
               <span class="shrink-0 [&_svg]:size-4">
                 <Show
-                  when={hasStatus()}
+                  when={taskStatus()}
                   fallback={
                     <CircleDashedIcon class="size-4 text-ink-extra-muted" />
                   }

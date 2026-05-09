@@ -71,84 +71,107 @@ export const CondensedPropertyValue: Component<CondensedPropertyValueProps> = (
 };
 
 const CondensedIcon = (props: { property: Property }): JSX.Element => {
-  const internal = (): JSX.Element | null => {
-    if (!hasValue(props.property)) return null;
+  const valid = () => hasValue(props.property);
 
-    // Entity properties - show user group or fallback
-    if (isEntityProperty(props.property)) {
-      if (props.property.specificEntityType === 'USER') {
-        return <UserGroup entities={props.property.value ?? []} maxUsers={2} />;
-      }
-      // For non-user entities, show count if multiple
-      const count = props.property.value?.length ?? 0;
-      if (count > 0) {
-        return (
-          <span class="truncate max-w-[100px]">
-            {count === 1 ? '1 item' : `${count} items`}
-          </span>
-        );
-      }
-      return null;
+  // Select properties - derive optionId reactively for animation
+  const selectOptionId = () => {
+    if (!valid() || !isSelectProperty(props.property)) return null;
+    const values = getSelectValues(props.property);
+    return values[0] ?? null;
+  };
+
+  // Entity properties
+  const entityContent = () => {
+    if (!valid() || !isEntityProperty(props.property)) return null;
+    if (props.property.specificEntityType === 'USER') {
+      return { type: 'user' as const, value: props.property.value ?? [] };
     }
-
-    // Select properties - show icon for first selected option
-    if (isSelectProperty(props.property)) {
-      const values = getSelectValues(props.property);
-      if (values.length > 0) {
-        return PropertyValueIcon({ optionId: values[0] });
-      }
-      return null;
+    const count = props.property.value?.length ?? 0;
+    if (count > 0) {
+      return { type: 'count' as const, value: count };
     }
-
-    // Date properties - show formatted date
-    if (isDateProperty(props.property)) {
-      const value = props.property.value;
-      if (value) {
-        return <span class="truncate max-w-[100px]">{formatDate(value)}</span>;
-      }
-      return null;
-    }
-
-    // String properties - show truncated value
-    if (isStringProperty(props.property)) {
-      const value = props.property.value;
-      if (value) {
-        return <span class="truncate max-w-[100px]">{value}</span>;
-      }
-      return null;
-    }
-
-    // Number properties - show formatted number
-    if (isNumberProperty(props.property)) {
-      const value = props.property.value;
-      if (value !== null) {
-        return (
-          <span class="truncate max-w-[100px]">{formatNumber(value)}</span>
-        );
-      }
-      return null;
-    }
-
-    // Boolean properties - show True/False
-    if (isBooleanProperty(props.property)) {
-      const value = props.property.value;
-      if (value !== null) {
-        return (
-          <span class="truncate max-w-[100px]">{formatBoolean(value)}</span>
-        );
-      }
-      return null;
-    }
-
     return null;
   };
 
+  // Date properties
+  const dateValue = () => {
+    if (!valid() || !isDateProperty(props.property)) return null;
+    return props.property.value ?? null;
+  };
+
+  // String properties
+  const stringValue = () => {
+    if (!valid() || !isStringProperty(props.property)) return null;
+    return props.property.value ?? null;
+  };
+
+  // Number properties
+  const numberValue = () => {
+    if (!valid() || !isNumberProperty(props.property)) return null;
+    return props.property.value;
+  };
+
+  // Boolean properties
+  const booleanValue = () => {
+    if (!valid() || !isBooleanProperty(props.property)) return null;
+    return props.property.value;
+  };
+
+  const hasAnyValue = () =>
+    selectOptionId() !== null ||
+    entityContent() !== null ||
+    dateValue() !== null ||
+    stringValue() !== null ||
+    numberValue() !== null ||
+    booleanValue() !== null;
+
   return (
     <Show
-      when={internal()}
+      when={hasAnyValue()}
       fallback={<CircleDashedEmpty class="size-3 shrink-0" />}
     >
-      {(content) => content()}
+      {/* Select properties - PropertyValueIcon stays mounted for animation */}
+      <Show when={selectOptionId()}>
+        {(optionId) => <PropertyValueIcon optionId={optionId()} />}
+      </Show>
+
+      {/* Entity properties */}
+      <Show when={entityContent()}>
+        {(content) => (
+          <Show
+            when={content().type === 'user'}
+            fallback={
+              <span class="truncate max-w-[100px]">
+                {content().value === 1 ? '1 item' : `${content().value} items`}
+              </span>
+            }
+          >
+            <UserGroup entities={content().value as any} maxUsers={2} />
+          </Show>
+        )}
+      </Show>
+
+      {/* Date properties */}
+      <Show when={dateValue()}>
+        {(value) => (
+          <span class="truncate max-w-[100px]">{formatDate(value())}</span>
+        )}
+      </Show>
+
+      {/* String properties */}
+      <Show when={stringValue()}>
+        {(value) => <span class="truncate max-w-[100px]">{value()}</span>}
+      </Show>
+
+      {/* Number properties */}
+      <Show when={numberValue() !== null && numberValue() !== undefined}>
+        <span class="truncate max-w-[100px]">{formatNumber(numberValue()!)}</span>
+      </Show>
+
+      {/* Boolean properties */}
+      <Show when={booleanValue() !== null && booleanValue() !== undefined}>
+        <span class="truncate max-w-[100px]">{formatBoolean(booleanValue()!)}</span>
+      </Show>
     </Show>
   );
 };
