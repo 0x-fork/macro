@@ -34,12 +34,7 @@ const anglePropertyCSS = `
 }
 `;
 
-// Hex path centered at 6,6 with radius ~4.5 (flat-top orientation)
-const HEX_OUTLINE = 'M10.5 6L8.25 2.1H3.75L1.5 6L3.75 9.9H8.25L10.5 6Z';
-// Smaller inner hex for progress fill
-const HEX_INNER = 'M9 6L7.5 3.4H4.5L3 6L4.5 8.6H7.5L9 6Z';
-
-export const TaskCircleIcon = (props: TaskCircleIconProps) => {
+export const TaskCircleIconPie = (props: TaskCircleIconProps) => {
   const degrees = createMemo(() => STATUS_DEGREES[props.status] ?? 0);
   const isDone = () => props.status === 'done';
   const isCancelled = () => props.status === 'cancelled';
@@ -55,28 +50,28 @@ export const TaskCircleIcon = (props: TaskCircleIconProps) => {
     >
       <style>{anglePropertyCSS}</style>
 
-      {/* Hex outline */}
-      <path
-        d={HEX_OUTLINE}
+      {/* Circle outline */}
+      <circle
+        cx="6"
+        cy="6"
+        r="4.5"
         stroke="currentColor"
         stroke-width="1"
-        stroke-linejoin="round"
-        fill={isDone() ? 'currentColor' : 'none'}
-        class="transition-all duration-200"
+        fill="none"
       />
 
-      {/* Progress fill using foreignObject for CSS mask support - counter-clockwise from top-left */}
-      <foreignObject x="2" y="2.5" width="8" height="7" opacity={isCancelled() || isDone() ? 0 : 1}>
+      {/* Progress pie using foreignObject for CSS mask support - counter-clockwise from top-left */}
+      <foreignObject x="3" y="3" width="6" height="6" opacity={isCancelled() ? 0 : 1}>
         <div
           xmlns="http://www.w3.org/1999/xhtml"
           style={{
             'width': '100%',
             'height': '100%',
+            'border-radius': '50%',
             'background': 'var(--icon-color, currentColor)',
-            'clip-path': 'polygon(28% 12%, 72% 12%, 88% 50%, 72% 88%, 28% 88%, 12% 50%)',
             '--progress-angle': `${degrees()}deg`,
-            'mask-image': `conic-gradient(from -30deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
-            '-webkit-mask-image': `conic-gradient(from -30deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
+            'mask-image': `conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
+            '-webkit-mask-image': `conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
             'transition': '--progress-angle 200ms ease-out',
           }}
         />
@@ -110,4 +105,4 @@ export const TaskCircleIcon = (props: TaskCircleIconProps) => {
   );
 };
 
-export default TaskCircleIcon;
+export default TaskCircleIconPie;
