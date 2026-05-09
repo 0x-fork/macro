@@ -203,6 +203,38 @@ const HotkeyHint = (props: { shortcut: string; label: string }) => (
   </span>
 );
 
+const SkeletonRow = (props: { delay?: number }) => (
+  <div
+    class="flex items-center gap-3 px-3 py-2.5 animate-pulse"
+    style={{ 'animation-delay': `${props.delay ?? 0}ms` }}
+  >
+    <div class="relative size-5 rounded-full overflow-hidden">
+      <div class="absolute inset-0 bg-edge-muted" />
+      <div class="absolute inset-0 pattern-edge pattern-diagonal-2 opacity-40" />
+    </div>
+    <div class="flex-1 space-y-1.5">
+      <div class="relative h-3.5 rounded overflow-hidden w-3/4">
+        <div class="absolute inset-0 bg-edge-muted" />
+        <div class="absolute inset-0 pattern-edge pattern-diagonal-2 opacity-30" />
+      </div>
+      <div class="relative h-2.5 rounded overflow-hidden w-1/2">
+        <div class="absolute inset-0 bg-edge-muted/60" />
+      </div>
+    </div>
+    <div class="relative h-3 w-12 rounded overflow-hidden">
+      <div class="absolute inset-0 bg-edge-muted/60" />
+    </div>
+  </div>
+);
+
+const SoupListSkeleton = () => (
+  <div class="px-2 pt-1">
+    <For each={[0, 1, 2, 3, 4, 5]}>
+      {(i) => <SkeletonRow delay={i * 50} />}
+    </For>
+  </div>
+);
+
 const SoupViewFooter = () => {
   const soup = useSoup();
   const { rows, source } = useSoupView();
@@ -725,9 +757,13 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
   const shouldDimWhenRead = createMemo(() => {
     const tab = activeTab();
-    if (contentId === 'channels') return false;
     if (tab === 'drafts' || tab === 'sent' || tab === 'shared') return false;
-    return true;
+    return (
+      tab === 'all' ||
+      soup.predicates.isActive('inbox') ||
+      soup.predicates.isActive('noise') ||
+      contentId === 'emails'
+    );
   });
 
   // If another SoupViewList with the same contentId is already mounted (e.g.
@@ -911,7 +947,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
               <StaticMarkdownContext>
                 <Switch>
                   <Match when={source.isLoading() && !rows().length}>
-                    <LoadingBlock />
+                    <SoupListSkeleton />
                   </Match>
                   <Match
                     when={
@@ -1084,9 +1120,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                     Searching...
                                   </div>
                                 </Show>
-                                <Show when={i() === rows().length - 1}>
-                                  <div class="h-8" />
-                                </Show>
                               </>
                             );
                           }}
@@ -1191,23 +1224,27 @@ const SoupList = (props: SoupListProps) => {
     }
   };
 
-  const EndOfListIndicator = () => (
-    <div class="flex flex-col items-center justify-center py-4 text-ink-extra-muted">
-      <div class="w-full h-px bg-edge-muted mb-3" />
-      <span class="text-xs">You're all caught up ✨</span>
-    </div>
-  );
-
   const dataWithEnd = () =>
     stableRows.length > 0 && !props.hasMoreData
       ? [...stableRows, { id: '__end__', type: 'end' } as unknown as SoupRow]
       : stableRows;
+
+  const EndOfListIndicator = () => (
+    <div class="relative min-h-32 h-[50vh] flex items-start justify-center pt-8">
+      <div class="absolute inset-0 pattern-edge-muted pattern-diagonal-8 opacity-40 mask-image-[linear-gradient(to_bottom,black_0%,transparent_50%)]" />
+      <span class="relative text-xs text-ink-extra-muted">You're all caught up</span>
+    </div>
+  );
 
   return (
     <div
       ref={props.ref}
       class={cn('unified-table-body size-full relative px-2 pt-1 pb-2', props.class)}
     >
+      {/* Overscroll pattern backgrounds */}
+      <div class="absolute inset-x-0 -top-20 h-20 pattern-edge-muted pattern-diagonal-8 opacity-30 mask-image-[linear-gradient(to_top,black,transparent)] pointer-events-none" />
+      <div class="absolute inset-x-0 -bottom-20 h-20 pattern-edge-muted pattern-diagonal-8 opacity-30 mask-image-[linear-gradient(to_bottom,black,transparent)] pointer-events-none" />
+      {/* Gradient fades */}
       <div class="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none" />
       <div class="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-panel to-transparent z-10 pointer-events-none" />
       <VList

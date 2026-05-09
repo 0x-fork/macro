@@ -1825,7 +1825,7 @@ export function StackedListEntity(props: StackedListEntityProps) {
     >
       <div
         class={cn(
-          'absolute h-full w-[2px] left-0 top-0 bg-accent rounded-r-full opacity-0',
+          'absolute h-full w-[2px] left-0 top-0 bg-accent rounded-r-full opacity-0 transition-opacity',
           {
             'opacity-100': props.highlighted && !isMobile(),
           }
