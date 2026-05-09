@@ -1,0 +1,8 @@
+<svg width="100%" height="100%" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1"/>
+  <clipPath id="innerCircleDone">
+    <circle cx="6" cy="6" r="3.5"/>
+  </clipPath>
+  <path d="M2 2.5 Q3.5 1.5 6 2.5 Q8.5 3.5 10 2.5 L10 10.5 L2 10.5 Z" fill="currentColor" clip-path="url(#innerCircleDone)"/>
+  <path d="M4.25 6L5.5 7.25L7.75 4.75" stroke="var(--color-panel, white)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

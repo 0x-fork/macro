@@ -1,0 +1,7 @@
+<svg width="100%" height="100%" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1"/>
+  <clipPath id="innerCircleProgress">
+    <circle cx="6" cy="6" r="3.5"/>
+  </clipPath>
+  <path d="M2 6.5 Q3.5 5.5 6 6.5 Q8.5 7.5 10 6.5 L10 10.5 L2 10.5 Z" fill="currentColor" clip-path="url(#innerCircleProgress)"/>
+</svg>
