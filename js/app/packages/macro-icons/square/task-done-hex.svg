@@ -1,0 +1,6 @@
+<svg width="100%" height="100%" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Full hexagon filled -->
+  <path d="M10.5 6L8.25 2.1H3.75L1.5 6L3.75 9.9H8.25L10.5 6Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>
+  <!-- Checkmark in center -->
+  <path d="M4.25 6L5.5 7.25L7.75 4.75" stroke="var(--color-panel, white)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
