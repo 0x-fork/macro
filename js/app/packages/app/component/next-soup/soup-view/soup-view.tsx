@@ -80,6 +80,7 @@ import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
 import { useHotkeyDOMScope, registerHotkey } from '@core/hotkey/hotkeys';
 import { invalidateEntityNotifications } from '@queries/notification/user-notifications';
+import { FooterMarquee } from '@app/component/next-soup/soup-view/footer-marquee';
 import type { CacheSnapshot } from 'virtua/unstable_core';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
 import { SoupChatInput } from '@app/component/SoupChatInput';
@@ -249,9 +250,9 @@ const SoupViewFooter = () => {
 
   return (
     <Show when={!soup.previewEntity() && !isMobile()}>
-      <div class="relative shrink-0 px-4 py-1.5 border-t border-edge-muted bg-panel text-xs text-ink-extra-muted/60">
-        <div class="flex items-center justify-between gap-4">
-          <span class="flex items-center gap-1.5">
+      <div class="relative shrink-0 border-t border-edge-muted bg-panel text-xs text-ink-extra-muted/60">
+        <div class="flex items-center gap-4 px-4 py-1">
+          <span class="flex items-center gap-1.5 shrink-0">
             <span class="size-3 flex items-center justify-center">
               <Show when={isFetching()} fallback={<RowsIcon class="size-3" />}>
                 <Spinner class="size-3 animate-spin" />
@@ -259,23 +260,10 @@ const SoupViewFooter = () => {
             </span>
             {totalCount()} items
           </span>
-
-          <div class="flex items-center gap-4">
-            <HotkeyHint shortcut="ArrowUp" label="Navigate" />
-            <HotkeyHint shortcut="Enter" label="Open" />
-            <HotkeyHint shortcut="cmd+k" label="Actions" />
+          <div class="flex-1 overflow-hidden">
+            <FooterMarquee />
           </div>
         </div>
-
-        <Show when={ENABLE_UNIFIED_LIST_AI_INPUT}>
-          <div class="absolute -top-4 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 pointer-events-none">
-            <div class="pointer-events-auto">
-              <Suspense>
-                <SoupChatInput />
-              </Suspense>
-            </div>
-          </div>
-        </Show>
       </div>
     </Show>
   );
