@@ -1224,26 +1224,11 @@ const SoupList = (props: SoupListProps) => {
     }
   };
 
-  const dataWithEnd = () =>
-    stableRows.length > 0 && !props.hasMoreData
-      ? [...stableRows, { id: '__end__', type: 'end' } as unknown as SoupRow]
-      : stableRows;
-
-  const EndOfListIndicator = () => (
-    <div class="relative min-h-32 h-[50vh] flex items-start justify-center pt-8">
-      <div class="absolute inset-0 pattern-edge-muted pattern-diagonal-8 opacity-40 mask-image-[linear-gradient(to_bottom,black_0%,transparent_50%)]" />
-      <span class="relative text-xs text-ink-extra-muted">You're all caught up</span>
-    </div>
-  );
-
   return (
     <div
       ref={props.ref}
       class={cn('unified-table-body size-full relative px-2 pt-1 pb-2', props.class)}
     >
-      {/* Overscroll pattern backgrounds */}
-      <div class="absolute inset-x-0 -top-20 h-20 pattern-edge-muted pattern-diagonal-8 opacity-30 mask-image-[linear-gradient(to_top,black,transparent)] pointer-events-none" />
-      <div class="absolute inset-x-0 -bottom-20 h-20 pattern-edge-muted pattern-diagonal-8 opacity-30 mask-image-[linear-gradient(to_bottom,black,transparent)] pointer-events-none" />
       {/* Gradient fades */}
       <div class="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none" />
       <div class="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-panel to-transparent z-10 pointer-events-none" />
@@ -1251,19 +1236,13 @@ const SoupList = (props: SoupListProps) => {
         cache={props.cache}
         ref={registerVirtualizerHandler}
         class={props.virtualizerClass}
-        data={dataWithEnd()}
+        data={stableRows}
         itemSize={itemSize()}
         bufferSize={overscan() * itemSize()}
         onScroll={handleScroll}
         data-soup-list-container
       >
-        {(row, i) =>
-          row.id === '__end__' ? (
-            <EndOfListIndicator />
-          ) : (
-            props.children(row, i)
-          )
-        }
+        {(row, i) => props.children(row, i)}
       </VList>
     </div>
   );
