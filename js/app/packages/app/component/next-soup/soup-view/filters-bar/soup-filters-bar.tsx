@@ -64,7 +64,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
 
   return (
     <Show when={!isMobile()}>
-      <div class="@container/filters flex flex-col w-full pt-2 gap-2">
+      <div class="@container/filters flex flex-col w-full pt-2 pb-3 gap-2">
         <Show when={props.searchView}>
           <div class="mx-2">
             <SoupSearchbar
@@ -75,9 +75,9 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
             />
           </div>
         </Show>
-        <div class="mx-2 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.12)] rounded-lg">
+        <div class="mx-2 rounded-lg border border-edge-muted/50 shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.08)]">
           <div class={cn(
-            'flex flex-col gap-1.5 px-2 pt-1.5 bg-ink/5',
+            'flex flex-col gap-1.5 px-2 pt-1.5 bg-ink/[0.03]',
             hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg pb-1.5'
           )}>
           <div class="flex items-center gap-2">
@@ -194,7 +194,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
           </div>
         </div>
         <Show when={hasActiveFilters()}>
-          <div class="px-2 py-1.5 bg-ink/5 rounded-b-lg">
+          <div class="px-2 py-1.5 bg-ink/[0.03] border-t border-edge-muted/30 rounded-b-lg">
             <ActiveFilterChips
               filters={activeFiltersList()}
               onRemove={removeFilter}
