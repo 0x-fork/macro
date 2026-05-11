@@ -157,6 +157,8 @@
 @custom-variant ios (&:where(.tauri-ios *));
 @custom-variant touch (&:where(html[data-touch-device="true"] *));
 @custom-variant mobile-width (@media (max-width: 639px));
+@custom-variant theme-dark (&:where(html[data-theme-mode="dark"] *));
+@custom-variant theme-light (&:where(html[data-theme-mode="light"] *));
 /* `mobile:` is equivalent to `touch:mobile-width:` */
 @custom-variant mobile {
   &:where(html[data-touch-device="true"] *) {
@@ -206,6 +208,18 @@
 /* utils for patterned bg images */
 @utility pattern-* {
   --pattern-color: --value(--color-*);
+}
+
+/* inset bevel shadow - adapts to light/dark theme */
+@utility shadow-inset-bevel {
+  box-shadow:
+    inset 0 1px 0 oklch(from var(--color-ink) l c h / 0.08),
+    inset 0 -1px 0 oklch(from var(--color-page) l c h / 0.5);
+}
+html[data-theme-mode="dark"] .shadow-inset-bevel {
+  box-shadow:
+    inset 0 1px 0 oklch(from var(--color-ink) l c h / 0.1),
+    inset 0 -1px 0 oklch(from var(--color-ink) l c h / 0.05);
 }
 
 /* utils for striped bg images */

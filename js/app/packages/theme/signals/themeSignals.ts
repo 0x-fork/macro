@@ -3,6 +3,7 @@ import { createEffect, createMemo, createSignal } from 'solid-js';
 import type { ThemeV0, ThemeV1, ThemeV2 } from '../types/themeTypes';
 import { convertThemev0v1, convertThemev1v2 } from '../utils/themeMigrations';
 import { makePersisted } from '@solid-primitives/storage';
+import { themeReactive } from './themeReactive';
 
 export const [isThemeSaved, setIsThemeSaved] = createSignal<boolean>(true);
 
@@ -110,4 +111,9 @@ createEffect(() => {
     document.documentElement.style.setProperty( '--theme-task'  , 'oklch(var(--a0l) var(--a0c) 150)');
     document.documentElement.style.setProperty( '--theme-pdf'   , 'oklch(var(--a0l) var(--a0c)  25)');
   }
+});
+
+createEffect(() => {
+  const isDark = themeReactive.c0.l[0]() > themeReactive.b0.l[0]();
+  document.documentElement.setAttribute('data-theme-mode', isDark ? 'dark' : 'light');
 });
