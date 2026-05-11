@@ -61,7 +61,8 @@ export const TaskCircleIcon = (props: TaskCircleIconProps) => {
         stroke="currentColor"
         stroke-width="1"
         stroke-linejoin="round"
-        fill={isDone() ? 'currentColor' : 'none'}
+        fill={isDone() || isCancelled() ? 'currentColor' : 'none'}
+        opacity={isCancelled() ? 0.7 : 1}
         class="transition-all duration-200"
       />
 
@@ -99,8 +100,8 @@ export const TaskCircleIcon = (props: TaskCircleIconProps) => {
 
       {/* X mark for cancelled state */}
       <path
-        d="M4.25 4.25L7.75 7.75M7.75 4.25L4.25 7.75"
-        stroke="currentColor"
+        d="M4.5 4.5L7.5 7.5M7.5 4.5L4.5 7.5"
+        stroke="var(--color-panel, white)"
         stroke-width="1.25"
         stroke-linecap="round"
         class="transition-opacity duration-300"
