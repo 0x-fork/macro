@@ -28,11 +28,11 @@ use system_properties::{StatusOption, SystemPropertyKey};
 use uuid::Uuid;
 
 use crate::domain::models::GroupedSoupItem;
-use models_grouping::{GroupByField, GroupingConfig};
 use crate::outbound::pg_soup_repo::grouping::{
     date_bucket_order_expr, group_join_clause, group_select_expr,
 };
 use crate::outbound::pg_soup_repo::{populate_properties, type_err};
+use models_grouping::{GroupByField, GroupingConfig};
 
 static PREFIX: &str = r#"
     WITH user_source_ids AS (

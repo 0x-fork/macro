@@ -6,7 +6,6 @@ use crate::domain::{
     },
     ports::SoupService,
 };
-use models_grouping::{GroupByField, GroupingConfig};
 use axum::{
     Json, Router,
     extract::{FromRef, Query, State},
@@ -39,6 +38,7 @@ use item_filters::{
 use macro_user_id::user_id::MacroUserIdStr;
 use model_error_response::ErrorResponse;
 use model_user::axum_extractor::MacroUserExtractor;
+use models_grouping::{GroupByField, GroupingConfig};
 use models_pagination::{
     CursorWithValAndFilter, Frecency, PaginatedOpaqueCursor, SimpleSortMethod, SortMethod,
     TypeEraseCursor,
@@ -486,9 +486,7 @@ fn resolve_group_label_and_order(key: &str, group_by: &ApiGroupByField) -> (Stri
             entity_type_labels::label(key).to_string(),
             Some(entity_type_labels::display_order(key)),
         ),
-        ApiGroupByField::Project if key.is_empty() => {
-            ("No Project".to_string(), Some(i32::MAX))
-        }
+        ApiGroupByField::Project if key.is_empty() => ("No Project".to_string(), Some(i32::MAX)),
         ApiGroupByField::Property { .. } if key.is_empty() => {
             ("Not Set".to_string(), Some(i32::MAX))
         }
