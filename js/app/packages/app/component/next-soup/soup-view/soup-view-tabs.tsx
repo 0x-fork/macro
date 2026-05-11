@@ -160,9 +160,9 @@ const ViewTabs = (props: { view: TabbedListView }) => {
           <button
             type="button"
             class={cn(
-              'px-2 py-0.5 text-xs rounded-sm transition-colors',
+              'px-2 py-0.5 text-xs rounded-sm transition-all',
               activeTab() === item.value
-                ? 'bg-ink/10 text-ink'
+                ? 'bg-ink/10 text-ink shadow-inset-bevel'
                 : 'text-ink-extra-muted hover:text-ink hover:bg-ink/5'
             )}
             onClick={() => applyTabPreset(props.view, item.value)}
@@ -284,7 +284,7 @@ const OverflowViewTabs = (props: { view: TabbedListView }) => {
               class={cn(
                 TAB_BUTTON_CLASS,
                 activeTab() === item.value
-                  ? 'bg-ink/10 text-ink'
+                  ? 'bg-ink/10 text-ink shadow-inset-bevel'
                   : 'text-ink-extra-muted hover:text-ink hover:bg-ink/5'
               )}
               onClick={() => applyTabPreset(props.view, item.value)}
@@ -301,7 +301,7 @@ const OverflowViewTabs = (props: { view: TabbedListView }) => {
               class={cn(
                 TAB_BUTTON_CLASS,
                 overflowTabs().some((t) => t.value === activeTab())
-                  ? 'bg-ink/10 text-ink'
+                  ? 'bg-ink/10 text-ink shadow-inset-bevel'
                   : 'text-ink-extra-muted hover:text-ink hover:bg-ink/5'
               )}
             >

@@ -75,7 +75,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
             />
           </div>
         </Show>
-        <div class="mx-2 rounded-lg border border-edge-muted/50 shadow-[0_1px_3px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div class="mx-2 rounded-lg border border-edge-muted/50 shadow-inset-bevel">
           <div class={cn(
             'flex flex-col gap-1.5 px-2 pt-1.5 bg-ink/[0.03]',
             hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg pb-1.5'
