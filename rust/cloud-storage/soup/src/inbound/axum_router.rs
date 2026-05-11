@@ -1,11 +1,12 @@
 use crate::domain::{
     models::{
-        FrecencyQueryInner, FrecencySoupItem, GroupByField, GroupMeta, GroupedSortRequest,
-        GroupingConfig, IntoSoupReqAst, NO_VALUE_KEY, SimpleQueryInner, SoupErr, SoupQuery,
-        SoupRequest, SoupType, date_buckets, entity_type_labels,
+        FrecencyQueryInner, FrecencySoupItem, GroupMeta, GroupedSortRequest, IntoSoupReqAst,
+        NO_VALUE_KEY, SimpleQueryInner, SoupErr, SoupQuery, SoupRequest, SoupType, date_buckets,
+        entity_type_labels,
     },
     ports::SoupService,
 };
+use models_grouping::{GroupByField, GroupingConfig};
 use axum::{
     Json, Router,
     extract::{FromRef, Query, State},
@@ -167,7 +168,7 @@ impl From<ApiGroupByField> for GroupByField {
                 entity_type,
             } => GroupByField::Property {
                 property_definition_id,
-                entity_type: entity_type.map(|et| et.into()),
+                entity_type: entity_type.map(|et| PropertyEntityType::from(et).to_string()),
             },
         }
     }
@@ -335,6 +336,7 @@ where
         let grouping = GroupingConfig {
             field: GroupByField::from(group_by.clone()),
             group_key: params.group_key.clone(),
+            per_group_limit: None,
         };
 
         // Use cursor if provided, otherwise start fresh

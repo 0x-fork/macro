@@ -1,8 +1,6 @@
 mod grouping;
 
-pub use grouping::{
-    GroupByField, GroupMeta, GroupingConfig, NO_VALUE_KEY, date_buckets, entity_type_labels,
-};
+pub use grouping::{GroupMeta, NO_VALUE_KEY, date_buckets, entity_type_labels};
 
 use call::domain::models::GetCallRecordsRequest;
 use comms::domain::models::GetChannelsRequest;
@@ -14,6 +12,7 @@ use item_filters::{
 };
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::Entity;
+use models_grouping::GroupingConfig;
 use models_pagination::{
     Cursor, CursorVal, CursorWithValAndFilter, Frecency, FrecencyValue, Identify, Query,
     SimpleSortMethod, SortOn,
@@ -294,6 +293,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
                 // we don't yet have sort by frecency implemented for emails yet
                 SoupQuery::Frecency(_) => None,
             }?,
+            grouping: None,
         })
     }
 

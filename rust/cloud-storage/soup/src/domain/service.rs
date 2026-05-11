@@ -104,6 +104,18 @@ where
         }))
     }
 
+    #[tracing::instrument(err, skip(self, req))]
+    async fn handle_grouped_soup_request(
+        &self,
+        req: GroupedSortRequest<'_>,
+    ) -> Result<Vec<GroupedSoupItem>, SoupErr> {
+        self.soup_storage
+            .expanded_grouped_cursor_soup(req)
+            .await
+            .map_err(anyhow::Error::from)
+            .map_err(SoupErr::SoupDbErr)
+    }
+
     #[tracing::instrument(skip(self, req))]
     async fn handle_soup_by_ids(
         &self,
@@ -474,10 +486,6 @@ where
         &self,
         req: GroupedSortRequest<'_>,
     ) -> Result<Vec<GroupedSoupItem>, SoupErr> {
-        self.soup_storage
-            .expanded_grouped_cursor_soup(req)
-            .await
-            .map_err(anyhow::Error::from)
-            .map_err(SoupErr::SoupDbErr)
+        self.handle_grouped_soup_request(req).await
     }
 }

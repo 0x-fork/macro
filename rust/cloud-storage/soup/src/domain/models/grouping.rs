@@ -1,39 +1,6 @@
-//! Grouping models for soup queries.
+//! Grouping utilities for soup queries.
 
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
-use item_filters::ast::properties::PropertyEntityType;
-
-/// Field to group soup results by.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GroupByField {
-    /// Smart date buckets: Today, Yesterday, This Week, Last Week, This Month, Last Month, Older
-    Date,
-    /// Group by entity type (document, email, channel, etc.)
-    EntityType,
-    /// Group by project
-    Project,
-    /// Group by a property value (e.g., status, priority, or custom properties)
-    #[serde(rename = "property")]
-    Property {
-        /// The property definition UUID to group by
-        property_definition_id: Uuid,
-        /// Optional entity type filter for the property lookup
-        #[serde(skip_serializing_if = "Option::is_none")]
-        entity_type: Option<PropertyEntityType>,
-    },
-}
-
-/// Configuration for grouped soup queries.
-#[derive(Debug, Clone)]
-pub struct GroupingConfig {
-    /// The field to group by
-    pub field: GroupByField,
-    /// Filter results to a specific group key (for "load more in group X")
-    pub group_key: Option<String>,
-}
+use serde::Serialize;
 
 /// Metadata about a group of items.
 #[derive(Debug, Clone, Serialize)]
