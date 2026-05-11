@@ -1381,38 +1381,102 @@ function TaskPropertyPills(props: {
   entity: EntityWithProperties<EntityData>;
   dim?: boolean;
 }) {
+  const statusData = createMemo(() => {
+    const soupProperties = props.entity.properties ?? [];
+    const prop = soupProperties
+      .map(soupPropertyToProperty)
+      .find((p) => p.propertyDefinitionId === SYSTEM_PROPERTY_IDS.STATUS);
+    if (!prop || prop.valueType !== 'SELECT_STRING') return null;
+    const selectedId = prop.value?.[0];
+    if (!selectedId) return null;
+    const label = formatPropertyValue(prop, selectedId);
+    return { id: selectedId, label };
+  });
+
+  const priorityData = createMemo(() => {
+    const soupProperties = props.entity.properties ?? [];
+    const prop = soupProperties
+      .map(soupPropertyToProperty)
+      .find((p) => p.propertyDefinitionId === SYSTEM_PROPERTY_IDS.PRIORITY);
+    if (!prop || prop.valueType !== 'SELECT_STRING') return null;
+    const selectedId = prop.value?.[0];
+    if (!selectedId) return null;
+    const label = formatPropertyValue(prop, selectedId);
+    return { id: selectedId, label };
+  });
+
+  const assigneeIds = createMemo(() => {
+    const soupProperties = props.entity.properties ?? [];
+    const prop = soupProperties
+      .map(soupPropertyToProperty)
+      .find((p) => p.propertyDefinitionId === SYSTEM_PROPERTY_IDS.ASSIGNEES);
+    if (!prop || prop.valueType !== 'ENTITY') return [];
+    return prop.value?.map((e) => e.entity_id) ?? [];
+  });
+
   return (
     <>
-      <span
-        class={cn(
-          'flex items-center gap-1.5 px-1 py-0.5 rounded-xs border text-xs whitespace-nowrap shrink-0',
-          props.dim
-            ? 'border-edge-muted/50 text-ink-muted/70'
-            : 'border-edge-muted text-ink-muted'
+      <Show when={statusData()}>
+        {(status) => (
+          <span
+            class={cn(
+              'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0 shadow-inset-bevel transition-colors',
+              props.dim
+                ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
+                : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
+            )}
+          >
+            <PropertyValueIcon optionId={status().id} class="size-3" />
+            <span class="truncate">{status().label}</span>
+          </span>
         )}
-      >
-        <StatusPillContent entity={props.entity} />
-      </span>
-      <span
-        class={cn(
-          'flex items-center gap-1.5 px-1 py-0.5 rounded-xs border text-xs whitespace-nowrap shrink-0',
-          props.dim
-            ? 'border-edge-muted/50 text-ink-muted/70'
-            : 'border-edge-muted text-ink-muted'
+      </Show>
+      <Show when={priorityData()}>
+        {(priority) => (
+          <span
+            class={cn(
+              'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0 shadow-inset-bevel transition-colors',
+              props.dim
+                ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
+                : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
+            )}
+          >
+            <PropertyValueIcon optionId={priority().id} class="size-3 shrink-0" />
+            <span class="truncate">{priority().label}</span>
+          </span>
         )}
-      >
-        <PriorityPillContent entity={props.entity} />
-      </span>
-      <span
-        class={cn(
-          'flex items-center gap-1.5 px-1 py-0.5 rounded-xs border text-xs whitespace-nowrap basis-24 grow max-w-fit overflow-hidden',
-          props.dim
-            ? 'border-edge-muted/50 text-ink-muted/70'
-            : 'border-edge-muted text-ink-muted'
-        )}
-      >
-        <AssigneesPillContent entity={props.entity} />
-      </span>
+      </Show>
+      <Show when={assigneeIds().length > 0}>
+        <span
+          class={cn(
+            'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0 shadow-inset-bevel transition-colors overflow-hidden',
+            props.dim
+              ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
+              : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
+          )}
+        >
+          <div class="flex items-center">
+            <For each={assigneeIds().slice(0, 3)}>
+              {(id, index) => (
+                <span class={cn("size-4 shrink-0 flex items-center justify-center rounded-full bg-page ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-2")}>
+                  <UserIcon id={id} size="fill" />
+                </span>
+              )}
+            </For>
+            <Show when={assigneeIds().length > 3}>
+              <span class="-ml-2 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink text-[9px] font-medium ring-1 ring-edge-muted">
+                +{assigneeIds().length - 3}
+              </span>
+            </Show>
+          </div>
+          <span class="truncate">
+            <DisplayName id={assigneeIds()[0]} format="firstName" />
+            <Show when={assigneeIds().length > 1}>
+              <span class="text-ink-extra-muted"> +{assigneeIds().length - 1}</span>
+            </Show>
+          </span>
+        </span>
+      </Show>
     </>
   );
 }
@@ -1584,55 +1648,11 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
               </Show>
             </span>
           </span>
-          <div class="flex flex-wrap items-center justify-end gap-1.5 min-w-0">
-            <Show
-              when={mobile}
-              fallback={
-                <>
-                  <Show
-                    when={taskPriority()?.id}
-                    fallback={<span class="w-3 h-px bg-edge-muted" />}
-                  >
-                    <TaskPropertyPill property={taskPriority()!.property} dim={dim()}>
-                      <PropertyValueIcon optionId={taskPriority()!.id!} class="size-3 shrink-0" />
-                      <span class="truncate">{taskPriority()!.label}</span>
-                    </TaskPropertyPill>
-                  </Show>
-                  <Show
-                    when={taskAssignees()?.ids.length}
-                    fallback={<span class="w-3 h-px bg-edge-muted" />}
-                  >
-                    <TaskPropertyPill property={taskAssignees()!.property} dim={dim()}>
-                      <div class="flex items-center shrink-0">
-                        <For each={taskAssignees()!.ids.slice(0, 2)}>
-                          {(id, index) => (
-                            <span class={cn("size-4 shrink-0 rounded-full ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-1.5")}>
-                              <UserIcon id={id} size="fill" />
-                            </span>
-                          )}
-                        </For>
-                        <Show when={taskAssignees()!.ids.length > 2}>
-                          <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink-muted text-[9px] font-medium ring-1 ring-edge-muted">
-                            +{taskAssignees()!.ids.length - 2}
-                          </span>
-                        </Show>
-                      </div>
-                      <span class="truncate">
-                        <DisplayName id={taskAssignees()!.ids[0]} format="firstName" />
-                        <Show when={taskAssignees()!.ids.length > 1}>
-                          <span class="text-ink-extra-muted"> +{taskAssignees()!.ids.length - 1}</span>
-                        </Show>
-                      </span>
-                    </TaskPropertyPill>
-                  </Show>
-                </>
-              }
-            >
-              <TaskPropertyPills
-                entity={props.entity as EntityWithProperties<EntityData>}
-                dim={dim()}
-              />
-            </Show>
+          <div class="flex flex-wrap items-center justify-start gap-1.5 min-w-0">
+            <TaskPropertyPills
+              entity={props.entity as EntityWithProperties<EntityData>}
+              dim={dim()}
+            />
           </div>
         </div>
       </div>
