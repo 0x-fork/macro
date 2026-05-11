@@ -7,6 +7,15 @@ import { match } from 'ts-pattern';
 import type { EntityData } from '../types/entity';
 import { isSearchEntity } from '../types/search';
 
+/**
+ * Strip leading "Re:" prefixes from an email subject, case-insensitive,
+ * including stacked variants like "Re: RE: re: ..." that some clients
+ * accumulate.
+ */
+function stripEmailReplyPrefixes(subject: string): string {
+  return subject.replace(/^(?:re:\s*)+/i, '');
+}
+
 function extractRawTitle(entity: EntityData): string {
   return match(entity)
     .with({ type: 'document' }, (e) =>
@@ -17,7 +26,10 @@ function extractRawTitle(entity: EntityData): string {
     .with({ type: 'project' }, (e) => e.name)
     .with({ type: 'channel' }, (e) => e.name)
     .with({ type: 'channel_message' }, (e) => e.channelName)
-    .with({ type: 'email' }, (e) => e.name || '(No Subject)')
+    .with(
+      { type: 'email' },
+      (e) => stripEmailReplyPrefixes(e.name ?? '') || '(No Subject)'
+    )
     .with({ type: 'chat' }, (e) => e.name)
     .with({ type: 'call' }, (e) => e.name || blockNameToDefaultFile('call'))
     .with(

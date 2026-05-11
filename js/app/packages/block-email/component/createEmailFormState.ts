@@ -46,6 +46,12 @@ export interface EmailFormStateOptions {
   getMessageByID: (id: string) => ApiMessage | undefined;
   getDraftForMessageReply: (id: string) => ApiMessage | undefined;
   onRecipientsChange?: (next: EmailRecipient[]) => void;
+  /**
+   * Recipients to pre-fill into the To field for a brand-new compose (no
+   * draft, no replyingTo). Ignored if `purpose` is set, since draft/reply
+   * state takes precedence.
+   */
+  initialRecipients?: EmailRecipient[];
 }
 
 type EmailFormState = {
@@ -137,6 +143,12 @@ export function createEmailFormState(
         replyType === 'reply-all'
           ? getReplyAllRecipients(replyingTo, userEmail() ?? '')
           : getReplyRecipientsFromParent(replyingTo, userEmail() ?? '');
+    } else if (options?.initialRecipients?.length) {
+      initialRecipients = {
+        to: [...options.initialRecipients],
+        cc: [],
+        bcc: [],
+      };
     }
 
     return {

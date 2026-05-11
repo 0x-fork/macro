@@ -105,6 +105,11 @@ export const ENABLE_PROFILE_PICTURES = resolveFeatureFlag(
   true
 );
 
+export const ENABLE_CONTACT_BLOCK = resolveFeatureFlag(
+  'ENABLE_CONTACT_BLOCK',
+  DEV_MODE_ENV
+);
+
 export const ENABLE_VIDEO_BLOCK = resolveFeatureFlag(
   'ENABLE_VIDEO_BLOCK',
   true
