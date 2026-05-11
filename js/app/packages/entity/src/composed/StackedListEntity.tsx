@@ -44,6 +44,7 @@ import type { EntityRowConfig } from '../extractors-notification';
 import { PropertyValue } from '@core/component/Properties/component/propertyValue/PropertyValue';
 import {
   PropertiesProvider,
+  usePropertiesContext,
   type PropertySaveHandler,
 } from '@core/component/Properties/context/PropertiesContext';
 import { Modals } from '@core/component/Properties/component/modal';
@@ -523,8 +524,63 @@ function ChannelMessageLayout(
   );
 }
 
+function useTaskPriority(entity: EntityWithProperties<EntityData>) {
+  return createMemo(() => {
+    const soupProperties = entity.properties ?? [];
+    const prop = soupProperties
+      .map(soupPropertyToProperty)
+      .find((p) => p.propertyDefinitionId === SYSTEM_PROPERTY_IDS.PRIORITY);
+    if (!prop || prop.valueType !== 'SELECT_STRING') return null;
+    const selectedId = prop.value?.[0];
+    if (!selectedId) return { property: prop, id: null, label: null };
+    const label = formatPropertyValue(prop, selectedId);
+    return { property: prop, id: selectedId, label };
+  });
+}
+
+function useTaskAssignees(entity: EntityWithProperties<EntityData>) {
+  return createMemo(() => {
+    const soupProperties = entity.properties ?? [];
+    const prop = soupProperties
+      .map(soupPropertyToProperty)
+      .find((p) => p.propertyDefinitionId === SYSTEM_PROPERTY_IDS.ASSIGNEES);
+    if (!prop || prop.valueType !== 'ENTITY') return null;
+    const ids = prop.value?.map((e) => e.entity_id) ?? [];
+    return { property: prop, ids };
+  });
+}
+
 function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
   const taskStatus = useTaskStatus(props.entity as EntityWithProperties<EntityData>);
+  const taskPriority = useTaskPriority(props.entity as EntityWithProperties<EntityData>);
+  const taskAssignees = useTaskAssignees(props.entity as EntityWithProperties<EntityData>);
+
+  const properties = createMemo((): Property[] => {
+    const soupProperties = (props.entity as EntityWithProperties<EntityData>).properties ?? [];
+    return soupProperties
+      .map(soupPropertyToProperty)
+      .filter((p) => [SYSTEM_PROPERTY_IDS.STATUS, SYSTEM_PROPERTY_IDS.PRIORITY, SYSTEM_PROPERTY_IDS.ASSIGNEES].includes(p.propertyDefinitionId as typeof SYSTEM_PROPERTY_IDS.STATUS));
+  });
+
+  const saveMutation = useBulkSaveEntityPropertiesMutation();
+
+  const saveOne = (property: Property, apiValues: PropertyApiValues) =>
+    saveMutation.mutateAsync({
+      properties: [
+        {
+          entityId: props.entity.id,
+          entityType: EntityType.TASK,
+          property,
+          apiValues,
+        },
+      ],
+    });
+
+  const saveHandler: PropertySaveHandler = {
+    saveProperty: (property, value) => saveOne(property, value),
+    saveDate: (property, date) =>
+      saveOne(property, { valueType: 'DATE', value: date }),
+  };
 
   return (
     <LayoutShell
@@ -534,59 +590,130 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
       dimWhenRead={props.dimWhenRead ?? true}
       hasNotifications={props.hasNotifications}
     >
-      <div
-        class="grid items-center gap-x-2 min-w-0 w-full"
-        style={{ 'grid-template-columns': 'auto 1fr auto 1.25rem auto auto' }}
+      <PropertiesProvider
+        entityType={EntityType.TASK}
+        canEdit={true}
+        properties={properties}
+        onRefresh={() => {}}
+        onPropertyAdded={() => {}}
+        onPropertyDeleted={() => {}}
+        saveHandler={saveHandler}
       >
-        <div class="[&_svg]:size-4">
-          <Show
-            when={taskStatus()}
-            fallback={<HexDashedIcon class="size-4 text-ink-extra-muted" />}
-          >
-            <TaskPropertyGroup
-              entity={props.entity}
-              include={[SYSTEM_PROPERTY_IDS.STATUS]}
-            />
-          </Show>
-        </div>
-        <span class="flex items-center gap-1.5 min-w-0">
-          <span class="ph-no-capture text-sm truncate">
-            <Entity.Title entity={props.entity} />
-          </span>
-          <Show when={props.isShared}>
-            <SharedIndicator ownerId={props.entity.ownerId} />
-          </Show>
-        </span>
-        <Show
-          when={isProjectContainedEntity(props.entity) && props.entity}
-          fallback={<span />}
+        <div
+          class="grid items-center gap-x-2 min-w-0 w-full"
+          style={{ 'grid-template-columns': '1rem 1fr minmax(0, 8rem) 5.5rem 7.5rem 4.5rem' }}
         >
-          {(entity) => (
-            <span class="ph-no-capture text-ink-extra-muted text-xs truncate max-w-32">
-              <ProjectBreadCrumb
-                entity={entity()}
-                onClick={props.onProjectClick}
+          <div class="[&_svg]:size-4 flex justify-center">
+            <Show
+              when={taskStatus()}
+              fallback={<HexDashedIcon class="size-4 text-ink-extra-muted" />}
+            >
+              <TaskPropertyGroup
+                entity={props.entity}
+                include={[SYSTEM_PROPERTY_IDS.STATUS]}
               />
+            </Show>
+          </div>
+          <span class="flex items-center gap-1.5 min-w-0">
+            <span class="ph-no-capture text-sm truncate">
+              <Entity.Title entity={props.entity} />
             </span>
-          )}
-        </Show>
-        <div class="flex justify-end">
-          <TaskPropertyGroup
-            entity={props.entity}
-            include={[SYSTEM_PROPERTY_IDS.PRIORITY]}
-          />
+            <Show when={props.isShared}>
+              <SharedIndicator ownerId={props.entity.ownerId} />
+            </Show>
+          </span>
+          <Show
+            when={isProjectContainedEntity(props.entity) && props.entity}
+            fallback={<span />}
+          >
+            {(entity) => (
+              <span class="ph-no-capture text-ink-extra-muted text-xs truncate">
+                <ProjectBreadCrumb
+                  entity={entity()}
+                  onClick={props.onProjectClick}
+                />
+              </span>
+            )}
+          </Show>
+          <Show
+            when={taskPriority()?.id}
+            fallback={<span class="flex justify-center"><span class="w-3 h-px bg-edge-muted" /></span>}
+          >
+            <div class="flex justify-end min-w-0">
+              <TaskPropertyPill property={taskPriority()!.property}>
+                <PropertyValueIcon optionId={taskPriority()!.id!} class="size-3 shrink-0" />
+                <span class="truncate">{taskPriority()!.label}</span>
+              </TaskPropertyPill>
+            </div>
+          </Show>
+          <Show
+            when={taskAssignees()?.ids.length}
+            fallback={<span class="flex justify-center"><span class="w-3 h-px bg-edge-muted" /></span>}
+          >
+            <div class="flex justify-end min-w-0">
+              <TaskPropertyPill property={taskAssignees()!.property}>
+                <div class="flex items-center shrink-0">
+                  <For each={taskAssignees()!.ids.slice(0, 2)}>
+                    {(id, index) => (
+                      <span class={cn("size-4 shrink-0 rounded-full ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-1.5")}>
+                        <UserIcon id={id} size="fill" />
+                      </span>
+                    )}
+                  </For>
+                  <Show when={taskAssignees()!.ids.length > 2}>
+                    <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink-muted text-[9px] font-medium ring-1 ring-edge-muted">
+                      +{taskAssignees()!.ids.length - 2}
+                    </span>
+                  </Show>
+                </div>
+                <span class="truncate">
+                  <DisplayName id={taskAssignees()!.ids[0]} format="firstName" />
+                  <Show when={taskAssignees()!.ids.length > 1}>
+                    <span class="text-ink-extra-muted"> +{taskAssignees()!.ids.length - 1}</span>
+                  </Show>
+                </span>
+              </TaskPropertyPill>
+            </div>
+          </Show>
+          <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap">
+            <Entity.Timestamp entity={props.entity} />
+          </span>
         </div>
-        <div class="flex justify-end">
-          <TaskPropertyGroup
-            entity={props.entity}
-            include={[SYSTEM_PROPERTY_IDS.ASSIGNEES]}
-          />
-        </div>
-        <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
-          <Entity.Timestamp entity={props.entity} />
-        </span>
-      </div>
+        <Suspense>
+          <Modals />
+        </Suspense>
+      </PropertiesProvider>
     </LayoutShell>
+  );
+}
+
+function TaskPropertyPill(props: { property?: Property; empty?: boolean; dim?: boolean; children: JSX.Element }) {
+  const { openPropertyEditor } = usePropertiesContext();
+
+  const handleClick = (e: MouseEvent) => {
+    if (!props.property) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openPropertyEditor(props.property, e.currentTarget as HTMLElement);
+  };
+
+  return (
+    <div
+      class={cn(
+        "flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs transition-colors shadow-inset-bevel max-w-full",
+        props.empty
+          ? "border-dashed border-edge-muted text-ink-extra-muted hover:border-edge"
+          : props.dim
+            ? "bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50"
+            : "bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50",
+        props.property && "cursor-pointer"
+      )}
+      onClick={handleClick}
+      role={props.property ? "button" : undefined}
+      tabIndex={props.property ? 0 : undefined}
+    >
+      {props.children}
+    </div>
   );
 }
 
@@ -1293,180 +1420,226 @@ function TaskPropertyPills(props: {
 function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
   const mobile = isMobile();
   const taskStatus = useTaskStatus(props.entity as EntityWithProperties<EntityData>);
+  const taskPriority = useTaskPriority(props.entity as EntityWithProperties<EntityData>);
+  const taskAssignees = useTaskAssignees(props.entity as EntityWithProperties<EntityData>);
+
+  const properties = createMemo((): Property[] => {
+    const soupProperties = (props.entity as EntityWithProperties<EntityData>).properties ?? [];
+    return soupProperties
+      .map(soupPropertyToProperty)
+      .filter((p) => [SYSTEM_PROPERTY_IDS.STATUS, SYSTEM_PROPERTY_IDS.PRIORITY, SYSTEM_PROPERTY_IDS.ASSIGNEES].includes(p.propertyDefinitionId as typeof SYSTEM_PROPERTY_IDS.STATUS));
+  });
+
+  const saveMutation = useBulkSaveEntityPropertiesMutation();
+
+  const saveOne = (property: Property, apiValues: PropertyApiValues) =>
+    saveMutation.mutateAsync({
+      properties: [
+        {
+          entityId: props.entity.id,
+          entityType: EntityType.TASK,
+          property,
+          apiValues,
+        },
+      ],
+    });
+
+  const saveHandler: PropertySaveHandler = {
+    saveProperty: (property, value) => saveOne(property, value),
+    saveDate: (property, date) =>
+      saveOne(property, { valueType: 'DATE', value: date }),
+  };
+
+  const dim = () => (props.dimWhenRead ?? true) && !props.unread;
 
   return (
-    <div
-      class={cn('grid w-full text-sm py-2 px-2', mobile && 'min-h-[5.25rem]')}
-      style={{
-        'grid-template-columns': mobile ? '3rem 1fr' : '1.5rem 1fr',
-        gap: '0 0.75rem',
-      }}
+    <PropertiesProvider
+      entityType={EntityType.TASK}
+      canEdit={true}
+      properties={properties}
+      onRefresh={() => {}}
+      onPropertyAdded={() => {}}
+      onPropertyDeleted={() => {}}
+      saveHandler={saveHandler}
     >
-      <Show
-        when={mobile}
-        fallback={
+      <div
+        class={cn('grid w-full text-sm py-2 px-2', mobile && 'min-h-[5.25rem]')}
+        style={{
+          'grid-template-columns': mobile ? '3rem 1fr' : '1.5rem 1fr',
+          gap: '0 0.75rem',
+        }}
+      >
+        <Show
+          when={mobile}
+          fallback={
+            <div
+              class="row-span-full flex justify-center relative group pt-1.5"
+              style={{ 'grid-column': '1' }}
+            >
+              <UnreadIndicator
+                active={props.unread}
+                class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+              />
+              <div
+                class={cn(
+                  'absolute inset-0 flex justify-center pt-1.5',
+                  props.checked
+                    ? 'opacity-100'
+                    : 'opacity-0 group-hover:opacity-100'
+                )}
+              >
+                <MultiSelectCheckbox
+                  checked={props.checked}
+                  onChecked={props.onChecked}
+                />
+              </div>
+            </div>
+          }
+        >
           <div
-            class="row-span-full flex justify-center relative group pt-1.5"
+            class="row-span-full flex items-start justify-center"
             style={{ 'grid-column': '1' }}
           >
-            <UnreadIndicator
-              active={props.unread}
-              class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
-            />
-            <div
-              class={cn(
-                'absolute inset-0 flex justify-center pt-1.5',
-                props.checked
-                  ? 'opacity-100'
-                  : 'opacity-0 group-hover:opacity-100'
-              )}
-            >
-              <MultiSelectCheckbox
-                checked={props.checked}
-                onChecked={props.onChecked}
-              />
-            </div>
-          </div>
-        }
-      >
-        <div
-          class="row-span-full flex items-start justify-center"
-          style={{ 'grid-column': '1' }}
-        >
-          <div class="relative flex">
-            <button
-              type="button"
-              class={cn(
-                'size-10 rounded-md overflow-hidden transition-colors',
-                props.checked && 'ring-2 ring-accent'
-              )}
-              onClick={(e) => {
-                e.stopPropagation();
-                props.onChecked?.(!props.checked, e.shiftKey);
-              }}
-            >
-              <Show
-                when={props.checked}
-                fallback={
-                  <UserIcon
-                    id={props.entity.ownerId}
-                    size="fill"
-                    rounded="md"
-                    suppressClick
-                  />
-                }
+            <div class="relative flex">
+              <button
+                type="button"
+                class={cn(
+                  'size-10 rounded-md overflow-hidden transition-colors',
+                  props.checked && 'ring-2 ring-accent'
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onChecked?.(!props.checked, e.shiftKey);
+                }}
               >
-                <div class="size-full bg-accent grid place-items-center text-white">
-                  <CheckIcon class="size-5" />
-                </div>
-              </Show>
-            </button>
-            <Show when={props.isShared}>
-              <div class="absolute -bottom-px -right-px rounded-sm bg-surface-0 p-0.5">
-                <UsersIcon class="size-3 opacity-70" />
-              </div>
-            </Show>
-          </div>
-        </div>
-      </Show>
-      <div
-        class={cn('flex flex-col gap-0.5 min-w-0 pt-1.5', {
-          'opacity-80 font-normal':
-            (props.dimWhenRead ?? true) && !props.unread,
-          'font-semibold': props.unread,
-        })}
-        style={{ 'grid-column': '2' }}
-      >
-        <span class="flex items-center gap-2 min-w-0">
-          <span class="flex items-center gap-1.5 min-w-0">
-            <Show when={!mobile}>
-              <span class="shrink-0 [&_svg]:size-4">
                 <Show
-                  when={taskStatus()}
+                  when={props.checked}
                   fallback={
-                    <CircleDashedIcon class="size-4 text-ink-extra-muted" />
+                    <UserIcon
+                      id={props.entity.ownerId}
+                      size="fill"
+                      rounded="md"
+                      suppressClick
+                    />
                   }
                 >
-                  <TaskPropertyGroup
-                    entity={props.entity}
-                    include={[SYSTEM_PROPERTY_IDS.STATUS]}
-                  />
+                  <div class="size-full bg-accent grid place-items-center text-white">
+                    <CheckIcon class="size-5" />
+                  </div>
                 </Show>
+              </button>
+              <Show when={props.isShared}>
+                <div class="absolute -bottom-px -right-px rounded-sm bg-surface-0 p-0.5">
+                  <UsersIcon class="size-3 opacity-70" />
+                </div>
+              </Show>
+            </div>
+          </div>
+        </Show>
+        <div
+          class={cn('flex flex-col gap-0.5 min-w-0 pt-1.5', {
+            'opacity-80 font-normal': dim(),
+            'font-semibold': props.unread,
+          })}
+          style={{ 'grid-column': '2' }}
+        >
+          <span class="flex items-center gap-2 min-w-0">
+            <span class="flex items-center gap-1.5 min-w-0">
+              <Show when={!mobile}>
+                <span class="shrink-0 [&_svg]:size-4">
+                  <Show
+                    when={taskStatus()}
+                    fallback={
+                      <HexDashedIcon class="size-4 text-ink-extra-muted" />
+                    }
+                  >
+                    <TaskPropertyGroup
+                      entity={props.entity}
+                      include={[SYSTEM_PROPERTY_IDS.STATUS]}
+                    />
+                  </Show>
+                </span>
+              </Show>
+              <span class="ph-no-capture text-sm truncate">
+                <Entity.Title entity={props.entity} />
               </span>
-            </Show>
-            <span class="ph-no-capture text-sm truncate">
-              <Entity.Title entity={props.entity} />
+            </span>
+            <span class="ml-auto text-xs text-ink-extra-muted font-light whitespace-nowrap shrink-0">
+              <Entity.Timestamp entity={props.entity} />
             </span>
           </span>
-          <span class="ml-auto text-xs text-ink-extra-muted font-light whitespace-nowrap shrink-0">
-            <Entity.Timestamp entity={props.entity} />
-          </span>
-        </span>
-        <span class="text-sm text-ink-muted truncate min-h-[1.25rem]">
-          <span class="flex items-center gap-1 text-xs text-ink/50">
-            <Show
-              when={props.isShared}
-              fallback={
-                <>
-                  <UserFillIcon class="size-3 shrink-0" />
-                  <DisplayName id={props.entity.ownerId} />
-                </>
-              }
-            >
-              <UsersIcon class="size-3 shrink-0" />
-              <DisplayName id={props.entity.ownerId} />
-            </Show>
-          </span>
-        </span>
-        <div class="flex flex-wrap items-center gap-1 min-w-0">
-          {(() => {
-            const dim = (props.dimWhenRead ?? true) && !props.unread;
-            return (
+          <span class="text-sm text-ink-muted truncate min-h-[1.25rem]">
+            <span class="flex items-center gap-1 text-xs text-ink/50">
               <Show
-                when={mobile}
+                when={props.isShared}
                 fallback={
                   <>
-                    <span
-                      class={cn(
-                        'flex items-center gap-1.5 px-1 py-0.5 rounded-xs border text-xs whitespace-nowrap shrink-0',
-                        dim
-                          ? 'border-edge-muted/50 text-ink-muted/70'
-                          : 'border-edge-muted text-ink-muted'
-                      )}
-                    >
-                      <PriorityPillContent
-                        entity={
-                          props.entity as EntityWithProperties<EntityData>
-                        }
-                      />
-                    </span>
-                    <span
-                      class={cn(
-                        'flex items-center gap-1.5 px-1 py-0.5 rounded-xs border text-xs whitespace-nowrap basis-24 grow max-w-fit overflow-hidden',
-                        dim
-                          ? 'border-edge-muted/50 text-ink-muted/70'
-                          : 'border-edge-muted text-ink-muted'
-                      )}
-                    >
-                      <AssigneesPillContent
-                        entity={
-                          props.entity as EntityWithProperties<EntityData>
-                        }
-                      />
-                    </span>
+                    <UserFillIcon class="size-3 shrink-0" />
+                    <DisplayName id={props.entity.ownerId} />
                   </>
                 }
               >
-                <TaskPropertyPills
-                  entity={props.entity as EntityWithProperties<EntityData>}
-                  dim={dim}
-                />
+                <UsersIcon class="size-3 shrink-0" />
+                <DisplayName id={props.entity.ownerId} />
               </Show>
-            );
-          })()}
+            </span>
+          </span>
+          <div class="flex flex-wrap items-center justify-end gap-1.5 min-w-0">
+            <Show
+              when={mobile}
+              fallback={
+                <>
+                  <Show
+                    when={taskPriority()?.id}
+                    fallback={<span class="w-3 h-px bg-edge-muted" />}
+                  >
+                    <TaskPropertyPill property={taskPriority()!.property} dim={dim()}>
+                      <PropertyValueIcon optionId={taskPriority()!.id!} class="size-3 shrink-0" />
+                      <span class="truncate">{taskPriority()!.label}</span>
+                    </TaskPropertyPill>
+                  </Show>
+                  <Show
+                    when={taskAssignees()?.ids.length}
+                    fallback={<span class="w-3 h-px bg-edge-muted" />}
+                  >
+                    <TaskPropertyPill property={taskAssignees()!.property} dim={dim()}>
+                      <div class="flex items-center shrink-0">
+                        <For each={taskAssignees()!.ids.slice(0, 2)}>
+                          {(id, index) => (
+                            <span class={cn("size-4 shrink-0 rounded-full ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-1.5")}>
+                              <UserIcon id={id} size="fill" />
+                            </span>
+                          )}
+                        </For>
+                        <Show when={taskAssignees()!.ids.length > 2}>
+                          <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink-muted text-[9px] font-medium ring-1 ring-edge-muted">
+                            +{taskAssignees()!.ids.length - 2}
+                          </span>
+                        </Show>
+                      </div>
+                      <span class="truncate">
+                        <DisplayName id={taskAssignees()!.ids[0]} format="firstName" />
+                        <Show when={taskAssignees()!.ids.length > 1}>
+                          <span class="text-ink-extra-muted"> +{taskAssignees()!.ids.length - 1}</span>
+                        </Show>
+                      </span>
+                    </TaskPropertyPill>
+                  </Show>
+                </>
+              }
+            >
+              <TaskPropertyPills
+                entity={props.entity as EntityWithProperties<EntityData>}
+                dim={dim()}
+              />
+            </Show>
+          </div>
         </div>
       </div>
-    </div>
+      <Suspense>
+        <Modals />
+      </Suspense>
+    </PropertiesProvider>
   );
 }
 
