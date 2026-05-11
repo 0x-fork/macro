@@ -624,15 +624,17 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           </span>
           <Show
             when={isProjectContainedEntity(props.entity) && props.entity}
-            fallback={<span />}
+            fallback={<span class="flex justify-center"><span class="w-3 h-px bg-edge-muted" /></span>}
           >
             {(entity) => (
-              <span class="ph-no-capture text-ink-extra-muted text-xs truncate">
-                <ProjectBreadCrumb
-                  entity={entity()}
-                  onClick={props.onProjectClick}
-                />
-              </span>
+              <div class="flex justify-end min-w-0">
+                <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate shadow-inset-bevel max-w-full">
+                  <ProjectBreadCrumb
+                    entity={entity()}
+                    onClick={props.onProjectClick}
+                  />
+                </span>
+              </div>
             )}
           </Show>
           <Show
@@ -872,7 +874,7 @@ function DefaultLayout(props: BaseLayoutProps) {
         <div class="ml-auto flex items-center gap-2 shrink-0">
           <Show when={isProjectContainedEntity(props.entity) && props.entity}>
             {(entity) => (
-              <span class="ph-no-capture text-ink-extra-muted text-xs">
+              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate shadow-inset-bevel">
                 <ProjectBreadCrumb
                   entity={entity()}
                   onClick={props.onProjectClick}
@@ -1909,7 +1911,7 @@ function NarrowDefaultLayout(props: BaseLayoutProps) {
         <div class="flex flex-wrap items-center gap-2 min-w-0 mt-1">
           <Show when={isProjectContainedEntity(props.entity) && props.entity}>
             {(entity) => (
-              <span class="ph-no-capture text-ink-extra-muted text-xs truncate">
+              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate shadow-inset-bevel">
                 <ProjectBreadCrumb
                   entity={entity()}
                   onClick={props.onProjectClick}
