@@ -19,7 +19,6 @@ import {
   Match,
   on,
   onCleanup,
-  onMount,
   Show,
   Switch,
 } from 'solid-js';
@@ -185,7 +184,6 @@ const OverflowViewTabs = (props: { view: TabbedListView }) => {
   const list = () => VIEW_TAB_LISTS[props.view];
 
   let measureRef: HTMLDivElement | undefined;
-  let rafId: number | undefined;
   let tabWidths: number[] = [];
 
   const [visibleCount, setVisibleCount] = createSignal(list().length);

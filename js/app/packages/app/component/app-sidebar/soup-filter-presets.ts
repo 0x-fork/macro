@@ -67,7 +67,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
     default: 'all',
     tabs: {
       all: () => ({
-        queryFilters: {},
+        filters: {},
         clientFilters: {},
       }),
     },

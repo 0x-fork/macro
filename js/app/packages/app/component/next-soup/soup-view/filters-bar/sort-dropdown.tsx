@@ -1,7 +1,6 @@
 import { type Component, For, Show } from 'solid-js';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import CheckIcon from '@icon/regular/check.svg';
-import ChevronDownIcon from '@icon/regular/caret-down.svg';
 import SortIcon from '@macro-icons/wide/sort.svg';
 import type {
   SortOption,

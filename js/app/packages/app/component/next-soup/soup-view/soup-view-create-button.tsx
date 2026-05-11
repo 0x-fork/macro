@@ -14,7 +14,6 @@ import CaretDownIcon from '@icon/regular/caret-down.svg';
 import PlusIcon from '@icon/regular/plus.svg';
 import UploadIcon from '@icon/regular/upload-simple.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import { cn } from '@ui/utils/classname';
 import { createMemo, For, Show } from 'solid-js';
 import { Button } from './filters-bar/button';
 import { NewCallButton } from './NewCallButton';
