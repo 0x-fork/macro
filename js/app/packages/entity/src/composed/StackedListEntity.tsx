@@ -60,6 +60,7 @@ import {
   TaskCircleIcon,
   type TaskStatus,
 } from '@macro-icons/square/TaskCircleIcon';
+import { HexDashedIcon } from '@macro-icons/square/HexDashedIcon';
 import { formatPropertyValue } from '@core/component/Properties/utils/formatting';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
@@ -540,7 +541,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
         <div class="[&_svg]:size-4">
           <Show
             when={taskStatus()}
-            fallback={<CircleDashedIcon class="size-4 text-ink-extra-muted" />}
+            fallback={<HexDashedIcon class="size-4 text-ink-extra-muted" />}
           >
             <TaskPropertyGroup
               entity={props.entity}
@@ -1157,7 +1158,7 @@ function StatusPillContent(props: {
       when={statusData()}
       fallback={
         <>
-          <CircleDashedIcon class="size-3 text-ink-extra-muted" />
+          <HexDashedIcon class="size-3 text-ink-extra-muted" />
           <span>No status</span>
         </>
       }
