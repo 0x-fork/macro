@@ -31,7 +31,7 @@ export function ListHeader(props: ListHeaderProps) {
         <Match when={type() === 'task'}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-full px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': '1rem 1fr minmax(0, 8rem) 5.5rem 7.5rem 4.5rem' }}
+            style={{ 'grid-template-columns': '1rem minmax(0, 1fr) minmax(0, 8rem) 5.5rem 7.5rem 4.5rem' }}
           >
             <span />
             <span class="flex items-center gap-1 -ml-3"><TextIcon class="size-3" />Title</span>
@@ -44,29 +44,30 @@ export function ListHeader(props: ListHeaderProps) {
         <Match when={type() === 'email'}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-full px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': 'auto 12rem minmax(0, 1fr) auto' }}
+            style={{ 'grid-template-columns': 'auto minmax(0, 1fr) 21rem 4.5rem' }}
           >
             <span />
-            <span class="flex items-center gap-1 -ml-3"><UserIcon class="size-3" />From</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><EnvelopeIcon class="size-3" />Subject</span>
+            <span class="flex items-center gap-1 -ml-3"><UserIcon class="size-3" />From<span class="mx-1">—</span><EnvelopeIcon class="size-3" />Subject</span>
+            <span />
             <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
           </div>
         </Match>
         <Match when={type() === 'channel'}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-full px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': 'auto 12rem minmax(0, 1fr) auto' }}
+            style={{ 'grid-template-columns': 'auto 12rem minmax(0, 1fr) 21rem 4.5rem' }}
           >
             <span />
             <span class="flex items-center gap-1 -ml-3"><HashIcon class="size-3" />Channel</span>
             <span class="flex items-center gap-1"><HeaderDivider /><ChatIcon class="size-3" />Message</span>
+            <span />
             <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
           </div>
         </Match>
         <Match when={type() === 'document'}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-full px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': '1.5rem 1fr auto auto' }}
+            style={{ 'grid-template-columns': '1.5rem minmax(0, 1fr) auto auto' }}
           >
             <span />
             <span class="flex items-center gap-1 -ml-3"><TextIcon class="size-3" />Title</span>
@@ -77,7 +78,7 @@ export function ListHeader(props: ListHeaderProps) {
         <Match when={true}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-full px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': '1.5rem 1fr auto' }}
+            style={{ 'grid-template-columns': '1.5rem minmax(0, 1fr) auto' }}
           >
             <span />
             <span class="flex items-center gap-1 -ml-3"><TextIcon class="size-3" />Title</span>

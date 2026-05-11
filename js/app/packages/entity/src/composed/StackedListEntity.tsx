@@ -348,7 +348,7 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
     >
       <div
         class="grid items-center gap-x-2 min-w-0 w-full"
-        style={{ 'grid-template-columns': 'auto 12rem minmax(0, 1fr) auto' }}
+        style={{ 'grid-template-columns': 'auto minmax(0, 1fr) 21rem 4.5rem' }}
       >
         <div class="[&_svg]:size-4">
           <Switch>
@@ -370,23 +370,19 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
           </Switch>
         </div>
         <span class="flex items-center gap-1.5 min-w-0">
-          <span class="ph-no-capture truncate whitespace-nowrap">
+          <span class="ph-no-capture truncate whitespace-nowrap shrink-0 max-w-[12rem]">
             <Entity.EmailParticipants entity={props.email} />
           </span>
           <Show when={props.isShared}>
             <SharedIndicator ownerId={props.entity.ownerId} />
           </Show>
-        </span>
-        <span class="flex items-center gap-1.5 min-w-0 mr-8">
-          <span class="shrink-0 max-w-[50%] truncate">
-            <Entity.Title entity={props.entity} />
-          </span>
+          <span class="text-ink-extra-muted/50 shrink-0">—</span>
+          <span class="shrink-0"><Entity.Title entity={props.entity} /></span>
           <Show when={props.email.snippet}>
-            <span class="truncate text-ink/60 font-normal max-w-[50%]">
-              {props.email.snippet}
-            </span>
+            <span class="truncate text-ink/40 font-normal">{props.email.snippet}</span>
           </Show>
         </span>
+        <span />
         <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
           <Entity.Timestamp entity={props.entity} />
         </span>
@@ -410,7 +406,7 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
     >
       <div
         class="grid items-center gap-x-2 min-w-0 w-full"
-        style={{ 'grid-template-columns': 'auto 12rem minmax(0, 1fr) auto' }}
+        style={{ 'grid-template-columns': 'auto 12rem minmax(0, 1fr) 21rem 4.5rem' }}
       >
         <div class="size-4 shrink-0">
           <Show
@@ -438,7 +434,7 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
             <SharedIndicator ownerId={props.entity.ownerId} />
           </Show>
         </span>
-        <span class="flex items-center gap-1.5 min-w-0 mr-8">
+        <span class="flex items-center gap-1.5 min-w-0">
           <Show when={!props.hasNotifications && props.channel.latestMessage}>
             {(msg) => (
               <>
@@ -454,7 +450,7 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
                     </span>
                   )}
                 </Show>
-                <span class="truncate min-w-0 text-ink/50 max-w-[50%]">
+                <span class="truncate min-w-0 text-ink/50">
                   <Show
                     when={msg().content?.trim()}
                     fallback={<span class="italic">Attached Items</span>}
@@ -470,11 +466,13 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
             )}
           </Show>
         </span>
+        <span />
         <Show
           when={
             !props.hasNotifications &&
             !(isChannelEntity(props.entity) && isSearchEntity(props.entity))
           }
+          fallback={<span />}
         >
           <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
             <Entity.Timestamp entity={props.entity} />
@@ -601,7 +599,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
       >
         <div
           class="grid items-center gap-x-2 min-w-0 w-full"
-          style={{ 'grid-template-columns': '1rem 1fr minmax(0, 8rem) 5.5rem 7.5rem 4.5rem' }}
+          style={{ 'grid-template-columns': '1rem minmax(0, 1fr) minmax(0, 8rem) 5.5rem 7.5rem 4.5rem' }}
         >
           <div class="[&_svg]:size-4 flex justify-center">
             <Show
