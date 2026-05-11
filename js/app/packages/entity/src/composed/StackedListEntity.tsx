@@ -1234,25 +1234,17 @@ function AssigneesPillContent(props: {
       <div class="flex items-center">
         <For each={assigneeIds().slice(0, 3)}>
           {(id, index) => (
-            <div class={cn(index() > 0 && '-ml-1')}>
-              <UserIcon id={id} size="xs" />
-            </div>
+            <span class={cn("size-4 shrink-0 flex items-center justify-center rounded-full bg-page ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-2")}>
+              <UserIcon id={id} size="fill" />
+            </span>
           )}
         </For>
-      </div>
-      <Show
-        when={assigneeIds().length === 1}
-        fallback={
-          <span class="truncate">
-            <DisplayName id={assigneeIds()[0]} format="firstName" />
-            {assigneeIds().length > 1 && ` +${assigneeIds().length - 1}`}
+        <Show when={assigneeIds().length > 3}>
+          <span class="-ml-2 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink text-[9px] font-medium ring-1 ring-edge-muted">
+            +{assigneeIds().length - 3}
           </span>
-        }
-      >
-        <span class="truncate">
-          <DisplayName id={assigneeIds()[0]} format="firstName" />
-        </span>
-      </Show>
+        </Show>
+      </div>
     </Show>
   );
 }

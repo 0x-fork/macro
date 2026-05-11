@@ -24,7 +24,7 @@ export const UserGroup = (props: UserEntityPillProps) => {
     <div class="flex items-center shrink-0 w-fit">
       <For each={displayEntities()}>
         {(entity, index) => (
-          <div class={cn('bg-panel rounded-full', index() > 0 && '-ml-1.5')}>
+          <div class={cn('rounded-full ring-1 ring-edge-muted overflow-hidden', index() > 0 && '-ml-2')}>
             <UserIcon
               id={entity.entity_id}
               isDeleted={false}
@@ -36,10 +36,8 @@ export const UserGroup = (props: UserEntityPillProps) => {
         )}
       </For>
       <Show when={remaining()}>
-        <div class="z-placeable">
-          <div class="size-5 bg-menu border-2 text-[10px] -mr-2 text-ink border-panel rounded-full flex flex-col justify-center items-center">
-            <span>+{remaining()}</span>
-          </div>
+        <div class="-ml-2 z-10 size-4 bg-panel text-ink-muted text-[9px] font-medium rounded-full ring-1 ring-edge-muted flex items-center justify-center">
+          +{remaining()}
         </div>
       </Show>
     </div>
