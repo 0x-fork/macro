@@ -1,6 +1,6 @@
 //! SQL grouping expressions for soup queries.
 
-use crate::domain::models::GroupByField;
+use models_grouping::GroupByField;
 
 /// A single date bucket definition - source of truth for both SQL and Rust.
 struct DateBucket {
