@@ -8,8 +8,8 @@ pub struct GroupMeta {
     /// Group key - format depends on group_by field:
     /// - Date: "today", "yesterday", "this_week", "last_week", "this_month", "last_month", "older"
     /// - EntityType: "document", "email", "channel", "chat", "project", "call"
-    /// - Project: project UUID or "__none__"
-    /// - Property: option UUID or "__none__" for unset
+    /// - Project: project UUID or empty string for unset
+    /// - Property: option UUID or empty string for unset
     pub key: String,
 
     /// Human-readable label for the group
@@ -105,6 +105,3 @@ pub mod entity_type_labels {
         }
     }
 }
-
-/// Sentinel value for items with no value for the grouped field.
-pub const NO_VALUE_KEY: &str = "__none__";

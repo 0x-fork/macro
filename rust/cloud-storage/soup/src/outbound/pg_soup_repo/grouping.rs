@@ -81,11 +81,11 @@ pub fn group_select_expr(field: &GroupByField) -> String {
     match field {
         GroupByField::Date => date_bucket_select_expr(),
         GroupByField::EntityType => "item_type".to_string(),
-        GroupByField::Project => "COALESCE(project_id::text, '__none__')".to_string(),
+        GroupByField::Project => "COALESCE(project_id::text, '')".to_string(),
         GroupByField::Property { .. } => {
             // For select options, value is an array of option IDs like ["uuid1", "uuid2"]
             // Extract the first element as text
-            "COALESCE(ep_group.values->'value'->>0, '__none__')".to_string()
+            "COALESCE(ep_group.values->'value'->>0, '')".to_string()
         }
     }
 }
@@ -158,7 +158,7 @@ mod test {
     fn project_expr() {
         let expr = group_select_expr(&GroupByField::Project);
         assert!(expr.contains("project_id"));
-        assert!(expr.contains("__none__"));
+        assert!(expr.contains("COALESCE"));
     }
 
     #[test]

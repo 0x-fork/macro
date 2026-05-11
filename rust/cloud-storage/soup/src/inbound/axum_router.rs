@@ -1,7 +1,7 @@
 use crate::domain::{
     models::{
         FrecencyQueryInner, FrecencySoupItem, GroupMeta, GroupedSortRequest, IntoSoupReqAst,
-        NO_VALUE_KEY, SimpleQueryInner, SoupErr, SoupQuery, SoupRequest, SoupType, date_buckets,
+        SimpleQueryInner, SoupErr, SoupQuery, SoupRequest, SoupType, date_buckets,
         entity_type_labels,
     },
     ports::SoupService,
@@ -486,10 +486,10 @@ fn resolve_group_label_and_order(key: &str, group_by: &ApiGroupByField) -> (Stri
             entity_type_labels::label(key).to_string(),
             Some(entity_type_labels::display_order(key)),
         ),
-        ApiGroupByField::Project if key == NO_VALUE_KEY => {
+        ApiGroupByField::Project if key.is_empty() => {
             ("No Project".to_string(), Some(i32::MAX))
         }
-        ApiGroupByField::Property { .. } if key == NO_VALUE_KEY => {
+        ApiGroupByField::Property { .. } if key.is_empty() => {
             ("Not Set".to_string(), Some(i32::MAX))
         }
         _ => (key.to_string(), None),
