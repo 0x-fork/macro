@@ -284,7 +284,7 @@ const SoupViewFooter = () => {
   return (
     <Show when={!soup.previewEntity() && !isMobile()}>
       <div class="relative shrink-0 border-t border-edge-muted bg-panel text-xs text-ink-extra-muted/60">
-        <div class="flex items-center gap-4 px-4 py-1">
+        <div class="flex items-center gap-4 pl-4 py-1">
           <span class="flex items-center gap-1.5 shrink-0">
             <span class="size-3 flex items-center justify-center">
               <Show when={isFetching()} fallback={<RowsIcon class="size-3" />}>
