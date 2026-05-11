@@ -293,7 +293,6 @@ impl SoupRequest<Option<EntityFilterAst>> {
                 // we don't yet have sort by frecency implemented for emails yet
                 SoupQuery::Frecency(_) => None,
             }?,
-            grouping: None,
         })
     }
 
