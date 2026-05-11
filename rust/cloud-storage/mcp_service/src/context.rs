@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use ai_tools::{
     NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress, NoOpNotificationService,
-    NoOpScheduleContext, NoOpSnsEndpointManager, NoOpTaskProperties, ToolNotificationQueue,
-    ToolServiceContext,
+    NoOpSnsEndpointManager, NoOpTaskProperties, ToolNotificationQueue, ToolServiceContext,
 };
 use anyhow::Context;
 use comms::domain::service::ChannelServiceImpl;
@@ -305,7 +304,7 @@ async fn build_tool_context(
         notification_tool_context,
         chat_tool_context,
         channel_tool_context: ai_tools::build_channel_tool_context(db.clone()),
-        schedule_tool_context: NoOpScheduleContext,
+        schedule_tool_context: ai_tools::build_schedule_tool_context(db.clone()),
     };
 
     tracing::info!("initialized tool context");

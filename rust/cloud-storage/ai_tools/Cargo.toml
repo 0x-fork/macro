@@ -59,6 +59,7 @@ serde.workspace = true
 serde_json.workspace = true
 properties = { path = "../properties", features = ["ai_tools"] }
 soup = { path = "../soup", features = ["ai_tools", "outbound"] }
+scheduled_action = { path = "../scheduled_action", default-features = false, features = ["toolset"] }
 sqs_client = { path = "../sqs_client", default-features = false, features = ["email", "gmail"] }
 sqlx.workspace = true
 strum.workspace = true

@@ -17,6 +17,7 @@ use documents::inbound::toolset::document_toolset;
 use email::inbound::toolset::{email_toolset, mcp_toolset as email_mcp_toolset};
 use notification::inbound::ai_tool::notification_toolset;
 use properties::inbound::toolset::properties_toolset;
+use scheduled_action::inbound::toolset::schedule_toolset;
 use schemas::{anthropic_tools, read};
 use soup::inbound::toolset::{ListEntities, SoupToolContext};
 use std::sync::Arc;
@@ -57,6 +58,7 @@ pub(crate) fn subagent_toolset() -> AiToolSet {
         .add_subtoolset::<ToolCallToolContext>(call_toolset())
         .add_subtoolset::<ToolChatToolContext>(chat_toolset())
         .add_subtoolset::<ToolChannelToolContext>(channel_toolset())
+        .add_subtoolset::<ToolScheduleToolContext>(schedule_toolset())
 }
 
 /// These are actually sent to the AI provider

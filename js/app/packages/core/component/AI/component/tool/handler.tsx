@@ -5,6 +5,12 @@ import {
   type ToolName,
 } from '@service-cognition/generated/tools/tool';
 import { Dynamic } from 'solid-js/web';
+import {
+  createAutomationHandler,
+  deleteAutomationHandler,
+  editAutomationHandler,
+  listAutomationsHandler,
+} from './Automations';
 import { bashCodeExecutionHandler } from './BashCodeExecution';
 import { createDocumentHandler } from './CreateDocument';
 import { getThreadHandler } from './GetThread';
@@ -45,8 +51,12 @@ import { webFetchHandler } from './WebFetch';
 import { webSearchHandler } from './WebSearch';
 
 const toolHandlers: ToolHandlerMap<RenderContext> = {
+  CreateAutomation: createAutomationHandler,
+  DeleteAutomation: deleteAutomationHandler,
+  EditAutomation: editAutomationHandler,
   GetEntityProperties: getEntityPropertiesHandler,
   ListCallRecords: listCallRecordsHandler,
+  ListAutomations: listAutomationsHandler,
   ListEntities: listEntitiesHandler,
   ListNotifications: listNotificationsHandler,
   MarkNotificationsDone: markNotificationsDoneHandler,

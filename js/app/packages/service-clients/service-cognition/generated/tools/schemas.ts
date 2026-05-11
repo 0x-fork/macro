@@ -322,6 +322,20 @@ export const SearchToolResponse = z.object({
   ),
 });
 
+export const CreateAutomation = z.object({
+  enabled: z.boolean().default(true),
+  name: z.string(),
+  prompt: z.string(),
+  schedule: z.string(),
+  timezone: z.string(),
+});
+
+export const CreateAutomationResponse = z.object({
+  id: z.string(),
+  name: z.string(),
+  nextRunAt: z.string(),
+});
+
 export const CreateDocument = z.object({
   documentName: z.string(),
   fileContent: z.string(),
@@ -331,6 +345,26 @@ export const CreateDocument = z.object({
 
 export const CreateDocumentResponse = z.object({
   documentId: z.string().uuid(),
+});
+
+export const DeleteAutomation = z.object({ id: z.string() });
+
+export const DeleteAutomationResponse = z.object({ success: z.boolean() });
+
+export const EditAutomation = z.object({
+  enabled: z.union([z.boolean(), z.null()]).optional(),
+  id: z.string(),
+  name: z.union([z.string(), z.null()]).optional(),
+  prompt: z.union([z.string(), z.null()]).optional(),
+  schedule: z.union([z.string(), z.null()]).optional(),
+  timezone: z.union([z.string(), z.null()]).optional(),
+});
+
+export const EditAutomationResponse = z.object({
+  enabled: z.boolean(),
+  id: z.string(),
+  name: z.string(),
+  nextRunAt: z.string(),
 });
 
 export const GetEntityProperties = z.object({
@@ -405,6 +439,23 @@ export const GetThreadResponse = z.object({
   ),
   summary: z.string(),
   threadId: z.string().uuid(),
+});
+
+export const ListAutomations = z.record(z.any());
+
+export const ListAutomationsResponse = z.object({
+  automations: z.array(
+    z.object({
+      enabled: z.boolean(),
+      id: z.string(),
+      name: z.string(),
+      nextRunAt: z.string(),
+      prompt: z.string(),
+      schedule: z.string(),
+      timezone: z.string(),
+    })
+  ),
+  summary: z.string(),
 });
 
 export const ListCallRecords = z.object({

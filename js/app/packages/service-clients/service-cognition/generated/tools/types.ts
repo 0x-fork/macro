@@ -279,6 +279,39 @@ export type WebFetchErrorCode =
   | 'unavailable';
 
 /**
+ * A single automation in the response.
+ */
+export interface AutomationSummary {
+  /**
+   * Whether the automation is active.
+   */
+  enabled: boolean;
+  /**
+   * Unique identifier.
+   */
+  id: string;
+  /**
+   * Display name.
+   */
+  name: string;
+  /**
+   * Next scheduled run time (UTC ISO-8601).
+   */
+  nextRunAt: string;
+  /**
+   * The AI agent prompt.
+   */
+  prompt: string;
+  /**
+   * Cron schedule expression.
+   */
+  schedule: string;
+  /**
+   * IANA timezone.
+   */
+  timezone: string;
+}
+/**
  * Successful bash code execution result
  */
 export interface BashCodeExecutionResult {
@@ -740,6 +773,48 @@ export interface MessageWithAttachments {
   date: string;
 }
 /**
+ * Create a new scheduled automation that runs an AI agent on a cron schedule. The schedule uses 6-field cron format: 'sec min hour dom mon dow'. Examples: '0 0 9 * * Mon-Fri' (9 AM weekdays), '0 30 8 * * *' (8:30 AM daily), '0 0 0 1 * *' (midnight on the 1st of each month).
+ */
+export interface CreateAutomation {
+  /**
+   * Whether the automation is active. Defaults to true.
+   */
+  enabled?: boolean;
+  /**
+   * Display name for the automation.
+   */
+  name: string;
+  /**
+   * Instructions for what the AI agent should do each time this automation runs.
+   */
+  prompt: string;
+  /**
+   * Cron schedule in 6-field format: 'sec min hour dom mon dow'. Example: '0 0 9 * * Mon-Fri' for 9 AM on weekdays.
+   */
+  schedule: string;
+  /**
+   * IANA timezone for the schedule, e.g. 'America/New_York', 'Europe/London', 'UTC'.
+   */
+  timezone: string;
+}
+/**
+ * Response for [`CreateAutomation`].
+ */
+export interface CreateAutomationResponse {
+  /**
+   * The ID of the newly created automation.
+   */
+  id: string;
+  /**
+   * The display name.
+   */
+  name: string;
+  /**
+   * Next scheduled run time (UTC ISO-8601).
+   */
+  nextRunAt: string;
+}
+/**
  * Create a plaintext document.
  */
 export interface CreateDocument {
@@ -768,6 +843,24 @@ export interface CreateDocumentResponse {
    * The id of the document
    */
   documentId: string;
+}
+/**
+ * Permanently delete a scheduled automation. This cannot be undone. Use ListAutomations first to find the automation ID.
+ */
+export interface DeleteAutomation {
+  /**
+   * ID of the automation to delete.
+   */
+  id: string;
+}
+/**
+ * Response for [`DeleteAutomation`].
+ */
+export interface DeleteAutomationResponse {
+  /**
+   * Whether the deletion succeeded.
+   */
+  success: boolean;
 }
 /**
  * Metadata for a document fetched from the database
@@ -839,6 +932,56 @@ export interface DocumentSearchResult {
    * The score of the result
    */
   score?: number | null;
+}
+/**
+ * Edit an existing scheduled automation. Only specified fields are updated; omitted fields remain unchanged. Use ListAutomations first to find the automation ID.
+ */
+export interface EditAutomation {
+  /**
+   * Enable or disable the automation.
+   */
+  enabled?: boolean | null;
+  /**
+   * ID of the automation to edit.
+   */
+  id: string;
+  /**
+   * New display name.
+   */
+  name?: string | null;
+  /**
+   * New instructions for the AI agent.
+   */
+  prompt?: string | null;
+  /**
+   * New cron schedule in 6-field format: 'sec min hour dom mon dow'. Example: '0 0 9 * * Mon-Fri'.
+   */
+  schedule?: string | null;
+  /**
+   * New IANA timezone, e.g. 'America/New_York'.
+   */
+  timezone?: string | null;
+}
+/**
+ * Response for [`EditAutomation`].
+ */
+export interface EditAutomationResponse {
+  /**
+   * Whether the automation is enabled.
+   */
+  enabled: boolean;
+  /**
+   * The automation ID.
+   */
+  id: string;
+  /**
+   * The updated display name.
+   */
+  name: string;
+  /**
+   * Next scheduled run time (UTC ISO-8601).
+   */
+  nextRunAt: string;
 }
 /**
  * A recipient for an email.
@@ -1109,6 +1252,23 @@ export interface ToolContact {
    * The contact's display name.
    */
   name?: string | null;
+}
+/**
+ * List the user's scheduled automations. Returns all configured automations with their names, cron schedules, enabled status, and next run time. Use this to see what automations exist before creating, editing, or deleting them.
+ */
+export type ListAutomations = {};
+/**
+ * Response for [`ListAutomations`].
+ */
+export interface ListAutomationsResponse {
+  /**
+   * The user's automations.
+   */
+  automations: AutomationSummary[];
+  /**
+   * Human-readable summary.
+   */
+  summary: string;
 }
 /**
  * List recent call records the user can access, ordered by start time descending. Results are scoped to channels the user is a member of. Transcripts are NOT included — call ReadCallRecord with a specific callId to fetch a transcript.

@@ -315,7 +315,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         notification_tool_context: notification_tool_context.clone(),
         chat_tool_context,
         channel_tool_context: ai_tools::build_channel_tool_context(pool.clone()),
-        schedule_tool_context: ai_tools::no_op_schedule_context(),
+        schedule_tool_context: ai_tools::build_schedule_tool_context(pool.clone()),
     };
     let all_tools = ai_tools::all_tools();
     let all_tools_toolset = all_tools.toolset.clone();

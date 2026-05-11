@@ -373,7 +373,7 @@ async fn main() -> anyhow::Result<()> {
         notification_tool_context: notification_tool_context.clone(),
         chat_tool_context,
         channel_tool_context: ai_tools::build_channel_tool_context(db.clone()),
-        schedule_tool_context: ai_tools::NoOpScheduleContext,
+        schedule_tool_context: ai_tools::build_schedule_tool_context(db.clone()),
     };
     let all_tools = ai_tools::all_tools();
     let all_tools_toolset = all_tools.toolset.clone();

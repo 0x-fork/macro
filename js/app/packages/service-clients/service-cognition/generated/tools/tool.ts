@@ -15,15 +15,31 @@ type ToolParserMap = {
     call: types.ContentSearch;
     response: types.SearchToolResponse;
   };
+  CreateAutomation: {
+    call: types.CreateAutomation;
+    response: types.CreateAutomationResponse;
+  };
   CreateDocument: {
     call: types.CreateDocument;
     response: types.CreateDocumentResponse;
+  };
+  DeleteAutomation: {
+    call: types.DeleteAutomation;
+    response: types.DeleteAutomationResponse;
+  };
+  EditAutomation: {
+    call: types.EditAutomation;
+    response: types.EditAutomationResponse;
   };
   GetEntityProperties: {
     call: types.GetEntityProperties;
     response: types.GetEntityPropertiesResponse;
   };
   GetThread: { call: types.GetThread; response: types.GetThreadResponse };
+  ListAutomations: {
+    call: types.ListAutomations;
+    response: types.ListAutomationsResponse;
+  };
   ListCallRecords: {
     call: types.ListCallRecords;
     response: types.ListCallRecordsResponse;
@@ -98,15 +114,31 @@ const toolParserMap = {
     call: schemas.ContentSearch,
     response: schemas.SearchToolResponse,
   },
+  CreateAutomation: {
+    call: schemas.CreateAutomation,
+    response: schemas.CreateAutomationResponse,
+  },
   CreateDocument: {
     call: schemas.CreateDocument,
     response: schemas.CreateDocumentResponse,
+  },
+  DeleteAutomation: {
+    call: schemas.DeleteAutomation,
+    response: schemas.DeleteAutomationResponse,
+  },
+  EditAutomation: {
+    call: schemas.EditAutomation,
+    response: schemas.EditAutomationResponse,
   },
   GetEntityProperties: {
     call: schemas.GetEntityProperties,
     response: schemas.GetEntityPropertiesResponse,
   },
   GetThread: { call: schemas.GetThread, response: schemas.GetThreadResponse },
+  ListAutomations: {
+    call: schemas.ListAutomations,
+    response: schemas.ListAutomationsResponse,
+  },
   ListCallRecords: {
     call: schemas.ListCallRecords,
     response: schemas.ListCallRecordsResponse,
@@ -198,15 +230,31 @@ type ToolDataMap = {
     call: types.ContentSearch;
     response: types.SearchToolResponse;
   };
+  CreateAutomation: {
+    call: types.CreateAutomation;
+    response: types.CreateAutomationResponse;
+  };
   CreateDocument: {
     call: types.CreateDocument;
     response: types.CreateDocumentResponse;
+  };
+  DeleteAutomation: {
+    call: types.DeleteAutomation;
+    response: types.DeleteAutomationResponse;
+  };
+  EditAutomation: {
+    call: types.EditAutomation;
+    response: types.EditAutomationResponse;
   };
   GetEntityProperties: {
     call: types.GetEntityProperties;
     response: types.GetEntityPropertiesResponse;
   };
   GetThread: { call: types.GetThread; response: types.GetThreadResponse };
+  ListAutomations: {
+    call: types.ListAutomations;
+    response: types.ListAutomationsResponse;
+  };
   ListCallRecords: {
     call: types.ListCallRecords;
     response: types.ListCallRecordsResponse;

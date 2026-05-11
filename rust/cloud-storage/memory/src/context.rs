@@ -1,7 +1,6 @@
 use ai_tools::{
     NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress, NoOpNotificationService,
-    NoOpScheduleContext, NoOpSnsEndpointManager, NoOpTaskProperties, ToolNotificationQueue,
-    ToolServiceContext,
+    NoOpSnsEndpointManager, NoOpTaskProperties, ToolNotificationQueue, ToolServiceContext,
 };
 use comms::domain::service::ChannelServiceImpl;
 use comms::outbound::postgres::comms_repo::PgCommsRepo;
@@ -210,6 +209,6 @@ pub async fn build_tool_service_context(
         notification_tool_context,
         chat_tool_context,
         channel_tool_context: ai_tools::build_channel_tool_context(pool.clone()),
-        schedule_tool_context: ai_tools::NoOpScheduleContext,
+        schedule_tool_context: ai_tools::build_schedule_tool_context(pool.clone()),
     })
 }

@@ -289,6 +289,6 @@ pub async fn build_tool_service_context_from_env(
         notification_tool_context,
         chat_tool_context,
         channel_tool_context,
-        schedule_tool_context: crate::NoOpScheduleContext,
+        schedule_tool_context: crate::build_schedule_tool_context(pool),
     })
 }

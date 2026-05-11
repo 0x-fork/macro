@@ -398,12 +398,16 @@ pub type ToolChatService = ChatServiceImpl<PgChatRepo, (), ToolEntityAccessManag
 /// Type alias for the chat tool context
 pub type ToolChatToolContext = ChatToolContext<ToolChatService, ToolEntityAccessService>;
 
-#[derive(Clone, Default)]
-pub struct NoOpScheduleContext;
+/// Type alias for the schedule tool context.
+pub type ToolScheduleToolContext = scheduled_action::inbound::toolset::ScheduleToolContext<
+    scheduled_action::outbound::pg_scheduled_action_repo::PgScheduledActionRepo,
+>;
 
-#[cfg(any(test, feature = "test-support"))]
-pub fn no_op_schedule_context() -> NoOpScheduleContext {
-    NoOpScheduleContext
+/// Build a schedule tool context from a Postgres pool.
+pub fn build_schedule_tool_context(pool: sqlx::PgPool) -> ToolScheduleToolContext {
+    scheduled_action::inbound::toolset::ScheduleToolContext::new(
+        scheduled_action::outbound::pg_scheduled_action_repo::PgScheduledActionRepo::new(pool),
+    )
 }
 
 /// The full service context containing all API clients.
@@ -421,7 +425,7 @@ pub struct ToolServiceContext {
     pub notification_tool_context: ToolNotificationToolContext,
     pub chat_tool_context: ToolChatToolContext,
     pub channel_tool_context: ToolChannelToolContext,
-    pub schedule_tool_context: NoOpScheduleContext,
+    pub schedule_tool_context: ToolScheduleToolContext,
 }
 
 impl FromRef<ToolServiceContext> for ai_toolset::NoContext {

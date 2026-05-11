@@ -114,6 +114,7 @@ members = [
   "s3_client",
   "s3_key",
   "scheduled_action",
+  "scheduled_action_service",
   "search_processing_service",
   "search_service",
   "search_service_client",
