@@ -62,6 +62,7 @@ import {
   createMemo,
   createRenderEffect,
   createSignal,
+  For,
   type JSX,
   Match,
   on,
@@ -236,6 +237,38 @@ const SoupListSkeleton = () => (
   </div>
 );
 
+const SoupViewSkeleton = () => (
+  <div class="size-full flex flex-col">
+    <SplitHeaderLeft>
+      <div class="flex gap-3 items-center">
+        <div class="h-3.5 w-14 rounded bg-edge-muted animate-pulse" />
+        <div class="flex items-center gap-1">
+          <div class="h-6 w-12 rounded-md bg-edge-muted/60 animate-pulse" />
+          <div class="h-6 w-14 rounded-md bg-edge-muted/40 animate-pulse" />
+          <div class="h-6 w-10 rounded-md bg-edge-muted/40 animate-pulse" />
+        </div>
+      </div>
+    </SplitHeaderLeft>
+    <div class="pt-2 pb-3 px-2">
+      <div class="rounded-lg border border-edge-muted/50 shadow-inset-bevel">
+        <div class="flex items-center gap-2 px-2 py-1.5">
+          <div class="flex-1 flex items-center gap-2 h-7 px-2 rounded-md bg-ink/5">
+            <div class="size-4 rounded bg-edge-muted/60" />
+            <div class="h-3 w-16 rounded bg-edge-muted/50" />
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="h-7 w-20 rounded-md bg-edge-muted/40 animate-pulse" style={{ 'animation-delay': '50ms' }} />
+            <div class="h-7 w-16 rounded-md bg-edge-muted/40 animate-pulse" style={{ 'animation-delay': '100ms' }} />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flex-1">
+      <SoupListSkeleton />
+    </div>
+  </div>
+);
+
 const SoupViewFooter = () => {
   const soup = useSoup();
   const { rows, source } = useSoupView();
@@ -375,14 +408,15 @@ export const SoupView = (props: SoupViewProps) => {
             : undefined,
       }}
     >
-      <SoupViewContextProvider
-        soup={soup}
-        initialQuery={props.initialFilters}
-        initialSearchText={props.initialSearchText}
-        disableLocalSearch={props.disableLocalSearch}
-        additionalEntities={props.additionalEntities}
-      >
-        <div class="size-full flex flex-col">
+      <Suspense fallback={<SoupViewSkeleton />}>
+        <SoupViewContextProvider
+          soup={soup}
+          initialQuery={props.initialFilters}
+          initialSearchText={props.initialSearchText}
+          disableLocalSearch={props.disableLocalSearch}
+          additionalEntities={props.additionalEntities}
+        >
+          <div class="size-full flex flex-col">
           <div class="flex flex-col w-full">
             <SplitHeaderLeft>
               <div class="flex gap-3 items-center min-w-0 flex-1">
@@ -439,7 +473,7 @@ export const SoupView = (props: SoupViewProps) => {
               'pointer-events-none opacity-10': hasLinkError(),
             }}
           >
-            <Suspense>
+            <Suspense fallback={<SoupListSkeleton />}>
               <SoupViewFileDropzone>
                 <SoupViewList
                   initialClientFilters={props.initialClientFilters}
@@ -456,7 +490,8 @@ export const SoupView = (props: SoupViewProps) => {
             <MobileSoupViewTabs />
           </Show>
         </div>
-      </SoupViewContextProvider>
+        </SoupViewContextProvider>
+      </Suspense>
     </SplitPanelContext.Provider>
   );
 };
