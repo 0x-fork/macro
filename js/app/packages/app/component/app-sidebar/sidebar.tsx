@@ -59,6 +59,7 @@ import {
 import { ENABLE_CALLS } from '@core/constant/featureFlags';
 import { AnimatedCallIcon } from '@macro-icons/wide/animating/call';
 import BellIcon from '@icon/regular/bell.svg';
+import PlusIcon from '@icon/regular/plus.svg';
 import { useCallContextOptional } from '@channel/Call/CallContext';
 import { InCallPanel } from '@channel/Call';
 import { useNotificationSettings } from '@notifications';
@@ -403,7 +404,7 @@ const SidebarActionButton = (props: SidebarActionButtonProps) => {
   return (
     <Button
       size="sm"
-      class="flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-xs py-1"
+      class="flex items-center justify-start text-xs gap-2 cursor-default w-full rounded-xs py-1 [&_svg]:size-4"
       variant="ghost"
       tooltipPlacement="right"
       tooltip={
@@ -416,7 +417,7 @@ const SidebarActionButton = (props: SidebarActionButtonProps) => {
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
-      <div class="size-4 shrink-0 [&_svg]:size-4">
+      <div class="shrink-0">
         <Dynamic component={props.icon} triggerAnimation={hovering()} />
       </div>
       <span class="whitespace-nowrap group-data-[slim=true]/sidebar:invisible">
@@ -442,11 +443,9 @@ type SidebarCreateButtonProps = {
 };
 
 const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
-  const [hovering, setHovering] = createSignal(false);
-
   return (
     <Button
-      class="flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-md py-1.5"
+      class="flex items-center justify-start text-xs gap-1.5 cursor-default w-full rounded-md py-2 [&_svg]:size-4"
       variant="ghost"
       tooltipPlacement="right"
       tooltip={
@@ -455,10 +454,8 @@ const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
         ) : undefined
       }
       onClick={props.onClick}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
     >
-      <div class="size-4 shrink-0">{props.icon()}</div>
+      <div class="shrink-0">{props.icon()}</div>
       <span class="whitespace-nowrap group-data-[slim=true]/sidebar:invisible">
         {props.label}
       </span>
@@ -493,7 +490,7 @@ const SidebarIconButton = (props: SidebarIconButtonProps) => {
   return (
     <Button
       size="sm"
-      class="flex items-center justify-center size-6 p-0 rounded-md [&_svg]:size-4"
+      class="flex items-center justify-center size-5 p-0 rounded-md [&_svg]:size-4"
       variant={props.isSlim() ? 'ghost' : 'tertiary'}
       tooltipPlacement="top"
       tooltip={
@@ -504,7 +501,7 @@ const SidebarIconButton = (props: SidebarIconButtonProps) => {
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
-      <div class="size-4 shrink-0 [&_svg]:size-4">
+      <div class="shrink-0">
         <Dynamic component={props.icon} triggerAnimation={hovering()} />
       </div>
     </Button>
@@ -662,7 +659,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
           hotkeyToken={TOKENS.global.createCommand}
           isSlim={isSlim}
           onClick={handleCreateClick}
-          icon={() => <AnimatedPlusIcon class="size-4" />}
+          icon={() => <PlusIcon />}
         />
       </div>
 
@@ -816,7 +813,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
           draggable={false}
           variant="ghost"
           class={cn(
-            'flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-md py-1 text-ink-extra-muted',
+            'flex items-center justify-start text-xs gap-2 cursor-default w-full rounded-md py-1 text-ink-extra-muted [&_svg]:size-4',
             isActive() &&
               'bg-ink/10 not-disabled:hover:bg-ink/15 text-ink shadow-sm'
           )}
@@ -870,7 +867,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
           }}
         >
           <Show when={props.icon}>
-            <div class="shrink-0 [&_svg]:size-4">
+            <div class="shrink-0">
               <Dynamic component={props.icon} triggerAnimation={isHovering()} />
             </div>
           </Show>
