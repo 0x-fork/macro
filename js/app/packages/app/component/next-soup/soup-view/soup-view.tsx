@@ -34,19 +34,17 @@ import {
 } from '@app/component/PreviewPanel';
 import { SplitPanelContext } from '@app/component/split-layout/context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { CollapsibleHeaderItem } from '@app/component/split-layout/components/CollapsibleHeaderItem';
-import { LoadingBlock } from '@core/component/LoadingBlock';
 import { Resize } from '@core/component/Resize';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import {
   type EntityData,
-  ListEntity,
   ListLayoutProvider,
   StackedListEntity,
   type SearchLocation,
   type ProjectEntity,
 } from '@entity';
+import { ListHeader } from './list-header';
 import { useQueryClient } from '@queries/client';
 import { emailKeys } from '@queries/email/keys';
 import { useEmailLinksQuery } from '@queries/email/link';
@@ -993,6 +991,20 @@ export const SoupViewList = (props: SoupViewListProps) => {
                   </Match>
                   <Match when={rows().length}>
                     <ListLayoutProvider ref={localEntityListRef}>
+                      <ListHeader
+                        type={
+                          currentView() === 'tasks' ? 'task' :
+                          currentView() === 'mail' ? 'email' :
+                          currentView() === 'documents' ? 'document' :
+                          currentView() === 'channels' ? 'channel' :
+                          'default'
+                        }
+                        timestampLabel={
+                          soup.sort.active()[0]?.id === 'created_at' ? 'Created' :
+                          soup.sort.active()[0]?.id === 'viewed_at' ? 'Viewed' :
+                          'Updated'
+                        }
+                      />
                       <EntityRowProvider
                         container={localEntityListRef}
                         canSwipeLeft={(entityId) => {
