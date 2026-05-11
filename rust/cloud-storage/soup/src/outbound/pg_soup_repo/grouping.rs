@@ -110,6 +110,7 @@ pub fn group_join_clause(field: &GroupByField) -> Option<String> {
             entity_type,
         } => {
             let entity_type_filter = entity_type
+                .as_ref()
                 .map(|et| format!("AND ep_group.entity_type = '{}'", et))
                 .unwrap_or_default();
 
