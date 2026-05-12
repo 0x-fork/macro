@@ -144,7 +144,7 @@ where
         &self,
         macro_user_id: MacroUserIdStr<'static>,
         email_link: Option<Link>,
-        team_receipt: Option<EntityAccessReceipt<MemberTeamRole>>,
+        team_receipt_option: Option<EntityAccessReceipt<MemberTeamRole>>,
         ApiSoupRequestInner {
             filters,
             params,
@@ -154,7 +154,7 @@ where
     ) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr>
     where
         SoupRequest<R>: IntoSoupReqAst,
-        R: Clone + Serialize + Send,
+        R: Clone + Serialize + Send + RequestsTeamScope,
     {
         let create_fallback = move || -> SoupQuery<R> {
             let params_sort = params
@@ -178,6 +178,14 @@ where
                 .unwrap_or_else(create_fallback),
         };
 
+        // Derive team_scope authorization from the *effective* filter (the
+        // one embedded in the resolved SoupQuery), not the raw request body.
+        // For cursor-paginated requests the body's filters may be empty and
+        // the real filter lives inside the cursor — checking the body would
+        // miss team_scope on follow-up pages.
+        let team_receipt =
+            resolve_team_receipt(cursor.filter().requests_team_scope(), team_receipt_option)?;
+
         let res = self
             .service
             .get_user_soup(
@@ -199,6 +207,29 @@ where
         Ok(Json(
             res.type_erase().map(SoupApiItem::from_frecency_soup_item),
         ))
+    }
+}
+
+/// Probe applied to whichever filter type a soup endpoint accepts
+/// (`EntityFilters` for the typed POST, `ApiEntityFilterAst` for the AST
+/// endpoint). Lets `handle` inspect the *materialized* SoupQuery's filter
+/// — which may have come from the request body or from the cursor — and
+/// decide whether team_scope is in play.
+pub trait RequestsTeamScope {
+    /// True when this filter asks the query to expand visibility across
+    /// the requesting user's team.
+    fn requests_team_scope(&self) -> bool;
+}
+
+impl RequestsTeamScope for EntityFilters {
+    fn requests_team_scope(&self) -> bool {
+        self.email_filters.team_scope
+    }
+}
+
+impl RequestsTeamScope for ApiEntityFilterAst {
+    fn requests_team_scope(&self) -> bool {
+        email_filter_contains_team_scope(&self.email_filter)
     }
 }
 
@@ -296,6 +327,7 @@ pub async fn get_soup_handler<T, U, EAS>(
     State(service): State<SoupRouterState<T, U, EAS>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
     email_link: Result<Cached<EmailLinkExtractor<U>>, EmailLinkErr>,
+    team: OptionalMacroUserTeamExtractor<MemberTeamRole, EAS>,
     Query(params): Query<Params>,
     cursor: SoupCursor<EntityFilters>,
 ) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr>
@@ -309,11 +341,14 @@ where
         Err(EmailLinkErr::NotFound) => None,
         Err(e) => Err(e)?,
     };
+    // Team receipt is plumbed through even for GET so that paginating a
+    // team-scoped query via a cursor (which carries the original filter)
+    // continues to authorize correctly.
     service
         .handle(
             macro_user_id,
             link,
-            None,
+            team.entity_access_receipt,
             ApiSoupRequestInner {
                 params,
                 filters: EntityFilters::default(),
@@ -384,13 +419,14 @@ where
         Err(EmailLinkErr::NotFound) => None,
         Err(e) => Err(e)?,
     };
-    let team_receipt =
-        resolve_team_receipt(filters.email_filters.team_scope, team.entity_access_receipt)?;
+    // Pass the raw extractor receipt through — `handle` resolves the
+    // team_scope check against the *effective* filter (which may come from
+    // the cursor on follow-up pages), not the request body.
     service
         .handle(
             macro_user_id,
             link,
-            team_receipt,
+            team.entity_access_receipt,
             ApiSoupRequestInner {
                 filters,
                 params,
@@ -452,15 +488,14 @@ where
         Err(EmailLinkErr::NotFound) => None,
         Err(e) => Err(e)?,
     };
-    let team_receipt = resolve_team_receipt(
-        email_filter_contains_team_scope(&filters.email_filter),
-        team.entity_access_receipt,
-    )?;
+    // Pass the raw extractor receipt through — `handle` resolves the
+    // team_scope check against the *effective* filter (which may come from
+    // the cursor on follow-up pages), not the request body.
     service
         .handle(
             macro_user_id,
             link,
-            team_receipt,
+            team.entity_access_receipt,
             ApiSoupRequestInner {
                 filters,
                 params,
