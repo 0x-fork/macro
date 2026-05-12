@@ -718,7 +718,7 @@ function TaskPropertyPill(props: { property?: Property; empty?: boolean; dim?: b
 }
 
 function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
-  const maxParticipants = 4;
+  const maxParticipants = 3;
   const participants = () =>
     props.call.participantIds?.slice(0, maxParticipants) ?? [];
   const extraCount = () =>
@@ -733,7 +733,10 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
       dimWhenRead={props.dimWhenRead ?? true}
       hasNotifications={props.hasNotifications}
     >
-      <div class="flex items-center gap-2 min-w-0 w-full">
+      <div
+        class="grid items-center gap-x-2 min-w-0 w-full"
+        style={{ 'grid-template-columns': 'auto minmax(0, 1fr) 21rem 4.5rem' }}
+      >
         <div class="[&_svg]:size-4 shrink-0">
           <Show
             when={showMissedIcon()}
@@ -747,50 +750,53 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
             <PhoneXIcon class="size-4 text-failure" />
           </Show>
         </div>
-        <span class="ph-no-capture truncate max-w-[50%]">
-          <Entity.Title entity={props.entity} />
-        </span>
-        <Show
-          when={props.call.durationMs}
-          fallback={
-            props.call.isActive ? (
-              <span class="text-accent text-xs flex items-center gap-1 shrink-0">
-                <span class="size-1.5 animate-pulse rounded-full bg-accent" />
-                Live
-              </span>
-            ) : null
-          }
-        >
-          {(ms) => (
-            <span class="text-ink-extra-muted text-xs shrink-0">
-              {formatCallDuration(ms())}
-            </span>
-          )}
-        </Show>
-        <Show when={props.call.channelName}>
-          <span class="text-ink-muted text-xs shrink-0">
-            in {props.call.channelName}
+        <span class="flex items-center gap-1.5 min-w-0">
+          <span class="ph-no-capture shrink-0">
+            <Entity.Title entity={props.entity} />
           </span>
-        </Show>
-        <div class="ml-auto flex items-center gap-2 shrink-0">
+          <Show
+            when={props.call.durationMs}
+            fallback={
+              props.call.isActive ? (
+                <span class="text-accent text-xs flex items-center gap-1 shrink-0">
+                  <span class="size-1.5 animate-pulse rounded-full bg-accent" />
+                  Live
+                </span>
+              ) : null
+            }
+          >
+            {(ms) => (
+              <span class="text-ink/40 text-xs shrink-0">
+                {formatCallDuration(ms())}
+              </span>
+            )}
+          </Show>
+          <Show when={props.call.channelName}>
+            <span class="text-ink/40 text-xs truncate">
+              in {props.call.channelName}
+            </span>
+          </Show>
           <Show when={participants().length > 0}>
-            <div class="flex items-center">
+            <div class="flex items-center shrink-0">
               <For each={participants()}>
                 {(id, index) => (
-                  <div class={cn('relative', index() > 0 && '-ml-1.5')}>
-                    <UserIcon id={id} size="xs" />
-                  </div>
+                  <span class={cn("size-4 shrink-0 rounded-full ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-1.5")}>
+                    <UserIcon id={id} size="fill" />
+                  </span>
                 )}
               </For>
               <Show when={extraCount() > 0}>
-                <span class="text-xs text-ink-muted ml-1">+{extraCount()}</span>
+                <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink text-[9px] font-medium ring-1 ring-edge-muted">
+                  +{extraCount()}
+                </span>
               </Show>
             </div>
           </Show>
-          <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
-            <Entity.Timestamp entity={props.entity} />
-          </span>
-        </div>
+        </span>
+        <span />
+        <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
+          <Entity.Timestamp entity={props.entity} />
+        </span>
       </div>
     </LayoutShell>
   );
