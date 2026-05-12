@@ -91,6 +91,7 @@ dependencies = [
  "comms",
  "connection",
  "cool_asserts",
+ "crm",
  "dateparser",
  "documents",
  "email",
@@ -2595,6 +2596,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 
 [[package]]
+name = "crm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serde",
+ "sqlx",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "cron"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3154,6 +3169,7 @@ dependencies = [
  "comms_service_client",
  "connection_gateway",
  "cookie",
+ "crm",
  "document_cognition_service_client",
  "document_storage_service_client",
  "documents",
@@ -3268,6 +3284,7 @@ dependencies = [
  "contacts",
  "cool_asserts",
  "cowlike",
+ "crm",
  "document_sub_type",
  "documents",
  "dynamodb_client",
@@ -3708,6 +3725,7 @@ dependencies = [
  "axum-extra",
  "base64 0.22.1",
  "chrono",
+ "crm",
  "doppleganger",
  "either",
  "email_utils",
@@ -3843,6 +3861,7 @@ dependencies = [
  "cloudfront_sign",
  "connection_gateway_client",
  "contacts",
+ "crm",
  "document_storage_service_client",
  "doppleganger",
  "ego-tree",
@@ -6657,6 +6676,7 @@ dependencies = [
  "call",
  "chat",
  "comms",
+ "crm",
  "documents",
  "email",
  "email_service_client",
@@ -6728,6 +6748,7 @@ dependencies = [
  "call",
  "chrono",
  "comms",
+ "crm",
  "documents",
  "email",
  "email_service_client",
@@ -10631,6 +10652,7 @@ dependencies = [
  "comms",
  "cool_asserts",
  "cowlike",
+ "crm",
  "document_sub_type",
  "doppleganger",
  "either",

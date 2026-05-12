@@ -70,7 +70,15 @@ impl MockSoup {
 }
 
 impl SoupService for MockSoup {
-    async fn get_user_soup<T>(&self, req: SoupRequest<T>) -> Result<SoupOutput<T>, SoupErr>
+    async fn get_user_soup<T>(
+        &self,
+        req: SoupRequest<T>,
+        _team_receipt: Option<
+            entity_access::domain::models::EntityAccessReceipt<
+                entity_access::domain::models::MemberTeamRole,
+            >,
+        >,
+    ) -> Result<SoupOutput<T>, SoupErr>
     where
         SoupRequest<T>: IntoSoupReqAst,
         T: Clone + Serialize + Send,
@@ -231,8 +239,127 @@ impl EmailService for MockEmail {
     }
 }
 
+#[derive(Clone)]
+struct MockEntityAccess;
+
+impl entity_access::domain::ports::EntityAccessService for MockEntityAccess {
+    async fn generate_entity_access_receipt<
+        T: entity_access::domain::models::RequiredPermission,
+    >(
+        &self,
+        _user_id: &macro_user_id::user_id::MacroUserId<macro_user_id::lowercased::Lowercase<'_>>,
+        _user_org_id: Option<i64>,
+        _entity_id: &str,
+        _entity_type: entity_access::domain::models::EntityType,
+    ) -> Result<
+        entity_access::domain::models::EntityAccessReceipt<T>,
+        entity_access::domain::models::AccessError,
+    > {
+        unimplemented!()
+    }
+
+    async fn get_access_level(
+        &self,
+        _user_id: Option<
+            &macro_user_id::user_id::MacroUserId<macro_user_id::lowercased::Lowercase<'_>>,
+        >,
+        _entity_id: &str,
+        _entity_type: entity_access::domain::models::EntityType,
+    ) -> Result<
+        Option<entity_access::domain::models::AccessLevel>,
+        entity_access::domain::models::AccessError,
+    > {
+        unimplemented!()
+    }
+
+    async fn check_access(
+        &self,
+        _user_id: Option<
+            &macro_user_id::user_id::MacroUserId<macro_user_id::lowercased::Lowercase<'_>>,
+        >,
+        _entity_id: &str,
+        _entity_type: entity_access::domain::models::EntityType,
+        _required_level: entity_access::domain::models::AccessLevel,
+    ) -> Result<
+        entity_access::domain::models::AccessLevel,
+        entity_access::domain::models::AccessError,
+    > {
+        unimplemented!()
+    }
+
+    async fn check_public_access(
+        &self,
+        _entity_id: &str,
+        _entity_type: entity_access::domain::models::EntityType,
+        _required_level: entity_access::domain::models::AccessLevel,
+    ) -> Result<
+        entity_access::domain::models::AccessLevel,
+        entity_access::domain::models::AccessError,
+    > {
+        unimplemented!()
+    }
+
+    async fn get_entity_permission(
+        &self,
+        _user_id: Option<
+            &macro_user_id::user_id::MacroUserId<macro_user_id::lowercased::Lowercase<'_>>,
+        >,
+        _entity_id: &str,
+        _entity_type: entity_access::domain::models::EntityType,
+        _user_org_id: Option<i64>,
+    ) -> Result<
+        entity_access::domain::models::EntityPermission,
+        entity_access::domain::models::AccessError,
+    > {
+        unimplemented!()
+    }
+
+    async fn get_users_by_entity(
+        &self,
+        _entity_id: &str,
+        _entity_type: entity_access::domain::models::EntityType,
+    ) -> Result<Vec<MacroUserIdStr<'static>>, entity_access::domain::models::AccessError> {
+        unimplemented!()
+    }
+
+    async fn get_call_channel(
+        &self,
+        _call_id: &Uuid,
+    ) -> Result<
+        Option<entity_access::domain::models::CallChannelInfo>,
+        entity_access::domain::models::AccessError,
+    > {
+        unimplemented!()
+    }
+
+    async fn get_call_channel_by_channel_id(
+        &self,
+        _channel_id: &Uuid,
+    ) -> Result<
+        Option<entity_access::domain::models::CallChannelInfo>,
+        entity_access::domain::models::AccessError,
+    > {
+        unimplemented!()
+    }
+
+    async fn get_user_team(
+        &self,
+        _user_id: &macro_user_id::user_id::MacroUserId<macro_user_id::lowercased::Lowercase<'_>>,
+    ) -> Result<
+        Option<entity_access::domain::models::UserTeamInfo>,
+        entity_access::domain::models::AccessError,
+    > {
+        Ok(None)
+    }
+}
+
 fn mock_router() -> Router {
-    soup_router(SoupRouterState::new(MockSoup::new(), MockEmail)).layer(Extension(UserContext {
+    soup_router(SoupRouterState::new(
+        MockSoup::new(),
+        MockEmail,
+        Arc::new(MockEntityAccess),
+    ))
+    .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
         fusion_user_id: "1234".to_string(),
         permissions: None,
@@ -395,6 +522,7 @@ async fn it_calls_soup_with_missing_link() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -427,6 +555,7 @@ async fn it_does_not_call_soup_with_db_err() {
                 Err(EmailErr::RepoErr(anyhow::anyhow!("failed to fetch")))
             }),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -456,6 +585,7 @@ async fn it_loads_email_all_view() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -496,6 +626,7 @@ async fn it_loads_email_sent_view() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -536,6 +667,7 @@ async fn it_parses_file_assoc_filters() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -575,6 +707,7 @@ async fn cursor_with_assoc_works() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -649,6 +782,7 @@ async fn cursor_with_assoc_works() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -672,6 +806,7 @@ async fn cursor_with_all_works() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -746,6 +881,7 @@ async fn cursor_with_all_works() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -769,6 +905,7 @@ async fn it_parses_channel_filters() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -813,6 +950,7 @@ async fn it_parses_notification_and_task_filters() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -925,6 +1063,7 @@ async fn it_can_filter_chat_owners() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -963,6 +1102,7 @@ async fn ast_endpoint_expands_file_assoc_pdf() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -1009,6 +1149,7 @@ async fn ast_endpoint_passes_through_plain_document_literal() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -1056,6 +1197,7 @@ async fn ast_endpoint_expands_file_assoc_image_to_or_tree() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -1193,6 +1335,7 @@ async fn it_can_expand_assoc_ast() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),
@@ -1264,6 +1407,7 @@ async fn it_can_expand_assoc_ast() {
         MockEmailLinkResult {
             get_link_result: Arc::new(|| Ok(None)),
         },
+        Arc::new(MockEntityAccess),
     ))
     .layer(Extension(UserContext {
         user_id: "macro|test@example.com".to_string(),

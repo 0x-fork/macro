@@ -25,6 +25,7 @@ members = [
   "contacts_service",
   "convert_service",
   "cowlike",
+  "crm",
   "dataloss_prevention_handler",
   "decode_jwt",
   "delete_chat_handler",

@@ -1,6 +1,7 @@
 use call::domain::models::GetCallRecordsRequest;
 use comms::domain::models::GetChannelsRequest;
 use email::domain::models::{GetEmailsRequest, PreviewView};
+use entity_access::domain::models::{EntityAccessReceipt, MemberTeamRole};
 use frecency::domain::models::{AggregateFrecency, FrecencyQueryErr};
 use item_filters::{
     EntityFilters,
@@ -249,8 +250,15 @@ impl<T> SoupRequest<T> {
 
 impl SoupRequest<Option<EntityFilterAst>> {
     /// take the parts of the [SoupRequest] that are only relevant to email
-    /// and move them into a [GetEmailsRequest] if it is possible to create one
-    pub(crate) fn build_email_request(&self) -> Option<GetEmailsRequest> {
+    /// and move them into a [GetEmailsRequest] if it is possible to create one.
+    ///
+    /// `team_receipt` is forwarded onto the email request so the query layer
+    /// can verify and use it when the email AST contains
+    /// `EmailLiteral::TeamScope`.
+    pub(crate) fn build_email_request(
+        &self,
+        team_receipt: Option<EntityAccessReceipt<MemberTeamRole>>,
+    ) -> Option<GetEmailsRequest> {
         Some(GetEmailsRequest {
             view: self.email_preview_view.clone(),
             link_id: self.link_id?,
@@ -275,6 +283,7 @@ impl SoupRequest<Option<EntityFilterAst>> {
                 // we don't yet have sort by frecency implemented for emails yet
                 SoupQuery::Frecency(_) => None,
             }?,
+            team_receipt,
         })
     }
 

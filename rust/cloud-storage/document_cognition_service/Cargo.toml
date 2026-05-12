@@ -47,6 +47,7 @@ comms_service_client = { path = "../comms_service_client" }
 connection_gateway = { path = "../connection_gateway" }
 cookie = { workspace = true }
 document_cognition_service_client = { path = "../document_cognition_service_client" }
+crm = { path = "../crm" }
 document_storage_service_client = { path = "../document_storage_service_client" }
 documents = { path = "../documents", features = ["ai_tools", "attachment"] }
 doppleganger = { workspace = true }
