@@ -1889,7 +1889,7 @@ async fn test_dynamic_query_updated_at_greater_than(pool: Pool<Postgres>) -> any
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
@@ -1941,7 +1941,7 @@ async fn test_dynamic_query_updated_at_less_than(pool: Pool<Postgres>) -> anyhow
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
@@ -1997,7 +1997,7 @@ async fn test_dynamic_query_updated_at_greater_than_or_equal(
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
@@ -2050,7 +2050,7 @@ async fn test_dynamic_query_updated_at_less_than_or_equal(
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
@@ -2095,7 +2095,7 @@ async fn test_dynamic_query_created_at_greater_than(pool: Pool<Postgres>) -> any
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
@@ -2139,7 +2139,7 @@ async fn test_dynamic_query_created_at_less_than(pool: Pool<Postgres>) -> anyhow
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
@@ -2198,7 +2198,7 @@ async fn test_dynamic_query_date_range_combined(pool: Pool<Postgres>) -> anyhow:
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
@@ -2262,7 +2262,7 @@ async fn test_dynamic_query_date_with_sender_filter(pool: Pool<Postgres>) -> any
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
@@ -2311,7 +2311,7 @@ async fn test_dynamic_query_date_with_inbox_view(pool: Pool<Postgres>) -> anyhow
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
@@ -2373,7 +2373,7 @@ async fn test_dynamic_query_created_at_and_updated_at_combined(
     let query = Query::new(None, SimpleSortMethod::UpdatedAt, filter);
 
     let results =
-        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "").await?;
+        dynamic::dynamic_email_thread_cursor(&pool, &link_id, limit, &view, query, "", None).await?;
 
     let result_ids: std::collections::HashSet<String> =
         results.iter().map(|r| r.id.to_string()).collect();
