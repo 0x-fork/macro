@@ -46,18 +46,9 @@ where
             team_receipt,
         } = req;
 
-        println!(
-            "[email_request] entry: link_id={link_id} macro_id={} view={view:?} limit={limit:?} team_receipt_present={}",
-            macro_id.as_ref(),
-            team_receipt.is_some()
-        );
-        println!("[email_request] filter={:?}", query.filter());
-
-        println!("[email_request] -> validate_team_scope");
         let team_id = self
             .validate_team_scope(team_receipt.as_ref(), query.filter())
             .await?;
-        println!("[email_request] <- validate_team_scope OK team_id={team_id:?}");
 
         let sort_method = *query.sort_method();
 
@@ -174,99 +165,47 @@ where
         team_receipt: Option<&EntityAccessReceipt<MemberTeamRole>>,
         filter: &LiteralTree<EmailLiteral>,
     ) -> Result<Option<Uuid>, EmailErr> {
-        println!(
-            "[team_scope] validate_team_scope: receipt_present={}",
-            team_receipt.is_some()
-        );
-
-        let wants_team_scope = filter_requests_team_scope(filter);
-        println!("[team_scope] filter_requests_team_scope = {wants_team_scope}");
-
-        if !wants_team_scope {
-            println!("[team_scope] team_scope not requested -> skipping validation");
+        if !filter_requests_team_scope(filter) {
             return Ok(None);
         }
 
-        let receipt = match team_receipt {
-            Some(r) => r,
-            None => {
-                println!(
-                    "[team_scope] REJECT: team_scope requested but no team_receipt -> Unauthorized"
-                );
-                return Err(EmailErr::Unauthorized);
-            }
-        };
-        println!(
-            "[team_scope] receipt: entity_id={} entity_type={:?} permission={:?} auth={:?}",
-            receipt.entity().entity_id,
-            receipt.entity().entity_type,
-            receipt.entity_permission(),
-            receipt.auth()
-        );
+        // Reject any `Email::Partial(_)` address under team_scope. The typed
+        // POST endpoint catches this at AST expansion via
+        // `ExpandErr::TeamScopeRequiresQualifiedEmail`, but the raw AST
+        // endpoint bypasses that path — a `Partial` would otherwise become
+        // a team-wide `ILIKE` substring search across teammate mailboxes,
+        // skipping the qualified-address rule and the CRM domain-consent
+        // gate. Reject here defensively.
+        if filter_contains_partial_address(filter) {
+            return Err(EmailErr::Unauthorized);
+        }
+
+        let receipt = team_receipt.ok_or(EmailErr::Unauthorized)?;
 
         let team_id = Uuid::parse_str(&receipt.entity().entity_id).map_err(|e| {
-            println!("[team_scope] REJECT: team_receipt entity_id is not a valid uuid: {e}");
             EmailErr::RepoErr(anyhow::anyhow!(
                 "team_receipt entity_id is not a valid uuid: {e}"
             ))
         })?;
-        println!("[team_scope] parsed team_id = {team_id}");
 
         let domains = collect_domain_literals(filter);
-        println!(
-            "[team_scope] domains found in filter ({} total): {:?}",
-            domains.len(),
-            domains
-        );
         if domains.is_empty() {
-            println!("[team_scope] no domain literals to validate -> OK");
             return Ok(Some(team_id));
         }
 
         for domain in domains {
-            println!("[team_scope] -> lookup CRM company for team_id={team_id} domain={domain}");
             let company = self
                 .crm_service
                 .get_company_by_domain(&team_id, &domain)
                 .await
-                .map_err(|e| {
-                    println!("[team_scope] CRM lookup ERROR for domain={domain}: {e}");
-                    EmailErr::RepoErr(anyhow::anyhow!("crm lookup failed: {e}"))
-                })?;
-
-            match &company {
-                Some(c) => println!(
-                    "[team_scope] CRM company found: id={} name={:?} email_sync={} domains={:?}",
-                    c.id,
-                    c.name,
-                    c.email_sync,
-                    c.domains.iter().map(|d| &d.domain).collect::<Vec<_>>()
-                ),
-                None => println!(
-                    "[team_scope] no CRM company found for team_id={team_id} domain={domain}"
-                ),
-            }
+                .map_err(|e| EmailErr::RepoErr(anyhow::anyhow!("crm lookup failed: {e}")))?;
 
             match company {
-                Some(company) if company.email_sync => {
-                    println!("[team_scope] domain={domain} ACCEPTED (email_sync=true)");
-                }
-                Some(_) => {
-                    println!(
-                        "[team_scope] REJECT: domain={domain} company exists but email_sync=false"
-                    );
-                    return Err(EmailErr::DomainNotPermittedForTeamScope(domain));
-                }
-                None => {
-                    println!(
-                        "[team_scope] REJECT: domain={domain} has no CRM company for this team"
-                    );
-                    return Err(EmailErr::DomainNotPermittedForTeamScope(domain));
-                }
+                Some(company) if company.email_sync => {}
+                _ => return Err(EmailErr::DomainNotPermittedForTeamScope(domain)),
             }
         }
 
-        println!("[team_scope] all domains validated -> OK");
         Ok(Some(team_id))
     }
 }
@@ -280,11 +219,9 @@ where
 ///     is "the address's company must have email_sync enabled", so an exact
 ///     address like `alice@acme.com` is governed by acme.com's CRM company,
 ///     not by whether alice is individually in `crm_contacts`.
-///   - `Email::Partial(_)` → ignored. Partial is a substring fragment, not a
-///     domain. The typed POST endpoint already rejects Partial+team_scope at
-///     AST expansion (`ExpandErr::TeamScopeRequiresQualifiedEmail`); on the
-///     AST endpoint a Partial literal slips through here as a no-op. If you
-///     want to harden that path, reject Partial+team_scope explicitly.
+///   - `Email::Partial(_)` → not handled here. `validate_team_scope` rejects
+///     Partial+team_scope upfront via `filter_contains_partial_address`, so
+///     this walker only sees Domain/Complete by the time it runs.
 fn collect_domain_literals(filter: &LiteralTree<EmailLiteral>) -> HashSet<String> {
     fn walk(expr: &Expr<EmailLiteral>, out: &mut HashSet<String>) {
         match expr {
@@ -300,19 +237,10 @@ fn collect_domain_literals(filter: &LiteralTree<EmailLiteral>) -> HashSet<String
                 | EmailLiteral::Recipient(email),
             ) => match email {
                 Email::Domain(d) => {
-                    let lowered = d.to_ascii_lowercase();
-                    println!(
-                        "[team_scope] collect_domain_literals: found Domain literal: {lowered}"
-                    );
-                    out.insert(lowered);
+                    out.insert(d.to_ascii_lowercase());
                 }
                 Email::Complete(addr) => {
-                    let domain = addr.0.domain_part().to_ascii_lowercase();
-                    println!(
-                        "[team_scope] collect_domain_literals: found Complete literal {} -> domain {domain}",
-                        addr.0.email_str()
-                    );
-                    out.insert(domain);
+                    out.insert(addr.0.domain_part().to_ascii_lowercase());
                 }
                 Email::Partial(_) => {}
             },
@@ -320,17 +248,9 @@ fn collect_domain_literals(filter: &LiteralTree<EmailLiteral>) -> HashSet<String
         }
     }
     let mut out = HashSet::new();
-    match filter.as_ref() {
-        Some(expr) => {
-            println!("[team_scope] collect_domain_literals: walking filter AST");
-            walk(expr, &mut out);
-        }
-        None => println!("[team_scope] collect_domain_literals: filter is None (empty)"),
+    if let Some(expr) = filter.as_ref() {
+        walk(expr, &mut out);
     }
-    println!(
-        "[team_scope] collect_domain_literals: returning {} domain(s)",
-        out.len()
-    );
     out
 }
 
@@ -343,14 +263,33 @@ fn filter_requests_team_scope(filter: &LiteralTree<EmailLiteral>) -> bool {
         match expr {
             Expr::And(a, b) | Expr::Or(a, b) => walk(a) || walk(b),
             Expr::Not(a) => walk(a),
-            Expr::Literal(EmailLiteral::TeamScope) => {
-                println!("[team_scope] filter_requests_team_scope: found TeamScope literal");
-                true
-            }
+            Expr::Literal(EmailLiteral::TeamScope) => true,
             Expr::Literal(_) => false,
         }
     }
-    let result = filter.as_ref().map(|e| walk(e)).unwrap_or(false);
-    println!("[team_scope] filter_requests_team_scope = {result}");
-    result
+    filter.as_ref().map(|e| walk(e)).unwrap_or(false)
+}
+
+/// Walks an email-filter AST and returns true if any Sender/Cc/Bcc/Recipient
+/// literal carries an `Email::Partial(_)`. Partial is a substring fragment
+/// (the trigram-indexed ILIKE path) and must not appear under team_scope —
+/// the typed POST endpoint already rejects this combination at AST
+/// expansion (`ExpandErr::TeamScopeRequiresQualifiedEmail`), but the raw
+/// AST endpoint bypasses that path, so this is the defensive check at the
+/// email-service boundary.
+fn filter_contains_partial_address(filter: &LiteralTree<EmailLiteral>) -> bool {
+    fn walk(expr: &Expr<EmailLiteral>) -> bool {
+        match expr {
+            Expr::And(a, b) | Expr::Or(a, b) => walk(a) || walk(b),
+            Expr::Not(a) => walk(a),
+            Expr::Literal(
+                EmailLiteral::Sender(Email::Partial(_))
+                | EmailLiteral::Cc(Email::Partial(_))
+                | EmailLiteral::Bcc(Email::Partial(_))
+                | EmailLiteral::Recipient(Email::Partial(_)),
+            ) => true,
+            Expr::Literal(_) => false,
+        }
+    }
+    filter.as_ref().map(|e| walk(e)).unwrap_or(false)
 }
