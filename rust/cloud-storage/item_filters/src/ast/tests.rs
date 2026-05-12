@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use super::*;
-use crate::{CallFilters, PropertyFilter};
+use crate::{CallFilters, DateRangeFilter, PropertyFilter};
+use chrono::{TimeZone, Utc};
 use cool_asserts::assert_matches;
 use model_file_type::FileType;
 use serde_json::json;
@@ -862,4 +863,127 @@ fn it_expands_call_filter_without_attended_is_none_when_empty() {
     let f = CallFilters::default();
     let ast = CallFilters::expand_ast(f).unwrap();
     assert!(ast.is_none(), "empty filter should expand to None");
+}
+
+#[test]
+fn it_expands_email_created_at_filter() {
+    let ts = Utc.with_ymd_and_hms(2024, 1, 15, 10, 0, 0).unwrap();
+    let f = EntityFilters {
+        email_filters: crate::EmailFilters {
+            created_at: DateRangeFilter {
+                gte: Some(ts),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let ast = Arc::into_inner(
+        EntityFilterAst::new_from_filters(f)
+            .unwrap()
+            .unwrap()
+            .email_filter
+            .unwrap(),
+    )
+    .unwrap();
+
+    let json = serde_json::to_value(ast).unwrap();
+    let exp = json!({
+        "l": {
+            "ca": { "gte": "2024-01-15T10:00:00Z" }
+        }
+    });
+    assert_eq!(json, exp);
+}
+
+#[test]
+fn it_expands_email_updated_at_filter() {
+    let ts = Utc.with_ymd_and_hms(2024, 1, 10, 0, 0, 0).unwrap();
+    let f = EntityFilters {
+        email_filters: crate::EmailFilters {
+            updated_at: DateRangeFilter {
+                lt: Some(ts),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let ast = Arc::into_inner(
+        EntityFilterAst::new_from_filters(f)
+            .unwrap()
+            .unwrap()
+            .email_filter
+            .unwrap(),
+    )
+    .unwrap();
+
+    let json = serde_json::to_value(ast).unwrap();
+    let exp = json!({
+        "l": {
+            "ua": { "lt": "2024-01-10T00:00:00Z" }
+        }
+    });
+    assert_eq!(json, exp);
+}
+
+#[test]
+fn it_expands_email_date_range_with_bounds() {
+    let start = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
+    let end = Utc.with_ymd_and_hms(2024, 1, 31, 23, 59, 59).unwrap();
+    let f = EntityFilters {
+        email_filters: crate::EmailFilters {
+            created_at: DateRangeFilter {
+                gte: Some(start),
+                lte: Some(end),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let ast = Arc::into_inner(
+        EntityFilterAst::new_from_filters(f)
+            .unwrap()
+            .unwrap()
+            .email_filter
+            .unwrap(),
+    )
+    .unwrap();
+
+    let json = serde_json::to_value(ast).unwrap();
+    // Should be AND of gte and lte
+    assert!(json.get("&").is_some(), "expected AND node for range bounds");
+}
+
+#[test]
+fn it_expands_email_date_with_sender_filter() {
+    let ts = Utc.with_ymd_and_hms(2024, 1, 15, 0, 0, 0).unwrap();
+    let f = EntityFilters {
+        email_filters: crate::EmailFilters {
+            senders: vec!["test@example.com".to_string()],
+            updated_at: DateRangeFilter {
+                gt: Some(ts),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let ast = Arc::into_inner(
+        EntityFilterAst::new_from_filters(f)
+            .unwrap()
+            .unwrap()
+            .email_filter
+            .unwrap(),
+    )
+    .unwrap();
+
+    let json = serde_json::to_value(ast).unwrap();
+    // Should be AND of sender and updated_at
+    assert!(json.get("&").is_some(), "expected AND of sender and date filter");
 }
