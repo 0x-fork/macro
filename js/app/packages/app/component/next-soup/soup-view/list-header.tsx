@@ -9,7 +9,7 @@ import EnvelopeIcon from '@icon/regular/envelope.svg';
 import TextIcon from '@icon/regular/text-aa.svg';
 import { Match, Show, Switch } from 'solid-js';
 
-type ListHeaderType = 'task' | 'email' | 'channel' | 'document' | 'default';
+type ListHeaderType = 'task' | 'email' | 'channel' | 'document' | 'inbox' | 'default';
 
 interface ListHeaderProps {
   type?: ListHeaderType;
@@ -17,7 +17,7 @@ interface ListHeaderProps {
 }
 
 const HeaderDivider = () => (
-  <span class="w-px h-3 bg-edge-muted" />
+  <span class="w-px h-3 bg-ink/20" />
 );
 
 export function ListHeader(props: ListHeaderProps) {
@@ -72,6 +72,19 @@ export function ListHeader(props: ListHeaderProps) {
             <span />
             <span class="flex items-center gap-1 -ml-3"><TextIcon class="size-3" />Title</span>
             <span class="flex items-center gap-1"><HeaderDivider /><FolderSimpleIcon class="size-3" />Folder</span>
+            <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
+          </div>
+        </Match>
+        <Match when={type() === 'inbox'}>
+          <div
+            class="grid items-center gap-x-2 min-w-0 w-full px-2 py-1.5 text-xs text-ink-extra-muted/50"
+            style={{ 'grid-template-columns': '1rem minmax(0, 1fr) minmax(0, 8rem) 5.5rem 7.5rem 4.5rem' }}
+          >
+            <span />
+            <span class="flex items-center gap-1 -ml-3"><TextIcon class="size-3" />Title</span>
+            <span class="flex items-center gap-1"><HeaderDivider /><FolderSimpleIcon class="size-3" />Folder</span>
+            <span class="flex items-center gap-1"><HeaderDivider /><FlagIcon class="size-3" />Priority</span>
+            <span class="flex items-center gap-1"><HeaderDivider /><UserIcon class="size-3" />Assignee</span>
             <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
           </div>
         </Match>

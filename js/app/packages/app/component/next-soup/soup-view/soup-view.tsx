@@ -997,6 +997,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                           currentView() === 'mail' ? 'email' :
                           currentView() === 'documents' ? 'document' :
                           currentView() === 'channels' ? 'channel' :
+                          currentView() === 'inbox' ? 'inbox' :
                           'default'
                         }
                         timestampLabel={

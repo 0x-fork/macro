@@ -94,7 +94,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
                   'size-4 flex items-center justify-center rounded-xs border transition-colors cursor-pointer',
                   hasSelection()
                     ? 'bg-accent border-accent'
-                    : 'border-edge-muted hover:border-accent'
+                    : 'border-ink/20 hover:border-accent'
                 )}
               >
                 <Checkbox.Indicator forceMount>
