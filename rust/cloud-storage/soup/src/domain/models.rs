@@ -387,15 +387,6 @@ impl SortOn<SimpleSortMethod> for FrecencySoupItem {
     }
 }
 
-/// A soup request with optional grouping configuration.
-#[derive(Debug)]
-pub struct GroupedSoupRequest<T> {
-    /// Base soup request parameters
-    pub base: SoupRequest<T>,
-    /// Optional grouping configuration
-    pub grouping: Option<GroupingConfig>,
-}
-
 /// A soup item with group metadata attached (returned from grouped queries).
 #[derive(Debug)]
 pub struct GroupedSoupItem {

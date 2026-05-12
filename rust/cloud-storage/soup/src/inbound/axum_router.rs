@@ -68,13 +68,6 @@ pub struct Params {
     /// Sort method. Options are viewed_at, created_at, updated_at, viewed_updated. Defaults to viewed_at.
     #[serde(default)]
     sort_method: Option<SoupApiSort>,
-    /// Field to group results by. When set, response includes group metadata.
-    #[serde(default)]
-    #[param(value_type = Option<String>)]
-    group_by: Option<ApiGroupByField>,
-    /// Filter to a specific group key (for "load more in group X").
-    #[serde(default)]
-    group_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
@@ -321,9 +314,10 @@ where
         macro_user_id: MacroUserIdStr<'static>,
         filters: EntityFilterAst,
         params: Params,
+        group_by: ApiGroupByField,
+        group_key: Option<String>,
         cursor: Option<CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>>,
     ) -> Result<Json<GroupedSoupPage>, SoupHandlerErr> {
-        let group_by = params.group_by.ok_or(SoupHandlerErr::Expand)?;
         let limit = params.limit.unwrap_or(20).clamp(20, 500);
         let sort_method = params
             .sort_method
@@ -335,7 +329,7 @@ where
 
         let grouping = GroupingConfig {
             field: GroupByField::from(group_by.clone()),
-            group_key: params.group_key.clone(),
+            group_key: group_key.clone(),
             per_group_limit: None,
         };
 
@@ -358,7 +352,7 @@ where
             items,
             &group_by,
             sort_method,
-            params.group_key,
+            group_key,
             filters,
         );
 
@@ -504,6 +498,7 @@ where
         .route("/soup", get(get_soup_handler))
         .route("/soup", post(post_soup_handler))
         .route("/soup/ast", post(post_soup_ast_handler))
+        .route("/soup/ast/grouped", post(post_soup_grouped_ast_handler))
         .with_state(state)
 }
 
@@ -696,6 +691,23 @@ pub struct PostSoupAstRequest {
     email_view: PreviewView,
 }
 
+/// Request body for the grouped soup AST endpoint.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PostSoupGroupedAstRequest {
+    #[serde(default, flatten)]
+    #[schema(value_type = EntityFilterAst)]
+    filters: ApiEntityFilterAst,
+    #[serde(default, flatten)]
+    params: Params,
+    /// Field to group results by.
+    #[schema(value_type = String)]
+    group_by: ApiGroupByField,
+    /// Filter to a specific group key (for "load more in group X").
+    #[serde(default)]
+    group_key: Option<String>,
+}
+
 /// Gets the items the user has access to using AST filters
 #[utoipa::path(
     post,
@@ -721,7 +733,7 @@ pub async fn post_soup_ast_handler<T, U>(
         params,
         email_view,
     }): Json<PostSoupAstRequest>,
-) -> Result<Either<Json<PaginatedOpaqueCursor<SoupApiItem>>, Json<GroupedSoupPage>>, SoupHandlerErr>
+) -> Result<Json<PaginatedOpaqueCursor<SoupApiItem>>, SoupHandlerErr>
 where
     T: SoupService,
     U: EmailService,
@@ -740,18 +752,6 @@ where
         ),
     };
 
-    if params.group_by.is_some() {
-        // Extract simple cursor for grouped queries (frecency not supported for grouped)
-        let simple_cursor = match cursor {
-            axum_extra::either::Either::E1(c) => c,
-            axum_extra::either::Either::E2(_) => None,
-        };
-        return service
-            .handle_grouped(macro_user_id, filters, params, simple_cursor)
-            .await
-            .map(Either::E2);
-    }
-
     let link = match email_link {
         Ok(l) => Some(l.0.0),
         Err(EmailLinkErr::NotFound) => None,
@@ -769,11 +769,57 @@ where
             cursor,
         )
         .await
-        .map(Either::E1)
+}
+
+/// Gets the items the user has access to using AST filters, grouped by a field
+#[utoipa::path(
+    post,
+    operation_id = "post_items_soup_ast_grouped",
+    path = "/items/soup/ast/grouped",
+    params(
+        ("cursor" = Option<String>, Query, description = "Base64 encoded cursor value."),
+    ),
+    request_body = PostSoupGroupedAstRequest,
+    responses(
+        (status = 200, body=GroupedSoupPage),
+        (status = 500, body=ErrorResponse),
+    )
+)]
+#[tracing::instrument(err, skip_all)]
+pub async fn post_soup_grouped_ast_handler<T, U>(
+    State(service): State<SoupRouterState<T, U>>,
+    Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
+    cursor: SoupCursor<ApiEntityFilterAst>,
+    Json(PostSoupGroupedAstRequest {
+        filters,
+        params,
+        group_by,
+        group_key,
+    }): Json<PostSoupGroupedAstRequest>,
+) -> Result<Json<GroupedSoupPage>, SoupHandlerErr>
+where
+    T: SoupService,
+    U: EmailService,
+{
+    let filters = filters
+        .into_entity_ast()
+        .map_err(|_| SoupHandlerErr::Expand)?;
+
+    // Extract simple cursor for grouped queries (frecency not supported for grouped)
+    let simple_cursor = match cursor {
+        axum_extra::either::Either::E1(c) => c.map(|c| {
+            c.map_filter(|f| f.into_entity_ast().expect("cursor filter conversion"))
+        }),
+        axum_extra::either::Either::E2(_) => None,
+    };
+
+    service
+        .handle_grouped(macro_user_id, filters, params, group_by, group_key, simple_cursor)
+        .await
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ApiEntityFilterAst {
+
     /// the filters that should be applied to the document entity
     #[serde(default, rename = "df")]
     pub document_filter: LiteralTree<ApiDocumentLiteral>,
