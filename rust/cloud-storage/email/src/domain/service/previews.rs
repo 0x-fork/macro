@@ -164,6 +164,7 @@ where
     ///      have a CRM organization tracking that domain with
     ///      `email_sync = true`. Otherwise the team has not opted into
     ///      sharing emails for that domain — reject the query.
+    ///
     /// Returns `Some(team_id)` when team_scope was requested AND the receipt
     /// passed all checks (membership, domain authorization). `None` when
     /// team_scope wasn't requested — the caller should run the normal

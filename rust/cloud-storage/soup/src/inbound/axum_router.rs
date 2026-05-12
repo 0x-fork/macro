@@ -28,7 +28,7 @@ use entity_access::{
         models::{EntityAccessReceipt, MemberTeamRole},
         ports::EntityAccessService,
     },
-    inbound::axum_extractors::TeamAccessLevelExtractor,
+    inbound::axum_extractors::OptionalMacroUserTeamExtractor,
 };
 use filter_ast::{Expr, ExprFrame};
 use item_filters::{
@@ -595,7 +595,7 @@ pub async fn post_soup_handler<T, U, EAS>(
     State(service): State<SoupRouterState<T, U, EAS>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
     email_link: Result<Cached<EmailLinkExtractor<U>>, EmailLinkErr>,
-    team: TeamAccessLevelExtractor<MemberTeamRole, EAS>,
+    team: OptionalMacroUserTeamExtractor<MemberTeamRole, EAS>,
     cursor: SoupCursor<EntityFilters>,
     Json(PostSoupRequest {
         filters,
@@ -663,7 +663,7 @@ pub async fn post_soup_ast_handler<T, U, EAS>(
     State(service): State<SoupRouterState<T, U, EAS>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
     email_link: Result<Cached<EmailLinkExtractor<U>>, EmailLinkErr>,
-    team: TeamAccessLevelExtractor<MemberTeamRole, EAS>,
+    team: OptionalMacroUserTeamExtractor<MemberTeamRole, EAS>,
     cursor: SoupCursor<ApiEntityFilterAst>,
     Json(PostSoupAstRequest {
         filters,
