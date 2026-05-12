@@ -1,4 +1,5 @@
 import CheckIcon from '@icon/bold/check-bold.svg';
+import LogoIcon from '@macro-icons/macro-logo.svg';
 import Spinner from '@icon/regular/spinner.svg';
 import RowsIcon from '@icon/regular/rows.svg';
 import ClockIcon from '@icon/regular/clock.svg';
@@ -94,10 +95,10 @@ import {
   MobileSoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
-import { MobileFilterDrawer } from '@app/component/next-soup/soup-view/filters-bar/mobile-filter-drawer';
+import { MobileSoupFooter, MobileSoupHeader } from '@app/component/next-soup/soup-view/filters-bar/mobile-soup-footer';
+import { SoupViewMobileCreateButton } from '@app/component/next-soup/soup-view/soup-view-mobile-create-button';
 import { SettingsButton } from '@app/component/settings/SettingsButton';
 import { isListViewID, type ListView } from '@app/constants/list-views';
-import { SoupViewMobileCreateButton } from '@app/component/next-soup/soup-view/soup-view-mobile-create-button';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -466,29 +467,13 @@ export const SoupView = (props: SoupViewProps) => {
           <div class="flex flex-col w-full">
             <SplitHeaderLeft>
               <div class="flex gap-3 items-center min-w-0 flex-1">
+                <Show when={isMobile()}>
+                  <LogoIcon class="size-6 text-accent shrink-0" />
+                </Show>
                 <Show
                   when={!isComponentListView('search')}
                 >
-                  <Show
-                    when={!isMobile()}
-                    fallback={
-                      <>
-                        <Show when={!narrowSearchExpanded()}>
-                          <MobileFilterDrawer />
-                        </Show>
-                        <Show when={narrowSearchExpanded()}>
-                          <div class="flex-1 min-w-0">
-                            <SoupSearchbar
-                              variant="secondary"
-                              autoFocus
-                              initialValue={props.initialSearchText}
-                              onDismiss={() => setNarrowSearchExpanded(false)}
-                            />
-                          </div>
-                        </Show>
-                      </>
-                    }
-                  >
+                  <Show when={!isMobile()}>
                     <h1 class="font-semibold text-ink select-none text-sm leading-none">
                       {props.viewName}
                     </h1>
@@ -499,6 +484,7 @@ export const SoupView = (props: SoupViewProps) => {
             </SplitHeaderLeft>
             <SplitHeaderRight>
               <Show when={isMobile() && !narrowSearchExpanded()}>
+                <SoupViewMobileCreateButton activeView={activeListView} />
                 <SettingsButton />
               </Show>
               <Show when={!isMobile() && !isComponentListView('search')}>
@@ -512,6 +498,9 @@ export const SoupView = (props: SoupViewProps) => {
           </div>
           <Show when={hasLinkError()}>
             <EmailPermissionsBanner />
+          </Show>
+          <Show when={isMobile()}>
+            <MobileSoupHeader />
           </Show>
           <div
             class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full"
@@ -527,13 +516,10 @@ export const SoupView = (props: SoupViewProps) => {
                 />
               </SoupViewFileDropzone>
             </Suspense>
-            <Show when={isMobile()}>
-              <SoupViewMobileCreateButton activeView={activeListView} />
-            </Show>
           </div>
           <SoupViewFooter />
           <Show when={isMobile()}>
-            <MobileSoupViewTabs />
+            <MobileSoupFooter />
           </Show>
         </div>
         </SoupViewContextProvider>

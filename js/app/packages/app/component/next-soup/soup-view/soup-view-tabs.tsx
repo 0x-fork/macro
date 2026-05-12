@@ -31,6 +31,8 @@ import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import { Layer } from '@ui';
 import ChevronDownIcon from '@icon/regular/caret-down.svg';
 import DotsThreeIcon from '@icon/regular/dots-three.svg';
+import ArrowLeftIcon from '@icon/regular/arrow-left.svg';
+import ArrowRightIcon from '@icon/regular/arrow-right.svg';
 
 /** Views that have tab definitions. Shared between VIEW_TAB_LISTS and VIEW_TAB_PRESETS. */
 export type TabbedListView = Extract<
@@ -384,36 +386,244 @@ export const CollapsedSoupViewTabs = () => {
 export const MobileSoupViewTabs = () => {
   const listView = useCurrentListView();
 
+  const hasTabs = () => {
+    const view = listView();
+    return view && view in VIEW_TAB_LISTS;
+  };
+
   return (
-    <div class="bg-panel border-t border-edge-muted h-11 px-1">
-      <Switch>
-        <For
-          each={Object.keys(VIEW_TAB_LISTS) as (keyof typeof VIEW_TAB_LISTS)[]}
-        >
-          {(v) => (
-            <Match when={listView() === v}>
-              <MobileViewTabs view={v} />
-            </Match>
-          )}
-        </For>
-      </Switch>
-    </div>
+    <Show when={hasTabs()}>
+      <div class="relative px-3 py-2">
+        <Switch>
+          <For
+            each={Object.keys(VIEW_TAB_LISTS) as (keyof typeof VIEW_TAB_LISTS)[]}
+          >
+            {(v) => (
+              <Match when={listView() === v}>
+                <MobileViewTabs view={v} />
+              </Match>
+            )}
+          </For>
+        </Switch>
+      </div>
+    </Show>
   );
 };
+
+const MOBILE_TAB_BUTTON_CLASS = cn(
+  'px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap'
+);
 
 const MobileViewTabs = (props: { view: TabbedListView }) => {
   const { applyTabPreset } = useApplyPreset();
   const { activeTab } = useSoupView();
   const list = () => VIEW_TAB_LISTS[props.view];
 
+  const [scrollRef, setScrollRef] = createSignal<HTMLDivElement | null>(null);
+  const [hasOverflow, setHasOverflow] = createSignal(false);
+  const [canScrollLeft, setCanScrollLeft] = createSignal(false);
+  const [canScrollRight, setCanScrollRight] = createSignal(false);
+  const [activeOffscreenLeft, setActiveOffscreenLeft] = createSignal(false);
+  const [activeOffscreenRight, setActiveOffscreenRight] = createSignal(false);
+
+  const updateScrollState = () => {
+    const container = scrollRef();
+    if (!container) return;
+
+    const scrollLeft = container.scrollLeft;
+    const containerWidth = container.clientWidth;
+    const scrollWidth = container.scrollWidth;
+
+    setHasOverflow(scrollWidth > containerWidth);
+    setCanScrollLeft(scrollLeft > 0);
+    setCanScrollRight(scrollLeft < scrollWidth - containerWidth - 1);
+
+    // Find the active tab button and check if it's visible
+    const activeIndex = list().findIndex((item) => item.value === activeTab());
+    if (activeIndex === -1) {
+      setActiveOffscreenLeft(false);
+      setActiveOffscreenRight(false);
+      return;
+    }
+
+    const buttons = container.querySelectorAll('button');
+    const activeButton = buttons[activeIndex] as HTMLElement | undefined;
+    if (!activeButton) {
+      setActiveOffscreenLeft(false);
+      setActiveOffscreenRight(false);
+      return;
+    }
+
+    const buttonLeft = activeButton.offsetLeft;
+    const buttonRight = buttonLeft + activeButton.offsetWidth;
+
+    setActiveOffscreenLeft(buttonLeft < scrollLeft);
+    setActiveOffscreenRight(buttonRight > scrollLeft + containerWidth);
+  };
+
+  const ARROW_BUTTON_WIDTH = 28; // p-1.5 (12px) + size-4 (16px)
+
+  const scroll = (direction: 'left' | 'right') => {
+    const container = scrollRef();
+    if (!container) return;
+
+    const buttons = Array.from(container.querySelectorAll('button'));
+    const containerWidth = container.clientWidth;
+    const scrollLeft = container.scrollLeft;
+    const maxScroll = container.scrollWidth - containerWidth;
+
+    // Account for arrow button overlays in visible area calculation
+    const leftInset = canScrollLeft() ? ARROW_BUTTON_WIDTH : 0;
+    const rightInset = canScrollRight() ? ARROW_BUTTON_WIDTH : 0;
+    const visibleLeft = scrollLeft + leftInset;
+    const visibleRight = scrollLeft + containerWidth - rightInset;
+
+    if (direction === 'right') {
+      // Find the last tab that's fully visible (not obscured by arrows)
+      let lastFullyVisibleIdx = -1;
+      for (let i = 0; i < buttons.length; i++) {
+        const btn = buttons[i];
+        const btnLeft = btn.offsetLeft;
+        const btnRight = btnLeft + btn.offsetWidth;
+        if (btnLeft >= visibleLeft && btnRight <= visibleRight) {
+          lastFullyVisibleIdx = i;
+        }
+      }
+
+      // Scroll to the tab after the last fully visible one
+      const nextIdx = lastFullyVisibleIdx + 1;
+      if (nextIdx < buttons.length) {
+        const targetScroll = Math.min(buttons[nextIdx].offsetLeft - ARROW_BUTTON_WIDTH, maxScroll);
+        container.scrollTo({ left: targetScroll, behavior: 'smooth' });
+      } else {
+        container.scrollTo({ left: maxScroll, behavior: 'smooth' });
+      }
+    } else {
+      // Find the first tab that's fully visible
+      let firstVisibleIdx = buttons.length - 1;
+      for (let i = 0; i < buttons.length; i++) {
+        if (buttons[i].offsetLeft >= visibleLeft) {
+          firstVisibleIdx = i;
+          break;
+        }
+      }
+
+      // Calculate how many tabs fit in visible area
+      const visibleWidth = visibleRight - visibleLeft;
+      let pageWidth = 0;
+      let tabsInPage = 0;
+      for (let i = 0; i < buttons.length; i++) {
+        const btnWidth = buttons[i].offsetWidth + 4;
+        if (pageWidth + btnWidth <= visibleWidth) {
+          pageWidth += btnWidth;
+          tabsInPage++;
+        } else {
+          break;
+        }
+      }
+
+      const targetIdx = Math.max(0, firstVisibleIdx - tabsInPage);
+      const targetScroll = targetIdx === 0 ? 0 : buttons[targetIdx].offsetLeft - ARROW_BUTTON_WIDTH;
+      container.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' });
+    }
+  };
+
+  createEffect(() => {
+    const container = scrollRef();
+    if (!container) return;
+
+    updateScrollState();
+
+    const observer = new ResizeObserver(updateScrollState);
+    observer.observe(container);
+
+    onCleanup(() => observer.disconnect());
+  });
+
+  createEffect(on(activeTab, () => {
+    updateScrollState();
+
+    // Scroll active tab into view
+    const container = scrollRef();
+    if (!container) return;
+
+    const activeIndex = list().findIndex((item) => item.value === activeTab());
+    if (activeIndex === -1) return;
+
+    const buttons = container.querySelectorAll('button');
+    const activeButton = buttons[activeIndex] as HTMLElement | undefined;
+    if (!activeButton) return;
+
+    const containerWidth = container.clientWidth;
+    const scrollLeft = container.scrollLeft;
+    const buttonLeft = activeButton.offsetLeft;
+    const buttonRight = buttonLeft + activeButton.offsetWidth;
+    const inset = hasOverflow() ? ARROW_BUTTON_WIDTH : 0;
+
+    // Check if button is outside visible area (accounting for arrow buttons)
+    if (buttonLeft < scrollLeft + inset) {
+      container.scrollTo({ left: Math.max(0, buttonLeft - inset), behavior: 'smooth' });
+    } else if (buttonRight > scrollLeft + containerWidth - inset) {
+      container.scrollTo({ left: buttonRight - containerWidth + inset, behavior: 'smooth' });
+    }
+  }));
+
   return (
-    <Tabs
-      list={list()}
-      value={activeTab()}
-      defaultValue={VIEW_TAB_PRESETS[props.view].default}
-      onChange={(value) => applyTabPreset(props.view, value)}
-      indicatorPosition="top"
-      class="**:data-indicator:h-[3px]"
-    />
+    <>
+      <div
+        ref={setScrollRef}
+        class={cn(
+          'flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory',
+          hasOverflow() && 'scroll-pl-7 scroll-pr-7'
+        )}
+        onScroll={updateScrollState}
+      >
+        <For each={list()}>
+          {(item) => (
+            <button
+              type="button"
+              class={cn(
+                MOBILE_TAB_BUTTON_CLASS,
+                'snap-start',
+                activeTab() === item.value
+                  ? 'bg-ink/10 text-ink'
+                  : 'text-ink/50 active:text-ink active:bg-ink/5'
+              )}
+              onClick={() => applyTabPreset(props.view, item.value)}
+            >
+              {item.label}
+            </button>
+          )}
+        </For>
+      </div>
+
+      <button
+        type="button"
+        class={cn(
+          'absolute left-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-panel',
+          (!hasOverflow() || !canScrollLeft()) && 'invisible'
+        )}
+        onClick={() => scroll('left')}
+      >
+        <ArrowLeftIcon class="size-4" />
+        <Show when={activeOffscreenLeft()}>
+          <span class="absolute top-0 right-0 size-1.5 rounded-full bg-accent" />
+        </Show>
+      </button>
+
+      <button
+        type="button"
+        class={cn(
+          'absolute right-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-panel',
+          (!hasOverflow() || !canScrollRight()) && 'invisible'
+        )}
+        onClick={() => scroll('right')}
+      >
+        <ArrowRightIcon class="size-4" />
+        <Show when={activeOffscreenRight()}>
+          <span class="absolute top-0 left-0 size-1.5 rounded-full bg-accent" />
+        </Show>
+      </button>
+    </>
   );
 };

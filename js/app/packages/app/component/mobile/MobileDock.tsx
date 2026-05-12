@@ -1,21 +1,20 @@
-import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
-import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
-import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
-import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
-import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
-import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
-import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
-import { hapticImpact } from '@core/mobile/haptics';
-import { focusInput } from '@core/directive/focusInput';
-import { type Component, createSignal, type JSX, Show } from 'solid-js';
-import { Dynamic } from 'solid-js/web';
-import { cn } from '@ui/utils/classname';
-import { useSplitLayout } from '../split-layout/layout';
 import type { ListView } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { SearchState } from './mobileSearchState';
+import { focusInput } from '@core/directive/focusInput';
+import { hapticImpact } from '@core/mobile/haptics';
+import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
+import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
+import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
+import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
+import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
+import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
+import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
 import { useLocation } from '@solidjs/router';
-import { Layer } from '@ui';
+import { cn, Layer } from '@ui';
+import { type Component, createSignal, type JSX, Show } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
+import { useSplitLayout } from '../split-layout/layout';
+import { SearchState } from './mobileSearchState';
 
 false && focusInput;
 
@@ -49,17 +48,21 @@ function MobileDockButton(props: MobileDockButtonProps) {
       }}
       onTouchMove={props.onTouchMove}
       onTouchEnd={props.onTouchEnd}
-      class={cn(
-        'flex flex-col items-center justify-center flex-1 pt-3 pb-2 bg-panel border-t border-edge-muted',
-        props.active && 'text-accent'
-      )}
+      class="flex flex-col items-center justify-center flex-1 pt-4 pb-3 bg-panel border-t border-edge-muted"
     >
-      <div class={cn('w-6 h-6 [&_svg]:size-6', props.iconClass)}>
-        <Dynamic component={props.icon} triggerAnimation={animating()} />
+      <div
+        class={cn(
+          'flex items-center justify-center p-2.5 rounded-xl transition-colors',
+          props.active ? 'text-accent bg-accent/10' : 'text-ink-extra-muted'
+        )}
+      >
+        <div class={cn('size-6 [&_svg]:size-6', props.iconClass)}>
+          <Dynamic component={props.icon} triggerAnimation={animating()} />
+        </div>
+        <Show when={props.label}>
+          <span class="text-xs">{props.label}</span>
+        </Show>
       </div>
-      <Show when={props.label}>
-        <span class="text-xs">{props.label}</span>
-      </Show>
     </button>
   );
 }
@@ -80,16 +83,20 @@ function SearchDockButton(props: { active: boolean; onClick: () => void }) {
         setTimeout(() => setAnimating(false), ICON_ANIMATION_DURATION_MS);
         props.onClick();
       }}
-      class={cn(
-        'flex flex-col items-center justify-center flex-1 pt-3 pb-2 bg-panel border-t border-edge-muted',
-        props.active && 'text-accent'
-      )}
+      class="flex flex-col items-center justify-center flex-1 pt-4 pb-3 bg-panel border-t border-edge-muted"
     >
-      <div class="w-6 h-6 [&_svg]:size-6">
-        <Dynamic
-          component={AnimatedSearchIcon}
-          triggerAnimation={animating()}
-        />
+      <div
+        class={cn(
+          'flex items-center justify-center p-2.5 rounded-xl transition-colors',
+          props.active ? 'text-accent bg-accent/10' : 'text-ink-extra-muted'
+        )}
+      >
+        <div class="size-6 [&_svg]:size-6">
+          <Dynamic
+            component={AnimatedSearchIcon}
+            triggerAnimation={animating()}
+          />
+        </div>
       </div>
     </button>
   );
@@ -121,7 +128,7 @@ export function MobileDock() {
   return (
     <Layer depth={1}>
       <div class="relative z-mobile-nav-bar flex flex-row justify-between">
-        <div class="-z-1 absolute left-0 top-0 right-0 w-screen h-40 bg-panel" />
+        <div class="-z-1 absolute inset-x-0 top-0 w-screen h-40 bg-panel" />
         <MobileDockButton
           icon={AnimatedInboxIcon}
           active={isActive('inbox')}
