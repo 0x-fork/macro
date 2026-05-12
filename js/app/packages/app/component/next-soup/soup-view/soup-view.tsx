@@ -1,6 +1,8 @@
 import CheckIcon from '@icon/bold/check-bold.svg';
 import Spinner from '@icon/regular/spinner.svg';
 import RowsIcon from '@icon/regular/rows.svg';
+import ClockIcon from '@icon/regular/clock.svg';
+import { Hotkey } from '@core/component/Hotkey';
 import {
   useGlobalBlockOrchestrator,
   useGlobalNotificationSource,
@@ -79,7 +81,6 @@ import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
 import { useHotkeyDOMScope, registerHotkey } from '@core/hotkey/hotkeys';
 import { invalidateEntityNotifications } from '@queries/notification/user-notifications';
-import { FooterMarquee } from '@app/component/next-soup/soup-view/footer-marquee';
 import type { CacheSnapshot } from 'virtua/unstable_core';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
 import { SoupChatInput } from '@app/component/SoupChatInput';
@@ -118,7 +119,6 @@ import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter
 import { VIEW_TAB_PRESETS } from '@app/component/app-sidebar/soup-filter-presets';
 import { canExecuteMarkDoneOnView } from '@app/component/next-soup/actions/make-mark-done-action';
 import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
-import { Hotkey } from '@core/component/Hotkey';
 
 const useSoupNotificationInvalidators = () => {
   const notificationSource = useGlobalNotificationSource();
@@ -271,6 +271,13 @@ const SoupViewFooter = () => {
   const soup = useSoup();
   const { rows, source } = useSoupView();
 
+  const [now, setNow] = createSignal(Date.now());
+
+  onMount(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    onCleanup(() => clearInterval(interval));
+  });
+
   const totalCount = () => {
     const count = rows().length;
     if (source.hasNextPage?.()) return `${count}+`;
@@ -279,21 +286,62 @@ const SoupViewFooter = () => {
 
   const isFetching = () => source.isFetching() || source.isFetchingNextPage();
 
+  const lastUpdated = () => {
+    const timestamp = source.dataUpdatedAt?.();
+    if (!timestamp) return null;
+    const currentTime = now();
+    const diffMs = currentTime - timestamp;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return new Date(timestamp).toLocaleDateString();
+  };
+
   return (
     <Show when={!soup.previewEntity() && !isMobile()}>
-      <div class="relative shrink-0 border-t border-edge-muted bg-panel text-xs text-ink-extra-muted/60">
-        <div class="flex items-center gap-4 pl-4 py-1">
-          <span class="flex items-center gap-1.5 shrink-0">
-            <span class="size-3 flex items-center justify-center">
-              <Show when={isFetching()} fallback={<RowsIcon class="size-3" />}>
-                <Spinner class="size-3 animate-spin" />
-              </Show>
+      <div class="@container/footer relative shrink-0 border-t border-edge-muted bg-panel text-xs text-ink-extra-muted/60">
+        <div class="flex items-center gap-4 px-4 py-1">
+          <span class="flex items-center gap-2 shrink-0">
+            <span class="flex items-center gap-1.5">
+              <span class="size-3 flex items-center justify-center">
+                <Show when={isFetching()} fallback={<RowsIcon class="size-3" />}>
+                  <Spinner class="size-3 animate-spin" />
+                </Show>
+              </span>
+              {totalCount()} items
             </span>
-            {totalCount()} items
+            <Show when={lastUpdated()}>
+              <span class="text-ink-extra-muted/30">·</span>
+              <span class="flex items-center gap-1">
+                <ClockIcon class="size-3" />
+                <span class="hidden @md/footer:inline">Updated</span>
+                {lastUpdated()}
+              </span>
+            </Show>
           </span>
-          <div class="flex-1 overflow-hidden">
-            <FooterMarquee />
-          </div>
+          <div class="flex-1" />
+          <span class="flex items-center gap-3 shrink-0 whitespace-nowrap">
+            <span class="flex items-center gap-1">
+              <span class="flex border border-edge-muted text-xxs rounded-xs items-center px-1 py-px">
+                <Hotkey shortcut="enter" />
+              </span>
+              Open
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="flex border border-edge-muted text-xxs rounded-xs items-center px-1 py-px">
+                <Hotkey shortcut="cmd+k" />
+              </span>
+              Actions
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="flex border border-edge-muted text-xxs rounded-xs items-center px-1 py-px">
+                <Hotkey shortcut="e" />
+              </span>
+              Done
+            </span>
+          </span>
         </div>
       </div>
     </Show>

@@ -61,6 +61,7 @@ type DataSource<T> = {
   isFetchingNextPage: Accessor<boolean>;
   hasNextPage: Accessor<boolean>;
   fetchNextPage: VoidFunction;
+  dataUpdatedAt: Accessor<number | undefined>;
 };
 
 interface SoupViewContextValues {
@@ -375,6 +376,12 @@ export const SoupViewContextProvider: FlowComponent<
         if (searchQuery.isEnabled) {
           searchQuery.fetchNextPage();
         }
+      },
+      dataUpdatedAt: () => {
+        const itemsUpdated = itemsQuery.dataUpdatedAt;
+        const searchUpdated = searchQuery.dataUpdatedAt;
+        if (searchQuery.isEnabled && searchUpdated) return searchUpdated;
+        return itemsUpdated;
       },
     },
     rows,
