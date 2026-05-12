@@ -1,6 +1,7 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { ContextMenuContent, MenuItem } from '@core/component/Menu';
+import { isMobile } from '@core/mobile/isMobile';
 import { toast } from '@core/component/Toast/Toast';
 import { buildSimpleEntityUrl } from '@core/util/url';
 import CheckIcon from '@icon/regular/check.svg';
@@ -356,14 +357,16 @@ function TimelineRow(props: {
   };
 
   return (
-    <div class="group relative pl-8">
-      {/* Vertical rail */}
-      <div class="absolute left-2 top-0 bottom-0 border-l border-ink/15" />
+    <div class="group relative">
+      {/* Vertical rail - only continues if not last */}
+      <Show when={!props.isLast}>
+        <div class="absolute -left-6 top-0 bottom-0 border-l border-edge" />
+      </Show>
       {/* Curved connector */}
-      <div class="absolute left-2 top-0 w-4 h-4 text-ink/15">
-        <svg viewBox="0 0 16 16" fill="none" class="size-full">
+      <div class="absolute -left-6 top-2 w-6 h-4 text-edge">
+        <svg viewBox="0 0 24 16" fill="none" class="size-full">
           <path
-            d="M0 0 L0 10 Q0 14 4 14 L16 14"
+            d="M0 0 L0 10 Q0 14 4 14 L24 14"
             stroke="currentColor"
             stroke-width="1"
             fill="none"
@@ -372,31 +375,51 @@ function TimelineRow(props: {
       </div>
       {/* Content */}
       <div
-        class="relative min-w-0 mb-2 p-2 cursor-pointer rounded-md hover:bg-ink/5 group/row"
+        class={cn("relative min-w-0 py-2 cursor-pointer hover:bg-ink/5 group/row", isMobile() ? "pr-2" : "pr-8")}
         onClick={handleClick}
         role="button"
         tabIndex={0}
       >
-        <div class="flex items-center gap-2 text-xs pr-2">
-          <NotificationSenderIcon stack={props.stack} size="xs" />
-          <span class="ph-no-capture shrink-0 font-medium text-ink">
-            <NotificationDescription stack={props.stack} />
-          </span>
-          <span class="text-ink-extra-muted">·</span>
-          <span class="ph-no-capture truncate text-ink-extra-muted">
-            <NotificationContent stack={props.stack} singleLine />
-          </span>
-          <span class="text-ink-extra-muted/50 shrink-0 ml-auto">
-            <NotificationTimestamp stack={props.stack} />
-          </span>
-        </div>
+        <Show
+          when={isMobile()}
+          fallback={
+            <div class="flex items-center gap-2 text-xs">
+              <NotificationSenderIcon stack={props.stack} size="xs" />
+              <span class="ph-no-capture shrink-0 font-medium text-ink">
+                <NotificationDescription stack={props.stack} />
+              </span>
+              <span class="text-ink-extra-muted">·</span>
+              <span class="ph-no-capture truncate text-ink-extra-muted">
+                <NotificationContent stack={props.stack} singleLine />
+              </span>
+              <span class="text-ink-extra-muted/50 shrink-0 ml-auto">
+                <NotificationTimestamp stack={props.stack} />
+              </span>
+            </div>
+          }
+        >
+          <div class="flex flex-col gap-1 text-xs">
+            <div class="flex items-center gap-2 min-w-0">
+              <NotificationSenderIcon stack={props.stack} size="xs" />
+              <span class="ph-no-capture truncate font-medium text-ink min-w-0">
+                <NotificationDescription stack={props.stack} />
+              </span>
+              <span class="text-ink-extra-muted/50 shrink-0 ml-auto whitespace-nowrap">
+                <NotificationTimestamp stack={props.stack} />
+              </span>
+            </div>
+            <span class="ph-no-capture truncate text-ink-extra-muted">
+              <NotificationContent stack={props.stack} singleLine />
+            </span>
+          </div>
+        </Show>
         <Button
           onClick={(e) => {
             e.stopPropagation();
             markStackAsDone();
           }}
           tooltip="Mark done"
-          class="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/row:opacity-100 bg-edge-muted! hover:bg-edge! text-ink-muted p-0 size-5 grid place-items-center rounded"
+          class="absolute top-1/2 -translate-y-1/2 right-1 opacity-0 group-hover/row:opacity-100 bg-edge-muted! hover:bg-edge! text-ink-muted p-0 size-5 grid place-items-center rounded"
         >
           <CheckIcon class="size-2.5" />
         </Button>
@@ -436,7 +459,9 @@ export function NotificationStacks(
 
     return (
       <Show when={stacks.length > 0}>
-        <div class="flex flex-col">
+        <div class="relative flex flex-col pl-6">
+          {/* Leading vertical connector from icon area */}
+          <div class="absolute left-0 top-0 h-6 border-l border-edge" />
           <For each={visibleStacks()}>
             {(stack, index) => (
               <TimelineRow
@@ -448,11 +473,23 @@ export function NotificationStacks(
             )}
           </For>
           <Show when={hasMore()}>
-            <div class="relative pl-8">
-              <div class="absolute left-2 top-0 h-3 border-l border-ink/15" />
+            <div class="relative py-2">
+              {/* Vertical rail - stops at curve */}
+              <div class="absolute -left-6 top-0 h-4 border-l border-edge" />
+              {/* Curved connector */}
+              <div class="absolute -left-6 top-2 w-6 h-4 text-edge">
+                <svg viewBox="0 0 24 16" fill="none" class="size-full">
+                  <path
+                    d="M0 0 L0 10 Q0 14 4 14 L24 14"
+                    stroke="currentColor"
+                    stroke-width="1"
+                    fill="none"
+                  />
+                </svg>
+              </div>
               <button
                 type="button"
-                class="text-xs text-ink-muted hover:text-ink hover:bg-ink/5 px-2 py-1 rounded-md transition-colors"
+                class="text-xs text-ink-muted border border-edge-muted rounded-full px-2 py-0.5 hover:text-accent hover:border-accent/50 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowMore(!showMore());

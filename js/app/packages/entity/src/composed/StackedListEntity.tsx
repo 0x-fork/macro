@@ -900,6 +900,7 @@ function NarrowIconShell(props: {
   onChecked?: (checked: boolean, shiftKey: boolean) => void;
   unread: boolean;
   dimWhenRead?: boolean;
+  hasNotifications?: boolean;
   icon: JSX.Element;
   children: JSX.Element;
   trailing?: JSX.Element;
@@ -910,7 +911,7 @@ function NarrowIconShell(props: {
 
   return (
     <div
-      class={cn('grid w-full text-sm py-2 px-2', mobile && 'min-h-[5.25rem]')}
+      class={cn('grid w-full text-sm py-2 px-2', mobile && !props.hasNotifications && 'min-h-[4.5rem]')}
       style={{
         'grid-template-columns': mobile ? '3rem 1fr auto' : '1.5rem 1fr auto',
         gap: '0 0.75rem',
@@ -944,7 +945,7 @@ function NarrowIconShell(props: {
         }
       >
         <div
-          class="row-span-full flex items-start justify-center"
+          class={cn('flex items-start justify-center', !props.hasNotifications && 'row-span-full')}
           style={{ 'grid-column': '1' }}
         >
           <div class="relative flex">
@@ -1049,6 +1050,7 @@ function NarrowEmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
       icon={icon}
       ownerId={props.entity.ownerId}
       isShared={props.isShared}
@@ -1084,6 +1086,7 @@ function NarrowChannelShell(props: {
   onChecked?: (checked: boolean, shiftKey: boolean) => void;
   unread: boolean;
   dimWhenRead?: boolean;
+  hasNotifications?: boolean;
   dmParticipantId?: string;
   icon: JSX.Element;
   children: JSX.Element;
@@ -1093,7 +1096,7 @@ function NarrowChannelShell(props: {
 
   return (
     <div
-      class={cn('grid w-full text-sm py-2 px-2', mobile && 'min-h-[5.25rem]')}
+      class={cn('grid w-full text-sm py-2 px-2', mobile && !props.hasNotifications && 'min-h-[4.5rem]')}
       style={{
         'grid-template-columns': mobile ? '3rem 1fr auto' : '1.5rem 1fr auto',
         gap: '0 0.75rem',
@@ -1127,7 +1130,7 @@ function NarrowChannelShell(props: {
         }
       >
         <div
-          class="row-span-full flex items-start justify-center"
+          class={cn('flex items-start justify-center', !props.hasNotifications && 'row-span-full')}
           style={{ 'grid-column': '1' }}
         >
           <button
@@ -1202,6 +1205,7 @@ function NarrowChannelLayout(
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
       dmParticipantId={dmParticipantId()}
       icon={
         <Entity.Icon entity={props.entity} streamState={props.streamState} />
@@ -1222,13 +1226,8 @@ function NarrowChannelLayout(
         </Show>
       }
     >
-      <span class="flex items-center gap-1.5 min-w-0">
-        <span class="shrink-0 [&_svg]:size-4">
-          <Entity.Icon entity={props.entity} streamState={props.streamState} />
-        </span>
-        <span class="ph-no-capture text-sm truncate">
-          <Entity.Title entity={props.entity} />
-        </span>
+      <span class="ph-no-capture text-sm truncate">
+        <Entity.Title entity={props.entity} />
       </span>
       <Show when={!props.hasNotifications}>
         <Show
@@ -1268,6 +1267,51 @@ function NarrowChannelLayout(
         </Show>
       </Show>
     </NarrowChannelShell>
+  );
+}
+
+function NarrowChannelMessageLayout(
+  props: BaseLayoutProps & { message: ChannelMessageEntity }
+) {
+  return (
+    <NarrowIconShell
+      checked={props.checked}
+      onChecked={props.onChecked}
+      unread={props.unread}
+      dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
+      icon={
+        <Entity.Icon entity={props.entity} streamState={props.streamState} />
+      }
+      ownerId={props.message.senderId}
+      trailing={
+        <span class="text-xs text-ink-extra-muted font-light whitespace-nowrap">
+          <Entity.Timestamp entity={props.entity} />
+        </span>
+      }
+    >
+      <span class="flex items-center gap-1.5 min-w-0">
+        <span class="shrink-0 [&_svg]:size-4">
+          <Entity.Icon entity={props.entity} streamState={props.streamState} />
+        </span>
+        <span class="text-ink-muted text-sm shrink-0">
+          {props.message.channelName}
+        </span>
+        <Show when={props.message.senderId}>
+          {(id) => (
+            <span class="flex items-center gap-1 shrink-0">
+              <UserIcon id={id()} size="xs" />
+              <span class="ph-no-capture text-sm">
+                <DisplayName id={id()} format="firstName" />
+              </span>
+            </span>
+          )}
+        </Show>
+      </span>
+      <span class="text-xs text-ink-extra-muted truncate min-w-0">
+        {props.message.content}
+      </span>
+    </NarrowIconShell>
   );
 }
 
@@ -1533,7 +1577,7 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
       saveHandler={saveHandler}
     >
       <div
-        class={cn('grid w-full text-sm py-2 px-2', mobile && 'min-h-[5.25rem]')}
+        class={cn('grid w-full text-sm py-2 px-2', mobile && !props.hasNotifications && 'min-h-[4.5rem]')}
         style={{
           'grid-template-columns': mobile ? '3rem 1fr' : '1.5rem 1fr',
           gap: '0 0.75rem',
@@ -1567,7 +1611,7 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           }
         >
           <div
-            class="row-span-full flex items-start justify-center"
+            class={cn('flex items-start justify-center', !props.hasNotifications && 'row-span-full')}
             style={{ 'grid-column': '1' }}
           >
             <div class="relative flex">
@@ -1680,6 +1724,7 @@ function NarrowDocumentLayout(
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
       icon={
         <Entity.Icon entity={props.entity} streamState={props.streamState} />
       }
@@ -1736,6 +1781,7 @@ function NarrowAutomationLayout(
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
       icon={
         <Entity.Icon entity={props.entity} streamState={props.streamState} />
       }
@@ -1781,6 +1827,7 @@ function NarrowChatLayout(props: BaseLayoutProps & { chat: ChatEntity }) {
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
       icon={
         <Entity.Icon entity={props.entity} streamState={props.streamState} />
       }
@@ -1832,6 +1879,7 @@ function NarrowCallLayout(props: BaseLayoutProps & { call: CallEntity }) {
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
       icon={
         <Show
           when={showMissedIcon()}
@@ -1916,6 +1964,7 @@ function NarrowDefaultLayout(props: BaseLayoutProps) {
       onChecked={props.onChecked}
       unread={props.unread}
       dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
       icon={
         <Entity.Icon entity={props.entity} streamState={props.streamState} />
       }
@@ -2003,10 +2052,10 @@ export function StackedListEntity(props: StackedListEntityProps) {
       ref={mergeRefs(props.ref, draggable)}
       class={cn(
         'soup-stacked-entity w-full relative group/stacked rounded-sm',
+        !isWide() && isMobile() && 'border-b border-edge-muted',
         hasNotifications()
-          ? 'pt-2'
+          ? isMobile() ? '' : 'pt-2'
           : {
-              'border-b border-edge-muted': !isWide() && isMobile(),
               'bg-accent/10': props.checked || (props.highlighted && !isMobile()),
               'hover:bg-ink/5':
                 !props.checked && !props.highlighted && !props.hovered,
@@ -2031,6 +2080,11 @@ export function StackedListEntity(props: StackedListEntityProps) {
             <Match when={isEmailEntity(props.entity) && props.entity}>
               {(email) => (
                 <NarrowEmailLayout {...baseProps()} email={email()} />
+              )}
+            </Match>
+            <Match when={isChannelMessageEntity(props.entity) && props.entity}>
+              {(message) => (
+                <NarrowChannelMessageLayout {...baseProps()} message={message()} />
               )}
             </Match>
             <Match when={isChannelEntity(props.entity) && props.entity}>
@@ -2091,8 +2145,8 @@ export function StackedListEntity(props: StackedListEntityProps) {
         </Switch>
       </Show>
 
-      <Show when={hasNotifications() && !isMobile()}>
-        <div class="pl-2 pr-4 pb-2 pt-1">
+      <Show when={hasNotifications()}>
+        <div class={cn('pb-2', isMobile() ? 'pl-6 pr-2' : 'pl-2 pr-4')}>
           <Show when={isWithNotification(props.entity) && !showContentHits()}>
             <Entity.Notification.Stacks
               entity={props.entity}
