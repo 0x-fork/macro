@@ -391,10 +391,10 @@ export function PropertyEntitySelector(props: EntityInputProps) {
   return (
     <div>
       <div class="relative">
-        <div class="flex w-full items-center py-1 gap-2 px-2 border-b border-edge-muted">
-          <SearchIcon class="h-4 w-4 text-ink-muted" />
+        <div class="flex w-full items-center gap-2 px-2 py-2 border-b border-edge-muted/50">
+          <SearchIcon class="h-4 w-4 text-ink-muted shrink-0" />
           <input
-            class="w-full caret-accent"
+            class="w-full text-sm caret-accent bg-transparent placeholder:text-ink-muted outline-none"
             ref={searchInputRef}
             type="text"
             value={inputValue()}
@@ -422,10 +422,10 @@ export function PropertyEntitySelector(props: EntityInputProps) {
 
               return (
                 <div
-                  class="flex items-center justify-between gap-2 py-1.5 px-2 min-w-0 h-8"
+                  class="flex items-center justify-between gap-2 py-1.5 px-2 min-w-0 h-8 rounded-sm transition-colors"
                   classList={{
-                    'bg-hover': isKeyboardSelected(),
-                    'bg-accent/10': isSelected(),
+                    'bg-accent/20': isKeyboardSelected(),
+                    'bg-accent/10': isSelected() && !isKeyboardSelected(),
                   }}
                   onClick={() => togglePinnedOption(option)}
                   onMouseEnter={() => {
@@ -454,7 +454,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
               style={{
                 'max-height': `${MAX_LIST_HEIGHT}px`,
               }}
-              class="overflow-y-auto overflow-x-hidden scrollbar-hidden"
+              class="overflow-y-auto overflow-x-hidden scrollbar-hidden flex flex-col gap-0.5"
             >
               <For each={sortedEntities()}>
                 {(entity, index) => {
@@ -467,10 +467,10 @@ export function PropertyEntitySelector(props: EntityInputProps) {
                   return (
                     <div
                       data-entity-index={index()}
-                      class="flex items-center justify-between gap-2 py-1.5 px-2 min-w-0 h-8"
+                      class="flex items-center justify-between gap-2 py-1.5 px-2 min-w-0 h-8 rounded-sm transition-colors"
                       classList={{
-                        'bg-hover': isKeyboardSelected(),
-                        'bg-accent/10': isSelected(),
+                        'bg-accent/20': isKeyboardSelected(),
+                        'bg-accent/10': isSelected() && !isKeyboardSelected(),
                       }}
                       onClick={() => toggleEntity(entity)}
                       onKeyDown={(e) =>

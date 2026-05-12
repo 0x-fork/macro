@@ -248,7 +248,7 @@ const SoupViewSkeleton = () => (
       </div>
     </SplitHeaderLeft>
     <div class="pt-2 pb-3 px-2">
-      <div class="rounded-lg border border-edge-muted/50 shadow-inset-bevel">
+      <div class="rounded-lg border border-edge-muted/50">
         <div class="flex items-center gap-2 px-2 py-1.5">
           <div class="flex-1 flex items-center gap-2 h-7 px-2 rounded-md bg-ink/5">
             <div class="size-4 rounded bg-edge-muted/60" />

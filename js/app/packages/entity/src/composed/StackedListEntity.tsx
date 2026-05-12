@@ -626,7 +626,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           >
             {(entity) => (
               <div class="flex justify-end min-w-0">
-                <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate shadow-inset-bevel max-w-full">
+                <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate  max-w-full">
                   <ProjectBreadCrumb
                     entity={entity()}
                     onClick={props.onProjectClick}
@@ -700,7 +700,7 @@ function TaskPropertyPill(props: { property?: Property; empty?: boolean; dim?: b
   return (
     <div
       class={cn(
-        "flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs transition-colors shadow-inset-bevel max-w-full",
+        "flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs transition-colors  max-w-full",
         props.empty
           ? "border-dashed border-edge-muted text-ink-extra-muted hover:border-edge"
           : props.dim
@@ -878,7 +878,7 @@ function DefaultLayout(props: BaseLayoutProps) {
         <div class="ml-auto flex items-center gap-2 shrink-0">
           <Show when={isProjectContainedEntity(props.entity) && props.entity}>
             {(entity) => (
-              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate shadow-inset-bevel">
+              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate ">
                 <ProjectBreadCrumb
                   entity={entity()}
                   onClick={props.onProjectClick}
@@ -1426,7 +1426,7 @@ function TaskPropertyPills(props: {
         {(status) => (
           <span
             class={cn(
-              'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0 shadow-inset-bevel transition-colors',
+              'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0  transition-colors',
               props.dim
                 ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
                 : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
@@ -1441,7 +1441,7 @@ function TaskPropertyPills(props: {
         {(priority) => (
           <span
             class={cn(
-              'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0 shadow-inset-bevel transition-colors',
+              'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0  transition-colors',
               props.dim
                 ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
                 : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
@@ -1455,7 +1455,7 @@ function TaskPropertyPills(props: {
       <Show when={assigneeIds().length > 0}>
         <span
           class={cn(
-            'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0 shadow-inset-bevel transition-colors overflow-hidden',
+            'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0  transition-colors overflow-hidden',
             props.dim
               ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
               : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
@@ -1935,7 +1935,7 @@ function NarrowDefaultLayout(props: BaseLayoutProps) {
         <div class="flex flex-wrap items-center gap-2 min-w-0 mt-1">
           <Show when={isProjectContainedEntity(props.entity) && props.entity}>
             {(entity) => (
-              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate shadow-inset-bevel">
+              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate ">
                 <ProjectBreadCrumb
                   entity={entity()}
                   onClick={props.onProjectClick}

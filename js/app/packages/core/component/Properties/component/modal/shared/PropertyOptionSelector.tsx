@@ -95,10 +95,10 @@ type DropdownSearchInputProps = {
 
 const DropdownSearchInput = (props: DropdownSearchInputProps) => {
   return (
-    <div class="flex w-full items-center py-1 gap-2 px-2 border-b border-edge-muted">
-      <SearchIcon class="h-4 w-4 text-ink-muted" />
+    <div class="flex w-full items-center gap-2 px-2 py-2 border-b border-edge-muted/50">
+      <SearchIcon class="h-4 w-4 text-ink-muted shrink-0" />
       <input
-        class="w-full caret-accent"
+        class="w-full text-sm caret-accent bg-transparent placeholder:text-ink-muted outline-none"
         ref={props.inputRef}
         type={props.inputType ?? 'text'}
         value={props.value}
@@ -123,9 +123,9 @@ const DropdownSelectableRow: ParentComponent<DropdownSelectableRowProps> = (
 ) => {
   return (
     <div
-      class="flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2"
+      class="flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors"
       classList={{
-        'bg-hover': props.isSelected,
+        'bg-accent/20': props.isSelected,
       }}
       onClick={props.onClick}
       onMouseEnter={props.onMouseEnter}
@@ -133,7 +133,7 @@ const DropdownSelectableRow: ParentComponent<DropdownSelectableRowProps> = (
       <div class="flex items-center gap-2 flex-1 min-w-0">{props.children}</div>
       <div class="flex items-center gap-2 shrink-0">
         <Show when={props.showHotkey && props.hotkeyShortcut}>
-          <div class="text-xxs px-1.5 py-0.5 border border-edge-muted text-ink-muted font-mono rounded-xs">
+          <div class="text-xxs px-1.5 py-0.5 border border-ink/20 text-ink-muted font-mono rounded-xs">
             <Hotkey shortcut={props.hotkeyShortcut!} />
           </div>
         </Show>
@@ -285,12 +285,12 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
     <div
       onClick={handleAddOption}
       class={cn(
-        'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2',
-        props.isSelected && 'bg-hover'
+        'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors cursor-pointer',
+        props.isSelected && 'bg-accent/20'
       )}
     >
       <div class="flex items-center gap-2 flex-1 text-left">
-        <div class="size-3 shrink-0">
+        <div class="size-3 shrink-0 text-accent">
           <Show
             when={!isAddingOption()}
             fallback={
@@ -302,7 +302,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
             <PlusIcon class="size-3" />
           </Show>
         </div>
-        <p class="text-sm font-medium">Add "{dropdown.searchQuery().trim()}"</p>
+        <p class="text-xs font-normal">Add "{dropdown.searchQuery().trim()}"</p>
       </div>
     </div>
   );
@@ -357,7 +357,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
             }
           >
             <div class="p-1">
-              <div class="max-h-[200px] overflow-y-auto overflow-x-hidden scrollbar-hidden">
+              <div class="max-h-[200px] overflow-y-auto overflow-x-hidden scrollbar-hidden flex flex-col gap-0.5">
                 <Show
                   when={selectableItems().length > 0}
                   fallback={
@@ -404,7 +404,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
                           >
                             <PropertyValueIcon optionId={item.option!.id} />
                             <div class="flex-1 min-w-0 text-left">
-                              <p class="text-sm font-medium truncate">
+                              <p class="text-xs font-normal truncate">
                                 {item.option!.label}
                               </p>
                             </div>

@@ -22,6 +22,8 @@ import {
 } from '@queries/properties/options';
 import type { DateProperty } from '../../types';
 import { cn, Layer } from '@ui';
+import { Button } from '@ui/components/Button';
+import CheckIcon from '@icon/regular/check.svg';
 
 export function EditPropertyValueModal(props: PropertyEditorProps) {
   const propertyOptionsQuery = usePropertyOptionsQuery(
@@ -207,7 +209,7 @@ export function EditPropertyValueModal(props: PropertyEditorProps) {
           handleClose();
         }}
       >
-        <Layer depth={2}>
+        <Layer depth={3}>
           <div
             ref={mergeRefs((ref) => {
               modalRef = ref;
@@ -216,13 +218,13 @@ export function EditPropertyValueModal(props: PropertyEditorProps) {
               }));
             })}
             class={cn(
-              'absolute border border-edge rounded sm z-action-menu max-h-96 overflow-hidden flex flex-col w-full max-w-sm'
+              'absolute border border-edge-muted/50 rounded-lg z-action-menu max-h-96 overflow-hidden flex flex-col w-full max-w-sm bg-surface shadow-lg'
             )}
             tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
           >
             <Show when={!isLoading()}>
-              <div class="bg-dialog text-ink">
+              <div class="bg-panel text-ink">
                 <div>
                   <Show
                     when={
@@ -310,19 +312,15 @@ export function EditPropertyValueModal(props: PropertyEditorProps) {
                   </Show>
                 </div>
                 <Show when={props.property.isMultiSelect}>
-                  <div class="border-t border-edge-muted px-2 py-1.5 flex justify-end gap-1">
-                    <button
-                      class="text-xs text-ink-muted hover:text-ink px-2 py-1"
-                      onClick={() => props.onClose()}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      class="text-xs text-ink-muted hover:text-ink px-2 py-1"
+                  <div class="px-2 py-1.5 flex justify-end">
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={handleClose}
                     >
+                      <CheckIcon class="size-3.5" />
                       Done
-                    </button>
+                    </Button>
                   </div>
                 </Show>
               </div>

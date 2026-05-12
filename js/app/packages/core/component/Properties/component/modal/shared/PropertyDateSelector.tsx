@@ -143,10 +143,10 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
 
   return (
     <div class="relative">
-      <div class="flex w-full items-center py-1 gap-2 px-2 border-b border-edge-muted">
-        <SearchIcon class="h-4 w-4 text-ink-muted" />
+      <div class="flex w-full items-center gap-2 px-2 py-2 border-b border-edge-muted/50">
+        <SearchIcon class="h-4 w-4 text-ink-muted shrink-0" />
         <input
-          class="w-full caret-accent"
+          class="w-full text-sm caret-accent bg-transparent placeholder:text-ink-muted outline-none"
           ref={searchInputRef}
           type="text"
           value={searchQuery()}
@@ -186,7 +186,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
           </Show>
 
           <div class="p-1">
-            <div class="max-h-[200px] overflow-y-auto overflow-x-hidden scrollbar-hidden">
+            <div class="max-h-[200px] overflow-y-auto overflow-x-hidden scrollbar-hidden flex flex-col gap-0.5">
               <Show
                 when={dateOptions().length > 0}
                 fallback={
@@ -209,8 +209,8 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                     <div
                       data-date-index={index()}
                       class={cn(
-                        'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2',
-                        index() === selectedIndex() && 'bg-hover'
+                        'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors',
+                        index() === selectedIndex() && 'bg-accent/20'
                       )}
                       onClick={() => handleSelectDate(option.date)}
                       onMouseEnter={() => {
@@ -220,7 +220,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                       }}
                     >
                       <div class="flex items-center gap-2 flex-1 min-w-0">
-                        <p class="text-sm font-medium truncate">
+                        <p class="text-xs font-normal truncate">
                           {option.displayText}
                         </p>
                       </div>
@@ -233,12 +233,12 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                 </For>
               </Show>
 
-              <div class="border-t border-edge-muted mt-1 pt-1">
+              <div class="border-t border-edge-muted/50 mt-1 pt-1">
                 <div
                   data-date-index={dateOptions().length}
                   class={cn(
-                    'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2',
-                    selectedIndex() === dateOptions().length && 'bg-hover'
+                    'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors',
+                    selectedIndex() === dateOptions().length && 'bg-accent/20'
                   )}
                   onClick={() => setMode('calendar')}
                   onMouseEnter={() => {
@@ -249,7 +249,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                 >
                   <div class="flex items-center gap-2 flex-1 min-w-0">
                     <div class="flex-1 min-w-0">
-                      <p class="text-sm font-medium truncate">Custom date...</p>
+                      <p class="text-xs font-normal truncate">Custom date...</p>
                     </div>
                   </div>
                   <div class="flex items-center gap-2 shrink-0">
@@ -263,13 +263,13 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
           </div>
 
           {/* Help text */}
-          <div class="px-2 py-1.5 border-t border-edge-muted">
-            <div class="text-xs text-ink-muted">
-              <span>Use queries like </span>
-              <code class="bg-active px-1">3d</code>,{' '}
-              <code class="bg-active px-1">1w</code>,{' '}
-              <code class="bg-active px-1">feb 17</code>, or{' '}
-              <code class="bg-active px-1">tomorrow</code>
+          <div class="px-2 py-1.5">
+            <div class="text-xs text-ink-extra-muted">
+              <span>Try </span>
+              <code class="text-ink-muted">3d</code>,{' '}
+              <code class="text-ink-muted">1w</code>,{' '}
+              <code class="text-ink-muted">feb 17</code>, or{' '}
+              <code class="text-ink-muted">tomorrow</code>
             </div>
           </div>
         </Match>
