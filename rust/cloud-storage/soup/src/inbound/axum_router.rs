@@ -23,6 +23,13 @@ use email::{
         previews_router::EmailRouterState,
     },
 };
+use entity_access::{
+    domain::{
+        models::{EntityAccessReceipt, MemberTeamRole},
+        ports::EntityAccessService,
+    },
+    inbound::axum_extractors::TeamAccessLevelExtractor,
+};
 use filter_ast::{Expr, ExprFrame};
 use item_filters::{
     EntityFilters,
@@ -259,35 +266,45 @@ pub struct GroupedSoupPage {
     pub groups: Option<Vec<ApiGroupMeta>>,
 }
 
-pub struct SoupRouterState<T, U> {
+pub struct SoupRouterState<T, U, EAS> {
     service: Arc<T>,
     email: EmailRouterState<U>,
+    entity_access_service: Arc<EAS>,
 }
 
-impl<T, U> Clone for SoupRouterState<T, U> {
+impl<T, U, EAS> Clone for SoupRouterState<T, U, EAS> {
     fn clone(&self) -> Self {
         Self {
             service: self.service.clone(),
             email: self.email.clone(),
+            entity_access_service: self.entity_access_service.clone(),
         }
     }
 }
 
-impl<T, U> FromRef<SoupRouterState<T, U>> for EmailRouterState<U> {
-    fn from_ref(input: &SoupRouterState<T, U>) -> Self {
+impl<T, U, EAS> FromRef<SoupRouterState<T, U, EAS>> for EmailRouterState<U> {
+    fn from_ref(input: &SoupRouterState<T, U, EAS>) -> Self {
         input.email.clone()
     }
 }
 
-impl<T, U> SoupRouterState<T, U>
+impl<T, U, EAS> FromRef<SoupRouterState<T, U, EAS>> for Arc<EAS> {
+    fn from_ref(input: &SoupRouterState<T, U, EAS>) -> Self {
+        input.entity_access_service.clone()
+    }
+}
+
+impl<T, U, EAS> SoupRouterState<T, U, EAS>
 where
     T: SoupService,
     U: EmailService,
+    EAS: entity_access::domain::ports::EntityAccessService,
 {
-    pub fn new(service: T, email: U) -> Self {
+    pub fn new(service: T, email: U, entity_access_service: Arc<EAS>) -> Self {
         SoupRouterState {
             service: Arc::new(service),
             email: EmailRouterState::new(email),
+            entity_access_service,
         }
     }
 
@@ -295,6 +312,7 @@ where
         &self,
         macro_user_id: MacroUserIdStr<'static>,
         email_link: Option<Link>,
+        team_receipt: Option<EntityAccessReceipt<MemberTeamRole>>,
         ApiSoupRequestInner {
             filters,
             params,
@@ -330,17 +348,20 @@ where
 
         let res = self
             .service
-            .get_user_soup(SoupRequest {
-                soup_type: match params.expand {
-                    Some(true) | None => SoupType::Expanded,
-                    Some(false) => SoupType::UnExpanded,
+            .get_user_soup(
+                SoupRequest {
+                    soup_type: match params.expand {
+                        Some(true) | None => SoupType::Expanded,
+                        Some(false) => SoupType::UnExpanded,
+                    },
+                    limit: params.limit.unwrap_or(20),
+                    cursor,
+                    user: macro_user_id,
+                    email_preview_view: email_view,
+                    link_id: email_link.map(|l| l.id),
                 },
-                limit: params.limit.unwrap_or(20),
-                cursor,
-                user: macro_user_id,
-                email_preview_view: email_view,
-                link_id: email_link.map(|l| l.id),
-            })
+                team_receipt,
+            )
             .await?;
 
         Ok(Json(
@@ -409,10 +430,11 @@ where
     }
 }
 
-pub fn soup_router<T, U, S>(state: SoupRouterState<T, U>) -> Router<S>
+pub fn soup_router<T, U, EAS, S>(state: SoupRouterState<T, U, EAS>) -> Router<S>
 where
     T: SoupService,
     U: EmailService,
+    EAS: EntityAccessService,
     S: Send + Sync,
 {
     Router::new()
@@ -455,6 +477,8 @@ pub enum SoupHandlerErr {
     ExpandErr(ExpandErr),
     #[error("Invalid compound filter could not be expanded")]
     Expand,
+    #[error("team_scope requires team membership")]
+    TeamScopeForbidden,
 }
 
 impl From<SoupErr> for SoupHandlerErr {
@@ -470,6 +494,7 @@ impl IntoResponse for SoupHandlerErr {
     fn into_response(self) -> axum::response::Response {
         let status_code = match &self {
             SoupHandlerErr::ExpandErr(_) | SoupHandlerErr::Expand => StatusCode::BAD_REQUEST,
+            SoupHandlerErr::TeamScopeForbidden => StatusCode::FORBIDDEN,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (
@@ -496,8 +521,8 @@ impl IntoResponse for SoupHandlerErr {
             (status = 500, body=ErrorResponse),
     )
 )]
-pub async fn get_soup_handler<T, U>(
-    State(service): State<SoupRouterState<T, U>>,
+pub async fn get_soup_handler<T, U, EAS>(
+    State(service): State<SoupRouterState<T, U, EAS>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
     email_link: Result<Cached<EmailLinkExtractor<U>>, EmailLinkErr>,
     Query(params): Query<Params>,
@@ -506,6 +531,7 @@ pub async fn get_soup_handler<T, U>(
 where
     T: SoupService,
     U: EmailService,
+    EAS: EntityAccessService,
 {
     let link = match email_link {
         Ok(l) => Some(l.0.0),
@@ -516,6 +542,7 @@ where
         .handle(
             macro_user_id,
             link,
+            None,
             ApiSoupRequestInner {
                 params,
                 filters: EntityFilters::default(),
@@ -564,10 +591,11 @@ type SoupCursor<R> = axum_extra::either::Either<
     )
 )]
 #[tracing::instrument(err, skip_all)]
-pub async fn post_soup_handler<T, U>(
-    State(service): State<SoupRouterState<T, U>>,
+pub async fn post_soup_handler<T, U, EAS>(
+    State(service): State<SoupRouterState<T, U, EAS>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
     email_link: Result<Cached<EmailLinkExtractor<U>>, EmailLinkErr>,
+    team: TeamAccessLevelExtractor<MemberTeamRole, EAS>,
     cursor: SoupCursor<EntityFilters>,
     Json(PostSoupRequest {
         filters,
@@ -578,16 +606,20 @@ pub async fn post_soup_handler<T, U>(
 where
     T: SoupService,
     U: EmailService,
+    EAS: EntityAccessService,
 {
     let link = match email_link {
         Ok(l) => Some(l.0.0),
         Err(EmailLinkErr::NotFound) => None,
         Err(e) => Err(e)?,
     };
+    let team_receipt =
+        resolve_team_receipt(filters.email_filters.team_scope, team.entity_access_receipt)?;
     service
         .handle(
             macro_user_id,
             link,
+            team_receipt,
             ApiSoupRequestInner {
                 filters,
                 params,
@@ -627,10 +659,11 @@ pub struct PostSoupAstRequest {
     )
 )]
 #[tracing::instrument(err, skip_all)]
-pub async fn post_soup_ast_handler<T, U>(
-    State(service): State<SoupRouterState<T, U>>,
+pub async fn post_soup_ast_handler<T, U, EAS>(
+    State(service): State<SoupRouterState<T, U, EAS>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
     email_link: Result<Cached<EmailLinkExtractor<U>>, EmailLinkErr>,
+    team: TeamAccessLevelExtractor<MemberTeamRole, EAS>,
     cursor: SoupCursor<ApiEntityFilterAst>,
     Json(PostSoupAstRequest {
         filters,
@@ -641,16 +674,22 @@ pub async fn post_soup_ast_handler<T, U>(
 where
     T: SoupService,
     U: EmailService,
+    EAS: EntityAccessService,
 {
     let link = match email_link {
         Ok(l) => Some(l.0.0),
         Err(EmailLinkErr::NotFound) => None,
         Err(e) => Err(e)?,
     };
+    let team_receipt = resolve_team_receipt(
+        email_filter_contains_team_scope(&filters.email_filter),
+        team.entity_access_receipt,
+    )?;
     service
         .handle(
             macro_user_id,
             link,
+            team_receipt,
             ApiSoupRequestInner {
                 filters,
                 params,
@@ -689,8 +728,8 @@ pub struct PostGroupedSoupAstRequest {
     )
 )]
 #[tracing::instrument(err, skip_all)]
-pub async fn post_grouped_soup_ast_handler<T, U>(
-    State(service): State<SoupRouterState<T, U>>,
+pub async fn post_grouped_soup_ast_handler<T, U, EAS>(
+    State(service): State<SoupRouterState<T, U, EAS>>,
     Cached(MacroUserExtractor { macro_user_id, .. }): Cached<MacroUserExtractor>,
     cursor: Option<CursorWithValAndFilter<Uuid, SimpleSortMethod, ApiEntityFilterAst>>,
     Json(PostGroupedSoupAstRequest { filters, params }): Json<PostGroupedSoupAstRequest>,
@@ -698,6 +737,7 @@ pub async fn post_grouped_soup_ast_handler<T, U>(
 where
     T: SoupService,
     U: EmailService,
+    EAS: EntityAccessService,
 {
     let filters = filters
         .into_entity_ast()
@@ -726,6 +766,35 @@ where
     service
         .handle_grouped(macro_user_id, filters, params, simple_cursor)
         .await
+}
+
+/// Returns the team receipt to use when team-scoped visibility is required.
+/// `team_scope_requested` is true when the request body asks for team_scope
+/// (via the typed flag on POST or the `EmailLiteral::TeamScope` literal on
+/// the AST endpoint). Returns `Err(TeamScopeForbidden)` when team_scope was
+/// requested but the user has no qualifying team membership.
+fn resolve_team_receipt(
+    team_scope_requested: bool,
+    receipt: Option<EntityAccessReceipt<MemberTeamRole>>,
+) -> Result<Option<EntityAccessReceipt<MemberTeamRole>>, SoupHandlerErr> {
+    if team_scope_requested && receipt.is_none() {
+        return Err(SoupHandlerErr::TeamScopeForbidden);
+    }
+    Ok(receipt)
+}
+
+/// Walks an AST email filter tree and returns true if any node is the
+/// `TeamScope` literal.
+fn email_filter_contains_team_scope(filter: &LiteralTree<EmailLiteral>) -> bool {
+    fn walk(expr: &Expr<EmailLiteral>) -> bool {
+        match expr {
+            Expr::And(a, b) | Expr::Or(a, b) => walk(a) || walk(b),
+            Expr::Not(a) => walk(a),
+            Expr::Literal(EmailLiteral::TeamScope) => true,
+            Expr::Literal(_) => false,
+        }
+    }
+    filter.as_ref().map(|e| walk(e)).unwrap_or(false)
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]

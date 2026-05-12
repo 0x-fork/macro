@@ -159,10 +159,14 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
     // Build soup service dependencies
     let frecency_storage = FrecencyPgStorage::new(pool.clone());
     let frecency_service = FrecencyQueryServiceImpl::new(frecency_storage.clone());
+    let crm_service = crm::domain::service::CrmServiceImpl::new(
+        crm::outbound::companies_repo::CompaniesRepositoryImpl::new(pool.clone()),
+    );
     let email_service = EmailServiceImpl::new(
         EmailPgRepo::new(pool.clone()),
         frecency_service.clone(),
         email::domain::ports::NoOpEnqueuer,
+        crm_service.clone(),
         0,
     );
     let user_repo = PgUserRepo::new(pool.clone());
@@ -268,6 +272,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
                 frecency::outbound::postgres::FrecencyPgStorage::new(pool.clone()),
             ),
             sqs_client.clone(),
+            crm_service.clone(),
             0,
         )),
         Arc::new(email::domain::ports::NoOpGmailTokenProvider),

@@ -614,6 +614,7 @@ async fn filter_notifiable_message(
             models_pagination::SimpleSortMethod::UpdatedAt,
             Some(Arc::new(signal_filter)),
         ),
+        team_id: None,
     };
 
     let previews = EmailPgRepo::new(ctx.db.clone())

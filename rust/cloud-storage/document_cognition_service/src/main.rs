@@ -202,10 +202,14 @@ async fn main() -> anyhow::Result<()> {
 
     let frecency_storage = FrecencyPgStorage::new(db.clone());
     let frecency_service = FrecencyQueryServiceImpl::new(frecency_storage.clone());
+    let crm_service = crm::domain::service::CrmServiceImpl::new(
+        crm::outbound::companies_repo::CompaniesRepositoryImpl::new(db.clone()),
+    );
     let email_service = EmailServiceImpl::new(
         EmailPgRepo::new(db.clone()),
         frecency_service.clone(),
         email::domain::ports::NoOpEnqueuer,
+        crm_service.clone(),
         0,
     );
     let channels_service = ChannelServiceImpl::new(
@@ -320,6 +324,7 @@ async fn main() -> anyhow::Result<()> {
             EmailPgRepo::new(db.clone()),
             FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(db.clone())),
             sqs_client.clone(),
+            crm_service.clone(),
             0,
         )),
         Arc::new(email::domain::ports::NoOpGmailTokenProvider),
