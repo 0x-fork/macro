@@ -3,7 +3,7 @@ use macro_user_id::{cowlike::CowLike, email::EmailStr};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{EmailFilters, SharedEmailFilter, ast::ExpandErr, ast::date::DateLiteral};
+use crate::{DateRangeFilter, EmailFilters, SharedEmailFilter, ast::ExpandErr, ast::date::DateLiteral};
 
 /// Possible email values in the ast
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +65,8 @@ impl ExpandFrame<EmailLiteral> for EmailFilters {
             exclude_labels: _,
             shared,
             calendar_only,
+            created_at,
+            updated_at,
         } = input;
 
         fn map_email(s: String) -> Email {
@@ -116,6 +118,24 @@ impl ExpandFrame<EmailLiteral> for EmailFilters {
             .filter(|v| *v)
             .map(|v| Expr::Literal(EmailLiteral::CalendarOnly(v)));
 
+        fn expand_date_range<F>(filter: DateRangeFilter, wrap: F) -> Option<Expr<EmailLiteral>>
+        where
+            F: Fn(DateLiteral) -> EmailLiteral,
+        {
+            let DateRangeFilter { gt, gte, lt, lte } = filter;
+            [
+                gt.map(|ts| Expr::Literal(wrap(DateLiteral::GreaterThan(ts)))),
+                gte.map(|ts| Expr::Literal(wrap(DateLiteral::GreaterThanOrEqual(ts)))),
+                lt.map(|ts| Expr::Literal(wrap(DateLiteral::LessThan(ts)))),
+                lte.map(|ts| Expr::Literal(wrap(DateLiteral::LessThanOrEqual(ts)))),
+            ]
+            .into_iter()
+            .fold_with(Expr::and)
+        }
+
+        let created_at_node = expand_date_range(created_at, EmailLiteral::CreatedAt);
+        let updated_at_node = expand_date_range(updated_at, EmailLiteral::UpdatedAt);
+
         Ok([
             sender_nodes,
             cc_nodes,
@@ -128,6 +148,8 @@ impl ExpandFrame<EmailLiteral> for EmailFilters {
             notification_seen_node,
             shared_node,
             calendar_only_node,
+            created_at_node,
+            updated_at_node,
         ]
         .into_iter()
         .fold_with(Expr::and))

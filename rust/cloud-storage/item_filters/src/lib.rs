@@ -1,6 +1,7 @@
 #![deny(missing_docs)]
 //! This crate contains all filters for various item types to be used in soup/search.
 
+use chrono::{DateTime, Utc};
 use non_empty::IsEmpty;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
@@ -41,6 +42,34 @@ impl IsEmpty for NotificationFilters {
     fn is_empty(&self) -> bool {
         let NotificationFilters { done, seen } = self;
         done.is_none() && seen.is_none()
+    }
+}
+
+/// Date range filter supporting open-ended or bounded ranges.
+///
+/// At least one bound must be set for the filter to have an effect. Use
+/// `gt`/`lt` for exclusive bounds or `gte`/`lte` for inclusive bounds.
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq, Clone)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema, schemars::JsonSchema))]
+pub struct DateRangeFilter {
+    /// Strictly greater than this timestamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gt: Option<DateTime<Utc>>,
+    /// Greater than or equal to this timestamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gte: Option<DateTime<Utc>>,
+    /// Strictly less than this timestamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lt: Option<DateTime<Utc>>,
+    /// Less than or equal to this timestamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lte: Option<DateTime<Utc>>,
+}
+
+impl IsEmpty for DateRangeFilter {
+    fn is_empty(&self) -> bool {
+        let DateRangeFilter { gt, gte, lt, lte } = self;
+        gt.is_none() && gte.is_none() && lt.is_none() && lte.is_none()
     }
 }
 
@@ -252,6 +281,14 @@ pub struct EmailFilters {
     /// type). `Some(false)` and `None` apply no constraint.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub calendar_only: Option<bool>,
+
+    /// Filter by thread created_at timestamp.
+    #[serde(default, skip_serializing_if = "DateRangeFilter::is_empty")]
+    pub created_at: DateRangeFilter,
+
+    /// Filter by thread updated_at timestamp (view-dependent).
+    #[serde(default, skip_serializing_if = "DateRangeFilter::is_empty")]
+    pub updated_at: DateRangeFilter,
 }
 
 impl IsEmpty for EmailFilters {
@@ -269,6 +306,8 @@ impl IsEmpty for EmailFilters {
             exclude_labels,
             shared,
             calendar_only,
+            created_at,
+            updated_at,
         } = self;
         senders.is_empty()
             && cc.is_empty()
@@ -282,6 +321,8 @@ impl IsEmpty for EmailFilters {
             && exclude_labels.is_empty()
             && shared.is_default()
             && !calendar_only.unwrap_or(false)
+            && created_at.is_empty()
+            && updated_at.is_empty()
     }
 }
 
