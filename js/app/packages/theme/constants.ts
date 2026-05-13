@@ -1,7 +1,7 @@
 import type { ThemeV2 } from './types/themeTypes';
 
-export const DEFAULT_LIGHT_THEME: DefaultTheme = 'Macro Light';
-export const DEFAULT_DARK_THEME: DefaultTheme = 'Macro Dark';
+export const DEFAULT_LIGHT_THEME: DefaultTheme = 'Sleepless';
+export const DEFAULT_DARK_THEME: DefaultTheme = 'Sleepless';
 
 export const DEFAULT_THEMES = [
   {
@@ -19,7 +19,7 @@ export const DEFAULT_THEMES = [
       b1: { l: 0.16, c: 0.00, h:  21 },
       b2: { l: 0.18, c: 0.00, h:  21 },
       b3: { l: 0.20, c: 0.00, h:  21 },
-      b4: { l: 0.26, c: 0.00, h:  21 },
+      b4: { l: 0.80, c: 0.16, h:  86 },
       c0: { l: 0.95, c: 0.00, h:  21 },
       c1: { l: 0.83, c: 0.00, h:  21 },
       c2: { l: 0.75, c: 0.00, h:  21 },
