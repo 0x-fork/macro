@@ -386,14 +386,14 @@ if (LOCAL_ONLY) {
     'user-icon',
     lazy(() => import('@core/internal/UserIconDemo'))
   );
+}
 
+if (DEV_MODE_ENV) {
   registerComponent(
     'channel-avatar-debug',
     lazy(() => import('@channel/Avatar/ChannelAvatarDebug'))
   );
-}
 
-if (DEV_MODE_ENV) {
   // NOTE (seamus) : putting pixel icons on dev/staging for aidan
   registerComponent(
     'pixel-icon',
