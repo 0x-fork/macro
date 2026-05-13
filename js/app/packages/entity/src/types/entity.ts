@@ -32,6 +32,9 @@ export type ChannelEntity = EntityBase & {
     senderId: string;
     createdAt: DateValue;
   };
+  avatarIcon?: string | null;
+  avatarColorFamily?: string | null;
+  avatarOverridden?: boolean | null;
 };
 
 export type ChannelMessageEntity = EntityBase & {
