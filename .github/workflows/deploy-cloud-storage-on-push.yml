@@ -128,6 +128,7 @@ jobs:
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
 
       - name: Build prebuilt binaries
         shell: bash
@@ -139,9 +140,13 @@ jobs:
 
           binaries=$(jq -r --arg service "$SERVICE" '.services[$service].deploy_binaries // [] | @tsv' .github/services-config.json)
           if [[ -n "$binaries" ]]; then
-            cachix watch-store "$CACHIX_CACHE_NAME" &
-            cachix_pid=$!
-            trap 'kill "$cachix_pid" || true' EXIT
+            if command -v cachix >/dev/null 2>&1; then
+              cachix watch-store "$CACHIX_CACHE_NAME" &
+              cachix_pid=$!
+              trap 'kill "$cachix_pid" || true' EXIT
+            else
+              echo "::warning::Cachix is unavailable; skipping Cachix store uploads."
+            fi
 
             nix build ".#deploy-service-binaries-${SERVICE}"
             cp -r result/bin/* prebuilt/
@@ -182,11 +187,14 @@ jobs:
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
 
       - name: Build Lambda artifact
         shell: bash
         env:
           LAMBDA: ${{ matrix.lambda }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
           nix develop .# -c bash -lc '
