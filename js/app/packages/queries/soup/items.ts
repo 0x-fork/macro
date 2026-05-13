@@ -45,6 +45,9 @@ export type SoupApiItemFilter = (item: SoupApiItem) => boolean;
 interface SoupItemsQueryOptions {
   enabled?: boolean;
   staleTime?: StaleTime;
+  /** Forwarded to TanStack Query's `retry` option. Set `false` to disable
+   * the default retry-on-failure behavior. */
+  retry?: boolean | number;
 }
 
 export const useSoupItemsQuery = (
@@ -86,6 +89,7 @@ export const useSoupItemsQuery = (
     },
     enabled: options?.().enabled,
     staleTime: options?.().staleTime,
+    retry: options?.().retry,
     placeholderData: (p) => p,
     meta: { itemFilter, normalize: true },
   }));
@@ -124,6 +128,7 @@ export const useSoupAstItemsQuery = (
     },
     enabled: options?.().enabled,
     staleTime: options?.().staleTime,
+    retry: options?.().retry,
     placeholderData: (p) => p,
     meta: { normalize: true },
   }));
