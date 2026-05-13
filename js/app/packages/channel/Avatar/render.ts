@@ -8,7 +8,7 @@ export type ChannelAvatarInput = {
   name: string;
 };
 
-const ICON_SCALE = 0.55;
+const ICON_SCALE = 0.7;
 
 export function renderAvatarSvg(
   channel: ChannelAvatarInput,
@@ -28,7 +28,7 @@ export function renderAvatarSvg(
   const cx = size / 2;
 
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" preserveAspectRatio="xMidYMid meet" style="display:block;width:100%;height:100%">` +
     `<circle cx="${cx}" cy="${cx}" r="${cx}" fill="${bg}"/>` +
     `<g transform="translate(${offset} ${offset}) scale(${scale})" fill="${fg}">` +
     body +

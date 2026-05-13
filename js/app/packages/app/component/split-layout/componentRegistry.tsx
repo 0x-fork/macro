@@ -386,6 +386,11 @@ if (LOCAL_ONLY) {
     'user-icon',
     lazy(() => import('@core/internal/UserIconDemo'))
   );
+
+  registerComponent(
+    'channel-avatar-debug',
+    lazy(() => import('@channel/Avatar/ChannelAvatarDebug'))
+  );
 }
 
 if (DEV_MODE_ENV) {

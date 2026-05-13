@@ -173,19 +173,19 @@ function ChannelGroupItem(props: {
         navigateToLatestNotification(e.shiftKey);
       }}
     >
-      <div class="relative flex items-center justify-center shrink-0 size-5">
+      <div class="relative flex items-center justify-center shrink-0 size-6">
         <Show
           when={isDM() && senderId()}
           fallback={
             <ChannelAvatar
               name={props.group.channelName ?? 'Unknown'}
-              size="md"
+              size="fill"
             />
           }
         >
           <UserIcon
             id={senderId()!}
-            size="md"
+            size="fill"
             suppressClick
             showTooltip={false}
           />

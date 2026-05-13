@@ -14,7 +14,7 @@ describe('renderAvatarSvg', () => {
         avatarColorFamily: 'purple',
       })
     ).toMatchInlineSnapshot(
-      `"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block"><circle cx="32" cy="32" r="32" fill="#8B5CF6"/><g transform="translate(14.399999999999999 14.399999999999999) scale(0.1375)" fill="#FFFFFF"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z"/></g></svg>"`
+      `"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" preserveAspectRatio="xMidYMid meet" style="display:block;width:100%;height:100%"><circle cx="32" cy="32" r="32" fill="#8B5CF6"/><g transform="translate(9.600000000000001 9.600000000000001) scale(0.175)" fill="#FFFFFF"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z"/></g></svg>"`
     );
   });
 

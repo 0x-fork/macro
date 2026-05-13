@@ -30,7 +30,7 @@ export type ChannelAvatarProps = ChannelAvatarInput & {
    * fallback is used permanently. Defaults to true.
    */
   autoGenerate?: boolean;
-} & Omit<JSX.HTMLAttributes<HTMLSpanElement>, 'innerHTML' | 'children'>;
+} & Omit<JSX.HTMLAttributes<HTMLDivElement>, 'innerHTML' | 'children'>;
 
 export function ChannelAvatar(props: ChannelAvatarProps) {
   const [local, rest] = splitProps(props, [
@@ -64,13 +64,13 @@ export function ChannelAvatar(props: ChannelAvatarProps) {
   );
 
   return (
-    <span
+    <div
       data-slot="channel-avatar"
       data-size={size()}
       data-avatar-generated={generatedQuery.data ? 'true' : undefined}
       title={local.title ?? local.name}
       class={cn(
-        'inline-block shrink-0 select-none overflow-hidden rounded-full',
+        'relative flex shrink-0 select-none overflow-hidden rounded-full [&>svg]:size-full',
         SIZE_CLASSES[size()],
         local.class
       )}
