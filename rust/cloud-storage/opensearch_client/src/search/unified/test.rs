@@ -3,7 +3,7 @@ use super::*;
 use crate::search::builder::updated_at_sort;
 use chrono::Utc;
 use models_search_cursor::SearchMethodCursor;
-use opensearch_query_builder::ToOpenSearchJson;
+use opensearch_query_builder::{SortOrder, ToOpenSearchJson};
 
 #[test]
 fn test_deserialization() -> anyhow::Result<()> {
@@ -787,7 +787,7 @@ fn test_build_unified_search_request_content() -> anyhow::Result<()> {
       },
       "search_after": [time.timestamp_millis(), entity_id.to_string()],
       "size": 21,
-      "sort": updated_at_sort().iter().map(|s| s.to_json()).collect::<Vec<_>>(),
+      "sort": updated_at_sort(SortOrder::Desc).iter().map(|s| s.to_json()).collect::<Vec<_>>(),
     });
 
     assert_eq!(result.to_json(), expected);
@@ -940,7 +940,7 @@ fn test_build_unified_search_request_single_index() -> anyhow::Result<()> {
         }
       },
       "size": 21,
-      "sort": updated_at_sort().iter().map(|s| s.to_json()).collect::<Vec<_>>(),
+      "sort": updated_at_sort(SortOrder::Desc).iter().map(|s| s.to_json()).collect::<Vec<_>>(),
     });
 
     assert_eq!(result.to_json(), expected);
@@ -965,11 +965,21 @@ fn test_build_unified_search_request_empty_indices() -> anyhow::Result<()> {
 #[test]
 fn test_thread_sort_is_thread_id_then_message_id_field_sorts() {
     use crate::search::builder::thread_sort;
-    let json: Vec<serde_json::Value> = thread_sort().iter().map(|s| s.to_json()).collect();
+    let json: Vec<serde_json::Value> = thread_sort(SortOrder::Desc)
+        .iter()
+        .map(|s| s.to_json())
+        .collect();
 
     assert_eq!(json.len(), 2);
     assert_eq!(json[0]["thread_id"]["order"], "desc");
     assert_eq!(json[0]["thread_id"]["unmapped_type"], "keyword");
     assert_eq!(json[1]["message_id"]["order"], "desc");
     assert_eq!(json[1]["message_id"]["unmapped_type"], "keyword");
+
+    let asc_json: Vec<serde_json::Value> = thread_sort(SortOrder::Asc)
+        .iter()
+        .map(|s| s.to_json())
+        .collect();
+    assert_eq!(asc_json[0]["thread_id"]["order"], "asc");
+    assert_eq!(asc_json[1]["message_id"]["order"], "asc");
 }

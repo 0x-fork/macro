@@ -1,4 +1,5 @@
 pub use crate::search::builder::ChannelSortMode;
+pub use opensearch_query_builder::SortOrder;
 
 use crate::{
     Result, delegate_methods,
@@ -141,7 +142,7 @@ impl From<ChannelMessageSearchArgs> for ChannelMessageQueryBuilder {
 }
 
 /// Args for the dedicated channel content search endpoint.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct ChannelSearchArgs {
     pub user_id: String,
     pub page_size: u32,
@@ -153,6 +154,26 @@ pub struct ChannelSearchArgs {
     pub mentions: Vec<String>,
     pub sender_ids: Vec<String>,
     pub sort_mode: ChannelSortMode,
+    /// Direction of the primary sort key. `Desc` (default) lists newest first.
+    pub sort_direction: SortOrder,
+}
+
+impl Default for ChannelSearchArgs {
+    fn default() -> Self {
+        Self {
+            user_id: String::new(),
+            page_size: 0,
+            match_type: String::new(),
+            cursor: SearchCursorOption::default(),
+            terms: Vec::new(),
+            channel_ids: Vec::new(),
+            thread_ids: Vec::new(),
+            mentions: Vec::new(),
+            sender_ids: Vec::new(),
+            sort_mode: ChannelSortMode::default(),
+            sort_direction: SortOrder::Desc,
+        }
+    }
 }
 
 fn build_channel_search_request(
@@ -186,8 +207,8 @@ fn build_channel_search_request(
     }
 
     let sort = match args.sort_mode {
-        ChannelSortMode::Message => updated_at_sort(),
-        ChannelSortMode::Thread => thread_sort(),
+        ChannelSortMode::Message => updated_at_sort(args.sort_direction),
+        ChannelSortMode::Thread => thread_sort(args.sort_direction),
     };
     for s in sort {
         request_builder.add_sort(s);
@@ -209,7 +230,14 @@ fn build_channel_search_request(
 
 pub struct ChannelSearchResults {
     pub hits: Vec<SearchHit>,
+    /// Cursor for the next page in the same sort direction. `Done` when the
+    /// current sort direction is exhausted.
     pub next_cursor: SearchCursorOption,
+    /// Cursor for the previous page. Clients fetch the previous page by
+    /// re-issuing the search with the inverted `sort_direction` and this
+    /// cursor, then reversing the returned hits client-side. `None` when the
+    /// current page has no results.
+    pub prev_cursor: Option<SearchMethodCursor>,
     pub total: i64,
 }
 
@@ -275,9 +303,14 @@ pub(crate) async fn search_channel(
         SearchCursorOption::Done
     };
 
+    let prev_cursor = hits
+        .first()
+        .and_then(|first| build_channel_cursor(first, args.sort_mode));
+
     Ok(ChannelSearchResults {
         hits,
         next_cursor,
+        prev_cursor,
         total,
     })
 }

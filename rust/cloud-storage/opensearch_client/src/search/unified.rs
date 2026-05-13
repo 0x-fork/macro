@@ -506,7 +506,7 @@ fn build_unified_search_request(args: &UnifiedSearchArgs) -> Result<SearchReques
         search_request_builder.collapse(Collapse::new("entity_id"));
     }
 
-    for sort in updated_at_sort() {
+    for sort in updated_at_sort(SortOrder::Desc) {
         search_request_builder.add_sort(sort);
     }
 

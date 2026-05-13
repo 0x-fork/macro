@@ -16,10 +16,11 @@ use model::comms::ChannelHistoryInfo;
 use model::user::UserContext;
 use models_search::channel::{
     ChannelSearchRequest, ChannelSearchResponse, ChannelSearchResponseItem,
-    ChannelSearchResponseItemWithMetadata, ChannelSearchResult, ChannelSortTimestamp,
+    ChannelSearchResponseItemWithMetadata, ChannelSearchResult, ChannelSortDirection,
+    ChannelSortTimestamp,
 };
 use models_search_cursor::{SearchCursorOption, SearchMethodCursor};
-use opensearch_client::search::channels::{ChannelSearchArgs, ChannelSortMode};
+use opensearch_client::search::channels::{ChannelSearchArgs, ChannelSortMode, SortOrder};
 use opensearch_client::search::model::SearchGotoContent;
 use sqlx::types::Uuid;
 
@@ -231,6 +232,10 @@ pub async fn handler(
         ChannelSortTimestamp::Message => ChannelSortMode::Message,
         ChannelSortTimestamp::Thread => ChannelSortMode::Thread,
     };
+    let sort_direction = match req.sort_direction {
+        ChannelSortDirection::Desc => SortOrder::Desc,
+        ChannelSortDirection::Asc => SortOrder::Asc,
+    };
 
     let args = ChannelSearchArgs {
         user_id: user_id.as_ref().to_string(),
@@ -243,11 +248,13 @@ pub async fn handler(
         mentions: filters.mentions,
         sender_ids: filters.sender_ids,
         sort_mode,
+        sort_direction,
     };
 
     let opensearch_client::search::channels::ChannelSearchResults {
         hits,
         next_cursor,
+        prev_cursor,
         total: total_count,
     } = ctx
         .opensearch_client
@@ -261,10 +268,12 @@ pub async fn handler(
         SearchCursorOption::NotDone(Some(c)) => c.encode(),
         _ => None,
     };
+    let prev_cursor = prev_cursor.and_then(|c| c.encode());
 
     Ok(Json(ChannelSearchResponse {
         results,
         next_cursor,
+        prev_cursor,
         total_count,
     }))
 }

@@ -56,7 +56,9 @@ pub enum ChannelSortMode {
 
 /// Creates sort vec to sort by sent_at_seconds (preferred) or updated_at_seconds (fallback)
 /// with entity_id as a tiebreaker. Items without a timestamp are pushed to the end.
-pub(crate) fn updated_at_sort<'a>() -> Vec<SortType<'a>> {
+/// The primary key follows `order`; the entity_id tiebreaker is inverted so
+/// flipping `order` yields the true reverse ordering.
+pub(crate) fn updated_at_sort<'a>(order: SortOrder) -> Vec<SortType<'a>> {
     vec![
         SortType::ScriptSort(ScriptSort::new(
             Script::new(
@@ -69,19 +71,19 @@ pub(crate) fn updated_at_sort<'a>() -> Vec<SortType<'a>> {
                 }"#,
             ),
             ScriptSortType::Number,
-            SortOrder::Desc,
+            order,
         )),
-        SortType::Field(FieldSort::new("entity_id", SortOrder::Asc)),
+        SortType::Field(FieldSort::new("entity_id", order.flip())),
     ]
 }
 
 /// Sort vec for channel content with thread-grouped ordering.
 /// `unmapped_type` lets the same sort apply to non-channel indices in mixed
-/// unified search.
-pub(crate) fn thread_sort<'a>() -> Vec<SortType<'a>> {
+/// unified search. Both keys share `order` so flipping it reverses the ordering.
+pub(crate) fn thread_sort<'a>(order: SortOrder) -> Vec<SortType<'a>> {
     vec![
-        SortType::Field(FieldSort::new("thread_id", SortOrder::Desc).unmapped_type("keyword")),
-        SortType::Field(FieldSort::new("message_id", SortOrder::Desc).unmapped_type("keyword")),
+        SortType::Field(FieldSort::new("thread_id", order).unmapped_type("keyword")),
+        SortType::Field(FieldSort::new("message_id", order).unmapped_type("keyword")),
     ]
 }
 

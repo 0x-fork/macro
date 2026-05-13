@@ -9,13 +9,23 @@ mod script;
 
 pub use script::{Lang, Script, ScriptSort, ScriptSortType};
 /// Sort Order
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SortOrder {
     /// Ascending
     Asc,
     /// Descending
     Desc,
+}
+
+impl SortOrder {
+    /// Returns the opposite sort order.
+    pub fn flip(self) -> Self {
+        match self {
+            SortOrder::Asc => SortOrder::Desc,
+            SortOrder::Desc => SortOrder::Asc,
+        }
+    }
 }
 
 /// Sort Mode

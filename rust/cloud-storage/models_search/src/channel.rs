@@ -18,6 +18,20 @@ pub enum ChannelSortTimestamp {
     Thread,
 }
 
+/// Direction of the channel search sort. Independent of [`ChannelSortTimestamp`].
+#[derive(
+    Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, ToSchema, JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ChannelSortDirection {
+    /// Newest matches first (the historical default).
+    #[default]
+    Desc,
+    /// Oldest matches first. Useful for jumping to the globally-oldest match
+    /// when wrapping around in a find-bar UI.
+    Asc,
+}
+
 /// A channel message match for a given channel id
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema)]
 pub struct ChannelSearchResult {
@@ -112,9 +126,16 @@ impl From<SearchResponseItem<ChannelSearchResult, ChannelSearchMetadata>>
 pub struct ChannelSearchResponse {
     /// List containing results from email threads
     pub results: Vec<ChannelSearchResponseItemWithMetadata>,
-    /// Base64-encoded cursor for the next page; `None` when exhausted.
+    /// Base64-encoded cursor for the next page in the same `sort_direction`;
+    /// `None` when exhausted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
+    /// Base64-encoded cursor pointing at the first hit of the current page.
+    /// To fetch the previous page, re-issue the search with the inverted
+    /// `sort_direction` and this value as `cursor`, then reverse the results
+    /// client-side. `None` when the current page is empty.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prev_cursor: Option<String>,
     /// Total number of matching channel messages across all pages.
     pub total_count: i64,
 }
@@ -139,6 +160,9 @@ pub struct ChannelSearchRequest {
     /// Sort key for results. Defaults to `message`.
     #[serde(default)]
     pub sort: ChannelSortTimestamp,
+    /// Sort direction. Defaults to `desc` (newest first).
+    #[serde(default)]
+    pub sort_direction: ChannelSortDirection,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, JsonSchema)]

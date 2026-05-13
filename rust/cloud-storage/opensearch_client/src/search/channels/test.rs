@@ -2,6 +2,56 @@ use super::*;
 use opensearch_query_builder::ToOpenSearchJson;
 
 #[test]
+fn test_build_channel_search_request_ascending_inverts_sort() -> anyhow::Result<()> {
+    let asc_args = ChannelSearchArgs {
+        user_id: "user".to_string(),
+        page_size: 10,
+        match_type: "exact".to_string(),
+        terms: vec!["test".to_string()],
+        channel_ids: vec!["chan".to_string()],
+        sort_direction: SortOrder::Asc,
+        ..Default::default()
+    };
+    let asc_json = build_channel_search_request(&asc_args)?.to_json();
+    let asc_sort = &asc_json["sort"];
+
+    let desc_args = ChannelSearchArgs {
+        sort_direction: SortOrder::Desc,
+        ..asc_args.clone()
+    };
+    let desc_json = build_channel_search_request(&desc_args)?.to_json();
+    let desc_sort = &desc_json["sort"];
+
+    // Script (primary) sort flips order; entity_id (tiebreaker) flips inversely.
+    assert_eq!(asc_sort[0]["_script"]["order"], "asc");
+    assert_eq!(desc_sort[0]["_script"]["order"], "desc");
+    assert_eq!(asc_sort[1]["entity_id"], "desc");
+    assert_eq!(desc_sort[1]["entity_id"], "asc");
+
+    Ok(())
+}
+
+#[test]
+fn test_build_channel_search_request_thread_mode_ascending() -> anyhow::Result<()> {
+    let args = ChannelSearchArgs {
+        user_id: "user".to_string(),
+        page_size: 10,
+        match_type: "exact".to_string(),
+        terms: vec!["test".to_string()],
+        channel_ids: vec!["chan".to_string()],
+        sort_mode: ChannelSortMode::Thread,
+        sort_direction: SortOrder::Asc,
+        ..Default::default()
+    };
+    let json = build_channel_search_request(&args)?.to_json();
+    let sort = &json["sort"];
+    // Both thread_id and message_id flip together in thread mode.
+    assert_eq!(sort[0]["thread_id"]["order"], "asc");
+    assert_eq!(sort[1]["message_id"]["order"], "asc");
+    Ok(())
+}
+
+#[test]
 fn test_build_bool_query() -> anyhow::Result<()> {
     let builder = ChannelMessageQueryBuilder::new(vec!["test".to_string()])
         .match_type("exact")

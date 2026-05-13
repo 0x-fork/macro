@@ -16,10 +16,11 @@ fn test_channel_search_request_json_serialization() {
         search_on: SearchOn::Content,
         collapse: None,
         sort: ChannelSortTimestamp::Message,
+        sort_direction: ChannelSortDirection::Desc,
     };
 
     let json = serde_json::to_string(&request).expect("Failed to serialize to JSON");
-    let expected = r#"{"query":"test query","terms":["term1","term2"],"match_type":"exact","thread_ids":["thread1","thread2"],"mentions":["@user1","@user2"],"org_id":12345,"search_on":"content","sort":"message"}"#;
+    let expected = r#"{"query":"test query","terms":["term1","term2"],"match_type":"exact","thread_ids":["thread1","thread2"],"mentions":["@user1","@user2"],"org_id":12345,"search_on":"content","sort":"message","sort_direction":"desc"}"#;
 
     assert_eq!(json, expected);
 }
@@ -94,6 +95,7 @@ fn test_channel_search_request_round_trip() {
         search_on: SearchOn::Content,
         collapse: None,
         sort: ChannelSortTimestamp::Message,
+        sort_direction: ChannelSortDirection::Desc,
     };
 
     let json = serde_json::to_string(&original).expect("Failed to serialize");
