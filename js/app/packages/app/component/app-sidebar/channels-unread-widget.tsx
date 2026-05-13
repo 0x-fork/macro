@@ -2,9 +2,8 @@ import type { SidebarState } from '@app/component/app-sidebar/sidebar';
 import { useSenderName } from '@app/component/app-sidebar/utils';
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { ContextMenuContent, MenuItem } from '@core/component/Menu';
 import { ChannelAvatar } from '@channel/Avatar';
-import { Tooltip } from '@core/component/Tooltip';
+import { ContextMenuContent, MenuItem } from '@core/component/Menu';
 import { UserIcon } from '@core/component/UserIcon';
 import { compareDateDesc } from '@core/util/date';
 import { ContextMenu } from '@kobalte/core/context-menu';
@@ -12,7 +11,7 @@ import { openNotification } from '@notifications';
 import { isChannelNotification } from '@notifications/notification-helpers';
 import { getChannelNotificationParams } from '@notifications/notification-navigation';
 import type { UnifiedNotification } from '@notifications/types';
-import { Button, cn } from '@ui';
+import { Button, cn, Tooltip } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -216,10 +215,7 @@ function ChannelGroupItem(props: {
         <Show
           when={!isSlim()}
           fallback={
-            <Tooltip
-              tooltip={<span class="text-xs">{displayName()}</span>}
-              placement="right"
-            >
+            <Tooltip label={displayName()} placement="right">
               <ButtonContent />
             </Tooltip>
           }
