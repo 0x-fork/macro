@@ -84,6 +84,11 @@ let undoComposeSnapshot: UndoComposeSnapshot | null = null;
 
 type EmailComposeProps = {
   draftID?: string;
+  /**
+   * Pre-fill the To field for a new compose. Ignored if `draftID` is set.
+   * Not persisted to the URL — refreshing the page loses this state.
+   */
+  initialRecipients?: EmailFormRecipients['to'];
 };
 
 export function EmailCompose(props: EmailComposeProps) {
@@ -119,14 +124,14 @@ export function EmailCompose(props: EmailComposeProps) {
           messageID: props.draftID,
         }
       : undefined,
-    emailContext
-      ? {
-          getMessageByID: (id) =>
-            emailContext.messages.unfiltered().find((m) => m.db_id === id),
-          getDraftForMessageReply: emailContext.drafts.getDraftForMessage,
-          onRecipientsChange: emailContext.onRecipientsChange,
-        }
-      : undefined
+    {
+      getMessageByID: (id) =>
+        emailContext?.messages.unfiltered().find((m) => m.db_id === id),
+      getDraftForMessageReply: (id) =>
+        emailContext?.drafts.getDraftForMessage(id),
+      onRecipientsChange: emailContext?.onRecipientsChange,
+      initialRecipients: props.initialRecipients,
+    }
   );
 
   const [editor, setEditor] = createSignal<LexicalEditor | undefined>();

@@ -278,7 +278,12 @@ registerComponent('channel-compose', () => {
 });
 registerComponent('email-compose', (params) => {
   usePageViewTracking('email-compose');
-  return <EmailCompose draftID={params?.draftID} />;
+  return (
+    <EmailCompose
+      draftID={params?.draftID}
+      initialRecipients={params?.initialRecipients}
+    />
+  );
 });
 registerComponent('task-compose', (params) => {
   usePageViewTracking('task-compose');

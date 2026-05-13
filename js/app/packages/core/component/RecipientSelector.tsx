@@ -435,6 +435,21 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
 
     const allOptions = [...sorted, ...customUsers()];
 
+    // Ensure pre-selected options are present in the options list so Kobalte
+    // renders chips for them. Without this, recipients passed in via `value`
+    // that aren't in the contacts list (e.g. pre-filled from an external
+    // entry point) would be silently filtered from the chip area.
+    const existingValues = new Set(
+      allOptions.map((o) => getRecipientOptionValue(o as CombinedRecipientItem))
+    );
+    for (const selected of props.selectedOptions) {
+      const v = getRecipientOptionValue(selected as CombinedRecipientItem);
+      if (!existingValues.has(v)) {
+        allOptions.push(selected as CombinedRecipientItem);
+        existingValues.add(v);
+      }
+    }
+
     // Only add custom input if it doesn't match an existing email
     if (
       currentUserInput &&
