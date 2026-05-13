@@ -70,7 +70,7 @@ export function ChannelAvatar(props: ChannelAvatarProps) {
       data-avatar-generated={generatedQuery.data ? 'true' : undefined}
       title={local.title ?? local.name}
       class={cn(
-        'relative flex shrink-0 select-none overflow-hidden rounded-full [&>svg]:size-full',
+        'relative flex shrink-0 select-none overflow-hidden rounded-full bg-ink-extra-muted/15 text-ink-muted [&>svg]:size-full',
         SIZE_CLASSES[size()],
         local.class
       )}
