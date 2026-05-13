@@ -1,7 +1,7 @@
 import { toast } from '@core/component/Toast/Toast';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { type UploadInput, uploadFiles } from '@core/util/upload';
-import { postNewHistoryItem } from '@queries/history/history';
+import { refetchHistory } from '@queries/history/history';
 import { refetchSoupEntity } from '@queries/soup/cache';
 import { useSplitLayout } from '../component/split-layout/layout';
 
@@ -35,7 +35,7 @@ export function useHandleFileUpload({
         if (!createdProjectId) return;
 
         refetchSoupEntity(createdProjectId, 'project');
-        postNewHistoryItem('project', createdProjectId);
+        refetchHistory();
 
         toast.success(`Uploaded ${upload.name}`, undefined, [
           {
