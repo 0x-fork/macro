@@ -53,35 +53,85 @@ export function createChannelFindBar(
 
   const controller = createFindBarController<WithSearch<ChannelMessageEntity>>(
     ({ isOpen, submittedQuery, activeIndex }) => {
-      // Channel-only search with thread sort so results paginate monotonically
-      // through the channel's thread list (replies cluster with their parent
-      // thread instead of jumping around when sorted strictly by message_id).
-      const searchQuery = useSearchChannelQuery(
+      // Two parallel queries: `head` pages forward from the newest match, `tail`
+      // pages backward from the oldest. Both fire as soon as the find bar opens
+      // so backward wraparound (index 1 → index N) lands instantly on the
+      // already-cached tail page instead of waiting for the head to paginate
+      // through every intermediate result.
+      const makeBody = (direction: ChannelSortDirection) => ({
+        match_type: 'partial' as const,
+        query: submittedQuery(),
+        search_on: 'content' as const,
+        channel_ids: [options.channelId()],
+        sort: ChannelSortTimestamp.thread,
+        sort_direction: direction,
+      });
+      const enabled = () => ({
+        enabled: isOpen() && submittedQuery().length > 0,
+      });
+
+      const headQuery = useSearchChannelQuery(
         () => ({
           params: { page_size: FIND_BAR_PAGE_SIZE },
-          body: {
-            match_type: 'partial',
-            query: submittedQuery(),
-            search_on: 'content',
-            channel_ids: [options.channelId()],
-            sort: ChannelSortTimestamp.thread,
-            sort_direction: ChannelSortDirection.desc,
-          },
+          body: makeBody(ChannelSortDirection.desc),
         }),
-        () => ({ enabled: isOpen() && submittedQuery().length > 0 })
+        enabled
+      );
+      const tailQuery = useSearchChannelQuery(
+        () => ({
+          params: { page_size: FIND_BAR_PAGE_SIZE },
+          body: makeBody(ChannelSortDirection.asc),
+        }),
+        enabled
       );
 
-      const results = createMemo<WithSearch<ChannelMessageEntity>[]>(() => {
+      const inChannel = (e: WithSearch<ChannelMessageEntity>) =>
+        isChannelMessageEntity(e) && e.channelId === options.channelId();
+
+      const headItems = createMemo<WithSearch<ChannelMessageEntity>[]>(() => {
         if (!submittedQuery()) return [];
-        if (searchQuery.isPlaceholderData) return [];
-        if (!searchQuery.isSuccess) return [];
-        const data = searchQuery.data;
-        if (!data) return [];
-        return data.items.filter(
-          (e): e is WithSearch<ChannelMessageEntity> =>
-            isChannelMessageEntity(e) && e.channelId === options.channelId()
+        if (headQuery.isPlaceholderData) return [];
+        if (!headQuery.isSuccess) return [];
+        return (
+          headQuery.data?.items.filter(
+            (e): e is WithSearch<ChannelMessageEntity> => inChannel(e)
+          ) ?? []
         );
       });
+
+      // tailQuery returns matches in ascending order; flip to descending so the
+      // unified index space (1 = newest, totalCount = oldest) stays monotonic.
+      const tailItems = createMemo<WithSearch<ChannelMessageEntity>[]>(() => {
+        if (!submittedQuery()) return [];
+        if (tailQuery.isPlaceholderData) return [];
+        if (!tailQuery.isSuccess) return [];
+        return (
+          tailQuery.data?.items
+            .filter((e): e is WithSearch<ChannelMessageEntity> => inChannel(e))
+            .slice()
+            .reverse() ?? []
+        );
+      });
+
+      const totalCount = createMemo<number | undefined>(() => {
+        if (!submittedQuery()) return undefined;
+        if (headQuery.isPlaceholderData) return undefined;
+        if (!headQuery.isSuccess) return undefined;
+        return headQuery.data?.totalCount;
+      });
+
+      const resultAt = (
+        idx: number
+      ): WithSearch<ChannelMessageEntity> | undefined => {
+        const head = headItems();
+        if (idx <= head.length) return head[idx - 1];
+        const total = totalCount();
+        if (total === undefined) return undefined;
+        const tail = tailItems();
+        const tailStart = total - tail.length + 1;
+        if (idx >= tailStart) return tail[idx - tailStart];
+        return undefined;
+      };
 
       // Highlight only the active match so we never paint spans we don't
       // have hit data for (results outside the loaded page have no terms).
@@ -89,7 +139,7 @@ export function createChannelFindBar(
         if (!isOpen()) return undefined;
         const idx = activeIndex();
         if (idx === 0) return undefined;
-        const entity = results()[idx - 1];
+        const entity = resultAt(idx);
         if (!entity) return undefined;
         const termSet = new Set<string>();
         for (const hit of entity.search.contentHitData ?? []) {
@@ -101,23 +151,30 @@ export function createChannelFindBar(
         return { messageId: entity.messageId, terms: [...termSet] };
       });
 
-      const totalCount = createMemo<number | undefined>(() => {
-        if (!submittedQuery()) return undefined;
-        if (searchQuery.isPlaceholderData) return undefined;
-        if (!searchQuery.isSuccess) return undefined;
-        return searchQuery.data?.totalCount;
-      });
-
-      // Prefetch the next page when the cursor approaches the end of the
-      // loaded results so navigating to the boundary doesn't stall on a
-      // network round-trip.
+      // Prefetch toward the side the cursor is leaning into.
       createEffect(() => {
-        const rs = results();
         const idx = activeIndex();
-        if (idx === 0 || rs.length === 0) return;
-        if (!searchQuery.hasNextPage || searchQuery.isFetchingNextPage) return;
-        if (rs.length - idx <= FIND_BAR_PREFETCH_THRESHOLD) {
-          searchQuery.fetchNextPage();
+        const total = totalCount();
+        if (idx === 0 || !total) return;
+        const head = headItems();
+        const tail = tailItems();
+        const headSlack = head.length - idx;
+        const tailSlack = idx - (total - tail.length + 1);
+        if (
+          headSlack >= 0 &&
+          headSlack <= FIND_BAR_PREFETCH_THRESHOLD &&
+          headQuery.hasNextPage &&
+          !headQuery.isFetchingNextPage
+        ) {
+          headQuery.fetchNextPage();
+        }
+        if (
+          tailSlack >= 0 &&
+          tailSlack <= FIND_BAR_PREFETCH_THRESHOLD &&
+          tailQuery.hasNextPage &&
+          !tailQuery.isFetchingNextPage
+        ) {
+          tailQuery.fetchNextPage();
         }
       });
 
@@ -128,17 +185,14 @@ export function createChannelFindBar(
       // `prefetchQuery` is a no-op when the cached entry is fresh (staleTime is
       // Infinity for replies), so re-runs are cheap.
       createEffect(() => {
-        const rs = results();
+        const total = totalCount();
         const idx = activeIndex();
-        if (idx === 0 || rs.length === 0) return;
+        if (idx === 0 || !total) return;
 
         const channelId = options.channelId();
-        const end = Math.min(
-          idx + FIND_BAR_REPLY_PREFETCH_LOOKAHEAD,
-          rs.length
-        );
+        const end = Math.min(idx + FIND_BAR_REPLY_PREFETCH_LOOKAHEAD, total);
         for (let i = idx; i < end; i++) {
-          const threadId = rs[i].threadId;
+          const threadId = resultAt(i)?.threadId;
           if (!threadId) continue;
           queryClient.prefetchQuery(
             threadRepliesQueryOptions(channelId, threadId)
@@ -155,18 +209,17 @@ export function createChannelFindBar(
       // never actually fire an around-fetch for them) and dedupe so multiple
       // replies to the same parent thread share one prefetch.
       createEffect(() => {
-        const rs = results();
+        const total = totalCount();
         const idx = activeIndex();
-        if (idx === 0 || rs.length === 0) return;
+        if (idx === 0 || !total) return;
 
         const channelId = options.channelId();
-        const end = Math.min(
-          idx + FIND_BAR_MESSAGES_PREFETCH_LOOKAHEAD,
-          rs.length
-        );
+        const end = Math.min(idx + FIND_BAR_MESSAGES_PREFETCH_LOOKAHEAD, total);
         const seen = new Set<string>();
         for (let i = idx; i < end; i++) {
-          const aroundId = rs[i].threadId ?? rs[i].messageId;
+          const hit = resultAt(i);
+          if (!hit) continue;
+          const aroundId = hit.threadId ?? hit.messageId;
           if (seen.has(aroundId)) continue;
           seen.add(aroundId);
           if (options.isMessageLoaded(aroundId)) continue;
@@ -177,17 +230,35 @@ export function createChannelFindBar(
       });
 
       const loadToIndex = async (idx: number) => {
-        while (results().length < idx && searchQuery.hasNextPage) {
-          await searchQuery.fetchNextPage();
+        const total = totalCount();
+        if (!total) return;
+        // Resolve via whichever side has fewer pages to fetch.
+        while (resultAt(idx) === undefined) {
+          const head = headItems();
+          const tail = tailItems();
+          const headDistance = idx - head.length;
+          const tailDistance = total - tail.length + 1 - idx;
+          const preferHead =
+            headDistance > 0 &&
+            (tailDistance <= 0 || headDistance <= tailDistance);
+          const preferTail = tailDistance > 0 && !preferHead;
+          if (preferHead && headQuery.hasNextPage) {
+            await headQuery.fetchNextPage();
+          } else if (preferTail && tailQuery.hasNextPage) {
+            await tailQuery.fetchNextPage();
+          } else {
+            return;
+          }
         }
       };
 
       return {
-        results,
+        results: headItems,
         totalCount,
-        isFetching: () => searchQuery.isFetching,
-        validateText: validateSearchServiceText,
+        resultAt,
         loadToIndex,
+        isFetching: () => headQuery.isFetching || tailQuery.isFetching,
+        validateText: validateSearchServiceText,
         navigate: (result) => {
           if (result.threadId) {
             options.goToMessage(result.threadId, result.messageId);

@@ -13,9 +13,16 @@ export type FindBarSource<T> = {
   validateText?: (text: string) => boolean;
   totalCount?: Accessor<number | undefined>;
   /**
-   * Load enough pages so the 1-based `index` is included in `results()`.
-   * Used for backward wraparound (jump to globally-last) and forward
-   * extension when the prefetch hasn't caught up.
+   * Bidirectional lookup by 1-based global index. When provided, the
+   * controller consults this for navigation (so an asc-pre-fetched tail can
+   * answer high indices instantly) and only falls back to `results()[idx-1]`
+   * when unset. Returns undefined if the index hasn't been loaded yet.
+   */
+  resultAt?: (index: number) => T | undefined;
+  /**
+   * Load enough pages so the 1-based `index` is resolvable. Used for
+   * backward wraparound (jump to globally-last) and forward extension when
+   * the prefetch hasn't caught up.
    */
   loadToIndex?: (index: number) => Promise<void>;
 };
@@ -59,27 +66,32 @@ export function createFindBarController<T>(
   const source = makeSource({ isOpen, submittedQuery, activeIndex });
   const validateText = source.validateText ?? ((text) => text.length > 0);
 
+  const total = () => source.totalCount?.() ?? source.results().length;
+  const resolve = (idx: number): T | undefined =>
+    source.resultAt?.(idx) ?? source.results()[idx - 1];
+
   createEffect(
     on(source.results, (rs) => {
       if (!isOpen()) return;
-      if (rs.length === 0) {
+      const cap = total();
+      if (cap === 0 && rs.length === 0) {
         setActiveIndex(0);
         return;
       }
       const current = activeIndex();
       const nextIdx =
-        current === 0 ? 1 : Math.max(1, Math.min(current, rs.length));
-      setActiveIndex(nextIdx);
-      source.navigate(rs[nextIdx - 1]);
+        current === 0 ? 1 : Math.max(1, Math.min(current, cap || rs.length));
+      const item = resolve(nextIdx);
+      if (item) {
+        setActiveIndex(nextIdx);
+        source.navigate(item);
+      }
     })
   );
 
-  const total = () => source.totalCount?.() ?? source.results().length;
-
   const step = (delta: 1 | -1) => {
-    const rs = source.results();
-    if (rs.length === 0) return;
     const cap = total();
+    if (cap === 0) return;
     const current = activeIndex();
     const desired =
       delta === 1
@@ -90,21 +102,22 @@ export function createFindBarController<T>(
           ? cap
           : current - 1;
 
-    if (desired > rs.length && source.loadToIndex) {
-      source.loadToIndex(desired).then(() => {
-        const rsNow = source.results();
-        const i = Math.min(Math.max(desired, 1), rsNow.length);
-        if (i > 0) {
-          setActiveIndex(i);
-          source.navigate(rsNow[i - 1]);
-        }
-      });
+    const immediate = resolve(desired);
+    if (immediate) {
+      setActiveIndex(desired);
+      source.navigate(immediate);
       return;
     }
 
-    const i = Math.min(desired, rs.length);
-    setActiveIndex(i);
-    source.navigate(rs[i - 1]);
+    if (source.loadToIndex) {
+      source.loadToIndex(desired).then(() => {
+        const item = resolve(desired);
+        if (item) {
+          setActiveIndex(desired);
+          source.navigate(item);
+        }
+      });
+    }
   };
 
   const next = () => step(1);
