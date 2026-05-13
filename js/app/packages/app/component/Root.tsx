@@ -257,6 +257,10 @@ const ROUTES: RouteDefinition[] = [
   LAYOUT_ROUTE,
   /** BEGIN - APP ROUTES */
   {
+    path: '/home',
+    component: LAYOUT_ROUTE.component,
+  },
+  {
     path: '/inbox',
     component: LAYOUT_ROUTE.component,
   },

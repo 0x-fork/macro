@@ -95,7 +95,10 @@ import {
   MobileSoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
-import { MobileSoupFooter, MobileSoupHeader } from '@app/component/next-soup/soup-view/filters-bar/mobile-soup-footer';
+import {
+  MobileSoupFooter,
+  MobileSoupHeader,
+} from '@app/component/next-soup/soup-view/filters-bar/mobile-soup-footer';
 import { SoupViewMobileCreateButton } from '@app/component/next-soup/soup-view/soup-view-mobile-create-button';
 import { SettingsButton } from '@app/component/settings/SettingsButton';
 import { isListViewID, type ListView } from '@app/constants/list-views';
@@ -230,9 +233,7 @@ const SkeletonRow = (props: { delay?: number }) => (
 
 const SoupListSkeleton = () => (
   <div class="px-2 pt-1">
-    <For each={[0, 1, 2, 3, 4, 5]}>
-      {(i) => <SkeletonRow delay={i * 50} />}
-    </For>
+    <For each={[0, 1, 2, 3, 4, 5]}>{(i) => <SkeletonRow delay={i * 50} />}</For>
   </div>
 );
 
@@ -256,8 +257,14 @@ const SoupViewSkeleton = () => (
             <div class="h-3 w-16 rounded bg-edge-muted/50" />
           </div>
           <div class="flex items-center gap-1">
-            <div class="h-7 w-20 rounded-md bg-edge-muted/40 animate-pulse" style={{ 'animation-delay': '50ms' }} />
-            <div class="h-7 w-16 rounded-md bg-edge-muted/40 animate-pulse" style={{ 'animation-delay': '100ms' }} />
+            <div
+              class="h-7 w-20 rounded-md bg-edge-muted/40 animate-pulse"
+              style={{ 'animation-delay': '50ms' }}
+            />
+            <div
+              class="h-7 w-16 rounded-md bg-edge-muted/40 animate-pulse"
+              style={{ 'animation-delay': '100ms' }}
+            />
           </div>
         </div>
       </div>
@@ -307,7 +314,10 @@ const SoupViewFooter = () => {
           <span class="flex items-center gap-2 shrink-0">
             <span class="flex items-center gap-1.5">
               <span class="size-3 flex items-center justify-center">
-                <Show when={isFetching()} fallback={<RowsIcon class="size-3" />}>
+                <Show
+                  when={isFetching()}
+                  fallback={<RowsIcon class="size-3" />}
+                >
                   <Spinner class="size-3 animate-spin" />
                 </Show>
               </span>
@@ -464,64 +474,66 @@ export const SoupView = (props: SoupViewProps) => {
           additionalEntities={props.additionalEntities}
         >
           <div class="size-full flex flex-col">
-          <div class="flex flex-col w-full">
-            <SplitHeaderLeft>
-              <div class="flex gap-3 items-center min-w-0 flex-1">
-                <Show when={isMobile()}>
-                  <LogoIcon class="size-6 text-accent shrink-0" />
-                </Show>
-                <Show
-                  when={!isComponentListView('search')}
-                >
-                  <Show when={!isMobile()}>
-                    <h1 class="font-semibold text-ink select-none text-sm leading-none">
-                      {props.viewName}
-                    </h1>
-                    <SoupViewTabs overflow />
+            <div class="flex flex-col w-full">
+              <SplitHeaderLeft>
+                <div class="flex gap-3 items-center">
+                  <Show when={isMobile()}>
+                    <LogoIcon class="size-6 text-accent shrink-0" />
                   </Show>
+
+                  <Show when={!isComponentListView('search')}>
+                    <Show when={!isMobile()}>
+                      <h1 class="font-semibold text-ink select-none text-sm leading-none">
+                        {props.viewName}
+                      </h1>
+                      <SoupViewTabs overflow />
+                    </Show>
+                  </Show>
+                </div>
+              </SplitHeaderLeft>
+              <SplitHeaderRight>
+                <Show when={isMobile()}>
+                  <MobileSoupHeader />
+                </Show>
+                <Show when={!isMobile() && !isComponentListView('search')}>
+                  <SoupViewCreateButton />
+                </Show>
+              </SplitHeaderRight>
+              <SoupFiltersBar
+                searchView={isComponentListView('search')}
+                initialSearchText={props.initialSearchText}
+              />
+
+              <div class="w-fit ml-auto px-3">
+                <Show when={isMobile() && !narrowSearchExpanded()}>
+                  <SoupViewMobileCreateButton activeView={activeListView} />
+                  {/* <SettingsButton /> */}
                 </Show>
               </div>
-            </SplitHeaderLeft>
-            <SplitHeaderRight>
-              <Show when={isMobile() && !narrowSearchExpanded()}>
-                <SoupViewMobileCreateButton activeView={activeListView} />
-                <SettingsButton />
-              </Show>
-              <Show when={!isMobile() && !isComponentListView('search')}>
-                <SoupViewCreateButton />
-              </Show>
-            </SplitHeaderRight>
-            <SoupFiltersBar
-              searchView={isComponentListView('search')}
-              initialSearchText={props.initialSearchText}
-            />
+            </div>
+            <Show when={hasLinkError()}>
+              <EmailPermissionsBanner />
+            </Show>
+            <div
+              class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full"
+              classList={{
+                'pointer-events-none opacity-10': hasLinkError(),
+              }}
+            >
+              <Suspense fallback={<SoupListSkeleton />}>
+                <SoupViewFileDropzone>
+                  <SoupViewList
+                    initialClientFilters={props.initialClientFilters}
+                    skipPersistedState={props.skipPersistedState}
+                  />
+                </SoupViewFileDropzone>
+              </Suspense>
+            </div>
+            <SoupViewFooter />
+            <Show when={isMobile()}>
+              <MobileSoupFooter />
+            </Show>
           </div>
-          <Show when={hasLinkError()}>
-            <EmailPermissionsBanner />
-          </Show>
-          <Show when={isMobile()}>
-            <MobileSoupHeader />
-          </Show>
-          <div
-            class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full"
-            classList={{
-              'pointer-events-none opacity-10': hasLinkError(),
-            }}
-          >
-            <Suspense fallback={<SoupListSkeleton />}>
-              <SoupViewFileDropzone>
-                <SoupViewList
-                  initialClientFilters={props.initialClientFilters}
-                  skipPersistedState={props.skipPersistedState}
-                />
-              </SoupViewFileDropzone>
-            </Suspense>
-          </div>
-          <SoupViewFooter />
-          <Show when={isMobile()}>
-            <MobileSoupFooter />
-          </Show>
-        </div>
         </SoupViewContextProvider>
       </Suspense>
     </SplitPanelContext.Provider>
@@ -1027,17 +1039,24 @@ export const SoupViewList = (props: SoupViewListProps) => {
                     <ListLayoutProvider ref={localEntityListRef}>
                       <ListHeader
                         type={
-                          currentView() === 'tasks' ? 'task' :
-                          currentView() === 'mail' ? 'email' :
-                          currentView() === 'documents' ? 'document' :
-                          currentView() === 'channels' ? 'channel' :
-                          currentView() === 'inbox' ? 'inbox' :
-                          'default'
+                          currentView() === 'tasks'
+                            ? 'task'
+                            : currentView() === 'mail'
+                              ? 'email'
+                              : currentView() === 'documents'
+                                ? 'document'
+                                : currentView() === 'channels'
+                                  ? 'channel'
+                                  : currentView() === 'inbox'
+                                    ? 'inbox'
+                                    : 'default'
                         }
                         timestampLabel={
-                          soup.sort.active()[0]?.id === 'created_at' ? 'Created' :
-                          soup.sort.active()[0]?.id === 'viewed_at' ? 'Viewed' :
-                          'Updated'
+                          soup.sort.active()[0]?.id === 'created_at'
+                            ? 'Created'
+                            : soup.sort.active()[0]?.id === 'viewed_at'
+                              ? 'Viewed'
+                              : 'Updated'
                         }
                       />
                       <EntityRowProvider
@@ -1297,7 +1316,10 @@ const SoupList = (props: SoupListProps) => {
   return (
     <div
       ref={props.ref}
-      class={cn('unified-table-body size-full relative px-2 pt-1 pb-2', props.class)}
+      class={cn(
+        'unified-table-body size-full relative px-2 pt-1 pb-2',
+        props.class
+      )}
     >
       {/* Gradient fades */}
       <div class="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none" />

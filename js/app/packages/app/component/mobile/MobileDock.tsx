@@ -9,6 +9,7 @@ import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
 import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
+import HouseIcon from '@icon/regular/house.svg';
 import { useLocation } from '@solidjs/router';
 import { cn, Layer } from '@ui';
 import { type Component, createSignal, type JSX, Show } from 'solid-js';
@@ -130,6 +131,11 @@ export function MobileDock() {
       <div class="relative z-mobile-nav-bar flex flex-row justify-between">
         <div class="-z-1 absolute inset-x-0 top-0 w-screen h-40 bg-panel" />
         <MobileDockButton
+          icon={HouseIcon}
+          active={isActive('home')}
+          onClick={() => navigate('home')}
+        />
+        <MobileDockButton
           icon={AnimatedInboxIcon}
           active={isActive('inbox')}
           onClick={() => {
@@ -157,11 +163,6 @@ export function MobileDock() {
           icon={AnimatedFileMdIcon}
           active={isActive('documents')}
           onClick={() => navigate('documents')}
-        />
-        <MobileDockButton
-          icon={AnimatedStarIcon}
-          active={isActive('agents')}
-          onClick={() => navigate('agents')}
         />
         <SearchDockButton
           active={isActive('search')}

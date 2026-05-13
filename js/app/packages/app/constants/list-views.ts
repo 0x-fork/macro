@@ -1,6 +1,7 @@
 import type { BlockAlias, BlockName } from '@core/block';
 
 export const LIST_VIEWS = [
+  'home',
   'notifications',
   'inbox',
   'agents',
@@ -16,6 +17,7 @@ export const LIST_VIEWS = [
 export type ListView = (typeof LIST_VIEWS)[number];
 
 export const LIST_VIEW_PATHS = {
+  home: '/home',
   notifications: '/notifications',
   inbox: '/inbox',
   agents: '/agents',
@@ -33,6 +35,7 @@ export const isListViewPath = (path: string) => {
 };
 
 export const LIST_VIEW_ID = {
+  home: 'home',
   notifications: 'notifications',
   inbox: 'inbox',
   agents: 'agents',

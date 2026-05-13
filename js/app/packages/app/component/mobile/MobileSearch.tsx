@@ -20,7 +20,6 @@ import { Entity, type WithSearch, type EntityData } from '@entity';
 import { SearchContent } from '@entity/extractors-search/search-content';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
-import { Tabs } from '@core/component/Tabs';
 import type { CategoryFilter } from '../command/types';
 import {
   type CommandMenuItem,
@@ -54,10 +53,10 @@ export function MobileSearchOuter() {
         <Layer depth={2}>
           <Dialog.Content
             class={cn(
-              'fixed inset-0 z-modal flex flex-col h-[calc(var(--dvh,1dvh)*100)] pt-(--safe-top) pl-(--safe-left) pr-(--safe-right)',
-              {
-                'pb-(--safe-bottom)': !virtualKeyboardVisible(),
-              }
+              'fixed inset-x-0 top-0 z-modal flex flex-col pt-(--safe-top) pl-(--safe-left) pr-(--safe-right)',
+              virtualKeyboardVisible()
+                ? 'bottom-0'
+                : 'bottom-[calc(theme(spacing.20)+var(--safe-bottom))]'
             )}
           >
             <MobileSearchInner />
@@ -147,6 +146,33 @@ export function MobileSearchInner() {
 
   return (
     <div class="flex flex-col h-full bg-panel">
+      {/* Header with search input */}
+      <div class="shrink-0 px-3 py-2 border-b border-edge-muted">
+        <div class="flex items-center gap-2">
+          <button
+            class="text-ink-muted p-1.5 -ml-1.5"
+            onClick={handleBack}
+            title="Back (Esc)"
+          >
+            <ArrowLeft class="size-5" />
+          </button>
+          <div class="flex-1 min-w-0">
+            <input
+              id="mobile-search-input"
+              type="text"
+              class="w-full px-3 py-2 bg-ink/5 rounded-lg border-0 outline-none focus:outline-none ring-0 focus:ring-0 text-ink placeholder:text-ink-placeholder/50 text-sm"
+              placeholder="Search..."
+              value={SearchState.query()}
+              onInput={(e) => SearchState.setQuery(e.currentTarget.value)}
+            />
+          </div>
+        </div>
+      </div>
+      <Show
+        when={!SearchState.isInCommandScope() && !SearchState.isFullTextMode()}
+      >
+        <CategoryFilterTabs />
+      </Show>
       <ResultsContainer
         nameMatchItems={filteredItems()}
         fullTextItems={fullTextResults()}
@@ -158,29 +184,6 @@ export function MobileSearchInner() {
         onFullTextSearch={() => SearchState.enableFullTextMode()}
         query={SearchState.query}
       />
-      <Show
-        when={!SearchState.isInCommandScope() && !SearchState.isFullTextMode()}
-      >
-        <CategoryFilterTabs />
-      </Show>
-      {/* Search Input */}
-      <div class="flex items-center gap-2 bg-page px-2 border-t border-edge-muted">
-        <button
-          class="text-ink-muted flex flex-col items-center justify-center pl-2 pt-3 pb-2"
-          onClick={handleBack}
-          title="Back (Esc)"
-        >
-          <ArrowLeft class="size-6" />
-        </button>
-        <input
-          id="mobile-search-input"
-          type="text"
-          class="pt-3 pb-2 flex-1 bg-transparent border-0 outline-none focus:outline-none ring-0 focus:ring-0 text-ink-muted placeholder:text-ink-placeholder/50"
-          placeholder={'Search...'}
-          value={SearchState.query()}
-          onInput={(e) => SearchState.setQuery(e.currentTarget.value)}
-        />
-      </div>
     </div>
   );
 }
@@ -379,16 +382,23 @@ function FullTextResultItem(props: {
 
 function CategoryFilterTabs() {
   return (
-    <div class="bg-panel border-t border-edge-muted h-11 px-1 overflow-x-auto scrollbar-hidden">
-      <Tabs
-        list={CATEGORIES.map((c) => ({ value: c.id, label: c.label }))}
-        value={SearchState.categoryFilter()}
-        onChange={(value) => {
-          if (value) SearchState.setCategoryFilter(value as CategoryFilter);
-        }}
-        indicatorPosition="top"
-        class="w-max **:data-indicator:h-[3px]"
-      />
+    <div class="bg-panel border-t border-edge-muted px-3 py-2 overflow-x-auto scrollbar-hidden">
+      <div class="flex items-center gap-1">
+        {CATEGORIES.map((category) => (
+          <button
+            type="button"
+            class={cn(
+              'px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap',
+              SearchState.categoryFilter() === category.id
+                ? 'bg-ink/10 text-ink'
+                : 'text-ink/50 active:text-ink active:bg-ink/5'
+            )}
+            onClick={() => SearchState.setCategoryFilter(category.id)}
+          >
+            {category.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

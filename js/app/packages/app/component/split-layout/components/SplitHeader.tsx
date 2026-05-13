@@ -91,11 +91,7 @@ function SplitSpotlightButton() {
         }
         onClick={() => context.handle.toggleSpotlight()}
       >
-        {context.handle.isSpotLight() ? (
-          <CollapseIcon />
-        ) : (
-          <ExpandIcon />
-        )}
+        {context.handle.isSpotLight() ? <CollapseIcon /> : <ExpandIcon />}
       </Button>
     </Show>
   );
@@ -220,9 +216,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         />
 
         <Show when={shouldShowRightmost()}>
-          <div
-            class="pl-0.5 pr-2 z-annotation-layer flex items-center gap-0.5 order-last"
-          >
+          <div class="pl-0.5 pr-2 z-annotation-layer flex items-center gap-0.5 order-last">
             <SplitSpotlightButton />
           </div>
         </Show>

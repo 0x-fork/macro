@@ -90,9 +90,14 @@ export function SplitContainer(
           when={!isMobile()}
           fallback={
             <Layer depth={1}>
-              <div class="flex flex-col min-h-0 size-full bg-panel overflow-hidden">
-                <SplitHeader ref={setHeaderRef} />
-                <SplitToolbar ref={setToolbarRef} />
+              <div class={cn(
+                "flex flex-col min-h-0 size-full overflow-hidden",
+                panel.handle.content().id !== 'home' && 'bg-panel'
+              )}>
+                <Show when={panel.handle.content().id !== 'home'}>
+                  <SplitHeader ref={setHeaderRef} />
+                  <SplitToolbar ref={setToolbarRef} />
+                </Show>
                 <div class="@container/split size-full overflow-hidden relative">
                   {props.children}
                 </div>
