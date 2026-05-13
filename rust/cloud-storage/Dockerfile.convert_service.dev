@@ -2,10 +2,13 @@
 # Download LibreOffice/Collabora Online assets
 FROM debian:trixie-slim AS lok
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl tar ca-certificates \
+    tar ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN curl -L -O https://github.com/CollaboraOnline/online/releases/download/for-code-assets/core-co-25.04-assets.tar.gz
-RUN tar -xvf core-co-25.04-assets.tar.gz
+COPY vendor/core-co-25.04-assets.tar.gz.part-* /tmp/core-co-25.04-assets-parts/
+RUN cat /tmp/core-co-25.04-assets-parts/core-co-25.04-assets.tar.gz.part-* > core-co-25.04-assets.tar.gz \
+    && echo "7331fbfcc6999c5cf279d50011a9b0614d0dc6f32823b5716c5daef639651822  core-co-25.04-assets.tar.gz" | sha256sum -c - \
+    && tar -xvf core-co-25.04-assets.tar.gz \
+    && rm -r core-co-25.04-assets.tar.gz /tmp/core-co-25.04-assets-parts
 
 # Build stage with clang dependencies for bindgen
 FROM rust:latest AS chef

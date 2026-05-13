@@ -1,2 +1,4 @@
 # Mark .sqlx files as generated so they're excluded from PR diff stats
 **/.sqlx/** linguist-generated=true
+rust/cloud-storage/vendor/** linguist-vendored=true
+rust/cloud-storage/vendor/*.part-* -diff
