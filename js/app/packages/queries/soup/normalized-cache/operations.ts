@@ -1,3 +1,4 @@
+import { QUERY_FILTERS_BASE } from '@app/component/next-soup/filters/query-filters';
 import { isErr } from '@core/util/maybeResult';
 import type { UnifiedSearchResponseItem } from '@service-search/generated/models';
 import type {
@@ -223,7 +224,6 @@ export function removeSearchEntities(entityIds: Set<string>): SoupTransaction {
  * Fetch a single entity from the server and merge it into the cache.
  * If the entity is already cached, updates it via normy (deep-merge).
  * If it's new, prepends it to the first page of every active soup list query.
- * Falls back to `invalidateSoupEntity` for unsupported entity types (e.g. emailThread).
  */
 export async function refetchSoupEntity(
   entityId: string,
@@ -232,11 +232,6 @@ export async function refetchSoupEntity(
   const { storageServiceClient } = await import('@service-storage/client');
 
   const filter = buildSingleEntityFilter(entityType, entityId);
-
-  if (!filter) {
-    invalidateSoupEntity(entityId);
-    return;
-  }
 
   const result = await storageServiceClient.getSoupItems({
     params: {},
@@ -263,22 +258,14 @@ export async function refetchSoupEntity(
   }
 }
 
-// UUID that matches no real entity — used to zero out soup filters
-// so omitted entity types return nothing instead of everything.
-const NIL_ID = '00000000-0000-0000-0000-000000000000';
-
 /** @private */
 export function buildSingleEntityFilter(
   entityType: SoupEntityTag,
   entityId: string
-): PostSoupRequest | null {
+): PostSoupRequest {
   const base: PostSoupRequest = {
+    ...QUERY_FILTERS_BASE,
     limit: 1,
-    document_filters: { document_ids: [NIL_ID] },
-    chat_filters: { chat_ids: [NIL_ID] },
-    channel_filters: { channel_ids: [NIL_ID] },
-    project_filters: { project_ids: [NIL_ID] },
-    email_filters: { email_thread_ids: [NIL_ID] },
   };
   return match(entityType)
     .with('document', () => ({
@@ -298,7 +285,10 @@ export function buildSingleEntityFilter(
       ...base,
       email_filters: { email_thread_ids: [entityId] },
     }))
-    .with('call', () => null)
+    .with('call', () => ({
+      ...base,
+      call_filters: { call_ids: [entityId] },
+    }))
     .exhaustive();
 }
 

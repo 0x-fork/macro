@@ -215,6 +215,11 @@ describe('buildSingleEntityFilter', () => {
       filterKey: 'project_filters',
       idKey: 'project_ids',
     },
+    {
+      entityType: 'call' as const,
+      filterKey: 'call_filters',
+      idKey: 'call_ids',
+    },
   ])('unblocks only $entityType filter with the real entityId', ({
     entityType,
     filterKey,
@@ -233,6 +238,7 @@ describe('buildSingleEntityFilter', () => {
       'chat_filters',
       'channel_filters',
       'project_filters',
+      'call_filters',
     ].filter((k) => k !== filterKey);
 
     for (const key of otherFilters) {
