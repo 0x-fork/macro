@@ -131,7 +131,8 @@ export function Channel(props: ChannelProps) {
     channelId: () => props.channelId,
     initialTargetMessageId: props.targetMessageId,
     initialTargetMessageReplyId: props.targetMessageReplyId,
-    messageKeys: () => messageIndex.keys,
+    // changing the array reference is required to trigger the scroll effect
+    messageKeys: () => [...messageIndex.keys],
     navigation: threadListNavigation,
     didInitialScroll: () => threadListScrollState()?.didInitialScroll ?? false,
   });
@@ -205,6 +206,7 @@ export function Channel(props: ChannelProps) {
   const threadPaginator = createThreadPaginator(messagesQuery);
   const messageEditor = createMessageEditor({
     channelId: () => props.channelId,
+    participantIds: () => participants.ids(),
     patchMessage: patchMessageMutation.mutate,
   });
 
