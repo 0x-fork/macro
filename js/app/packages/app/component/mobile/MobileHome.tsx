@@ -11,6 +11,7 @@ import MicrophoneSlashIcon from '@icon/regular/microphone-slash.svg';
 import VideoCameraIcon from '@icon/regular/video-camera.svg';
 import VideoCameraSlashIcon from '@icon/regular/video-camera-slash.svg';
 import PhoneDisconnectIcon from '@icon/regular/phone-disconnect.svg';
+import CheckCircleIcon from '@icon/regular/check-circle.svg';
 import { Layer } from '@ui';
 import { focusInput } from '@core/directive/focusInput';
 import { cn } from '@ui/utils/classname';
@@ -370,7 +371,18 @@ function TaskItemRow(props: { entity: TaskEntity; onClick: () => void }) {
   );
 }
 
-function AISummarySection() {
+type AICard = {
+  id: string;
+  type: 'summary' | 'action' | 'insight' | 'done';
+  icon: typeof SparkleIcon;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  content: string;
+  action?: { label: string; onClick: () => void };
+};
+
+function AICardStack() {
   const user = useUserContext();
   const notificationsQuery = useUserNotificationsQuery({ limit: 50 });
 
@@ -423,32 +435,212 @@ function AISummarySection() {
     return data.filter(isTaskEntity).length;
   });
 
+  const summaryContent = createMemo(() => {
+    const tasks = taskCount();
+    const unread = unreadCount();
+    if (tasks === 0 && unread === 0) return "You're all caught up!";
+    const parts = [];
+    if (tasks > 0) parts.push(`${tasks} active ${tasks === 1 ? 'task' : 'tasks'}`);
+    if (unread > 0) parts.push(`${unread} unread ${unread === 1 ? 'notification' : 'notifications'}`);
+    return `You have ${parts.join(' and ')}.`;
+  });
+
+  const allCards = createMemo((): AICard[] => [
+    {
+      id: 'summary',
+      type: 'summary',
+      icon: SparkleIcon,
+      iconBg: 'bg-accent/15',
+      iconColor: 'text-accent',
+      title: getGreeting(),
+      content: summaryContent(),
+    },
+    {
+      id: 'insight-1',
+      type: 'insight',
+      icon: AnimatedChannelIcon,
+      iconBg: 'bg-channel/10',
+      iconColor: 'text-channel',
+      title: '15 new messages in #design',
+      content: 'Active discussion about the new homepage',
+    },
+    {
+      id: 'insight-2',
+      type: 'insight',
+      icon: AnimatedEmailIcon,
+      iconBg: 'bg-email/10',
+      iconColor: 'text-email',
+      title: 'Email volume down 20%',
+      content: 'Compared to last week - great progress!',
+    },
+    {
+      id: 'done',
+      type: 'done',
+      icon: CheckCircleIcon,
+      iconBg: 'bg-success/20',
+      iconColor: 'text-success',
+      title: 'All caught up!',
+      content: "You've reviewed all insights for now.",
+    },
+  ]);
+
+  const [dismissedIds, setDismissedIds] = createSignal<Set<string>>(new Set());
+  const [currentIndex, setCurrentIndex] = createSignal(0);
+  const [swipeX, setSwipeX] = createSignal(0);
+  const [isSwiping, setIsSwiping] = createSignal(false);
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  const visibleCards = createMemo(() =>
+    allCards().filter(card => !dismissedIds().has(card.id))
+  );
+
+  const dismissAll = () => {
+    setDismissedIds(new Set(allCards().map(c => c.id)));
+  };
+
+  const dismissCurrent = () => {
+    const cards = visibleCards();
+    if (cards.length === 0) return;
+    const currentCard = cards[currentIndex()];
+    if (currentCard) {
+      setDismissedIds(prev => new Set([...prev, currentCard.id]));
+      if (currentIndex() >= cards.length - 1) {
+        setCurrentIndex(Math.max(0, cards.length - 2));
+      }
+    }
+  };
+
+  const handleTouchStart = (e: TouchEvent) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    setIsSwiping(false);
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    const deltaX = e.touches[0].clientX - touchStartX;
+    const deltaY = e.touches[0].clientY - touchStartY;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      setIsSwiping(true);
+      setSwipeX(deltaX * 0.5);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (Math.abs(swipeX()) > 80) {
+      dismissCurrent();
+    }
+    setSwipeX(0);
+    setIsSwiping(false);
+  };
+
   return (
-    <div class="rounded-2xl bg-page bg-gradient-to-br from-accent/10 via-chat/5 to-page p-4 border border-accent/20">
-      <div class="flex items-start gap-3">
-        <div class="size-8 rounded-lg bg-accent/15 flex items-center justify-center shrink-0">
-          <SparkleIcon class="size-4 text-accent" />
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="text-sm font-medium text-ink mb-1">{getGreeting()}</div>
-          <div class="text-xs text-ink-muted leading-relaxed">
-            <Show
-              when={taskCount() > 0 || unreadCount() > 0}
-              fallback="You're all caught up!"
-            >
-              <Show when={taskCount() > 0}>
-                You have <span class="text-ink font-medium">{taskCount()} active {taskCount() === 1 ? 'task' : 'tasks'}</span>
-              </Show>
-              <Show when={taskCount() > 0 && unreadCount() > 0}> and </Show>
-              <Show when={unreadCount() > 0}>
-                <span class="text-ink font-medium">{unreadCount()} unread {unreadCount() === 1 ? 'notification' : 'notifications'}</span>
-              </Show>
-              .
+    <Show when={visibleCards().length > 0}>
+      <div>
+        <div class="flex items-center justify-between mb-3 px-1">
+          <div class="flex items-center gap-2">
+            <SparkleIcon class="size-4 text-accent" />
+            <span class="text-sm font-semibold text-ink">Insights</span>
+            <Show when={visibleCards().length > 1}>
+              <span class="text-xs text-ink-muted">
+                {currentIndex() + 1}/{visibleCards().length}
+              </span>
             </Show>
           </div>
+          <button
+            type="button"
+            onClick={dismissAll}
+            class="text-xs text-ink-muted active:text-ink transition-colors px-2 py-1 -mr-2"
+          >
+            Dismiss all
+          </button>
+        </div>
+
+        <div
+          class="relative h-36"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <For each={visibleCards()}>
+            {(card, index) => {
+              const offset = () => index() - currentIndex();
+              const isActive = () => index() === currentIndex();
+              const isBehind = () => offset() > 0;
+              const isDoneCard = () => card.type === 'done';
+              const isHidden = () => offset() < 0 || offset() > 2 || (isDoneCard() && !isActive());
+
+              return (
+                <div
+                  class={cn(
+                    'absolute inset-x-0 h-32 rounded-2xl p-4 border border-edge shadow-md',
+                    isHidden() && 'pointer-events-none'
+                  )}
+                  style={{
+                    background: 'var(--color-panel)',
+                    transform: isActive()
+                      ? `translateX(${swipeX()}px) rotate(${swipeX() * 0.03}deg)`
+                      : `translateY(${offset() * 4}px) rotate(${offset() % 2 === 0 ? offset() * 2 : offset() * -2}deg) scale(${1 - offset() * 0.02})`,
+                    'transform-origin': 'center bottom',
+                    'z-index': 10 - offset(),
+                    visibility: isHidden() ? 'hidden' : 'visible',
+                    transition: isSwiping() ? 'none' : 'transform 0.3s ease-out',
+                  }}
+                >
+                  <Show
+                    when={card.type !== 'done'}
+                    fallback={
+                      <div class="h-full flex flex-col justify-center items-center text-center px-2">
+                        <div class="size-8 rounded-full bg-success/15 flex items-center justify-center mb-2">
+                          <CheckCircleIcon class="size-4 text-success" />
+                        </div>
+                        <div class="text-sm font-semibold text-ink">{card.title}</div>
+                        <div class="text-xs text-ink-muted mt-0.5">{card.content}</div>
+                      </div>
+                    }
+                  >
+                    <div class="h-full flex flex-col">
+                      <div class="flex items-center gap-1.5 mb-1.5">
+                        <div class={cn('size-5 rounded flex items-center justify-center shrink-0', card.iconBg)}>
+                          <card.icon class={cn('size-3', card.iconColor)} />
+                        </div>
+                        <span class="text-[10px] font-medium text-ink-muted uppercase tracking-wide">
+                          {card.type === 'summary' ? 'Summary' : 'Insight'}
+                        </span>
+                      </div>
+                      <div class="flex-1 flex flex-col justify-center">
+                        <div class="text-sm font-semibold text-ink leading-snug">{card.title}</div>
+                        <div class="text-xs text-ink-muted mt-1 leading-relaxed">{card.content}</div>
+                      </div>
+                    </div>
+                  </Show>
+                </div>
+              );
+            }}
+          </For>
+
+          {/* Stack indicator dots */}
+          <Show when={visibleCards().length > 1}>
+            <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+              <For each={visibleCards()}>
+                {(_, index) => (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentIndex(index())}
+                    class={cn(
+                      'size-1.5 rounded-full transition-all',
+                      index() === currentIndex() ? 'bg-accent w-3' : 'bg-ink/20'
+                    )}
+                  />
+                )}
+              </For>
+            </div>
+          </Show>
         </div>
       </div>
-    </div>
+    </Show>
   );
 }
 
@@ -456,11 +648,10 @@ function SuggestedActionsSection() {
   const { openWithSplit } = useSplitLayout();
   const [hidden, setHidden] = createSignal(false);
 
-  // Mock data - would come from AI analysis
   const actions = [
-    { type: 'email' as const, title: "Reply to Alex's email", subtitle: 'Waiting 2 days', id: 'mock-1' },
-    { type: 'task' as const, title: 'Review Q4 planning doc', subtitle: 'Due tomorrow', id: 'mock-2' },
-    { type: 'channel' as const, title: 'Catch up on #design', subtitle: '15 new messages', id: 'mock-3' },
+    { type: 'email' as const, title: "Reply to Alex", subtitle: 'Waiting 2 days', id: 'mock-1' },
+    { type: 'task' as const, title: 'Review Q4 doc', subtitle: 'Due tomorrow', id: 'mock-2' },
+    { type: 'channel' as const, title: 'Catch up #design', subtitle: '15 messages', id: 'mock-3' },
   ];
 
   const getIcon = (type: 'email' | 'task' | 'channel') => {
@@ -493,7 +684,7 @@ function SuggestedActionsSection() {
         <div class="flex items-center justify-between mb-3 px-1">
           <div class="flex items-center gap-2">
             <SparkleIcon class="size-4 text-accent" />
-            <span class="text-sm font-semibold text-ink">Suggested for you</span>
+            <span class="text-sm font-semibold text-ink">Suggested</span>
           </div>
           <button
             type="button"
@@ -503,25 +694,25 @@ function SuggestedActionsSection() {
             Hide
           </button>
         </div>
-        <div class="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div class="flex gap-2 overflow-x-auto -mx-4 px-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <For each={actions}>
             {(action) => {
               const Icon = getIcon(action.type);
               return (
                 <button
                   type="button"
-                  class="flex-none w-44 p-3 rounded-xl bg-ink/5 active:bg-ink/10 transition-colors text-left"
-                  onClick={() => {
-                    // Would navigate to the actual item
-                  }}
+                  class="flex-none flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-ink/5 active:bg-ink/10 transition-colors"
+                  onClick={() => {}}
                 >
-                  <div class={cn('size-8 rounded-lg flex items-center justify-center mb-2.5', getBgColor(action.type))}>
-                    <div class={cn('size-4', getColor(action.type))}>
+                  <div class={cn('size-7 rounded-lg flex items-center justify-center shrink-0', getBgColor(action.type))}>
+                    <div class={cn('size-3.5', getColor(action.type))}>
                       <Icon />
                     </div>
                   </div>
-                  <div class="text-sm font-medium text-ink line-clamp-2 leading-tight">{action.title}</div>
-                  <div class="text-xs text-ink-muted mt-1.5">{action.subtitle}</div>
+                  <div class="text-left">
+                    <div class="text-sm font-medium text-ink">{action.title}</div>
+                    <div class="text-xs text-ink-muted">{action.subtitle}</div>
+                  </div>
                 </button>
               );
             }}
@@ -848,28 +1039,56 @@ function formatCallDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+// Module-level signal to persist call start time across component mounts
+const [callStartTime, setCallStartTime] = createSignal<number | null>(null);
+
 function CallBanner() {
   const callContext = useCallContextOptional();
+  const { openWithSplit } = useSplitLayout();
   const [duration, setDuration] = createSignal(0);
 
   const isInCall = createMemo(() => callContext?.isInCall?.() ?? false);
+  const activeChannelId = createMemo(() => callContext?.activeChannelId?.());
 
   createEffect(() => {
     if (!isInCall()) {
+      setCallStartTime(null);
       setDuration(0);
       return;
     }
 
+    // Set start time only if not already set
+    if (callStartTime() === null) {
+      setCallStartTime(Date.now());
+    }
+
+    // Calculate initial duration from start time
+    const start = callStartTime()!;
+    setDuration(Math.floor((Date.now() - start) / 1000));
+
     const interval = setInterval(() => {
-      setDuration((d) => d + 1);
+      setDuration(Math.floor((Date.now() - start) / 1000));
     }, 1000);
 
     onCleanup(() => clearInterval(interval));
   });
 
+  const handleBannerClick = () => {
+    const channelId = activeChannelId();
+    if (channelId) {
+      openWithSplit({ type: 'channel', id: channelId });
+    }
+  };
+
   return (
     <Show when={isInCall()}>
-      <div class="bg-success text-white px-4 py-2 flex items-center justify-between">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={handleBannerClick}
+        onKeyDown={(e) => e.key === 'Enter' && handleBannerClick()}
+        class="w-full bg-success/80 text-white px-4 py-2 flex items-center justify-between active:bg-success/70 transition-colors cursor-pointer"
+      >
         <div class="flex items-center gap-2">
           <div class="size-2 rounded-full bg-white animate-pulse" />
           <span class="text-sm font-medium">In Call</span>
@@ -879,7 +1098,7 @@ function CallBanner() {
         <div class="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => callContext?.toggleAudio?.()}
+            onClick={(e) => { e.stopPropagation(); callContext?.toggleAudio?.(); }}
             class={cn(
               'size-8 rounded-full flex items-center justify-center transition-colors',
               callContext?.isAudioMuted?.() ? 'bg-white/20' : 'bg-transparent'
@@ -895,7 +1114,7 @@ function CallBanner() {
 
           <button
             type="button"
-            onClick={() => callContext?.toggleVideo?.()}
+            onClick={(e) => { e.stopPropagation(); callContext?.toggleVideo?.(); }}
             class={cn(
               'size-8 rounded-full flex items-center justify-center transition-colors',
               callContext?.isVideoMuted?.() ? 'bg-white/20' : 'bg-transparent'
@@ -911,7 +1130,7 @@ function CallBanner() {
 
           <button
             type="button"
-            onClick={() => callContext?.disconnect?.()}
+            onClick={(e) => { e.stopPropagation(); callContext?.disconnect?.(); }}
             class="size-8 rounded-full bg-failure flex items-center justify-center ml-1"
           >
             <PhoneDisconnectIcon class="size-4" />
@@ -965,7 +1184,13 @@ export function MobileHome() {
   };
 
   return (
-    <div class="flex flex-col h-full bg-page bg-gradient-to-b from-accent/5 to-transparent to-30%">
+    <div
+      class="flex flex-col h-full relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(to bottom, color-mix(in oklch, var(--color-accent) 5%, var(--color-page)) 0%, var(--color-page) 30%)',
+        'background-attachment': 'fixed',
+      }}
+    >
       <CallBanner />
 
       <div class="flex-1 flex flex-col min-h-0">
@@ -1025,7 +1250,7 @@ export function MobileHome() {
               <HomeSearchBar />
             </div>
 
-            <AISummarySection />
+            <AICardStack />
 
             <SuggestedActionsSection />
 
