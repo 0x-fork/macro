@@ -12,6 +12,12 @@ export type FindBarSource<T> = {
   navigate: (result: T) => void;
   validateText?: (text: string) => boolean;
   totalCount?: Accessor<number | undefined>;
+  /**
+   * Load enough pages so the 1-based `index` is included in `results()`.
+   * Used for backward wraparound (jump to globally-last) and forward
+   * extension when the prefetch hasn't caught up.
+   */
+  loadToIndex?: (index: number) => Promise<void>;
 };
 
 export type FindBarController = {
@@ -68,21 +74,41 @@ export function createFindBarController<T>(
     })
   );
 
-  const next = () => {
+  const total = () => source.totalCount?.() ?? source.results().length;
+
+  const step = (delta: 1 | -1) => {
     const rs = source.results();
     if (rs.length === 0) return;
-    const i = activeIndex() >= rs.length ? 1 : activeIndex() + 1;
+    const cap = total();
+    const current = activeIndex();
+    const desired =
+      delta === 1
+        ? current >= cap
+          ? 1
+          : current + 1
+        : current <= 1
+          ? cap
+          : current - 1;
+
+    if (desired > rs.length && source.loadToIndex) {
+      source.loadToIndex(desired).then(() => {
+        const rsNow = source.results();
+        const i = Math.min(Math.max(desired, 1), rsNow.length);
+        if (i > 0) {
+          setActiveIndex(i);
+          source.navigate(rsNow[i - 1]);
+        }
+      });
+      return;
+    }
+
+    const i = Math.min(desired, rs.length);
     setActiveIndex(i);
     source.navigate(rs[i - 1]);
   };
 
-  const previous = () => {
-    const rs = source.results();
-    if (rs.length === 0) return;
-    const i = activeIndex() <= 1 ? rs.length : activeIndex() - 1;
-    setActiveIndex(i);
-    source.navigate(rs[i - 1]);
-  };
+  const next = () => step(1);
+  const previous = () => step(-1);
 
   const submit = () => {
     const trimmed = query().trim();

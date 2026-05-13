@@ -15,7 +15,10 @@ import {
   useSearchChannelQuery,
   validateSearchServiceText,
 } from '@queries/soup/search';
-import { ChannelSortTimestamp } from '@service-search/generated/models';
+import {
+  ChannelSortDirection,
+  ChannelSortTimestamp,
+} from '@service-search/generated/models';
 import {
   type Accessor,
   createEffect,
@@ -62,6 +65,7 @@ export function createChannelFindBar(
             search_on: 'content',
             channel_ids: [options.channelId()],
             sort: ChannelSortTimestamp.thread,
+            sort_direction: ChannelSortDirection.desc,
           },
         }),
         () => ({ enabled: isOpen() && submittedQuery().length > 0 })
@@ -172,11 +176,18 @@ export function createChannelFindBar(
         }
       });
 
+      const loadToIndex = async (idx: number) => {
+        while (results().length < idx && searchQuery.hasNextPage) {
+          await searchQuery.fetchNextPage();
+        }
+      };
+
       return {
         results,
         totalCount,
         isFetching: () => searchQuery.isFetching,
         validateText: validateSearchServiceText,
+        loadToIndex,
         navigate: (result) => {
           if (result.threadId) {
             options.goToMessage(result.threadId, result.messageId);
