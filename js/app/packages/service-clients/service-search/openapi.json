@@ -458,6 +458,10 @@
                 "$ref": "#/components/schemas/ChannelSortTimestamp",
                 "description": "Sort key for results. Defaults to `message`."
               },
+              "sort_direction": {
+                "$ref": "#/components/schemas/ChannelSortDirection",
+                "description": "Sort direction. Defaults to `desc` (newest first)."
+              },
               "terms": {
                 "type": ["array", "null"],
                 "items": {
@@ -476,7 +480,11 @@
         "properties": {
           "next_cursor": {
             "type": ["string", "null"],
-            "description": "Base64-encoded cursor for the next page; `None` when exhausted."
+            "description": "Base64-encoded cursor for the next page in the same `sort_direction`;\n`None` when exhausted."
+          },
+          "prev_cursor": {
+            "type": ["string", "null"],
+            "description": "Base64-encoded cursor pointing at the first hit of the current page.\nTo fetch the previous page, re-issue the search with the inverted\n`sort_direction` and this value as `cursor`, then reverse the results\nclient-side. `None` when the current page is empty."
           },
           "results": {
             "type": "array",
@@ -597,6 +605,11 @@
             "description": "When the channel message was last updated\nThis is only prsent if the search result is on the message content"
           }
         }
+      },
+      "ChannelSortDirection": {
+        "type": "string",
+        "description": "Direction of the channel search sort. Independent of [`ChannelSortTimestamp`].",
+        "enum": ["desc", "asc"]
       },
       "ChannelSortTimestamp": {
         "type": "string",

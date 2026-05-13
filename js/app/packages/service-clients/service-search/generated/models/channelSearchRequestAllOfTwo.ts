@@ -7,6 +7,7 @@
 import type { ChannelSearchRequestAllOfTwoCollapse } from './channelSearchRequestAllOfTwoCollapse';
 import type { ChannelSearchRequestAllOfTwoQuery } from './channelSearchRequestAllOfTwoQuery';
 import type { ChannelSearchRequestAllOfTwoTerms } from './channelSearchRequestAllOfTwoTerms';
+import type { ChannelSortDirection } from './channelSortDirection';
 import type { ChannelSortTimestamp } from './channelSortTimestamp';
 import type { MatchType } from './matchType';
 import type { SearchOn } from './searchOn';
@@ -22,6 +23,8 @@ export type ChannelSearchRequestAllOfTwo = {
   search_on?: SearchOn;
   /** Sort key for results. Defaults to `message`. */
   sort?: ChannelSortTimestamp;
+  /** Sort direction. Defaults to `desc` (newest first). */
+  sort_direction?: ChannelSortDirection;
   /** Multiple terms to search over */
   terms?: ChannelSearchRequestAllOfTwoTerms;
 };

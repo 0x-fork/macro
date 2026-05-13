@@ -7,13 +7,20 @@
 
 import type { ChannelSearchResponseItemWithMetadata } from './channelSearchResponseItemWithMetadata';
 import type { ChannelSearchResponseNextCursor } from './channelSearchResponseNextCursor';
+import type { ChannelSearchResponsePrevCursor } from './channelSearchResponsePrevCursor';
 
 /**
  * The document search response object
  */
 export interface ChannelSearchResponse {
-  /** Base64-encoded cursor for the next page; `None` when exhausted. */
+  /** Base64-encoded cursor for the next page in the same `sort_direction`;
+`None` when exhausted. */
   next_cursor?: ChannelSearchResponseNextCursor;
+  /** Base64-encoded cursor pointing at the first hit of the current page.
+To fetch the previous page, re-issue the search with the inverted
+`sort_direction` and this value as `cursor`, then reverse the results
+client-side. `None` when the current page is empty. */
+  prev_cursor?: ChannelSearchResponsePrevCursor;
   /** List containing results from email threads */
   results: ChannelSearchResponseItemWithMetadata[];
   /** Total number of matching channel messages across all pages. */

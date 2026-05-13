@@ -6,6 +6,7 @@
  */
 
 /**
- * Base64-encoded cursor for the next page; `None` when exhausted.
+ * Base64-encoded cursor for the next page in the same `sort_direction`;
+`None` when exhausted.
  */
 export type ChannelSearchResponseNextCursor = string | null;
