@@ -276,7 +276,7 @@ function useTaskStatus(entity: EntityWithProperties<EntityData>) {
   });
 }
 
-function TaskPropertyGroup(props: {
+export function TaskPropertyGroup(props: {
   entity: EntityWithProperties<EntityData>;
   include: string[];
   condensed?: boolean;
@@ -687,7 +687,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
   );
 }
 
-function TaskPropertyPill(props: { property?: Property; empty?: boolean; dim?: boolean; children: JSX.Element }) {
+export function TaskPropertyPill(props: { property?: Property; empty?: boolean; dim?: boolean; children: JSX.Element }) {
   const { openPropertyEditor } = usePropertiesContext();
 
   const handleClick = (e: MouseEvent) => {
