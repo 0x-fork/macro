@@ -96,9 +96,9 @@ import {
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
 import {
-  MobileSoupFooter,
   MobileSoupHeader,
-} from '@app/component/next-soup/soup-view/filters-bar/mobile-soup-footer';
+  MobileSoupFooter,
+} from '@app/component/next-soup/soup-view/filters-bar/mobile-soup-header';
 import { SoupViewMobileCreateButton } from '@app/component/next-soup/soup-view/soup-view-mobile-create-button';
 import { SettingsButton } from '@app/component/settings/SettingsButton';
 import { isListViewID, type ListView } from '@app/constants/list-views';
@@ -427,6 +427,7 @@ export const SoupView = (props: SoupViewProps) => {
 
   const [narrowSearchExpanded, setNarrowSearchExpanded] = createSignal(false);
   const [searchIsCollapsed, setSearchIsCollapsed] = createSignal(false);
+  const [mobileScrollY, setMobileScrollY] = createSignal(0);
 
   registerHotkey({
     hotkey: 'cmd+f',
@@ -474,43 +475,35 @@ export const SoupView = (props: SoupViewProps) => {
           additionalEntities={props.additionalEntities}
         >
           <div class="size-full flex flex-col">
-            <div class="flex flex-col w-full">
-              <SplitHeaderLeft>
-                <div class="flex gap-3 items-center">
-                  <Show when={isMobile()}>
-                    <LogoIcon class="size-6 text-accent shrink-0" />
-                  </Show>
-
-                  <Show when={!isComponentListView('search')}>
-                    <Show when={!isMobile()}>
+            <Show when={isMobile()}>
+              <MobileSoupHeader
+                viewName={props.viewName}
+                scrollY={mobileScrollY}
+              />
+            </Show>
+            <Show when={!isMobile()}>
+              <div class="flex flex-col w-full">
+                <SplitHeaderLeft>
+                  <div class="flex gap-3 items-center">
+                    <Show when={!isComponentListView('search')}>
                       <h1 class="font-semibold text-ink select-none text-sm leading-none">
                         {props.viewName}
                       </h1>
                       <SoupViewTabs overflow />
                     </Show>
+                  </div>
+                </SplitHeaderLeft>
+                <SplitHeaderRight>
+                  <Show when={!isComponentListView('search')}>
+                    <SoupViewCreateButton />
                   </Show>
-                </div>
-              </SplitHeaderLeft>
-              <SplitHeaderRight>
-                <Show when={isMobile()}>
-                  <MobileSoupHeader />
-                </Show>
-                <Show when={!isMobile() && !isComponentListView('search')}>
-                  <SoupViewCreateButton />
-                </Show>
-              </SplitHeaderRight>
-              <SoupFiltersBar
-                searchView={isComponentListView('search')}
-                initialSearchText={props.initialSearchText}
-              />
-
-              <div class="w-fit ml-auto px-3">
-                <Show when={isMobile() && !narrowSearchExpanded()}>
-                  <SoupViewMobileCreateButton activeView={activeListView} />
-                  {/* <SettingsButton /> */}
-                </Show>
+                </SplitHeaderRight>
+                <SoupFiltersBar
+                  searchView={isComponentListView('search')}
+                  initialSearchText={props.initialSearchText}
+                />
               </div>
-            </div>
+            </Show>
             <Show when={hasLinkError()}>
               <EmailPermissionsBanner />
             </Show>
@@ -525,6 +518,7 @@ export const SoupView = (props: SoupViewProps) => {
                   <SoupViewList
                     initialClientFilters={props.initialClientFilters}
                     skipPersistedState={props.skipPersistedState}
+                    onMobileScroll={setMobileScrollY}
                   />
                 </SoupViewFileDropzone>
               </Suspense>
@@ -545,6 +539,7 @@ interface SoupViewListProps {
   scopeId?: string;
   initialClientFilters?: SetPredicatesInput<string>;
   skipPersistedState?: boolean;
+  onMobileScroll?: (scrollY: number) => void;
 }
 
 export const SoupViewList = (props: SoupViewListProps) => {
@@ -1092,6 +1087,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                           class="overflow-hidden flex min-w-0"
                           virtualizerRef={registerVirtualizerHandler}
                           onScrollBottom={debouncedFetchMore}
+                          onScroll={props.onMobileScroll}
                           scrollBottomOffset={300}
                           rows={rows()}
                           hasMoreData={source.hasNextPage()}
@@ -1271,6 +1267,7 @@ interface SoupListProps {
   overscan?: number;
   children: (row: SoupRow, index: Accessor<number>) => JSX.Element;
   onScrollBottom?: VoidFunction;
+  onScroll?: (offset: number) => void;
   scrollBottomOffset?: number;
   rows: SoupRow[];
   cache?: CacheSnapshot;
@@ -1292,6 +1289,8 @@ const SoupList = (props: SoupListProps) => {
 
   const handleScroll = (offset: number) => {
     const handle = virtualizerHandle();
+
+    props.onScroll?.(offset);
 
     if (!handle) return;
 

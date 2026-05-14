@@ -189,7 +189,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
       ref={props.ref}
     >
       <div class="flex justify-start items-center">
-        <div class="z-annotation-layer flex items-center pl-2 mobile:pl-3">
+        <div class="z-annotation-layer flex items-center pl-2 mobile:pl-4">
           <div class="mobile:hidden">
             <SplitCloseButton />
           </div>
@@ -208,7 +208,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         <div
           class={cn(
             'min-w-4 shrink-0 flex items-center gap-0.5 pl-2',
-            !shouldShowRightmost() && 'pr-2 mobile:pr-3'
+            !shouldShowRightmost() && 'pr-2 mobile:pr-4'
           )}
           ref={(ref) => {
             panel.layoutRefs.headerRight = ref;

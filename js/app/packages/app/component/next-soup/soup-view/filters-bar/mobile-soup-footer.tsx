@@ -12,7 +12,7 @@ export const MobileSoupFooter = () => {
 
 export const MobileSoupHeader = () => {
   return (
-    <div class="shrink-0 px-3 py-2">
+    <div class="shrink-0 py-2">
       <div class="flex items-center gap-2">
         <div class="flex-1 min-w-0">
           <SoupSearchbar variant="filled" placeholder="Search..." />
