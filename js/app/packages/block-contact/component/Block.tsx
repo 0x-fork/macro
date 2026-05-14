@@ -13,7 +13,6 @@ import WideChat from '@macro-icons/wide/chat.svg';
 // import WideEmail from '@macro-icons/wide/email.svg';
 import { commsServiceClient } from '@service-comms/client';
 import { Button } from '@ui';
-import { useUserTeamsQuery } from '@queries/team';
 import { Show } from 'solid-js';
 import { ContactEmailsSection } from './EmailsSection';
 
@@ -33,13 +32,6 @@ export function ContactBlock() {
   const headerName = () => displayName() || email();
 
   const canMessage = () => !!macroId() && fullId() !== currentUserId();
-
-  // Use the first team the user belongs to (per spec) to decide whether to
-  // show the team-scoped emails section. team_scope itself is inferred by
-  // the backend from auth, so we don't pass a team id to the soup query.
-  const userTeamsQuery = useUserTeamsQuery();
-  const hasTeam = () => (userTeamsQuery.data?.length ?? 0) > 0;
-  const firstTeamName = () => userTeamsQuery.data?.[0]?.name;
 
   // const openCompose = (e: MouseEvent) => {
   //   e.preventDefault();
@@ -149,20 +141,6 @@ export function ContactBlock() {
         </section>
 
         <ContactEmailsSection email={email()} />
-
-        <Show when={hasTeam()}>
-          <ContactEmailsSection
-            email={email()}
-            teamScope
-            hideOnError
-            label={
-              firstTeamName()
-                ? `${firstTeamName()} team emails`
-                : 'Team emails'
-            }
-            emptyMessage="No team emails involving this contact."
-          />
-        </Show>
       </div>
     </div>
   );
