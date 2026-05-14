@@ -254,7 +254,6 @@ pub async fn handler(
     let opensearch_client::search::channels::ChannelSearchResults {
         hits,
         next_cursor,
-        prev_cursor,
         total: total_count,
     } = ctx
         .opensearch_client
@@ -268,12 +267,10 @@ pub async fn handler(
         SearchCursorOption::NotDone(Some(c)) => c.encode(),
         _ => None,
     };
-    let prev_cursor = prev_cursor.and_then(|c| c.encode());
 
     Ok(Json(ChannelSearchResponse {
         results,
         next_cursor,
-        prev_cursor,
         total_count,
     }))
 }

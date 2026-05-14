@@ -127,15 +127,10 @@ pub struct ChannelSearchResponse {
     /// List containing results from email threads
     pub results: Vec<ChannelSearchResponseItemWithMetadata>,
     /// Base64-encoded cursor for the next page in the same `sort_direction`;
-    /// `None` when exhausted.
+    /// `None` when exhausted. To traverse in the opposite direction, re-issue
+    /// the search with the inverted `sort_direction`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
-    /// Base64-encoded cursor pointing at the first hit of the current page.
-    /// To fetch the previous page, re-issue the search with the inverted
-    /// `sort_direction` and this value as `cursor`, then reverse the results
-    /// client-side. `None` when the current page is empty.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub prev_cursor: Option<String>,
     /// Total number of matching channel messages across all pages.
     pub total_count: i64,
 }

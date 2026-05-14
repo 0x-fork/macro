@@ -231,13 +231,10 @@ fn build_channel_search_request(
 pub struct ChannelSearchResults {
     pub hits: Vec<SearchHit>,
     /// Cursor for the next page in the same sort direction. `Done` when the
-    /// current sort direction is exhausted.
+    /// current sort direction is exhausted. Clients that need to traverse the
+    /// result set in the opposite direction should issue a separate search
+    /// with the inverted `sort_direction`.
     pub next_cursor: SearchCursorOption,
-    /// Cursor for the previous page. Clients fetch the previous page by
-    /// re-issuing the search with the inverted `sort_direction` and this
-    /// cursor, then reversing the returned hits client-side. `None` when the
-    /// current page has no results.
-    pub prev_cursor: Option<SearchMethodCursor>,
     pub total: i64,
 }
 
@@ -303,14 +300,9 @@ pub(crate) async fn search_channel(
         SearchCursorOption::Done
     };
 
-    let prev_cursor = hits
-        .first()
-        .and_then(|first| build_channel_cursor(first, args.sort_mode));
-
     Ok(ChannelSearchResults {
         hits,
         next_cursor,
-        prev_cursor,
         total,
     })
 }

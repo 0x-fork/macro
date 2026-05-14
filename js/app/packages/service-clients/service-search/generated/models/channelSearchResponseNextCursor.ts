@@ -7,6 +7,7 @@
 
 /**
  * Base64-encoded cursor for the next page in the same `sort_direction`;
-`None` when exhausted.
+`None` when exhausted. To traverse in the opposite direction, re-issue
+the search with the inverted `sort_direction`.
  */
 export type ChannelSearchResponseNextCursor = string | null;

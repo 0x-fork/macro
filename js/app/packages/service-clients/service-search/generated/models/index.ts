@@ -41,7 +41,6 @@ export * from './channelSearchResponseItemWithMetadata';
 export * from './channelSearchResponseItemWithMetadataAllOf';
 export * from './channelSearchResponseItemWithMetadataAllOfMetadata';
 export * from './channelSearchResponseNextCursor';
-export * from './channelSearchResponsePrevCursor';
 export * from './channelSearchResult';
 export * from './channelSearchResultCreatedAt';
 export * from './channelSearchResultDeletedAt';
