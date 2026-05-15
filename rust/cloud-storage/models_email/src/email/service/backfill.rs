@@ -20,46 +20,113 @@ pub struct BackfillMessagePayload {
     pub message_provider_id: String,
 }
 
+/// Scope envelope for backfill operations that belong to a tracked backfill
+/// job (Init, ListThreads, BackfillThread, BackfillMessage,
+/// UpdateThreadMetadata, BackfillAttachment). Carries the `link_id` and
+/// `job_id` the operation needs alongside its variant-specific payload.
+/// The inner payload is `#[serde(flatten)]`-ed so the JSON shape stays the
+/// same as if `link_id`/`job_id` and the payload fields were siblings.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct JobScopedPayload<P> {
+    pub link_id: Uuid,
+    pub job_id: Uuid,
+    #[serde(flatten)]
+    pub payload: P,
+}
+
+/// Scope envelope for backfill operations that are scoped to a single
+/// `email_link` but not to a backfill job (e.g. `PopulateCrmContact`).
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct LinkScopedPayload<P> {
+    pub link_id: Uuid,
+    #[serde(flatten)]
+    pub payload: P,
+}
+
+/// Empty payload for [`BackfillOperation::Init`]. The variant only needs the
+/// shared `link_id`/`job_id` from `JobScopedPayload`; this struct exists so
+/// every job-scoped variant has the same `JobScopedPayload<…>` shape.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct InitPayload {}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum BackfillOperation {
     // Populates total_threads and sends the first ListThreads message
-    Init,
+    Init(JobScopedPayload<InitPayload>),
     // Each ListThreads operation gets a batch of 500 thread_ids from the gmail api
     // and sends a BackfillThread message for each thread_id in the batch. If there
     // are still threads left to fetch, it will send another ListThreads message.
-    ListThreads(ListThreadsPayload),
+    ListThreads(JobScopedPayload<ListThreadsPayload>),
     // Creates the thread object in the database, fetches the message ids for the thread
     // from the gmail api, and sends a BackfillMessage message for each message_id.
-    BackfillThread(BackfillThreadPayload),
+    BackfillThread(JobScopedPayload<BackfillThreadPayload>),
     // Creates a message object in the database. If the message is the last message in
     // the thread to be processed, it sends an UpdateThreadMetadata message for the thread.
-    BackfillMessage(BackfillMessagePayload),
+    BackfillMessage(JobScopedPayload<BackfillMessagePayload>),
     // Updates the thread metadata in the database. If it's the last thread to be processed,
     // it sets the backfill job status to complete. Sends BackfillAttachment messages for each
     // attachment requiring backfill, except for the criteria of attachments in any threads
     // with a participant the user has previously emailed. This criteria we can only know after
     // backfill completes. Once backfill is completed it sends a BackfillAttachment message
     // for each of those attachments.
-    UpdateThreadMetadata(UpdateMetadataPayload),
+    UpdateThreadMetadata(JobScopedPayload<UpdateMetadataPayload>),
     // Uploads the message attachment as a Macro document.
-    BackfillAttachment(BackfillAttachmentPayload),
+    BackfillAttachment(JobScopedPayload<BackfillAttachmentPayload>),
     // Idempotently records a contact the requesting user has emailed into the
     // CRM tables (crm_companies, crm_domains, crm_contacts, crm_contact_sources).
     // Fanned out one-per-recipient from BackfillMessage when the message was
     // sent by the user. No-op if the user has no team or the contact's domain
     // has been opted out by the team (crm_companies.email_sync = false).
-    PopulateCrmContact(PopulateCrmPayload),
+    PopulateCrmContact(LinkScopedPayload<PopulateCrmContactPayload>),
+    // Fans out PopulateCrmContact messages for every contact a user has
+    // previously emailed. Resolves the user's link + team itself (bails if
+    // either is missing). Triggered when a user gets added to a team so
+    // their historical sent-mail recipients seed the team's CRM tables.
+    PopulateCrmForUser(PopulateCrmForUserPayload),
+}
+
+impl BackfillOperation {
+    /// Returns the link_id this operation is scoped to, or `None` for
+    /// user-scoped operations that resolve the link themselves.
+    pub fn link_id(&self) -> Option<Uuid> {
+        match self {
+            BackfillOperation::Init(s) => Some(s.link_id),
+            BackfillOperation::ListThreads(s) => Some(s.link_id),
+            BackfillOperation::BackfillThread(s) => Some(s.link_id),
+            BackfillOperation::BackfillMessage(s) => Some(s.link_id),
+            BackfillOperation::UpdateThreadMetadata(s) => Some(s.link_id),
+            BackfillOperation::BackfillAttachment(s) => Some(s.link_id),
+            BackfillOperation::PopulateCrmContact(s) => Some(s.link_id),
+            BackfillOperation::PopulateCrmForUser(_) => None,
+        }
+    }
+
+    /// Returns the backfill job_id this operation belongs to, or `None`
+    /// for operations that don't participate in a tracked backfill job.
+    pub fn job_id(&self) -> Option<Uuid> {
+        match self {
+            BackfillOperation::Init(s) => Some(s.job_id),
+            BackfillOperation::ListThreads(s) => Some(s.job_id),
+            BackfillOperation::BackfillThread(s) => Some(s.job_id),
+            BackfillOperation::BackfillMessage(s) => Some(s.job_id),
+            BackfillOperation::UpdateThreadMetadata(s) => Some(s.job_id),
+            BackfillOperation::BackfillAttachment(s) => Some(s.job_id),
+            BackfillOperation::PopulateCrmContact(_) | BackfillOperation::PopulateCrmForUser(_) => {
+                None
+            }
+        }
+    }
 }
 
 // the object we send on the backfill pubsub queue
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BackfillPubsubMessage {
-    pub link_id: Uuid,
-    // the id of the backfill job in the backfill_job table
-    pub job_id: Uuid,
-    // the operation being performed (init, backfill_thread, backfill_message)
+    // the operation being performed (init, backfill_thread, backfill_message,
+    // populate_crm_contact, populate_crm_for_user). Each variant carries its
+    // own link_id/job_id/macro_id as needed — see JobScopedPayload,
+    // LinkScopedPayload, and PopulateCrmForUserPayload.
     pub backfill_operation: BackfillOperation,
 }
 
@@ -186,6 +253,11 @@ pub struct BackfillAttachmentPayload {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-pub struct PopulateCrmPayload {
+pub struct PopulateCrmContactPayload {
     pub contact_email: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct PopulateCrmForUserPayload {
+    pub macro_id: String,
 }
