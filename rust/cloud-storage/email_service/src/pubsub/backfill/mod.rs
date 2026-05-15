@@ -5,6 +5,7 @@ mod error_handlers;
 mod increment_counters;
 mod init;
 mod list_threads;
+mod populate_crm;
 mod process;
 mod update_metadata;
 pub mod worker;
