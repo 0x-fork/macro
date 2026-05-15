@@ -4,10 +4,16 @@ use crate::pubsub::context::PubSubContext;
 use crate::pubsub::util::{CheckGmailRateLimitArgs, check_gmail_rate_limit};
 use crate::util::process_pre_insert::process_message_pre_insert;
 use anyhow::Context;
-use models_email::email::service::backfill::{BackfillMessagePayload, BackfillPubsubMessage};
+use models_email::email::service::backfill::{
+    BackfillMessagePayload, BackfillOperation, BackfillPubsubMessage, PopulateCrmPayload,
+};
 use models_email::email::service::link;
+use models_email::email::service::message::Message;
 use models_email::email::service::pubsub::{DetailedError, FailureReason, ProcessingError};
 use models_email::gmail::operations::GmailApiOperation;
+use std::collections::HashSet;
+use uuid::Uuid;
+
 /// This step is invoked by BackfillThread once for each message in the thread.
 /// Creates a message object in the database. If the message is the last message in
 /// the thread to be processed, it sends an UpdateThreadMetadata message for the thread.
@@ -78,6 +84,55 @@ pub async fn backfill_message(
         })
     })?;
 
+    // For messages sent BY the user, fan out a PopulateCrm job per recipient
+    // so the CRM tables learn about the contacts the team has been emailing.
+    // ON CONFLICT DO NOTHING on the consumer side keeps duplicate enqueues
+    // (e.g. retried backfill_message attempts) harmless.
+    if message.is_sent {
+        enqueue_populate_crm_for_recipients(ctx, link, data.job_id, &message).await?;
+    }
+
     // Handle all success-related operations
     increment_counters::incr_completed_messages(ctx, link, data.job_id, p).await
+}
+
+async fn enqueue_populate_crm_for_recipients(
+    ctx: &PubSubContext,
+    link: &link::Link,
+    job_id: Uuid,
+    message: &Message,
+) -> Result<(), ProcessingError> {
+    let self_email = link.email_address.0.as_ref().to_ascii_lowercase();
+    let mut seen: HashSet<String> = HashSet::new();
+
+    let recipients = message
+        .to
+        .iter()
+        .chain(&message.cc)
+        .chain(&message.bcc)
+        .map(|c| c.email.trim().to_ascii_lowercase())
+        .filter(|email| email.contains('@') && email != &self_email)
+        .filter(|email| seen.insert(email.clone()));
+
+    for contact_email in recipients {
+        let ps_message = BackfillPubsubMessage {
+            link_id: link.id,
+            job_id,
+            backfill_operation: BackfillOperation::PopulateCrm(PopulateCrmPayload {
+                contact_email,
+            }),
+        };
+
+        ctx.sqs_client
+            .enqueue_email_backfill_message(ps_message)
+            .await
+            .map_err(|e| {
+                ProcessingError::Retryable(DetailedError {
+                    reason: FailureReason::SqsEnqueueFailed,
+                    source: e.context("Failed to enqueue PopulateCrm message"),
+                })
+            })?;
+    }
+
+    Ok(())
 }

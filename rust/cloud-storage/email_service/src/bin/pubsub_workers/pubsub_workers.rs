@@ -235,6 +235,10 @@ async fn main() -> anyhow::Result<()> {
         PgSystemPropertiesRepository::new(db.clone()),
     ));
 
+    let crm_service = crm::domain::service::CrmServiceImpl::new(
+        crm::outbound::companies_repo::CompaniesRepositoryImpl::new(db.clone()),
+    );
+
     // process user inbox updates from gmail inbox_sync queue, triggered by update pubsub messages from Google
     for worker in inbox_sync_workers {
         let db_inbox_sync = db.clone();
@@ -248,6 +252,7 @@ async fn main() -> anyhow::Result<()> {
         let connection_gateway_client_inbox_sync = connection_gateway_client.clone();
         let dss_client_inbox_sync = dss_client.clone();
         let system_properties_service_inbox_sync = system_properties_service.clone();
+        let crm_service_inbox_sync = crm_service.clone();
         tokio::spawn(async move {
             email_service::pubsub::inbox_sync::worker::run_worker(
                 db_inbox_sync,
@@ -262,6 +267,7 @@ async fn main() -> anyhow::Result<()> {
                 connection_gateway_client_inbox_sync,
                 dss_client_inbox_sync,
                 system_properties_service_inbox_sync,
+                crm_service_inbox_sync,
                 config.notifications_enabled,
                 false,
             )
@@ -286,6 +292,7 @@ async fn main() -> anyhow::Result<()> {
         let connection_gateway_client_inbox_sync = connection_gateway_client.clone();
         let dss_client_inbox_sync = dss_client.clone();
         let system_properties_service_inbox_sync = system_properties_service.clone();
+        let crm_service_inbox_sync = crm_service.clone();
         tokio::spawn(async move {
             email_service::pubsub::inbox_sync::worker::run_worker(
                 db_inbox_sync,
@@ -300,6 +307,7 @@ async fn main() -> anyhow::Result<()> {
                 connection_gateway_client_inbox_sync,
                 dss_client_inbox_sync,
                 system_properties_service_inbox_sync,
+                crm_service_inbox_sync,
                 config.notifications_enabled,
                 true,
             )
@@ -374,6 +382,7 @@ async fn main() -> anyhow::Result<()> {
         let connection_gateway_client_backfill = connection_gateway_client.clone();
         let dss_client_backfill = dss_client.clone();
         let system_properties_service_backfill = system_properties_service.clone();
+        let crm_service_backfill = crm_service.clone();
         tokio::spawn(async move {
             email_service::pubsub::backfill::worker::run_worker(
                 db_backfill,
@@ -388,6 +397,7 @@ async fn main() -> anyhow::Result<()> {
                 connection_gateway_client_backfill,
                 dss_client_backfill,
                 system_properties_service_backfill,
+                crm_service_backfill,
                 config.notifications_enabled,
             )
             .await;

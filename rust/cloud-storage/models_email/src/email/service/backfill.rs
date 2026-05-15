@@ -44,6 +44,12 @@ pub enum BackfillOperation {
     UpdateThreadMetadata(UpdateMetadataPayload),
     // Uploads the message attachment as a Macro document.
     BackfillAttachment(BackfillAttachmentPayload),
+    // Idempotently records a contact the requesting user has emailed into the
+    // CRM tables (crm_companies, crm_domains, crm_contacts, crm_contact_sources).
+    // Fanned out one-per-recipient from BackfillMessage when the message was
+    // sent by the user. No-op if the user has no team or the contact's domain
+    // has been opted out by the team (crm_companies.email_sync = false).
+    PopulateCrm(PopulateCrmPayload),
 }
 
 // the object we send on the backfill pubsub queue
@@ -177,4 +183,9 @@ pub struct UpdateMetadataPayload {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct BackfillAttachmentPayload {
     pub metadata: AttachmentUploadArgs,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct PopulateCrmPayload {
+    pub contact_email: String,
 }

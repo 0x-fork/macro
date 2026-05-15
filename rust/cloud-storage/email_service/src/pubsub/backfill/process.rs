@@ -1,6 +1,6 @@
 use crate::pubsub::backfill::{
     backfill_attachment, backfill_message, backfill_thread, error_handlers, init, list_threads,
-    update_metadata,
+    populate_crm, update_metadata,
 };
 use crate::pubsub::context::PubSubContext;
 use crate::util::gmail::auth::fetch_token_or_delete_on_revocation;
@@ -125,6 +125,7 @@ async fn inner_process_message(
         BackfillOperation::BackfillAttachment(p) => {
             backfill_attachment::backfill_attachment(ctx, &access_token, &link, p).await?
         }
+        BackfillOperation::PopulateCrm(p) => populate_crm::populate_crm(ctx, &link, p).await?,
     };
 
     Ok(())
@@ -166,6 +167,7 @@ async fn handle_cancel_backfill_job(
         | BackfillOperation::ListThreads(_)
         | BackfillOperation::BackfillThread(_)
         | BackfillOperation::UpdateThreadMetadata(_)
-        | BackfillOperation::BackfillAttachment(_) => Ok(()),
+        | BackfillOperation::BackfillAttachment(_)
+        | BackfillOperation::PopulateCrm(_) => Ok(()),
     }
 }
