@@ -422,7 +422,7 @@ const CALLS_LINK: SidebarItem = {
 export const AppSidebar = (props: AppSidebarProps) => {
   const analytics = useAnalytics();
   const layout = useSplitLayout();
-  const { toggleSettings } = useSettingsState();
+  const { openSettings, toggleSettings } = useSettingsState();
   const notificationSettings = useNotificationSettings();
   const callCtx = useCallContextOptional();
 
@@ -641,6 +641,32 @@ export const AppSidebar = (props: AppSidebarProps) => {
           onClick={toggleSettings}
           icon={AnimatedGearIcon}
         />
+        <Show when={isExpanded()}>
+          <div class="mt-1 pl-2 text-xs text-ink-extra-muted/80">
+            Settings
+          </div>
+          <Button
+            variant="ghost"
+            class="w-full justify-start text-sm rounded-xs py-1 px-2"
+            onClick={() => openSettings('MCP & Mobile App')}
+          >
+            MCP & Mobile App
+          </Button>
+          <Button
+            variant="ghost"
+            class="w-full justify-start text-sm rounded-xs py-1 px-2"
+            onClick={() => openSettings('Invite team members')}
+          >
+            Invite team members
+          </Button>
+          <Button
+            variant="ghost"
+            class="w-full justify-start text-sm rounded-xs py-1 px-2"
+            onClick={() => openSettings('Appearance')}
+          >
+            Appearance
+          </Button>
+        </Show>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { createEffect, createMemo, For, onMount, Show, Suspense } from 'solid-js';
+import { createEffect, onMount, Show, Suspense } from 'solid-js';
 import { type SettingsTab, useSettingsState } from '@core/constant/SettingsState';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { isMobile } from '@core/mobile/isMobile';
@@ -13,9 +13,7 @@ import { Team } from './Team';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { SplitHeaderLeft, SplitHeaderRight } from '../split-layout/components/SplitHeader';
-import { CollapsibleHeaderItem } from '../split-layout/components/CollapsibleHeaderItem';
 import { SettingsButton } from './SettingsButton';
-import { Dropdown, Layer } from '@ui';
 
 export function SettingsPanelComponentWrapper() {
   return (
@@ -54,11 +52,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
   createEffect(focusSettingsOnOpen);
 
   function settingsTabs() {
-    const tabs: { value: string; label: string }[] = [
-      { value: 'MCP & Mobile App', label: 'MCP & Mobile App' },
-      { value: 'Invite team members', label: 'Invite team members' },
-      { value: 'Appearance', label: 'Appearance' },
-    ];
+    const tabs: { value: string; label: string }[] = [];
     if (isNativeMobilePlatform() && DEV_MODE_ENV) { tabs.push({ value: 'Mobile', label: 'Mobile Dev Tools' }) }
     return tabs;
   }
@@ -179,28 +173,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
           <h1 class="font-semibold text-ink select-none text-sm shrink-0">
             Settings
           </h1>
-          <Show when={!isMobile()}>
-            <CollapsibleHeaderItem
-              id="settings-tabs"
-              priority={1}
-              containerClass="h-full"
-              expanded={() => (
-                <Tabs
-                  list={settingsTabs()}
-                  value={activeTabId()}
-                  defaultValue="Appearance"
-                  onChange={handleTabChange}
-                />
-              )}
-              collapsed={() => (
-                <CollapsedSettingsTabs
-                  tabs={settingsTabs()}
-                  value={activeTabId()}
-                  onChange={handleTabChange}
-                />
-              )}
-            />
-          </Show>
         </div>
       </SplitHeaderLeft>
 
@@ -230,47 +202,5 @@ export function SettingsPanel(props: SettingsPanelProps) {
         <BottomTabs />
       </Show>
     </div>
-  );
-}
-
-type CollapsedSettingsTabsProps = {
-  tabs: { value: string; label: string }[];
-  value: string;
-  onChange: (value: string) => void;
-};
-
-function CollapsedSettingsTabs(props: CollapsedSettingsTabsProps) {
-  const activeLabel = createMemo(() => {
-    return (
-      props.tabs.find((item) => item.value === props.value)?.label ??
-      props.tabs[0]?.label
-    );
-  });
-
-  return (
-    <Dropdown placement="bottom-start" gutter={4}>
-      <Dropdown.Trigger>
-        <span class="truncate">{activeLabel()}</span>
-      </Dropdown.Trigger>
-      <Dropdown.Portal>
-        <Layer depth={2}>
-          <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-sm p-1">
-            <For each={props.tabs}>
-              {(item) => (
-                <Dropdown.Item
-                  class="w-full px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-md"
-                  classList={{
-                    'font-semibold': props.value === item.value,
-                  }}
-                  onSelect={() => props.onChange(item.value)}
-                >
-                  {item.label}
-                </Dropdown.Item>
-              )}
-            </For>
-          </Dropdown.Content>
-        </Layer>
-      </Dropdown.Portal>
-    </Dropdown>
   );
 }
