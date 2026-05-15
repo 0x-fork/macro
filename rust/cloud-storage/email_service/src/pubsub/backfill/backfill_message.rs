@@ -118,7 +118,7 @@ async fn enqueue_populate_crm_for_recipients(
         let ps_message = BackfillPubsubMessage {
             link_id: link.id,
             job_id,
-            backfill_operation: BackfillOperation::PopulateCrm(PopulateCrmPayload {
+            backfill_operation: BackfillOperation::PopulateCrmContact(PopulateCrmPayload {
                 contact_email,
             }),
         };

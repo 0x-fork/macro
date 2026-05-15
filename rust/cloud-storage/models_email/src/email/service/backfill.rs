@@ -49,7 +49,7 @@ pub enum BackfillOperation {
     // Fanned out one-per-recipient from BackfillMessage when the message was
     // sent by the user. No-op if the user has no team or the contact's domain
     // has been opted out by the team (crm_companies.email_sync = false).
-    PopulateCrm(PopulateCrmPayload),
+    PopulateCrmContact(PopulateCrmPayload),
 }
 
 // the object we send on the backfill pubsub queue

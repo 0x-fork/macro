@@ -46,7 +46,7 @@ pub async fn handle_non_retryable_error(
             handle_message_failure(ctx, data, p).await;
         }
         BackfillOperation::BackfillAttachment(_) => {}
-        BackfillOperation::PopulateCrm(_) => {}
+        BackfillOperation::PopulateCrmContact(_) => {}
     }
 
     cleanup_message(&ctx.sqs_worker, message).await?;
@@ -97,7 +97,7 @@ pub async fn handle_retryable_error(
                 "Retryable error backfilling attachment"
             )
         }
-        BackfillOperation::PopulateCrm(p) => {
+        BackfillOperation::PopulateCrmContact(p) => {
             tracing::debug!(
                 contact_email = %p.contact_email,
                 "Retryable error populating CRM"

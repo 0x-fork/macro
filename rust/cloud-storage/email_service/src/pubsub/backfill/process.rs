@@ -125,7 +125,9 @@ async fn inner_process_message(
         BackfillOperation::BackfillAttachment(p) => {
             backfill_attachment::backfill_attachment(ctx, &access_token, &link, p).await?
         }
-        BackfillOperation::PopulateCrm(p) => populate_crm::populate_crm(ctx, &link, p).await?,
+        BackfillOperation::PopulateCrmContact(p) => {
+            populate_crm::populate_crm(ctx, &link, p).await?
+        }
     };
 
     Ok(())
@@ -168,6 +170,6 @@ async fn handle_cancel_backfill_job(
         | BackfillOperation::BackfillThread(_)
         | BackfillOperation::UpdateThreadMetadata(_)
         | BackfillOperation::BackfillAttachment(_)
-        | BackfillOperation::PopulateCrm(_) => Ok(()),
+        | BackfillOperation::PopulateCrmContact(_) => Ok(()),
     }
 }
