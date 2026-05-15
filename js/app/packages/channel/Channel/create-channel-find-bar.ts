@@ -32,34 +32,6 @@ const FIND_BAR_PREFETCH_THRESHOLD = 10;
 const FIND_BAR_REPLY_PREFETCH_LOOKAHEAD = 2;
 const FIND_BAR_MESSAGES_PREFETCH_LOOKAHEAD = 2;
 
-/**
- * Indices the user is likely to navigate to next, given a current 1-based
- * `idx` in a list of `total` results. Walks `lookahead` steps in BOTH
- * directions and wraps around at the boundaries — so `idx=1` covers both
- * idx 2..lookahead+1 (forward) and `total..total-lookahead+1` (backward
- * wrap), matching the bidirectional + wraparound navigation model of the
- * find bar.
- */
-function nearbyIndices(
-  idx: number,
-  total: number,
-  lookahead: number
-): number[] {
-  if (total === 0) return [];
-  const out: number[] = [];
-  const seen = new Set<number>();
-  const add = (i: number) => {
-    if (!seen.has(i)) {
-      seen.add(i);
-      out.push(i);
-    }
-  };
-  for (let delta = 1; delta <= lookahead; delta++) {
-    add(((idx - 1 + delta) % total) + 1);
-    add(((idx - 1 - delta + total) % total) + 1);
-  }
-  return out;
-}
 
 type CreateChannelFindBarOptions = {
   channelId: Accessor<string>;
@@ -207,27 +179,25 @@ export function createChannelFindBar(
         }
       });
 
-      // Prefetch /replies for hits the user is about to land on. Walks
-      // forward AND backward from the active index and wraps around at
-      // either boundary, since either direction is one hotkey away.
+      // Prefetch /replies for the next few reply hits ahead of the cursor.
+      // Reads only `headItems()` so rapid forward navigation through head
+      // doesn't re-run the effect every time the tail page loads.
       // ChannelThread fires the replies query only on mount with
       // `targetReplyId` set, so the very first reply-nav into each thread
       // always pays a round-trip. Warming the cache in advance hides that
-      // latency on rapid next/prev. `prefetchQuery` is a no-op when the
-      // cached entry is fresh (staleTime is Infinity for replies), so
-      // re-runs are cheap.
+      // latency on rapid next.
       createEffect(() => {
-        const total = totalCount();
+        const rs = headItems();
         const idx = activeIndex();
-        if (idx === 0 || !total) return;
+        if (idx === 0 || rs.length === 0) return;
 
         const channelId = options.channelId();
-        for (const i of nearbyIndices(
-          idx,
-          total,
-          FIND_BAR_REPLY_PREFETCH_LOOKAHEAD
-        )) {
-          const threadId = resultAt(i)?.threadId;
+        const end = Math.min(
+          idx + FIND_BAR_REPLY_PREFETCH_LOOKAHEAD,
+          rs.length
+        );
+        for (let i = idx; i < end; i++) {
+          const threadId = rs[i].threadId;
           if (!threadId) continue;
           queryClient.prefetchQuery(
             threadRepliesQueryOptions(channelId, threadId)
@@ -235,31 +205,27 @@ export function createChannelFindBar(
         }
       });
 
-      // Prefetch the load-around channel-messages window for upcoming hits
-      // in either direction (forward, backward, or across a wraparound).
-      // When the user navigates to a result that's outside the current
-      // message window, tmc switches `loadAroundMessageId` to that id and
-      // `/messages?load_around_message_id=…` fetches a 50-row window
-      // centered on it. That round-trip is the dominant delay on rapid
-      // find-bar navigation through older messages. Skip hits that are
-      // already in the loaded window (we'd never actually fire an
-      // around-fetch for them) and dedupe so multiple replies to the same
-      // parent thread share one prefetch.
+      // Prefetch the load-around channel-messages window for the next few
+      // forward hits within the loaded head. When the user navigates to a
+      // result that's outside the current message window, tmc switches
+      // `loadAroundMessageId` to that id and `/messages?
+      // load_around_message_id=…` fetches a 50-row window centered on it.
+      // That round-trip is the dominant delay on rapid find-bar navigation
+      // through older messages. Reads only `headItems()` to avoid the
+      // re-run amplification of tracking tailItems too.
       createEffect(() => {
-        const total = totalCount();
+        const rs = headItems();
         const idx = activeIndex();
-        if (idx === 0 || !total) return;
+        if (idx === 0 || rs.length === 0) return;
 
         const channelId = options.channelId();
+        const end = Math.min(
+          idx + FIND_BAR_MESSAGES_PREFETCH_LOOKAHEAD,
+          rs.length
+        );
         const seen = new Set<string>();
-        for (const i of nearbyIndices(
-          idx,
-          total,
-          FIND_BAR_MESSAGES_PREFETCH_LOOKAHEAD
-        )) {
-          const hit = resultAt(i);
-          if (!hit) continue;
-          const aroundId = hit.threadId ?? hit.messageId;
+        for (let i = idx; i < end; i++) {
+          const aroundId = rs[i].threadId ?? rs[i].messageId;
           if (seen.has(aroundId)) continue;
           seen.add(aroundId);
           if (options.isMessageLoaded(aroundId)) continue;
