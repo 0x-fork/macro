@@ -1,6 +1,6 @@
 use crate::pubsub::context::PubSubContext;
 use crm::domain::service::CrmService;
-use models_email::email::service::backfill::PopulateCrmPayload;
+use models_email::email::service::backfill::PopulateCrmContactPayload;
 use models_email::email::service::link;
 use models_email::email::service::pubsub::{DetailedError, FailureReason, ProcessingError};
 
@@ -13,10 +13,10 @@ use models_email::email::service::pubsub::{DetailedError, FailureReason, Process
 /// (`crm_companies.email_sync = false` for the contact's domain) is also a
 /// no-op — see [`crm::domain::companies_repo::CompaniesRepository::populate_contact`].
 #[tracing::instrument(skip(ctx), fields(contact_email = %p.contact_email, link_id = %link.id))]
-pub async fn populate_crm(
+pub async fn populate_crm_contact(
     ctx: &PubSubContext,
     link: &link::Link,
-    p: &PopulateCrmPayload,
+    p: &PopulateCrmContactPayload,
 ) -> Result<(), ProcessingError> {
     let macro_user_id = link.macro_id.to_string();
 

@@ -74,6 +74,35 @@ struct RecipientQueryResult {
     recipient_type: db::address::EmailRecipientType,
 }
 
+/// Returns the deduped, lowercased set of recipient email addresses that
+/// appear on any sent message (`email_messages.is_sent = true`) on the
+/// given `link_id`. Walks To/Cc/Bcc indiscriminately — the caller is
+/// responsible for any filtering (e.g. dropping the user's own address).
+///
+/// Used by the `PopulateCrmForUser` backfill step to enumerate the
+/// contacts a user has previously emailed so they can be seeded into
+/// their team's CRM tables.
+#[tracing::instrument(skip(pool), err)]
+pub async fn fetch_sent_message_recipient_emails_by_link(
+    pool: &PgPool,
+    link_id: Uuid,
+) -> anyhow::Result<Vec<String>> {
+    sqlx::query_scalar!(
+        r#"
+        SELECT DISTINCT LOWER(c.email_address) AS "email!"
+        FROM email_messages m
+        JOIN email_message_recipients r ON r.message_id = m.id
+        JOIN email_contacts c ON c.id = r.contact_id
+        WHERE m.link_id = $1
+          AND m.is_sent = true
+        "#,
+        link_id,
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(Into::into)
+}
+
 /// fetch recipients (to, cc, bcc) from db
 #[tracing::instrument(skip(pool), err)]
 pub async fn fetch_db_recipients(
