@@ -90,16 +90,25 @@ export function createFindBarController<T>(
   );
 
   const step = (delta: 1 | -1) => {
-    const cap = total();
-    if (cap === 0) return;
+    const rs = source.results();
+    const loaded = rs.length;
+    if (loaded === 0) return;
     const current = activeIndex();
+    // Wrap at the LOADED count in both directions so holding next/prev
+    // cycles through results already in cache instead of marching through
+    // every result in the channel. Each new result would otherwise spawn
+    // its own /messages?load_around_message_id=… cache entry; over a long
+    // hold that grows the cache unboundedly and starves the channel
+    // viewport's renders. Head paginates in the background via the
+    // source's prefetch effect, so the wrap point grows naturally toward
+    // the global total.
     const desired =
       delta === 1
-        ? current >= cap
+        ? current >= loaded
           ? 1
           : current + 1
         : current <= 1
-          ? cap
+          ? loaded
           : current - 1;
 
     const immediate = resolve(desired);
