@@ -3,20 +3,14 @@ import { globalSplitManager } from '@app/signal/splitLayout';
 import { createMemo, createSignal } from 'solid-js';
 
 export type SettingsTab =
-  | 'Account'
-  | 'Subscription'
-  | 'Organization'
   | 'Appearance'
+  | 'Appearence'
   | 'Mobile'
-  | 'AI Memory'
-  | 'Inbox'
-  | 'Shortcuts'
-  | 'Mobile App'
-  | 'MCP'
-  | 'Team';
+  | 'MCP & Mobile App'
+  | 'Invite team members';
 
 export const [activeTabId, setActiveTabId] =
-  createSignal<SettingsTab>('Appearance');
+  createSignal<SettingsTab>('MCP & Mobile App');
 
 export const useSettingsState = () => {
   const { insertSplit } = useSplitLayout();

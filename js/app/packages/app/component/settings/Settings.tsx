@@ -4,20 +4,18 @@ import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { isMobile } from '@core/mobile/isMobile';
 import { DEV_MODE_ENV, ENABLE_APP_STORE_QR_CODE, ENABLE_TEAMS_OVERRIDE } from '@core/constant/featureFlags';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { Appearance } from './Appearance';
 import { MobileApp } from './MobileApp';
 import { Mcp } from './Mcp';
-import { Appearance } from './Appearance';
-import { Tabs } from '@core/component/Tabs';
 import { Account } from './Account';
-import { Shortcuts } from './Shortcuts';
 import { Team } from './Team';
+import { Tabs } from '@core/component/Tabs';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { SplitHeaderLeft, SplitHeaderRight } from '../split-layout/components/SplitHeader';
 import { CollapsibleHeaderItem } from '../split-layout/components/CollapsibleHeaderItem';
 import { SettingsButton } from './SettingsButton';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { Dropdown, Layer } from '@ui';
+import { Dropdown, Layer, Panel } from '@ui';
 
 export function SettingsPanelComponentWrapper() {
   return (
@@ -57,14 +55,15 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   function settingsTabs() {
     const tabs: { value: string; label: string }[] = [
-      { value: 'Appearance', label: 'Appearance' },
-      { value: 'Account', label: 'Account' },
+      { value: 'MCP & Mobile App', label: 'MCP & Mobile App' },
+      { value: 'Invite team members', label: 'Invite team members' },
+      { value: 'Appearence', label: 'Appearence' },
     ];
-    if (teamsFlag().enabled) { tabs.push({ value: 'Team', label: 'Team' }) }
-    tabs.push({ value: 'Shortcuts', label: 'Shortcuts' });
-    if (ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()) { tabs.push({ value: 'Mobile App', label: 'App' }) }
-    if (!isNativeMobilePlatform()) { tabs.push({ value: 'MCP', label: 'MCP' }) }
-    if (isNativeMobilePlatform() && DEV_MODE_ENV) { tabs.push({ value: 'Mobile', label: 'Mobile Dev Tools' }) }
+
+    if (isNativeMobilePlatform() && DEV_MODE_ENV) {
+      tabs.push({ value: 'Mobile', label: 'Mobile Dev Tools' });
+    }
+
     return tabs;
   }
 
@@ -163,7 +162,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
       <Tabs
         list={settingsTabs()}
         value={activeTabId()}
-        defaultValue="Appearance"
+        defaultValue="MCP & Mobile App"
         onChange={handleTabChange}
         indicatorPosition="top"
         class="**:data-indicator:h-0.75"
@@ -193,7 +192,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 <Tabs
                   list={settingsTabs()}
                   value={activeTabId()}
-                  defaultValue="Appearance"
+                  defaultValue="MCP & Mobile App"
                   onChange={handleTabChange}
                 />
               )}
@@ -210,34 +209,66 @@ export function SettingsPanel(props: SettingsPanelProps) {
       </SplitHeaderLeft>
 
       <div class="relative grow min-h-1 overflow-auto">
-        <Show when={activeTabId() === 'Account'}>
-          <Suspense>
-            <Account />
-          </Suspense>
+        <Show when={activeTabId() === 'MCP & Mobile App'}>
+          <McpAndMobileApp />
         </Show>
 
-        <Show when={activeTabId() === 'Appearance'}>
+        <Show when={activeTabId() === 'Invite team members'}>
+          <InviteTeamMembers teamsEnabled={teamsFlag().enabled} />
+        </Show>
+
+        <Show when={activeTabId() === 'Appearence'}>
           <Appearance />
-        </Show>
-        <Show when={activeTabId() === 'Shortcuts' && !isTouchDevice()}>
-          <Shortcuts />
-        </Show>
-        <Show when={activeTabId() === 'Team' && teamsFlag().enabled}>
-          <Suspense>
-            <Team />
-          </Suspense>
-        </Show>
-        <Show when={activeTabId() === 'Mobile App' && ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()}>
-          <MobileApp />
-        </Show>
-        <Show when={activeTabId() === 'MCP' && !isNativeMobilePlatform()}>
-          <Mcp />
         </Show>
       </div>
 
       <Show when={isMobile()}>
         <BottomTabs />
       </Show>
+    </div>
+  );
+}
+
+
+function McpAndMobileApp() {
+  return (
+    <div class="h-full overflow-auto flex justify-center p-2">
+      <div class="max-w-200 size-full">
+        <div class="flex flex-col gap-2">
+          <Mcp />
+          <Show when={!isNativeMobilePlatform()}>
+            <Show when={ENABLE_APP_STORE_QR_CODE}>
+              <MobileApp />
+            </Show>
+          </Show>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InviteTeamMembers(props: { teamsEnabled: boolean }) {
+  return (
+    <div class="h-full overflow-auto flex justify-center p-2">
+      <div class="max-w-200 size-full">
+        <div class="flex flex-col gap-2">
+          <Suspense>
+            <Account />
+          </Suspense>
+          <Show when={props.teamsEnabled}>
+            <Suspense>
+              <Team />
+            </Suspense>
+          </Show>
+          <Show when={!props.teamsEnabled}>
+            <Panel depth={2} class="text-ink">
+              <Panel.Body class="px-6 py-4 text-sm text-ink-muted">
+                Team invites are not enabled for this workspace.
+              </Panel.Body>
+            </Panel>
+          </Show>
+        </div>
+      </div>
     </div>
   );
 }
