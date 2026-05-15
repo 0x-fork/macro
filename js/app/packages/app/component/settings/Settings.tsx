@@ -56,6 +56,14 @@ export function SettingsPanel(props: SettingsPanelProps) {
   createEffect(focusSettingsOnOpen);
 
   function settingsTabs() {
+    if (!isMobile()) {
+      return [
+        { value: 'MCP & Mobile App', label: 'MCP & Mobile App' },
+        { value: 'Invite Team Members', label: 'Invite team members' },
+        { value: 'Appearance', label: 'Appearence' },
+      ];
+    }
+
     const tabs: { value: string; label: string }[] = [
       { value: 'Appearance', label: 'Appearance' },
       { value: 'Account', label: 'Account' },
@@ -219,6 +227,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
         <Show when={activeTabId() === 'Appearance'}>
           <Appearance />
         </Show>
+        <Show when={activeTabId() === 'MCP & Mobile App' && !isMobile()}>
+          <McpAndMobileApp />
+        </Show>
+        <Show when={activeTabId() === 'Invite Team Members' && !isMobile()}>
+          <InviteTeamMembers />
+        </Show>
         <Show when={activeTabId() === 'Shortcuts' && !isTouchDevice()}>
           <Shortcuts />
         </Show>
@@ -239,6 +253,58 @@ export function SettingsPanel(props: SettingsPanelProps) {
         <BottomTabs />
       </Show>
     </div>
+  );
+}
+
+function McpAndMobileApp() {
+  const { activeTabId, setActiveTabId } = useSettingsState();
+  const tabs = createMemo(() => {
+    const list = [{ value: 'MCP', label: 'MCP' }];
+    if (ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()) {
+      list.push({ value: 'Mobile App', label: 'Mobile App' });
+    }
+    return list;
+  });
+
+  return (
+    <>
+      <div class="px-2 pt-2">
+        <Tabs list={tabs()} value={activeTabId()} onChange={(tab) => setActiveTabId(tab as SettingsTab)} />
+      </div>
+      <Show when={activeTabId() === 'MCP' && !isNativeMobilePlatform()}>
+        <Mcp />
+      </Show>
+      <Show when={activeTabId() === 'Mobile App' && ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()}>
+        <MobileApp />
+      </Show>
+    </>
+  );
+}
+
+function InviteTeamMembers() {
+  const { activeTabId, setActiveTabId } = useSettingsState();
+  const teamsFlag = useFeatureFlag('enable-teams-settings', { enabledOverride: ENABLE_TEAMS_OVERRIDE });
+  const tabs = createMemo(() => {
+    const list = [{ value: 'Account', label: 'Account' }];
+    if (teamsFlag().enabled) list.push({ value: 'Team', label: 'Team' });
+    return list;
+  });
+  return (
+    <>
+      <div class="px-2 pt-2">
+        <Tabs list={tabs()} value={activeTabId()} onChange={(tab) => setActiveTabId(tab as SettingsTab)} />
+      </div>
+      <Show when={activeTabId() === 'Account'}>
+        <Suspense>
+          <Account />
+        </Suspense>
+      </Show>
+      <Show when={activeTabId() === 'Team' && teamsFlag().enabled}>
+        <Suspense>
+          <Team />
+        </Suspense>
+      </Show>
+    </>
   );
 }
 

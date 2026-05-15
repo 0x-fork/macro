@@ -13,7 +13,9 @@ export type SettingsTab =
   | 'Shortcuts'
   | 'Mobile App'
   | 'MCP'
-  | 'Team';
+  | 'Team'
+  | 'MCP & Mobile App'
+  | 'Invite Team Members';
 
 export const [activeTabId, setActiveTabId] =
   createSignal<SettingsTab>('Appearance');
