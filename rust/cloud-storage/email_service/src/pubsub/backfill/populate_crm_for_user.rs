@@ -1,9 +1,7 @@
+use crate::pubsub::backfill::populate_crm_contact::enqueue_populate_crm_contacts;
 use crate::pubsub::context::PubSubContext;
 use crm::domain::service::CrmService;
-use models_email::email::service::backfill::{
-    BackfillOperation, BackfillPubsubMessage, LinkScopedPayload, PopulateCrmContactPayload,
-    PopulateCrmForUserPayload,
-};
+use models_email::email::service::backfill::PopulateCrmForUserPayload;
 use models_email::email::service::pubsub::{DetailedError, FailureReason, ProcessingError};
 
 /// Seeds the team's CRM tables with every contact the user has sent email
@@ -21,7 +19,9 @@ pub async fn populate_crm_for_user(
     ctx: &PubSubContext,
     payload: &PopulateCrmForUserPayload,
 ) -> Result<(), ProcessingError> {
-    let link = email_db_client::links::get::fetch_link_by_macro_id(&ctx.db, &payload.macro_id)
+    let macro_id_str = payload.macro_id.0.as_ref();
+
+    let link = email_db_client::links::get::fetch_link_by_macro_id(&ctx.db, macro_id_str)
         .await
         .map_err(|e| {
             ProcessingError::Retryable(DetailedError {
@@ -37,7 +37,7 @@ pub async fn populate_crm_for_user(
 
     let team_id = ctx
         .crm_service
-        .get_team_id_for_user(&payload.macro_id)
+        .get_team_id_for_user(macro_id_str)
         .await
         .map_err(|e| {
             ProcessingError::Retryable(DetailedError {
@@ -54,9 +54,8 @@ pub async fn populate_crm_for_user(
     let self_email = link.email_address.0.as_ref().to_ascii_lowercase();
 
     // Pull every distinct recipient address from sent messages on this link.
-    // Mirrors what backfill_message::enqueue_populate_crm_for_recipients
-    // would have produced if the per-message fan-out had been running when
-    // these messages were first backfilled.
+    // Mirrors what backfill_message would have produced if the per-message
+    // fan-out had been running when these messages were first backfilled.
     let recipient_emails =
         email_db_client::contacts::get::fetch_sent_message_recipient_emails_by_link(
             &ctx.db, link.id,
@@ -69,28 +68,5 @@ pub async fn populate_crm_for_user(
             })
         })?;
 
-    for contact_email in recipient_emails {
-        if !contact_email.contains('@') || contact_email == self_email {
-            continue;
-        }
-
-        let ps_message = BackfillPubsubMessage {
-            backfill_operation: BackfillOperation::PopulateCrmContact(LinkScopedPayload {
-                link_id: link.id,
-                payload: PopulateCrmContactPayload { contact_email },
-            }),
-        };
-
-        ctx.sqs_client
-            .enqueue_email_backfill_message(ps_message)
-            .await
-            .map_err(|e| {
-                ProcessingError::Retryable(DetailedError {
-                    reason: FailureReason::SqsEnqueueFailed,
-                    source: e.context("Failed to enqueue PopulateCrmContact message"),
-                })
-            })?;
-    }
-
-    Ok(())
+    enqueue_populate_crm_contacts(ctx, link.id, &self_email, recipient_emails).await
 }

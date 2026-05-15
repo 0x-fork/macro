@@ -2,6 +2,7 @@ use crate::email::db::backfill as db_backfill;
 use crate::email::service::thread::ListThreadsPayload;
 use crate::service::attachment::AttachmentUploadArgs;
 use chrono::{DateTime, Utc};
+use macro_user_id::user_id::MacroUserIdStr;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use strum::{AsRefStr, Display, EnumString};
@@ -259,5 +260,5 @@ pub struct PopulateCrmContactPayload {
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct PopulateCrmForUserPayload {
-    pub macro_id: String,
+    pub macro_id: MacroUserIdStr<'static>,
 }
