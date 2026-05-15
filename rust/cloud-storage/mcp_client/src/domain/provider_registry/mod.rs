@@ -4,6 +4,9 @@
 /// Slack MCP server URL.
 const SLACK_SERVER_URL: &str = "https://mcp.slack.com/mcp";
 
+/// HubSpot MCP server URL.
+const HUBSPOT_SERVER_URL: &str = "https://mcp.hubspot.com";
+
 macro_env_var::env_var! {
     /// Environment variables for pre-registered MCP providers.
     #[allow(missing_docs)]
@@ -12,12 +15,27 @@ macro_env_var::env_var! {
         pub SlackMcpClientId,
         /// Slack MCP OAuth client secret (`SLACK_MCP_CLIENT_SECRET`).
         pub SlackMcpClientSecret,
+        /// HubSpot MCP OAuth client ID (`HUBSPOT_MCP_CLIENT_ID`).
+        pub HubspotMcpClientId,
+        /// HubSpot MCP OAuth client secret (`HUBSPOT_MCP_CLIENT_SECRET`).
+        pub HubspotMcpClientSecret,
     }
 }
 
 fn slack_scopes() -> Vec<String> {
     let manifest: serde_json::Value =
         serde_json::from_str(include_str!("slack/manifest.json")).expect("valid slack manifest");
+    manifest["oauth_config"]["scopes"]["user"]
+        .as_array()
+        .expect("manifest missing oauth_config.scopes.user")
+        .iter()
+        .map(|v| v.as_str().expect("scope must be a string").to_owned())
+        .collect()
+}
+
+fn hubspot_scopes() -> Vec<String> {
+    let manifest: serde_json::Value =
+        serde_json::from_str(include_str!("hubspot/manifest.json")).expect("valid hubspot manifest");
     manifest["oauth_config"]["scopes"]["user"]
         .as_array()
         .expect("manifest missing oauth_config.scopes.user")
@@ -61,6 +79,11 @@ impl PreRegisteredProviders {
                 client_id: env.slack_mcp_client_id.to_string(),
                 client_secret: env.slack_mcp_client_secret.to_string(),
                 scopes: slack_scopes(),
+            }),
+            HUBSPOT_SERVER_URL => Some(PreRegisteredCredentials {
+                client_id: env.hubspot_mcp_client_id.to_string(),
+                client_secret: env.hubspot_mcp_client_secret.to_string(),
+                scopes: hubspot_scopes(),
             }),
             _ => None,
         }

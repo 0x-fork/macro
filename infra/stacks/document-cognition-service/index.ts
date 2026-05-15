@@ -90,6 +90,14 @@ const SLACK_MCP_CLIENT_SECRET = aws.secretsmanager
   .getSecretVersionOutput({ secretId: 'slack-mcp-client-secret' })
   .apply((secret) => secret.secretString);
 
+const HUBSPOT_MCP_CLIENT_ID = aws.secretsmanager
+  .getSecretVersionOutput({ secretId: 'hubspot-mcp-client-id' })
+  .apply((secret) => secret.secretString);
+
+const HUBSPOT_MCP_CLIENT_SECRET = aws.secretsmanager
+  .getSecretVersionOutput({ secretId: 'hubspot-mcp-client-secret' })
+  .apply((secret) => secret.secretString);
+
 const AUTHENTICATION_SERVICE_INTERNAL_API_KEY_SECRET_NAME = config.require(
   'authentication_service_internal_api_key'
 );
@@ -320,6 +328,14 @@ const documentCognitionService = new DocumentCognitionService(
       {
         name: 'SLACK_MCP_CLIENT_SECRET',
         value: pulumi.interpolate`${SLACK_MCP_CLIENT_SECRET}`,
+      },
+      {
+        name: 'HUBSPOT_MCP_CLIENT_ID',
+        value: pulumi.interpolate`${HUBSPOT_MCP_CLIENT_ID}`,
+      },
+      {
+        name: 'HUBSPOT_MCP_CLIENT_SECRET',
+        value: pulumi.interpolate`${HUBSPOT_MCP_CLIENT_SECRET}`,
       },
     ],
     isPrivate: false,
