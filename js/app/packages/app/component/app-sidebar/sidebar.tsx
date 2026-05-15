@@ -1,9 +1,5 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import { ChannelsUnreadWidget } from '@app/component/app-sidebar/channels-unread-widget';
-import {
-  InviteModal,
-  setInviteModalOpen,
-} from '@app/component/app-sidebar/invite-modal';
 import { CommandState } from '@app/component/command';
 import { createMenuOpen, setCreateMenuOpen } from '@app/component/Launcher';
 import { requestSearchFocus } from '@app/component/next-soup/soup-view/search-controllers';
@@ -44,7 +40,6 @@ import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
 import { AnimatedSidebarIcon } from '@macro-icons/wide/animating/sidebar';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
 import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
-import { AnimatedUsersIcon } from '@macro-icons/wide/animating/users';
 import { useNotificationSettings } from '@notifications';
 import { debounce } from '@solid-primitives/scheduled';
 import { useLocation } from '@solidjs/router';
@@ -298,17 +293,6 @@ export const registerSidebarHotkeys = ({
   });
 
   registerHotkey({
-    scopeId: 'global',
-    hotkeyToken: TOKENS.global.inviteTeam,
-    description: 'Send Invites',
-    keyDownHandler: (e) => {
-      e?.preventDefault();
-      setInviteModalOpen(true);
-      return true;
-    },
-  });
-
-  registerHotkey({
     hotkey: 'cmd+.',
     scopeId: 'global',
     hotkeyToken: TOKENS.global.toggleSidebar,
@@ -555,6 +539,27 @@ export const AppSidebar = (props: AppSidebarProps) => {
             <LogoIcon class="size-6" />
           </div>
           <div class="grow shrink-10 min-w-0" />
+          <Show when={isExpanded()}>
+            <div class="flex items-center gap-1 mr-1">
+              <Button
+                class="flex items-center justify-center rounded-xs p-1 bg-surface [&_svg]:size-4"
+                label="Command"
+                hotkey={TOKENS.global.commandMenu}
+                onClick={handleCommandPaletteClick}
+              >
+                <AnimatedCommandIcon />
+              </Button>
+              <Button
+                class="flex items-center justify-center rounded-xs p-1 bg-surface [&_svg]:size-4"
+                label="New Split"
+                hotkey={TOKENS.global.createNewSplit}
+                onClick={handleNewSplitClick}
+                disabled={() => !canCreateNewSplit()}
+              >
+                <AnimatedNewSplitIcon />
+              </Button>
+            </div>
+          </Show>
           <Button
             class="flex items-center justify-center rounded-xs p-0.5 px-2 bg-surface [&_svg]:size-4"
             onClick={() => handleSidebarOpenChange(!isExpanded())}
@@ -630,30 +635,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
           />
         </Show>
         <SidebarActionButton
-          label="Invite"
-          isSlim={isSlim}
-          onClick={() => setInviteModalOpen(true)}
-          icon={AnimatedUsersIcon}
-        />
-
-        <SidebarActionButton
-          label="New Split"
-          hotkeyToken={TOKENS.global.createNewSplit}
-          isSlim={isSlim}
-          onClick={handleNewSplitClick}
-          disabled={() => !canCreateNewSplit()}
-          icon={AnimatedNewSplitIcon}
-        />
-
-        <SidebarActionButton
-          label="Command"
-          hotkeyToken={TOKENS.global.commandMenu}
-          isSlim={isSlim}
-          onClick={handleCommandPaletteClick}
-          icon={AnimatedCommandIcon}
-        />
-
-        <SidebarActionButton
           label="Settings"
           hotkeyToken={TOKENS.global.toggleSettings}
           isSlim={isSlim}
@@ -661,7 +642,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
           icon={AnimatedGearIcon}
         />
       </div>
-      <InviteModal />
     </div>
   );
 };

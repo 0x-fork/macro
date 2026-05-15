@@ -9,14 +9,12 @@ import { Mcp } from './Mcp';
 import { Appearance } from './Appearance';
 import { Tabs } from '@core/component/Tabs';
 import { Account } from './Account';
-import { Shortcuts } from './Shortcuts';
 import { Team } from './Team';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { SplitHeaderLeft, SplitHeaderRight } from '../split-layout/components/SplitHeader';
 import { CollapsibleHeaderItem } from '../split-layout/components/CollapsibleHeaderItem';
 import { SettingsButton } from './SettingsButton';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Dropdown, Layer } from '@ui';
 
 export function SettingsPanelComponentWrapper() {
@@ -57,13 +55,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   function settingsTabs() {
     const tabs: { value: string; label: string }[] = [
+      { value: 'MCP & Mobile App', label: 'MCP & Mobile App' },
+      { value: 'Invite team members', label: 'Invite team members' },
       { value: 'Appearance', label: 'Appearance' },
-      { value: 'Account', label: 'Account' },
     ];
-    if (teamsFlag().enabled) { tabs.push({ value: 'Team', label: 'Team' }) }
-    tabs.push({ value: 'Shortcuts', label: 'Shortcuts' });
-    if (ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()) { tabs.push({ value: 'Mobile App', label: 'App' }) }
-    if (!isNativeMobilePlatform()) { tabs.push({ value: 'MCP', label: 'MCP' }) }
     if (isNativeMobilePlatform() && DEV_MODE_ENV) { tabs.push({ value: 'Mobile', label: 'Mobile Dev Tools' }) }
     return tabs;
   }
@@ -210,28 +205,24 @@ export function SettingsPanel(props: SettingsPanelProps) {
       </SplitHeaderLeft>
 
       <div class="relative grow min-h-1 overflow-auto">
-        <Show when={activeTabId() === 'Account'}>
-          <Suspense>
-            <Account />
-          </Suspense>
-        </Show>
-
         <Show when={activeTabId() === 'Appearance'}>
           <Appearance />
         </Show>
-        <Show when={activeTabId() === 'Shortcuts' && !isTouchDevice()}>
-          <Shortcuts />
-        </Show>
-        <Show when={activeTabId() === 'Team' && teamsFlag().enabled}>
+        <Show when={activeTabId() === 'Invite team members'}>
           <Suspense>
-            <Team />
+            <Account />
+            <Show when={teamsFlag().enabled}>
+              <Team />
+            </Show>
           </Suspense>
         </Show>
-        <Show when={activeTabId() === 'Mobile App' && ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()}>
-          <MobileApp />
-        </Show>
-        <Show when={activeTabId() === 'MCP' && !isNativeMobilePlatform()}>
-          <Mcp />
+        <Show when={activeTabId() === 'MCP & Mobile App'}>
+          <Show when={ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()}>
+            <MobileApp />
+          </Show>
+          <Show when={!isNativeMobilePlatform()}>
+            <Mcp />
+          </Show>
         </Show>
       </div>
 
