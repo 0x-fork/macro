@@ -52,7 +52,14 @@ import { useNotificationSettings } from '@notifications';
 import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
 import { useLocation } from '@solidjs/router';
-import { Button, cn, Hotkey } from '@ui';
+import { Button, cn, Dropdown, Hotkey, Layer } from '@ui';
+import { useLogout } from '@core/auth/logout';
+import { useEmail, useUserId } from '@core/context/user';
+import { useDisplayName, tryMacroId } from '@core/user';
+import { UserIcon } from '@core/component/UserIcon';
+import GearIcon from '@icon/gear.svg';
+import SignOutIcon from '@icon/sign-out.svg';
+import CaretDownIcon from '@icon/caret-down.svg';
 import {
   type Component,
   createMemo,
@@ -606,8 +613,8 @@ const SidebarIconButton = (props: SidebarIconButtonProps) => {
   return (
     <Button
       size="sm"
-      class="flex items-center justify-center size-5 p-0 rounded-md [&_svg]:size-4"
-      variant={props.isSlim() ? 'ghost' : 'base'}
+      class="flex items-center justify-center size-6 p-1 rounded-xs [&_svg]:size-3.5"
+      variant="ghost"
       tooltipPlacement="top"
       label={props.label}
       hotkey={props.hotkeyToken}
@@ -620,6 +627,66 @@ const SidebarIconButton = (props: SidebarIconButtonProps) => {
         <Dynamic component={props.icon} triggerAnimation={hovering()} />
       </div>
     </Button>
+  );
+};
+
+/**
+ * Bottom-of-sidebar user pill that opens a dropdown with Settings and Logout.
+ * In slim mode, collapses to just the user avatar.
+ */
+const SidebarUserMenu = (props: {
+  onSettings: () => void;
+  isSlim: () => boolean;
+}) => {
+  const userId = useUserId();
+  const email = useEmail();
+  const logout = useLogout();
+  const [displayName] = useDisplayName(tryMacroId(userId() ?? ''));
+
+  const label = () => displayName() || email() || 'Account';
+
+  return (
+    <Dropdown placement="top-end" gutter={6}>
+      <Dropdown.Trigger
+        as="button"
+        type="button"
+        class={cn(
+          'flex items-center gap-2 px-2 py-3 rounded-md hover:bg-ink/5 data-expanded:bg-ink/5 transition-colors text-left',
+          'group-data-[slim=true]/sidebar:justify-center group-data-[slim=true]/sidebar:px-0'
+        )}
+      >
+        <UserIcon
+          id={userId() ?? ''}
+          size="md"
+          suppressClick
+          showTooltip={false}
+        />
+        <span class="flex-1 min-w-0 text-sm font-medium text-ink truncate group-data-[slim=true]/sidebar:hidden">
+          {label()}
+        </span>
+        <CaretDownIcon class="size-3 shrink-0 text-ink-extra-muted group-data-[slim=true]/sidebar:hidden" />
+      </Dropdown.Trigger>
+      <Dropdown.Portal>
+        <Layer depth={2}>
+          <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-md shadow-drop-shadow min-w-44 p-1">
+            <Dropdown.Item
+              class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+              onSelect={props.onSettings}
+            >
+              <GearIcon class="size-3.5 shrink-0" />
+              <span class="flex-1 truncate">Settings</span>
+            </Dropdown.Item>
+            <Dropdown.Item
+              class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-failure hover:bg-failure-bg focus:bg-failure-bg outline-none cursor-default rounded-sm"
+              onSelect={logout}
+            >
+              <SignOutIcon class="size-3.5 shrink-0" />
+              <span class="flex-1 truncate">Log out</span>
+            </Dropdown.Item>
+          </Dropdown.Content>
+        </Layer>
+      </Dropdown.Portal>
+    </Dropdown>
   );
 };
 
@@ -752,6 +819,23 @@ export const AppSidebar = (props: AppSidebarProps) => {
             <LogoIcon class="size-6" />
           </div>
           <div class="grow shrink-10 min-w-0" />
+          <div class="flex items-center gap-0.5 group-data-[slim=true]/sidebar:hidden">
+            <SidebarIconButton
+              label="New Split"
+              hotkeyToken={TOKENS.global.createNewSplit}
+              onClick={handleNewSplitClick}
+              disabled={() => !canCreateNewSplit()}
+              icon={AnimatedNewSplitIcon}
+              isSlim={isSlim}
+            />
+            <SidebarIconButton
+              label="Command"
+              hotkeyToken={TOKENS.global.commandMenu}
+              onClick={handleCommandPaletteClick}
+              icon={AnimatedCommandIcon}
+              isSlim={isSlim}
+            />
+          </div>
           <Button
             class="flex items-center justify-center rounded-xs p-0.5 px-2 bg-surface [&_svg]:size-4"
             onClick={() => handleSidebarOpenChange(!isExpanded())}
@@ -841,33 +925,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
             }}
           />
         </Show>
-        <div class="flex gap-1 items-center justify-between group-data-[slim=true]/sidebar:flex-col group-data-[slim=true]/sidebar:items-stretch">
-          <div class="flex-1 h-full pattern-edge pattern-diagonal-4 group-data-[slim=true]/sidebar:hidden" />
-          <div class="flex items-center gap-1 group-data-[slim=true]/sidebar:flex-col">
-            <SidebarIconButton
-              label="New Split"
-              hotkeyToken={TOKENS.global.createNewSplit}
-              onClick={handleNewSplitClick}
-              disabled={() => !canCreateNewSplit()}
-              icon={AnimatedNewSplitIcon}
-              isSlim={isSlim}
-            />
-            <SidebarIconButton
-              label="Command"
-              hotkeyToken={TOKENS.global.commandMenu}
-              onClick={handleCommandPaletteClick}
-              icon={AnimatedCommandIcon}
-              isSlim={isSlim}
-            />
-            <SidebarIconButton
-              label="Settings"
-              hotkeyToken={TOKENS.global.toggleSettings}
-              onClick={toggleSettings}
-              icon={AnimatedGearIcon}
-              isSlim={isSlim}
-            />
-          </div>
-        </div>
+        <SidebarUserMenu onSettings={toggleSettings} isSlim={isSlim} />
       </div>
       <InviteModal />
     </div>
