@@ -202,8 +202,8 @@ function MetaPill(props: { class?: string; dim?: boolean; children: JSX.Element 
       class={cn(
         'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap transition-colors',
         props.dim
-          ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
-          : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50',
+          ? 'bg-surface border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
+          : 'bg-surface border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50',
         props.class
       )}
     >
@@ -592,7 +592,7 @@ function TaskRowLayout(props: BaseLayoutProps & { task: TaskEntity }) {
                   )}
                 </For>
                 <Show when={taskAssignees()!.ids.length > 2}>
-                  <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink-muted text-[9px] font-medium ring-1 ring-edge-muted">
+                  <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-surface text-ink-muted text-[9px] font-medium ring-1 ring-edge-muted">
                     +{taskAssignees()!.ids.length - 2}
                   </span>
                 </Show>
@@ -713,7 +713,7 @@ function CallRowLayout(props: BaseLayoutProps & { call: CallEntity }) {
               )}
             </For>
             <Show when={extraCount() > 0}>
-              <span class="-ml-2 size-5 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink text-[10px] font-medium ring-1 ring-edge-muted">
+              <span class="-ml-2 size-5 shrink-0 flex items-center justify-center rounded-full bg-surface text-ink text-[10px] font-medium ring-1 ring-edge-muted">
                 +{extraCount()}
               </span>
             </Show>

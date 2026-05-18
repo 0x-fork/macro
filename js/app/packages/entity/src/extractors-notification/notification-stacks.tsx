@@ -226,7 +226,7 @@ export function CompactPillRow(props: {
 
   return (
     <div
-      class="group flex items-center gap-2 px-2 py-1 rounded-md border border-edge-muted bg-panel hover:bg-hover text-xs cursor-pointer transition-colors"
+      class="group flex items-center gap-2 px-2 py-1 rounded-md border border-edge-muted bg-surface hover:bg-hover text-xs cursor-pointer transition-colors"
       onClick={handleClick}
       role="button"
       tabIndex={0}

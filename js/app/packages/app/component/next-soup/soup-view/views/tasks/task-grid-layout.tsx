@@ -9,6 +9,7 @@ import type {
   Property,
   PropertyApiValues,
 } from '@core/component/Properties/types';
+import { UserGroup } from '@core/component/UserGroup';
 import { UserIcon } from '@core/component/UserIcon';
 import { isMobile } from '@core/mobile/isMobile';
 import { tryMacroId, useDisplayName, useDisplayNameParts } from '@core/user';
@@ -38,7 +39,7 @@ import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity'
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { Tooltip } from '@ui';
 import { cn } from '@ui/utils/classname';
-import { createMemo, For, Show, Suspense } from 'solid-js';
+import { createMemo, Show, Suspense } from 'solid-js';
 import {
   TASK_GRID_TEMPLATE_AREAS_WIDE,
   TASK_GRID_TEMPLATE_COLUMNS_WIDE,
@@ -130,7 +131,9 @@ export function TaskGridLayout(props: LayoutProps) {
           <div
             class={cn(
               'absolute inset-0 flex items-center justify-center',
-              props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              props.checked
+                ? 'opacity-100'
+                : 'opacity-0 group-hover:opacity-100'
             )}
           >
             <MultiSelectCheckbox
@@ -164,7 +167,7 @@ export function TaskGridLayout(props: LayoutProps) {
           </span>
           <Show when={isProjectContainedEntity(props.entity) && props.entity}>
             {(entity) => (
-              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate max-w-full">
+              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-surface text-ink-muted text-xs truncate max-w-full">
                 <ProjectBreadCrumb
                   entity={entity()}
                   onClick={props.onProjectClick}
@@ -204,25 +207,11 @@ export function TaskGridLayout(props: LayoutProps) {
             fallback={<span class="w-3 h-px bg-edge-muted" />}
           >
             <TaskPropertyPill property={taskAssignees()!.property}>
-              <div class="flex items-center shrink-0">
-                <For each={taskAssignees()!.ids.slice(0, 2)}>
-                  {(id, index) => (
-                    <span
-                      class={cn(
-                        'size-4 shrink-0 rounded-full ring-1 ring-edge-muted overflow-hidden',
-                        index() > 0 && '-ml-1.5'
-                      )}
-                    >
-                      <UserIcon id={id} size="sm" />
-                    </span>
-                  )}
-                </For>
-                <Show when={taskAssignees()!.ids.length > 2}>
-                  <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink-muted text-[9px] font-medium ring-1 ring-edge-muted">
-                    +{taskAssignees()!.ids.length - 2}
-                  </span>
-                </Show>
-              </div>
+              <UserGroup
+                userIds={taskAssignees()!.ids}
+                maxUsers={2}
+                size="sm"
+              />
               <span class="truncate">
                 <Show when={taskAssignees()!.ids[0]} keyed>
                   {(firstId) => <AssigneeLabel id={firstId} />}
@@ -475,10 +464,7 @@ export function TaskNarrowLayout(props: LayoutProps) {
               )}
             </Show>
             <Show when={taskPriority()?.id}>
-              <TaskPropertyPill
-                property={taskPriority()!.property}
-                dim={dim()}
-              >
+              <TaskPropertyPill property={taskPriority()!.property} dim={dim()}>
                 <PropertyValueIcon
                   optionId={taskPriority()!.id!}
                   class="size-3 shrink-0"
@@ -491,25 +477,11 @@ export function TaskNarrowLayout(props: LayoutProps) {
                 property={taskAssignees()!.property}
                 dim={dim()}
               >
-                <div class="flex items-center shrink-0">
-                  <For each={taskAssignees()!.ids.slice(0, 3)}>
-                    {(id, index) => (
-                      <span
-                        class={cn(
-                          'size-4 shrink-0 flex items-center justify-center rounded-full bg-page ring-1 ring-edge-muted overflow-hidden',
-                          index() > 0 && '-ml-2'
-                        )}
-                      >
-                        <UserIcon id={id} size="sm" />
-                      </span>
-                    )}
-                  </For>
-                  <Show when={taskAssignees()!.ids.length > 3}>
-                    <span class="-ml-2 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink text-[9px] font-medium ring-1 ring-edge-muted">
-                      +{taskAssignees()!.ids.length - 3}
-                    </span>
-                  </Show>
-                </div>
+                <UserGroup
+                  userIds={taskAssignees()!.ids}
+                  maxUsers={3}
+                  size="sm"
+                />
                 <span class="truncate">
                   <AssigneeLabel id={taskAssignees()!.ids[0]} />
                   <Show when={taskAssignees()!.ids.length > 1}>

@@ -139,7 +139,7 @@ function CreateButton() {
         }}
       >
         <div class="flex items-center justify-center size-9 rounded-full bg-accent active:bg-accent/80 transition-colors">
-          <PlusIcon class="size-5 text-page" />
+          <PlusIcon class="size-5 text-surface" />
         </div>
       </button>
     </MobileCreateDrawer>

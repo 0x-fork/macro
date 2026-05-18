@@ -9,6 +9,10 @@ import type {
   SortOption,
   SystemSortOption,
 } from '@app/component/next-soup/soup-view/sort-options';
+import type {
+  GroupOption,
+  GroupOptionId,
+} from '@app/component/next-soup/soup-view/group-options';
 import { Button, cn, Layer, Tooltip } from '@ui';
 import { useSoup } from '../../soup-context';
 import { registerHotkey } from '@core/hotkey/hotkeys';
@@ -19,6 +23,9 @@ export interface DisplayOptionsDropdownProps {
   sortValue: () => SystemSortOption;
   onSortChange: (value: SystemSortOption) => void;
   sortOptions: SortOption[];
+  groupValue?: () => GroupOptionId;
+  onGroupChange?: (value: GroupOptionId) => void;
+  groupOptions?: GroupOption[];
 }
 
 export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
@@ -69,6 +76,14 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
     props.sortOptions.find((o) => o.value === props.sortValue())?.label ??
     'Updated';
 
+  const currentGroupLabel = () => {
+    const value = props.groupValue?.();
+    if (!value) return 'None';
+    return (
+      props.groupOptions?.find((o) => o.value === value)?.label ?? 'None'
+    );
+  };
+
   return (
     <Popover open={open()} onOpenChange={setOpen} placement="bottom-end" gutter={4}>
       <Tooltip label="Display options" shortcut="S">
@@ -83,7 +98,7 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
       </Tooltip>
       <Popover.Portal>
         <Layer depth={2}>
-          <Popover.Content class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-sm min-w-[180px] p-2 flex flex-col gap-2">
+          <Popover.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-md shadow-drop-shadow min-w-[200px] p-2 flex flex-col gap-2">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs text-ink-muted">Sort</span>
               <DropdownMenu placement="bottom-end" gutter={4}>
@@ -93,7 +108,7 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <Layer depth={3}>
-                    <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-sm min-w-[140px] p-1">
+                    <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-md shadow-drop-shadow min-w-[140px] p-1">
                       <For each={props.sortOptions}>
                         {(option) => (
                           <DropdownMenu.Item
@@ -123,6 +138,47 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
               </DropdownMenu>
             </div>
 
+            <Show when={props.groupOptions && props.onGroupChange && props.groupValue}>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs text-ink-muted">Group by</span>
+                <DropdownMenu placement="bottom-end" gutter={4}>
+                  <DropdownMenu.Trigger class="flex items-center gap-1 px-2 py-1 text-xs rounded-xs border border-edge-muted hover:bg-ink/5 transition-colors">
+                    <span class="text-ink">{currentGroupLabel()}</span>
+                    <CaretDownIcon class="size-3 text-ink-muted" />
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <Layer depth={3}>
+                      <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-md shadow-drop-shadow min-w-[140px] p-1">
+                        <For each={props.groupOptions}>
+                          {(option) => (
+                            <DropdownMenu.Item
+                              class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+                              onSelect={() => props.onGroupChange?.(option.value)}
+                            >
+                              <span
+                                class="flex-1 truncate"
+                                classList={{
+                                  'text-ink font-medium':
+                                    props.groupValue?.() === option.value,
+                                  'text-ink-muted':
+                                    props.groupValue?.() !== option.value,
+                                }}
+                              >
+                                {option.label}
+                              </span>
+                              <Show when={props.groupValue?.() === option.value}>
+                                <CheckIcon class="size-3 text-accent shrink-0" />
+                              </Show>
+                            </DropdownMenu.Item>
+                          )}
+                        </For>
+                      </DropdownMenu.Content>
+                    </Layer>
+                  </DropdownMenu.Portal>
+                </DropdownMenu>
+              </div>
+            </Show>
+
             <div class="h-px bg-ink/5" />
 
             <button
@@ -139,7 +195,7 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
                 )}
               >
                 <Show when={isPreviewActive()}>
-                  <CheckIcon class="size-3 text-page" />
+                  <CheckIcon class="size-3 text-surface" />
                 </Show>
               </span>
               <EyeIcon class="size-3.5 shrink-0 text-ink-muted" />

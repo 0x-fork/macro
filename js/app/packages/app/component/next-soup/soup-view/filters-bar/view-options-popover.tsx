@@ -15,6 +15,14 @@ import {
   EMAIL_SORT_OPTIONS,
   TASK_SORT_OPTIONS,
 } from '@app/component/next-soup/soup-view/sort-options';
+import {
+  DEFAULT_GROUP_OPTIONS,
+  EMAIL_GROUP_OPTIONS,
+  type GroupOption,
+  type GroupOptionId,
+  INBOX_GROUP_OPTIONS,
+  TASK_GROUP_OPTIONS,
+} from '@app/component/next-soup/soup-view/group-options';
 import { Button, cn, Layer, Tooltip } from '@ui';
 import { useSoup } from '../../soup-context';
 import { useSoupView } from '../soup-view-context';
@@ -33,6 +41,12 @@ const VIEW_SORT_OPTIONS: Partial<Record<ListView, SortOption[]>> = {
   documents: DOCUMENT_SORT_OPTIONS,
   tasks: TASK_SORT_OPTIONS,
   channels: CHANNEL_SORT_OPTIONS,
+};
+
+const VIEW_GROUP_OPTIONS: Partial<Record<ListView, GroupOption[]>> = {
+  tasks: TASK_GROUP_OPTIONS,
+  mail: EMAIL_GROUP_OPTIONS,
+  inbox: INBOX_GROUP_OPTIONS,
 };
 
 export const ViewOptionsPopover: Component = () => {
@@ -81,6 +95,29 @@ export const ViewOptionsPopover: Component = () => {
 
   const currentSortLabel = () =>
     sortOptions().find((o) => o.value === sortValue())?.label ?? 'Updated';
+
+  const groupOptions = createMemo(() => {
+    const view = currentView();
+    if (!view) return DEFAULT_GROUP_OPTIONS;
+    return VIEW_GROUP_OPTIONS[view] ?? DEFAULT_GROUP_OPTIONS;
+  });
+
+  const groupValue = createMemo(
+    (): GroupOptionId =>
+      (soupView.grouping.activeGroupId() as GroupOptionId) ?? 'none'
+  );
+
+  const onGroupChange = (groupOption: GroupOptionId) => {
+    if (groupOption === 'none') {
+      soupView.grouping.setActiveGroupId(undefined);
+    } else {
+      soupView.grouping.setActiveGroupId(groupOption);
+      soupView.grouping.expandAll();
+    }
+  };
+
+  const currentGroupLabel = () =>
+    groupOptions().find((o) => o.value === groupValue())?.label ?? 'None';
 
   const filterCategories = createMemo(() => {
     const view = currentView();
@@ -148,7 +185,7 @@ export const ViewOptionsPopover: Component = () => {
       </Tooltip>
       <Popover.Portal>
         <Layer depth={2}>
-          <Popover.Content class="z-action-menu bg-menu border border-edge-muted rounded-md shadow-lg min-w-[220px] p-2 flex flex-col gap-2">
+          <Popover.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-lg min-w-[220px] p-2 flex flex-col gap-2">
             {/* Filters Section */}
             <For each={filterCategories()}>
               {(category) => (
@@ -170,7 +207,7 @@ export const ViewOptionsPopover: Component = () => {
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <Layer depth={3}>
-                    <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-md shadow-lg min-w-[140px] p-1">
+                    <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-lg min-w-[140px] p-1">
                       <For each={sortOptions()}>
                         {(option) => (
                           <DropdownMenu.Item
@@ -187,6 +224,49 @@ export const ViewOptionsPopover: Component = () => {
                               {option.label}
                             </span>
                             <Show when={sortValue() === option.value}>
+                              <CheckIcon class="size-3 text-accent shrink-0" />
+                            </Show>
+                          </DropdownMenu.Item>
+                        )}
+                      </For>
+                    </DropdownMenu.Content>
+                  </Layer>
+                </DropdownMenu.Portal>
+              </DropdownMenu>
+            </div>
+
+            {/* Group by Section */}
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-xs text-ink-muted">Group by</span>
+              <DropdownMenu placement="bottom-end" gutter={4}>
+                <DropdownMenu.Trigger
+                  class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors"
+                  tabIndex={0}
+                >
+                  <span class="text-ink">{currentGroupLabel()}</span>
+                  <CaretDownIcon class="size-3 text-ink-muted" />
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <Layer depth={3}>
+                    <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-lg min-w-[140px] p-1">
+                      <For each={groupOptions()}>
+                        {(option) => (
+                          <DropdownMenu.Item
+                            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+                            onSelect={() => onGroupChange(option.value)}
+                          >
+                            <span
+                              class="flex-1 truncate"
+                              classList={{
+                                'text-ink font-medium':
+                                  groupValue() === option.value,
+                                'text-ink-muted':
+                                  groupValue() !== option.value,
+                              }}
+                            >
+                              {option.label}
+                            </span>
+                            <Show when={groupValue() === option.value}>
                               <CheckIcon class="size-3 text-accent shrink-0" />
                             </Show>
                           </DropdownMenu.Item>
@@ -260,7 +340,7 @@ const FilterCategoryDropdown: Component<{
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <Layer depth={3}>
-            <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-md shadow-lg min-w-[160px] p-1">
+            <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-lg min-w-[160px] p-1">
               <For each={props.category.options}>
                 {(option) => {
                   const active = () => props.isOptionActive(option.id);
@@ -277,7 +357,7 @@ const FilterCategoryDropdown: Component<{
                         )}
                       >
                         <Show when={active()}>
-                          <CheckIcon class="size-2.5 text-page" />
+                          <CheckIcon class="size-2.5 text-surface" />
                         </Show>
                       </span>
                       <Show when={option.icon}>

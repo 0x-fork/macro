@@ -4,7 +4,7 @@ import { MobileSoupViewTabs } from '@app/component/next-soup/soup-view/soup-view
 
 export const MobileSoupFooter = () => {
   return (
-    <div class="shrink-0 border-t border-edge-muted bg-panel">
+    <div class="shrink-0 border-t border-edge-muted bg-surface">
       <MobileSoupViewTabs />
     </div>
   );

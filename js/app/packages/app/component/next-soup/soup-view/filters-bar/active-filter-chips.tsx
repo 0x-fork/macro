@@ -175,7 +175,7 @@ const GroupedFilterChip = (props: {
                 {(filter) => (
                   <Show when={filter.icon}>
                     {(icon) => (
-                      <span class="size-4 shrink-0 flex items-center justify-center rounded-full bg-page text-ink ring-1 ring-edge-muted [&>*]:size-2.5 [&_svg]:size-2.5">
+                      <span class="size-4 shrink-0 flex items-center justify-center rounded-full bg-surface text-ink ring-1 ring-edge-muted [&>*]:size-2.5 [&_svg]:size-2.5">
                         {icon()()}
                       </span>
                     )}
@@ -194,7 +194,7 @@ const GroupedFilterChip = (props: {
                 {(filter) => (
                   <Show when={filter.icon}>
                     {(icon) => (
-                      <span class="size-4 shrink-0 flex items-center justify-center rounded-full bg-page text-ink ring-1 ring-edge-muted [&>*]:size-2.5 [&_svg]:size-2.5">
+                      <span class="size-4 shrink-0 flex items-center justify-center rounded-full bg-surface text-ink ring-1 ring-edge-muted [&>*]:size-2.5 [&_svg]:size-2.5">
                         {icon()()}
                       </span>
                     )}
@@ -207,7 +207,7 @@ const GroupedFilterChip = (props: {
 
           <DropdownMenu.Portal>
             <Layer depth={2}>
-              <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-md shadow-xl min-w-[160px] p-1">
+              <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-xl min-w-[160px] p-1">
                 <For each={props.group.categoryOptions}>
                   {(option) => {
                     const active = () => props.isOptionActive(option.id);
@@ -244,7 +244,7 @@ const GroupedFilterChip = (props: {
                           )}
                         >
                           <Show when={active()}>
-                            <CheckIcon class="size-2.5 text-page" />
+                            <CheckIcon class="size-2.5 text-surface" />
                           </Show>
                         </span>
 

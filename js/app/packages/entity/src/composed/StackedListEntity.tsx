@@ -618,7 +618,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           >
             {(entity) => (
               <div class="flex justify-end min-w-0">
-                <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate  max-w-full">
+                <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-surface text-ink-muted text-xs truncate  max-w-full">
                   <ProjectBreadCrumb
                     entity={entity()}
                     onClick={props.onProjectClick}
@@ -653,7 +653,7 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
                     )}
                   </For>
                   <Show when={taskAssignees()!.ids.length > 2}>
-                    <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink-muted text-[9px] font-medium ring-1 ring-edge-muted">
+                    <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-surface text-ink-muted text-[9px] font-medium ring-1 ring-edge-muted">
                       +{taskAssignees()!.ids.length - 2}
                     </span>
                   </Show>
@@ -696,8 +696,8 @@ export function TaskPropertyPill(props: { property?: Property; empty?: boolean; 
         props.empty
           ? "border-dashed border-edge-muted text-ink-extra-muted hover:border-edge"
           : props.dim
-            ? "bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50"
-            : "bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50",
+            ? "bg-surface border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50"
+            : "bg-surface border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50",
         props.property && "cursor-pointer"
       )}
       onClick={handleClick}
@@ -778,7 +778,7 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
                 )}
               </For>
               <Show when={extraCount() > 0}>
-                <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink text-[9px] font-medium ring-1 ring-edge-muted">
+                <span class="-ml-1.5 size-4 shrink-0 flex items-center justify-center rounded-full bg-surface text-ink text-[9px] font-medium ring-1 ring-edge-muted">
                   +{extraCount()}
                 </span>
               </Show>
@@ -870,7 +870,7 @@ function DefaultLayout(props: BaseLayoutProps) {
         <div class="ml-auto flex items-center gap-2 shrink-0">
           <Show when={isProjectContainedEntity(props.entity) && props.entity}>
             {(entity) => (
-              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate ">
+              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-surface text-ink-muted text-xs truncate ">
                 <ProjectBreadCrumb
                   entity={entity()}
                   onClick={props.onProjectClick}
@@ -1404,13 +1404,13 @@ function AssigneesPillContent(props: {
       <div class="flex items-center">
         <For each={assigneeIds().slice(0, 3)}>
           {(id, index) => (
-            <span class={cn("size-4 shrink-0 flex items-center justify-center rounded-full bg-page ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-2")}>
+            <span class={cn("size-4 shrink-0 flex items-center justify-center rounded-full bg-surface ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-2")}>
               <UserIcon id={id} size="fill" />
             </span>
           )}
         </For>
         <Show when={assigneeIds().length > 3}>
-          <span class="-ml-2 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink text-[9px] font-medium ring-1 ring-edge-muted">
+          <span class="-ml-2 size-4 shrink-0 flex items-center justify-center rounded-full bg-surface text-ink text-[9px] font-medium ring-1 ring-edge-muted">
             +{assigneeIds().length - 3}
           </span>
         </Show>
@@ -1464,8 +1464,8 @@ function TaskPropertyPills(props: {
             class={cn(
               'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0  transition-colors',
               props.dim
-                ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
-                : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
+                ? 'bg-surface border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
+                : 'bg-surface border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
             )}
           >
             <PropertyValueIcon optionId={status().id} class="size-3" />
@@ -1479,8 +1479,8 @@ function TaskPropertyPills(props: {
             class={cn(
               'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0  transition-colors',
               props.dim
-                ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
-                : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
+                ? 'bg-surface border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
+                : 'bg-surface border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
             )}
           >
             <PropertyValueIcon optionId={priority().id} class="size-3 shrink-0" />
@@ -1493,20 +1493,20 @@ function TaskPropertyPills(props: {
           class={cn(
             'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs whitespace-nowrap shrink-0  transition-colors overflow-hidden',
             props.dim
-              ? 'bg-panel border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
-              : 'bg-panel border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
+              ? 'bg-surface border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
+              : 'bg-surface border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
           )}
         >
           <div class="flex items-center">
             <For each={assigneeIds().slice(0, 3)}>
               {(id, index) => (
-                <span class={cn("size-4 shrink-0 flex items-center justify-center rounded-full bg-page ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-2")}>
+                <span class={cn("size-4 shrink-0 flex items-center justify-center rounded-full bg-surface ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-2")}>
                   <UserIcon id={id} size="fill" />
                 </span>
               )}
             </For>
             <Show when={assigneeIds().length > 3}>
-              <span class="-ml-2 size-4 shrink-0 flex items-center justify-center rounded-full bg-panel text-ink text-[9px] font-medium ring-1 ring-edge-muted">
+              <span class="-ml-2 size-4 shrink-0 flex items-center justify-center rounded-full bg-surface text-ink text-[9px] font-medium ring-1 ring-edge-muted">
                 +{assigneeIds().length - 3}
               </span>
             </Show>
@@ -1976,7 +1976,7 @@ function NarrowDefaultLayout(props: BaseLayoutProps) {
         <div class="flex flex-wrap items-center gap-2 min-w-0 mt-1">
           <Show when={isProjectContainedEntity(props.entity) && props.entity}>
             {(entity) => (
-              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-panel text-ink-muted text-xs truncate ">
+              <span class="ph-no-capture flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-edge-muted bg-surface text-ink-muted text-xs truncate ">
                 <ProjectBreadCrumb
                   entity={entity()}
                   onClick={props.onProjectClick}

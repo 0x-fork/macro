@@ -200,7 +200,7 @@ export const OverflowTabGroup = (props: OverflowTabGroupProps) => {
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <Layer depth={2}>
-                <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-sm p-1 min-w-[100px]">
+                <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-sm p-1 min-w-[100px]">
                   <For each={overflowTabs()}>
                     {(item) => (
                       <DropdownMenu.Item

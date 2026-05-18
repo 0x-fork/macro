@@ -132,7 +132,7 @@ export const SoupSectionHeader = (props: {
         onClick={props.onClick}
         class={cn(
           'group/header w-[calc(100%-0.5rem)] mx-1 mb-1 rounded px-2 py-2 flex items-center gap-2.5 text-xs font-semibold tracking-tight',
-          'text-text-muted bg-surface border border-edge-muted relative',
+          'text-ink-muted bg-surface border border-edge-muted relative',
           props.onClick && 'hover:bg-active',
           props.highlighted && 'ring ring-edge bg-active ring-inset'
         )}
@@ -168,7 +168,7 @@ const DefaultGroupHeader = (
       <span
         class={cn(
           'shrink-0 tabular-nums text-xs font-medium',
-          'px-1.5 py-px rounded-full bg-ink/10 text-text-subtle'
+          'px-1.5 py-px rounded-full bg-ink/10 text-ink-extra-muted'
         )}
       >
         {props.group.count}
@@ -362,7 +362,7 @@ const SoupViewFooter = () => {
 
   return (
     <Show when={!soup.previewEntity() && !isMobile()}>
-      <div class="@container/footer relative shrink-0 border-t border-edge-muted bg-panel text-xs text-ink-extra-muted/60">
+      <div class="@container/footer relative shrink-0 border-t border-edge-muted bg-surface text-xs text-ink-extra-muted/60">
         <div class="flex items-center gap-4 px-4 py-1">
           <span class="flex items-center gap-2 shrink-0">
             <span class="flex items-center gap-1.5">
@@ -1082,7 +1082,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                       !rows().length
                     }
                   >
-                    <div class="flex items-center gap-2 p-3 text-xs text-text-muted">
+                    <div class="flex items-center gap-2 p-3 text-xs text-ink-muted">
                       <Spinner class="size-3 animate-spin" />
                       Searching...
                     </div>
@@ -1097,29 +1097,33 @@ export const SoupViewList = (props: SoupViewListProps) => {
                   </Match>
                   <Match when={rows().length}>
                     <ListLayoutProvider ref={localEntityListRef}>
-                      <ListHeader
-                        type={
-                          currentView() === 'tasks'
-                            ? 'task'
-                            : currentView() === 'mail'
-                              ? 'email'
-                              : currentView() === 'documents'
-                                ? 'document'
-                                : currentView() === 'channels'
-                                  ? 'channel'
-                                  : currentView() === 'inbox'
-                                    ? 'inbox'
-                                    : 'default'
+                      <Show
+                        when={currentView() === 'tasks' && !isMobile()}
+                        fallback={
+                          <ListHeader
+                            type={
+                              currentView() === 'tasks'
+                                ? 'task'
+                                : currentView() === 'mail'
+                                  ? 'email'
+                                  : currentView() === 'documents'
+                                    ? 'document'
+                                    : currentView() === 'channels'
+                                      ? 'channel'
+                                      : currentView() === 'inbox'
+                                        ? 'inbox'
+                                        : 'default'
+                            }
+                            timestampLabel={
+                              soup.sort.active()[0]?.id === 'created_at'
+                                ? 'Created'
+                                : soup.sort.active()[0]?.id === 'viewed_at'
+                                  ? 'Viewed'
+                                  : 'Updated'
+                            }
+                          />
                         }
-                        timestampLabel={
-                          soup.sort.active()[0]?.id === 'created_at'
-                            ? 'Created'
-                            : soup.sort.active()[0]?.id === 'viewed_at'
-                              ? 'Viewed'
-                              : 'Updated'
-                        }
-                      />
-                      <Show when={currentView() === 'tasks' && !isMobile()}>
+                      >
                         <ResponsiveTaskListHeader class="shrink-0" />
                       </Show>
                       <EntityRowProvider
@@ -1338,7 +1342,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                         entityRowConfig={{
                                           swipeLeftColor: 'bg-success',
                                           swipeLeftRevealedComponent: (
-                                            <CheckIcon class="size-8 text-panel" />
+                                            <CheckIcon class="size-8 text-ink" />
                                           ),
                                         }}
                                       />
@@ -1351,7 +1355,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                     isSearchServiceLoading()
                                   }
                                 >
-                                  <div class="flex items-center gap-2 p-3 text-xs text-text-muted">
+                                  <div class="flex items-center gap-2 p-3 text-xs text-ink-muted">
                                     <Spinner class="size-3 animate-spin" />
                                     Searching...
                                   </div>
@@ -1476,8 +1480,8 @@ const SoupList = (props: SoupListProps) => {
       )}
     >
       {/* Gradient fades */}
-      <div class="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none" />
-      <div class="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-panel to-transparent z-10 pointer-events-none" />
+      <div class="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-surface to-transparent z-10 pointer-events-none" />
+      <div class="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-surface to-transparent z-10 pointer-events-none" />
       <VList
         cache={props.cache}
         ref={registerVirtualizerHandler}

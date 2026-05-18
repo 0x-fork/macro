@@ -109,8 +109,8 @@ function AddServerForm(props: {
                           <button
                             class="flex items-center justify-between px-3 py-2 rounded-sm border border-edge-muted text-sm transition-colors"
                             classList={{
-                              'bg-panel text-ink hover:bg-hover cursor-pointer': !added(),
-                              'bg-panel text-ink-muted cursor-default': added(),
+                              'bg-surface text-ink hover:bg-hover cursor-pointer': !added(),
+                              'bg-surface text-ink-muted cursor-default': added(),
                             }}
                             disabled={added() || addMutation.isPending}
                             onClick={() => handleQuickConnect(server)}
@@ -245,7 +245,7 @@ function ServerRow(props: { server: ServerResponse }) {
   const Icon = () => QUICK_CONNECT_ICON_MAP.get(props.server.url);
 
   return (
-    <div class="bg-panel flex items-center gap-4 px-6 py-3">
+    <div class="bg-surface flex items-center gap-4 px-6 py-3">
       <Show when={Icon()}>
         {(IconComp) => {
           const C = IconComp() as SvgIcon;

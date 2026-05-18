@@ -111,12 +111,12 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
                           <CheckIcon
                             class={cn(
                               'size-3',
-                              isAllSelected() ? 'text-page' : 'text-transparent'
+                              isAllSelected() ? 'text-surface' : 'text-transparent'
                             )}
                           />
                         }
                       >
-                        <MinusIcon class="size-3 text-page" />
+                        <MinusIcon class="size-3 text-surface" />
                       </Show>
                     </Checkbox.Indicator>
                   </Checkbox.Control>

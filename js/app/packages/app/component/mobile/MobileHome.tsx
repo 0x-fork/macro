@@ -112,7 +112,7 @@ function AvatarMenu() {
               </div>
             </div>
 
-            <MobileDrawer.Section class="bg-panel">
+            <MobileDrawer.Section class="bg-surface">
               <button
                 type="button"
                 class="flex items-center gap-3 w-full px-4 py-3.5 text-base text-ink active:bg-ink/5"
@@ -135,7 +135,7 @@ function AvatarMenu() {
               </button>
             </MobileDrawer.Section>
 
-            <MobileDrawer.Section class="bg-panel mt-4">
+            <MobileDrawer.Section class="bg-surface mt-4">
               <button
                 type="button"
                 class="flex items-center gap-3 w-full px-4 py-3.5 text-base text-failure active:bg-failure/5"
@@ -934,7 +934,7 @@ function ConversationSquare(props: { entity: EntityData; onClick: () => void }) 
           </div>
         </div>
         <Show when={isUnread()}>
-          <div class="absolute -top-1 -right-1 size-3 rounded-full bg-accent border-2 border-page" />
+          <div class="absolute -top-1 -right-1 size-3 rounded-full bg-accent border-2 border-edge" />
         </Show>
       </div>
       <span class="text-xs text-ink truncate w-full text-center">
@@ -1024,7 +1024,7 @@ function PullToRefreshIndicator(props: { visible: boolean; refreshing: boolean }
       )}
     >
       <div class={cn(
-        'size-8 rounded-full bg-panel border border-edge-muted shadow-lg flex items-center justify-center',
+        'size-8 rounded-full bg-surface border border-edge-muted shadow-lg flex items-center justify-center',
         props.refreshing && 'animate-spin'
       )}>
         <ArrowClockwiseIcon class="size-4 text-ink-muted" />

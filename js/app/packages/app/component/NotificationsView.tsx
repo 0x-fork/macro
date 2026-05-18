@@ -311,7 +311,7 @@ function NotificationPreviewPanel(props: {
       >
         {(instance) => (
           <>
-            <div class="flex items-center justify-between shrink-0 h-10 bg-panel px-2 border-b border-edge-muted/50">
+            <div class="flex items-center justify-between shrink-0 h-10 bg-surface px-2 border-b border-edge-muted/50">
               <div class="flex h-full items-center" ref={toolbarLeftRef} />
               <div class="flex h-full items-center" ref={toolbarRightRef} />
             </div>
@@ -924,7 +924,7 @@ function NotificationFilterBar(props: {
           <CaretDownIcon class="size-3" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content class="bg-panel border border-edge-muted rounded-sm shadow-lg py-1 min-w-32 z-50">
+          <DropdownMenu.Content class="bg-surface border border-edge-muted rounded-sm shadow-lg py-1 min-w-32 z-50">
             <For each={SORT_OPTIONS}>
               {(option) => (
                 <DropdownMenu.Item
@@ -1431,7 +1431,7 @@ export function NotificationsView() {
                             </Match>
                             <Match when={item.type === 'date-header' && item}>
                               {(header) => (
-                                <div class="sticky top-0 z-10 bg-panel/95 backdrop-blur-sm px-4 py-2 border-b border-edge-muted">
+                                <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm px-4 py-2 border-b border-edge-muted">
                                   <span class="text-xs font-medium text-ink-muted uppercase tracking-wide">
                                     {header().label}
                                   </span>
