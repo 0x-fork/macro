@@ -1,17 +1,16 @@
-import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
+import { useAnalytics } from '@app/component/analytics-context';
 import type { BlockTool } from '@app/component/ResponsiveBlockToolbar';
 import {
   ResponsiveBlockToolbar,
   ResponsivePermissionsBadge,
 } from '@app/component/ResponsiveBlockToolbar';
+import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
 import type { FileOperation } from '@app/component/split-layout/components/SplitFileMenu';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
 } from '@app/component/split-layout/components/SplitHeader';
 import { BlockItemSplitLabel } from '@app/component/split-layout/components/SplitLabel';
-
-import { useAnalytics } from '@app/component/analytics-context';
 import { useIsAuthenticated } from '@core/auth';
 import { createBlockSignal, useBlockId } from '@core/block';
 import { DETAILS_DRAWER_ID } from '@core/component/DetailsDrawer';
@@ -21,8 +20,8 @@ import {
 } from '@core/component/DocumentPropertiesModal';
 import { BlockLiveIndicators } from '@core/component/LiveIndicators';
 import {
-  ReferencesButton,
   REFERENCES_DRAWER_ID,
+  ReferencesButton,
 } from '@core/component/ReferencesModal';
 import {
   getShareDrawerRecipientInput,
@@ -37,11 +36,11 @@ import {
 } from '@core/util/currentBlockDocumentName';
 import { buildSimpleEntityUrl } from '@core/util/url';
 import { downloadFile } from '@filesystem/download';
-import DownloadSimple from '@icon/regular/download-simple.svg';
-import Info from '@icon/regular/info.svg';
-import Quotes from '@icon/regular/quotes.svg';
+import DownloadSimple from '@icon/download-simple.svg';
+import Info from '@icon/info.svg';
+import Quotes from '@icon/quotes.svg';
+import TagIcon from '@icon/tag.svg';
 import IconShared from '@macro-icons/wide/share.svg';
-import TagIcon from '@icon/regular/tag.svg';
 import { createCallback } from '@solid-primitives/rootless';
 import { toast } from 'core/component/Toast/Toast';
 import { onMount } from 'solid-js';
@@ -169,7 +168,9 @@ export function TopBar() {
         <BlockItemSplitLabel />
       </SplitHeaderLeft>
       <SplitHeaderRight>
-        <BlockLiveIndicators />
+        <div class="-order-1">
+          <BlockLiveIndicators />
+        </div>
       </SplitHeaderRight>
       <ResponsivePermissionsBadge />
       <ResponsiveBlockToolbar

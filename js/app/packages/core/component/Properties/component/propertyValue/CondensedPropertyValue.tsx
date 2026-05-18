@@ -1,27 +1,26 @@
 import { getSelectValues } from '@core/component/Properties/utils';
-import { PropertyValueIcon } from './PropertyValueIcon';
-import { Tooltip } from '@core/component/Tooltip';
+import CircleDashedEmpty from '@icon/circle-dashed.svg';
+import { cn, HoverCard } from '@ui';
 import type { Component, JSX } from 'solid-js';
 import { Show } from 'solid-js';
 import type { Property } from '../../types';
 import {
-  hasValue,
-  isSelectProperty,
-  isEntityProperty,
-  isDateProperty,
-  isStringProperty,
-  isNumberProperty,
-  isBooleanProperty,
-} from '../../utils/typeGuards';
-import {
+  formatBoolean,
   formatDate,
   formatNumber,
-  formatBoolean,
 } from '../../utils/formatting';
+import {
+  hasValue,
+  isBooleanProperty,
+  isDateProperty,
+  isEntityProperty,
+  isNumberProperty,
+  isSelectProperty,
+  isStringProperty,
+} from '../../utils/typeGuards';
 import { PropertyTooltip } from './PropertyTooltip';
-import CircleDashedEmpty from '@icon/regular/circle-dashed.svg';
+import { PropertyValueIcon } from './PropertyValueIcon';
 import { UserGroup } from './UserGroup';
-import { cn } from '@ui/utils/classname';
 
 type CondensedPropertyValueProps = {
   property: Property;
@@ -47,16 +46,12 @@ export const CondensedPropertyValue: Component<CondensedPropertyValueProps> = (
   };
 
   return (
-    <Tooltip
-      unstyled
-      tooltip={<PropertyTooltip property={props.property} />}
-      class="flex items-center"
-    >
+    <HoverCard content={<PropertyTooltip property={props.property} />}>
       <div
         class={cn(
-          'inline-flex items-center text-xs leading-none text-ink-muted shrink-0 py-1.5 h-6.5 transition-colors px-1.5',
+          'inline-flex items-center text-xs leading-none text-ink-muted shrink-0 p-1.5 h-6.5 transition-colors rounded-sm',
           {
-            'hover:border-edge-muted hover:bg-hover/50': props.canEdit,
+            'hover:bg-hover': props.canEdit,
             'opacity-50': !validValue(),
           }
         )}
@@ -66,21 +61,19 @@ export const CondensedPropertyValue: Component<CondensedPropertyValueProps> = (
       >
         <CondensedIcon property={props.property} />
       </div>
-    </Tooltip>
+    </HoverCard>
   );
 };
 
 const CondensedIcon = (props: { property: Property }): JSX.Element => {
   const valid = () => hasValue(props.property);
 
-  // Select properties - derive optionId reactively for animation
   const selectOptionId = () => {
     if (!valid() || !isSelectProperty(props.property)) return null;
     const values = getSelectValues(props.property);
     return values[0] ?? null;
   };
 
-  // Entity properties
   const entityContent = () => {
     if (!valid() || !isEntityProperty(props.property)) return null;
     if (props.property.specificEntityType === 'USER') {
@@ -165,12 +158,16 @@ const CondensedIcon = (props: { property: Property }): JSX.Element => {
 
       {/* Number properties */}
       <Show when={numberValue() !== null && numberValue() !== undefined}>
-        <span class="truncate max-w-[100px]">{formatNumber(numberValue()!)}</span>
+        <span class="truncate max-w-[100px]">
+          {formatNumber(numberValue()!)}
+        </span>
       </Show>
 
       {/* Boolean properties */}
       <Show when={booleanValue() !== null && booleanValue() !== undefined}>
-        <span class="truncate max-w-[100px]">{formatBoolean(booleanValue()!)}</span>
+        <span class="truncate max-w-[100px]">
+          {formatBoolean(booleanValue()!)}
+        </span>
       </Show>
     </Show>
   );

@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 
-import userEvent from '@testing-library/user-event';
 import { render, screen } from '@solidjs/testing-library';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
@@ -35,23 +35,30 @@ vi.mock('@phosphor-icons/core/regular/paperclip.svg?component-solid', () => ({
   default: () => <span data-testid="paperclip-icon" />,
 }));
 
-vi.mock('@icon/regular/text-aa.svg', () => ({
+vi.mock('@icon/text-aa.svg', () => ({
   default: () => <span data-testid="format-icon" />,
 }));
 
-vi.mock('@icon/regular/trash.svg', () => ({
+vi.mock('@icon/trash.svg', () => ({
   default: () => <span data-testid="trash-icon" />,
 }));
 
-vi.mock('@icon/regular/x.svg', () => ({
+vi.mock('@icon/x.svg', () => ({
   default: () => <span data-testid="close-icon" />,
 }));
 
-vi.mock('@icon/bold/arrow-up-bold.svg', () => ({
+vi.mock('@icon/arrow-up.svg', () => ({
   default: () => <span data-testid="send-icon" />,
 }));
 
-vi.mock('@icon/bold/spinner-gap-bold.svg', () => ({
+vi.mock(
+  '@phosphor-icons/core/regular/paper-plane-right.svg?component-solid',
+  () => ({
+    default: () => <span data-testid="paper-plane-icon" />,
+  })
+);
+
+vi.mock('@icon/spinner-gap.svg', () => ({
   default: () => <span data-testid="spinner-icon" />,
 }));
 
@@ -136,10 +143,10 @@ vi.mock('../FormatButtons', () => ({
   FormatButtons: () => <div data-testid="format-buttons" />,
 }));
 
-import { ChannelInput } from '../ChannelInput';
-import { Root } from '../Root';
-import { DropOverlay } from '../DropOverlay';
 import { createInputAttachmentTracker } from '../attachment-tracker';
+import { ChannelInput } from '../ChannelInput';
+import { DropOverlay } from '../DropOverlay';
+import { Root } from '../Root';
 import type { InputData } from '../types';
 
 const baseInput: InputData = {

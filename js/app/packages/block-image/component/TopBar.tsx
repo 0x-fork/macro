@@ -1,9 +1,9 @@
-import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
 import type { BlockTool } from '@app/component/ResponsiveBlockToolbar';
 import {
   ResponsiveBlockToolbar,
   ResponsivePermissionsBadge,
 } from '@app/component/ResponsiveBlockToolbar';
+import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
 import type { FileOperation } from '@app/component/split-layout/components/SplitFileMenu';
 import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
 import { BlockItemSplitLabel } from '@app/component/split-layout/components/SplitLabel';
@@ -13,8 +13,8 @@ import { useBlockId } from '@core/block';
 import { DETAILS_DRAWER_ID } from '@core/component/DetailsDrawer';
 import { FileTypeChip } from '@core/component/FileTypeChip';
 import {
-  ReferencesButton,
   REFERENCES_DRAWER_ID,
+  ReferencesButton,
 } from '@core/component/ReferencesModal';
 import {
   getShareDrawerRecipientInput,
@@ -28,9 +28,9 @@ import {
   useBlockDocumentName,
 } from '@core/util/currentBlockDocumentName';
 import { downloadFile } from '@filesystem/download';
-import Download from '@icon/regular/download.svg';
-import Info from '@icon/regular/info.svg';
-import Quotes from '@icon/regular/quotes.svg';
+import Download from '@icon/download.svg';
+import Info from '@icon/info.svg';
+import Quotes from '@icon/quotes.svg';
 import IconShared from '@macro-icons/wide/share.svg';
 import { createCallback } from '@solid-primitives/rootless';
 

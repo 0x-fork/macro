@@ -1,5 +1,4 @@
 import { markdownBlockErrorSignal } from '@block-md/signal/error';
-import { BasicHotkey } from '@core/component/Hotkey';
 import {
   INSERT_HORIZONTAL_RULE_COMMAND,
   NODE_TRANSFORM,
@@ -17,39 +16,40 @@ import {
   SubTrigger,
 } from '@core/component/Menu';
 import { ENABLE_MARKDOWN_COMMENTS } from '@core/constant/featureFlags';
+import { TOKENS } from '@core/hotkey/tokens';
 import { useCanComment, useCanEdit } from '@core/signal/permissions';
-import ThreeDots from '@icon/bold/dots-three-bold.svg';
-import TextBold from '@icon/bold/text-b-bold.svg';
-import ChatTeardrop from '@icon/regular/chat-teardrop.svg';
-import Check from '@icon/regular/check-square.svg';
-import TextCode from '@icon/regular/code.svg';
-import CodeBlock from '@icon/regular/code-block.svg';
-import MathIcon from '@icon/regular/function.svg';
-import Grid from '@icon/regular/grid-four.svg';
-import BrokenLinkIcon from '@icon/regular/link-break.svg';
-import LinkIcon from '@icon/regular/link-simple.svg';
-import ListBullets from '@icon/regular/list-bullets.svg';
-import ListChecks from '@icon/regular/list-checks.svg';
-import ListNumbers from '@icon/regular/list-numbers.svg';
-import Minus from '@icon/regular/minus.svg';
-import One from '@icon/regular/number-one.svg';
-import TextHighlight from '@icon/regular/paint-roller.svg';
-import PlusSquare from '@icon/regular/plus-square.svg';
-import Quote from '@icon/regular/quotes.svg';
-import TextAA from '@icon/regular/text-aa.svg';
-import TextH from '@icon/regular/text-h.svg';
-import TextH1 from '@icon/regular/text-h-one.svg';
-import TextH3 from '@icon/regular/text-h-three.svg';
-import TextH2 from '@icon/regular/text-h-two.svg';
-import TextItalic from '@icon/regular/text-italic.svg';
-import TextStriketrough from '@icon/regular/text-strikethrough.svg';
-import TextSub from '@icon/regular/text-subscript.svg';
-import TextSuper from '@icon/regular/text-superscript.svg';
-import TextT from '@icon/regular/text-t.svg';
-import TextUnderline from '@icon/regular/text-underline.svg';
+import ChatTeardrop from '@icon/chat-teardrop.svg';
+import Check from '@icon/check-square.svg';
+import TextCode from '@icon/code.svg';
+import CodeBlock from '@icon/code-block.svg';
+import ThreeDots from '@icon/dots-three.svg';
+import MathIcon from '@icon/function.svg';
+import Grid from '@icon/grid-four.svg';
+import BrokenLinkIcon from '@icon/link-break.svg';
+import LinkIcon from '@icon/link-simple.svg';
+import ListBullets from '@icon/list-bullets.svg';
+import ListChecks from '@icon/list-checks.svg';
+import ListNumbers from '@icon/list-numbers.svg';
+import Minus from '@icon/minus.svg';
+import One from '@icon/number-one.svg';
+import TextHighlight from '@icon/paint-roller.svg';
+import PlusSquare from '@icon/plus-square.svg';
+import Quote from '@icon/quotes.svg';
+import TextAA from '@icon/text-aa.svg';
+import TextBold from '@icon/text-b.svg';
+import TextH from '@icon/text-h.svg';
+import TextH1 from '@icon/text-h-one.svg';
+import TextH3 from '@icon/text-h-three.svg';
+import TextH2 from '@icon/text-h-two.svg';
+import TextItalic from '@icon/text-italic.svg';
+import TextStriketrough from '@icon/text-strikethrough.svg';
+import TextSub from '@icon/text-subscript.svg';
+import TextSuper from '@icon/text-superscript.svg';
+import TextT from '@icon/text-t.svg';
+import TextUnderline from '@icon/text-underline.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import { Layer } from '@ui';
 import type { ElementName } from '@lexical-core';
+import { Button, Hotkey, Layer } from '@ui';
 import { toast } from 'core/component/Toast/Toast';
 import type { ValidHotkey } from 'core/hotkey/types';
 import {
@@ -71,6 +71,7 @@ import {
   type ParentProps,
   Show,
 } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import {
   generatedAndWaitingSignal,
   isGeneratingSignal,
@@ -78,9 +79,6 @@ import {
 import { mdStore } from '../signal/markdownBlockData';
 import { MediaSelector } from './MediaSelector';
 import { TableInsert } from './TableInsert';
-import { Button } from '@ui/components/Button';
-import { LabelAndHotKey } from '@core/component/Tooltip';
-import { Dynamic } from 'solid-js/web';
 
 function VerticalBar() {
   return <div class="w-px mx-1 h-full bg-edge"></div>;
@@ -194,14 +192,13 @@ const InlineFormatButton = (props: {
   const icon = InlineIcons[props.format];
   return (
     <Button
-      tooltip={
-        <LabelAndHotKey
-          label={props.format}
-          shortcut={InlineShortcuts[props.format]}
-        />
-      }
+      label={props.format}
+      hotkey={TOKENS.global.commandMenu}
       size="icon-sm"
-      variant={props.selection()?.[props.format] ? 'tertiary' : 'ghost'}
+      variant="ghost"
+      classList={{
+        'bg-active text-ink': !!props.selection()?.[props.format],
+      }}
       onClick={(e: MouseEvent | KeyboardEvent) =>
         props.onClick(e as MouseEvent)
       }
@@ -223,8 +220,8 @@ const InlineFormatMenuItem = (props: {
     <div class="flex justify-between">
       <span class="capitalize">{props.format}</span>
       <Show when={InlineShortcuts[props.format]}>
-        {(shortcut) => {
-          return <BasicHotkey shortcut={shortcut()} />;
+        {(_shortcut) => {
+          return <Hotkey token={TOKENS.global.commandMenu} />;
         }}
       </Show>
     </div>
@@ -253,11 +250,12 @@ export const ElementFormatButton = (props: {
       tooltip={name}
       size="icon-sm"
       class="rounded-xs"
-      variant={
-        props.selection()?.elementsInRange?.has(props.format)
-          ? 'tertiary'
-          : 'ghost'
-      }
+      variant="ghost"
+      classList={{
+        'bg-active text-ink': !!props
+          .selection()
+          ?.elementsInRange?.has(props.format),
+      }}
       onClick={(e: MouseEvent | KeyboardEvent) =>
         props.onClick(e as MouseEvent)
       }

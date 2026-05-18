@@ -1,32 +1,25 @@
-import CheckSquare from '@icon/regular/check-square.svg';
-import CodeBlock from '@icon/regular/code-block.svg';
-import VideoIcon from '@icon/regular/file-video.svg';
-import MathIcon from '@icon/regular/function.svg';
-import TableIcon from '@icon/regular/grid-four.svg';
-import ImageIcon from '@icon/regular/image.svg';
-import LinkIcon from '@icon/regular/link.svg';
-import ListBullets from '@icon/regular/list-bullets.svg';
-import ListChecks from '@icon/regular/list-checks.svg';
-import ListNumbers from '@icon/regular/list-numbers.svg';
-import Minus from '@icon/regular/minus.svg';
-import Quote from '@icon/regular/quotes.svg';
-import TextH1 from '@icon/regular/text-h-one.svg';
-import TextH3 from '@icon/regular/text-h-three.svg';
-import TextH2 from '@icon/regular/text-h-two.svg';
-import TextT from '@icon/regular/text-t.svg';
-import { INSERT_TABLE_COMMAND, TableNode } from '@lexical/table';
-import type { LexicalEditor } from 'lexical';
-import { INSERT_HORIZONTAL_RULE_COMMAND } from '..';
-import {
-  INSERT_AWAIT_NODE_COMMAND,
-  REPLACE_AWAIT_NODE_COMMAND,
-} from '../await';
-import { TRY_INSERT_EQUATION_COMMAND } from '../katex';
-import { TRY_INSERT_LINK_COMMAND } from '../links';
-import { TRY_INSERT_MEDIA_UPLOAD_COMMAND } from '../media';
-import { INSERT_DOCUMENT_MENTION_COMMAND } from '../mentions/mentionsPlugin';
-import { NODE_TRANSFORM } from '../node-transform';
+import { globalSplitManager } from '@app/signal/splitLayout';
+import type { ComposeTaskSuccess } from '@block-md/component/ComposeTask';
+import CheckSquare from '@icon/check-square.svg';
+import CodeBlock from '@icon/code-block.svg';
+import VideoIcon from '@icon/file-video.svg';
+import MathIcon from '@icon/function.svg';
+import TableIcon from '@icon/grid-four.svg';
+import ImageIcon from '@icon/image.svg';
+import LinkIcon from '@icon/link.svg';
+import ListBullets from '@icon/list-bullets.svg';
+import ListChecks from '@icon/list-checks.svg';
+import ListNumbers from '@icon/list-numbers.svg';
+import Minus from '@icon/minus.svg';
+import Quote from '@icon/quotes.svg';
+import TextH1 from '@icon/text-h-one.svg';
+import TextH3 from '@icon/text-h-three.svg';
+import TextH2 from '@icon/text-h-two.svg';
+import TextT from '@icon/text-t.svg';
+import { LinkNode } from '@lexical/link';
+import { ListNode } from '@lexical/list';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { INSERT_TABLE_COMMAND, TableNode } from '@lexical/table';
 import {
   $createDocumentMentionNode,
   AwaitNode,
@@ -37,11 +30,18 @@ import {
   ImageNode,
   VideoNode,
 } from '@lexical-core';
+import type { LexicalEditor } from 'lexical';
 import { nanoid } from 'nanoid';
-import { ListNode } from '@lexical/list';
-import { LinkNode } from '@lexical/link';
-import { globalSplitManager } from '@app/signal/splitLayout';
-import type { ComposeTaskSuccess } from '@block-md/component/ComposeTask';
+import { INSERT_HORIZONTAL_RULE_COMMAND } from '..';
+import {
+  INSERT_AWAIT_NODE_COMMAND,
+  REPLACE_AWAIT_NODE_COMMAND,
+} from '../await';
+import { TRY_INSERT_EQUATION_COMMAND } from '../katex';
+import { TRY_INSERT_LINK_COMMAND } from '../links';
+import { TRY_INSERT_MEDIA_UPLOAD_COMMAND } from '../media';
+import { INSERT_DOCUMENT_MENTION_COMMAND } from '../mentions/mentionsPlugin';
+import { NODE_TRANSFORM } from '../node-transform';
 import { type Action, ActionCategory } from './types';
 
 export const ACTIONS: Action[] = [

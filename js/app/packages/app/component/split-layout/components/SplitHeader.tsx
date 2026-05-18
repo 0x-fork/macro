@@ -1,22 +1,20 @@
-import { LabelAndHotKey } from '@core/component/Tooltip';
+import { isListViewID } from '@app/constants/list-views';
+
 import {
   ENABLE_PREVIEW,
   ENABLE_PROJECT_VIEW_PREVIEW,
 } from '@core/constant/featureFlags';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import CollapseIcon from '@icon/regular/arrows-in.svg';
-import ExpandIcon from '@icon/regular/arrows-out.svg';
-import CaretLeft from '@icon/regular/caret-left.svg';
-import CaretRight from '@icon/regular/caret-right.svg';
-import SplitIcon from '@icon/regular/square-half.svg';
-import CloseIcon from '@icon/regular/x.svg';
-import { Button } from '@ui/components/Button';
+import CollapseIcon from '@icon/arrows-in.svg';
+import ExpandIcon from '@icon/arrows-out.svg';
+import CaretLeft from '@icon/caret-left.svg';
+import CaretRight from '@icon/caret-right.svg';
+import SplitIcon from '@icon/square-half.svg';
+import CloseIcon from '@icon/x.svg';
+import { Button, cn } from '@ui';
 import {
-  createEffect,
   createMemo,
-  createSignal,
   type ParentProps,
   type Setter,
   Show,
@@ -25,8 +23,6 @@ import {
 import { Portal } from 'solid-js/web';
 import { SplitLayoutContext, SplitPanelContext } from '../context';
 import { canSpotlight } from '../utils/canSpotlight';
-import { cn } from '@ui/utils/classname';
-import { isListViewID } from '@app/constants/list-views';
 
 function SplitBackButton() {
   const context = useContext(SplitPanelContext);
@@ -35,9 +31,8 @@ function SplitBackButton() {
     <Button
       size="sm"
       class="p-1"
-      tooltip={
-        <LabelAndHotKey label="Go Back" hotkeyToken={TOKENS.split.go.back} />
-      }
+      label="Go Back"
+      hotkey={TOKENS.split.go.back}
       disabled={!context.handle.canGoBack()}
       onClick={context.handle.goBack}
     >
@@ -52,12 +47,8 @@ function SplitForwardButton() {
   return (
     <Button
       size="sm"
-      tooltip={
-        <LabelAndHotKey
-          label="Go Forward"
-          hotkeyToken={TOKENS.split.go.forward}
-        />
-      }
+      label="Go Forward"
+      hotkey={TOKENS.split.go.forward}
       disabled={!context.handle.canGoForward()}
       onClick={context.handle.goForward}
       class={cn(
@@ -70,7 +61,7 @@ function SplitForwardButton() {
   );
 }
 
-function SplitSpotlightButton() {
+function _SplitSpotlightButton() {
   const context = useContext(SplitPanelContext);
   const layout = useContext(SplitLayoutContext);
   if (!context || !layout) return '';
@@ -78,17 +69,11 @@ function SplitSpotlightButton() {
     <Show when={canSpotlight(layout.manager)}>
       <Button
         size="sm"
-        class="p-1"
-        tooltip={
-          <LabelAndHotKey
-            label={
-              context.handle.isSpotLight()
-                ? 'Minimize Split'
-                : 'Spotlight Split'
-            }
-            hotkeyToken={TOKENS.window.spotlight.toggle}
-          />
+        class="p-1 rounded-xs hidden"
+        label={
+          context.handle.isSpotLight() ? 'Minimize Split' : 'Spotlight Split'
         }
+        hotkey={TOKENS.window.spotlight.toggle}
         onClick={() => context.handle.toggleSpotlight()}
       >
         {context.handle.isSpotLight() ? <CollapseIcon /> : <ExpandIcon />}
@@ -113,9 +98,8 @@ function SplitCloseButton() {
       <Button
         size="sm"
         class="p-1"
-        tooltip={
-          <LabelAndHotKey label={label()} hotkeyToken={TOKENS.split.close} />
-        }
+        label={label()}
+        hotkey={TOKENS.split.close}
         onClick={context.handle.close}
       >
         <CloseIcon />
@@ -145,12 +129,8 @@ function _SplitPreviewToggle() {
           classList={{
             'bg-accent/20 text-accent': preview(),
           }}
-          tooltip={
-            <LabelAndHotKey
-              label={!preview() ? 'Split View (Preview)' : 'Full View (List)'}
-              hotkeyToken={TOKENS.unifiedList.togglePreview}
-            />
-          }
+          label={!preview() ? 'Split View (Preview)' : 'Full View (List)'}
+          hotkey={TOKENS.unifiedList.togglePreview}
           tabIndex={-1}
           onClick={() => setPreview((prev) => !prev)}
         >
@@ -177,14 +157,10 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
   const panel = useContext(SplitPanelContext);
   if (!panel)
     throw new Error('<SplitHeader> must be used within a <SplitLayout>');
-  const layout = useContext(SplitLayoutContext);
-
-  const shouldShowRightmost = () =>
-    !isTouchDevice() && layout && canSpotlight(layout.manager);
 
   return (
     <div
-      class="isolate w-full py-2 overflow-clip text-ink shrink-0 bg-panel"
+      class="isolate w-full py-2 overflow-clip text-ink shrink-0 bg-surface"
       data-split-header
       ref={props.ref}
     >
@@ -198,6 +174,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
             <SplitForwardButton />
           </Show>
         </div>
+
         <div
           class="min-w-0 grow shrink pl-2 flex items-center gap-0.5"
           ref={(ref) => {
@@ -206,43 +183,26 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         />
 
         <div
-          class={cn(
-            'min-w-4 shrink-0 flex items-center gap-0.5 pl-2',
-            !shouldShowRightmost() && 'pr-2 mobile:pr-4'
-          )}
+          class="min-w-4 h-full grow shrink flex items-center justify-end gap-0.5 px-2"
           ref={(ref) => {
             panel.layoutRefs.headerRight = ref;
           }}
         />
-
-        <Show when={shouldShowRightmost()}>
-          <div class="pl-0.5 pr-2 z-annotation-layer flex items-center gap-0.5 order-last">
-            <SplitSpotlightButton />
-          </div>
-        </Show>
       </div>
     </div>
   );
 }
 
-export function SplitHeaderLeft(props: ParentProps<{ order?: number }>) {
+export function SplitHeaderLeft(props: ParentProps) {
   const ctx = useContext(SplitPanelContext);
   if (!ctx)
     throw new Error('<SplitHeaderLeft> must be used within a <SplitLayout>');
-  const [portalRef, setPortalRef] = createSignal<HTMLDivElement | null>(null);
-  createEffect(() => {
-    const ref = portalRef();
-    if (!ref) return;
-    ref.style.order = props.order?.toString() ?? '0';
-  });
+
   return (
     <Show when={ctx.layoutRefs.headerLeft}>
       <Portal
         mount={ctx.layoutRefs.headerLeft}
-        ref={(div) => {
-          setPortalRef(div);
-          div.style.display = 'contents';
-        }}
+        ref={(div) => (div.style.display = 'contents')}
       >
         {props.children}
       </Portal>
@@ -250,24 +210,16 @@ export function SplitHeaderLeft(props: ParentProps<{ order?: number }>) {
   );
 }
 
-export function SplitHeaderRight(props: ParentProps<{ order?: number }>) {
+export function SplitHeaderRight(props: ParentProps) {
   const ctx = useContext(SplitPanelContext);
   if (!ctx)
     throw new Error('<SplitHeaderRight> must be used within a <SplitLayout>');
-  const [portalRef, setPortalRef] = createSignal<HTMLDivElement | null>(null);
-  createEffect(() => {
-    const ref = portalRef();
-    if (!ref) return;
-    ref.style.order = props.order?.toString() ?? '0';
-  });
+
   return (
     <Show when={ctx.layoutRefs.headerRight}>
       <Portal
         mount={ctx.layoutRefs.headerRight}
-        ref={(div) => {
-          setPortalRef(div);
-          div.style.display = 'contents';
-        }}
+        ref={(div) => (div.style.display = 'contents')}
       >
         {props.children}
       </Portal>

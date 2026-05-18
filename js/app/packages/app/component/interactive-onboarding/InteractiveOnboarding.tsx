@@ -1,9 +1,28 @@
+import { useAnalytics } from '@app/component/analytics-context';
+import { CommandState } from '@app/component/command';
+import { PLANS } from '@app/component/paywall/plans';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { useIsAuthenticated } from '@core/auth';
+import { useHasPaidAccess } from '@core/auth/license';
 import MacroLogo from '@core/component/MacroLogo';
-import LogoIcon from '@macro-icons/macro-logo.svg';
-import ArrowLeftIcon from '@icon/regular/arrow-left.svg';
+import { PcNoiseGrid } from '@core/component/PcNoiseGrid';
+import { toast } from '@core/component/Toast/Toast';
+import { ENABLE_INVITE_TEAM_ONBOARDING_OVERRIDE } from '@core/constant/featureFlags';
+import { useTutorialCompleted } from '@core/context/user';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fetchToken } from '@core/util/fetchWithToken';
+import { isOk } from '@core/util/maybeResult';
+import ArrowLeftIcon from '@icon/arrow-left.svg';
+import InfoIcon from '@icon/info.svg';
+import LogoIcon from '@macro-icons/macro-logo.svg';
+import { useSendMobileWelcomeEmail } from '@queries/auth';
+import { useCompleteTutorialMutation } from '@queries/auth/tutorial';
+import { useUserTeamsQuery } from '@queries/team';
 import { useLocation, useNavigate } from '@solidjs/router';
+import { Button, cn, Surface, Tooltip } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -15,36 +34,15 @@ import {
   Show,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { useCompleteTutorialMutation } from '@queries/auth/tutorial';
-import { useTutorialCompleted } from '@core/context/user';
-import { CommandState } from '@app/component/command';
-import { resetSandbox } from './sandbox/sandbox-store';
-import { commandKOpen, setCommandKOpen } from './lessons/command-k';
+import { ContinueButton } from './components-lib';
 import { createOnboardingState } from './create-onboarding-state';
 import { LESSONS } from './lessons';
-import { ContinueButton } from './components-lib';
-import { OnboardingProgress } from './OnboardingProgress';
-import { Panel, Button } from '@ui';
-import { cn } from '@ui/utils/classname';
-import { PcNoiseGrid } from '@core/component/PcNoiseGrid';
-import { useAnalytics } from '@app/component/analytics-context';
-import { useHasPaidAccess } from '@core/auth/license';
-import { useUserTeamsQuery } from '@queries/team';
-import { useIsAuthenticated } from '@core/auth';
-import { fetchToken } from '@core/util/fetchWithToken';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
-import MobileWebWelcome from './MobileWebWelcome';
+import { commandKOpen, setCommandKOpen } from './lessons/command-k';
 import MobileWebSignupSent from './MobileWebSignupSent';
-import { useSendMobileWelcomeEmail } from '@queries/auth';
-import { isOk } from '@core/util/maybeResult';
-import { toast } from '@core/component/Toast/Toast';
-import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { ENABLE_INVITE_TEAM_ONBOARDING_OVERRIDE } from '@core/constant/featureFlags';
+import MobileWebWelcome from './MobileWebWelcome';
+import { OnboardingProgress } from './OnboardingProgress';
 import { OnboardingProvider, useOnboarding } from './onboarding-context';
-import { PLANS } from '@app/component/paywall/plans';
-import { Tooltip } from '@core/component/Tooltip';
-import InfoIcon from '@icon/regular/info.svg';
+import { resetSandbox } from './sandbox/sandbox-store';
 
 export default function InteractiveOnboarding() {
   const isAuthenticated = useIsAuthenticated();
@@ -182,7 +180,7 @@ function OnboardingCostSummary() {
           <div class="flex justify-between items-center mt-2 pt-2 border-t border-ink/10 text-xs">
             <span class="text-ink/40 flex items-center gap-1">
               Total with team
-              <Tooltip tooltip="Team charges begin when members accept their invite">
+              <Tooltip label="Team charges begin when members accept their invite">
                 <InfoIcon class="size-3 text-ink/30" />
               </Tooltip>
             </span>
@@ -267,11 +265,11 @@ function InteractiveOnboardingInner() {
         )
       : undefined;
 
-  // Detect a return-from-OAuth param synchronously so we can pre-populate
+  // Detect a return-from-external-flow param synchronously so we can pre-populate
   // completed lessons before the first render, avoiding a flash of the first slide.
   // Search the unfiltered LESSONS list — the returning lesson (e.g. about-us) may
   // have been filtered out now that the user is authenticated.
-  const returningLesson = LESSONS.find(
+  const returningLesson = LESSONS.findLast(
     (l) => l.completeOnParam && params.has(l.completeOnParam)
   );
   const returnCompleted = returningLesson
@@ -306,8 +304,8 @@ function InteractiveOnboardingInner() {
   };
 
   // Redirect away if the backend already marks the tutorial as complete.
-  // Skip the redirect when returning from OAuth — we just marked it complete
-  // ourselves and still have remaining lessons to show.
+  // Skip the redirect when returning from external flow — we just marked it
+  // complete ourselves and still have remaining lessons to show.
   createEffect(() => {
     if (tutorialCompleted() && !returningLesson && !testMode) {
       navigateAway();
@@ -428,12 +426,11 @@ function InteractiveOnboardingInner() {
       shellRef.focus();
     }
 
-    // When returning from an external auth flow (e.g. Google OAuth), clean the
-    // return param from the URL and run side-effects. The lessons are already
-    // pre-completed synchronously via returnCompleted above.
-    if (returningLesson) {
+    // When returning from an external flow, clean the return param from the URL
+    // and run side-effects. The lessons are already pre-completed synchronously.
+    if (returningLesson?.completeOnParam) {
       const cleanParams = new URLSearchParams(window.location.search);
-      cleanParams.delete(returningLesson.completeOnParam!);
+      cleanParams.delete(returningLesson.completeOnParam);
       const qs = cleanParams.toString();
       window.history.replaceState(
         null,
@@ -591,7 +588,7 @@ function InteractiveOnboardingInner() {
   return (
     <div
       ref={shellRef}
-      class="flex items-center justify-center h-full w-full p-6 sm:p-8 overflow-hidden relative"
+      class="flex items-center justify-center size-full p-6 sm:p-8 overflow-hidden relative"
       tabIndex={-1}
     >
       {/* Scoped keyframes */}
@@ -615,7 +612,7 @@ function InteractiveOnboardingInner() {
         .onboarding-stagger > *:nth-child(5) { animation-delay: 330ms; }
       `
       }</style>
-      <div class="inset-0 absolute text-edge bg-panel opacity-10 -z-1">
+      <div class="inset-0 absolute text-edge bg-surface opacity-10 -z-1">
         <PcNoiseGrid
           cellSize={30}
           warp={0}
@@ -631,7 +628,7 @@ function InteractiveOnboardingInner() {
 
       {/* Centered card */}
       <div class="size-full max-w-400 max-h-225">
-        <Panel depth={1}>
+        <Surface depth={1}>
           <div class="size-full flex">
             <Show
               when={state.currentLesson()}
@@ -745,7 +742,7 @@ function InteractiveOnboardingInner() {
                     {/* Header */}
                     <div class="p-4">
                       <div style={headerStyle()}>
-                        <div class="bg-ink text-panel text-xs font-mono size-4 flex items-center justify-center font-bold rounded-xs">
+                        <div class="bg-ink text-surface text-xs font-mono size-4 flex items-center justify-center font-bold rounded-xs">
                           {lesson().index + 1}
                         </div>
                         <Show when={getPreviousLesson()}>
@@ -841,7 +838,7 @@ function InteractiveOnboardingInner() {
 
                   {/* Right panel — demo (~2/3) */}
                   <div class="flex-1 min-w-0 flex items-center justify-center bg-surface-secondary/30 overflow-hidden">
-                    <div style={bodyStyle()} class="w-full h-full">
+                    <div style={bodyStyle()} class="size-full">
                       <Show
                         when={lesson().definition.demo}
                         fallback={
@@ -871,7 +868,7 @@ function InteractiveOnboardingInner() {
               )}
             </Show>
           </div>
-        </Panel>
+        </Surface>
       </div>
     </div>
   );

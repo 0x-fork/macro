@@ -1,14 +1,13 @@
 import { currentThemeId, isThemeSaved, themes } from '../signals/themeSignals';
-import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
 import IconLightDark from '@macro-icons/macro-light-dark.svg';
 import { invertTheme, saveTheme } from '../utils/themeUtils';
 import { randomizeTheme } from './ThemeEditorBasic';
-import IconDice from '@macro-icons/macro-dice.svg';
-import IconSave from '@macro-icons/macro-save.svg';
+import IconDice from '@phosphor-icons/core/regular/dice-five.svg?component-solid';
+import IconSave from '@phosphor-icons/core/regular/floppy-disk-back.svg?component-solid';
 import { createMemo, Show } from 'solid-js';
-import { cn } from '@ui/utils/classname';
+import { Button, cn } from '@ui';
 
-export function ThemeTools() {
+export function ThemeTools(props: { class?: string }) {
   let themeName!: HTMLDivElement;
 
   const defaultThemeName = 'New Theme';
@@ -21,66 +20,47 @@ export function ThemeTools() {
 
   return (
     <div
+      class={cn('flex items-center overflow-hidden w-full min-w-0', props.class)}
       style={{
         'gap': '4.5px' /* (41 - 32) / 2 */,
         'font-family': 'var(--font-sans)',
         'scrollbar-width': 'none',
-        'align-items': 'center',
-        'overflow': 'hidden',
         'font-size': '14px',
         'height': '39.5px',
-        'display': 'flex',
-        'width': '100%',
-        'min-width': '0',
       }}
     >
       <div style={{ flex: 1 }}/>
 
       <Show when={!isThemeSaved()}>
-        <DeprecatedIconButton
+        <Button
           onPointerDown={() => {
             saveTheme(themeName.innerText);
           }}
-          tooltip={{label: "Save Theme"}}
-          icon={IconSave}
-          theme="clear"
-          size="sm"
-        />
+          label="Save Theme"
+          variant="ghost"
+          size="icon-sm"
+        >
+          <IconSave />
+        </Button>
       </Show>
 
-      {/*<Show when={DEV_MODE_ENV}>
-        <IconButton
-          tooltip={{label: "Copy Tokens"}}
-          onPointerDown={copyTokens}
-          icon={IconFigma}
-          theme="clear"
-          size="sm"
-        />
-      </Show>*/}
-
-      {/*<DeprecatedIconButton
-        tooltip={{label: "Import From Clipboard"}}
-        onPointerDown={importTheme}
-        icon={IconImport}
-        theme="clear"
-        size="sm"
-      />*/}
-
-      <DeprecatedIconButton
-        tooltip={{label: "Randomize Theme"}}
+      <Button
+        label="Randomize Theme"
         onPointerDown={randomizeTheme}
-        icon={IconDice}
-        theme="clear"
-        size="sm"
-      />
+        variant="ghost"
+        size="icon-sm"
+      >
+        <IconDice />
+      </Button>
 
-      <DeprecatedIconButton
-        tooltip={{label: "Toggle Light / Dark"}}
+      <Button
+        label="Toggle Light / Dark"
         onPointerDown={invertTheme}
-        icon={IconLightDark}
-        theme="clear"
-        size="sm"
-      />
+        variant="ghost"
+        size="icon-sm"
+      >
+        <IconLightDark />
+      </Button>
 
       <div
         onKeyDown={(e) => {
@@ -102,8 +82,8 @@ export function ThemeTools() {
         class={cn(
           'rounded-xs py-1.5 px-2 border text-xs outline-none',
           'bg-transparent text-ink-muted border-edge-muted',
-          'hover:bg-input hover:text-ink',
-          'focus:bg-input focus:text-ink',
+          'hover:bg-surface hover:text-ink',
+          'focus:bg-surface focus:text-ink',
           'min-w-0 overflow-hidden text-ellipsis',
         )}
         style={{

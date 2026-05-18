@@ -1,4 +1,4 @@
-import CheckIcon from '@icon/bold/check-bold.svg';
+import CheckIcon from '@icon/check.svg';
 import { type Component, Show } from 'solid-js';
 
 /**
@@ -22,7 +22,7 @@ export const OptionCheckBox: Component<{
       }}
     >
       <Show when={props.checked && props.multiselect !== false}>
-        <CheckIcon class="size-3 text-panel" />
+        <CheckIcon class="size-3 text-surface" />
       </Show>
     </div>
   );

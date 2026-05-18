@@ -5,61 +5,61 @@ import {
   isBlockAlias,
   itemToBlockName,
 } from '@core/constant/allBlocks';
-import { match } from 'ts-pattern';
-import { cn } from '@ui/utils/classname';
 import { USE_WIDE_ICONS } from '@core/constant/featureFlags';
-import Building from '@icon/duotone/building-duotone.svg';
-import Chat from '@icon/duotone/chat-duotone.svg';
-import FileCode from '@icon/duotone/code-duotone.svg';
-import Email from '@icon/duotone/envelope-duotone.svg';
-import EmailRead from '@icon/duotone/envelope-open-duotone.svg';
-import FileArchive from '@icon/duotone/file-archive-duotone.svg';
-import FileDoc from '@icon/duotone/file-doc-duotone.svg';
-import File from '@icon/duotone/file-duotone.svg';
-import FileHtml from '@icon/duotone/file-html-duotone.svg';
-import FileMd from '@icon/duotone/file-md-duotone.svg';
-import FilePdf from '@icon/duotone/file-pdf-duotone.svg';
-import FileVideo from '@icon/duotone/file-video-duotone.svg';
-import FileImage from '@icon/duotone/image-duotone.svg';
-import PhoneCall from '@macro-icons/wide/call.svg';
-import Canvas from '@icon/duotone/pencil-circle-duotone.svg';
-import Robot from '@icon/duotone/robot-duotone.svg';
-import User from '@icon/duotone/user-duotone.svg';
-import Users from '@icon/duotone/users-duotone.svg';
-import Folder from '@icon/fill/folder-simple-fill.svg';
-import FolderUser from '@icon/fill/folder-user-fill.svg';
-import Check from '@icon/regular/check-fat.svg';
+import type {
+  ChannelEntity,
+  DocumentEntity,
+  EmailEntity,
+  EntityData,
+} from '@entity';
+import Building from '@icon/building.svg';
+import Chat from '@icon/chat.svg';
+import Check from '@icon/check-fat.svg';
+import FileCode from '@icon/code.svg';
+import Email from '@icon/envelope.svg';
+import EmailRead from '@icon/envelope-open.svg';
+import File from '@icon/file.svg';
+import FileArchive from '@icon/file-archive.svg';
+import FileDoc from '@icon/file-doc.svg';
+import FileHtml from '@icon/file-html.svg';
+import FileMd from '@icon/file-md.svg';
+import FilePdf from '@icon/file-pdf.svg';
+import FileVideo from '@icon/file-video.svg';
+import Folder from '@icon/folder-simple.svg';
+import FolderUser from '@icon/folder-user.svg';
+import GlobeIcon from '@icon/globe.svg';
+import FileImage from '@icon/image.svg';
+import Canvas from '@icon/pencil-circle.svg';
+import Robot from '@icon/robot.svg';
+import User from '@icon/user.svg';
+import Users from '@icon/users.svg';
 import WideBook from '@macro-icons/wide/book.svg';
+import WideCalendar from '@macro-icons/wide/calendar.svg';
+import PhoneCall from '@macro-icons/wide/call.svg';
 import WideChannel from '@macro-icons/wide/channel.svg';
 import WideChat from '@macro-icons/wide/chat.svg';
 import WideCsv from '@macro-icons/wide/csv.svg';
 import WideDiagram from '@macro-icons/wide/diagram.svg';
 import WideDocx from '@macro-icons/wide/docx.svg';
-import WideCalendar from '@macro-icons/wide/calendar.svg';
-import WideGlobe from '@macro-icons/wide/globe.svg';
 import WideEmail from '@macro-icons/wide/email.svg';
 import WideFileCode from '@macro-icons/wide/file-code.svg';
 import WideFileImage from '@macro-icons/wide/file-image.svg';
 import WideFileMd from '@macro-icons/wide/file-md.svg';
 import WideFolder from '@macro-icons/wide/folder.svg';
+import WideGlobe from '@macro-icons/wide/globe.svg';
 import WideStar from '@macro-icons/wide/star.svg';
 import WideTask from '@macro-icons/wide/task.svg';
 import WideUnknown from '@macro-icons/wide/unknown.svg';
 import WideUser from '@macro-icons/wide/user.svg';
 import WideVideo from '@macro-icons/wide/video.svg';
-import GlobeIcon from '@icon/duotone/globe-duotone.svg';
-import { FileTypeMap } from '@service-storage/fileTypeMap';
-import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
-import type { FileType } from '@service-storage/generated/schemas/fileType';
-import type {
-  EntityData,
-  ChannelEntity,
-  DocumentEntity,
-  EmailEntity,
-} from '@entity';
 import type { PreviewItem } from '@queries/preview';
+import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
+import { FileTypeMap } from '@service-storage/fileTypeMap';
+import type { FileType } from '@service-storage/generated/schemas/fileType';
+import { cn } from '@ui';
 import type { Component, JSX } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { match } from 'ts-pattern';
 
 type IconConfig = {
   icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
@@ -89,169 +89,169 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
   call: {
     icon: PhoneCall,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Call',
   },
   canvas: {
     icon: Canvas,
     foreground: 'text-canvas',
-    background: 'bg-canvas-bg',
+    background: 'bg-canvas/20',
     prettyName: 'Canvas',
   },
   html: {
     icon: FileHtml,
     foreground: 'text-html',
-    background: 'bg-html-bg',
+    background: 'bg-html/20',
     prettyName: 'Webpage',
   },
   channel: {
     icon: WideChannel,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Channel',
   },
   public: {
     icon: GlobeIcon,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Public Channel',
   },
   organization: {
     icon: Building,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Organization Channel',
   },
   private: {
     icon: WideChannel,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Private Channel',
   },
   direct_message: {
     icon: Users,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Direct Message',
   },
   team: {
     icon: Users,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Team Channel',
   },
   email: {
     icon: Email,
     foreground: 'text-email',
-    background: 'bg-email-bg',
+    background: 'bg-email/20',
     prettyName: 'Email',
   },
   code: {
     icon: FileCode,
     foreground: 'text-code',
-    background: 'bg-code-bg',
+    background: 'bg-code/20',
     prettyName: 'Code',
   },
   csv: {
     icon: WideCsv,
     foreground: 'text-code',
-    background: 'bg-code-bg',
+    background: 'bg-code/20',
     prettyName: 'CSV',
   },
   pdf: {
     icon: FilePdf,
     foreground: 'text-pdf',
-    background: 'bg-pdf-bg',
+    background: 'bg-pdf/20',
     prettyName: 'PDF',
   },
   md: {
     icon: FileMd,
     foreground: 'text-note',
-    background: 'bg-note-bg',
+    background: 'bg-note/20',
     prettyName: 'Note',
   },
   image: {
     icon: FileImage,
     foreground: 'text-image',
-    background: 'bg-image-bg',
+    background: 'bg-image/20',
     prettyName: 'Image',
   },
   write: {
     icon: FileDoc,
     foreground: 'text-write',
-    background: 'bg-write-bg',
+    background: 'bg-write/20',
     prettyName: 'Document',
   },
   chat: {
     icon: Chat,
     foreground: 'text-chat',
-    background: 'bg-chat-bg',
+    background: 'bg-chat/20',
     prettyName: 'Chat',
   },
   project: {
     icon: Folder,
     foreground: 'text-folder',
-    background: 'bg-folder-bg',
+    background: 'bg-folder/20',
     prettyName: 'Folder',
   },
   sharedProject: {
     icon: FolderUser,
     foreground: 'text-folder',
-    background: 'bg-folder-bg',
+    background: 'bg-folder/20',
     prettyName: 'Shared Folder',
   },
   unknown: {
     icon: File,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'File',
   },
   archive: {
     icon: FileArchive,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Archive',
   },
   video: {
     icon: FileVideo,
     foreground: 'text-video',
-    background: 'bg-video-bg',
+    background: 'bg-video/20',
     prettyName: 'Video',
   },
   contact: {
     icon: User,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Contact',
   },
   default: {
     icon: File,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'File',
   },
   emailRead: {
     icon: EmailRead,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Read Email',
   },
   emailInvite: {
     icon: WideCalendar,
     foreground: 'text-calendar',
-    background: 'bg-calendar-bg',
+    background: 'bg-calendar/20',
     prettyName: 'Calendar Invite',
   },
   task: {
     icon: Check,
     foreground: 'text-task',
-    background: 'bg-task-bg',
+    background: 'bg-task/20',
     prettyName: 'Task',
   },
   automation: {
     icon: Robot,
     foreground: 'text-default',
-    background: 'bg-default-bg',
+    background: 'bg-default/20',
     prettyName: 'Automation',
   },
 };

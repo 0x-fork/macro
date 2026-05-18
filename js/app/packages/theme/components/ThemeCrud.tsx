@@ -1,13 +1,11 @@
+import IconClipboard from '@phosphor-icons/core/regular/clipboard.svg?component-solid';
+import IconTrash from '@phosphor-icons/core/regular/trash.svg?component-solid';
 import { deleteTheme, exportTheme } from '../utils/themeUtils';
 import { userThemes } from '../signals/themeSignals';
-import { DeprecatedIconButton } from '@core/component/DeprecatedIconButton';
 import { createMemo, Show } from 'solid-js';
-import IconClipboard from '@macro-icons/macro-clipboard.svg';
-import IconTrash from '@macro-icons/macro-trash.svg';
+import { Button } from '@ui';
 
-interface ThemeCrudProps {
-  themeId: string;
-}
+interface ThemeCrudProps { themeId: string; }
 
 export function ThemeCrud(props: ThemeCrudProps) {
   const isUserTheme = createMemo(() =>
@@ -33,24 +31,26 @@ export function ThemeCrud(props: ThemeCrudProps) {
       onClick={stop}
       onPointerDown={stop}
     >
-      <DeprecatedIconButton
-        tooltip={{label: "Copy To Clipboard"}}
+      <Button
+        label="Copy To Clipboard"
         onPointerDown={() => exportTheme(props.themeId)}
-        icon={IconClipboard}
-        theme="clear"
-        size="sm"
-      />
+        variant="ghost"
+        size="icon-sm"
+      >
+        <IconClipboard />
+      </Button>
 
       <Show when={isUserTheme()}>
-        <DeprecatedIconButton
+        <Button
           onPointerDown={() => {
             deleteTheme(props.themeId);
           }}
-          tooltip={{label: "Delete Theme"}}
-          icon={IconTrash}
-          theme="clear"
-          size="sm"
-        />
+          label="Delete Theme"
+          variant="ghost"
+          size="icon-sm"
+        >
+          <IconTrash />
+        </Button>
       </Show>
     </div>
   );

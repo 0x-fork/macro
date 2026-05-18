@@ -1,5 +1,5 @@
-import ChevronDownIcon from '@icon/regular/caret-down.svg?component-solid';
-import { cn } from '@ui/utils/classname';
+import ChevronDownIcon from '@icon/caret-down.svg?component-solid';
+import { cn } from '@ui';
 import { createSignal, For, type JSX, Show } from 'solid-js';
 
 interface ToggleButtonProps {
@@ -21,13 +21,17 @@ function ToggleButton(props: ToggleButtonProps) {
           data-collapsible-toggle
           data-collapsible-state={props.showAll ? 'expanded' : 'collapsed'}
           onClick={props.toggle}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         >
           <ChevronDownIcon
             class={cn('w-3 h-3 transition-transform duration-100', {
               'rotate-180': props.showAll,
             })}
           />
-          <Show when={!props.showAll} fallback="Collapse">
+          <Show when={!props.showAll} fallback="Show less">
             {props.getExpandTextFn(props.itemsLength - props.visibleCount)}
           </Show>
         </button>

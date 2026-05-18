@@ -1,4 +1,7 @@
+import { globalSplitManager } from '@app/signal/splitLayout';
+import { isMobile } from '@core/mobile/isMobile';
 import { createElementSize } from '@solid-primitives/resize-observer';
+import { cn, Layer } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -11,10 +14,6 @@ import { useSplitPanelOrThrow } from '../layoutUtils';
 import { SplitDrawerGroup } from './SplitDrawerContext';
 import { SplitHeader } from './SplitHeader';
 import { SplitToolbar } from './SplitToolbar';
-import { Layer } from '@ui';
-import { cn } from '@ui/utils/classname';
-import { globalSplitManager } from '@app/signal/splitLayout';
-import { isMobile } from '@core/mobile/isMobile';
 
 export function SplitContainer(
   props: ParentProps<{
@@ -56,8 +55,9 @@ export function SplitContainer(
     return Boolean(splits && splits.length > 1);
   }
 
-  const isActive = createMemo(() =>
-    panel.isPanelActive() && multipleSplits() && !panel.handle.isSpotLight()
+  const isActive = createMemo(
+    () =>
+      panel.isPanelActive() && multipleSplits() && !panel.handle.isSpotLight()
   );
 
   return (
@@ -67,7 +67,7 @@ export function SplitContainer(
           class="fixed inset-0 w-screen h-screen z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted"
           onClick={() => panel.handle.toggleSpotlight(false)}
         />
-        <div class="fixed inset-16 bg-panel shadow-xl" />
+        <div class="fixed inset-16 bg-surface shadow-xl" />
       </Show>
 
       <div
@@ -90,10 +90,12 @@ export function SplitContainer(
           when={!isMobile()}
           fallback={
             <Layer depth={1}>
-              <div class={cn(
-                "flex flex-col min-h-0 size-full overflow-hidden",
-                panel.handle.content().id !== 'home' && 'bg-panel'
-              )}>
+              <div
+                class={cn(
+                  'flex flex-col min-h-0 size-full overflow-hidden',
+                  panel.handle.content().id !== 'home' && 'bg-surface'
+                )}
+              >
                 <Show when={panel.handle.content().id !== 'home'}>
                   <SplitHeader ref={setHeaderRef} />
                   <SplitToolbar ref={setToolbarRef} />
@@ -111,10 +113,10 @@ export function SplitContainer(
               style={{
                 'background-image': isActive()
                   ? 'linear-gradient(var(--color-accent), var(--color-edge) 80%)'
-                  : 'none'
+                  : 'none',
               }}
             >
-              <div class="flex flex-col min-h-0 size-full bg-panel overflow-hidden rounded-[7px]">
+              <div class="flex flex-col min-h-0 size-full bg-surface overflow-hidden rounded-[7px]">
                 <SplitHeader ref={setHeaderRef} />
                 <SplitToolbar ref={setToolbarRef} />
                 <div class="@container/split size-full overflow-hidden relative">

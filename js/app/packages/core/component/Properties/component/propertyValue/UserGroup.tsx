@@ -1,45 +1,45 @@
+import { UserIcon } from '@core/component/UserIcon';
+import { AvatarGroup } from '@ui';
 import { createMemo, For, Show } from 'solid-js';
 import type { EntityReference } from '../../types';
-import { UserIcon } from '@core/component/UserIcon';
-import { cn } from '@ui/utils/classname';
 
-type UserEntityPillProps = {
+type UserEntityGroupProps = {
   entities: EntityReference[];
   maxUsers?: number;
 };
 
 /**
- * Pill for multiselect user entity properties that shows user avatars in LiveIndicators style
+ * Group display for multiselect user entity properties.
+ * Shows user avatars in an overlapping style.
+ *
+ * Uses --avatar-group-separator CSS variable for the separator color,
+ * allowing parent containers to override on hover states.
  */
-export const UserGroup = (props: UserEntityPillProps) => {
+export const UserGroup = (props: UserEntityGroupProps) => {
   const max = () => props.maxUsers ?? 3;
-  const remaining = createMemo(() => {
-    if (props.entities.length <= max()) return undefined;
-    return props.entities.length - max();
-  });
+
+  const remaining = createMemo(() =>
+    Math.max(0, props.entities.length - max())
+  );
 
   const displayEntities = () => props.entities.slice(0, max());
 
   return (
-    <div class="flex items-center shrink-0 w-fit">
+    <AvatarGroup size="sm">
       <For each={displayEntities()}>
-        {(entity, index) => (
-          <div class={cn('rounded-full ring-1 ring-edge-muted overflow-hidden', index() > 0 && '-ml-2')}>
-            <UserIcon
-              id={entity.entity_id}
-              isDeleted={false}
-              size="xs"
-              suppressClick
-              showTooltip={false}
-            />
-          </div>
+        {(entity) => (
+          <UserIcon
+            id={entity.entity_id}
+            size="sm"
+            suppressClick
+            showTooltip={false}
+          />
         )}
       </For>
+
       <Show when={remaining()}>
-        <div class="-ml-2 z-10 size-4 bg-panel text-ink-muted text-[9px] font-medium rounded-full ring-1 ring-edge-muted flex items-center justify-center">
-          +{remaining()}
-        </div>
+        <AvatarGroup.Count size="sm">+{remaining()}</AvatarGroup.Count>
       </Show>
-    </div>
+    </AvatarGroup>
   );
 };

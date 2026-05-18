@@ -20,6 +20,11 @@ const HoverCardPortalNestedPreviewOpenContext = createContext<
   NestedHoverCardContext | undefined
 >(undefined);
 
+// Top-level open cards. When a new card opens, close any already-open siblings
+// so only one card is visible at a time — Kobalte instances are independent
+// and a missed pointerleave (common during scroll) can leave multiple stranded.
+const openTopLevelHoverCards = new Set<() => void>();
+
 export type HoverCardComponentProps = {
   /** The trigger content to hover over */
   trigger: JSX.Element;
@@ -35,10 +40,23 @@ export type HoverCardComponentProps = {
   gutter?: number;
   /** Additional class for content */
   contentClass?: string;
+  /**
+   * Element type Kobalte should render the trigger as. Defaults to `span`.
+   * Use `div` when the trigger child is itself block-level (e.g. a chip).
+   */
+  triggerAs?: 'span' | 'div';
+  /** Class applied to the underlying trigger element. */
+  triggerClass?: string;
   /** Whether to disable the hover card */
   disabled?: boolean;
   /** Callback when open state changes */
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Optional controlled open state. When provided, the consumer is
+   * responsible for syncing it via `onOpenChange` (e.g. so inner content
+   * can dismiss the card via a close callback).
+   */
+  open?: boolean;
   /** Placement of the hover card */
   placement?: HoverCardRootProps['placement'];
 };
@@ -54,6 +72,15 @@ export function HoverCard(props: HoverCardComponentProps) {
 
   const [nestedOpenCount, setNestedOpenCount] = createSignal(0);
   const [isHoverCardOpen, setIsHoverCardOpen] = createSignal(false);
+  let contentEl: HTMLElement | undefined;
+
+  // Keep the internal open signal in sync with controlled `open` so the
+  // nested-card tracking effect below still fires when consumers control state.
+  createEffect(() => {
+    if (props.open !== undefined) {
+      setIsHoverCardOpen(props.open);
+    }
+  });
 
   createEffect(() => {
     if (isHoverCardOpen()) {
@@ -64,16 +91,58 @@ export function HoverCard(props: HoverCardComponentProps) {
     }
   });
 
+  const closeSelf = () => {
+    setIsHoverCardOpen(false);
+    props.onOpenChange?.(false);
+  };
+
+  const isTopLevel = parentNestedContext === undefined;
+
   const handleOpenChange = (open: boolean) => {
     if (!open && nestedOpenCount() > 0) {
       return;
+    }
+
+    if (open && isTopLevel) {
+      for (const close of openTopLevelHoverCards) {
+        if (close !== closeSelf) close();
+      }
+      openTopLevelHoverCards.add(closeSelf);
+    } else if (!open && isTopLevel) {
+      openTopLevelHoverCards.delete(closeSelf);
     }
 
     setIsHoverCardOpen(open);
     props.onOpenChange?.(open);
   };
 
+  onCleanup(() => {
+    if (isTopLevel) openTopLevelHoverCards.delete(closeSelf);
+  });
+
   const shouldForceMount = () => nestedOpenCount() > 0;
+
+  // Dismiss on scroll outside the card content. Kobalte only listens for
+  // pointermove to detect leaving the trigger, so a static cursor during
+  // rapid scrolling never fires the close — leaving cards stranded as new
+  // triggers slide under the cursor.
+  createEffect(() => {
+    if (!isHoverCardOpen()) return;
+
+    const onScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      if (contentEl && target && contentEl.contains(target)) return;
+      handleOpenChange(false);
+    };
+
+    window.addEventListener('scroll', onScroll, {
+      capture: true,
+      passive: true,
+    });
+    onCleanup(() => {
+      window.removeEventListener('scroll', onScroll, true);
+    });
+  });
 
   return (
     <KobalteHoverCard
@@ -87,16 +156,25 @@ export function HoverCard(props: HoverCardComponentProps) {
       openDelay={props.openDelay ?? 100}
       closeDelay={props.closeDelay ?? 150}
       gutter={props.gutter ?? 8}
-      open={isHoverCardOpen()}
+      open={props.open ?? isHoverCardOpen()}
       onOpenChange={handleOpenChange}
       forceMount={shouldForceMount()}
     >
-      <KobalteHoverCard.Trigger as="span" disabled={props.disabled}>
+      <KobalteHoverCard.Trigger
+        as={props.triggerAs ?? 'span'}
+        class={props.triggerClass}
+        disabled={props.disabled}
+      >
         {props.trigger}
       </KobalteHoverCard.Trigger>
 
       <KobalteHoverCard.Portal>
-        <KobalteHoverCard.Content class={props.contentClass}>
+        <KobalteHoverCard.Content
+          ref={(el) => {
+            contentEl = el;
+          }}
+          class={props.contentClass}
+        >
           <HoverCardPortalNestedPreviewOpenContext.Provider
             value={{ count: nestedOpenCount, setCount: setNestedOpenCount }}
           >

@@ -1,5 +1,5 @@
 import { UnfurlLink } from '@core/component/Link';
-import CaretRight from '@icon/regular/caret-right.svg?component-solid';
+import CaretRight from '@icon/caret-right.svg?component-solid';
 import Globe from '@phosphor-icons/core/regular/globe.svg';
 import { createSignal, For, Show } from 'solid-js';
 import { BaseTool } from './BaseTool';
@@ -65,7 +65,7 @@ const handler = createToolRenderer({
                 }}
               >
                 <CaretRight
-                  class="h-4 w-4 transition-transform"
+                  class="size-4 transition-transform"
                   classList={{
                     'rotate-90': isExpanded(),
                   }}

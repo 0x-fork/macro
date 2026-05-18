@@ -1,11 +1,12 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { ContextMenuContent, MenuItem } from '@core/component/Menu';
-import { isMobile } from '@core/mobile/isMobile';
 import { toast } from '@core/component/Toast/Toast';
+import { isMobile } from '@core/mobile/isMobile';
 import { buildSimpleEntityUrl } from '@core/util/url';
-import CheckIcon from '@icon/regular/check.svg';
+import CheckIcon from '@icon/check.svg';
 import { ContextMenu } from '@kobalte/core/context-menu';
+import type { UnifiedNotification } from '@notifications';
 import {
   getChannelNotificationParams,
   getMostRecentNotification,
@@ -13,14 +14,10 @@ import {
   openNotification,
   stackNotifications,
 } from '@notifications';
-import type { UnifiedNotification } from '@notifications';
-import { Button } from '@ui/components/Button';
-import { Layer } from '@ui/components/Layer';
-import { cn } from '@ui/utils/classname';
+import { Button, cn, Layer } from '@ui';
 import { createEffect, createSignal, For, type JSX, Show } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
 import { CollapsibleList } from '../components/CollapsibleList';
-import { UnreadIndicator } from '../components/UnreadIndicator';
 import type { EntityData } from '../types/entity';
 import type { WithNotification } from '../types/notification';
 import {
@@ -144,7 +141,7 @@ export function NotificationStackRow(props: {
                   <UnreadIndicator active />
                 </span>
                 <div class="shrink-0">
-                  <NotificationSenderIcon stack={props.stack} size="xs" />
+                  <NotificationSenderIcon stack={props.stack} size="sm" />
                 </div>
                 <span class="ph-no-capture truncate min-w-0">
                   <NotificationDescription stack={props.stack} />
@@ -217,7 +214,12 @@ export function CompactPillRow(props: {
       fileType: 'fileType' in entity ? entity.fileType : undefined,
       subType: 'subType' in entity ? entity.subType : undefined,
     };
-    await openNotification(mostRecent, splitManager, e.shiftKey, entityOverride);
+    await openNotification(
+      mostRecent,
+      splitManager,
+      e.shiftKey,
+      entityOverride
+    );
     await notificationSource.markAsRead(mostRecent);
     props.onClick?.(e);
   };
@@ -285,9 +287,11 @@ export function CollapsedSummaryStacks(props: NotificationStacksProps) {
   const summaryText = () => {
     const count = totalCount();
     const senders = uniqueSenders();
-    if (senders.length === 0) return `${count} notification${count > 1 ? 's' : ''}`;
+    if (senders.length === 0)
+      return `${count} notification${count > 1 ? 's' : ''}`;
     if (senders.length === 1) return `${count} from ${senders[0]}`;
-    if (senders.length === 2) return `${count} from ${senders[0]} and ${senders[1]}`;
+    if (senders.length === 2)
+      return `${count} from ${senders[0]} and ${senders[1]}`;
     return `${count} from ${senders[0]}, ${senders[1]} +${senders.length - 2}`;
   };
 
@@ -351,7 +355,12 @@ function TimelineRow(props: {
       fileType: 'fileType' in entity ? entity.fileType : undefined,
       subType: 'subType' in entity ? entity.subType : undefined,
     };
-    await openNotification(mostRecent, splitManager, e.shiftKey, entityOverride);
+    await openNotification(
+      mostRecent,
+      splitManager,
+      e.shiftKey,
+      entityOverride
+    );
     await notificationSource.markAsRead(mostRecent);
     props.onClick?.(e);
   };
@@ -375,7 +384,10 @@ function TimelineRow(props: {
       </div>
       {/* Content */}
       <div
-        class={cn("relative min-w-0 py-2 cursor-pointer hover:bg-ink/5 group/row", isMobile() ? "pr-2" : "pr-8")}
+        class={cn(
+          'relative min-w-0 py-2 cursor-pointer hover:bg-ink/5 group/row',
+          isMobile() ? 'pr-2' : 'pr-8'
+        )}
         onClick={handleClick}
         role="button"
         tabIndex={0}

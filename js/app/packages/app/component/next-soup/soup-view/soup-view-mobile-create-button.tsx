@@ -1,10 +1,10 @@
-import { hapticImpact } from '@core/mobile/haptics';
-import { createMemo, Show } from 'solid-js';
-import type { ListView } from '@app/constants/list-views';
-import { runCreateAction, setCreateMenuOpen } from '../../Launcher';
 import { useAnalytics } from '@app/component/analytics-context';
-import { Button } from './filters-bar/button';
-import PlusIcon from '@icon/regular/plus.svg';
+import type { ListView } from '@app/constants/list-views';
+import { hapticImpact } from '@core/mobile/haptics';
+import PlusIcon from '@icon/plus.svg';
+import { Button } from '@ui';
+import { createMemo, Show } from 'solid-js';
+import { runCreateAction, setCreateMenuOpen } from '../../Launcher';
 
 export function SoupViewMobileCreateButton(props: {
   activeView: () => ListView | undefined;
@@ -65,7 +65,7 @@ export function SoupViewMobileCreateButton(props: {
   return (
     <Show when={createAction()}>
       <Button
-        variant="tertiary"
+        variant="base"
         size="sm"
         class="rounded-md py-1.5 [&_svg]:size-4"
         onClick={() => {

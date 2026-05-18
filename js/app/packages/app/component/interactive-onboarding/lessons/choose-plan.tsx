@@ -1,16 +1,16 @@
-import { createSignal, onMount, Show } from 'solid-js';
-import CheckIcon from '@icon/regular/check.svg';
-import SpinnerIcon from '@icon/regular/spinner.svg';
-import type { LessonContentProps, LessonDefinition } from '../types';
+import { useAnalytics } from '@app/component/analytics-context';
 import { PlanGrid } from '@app/component/paywall/PlanGrid';
 import type { PaidPlanTier, PlanTier } from '@app/component/paywall/plans';
-import { useOnboarding } from '../onboarding-context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { ENABLE_INVITE_TEAM_ONBOARDING_OVERRIDE } from '@core/constant/featureFlags';
-import { useOnboardingCheckoutMutation } from '../use-onboarding-checkout';
-import { useAnalytics } from '@app/component/analytics-context';
 import { useIsAuthenticated } from '@core/auth';
 import { toast } from '@core/component/Toast/Toast';
+import { ENABLE_INVITE_TEAM_ONBOARDING_OVERRIDE } from '@core/constant/featureFlags';
+import CheckIcon from '@icon/check.svg';
+import SpinnerIcon from '@icon/spinner.svg';
+import { createSignal, onMount, Show } from 'solid-js';
+import { useOnboarding } from '../onboarding-context';
+import type { LessonContentProps, LessonDefinition } from '../types';
+import { useOnboardingCheckoutMutation } from '../use-onboarding-checkout';
 
 function ChoosePlanContent(props: LessonContentProps) {
   onMount(() => props.onComplete());
@@ -32,8 +32,8 @@ function ChoosePlanDemo(props: LessonContentProps) {
     enabledOverride: ENABLE_INVITE_TEAM_ONBOARDING_OVERRIDE,
   });
 
-  // Returns to /welcome?subscriptionSuccess=true on success, which triggers
-  // completeOnParam and lands the user on the next lesson (team-choice or launch).
+  // Returns to /welcome?subscriptionSuccess=true on success, which completes
+  // all lessons except launch, landing the user on the launch lesson.
   const checkoutMutation = useOnboardingCheckoutMutation({
     onSuccess: (result) => {
       analytics.track('subscription_start', {
@@ -89,7 +89,7 @@ function ChoosePlanDemo(props: LessonContentProps) {
   };
 
   return (
-    <div class="h-full w-full flex items-center justify-center px-8">
+    <div class="size-full flex items-center justify-center px-8">
       <PlanGrid
         footer={(plan) => (
           <button
@@ -101,7 +101,7 @@ function ChoosePlanDemo(props: LessonContentProps) {
             disabled={isPending()}
             class="w-full py-2 rounded-xs text-base font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             classList={{
-              'bg-accent text-panel':
+              'bg-accent text-surface':
                 plan.highlighted && selectedPlan() !== plan.tier,
               'bg-accent/20 text-accent': selectedPlan() === plan.tier,
               'bg-ink/8 text-ink hover:bg-ink/12':

@@ -4,13 +4,13 @@ import { EntityIcon } from '@core/component/EntityIcon';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { unifiedListMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
-import CheckIcon from '@icon/regular/check.svg';
+import CheckIcon from '@icon/check.svg';
 import {
   type NotificationStack,
   openNotification,
   type UnifiedNotification,
 } from '@notifications';
-import { Button } from '@ui/components/Button';
+import { Button } from '@ui';
 import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import type { Notification } from '../types/notification';
 import { extractMessageContent } from '../utils/notification';
@@ -22,7 +22,9 @@ interface NotificationContentProps {
   singleLine?: boolean;
 }
 
-function DocumentMentionPill(props: { notification: UnifiedNotification }) {
+export function DocumentMentionPill(props: {
+  notification: UnifiedNotification;
+}) {
   const notificationSource = useGlobalNotificationSource();
   const { markAsDone } = useNotificationActions({
     notification: props.notification,
@@ -50,7 +52,7 @@ function DocumentMentionPill(props: { notification: UnifiedNotification }) {
 
   return (
     <div
-      class="group relative flex items-center gap-1.5 px-2 py-1 rounded border border-ink/10 bg-ink/[0.03] hover:bg-ink/5 text-xs min-w-0 max-w-48 shrink-0"
+      class="group relative flex items-center gap-1.5 px-2 py-1 rounded border border-ink/10 bg-ink/[0.03] hover:bg-ink/5 text-xs text-ink-muted min-w-0 max-w-48 shrink-0"
       onClick={handleClick}
       role="button"
       tabIndex={0}
@@ -58,7 +60,7 @@ function DocumentMentionPill(props: { notification: UnifiedNotification }) {
       <EntityIcon targetType={targetType()} size="xs" />
       <span class="truncate min-w-0">{documentName()}</span>
       <Button
-        class="absolute -top-2 -right-2 size-6 rounded-full bg-panel border border-edge-muted p-0 place-items-center hidden group-hover:grid hover:bg-accent! hover:text-panel!"
+        class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-surface border border-edge-muted/50 p-0 place-items-center hidden group-hover:grid hover:bg-accent! hover:text-surface!"
         tooltip="Mark as done"
         onClick={(e) => {
           e.stopPropagation();
@@ -212,27 +214,42 @@ export function NotificationContent(props: NotificationContentProps) {
     return '';
   };
 
+  const singleDocMention = () => {
+    if (!props.notification) return null;
+    if (props.notification.notification_metadata.tag !== 'document_mention') {
+      return null;
+    }
+    return props.notification as UnifiedNotification;
+  };
+
   return (
     <Show
       when={props.stack?.type === 'document_mention'}
       fallback={
-        <Show when={content()}>
-          {(text) => (
-            <Show
-              when={text().trim()}
-              fallback={
-                <span class="italic text-ink-disabled">Attached items</span>
-              }
-            >
-              {(trimmedContent) => (
-                <StaticMarkdown
-                  markdown={trimmedContent()}
-                  theme={unifiedListMarkdownTheme}
-                  singleLine={props.singleLine ?? true}
-                />
+        <Show
+          when={singleDocMention()}
+          fallback={
+            <Show when={content()}>
+              {(text) => (
+                <Show
+                  when={text().trim()}
+                  fallback={
+                    <span class="italic text-ink-disabled">Attached items</span>
+                  }
+                >
+                  {(trimmedContent) => (
+                    <StaticMarkdown
+                      markdown={trimmedContent()}
+                      theme={unifiedListMarkdownTheme}
+                      singleLine={props.singleLine ?? true}
+                    />
+                  )}
+                </Show>
               )}
             </Show>
-          )}
+          }
+        >
+          {(n) => <DocumentMentionPill notification={n()} />}
         </Show>
       }
     >

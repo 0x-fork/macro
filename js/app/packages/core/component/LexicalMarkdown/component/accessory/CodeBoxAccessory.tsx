@@ -3,24 +3,22 @@
  * language selector.
  */
 import { isInBlock, useIsNestedBlock } from '@core/block';
-import { cn } from '@ui/utils/classname';
-
 import { DropdownMenuContent, MenuItem } from '@core/component/Menu';
 import { toast } from '@core/component/Toast/Toast';
 import { ENABLE_SVG_PREVIEW } from '@core/constant/featureFlags';
-import Braces from '@icon/regular/brackets-curly.svg';
-import Copy from '@icon/regular/copy.svg';
-import FileC from '@icon/regular/file-c.svg';
-import FileCode from '@icon/regular/file-code.svg';
-import FileCpp from '@icon/regular/file-cpp.svg';
-import FileCss from '@icon/regular/file-css.svg';
-import FileHtml from '@icon/regular/file-html.svg';
-import FileJs from '@icon/regular/file-js.svg';
-import FileMd from '@icon/regular/file-md.svg';
-import FilePy from '@icon/regular/file-py.svg';
-import FileRs from '@icon/regular/file-rs.svg';
-import FileSql from '@icon/regular/file-sql.svg';
-import FileTs from '@icon/regular/file-ts.svg';
+import Braces from '@icon/brackets-curly.svg';
+import Copy from '@icon/copy.svg';
+import FileC from '@icon/file-c.svg';
+import FileCode from '@icon/file-code.svg';
+import FileCpp from '@icon/file-cpp.svg';
+import FileCss from '@icon/file-css.svg';
+import FileHtml from '@icon/file-html.svg';
+import FileJs from '@icon/file-js.svg';
+import FileMd from '@icon/file-md.svg';
+import FilePy from '@icon/file-py.svg';
+import FileRs from '@icon/file-rs.svg';
+import FileSql from '@icon/file-sql.svg';
+import FileTs from '@icon/file-ts.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import { Switch } from '@kobalte/core/switch';
 import { $isCodeNode, CodeNode } from '@lexical/code';
@@ -30,10 +28,11 @@ import {
   normalizedLanguage,
   type SupportedLanguage,
 } from '@lexical-core';
+import { Button, cn } from '@ui';
 import {
   $getNodeByKey,
-  type LexicalEditor,
   type EditorThemeClasses,
+  type LexicalEditor,
   type NodeKey,
 } from 'lexical';
 import {
@@ -47,7 +46,6 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { glueToElement } from '../../directive/glueToElement';
 import { autoRegister } from '../../plugins/shared/utils';
-import { Button } from '@ui/components/Button';
 
 false && glueToElement;
 
@@ -252,7 +250,7 @@ export function CodeBoxAccessory(props: {
                 >
                   <Switch.Input class="sr-only" />
                   <Switch.Control class="inline-flex h-4 w-8 hover:ring-1 hover:ring-edge rounded-full border-2 border-transparent transition-colors bg-edge focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 data-checked:bg-accent">
-                    <Switch.Thumb class="block h-3 w-3 rounded-full bg-dialog transition-transform data-checked:translate-x-4" />
+                    <Switch.Thumb class="block size-3 rounded-full bg-surface transition-transform data-checked:translate-x-4" />
                   </Switch.Control>
                 </Switch>
               </div>
@@ -345,10 +343,10 @@ function SvgPreview(props: { svgContent: () => string; overlay?: boolean }) {
       };
 
       return (
-        <div class="w-full h-full overflow-hidden p-2">
+        <div class="size-full overflow-hidden p-2">
           <div
             ref={setContainerRef}
-            class="w-full h-full flex items-center justify-center min-h-0"
+            class="size-full flex items-center justify-center min-h-0"
             innerHTML={sanitizedContent}
           />
         </div>
@@ -364,7 +362,7 @@ function SvgPreview(props: { svgContent: () => string; overlay?: boolean }) {
   };
 
   return (
-    <div class={'absolute top-12 left-0 right-0 bottom-0 z-10 p-2'}>
+    <div class={'absolute top-12 inset-x-0 bottom-0 z-10 p-2'}>
       {renderSvg()}
     </div>
   );
@@ -419,7 +417,7 @@ export const StaticCodeBoxAccessory = (props: {
               <Switch checked={isPreviewMode()} onChange={setIsPreviewMode}>
                 <Switch.Input class="sr-only" />
                 <Switch.Control class="inline-flex h-4 w-8 hover:ring-1 hover:ring-edge rounded-full border-2 border-transparent transition-colors bg-edge focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 data-checked:bg-accent">
-                  <Switch.Thumb class="block h-3 w-3 rounded-full transition-transform data-checked:translate-x-4 bg-dialog" />
+                  <Switch.Thumb class="block size-3 rounded-full transition-transform data-checked:translate-x-4 bg-surface" />
                 </Switch.Control>
               </Switch>
             </div>

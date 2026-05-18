@@ -1,8 +1,10 @@
-import { useDateSearch } from '@core/util/dateSearch/useDateSearch';
-import { useSearchInputFocus } from '@core/component/Properties/utils';
 import { DatePickerUI } from '@core/component/DatePicker/DatePickerUI';
-import { cn } from '@ui/utils/classname';
-import SearchIcon from '@icon/regular/magnifying-glass.svg';
+import type { DateProperty } from '@core/component/Properties/types';
+import { useSearchInputFocus } from '@core/component/Properties/utils';
+import { useDateSearch } from '@core/util/dateSearch/useDateSearch';
+import { useKeyPressed } from '@core/util/useKeyPressed';
+import SearchIcon from '@icon/magnifying-glass.svg';
+import { cn } from '@ui';
 import { format } from 'date-fns';
 import {
   createEffect,
@@ -16,8 +18,6 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import type { DateProperty } from '@core/component/Properties/types';
-import { useKeyPressed } from '@core/util/useKeyPressed';
 
 type DateSelectorMode = 'search' | 'calendar';
 
@@ -144,7 +144,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
   return (
     <div class="relative">
       <div class="flex w-full items-center gap-2 px-2 py-2 border-b border-edge-muted/50">
-        <SearchIcon class="h-4 w-4 text-ink-muted shrink-0" />
+        <SearchIcon class="size-4 text-ink-muted shrink-0" />
         <input
           class="w-full text-sm caret-accent bg-transparent placeholder:text-ink-muted outline-none"
           ref={searchInputRef}
@@ -167,7 +167,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
       <Switch>
         <Match when={mode() === 'search'}>
           <Show when={props.selectedDate}>
-            <div class="px-3 py-2 border-b border-edge-muted pattern pattern-edge-muted pattern-dot-4">
+            <div class="px-3 py-2 border-b border-edge-muted">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-ink-muted">Current:</span>
@@ -186,7 +186,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
           </Show>
 
           <div class="p-1">
-            <div class="max-h-[200px] overflow-y-auto overflow-x-hidden scrollbar-hidden flex flex-col gap-0.5">
+            <div class="max-h-50 overflow-y-auto overflow-x-hidden scrollbar-hidden flex flex-col gap-0.5">
               <Show
                 when={dateOptions().length > 0}
                 fallback={

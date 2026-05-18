@@ -1,24 +1,23 @@
 import { SplitHeaderRight } from '@app/component/split-layout/components/SplitHeader';
-import { FormatButtons } from '@channel/Input/FormatButtons';
 import { EmailDateSelector } from '@block-email/component/email-date-selector';
 import { MAX_ATTACHMENTS_BYTES_SIZE } from '@block-email/constants';
+import { FormatButtons } from '@channel/Input/FormatButtons';
 import { DropdownMenuContent, MenuItem } from '@core/component/Menu';
 import { toast } from '@core/component/Toast/Toast';
-import { Tooltip } from '@core/component/Tooltip';
 import { ENABLE_EMAIL_SCHEDULED_SEND } from '@core/constant/featureFlags';
 import { fileSelector } from '@core/directive/fileSelector';
 import { isMobile } from '@core/mobile/isMobile';
 import { plural } from '@core/util/string';
-import ArrowUp from '@icon/bold/arrow-up-bold.svg';
-import TextAa from '@icon/regular/text-aa.svg';
-import Trash from '@icon/regular/trash.svg';
+import PaperPlaneRight from '@icon/paper-plane-right.svg?component-solid';
+import PaperclipIcon from '@icon/paperclip.svg?component-solid';
+import TextAa from '@icon/text-aa.svg';
+import Trash from '@icon/trash.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import PaperPlane from '@macro-icons/wide/paper-plane-cutout.svg';
 import DotsThreeIcon from '@phosphor-icons/core/bold/dots-three-bold.svg?component-solid';
 import Spinner from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
-import PaperclipIcon from '@phosphor-icons/core/regular/paperclip.svg?component-solid';
 import PaperclipHorizontalIcon from '@phosphor-icons/core/regular/paperclip-horizontal.svg?component-solid';
-import { Button } from '@ui/components/Button';
+import { Button, Tooltip } from '@ui';
 import { defaultSelectionData } from 'core/component/LexicalMarkdown/plugins';
 import {
   NODE_TRANSFORM,
@@ -75,7 +74,6 @@ export function EmailComposeToolbar(props: {
         <div class="flex flex-row w-full gap-2 items-center p-2 -ml-3">
           <FormatButtons
             selectionState={() => defaultSelectionData}
-            includeQuote
             onInlineFormat={(format) => {
               props.editor?.()?.dispatchCommand(FORMAT_TEXT_COMMAND, format);
             }}
@@ -106,15 +104,15 @@ export function EmailComposeToolbar(props: {
                     }))
                   }
                   tooltip="Attach"
-                  class="aspect-square p-1"
+                  size="icon-sm"
                   disabled={ctx.disabled()}
                 >
-                  <PaperclipIcon class="h-5" />
+                  <PaperclipIcon />
                 </Button>
               </div>
             </Show>
             <Button
-              variant="ghost"
+              tooltip="Format"
               size="icon-sm"
               disabled={ctx.disabled()}
               onClick={() => {
@@ -144,7 +142,7 @@ export function EmailComposeToolbar(props: {
           <div class="flex items-center gap-2">
             <Show when={ctx.onSaveDraft}>
               <Button
-                variant="secondary"
+                variant="base"
                 size="sm"
                 disabled={
                   ctx.isSending() || ctx.isSavingDraft?.() || ctx.disabled()
@@ -154,10 +152,10 @@ export function EmailComposeToolbar(props: {
                 {ctx.isSavingDraft?.() ? 'Saving…' : 'Save Draft'}
               </Button>
             </Show>
-            <Tooltip
-              tooltip={ctx.sendTime() ? 'Send time is scheduled' : undefined}
-            >
-              <button
+            <Tooltip label={ctx.sendTime() ? 'Send time is scheduled' : ''}>
+              <Button
+                tooltip="Send"
+                size="icon-sm"
                 disabled={
                   ctx.isSending() ||
                   ctx.isSavingDraft?.() ||
@@ -165,17 +163,14 @@ export function EmailComposeToolbar(props: {
                   !!ctx.sendTime()
                 }
                 onClick={() => ctx.onSend()}
-                class="text-ink-muted hover:scale-115 transition ease-in-out flex-col items-center rounded-full p-[0.25lh] hover:bg-transparent disabled:opacity-30"
               >
                 <Show
                   when={!ctx.isSending()}
-                  fallback={<Spinner class="size-6 animate-spin" />}
+                  fallback={<Spinner class="animate-spin" />}
                 >
-                  <div class="group hover:bg-accent transition ease-in-out size-6 border border-accent rounded-full flex items-center justify-center p-0">
-                    <ArrowUp class="group-hover:text-input! group-hover:fill-input! text-accent-ink! fill-accent! size-4 transition ease-in-out" />
-                  </div>
+                  <PaperPlaneRight class="text-accent fill-accent" />
                 </Show>
-              </button>
+              </Button>
             </Tooltip>
           </div>
         </Show>
@@ -216,12 +211,10 @@ function MobileToolbar(props: {
             compact
           />
         </Show>
-        <Tooltip
-          tooltip={ctx.sendTime() ? 'Send time is scheduled' : undefined}
-        >
+        <Tooltip label={ctx.sendTime() ? 'Send time is scheduled' : ''}>
           <Show when={ctx.onSaveDraft}>
             <Button
-              variant="secondary"
+              variant="base"
               size="sm"
               disabled={
                 ctx.isSending() || ctx.isSavingDraft?.() || ctx.disabled()

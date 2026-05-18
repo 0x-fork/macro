@@ -1,9 +1,9 @@
-import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
 import type { BlockTool } from '@app/component/ResponsiveBlockToolbar';
 import {
   ResponsiveBlockToolbar,
   ResponsivePermissionsBadge,
 } from '@app/component/ResponsiveBlockToolbar';
+import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
 import type { FileOperation } from '@app/component/split-layout/components/SplitFileMenu';
 import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
 import { BlockItemSplitLabel } from '@app/component/split-layout/components/SplitLabel';
@@ -13,8 +13,8 @@ import { useIsAuthenticated } from '@core/auth';
 import { useBlockId } from '@core/block';
 import { DETAILS_DRAWER_ID } from '@core/component/DetailsDrawer';
 import {
-  ReferencesButton,
   REFERENCES_DRAWER_ID,
+  ReferencesButton,
 } from '@core/component/ReferencesModal';
 import {
   getShareDrawerRecipientInput,
@@ -23,9 +23,9 @@ import {
 } from '@core/component/TopBar/ShareButton';
 import { ENABLE_REFERENCES_MODAL } from '@core/constant/featureFlags';
 import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
-import Info from '@icon/regular/info.svg';
-import Notepad from '@icon/regular/notepad.svg';
-import Quotes from '@icon/regular/quotes.svg';
+import Info from '@icon/info.svg';
+import Notepad from '@icon/notepad.svg';
+import Quotes from '@icon/quotes.svg';
 import IconShared from '@macro-icons/wide/share.svg';
 import { useOpenInstructionsMd } from 'core/component/AI/util/instructions';
 

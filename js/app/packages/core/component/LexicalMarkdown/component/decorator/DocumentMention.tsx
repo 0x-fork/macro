@@ -28,9 +28,9 @@ import { formatDate } from '@core/util/date';
 import { matches } from '@core/util/match';
 import { openInNewSplitForMention } from '@core/util/openInNewSplit';
 import { useSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
-import EyeSlashDuo from '@icon/duotone/eye-slash-duotone.svg';
-import TrashSimple from '@icon/duotone/trash-simple-duotone.svg';
-import LoadingSpinner from '@icon/regular/spinner.svg';
+import EyeSlashDuo from '@icon/eye-slash.svg';
+import LoadingSpinner from '@icon/spinner.svg';
+import TrashSimple from '@icon/trash-simple.svg';
 import {
   $convertMentionToCard,
   $isDocumentMentionNode,
@@ -111,7 +111,7 @@ function Spinner() {
   );
 }
 
-function Loading(props: { collapsed?: boolean }) {
+function _Loading(props: { collapsed?: boolean }) {
   return (
     <MentionContainer
       icon={<Spinner />}
@@ -460,7 +460,9 @@ export function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
   const resolvedBlockName = createMemo(() => {
     const i = item();
     if (!i.loading && i.access === 'access') {
-      return itemToBlockName(i) ?? props.blockName;
+      // NOTE: this is a hack around invalid "unknown" fallback
+      const resolved = itemToBlockName(i);
+      if (resolved && resolved !== 'unknown') return resolved;
     }
     return props.blockName;
   });
@@ -555,7 +557,7 @@ export function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
       trigger={
         <span class="relative">
           <span
-            class="w-full h-full py-0.5 cursor-default rounded-xs hover:bg-hover focus:bg-active"
+            class="size-full py-0.5 cursor-default rounded-xs hover:bg-hover focus:bg-active"
             classList={{
               'bg-active text-ink': isSelectedAsNode(),
             }}

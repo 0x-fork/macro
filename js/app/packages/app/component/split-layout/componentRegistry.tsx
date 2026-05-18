@@ -1,5 +1,7 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import { getViewPreset } from '@app/component/app-sidebar/soup-filter-presets';
+import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
+import type { Query } from '@app/component/next-soup/filters/filter-store/types';
 import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
 import { MobileHome } from '@app/component/mobile/MobileHome';
 import { ChannelCompose } from '@block-channel/component/Compose';
@@ -15,8 +17,6 @@ import { useAutomationEntities } from '@queries/agent-schedule/entities';
 import { type Component, type JSXElement, lazy, onMount, Show } from 'solid-js';
 import { EmailCompose } from '../../../block-email/component/compose/Compose';
 import { SettingsPanelComponentWrapper } from '../settings/Settings';
-import type { Query } from '@app/component/next-soup/filters/filter-store/types';
-import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import type { SplitContent } from './layoutManager';
 import { useSplitPanelOrThrow } from './layoutUtils';
 
@@ -317,6 +317,10 @@ registerComponent(
 
 if (LOCAL_ONLY) {
   registerComponent(
+    'theme-debug',
+    lazy(() => import('@core/internal/ThemeDebug'))
+  );
+  registerComponent(
     'core',
     lazy(() => import('@core/internal/App'))
   );
@@ -357,12 +361,6 @@ if (LOCAL_ONLY) {
     lazy(() => import('@core/component/AI/component/debug/HttpStream'))
   );
   registerComponent(
-    'new-form-primitives',
-    lazy(
-      () => import('@core/component/FormControls/debug/NewFormPrimitivesDemo')
-    )
-  );
-  registerComponent(
     'resize',
     lazy(() => import('@core/internal/ResizeDemo'))
   );
@@ -394,6 +392,11 @@ if (LOCAL_ONLY) {
   registerComponent(
     'hotkey-debugger',
     lazy(() => import('@app/component/HotkeyDebugger'))
+  );
+
+  registerComponent(
+    'user-icon',
+    lazy(() => import('@core/internal/UserIconDemo'))
   );
 }
 

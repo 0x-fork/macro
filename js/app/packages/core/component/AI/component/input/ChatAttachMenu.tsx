@@ -20,9 +20,9 @@ import {
   offset,
   shift,
 } from '@floating-ui/dom';
-import DeviceMobileIcon from '@icon/regular/device-mobile-speaker.svg';
-import LaptopIcon from '@icon/regular/laptop.svg';
-import SearchIcon from '@icon/regular/magnifying-glass.svg';
+import DeviceMobileIcon from '@icon/device-mobile-speaker.svg';
+import LaptopIcon from '@icon/laptop.svg';
+import SearchIcon from '@icon/magnifying-glass.svg';
 import type { HistoryItem } from '@queries/history/history';
 import {
   createEffect,
@@ -254,7 +254,7 @@ export function ChatAttachMenu(props: ChatAttachMenuProps) {
         >
           <OldMenu>
             <div class="flex flex-row items-center w-full p-2 gap-2 text-sm border-b border-edge text-ink">
-              <SearchIcon class="w-3 h-3" />
+              <SearchIcon class="size-3" />
               <input
                 ref={setSearchInputRef}
                 value={input()}
@@ -290,7 +290,7 @@ export function ChatAttachMenu(props: ChatAttachMenuProps) {
                 placeholder="Search Attachments"
               />
             </div>
-            <div class="flex flex-col gap-1 max-h-[250px] w-[300px] overflow-y-auto">
+            <div class="flex flex-col gap-1 max-h-62.5 w-75 overflow-y-auto">
               <Show
                 when={rankedHistory().length > 0}
                 fallback={

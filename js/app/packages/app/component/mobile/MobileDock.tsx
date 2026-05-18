@@ -2,23 +2,29 @@ import type { ListView } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { focusInput } from '@core/directive/focusInput';
 import { hapticImpact } from '@core/mobile/haptics';
-import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
-import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
-import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
+import DotsThreeIcon from '@icon/dots-three.svg';
+import HouseIcon from '@icon/house.svg';
+import PlusIcon from '@icon/plus.svg';
 import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
 import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
 import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
+import { AnimatedInboxIcon } from '@macro-icons/wide/animating/inbox';
+import { AnimatedSearchIcon } from '@macro-icons/wide/animating/search';
 import { AnimatedStarIcon } from '@macro-icons/wide/animating/star';
-import HouseIcon from '@icon/regular/house.svg';
-import PlusIcon from '@icon/regular/plus.svg';
-import DotsThreeIcon from '@icon/regular/dots-three.svg';
+import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
+import { useUserNotificationsQuery } from '@queries/notification/user-notifications';
 import { useLocation } from '@solidjs/router';
-import { cn } from '@ui/utils/classname';
-import { type Component, createMemo, createSignal, type JSX, Show, For } from 'solid-js';
+import { cn } from '@ui';
+import {
+  type Component,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  Show,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { useSplitLayout } from '../split-layout/layout';
-import { SearchState } from './mobileSearchState';
-import { useUserNotificationsQuery } from '@queries/notification/user-notifications';
 import { MobileCreateDrawer } from './MobileCreateDrawer';
 import { MobileDrawer } from './MobileDrawer';
 
@@ -27,7 +33,9 @@ false && focusInput;
 const ICON_ANIMATION_DURATION_MS = 500;
 
 type DockItemProps = {
-  icon: Component<JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }>;
+  icon: Component<
+    JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }
+  >;
   label: string;
   onClick: () => void;
   active?: boolean;
@@ -48,28 +56,37 @@ function DockItem(props: DockItemProps) {
       }}
       class="relative flex items-center justify-center px-2 py-1.5 min-w-0"
     >
-      <div class={cn(
-        'relative flex items-center justify-center h-10 rounded-full transition-all',
-        props.active ? 'bg-accent/25 px-4' : 'px-2'
-      )}>
-        <div class={cn(
-          'size-5 [&_svg]:size-5 transition-colors',
-          props.active ? 'text-accent' : 'text-ink-muted'
-        )}>
-          <Dynamic component={props.icon} triggerAnimation={animating() || props.active} />
+      <div
+        class={cn(
+          'relative flex items-center justify-center h-10 rounded-full transition-all',
+          props.active ? 'bg-accent/25 px-4' : 'px-2'
+        )}
+      >
+        <div
+          class={cn(
+            'size-5 [&_svg]:size-5 transition-colors',
+            props.active ? 'text-accent' : 'text-ink-muted'
+          )}
+        >
+          <Dynamic
+            component={props.icon}
+            triggerAnimation={animating() || props.active}
+          />
         </div>
         <Show when={(props.badge ?? 0) > 0}>
-          <div class={cn(
-            'absolute top-0.5 size-2 rounded-full bg-accent',
-            props.active ? 'right-1.5' : 'right-0'
-          )} />
+          <div
+            class={cn(
+              'absolute top-0.5 size-2 rounded-full bg-accent',
+              props.active ? 'right-1.5' : 'right-0'
+            )}
+          />
         </Show>
       </div>
     </button>
   );
 }
 
-function SearchDockItem(props: { active: boolean; onClick: () => void }) {
+function _SearchDockItem(props: { active: boolean; onClick: () => void }) {
   const [animating, setAnimating] = createSignal(false);
 
   return (
@@ -86,15 +103,22 @@ function SearchDockItem(props: { active: boolean; onClick: () => void }) {
       }}
       class="relative flex items-center justify-center px-2 py-1.5 min-w-0"
     >
-      <div class={cn(
-        'relative flex items-center justify-center h-10 rounded-full transition-all',
-        props.active ? 'bg-accent/25 px-4' : 'px-2'
-      )}>
-        <div class={cn(
-          'size-5 [&_svg]:size-5 transition-colors',
-          props.active ? 'text-accent' : 'text-ink-muted'
-        )}>
-          <Dynamic component={AnimatedSearchIcon} triggerAnimation={animating() || props.active} />
+      <div
+        class={cn(
+          'relative flex items-center justify-center h-10 rounded-full transition-all',
+          props.active ? 'bg-accent/25 px-4' : 'px-2'
+        )}
+      >
+        <div
+          class={cn(
+            'size-5 [&_svg]:size-5 transition-colors',
+            props.active ? 'text-accent' : 'text-ink-muted'
+          )}
+        >
+          <Dynamic
+            component={AnimatedSearchIcon}
+            triggerAnimation={animating() || props.active}
+          />
         </div>
       </div>
     </button>
@@ -124,7 +148,9 @@ function CreateButton() {
 
 interface MoreMenuItem {
   id: ListView;
-  icon: Component<JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }>;
+  icon: Component<
+    JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }
+  >;
   label: string;
   color: string;
   bgColor: string;
@@ -137,11 +163,25 @@ function MoreMenu(props: {
   const [open, setOpen] = createSignal(false);
 
   const menuItems: MoreMenuItem[] = [
-    { id: 'documents', icon: AnimatedFileMdIcon, label: 'Documents', color: 'text-note', bgColor: 'bg-note/10' },
-    { id: 'agents', icon: AnimatedStarIcon, label: 'Agents', color: 'text-chat', bgColor: 'bg-chat/10' },
+    {
+      id: 'documents',
+      icon: AnimatedFileMdIcon,
+      label: 'Documents',
+      color: 'text-note',
+      bgColor: 'bg-note/10',
+    },
+    {
+      id: 'agents',
+      icon: AnimatedStarIcon,
+      label: 'Agents',
+      color: 'text-chat',
+      bgColor: 'bg-chat/10',
+    },
   ];
 
-  const isAnyActive = createMemo(() => menuItems.some(item => props.isActive(item.id)));
+  const isAnyActive = createMemo(() =>
+    menuItems.some((item) => props.isActive(item.id))
+  );
 
   const handleSelect = (id: ListView) => {
     hapticImpact('light');
@@ -150,19 +190,28 @@ function MoreMenu(props: {
   };
 
   return (
-    <MobileDrawer open={open()} onOpenChange={setOpen} side="bottom" breakPoints={[0.5]}>
+    <MobileDrawer
+      open={open()}
+      onOpenChange={setOpen}
+      side="bottom"
+      breakPoints={[0.5]}
+    >
       <MobileDrawer.Trigger
         class="relative flex items-center justify-center px-2 py-1.5 min-w-0"
         onClick={() => hapticImpact('light')}
       >
-        <div class={cn(
-          'relative flex items-center justify-center h-10 rounded-full transition-all',
-          isAnyActive() ? 'bg-accent/25 px-4' : 'px-2'
-        )}>
-          <div class={cn(
-            'size-5 [&_svg]:size-5 transition-colors',
-            isAnyActive() ? 'text-accent' : 'text-ink-muted'
-          )}>
+        <div
+          class={cn(
+            'relative flex items-center justify-center h-10 rounded-full transition-all',
+            isAnyActive() ? 'bg-accent/25 px-4' : 'px-2'
+          )}
+        >
+          <div
+            class={cn(
+              'size-5 [&_svg]:size-5 transition-colors',
+              isAnyActive() ? 'text-accent' : 'text-ink-muted'
+            )}
+          >
             <DotsThreeIcon />
           </div>
         </div>
@@ -181,21 +230,29 @@ function MoreMenu(props: {
                     onClick={() => handleSelect(item.id)}
                     class={cn(
                       'flex flex-col items-center gap-2 p-3 rounded-2xl transition-colors',
-                      props.isActive(item.id) ? 'bg-accent/10' : 'bg-ink/5 active:bg-ink/10'
+                      props.isActive(item.id)
+                        ? 'bg-accent/10'
+                        : 'bg-ink/5 active:bg-ink/10'
                     )}
                   >
-                    <div class={cn(
-                      'size-10 rounded-xl flex items-center justify-center',
-                      item.bgColor
-                    )}>
+                    <div
+                      class={cn(
+                        'size-10 rounded-xl flex items-center justify-center',
+                        item.bgColor
+                      )}
+                    >
                       <div class={cn('size-5 [&_svg]:size-5', item.color)}>
                         <item.icon />
                       </div>
                     </div>
-                    <span class={cn(
-                      'text-xs',
-                      props.isActive(item.id) ? 'text-accent font-medium' : 'text-ink'
-                    )}>
+                    <span
+                      class={cn(
+                        'text-xs',
+                        props.isActive(item.id)
+                          ? 'text-accent font-medium'
+                          : 'text-ink'
+                      )}
+                    >
                       {item.label}
                     </span>
                   </button>
@@ -238,7 +295,7 @@ export function MobileDock() {
   return (
     <div class="fixed bottom-0 inset-x-0 z-mobile-nav-bar px-4 pb-3 pointer-events-none">
       <div class="flex flex-row items-center gap-2 pointer-events-auto">
-        <div class="flex flex-row items-center bg-panel/50 backdrop-blur-2xl backdrop-saturate-150 rounded-full py-1 px-1 border border-edge">
+        <div class="flex flex-row items-center bg-surface/50 backdrop-blur-2xl backdrop-saturate-150 rounded-full py-1 px-1 border border-edge">
           <DockItem
             icon={HouseIcon}
             label="Home"
@@ -272,7 +329,7 @@ export function MobileDock() {
           />
           <MoreMenu isActive={isActive} navigate={navigate} />
         </div>
-        <div class="bg-panel/50 backdrop-blur-2xl backdrop-saturate-150 rounded-full border border-edge">
+        <div class="bg-surface/50 backdrop-blur-2xl backdrop-saturate-150 rounded-full border border-edge">
           <CreateButton />
         </div>
       </div>

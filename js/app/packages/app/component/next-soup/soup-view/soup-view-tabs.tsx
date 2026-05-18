@@ -1,15 +1,18 @@
 import {
-  VIEW_TAB_PRESETS,
-  type PresetContext,
   getViewPreset,
+  type PresetContext,
 } from '@app/component/app-sidebar/soup-filter-presets';
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { isListViewID, type ListView } from '@app/constants/list-views';
+import type { TabItem } from '@core/component/Tabs';
 import { useUserContext } from '@core/context/user';
-import { cn } from '@ui/utils/classname';
-import { Tabs } from '@core/component/Tabs';
+import ArrowLeftIcon from '@icon/arrow-left.svg';
+import ArrowRightIcon from '@icon/arrow-right.svg';
+import ChevronDownIcon from '@icon/caret-down.svg';
+import DotsThreeIcon from '@icon/dots-three.svg';
+import { cn, Dropdown, Layer } from '@ui';
 import {
   batch,
   createEffect,
@@ -22,17 +25,6 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-
-type TabItem = {
-  value: string;
-  label: string;
-};
-import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import { Layer } from '@ui';
-import ChevronDownIcon from '@icon/regular/caret-down.svg';
-import DotsThreeIcon from '@icon/regular/dots-three.svg';
-import ArrowLeftIcon from '@icon/regular/arrow-left.svg';
-import ArrowRightIcon from '@icon/regular/arrow-right.svg';
 
 /** Views that have tab definitions. Shared between VIEW_TAB_LISTS and VIEW_TAB_PRESETS. */
 export type TabbedListView = Extract<
@@ -125,6 +117,7 @@ export const useApplyPreset = () => {
       setActiveTab(tabId);
       queryFilters.replace(preset.filters);
       soup.predicates.set(preset.clientFilters);
+      soup.grouping.setActiveGroupId(undefined);
     });
     return true;
   };
@@ -189,7 +182,9 @@ const OverflowViewTabs = (props: { view: TabbedListView }) => {
   let tabWidths: number[] = [];
 
   const [visibleCount, setVisibleCount] = createSignal(list().length);
-  const [containerRef, setContainerRef] = createSignal<HTMLDivElement | null>(null);
+  const [containerRef, setContainerRef] = createSignal<HTMLDivElement | null>(
+    null
+  );
 
   const measureTabWidths = () => {
     if (!measureRef) return;
@@ -207,7 +202,10 @@ const OverflowViewTabs = (props: { view: TabbedListView }) => {
     const gap = 4;
 
     // First check if all tabs fit
-    const totalAllTabs = tabWidths.reduce((sum, w, i) => sum + w + (i > 0 ? gap : 0), 0);
+    const totalAllTabs = tabWidths.reduce(
+      (sum, w, i) => sum + w + (i > 0 ? gap : 0),
+      0
+    );
     if (totalAllTabs <= containerWidth) {
       setVisibleCount(items.length);
       return;
@@ -296,8 +294,8 @@ const OverflowViewTabs = (props: { view: TabbedListView }) => {
 
         {/* Overflow dropdown */}
         <Show when={hasOverflow()}>
-          <DropdownMenu placement="bottom-start" gutter={4}>
-            <DropdownMenu.Trigger
+          <Dropdown placement="bottom-start" gutter={4}>
+            <Dropdown.Trigger
               class={cn(
                 TAB_BUTTON_CLASS,
                 overflowTabs().some((t) => t.value === activeTab())
@@ -306,13 +304,13 @@ const OverflowViewTabs = (props: { view: TabbedListView }) => {
               )}
             >
               <DotsThreeIcon class="size-4" />
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
+            </Dropdown.Trigger>
+            <Dropdown.Portal>
               <Layer depth={2}>
-                <DropdownMenu.Content class="z-action-menu bg-menu border border-edge-muted rounded-sm shadow-sm p-1 min-w-[100px]">
+                <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-sm p-1 min-w-25">
                   <For each={overflowTabs()}>
                     {(item) => (
-                      <DropdownMenu.Item
+                      <Dropdown.Item
                         class="w-full px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
                         classList={{
                           'font-medium text-ink': activeTab() === item.value,
@@ -321,13 +319,13 @@ const OverflowViewTabs = (props: { view: TabbedListView }) => {
                         onSelect={() => applyTabPreset(props.view, item.value)}
                       >
                         {item.label}
-                      </DropdownMenu.Item>
+                      </Dropdown.Item>
                     )}
                   </For>
-                </DropdownMenu.Content>
+                </Dropdown.Content>
               </Layer>
-            </DropdownMenu.Portal>
-          </DropdownMenu>
+            </Dropdown.Portal>
+          </Dropdown>
         </Show>
       </div>
     </div>
@@ -352,17 +350,17 @@ export const CollapsedSoupViewTabs = () => {
   });
 
   return (
-    <DropdownMenu placement="bottom-start" gutter={4}>
-      <DropdownMenu.Trigger class="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-xs border border-edge-muted hover:bg-ink/6 transition-colors">
+    <Dropdown placement="bottom-start" gutter={4}>
+      <Dropdown.Trigger class="flex items-center gap-1">
         <span class="truncate">{activeLabel()}</span>
         <ChevronDownIcon class="size-3 shrink-0" />
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
+      </Dropdown.Trigger>
+      <Dropdown.Portal>
         <Layer depth={2}>
-          <DropdownMenu.Content class="z-action-menu bg-page border border-edge-muted rounded-sm shadow-sm p-1">
+          <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-sm p-1">
             <For each={list()}>
               {(item) => (
-                <DropdownMenu.Item
+                <Dropdown.Item
                   class="w-full px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-md"
                   classList={{
                     'font-semibold': activeTab() === item.value,
@@ -373,13 +371,13 @@ export const CollapsedSoupViewTabs = () => {
                   }}
                 >
                   {item.label}
-                </DropdownMenu.Item>
+                </Dropdown.Item>
               )}
             </For>
-          </DropdownMenu.Content>
+          </Dropdown.Content>
         </Layer>
-      </DropdownMenu.Portal>
-    </DropdownMenu>
+      </Dropdown.Portal>
+    </Dropdown>
   );
 };
 
@@ -396,7 +394,9 @@ export const MobileSoupViewTabs = () => {
       <div class="relative px-3 py-2">
         <Switch>
           <For
-            each={Object.keys(VIEW_TAB_LISTS) as (keyof typeof VIEW_TAB_LISTS)[]}
+            each={
+              Object.keys(VIEW_TAB_LISTS) as (keyof typeof VIEW_TAB_LISTS)[]
+            }
           >
             {(v) => (
               <Match when={listView() === v}>
@@ -493,7 +493,10 @@ const MobileViewTabs = (props: { view: TabbedListView }) => {
       // Scroll to the tab after the last fully visible one
       const nextIdx = lastFullyVisibleIdx + 1;
       if (nextIdx < buttons.length) {
-        const targetScroll = Math.min(buttons[nextIdx].offsetLeft - ARROW_BUTTON_WIDTH, maxScroll);
+        const targetScroll = Math.min(
+          buttons[nextIdx].offsetLeft - ARROW_BUTTON_WIDTH,
+          maxScroll
+        );
         container.scrollTo({ left: targetScroll, behavior: 'smooth' });
       } else {
         container.scrollTo({ left: maxScroll, behavior: 'smooth' });
@@ -523,8 +526,14 @@ const MobileViewTabs = (props: { view: TabbedListView }) => {
       }
 
       const targetIdx = Math.max(0, firstVisibleIdx - tabsInPage);
-      const targetScroll = targetIdx === 0 ? 0 : buttons[targetIdx].offsetLeft - ARROW_BUTTON_WIDTH;
-      container.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' });
+      const targetScroll =
+        targetIdx === 0
+          ? 0
+          : buttons[targetIdx].offsetLeft - ARROW_BUTTON_WIDTH;
+      container.scrollTo({
+        left: Math.max(0, targetScroll),
+        behavior: 'smooth',
+      });
     }
   };
 
@@ -540,90 +549,99 @@ const MobileViewTabs = (props: { view: TabbedListView }) => {
     onCleanup(() => observer.disconnect());
   });
 
-  createEffect(on(activeTab, () => {
-    updateScrollState();
+  createEffect(
+    on(activeTab, () => {
+      updateScrollState();
 
-    // Scroll active tab into view
-    const container = scrollRef();
-    if (!container) return;
+      // Scroll active tab into view
+      const container = scrollRef();
+      if (!container) return;
 
-    const activeIndex = list().findIndex((item) => item.value === activeTab());
-    if (activeIndex === -1) return;
+      const activeIndex = list().findIndex(
+        (item) => item.value === activeTab()
+      );
+      if (activeIndex === -1) return;
 
-    const buttons = container.querySelectorAll('button');
-    const activeButton = buttons[activeIndex] as HTMLElement | undefined;
-    if (!activeButton) return;
+      const buttons = container.querySelectorAll('button');
+      const activeButton = buttons[activeIndex] as HTMLElement | undefined;
+      if (!activeButton) return;
 
-    const containerWidth = container.clientWidth;
-    const scrollLeft = container.scrollLeft;
-    const buttonLeft = activeButton.offsetLeft;
-    const buttonRight = buttonLeft + activeButton.offsetWidth;
-    const inset = hasOverflow() ? ARROW_BUTTON_WIDTH : 0;
+      const containerWidth = container.clientWidth;
+      const scrollLeft = container.scrollLeft;
+      const buttonLeft = activeButton.offsetLeft;
+      const buttonRight = buttonLeft + activeButton.offsetWidth;
+      const inset = hasOverflow() ? ARROW_BUTTON_WIDTH : 0;
 
-    // Check if button is outside visible area (accounting for arrow buttons)
-    if (buttonLeft < scrollLeft + inset) {
-      container.scrollTo({ left: Math.max(0, buttonLeft - inset), behavior: 'smooth' });
-    } else if (buttonRight > scrollLeft + containerWidth - inset) {
-      container.scrollTo({ left: buttonRight - containerWidth + inset, behavior: 'smooth' });
-    }
-  }));
-
-  return (
-    <>
-      <div
-        ref={setScrollRef}
-        class={cn(
-          'flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory',
-          hasOverflow() && 'scroll-pl-7 scroll-pr-7'
-        )}
-        onScroll={updateScrollState}
-      >
-        <For each={list()}>
-          {(item) => (
-            <button
-              type="button"
-              class={cn(
-                MOBILE_TAB_BUTTON_CLASS,
-                'snap-start',
-                activeTab() === item.value
-                  ? 'bg-ink/10 text-ink'
-                  : 'text-ink/50 active:text-ink active:bg-ink/5'
-              )}
-              onClick={() => applyTabPreset(props.view, item.value)}
-            >
-              {item.label}
-            </button>
-          )}
-        </For>
-      </div>
-
-      <button
-        type="button"
-        class={cn(
-          'absolute left-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-panel',
-          (!hasOverflow() || !canScrollLeft()) && 'invisible'
-        )}
-        onClick={() => scroll('left')}
-      >
-        <ArrowLeftIcon class="size-4" />
-        <Show when={activeOffscreenLeft()}>
-          <span class="absolute top-0 right-0 size-1.5 rounded-full bg-accent" />
-        </Show>
-      </button>
-
-      <button
-        type="button"
-        class={cn(
-          'absolute right-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-panel',
-          (!hasOverflow() || !canScrollRight()) && 'invisible'
-        )}
-        onClick={() => scroll('right')}
-      >
-        <ArrowRightIcon class="size-4" />
-        <Show when={activeOffscreenRight()}>
-          <span class="absolute top-0 left-0 size-1.5 rounded-full bg-accent" />
-        </Show>
-      </button>
-    </>
+      // Check if button is outside visible area (accounting for arrow buttons)
+      if (buttonLeft < scrollLeft + inset) {
+        container.scrollTo({
+          left: Math.max(0, buttonLeft - inset),
+          behavior: 'smooth',
+        });
+      } else if (buttonRight > scrollLeft + containerWidth - inset) {
+        container.scrollTo({
+          left: buttonRight - containerWidth + inset,
+          behavior: 'smooth',
+        });
+      }
+    })
   );
+
+  <>
+    <div
+      ref={setScrollRef}
+      class={cn(
+        'flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory',
+        hasOverflow() && 'scroll-pl-7 scroll-pr-7'
+      )}
+      onScroll={updateScrollState}
+    >
+      <For each={list()}>
+        {(item) => (
+          <button
+            type="button"
+            class={cn(
+              MOBILE_TAB_BUTTON_CLASS,
+              'snap-start',
+              activeTab() === item.value
+                ? 'bg-ink/10 text-ink'
+                : 'text-ink/50 active:text-ink active:bg-ink/5'
+            )}
+            onClick={() => applyTabPreset(props.view, item.value)}
+          >
+            {item.label}
+          </button>
+        )}
+      </For>
+    </div>
+
+    <button
+      type="button"
+      class={cn(
+        'absolute left-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-surface',
+        (!hasOverflow() || !canScrollLeft()) && 'invisible'
+      )}
+      onClick={() => scroll('left')}
+    >
+      <ArrowLeftIcon class="size-4" />
+      <Show when={activeOffscreenLeft()}>
+        <span class="absolute top-0 right-0 size-1.5 rounded-full bg-accent" />
+      </Show>
+    </button>
+
+    <button
+      type="button"
+      class={cn(
+        'absolute right-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-surface',
+        (!hasOverflow() || !canScrollRight()) && 'invisible'
+      )}
+      onClick={() => scroll('right')}
+    >
+      <ArrowRightIcon class="size-4" />
+      <Show when={activeOffscreenRight()}>
+        <span class="absolute top-0 left-0 size-1.5 rounded-full bg-accent" />
+      </Show>
+    </button>
+  </>;
+  )
 };

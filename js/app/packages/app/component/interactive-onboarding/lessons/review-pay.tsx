@@ -1,30 +1,28 @@
-import InfoIcon from '@icon/regular/info.svg';
-import { createMemo, createSignal, For, Show } from 'solid-js';
-import type { LessonContentProps, LessonDefinition } from '../types';
 import { useAnalytics } from '@app/component/analytics-context';
-import { toast } from '@core/component/Toast/Toast';
-import { useOnboarding } from '../onboarding-context';
 import {
-  PLANS,
-  PLAN_FEATURES,
   type PaidPlanTier,
+  PLAN_FEATURES,
+  PLANS,
 } from '@app/component/paywall/plans';
-import { useIsAuthenticated } from '@core/auth';
-import ArrowRightIcon from '@icon/regular/arrow-right.svg';
-import LockIcon from '@icon/regular/lock.svg';
-import { Button } from '@ui/components/Button';
-import { cn } from '@ui/utils/classname';
-import {
-  useOnboardingCheckoutMutation,
-  getPendingTeam,
-  clearPendingTeam,
-  savePendingTeam,
-} from '../use-onboarding-checkout';
-import { throwOnErr } from '@core/util/maybeResult';
-import { authServiceClient } from '@service-auth/client';
-import { invalidateUserTeams } from '@queries/team';
 import { analytics } from '@app/lib/analytics/analytics';
-import { Tooltip } from '@core/component/Tooltip';
+import { useIsAuthenticated } from '@core/auth';
+import { toast } from '@core/component/Toast/Toast';
+import { throwOnErr } from '@core/util/maybeResult';
+import ArrowRightIcon from '@icon/arrow-right.svg';
+import InfoIcon from '@icon/info.svg';
+import LockIcon from '@icon/lock.svg';
+import { invalidateUserTeams } from '@queries/team';
+import { authServiceClient } from '@service-auth/client';
+import { Button, cn, Tooltip } from '@ui';
+import { createMemo, createSignal, For, Show } from 'solid-js';
+import { useOnboarding } from '../onboarding-context';
+import type { LessonContentProps, LessonDefinition } from '../types';
+import {
+  clearPendingTeam,
+  getPendingTeam,
+  savePendingTeam,
+  useOnboardingCheckoutMutation,
+} from '../use-onboarding-checkout';
 
 function ReviewPayContent() {
   return (
@@ -40,8 +38,8 @@ function ReviewPayDemo(props: LessonContentProps) {
   const isAuthenticated = useIsAuthenticated();
   const [isRedirecting, setIsRedirecting] = createSignal(false);
 
-  // Returns to /welcome?subscriptionSuccess=true on success, which triggers
-  // completeOnParam and runs onCompleteParam to create the pending team.
+  // Returns to /welcome?subscriptionSuccess=true on success, which completes
+  // all lessons except launch and runs onCompleteParam to create the pending team.
   const checkoutMutation = useOnboardingCheckoutMutation({
     onSuccess: (result) => {
       analytics.track('subscription_start', {
@@ -116,7 +114,7 @@ function ReviewPayDemo(props: LessonContentProps) {
   };
 
   return (
-    <div class="h-full w-full flex items-start justify-center p-12 pt-[12%]">
+    <div class="size-full flex items-start justify-center p-12 pt-[12%]">
       <Show
         when={hasTeam()}
         fallback={
@@ -157,7 +155,7 @@ function ReviewPayDemo(props: LessonContentProps) {
             {/* CTA */}
             <div class="px-5 py-4 flex flex-col gap-2 mt-auto">
               <Button
-                variant="accent"
+                variant="active"
                 size="lg"
                 onClick={handleCheckout}
                 disabled={isPending()}
@@ -232,7 +230,7 @@ function ReviewPayDemo(props: LessonContentProps) {
                     <span class="text-ink/60">
                       Team · {group.plan.name} × {group.count}
                     </span>
-                    <Tooltip tooltip="Charged when invite is accepted">
+                    <Tooltip label="Charged when invite is accepted">
                       <span class="underline decoration-dotted underline-offset-4 italic cursor-help">
                         <span class="text-ink">
                           ${group.plan.price * group.count}
@@ -247,7 +245,7 @@ function ReviewPayDemo(props: LessonContentProps) {
                 <div class="flex justify-between items-center py-2">
                   <span class="text-ink/60 flex items-center gap-1">
                     Total
-                    <Tooltip tooltip="Team charges begin when members accept their invite">
+                    <Tooltip label="Team charges begin when members accept their invite">
                       <InfoIcon class="size-3.5 text-ink/40" />
                     </Tooltip>
                   </span>
@@ -312,7 +310,7 @@ function ReviewPayDemo(props: LessonContentProps) {
           {/* CTA */}
           <div class="pt-4 flex flex-col gap-2">
             <Button
-              variant="accent"
+              variant="active"
               size="lg"
               onClick={handleCheckout}
               disabled={isPending()}
@@ -343,21 +341,20 @@ async function createPendingTeamOnReturn(): Promise<boolean> {
       authServiceClient.createTeam({ name: pendingTeam.name })
     );
 
-    const emails = pendingTeam.members
+    const invites = pendingTeam.members
       .filter((m) => m.email.trim())
-      .map((m) => m.email);
+      .map((m) => ({ email: m.email }));
 
-    if (emails.length > 0) {
-      await throwOnErr(() =>
-        authServiceClient.inviteToTeam(team.id, { emails })
-      );
+    if (invites.length > 0) {
+      await throwOnErr(() => authServiceClient.inviteToTeam({ invites }));
     }
 
     await invalidateUserTeams();
+
     clearPendingTeam();
 
     analytics.track('onboarding_team_created', {
-      inviteCount: emails.length,
+      inviteCount: invites.length,
       teamId: team.id,
     });
 
@@ -376,6 +373,8 @@ export const reviewPayLesson: LessonDefinition = {
   demo: ReviewPayDemo,
   order: 95,
   hideContinue: true,
+  completeOnParam: 'subscriptionSuccess',
+  onCompleteParam: createPendingTeamOnReturn,
   previousLesson: ({ onboarding, isLessonSkipped }) => {
     // When teams feature is disabled, these lessons are skipped
     if (isLessonSkipped('team-choice')) {
@@ -386,6 +385,4 @@ export const reviewPayLesson: LessonDefinition = {
       onboarding.teamName().trim() !== '';
     return hasTeam ? 'invite-team' : 'team-choice';
   },
-  completeOnParam: 'subscriptionSuccess',
-  onCompleteParam: createPendingTeamOnReturn,
 };

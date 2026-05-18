@@ -1,6 +1,6 @@
 import { ChatMessageMarkdown } from '@core/component/AI/component/message/ChatMessageMarkdown';
 import { PulsingStar } from '@entity/components/PulsingStar';
-import CaretRight from '@icon/regular/caret-right.svg?component-solid';
+import CaretRight from '@icon/caret-right.svg?component-solid';
 import StarIcon from '@macro-icons/wide/star.svg';
 import { createSignal, Show } from 'solid-js';
 import { createToolRenderer, useToolError } from './ToolRenderer';
@@ -25,7 +25,7 @@ const handler = createToolRenderer({
         classList={{ 'opacity-50': !!error }}
       >
         <div class="flex w-full items-center gap-x-2">
-          <div class="size-[20px] shrink-0 flex items-center justify-center">
+          <div class="size-5 shrink-0 flex items-center justify-center">
             <Show
               when={!isLoading()}
               fallback={<PulsingStar kind="streamIndicator" animate />}
@@ -55,7 +55,7 @@ const handler = createToolRenderer({
                     }}
                   >
                     <CaretRight
-                      class="h-4 w-4 transition-transform"
+                      class="size-4 transition-transform"
                       classList={{
                         'rotate-90': isExpanded(),
                       }}
@@ -70,7 +70,7 @@ const handler = createToolRenderer({
           </Show>
         </div>
         <Show when={hasResult() && isExpanded()}>
-          <div class="pl-8 mb-2 max-h-[480px] overflow-y-auto text-sm">
+          <div class="pl-8 mb-2 max-h-120 overflow-y-auto text-sm">
             <ChatMessageMarkdown text={result()!} generating={() => false} />
           </div>
         </Show>

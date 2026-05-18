@@ -1,21 +1,19 @@
 import { CREATABLE_BLOCKS, runCreateAction } from '@app/component/Launcher';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { isListViewID, type ListView } from '@app/constants/list-views';
-import { DropdownMenuContent, MenuItem } from '@core/component/Menu';
+import { useHandleFileUpload } from '@app/util/handleFileUpload';
+import type { BlockAlias, BlockName } from '@core/block';
 import { EntityIcon } from '@core/component/EntityIcon';
 import {
   handleFolderSelect,
   openFilePicker,
   openFolderPicker,
 } from '@core/util/upload';
-import { useHandleFileUpload } from '@app/util/handleFileUpload';
-import type { BlockAlias, BlockName } from '@core/block';
-import CaretDownIcon from '@icon/regular/caret-down.svg';
-import PlusIcon from '@icon/regular/plus.svg';
-import UploadIcon from '@icon/regular/upload-simple.svg';
-import { DropdownMenu } from '@kobalte/core/dropdown-menu';
+import CaretDownIcon from '@icon/caret-down.svg';
+import PlusIcon from '@icon/plus.svg';
+import UploadIcon from '@icon/upload-simple.svg';
+import { Button, Dropdown, Layer } from '@ui';
 import { createMemo, For, Show } from 'solid-js';
-import { Button } from './filters-bar/button';
 import { NewCallButton } from './NewCallButton';
 
 // Which blocks to show as create options per view, in order
@@ -137,7 +135,7 @@ export const SoupViewCreateButton = () => {
           when={hasMultipleOptions()}
           fallback={
             <Button
-              variant="tertiary"
+              variant="base"
               size="sm"
               class="rounded-md py-1.5 [&_svg]:size-4"
               onClick={() => handleSelect(primaryOption())}
@@ -156,24 +154,32 @@ export const SoupViewCreateButton = () => {
               <PlusIcon class="size-4" />
               <span>{primaryOption().label}</span>
             </button>
-            <DropdownMenu placement="bottom-end" gutter={4}>
-              <DropdownMenu.Trigger class="flex items-center px-1.5 py-1.5 hover:bg-ink/20 hover:text-ink border-l border-ink/10 transition-colors">
+            <Dropdown placement="bottom-end" gutter={4}>
+              <Dropdown.Trigger class="flex items-center px-1.5 py-1.5 hover:bg-ink/20 hover:text-ink border-l border-ink/10 transition-colors">
                 <CaretDownIcon class="size-3" />
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenuContent class="z-action-menu min-w-[160px]">
-                  <For each={options().slice(1)}>
-                    {(item) => (
-                      <MenuItem
-                        text={item.label}
-                        icon={<CreateOptionIcon id={item.id} />}
-                        onClick={() => handleSelect(item)}
-                      />
-                    )}
-                  </For>
-                </DropdownMenuContent>
-              </DropdownMenu.Portal>
-            </DropdownMenu>
+              </Dropdown.Trigger>
+              <Dropdown.Portal>
+                <Layer depth={2}>
+                  <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-sm min-w-40 p-1">
+                    <For each={options().slice(1)}>
+                      {(item) => (
+                        <Dropdown.Item
+                          class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-md"
+                          onSelect={() => handleSelect(item)}
+                        >
+                          <span class="size-3.5 flex items-center justify-center shrink-0 text-ink-muted">
+                            <CreateOptionIcon id={item.id} />
+                          </span>
+                          <span class="flex-1 truncate text-ink-muted">
+                            {item.label}
+                          </span>
+                        </Dropdown.Item>
+                      )}
+                    </For>
+                  </Dropdown.Content>
+                </Layer>
+              </Dropdown.Portal>
+            </Dropdown>
           </div>
         </Show>
       </Show>
