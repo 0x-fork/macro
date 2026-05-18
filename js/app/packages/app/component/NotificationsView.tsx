@@ -28,12 +28,12 @@ import {
   Switch,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import CaretDownIcon from '@icon/regular/caret-down.svg';
-import CaretRightIcon from '@icon/regular/caret-right.svg';
-import HashIcon from '@icon/regular/hash.svg';
-import UserIcon from '@icon/regular/user.svg';
-import ChatTeardropIcon from '@icon/regular/chat-teardrop.svg';
-import ListChecksIcon from '@icon/regular/list-checks.svg';
+import CaretDownIcon from '@icon/caret-down.svg';
+import CaretRightIcon from '@icon/caret-right.svg';
+import HashIcon from '@icon/hash.svg';
+import UserIcon from '@icon/user.svg';
+import ChatTeardropIcon from '@icon/chat-teardrop.svg';
+import ListChecksIcon from '@icon/list-checks.svg';
 import { VList } from 'virtua/solid';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import {

@@ -2,7 +2,7 @@ import { createMemo, For } from 'solid-js';
 import { hotkeyTokenMap } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
 import { getPrettyHotkeyStringByToken } from '@core/hotkey/utils';
-import { LabelAndHotKey } from '@core/component/Tooltip';
+import { Hotkey } from '@ui';
 
 const MARQUEE_TOKENS = [
   { token: TOKENS.entity.open, fallbackLabel: 'Open' },
@@ -15,8 +15,9 @@ const MARQUEE_TOKENS = [
 ] as const;
 
 const TipItem = (props: { token: (typeof MARQUEE_TOKENS)[number]['token']; label: string }) => (
-  <span class="inline-flex items-center mx-4">
-    <LabelAndHotKey label={props.label} hotkeyToken={props.token} />
+  <span class="inline-flex items-center gap-1.5 mx-4">
+    <span>{props.label}</span>
+    <Hotkey token={props.token} theme="subtle" />
   </span>
 );
 

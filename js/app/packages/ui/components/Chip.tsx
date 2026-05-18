@@ -1,6 +1,6 @@
 import { cn } from '../utils/classname';
 import { type JSX, Show, splitProps } from 'solid-js';
-import XIcon from '@icon/regular/x.svg';
+import XIcon from '@icon/x.svg';
 
 export type ChipSize = 'sm' | 'md' | 'lg';
 export type ChipVariant = 'default' | 'accent' | 'muted';

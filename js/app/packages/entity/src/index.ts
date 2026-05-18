@@ -11,7 +11,14 @@ export {
   ListLayoutProvider,
   useListLayout,
 } from './composed/ListEntity';
-export { StackedListEntity } from './composed/StackedListEntity';
+export {
+  StackedListEntity,
+  TaskPropertyGroup,
+  TaskPropertyPill,
+  useTaskAssignees,
+  useTaskPriority,
+  useTaskStatus,
+} from './composed/StackedListEntity';
 export { default as DebugEntityView } from './debug/DebugEntityView';
 export { Entity } from './entity';
 export { NotificationRow } from './extractors-notification';

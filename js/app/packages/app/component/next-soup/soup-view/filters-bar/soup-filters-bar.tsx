@@ -27,8 +27,14 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
   const soup = useSoup();
   const analytics = useAnalytics();
 
+  const selectableEntities = () =>
+    soup
+      .rows()
+      .filter((r) => !r.getIsGrouped() && !r.getIsLoadMore())
+      .map((r) => r.original);
+
   const selectionCount = () => soup.selection.count();
-  const totalCount = () => soup.data().length;
+  const totalCount = () => selectableEntities().length;
   const hasSelection = () => selectionCount() > 0;
   const isAllSelected = () =>
     totalCount() > 0 && selectionCount() === totalCount();
@@ -36,7 +42,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
 
   const handleSelectAllChange = (checked: boolean) => {
     if (checked) {
-      soup.selection.set(soup.data());
+      soup.selection.set(selectableEntities());
     } else {
       soup.selection.clear();
     }

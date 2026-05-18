@@ -11,7 +11,6 @@ import {
   unreadFilterFn,
   useIsShared,
 } from '@entity';
-import { NarrowLayout } from '@entity/composed/list-entity/narrow-layout';
 import {
   type BaseListEntityProps,
   hasSearchContentHits,
@@ -34,7 +33,7 @@ import {
   Switch,
   useContext,
 } from 'solid-js';
-import { TaskGridLayout } from './task-grid-layout';
+import { TaskGridLayout, TaskNarrowLayout } from './task-grid-layout';
 
 interface TaskListEntityProps extends BaseListEntityProps {
   showUnrollNotifications?: boolean;
@@ -125,16 +124,19 @@ export function TaskListEntity(props: TaskListEntityProps) {
       }}
       ref={mergeRefs(props.ref, draggable)}
       class={cn(
-        'soup-list-entity @container/entity w-[calc(100%-0.5rem)] mx-1 relative group/narrow flex flex-col py-0.5 rounded',
+        'soup-stacked-entity @container/entity w-[calc(100%-0.5rem)] mx-1 relative group/stacked flex flex-col rounded',
+        !isMobile() && 'min-h-10',
         {
-          'min-h-10': !isMobile(),
           'bg-accent/8': props.checked,
           'ring ring-accent/16 ring-inset': props.checked && props.highlighted,
           'ring ring-edge bg-active/60 ring-inset':
-            props.highlighted && !props.checked,
+            props.highlighted && !props.checked && !isMobile(),
           'bg-active/40': props.hovered && !props.highlighted && !props.checked,
           'hover:bg-active/40 hover:ring hover:ring-edge hover:ring-inset group-data-expanded/cm-trigger:bg-active/40':
-            !props.checked && !props.highlighted && !props.hovered,
+            !props.checked &&
+            !props.highlighted &&
+            !props.hovered &&
+            !isMobile(),
         }
       )}
       onMouseMove={props.onMouseMove}
@@ -153,7 +155,7 @@ export function TaskListEntity(props: TaskListEntityProps) {
             entityId={props.entity.id}
             config={props.entityRowConfig}
           >
-            <NarrowLayout {...layoutProps()} />
+            <TaskNarrowLayout {...layoutProps()} />
           </MaybeEntityRow>
         </Match>
       </Switch>

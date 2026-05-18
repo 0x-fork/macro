@@ -1,22 +1,19 @@
 import { type Component, For, Show, createSignal } from 'solid-js';
 import { Popover } from '@kobalte/core/popover';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import CheckIcon from '@icon/regular/check.svg';
-import SlidersIcon from '@icon/regular/sliders.svg';
-import EyeIcon from '@icon/regular/eye.svg';
-import CaretDownIcon from '@icon/regular/caret-down.svg';
+import CheckIcon from '@icon/check.svg';
+import SlidersIcon from '@icon/sliders.svg';
+import EyeIcon from '@icon/eye.svg';
+import CaretDownIcon from '@icon/caret-down.svg';
 import type {
   SortOption,
   SystemSortOption,
 } from '@app/component/next-soup/soup-view/sort-options';
-import { Button } from '@ui/components/Button';
-import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
-import { Layer } from '@ui';
+import { Button, cn, Layer, Tooltip } from '@ui';
 import { useSoup } from '../../soup-context';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { useAnalytics } from '@app/component/analytics-context';
-import { cn } from '@ui/utils/classname';
 
 export interface DisplayOptionsDropdownProps {
   sortValue: () => SystemSortOption;
@@ -74,10 +71,10 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
 
   return (
     <Popover open={open()} onOpenChange={setOpen} placement="bottom-end" gutter={4}>
-      <Tooltip tooltip={<LabelAndHotKey label="Display options" shortcut="S" />}>
+      <Tooltip label="Display options" shortcut="S">
         <Popover.Trigger
           as={Button}
-          variant="secondary"
+          variant="base"
           size="sm"
           class="rounded-xs [&_svg]:size-4 p-1.5 aspect-square"
         >

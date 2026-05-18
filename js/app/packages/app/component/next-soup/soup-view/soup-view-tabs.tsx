@@ -587,61 +587,62 @@ const MobileViewTabs = (props: { view: TabbedListView }) => {
     })
   );
 
-  <>
-    <div
-      ref={setScrollRef}
-      class={cn(
-        'flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory',
-        hasOverflow() && 'scroll-pl-7 scroll-pr-7'
-      )}
-      onScroll={updateScrollState}
-    >
-      <For each={list()}>
-        {(item) => (
-          <button
-            type="button"
-            class={cn(
-              MOBILE_TAB_BUTTON_CLASS,
-              'snap-start',
-              activeTab() === item.value
-                ? 'bg-ink/10 text-ink'
-                : 'text-ink/50 active:text-ink active:bg-ink/5'
-            )}
-            onClick={() => applyTabPreset(props.view, item.value)}
-          >
-            {item.label}
-          </button>
+  return (
+    <>
+      <div
+        ref={setScrollRef}
+        class={cn(
+          'flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory',
+          hasOverflow() && 'scroll-pl-7 scroll-pr-7'
         )}
-      </For>
-    </div>
+        onScroll={updateScrollState}
+      >
+        <For each={list()}>
+          {(item) => (
+            <button
+              type="button"
+              class={cn(
+                MOBILE_TAB_BUTTON_CLASS,
+                'snap-start',
+                activeTab() === item.value
+                  ? 'bg-ink/10 text-ink'
+                  : 'text-ink/50 active:text-ink active:bg-ink/5'
+              )}
+              onClick={() => applyTabPreset(props.view, item.value)}
+            >
+              {item.label}
+            </button>
+          )}
+        </For>
+      </div>
 
-    <button
-      type="button"
-      class={cn(
-        'absolute left-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-surface',
-        (!hasOverflow() || !canScrollLeft()) && 'invisible'
-      )}
-      onClick={() => scroll('left')}
-    >
-      <ArrowLeftIcon class="size-4" />
-      <Show when={activeOffscreenLeft()}>
-        <span class="absolute top-0 right-0 size-1.5 rounded-full bg-accent" />
-      </Show>
-    </button>
+      <button
+        type="button"
+        class={cn(
+          'absolute left-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-surface',
+          (!hasOverflow() || !canScrollLeft()) && 'invisible'
+        )}
+        onClick={() => scroll('left')}
+      >
+        <ArrowLeftIcon class="size-4" />
+        <Show when={activeOffscreenLeft()}>
+          <span class="absolute top-0 right-0 size-1.5 rounded-full bg-accent" />
+        </Show>
+      </button>
 
-    <button
-      type="button"
-      class={cn(
-        'absolute right-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-surface',
-        (!hasOverflow() || !canScrollRight()) && 'invisible'
-      )}
-      onClick={() => scroll('right')}
-    >
-      <ArrowRightIcon class="size-4" />
-      <Show when={activeOffscreenRight()}>
-        <span class="absolute top-0 left-0 size-1.5 rounded-full bg-accent" />
-      </Show>
-    </button>
-  </>;
-  )
+      <button
+        type="button"
+        class={cn(
+          'absolute right-0 inset-y-0 aspect-square flex items-center justify-center text-ink-muted active:text-ink bg-surface',
+          (!hasOverflow() || !canScrollRight()) && 'invisible'
+        )}
+        onClick={() => scroll('right')}
+      >
+        <ArrowRightIcon class="size-4" />
+        <Show when={activeOffscreenRight()}>
+          <span class="absolute top-0 left-0 size-1.5 rounded-full bg-accent" />
+        </Show>
+      </button>
+    </>
+  );
 };

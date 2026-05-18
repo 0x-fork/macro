@@ -19,7 +19,6 @@ import { globalSplitManager } from '@app/signal/splitLayout';
 import { InCallPanel } from '@channel/Call';
 import { useCallContextOptional } from '@channel/Call/CallContext';
 import { ContextMenuContent, MenuItem } from '@core/component/Menu';
-import { LabelAndHotKey } from '@core/component/Tooltip';
 
 import { ENABLE_CALLS } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
@@ -452,11 +451,8 @@ const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
       class="flex items-center justify-start text-xs gap-1.5 cursor-default w-full rounded-md py-2 [&_svg]:size-4"
       variant="ghost"
       tooltipPlacement="right"
-      tooltip={
-        props.isSlim() ? (
-          <LabelAndHotKey label={props.label} hotkeyToken={props.hotkeyToken} />
-        ) : undefined
-      }
+      label={props.isSlim() ? props.label : undefined}
+      hotkey={props.isSlim() ? props.hotkeyToken : undefined}
       onClick={props.onClick}
     >
       <div class="shrink-0">{props.icon()}</div>
@@ -497,9 +493,8 @@ const SidebarIconButton = (props: SidebarIconButtonProps) => {
       class="flex items-center justify-center size-5 p-0 rounded-md [&_svg]:size-4"
       variant={props.isSlim() ? 'ghost' : 'base'}
       tooltipPlacement="top"
-      tooltip={
-        <LabelAndHotKey label={props.label} hotkeyToken={props.hotkeyToken} />
-      }
+      label={props.label}
+      hotkey={props.hotkeyToken}
       onClick={props.onClick}
       disabled={isDisabled()}
       onMouseEnter={() => setHovering(true)}
@@ -704,9 +699,11 @@ export const AppSidebar = (props: AppSidebarProps) => {
             icon={() => <BellIcon class="size-4" />}
           />
         </Show>
-        label="Invite" isSlim={isSlim}
-        onClick={() => setInviteModalOpen(true)}
-        icon={AnimatedUsersIcon}
+        <SidebarActionButton
+          label="Invite"
+          isSlim={isSlim}
+          onClick={() => setInviteModalOpen(true)}
+          icon={AnimatedUsersIcon}
         />
         <div class="flex gap-1 items-center justify-between group-data-[slim=true]/sidebar:flex-col group-data-[slim=true]/sidebar:items-stretch">
           <div class="flex-1 h-full pattern-edge pattern-diagonal-4 group-data-[slim=true]/sidebar:hidden" />

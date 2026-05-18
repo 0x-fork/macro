@@ -1,9 +1,9 @@
 import { type Component, createMemo, createSignal, For, Show } from 'solid-js';
 import { Popover } from '@kobalte/core/popover';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import CheckIcon from '@icon/regular/check.svg';
-import SlidersIcon from '@icon/regular/sliders-horizontal.svg';
-import CaretDownIcon from '@icon/regular/caret-down.svg';
+import CheckIcon from '@icon/check.svg';
+import SlidersIcon from '@icon/sliders-horizontal.svg';
+import CaretDownIcon from '@icon/caret-down.svg';
 import type {
   SortOption,
   SystemSortOption,
@@ -15,15 +15,12 @@ import {
   EMAIL_SORT_OPTIONS,
   TASK_SORT_OPTIONS,
 } from '@app/component/next-soup/soup-view/sort-options';
-import { Button } from '@ui/components/Button';
-import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
-import { Layer } from '@ui';
+import { Button, cn, Layer, Tooltip } from '@ui';
 import { useSoup } from '../../soup-context';
 import { useSoupView } from '../soup-view-context';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { useAnalytics } from '@app/component/analytics-context';
-import { cn } from '@ui/utils/classname';
 import type { ListView } from '@app/constants/list-views';
 import { isListViewID } from '@app/constants/list-views';
 import {
@@ -135,7 +132,7 @@ export const ViewOptionsPopover: Component = () => {
 
   return (
     <Popover open={open()} onOpenChange={setOpen} placement="bottom-end" gutter={4}>
-      <Tooltip tooltip={<LabelAndHotKey label="View options" shortcut="V" />}>
+      <Tooltip label="View options" shortcut="V">
         <Popover.Trigger
           as={Button}
           variant="ghost"

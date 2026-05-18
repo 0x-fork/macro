@@ -3,7 +3,7 @@ import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-contex
 import { useListLayout } from '@entity/composed/list-entity/shared';
 import ArrowDownIcon from '@icon/arrow-down.svg';
 import UsersIcon from '@icon/users.svg';
-import StatusInProgress from '@macro-icons/square/task-in-progress-circle.svg';
+import StatusInProgress from '@macro-icons/square/task-in-progress-circle-pie.svg';
 import PriorityHigh from '@macro-icons/wide/priority-high.svg';
 import { cn } from '@ui/utils/classname';
 import { createMemo, For, type JSX, Show } from 'solid-js';

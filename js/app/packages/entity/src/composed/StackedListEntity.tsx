@@ -2,18 +2,18 @@ import './ListEntity.css';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { twoLineClampMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
-import { Tooltip } from '@core/component/Tooltip';
+import { Tooltip } from '@ui';
 import { UserIcon } from '@core/component/UserIcon';
 import { isMobile } from '@core/mobile/isMobile';
-import { tryMacroId, useDisplayNameParts } from '@core/user';
+import { tryMacroId, useDisplayName, useDisplayNameParts } from '@core/user';
 import type { DateValue } from '@core/util/date';
 import { DisplayName } from '@entity/components/DisplayName';
-import ArrowDownLeftIcon from '@icon/regular/arrow-down-left.svg';
-import UsersIcon from '@icon/fill/users-fill.svg';
-import UserFillIcon from '@icon/fill/user-fill.svg';
+import ArrowDownLeftIcon from '@icon/arrow-down-left.svg';
+import UsersIcon from '@phosphor-icons/core/fill/users-fill.svg?component-solid';
+import UserFillIcon from '@phosphor-icons/core/fill/user-fill.svg?component-solid';
 import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg';
-import EnvelopeOpenIcon from '@icon/regular/envelope-open.svg';
-import FileDashedIcon from '@icon/regular/file-dashed.svg';
+import EnvelopeOpenIcon from '@icon/envelope-open.svg';
+import FileDashedIcon from '@icon/file-dashed.svg';
 import PhoneXIcon from '@phosphor-icons/core/bold/phone-x-bold.svg';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg';
 import CircleDashedIcon from '@phosphor-icons/core/regular/circle-dashed.svg';
@@ -228,17 +228,9 @@ function LayoutShell(props: {
 }
 
 function SharedIndicator(props: { ownerId: string }) {
+  const [displayName] = useDisplayName(tryMacroId(props.ownerId));
   return (
-    <Tooltip
-      tooltip={
-        <div class="flex items-center gap-2 max-w-48">
-          <UserIcon id={props.ownerId} size="xs" class="shrink-0" />
-          <span class="text-xs truncate">
-            <DisplayName id={props.ownerId} /> shared this
-          </span>
-        </div>
-      }
-    >
+    <Tooltip label={`${displayName() || 'User'} shared this`}>
       <UsersIcon class="size-3.5 text-ink-muted opacity-70 shrink-0" />
     </Tooltip>
   );
@@ -260,7 +252,7 @@ const STATUS_TO_COLOR: Record<string, string> = {
   [PROPERTY_OPTION_IDS.STATUS.CANCELED]: 'text-ink-muted',
 };
 
-function useTaskStatus(entity: EntityWithProperties<EntityData>) {
+export function useTaskStatus(entity: EntityWithProperties<EntityData>) {
   return createMemo(() => {
     const soupProperties = entity.properties ?? [];
     const statusProp = soupProperties
@@ -522,7 +514,7 @@ function ChannelMessageLayout(
   );
 }
 
-function useTaskPriority(entity: EntityWithProperties<EntityData>) {
+export function useTaskPriority(entity: EntityWithProperties<EntityData>) {
   return createMemo(() => {
     const soupProperties = entity.properties ?? [];
     const prop = soupProperties
@@ -536,7 +528,7 @@ function useTaskPriority(entity: EntityWithProperties<EntityData>) {
   });
 }
 
-function useTaskAssignees(entity: EntityWithProperties<EntityData>) {
+export function useTaskAssignees(entity: EntityWithProperties<EntityData>) {
   return createMemo(() => {
     const soupProperties = entity.properties ?? [];
     const prop = soupProperties
@@ -2051,27 +2043,28 @@ export function StackedListEntity(props: StackedListEntityProps) {
       }}
       ref={mergeRefs(props.ref, draggable)}
       class={cn(
-        'soup-stacked-entity w-full relative group/stacked rounded-sm',
-        !isWide() && isMobile() && 'border-b border-edge-muted',
+        'soup-stacked-entity @container/entity w-[calc(100%-0.5rem)] mx-1 relative group/stacked flex flex-col rounded',
+        !isWide() && isMobile() && 'border-b border-edge-muted mx-0 w-full rounded-none',
+        !isMobile() && 'min-h-10',
         hasNotifications()
-          ? isMobile() ? '' : 'pt-2'
+          ? !isMobile() && 'pt-2'
           : {
-              'bg-accent/10': props.checked || (props.highlighted && !isMobile()),
-              'hover:bg-ink/5':
-                !props.checked && !props.highlighted && !props.hovered,
-              'bg-ink/5': props.hovered && !props.highlighted && !props.checked,
+              'bg-accent/8': props.checked,
+              'ring ring-accent/16 ring-inset':
+                props.checked && props.highlighted,
+              'ring ring-edge bg-active/60 ring-inset':
+                props.highlighted && !props.checked && !isMobile(),
+              'bg-active/40':
+                props.hovered && !props.highlighted && !props.checked,
+              'hover:bg-active/40 hover:ring hover:ring-edge hover:ring-inset group-data-expanded/cm-trigger:bg-active/40':
+                !props.checked &&
+                !props.highlighted &&
+                !props.hovered &&
+                !isMobile(),
             }
       )}
       onMouseMove={props.onMouseMove}
     >
-      <div
-        class={cn(
-          'absolute h-full w-[2px] left-0 top-0 bg-accent rounded-r-full opacity-0 transition-opacity',
-          {
-            'opacity-100': props.highlighted && !isMobile(),
-          }
-        )}
-      />
 
       <Show
         when={isWide()}

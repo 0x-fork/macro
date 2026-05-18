@@ -59,7 +59,6 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { EmailPermissionsBanner } from '@core/component/EmailPermissionsBanner';
-import { Hotkey } from '@core/component/Hotkey';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
 import { Resize } from '@core/component/Resize';
@@ -73,6 +72,7 @@ import {
   ListLayoutProvider,
   type ProjectEntity,
   type SearchLocation,
+  StackedListEntity,
 } from '@entity';
 import CaretDownIcon from '@icon/caret-down.svg';
 import ChevronRightIcon from '@icon/caret-right.svg';
@@ -91,7 +91,7 @@ import {
 } from '@queries/soup/normalized-cache';
 import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
-import { Button, cn, Layer } from '@ui';
+import { Button, cn, Hotkey, Layer } from '@ui';
 import {
   type Accessor,
   batch,
@@ -1278,7 +1278,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                         component={
                                           currentView() === 'tasks'
                                             ? TaskListEntity
-                                            : ListEntity
+                                            : StackedListEntity
                                         }
                                         entity={row.original}
                                         timestamp={timestamp()}

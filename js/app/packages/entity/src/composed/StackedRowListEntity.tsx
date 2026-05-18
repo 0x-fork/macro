@@ -2,17 +2,17 @@ import './ListEntity.css';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { twoLineClampMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
-import { Tooltip } from '@core/component/Tooltip';
+import { Tooltip } from '@ui';
 import { UserIcon } from '@core/component/UserIcon';
 import { isMobile } from '@core/mobile/isMobile';
-import { tryMacroId, useDisplayNameParts } from '@core/user';
+import { tryMacroId, useDisplayName, useDisplayNameParts } from '@core/user';
 import type { DateValue } from '@core/util/date';
 import { DisplayName } from '@entity/components/DisplayName';
-import UsersIcon from '@icon/fill/users-fill.svg';
-import UserFillIcon from '@icon/fill/user-fill.svg';
+import UsersIcon from '@phosphor-icons/core/fill/users-fill.svg?component-solid';
+import UserFillIcon from '@phosphor-icons/core/fill/user-fill.svg?component-solid';
 import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg';
-import EnvelopeOpenIcon from '@icon/regular/envelope-open.svg';
-import FileDashedIcon from '@icon/regular/file-dashed.svg';
+import EnvelopeOpenIcon from '@icon/envelope-open.svg';
+import FileDashedIcon from '@icon/file-dashed.svg';
 import PhoneXIcon from '@phosphor-icons/core/bold/phone-x-bold.svg';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg';
 import type { StreamEvent } from '@service-connection/generated/schemas';
@@ -188,17 +188,9 @@ function RowShell(props: {
 }
 
 function SharedIndicator(props: { ownerId: string }) {
+  const [displayName] = useDisplayName(tryMacroId(props.ownerId));
   return (
-    <Tooltip
-      tooltip={
-        <div class="flex items-center gap-2 max-w-48">
-          <UserIcon id={props.ownerId} size="xs" class="shrink-0" />
-          <span class="text-xs truncate">
-            <DisplayName id={props.ownerId} /> shared this
-          </span>
-        </div>
-      }
-    >
+    <Tooltip label={`${displayName() || 'User'} shared this`}>
       <UsersIcon class="size-3.5 text-ink-muted opacity-70 shrink-0" />
     </Tooltip>
   );
