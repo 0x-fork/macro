@@ -29,6 +29,7 @@ import type { ValidHotkey } from '@core/hotkey/types';
 import { activateClosestDOMScope } from '@core/hotkey/utils';
 import BellIcon from '@icon/bell.svg';
 import PlusIcon from '@icon/plus.svg';
+import XIcon from '@icon/x.svg';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import LogoIcon from '@macro-icons/macro-logo.svg';
 import { AnimatedBellIcon } from '@macro-icons/wide/animating/bell';
@@ -49,6 +50,7 @@ import { AnimatedUsersIcon } from '@macro-icons/wide/animating/users';
 
 import { useNotificationSettings } from '@notifications';
 import { debounce } from '@solid-primitives/scheduled';
+import { makePersisted } from '@solid-primitives/storage';
 import { useLocation } from '@solidjs/router';
 import { Button, cn, Hotkey } from '@ui';
 import {
@@ -381,6 +383,120 @@ export const registerSidebarHotkeys = ({
   }
 };
 
+/** Persisted dismissals for the bottom-of-sidebar promo cards. */
+const [inviteCardDismissed, setInviteCardDismissed] = makePersisted(
+  createSignal<boolean>(false),
+  { name: 'sidebar-invite-card-dismissed' }
+);
+const [notificationsCardDismissed, setNotificationsCardDismissed] =
+  makePersisted(createSignal<boolean>(false), {
+    name: 'sidebar-notifications-card-dismissed',
+  });
+
+type SidebarPromoCardAction = {
+  label: string;
+  onClick: () => void;
+};
+
+type SidebarPromoCardProps = {
+  label: string;
+  description: string;
+  isSlim: () => boolean;
+  onDismiss: () => void;
+  icon: Component<{ triggerAnimation?: boolean; class?: string }>;
+  /** When set, the whole card body is a button. */
+  onClick?: () => void;
+  /** When set, render a row of action buttons instead of a clickable body. */
+  primaryAction?: SidebarPromoCardAction;
+  secondaryAction?: SidebarPromoCardAction;
+};
+
+/**
+ * Compact, dismissable card shown near the bottom of the sidebar.
+ * Slim mode falls back to a single icon button (no card chrome).
+ */
+const SidebarPromoCard = (props: SidebarPromoCardProps) => {
+  const [hovering, setHovering] = createSignal(false);
+
+  return (
+    <Show when={!props.isSlim()}>
+      <div
+        class={cn(
+          'relative group/promo w-full rounded-md border border-edge-muted bg-ink/3 transition-colors',
+          props.onClick && 'hover:bg-ink/5'
+        )}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+      >
+        <Dynamic
+          component={props.onClick ? 'button' : 'div'}
+          type={props.onClick ? 'button' : undefined}
+          class={cn(
+            'w-full text-left flex flex-col gap-2 px-2.5 py-2',
+            props.onClick && 'cursor-default'
+          )}
+          onClick={props.onClick}
+        >
+          <div class="flex items-start gap-2 min-w-0">
+            <div class="shrink-0 mt-0.5 text-ink-muted [&_svg]:size-4">
+              <Dynamic component={props.icon} triggerAnimation={hovering()} />
+            </div>
+            <div class="flex-1 min-w-0 text-xs font-medium text-ink leading-tight">
+              {props.label}
+            </div>
+          </div>
+          <div class="text-xxs text-ink-extra-muted leading-snug">
+            {props.description}
+          </div>
+          <Show when={props.primaryAction || props.secondaryAction}>
+            <div class="flex items-center justify-end gap-1.5 mt-1.5">
+              <Show when={props.secondaryAction}>
+                {(action) => (
+                  <button
+                    type="button"
+                    class="text-xxs text-ink-muted px-2 py-1 rounded-sm hover:text-ink hover:bg-ink/5 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      action().onClick();
+                    }}
+                  >
+                    {action().label}
+                  </button>
+                )}
+              </Show>
+              <Show when={props.primaryAction}>
+                {(action) => (
+                  <button
+                    type="button"
+                    class="text-xxs font-medium px-2 py-1 rounded-sm bg-accent text-surface hover:bg-accent/90 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      action().onClick();
+                    }}
+                  >
+                    {action().label}
+                  </button>
+                )}
+              </Show>
+            </div>
+          </Show>
+        </Dynamic>
+        <button
+          type="button"
+          class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-surface border border-edge-muted shadow-sm flex items-center justify-center text-ink-muted hover:text-ink hover:bg-hover opacity-0 group-hover/promo:opacity-100 transition-opacity"
+          aria-label={`Dismiss ${props.label}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onDismiss();
+          }}
+        >
+          <XIcon class="size-2.5" />
+        </button>
+      </div>
+    </Show>
+  );
+};
+
 type SidebarActionButtonProps = {
   label: string;
   hotkeyToken?: HotkeyToken;
@@ -687,24 +803,44 @@ export const AppSidebar = (props: AppSidebarProps) => {
 
       <div
         class={cn(
-          'w-full px-2 flex flex-col gap-1',
+          'w-full px-2 flex flex-col gap-2',
           !callCtx?.isInCall() && 'mt-auto'
         )}
       >
-        <Show when={showEnableNotifications()}>
-          <SidebarActionButton
-            label="Enable Notifications"
+        <Show when={showEnableNotifications() && !notificationsCardDismissed()}>
+          <SidebarPromoCard
+            label="Enable notifications"
+            description="Stay in the loop when you're away"
             isSlim={isSlim}
-            onClick={handleEnableNotifications}
+            onDismiss={() => setNotificationsCardDismissed(true)}
             icon={() => <BellIcon class="size-4" />}
+            primaryAction={{
+              label: 'Turn on',
+              onClick: handleEnableNotifications,
+            }}
+            secondaryAction={{
+              label: 'Later',
+              onClick: () => setNotificationsCardDismissed(true),
+            }}
           />
         </Show>
-        <SidebarActionButton
-          label="Invite"
-          isSlim={isSlim}
-          onClick={() => setInviteModalOpen(true)}
-          icon={AnimatedUsersIcon}
-        />
+        <Show when={!inviteCardDismissed()}>
+          <SidebarPromoCard
+            label="Invite teammates"
+            description="Get $100 in credits for each friend who signs up"
+            isSlim={isSlim}
+            onDismiss={() => setInviteCardDismissed(true)}
+            icon={AnimatedUsersIcon}
+            primaryAction={{
+              label: 'Invite',
+              onClick: () => setInviteModalOpen(true),
+            }}
+            secondaryAction={{
+              label: 'Later',
+              onClick: () => setInviteCardDismissed(true),
+            }}
+          />
+        </Show>
         <div class="flex gap-1 items-center justify-between group-data-[slim=true]/sidebar:flex-col group-data-[slim=true]/sidebar:items-stretch">
           <div class="flex-1 h-full pattern-edge pattern-diagonal-4 group-data-[slim=true]/sidebar:hidden" />
           <div class="flex items-center gap-1 group-data-[slim=true]/sidebar:flex-col">
