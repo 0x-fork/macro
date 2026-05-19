@@ -166,8 +166,11 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
       ref={props.ref}
     >
       <div class="flex justify-start items-center">
-        <div class="z-annotation-layer flex items-center pl-2 mobile:pl-4">
-          <div class="mobile:hidden">
+        <div
+          class="z-annotation-layer flex items-center pl-2 mobile:pl-4 empty:hidden"
+          data-split-portal-target
+        >
+          <div class="mobile:hidden empty:hidden">
             <SplitCloseButton />
           </div>
           <Show when={!(isMobile() && isListViewID(panel.handle.content().id))}>
@@ -177,14 +180,16 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         </div>
 
         <div
-          class="min-w-0 grow shrink pl-2 flex items-center gap-0.5"
+          class="min-w-0 grow shrink pl-2 flex items-center gap-0.5 empty:hidden"
+          data-split-portal-target
           ref={(ref) => {
             panel.layoutRefs.headerLeft = ref;
           }}
         />
 
         <div
-          class="min-w-4 h-full grow shrink flex items-center justify-end gap-0.5 px-2"
+          class="min-w-4 h-full grow shrink flex items-center justify-end gap-0.5 px-2 empty:hidden ml-auto"
+          data-split-portal-target
           ref={(ref) => {
             panel.layoutRefs.headerRight = ref;
           }}

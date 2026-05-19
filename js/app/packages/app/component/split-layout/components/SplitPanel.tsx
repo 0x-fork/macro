@@ -89,26 +89,6 @@ export function SplitPanel(props: SplitPanelProps) {
   const toolbarSize = createElementSize(toolbarRef);
   const headerSize = createElementSize(headerRef);
 
-  const [hasToolbarContent, setHasToolbarContent] = createSignal(false);
-  onMount(() => {
-    const checkContent = () => {
-      setHasToolbarContent(
-        Boolean(
-          layoutRefs.toolbarLeft?.hasChildNodes() ||
-            layoutRefs.toolbarRight?.hasChildNodes()
-        )
-      );
-    };
-    checkContent();
-    const observer = new MutationObserver(checkContent);
-    if (layoutRefs.toolbarLeft) {
-      observer.observe(layoutRefs.toolbarLeft, { childList: true });
-    }
-    if (layoutRefs.toolbarRight) {
-      observer.observe(layoutRefs.toolbarRight, { childList: true });
-    }
-    onCleanup(() => observer.disconnect());
-  });
 
   const offsetTop = createMemo(() => {
     const offset = (headerSize.height ?? 0) + (toolbarSize.height ?? 0);
@@ -173,16 +153,11 @@ export function SplitPanel(props: SplitPanelProps) {
               class="rounded-xl"
               depth={1}
             >
-              <Panel.Header class="block min-h-10.25 touch:min-h-11.25 p-0 overflow-visible border-b-0">
+              <Panel.Header class="block min-h-0 touch:min-h-0 p-0 overflow-visible border-b-0 not-has-[[data-split-portal-target]:not(:empty)]:hidden">
                 <SplitHeader ref={setHeaderRef} />
               </Panel.Header>
 
-              <Panel.Toolbar
-                class={cn(
-                  'items-start py-2 overflow-visible border-b-0',
-                  !hasToolbarContent() && 'hidden'
-                )}
-              >
+              <Panel.Toolbar class="items-start py-0 overflow-visible border-b-0 not-has-[[data-split-portal-target]:not(:empty)]:hidden has-[[data-split-portal-target]:not(:empty)]:py-2">
                 <SplitToolbar ref={setToolbarRef} />
               </Panel.Toolbar>
 

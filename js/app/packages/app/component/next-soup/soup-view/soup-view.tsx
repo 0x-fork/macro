@@ -1151,13 +1151,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
             minSize={200}
             maxSize={previewVisible() ? 840 : undefined}
           >
-            <div
-              class={cn(
-                '@container/u-list size-full unified-list-root flex flex-col',
-                soup.previewEntity() !== undefined &&
-                  'border-r border-edge-muted'
-              )}
-            >
+            <div class="@container/u-list size-full unified-list-root flex flex-col">
               <StaticMarkdownContext>
                 <Switch>
                   <Match when={source.isLoading() && !rows().length}>
