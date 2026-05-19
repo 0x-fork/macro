@@ -1,6 +1,6 @@
 use crate::pubsub::backfill::{
-    backfill_attachment, backfill_message, backfill_thread, error_handlers, init, list_threads,
-    populate_crm_contact, populate_crm_for_user, update_metadata,
+    backfill_attachment, backfill_message, backfill_thread, depopulate_crm_contact, error_handlers,
+    init, list_threads, populate_crm_contact, populate_crm_for_user, update_metadata,
 };
 use crate::pubsub::context::PubSubContext;
 use crate::util::gmail::auth::fetch_token_or_delete_on_revocation;
@@ -132,6 +132,10 @@ async fn inner_process_message(
         BackfillOperation::PopulateCrmContact(scope) => {
             let link = fetch_link(ctx, scope.link_id).await?;
             populate_crm_contact::populate_crm_contact(ctx, &link, &scope.payload).await
+        }
+        BackfillOperation::DepopulateCrmContact(scope) => {
+            let link = fetch_link(ctx, scope.link_id).await?;
+            depopulate_crm_contact::depopulate_crm_contact(ctx, &link, &scope.payload).await
         }
         BackfillOperation::PopulateCrmForUser(payload) => {
             populate_crm_for_user::populate_crm_for_user(ctx, payload).await

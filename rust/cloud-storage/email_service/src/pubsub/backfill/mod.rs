@@ -1,6 +1,7 @@
 mod backfill_attachment;
 mod backfill_message;
 mod backfill_thread;
+mod depopulate_crm_contact;
 mod error_handlers;
 mod increment_counters;
 mod init;

@@ -103,6 +103,38 @@ pub async fn fetch_sent_message_recipient_emails_by_link(
     .map_err(Into::into)
 }
 
+/// Returns true iff `link_id` still has at least one sent message whose
+/// recipients (to/cc/bcc) include `email`. Used by the depopulate-CRM-
+/// contact backfill step as the pre-check: if any sent message remains,
+/// the CRM source row must stay. `email` is matched case-insensitively.
+#[tracing::instrument(skip(pool), err)]
+pub async fn link_has_sent_message_to(
+    pool: &PgPool,
+    link_id: Uuid,
+    email: &str,
+) -> anyhow::Result<bool> {
+    let normalized = email.to_ascii_lowercase();
+    sqlx::query_scalar!(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM email_messages m
+            JOIN email_message_recipients r ON r.message_id = m.id
+            JOIN email_contacts c ON c.id = r.contact_id
+            WHERE m.link_id = $1
+              AND m.is_sent = true
+              AND LOWER(c.email_address) = $2
+            LIMIT 1
+        ) AS "exists!"
+        "#,
+        link_id,
+        normalized,
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(Into::into)
+}
+
 /// fetch recipients (to, cc, bcc) from db
 #[tracing::instrument(skip(pool), err)]
 pub async fn fetch_db_recipients(

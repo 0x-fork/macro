@@ -38,6 +38,7 @@ pub async fn handle_non_retryable_error(
         }
         BackfillOperation::BackfillAttachment(_) => {}
         BackfillOperation::PopulateCrmContact(_) => {}
+        BackfillOperation::DepopulateCrmContact(_) => {}
         BackfillOperation::PopulateCrmForUser(_) => {}
     }
 
@@ -109,6 +110,12 @@ pub async fn handle_retryable_error(
             tracing::debug!(
                 contact_email = %scope.payload.contact_email,
                 "Retryable error populating CRM contact"
+            )
+        }
+        BackfillOperation::DepopulateCrmContact(scope) => {
+            tracing::debug!(
+                contact_email = %scope.payload.contact_email,
+                "Retryable error depopulating CRM contact"
             )
         }
         BackfillOperation::PopulateCrmForUser(payload) => {

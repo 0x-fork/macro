@@ -42,6 +42,30 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
         email: &str,
     ) -> impl Future<Output = Result<(), CrmError>> + Send;
 
+    /// Reverses [`populate_contact`] for one `(link_id, email)`: drops the
+    /// matching `crm_contact_sources` row, then `crm_contacts` if no other
+    /// source rows remain for that contact, then `crm_companies` (cascading
+    /// to `crm_domains`) if no other contact rows remain for that company.
+    /// Runs in a single transaction holding the same advisory lock that
+    /// [`populate_contact`] takes, so a concurrent populate for the same
+    /// `(team_id, domain)` is serialized against this teardown.
+    ///
+    /// The company-level `email_sync` killswitch is **intentionally
+    /// ignored**: deletions stay reflected in the CRM tables even when
+    /// the team has opted the domain out, so we don't accumulate stale
+    /// rows after a domain is later re-enabled.
+    ///
+    /// No-op (returns `Ok(())`) when the contact / company / domain is
+    /// not found for `(team_id, domain, email)`. `domain` and `email` are
+    /// matched case-insensitively.
+    fn depopulate_contact(
+        &self,
+        team_id: &uuid::Uuid,
+        link_id: &uuid::Uuid,
+        domain: &str,
+        email: &str,
+    ) -> impl Future<Output = Result<(), CrmError>> + Send;
+
     /// Returns the team id that `macro_id` belongs to. When the user is on
     /// multiple teams the highest-privileged role wins (Postgres orders the
     /// `team_role` enum as `member < admin < owner`), matching the

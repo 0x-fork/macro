@@ -246,6 +246,138 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
     }
 
     #[tracing::instrument(skip(self), err)]
+    async fn depopulate_contact(
+        &self,
+        team_id: &uuid::Uuid,
+        link_id: &uuid::Uuid,
+        domain: &str,
+        email: &str,
+    ) -> Result<(), CrmError> {
+        let normalized_domain = domain.to_ascii_lowercase();
+        let normalized_email = email.to_ascii_lowercase();
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        // Resolve (contact_id, company_id) for this (team, domain, email).
+        // Returning None here means the user is trying to depopulate
+        // something that was never tracked (e.g. domain opted out at the
+        // time the message was sent, or the contact was already cleaned
+        // up): commit the empty tx and ack.
+        let Some(row) = sqlx::query!(
+            r#"
+            SELECT ct.id AS contact_id, co.id AS company_id
+            FROM crm_contacts ct
+            JOIN crm_companies co ON co.id = ct.company_id
+            JOIN crm_domains d ON d.company_id = co.id
+            WHERE co.team_id = $1
+              AND LOWER(ct.email) = $2
+              AND LOWER(d.domain) = $3
+            LIMIT 1
+            "#,
+            team_id,
+            normalized_email,
+            normalized_domain,
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?
+        else {
+            tx.commit()
+                .await
+                .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+            return Ok(());
+        };
+
+        // Serialize against concurrent populate_contact for the same
+        // (team, domain). Same key as populate so the two operations
+        // cannot interleave their writes.
+        sqlx::query!(
+            r#"SELECT pg_advisory_xact_lock(hashtextextended($1, 0))"#,
+            format!("{team_id}:{normalized_domain}"),
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        // 1. Drop the per-link source row.
+        sqlx::query!(
+            r#"
+            DELETE FROM crm_contact_sources
+            WHERE contact_id = $1 AND link_id = $2
+            "#,
+            row.contact_id,
+            link_id,
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        // 2. Keep the contact iff any other link in the team still
+        //    references it.
+        let other_sources = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS(
+                SELECT 1 FROM crm_contact_sources WHERE contact_id = $1 LIMIT 1
+            ) AS "exists!"
+            "#,
+            row.contact_id,
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        if other_sources {
+            tx.commit()
+                .await
+                .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+            return Ok(());
+        }
+
+        sqlx::query!(r#"DELETE FROM crm_contacts WHERE id = $1"#, row.contact_id,)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        // 3. Keep the company iff any other contact in the team still
+        //    belongs to it.
+        let other_contacts = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS(
+                SELECT 1 FROM crm_contacts WHERE company_id = $1 LIMIT 1
+            ) AS "exists!"
+            "#,
+            row.company_id,
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        if other_contacts {
+            tx.commit()
+                .await
+                .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+            return Ok(());
+        }
+
+        // crm_domains FK is ON DELETE CASCADE — deleting the company
+        // takes its domain rows with it.
+        sqlx::query!(r#"DELETE FROM crm_companies WHERE id = $1"#, row.company_id,)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self), err)]
     async fn get_team_id_for_user(&self, macro_id: &str) -> Result<Option<uuid::Uuid>, CrmError> {
         sqlx::query_scalar!(
             r#"

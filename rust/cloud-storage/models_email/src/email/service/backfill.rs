@@ -80,6 +80,13 @@ pub enum BackfillOperation {
     // sent by the user. No-op if the user has no team or the contact's domain
     // has been opted out by the team (crm_companies.email_sync = false).
     PopulateCrmContact(LinkScopedPayload<PopulateCrmContactPayload>),
+    // Walks the CRM cascade in reverse for one (link, contact_email): drops
+    // the matching crm_contact_sources row, then crm_contacts when no other
+    // sources remain, then crm_companies when no other contacts remain.
+    // Fanned out one-per-recipient from delete_message when a sent message
+    // is deleted. Ignores the company-level email_sync killswitch so that
+    // deletions stay reflected in the CRM tables even on opted-out domains.
+    DepopulateCrmContact(LinkScopedPayload<DepopulateCrmContactPayload>),
     // Fans out PopulateCrmContact messages for every contact a user has
     // previously emailed. Resolves the user's link + team itself (bails if
     // either is missing). Triggered when a user gets added to a team so
@@ -99,6 +106,7 @@ impl BackfillOperation {
             BackfillOperation::UpdateThreadMetadata(s) => Some(s.link_id),
             BackfillOperation::BackfillAttachment(s) => Some(s.link_id),
             BackfillOperation::PopulateCrmContact(s) => Some(s.link_id),
+            BackfillOperation::DepopulateCrmContact(s) => Some(s.link_id),
             BackfillOperation::PopulateCrmForUser(_) => None,
         }
     }
@@ -113,9 +121,9 @@ impl BackfillOperation {
             BackfillOperation::BackfillMessage(s) => Some(s.job_id),
             BackfillOperation::UpdateThreadMetadata(s) => Some(s.job_id),
             BackfillOperation::BackfillAttachment(s) => Some(s.job_id),
-            BackfillOperation::PopulateCrmContact(_) | BackfillOperation::PopulateCrmForUser(_) => {
-                None
-            }
+            BackfillOperation::PopulateCrmContact(_)
+            | BackfillOperation::DepopulateCrmContact(_)
+            | BackfillOperation::PopulateCrmForUser(_) => None,
         }
     }
 }
@@ -255,6 +263,11 @@ pub struct BackfillAttachmentPayload {
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct PopulateCrmContactPayload {
+    pub contact_email: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct DepopulateCrmContactPayload {
     pub contact_email: String,
 }
 

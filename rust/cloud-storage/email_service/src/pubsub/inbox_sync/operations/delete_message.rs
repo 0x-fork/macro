@@ -1,5 +1,7 @@
 use crate::pubsub::context::PubSubContext;
-use crate::pubsub::util::{cg_refresh_email, complete_transaction_with_processing_error};
+use crate::pubsub::util::{
+    cg_refresh_email, complete_transaction_with_processing_error, enqueue_depopulate_crm_contacts,
+};
 use models_email::email::service::link;
 use models_email::gmail::inbox_sync::DeleteMessagePayload;
 use models_email::service::pubsub::{DetailedError, FailureReason, ProcessingError};
@@ -35,6 +37,31 @@ pub async fn delete_message(
         }
     };
 
+    // For sent messages, snapshot the recipients before deletion so we can
+    // tear down the CRM source rows we created in `populate_crm_contact` /
+    // `upsert_message`. Received messages don't contribute to CRM, so the
+    // snapshot is skipped for them. Generic addresses are dropped here for
+    // parity with the producer side.
+    let recipient_emails: Vec<String> = if message.is_sent {
+        let recipients =
+            email_db_client::contacts::get::fetch_db_recipients(&ctx.db, message.db_id)
+                .await
+                .map_err(|e| {
+                    ProcessingError::Retryable(DetailedError {
+                        reason: FailureReason::DatabaseQueryFailed,
+                        source: e
+                            .context("Failed to fetch recipients for deleted message".to_string()),
+                    })
+                })?;
+        recipients
+            .into_iter()
+            .filter_map(|(contact, _)| contact.email_address)
+            .filter(|e| !email_utils::is_generic_email(e))
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     let mut tx = ctx.db.begin().await.map_err(|e| {
         ProcessingError::Retryable(DetailedError {
             reason: FailureReason::DatabaseQueryFailed,
@@ -57,6 +84,15 @@ pub async fn delete_message(
     .await;
 
     complete_transaction_with_processing_error(tx, result).await?;
+
+    // Enqueue CRM teardown for each recipient now that the message row is
+    // gone. The consumer rechecks whether the link still has another sent
+    // message to the recipient before doing anything, so any other sent
+    // messages to the same contact keep the CRM rows intact.
+    if !recipient_emails.is_empty() {
+        let self_email = link.email_address.0.as_ref().to_ascii_lowercase();
+        enqueue_depopulate_crm_contacts(ctx, link.id, &self_email, recipient_emails).await?;
+    }
 
     // tell FE to refresh user's inbox
     cg_refresh_email(
