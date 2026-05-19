@@ -51,7 +51,7 @@ export const TaskCircleIcon = (props: TaskCircleIconProps) => {
       viewBox="0 0 12 12"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      class={props.class}
+      class={`block ${props.class ?? ''}`}
     >
       <style>{anglePropertyCSS}</style>
 
@@ -86,7 +86,7 @@ export const TaskCircleIcon = (props: TaskCircleIconProps) => {
       {/* Checkmark for done state */}
       <path
         d="M4.25 6L5.5 7.25L7.75 4.75"
-        stroke="var(--color-panel, white)"
+        stroke="var(--color-surface, white)"
         stroke-width="1.25"
         stroke-linecap="round"
         stroke-linejoin="round"
@@ -101,7 +101,7 @@ export const TaskCircleIcon = (props: TaskCircleIconProps) => {
       {/* X mark for cancelled state */}
       <path
         d="M4.5 4.5L7.5 7.5M7.5 4.5L4.5 7.5"
-        stroke="var(--color-panel, white)"
+        stroke="var(--color-surface, white)"
         stroke-width="1.25"
         stroke-linecap="round"
         class="transition-opacity duration-300"

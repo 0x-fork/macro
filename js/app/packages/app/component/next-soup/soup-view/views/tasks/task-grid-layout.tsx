@@ -145,23 +145,21 @@ export function TaskGridLayout(props: LayoutProps) {
 
         <Entity.Slot
           placement="content"
-          class="ph-no-capture items-center gap-1.5 flex min-w-0"
+          class="ph-no-capture items-center gap-1.5 flex min-w-0 leading-none"
         >
-          <div class="shrink-0 flex items-center [&_svg]:size-4">
-            <TaskPropertyGroup
-              entity={entity()}
-              include={[SYSTEM_PROPERTY_IDS.STATUS]}
-            />
-            <Show
-              when={
-                !entity().properties?.some(
-                  (p) => p.definition.id === SYSTEM_PROPERTY_IDS.STATUS
-                )
-              }
-            >
-              <HexDashedIcon class="size-4 text-ink-extra-muted" />
-            </Show>
-          </div>
+          <TaskPropertyGroup
+            entity={entity()}
+            include={[SYSTEM_PROPERTY_IDS.STATUS]}
+          />
+          <Show
+            when={
+              !entity().properties?.some(
+                (p) => p.definition.id === SYSTEM_PROPERTY_IDS.STATUS
+              )
+            }
+          >
+            <HexDashedIcon class="size-4 shrink-0 text-ink-extra-muted" />
+          </Show>
           <span class="ph-no-capture text-sm truncate min-w-0">
             <Entity.Title entity={props.entity} />
           </span>

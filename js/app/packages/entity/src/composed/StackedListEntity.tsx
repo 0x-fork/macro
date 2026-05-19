@@ -303,8 +303,15 @@ export function TaskPropertyGroup(props: {
               property={property()}
               canEdit
               onSave={(p, v) => saveOne(p, v)}
+              class="contents"
             >
-              <PropertyPrimitive.DisplayCondensed />
+              <PropertyPrimitive.EditTrigger class="inline-flex items-center justify-center shrink-0 size-4 p-0 m-0 border-0 bg-transparent leading-none transition-colors rounded-sm hover:bg-hover">
+                <PropertyPrimitive.Icon
+                  property={property()}
+                  class="size-4"
+                />
+              </PropertyPrimitive.EditTrigger>
+              <PropertyPrimitive.PopoverEditor />
             </PropertyPrimitive.Root>
           )}
         </Index>
