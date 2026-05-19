@@ -260,7 +260,23 @@ where
         user_id: &MacroUserIdStr<'_>,
         team_name: &str,
     ) -> Result<Team, CreateTeamError> {
-        self.team_repository.create_team(user_id, team_name).await
+        let team = self
+            .team_repository
+            .create_team(user_id, team_name)
+            .await?;
+
+        // Populate CRM tables (companies, contacts) with new team user's emails via email service
+        // pubsub worker
+        self.populate_crm_enqueuer
+            .enqueue_populate_crm_for_user(user_id)
+            .await
+            .map_err(|e| {
+                CreateTeamError::StorageLayerError(anyhow::anyhow!(
+                    "failed to enqueue PopulateCrmForUser: {e}"
+                ))
+            })?;
+
+        Ok(team)
     }
 
     #[tracing::instrument(skip(self), err)]
@@ -485,23 +501,16 @@ where
             .add_team_member_to_channels(&team_member.team_id, user_id)
             .await?;
 
-        // Best-effort: ask the email service to seed CRM tables from this
-        // user's historical sent mail. Log and swallow failures — the join
-        // is already committed and the email service is idempotent, so a
-        // missed enqueue can be retried (or covered by future per-message
-        // CRM fan-out) without leaving the system in an inconsistent state.
-        if let Err(e) = self
-            .populate_crm_enqueuer
+        // Populate CRM tables (companies, contacts) with new team user's emails via email service
+        // pubsub worker
+        self.populate_crm_enqueuer
             .enqueue_populate_crm_for_user(user_id)
             .await
-        {
-            tracing::error!(
-                error = ?e,
-                team_id = %team_member.team_id,
-                macro_id = %user_id,
-                "Failed to enqueue PopulateCrmForUser after join_team; CRM tables will not be seeded from sent-mail history (per-message fan-out will still cover future sends)"
-            );
-        }
+            .map_err(|e| {
+                JoinTeamError::StorageLayerError(anyhow::anyhow!(
+                    "failed to enqueue PopulateCrmForUser: {e}"
+                ))
+            })?;
 
         Ok(team_member)
     }
