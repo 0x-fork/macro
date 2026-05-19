@@ -193,10 +193,7 @@ function LayoutShell(props: {
       }
     >
       <div
-        class={cn(
-          'grid w-full text-xs font-medium text-ink-muted py-2 px-2 rounded-sm items-center',
-          props.checked ? 'bg-accent/10' : 'bg-ink/5 hover:bg-ink/10'
-        )}
+        class="grid w-full text-xs font-medium text-ink-muted py-2 px-2 rounded-sm items-center"
         style={{
           'grid-template-columns': '1.5rem 1fr',
           gap: '0 0.5rem',
@@ -2037,22 +2034,21 @@ export function StackedListEntity(props: StackedListEntityProps) {
         'soup-stacked-entity @container/entity w-[calc(100%-0.5rem)] mx-1 relative group/stacked flex flex-col rounded',
         !isWide() && isMobile() && 'border-b border-edge-muted mx-0 w-full rounded-none',
         !isMobile() && 'min-h-10',
-        hasNotifications()
-          ? !isMobile() && 'pt-2'
-          : {
-              'bg-accent/8': props.checked,
-              'ring ring-accent/16 ring-inset':
-                props.checked && props.highlighted,
-              'ring ring-edge bg-active/60 ring-inset':
-                props.highlighted && !props.checked && !isMobile(),
-              'bg-active/40':
-                props.hovered && !props.highlighted && !props.checked,
-              'hover:bg-active/40 hover:ring hover:ring-edge hover:ring-inset group-data-expanded/cm-trigger:bg-active/40':
-                !props.checked &&
-                !props.highlighted &&
-                !props.hovered &&
-                !isMobile(),
-            }
+        hasNotifications() && !isMobile() && 'pt-2',
+        {
+          'bg-accent/8': props.checked,
+          'ring ring-accent/16 ring-inset':
+            props.checked && props.highlighted,
+          'ring ring-edge bg-active/60 ring-inset':
+            props.highlighted && !props.checked && !isMobile(),
+          'bg-active/40':
+            props.hovered && !props.highlighted && !props.checked,
+          'hover:bg-active/40 hover:ring hover:ring-edge hover:ring-inset group-data-expanded/cm-trigger:bg-active/40':
+            !props.checked &&
+            !props.highlighted &&
+            !props.hovered &&
+            !isMobile(),
+        }
       )}
       onMouseMove={props.onMouseMove}
     >
@@ -2130,7 +2126,7 @@ export function StackedListEntity(props: StackedListEntityProps) {
       </Show>
 
       <Show when={hasNotifications()}>
-        <div class={cn('pb-2', isMobile() ? 'pl-6 pr-2' : 'pl-2 pr-4')}>
+        <div class={cn('pb-2', isMobile() ? 'pl-6 pr-2' : 'pl-12 pr-4')}>
           <Show when={isWithNotification(props.entity) && !showContentHits()}>
             <Entity.Notification.Stacks
               entity={props.entity}
