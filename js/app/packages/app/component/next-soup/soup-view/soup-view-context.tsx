@@ -17,7 +17,7 @@ import { createSearchState } from '@app/component/next-soup/soup-view/create-sea
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import { ENABLE_FEATURED_SEARCH_RESULTS } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
-import { throwOnErr } from '@core/util/maybeResult';
+import { throwOnErr } from '@core/util/result';
 import {
   type EntityData,
   getPropertyOptionLabel,
@@ -363,7 +363,6 @@ export const SoupViewContextProvider: FlowComponent<
 
     for (const apiGroup of groups) {
       const groupMeta = buildGroupMeta(apiGroup);
-      const isExpanded = soup.grouping.isExpanded(apiGroup.key);
       const query = groupQueries().find((q) => q.key === apiGroup.key);
       const groupEntities = query?.data() ?? [];
 
@@ -383,10 +382,6 @@ export const SoupViewContextProvider: FlowComponent<
           isGrouped: true,
         })
       );
-
-      // We skip building rows for entities that are
-      // not visible because the group is collapsed
-      if (!isExpanded) continue;
 
       // Entity rows
       for (const entity of groupEntities) {

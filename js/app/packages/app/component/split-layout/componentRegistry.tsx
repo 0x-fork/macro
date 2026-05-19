@@ -4,11 +4,16 @@ import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter
 import type { Query } from '@app/component/next-soup/filters/filter-store/types';
 import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
 import { MobileHome } from '@app/component/mobile/MobileHome';
+import { ShowFeatureFlag } from '@app/lib/analytics/posthog';
 import { ChannelCompose } from '@block-channel/component/Compose';
 import { ComposeTask } from '@block-md/component/ComposeTask';
 import { useIsAuthenticated } from '@core/auth';
 import { LoadingBlock } from '@core/component/LoadingBlock';
-import { DEV_MODE_ENV, LOCAL_ONLY } from '@core/constant/featureFlags';
+import {
+  DEV_MODE_ENV,
+  ENABLE_NEW_ONBOARDING_OVERRIDE,
+  LOCAL_ONLY,
+} from '@core/constant/featureFlags';
 import { useUserContext } from '@core/context/user';
 import type { ViewId } from '@core/types/view';
 import NotificationRoute from '@notifications/components/NotificationRoute';
@@ -316,12 +321,21 @@ registerComponent(
 );
 registerComponent('settings', () => <SettingsPanelComponentWrapper />);
 registerComponent('notification', () => <NotificationRoute />);
-registerComponent(
-  'welcome',
-  lazy(
-    () => import('@app/component/interactive-onboarding/InteractiveOnboarding')
-  )
+const NewOnboarding = lazy(
+  () => import('@app/component/onboarding/onboarding')
 );
+const OldOnboarding = lazy(
+  () => import('@app/component/interactive-onboarding/InteractiveOnboarding')
+);
+registerComponent('welcome', () => (
+  <ShowFeatureFlag
+    key="enable-new-onboarding"
+    enabledOverride={ENABLE_NEW_ONBOARDING_OVERRIDE}
+    fallback={<OldOnboarding />}
+  >
+    <NewOnboarding />
+  </ShowFeatureFlag>
+));
 
 if (LOCAL_ONLY) {
   registerComponent(

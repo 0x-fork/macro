@@ -1,13 +1,13 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import { CommandState } from '@app/component/command/state';
 import { isMobile } from '@core/mobile/isMobile';
+import { Checkbox } from '@kobalte/core/checkbox';
+import SearchIcon from '@icon/macro-magnifying-glass.svg';
 import ArchiveIcon from '@phosphor/archive.svg';
 import CheckIcon from '@phosphor/check.svg';
 import DotsThreeIcon from '@phosphor/dots-three.svg';
 import MinusIcon from '@phosphor/minus.svg';
 import TrashIcon from '@phosphor/trash.svg';
-import { Checkbox } from '@kobalte/core/checkbox';
-import SearchIcon from '@icon/macro-magnifying-glass.svg';
 import { Button, cn } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { useSoup } from '../../soup-context';
@@ -60,9 +60,9 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
   const {
     resetToTabDefaults,
     activeFiltersList,
-    removeFilter,
-    replaceFilter,
     isOptionActive,
+    replaceFilter,
+    removeFilter,
   } = useFilterRefinements();
 
   const hasActiveFilters = () => activeFiltersList().length > 0;
@@ -219,4 +219,4 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
       </div>
     </Show>
   );
-};
+}

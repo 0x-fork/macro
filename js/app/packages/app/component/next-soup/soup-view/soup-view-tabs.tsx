@@ -338,46 +338,31 @@ export const CollapsedSoupViewTabs = () => {
   const { applyTabPreset } = useApplyPreset();
   const { activeTab } = useSoupView();
 
-  const list = createMemo(() => {
-    const view = listView();
-    if (!view || !(view in VIEW_TAB_LISTS)) return [];
-    return VIEW_TAB_LISTS[view as TabbedListView];
+  const view = createMemo(() => {
+    const v = listView();
+    return v && v in VIEW_TAB_LISTS ? (v as TabbedListView) : undefined;
   });
 
-  const activeLabel = createMemo(() => {
-    const tab = activeTab();
-    return list().find((item) => item.value === tab)?.label ?? list()[0]?.label;
+  const list = createMemo(() => {
+    const v = view();
+    return v ? VIEW_TAB_LISTS[v] : [];
+  });
+
+  const defaultValue = createMemo(() => {
+    const v = view();
+    return v ? VIEW_TAB_PRESETS[v].default : undefined;
   });
 
   return (
-    <Dropdown placement="bottom-start" gutter={4}>
-      <Dropdown.Trigger class="flex items-center gap-1">
-        <span class="truncate">{activeLabel()}</span>
-        <ChevronDownIcon class="size-3 shrink-0" />
-      </Dropdown.Trigger>
-      <Dropdown.Portal>
-        <Layer depth={2}>
-          <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-sm p-1">
-            <For each={list()}>
-              {(item) => (
-                <Dropdown.Item
-                  class="w-full px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-md"
-                  classList={{
-                    'font-semibold': activeTab() === item.value,
-                  }}
-                  onSelect={() => {
-                    const view = listView();
-                    if (view) applyTabPreset(view, item.value);
-                  }}
-                >
-                  {item.label}
-                </Dropdown.Item>
-              )}
-            </For>
-          </Dropdown.Content>
-        </Layer>
-      </Dropdown.Portal>
-    </Dropdown>
+    <TabsInsetDropdown
+      list={list()}
+      value={activeTab()}
+      defaultValue={defaultValue()}
+      onChange={(value) => {
+        const v = view();
+        if (v) applyTabPreset(v, value);
+      }}
+    />
   );
 };
 
