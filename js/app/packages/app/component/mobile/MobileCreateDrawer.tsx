@@ -1,10 +1,10 @@
 import { MobileDrawer } from './MobileDrawer';
 import { useSplitLayout } from '../split-layout/layout';
 import { hapticImpact } from '@core/mobile/haptics';
-import { AnimatedTaskIcon } from '@macro-icons/wide/animating/task';
-import { AnimatedFileMdIcon } from '@macro-icons/wide/animating/fileMd';
-import { AnimatedEmailIcon } from '@macro-icons/wide/animating/email';
-import { AnimatedChannelIcon } from '@macro-icons/wide/animating/channel';
+import { AnimatedTaskIcon } from '@icon/wide-task';
+import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
+import { AnimatedEmailIcon } from '@icon/wide-email';
+import { AnimatedChannelIcon } from '@icon/wide-channel';
 import { cn } from '@ui/utils/classname';
 import { For, type ParentProps } from 'solid-js';
 import type { Component, JSX } from 'solid-js';

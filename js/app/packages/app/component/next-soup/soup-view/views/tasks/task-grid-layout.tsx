@@ -30,7 +30,7 @@ import {
 } from '@entity';
 import type { LayoutProps } from '@entity/composed/list-entity/shared';
 import { soupPropertyToProperty } from '@entity/extractors-property';
-import { HexDashedIcon } from '@macro-icons/square/HexDashedIcon';
+import { HexDashedIcon } from '@icon/HexDashedIcon';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg?component-solid';
 import UserFillIcon from '@phosphor-icons/core/fill/user-fill.svg?component-solid';
 import UsersIcon from '@phosphor-icons/core/fill/users-fill.svg?component-solid';

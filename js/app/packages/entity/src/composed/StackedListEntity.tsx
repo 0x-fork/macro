@@ -8,12 +8,12 @@ import { isMobile } from '@core/mobile/isMobile';
 import { tryMacroId, useDisplayName, useDisplayNameParts } from '@core/user';
 import type { DateValue } from '@core/util/date';
 import { DisplayName } from '@entity/components/DisplayName';
-import ArrowDownLeftIcon from '@icon/arrow-down-left.svg';
+import ArrowDownLeftIcon from '@phosphor/arrow-down-left.svg';
 import UsersIcon from '@phosphor-icons/core/fill/users-fill.svg?component-solid';
 import UserFillIcon from '@phosphor-icons/core/fill/user-fill.svg?component-solid';
 import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg';
-import EnvelopeOpenIcon from '@icon/envelope-open.svg';
-import FileDashedIcon from '@icon/file-dashed.svg';
+import EnvelopeOpenIcon from '@phosphor/envelope-open.svg';
+import FileDashedIcon from '@phosphor/file-dashed.svg';
 import PhoneXIcon from '@phosphor-icons/core/bold/phone-x-bold.svg';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg';
 import CircleDashedIcon from '@phosphor-icons/core/regular/circle-dashed.svg';
@@ -41,7 +41,7 @@ import { ProjectBreadCrumb } from '../components/ProjectBreadCrumb';
 import { UnreadIndicator } from '../components/UnreadIndicator';
 import { Entity } from '../entity';
 import type { EntityRowConfig } from '../extractors-notification';
-import { PropertyValue } from '@core/component/Properties/component/propertyValue/PropertyValue';
+import { Property as PropertyPrimitive } from '@property';
 import {
   PropertiesProvider,
   usePropertiesContext,
@@ -60,8 +60,8 @@ import { PropertyValueIcon } from '@core/component/Properties/component/property
 import {
   TaskCircleIcon,
   type TaskStatus,
-} from '@macro-icons/square/TaskCircleIcon';
-import { HexDashedIcon } from '@macro-icons/square/HexDashedIcon';
+} from '@icon/TaskCircleIcon';
+import { HexDashedIcon } from '@icon/HexDashedIcon';
 import { formatPropertyValue } from '@core/component/Properties/utils/formatting';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
@@ -294,37 +294,21 @@ export function TaskPropertyGroup(props: {
       ],
     });
 
-  const saveHandler: PropertySaveHandler = {
-    saveProperty: (property, value) => saveOne(property, value),
-    saveDate: (property, date) =>
-      saveOne(property, { valueType: 'DATE', value: date }),
-  };
-
   return (
     <Show when={properties().length > 0}>
-      <PropertiesProvider
-        entityType={EntityType.TASK}
-        canEdit={true}
-        properties={properties}
-        onRefresh={() => {}}
-        onPropertyAdded={() => {}}
-        onPropertyDeleted={() => {}}
-        saveHandler={saveHandler}
-      >
-        <div class="flex items-center gap-1 [&_div[role='button']]:!p-0 [&_div[role='button']]:!h-fit">
-          <Index each={properties()}>
-            {(property) => (
-              <PropertyValue
-                property={property()}
-                condensed={props.condensed ?? true}
-              />
-            )}
-          </Index>
-        </div>
-        <Suspense>
-          <Modals />
-        </Suspense>
-      </PropertiesProvider>
+      <div class="flex items-center gap-1 [&_div[role='button']]:!p-0 [&_div[role='button']]:!h-fit">
+        <Index each={properties()}>
+          {(property) => (
+            <PropertyPrimitive.Root
+              property={property()}
+              canEdit
+              onSave={(p, v) => saveOne(p, v)}
+            >
+              <PropertyPrimitive.DisplayCondensed />
+            </PropertyPrimitive.Root>
+          )}
+        </Index>
+      </div>
     </Show>
   );
 }

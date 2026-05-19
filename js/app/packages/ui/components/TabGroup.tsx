@@ -1,7 +1,7 @@
 import { cn } from '../utils/classname';
 import {  createSignal, For, type JSX, Show } from 'solid-js';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import DotsThreeIcon from '@icon/dots-three.svg';
+import DotsThreeIcon from '@phosphor/dots-three.svg';
 import { Layer } from './Layer';
 
 export type TabSize = 'sm' | 'md' | 'lg';

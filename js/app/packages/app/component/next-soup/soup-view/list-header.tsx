@@ -1,12 +1,12 @@
 import { useListLayout } from '@entity';
-import FolderSimpleIcon from '@icon/folder-simple.svg';
-import FlagIcon from '@icon/flag.svg';
-import UserIcon from '@icon/user.svg';
-import ClockIcon from '@icon/clock.svg';
-import HashIcon from '@icon/hash.svg';
-import ChatIcon from '@icon/chat-centered.svg';
-import EnvelopeIcon from '@icon/envelope.svg';
-import TextIcon from '@icon/text-aa.svg';
+import FolderSimpleIcon from '@phosphor/folder-simple.svg';
+import FlagIcon from '@phosphor/flag.svg';
+import UserIcon from '@phosphor/user.svg';
+import ClockIcon from '@phosphor/clock.svg';
+import HashIcon from '@phosphor/hash.svg';
+import ChatIcon from '@phosphor/chat-centered.svg';
+import EnvelopeIcon from '@phosphor/envelope.svg';
+import TextIcon from '@phosphor/text-aa.svg';
 import { Match, Show, Switch } from 'solid-js';
 
 type ListHeaderType = 'task' | 'email' | 'channel' | 'document' | 'inbox' | 'default';

@@ -11,8 +11,8 @@ import { DisplayName } from '@entity/components/DisplayName';
 import UsersIcon from '@phosphor-icons/core/fill/users-fill.svg?component-solid';
 import UserFillIcon from '@phosphor-icons/core/fill/user-fill.svg?component-solid';
 import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg';
-import EnvelopeOpenIcon from '@icon/envelope-open.svg';
-import FileDashedIcon from '@icon/file-dashed.svg';
+import EnvelopeOpenIcon from '@phosphor/envelope-open.svg';
+import FileDashedIcon from '@phosphor/file-dashed.svg';
 import PhoneXIcon from '@phosphor-icons/core/bold/phone-x-bold.svg';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg';
 import type { StreamEvent } from '@service-connection/generated/schemas';
@@ -51,7 +51,7 @@ import {
   PROPERTY_OPTION_IDS,
 } from '@core/component/Properties/constants';
 import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
-import { HexDashedIcon } from '@macro-icons/square/HexDashedIcon';
+import { HexDashedIcon } from '@icon/HexDashedIcon';
 import { formatPropertyValue } from '@core/component/Properties/utils/formatting';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';

@@ -27,10 +27,11 @@ import { clearPressedKeys } from '@core/hotkey/state';
 import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { activateClosestDOMScope } from '@core/hotkey/utils';
+import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import LogoIcon from '@icon/macro-logo.svg';
-import { AnimatedBellIcon } from '@icon/wide-bell';
+import { AnimatedSignalIcon } from '@icon/wide-signal';
 import { AnimatedCallIcon } from '@icon/wide-call';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
 import { AnimatedCommandIcon } from '@icon/wide-command';
@@ -55,9 +56,9 @@ import { useLogout } from '@core/auth/logout';
 import { useEmail, useUserId } from '@core/context/user';
 import { useDisplayName, tryMacroId } from '@core/user';
 import { UserIcon } from '@core/component/UserIcon';
-import GearIcon from '@icon/gear.svg';
-import SignOutIcon from '@icon/sign-out.svg';
-import CaretDownIcon from '@icon/caret-down.svg';
+import GearIcon from '@phosphor/gear.svg';
+import SignOutIcon from '@phosphor/sign-out.svg';
+import CaretDownIcon from '@phosphor/caret-down.svg';
 import {
   type Component,
   createMemo,
@@ -86,7 +87,7 @@ export const SIDEBAR_LINKS = [
     id: 'notifications',
     label: 'Notifications',
     href: LIST_VIEW_PATHS.notifications,
-    icon: AnimatedBellIcon,
+    icon: AnimatedSignalIcon,
     hotkey: 'n',
     hotkeyToken: TOKENS.sidebar.goTo.notifications,
   },

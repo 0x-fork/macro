@@ -1,9 +1,9 @@
 import { type Component, createMemo, createSignal, For, Show } from 'solid-js';
 import { Popover } from '@kobalte/core/popover';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import CheckIcon from '@icon/check.svg';
-import SlidersIcon from '@icon/sliders-horizontal.svg';
-import CaretDownIcon from '@icon/caret-down.svg';
+import CheckIcon from '@phosphor/check.svg';
+import SlidersIcon from '@phosphor/sliders-horizontal.svg';
+import CaretDownIcon from '@phosphor/caret-down.svg';
 import type {
   SortOption,
   SystemSortOption,
