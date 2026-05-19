@@ -1,5 +1,5 @@
-use crate::pubsub::backfill::populate_crm_contact::enqueue_populate_crm_contacts;
 use crate::pubsub::context::PubSubContext;
+use crate::pubsub::util::enqueue_populate_crm_contacts;
 use crm::domain::service::CrmService;
 use models_email::email::service::backfill::PopulateCrmForUserPayload;
 use models_email::email::service::pubsub::{DetailedError, FailureReason, ProcessingError};

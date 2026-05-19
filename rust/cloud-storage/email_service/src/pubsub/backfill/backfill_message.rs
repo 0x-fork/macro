@@ -1,8 +1,9 @@
 use crate::convert::map_message_resource_to_service;
 use crate::pubsub::backfill::increment_counters;
-use crate::pubsub::backfill::populate_crm_contact::enqueue_populate_crm_contacts;
 use crate::pubsub::context::PubSubContext;
-use crate::pubsub::util::{CheckGmailRateLimitArgs, check_gmail_rate_limit};
+use crate::pubsub::util::{
+    CheckGmailRateLimitArgs, check_gmail_rate_limit, enqueue_populate_crm_contacts,
+};
 use crate::util::process_pre_insert::process_message_pre_insert;
 use anyhow::Context;
 use models_email::email::service::backfill::{BackfillMessagePayload, JobScopedPayload};
