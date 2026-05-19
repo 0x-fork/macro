@@ -33,14 +33,19 @@ pub trait CrmService: Clone + Send + Sync + 'static {
     /// Reverses [`populate_contact`] for one `(link_id, email)`. Drops the
     /// `crm_contact_sources` row, then cascades up to `crm_contacts` and
     /// `crm_companies` (with `crm_domains` cascading via FK) when no
-    /// sibling rows remain. The company-level `email_sync` killswitch is
-    /// intentionally ignored — see
+    /// sibling rows remain — except that companies with `email_sync =
+    /// false` are preserved so the team's opt-out configuration survives
+    /// teardown. See
     /// [`crate::domain::companies_repo::CompaniesRepository::depopulate_contact`].
     ///
-    /// Returns `Ok(())` for emails missing an `@` or with an empty local-
-    /// part / domain (validation matches [`populate_contact`]). The caller
-    /// is expected to gate this call on a prior check that the link has
-    /// no other sent messages to `email`.
+    /// Treats malformed emails (missing `@`, empty local-part, empty or
+    /// multi-`@` domain) as a no-op rather than an error so that retries
+    /// don't pile up on poisoned messages. This is stricter than
+    /// [`populate_contact`], which errors on malformed input — depopulate
+    /// is a teardown step and we'd rather drop a bad payload than churn
+    /// it through the retry path. The caller is expected to gate this
+    /// call on a prior check that the link has no other sent messages to
+    /// `email`.
     fn depopulate_contact(
         &self,
         team_id: &uuid::Uuid,
@@ -143,19 +148,18 @@ where
     ) -> Result<(), CrmError> {
         let email = email.trim();
         let Some((local_part, domain)) = email.split_once('@') else {
-            return Err(CrmError::StorageLayerError(anyhow::anyhow!(
-                "email {email} has no '@' separator"
-            )));
+            tracing::debug!(
+                email,
+                "depopulate_contact: skipping malformed email (no '@')"
+            );
+            return Ok(());
         };
-        if local_part.is_empty() {
-            return Err(CrmError::StorageLayerError(anyhow::anyhow!(
-                "email {email} has an empty local part"
-            )));
-        }
-        if domain.is_empty() {
-            return Err(CrmError::StorageLayerError(anyhow::anyhow!(
-                "email {email} has an empty domain"
-            )));
+        if local_part.is_empty() || domain.is_empty() || domain.contains('@') {
+            tracing::debug!(
+                email,
+                "depopulate_contact: skipping malformed email (empty part or multiple '@')"
+            );
+            return Ok(());
         }
         self.companies_repository
             .depopulate_contact(team_id, link_id, domain, email)

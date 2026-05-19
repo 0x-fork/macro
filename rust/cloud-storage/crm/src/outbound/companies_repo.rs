@@ -262,14 +262,33 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
             .await
             .map_err(|e| CrmError::StorageLayerError(e.into()))?;
 
-        // Resolve (contact_id, company_id) for this (team, domain, email).
-        // Returning None here means the user is trying to depopulate
-        // something that was never tracked (e.g. domain opted out at the
-        // time the message was sent, or the contact was already cleaned
-        // up): commit the empty tx and ack.
+        // Take the lock BEFORE looking at any state. A concurrent
+        // populate_contact for the same (team, domain) might have a tx
+        // open that has inserted rows but hasn't committed yet — without
+        // the lock our SELECT below would miss those rows, return
+        // Ok(()) here, and the in-flight populate would then commit and
+        // leave the team with CRM data for a since-deleted sent message.
+        // Holding the lock for the rest of this tx forces populate to
+        // either commit first (we then see + tear down its rows) or
+        // wait until we're done (its row will be inserted after, and
+        // a future depopulate will catch it).
+        sqlx::query!(
+            r#"SELECT pg_advisory_xact_lock(hashtextextended($1, 0))"#,
+            format!("{team_id}:{normalized_domain}"),
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        // Resolve (contact_id, company_id, email_sync) for this
+        // (team, domain, email). Returning None here means there is
+        // nothing to tear down: commit the empty tx and ack.
         let Some(row) = sqlx::query!(
             r#"
-            SELECT ct.id AS contact_id, co.id AS company_id
+            SELECT
+                ct.id AS contact_id,
+                co.id AS company_id,
+                co.email_sync AS "email_sync!"
             FROM crm_contacts ct
             JOIN crm_companies co ON co.id = ct.company_id
             JOIN crm_domains d ON d.company_id = co.id
@@ -291,17 +310,6 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
                 .map_err(|e| CrmError::StorageLayerError(e.into()))?;
             return Ok(());
         };
-
-        // Serialize against concurrent populate_contact for the same
-        // (team, domain). Same key as populate so the two operations
-        // cannot interleave their writes.
-        sqlx::query!(
-            r#"SELECT pg_advisory_xact_lock(hashtextextended($1, 0))"#,
-            format!("{team_id}:{normalized_domain}"),
-        )
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
 
         // 1. Drop the per-link source row.
         sqlx::query!(
@@ -342,8 +350,20 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
             .await
             .map_err(|e| CrmError::StorageLayerError(e.into()))?;
 
-        // 3. Keep the company iff any other contact in the team still
-        //    belongs to it.
+        // 3. Keep the company when other contacts in the team still
+        //    belong to it, OR when the team has opted the domain out.
+        //    The killswitch (`email_sync = false`) is stored on
+        //    crm_companies and is configuration, not derived data;
+        //    dropping the company would silently erase the opt-out and
+        //    a future populate would recreate the row with the default
+        //    `email_sync = true`.
+        if !row.email_sync {
+            tx.commit()
+                .await
+                .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+            return Ok(());
+        }
+
         let other_contacts = sqlx::query_scalar!(
             r#"
             SELECT EXISTS(

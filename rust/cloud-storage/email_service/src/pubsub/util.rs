@@ -95,6 +95,38 @@ pub async fn cg_refresh_email(client: &ConnectionGatewayClient, macro_id: &str, 
     }
 }
 
+/// Shared filter/dedup pass for the CRM populate + depopulate enqueue
+/// helpers. Returns each input email, lowercased and trimmed, with
+/// malformed addresses and the caller's own address dropped, and
+/// duplicates collapsed.
+///
+/// Validation is stricter than a bare `contains('@')` check:
+///   - must contain exactly one `@`
+///   - local-part and domain must both be non-empty
+///
+/// Matches the validation in [`crm::domain::service::CrmService::populate_contact`]
+/// so malformed inputs never reach the consumer side.
+fn normalized_non_self_contact_emails(
+    self_email: &str,
+    contact_emails: impl IntoIterator<Item = String>,
+) -> Vec<String> {
+    let mut seen: HashSet<String> = HashSet::new();
+    contact_emails
+        .into_iter()
+        .filter_map(|raw| {
+            let email = raw.trim().to_ascii_lowercase();
+            let (local, domain) = email.split_once('@')?;
+            if local.is_empty() || domain.is_empty() || domain.contains('@') {
+                return None;
+            }
+            if email == self_email || !seen.insert(email.clone()) {
+                return None;
+            }
+            Some(email)
+        })
+        .collect()
+}
+
 /// Producer-side fan-out helper: normalizes and enqueues one
 /// `PopulateCrmContact` message per distinct, non-self contact email.
 ///
@@ -104,30 +136,15 @@ pub async fn cg_refresh_email(client: &ConnectionGatewayClient, macro_id: &str, 
 /// is added to a team to seed contacts from their existing sent mail).
 /// Centralising the validation and dedup here means the paths can't drift
 /// in subtle ways — e.g. one normalising case-sensitively while the other
-/// doesn't.
-///
-/// Normalization on each input:
-///   - `trim()` + `to_ascii_lowercase()`
-///   - drops anything without `@` (defensive against malformed addresses)
-///   - drops the caller's own address (`self_email`, expected pre-lowercased)
-///   - dedupes within this invocation
+/// doesn't. See [`normalized_non_self_contact_emails`] for the validation
+/// rules.
 pub async fn enqueue_populate_crm_contacts(
     ctx: &PubSubContext,
     link_id: Uuid,
     self_email: &str,
     contact_emails: impl IntoIterator<Item = String>,
 ) -> Result<(), ProcessingError> {
-    let mut seen: HashSet<String> = HashSet::new();
-
-    for raw in contact_emails {
-        let contact_email = raw.trim().to_ascii_lowercase();
-        if !contact_email.contains('@') || contact_email == self_email {
-            continue;
-        }
-        if !seen.insert(contact_email.clone()) {
-            continue;
-        }
-
+    for contact_email in normalized_non_self_contact_emails(self_email, contact_emails) {
         let ps_message = BackfillPubsubMessage {
             backfill_operation: BackfillOperation::PopulateCrmContact(LinkScopedPayload {
                 link_id,
@@ -150,8 +167,8 @@ pub async fn enqueue_populate_crm_contacts(
 }
 
 /// Producer-side fan-out helper for tearing CRM contacts down when a sent
-/// message is deleted. Mirrors [`enqueue_populate_crm_contacts`]: normalizes,
-/// drops malformed and self-emails, and dedupes within the call.
+/// message is deleted. Mirrors [`enqueue_populate_crm_contacts`] and uses
+/// the same [`normalized_non_self_contact_emails`] filter.
 ///
 /// Used by `delete_message` in the inbox-sync worker. The consumer
 /// (`depopulate_crm_contact`) re-checks whether the link still has any
@@ -163,17 +180,7 @@ pub async fn enqueue_depopulate_crm_contacts(
     self_email: &str,
     contact_emails: impl IntoIterator<Item = String>,
 ) -> Result<(), ProcessingError> {
-    let mut seen: HashSet<String> = HashSet::new();
-
-    for raw in contact_emails {
-        let contact_email = raw.trim().to_ascii_lowercase();
-        if !contact_email.contains('@') || contact_email == self_email {
-            continue;
-        }
-        if !seen.insert(contact_email.clone()) {
-            continue;
-        }
-
+    for contact_email in normalized_non_self_contact_emails(self_email, contact_emails) {
         let ps_message = BackfillPubsubMessage {
             backfill_operation: BackfillOperation::DepopulateCrmContact(LinkScopedPayload {
                 link_id,
