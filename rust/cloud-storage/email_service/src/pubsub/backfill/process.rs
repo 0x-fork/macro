@@ -109,7 +109,12 @@ async fn inner_process_message(
             backfill_message::backfill_message(ctx, &access_token, scope, &link).await
         }
         BackfillOperation::UpdateThreadMetadata(scope) => {
-            let Some(JobContext { link, .. }) = fetch_job_context(ctx, scope).await? else {
+            // UpdateThreadMetadata is a DB-only step; skip the Gmail token
+            // fetch so a revoked token can't fail this handler with
+            // AccessTokenFetchFailed.
+            let Some(JobContextNoToken { link, .. }) =
+                fetch_job_context_no_token(ctx, scope).await?
+            else {
                 return Ok(());
             };
             update_metadata::update_thread_metadata(ctx, scope, &link).await
@@ -136,24 +141,34 @@ async fn inner_process_message(
 
 /// The pre-fetched context every job-scoped handler used to receive from
 /// the top-level dispatcher: the link the operation targets, the backfill
-/// job it belongs to, and a fresh Gmail access token for the link.
+/// job it belongs to, and a fresh Gmail access token for the link. Used by
+/// handlers that talk to Gmail.
 struct JobContext {
     link: link::Link,
     backfill_job: BackfillJob,
     access_token: String,
 }
 
-/// Shared prefetch for job-scoped operations: loads the backfill job,
-/// short-circuits on cancellation (also cleaning up the job-level redis
-/// progress key), loads the link, and exchanges the link for a fresh Gmail
-/// access token. Returns `Ok(None)` when the parent backfill job has been
-/// cancelled — the caller should ack the message without running the
-/// handler. Variant-specific cancellation cleanup (e.g. per-thread progress
-/// keys) belongs at the call site, not here.
-async fn fetch_job_context<P>(
+/// Same as [`JobContext`] but without a Gmail access token. Used by
+/// handlers that only talk to the database (e.g. UpdateThreadMetadata) so
+/// they don't fail with `AccessTokenFetchFailed` when a user's token is
+/// revoked or temporarily unavailable.
+struct JobContextNoToken {
+    link: link::Link,
+    backfill_job: BackfillJob,
+}
+
+/// Shared prefetch for DB-only job-scoped handlers: loads the backfill
+/// job, short-circuits on cancellation (also cleaning up the job-level
+/// redis progress key), and loads the link. Returns `Ok(None)` when the
+/// parent backfill job has been cancelled — the caller should ack the
+/// message without running the handler. Variant-specific cancellation
+/// cleanup (e.g. per-thread progress keys) belongs at the call site, not
+/// here.
+async fn fetch_job_context_no_token<P>(
     ctx: &PubSubContext,
     scope: &JobScopedPayload<P>,
-) -> Result<Option<JobContext>, ProcessingError> {
+) -> Result<Option<JobContextNoToken>, ProcessingError> {
     let backfill_job = email_db_client::backfill::job::get::get_backfill_job(&ctx.db, scope.job_id)
         .await
         .map_err(|e| {
@@ -178,6 +193,22 @@ async fn fetch_job_context<P>(
     }
 
     let link = fetch_link(ctx, scope.link_id).await?;
+
+    Ok(Some(JobContextNoToken { link, backfill_job }))
+}
+
+/// As [`fetch_job_context_no_token`], plus a fresh Gmail access token for
+/// the link. For handlers that need to talk to Gmail (Init, ListThreads,
+/// BackfillThread, BackfillMessage, BackfillAttachment).
+async fn fetch_job_context<P>(
+    ctx: &PubSubContext,
+    scope: &JobScopedPayload<P>,
+) -> Result<Option<JobContext>, ProcessingError> {
+    let Some(JobContextNoToken { link, backfill_job }) =
+        fetch_job_context_no_token(ctx, scope).await?
+    else {
+        return Ok(None);
+    };
 
     let access_token = fetch_token_or_delete_on_revocation(
         &link,

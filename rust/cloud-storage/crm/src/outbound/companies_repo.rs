@@ -158,9 +158,13 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
 
                 // The advisory lock guarantees no concurrent insert for the
                 // same (team_id, lower(domain)). The UNIQUE index on
-                // crm_domains backs that promise up — the `ON CONFLICT DO
-                // NOTHING` here is defensive.
-                sqlx::query!(
+                // crm_domains backs that promise up — `ON CONFLICT DO
+                // NOTHING` is defensive. If it does fire (e.g. an old row
+                // predating the advisory lock somehow exists), the
+                // crm_companies row we just inserted would be orphaned with
+                // no domain pointing at it. Detect via rows_affected, look
+                // up the real company id, and delete the orphan.
+                let domain_insert = sqlx::query!(
                     r#"
                     INSERT INTO crm_domains (company_id, team_id, domain)
                     VALUES ($1, $2, $3)
@@ -174,7 +178,32 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
                 .await
                 .map_err(|e| CrmError::StorageLayerError(e.into()))?;
 
-                new_company.id
+                if domain_insert.rows_affected() == 0 {
+                    let existing_company_id = sqlx::query_scalar!(
+                        r#"
+                        SELECT c.id
+                        FROM crm_companies c
+                        JOIN crm_domains d ON d.company_id = c.id
+                        WHERE c.team_id = $1
+                          AND LOWER(d.domain) = $2
+                        LIMIT 1
+                        "#,
+                        team_id,
+                        normalized_domain,
+                    )
+                    .fetch_one(&mut *tx)
+                    .await
+                    .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+                    sqlx::query!(r#"DELETE FROM crm_companies WHERE id = $1"#, new_company.id,)
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+                    existing_company_id
+                } else {
+                    new_company.id
+                }
             }
         };
 

@@ -95,11 +95,17 @@ where
         link_id: &uuid::Uuid,
         email: &str,
     ) -> Result<(), CrmError> {
-        let Some((_, domain)) = email.split_once('@') else {
+        let email = email.trim();
+        let Some((local_part, domain)) = email.split_once('@') else {
             return Err(CrmError::StorageLayerError(anyhow::anyhow!(
                 "email {email} has no '@' separator"
             )));
         };
+        if local_part.is_empty() {
+            return Err(CrmError::StorageLayerError(anyhow::anyhow!(
+                "email {email} has an empty local part"
+            )));
+        }
         if domain.is_empty() {
             return Err(CrmError::StorageLayerError(anyhow::anyhow!(
                 "email {email} has an empty domain"
