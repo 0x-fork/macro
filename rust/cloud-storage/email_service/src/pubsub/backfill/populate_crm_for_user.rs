@@ -14,7 +14,7 @@ use models_email::email::service::pubsub::{DetailedError, FailureReason, Process
 /// membership. The downstream `PopulateCrmContact` consumer is idempotent
 /// and re-checks the team membership + per-domain killswitch, so racing
 /// removals between fan-out and consumption are safe.
-#[tracing::instrument(skip(ctx), fields(macro_id = %payload.macro_id))]
+#[tracing::instrument(skip(ctx), err, fields(macro_id = %payload.macro_id))]
 pub async fn populate_crm_for_user(
     ctx: &PubSubContext,
     payload: &PopulateCrmForUserPayload,

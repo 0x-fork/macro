@@ -16,7 +16,7 @@ use uuid::Uuid;
 /// `crm_contact_sources` atomically. A killswitch row
 /// (`crm_companies.email_sync = false` for the contact's domain) is also a
 /// no-op — see [`crm::domain::companies_repo::CompaniesRepository::populate_contact`].
-#[tracing::instrument(skip(ctx), fields(contact_email = %p.contact_email, link_id = %link.id))]
+#[tracing::instrument(skip(ctx), err, fields(contact_email = %p.contact_email, link_id = %link.id))]
 pub async fn populate_crm_contact(
     ctx: &PubSubContext,
     link: &link::Link,

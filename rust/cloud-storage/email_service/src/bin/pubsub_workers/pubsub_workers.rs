@@ -239,6 +239,13 @@ async fn main() -> anyhow::Result<()> {
         crm::outbound::companies_repo::CompaniesRepositoryImpl::new(db.clone()),
     );
 
+    // Backfill workers run against a dedicated pool to keep their writes
+    // off the primary worker pool. CRM writes are part of the backfill
+    // flow, so route them through `db_backfill` too.
+    let crm_service_backfill = crm::domain::service::CrmServiceImpl::new(
+        crm::outbound::companies_repo::CompaniesRepositoryImpl::new(db_backfill.clone()),
+    );
+
     // process user inbox updates from gmail inbox_sync queue, triggered by update pubsub messages from Google
     for worker in inbox_sync_workers {
         let db_inbox_sync = db.clone();
@@ -382,7 +389,7 @@ async fn main() -> anyhow::Result<()> {
         let connection_gateway_client_backfill = connection_gateway_client.clone();
         let dss_client_backfill = dss_client.clone();
         let system_properties_service_backfill = system_properties_service.clone();
-        let crm_service_backfill = crm_service.clone();
+        let crm_service_backfill = crm_service_backfill.clone();
         tokio::spawn(async move {
             email_service::pubsub::backfill::worker::run_worker(
                 db_backfill,

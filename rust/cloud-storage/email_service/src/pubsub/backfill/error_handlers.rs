@@ -126,18 +126,26 @@ async fn handle_thread_failure(ctx: &PubSubContext, link_id: Uuid, job_id: Uuid)
     let link = match email_db_client::links::get::fetch_link_by_id(&ctx.db, link_id).await {
         Ok(Some(link)) => link,
         Ok(None) => {
+            // Link is gone — `incr_completed_threads` can't run without
+            // it, so this thread will never complete on its own. Mark the
+            // parent job failed instead of silently dropping the message
+            // (the SQS message gets cleaned up after this returns, so a
+            // silent return strands the job in InProgress forever).
             tracing::error!(
                 link_id = link_id.to_string(),
                 job_id = job_id.to_string(),
-                "Link not found"
+                "Link not found in handle_thread_failure; marking backfill job failed"
             );
+            mark_job_failed(ctx, job_id).await;
             return;
         }
         Err(db_err) => {
             tracing::error!(
                 error = %db_err,
-                "Failed to fetch link"
+                job_id = job_id.to_string(),
+                "Failed to fetch link in handle_thread_failure; marking backfill job failed"
             );
+            mark_job_failed(ctx, job_id).await;
             return;
         }
     };
@@ -159,18 +167,25 @@ pub async fn handle_message_failure(
     let link = match email_db_client::links::get::fetch_link_by_id(&ctx.db, scope.link_id).await {
         Ok(Some(link)) => link,
         Ok(None) => {
+            // Same defense as handle_thread_failure — without a link we
+            // can't increment counters, and a silent return leaves the
+            // parent job in InProgress forever after the SQS message is
+            // cleaned up.
             tracing::error!(
                 link_id = scope.link_id.to_string(),
                 job_id = scope.job_id.to_string(),
-                "Link not found"
+                "Link not found in handle_message_failure; marking backfill job failed"
             );
+            mark_job_failed(ctx, scope.job_id).await;
             return;
         }
         Err(db_err) => {
             tracing::error!(
                 error = %db_err,
-                "Failed to fetch link"
+                job_id = scope.job_id.to_string(),
+                "Failed to fetch link in handle_message_failure; marking backfill job failed"
             );
+            mark_job_failed(ctx, scope.job_id).await;
             return;
         }
     };
