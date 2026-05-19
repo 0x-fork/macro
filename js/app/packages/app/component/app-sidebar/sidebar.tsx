@@ -570,7 +570,7 @@ type SidebarCreateButtonProps = {
 const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
   return (
     <Button
-      class="flex items-center justify-start text-xs gap-1.5 cursor-default w-full rounded-md py-2 [&_svg]:size-4"
+      class="flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-1.5 cursor-default w-full rounded-md py-2 group-data-[slim=true]/sidebar:py-0 group-data-[slim=true]/sidebar:aspect-square [&_svg]:size-4"
       variant="ghost"
       tooltipPlacement="right"
       label={props.isSlim() ? props.label : undefined}
@@ -578,12 +578,12 @@ const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
       onClick={props.onClick}
     >
       <div class="shrink-0">{props.icon()}</div>
-      <span class="whitespace-nowrap group-data-[slim=true]/sidebar:invisible">
+      <span class="whitespace-nowrap group-data-[slim=true]/sidebar:hidden">
         {props.label}
       </span>
       <Show when={props.hotkeyToken}>
         {(token) => (
-          <div class="text-xxs text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:invisible">
+          <div class="text-xxs text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:hidden">
             <Hotkey token={token()} class="flex gap-1" />
           </div>
         )}

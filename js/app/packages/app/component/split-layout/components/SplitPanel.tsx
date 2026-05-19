@@ -173,16 +173,14 @@ export function SplitPanel(props: SplitPanelProps) {
               class="rounded-xl"
               depth={1}
             >
-              <Panel.Header class="block min-h-10.25 touch:min-h-11.25 p-0 overflow-visible">
+              <Panel.Header class="block min-h-10.25 touch:min-h-11.25 p-0 overflow-visible border-b-0">
                 <SplitHeader ref={setHeaderRef} />
               </Panel.Header>
 
               <Panel.Toolbar
                 class={cn(
-                  'items-start py-2 overflow-visible',
-                  !hasToolbarContent() && 'hidden',
-                  !previewState() &&
-                    'border-b-0' /* scuffed: this is shit, but we are blinded by linear */
+                  'items-start py-2 overflow-visible border-b-0',
+                  !hasToolbarContent() && 'hidden'
                 )}
               >
                 <SplitToolbar ref={setToolbarRef} />
