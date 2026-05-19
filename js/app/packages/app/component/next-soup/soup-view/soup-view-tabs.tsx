@@ -8,10 +8,10 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import type { TabItem } from '@core/component/Tabs';
 import { useUserContext } from '@core/context/user';
-import ArrowLeftIcon from '@icon/arrow-left.svg';
-import ArrowRightIcon from '@icon/arrow-right.svg';
-import ChevronDownIcon from '@icon/caret-down.svg';
-import DotsThreeIcon from '@icon/dots-three.svg';
+import ArrowLeftIcon from '@phosphor/arrow-left.svg';
+import ArrowRightIcon from '@phosphor/arrow-right.svg';
+import ChevronDownIcon from '@phosphor/caret-down.svg';
+import DotsThreeIcon from '@phosphor/dots-three.svg';
 import { cn, Dropdown, Layer } from '@ui';
 import {
   batch,
@@ -117,7 +117,7 @@ export const useApplyPreset = () => {
       setActiveTab(tabId);
       queryFilters.replace(preset.filters);
       soup.predicates.set(preset.clientFilters);
-      soup.grouping.setActiveGroupId(undefined);
+      soup.grouping.setActiveGroupId(preset.groupBy);
     });
     return true;
   };

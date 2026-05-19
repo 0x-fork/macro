@@ -61,11 +61,16 @@ import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { EmailPermissionsBanner } from '@core/component/EmailPermissionsBanner';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
+import { SYSTEM_PROPERTY_IDS } from '@core/component/Properties/constants';
 import { Resize } from '@core/component/Resize';
+import { UserIcon } from '@core/component/UserIcon';
+import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
+import { useDisplayName } from '@core/user/displayName';
+import type { MacroId } from '@core/user/macroId';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import {
   type EntityData,
@@ -74,13 +79,14 @@ import {
   type SearchLocation,
   StackedListEntity,
 } from '@entity';
-import CaretDownIcon from '@icon/caret-down.svg';
-import ChevronRightIcon from '@icon/caret-right.svg';
-import CheckIcon from '@icon/check.svg';
-import ClockIcon from '@icon/clock.svg';
-import RowsIcon from '@icon/rows.svg';
-import Spinner from '@icon/spinner.svg';
+import SearchIcon from '@icon/macro-magnifying-glass.svg';
 import { createEffectOnEntityTypeNotification } from '@notifications';
+import CaretDownIcon from '@phosphor/caret-down.svg';
+import ChevronRightIcon from '@phosphor/caret-right.svg';
+import CheckIcon from '@phosphor/check.svg';
+import ClockIcon from '@phosphor/clock.svg';
+import RowsIcon from '@phosphor/rows.svg';
+import Spinner from '@phosphor/spinner.svg';
 import { useQueryClient } from '@queries/client';
 import { emailKeys } from '@queries/email/keys';
 import { useEmailLinksQuery } from '@queries/email/link';
@@ -119,6 +125,21 @@ import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
 
+// Property values for entity-reference properties (e.g. assignees) are stored
+// as `{"entity_id": "...", "entity_type": "USER"}` and arrive in group keys as
+// the JSON-encoded text of that object.
+const parseEntityRefId = (key: string): string | null => {
+  try {
+    const parsed: unknown = JSON.parse(key);
+    if (typeof parsed === 'string') return parsed;
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const id = (parsed as Record<string, unknown>).entity_id;
+    return typeof id === 'string' ? id : null;
+  } catch {
+    return null;
+  }
+};
+
 export const SoupSectionHeader = (props: {
   children: JSX.Element;
   onClick?: () => void;
@@ -143,9 +164,42 @@ export const SoupSectionHeader = (props: {
   );
 };
 
+const AssigneeGroupContent = (props: {
+  assigneeId: MacroId;
+  fallbackLabel: string;
+}) => {
+  const [assigneeName] = useDisplayName(props.assigneeId);
+  return (
+    <>
+      <UserIcon
+        id={props.assigneeId}
+        size="sm"
+        suppressClick
+        showTooltip={false}
+      />
+      <span class="truncate">
+        {assigneeName() || props.assigneeId || props.fallbackLabel}
+      </span>
+    </>
+  );
+};
+
 const DefaultGroupHeader = (
   props: GroupHeaderProps & { highlighted?: boolean }
 ) => {
+  const { groupByField } = useSoupView();
+  const assigneeId = createMemo(() => {
+    const field = groupByField();
+    if (
+      field?.type !== 'property' ||
+      field.propertyDefinitionId !== SYSTEM_PROPERTY_IDS.ASSIGNEES ||
+      props.group.key === ''
+    ) {
+      return null;
+    }
+    return parseEntityRefId(props.group.key);
+  });
+
   return (
     <SoupSectionHeader
       onClick={() => props.group.toggle()}
@@ -160,11 +214,25 @@ const DefaultGroupHeader = (
           />
         </div>
       </Layer>
-      <PropertyValueIcon
-        optionId={props.group.value as string}
-        class="size-3.5"
-      />
-      <span class="truncate">{props.group.label}</span>
+      <Show
+        when={assigneeId()}
+        fallback={
+          <>
+            <PropertyValueIcon
+              optionId={props.group.value as string}
+              class="size-3.5"
+            />
+            <span class="truncate">{props.group.label}</span>
+          </>
+        }
+      >
+        {(id) => (
+          <AssigneeGroupContent
+            assigneeId={id() as MacroId}
+            fallbackLabel={props.group.label}
+          />
+        )}
+      </Show>
       <span
         class={cn(
           'shrink-0 tabular-nums text-xs font-medium',
@@ -441,6 +509,12 @@ interface SoupViewProps {
   initialClientFilters?: SetPredicatesInput<string>;
   initialFilters?: Partial<QueryState>;
   initialSearchText?: string;
+  /**
+   * Initial group-by id (same format as `soup.grouping.setActiveGroupId`,
+   * e.g. `property:<definition-id>`). Applied only when no persisted state
+   * exists for this view.
+   */
+  initialGroupBy?: string;
   /** Ignore localStorage on mount and use the supplied `initial*` values. */
   skipPersistedState?: boolean;
   disableLocalSearch?: boolean;
@@ -573,6 +647,7 @@ export const SoupView = (props: SoupViewProps) => {
                 <SoupViewFileDropzone>
                   <SoupViewList
                     initialClientFilters={props.initialClientFilters}
+                    initialGroupBy={props.initialGroupBy}
                     skipPersistedState={props.skipPersistedState}
                     onMobileScroll={setMobileScrollY}
                   />
@@ -594,6 +669,7 @@ interface SoupViewListProps {
   customScrollbarHidden?: boolean;
   scopeId?: string;
   initialClientFilters?: SetPredicatesInput<string>;
+  initialGroupBy?: string;
   skipPersistedState?: boolean;
   onMobileScroll?: (scrollY: number) => void;
 }
@@ -961,6 +1037,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
     } else {
       if (props.initialClientFilters) {
         soup.predicates.set(props.initialClientFilters);
+      }
+      if (props.initialGroupBy) {
+        soup.grouping.setActiveGroupId(props.initialGroupBy);
       }
       // Set default tab for list views when no persisted state exists
       if (isListViewID(contentId)) {

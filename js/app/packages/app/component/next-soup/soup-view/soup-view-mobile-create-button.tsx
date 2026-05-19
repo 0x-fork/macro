@@ -1,7 +1,7 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import type { ListView } from '@app/constants/list-views';
 import { hapticImpact } from '@core/mobile/haptics';
-import PlusIcon from '@icon/plus.svg';
+import PlusIcon from '@phosphor/plus.svg';
 import { Button } from '@ui';
 import { createMemo, Show } from 'solid-js';
 import { runCreateAction, setCreateMenuOpen } from '../../Launcher';

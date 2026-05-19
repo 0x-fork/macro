@@ -1,8 +1,8 @@
-import PriorityHigh from '@macro-icons/wide/priority-high.svg';
-import PriorityLow from '@macro-icons/wide/priority-low.svg';
-import PriorityMedium from '@macro-icons/wide/priority-medium.svg';
-import PriorityUrgent from '@macro-icons/wide/priority-urgent.svg';
-import { TaskCircleIcon, type TaskStatus } from '@macro-icons/square/TaskCircleIcon';
+import { TaskCircleIcon, type TaskStatus } from '@icon/TaskCircleIcon';
+import PriorityHigh from '@icon/wide-priority-high.svg';
+import PriorityLow from '@icon/wide-priority-low.svg';
+import PriorityMedium from '@icon/wide-priority-medium.svg';
+import PriorityUrgent from '@icon/wide-priority-urgent.svg';
 import { type Component, createMemo, Match, Show, Switch } from 'solid-js';
 import { twMerge } from 'tailwind-merge';
 import { PROPERTY_OPTION_IDS } from '../../constants';

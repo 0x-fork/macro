@@ -18,10 +18,10 @@ import { UserIcon } from '@core/component/UserIcon';
 import { useUserId } from '@core/context/user';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
-import CaretRightIcon from '@icon/caret-right.svg';
-import CheckIcon from '@icon/check.svg';
-import CircleDashedIcon from '@icon/circle-dashed.svg';
-import SlidersIcon from '@phosphor-icons/core/regular/sliders-horizontal.svg?component-solid';
+import CaretRightIcon from '@phosphor/caret-right.svg';
+import CheckIcon from '@phosphor/check.svg';
+import CircleDashedIcon from '@phosphor/circle-dashed.svg';
+import SlidersIcon from '@phosphor/sliders-horizontal.svg';
 import { useContacts } from '@queries/contacts/contacts';
 import { cn, Dropdown, Layer, Tooltip } from '@ui';
 import {

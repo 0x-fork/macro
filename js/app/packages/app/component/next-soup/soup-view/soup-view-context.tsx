@@ -81,6 +81,7 @@ interface SoupViewContextValues {
   setAssigneeFilter: Setter<string[]>;
   activeTab: Accessor<string | undefined>;
   setActiveTab: Setter<string | undefined>;
+  groupByField: Accessor<GroupByField | undefined>;
 }
 
 export const SoupViewContext = createContext<SoupViewContextValues>();
@@ -426,6 +427,7 @@ export const SoupViewContextProvider: FlowComponent<
       const field = groupByField();
       const groups = itemsQuery.data?.groups;
       const items = itemsQuery.data?.items;
+      const dataVersion = itemsQuery.dataUpdatedAt;
 
       if (!field || !groups || !items) {
         return [];
@@ -439,12 +441,15 @@ export const SoupViewContextProvider: FlowComponent<
 
         return {
           key: group.key,
-          queryKey: soupKeys.groupedGroup({
-            params: soupParams(),
-            body: soupBody(),
-            groupBy: field,
-            groupKey: group.key,
-          }).queryKey as readonly unknown[],
+          queryKey: [
+            ...soupKeys.groupedGroup({
+              params: soupParams(),
+              body: soupBody(),
+              groupBy: field,
+              groupKey: group.key,
+            }).queryKey,
+            dataVersion,
+          ] as readonly unknown[],
           queryFn: async (ctx: { pageParam: string | null }) => {
             const response = await throwOnErr(async () =>
               storageServiceClient.getGroupedSoupAstItems({
@@ -563,6 +568,7 @@ export const SoupViewContextProvider: FlowComponent<
     setAssigneeFilter,
     activeTab,
     setActiveTab,
+    groupByField,
   };
 
   return (

@@ -9,9 +9,9 @@ import {
   openFilePicker,
   openFolderPicker,
 } from '@core/util/upload';
-import CaretDownIcon from '@icon/caret-down.svg';
-import PlusIcon from '@icon/plus.svg';
-import UploadIcon from '@icon/upload-simple.svg';
+import CaretDownIcon from '@phosphor/caret-down.svg';
+import PlusIcon from '@phosphor/plus.svg';
+import UploadIcon from '@phosphor/upload-simple.svg';
 import { Button, Dropdown, Layer } from '@ui';
 import { createMemo, For, Show } from 'solid-js';
 import { NewCallButton } from './NewCallButton';
