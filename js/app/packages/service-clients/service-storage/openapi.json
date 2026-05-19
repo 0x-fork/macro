@@ -6821,6 +6821,10 @@
             "type": ["string", "null"],
             "description": "Resolved display name for the channel."
           },
+          "customName": {
+            "type": ["string", "null"],
+            "description": "User-supplied or AI-generated display name for the call. Only set on\narchived `call_records`; active calls always return `None`."
+          },
           "endedAt": {
             "type": ["string", "null"],
             "format": "date-time",
@@ -7917,6 +7921,16 @@
           },
           "projectId": {
             "type": ["string", "null"]
+          },
+          "subType": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DocumentSubType"
+              }
+            ]
           }
         }
       },
@@ -8532,6 +8546,16 @@
               },
               "fileType": {
                 "type": ["string", "null"]
+              },
+              "subType": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DocumentSubType"
+                  }
+                ]
               }
             }
           }
@@ -10929,6 +10953,10 @@
             "type": ["boolean", "null"],
             "description": "Filter by project importance. None to ignore, true to pass through (no clause), false to short-circuit and return nothing."
           },
+          "include_root": {
+            "type": "boolean",
+            "description": "When true, `project_ids` also matches the projects themselves in addition to their children."
+          },
           "notification_filters": {
             "$ref": "#/components/schemas/NotificationFilters",
             "description": "Filter by project notification state."
@@ -10945,7 +10973,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Project IDs to search within. Examples: ['project1']. Empty to search all accessible projects."
+            "description": "Project IDs to search within. Examples: ['project1']. Empty to search all accessible projects.\nBy default matches children of these projects; set `include_root` to also match the projects themselves."
           }
         }
       },

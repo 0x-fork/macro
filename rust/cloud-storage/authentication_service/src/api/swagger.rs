@@ -1,8 +1,9 @@
 use model::authentication::login::request::{AppleLoginRequest, PasswordRequest};
 use teams::domain::model::{
-    PatchTeamRequest, PatchTeamUserRole, PatchTeamUserTierRequest, Team, TeamInviteDetails,
-    TeamMember, TeamRole, TeamUserTier, TeamWithMembers,
+    PatchTeamPlanRequest, PatchTeamRequest, PatchTeamUserRole, Team, TeamCheckoutSessionRequest,
+    TeamInviteDetails, TeamMember, TeamPlan, TeamRole, TeamWithMembers,
 };
+use teams::inbound::axum_router::create_team_checkout_session::TeamCheckoutSessionResponse;
 use teams::inbound::axum_router::get_team_invites::TeamInvitesResponse as TeamTeamInvitesResponse;
 use teams::inbound::axum_router::get_user_invites::TeamInvitesResponse as UserTeamInvitesResponse;
 use teams::inbound::axum_router::{
@@ -26,10 +27,10 @@ use crate::api::user::patch_user_group::PatchUserGroupRequest;
 use crate::api::user::patch_user_onboarding::PatchUserOnboardingRequest;
 use crate::api::user::post_get_names::PostGetNamesRequestBody;
 use crate::api::user::post_get_names_with_email::GetNamesWithEmailRequestBody;
-use crate::api::user::stripe::{
-    CreateCheckoutSessionRequest, CreatePortalSessionRequest, PatchSubscriptionTierRequest,
-    StripeProductTier, StripeSessionResponse,
-};
+use crate::api::user::stripe::create_checkout_session::CreateCheckoutSessionRequest;
+use crate::api::user::stripe::create_portal_session::CreatePortalSessionRequest;
+use crate::api::user::stripe::patch_subscription_tier::PatchSubscriptionTierRequest;
+use crate::api::user::stripe::{StripeProductTier, StripeSessionResponse};
 use crate::api::{
     email, health, jwt, link, login, logout, merge, mobile_welcome_email, oauth, oauth2,
     permissions, session, user,
@@ -98,9 +99,9 @@ use model::user::{
                 user::get_user_quota::handler,
                 user::get_legacy_user_permissions::handler,
                 user::patch_tutorial::handler,
-                user::stripe::create_checkout_session,
-                user::stripe::create_portal_session,
-                user::stripe::patch_subscription_tier,
+                user::stripe::create_checkout_session::create_checkout_session,
+                user::stripe::create_portal_session::create_portal_session,
+                user::stripe::patch_subscription_tier::patch_subscription_tier,
 
                 /// /session
                 session::session_login::handler,
@@ -120,12 +121,13 @@ use model::user::{
                 teams::inbound::axum_router::invite_to_team::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::get_team_invites::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::patch_team::handler::<crate::api::context::TeamsServiceType>,
-                teams::inbound::axum_router::patch_team_user_tier::handler::<crate::api::context::TeamsServiceType>,
+                teams::inbound::axum_router::patch_team_plan::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::reject_invitation::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::get_user_invites::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::get_user_teams::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::remove_user_from_team::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::delete_team_invite::handler::<crate::api::context::TeamsServiceType>,
+                teams::inbound::axum_router::create_team_checkout_session::handler::<crate::api::context::TeamServiceType>,
 
                 /// /referral
                 referral::inbound::axum_router::get_referral_code_handler::<crate::api::context::ReferralServiceType>,
@@ -184,16 +186,18 @@ use model::user::{
                         TeamRole,
                         TeamMember,
                         Team,
+                        TeamPlan,
                         TeamWithMembers,
                         TeamInviteDetails,
                         CreateTeamRequest,
                         InviteToTeamRequest,
                         PatchTeamRequest,
+                        PatchTeamPlanRequest,
                         PatchTeamUserRole,
                         TeamTeamInvitesResponse,
                         UserTeamInvitesResponse,
-                        PatchTeamUserTierRequest,
-                        TeamUserTier,
+                        TeamCheckoutSessionRequest,
+                        TeamCheckoutSessionResponse,
 
                         // Mobile welcome email
                         mobile_welcome_email::SendMobileWelcomeEmailRequest,

@@ -16,7 +16,13 @@ axum = [
 ]
 default = ["axum", "inbound", "outbound", "ports"]
 inbound = ["axum", "ports"]
-outbound = ["dep:sqlx", "dep:sqs_client", "dep:models_email", "ports"]
+outbound = [
+  "dep:sqlx",
+  "dep:sqs_client",
+  "dep:models_email",
+  "dep:url",
+  "ports",
+]
 ports = [
   "dep:model-entity",
   "dep:model_notifications",
@@ -30,7 +36,7 @@ anyhow = { workspace = true }
 async-stripe = { workspace = true, default-features = false, features = [
   "billing",
   "checkout",
-  "runtime-tokio-hyper",
+  "runtime-tokio-hyper-rustls-webpki",
 ] }
 chrono = { workspace = true }
 macro_user_id = { path = "../macro_user_id" }
@@ -66,6 +72,7 @@ sqs_client = { path = "../sqs_client", default-features = false, features = [
   "email",
 ], optional = true }
 models_email = { path = "../models_email", optional = true }
+url = { workspace = true, optional = true }
 
 [dev-dependencies]
 macro_db_migrator = { path = "../macro_db_migrator" }

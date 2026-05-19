@@ -63,6 +63,7 @@ model-entity = { path = "../model-entity" }
 non_empty = { path = "../non_empty", optional = true }
 model-error-response = { path = "../model-error-response", optional = true }
 model_user = { path = "../model_user", optional = true }
+models_grouping = { path = "../models_grouping" }
 models_pagination = { path = "../models_pagination" }
 recursion = { workspace = true }
 schemars = { workspace = true, optional = true, features = ["uuid1"] }
@@ -70,7 +71,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_with = { workspace = true }
 authentication_service_client = { path = "../authentication_service_client", optional = true }
-redis = { workspace = true, features = ["tokio-native-tls-comp"], optional = true }
+redis = { workspace = true, features = ["tokio-rustls-comp"], optional = true }
 sqlx = { workspace = true, optional = true }
 strum = { workspace = true }
 thiserror = { workspace = true }
