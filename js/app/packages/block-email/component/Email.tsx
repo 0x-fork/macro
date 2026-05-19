@@ -501,7 +501,16 @@ function EmailContent(props: EmailViewProps) {
                 onRecipientsChange: context.onRecipientsChange,
               }}
             >
-              <div class="size-full bg-surface select-none overscroll-none overflow-hidden flex flex-col">
+              <div
+                class="size-full bg-surface select-none overscroll-none overflow-hidden flex flex-col"
+                style={{
+                  '--user-icon-width': '24px',
+                  '--message-padding-x': '0.375rem',
+                  '--thread-shift': '20px',
+                  '--regular-message-padding-t': '0.375rem',
+                  '--thread-padding-y': '0.375rem',
+                }}
+              >
                 <TopBar
                   id={props.threadId()}
                   title={props.title}
@@ -517,13 +526,13 @@ function EmailContent(props: EmailViewProps) {
                   <Show when={!isMobile()}>
                     <div class="shrink-0 w-full flex justify-center">
                       <div
-                        class="macro-message-width macro-message-padding w-full border-b"
+                        class="macro-message-width macro-message-padding w-full border-b px-4"
                         classList={{
                           'border-edge-muted/50': isScrolled(),
                           'border-transparent': !isScrolled(),
                         }}
                       >
-                        <h1 class="ph-no-capture text-2xl font-semibold text-ink pt-3 pb-1.5 tracking-tight text-balance">
+                        <h1 class="ph-no-capture text-base font-semibold text-ink pt-3 pb-1.5 tracking-tight text-balance">
                           {props.title}
                         </h1>
                         <div class="pb-2.5">
@@ -551,7 +560,7 @@ function EmailContent(props: EmailViewProps) {
                 >
                   {(info) => (
                     <div class="shrink-0 w-full pb-4">
-                      <div class="relative w-full flex flex-row justify-center bg-surface macro-message-width macro-message-padding mx-auto">
+                      <div class="relative w-full flex flex-row justify-center bg-surface macro-message-width macro-message-padding mx-auto px-4">
                         <FloatingInputLoader
                           isLoading={context.query.isFetching}
                           loadingText="Loading messages"

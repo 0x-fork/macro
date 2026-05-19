@@ -198,7 +198,7 @@ export function MessageContainer(props: MessageContainerProps) {
     >
       {/* Expanded message view */}
       <div class="shrink-0 flex justify-center w-full">
-        <div class="macro-message-width macro-message-padding w-full">
+        <div class="macro-message-width macro-message-padding w-full px-4">
           <div
             class="relative rounded-lg overflow-hidden pl-1 pr-1.5 py-2 ring-1 ring-inset [&>div]:bg-transparent!"
             classList={{
@@ -252,7 +252,7 @@ export function MessageContainer(props: MessageContainerProps) {
               </Message.Body>
               {/* Image attachments */}
               <Show when={imageAttachmentsWithSfs().length > 0}>
-                <div class="flex flex-wrap gap-2 mt-2">
+                <div class="flex flex-wrap gap-1.5 mt-2 [&_img]:size-14 [&_img]:rounded-md">
                   <ImageGalleryPreview
                     images={imageAttachmentsWithSfs().map((a) => ({
                       id: a.sfs_id!,
