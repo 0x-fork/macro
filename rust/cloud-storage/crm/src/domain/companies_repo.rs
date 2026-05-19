@@ -45,15 +45,20 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
     /// Reverses [`populate_contact`] for one `(link_id, email)`: drops the
     /// matching `crm_contact_sources` row, then `crm_contacts` if no other
     /// source rows remain for that contact, then `crm_companies` (cascading
-    /// to `crm_domains`) if no other contact rows remain for that company.
-    /// Runs in a single transaction holding the same advisory lock that
-    /// [`populate_contact`] takes, so a concurrent populate for the same
-    /// `(team_id, domain)` is serialized against this teardown.
+    /// to `crm_domains`) if no other contact rows remain for that company
+    /// **and** the company has `email_sync = true`. Companies with
+    /// `email_sync = false` (the killswitch opt-out) are kept so the
+    /// team's configuration survives teardown — a future populate will
+    /// re-discover the row and short-circuit on the same flag.
     ///
-    /// The company-level `email_sync` killswitch is **intentionally
-    /// ignored**: deletions stay reflected in the CRM tables even when
-    /// the team has opted the domain out, so we don't accumulate stale
-    /// rows after a domain is later re-enabled.
+    /// Source and contact rows are derived data and are always cleaned
+    /// up regardless of the killswitch.
+    ///
+    /// The whole cascade runs in a single transaction that begins by
+    /// acquiring the same advisory lock [`populate_contact`] takes (key
+    /// `"{team_id}:{lower(domain)}"`) **before** observing any state, so
+    /// a concurrent in-flight populate for the same `(team_id, domain)`
+    /// can't slip an uncommitted insert past the existence check.
     ///
     /// No-op (returns `Ok(())`) when the contact / company / domain is
     /// not found for `(team_id, domain, email)`. `domain` and `email` are
