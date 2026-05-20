@@ -1,1 +1,1 @@
-export { Resize } from './Resize';
+export { Resize, ResizeZoneContext } from './Resize';

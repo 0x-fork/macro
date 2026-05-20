@@ -2,13 +2,14 @@ import { createSoupState } from '@app/component/next-soup/create-soup-state';
 import { SoupContextProvider } from '@app/component/next-soup/soup-context';
 import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { Resize } from '@core/component/Resize';
+import { Resize, ResizeZoneContext } from '@core/component/Resize';
 import { splitContainerAttribute } from '@core/dom-selectors';
 import { isMobile } from '@core/mobile/isMobile';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { cn, Panel } from '@ui';
 import { useHotkeyDOMScope } from 'core/hotkey/hotkeys';
 import {
+  type Accessor,
   createEffect,
   createMemo,
   createSignal,
@@ -18,6 +19,7 @@ import {
   onMount,
   Show,
   Suspense,
+  useContext,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { SplitPanelContext, type SplitPanelContextType } from '../context';
@@ -37,6 +39,25 @@ type SplitPanelProps = {
   index: number;
 };
 
+/**
+ * Reads the live computed width of a Resize.Panel (identified by `id`) from
+ * the surrounding <Resize.Zone> and pushes it into the provided setter.
+ * Renders nothing; placed inside <Resize.Zone> purely for its reactive effect.
+ *
+ * Used so that <Panel.Toolbar> -- which lives OUTSIDE <Resize.Zone> -- can mirror
+ * the body split's widths and keep its dividing line aligned with the gutter.
+ */
+function ResizePanelWidthSync(props: {
+  id: string;
+  setWidth: (w: number) => void;
+}) {
+  const ctx = useContext(ResizeZoneContext);
+  if (!ctx) return null;
+  const size = createMemo(ctx.sizeOf(props.id));
+  createEffect(() => props.setWidth(size()));
+  return null;
+}
+
 export function SplitPanel(props: SplitPanelProps) {
   const [attachHotKeys, splitHotkeyScope] = useHotkeyDOMScope(
     `split=${props.split.id}`
@@ -48,6 +69,10 @@ export function SplitPanel(props: SplitPanelProps) {
     (() => JSX.Element) | undefined
   >(undefined);
   const panelSize = createElementSize(panelRef);
+
+  // Width of the main body Resize.Panel. Used to size the matching toolbar
+  // section so the toolbar divider lines up with the body's resize gutter.
+  const [mainBodyWidth, setMainBodyWidth] = createSignal(0);
 
   const layoutRefs: SplitPanelContextType['layoutRefs'] = {};
   const headerCollapser = createHeaderCollapser(
@@ -101,19 +126,29 @@ export function SplitPanel(props: SplitPanelProps) {
       setHasToolbarContent(
         Boolean(
           layoutRefs.toolbarLeft?.hasChildNodes() ||
-            layoutRefs.toolbarRight?.hasChildNodes()
+            layoutRefs.toolbarRight?.hasChildNodes() ||
+            layoutRefs.previewToolbarLeft?.hasChildNodes() ||
+            layoutRefs.previewToolbarRight?.hasChildNodes()
         )
       );
     };
     checkContent();
     const observer = new MutationObserver(checkContent);
-    if (layoutRefs.toolbarLeft) {
-      observer.observe(layoutRefs.toolbarLeft, { childList: true });
-    }
-    if (layoutRefs.toolbarRight) {
-      observer.observe(layoutRefs.toolbarRight, { childList: true });
-    }
+    const observe = (el: HTMLElement | undefined) =>
+      el && observer.observe(el, { childList: true });
+    observe(layoutRefs.toolbarLeft);
+    observe(layoutRefs.toolbarRight);
+    // previewToolbar* are mounted lazily with the preview Resize.Panel; the
+    // ref callbacks below also re-attach the observer when they appear.
     onCleanup(() => observer.disconnect());
+
+    // Re-observe whenever the preview slots come/go.
+    createEffect(() => {
+      if (!previewState()) return;
+      observe(layoutRefs.previewToolbarLeft);
+      observe(layoutRefs.previewToolbarRight);
+      checkContent();
+    });
   });
 
   const offsetTop = createMemo(() => {
@@ -131,11 +166,13 @@ export function SplitPanel(props: SplitPanelProps) {
     () => isMobile() && isListViewID(props.handle.content().id)
   );
 
-  // Common classes for both the main and the preview toolbar rows. Mirrors the
-  // styling that used to live on <Panel.Toolbar> back when it spanned the full
-  // panel width.
-  const toolbarRowClass =
-    'flex flex-none items-start min-h-10 px-2 py-2 border-b border-edge-muted overflow-visible';
+  // Width style for the main toolbar section so it matches the main body's
+  // Resize.Panel width when preview is open. When preview is closed, the
+  // section just takes the full row (flex-1).
+  const mainToolbarSectionStyle: Accessor<JSX.CSSProperties> = () =>
+    previewState()
+      ? { width: `${mainBodyWidth()}px`, 'flex-shrink': 0, 'flex-grow': 0 }
+      : { flex: 1 };
 
   return (
     <SoupContextProvider soup={nextSoup}>
@@ -200,8 +237,63 @@ export function SplitPanel(props: SplitPanelProps) {
                 <SplitHeader ref={setHeaderRef} />
               </Panel.Header>
 
+              <Panel.Toolbar
+                class={cn(
+                  // zero out Panel.Toolbar's own px-2 + overflow clipping so
+                  // the two sections can claim exact widths matching the body
+                  // Resize.Panels below.
+                  'px-0 items-start py-2 overflow-visible',
+                  !hasToolbarContent() && 'hidden',
+                  !previewState() && 'border-b-0'
+                )}
+              >
+                <div ref={setToolbarRef} class="flex w-full overflow-visible">
+                  <div
+                    class={cn(
+                      'flex items-start px-2 min-w-0 overflow-visible',
+                      // Vertical divider that lines up with the body's
+                      // <Resize.Panel> border-r when preview is open.
+                      previewState() && 'border-r border-edge-muted'
+                    )}
+                    style={mainToolbarSectionStyle()}
+                  >
+                    <SplitToolbar />
+                  </div>
+                  <Show when={previewState()}>
+                    <div class="flex-1 flex items-start justify-between px-2 min-w-0 overflow-visible">
+                      <div
+                        class="flex-1 flex items-start gap-1 min-w-0"
+                        ref={(ref) => {
+                          layoutRefs.previewToolbarLeft = ref;
+                          onCleanup(() => {
+                            if (layoutRefs.previewToolbarLeft === ref) {
+                              layoutRefs.previewToolbarLeft = undefined;
+                            }
+                          });
+                        }}
+                      />
+                      <div
+                        class="flex items-start gap-1"
+                        ref={(ref) => {
+                          layoutRefs.previewToolbarRight = ref;
+                          onCleanup(() => {
+                            if (layoutRefs.previewToolbarRight === ref) {
+                              layoutRefs.previewToolbarRight = undefined;
+                            }
+                          });
+                        }}
+                      />
+                    </div>
+                  </Show>
+                </div>
+              </Panel.Toolbar>
+
               <Panel.Body>
                 <Resize.Zone direction="horizontal" gutter={0}>
+                  <ResizePanelWidthSync
+                    id="split-main"
+                    setWidth={setMainBodyWidth}
+                  />
                   <Resize.Panel
                     id="split-main"
                     minSize={200}
@@ -209,26 +301,14 @@ export function SplitPanel(props: SplitPanelProps) {
                   >
                     <div
                       class={cn(
-                        'size-full flex flex-col min-h-0',
+                        'size-full overflow-hidden relative',
                         previewState() && 'border-r border-edge-muted'
                       )}
                     >
-                      <div
-                        ref={setToolbarRef}
-                        class={cn(
-                          toolbarRowClass,
-                          !hasToolbarContent() && 'hidden',
-                          /* !previewState() && 'border-b-0' */ 'border-b-0'
-                        )}
-                      >
-                        <SplitToolbar />
-                      </div>
-                      <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
-                        <div class="@container/split size-full overflow-hidden relative">
-                          <Suspense>
-                            <Dynamic component={props.split.mount.element} />
-                          </Suspense>
-                        </div>
+                      <div class="@container/split size-full overflow-hidden relative">
+                        <Suspense>
+                          <Dynamic component={props.split.mount.element} />
+                        </Suspense>
                       </div>
                     </div>
                   </Resize.Panel>
@@ -238,36 +318,10 @@ export function SplitPanel(props: SplitPanelProps) {
                       minSize={300}
                       target={{ kind: 'percent', percent: 70 }}
                     >
-                      <div class="size-full flex flex-col min-h-0">
-                        <div class={toolbarRowClass}>
-                          <div
-                            class="flex-1 flex items-start gap-1"
-                            ref={(ref) => {
-                              layoutRefs.previewToolbarLeft = ref;
-                              onCleanup(() => {
-                                if (layoutRefs.previewToolbarLeft === ref) {
-                                  layoutRefs.previewToolbarLeft = undefined;
-                                }
-                              });
-                            }}
-                          />
-                          <div
-                            class="flex items-start gap-1"
-                            ref={(ref) => {
-                              layoutRefs.previewToolbarRight = ref;
-                              onCleanup(() => {
-                                if (layoutRefs.previewToolbarRight === ref) {
-                                  layoutRefs.previewToolbarRight = undefined;
-                                }
-                              });
-                            }}
-                          />
-                        </div>
-                        <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
-                          <Show when={previewContent()}>
-                            {(content) => content()()}
-                          </Show>
-                        </div>
+                      <div class="size-full overflow-hidden relative">
+                        <Show when={previewContent()}>
+                          {(content) => content()()}
+                        </Show>
                       </div>
                     </Resize.Panel>
                   </Show>
