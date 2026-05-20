@@ -15,12 +15,10 @@ import {
   Show,
   Switch,
   splitProps,
-  useContext,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { Hotkey } from '../../ui/components/Hotkey';
 import clickOutside from '../directive/clickOutside';
-import { EditingContext } from './Editable';
 
 false && clickOutside;
 
@@ -316,27 +314,6 @@ export function GroupLabel(props: { children: JSX.Element }) {
 
 export function MenuSeparator() {
   return <ContextMenu.Separator class="my-1 border-edge border-t w-full" />;
-}
-
-type MenuItemRenameTriggerProps = Omit<GenericMenuItemProps, 'onClick'> & {
-  sideEffect?: () => void;
-};
-
-export function MenuItemRenameTrigger(props: MenuItemRenameTriggerProps) {
-  const [_, setIsRenaming] = useContext(EditingContext);
-  return (
-    <MenuItem
-      text={props.text}
-      icon={props.icon}
-      iconClass={props.iconClass}
-      closeOnSelect={props.closeOnSelect}
-      disabled={props.disabled}
-      onClick={() => {
-        if (props.sideEffect) props.sideEffect();
-        setIsRenaming(true);
-      }}
-    />
-  );
 }
 
 function MobileConditionalOverlay(

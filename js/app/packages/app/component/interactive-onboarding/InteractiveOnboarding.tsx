@@ -5,7 +5,6 @@ import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useIsAuthenticated } from '@core/auth';
 import { useHasPaidAccess } from '@core/auth/license';
-import MacroLogo from '@core/component/MacroLogo';
 import { PcNoiseGrid } from '@core/component/PcNoiseGrid';
 import { toast } from '@core/component/Toast/Toast';
 import { ENABLE_INVITE_TEAM_ONBOARDING_OVERRIDE } from '@core/constant/featureFlags';
@@ -14,6 +13,7 @@ import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fetchToken } from '@core/util/fetchWithToken';
+import MacroWordmark from '@design/macro-wordmark.svg';
 import LogoIcon from '@icon/macro-logo.svg';
 import ArrowLeftIcon from '@phosphor/arrow-left.svg';
 import InfoIcon from '@phosphor/info.svg';
@@ -842,7 +842,7 @@ function InteractiveOnboardingInner() {
                         fallback={
                           <div class="flex items-center justify-center h-full">
                             <div class="w-full m-12 opacity-10 max-w-80">
-                              <MacroLogo class="fill-ink" />
+                              <MacroWordmark class="fill-ink" />
                             </div>
                           </div>
                         }
