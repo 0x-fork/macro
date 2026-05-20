@@ -100,7 +100,7 @@ function ReferenceRow(props: ReferenceRowProps) {
         <Show when={props.senderAvatar}>{props.senderAvatar}</Show>
         <div class="min-w-0 flex items-center gap-1.5 overflow-hidden">
           <Show when={props.senderName}>
-            <span class="ph-no-capture shrink-0 font-medium text-ink truncate max-w-[8rem]">
+            <span class="ph-no-capture shrink-0 font-medium text-ink truncate max-w-32">
               {props.senderName}
             </span>
             <span class="shrink-0 text-ink-muted/70">in</span>

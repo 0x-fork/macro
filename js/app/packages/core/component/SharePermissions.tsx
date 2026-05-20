@@ -1,4 +1,4 @@
-import { AccessLevel as UserAccessLevel } from '@service-storage/generated/schemas/accessLevel';
+import type { AccessLevel as UserAccessLevel } from '@service-storage/generated/schemas/accessLevel';
 
 export enum Permissions {
   OWNER = 'Owner',
