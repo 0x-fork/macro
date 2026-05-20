@@ -58,6 +58,7 @@ import { useLogout } from '@core/auth/logout';
 import { useEmail, useUserId } from '@core/context/user';
 import { useDisplayName, tryMacroId } from '@core/user';
 import { UserIcon } from '@core/component/UserIcon';
+import CheckCircleIcon from '@phosphor/check-circle.svg';
 import GearIcon from '@phosphor/gear.svg';
 import SignOutIcon from '@phosphor/sign-out.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
@@ -68,6 +69,7 @@ import {
   For,
   type JSX,
   onCleanup,
+  onMount,
   Show,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
@@ -400,6 +402,63 @@ const [notificationsCardDismissed, setNotificationsCardDismissed] =
   makePersisted(createSignal<boolean>(false), {
     name: 'sidebar-notifications-card-dismissed',
   });
+
+/** Session-only signals so a hint shows after dismissal until the user acknowledges or the timer expires. */
+const [inviteHintVisible, setInviteHintVisible] = createSignal(false);
+const [notificationsHintVisible, setNotificationsHintVisible] = createSignal(false);
+
+const PROMO_HINT_DURATION_MS = 8000;
+
+type SidebarPromoHintProps = {
+  title: string;
+  message: string;
+  isSlim: () => boolean;
+  onDone: () => void;
+};
+
+/** Fading post-dismissal hint with a "Got it" button. */
+const SidebarPromoHint = (props: SidebarPromoHintProps) => {
+  const [fading, setFading] = createSignal(false);
+
+  onMount(() => {
+    const fadeTimer = setTimeout(() => setFading(true), PROMO_HINT_DURATION_MS - 400);
+    const doneTimer = setTimeout(props.onDone, PROMO_HINT_DURATION_MS);
+    onCleanup(() => {
+      clearTimeout(fadeTimer);
+      clearTimeout(doneTimer);
+    });
+  });
+
+  return (
+    <Show when={!props.isSlim()}>
+      <div
+        class={cn(
+          'w-full rounded-md border border-edge-muted bg-ink/3 px-2.5 py-2 flex flex-col gap-2 transition-opacity duration-300',
+          fading() ? 'opacity-0' : 'opacity-100'
+        )}
+      >
+        <div class="flex items-center gap-2 min-w-0">
+          <CheckCircleIcon class="shrink-0 size-4 text-success" />
+          <div class="flex-1 min-w-0 text-xs font-medium text-ink leading-tight">
+            {props.title}
+          </div>
+        </div>
+        <div class="text-xxs text-ink-extra-muted leading-snug">
+          {props.message}
+        </div>
+        <div class="flex items-center justify-end">
+          <button
+            type="button"
+            class="text-xxs font-medium px-2 py-1 rounded-sm text-ink-muted hover:text-ink hover:bg-ink/5 transition-colors"
+            onClick={props.onDone}
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </Show>
+  );
+};
 
 type SidebarPromoCardAction = {
   label: string;
@@ -936,12 +995,17 @@ export const AppSidebar = (props: AppSidebarProps) => {
           !callCtx?.isInCall() && 'mt-auto'
         )}
       >
-        <Show when={showEnableNotifications() && !notificationsCardDismissed()}>
+        <Show
+          when={showEnableNotifications() && !notificationsCardDismissed()}
+        >
           <SidebarPromoCard
             label="Enable notifications"
             description="Stay in the loop when you're away"
             isSlim={isSlim}
-            onDismiss={() => setNotificationsCardDismissed(true)}
+            onDismiss={() => {
+              setNotificationsCardDismissed(true);
+              setNotificationsHintVisible(true);
+            }}
             icon={() => <BellIcon class="size-4" />}
             primaryAction={{
               label: 'Turn on',
@@ -949,8 +1013,19 @@ export const AppSidebar = (props: AppSidebarProps) => {
             }}
             secondaryAction={{
               label: 'Later',
-              onClick: () => setNotificationsCardDismissed(true),
+              onClick: () => {
+                setNotificationsCardDismissed(true);
+                setNotificationsHintVisible(true);
+              },
             }}
+          />
+        </Show>
+        <Show when={notificationsHintVisible() && notificationsCardDismissed()}>
+          <SidebarPromoHint
+            isSlim={isSlim}
+            title="Notifications"
+            message="You can turn notifications back on anytime from Settings."
+            onDone={() => setNotificationsHintVisible(false)}
           />
         </Show>
         <Show when={!inviteCardDismissed()}>
@@ -958,7 +1033,10 @@ export const AppSidebar = (props: AppSidebarProps) => {
             label="Invite teammates"
             description="Get $100 in credits for each friend who signs up"
             isSlim={isSlim}
-            onDismiss={() => setInviteCardDismissed(true)}
+            onDismiss={() => {
+              setInviteCardDismissed(true);
+              setInviteHintVisible(true);
+            }}
             icon={AnimatedUsersIcon}
             primaryAction={{
               label: 'Invite',
@@ -966,8 +1044,19 @@ export const AppSidebar = (props: AppSidebarProps) => {
             }}
             secondaryAction={{
               label: 'Later',
-              onClick: () => setInviteCardDismissed(true),
+              onClick: () => {
+                setInviteCardDismissed(true);
+                setInviteHintVisible(true);
+              },
             }}
+          />
+        </Show>
+        <Show when={inviteHintVisible() && inviteCardDismissed()}>
+          <SidebarPromoHint
+            isSlim={isSlim}
+            title="Invite teammates"
+            message="You can invite teammates anytime from the user menu below."
+            onDone={() => setInviteHintVisible(false)}
           />
         </Show>
         <SidebarUserMenu
