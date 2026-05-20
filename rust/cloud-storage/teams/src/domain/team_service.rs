@@ -223,14 +223,14 @@ impl GetTeamSubscriptionError {
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, PCE> TeamMembersService for TeamServiceImpl<TR, CR, TCR, URPS, NI, PCE>
+impl<TR, CR, TCR, URPS, NI, CE> TeamMembersService for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
     TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
-    PCE: PopulateCrmEnqueuer,
+    CE: CrmEnqueuer,
 {
     #[tracing::instrument(skip(self), err)]
     async fn list_team_members(
