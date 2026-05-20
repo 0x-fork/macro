@@ -24,7 +24,7 @@ pub struct CrmCompany {
 }
 
 /// Cached metadata about a company keyed on its email domain. Populated
-/// lazily by [`crate::domain::ports::CompanyMetadataResolver`] (typically
+/// lazily by [`crate::domain::company_metadata_resolver::CompanyMetadataResolver`] (typically
 /// an unfurl of `https://{domain}`) and stored in `crm_domain_directory`.
 ///
 /// Every field is `Option` because the resolver may succeed with the

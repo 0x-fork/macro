@@ -63,11 +63,15 @@ where
         match self.unfurl_service.unfurl(&url).await {
             Ok(response) => {
                 // `get_title` returns the URL string itself when no
-                // usable title was found — drop that case.
-                let name = if response.title == url || response.title.is_empty() {
+                // usable title was found — drop that case. Trim
+                // surrounding whitespace so accidental padding (or a
+                // whitespace-only title) collapses to `None` rather
+                // than getting persisted as the company name.
+                let title = response.title.trim();
+                let name = if title.is_empty() || title == url {
                     None
                 } else {
-                    Some(response.title)
+                    Some(title.to_string())
                 };
                 DomainMetadata {
                     name,
