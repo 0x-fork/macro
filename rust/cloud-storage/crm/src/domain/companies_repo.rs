@@ -71,6 +71,39 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
         email: &str,
     ) -> impl Future<Output = Result<(), CrmError>> + Send;
 
+    /// Bulk counterpart to [`depopulate_contact`]: removes everything
+    /// the link contributed to a single team's CRM rows. In one
+    /// transaction:
+    ///   1. Delete every `crm_contact_sources` row whose `link_id`
+    ///      matches AND whose contact lives under `team_id`.
+    ///   2. Delete every `crm_contacts` row in `team_id` that has no
+    ///      remaining `crm_contact_sources` (orphaned by step 1 or by
+    ///      any earlier cleanup race).
+    ///   3. Delete every `crm_companies` row in `team_id` that has no
+    ///      remaining `crm_contacts` AND `email_sync = true`. Companies
+    ///      with `email_sync = false` are preserved so the team's
+    ///      killswitch configuration survives teardown. `crm_domains`
+    ///      falls out via FK cascade.
+    ///
+    /// Scoping every query to `team_id` keeps the blast radius bounded
+    /// — sources the link contributed to a *different* team (from a
+    /// prior membership) are untouched — and lets the orphan cleanup
+    /// run as a single SQL pass per layer instead of snapshotting
+    /// candidate ids into memory first.
+    ///
+    /// Does NOT take per-`(team, domain)` advisory locks. A link can
+    /// span many domains within a team, and a concurrent populate on
+    /// the same team won't see the user as a member once the team
+    /// membership change has propagated, so the race window is benign.
+    ///
+    /// Used by the `DepopulateCrmForUser` backfill step (fired when a
+    /// user is removed from a team).
+    fn depopulate_link_in_team(
+        &self,
+        team_id: &uuid::Uuid,
+        link_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<(), CrmError>> + Send;
+
     /// Returns the team id that `macro_id` belongs to. When the user is on
     /// multiple teams the highest-privileged role wins (Postgres orders the
     /// `team_role` enum as `member < admin < owner`), matching the

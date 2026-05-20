@@ -92,6 +92,12 @@ pub enum BackfillOperation {
     // either is missing). Triggered when a user gets added to a team so
     // their historical sent-mail recipients seed the team's CRM tables.
     PopulateCrmForUser(PopulateCrmForUserPayload),
+    // Tears down every CRM source row owned by the user's email link,
+    // plus the contact/company rows that become orphaned as a result
+    // (preserving companies with `email_sync = false`). Triggered when a
+    // user is removed from a team. Team deletion is handled separately
+    // via the `crm_companies.team_id` FK cascade in macrodb.
+    DepopulateCrmForUser(DepopulateCrmForUserPayload),
 }
 
 impl BackfillOperation {
@@ -108,6 +114,7 @@ impl BackfillOperation {
             BackfillOperation::PopulateCrmContact(s) => Some(s.link_id),
             BackfillOperation::DepopulateCrmContact(s) => Some(s.link_id),
             BackfillOperation::PopulateCrmForUser(_) => None,
+            BackfillOperation::DepopulateCrmForUser(_) => None,
         }
     }
 
@@ -123,7 +130,8 @@ impl BackfillOperation {
             BackfillOperation::BackfillAttachment(s) => Some(s.job_id),
             BackfillOperation::PopulateCrmContact(_)
             | BackfillOperation::DepopulateCrmContact(_)
-            | BackfillOperation::PopulateCrmForUser(_) => None,
+            | BackfillOperation::PopulateCrmForUser(_)
+            | BackfillOperation::DepopulateCrmForUser(_) => None,
         }
     }
 }
@@ -274,4 +282,15 @@ pub struct DepopulateCrmContactPayload {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct PopulateCrmForUserPayload {
     pub macro_id: MacroUserIdStr<'static>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct DepopulateCrmForUserPayload {
+    pub macro_id: MacroUserIdStr<'static>,
+    /// Team the user was just removed from. Passed explicitly because
+    /// the consumer cannot recover this via `get_team_id_for_user` —
+    /// by the time it runs the user has already been removed from
+    /// `team_user`, so the lookup would either be empty or return a
+    /// different team if the user is on multiple.
+    pub team_id: Uuid,
 }

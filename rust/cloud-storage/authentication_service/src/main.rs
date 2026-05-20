@@ -253,8 +253,7 @@ async fn main() -> anyhow::Result<()> {
 
     let notification_ingress_service = Arc::new(notification_ingress_service);
 
-    let populate_crm_enqueuer =
-        teams::outbound::populate_crm_enqueuer::SqsPopulateCrmEnqueuer::new(sqs_client.clone());
+    let crm_enqueuer = teams::outbound::crm_enqueuer::SqsCrmEnqueuer::new(sqs_client.clone());
 
     let teams_service_impl = TeamServiceImpl::new(
         teams_repo_impl,
@@ -262,7 +261,7 @@ async fn main() -> anyhow::Result<()> {
         team_channels_repo_impl,
         user_roles_and_permissions_service.clone(),
         notification_ingress_service.clone(),
-        populate_crm_enqueuer,
+        crm_enqueuer,
     );
 
     let github_link_service_impl = GithubLinkServiceImpl::new(

@@ -39,7 +39,7 @@ pub(crate) type TeamsServiceType = teams::domain::team_service::TeamServiceImpl<
     teams::outbound::team_channels_repo::TeamChannelsRepositoryImpl,
     UserRolesAndPermissionsServiceImpl<MacroDB, MacroDB>,
     NotificationIngressType,
-    teams::outbound::populate_crm_enqueuer::SqsPopulateCrmEnqueuer,
+    teams::outbound::crm_enqueuer::SqsCrmEnqueuer,
 >;
 
 type RateLimiter = RateLimitServiceImpl<RedisRateLimitAdapter<redis::Client>>;

@@ -22,6 +22,7 @@ use model_notifications::InviteToTeamMetadata;
 use notification::domain::{models::SendNotificationRequestBuilder, service::NotificationIngress};
 
 use crate::domain::{
+    crm_enqueuer::CrmEnqueuer,
     customer_repo::CustomerRepository,
     model::{
         AcceptedTeamInvite, CreateTeamError, CustomerError, DeleteTeamError,
@@ -30,7 +31,6 @@ use crate::domain::{
         RevokePermissionsForTeamMembersError, Team, TeamError, TeamInvite, TeamInviteDetails,
         TeamMember, TeamRole, TeamUserTier, TeamWithMembers,
     },
-    populate_crm_enqueuer::PopulateCrmEnqueuer,
     team_repo::{TeamChannelsRepository, TeamRepository, TeamService},
 };
 
@@ -72,14 +72,14 @@ impl GetTeamSubscriptionError {
 
 /// Implementation of the TeamService using a TeamRepository
 #[derive(Debug)]
-pub struct TeamServiceImpl<TR, CR, TCR, URPS, NI, PCE>
+pub struct TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
     TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
-    PCE: PopulateCrmEnqueuer,
+    CE: CrmEnqueuer,
 {
     /// The underlying team repository
     team_repository: TR,
@@ -91,19 +91,20 @@ where
     user_roles_and_permissions_service: URPS,
     /// The notification ingress service
     notification_ingress: Arc<NI>,
-    /// Outbound enqueuer for the "populate CRM for user" backfill that
-    /// runs after a successful `join_team`. See [`PopulateCrmEnqueuer`].
-    populate_crm_enqueuer: PCE,
+    /// Outbound enqueuer for the populate / depopulate CRM backfills
+    /// fired from `create_team` / `join_team` / `remove_user_from_team`.
+    /// See [`CrmEnqueuer`].
+    crm_enqueuer: CE,
 }
 
-impl<TR, CR, TCR, URPS, NI, PCE> Clone for TeamServiceImpl<TR, CR, TCR, URPS, NI, PCE>
+impl<TR, CR, TCR, URPS, NI, CE> Clone for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
     TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
-    PCE: PopulateCrmEnqueuer,
+    CE: CrmEnqueuer,
 {
     fn clone(&self) -> Self {
         Self {
@@ -112,19 +113,19 @@ where
             team_channels_repository: self.team_channels_repository.clone(),
             user_roles_and_permissions_service: self.user_roles_and_permissions_service.clone(),
             notification_ingress: self.notification_ingress.clone(),
-            populate_crm_enqueuer: self.populate_crm_enqueuer.clone(),
+            crm_enqueuer: self.crm_enqueuer.clone(),
         }
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, PCE> TeamServiceImpl<TR, CR, TCR, URPS, NI, PCE>
+impl<TR, CR, TCR, URPS, NI, CE> TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
     TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
-    PCE: PopulateCrmEnqueuer,
+    CE: CrmEnqueuer,
 {
     /// Creates a new TeamService
     pub fn new(
@@ -133,7 +134,7 @@ where
         team_channels_repository: TCR,
         user_roles_and_permissions_service: URPS,
         notification_ingress: Arc<NI>,
-        populate_crm_enqueuer: PCE,
+        crm_enqueuer: CE,
     ) -> Self {
         Self {
             team_repository,
@@ -141,19 +142,19 @@ where
             team_channels_repository,
             user_roles_and_permissions_service,
             notification_ingress,
-            populate_crm_enqueuer,
+            crm_enqueuer,
         }
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, PCE> TeamServiceImpl<TR, CR, TCR, URPS, NI, PCE>
+impl<TR, CR, TCR, URPS, NI, CE> TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
     TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
-    PCE: PopulateCrmEnqueuer,
+    CE: CrmEnqueuer,
 {
     /// Gets the teams subscription id
     /// If the team doesn't have a subscription yet, it will convert the owners personal subscription into a team subscription
@@ -299,14 +300,14 @@ where
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, PCE> TeamService for TeamServiceImpl<TR, CR, TCR, URPS, NI, PCE>
+impl<TR, CR, TCR, URPS, NI, CE> TeamService for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
     TCR: TeamChannelsRepository,
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
-    PCE: PopulateCrmEnqueuer,
+    CE: CrmEnqueuer,
 {
     #[tracing::instrument(skip(self), err)]
     async fn create_team(
@@ -334,7 +335,7 @@ where
         // so a missed enqueue can be retried (or covered by per-message CRM
         // fan-out) without leaving the system in an inconsistent state.
         if let Err(e) = self
-            .populate_crm_enqueuer
+            .crm_enqueuer
             .enqueue_populate_crm_for_user(user_id)
             .await
         {
@@ -462,6 +463,27 @@ where
             )
             .await
             .map_err(RemoveUserFromTeamError::RemoveRolesFromUserError)?;
+
+        // Best-effort: ask the email service to tear down CRM rows
+        // sourced from this user's email link. Log and swallow failures
+        // — the removal is already committed and the email-service
+        // handler is idempotent, so a missed enqueue can be retried
+        // without leaving the system in an inconsistent state. Team
+        // deletion is handled separately via the
+        // `crm_companies.team_id` FK cascade and does NOT route through
+        // this enqueuer.
+        if let Err(e) = self
+            .crm_enqueuer
+            .enqueue_depopulate_crm_for_user(&team_id, user_id)
+            .await
+        {
+            tracing::error!(
+                error = ?e,
+                team_id = %team_id,
+                macro_id = %user_id,
+                "Failed to enqueue DepopulateCrmForUser after remove_user_from_team; CRM rows owned by the removed user's link will be left in place until manual cleanup"
+            );
+        }
 
         Ok(())
     }
@@ -609,7 +631,7 @@ where
         // so a missed enqueue can be retried (or covered by per-message CRM
         // fan-out) without leaving the system in an inconsistent state.
         if let Err(e) = self
-            .populate_crm_enqueuer
+            .crm_enqueuer
             .enqueue_populate_crm_for_user(user_id)
             .await
         {
