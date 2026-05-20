@@ -62,6 +62,19 @@ pub async fn delete_message(
         Vec::new()
     };
 
+    // Enqueue CRM teardown BEFORE the delete commits, so a transient
+    // enqueue failure here doesn't strand the depopulate job after the
+    // message row is already gone (SQS retry would then short-circuit
+    // at the `None` arm above and never re-enqueue). If enqueue
+    // succeeds but the delete below fails, the depopulate consumer's
+    // `link_has_sent_message_to` pre-check sees the message still in
+    // place and acks without touching CRM — so the ordering is safe in
+    // both directions.
+    if !recipient_emails.is_empty() {
+        let self_email = link.email_address.0.as_ref().to_ascii_lowercase();
+        enqueue_depopulate_crm_contacts(ctx, link.id, &self_email, recipient_emails).await?;
+    }
+
     let mut tx = ctx.db.begin().await.map_err(|e| {
         ProcessingError::Retryable(DetailedError {
             reason: FailureReason::DatabaseQueryFailed,
@@ -84,15 +97,6 @@ pub async fn delete_message(
     .await;
 
     complete_transaction_with_processing_error(tx, result).await?;
-
-    // Enqueue CRM teardown for each recipient now that the message row is
-    // gone. The consumer rechecks whether the link still has another sent
-    // message to the recipient before doing anything, so any other sent
-    // messages to the same contact keep the CRM rows intact.
-    if !recipient_emails.is_empty() {
-        let self_email = link.email_address.0.as_ref().to_ascii_lowercase();
-        enqueue_depopulate_crm_contacts(ctx, link.id, &self_email, recipient_emails).await?;
-    }
 
     // tell FE to refresh user's inbox
     cg_refresh_email(
