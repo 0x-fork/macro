@@ -272,6 +272,14 @@ pub struct BackfillAttachmentPayload {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct PopulateCrmContactPayload {
     pub contact_email: String,
+    /// Display name observed for `contact_email` at producer time — the
+    /// caller copies it from the gmail message's recipient header
+    /// (`backfill_message`, `upsert_message`) or from `email_contacts.name`
+    /// (`populate_crm_for_user`). Threading it through the payload lets
+    /// the consumer skip its own `email_contacts` round-trip. `None` when
+    /// no display name was associated with the address.
+    #[serde(default)]
+    pub contact_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]

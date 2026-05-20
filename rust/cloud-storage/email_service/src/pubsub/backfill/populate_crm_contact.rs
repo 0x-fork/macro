@@ -37,7 +37,12 @@ pub async fn populate_crm_contact(
     };
 
     ctx.crm_service
-        .populate_contact(&team_id, &link.id, &p.contact_email)
+        .populate_contact(
+            &team_id,
+            &link.id,
+            &p.contact_email,
+            p.contact_name.as_deref(),
+        )
         .await
         .map_err(|e| {
             ProcessingError::Retryable(DetailedError {

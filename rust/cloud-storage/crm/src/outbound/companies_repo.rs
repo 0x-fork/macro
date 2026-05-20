@@ -87,6 +87,7 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
         link_id: &uuid::Uuid,
         domain: &str,
         email: &str,
+        name: Option<&str>,
     ) -> Result<(), CrmError> {
         let normalized_domain = domain.to_ascii_lowercase();
         let normalized_email = email.to_ascii_lowercase();
@@ -207,19 +208,25 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
             }
         };
 
-        // Upsert the contact. `ON CONFLICT DO UPDATE SET email = EXCLUDED.email`
-        // is a no-op write that exists only to force RETURNING to fire on the
-        // conflict path, so we get the existing row's id without a second
-        // round trip.
+        // Upsert the contact. `name` is supplied by the caller (the
+        // backfill consumer looks it up in email_contacts before invoking
+        // populate). On conflict, COALESCE preserves the existing
+        // crm_contacts.name when it's non-NULL, so the first non-empty
+        // name wins and a subsequent populate from a different team
+        // member can't overwrite it. If the existing name is NULL
+        // (previous populate ran before email_contacts had a name), the
+        // conflict path still gets a chance to fill it.
         let contact_id = sqlx::query_scalar!(
             r#"
-            INSERT INTO crm_contacts (company_id, email)
-            VALUES ($1, $2)
-            ON CONFLICT (company_id, email) DO UPDATE SET email = EXCLUDED.email
+            INSERT INTO crm_contacts (company_id, email, name)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (company_id, email) DO UPDATE
+                SET name = COALESCE(crm_contacts.name, EXCLUDED.name)
             RETURNING id
             "#,
             company_id,
             normalized_email,
+            name,
         )
         .fetch_one(&mut *tx)
         .await

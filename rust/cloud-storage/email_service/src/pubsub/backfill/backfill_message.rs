@@ -84,17 +84,19 @@ pub async fn backfill_message(
     // For messages sent BY the user, fan out a PopulateCrmContact job per
     // recipient so the CRM tables learn about the contacts the team has been
     // emailing. ON CONFLICT DO NOTHING on the consumer side keeps duplicate
-    // enqueues (e.g. retried backfill_message attempts) harmless.
+    // enqueues (e.g. retried backfill_message attempts) harmless. The
+    // display name from the gmail header is threaded through so the
+    // consumer doesn't have to re-query email_contacts.
     if message.is_sent {
         let self_email = link.email_address.0.as_ref().to_ascii_lowercase();
-        let recipient_emails: Vec<String> = message
+        let recipients: Vec<(String, Option<String>)> = message
             .to
             .iter()
             .chain(&message.cc)
             .chain(&message.bcc)
-            .map(|c| c.email.clone())
+            .map(|c| (c.email.clone(), c.name.clone()))
             .collect();
-        enqueue_populate_crm_contacts(ctx, link.id, &self_email, recipient_emails).await?;
+        enqueue_populate_crm_contacts(ctx, link.id, &self_email, recipients).await?;
     }
 
     // Handle all success-related operations

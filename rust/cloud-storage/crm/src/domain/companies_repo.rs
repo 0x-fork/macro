@@ -27,19 +27,24 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
     ///    - If a row exists with `email_sync = true` it is reused.
     ///    - Otherwise a new `crm_companies` row (name = `"TODO"`) and a
     ///      matching `crm_domains` row are inserted.
-    /// 2. Upsert `crm_contacts (company_id, email)` with
-    ///    `ON CONFLICT DO NOTHING`.
+    /// 2. Upsert `crm_contacts (company_id, email, name)` with
+    ///    `ON CONFLICT DO UPDATE SET name = COALESCE(crm_contacts.name, EXCLUDED.name)`
+    ///    so the first non-NULL name wins and later populates can't
+    ///    overwrite it.
     /// 3. Upsert `crm_contact_sources (contact_id, link_id)` with
     ///    `ON CONFLICT DO NOTHING`.
     ///
     /// `domain` and `email` are both normalized to lowercase before storage
-    /// and comparison.
+    /// and comparison. `name` is the display name observed for `email` on
+    /// this user's link (sourced from `email_contacts.name` by the
+    /// caller); pass `None` when no display name is available.
     fn populate_contact(
         &self,
         team_id: &uuid::Uuid,
         link_id: &uuid::Uuid,
         domain: &str,
         email: &str,
+        name: Option<&str>,
     ) -> impl Future<Output = Result<(), CrmError>> + Send;
 
     /// Reverses [`populate_contact`] for one `(link_id, email)`: drops the

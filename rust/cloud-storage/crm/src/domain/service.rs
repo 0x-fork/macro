@@ -23,11 +23,18 @@ pub trait CrmService: Clone + Send + Sync + 'static {
     /// `crm_contact_sources` in a single transaction. If the team has
     /// opted the contact's domain out (`crm_companies.email_sync = false`)
     /// the call is a no-op.
+    ///
+    /// `name` is the display name observed for `email` on this user's
+    /// link — typically `email_contacts.name`, which the caller looks up
+    /// before invoking. The first non-NULL name wins for the
+    /// `crm_contacts` row; later populates from other team members can't
+    /// overwrite it. Pass `None` when no display name is available.
     fn populate_contact(
         &self,
         team_id: &uuid::Uuid,
         link_id: &uuid::Uuid,
         email: &str,
+        name: Option<&str>,
     ) -> impl Future<Output = Result<(), CrmError>> + Send;
 
     /// Reverses [`populate_contact`] for one `(link_id, email)`. Drops the
@@ -135,6 +142,7 @@ where
         team_id: &uuid::Uuid,
         link_id: &uuid::Uuid,
         email: &str,
+        name: Option<&str>,
     ) -> Result<(), CrmError> {
         let email = email.trim();
         let Some((local_part, domain)) = email.split_once('@') else {
@@ -153,7 +161,7 @@ where
             )));
         }
         self.companies_repository
-            .populate_contact(team_id, link_id, domain, email)
+            .populate_contact(team_id, link_id, domain, email, name)
             .await
     }
 

@@ -128,27 +128,43 @@ fn normalized_non_self_contact_emails(
 }
 
 /// Producer-side fan-out helper: normalizes and enqueues one
-/// `PopulateCrmContact` message per distinct, non-self contact email.
+/// `PopulateCrmContact` message per distinct, non-self contact.
 ///
-/// Used by both the per-message paths (`backfill_message` and
-/// `upsert_message`, called every time a sent message is observed) and
-/// the historical path (`populate_crm_for_user`, called once when a user
-/// is added to a team to seed contacts from their existing sent mail).
-/// Centralising the validation and dedup here means the paths can't drift
-/// in subtle ways — e.g. one normalising case-sensitively while the other
-/// doesn't. See [`normalized_non_self_contact_emails`] for the validation
-/// rules.
+/// Takes `(email, name)` pairs so the consumer can write
+/// `crm_contacts.name` without a follow-up round-trip to `email_contacts`.
+/// `name` comes from the gmail message's recipient header on the
+/// per-message paths (`backfill_message`, `upsert_message`) and from
+/// `email_contacts.name` on the historical path (`populate_crm_for_user`).
+///
+/// Email validation rules and dedup match
+/// [`normalized_non_self_contact_emails`]; dedup is by email only, so the
+/// first name seen for a given address in this batch wins.
 pub async fn enqueue_populate_crm_contacts(
     ctx: &PubSubContext,
     link_id: Uuid,
     self_email: &str,
-    contact_emails: impl IntoIterator<Item = String>,
+    contacts: impl IntoIterator<Item = (String, Option<String>)>,
 ) -> Result<(), ProcessingError> {
-    for contact_email in normalized_non_self_contact_emails(self_email, contact_emails) {
+    let mut seen: HashSet<String> = HashSet::new();
+    for (raw_email, contact_name) in contacts {
+        let contact_email = raw_email.trim().to_ascii_lowercase();
+        let Some((local, domain)) = contact_email.split_once('@') else {
+            continue;
+        };
+        if local.is_empty() || domain.is_empty() || domain.contains('@') {
+            continue;
+        }
+        if contact_email == self_email || !seen.insert(contact_email.clone()) {
+            continue;
+        }
+
         let ps_message = BackfillPubsubMessage {
             backfill_operation: BackfillOperation::PopulateCrmContact(LinkScopedPayload {
                 link_id,
-                payload: PopulateCrmContactPayload { contact_email },
+                payload: PopulateCrmContactPayload {
+                    contact_email,
+                    contact_name,
+                },
             }),
         };
 

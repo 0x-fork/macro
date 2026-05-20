@@ -107,6 +107,25 @@ pub async fn upsert_message(
     .filter(|e| !email_utils::is_generic_email(e))
     .collect::<Vec<_>>();
 
+    // Snapshot `(email, name)` pairs for the CRM populate fan-out below.
+    // We capture it here (before `message` is moved into
+    // `process_and_insert_message`) so the consumer can write
+    // `crm_contacts.name` without a separate email_contacts lookup. The
+    // enqueue helper handles its own dedup + validation, so we keep the
+    // raw list and only drop generic addresses.
+    let crm_recipients: Vec<(String, Option<String>)> = if is_sent {
+        message
+            .to
+            .iter()
+            .chain(&message.cc)
+            .chain(&message.bcc)
+            .filter(|c| !email_utils::is_generic_email(&c.email))
+            .map(|c| (c.email.clone(), c.name.clone()))
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     // determine if message's thread already exists in the database
     let thread_provider_to_db_map = threads::get::get_threads_by_link_id_and_provider_ids(
         &ctx.db,
@@ -197,11 +216,12 @@ pub async fn upsert_message(
     .await?;
 
     // For messages sent BY the user, fan out a PopulateCrmContact job per
-    // recipient so the CRM tables learn about the contacts the team has been
-    // emailing. Mirrors the backfill path in backfill_message.rs.
+    // recipient so the CRM tables learn about the contacts the team has
+    // been emailing. Mirrors the backfill path in backfill_message.rs;
+    // `crm_recipients` was snapshotted above before `message` was moved.
     if is_sent {
         let self_email = link.email_address.0.as_ref().to_ascii_lowercase();
-        enqueue_populate_crm_contacts(ctx, link.id, &self_email, recipient_emails).await?;
+        enqueue_populate_crm_contacts(ctx, link.id, &self_email, crm_recipients).await?;
     }
 
     notify_search(ctx, link, message_db_id, is_spam_or_trash).await?;
