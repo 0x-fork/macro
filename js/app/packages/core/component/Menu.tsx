@@ -22,8 +22,6 @@ import clickOutside from '../directive/clickOutside';
 
 false && clickOutside;
 
-export const MENU_ITEM_HEIGHT = 28;
-
 type BaseMenuItemWrapperProps = {
   children: JSX.Element;
   disabled?: boolean;
@@ -89,7 +87,7 @@ function MenuItemWrapper(props: MenuItemWrapperProps) {
   );
 }
 
-export type BaseMenuItemProps = {
+type BaseMenuItemProps = {
   text?: string | JSX.Element;
   icon?: Component<JSX.SvgSVGAttributes<SVGSVGElement>> | JSX.Element;
   iconClass?: string;
@@ -100,14 +98,14 @@ export type BaseMenuItemProps = {
   hotkeyToken?: HotkeyToken;
 };
 
-export type CheckboxMenuItemProps = BaseMenuItemProps & {
+type CheckboxMenuItemProps = BaseMenuItemProps & {
   selectorType: 'checkbox';
   checked: boolean;
   onChange?: (value: boolean) => void;
   value?: undefined;
 };
 
-export type RadioMenuItemProps = BaseMenuItemProps & {
+type RadioMenuItemProps = BaseMenuItemProps & {
   selectorType: 'radio';
   value: string;
   groupValue: string;
@@ -115,7 +113,7 @@ export type RadioMenuItemProps = BaseMenuItemProps & {
   onChange?: undefined;
 };
 
-export type GenericMenuItemProps = BaseMenuItemProps & {
+type GenericMenuItemProps = BaseMenuItemProps & {
   selectorType?: undefined;
   onChange?: undefined;
   checked?: undefined;
@@ -336,7 +334,7 @@ const menuWidths: Record<MenuWidth, string> = {
   screen: 'w-screen',
 };
 
-export const MENU_CONTENT_CLASS = `flex flex-col justify-start items-start bg-surface shadow-[0_8px_24px_-16px_rgba(0,0,0,0.24),0_2px_8px_-6px_rgba(0,0,0,0.18)] ring-1 ring-edge rounded-xl p-1.5 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal`;
+const MENU_CONTENT_CLASS = `flex flex-col justify-start items-start bg-surface shadow-[0_8px_24px_-16px_rgba(0,0,0,0.24),0_2px_8px_-6px_rgba(0,0,0,0.18)] ring-1 ring-edge rounded-xl p-1.5 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal`;
 
 type MenuContentProps = ParentProps<{
   class?: string;

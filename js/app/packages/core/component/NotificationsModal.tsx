@@ -9,7 +9,7 @@ import { createMemo, Suspense } from 'solid-js';
 import { Notifications } from './Notifications';
 
 false && clickOutside;
-export const NOTIFICATIONS_DRAWER_ID = 'notifications';
+const NOTIFICATIONS_DRAWER_ID = 'notifications';
 
 export function NotificationsDrawer(props: {
   entity: Entity;

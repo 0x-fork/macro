@@ -281,7 +281,7 @@ function validateEntity(entity: string): EntityWithValidIcon {
   }
 }
 
-export const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
+const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
   call: PhoneCall,
   canvas: WideDiagram,
   html: WideFileCode,
@@ -321,7 +321,7 @@ export const ICON_SIZES = {
   shrinkFill: 'w-full h-full',
 } as const;
 
-export const ICON_SIZE_CLASSES = {
+const ICON_SIZE_CLASSES = {
   xs: `${ICON_SIZES.xs} flex justify-center overflow-hidden shrink-0`,
   sm: `${ICON_SIZES.sm} flex justify-center overflow-hidden shrink-0`,
   md: `${ICON_SIZES.md} flex justify-center overflow-hidden shrink-0`,

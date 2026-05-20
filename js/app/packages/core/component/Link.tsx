@@ -1,11 +1,7 @@
-import CaretDown from '@phosphor/caret-down.svg';
-import CaretRight from '@phosphor/caret-right.svg';
-import GlobeIcon from '@phosphor/globe-simple.svg';
 import LinkIcon from '@phosphor/link.svg';
 import { proxyResource } from '@service-unfurl/client';
 import type { GetUnfurlResponse } from '@service-unfurl/generated/schemas/getUnfurlResponse';
-import { cn } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
 function extractDomain(url: string) {
@@ -63,68 +59,4 @@ export function UnfurlLink(props: UnfurlLinkProps) {
   );
 }
 
-interface UnfurledLinkCollection {
-  collapsed?: boolean;
-  links: GetUnfurlResponse[];
-}
 
-export function UnfurledLinkCollection(props: UnfurledLinkCollection) {
-  const [isCollapsed, setIsCollapsed] = createSignal(props.collapsed ?? true);
-
-  return (
-    <div class="border border-edge rounded-lg w-full text-sm cursor-default select-none">
-      <div
-        class={cn(
-          'flex justify-between items-center hover:bg-hover transition-colors hover:transition-none py-1 px-2',
-          isCollapsed() ? 'rounded-lg' : 'rounded-t-lg'
-        )}
-        onClick={() => setIsCollapsed((p) => !p)}
-      >
-        <div>
-          <div class="flex items-center gap-2">
-            <GlobeIcon class="size-6" />
-            <div>
-              <div class="flex items-center gap-1 font-medium">Sources</div>
-              <div class="flex gap-1 text-xs">
-                <p class="font-medium text-ink-muted">
-                  {props.links.length > 0
-                    ? extractDomain(
-                        typeof props.links[0] === 'string'
-                          ? props.links[0]
-                          : props.links[0].url
-                      )
-                    : ''}
-                </p>
-                <Show when={props.links.length > 1}>
-                  <p class="font-medium text-accent">
-                    +{props.links.length - 1} More
-                  </p>
-                </Show>
-              </div>
-            </div>
-          </div>
-        </div>
-        <Show
-          when={isCollapsed()}
-          fallback={<CaretDown width={20} height={20} />}
-        >
-          <CaretRight width={20} height={20} />
-        </Show>
-      </div>
-      <div
-        class={cn(
-          'flex flex-col divide-y divide-edge transition-all duration-150 ease-in-out overflow-clip',
-          isCollapsed() ? 'collapse max-h-0' : 'visible max-h-480'
-        )}
-      >
-        <For each={props.links}>
-          {(link) => (
-            <div class="first:border-edge first:border-t last:rounded-b-md overflow-clip">
-              <UnfurlLink unfurled={link} />
-            </div>
-          )}
-        </For>
-      </div>
-    </div>
-  );
-}
