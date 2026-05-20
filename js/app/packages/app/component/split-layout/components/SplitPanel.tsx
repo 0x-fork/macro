@@ -218,7 +218,7 @@ export function SplitPanel(props: SplitPanelProps) {
                         class={cn(
                           toolbarRowClass,
                           !hasToolbarContent() && 'hidden',
-                          !previewState() && 'border-b-0'
+                          /* !previewState() && 'border-b-0' */ 'border-b-0'
                         )}
                       >
                         <SplitToolbar />

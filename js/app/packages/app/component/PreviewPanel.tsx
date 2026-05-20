@@ -49,14 +49,8 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
   scopedLayoutRefs.headerLeft = undefined;
   scopedLayoutRefs.headerRight = undefined;
 
-  // Route any <SplitToolbarLeft/Right> rendered by the previewed block into
-  // the outer <SplitPanel>'s preview-toolbar slots. Those live in the same
-  // toolbar row as the soup list's toolbar (Preview/Sort/Filter), but inside
-  // the preview-side Resize.Panel so widths align with the body split.
-  scopedLayoutRefs.toolbarLeft =
-    props.splitPanelContext.layoutRefs.previewToolbarLeft;
-  scopedLayoutRefs.toolbarRight =
-    props.splitPanelContext.layoutRefs.previewToolbarRight;
+  scopedLayoutRefs.toolbarLeft = props.splitPanelContext.layoutRefs.previewToolbarLeft;
+  scopedLayoutRefs.toolbarRight = props.splitPanelContext.layoutRefs.previewToolbarRight;
 
   if (props.selectedEntity.type === 'project') {
     const [previewState, setPreviewState] = createSignal(true);
@@ -154,12 +148,6 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
       }}
       tabIndex={-1}
     >
-      {/*
-        Note: the preview toolbar used to live here as an inline row. It now
-        portals into <SplitPanel>'s preview-toolbar slots via
-        scopedLayoutRefs.toolbarLeft/Right above, so the block's
-        <SplitToolbarLeft/Right> usages "just work".
-      */}
       <div class="flex-1 min-h-0">
         <SplitPanelContext.Provider
           value={{
