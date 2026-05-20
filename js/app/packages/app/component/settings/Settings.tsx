@@ -34,7 +34,7 @@ type SettingsPanelProps = {
   hide?: boolean;
 };
 
-export function SettingsPanel(props: SettingsPanelProps) {
+function SettingsPanel(props: SettingsPanelProps) {
   const { settingsOpen, closeSettings, activeTabId, setActiveTabId } = useSettingsState();
     const teamsFlag = useFeatureFlag('enable-teams-settings', { enabledOverride: ENABLE_TEAMS_OVERRIDE });
 
