@@ -3,12 +3,12 @@ import CaretDown from '@phosphor/caret-down.svg';
 import { cn, Layer } from '@ui';
 import { createMemo, For, type JSX, splitProps } from 'solid-js';
 
-export type TabItem = {
+type TabItem = {
   value: string;
   label: string | JSX.Element;
 };
 
-export type TabsInsetDropdownProps = {
+type TabsInsetDropdownProps = {
   list: TabItem[];
   value?: string;
   defaultValue?: string;
