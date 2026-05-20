@@ -36,12 +36,17 @@ export function registerSplitHotkeys(args: {
     scopeId: splitHotkeyScope,
     hotkey: ['cmd+escape', 'opt+escape'],
     condition: () => isNotUnifiedList() || getSplitCount() > 1,
-    description: () => (isNotUnifiedList() ? 'Go home' : 'Close split'),
+    description: () =>
+      getSplitCount() > 1
+        ? 'Close split'
+        : isNotUnifiedList()
+          ? 'Go home'
+          : 'Close split',
     keyDownHandler: () => {
-      if (isNotUnifiedList()) {
-        goHome();
-      } else if (getSplitCount() > 1) {
+      if (getSplitCount() > 1) {
         closeSplit();
+      } else if (isNotUnifiedList()) {
+        goHome();
       }
       return true;
     },
