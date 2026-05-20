@@ -3,7 +3,7 @@ import { TabsInset } from '@core/component/TabsInset';
 import { isMobile } from '@core/mobile/isMobile';
 import { Accordion } from '@kobalte/core/accordion';
 import CaretRight from '@phosphor/caret-right.svg';
-import { Panel, Scroll } from '@ui';
+import { Layer, Scroll } from '@ui';
 import {
   type Accessor,
   children,
@@ -239,21 +239,23 @@ function Section(
       order: props.order,
       component: () => (
         <Accordion.Item value={props.id}>
-          <Panel depth={2} style={{ height: 'auto' }} class="rounded-lg">
-            <Accordion.Header class="group">
-              <Accordion.Trigger class="px-2 py-3 flex w-full items-center gap-2 text-sm hover:underline">
-                <CaretRight class="size-3 text-ink-muted transition-transform duration-90 group-data-expanded:rotate-90" />
-                <span>{props.title}</span>
-              </Accordion.Trigger>
-            </Accordion.Header>
-            <Accordion.Content class="group/content overflow-hidden data-expanded:animate-accordion-down data-closed:animate-accordion-up">
-              <Suspense fallback={<div class="h-4" />}>
-                <div class="px-2 pb-3 text-sm opacity-0 group-data-expanded/content:opacity-100 transition-opacity duration-150 ease-out">
-                  {props.children}
-                </div>
-              </Suspense>
-            </Accordion.Content>
-          </Panel>
+          <Layer depth={3}>
+            <div class="rounded-lg bg-surface overflow-hidden">
+              <Accordion.Header class="group">
+                <Accordion.Trigger class="px-2 py-3 flex w-full items-center gap-2 text-sm hover:underline">
+                  <CaretRight class="size-3 text-ink-muted transition-transform duration-90 group-data-expanded:rotate-90" />
+                  <span>{props.title}</span>
+                </Accordion.Trigger>
+              </Accordion.Header>
+              <Accordion.Content class="group/content overflow-hidden data-expanded:animate-accordion-down data-closed:animate-accordion-up">
+                <Suspense fallback={<div class="h-4" />}>
+                  <div class="px-2 pb-3 text-sm opacity-0 group-data-expanded/content:opacity-100 transition-opacity duration-150 ease-out">
+                    {props.children}
+                  </div>
+                </Suspense>
+              </Accordion.Content>
+            </div>
+          </Layer>
         </Accordion.Item>
       ),
     });
