@@ -7,15 +7,12 @@ import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { MobileApp } from './MobileApp';
 import { Agent } from './Agent';
 import { Appearance } from './Appearance';
-import { TabsInset } from '@core/component/TabsInset';
-import { TabsInsetDropdown } from '@core/component/TabsInsetDropdown';
 import { Account } from './Account';
 import { Shortcuts } from './Shortcuts';
 import { Team } from './Team';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { SplitHeaderLeft, SplitHeaderRight } from '../split-layout/components/SplitHeader';
-import { CollapsibleHeaderItem } from '../split-layout/components/CollapsibleHeaderItem';
 import { SettingsButton } from './SettingsButton';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 
@@ -57,13 +54,13 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   function settingsTabs() {
     const tabs: { value: string; label: string }[] = [
+      { value: 'Keyboard Shortcuts', label: 'Keyboard Shortcuts' },
       { value: 'Appearance', label: 'Appearance' },
-      { value: 'Account', label: 'Account' },
+      { value: 'Account & Team', label: 'Account & Team' },
     ];
-    if (teamsFlag().enabled) { tabs.push({ value: 'Team', label: 'Team' }) }
-    tabs.push({ value: 'Shortcuts', label: 'Shortcuts' });
-    if (ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()) { tabs.push({ value: 'Mobile App', label: 'App' }) }
-    if (!isNativeMobilePlatform()) { tabs.push({ value: 'Agent', label: 'Agent' }) }
+    if (ENABLE_APP_STORE_QR_CODE || !isNativeMobilePlatform()) {
+      tabs.push({ value: 'Mobile & MCPs', label: 'Mobile & MCPs' });
+    }
     if (isNativeMobilePlatform() && DEV_MODE_ENV) { tabs.push({ value: 'Mobile', label: 'Mobile Dev Tools' }) }
     return tabs;
   }
@@ -157,19 +154,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
     }
   }
 
-  function BottomTabs() {
-    return (
-    <div class="bg-surface border-t border-edge-muted h-11 shrink-0 px-1 flex items-center">
-      <TabsInset
-        list={settingsTabs()}
-        value={activeTabId()}
-        defaultValue="Appearance"
-        onChange={handleTabChange}
-      />
-    </div>
-    );
-  }
-
   return (
     <div
       class="size-full flex flex-col outline-none"
@@ -182,62 +166,38 @@ export function SettingsPanel(props: SettingsPanelProps) {
           <h1 class="font-semibold text-ink select-none text-sm shrink-0">
             Settings
           </h1>
-          <Show when={!isMobile()}>
-            <CollapsibleHeaderItem
-              id="settings-tabs"
-              priority={1}
-              containerClass="h-full"
-              expanded={() => (
-                <TabsInset
-                  list={settingsTabs()}
-                  value={activeTabId()}
-                  defaultValue="Appearance"
-                  onChange={handleTabChange}
-                />
-              )}
-              collapsed={() => (
-                <TabsInsetDropdown
-                  list={settingsTabs()}
-                  value={activeTabId()}
-                  defaultValue="Appearance"
-                  onChange={handleTabChange}
-                />
-              )}
-            />
-          </Show>
         </div>
       </SplitHeaderLeft>
 
       <div class="relative grow min-h-1 overflow-auto">
-        <Show when={activeTabId() === 'Account'}>
+        <Show when={activeTabId() === 'Account & Team'}>
           <Suspense>
-            <Account />
+            <div class="flex flex-col gap-4">
+              <Account />
+              <Show when={teamsFlag().enabled}>
+                <Team />
+              </Show>
+            </div>
           </Suspense>
         </Show>
 
         <Show when={activeTabId() === 'Appearance'}>
           <Appearance />
         </Show>
-        <Show when={activeTabId() === 'Shortcuts' && !isTouchDevice()}>
+        <Show when={activeTabId() === 'Keyboard Shortcuts' && !isTouchDevice()}>
           <Shortcuts />
         </Show>
-        <Show when={activeTabId() === 'Team' && teamsFlag().enabled}>
-          <Suspense>
-            <Team />
-          </Suspense>
-        </Show>
-        <Show when={activeTabId() === 'Mobile App' && ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()}>
-          <MobileApp />
-        </Show>
-        <Show when={activeTabId() === 'Agent' && !isNativeMobilePlatform()}>
-          <Agent />
+        <Show when={activeTabId() === 'Mobile & MCPs'}>
+          <div class="flex flex-col gap-4">
+            <Show when={ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()}>
+              <MobileApp />
+            </Show>
+            <Show when={!isNativeMobilePlatform()}>
+              <Agent />
+            </Show>
+          </div>
         </Show>
       </div>
-
-      <Show when={isMobile()}>
-        <BottomTabs />
-      </Show>
     </div>
   );
 }
-

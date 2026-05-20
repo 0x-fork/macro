@@ -441,7 +441,7 @@ const CALLS_LINK: SidebarItem = {
 export const AppSidebar = (props: AppSidebarProps) => {
   const analytics = useAnalytics();
   const layout = useSplitLayout();
-  const { toggleSettings } = useSettingsState();
+  const { openSettings } = useSettingsState();
   const notificationSettings = useNotificationSettings();
   const callCtx = useCallContextOptional();
 
@@ -492,9 +492,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
     }
     setCreateMenuOpen((p) => !p);
   };
-
-  const canCreateNewSplit = () =>
-    globalSplitManager()?.canAppendSplit() ?? true;
 
   const handleNewSplitClick = () => {
     const manager = globalSplitManager();
@@ -582,15 +579,19 @@ export const AppSidebar = (props: AppSidebarProps) => {
         <hr class="border-transparent" />
       </div>
 
-      <div class="w-full px-2 my-[4.5px]">
-        <SidebarActionButton
-          label="Create"
-          hotkeyToken={TOKENS.global.createCommand}
-          isSlim={isSlim}
-          onClick={handleCreateClick}
-          icon={() => <AnimatedPlusIcon class="size-4" />}
-        />
-      </div>
+      <Show when={isExpanded()}>
+        <div class="w-full px-2 my-[4.5px] flex items-center justify-end gap-1">
+          <Button label="New Split" onClick={handleNewSplitClick} class="p-1">
+            <AnimatedNewSplitIcon class="size-4" />
+          </Button>
+          <Button label="Command" hotkey={TOKENS.global.commandMenu} onClick={handleCommandPaletteClick} class="p-1">
+            <AnimatedCommandIcon class="size-4" />
+          </Button>
+          <Button label="Create" hotkey={TOKENS.global.createCommand} onClick={handleCreateClick} class="p-1">
+            <AnimatedPlusIcon class="size-4" />
+          </Button>
+        </div>
+      </Show>
 
       <div class="px-2">
         <hr class="border-transparent mb-2" />
@@ -640,43 +641,28 @@ export const AppSidebar = (props: AppSidebarProps) => {
           />
         </Show>
         <SidebarActionButton
-          label="New Split"
-          hotkeyToken={TOKENS.global.createNewSplit}
-          isSlim={isSlim}
-          onClick={handleNewSplitClick}
-          disabled={() => !canCreateNewSplit()}
-          icon={AnimatedNewSplitIcon}
-        />
-
-        <SidebarActionButton
-          label="Command"
-          hotkeyToken={TOKENS.global.commandMenu}
-          isSlim={isSlim}
-          onClick={handleCommandPaletteClick}
-          icon={AnimatedCommandIcon}
-        />
-
-        <SidebarActionButton
-          onClick={(event) => {
-            if (event?.shiftKey) {
-              if (!(globalSplitManager()?.canAppendSplit() ?? true)) return;
-              analytics.track('split_created', { from: 'sidebar' });
-              layout.openWithSplit(
-                { type: 'component', id: 'settings' },
-                {
-                  referredFrom: 'sidebar',
-                  allowDuplicate: true,
-                  preferNewSplit: true,
-                  mergeHistory: false,
-                }
-              );
-              return;
-            }
-            toggleSettings();
-          }}
-          hotkeyToken={TOKENS.global.toggleSettings}
+          onClick={() => openSettings('Mobile & MCPs')}
           icon={AnimatedGearIcon}
-          label="Settings"
+          label="Mobile & MCPs"
+          isSlim={isSlim}
+        />
+        <SidebarActionButton
+          onClick={() => openSettings('Account & Team')}
+          icon={AnimatedGearIcon}
+          label="Account & Team"
+          isSlim={isSlim}
+        />
+        <SidebarActionButton
+          onClick={() => openSettings('Appearance')}
+          icon={AnimatedGearIcon}
+          label="Appearance"
+          isSlim={isSlim}
+        />
+        <SidebarActionButton
+          hotkeyToken={TOKENS.global.toggleSettings}
+          onClick={() => openSettings('Keyboard Shortcuts')}
+          icon={AnimatedGearIcon}
+          label="Keyboard Shortcuts"
           isSlim={isSlim}
         />
       </div>
