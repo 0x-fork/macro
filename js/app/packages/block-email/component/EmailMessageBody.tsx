@@ -131,7 +131,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
       isPersonal() && !isMacroSender()
         ? `*:not(code):not(pre):not(code *):not(pre *):not([data-macro-btn]){font-family: system-ui, sans-serif !important; font-size: inherit !important; line-height: 1.5 !important;}`
         : '';
-    styleEl.textContent = `img{display: var(--macro-email-img-display, initial); max-width: 100% !important; max-height: 320px !important; height: auto !important; width: auto !important; object-fit: contain;}${fontOverride}`;
+    styleEl.textContent = `img{display: var(--macro-email-img-display, initial); max-width: 100% !important; max-height: 320px !important; height: auto !important;  object-fit: contain;}${fontOverride}`;
     shadow.appendChild(styleEl);
     const messageDiv = document.createElement('div');
     messageDiv.innerHTML = source()?.mainContent ?? '';
@@ -151,6 +151,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
       a.setAttribute('target', '_blank');
       a.setAttribute('rel', 'noopener noreferrer');
     }
+    messageDiv.style.display = 'flex';
     messageDiv.style.userSelect = 'text';
     messageDiv.style.cursor = 'auto';
     shadow.appendChild(messageDiv);
