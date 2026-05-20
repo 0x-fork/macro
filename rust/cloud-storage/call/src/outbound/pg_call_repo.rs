@@ -1066,7 +1066,8 @@ impl CallRepository for PgCallRepo {
                 id as "call_id!",
                 channel_id as "channel_id!",
                 created_at as "started_at!",
-                NULL::timestamptz as "ended_at"
+                NULL::timestamptz as "ended_at",
+                NULL::text as "custom_name"
             FROM calls
             WHERE id = ANY($1)
             UNION ALL
@@ -1074,7 +1075,8 @@ impl CallRepository for PgCallRepo {
                 id as "call_id!",
                 channel_id as "channel_id!",
                 started_at as "started_at!",
-                ended_at as "ended_at"
+                ended_at as "ended_at",
+                custom_name as "custom_name"
             FROM call_records
             WHERE id = ANY($1)
             "#,
@@ -1087,6 +1089,7 @@ impl CallRepository for PgCallRepo {
             channel_id: Uuid,
             started_at: chrono::DateTime<Utc>,
             ended_at: Option<chrono::DateTime<Utc>>,
+            custom_name: Option<String>,
         }
 
         let mut found: HashMap<Uuid, Found> = HashMap::with_capacity(rows.len());
@@ -1096,6 +1099,7 @@ impl CallRepository for PgCallRepo {
                 channel_id: row.channel_id,
                 started_at: row.started_at,
                 ended_at: row.ended_at,
+                custom_name: row.custom_name,
             });
         }
 
@@ -1117,6 +1121,7 @@ impl CallRepository for PgCallRepo {
                     call_id,
                     channel_id: f.channel_id,
                     channel_name: channel_names.get(&f.channel_id).cloned(),
+                    custom_name: f.custom_name,
                     started_at: f.started_at,
                     ended_at: f.ended_at,
                 }),
@@ -1486,69 +1491,6 @@ impl CallRepository for PgCallRepo {
             .into_iter()
             .map(|row| (row.macro_user_id, row.voice_id))
             .collect())
-    }
-
-    #[tracing::instrument(err, skip(self))]
-    async fn get_distinct_voice_speakers_for_call_record(
-        &self,
-        call_record_id: &Uuid,
-    ) -> Result<Vec<(String, Uuid)>, Self::Err> {
-        let rows = sqlx::query!(
-            r#"
-            SELECT DISTINCT diarized_speaker_id AS "diarized_speaker_id!", voice_id AS "voice_id!"
-            FROM call_record_transcripts
-            WHERE call_record_id = $1
-              AND diarized_speaker_id IS NOT NULL
-              AND voice_id IS NOT NULL
-            "#,
-            call_record_id,
-        )
-        .fetch_all(&self.pool)
-        .await?;
-        Ok(rows
-            .into_iter()
-            .map(|r| (r.diarized_speaker_id, r.voice_id))
-            .collect())
-    }
-
-    #[tracing::instrument(skip(self, assignments), fields(num_assignments = assignments.len()), err)]
-    async fn patch_call_transcript_speakers_from_voice_match(
-        &self,
-        call_record_id: &Uuid,
-        assignments: &[(String, Uuid)],
-    ) -> Result<(), Self::Err> {
-        if assignments.is_empty() {
-            return Ok(());
-        }
-        let diarized_ids: Vec<&str> = assignments.iter().map(|(d, _)| d.as_str()).collect();
-        let user_ids: Vec<Uuid> = assignments.iter().map(|(_, u)| *u).collect();
-        sqlx::query!(
-            r#"
-            UPDATE call_record_transcripts AS t
-            SET custom_speaker = u.id
-            FROM UNNEST($2::text[], $3::uuid[]) AS a(diarized_speaker_id, macro_user_id)
-            JOIN "User" u ON u.macro_user_id = a.macro_user_id
-            WHERE t.call_record_id = $1
-              AND t.diarized_speaker_id = a.diarized_speaker_id
-              AND t.custom_speaker IS NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM team_user matched_user_team
-                  JOIN team_user participant_team
-                    ON participant_team.team_id = matched_user_team.team_id
-                  JOIN call_record_participants p
-                    ON p.user_id = participant_team.user_id
-                   AND p.call_record_id = $1
-                  WHERE matched_user_team.user_id = u.id
-              )
-            "#,
-            call_record_id,
-            &diarized_ids as &[&str],
-            &user_ids,
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
     }
 
     #[tracing::instrument(skip(self, summary), err)]

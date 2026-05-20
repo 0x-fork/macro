@@ -39,8 +39,7 @@ use crate::domain::{
     model::{
         AcceptedTeamInvite, CreateSubscriptionArgs, CustomerError, PatchTeamRequest,
         PatchTeamUserRole, RemoveTeamInviteError, RemoveUserFromTeamError, Team, TeamError,
-        TeamInvite, TeamInviteDetails, TeamInviteSnapshot, TeamMember, TeamRole, TeamUserTier,
-        TeamWithMembers,
+        TeamInvite, TeamInviteDetails, TeamMember, TeamPlan, TeamRole, TeamWithMembers,
     },
     team_repo::{TeamChannelsRepository, TeamRepository},
 };
@@ -93,34 +92,6 @@ impl MockTeamRepository {
         self.team_for_get_by_id = Some(team);
         self
     }
-
-    fn with_team_subscription_id(
-        mut self,
-        subscription_id: Option<stripe::SubscriptionId>,
-    ) -> Self {
-        self.team_subscription_id = subscription_id;
-        self
-    }
-
-    fn with_stripe_customer_id(mut self, customer_id: stripe::CustomerId) -> Self {
-        self.stripe_customer_id = Some(customer_id);
-        self
-    }
-
-    fn with_accepted_invite(mut self, accepted_invite: AcceptedTeamInvite<'static>) -> Self {
-        self.accepted_invite = Some(accepted_invite);
-        self
-    }
-
-    fn with_removed_member(mut self, removed_member: TeamMember<'static>) -> Self {
-        self.removed_member = Some(removed_member);
-        self
-    }
-
-    fn with_fail_rollback_accept(mut self) -> Self {
-        self.fail_rollback_accept = true;
-        self
-    }
 }
 
 impl TeamRepository for MockTeamRepository {
@@ -140,11 +111,17 @@ impl TeamRepository for MockTeamRepository {
         async move { Ok(subscription_id) }
     }
 
+    fn has_user_trialed(
+        &self,
+        _: &MacroUserIdStr<'_>,
+    ) -> impl Future<Output = Result<bool, TeamError>> + Send {
+        async { Ok(false) }
+    }
+
     fn create_team(
         &self,
         _: &MacroUserIdStr<'_>,
         _: &str,
-        _: &TeamUserTier,
     ) -> impl Future<Output = Result<Team, CreateTeamError>> + Send {
         async { unimplemented!() }
     }
@@ -153,9 +130,27 @@ impl TeamRepository for MockTeamRepository {
         &self,
         _: &uuid::Uuid,
         _: &MacroUserIdStr<'_>,
-        _: non_empty::NonEmpty<&[(Email<Lowercase<'_>>, TeamUserTier)]>,
+        _: non_empty::NonEmpty<&[Email<Lowercase<'_>>]>,
     ) -> impl Future<Output = Result<Vec<TeamInvite<'_>>, InviteUsersToTeamError>> + Send {
         let invites = self.invites_to_return.clone();
+        async move { Ok(invites) }
+    }
+
+    fn get_new_invites(
+        &self,
+        _: &uuid::Uuid,
+        invites: non_empty::NonEmpty<&[Email<Lowercase<'_>>]>,
+    ) -> impl Future<Output = Result<Vec<Email<Lowercase<'static>>>, InviteUsersToTeamError>> + Send
+    {
+        let invites = invites
+            .iter()
+            .map(|email| {
+                Email::parse_from_str(email.as_ref())
+                    .expect("test emails should be valid")
+                    .into_owned()
+                    .lowercase()
+            })
+            .collect();
         async move { Ok(invites) }
     }
 
@@ -349,15 +344,6 @@ impl TeamRepository for MockTeamRepository {
         async { unimplemented!() }
     }
 
-    fn patch_team_tier(
-        &self,
-        _: &uuid::Uuid,
-        _: &MacroUserIdStr<'_>,
-        _: TeamUserTier,
-    ) -> impl Future<Output = Result<(), TeamError>> + Send {
-        async { unimplemented!() }
-    }
-
     fn patch_team_user_role(
         &self,
         team_id: &uuid::Uuid,
@@ -370,6 +356,28 @@ impl TeamRepository for MockTeamRepository {
             role,
         ));
         async { Ok(()) }
+    }
+
+    fn get_team_seat_count(
+        &self,
+        _: &uuid::Uuid,
+    ) -> impl Future<Output = Result<i32, TeamError>> + Send {
+        async { Ok(0) }
+    }
+
+    fn get_team_plan(
+        &self,
+        _: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Option<TeamPlan>, TeamError>> + Send {
+        async { Ok(None) }
+    }
+
+    fn patch_team_plan(
+        &self,
+        _: &uuid::Uuid,
+        _: TeamPlan,
+    ) -> impl Future<Output = Result<(), TeamError>> + Send {
+        async { unimplemented!() }
     }
 }
 
@@ -402,35 +410,29 @@ impl CustomerRepository for MockCustomerRepository {
         async { unimplemented!() }
     }
 
-    fn increase_subscription_quantity(
-        &self,
-        _: &stripe::SubscriptionId,
-        _: TeamUserTier,
-    ) -> impl Future<Output = Result<(), CustomerError>> + Send {
-        async { unimplemented!() }
-    }
-
-    fn decrease_subscription_quantity(
-        &self,
-        _: &stripe::SubscriptionId,
-        _: TeamUserTier,
-    ) -> impl Future<Output = Result<(), CustomerError>> + Send {
-        async { unimplemented!() }
-    }
-
-    fn update_subscription_tier(
-        &self,
-        _: &stripe::SubscriptionId,
-        _: TeamUserTier,
-        _: TeamUserTier,
-    ) -> impl Future<Output = Result<(), CustomerError>> + Send {
-        async { unimplemented!() }
-    }
-
     fn cancel_subscription(
         &self,
         _: &stripe::SubscriptionId,
     ) -> impl Future<Output = Result<(), CustomerError>> + Send {
+        async { unimplemented!() }
+    }
+
+    fn update_team_plan(
+        &self,
+        _subscription_id: &stripe::SubscriptionId,
+        _current_team_plan: Option<TeamPlan>,
+        _team_plan: TeamPlan,
+    ) -> impl Future<Output = Result<(), CustomerError>> + Send {
+        async { unimplemented!() }
+    }
+
+    fn create_team_checkout_session(
+        &self,
+        _team_id: &uuid::Uuid,
+        _customer_id: stripe::CustomerId,
+        _req: &TeamCheckoutSessionRequest,
+        _has_trialed: bool,
+    ) -> impl Future<Output = Result<String, CustomerError>> + Send {
         async { unimplemented!() }
     }
 }
@@ -551,177 +553,6 @@ impl NotificationIngress for MockNotificationIngress {
     }
 }
 
-// -- Rollback test mocks --
-
-#[derive(Clone, Default)]
-struct RecordingTeamChannelsRepository {
-    add_calls: Arc<Mutex<usize>>,
-    remove_calls: Arc<Mutex<usize>>,
-}
-
-impl TeamChannelsRepository for RecordingTeamChannelsRepository {
-    fn add_team_member_to_channels(
-        &self,
-        _: &uuid::Uuid,
-        _: &MacroUserIdStr<'_>,
-    ) -> impl Future<Output = Result<(), TeamError>> + Send {
-        *self.add_calls.lock().unwrap() += 1;
-        async { Ok(()) }
-    }
-
-    fn remove_team_member_from_channels(
-        &self,
-        _: &uuid::Uuid,
-        _: &MacroUserIdStr<'_>,
-    ) -> impl Future<Output = Result<(), TeamError>> + Send {
-        *self.remove_calls.lock().unwrap() += 1;
-        async { Ok(()) }
-    }
-}
-
-#[derive(Clone, Default)]
-struct RecordingUserRolesAndPermissionsService {
-    upsert_calls: Arc<Mutex<usize>>,
-    remove_calls: Arc<Mutex<usize>>,
-}
-
-impl UserRolesAndPermissionsService for RecordingUserRolesAndPermissionsService {
-    fn get_user_roles(
-        &self,
-        _: &MacroUserIdStr<'_>,
-    ) -> impl Future<Output = Result<HashSet<RoleId>, UserRolesAndPermissionsError>> + Send {
-        async { unimplemented!() }
-    }
-
-    fn get_user_permissions(
-        &self,
-        _: &MacroUserIdStr<'_>,
-    ) -> impl Future<Output = Result<HashSet<PermissionId>, UserRolesAndPermissionsError>> + Send
-    {
-        async { unimplemented!() }
-    }
-
-    fn update_user_roles_and_permissions_for_subscription(
-        &self,
-        _: Email<Lowercase<'_>>,
-        _: roles_and_permissions::domain::model::SubscriptionStatus,
-        _: roles_and_permissions::domain::model::ProductTier,
-    ) -> impl Future<Output = Result<(), UserRolesAndPermissionsError>> + Send {
-        async { unimplemented!() }
-    }
-
-    fn dangerous_upsert_roles_for_user(
-        &self,
-        _: &MacroUserIdStr<'_>,
-        _: non_empty::NonEmpty<&[RoleId]>,
-    ) -> impl Future<Output = Result<(), UserRolesAndPermissionsError>> + Send {
-        *self.upsert_calls.lock().unwrap() += 1;
-        async { Ok(()) }
-    }
-
-    fn dangerous_remove_roles_from_user(
-        &self,
-        _: &MacroUserIdStr<'_>,
-        _: &non_empty::NonEmpty<&[RoleId]>,
-    ) -> impl Future<Output = Result<(), UserRolesAndPermissionsError>> + Send {
-        *self.remove_calls.lock().unwrap() += 1;
-        async { Ok(()) }
-    }
-}
-
-#[derive(Clone, Default)]
-struct ConfigurableCustomerRepository {
-    fail_get_subscription: bool,
-    fail_convert: bool,
-    fail_increase: bool,
-    fail_decrease: bool,
-}
-
-impl CustomerRepository for ConfigurableCustomerRepository {
-    fn convert_subscription_to_team(
-        &self,
-        _: &stripe::SubscriptionId,
-        _: &uuid::Uuid,
-        _: &MacroUserIdStr<'_>,
-    ) -> impl Future<Output = Result<(), CustomerError>> + Send {
-        let fail = self.fail_convert;
-        async move {
-            if fail {
-                Err(CustomerError::SubscriptionNotActive)
-            } else {
-                Ok(())
-            }
-        }
-    }
-
-    fn get_subscription_id_for_customer(
-        &self,
-        _: &stripe::CustomerId,
-    ) -> impl Future<Output = Result<stripe::SubscriptionId, CustomerError>> + Send {
-        let fail = self.fail_get_subscription;
-        async move {
-            if fail {
-                Err(CustomerError::SubscriptionNotActive)
-            } else {
-                Ok("sub_1".parse().unwrap())
-            }
-        }
-    }
-
-    fn create_subscription(
-        &self,
-        _: CreateSubscriptionArgs,
-    ) -> impl Future<Output = Result<stripe::SubscriptionId, CustomerError>> + Send {
-        async { unimplemented!() }
-    }
-
-    fn increase_subscription_quantity(
-        &self,
-        _: &stripe::SubscriptionId,
-        _: TeamUserTier,
-    ) -> impl Future<Output = Result<(), CustomerError>> + Send {
-        let fail = self.fail_increase;
-        async move {
-            if fail {
-                Err(CustomerError::SubscriptionNotActive)
-            } else {
-                Ok(())
-            }
-        }
-    }
-
-    fn decrease_subscription_quantity(
-        &self,
-        _: &stripe::SubscriptionId,
-        _: TeamUserTier,
-    ) -> impl Future<Output = Result<(), CustomerError>> + Send {
-        let fail = self.fail_decrease;
-        async move {
-            if fail {
-                Err(CustomerError::SubscriptionNotActive)
-            } else {
-                Ok(())
-            }
-        }
-    }
-
-    fn update_subscription_tier(
-        &self,
-        _: &stripe::SubscriptionId,
-        _: TeamUserTier,
-        _: TeamUserTier,
-    ) -> impl Future<Output = Result<(), CustomerError>> + Send {
-        async { unimplemented!() }
-    }
-
-    fn cancel_subscription(
-        &self,
-        _: &stripe::SubscriptionId,
-    ) -> impl Future<Output = Result<(), CustomerError>> + Send {
-        async { unimplemented!() }
-    }
-}
-
 // -- Helpers --
 
 fn make_invite(email: &str, invite_id: uuid::Uuid, team_id: uuid::Uuid) -> TeamInvite<'static> {
@@ -779,24 +610,15 @@ async fn test_invite_marks_sent_only_for_successful_notifications() {
 
     let invited_by = MacroUserIdStr::parse_from_str("macro|owner@example.com").unwrap();
     let invites = vec![
-        (
-            Email::parse_from_str("alice@example.com")
-                .unwrap()
-                .lowercase(),
-            TeamUserTier::Haiku,
-        ),
-        (
-            Email::parse_from_str("bob@example.com")
-                .unwrap()
-                .lowercase(),
-            TeamUserTier::Haiku,
-        ),
-        (
-            Email::parse_from_str("carol@example.com")
-                .unwrap()
-                .lowercase(),
-            TeamUserTier::Haiku,
-        ),
+        Email::parse_from_str("alice@example.com")
+            .unwrap()
+            .lowercase(),
+        Email::parse_from_str("bob@example.com")
+            .unwrap()
+            .lowercase(),
+        Email::parse_from_str("carol@example.com")
+            .unwrap()
+            .lowercase(),
     ];
     let invites = non_empty::NonEmpty::new(invites.as_slice()).unwrap();
 
@@ -835,12 +657,11 @@ async fn test_invite_does_not_call_mark_sent_when_all_notifications_fail() {
         build_service(invites, fail_indices, mark_sent_calls.clone());
 
     let invited_by = MacroUserIdStr::parse_from_str("macro|owner@example.com").unwrap();
-    let invites = vec![(
+    let invites = vec![
         Email::parse_from_str("fail@example.com")
             .unwrap()
             .lowercase(),
-        TeamUserTier::Haiku,
-    )];
+    ];
     let invites = non_empty::NonEmpty::new(invites.as_slice()).unwrap();
 
     let receipt = test_team_receipt::<OwnerTeamRole>(team_id, &invited_by);
@@ -875,18 +696,12 @@ async fn test_invite_marks_all_sent_when_all_notifications_succeed() {
 
     let invited_by = MacroUserIdStr::parse_from_str("macro|owner@example.com").unwrap();
     let invites = vec![
-        (
-            Email::parse_from_str("one@example.com")
-                .unwrap()
-                .lowercase(),
-            TeamUserTier::Haiku,
-        ),
-        (
-            Email::parse_from_str("two@example.com")
-                .unwrap()
-                .lowercase(),
-            TeamUserTier::Haiku,
-        ),
+        Email::parse_from_str("one@example.com")
+            .unwrap()
+            .lowercase(),
+        Email::parse_from_str("two@example.com")
+            .unwrap()
+            .lowercase(),
     ];
     let invites = non_empty::NonEmpty::new(invites.as_slice()).unwrap();
 

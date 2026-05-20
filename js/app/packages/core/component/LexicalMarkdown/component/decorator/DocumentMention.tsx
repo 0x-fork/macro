@@ -28,14 +28,14 @@ import { formatDate } from '@core/util/date';
 import { matches } from '@core/util/match';
 import { openInNewSplitForMention } from '@core/util/openInNewSplit';
 import { useSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
-import EyeSlashDuo from '@icon/duotone/eye-slash-duotone.svg';
-import TrashSimple from '@icon/duotone/trash-simple-duotone.svg';
 import {
   $convertMentionToCard,
   $isDocumentMentionNode,
   DocumentCardNode,
   type DocumentMentionDecoratorProps,
 } from '@lexical-core';
+import EyeSlashDuo from '@phosphor/eye-slash.svg';
+import TrashSimple from '@phosphor/trash-simple.svg';
 import {
   type ItemEntity,
   isAccessiblePreviewItem,
@@ -411,7 +411,9 @@ export function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
   const resolvedBlockName = createMemo(() => {
     const i = item();
     if (!i.loading && i.access === 'access') {
-      return itemToBlockName(i) ?? props.blockName;
+      // NOTE: this is a hack around invalid "unknown" fallback
+      const resolved = itemToBlockName(i);
+      if (resolved && resolved !== 'unknown') return resolved;
     }
     return props.blockName;
   });

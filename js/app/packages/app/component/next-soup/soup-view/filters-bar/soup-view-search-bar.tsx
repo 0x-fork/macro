@@ -5,9 +5,9 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
 import { registerHotkey } from '@core/hotkey/hotkeys';
-import XIcon from '@icon/regular/x.svg?component-solid';
+import SearchIcon from '@icon/macro-magnifying-glass.svg';
 import { markdownToPlainText } from '@lexical-core/utils/parsers';
-import SearchIcon from '@macro-icons/macro-magnifying-glass.svg';
+import XIcon from '@phosphor/x.svg?component-solid';
 import { cn, Hotkey } from '@ui';
 import {
   $getRoot,
@@ -145,17 +145,23 @@ export const SoupSearchbar = (props: SoupSearchbarProps) => {
       class="w-full flex items-center shrink-0 grow min-w-0 mobile:-order-2"
       data-search-bar-wrapper
       data-no-focus-restore
+      onFocusOut={(e) => {
+        if (hasContent() || !props.onDismiss) return;
+        const next = e.relatedTarget as Node | null;
+        if (next && e.currentTarget.contains(next)) return;
+        props.onDismiss();
+      }}
     >
       <div
         class={cn(
-          'group w-full relative flex items-center gap-1 rounded-sm h-7 mobile:h-9 pl-2 pr-1 mobile:min-w-35 border text-xs',
+          'group w-full relative flex items-center gap-1 rounded-md h-7 mobile:h-9 pl-2 pr-1 mobile:min-w-35 border text-xs',
           variantStyles[props.variant ?? 'secondary']
         )}
       >
         <SearchIcon class="size-4 shrink-0" />
         <div
           data-soup-search
-          class="flex-1 min-w-0 whitespace-nowrap overflow-hidden **:[[contenteditable]]:outline-none **:[[contenteditable]]:p-0 **:[[contenteditable]]:whitespace-nowrap [&_p]:my-0 [&_p]:whitespace-nowrap"
+          class="flex-1 min-w-0 whitespace-nowrap overflow-hidden **:[[contenteditable]]:outline-none **:[[contenteditable]]:p-0 **:[[contenteditable]]:whitespace-nowrap **:[[contenteditable]]:min-h-[1lh] [&_p]:my-0 [&_p]:whitespace-nowrap"
         >
           <MarkdownShell
             config={editor}

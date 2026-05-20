@@ -188,7 +188,7 @@ function ChannelGroupItem(props: {
   const ButtonContent = () => (
     <Button
       class={cn(
-        'flex items-center cursor-default rounded-xs',
+        'flex items-center cursor-default rounded-sm not-disabled:hover:bg-ink/3',
         isSlim() ? 'justify-center size-8' : 'justify-start gap-3 size-full h-8'
       )}
       draggable={false}
@@ -198,7 +198,9 @@ function ChannelGroupItem(props: {
         'opacity-0 -translate-y-2': !isVisible(),
         'opacity-100 translate-y-0': isVisible(),
       }}
-      onClick={(e) => {
+      onMouseDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
         navigateToLatestNotification(e.shiftKey);
       }}
     >
