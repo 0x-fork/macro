@@ -810,7 +810,7 @@ export const UnifiedFilterDropdown = () => {
 
         <Dropdown.Portal>
           <Layer depth={2}>
-            <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-xl min-w-45 p-1">
+            <Dropdown.Content class="min-w-45">
               <Show
                 when={
                   categories().length === 1 && !isTasksView() && !isSearchView()
@@ -827,7 +827,7 @@ export const UnifiedFilterDropdown = () => {
 
                           <Dropdown.Portal>
                             <Layer depth={2}>
-                              <Dropdown.SubContent class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-xl min-w-40 p-1">
+                              <Dropdown.SubContent class="min-w-40">
                                 <For each={category.options}>
                                   {(option) => {
                                     const active = () =>

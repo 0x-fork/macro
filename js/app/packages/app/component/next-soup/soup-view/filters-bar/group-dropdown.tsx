@@ -31,7 +31,7 @@ export const GroupDropdown: Component<GroupDropdownProps> = (props) => {
       </Tooltip>
       <Dropdown.Portal>
         <Layer depth={2}>
-          <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-sm min-w-35 p-1">
+          <Dropdown.Content class="min-w-35">
             <For each={props.options}>
               {(option) => (
                 <Dropdown.Item
