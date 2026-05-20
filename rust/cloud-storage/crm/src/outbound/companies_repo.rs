@@ -2,7 +2,7 @@
 
 use crate::domain::{
     companies_repo::CompaniesRepository,
-    model::{CrmCompany, CrmDomain, CrmError},
+    model::{CrmCompany, CrmDomain, CrmError, DomainMetadata},
 };
 use sqlx::PgPool;
 
@@ -31,7 +31,7 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
 
         let company = sqlx::query!(
             r#"
-            SELECT c.id, c.team_id, c.name, c.email_sync, c.created_at
+            SELECT c.id, c.team_id, c.email_sync, c.created_at
             FROM crm_companies c
             JOIN crm_domains d ON d.company_id = c.id
             WHERE c.team_id = $1
@@ -73,7 +73,6 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
         Ok(Some(CrmCompany {
             id: company.id,
             team_id: company.team_id,
-            name: company.name,
             email_sync: company.email_sync,
             created_at: company.created_at,
             domains,
@@ -147,8 +146,8 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
             None => {
                 let new_company = sqlx::query!(
                     r#"
-                    INSERT INTO crm_companies (team_id, name)
-                    VALUES ($1, 'TODO')
+                    INSERT INTO crm_companies (team_id)
+                    VALUES ($1)
                     RETURNING id
                     "#,
                     team_id,
@@ -475,6 +474,62 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
         tx.commit()
             .await
             .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn lookup_domain_metadata(
+        &self,
+        domain: &str,
+    ) -> Result<Option<DomainMetadata>, CrmError> {
+        let normalized_domain = domain.to_ascii_lowercase();
+        let row = sqlx::query!(
+            r#"
+            SELECT name, description, icon_url
+            FROM crm_domain_directory
+            WHERE LOWER(domain) = $1
+            LIMIT 1
+            "#,
+            normalized_domain,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        Ok(row.map(|r| DomainMetadata {
+            name: r.name,
+            description: r.description,
+            icon_url: r.icon_url,
+        }))
+    }
+
+    #[tracing::instrument(skip(self, metadata), err)]
+    async fn upsert_domain_metadata(
+        &self,
+        domain: &str,
+        metadata: &DomainMetadata,
+    ) -> Result<(), CrmError> {
+        let normalized_domain = domain.to_ascii_lowercase();
+        // First-write-wins: the unique index is on `LOWER(domain)`, so
+        // a concurrent populate of the same domain hits the conflict
+        // path and we leave the existing row untouched (treat-as-forever
+        // cache). Negative cache entries (all-NULL fields) are inserted
+        // verbatim so subsequent populates suppress the resolver call.
+        sqlx::query!(
+            r#"
+            INSERT INTO crm_domain_directory (domain, name, description, icon_url)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (LOWER(domain)) DO NOTHING
+            "#,
+            normalized_domain,
+            metadata.name,
+            metadata.description,
+            metadata.icon_url,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
 
         Ok(())
     }

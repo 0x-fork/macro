@@ -235,8 +235,22 @@ async fn main() -> anyhow::Result<()> {
         PgSystemPropertiesRepository::new(db.clone()),
     ));
 
+    // Shared unfurl service drives the CRM crate's company metadata
+    // resolver — wraps the SSRF-safe reqwest fetcher in an
+    // `UnfurlServiceImpl`, then in an `UnfurlCompanyMetadataResolver`
+    // adapter. Resolver is cheap to clone (`Arc` internally) and is
+    // consulted by `crm_service.populate_contact` only on
+    // `crm_domain_directory` misses.
+    let unfurl_service = Arc::new(unfurl::domain::service::UnfurlServiceImpl::new(
+        unfurl::outbound::ReqwestUnfurlFetcher::new()
+            .context("failed to build ReqwestUnfurlFetcher")?,
+    ));
+    let metadata_resolver =
+        crm::outbound::unfurl_resolver::UnfurlCompanyMetadataResolver::new(unfurl_service);
+
     let crm_service = crm::domain::service::CrmServiceImpl::new(
         crm::outbound::companies_repo::CompaniesRepositoryImpl::new(db.clone()),
+        metadata_resolver.clone(),
     );
 
     // Backfill workers run against a dedicated pool to keep their writes
@@ -244,6 +258,7 @@ async fn main() -> anyhow::Result<()> {
     // flow, so route them through `db_backfill` too.
     let crm_service_backfill = crm::domain::service::CrmServiceImpl::new(
         crm::outbound::companies_repo::CompaniesRepositoryImpl::new(db_backfill.clone()),
+        metadata_resolver,
     );
 
     // process user inbox updates from gmail inbox_sync queue, triggered by update pubsub messages from Google

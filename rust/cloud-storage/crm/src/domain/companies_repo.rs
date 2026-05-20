@@ -1,6 +1,6 @@
 //! Port for persistence operations on CRM companies.
 
-use crate::domain::model::{CrmCompany, CrmError};
+use crate::domain::model::{CrmCompany, CrmError, DomainMetadata};
 
 /// The CompaniesRepository defines persistence operations for CRM
 /// companies and their associated domains.
@@ -25,8 +25,11 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
     ///      this domain out (the killswitch): no rows are written and the
     ///      method returns `Ok(())` so the caller can ack the job.
     ///    - If a row exists with `email_sync = true` it is reused.
-    ///    - Otherwise a new `crm_companies` row (name = `"TODO"`) and a
-    ///      matching `crm_domains` row are inserted.
+    ///    - Otherwise a new `crm_companies` row and a matching
+    ///      `crm_domains` row are inserted. The company name itself
+    ///      lives in `crm_domain_directory` keyed by `domain`, not on
+    ///      `crm_companies` — see [`lookup_domain_metadata`] /
+    ///      [`upsert_domain_metadata`].
     /// 2. Upsert `crm_contacts (company_id, email, name)` with
     ///    `ON CONFLICT DO UPDATE SET name = COALESCE(crm_contacts.name, EXCLUDED.name)`
     ///    so the first non-NULL name wins and later populates can't
@@ -38,6 +41,13 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
     /// and comparison. `name` is the display name observed for `email` on
     /// this user's link (sourced from `email_contacts.name` by the
     /// caller); pass `None` when no display name is available.
+    ///
+    /// The caller is expected to have ensured a `crm_domain_directory`
+    /// entry exists for `domain` (via [`upsert_domain_metadata`]) before
+    /// invoking — this method writes no metadata of its own.
+    ///
+    /// [`lookup_domain_metadata`]: CompaniesRepository::lookup_domain_metadata
+    /// [`upsert_domain_metadata`]: CompaniesRepository::upsert_domain_metadata
     fn populate_contact(
         &self,
         team_id: &uuid::Uuid,
@@ -45,6 +55,39 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
         domain: &str,
         email: &str,
         name: Option<&str>,
+    ) -> impl Future<Output = Result<(), CrmError>> + Send;
+
+    /// Read the cached [`DomainMetadata`] for `domain` from
+    /// `crm_domain_directory`, if any. `domain` is matched
+    /// case-insensitively. Returns `Ok(None)` when no row exists for
+    /// the domain — the caller is expected to resolve via
+    /// [`crate::domain::company_metadata_resolver::CompanyMetadataResolver`]
+    /// and then [`upsert_domain_metadata`] before retrying.
+    ///
+    /// `Some(DomainMetadata { name: None, ... })` is distinct from
+    /// `None`: it means the domain has been looked up before and the
+    /// resolver returned nothing useful — the negative-cache entry
+    /// suppresses further resolver calls.
+    ///
+    /// [`upsert_domain_metadata`]: CompaniesRepository::upsert_domain_metadata
+    fn lookup_domain_metadata(
+        &self,
+        domain: &str,
+    ) -> impl Future<Output = Result<Option<DomainMetadata>, CrmError>> + Send;
+
+    /// Insert `metadata` for `domain` into `crm_domain_directory` with
+    /// `ON CONFLICT (LOWER(domain)) DO NOTHING`. The directory is a
+    /// global, first-write-wins cache: a row for `domain` (whether
+    /// populated or all-NULL) is preserved as-is for the lifetime of
+    /// the table. `domain` is lower-cased before storage.
+    ///
+    /// Idempotent under concurrent calls — racing producers can both
+    /// resolve the same domain and both call this method; the second
+    /// is a no-op.
+    fn upsert_domain_metadata(
+        &self,
+        domain: &str,
+        metadata: &DomainMetadata,
     ) -> impl Future<Output = Result<(), CrmError>> + Send;
 
     /// Reverses [`populate_contact`] for one `(link_id, email)`: drops the

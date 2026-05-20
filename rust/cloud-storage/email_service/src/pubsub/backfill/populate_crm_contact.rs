@@ -12,6 +12,11 @@ use models_email::email::service::pubsub::{DetailedError, FailureReason, Process
 /// `crm_contact_sources` atomically. A killswitch row
 /// (`crm_companies.email_sync = false` for the contact's domain) is also a
 /// no-op — see [`crm::domain::companies_repo::CompaniesRepository::populate_contact`].
+///
+/// Company metadata (name, description, icon) is resolved and cached
+/// inside `crm_service.populate_contact` via the
+/// `crm_domain_directory` lookup → resolver → upsert path, so the
+/// consumer here doesn't need to know how that's done.
 #[tracing::instrument(skip(ctx), err, fields(contact_email = %p.contact_email, link_id = %link.id))]
 pub async fn populate_crm_contact(
     ctx: &PubSubContext,

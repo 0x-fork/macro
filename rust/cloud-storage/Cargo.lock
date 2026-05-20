@@ -2645,6 +2645,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tracing",
+ "unfurl",
  "uuid",
 ]
 
@@ -3975,6 +3976,7 @@ dependencies = [
  "tower 0.5.2",
  "tower-http",
  "tracing",
+ "unfurl",
  "url",
  "urlencoding",
  "utoipa",

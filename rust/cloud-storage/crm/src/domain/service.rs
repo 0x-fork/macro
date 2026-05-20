@@ -2,6 +2,7 @@
 
 use crate::domain::{
     companies_repo::CompaniesRepository,
+    company_metadata_resolver::CompanyMetadataResolver,
     model::{CrmCompany, CrmError},
 };
 
@@ -29,6 +30,15 @@ pub trait CrmService: Clone + Send + Sync + 'static {
     /// before invoking. The first non-NULL name wins for the
     /// `crm_contacts` row; later populates from other team members can't
     /// overwrite it. Pass `None` when no display name is available.
+    ///
+    /// Before the populate transaction, this method ensures
+    /// `crm_domain_directory` has an entry for the email's domain — if
+    /// not, it invokes the
+    /// [`crate::domain::company_metadata_resolver::CompanyMetadataResolver`]
+    /// and inserts the result (which may be all-NULL on resolver
+    /// failure — that's the negative cache). The directory write is its
+    /// own transaction so the populate tx never holds locks across an
+    /// HTTP fetch.
     fn populate_contact(
         &self,
         team_id: &uuid::Uuid,
@@ -88,42 +98,53 @@ pub trait CrmService: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<Option<uuid::Uuid>, CrmError>> + Send;
 }
 
-/// Implementation of [`CrmService`] backed by a [`CompaniesRepository`].
+/// Implementation of [`CrmService`] backed by a [`CompaniesRepository`]
+/// and a [`CompanyMetadataResolver`].
 #[derive(Debug)]
-pub struct CrmServiceImpl<CR>
+pub struct CrmServiceImpl<CR, R>
 where
     CR: CompaniesRepository,
+    R: CompanyMetadataResolver,
 {
     /// The underlying companies repository
     companies_repository: CR,
+    /// Resolver consulted only when `crm_domain_directory` has no entry
+    /// for a given domain. The resolver itself is best-effort — its
+    /// failures collapse to a negative-cache row in the directory.
+    metadata_resolver: R,
 }
 
-impl<CR> Clone for CrmServiceImpl<CR>
+impl<CR, R> Clone for CrmServiceImpl<CR, R>
 where
     CR: CompaniesRepository,
+    R: CompanyMetadataResolver,
 {
     fn clone(&self) -> Self {
         Self {
             companies_repository: self.companies_repository.clone(),
+            metadata_resolver: self.metadata_resolver.clone(),
         }
     }
 }
 
-impl<CR> CrmServiceImpl<CR>
+impl<CR, R> CrmServiceImpl<CR, R>
 where
     CR: CompaniesRepository,
+    R: CompanyMetadataResolver,
 {
     /// Creates a new CrmServiceImpl
-    pub fn new(companies_repository: CR) -> Self {
+    pub fn new(companies_repository: CR, metadata_resolver: R) -> Self {
         Self {
             companies_repository,
+            metadata_resolver,
         }
     }
 }
 
-impl<CR> CrmService for CrmServiceImpl<CR>
+impl<CR, R> CrmService for CrmServiceImpl<CR, R>
 where
     CR: CompaniesRepository,
+    R: CompanyMetadataResolver,
 {
     #[tracing::instrument(skip(self), err)]
     async fn get_company_by_domain(
@@ -160,6 +181,26 @@ where
                 "email {email} has an empty domain"
             )));
         }
+
+        // Ensure `crm_domain_directory` has an entry for this domain
+        // before the populate tx — the populate tx no longer carries any
+        // name metadata of its own, and we don't want to hold its
+        // advisory lock across an HTTP fetch. The directory upsert is
+        // its own transaction, idempotent under concurrent populates
+        // for the same domain (first-write-wins via the unique index
+        // on `LOWER(domain)`).
+        if self
+            .companies_repository
+            .lookup_domain_metadata(domain)
+            .await?
+            .is_none()
+        {
+            let metadata = self.metadata_resolver.resolve(domain).await;
+            self.companies_repository
+                .upsert_domain_metadata(domain, &metadata)
+                .await?;
+        }
+
         self.companies_repository
             .populate_contact(team_id, link_id, domain, email, name)
             .await
