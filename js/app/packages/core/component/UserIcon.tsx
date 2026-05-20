@@ -24,11 +24,9 @@ import { useSplitLayout } from '../../app/component/split-layout/layout';
 import { HoverCard } from './HoverCard';
 import { UserTooltip } from './UserTooltip';
 
-export type UserIconSize = AvatarSize;
-
 export type UserIconProps = {
   isDeleted?: boolean;
-  size?: UserIconSize;
+  size?: AvatarSize;
   suppressClick?: boolean;
   showTooltip?: boolean;
   class?: string;

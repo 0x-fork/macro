@@ -62,40 +62,4 @@ export const themeStyles: Record<Theme, string> = {
   reverse: 'bg-current hover:bg-current/90',
 };
 
-export const themeSelectedColors: Record<Theme, string> = {
-  base: 'bg-hover!',
-  accent: 'bg-accent/20!',
-  accentFill: 'bg-acent/80',
-  accentOpaque:
-    'bg-[oklch(from_var(--color-accent)_calc(l*1.4)_calc(c*0.15)_h)]!',
-  contrast: 'bg-ink/20!',
-  clear: 'bg-hover!',
-  selected: 'bg-hover/30!',
-  disabled: 'bg-hover/40!',
-  green: 'bg-success-bg!',
-  red: 'bg-failure-bg!',
-  muted: 'bg-hover!',
-  extraMuted: 'bg-hover!',
-  subtle: 'bg-hover!',
-  current: 'bg-current/20',
-  reverse: 'bg-current',
-};
 
-export const shortcutBadgeStyles: Record<Theme, string> = {
-  base: 'bg-surface border border-ink',
-  accent: 'bg-accent/10',
-  accentFill: 'bg-accent/90',
-  accentOpaque:
-    'bg-[oklch(from_var(--color-accent)_calc(l*1.5)_calc(c*0.09)_h)]',
-  contrast: 'bg-ink/30',
-  clear: 'bg-hover/10',
-  selected: 'bg-hover/10',
-  green: 'bg-success-bg/30',
-  disabled: 'bg-hover/20',
-  red: 'bg-failure-bg/30',
-  muted: 'bg-hover',
-  extraMuted: 'bg-hover',
-  subtle: 'bg-transparent',
-  current: 'bg-current/20',
-  reverse: 'bg-current',
-};

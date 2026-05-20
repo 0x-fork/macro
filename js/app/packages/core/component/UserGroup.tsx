@@ -2,12 +2,10 @@ import { AvatarGroup, type AvatarGroupSize } from '@ui';
 import { createMemo, For, Show } from 'solid-js';
 import { UserIcon } from './UserIcon';
 
-export type UserGroupSize = AvatarGroupSize;
-
-export type UserGroupProps = {
+type UserGroupProps = {
   userIds: string[];
   maxUsers?: number;
-  size?: UserGroupSize;
+  size?: AvatarGroupSize;
   suppressClick?: boolean;
   showTooltip?: boolean;
 };
