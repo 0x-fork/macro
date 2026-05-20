@@ -112,6 +112,15 @@ pub struct TeamWithMembers {
     pub members: Vec<TeamMember<'static>>,
 }
 
+/// Current and invited members for a team.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TeamMembers {
+    /// Current accepted members of the team.
+    pub members: Vec<TeamMember<'static>>,
+    /// Pending invites for the team.
+    pub invited: Vec<TeamInviteDetails>,
+}
+
 /// Detailed information about a team invite
 #[derive(Debug, Clone, serde::Serialize)]
 #[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
@@ -138,6 +147,8 @@ pub struct TeamInviteDetails {
 pub struct PatchTeamRequest {
     /// The new name for the team
     pub name: Option<String>,
+    /// The new slug for the team. This is normalized to SCREAMING_SNAKE_CASE.
+    pub slug: Option<String>,
     /// Role updates to apply to team users
     pub user_role_updates: Option<Vec<PatchTeamUserRole>>,
 }
@@ -161,20 +172,60 @@ pub struct PatchTeamUserRole {
     pub role: TeamRole,
 }
 
+/// Team checkout session metadata
+#[derive(Debug, Default, serde::Deserialize)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+pub struct TeamCheckoutSessionMetadata {
+    /// Google Analytics client ID for conversion tracking
+    pub ga_client_id: Option<String>,
+    /// Meta (Facebook) browser ID from _fbp cookie
+    pub fbp: Option<String>,
+    /// Meta (Facebook) click ID from _fbc cookie
+    pub fbc: Option<String>,
+}
+
+/// Team checkout session request
+#[derive(Debug, serde::Deserialize)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+pub struct TeamCheckoutSessionRequest {
+    /// The URL to redirect to on successful checkout
+    pub success_url: String,
+    /// The URL to redirect to if checkout is cancelled
+    pub cancel_url: String,
+    /// Optional discount/promo code to apply
+    pub discount: Option<String>,
+    /// Tracking metadata for conversion attribution
+    #[serde(default)]
+    pub metadata: TeamCheckoutSessionMetadata,
+    /// The team plan the user wants to purchase for their team
+    pub team_plan: TeamPlan,
+}
+
 /// The Team struct
 #[derive(Debug, Clone, serde::Serialize)]
 #[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
 pub struct Team {
     pub(crate) id: uuid::Uuid,
     pub(crate) name: String,
+    pub(crate) slug: String,
     #[cfg_attr(feature = "axum", schema(value_type = String))]
     pub(crate) owner_id: MacroUserIdStr<'static>,
 }
 
 impl Team {
     /// Creates a new Team
-    pub fn new(id: uuid::Uuid, name: String, owner_id: MacroUserIdStr<'static>) -> Self {
-        Self { id, name, owner_id }
+    pub fn new(
+        id: uuid::Uuid,
+        name: String,
+        slug: String,
+        owner_id: MacroUserIdStr<'static>,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            slug,
+            owner_id,
+        }
     }
 }
 
@@ -187,6 +238,11 @@ impl Team {
     /// The name of the team
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// The slug of the team
+    pub fn slug(&self) -> &str {
+        &self.slug
     }
 
     /// The owner id of the team
@@ -371,6 +427,9 @@ pub enum CustomerError {
     /// The subscription is not active
     #[error("Subscription is not active")]
     SubscriptionNotActive,
+    /// Invalid promotion code
+    #[error("Invalid promotion code {0}")]
+    InvalidPromotionCode(String),
     /// Storage layer error
     #[error("Storage layer error {0}")]
     StorageLayerError(#[from] anyhow::Error),
@@ -453,4 +512,24 @@ pub enum RestorePermissionsForTeamMembersError {
     /// Underlying user roles and permissions error
     #[error("Underlying user roles and permissions error")]
     AddRolesToUserError(#[from] UserRolesAndPermissionsError),
+}
+
+/// Error when creating team checkout
+#[derive(Debug, thiserror::Error)]
+pub enum TeamCheckoutError {
+    /// Team already has a plan
+    #[error("Team already has a plan")]
+    TeamAlreadyHasPlanError,
+    /// Missing customer id
+    #[error("User does not have a customer id")]
+    MissingCustomerId,
+    /// Underlying team error
+    #[error("{0}")]
+    TeamError(#[from] TeamError),
+    /// Underlying customer error
+    #[error("{0}")]
+    CustomerError(#[from] CustomerError),
+    /// Customer already has a subscription
+    #[error("User already has an active subscription")]
+    AlreadySubscribed,
 }

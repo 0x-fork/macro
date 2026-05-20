@@ -1,52 +1,81 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import type { ListView } from '@app/constants/list-views';
 import { hapticImpact } from '@core/mobile/haptics';
-import PlusIcon from '@phosphor/plus.svg';
-import { Button } from '@ui';
-import { createMemo, Show } from 'solid-js';
+import { AnimatedChannelIcon } from '@icon/wide-channel';
+import { AnimatedEmailIcon } from '@icon/wide-email';
+import { AnimatedPlusIcon } from '@icon/wide-plus';
+import { AnimatedStarIcon } from '@icon/wide-star';
+import { AnimatedTaskIcon } from '@icon/wide-task';
+import { cn, Layer } from '@ui';
+import {
+  type Accessor,
+  type Component,
+  createMemo,
+  createSignal,
+  type JSX,
+} from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import { runCreateAction, setCreateMenuOpen } from '../../Launcher';
+import {
+  MOBILE_FLOATING_BUTTON_OFFSCREEN_RIGHT,
+  MOBILE_FLOATING_BUTTON_TRANSITION,
+  MOBILE_FLOATING_BUTTON_VISIBLE,
+} from './soup-view-mobile-floating-motion';
+
+const ICON_ANIMATION_DURATION_MS = 500;
+
+type IconComponent = Component<
+  JSX.SvgSVGAttributes<SVGSVGElement> | { triggerAnimation?: boolean }
+>;
+
+const VIEW_CREATE_ICONS: Partial<Record<ListView, IconComponent>> = {
+  agents: AnimatedStarIcon,
+  mail: AnimatedEmailIcon,
+  documents: AnimatedPlusIcon,
+  tasks: AnimatedTaskIcon,
+  channels: AnimatedChannelIcon,
+  inbox: AnimatedPlusIcon,
+};
 
 export function SoupViewMobileCreateButton(props: {
   activeView: () => ListView | undefined;
+  visible?: Accessor<boolean>;
 }) {
   const analytics = useAnalytics();
+  const [animating, setAnimating] = createSignal(false);
 
   const VIEW_CREATE_ACTIONS: Partial<Record<ListView, () => void>> = {
     agents: () => {
       analytics.track('create_entity', {
         entityType: 'chat',
-        source: 'mobile_header',
+        source: 'mobile_dock',
       });
       runCreateAction('chat');
     },
     mail: () => {
       analytics.track('create_entity', {
         entityType: 'email',
-        source: 'mobile_header',
+        source: 'mobile_dock',
       });
       runCreateAction('email');
     },
     documents: () => {
-      analytics.track('create_menu_open', { from: 'mobile_header' });
+      analytics.track('create_menu_open', { from: 'mobile_dock' });
       setCreateMenuOpen(true);
     },
     tasks: () => {
       analytics.track('create_entity', {
         entityType: 'task',
-        source: 'mobile_header',
+        source: 'mobile_dock',
       });
       runCreateAction('task');
     },
     channels: () => {
       analytics.track('create_entity', {
         entityType: 'channel',
-        source: 'mobile_header',
+        source: 'mobile_dock',
       });
       runCreateAction('channel');
-    },
-    inbox: () => {
-      analytics.track('create_menu_open', { from: 'mobile_header' });
-      setCreateMenuOpen(true);
     },
   };
 
@@ -56,26 +85,46 @@ export function SoupViewMobileCreateButton(props: {
     return (
       VIEW_CREATE_ACTIONS[view] ??
       (() => {
-        analytics.track('create_menu_open', { from: 'mobile_header' });
+        analytics.track('create_menu_open', { from: 'mobile_dock' });
         setCreateMenuOpen(true);
       })
     );
   });
 
+  const createIcon = createMemo<IconComponent>(() => {
+    const view = props.activeView();
+    return (view && VIEW_CREATE_ICONS[view]) ?? AnimatedPlusIcon;
+  });
+
+  const isVisible = () => (props.visible?.() ?? true) && !!createAction();
+
   return (
-    <Show when={createAction()}>
-      <Button
-        variant="base"
-        size="sm"
-        class="rounded-md py-1.5 [&_svg]:size-4"
+    <Layer depth={4}>
+      <button
+        type="button"
+        class={cn(
+          'absolute bottom-4 right-4 z-10 h-11 pl-3.5 pr-4.5 rounded-full',
+          'bg-surface text-accent flex items-center justify-center gap-2 shadow-md ring ring-edge',
+          MOBILE_FLOATING_BUTTON_TRANSITION,
+          isVisible()
+            ? MOBILE_FLOATING_BUTTON_VISIBLE
+            : MOBILE_FLOATING_BUTTON_OFFSCREEN_RIGHT
+        )}
+        disabled={!isVisible()}
+        aria-hidden={!isVisible()}
         onClick={() => {
           hapticImpact('light');
-          createAction()?.();
+          setAnimating(true);
+          setTimeout(() => setAnimating(false), ICON_ANIMATION_DURATION_MS);
+          // Defer to next frame to avoid focus race with Dialog
+          requestAnimationFrame(() => createAction()?.());
         }}
       >
-        <PlusIcon />
-        <span>New</span>
-      </Button>
-    </Show>
+        <div class="size-5 [&_svg]:size-5">
+          <Dynamic component={createIcon()} triggerAnimation={animating()} />
+        </div>
+        <div>Create</div>
+      </button>
+    </Layer>
   );
 }

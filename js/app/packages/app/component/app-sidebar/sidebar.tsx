@@ -38,7 +38,6 @@ import { AnimatedCommandIcon } from '@icon/wide-command';
 import { AnimatedEmailIcon } from '@icon/wide-email';
 import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
 import { AnimatedFolderIcon } from '@icon/wide-folder';
-import { AnimatedGearIcon } from '@icon/wide-gear';
 import { AnimatedInboxIcon } from '@icon/wide-inbox';
 import { AnimatedNewSplitIcon } from '@icon/wide-newSplit';
 import { AnimatedSearchIcon } from '@icon/wide-search';
@@ -48,6 +47,9 @@ import { AnimatedTaskIcon } from '@icon/wide-task';
 import { AnimatedUsersIcon } from '@icon/wide-users';
 import { useNotificationSettings } from '@notifications';
 import BellIcon from '@phosphor/bell.svg';
+import DeviceMobileIcon from '@phosphor/device-mobile-speaker.svg';
+import PaintBucketIcon from '@phosphor/paint-bucket.svg';
+import UsersThreeIcon from '@phosphor/users-three.svg';
 import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
 import { useLocation } from '@solidjs/router';
@@ -504,15 +506,23 @@ const SidebarPromoCard = (props: SidebarPromoCardProps) => {
 };
 
 type SidebarActionButtonProps = {
-  label: string;
-  hotkeyToken?: HotkeyToken;
-  /** Whether the sidebar is currently in slim (icon-only) mode. */
-  isSlim: () => boolean;
-  onClick: () => void;
-  disabled?: boolean | (() => boolean);
-  /** Animated icon component that accepts a `triggerAnimation` prop. */
   icon: Component<{ triggerAnimation?: boolean; class?: string }>;
+  onClick: (event?: MouseEvent) => void;
+  disabled?: boolean | (() => boolean);
+  hotkeyToken?: HotkeyToken;
+  isSlim: () => boolean;
+  label: string;
 };
+
+const KeyboardShortcutsIcon = (props: { triggerAnimation?: boolean }) => (
+  <AnimatedCommandIcon triggerAnimation={props.triggerAnimation} />
+);
+
+const AppearanceSettingsIcon = () => <PaintBucketIcon class="size-4" />;
+
+const AccountTeamSettingsIcon = () => <UsersThreeIcon class="size-4" />;
+
+const MobileMcpsSettingsIcon = () => <DeviceMobileIcon class="size-4" />;
 
 /**
  * A normalised action button for the sidebar footer area.
@@ -537,7 +547,11 @@ const SidebarActionButton = (props: SidebarActionButtonProps) => {
       tooltipPlacement="right"
       label={props.isSlim() ? props.label : undefined}
       hotkey={props.isSlim() ? props.hotkeyToken : undefined}
-      onClick={props.onClick}
+      onMouseDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+      }}
+      onClick={(event: MouseEvent) => props.onClick(event)}
       disabled={isDisabled()}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
@@ -701,7 +715,7 @@ const CALLS_LINK: SidebarItem = {
 export const AppSidebar = (props: AppSidebarProps) => {
   const analytics = useAnalytics();
   const layout = useSplitLayout();
-  const { toggleSettings } = useSettingsState();
+  const { openSettings } = useSettingsState();
   const notificationSettings = useNotificationSettings();
   const callCtx = useCallContextOptional();
 
@@ -772,6 +786,31 @@ export const AppSidebar = (props: AppSidebarProps) => {
     });
   };
 
+  const openSettingsTab = (
+    tab:
+      | 'Keyboard Shortcuts'
+      | 'Appearance'
+      | 'Account & Team'
+      | 'Mobile & MCPs',
+    event?: MouseEvent
+  ) => {
+    if (event?.shiftKey) {
+      if (!(globalSplitManager()?.canAppendSplit() ?? true)) return;
+      analytics.track('split_created', { from: 'sidebar' });
+      layout.openWithSplit(
+        { type: 'component', id: 'settings' },
+        {
+          referredFrom: 'sidebar',
+          allowDuplicate: true,
+          preferNewSplit: true,
+          mergeHistory: false,
+        }
+      );
+      return;
+    }
+    openSettings(tab);
+  };
+
   const isExpanded = () => props.sidebarState === 'expanded';
   const isSlim = () => props.sidebarState === 'slim';
 
@@ -837,7 +876,14 @@ export const AppSidebar = (props: AppSidebarProps) => {
           </div>
           <Button
             class="flex items-center justify-center rounded-xs p-0.5 px-2 bg-surface [&_svg]:size-4"
-            onClick={() => handleSidebarOpenChange(!isExpanded())}
+            onMouseDown={(e) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+            }}
+            onClick={() => {
+              handleSidebarOpenChange(!isExpanded());
+              globalSplitManager()?.returnFocus();
+            }}
             onMouseEnter={() => setSidebarBtnHovering(true)}
             onMouseLeave={() => setSidebarBtnHovering(false)}
             label={isExpanded() ? 'Shrink Sidebar' : 'Expand Sidebar'}
@@ -924,7 +970,10 @@ export const AppSidebar = (props: AppSidebarProps) => {
             }}
           />
         </Show>
-        <SidebarUserMenu onSettings={toggleSettings} isSlim={isSlim} />
+        <SidebarUserMenu
+          onSettings={() => openSettingsTab('Account & Team')}
+          isSlim={isSlim}
+        />
       </div>
       <InviteModal />
     </div>
@@ -999,6 +1048,8 @@ const SidebarLink = (props: SidebarLinkProps) => {
         <Button
           draggable={false}
           variant="ghost"
+          data-sidebar-link={props.id}
+          data-active={isActive() ? '' : undefined}
           class={cn(
             'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-2 cursor-default w-full rounded-md py-1 text-ink-extra-muted [&_svg]:size-4',
             isActive() &&

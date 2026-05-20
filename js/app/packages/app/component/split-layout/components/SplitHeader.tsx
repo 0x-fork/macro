@@ -52,7 +52,7 @@ function SplitForwardButton() {
       disabled={!context.handle.canGoForward()}
       onClick={context.handle.goForward}
       class={cn(
-        'p-1',
+        'p-1 rounded-lg',
         isMobile() && !context.handle.canGoForward() && 'hidden'
       )}
     >
@@ -125,7 +125,7 @@ function _SplitPreviewToggle() {
     <Show when={isUnifiedList()}>
       <div class="max-sm:rotate-90">
         <Button
-          class="p-1"
+          class="p-1 rounded-lg"
           classList={{
             'bg-accent/20 text-accent': preview(),
           }}
@@ -161,7 +161,10 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
 
   return (
     <div
-      class="isolate w-full py-2 overflow-clip text-ink shrink-0 bg-surface"
+      class={cn(
+        'isolate w-full py-2 overflow-clip text-ink shrink-0 bg-surface',
+        isMobile() && isListViewID(panel.handle.content().id) && 'hidden'
+      )}
       data-split-header
       ref={props.ref}
     >

@@ -5,6 +5,7 @@ import { hapticImpact } from '@core/mobile/haptics';
 import DotsThreeIcon from '@phosphor/dots-three.svg';
 import HouseIcon from '@phosphor/house.svg';
 import PlusIcon from '@phosphor/plus.svg';
+import { AnimatedCallIcon } from '@icon/wide-call';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
 import { AnimatedEmailIcon } from '@icon/wide-email';
 import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
@@ -176,6 +177,13 @@ function MoreMenu(props: {
       label: 'Agents',
       color: 'text-chat',
       bgColor: 'bg-chat/10',
+    },
+    {
+      id: 'calls',
+      icon: AnimatedCallIcon,
+      label: 'Calls',
+      color: 'text-accent',
+      bgColor: 'bg-accent/10',
     },
   ];
 

@@ -21,6 +21,8 @@ import {
   MobileSoupFooter,
   MobileSoupHeader,
 } from '@app/component/next-soup/soup-view/filters-bar/mobile-soup-header';
+import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
+import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-bar/active-filter-chips';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import { MaybeSoupEntityActionDrawerManager } from '@app/component/next-soup/soup-view/SoupEntityActionDrawerManager';
@@ -36,7 +38,15 @@ import {
 } from '@app/component/next-soup/soup-view/soup-view-context';
 import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
+import { SoupViewMobileCreateButton } from '@app/component/next-soup/soup-view/soup-view-mobile-create-button';
 import {
+  SoupViewMobileSearchBar,
+  SoupViewMobileSearchButton,
+} from '@app/component/next-soup/soup-view/soup-view-mobile-search';
+import { SoupViewMobileSettingsButton } from '@app/component/next-soup/soup-view/soup-view-mobile-settings-button';
+import {
+  CollapsedSoupViewTabs,
+  MobileSoupViewTabs,
   SoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
@@ -50,6 +60,8 @@ import {
   PreviewPanel,
   useMaybePreviewPanel,
 } from '@app/component/PreviewPanel';
+import { SoupChatInput } from '@app/component/SoupChatInput';
+import { CollapsibleHeaderItem } from '@app/component/split-layout/components/CollapsibleHeaderItem';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -66,6 +78,10 @@ import { Resize } from '@core/component/Resize';
 import { UserIcon } from '@core/component/UserIcon';
 import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
+import {
+  soupListContainerAttribute,
+  soupListContainerSelector,
+} from '@core/dom-selectors';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
@@ -97,7 +113,7 @@ import {
 } from '@queries/soup/normalized-cache';
 import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
-import { Button, cn, Hotkey, Layer } from '@ui';
+import { Button, cn, Hotkey, Layer, Tooltip } from '@ui';
 import {
   type Accessor,
   batch,
@@ -549,14 +565,44 @@ export const SoupView = (props: SoupViewProps) => {
     return component() === listView;
   };
 
-  const _activeListView = createMemo<ListView | undefined>(() => {
+  const activeListView = createMemo<ListView | undefined>(() => {
     const id = component();
     return id && isListViewID(id) ? id : undefined;
   });
 
+  const [mobileSearchOpen, setMobileSearchOpen] = createSignal(false);
+  const [searchIsCollapsed, setSearchIsCollapsed] = createSignal(false);
   const [narrowSearchExpanded, setNarrowSearchExpanded] = createSignal(false);
-  const [searchIsCollapsed, _setSearchIsCollapsed] = createSignal(false);
   const [mobileScrollY, setMobileScrollY] = createSignal(0);
+  const [floatingButtonsVisible, setFloatingButtonsVisible] =
+    createSignal(true);
+  let lastSoupScrollOffset = 0;
+  let upwardSoupScrollDistance = 0;
+
+  const resetFloatingButtonScrollTracking = (offset = 0) => {
+    lastSoupScrollOffset = Math.max(0, offset);
+    upwardSoupScrollDistance = 0;
+    setFloatingButtonsVisible(true);
+  };
+
+  const handleSoupScrollOffsetChange = (offset: number) => {
+    const nextOffset = Math.max(0, offset);
+    const delta = nextOffset - lastSoupScrollOffset;
+    lastSoupScrollOffset = nextOffset;
+
+    if (delta > 0) {
+      upwardSoupScrollDistance = 0;
+      setFloatingButtonsVisible(false);
+      return;
+    }
+
+    if (delta < 0) {
+      upwardSoupScrollDistance += Math.abs(delta);
+      if (upwardSoupScrollDistance > FLOATING_BUTTON_SCROLL_UP_THRESHOLD) {
+        setFloatingButtonsVisible(true);
+      }
+    }
+  };
 
   registerHotkey({
     hotkey: 'cmd+f',
@@ -565,6 +611,11 @@ export const SoupView = (props: SoupViewProps) => {
     registrationType: 'add',
     description: 'Search',
     keyDownHandler: () => {
+      if (isMobile()) {
+        if (mobileSearchOpen()) return false;
+        setMobileSearchOpen(true);
+        return true;
+      }
       if (narrowSearchExpanded() || !searchIsCollapsed()) return false;
       setNarrowSearchExpanded(true);
       return true;
@@ -604,7 +655,10 @@ export const SoupView = (props: SoupViewProps) => {
           disableLocalSearch={props.disableLocalSearch}
           additionalEntities={props.additionalEntities}
         >
-          <div class="size-full flex flex-col">
+          <div
+            class="size-full flex flex-col"
+            data-list-view={activeListView()}
+          >
             <Show when={isMobile()}>
               <MobileSoupHeader
                 viewName={props.viewName}
@@ -614,18 +668,102 @@ export const SoupView = (props: SoupViewProps) => {
             <Show when={!isMobile()}>
               <div class="flex flex-col w-full">
                 <SplitHeaderLeft>
-                  <div class="flex gap-3 items-center">
-                    <Show when={!isComponentListView('search')}>
+                  <div
+                    class={cn('h-full flex gap-3 items-center', {
+                      'shrink-0': !narrowSearchExpanded(),
+                      'flex-1 min-w-0': narrowSearchExpanded(),
+                    })}
+                  >
+                    <Show when={!narrowSearchExpanded()}>
                       <h1 class="font-semibold text-ink select-none text-sm leading-none">
                         {props.viewName}
                       </h1>
-                      <SoupViewTabs overflow />
+                    </Show>
+                    <Show
+                      when={
+                        !narrowSearchExpanded() &&
+                        !isComponentListView('search')
+                      }
+                    >
+                      <CollapsibleHeaderItem
+                        id="tabs"
+                        priority={1}
+                        expanded={() => <SoupViewTabs />}
+                        collapsed={() => <CollapsedSoupViewTabs />}
+                        containerClass="h-full"
+                      />
                     </Show>
                   </div>
                 </SplitHeaderLeft>
                 <SplitHeaderRight>
-                  <Show when={!isComponentListView('search')}>
+                  <Show
+                    when={
+                      !narrowSearchExpanded() && !isComponentListView('search')
+                    }
+                  >
                     <SoupViewCreateButton />
+                  </Show>
+                  <Show when={narrowSearchExpanded()}>
+                    <Layer depth={2}>
+                      <div class="flex-1 min-w-0">
+                        <SoupSearchbar
+                          variant="secondary"
+                          autoFocus
+                          initialValue={props.initialSearchText}
+                          onDismiss={() => setNarrowSearchExpanded(false)}
+                        />
+                      </div>
+                    </Layer>
+                  </Show>
+                  <Show
+                    when={!isComponentListView('search')}
+                    fallback={
+                      <Layer depth={2}>
+                        <div class="grow ml-2">
+                          <SoupSearchbar
+                            variant="secondary"
+                            placeholder="Search, @mention contacts"
+                            initialValue={props.initialSearchText}
+                          />
+                        </div>
+                      </Layer>
+                    }
+                  >
+                    <CollapsibleHeaderItem
+                      id="search"
+                      priority={0}
+                      onCollapsedChange={(isCollapsed) => {
+                        setSearchIsCollapsed(isCollapsed);
+                        if (!isCollapsed) setNarrowSearchExpanded(false);
+                      }}
+                      expanded={() => (
+                        <Layer depth={2}>
+                          <div class="w-60 ml-2">
+                            <SoupSearchbar
+                              variant="secondary"
+                              initialValue={props.initialSearchText}
+                            />
+                          </div>
+                        </Layer>
+                      )}
+                      collapsed={() => (
+                        <Show when={!narrowSearchExpanded()}>
+                          <Tooltip
+                            label="Search"
+                            hotkey={TOKENS.soup.openSearch}
+                          >
+                            <Button
+                              variant="base"
+                              class="p-1 rounded-lg ml-2 bg-surface"
+                              onClick={() => setNarrowSearchExpanded(true)}
+                              depth={2}
+                            >
+                              <SearchIcon class="size-4 touch:size-6" />
+                            </Button>
+                          </Tooltip>
+                        </Show>
+                      )}
+                    />
                   </Show>
                 </SplitHeaderRight>
                 <SoupFiltersBar
@@ -650,9 +788,29 @@ export const SoupView = (props: SoupViewProps) => {
                     initialGroupBy={props.initialGroupBy}
                     skipPersistedState={props.skipPersistedState}
                     onMobileScroll={setMobileScrollY}
+                    onScrollOffsetBaseline={resetFloatingButtonScrollTracking}
+                    onScrollOffsetChange={handleSoupScrollOffsetChange}
                   />
                 </SoupViewFileDropzone>
               </Suspense>
+              <Show when={isMobile()}>
+                <SoupViewMobileSettingsButton
+                  visible={floatingButtonsVisible}
+                />
+                <SoupViewMobileSearchButton
+                  open={mobileSearchOpen}
+                  visible={floatingButtonsVisible}
+                  onOpen={() => setMobileSearchOpen(true)}
+                />
+                <SoupViewMobileCreateButton
+                  activeView={activeListView}
+                  visible={floatingButtonsVisible}
+                />
+                <SoupViewMobileSearchBar
+                  open={mobileSearchOpen}
+                  onClose={() => setMobileSearchOpen(false)}
+                />
+              </Show>
             </div>
             <SoupViewFooter />
             <Show when={isMobile()}>
@@ -672,6 +830,8 @@ interface SoupViewListProps {
   initialGroupBy?: string;
   skipPersistedState?: boolean;
   onMobileScroll?: (scrollY: number) => void;
+  onScrollOffsetBaseline?: (offset: number) => void;
+  onScrollOffsetChange?: (offset: number) => void;
 }
 
 export const SoupViewList = (props: SoupViewListProps) => {
@@ -934,6 +1094,10 @@ export const SoupViewList = (props: SoupViewListProps) => {
     HTMLDivElement | undefined
   >();
 
+  createEffect(() => {
+    if (rows().length === 0) props.onScrollOffsetBaseline?.(0);
+  });
+
   const entityById = createMemo(
     () => {
       const list = rows() ?? [];
@@ -1099,10 +1263,12 @@ export const SoupViewList = (props: SoupViewListProps) => {
       setSearchText(cached.searchText);
       soup.focus.set(cached.focus);
       virtualizerHandle()?.scrollTo(cached.scrollOffset ?? 0);
+      props.onScrollOffsetBaseline?.(cached.scrollOffset ?? 0);
       registerFocusEffects(false);
       return;
     }
 
+    props.onScrollOffsetBaseline?.(0);
     registerFocusEffects();
   };
 
@@ -1242,6 +1408,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                           )}
                           class="overflow-hidden flex min-w-0"
                           virtualizerRef={registerVirtualizerHandler}
+                          onScrollOffsetChange={props.onScrollOffsetChange}
                           onScrollBottom={debouncedFetchMore}
                           onScroll={props.onMobileScroll}
                           scrollBottomOffset={300}
@@ -1464,7 +1631,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                           const listEl = localEntityListRef();
                           if (!listEl) return undefined;
                           const scrollContainer = listEl.querySelector(
-                            '[data-soup-list-container]'
+                            soupListContainerSelector
                           ) as HTMLElement;
                           return scrollContainer || undefined;
                         }}
@@ -1506,6 +1673,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
 const DEFAULT_ITEM_SIZE = 10;
 const DEFAULT_OVERSCAN = 5;
+const FLOATING_BUTTON_SCROLL_UP_THRESHOLD = 5;
 
 interface SoupListProps {
   ref?: (el: HTMLElement) => void;
@@ -1515,6 +1683,7 @@ interface SoupListProps {
   itemSize?: number;
   overscan?: number;
   children: (row: SoupRow, index: Accessor<number>) => JSX.Element;
+  onScrollOffsetChange?: (offset: number) => void;
   onScrollBottom?: VoidFunction;
   onScroll?: (offset: number) => void;
   scrollBottomOffset?: number;
@@ -1543,6 +1712,8 @@ const SoupList = (props: SoupListProps) => {
 
     if (!handle) return;
 
+    props.onScrollOffsetChange?.(offset);
+
     if (
       handle.scrollSize - handle.viewportSize - offset <=
       (props.scrollBottomOffset ?? 100)
@@ -1556,9 +1727,7 @@ const SoupList = (props: SoupListProps) => {
   ) => {
     setVirtualizerHandle(handle);
 
-    if (handle) {
-      props.virtualizerRef?.(handle);
-    }
+    if (handle) props.virtualizerRef?.(handle);
   };
 
   return (
@@ -1580,7 +1749,7 @@ const SoupList = (props: SoupListProps) => {
         itemSize={itemSize()}
         bufferSize={overscan() * itemSize()}
         onScroll={handleScroll}
-        data-soup-list-container
+        {...soupListContainerAttribute}
       >
         {(row, i) => props.children(row, i)}
       </VList>
