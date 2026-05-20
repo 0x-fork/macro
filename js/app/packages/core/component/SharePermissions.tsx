@@ -1,4 +1,5 @@
 import { AccessLevel as UserAccessLevel } from '@service-storage/generated/schemas/accessLevel';
+import { match } from 'ts-pattern';
 
 export enum Permissions {
   OWNER = 'Owner',
@@ -9,18 +10,12 @@ export enum Permissions {
 }
 export const getPermissions = (accessLevel?: UserAccessLevel) => {
   if (!accessLevel) return Permissions.NO_ACCESS;
-  switch (accessLevel) {
-    case 'owner':
-      return Permissions.OWNER;
-    case 'edit':
-      return Permissions.CAN_EDIT;
-    case 'comment':
-      return Permissions.CAN_COMMENT;
-    case 'view':
-      return Permissions.CAN_VIEW;
-    default:
-  }
-  return Permissions.NO_ACCESS;
+  return match(accessLevel)
+    .with('owner', () => Permissions.OWNER)
+    .with('edit', () => Permissions.CAN_EDIT)
+    .with('comment', () => Permissions.CAN_COMMENT)
+    .with('view', () => Permissions.CAN_VIEW)
+    .otherwise(() => Permissions.NO_ACCESS);
 };
 
 export const comparePermissions = (a: Permissions, b: Permissions) => {
@@ -38,18 +33,12 @@ export const comparePermissions = (a: Permissions, b: Permissions) => {
 export const getAccessLevel = (
   permissions?: Permissions
 ): UserAccessLevel | null => {
-  switch (permissions) {
-    case Permissions.OWNER:
-      return UserAccessLevel.owner;
-    case Permissions.CAN_EDIT:
-      return UserAccessLevel.edit;
-    case Permissions.CAN_COMMENT:
-      return UserAccessLevel.comment;
-    case Permissions.CAN_VIEW:
-      return UserAccessLevel.view;
-    default:
-      return null;
-  }
+  return match(permissions)
+    .with(Permissions.OWNER, () => UserAccessLevel.owner)
+    .with(Permissions.CAN_EDIT, () => UserAccessLevel.edit)
+    .with(Permissions.CAN_COMMENT, () => UserAccessLevel.comment)
+    .with(Permissions.CAN_VIEW, () => UserAccessLevel.view)
+    .otherwise(() => null);
 };
 
 export const hasPermissions = (

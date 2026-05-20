@@ -5,6 +5,7 @@ import List from '@phosphor-icons/core/regular/list.svg';
 import type { NamedTool } from '@service-cognition/generated/tools/tool';
 import { useSplitLayout } from 'app/component/split-layout/layout';
 import { createMemo, createSignal, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 import { VList } from 'virtua/solid';
 import { BaseTool } from './BaseTool';
 import { createToolRenderer } from './ToolRenderer';
@@ -28,66 +29,45 @@ const ListEntitiesToolResponse = (props: {
   });
 
   const getItemTitle = (item: ListEntitiesItem): string => {
-    switch (item.type) {
-      case 'document':
-        return item.name || 'Document';
-      case 'aiChat':
-        return item.name || 'Chat';
-      case 'project':
-        return item.name || 'Project';
-      case 'email':
-        return item.subject || 'Email';
-      case 'channel':
-        return item.name || 'Channel';
-      default:
-        return 'Item';
-    }
+    return match(item)
+      .with({ type: 'document' }, (i) => i.name || 'Document')
+      .with({ type: 'aiChat' }, (i) => i.name || 'Chat')
+      .with({ type: 'project' }, (i) => i.name || 'Project')
+      .with({ type: 'email' }, (i) => i.subject || 'Email')
+      .with({ type: 'channel' }, (i) => i.name || 'Channel')
+      .otherwise(() => 'Item');
   };
 
   const getIconType = (item: ListEntitiesItem) => {
-    switch (item.type) {
-      case 'document':
-        return 'default';
-      case 'aiChat':
-        return 'chat';
-      case 'project':
-        return 'project';
-      case 'email':
-        return 'email';
-      case 'channel':
-        return 'channel';
-      default:
-        return 'default';
-    }
+    return match(item)
+      .with({ type: 'document' }, () => 'default' as const)
+      .with({ type: 'aiChat' }, () => 'chat' as const)
+      .with({ type: 'project' }, () => 'project' as const)
+      .with({ type: 'email' }, () => 'email' as const)
+      .with({ type: 'channel' }, () => 'channel' as const)
+      .otherwise(() => 'default' as const);
   };
 
   const { replaceOrInsertSplit } = useSplitLayout();
 
   const getClickHandler = (item: ListEntitiesItem) => {
-    switch (item.type) {
-      case 'document':
-        return () => {
-          replaceOrInsertSplit({ type: 'unknown', id: item.id });
-        };
-      case 'aiChat':
-        return () => {
-          replaceOrInsertSplit({ type: 'chat', id: item.id });
-        };
-      case 'project':
-        return () => {
-          replaceOrInsertSplit({ type: 'project', id: item.id });
-        };
-      case 'email':
-        return () => {
-          replaceOrInsertSplit({ type: 'email', id: item.id });
-        };
-      case 'channel':
-        return () => {
-          replaceOrInsertSplit({ type: 'channel', id: item.id });
-        };
-      default:
-        return undefined;
-    }
+    return match(item)
+      .with({ type: 'document' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'unknown', id: i.id });
+      })
+      .with({ type: 'aiChat' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'chat', id: i.id });
+      })
+      .with({ type: 'project' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'project', id: i.id });
+      })
+      .with({ type: 'email' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'email', id: i.id });
+      })
+      .with({ type: 'channel' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'channel', id: i.id });
+      })
+      .otherwise(() => undefined);
   };
 
   return (

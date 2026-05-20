@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern';
 import type { Property } from '../types';
 
 /**
@@ -94,24 +95,14 @@ export const getValueTypeDisplay = (
     return entityTypeLower.charAt(0).toUpperCase() + entityTypeLower.slice(1);
   }
 
-  switch (property.valueType) {
-    case 'STRING':
-      return 'Text';
-    case 'NUMBER':
-      return 'Number';
-    case 'DATE':
-      return 'Date';
-    case 'BOOLEAN':
-      return 'Boolean';
-    case 'ENTITY':
-      return 'Entity';
-    case 'SELECT_STRING':
-      return 'Select (Text)';
-    case 'SELECT_NUMBER':
-      return 'Select (Number)';
-    case 'LINK':
-      return 'Link';
-    default:
-      return property.valueType;
-  }
+  return match(property.valueType)
+    .with('STRING', () => 'Text')
+    .with('NUMBER', () => 'Number')
+    .with('DATE', () => 'Date')
+    .with('BOOLEAN', () => 'Boolean')
+    .with('ENTITY', () => 'Entity')
+    .with('SELECT_STRING', () => 'Select (Text)')
+    .with('SELECT_NUMBER', () => 'Select (Number)')
+    .with('LINK', () => 'Link')
+    .otherwise(() => property.valueType);
 };

@@ -138,23 +138,18 @@ export function getEntityType(entity: CombinedEntity): EntityType {
   }
 
   const data = entity.data;
-  switch (data.type) {
-    case 'channel':
-      return 'CHANNEL';
-    case 'document':
-      if (data.subType?.type === 'task') {
-        return 'TASK';
+  return match(data)
+    .with({ type: 'channel' }, () => 'CHANNEL' as EntityType)
+    .with({ type: 'document' }, (d) => {
+      if (d.subType?.type === 'task') {
+        return 'TASK' as EntityType;
       }
-      return 'DOCUMENT';
-    case 'chat':
-      return 'CHAT';
-    case 'project':
-      return 'PROJECT';
-    case 'email':
-      return 'THREAD';
-    default:
-      return (data as EntityData).type.toUpperCase() as EntityType;
-  }
+      return 'DOCUMENT' as EntityType;
+    })
+    .with({ type: 'chat' }, () => 'CHAT' as EntityType)
+    .with({ type: 'project' }, () => 'PROJECT' as EntityType)
+    .with({ type: 'email' }, () => 'THREAD' as EntityType)
+    .otherwise((d) => (d as EntityData).type.toUpperCase() as EntityType);
 }
 
 /** Check if entity is a channel */

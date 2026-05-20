@@ -30,6 +30,7 @@ import { Button, cn } from '@ui';
 import { registerHotkey } from 'core/hotkey/hotkeys';
 import { createSignal, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { match } from 'ts-pattern';
 import { Tools } from '../constants';
 import { FileSelector } from './FileSelector';
 import {
@@ -119,14 +120,10 @@ export function ToolBar() {
   };
 
   const connectorIcon = () => {
-    switch (connectionStyle()) {
-      case 'smooth':
-        return ConnectorBezierArrows;
-      case 'stepped':
-        return ConnectorSteppedArrows;
-      default:
-        return ConnectorStraightArrows;
-    }
+    return match(connectionStyle())
+      .with('smooth', () => ConnectorBezierArrows)
+      .with('stepped', () => ConnectorSteppedArrows)
+      .otherwise(() => ConnectorStraightArrows);
   };
 
   registerHotkey({

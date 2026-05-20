@@ -6,6 +6,7 @@ import { emailClient } from '@service-email/client';
 import { storageServiceClient } from '@service-storage/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import { formatDocumentName } from '@service-storage/util/filename';
+import { match } from 'ts-pattern';
 import type { ItemEntity, MessageContext, PreviewItem } from './types';
 
 async function fetchChannelPreviews(
@@ -27,24 +28,22 @@ async function fetchChannelPreviews(
       type: 'channel',
     } as const;
 
-    switch (channel.type) {
-      case 'access':
-        return {
-          ...base,
-          access: 'access' as const,
-          loading: false,
-          rawName: channel.channel_name,
-          name: channel.channel_name,
-          channelType: channel.channel_type,
-        };
-      case 'no_access':
-      case 'does_not_exist':
-        return {
-          ...base,
-          access: channel.type,
-          loading: false,
-        };
-    }
+    return match(channel)
+      .returnType<PreviewItem>()
+      .with({ type: 'access' }, (channel) => ({
+        ...base,
+        access: 'access' as const,
+        loading: false,
+        rawName: channel.channel_name,
+        name: channel.channel_name,
+        channelType: channel.channel_type,
+      }))
+      .with({ type: 'no_access' }, { type: 'does_not_exist' }, (channel) => ({
+        ...base,
+        access: channel.type,
+        loading: false,
+      }))
+      .exhaustive();
   });
 }
 
@@ -86,33 +85,31 @@ async function fetchDocumentPreviews(ids: string[]): Promise<PreviewItem[]> {
       type: 'document',
     } as const;
 
-    switch (doc.type) {
-      case 'access':
-        return {
-          ...base,
-          access: 'access' as const,
-          loading: false,
-          rawName: doc.document_name,
-          name: doc.document_name,
-          fileType: doc.file_type as FileType,
-          owner: doc.owner,
-          updatedAt: doc.updated_at,
-          subType:
-            doc.sub_type === null || doc.sub_type === undefined
-              ? undefined
-              : {
-                  type: doc.sub_type.type as 'task',
-                  is_completed: doc.sub_type.is_completed,
-                },
-        };
-      case 'no_access':
-      case 'does_not_exist':
-        return {
-          ...base,
-          access: doc.type,
-          loading: false,
-        };
-    }
+    return match(doc)
+      .returnType<PreviewItem>()
+      .with({ type: 'access' }, (doc) => ({
+        ...base,
+        access: 'access' as const,
+        loading: false,
+        rawName: doc.document_name,
+        name: doc.document_name,
+        fileType: doc.file_type as FileType,
+        owner: doc.owner,
+        updatedAt: doc.updated_at,
+        subType:
+          doc.sub_type === null || doc.sub_type === undefined
+            ? undefined
+            : {
+                type: doc.sub_type.type as 'task',
+                is_completed: doc.sub_type.is_completed,
+              },
+      }))
+      .with({ type: 'no_access' }, { type: 'does_not_exist' }, (doc) => ({
+        ...base,
+        access: doc.type,
+        loading: false,
+      }))
+      .exhaustive();
   });
 }
 
@@ -133,8 +130,9 @@ async function fetchCallPreviews(ids: string[]): Promise<PreviewItem[]> {
       type: 'call',
     } as const;
 
-    switch (call.type) {
-      case 'exists': {
+    return match(call)
+      .returnType<PreviewItem>()
+      .with({ type: 'exists' }, (call) => {
         // Match the call block (CallRecordingSplitHeader / CallRecordingBody):
         // prefer the user-supplied / AI-generated `customName`, fall back to
         // the channel the call lives in.
@@ -147,14 +145,13 @@ async function fetchCallPreviews(ids: string[]): Promise<PreviewItem[]> {
           name: displayName ?? 'Unknown Call',
           updatedAt: call.startedAt,
         };
-      }
-      case 'does_not_exist':
-        return {
-          ...base,
-          access: call.type,
-          loading: false,
-        };
-    }
+      })
+      .with({ type: 'does_not_exist' }, (call) => ({
+        ...base,
+        access: call.type,
+        loading: false,
+      }))
+      .exhaustive();
   });
 }
 
@@ -175,25 +172,23 @@ async function fetchChatPreviews(ids: string[]): Promise<PreviewItem[]> {
       type: 'chat',
     } as const;
 
-    switch (chat.type) {
-      case 'access':
-        return {
-          ...base,
-          access: 'access' as const,
-          loading: false,
-          rawName: chat.chat_name,
-          name: chat.chat_name,
-          owner: chat.owner,
-          updatedAt: chat.updated_at,
-        };
-      case 'no_access':
-      case 'does_not_exist':
-        return {
-          ...base,
-          access: chat.type,
-          loading: false,
-        };
-    }
+    return match(chat)
+      .returnType<PreviewItem>()
+      .with({ type: 'access' }, (chat) => ({
+        ...base,
+        access: 'access' as const,
+        loading: false,
+        rawName: chat.chat_name,
+        name: chat.chat_name,
+        owner: chat.owner,
+        updatedAt: chat.updated_at,
+      }))
+      .with({ type: 'no_access' }, { type: 'does_not_exist' }, (chat) => ({
+        ...base,
+        access: chat.type,
+        loading: false,
+      }))
+      .exhaustive();
   });
 }
 

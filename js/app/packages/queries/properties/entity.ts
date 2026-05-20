@@ -2,6 +2,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { throwOnErr } from '@core/util/result';
 import { useMutation, useQuery } from '@tanstack/solid-query';
 import { type Accessor, batch } from 'solid-js';
+import { match } from 'ts-pattern';
 import {
   entityPropertyFromApi,
   propertyValueToApi,
@@ -169,39 +170,46 @@ function buildSoupProperty(
 function apiValuesToSoupPropertyValue(
   apiValues: PropertyApiValues
 ): SoupPropertyValue {
-  switch (apiValues.valueType) {
-    case 'STRING':
-      return apiValues.value != null
-        ? { type: 'String', value: apiValues.value }
-        : null;
-    case 'NUMBER':
-      return apiValues.value != null
-        ? { type: 'Number', value: apiValues.value }
-        : null;
-    case 'BOOLEAN':
-      return apiValues.value != null
-        ? { type: 'Boolean', value: apiValues.value }
-        : null;
-    case 'DATE':
-      return apiValues.value != null
-        ? { type: 'Date', value: apiValues.value.toISOString() }
-        : null;
-    case 'SELECT_STRING':
-    case 'SELECT_NUMBER':
-      return apiValues.values != null && apiValues.values.length > 0
-        ? { type: 'SelectOption', value: apiValues.values }
-        : null;
-    case 'ENTITY':
-      return apiValues.refs != null && apiValues.refs.length > 0
-        ? { type: 'EntityReference', value: apiValues.refs }
-        : null;
-    case 'LINK':
-      return apiValues.values != null && apiValues.values.length > 0
-        ? { type: 'Link', value: apiValues.values }
-        : null;
-    default:
-      return null;
-  }
+  return match(apiValues)
+    .with({ valueType: 'STRING' }, (apiValues) =>
+      apiValues.value != null
+        ? { type: 'String' as const, value: apiValues.value }
+        : null
+    )
+    .with({ valueType: 'NUMBER' }, (apiValues) =>
+      apiValues.value != null
+        ? { type: 'Number' as const, value: apiValues.value }
+        : null
+    )
+    .with({ valueType: 'BOOLEAN' }, (apiValues) =>
+      apiValues.value != null
+        ? { type: 'Boolean' as const, value: apiValues.value }
+        : null
+    )
+    .with({ valueType: 'DATE' }, (apiValues) =>
+      apiValues.value != null
+        ? { type: 'Date' as const, value: apiValues.value.toISOString() }
+        : null
+    )
+    .with(
+      { valueType: 'SELECT_STRING' },
+      { valueType: 'SELECT_NUMBER' },
+      (apiValues) =>
+        apiValues.values != null && apiValues.values.length > 0
+          ? { type: 'SelectOption' as const, value: apiValues.values }
+          : null
+    )
+    .with({ valueType: 'ENTITY' }, (apiValues) =>
+      apiValues.refs != null && apiValues.refs.length > 0
+        ? { type: 'EntityReference' as const, value: apiValues.refs }
+        : null
+    )
+    .with({ valueType: 'LINK' }, (apiValues) =>
+      apiValues.values != null && apiValues.values.length > 0
+        ? { type: 'Link' as const, value: apiValues.values }
+        : null
+    )
+    .otherwise(() => null);
 }
 
 export type DeleteEntityPropertyParams = {

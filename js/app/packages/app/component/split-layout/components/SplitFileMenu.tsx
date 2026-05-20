@@ -22,6 +22,7 @@ import {
   Show,
   useContext,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { SplitPanelContext } from '../context';
 import { useSplitLayout } from '../layout';
 
@@ -75,8 +76,8 @@ export function SplitFileMenu(props: {
     return props.ops
       .map((op) => {
         if (isDefaultFileOperation(op)) {
-          switch (op.op) {
-            case 'delete':
+          return match(op.op)
+            .with('delete', () => {
               if (!isOwner()) return null;
               return {
                 label: 'Delete',
@@ -93,8 +94,8 @@ export function SplitFileMenu(props: {
                 icon: Trash,
                 divideAbove: op.divideAbove || false,
               };
-
-            case 'rename':
+            })
+            .with('rename', () => {
               if (!isOwner()) return null;
               return {
                 label: 'Rename',
@@ -116,8 +117,8 @@ export function SplitFileMenu(props: {
                 icon: Rename,
                 divideAbove: op.divideAbove || false,
               };
-
-            case 'copy':
+            })
+            .with('copy', () => {
               return {
                 label: 'Duplicate',
                 action: async () => {
@@ -145,8 +146,8 @@ export function SplitFileMenu(props: {
                 icon: Copy,
                 divideAbove: op.divideAbove || false,
               };
-
-            case 'moveToProject':
+            })
+            .with('moveToProject', () => {
               if (!isOwner()) return null;
               return {
                 label: 'Move to Folder',
@@ -168,7 +169,8 @@ export function SplitFileMenu(props: {
                 icon: ArrowRight,
                 divideAbove: op.divideAbove || false,
               };
-          }
+            })
+            .exhaustive();
         } else {
           return op;
         }

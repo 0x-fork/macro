@@ -6,6 +6,7 @@ import {
   type ValidComponent,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { match } from 'ts-pattern';
 
 type SlotElement = 'div' | 'span' | 'button';
 
@@ -29,18 +30,13 @@ type SlotProps<T extends ValidComponent = 'div'> = { as?: T } & CommonProps &
 function placementStyle(
   placement: MessageSlotPlacement
 ): Partial<JSX.CSSProperties> {
-  switch (placement) {
-    case 'icon':
-      return { 'grid-area': 'icon' };
-    case 'header':
-      return { 'grid-area': 'header' };
-    case 'content':
-      return { 'grid-area': 'content' };
-    case 'footer':
-      return { 'grid-area': 'footer' };
-    case 'actions':
-      return { 'grid-area': 'actions' };
-  }
+  return match(placement)
+    .with('icon', () => ({ 'grid-area': 'icon' }))
+    .with('header', () => ({ 'grid-area': 'header' }))
+    .with('content', () => ({ 'grid-area': 'content' }))
+    .with('footer', () => ({ 'grid-area': 'footer' }))
+    .with('actions', () => ({ 'grid-area': 'actions' }))
+    .exhaustive();
 }
 
 export function Slot<T extends SlotElement = 'div'>(props: SlotProps<T>) {

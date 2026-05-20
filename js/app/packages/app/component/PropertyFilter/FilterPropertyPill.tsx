@@ -4,6 +4,7 @@ import CheckIcon from '@phosphor/check.svg';
 import XIcon from '@phosphor/x.svg';
 import type { Component } from 'solid-js';
 import { createSignal, Match, Show, Switch } from 'solid-js';
+import { match } from 'ts-pattern';
 import type {
   EntityFilterValue,
   FilterAction,
@@ -356,23 +357,24 @@ export const FilterPropertyPill: Component<FilterPillProps> = (props) => {
     const dataType = property.valueType;
     const propertyId = property.id;
 
-    switch (dataType) {
-      case 'BOOLEAN':
+    return match(dataType)
+      .with('BOOLEAN', () => {
         if (!isEqualityAction(filterAction)) return null;
         return {
           propertyId,
           dataType: 'BOOLEAN',
           action: filterAction,
           value: booleanValue() ?? false,
-        };
-      case 'DATE':
+        } as PropertyFilter;
+      })
+      .with('DATE', () => {
         if (isComparisonActionType(filterAction)) {
           return {
             propertyId,
             dataType: 'DATE',
             action: filterAction,
             value: dateValue() ?? '',
-          };
+          } as PropertyFilter;
         }
         if (isEqualityAction(filterAction)) {
           return {
@@ -380,17 +382,18 @@ export const FilterPropertyPill: Component<FilterPillProps> = (props) => {
             dataType: 'DATE',
             action: filterAction,
             values: dateValues(),
-          };
+          } as PropertyFilter;
         }
         return null;
-      case 'NUMBER':
+      })
+      .with('NUMBER', () => {
         if (isComparisonActionType(filterAction)) {
           return {
             propertyId,
             dataType: 'NUMBER',
             action: filterAction,
             value: numberValue() ?? 0,
-          };
+          } as PropertyFilter;
         }
         if (isEqualityAction(filterAction)) {
           return {
@@ -398,18 +401,18 @@ export const FilterPropertyPill: Component<FilterPillProps> = (props) => {
             dataType: 'NUMBER',
             action: filterAction,
             values: numberValues(),
-          };
+          } as PropertyFilter;
         }
         return null;
-      case 'SELECT_NUMBER':
-      case 'SELECT_STRING':
+      })
+      .with('SELECT_NUMBER', 'SELECT_STRING', (dataType) => {
         if (isComparisonActionType(filterAction)) {
           return {
             propertyId,
             dataType,
             action: filterAction,
             value: selectValue() ?? '',
-          };
+          } as PropertyFilter;
         }
         if (isEqualityAction(filterAction)) {
           return {
@@ -417,7 +420,7 @@ export const FilterPropertyPill: Component<FilterPillProps> = (props) => {
             dataType,
             action: filterAction,
             values: selectValues(),
-          };
+          } as PropertyFilter;
         }
         if (isContainsAction(filterAction)) {
           return {
@@ -425,17 +428,18 @@ export const FilterPropertyPill: Component<FilterPillProps> = (props) => {
             dataType,
             action: filterAction,
             values: selectValues(),
-          };
+          } as PropertyFilter;
         }
         return null;
-      case 'ENTITY':
+      })
+      .with('ENTITY', () => {
         if (isEqualityAction(filterAction)) {
           return {
             propertyId,
             dataType: 'ENTITY',
             action: filterAction,
             values: entityValues(),
-          };
+          } as PropertyFilter;
         }
         if (isContainsAction(filterAction)) {
           return {
@@ -443,12 +447,11 @@ export const FilterPropertyPill: Component<FilterPillProps> = (props) => {
             dataType: 'ENTITY',
             action: filterAction,
             values: entityValues(),
-          };
+          } as PropertyFilter;
         }
         return null;
-      default:
-        return null;
-    }
+      })
+      .otherwise(() => null);
   };
 
   return (

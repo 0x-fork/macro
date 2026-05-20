@@ -1,3 +1,5 @@
+import { match } from 'ts-pattern';
+
 export interface WithName {
   name: string;
 }
@@ -95,14 +97,9 @@ export function sourceUpload(
 export async function sourceToArrayBufferLike(
   source: Source
 ): Promise<ArrayBufferLike | undefined> {
-  switch (source.type) {
-    case 'blob':
-      return source.blob.arrayBuffer();
-    case 'buffer':
-      return source.buffer;
-    case 'gen': {
-      return sourceToArrayBufferLike(source.origin);
-    }
-  }
-  return undefined;
+  return match(source)
+    .with({ type: 'blob' }, (s) => s.blob.arrayBuffer())
+    .with({ type: 'buffer' }, (s) => s.buffer)
+    .with({ type: 'gen' }, (s) => sourceToArrayBufferLike(s.origin))
+    .otherwise(() => undefined);
 }

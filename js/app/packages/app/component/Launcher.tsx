@@ -54,6 +54,7 @@ import {
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { type FocusableElement, tabbable } from 'tabbable';
+import { match } from 'ts-pattern';
 import { useSplitLayout } from './split-layout/layout';
 
 const createBlock = async (spec: {
@@ -143,8 +144,8 @@ export function runCreateAction(
 ) {
   const shouldInsert = options.shouldInsert ?? false;
 
-  switch (blockName) {
-    case 'md':
+  match(blockName)
+    .with('md', () => {
       createBlock({
         blockName: 'md',
         loading: true,
@@ -156,8 +157,8 @@ export function runCreateAction(
           }),
         shouldInsert,
       });
-      return;
-    case 'canvas':
+    })
+    .with('canvas', () => {
       createBlock({
         blockName: 'canvas',
         loading: true,
@@ -171,26 +172,26 @@ export function runCreateAction(
         },
         shouldInsert,
       });
-      return;
-    case 'task':
+    })
+    .with('task', () => {
       createComponent({
         componentId: 'task-compose',
         asPopover: true,
       });
-      return;
-    case 'email':
+    })
+    .with('email', () => {
       createComponent({
         componentId: 'email-compose',
         shouldInsert,
       });
-      return;
-    case 'channel':
+    })
+    .with('channel', () => {
       createComponent({
         componentId: 'channel-compose',
         shouldInsert,
       });
-      return;
-    case 'chat':
+    })
+    .with('chat', () => {
       createBlock({
         blockName: 'chat',
         createFn: async () => {
@@ -202,15 +203,15 @@ export function runCreateAction(
         },
         shouldInsert,
       });
-      return;
-    case 'project':
+    })
+    .with('project', () => {
       createBlock({
         blockName: 'project',
         createFn: () => createProject({ name: 'New Folder' }),
         shouldInsert,
       });
-      return;
-    case 'code':
+    })
+    .with('code', () => {
       createBlock({
         blockName: 'code',
         loading: true,
@@ -225,12 +226,12 @@ export function runCreateAction(
         },
         shouldInsert,
       });
-      return;
-    case 'automation':
+    })
+    .with('automation', () => {
       setCreateMenuOpen(false, false);
       setAutomationComposerOpen(true, false);
-      return;
-  }
+    })
+    .otherwise(() => {});
 }
 
 export type CreatableBlock = Omit<HotkeyRegistrationOptions, 'scopeId'> & {

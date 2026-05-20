@@ -4,6 +4,7 @@ import {
   PdfDocumentMetadata,
   makeDocumentKey
 } from '@coparse/document-processing-types';
+import { match } from 'ts-pattern';
 import { FileSystemError } from '../error';
 import { getFileNameWithExtension } from '../stringUtils';
 import {
@@ -177,33 +178,32 @@ export class IDocumentStorageServiceFile
     modificationHash?: string;
     annotationStorageHash?: string;
   }) {
-    let newOperation: OperationHistoryItem;
-    switch (type) {
-      case 'SAVE':
+    const newOperation: OperationHistoryItem = match(type)
+      .with('SAVE', (t) => {
         if (!modificationHash) {
           throw new Error('modification hash must be provided');
         }
-        newOperation = {
+        return {
           documentKey,
-          type,
+          type: t,
           sha,
           modificationHash,
         };
-        break;
-      case 'ANNOTATE':
+      })
+      .with('ANNOTATE', (t) => {
         if (!annotationStorageHash) {
           throw new Error('annotation hash must be provided');
         }
-        newOperation = {
+        return {
           documentKey,
-          type,
+          type: t,
           sha,
           annotationStorageHash,
         };
-        break;
-      default:
+      })
+      .otherwise(() => {
         throw new Error('not supported');
-    }
+      });
 
     return new IDocumentStorageServiceFile({
       fileBits: [buffer],

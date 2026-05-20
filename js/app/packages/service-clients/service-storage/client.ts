@@ -26,6 +26,7 @@ import type { SafeFetchInit } from '@core/util/safeFetch';
 import type { IDocumentStorageServiceFile } from '@filesystem/file';
 import { platformFetch } from 'core/util/platformFetch';
 import { err, ok, type Result } from 'neverthrow';
+import { match } from 'ts-pattern';
 import type {
   AccessLevel,
   CallRecordPreview,
@@ -154,39 +155,28 @@ export function isItemType(str: string): str is ItemType {
 export function blockNameToItemType(
   blockName: BlockName | BlockAlias
 ): ItemType {
-  switch (blockName) {
-    case 'chat':
-      return 'chat';
-    case 'call':
-      return 'call';
-    case 'channel':
-      return 'channel';
-    case 'project':
-      return 'project';
-    case 'email':
-      return 'email';
-    case 'automation':
-      return 'automation';
-    default:
-      return DEFAULT_ITEM_TYPE;
-  }
+  return match(blockName)
+    .with('chat', () => 'chat' as const)
+    .with('call', () => 'call' as const)
+    .with('channel', () => 'channel' as const)
+    .with('project', () => 'project' as const)
+    .with('email', () => 'email' as const)
+    .with('automation', () => 'automation' as const)
+    .otherwise(() => DEFAULT_ITEM_TYPE);
 }
 
 export function stringToItemType(str: string): ItemType | undefined {
-  switch (str) {
-    case 'email':
-    case 'thread': {
-      return 'email';
-    }
-    case 'call':
-    case 'chat':
-    case 'document':
-    case 'project':
-    case 'channel':
-      return str;
-    default:
-      return undefined;
-  }
+  return match(str)
+    .with('email', 'thread', () => 'email' as const)
+    .with(
+      'call',
+      'chat',
+      'document',
+      'project',
+      'channel',
+      (s) => s as ItemType
+    )
+    .otherwise(() => undefined);
 }
 
 export function isCloudStorageItem(
@@ -681,6 +671,7 @@ export const storageServiceClient = {
         { code: 'INVALID_RESPONSE', message: 'Processing result is missing' },
       ]);
     }
+    // switch retained: generic T narrowing needed
     switch (params.type) {
       case 'PREPROCESS': {
         const parseResult = CoParseSchema.safeParse(JSON.parse(data.result));
@@ -718,6 +709,7 @@ export const storageServiceClient = {
         { code: 'INVALID_RESPONSE', message: 'Processing result is missing' },
       ]);
     }
+    // switch retained: generic T narrowing needed
     switch (params.type) {
       case 'PREPROCESS': {
         const parseResult = CoParseSchema.safeParse(JSON.parse(data.result));

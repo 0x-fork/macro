@@ -1,5 +1,6 @@
 import { createBlockStore } from '@core/block';
 import { produce } from 'solid-js/store';
+import { match } from 'ts-pattern';
 import Section from '../model/Section';
 import TocItem from '../model/TocItem';
 import type { IBookmark } from '../type/Bookmark';
@@ -918,9 +919,9 @@ const producer = (
   draft: ITableOfContentsContext,
   action: ITableOfContentsAction
 ) => {
-  switch (action.type) {
-    case 'LOAD_AI_TOC': {
-      const firstChild = XMLUtils.parse(action.coparse.toc || '').firstChild as
+  match(action)
+    .with({ type: 'LOAD_AI_TOC' }, (a) => {
+      const firstChild = XMLUtils.parse(a.coparse.toc || '').firstChild as
         | Element
         | undefined;
       const children: TocItem[] = [...(firstChild?.children ?? [])]
@@ -932,10 +933,10 @@ const producer = (
       draft.pageToSectionMap = [];
       draft.original.aiToc = [...children];
 
-      // include everything from action.coparse except for toc because PDF
+      // include everything from a.coparse except for toc because PDF
       // bookmarks on page load, so LOAD_PDF_BOOKMARKS sets the value for toc
       const existingCoParseToc = draft.coparse?.toc;
-      draft.coparse = action.coparse;
+      draft.coparse = a.coparse;
       draft.coparse.toc = existingCoParseToc;
 
       new Builder(draft)
@@ -946,15 +947,14 @@ const producer = (
         .computeIDToNearestTitleMap(); // TODO call this in more places
 
       draft.isLoaded = !!draft.original.aiToc && !!draft.original.pdfBookmarks;
-      break;
-    }
-    case 'LOAD_PDF_BOOKMARKS': {
-      draft.original.pdfBookmarks = action.bookmarks;
-      draft.items = Helpers.cloneTocTree(action.bookmarks);
+    })
+    .with({ type: 'LOAD_PDF_BOOKMARKS' }, (a) => {
+      draft.original.pdfBookmarks = a.bookmarks;
+      draft.items = Helpers.cloneTocTree(a.bookmarks);
       draft.isLoaded = !!draft.original.aiToc && !!draft.original.pdfBookmarks;
 
       const coparse = Object.assign({}, draft.coparse);
-      coparse.toc = Helpers.tocItemsToXml(action.bookmarks);
+      coparse.toc = Helpers.tocItemsToXml(a.bookmarks);
       draft.coparse = coparse;
 
       new Builder(draft)
@@ -964,16 +964,14 @@ const producer = (
         .addLinksBetweenSections()
         .computeIDToNearestTitleMap()
         .setDefaultOpenState();
-
-      break;
-    }
-    case 'SWITCH_CURRENT_MODE': {
+    })
+    .with({ type: 'SWITCH_CURRENT_MODE' }, () => {
       const { currentMode, original } = draft;
       const originalBookmarks = original.pdfBookmarks;
       const originalToc = original.aiToc;
 
       if (originalBookmarks === null || originalToc === null) {
-        break;
+        return;
       }
 
       if (currentMode === 'ai-toc') {
@@ -1002,30 +1000,26 @@ const producer = (
         .computeIDToPathMap()
         .addLinksBetweenSections()
         .computeIDToNearestTitleMap();
-
-      break;
-    }
-    case 'SET_TABLE_OF_CONTENTS_WIDTH': {
-      if (action.width <= 0) {
+    })
+    .with({ type: 'SET_TABLE_OF_CONTENTS_WIDTH' }, (a) => {
+      if (a.width <= 0) {
         console.error('Table of contents width must be positive');
         return;
       }
 
-      if (action.width > window.innerWidth) {
+      if (a.width > window.innerWidth) {
         console.error('Table of contents cannot be wider than the window');
         return;
       }
 
-      draft.width = action.width;
-      break;
-    }
-    case 'TOGGLE_BOOKMARK': {
-      const { secID } = action;
+      draft.width = a.width;
+    })
+    .with({ type: 'TOGGLE_BOOKMARK' }, (a) => {
+      const { secID } = a;
       draft.openItems[secID] = !draft.openItems[secID];
-      break;
-    }
-    case 'DELETE_BOOKMARK': {
-      const { secID } = action;
+    })
+    .with({ type: 'DELETE_BOOKMARK' }, (a) => {
+      const { secID } = a;
 
       if (secID === null) {
         console.error('Invalid state to delete bookmark');
@@ -1038,10 +1032,9 @@ const producer = (
 
       // draft.items = newItems;
       draft.sectionToDeleteID = null;
-      break;
-    }
-    case 'LEFT_INDENT_SECTION': {
-      const { secID } = action;
+    })
+    .with({ type: 'LEFT_INDENT_SECTION' }, (a) => {
+      const { secID } = a;
       const path = draft.idToPathMap[secID];
       if (!path) {
         console.error('Section not found');
@@ -1116,11 +1109,9 @@ const producer = (
         coparse: draft.coparse,
       });
       draft.unsavedBookmarks = true;
-
-      break;
-    }
-    case 'RIGHT_INDENT_SECTION': {
-      const { secID } = action;
+    })
+    .with({ type: 'RIGHT_INDENT_SECTION' }, (a) => {
+      const { secID } = a;
       const path = draft.idToPathMap[secID];
 
       if (!path) {
@@ -1171,11 +1162,9 @@ const producer = (
       draft.unsavedBookmarks = true;
 
       new Builder(draft).computeIDToPathMap().computeIDToNearestTitleMap();
-
-      break;
-    }
-    case 'RENAME_BOOKMARK': {
-      const { secID, value } = action;
+    })
+    .with({ type: 'RENAME_BOOKMARK' }, (a) => {
+      const { secID, value } = a;
 
       if (!value) {
         console.error('Missing value');
@@ -1188,10 +1177,9 @@ const producer = (
 
       draft.renameFormValue = '';
       draft.sectionToRenameID = null;
-      break;
-    }
-    case 'ADD_BOOKMARK': {
-      const { yPos, pageNum, initialEmpty, titleForPlaceable, uuid } = action;
+    })
+    .with({ type: 'ADD_BOOKMARK' }, (a) => {
+      const { yPos, pageNum, initialEmpty, titleForPlaceable, uuid } = a;
       const selection = window.getSelection();
       const text =
         titleForPlaceable || (selection ? selection.toString().trim() : null);
@@ -1288,16 +1276,13 @@ const producer = (
         .computePageToSectionMap()
         .computeIDToSectionMap()
         .computeIDToPathMap();
-
-      break;
-    }
-    case 'RESET_OPEN_ITEMS': {
+    })
+    .with({ type: 'RESET_OPEN_ITEMS' }, () => {
       draft.openItems = {};
-      break;
-    }
-    default:
-      throw new InvalidActionError(action);
-  }
+    })
+    .otherwise((a) => {
+      throw new InvalidActionError(a);
+    });
 };
 
 function recursiveFindByUuid(uuid: string, tocItem: TocItem): Section | null {

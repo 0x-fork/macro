@@ -63,6 +63,7 @@ import {
   Switch,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { match } from 'ts-pattern';
 import { formatDate } from '../util/date';
 import NotFound from './AccessErrorViews/NotFound';
 import Unauthorized from './AccessErrorViews/Unauthorized';
@@ -119,20 +120,13 @@ export const getMentionsIcon = (icon: string | undefined) => {
   const iconClasses =
     'relative top-[-0.125em] size-4 inline-flex items-center mx-1';
 
-  switch (icon) {
-    case 'highlight':
-      return <HighlightIcon class={iconClasses} />;
-    case 'map-pin':
-      return <MapPinIcon class={iconClasses} />;
-    case 'message':
-      return <MessageIcon class={iconClasses} />;
-    case 'thread':
-      return <ThreadIcon class={iconClasses} />;
-    case 'text':
-      return <MapPinIcon class={iconClasses} />;
-    default:
-      return;
-  }
+  return match(icon)
+    .with('highlight', () => <HighlightIcon class={iconClasses} />)
+    .with('map-pin', () => <MapPinIcon class={iconClasses} />)
+    .with('message', () => <MessageIcon class={iconClasses} />)
+    .with('thread', () => <ThreadIcon class={iconClasses} />)
+    .with('text', () => <MapPinIcon class={iconClasses} />)
+    .otherwise(() => undefined);
 };
 
 /**

@@ -5,6 +5,7 @@ import { callServiceClient } from '@service-call/client';
 import { useMutation } from '@tanstack/solid-query';
 import { DisconnectReason, RoomEvent } from 'livekit-client';
 import { createEffect, createSignal, onCleanup } from 'solid-js';
+import { match } from 'ts-pattern';
 import { useCallContext } from './CallContext';
 import { endCallKitCall, registerCallKitCallEndedHandler } from './use-callkit';
 
@@ -29,16 +30,16 @@ type ActiveJoinAttempt = {
 };
 
 function shouldAutoRejoin(reason?: DisconnectReason) {
-  switch (reason) {
-    case DisconnectReason.CLIENT_INITIATED:
-    case DisconnectReason.DUPLICATE_IDENTITY:
-    case DisconnectReason.PARTICIPANT_REMOVED:
-    case DisconnectReason.ROOM_DELETED:
-    case DisconnectReason.ROOM_CLOSED:
-      return false;
-    default:
-      return true;
-  }
+  return match(reason)
+    .with(
+      DisconnectReason.CLIENT_INITIATED,
+      DisconnectReason.DUPLICATE_IDENTITY,
+      DisconnectReason.PARTICIPANT_REMOVED,
+      DisconnectReason.ROOM_DELETED,
+      DisconnectReason.ROOM_CLOSED,
+      () => false
+    )
+    .otherwise(() => true);
 }
 
 // Module-level guard: only one join can be in flight at a time across all

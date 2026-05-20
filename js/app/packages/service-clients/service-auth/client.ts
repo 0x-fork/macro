@@ -8,6 +8,7 @@ import { logger } from '@observability';
 import { makePersisted } from '@solid-primitives/storage';
 import { ok } from 'neverthrow';
 import { createSignal } from 'solid-js';
+import { match } from 'ts-pattern';
 import { fetchWithAuth as _fetchWithAuth } from './fetch';
 import type {
   InitGithubLinkResponse,
@@ -465,42 +466,37 @@ export const authServiceClient = {
         errorResponseHandler: async (response) => {
           // Custom handler fully replaces fetchWithAuth's default mapping, so preserve
           // the base cases we still want (401/500) alongside our endpoint-specific codes.
-          switch (response.status) {
-            case 400:
-              return {
-                code: 'TIER_UNCHANGED',
-                message: 'Subscription is already on the requested tier',
-              };
-            case 401:
-              return { code: 'UNAUTHORIZED', message: 'Unauthorized access' };
-            case 403:
-              return {
-                code: 'USER_IN_TEAM',
-                message:
-                  'User is a member of a team; tier is managed by the team owner',
-              };
-            case 404:
-              return {
-                code: 'NO_SUBSCRIPTION',
-                message: 'User does not have an active subscription',
-              };
-            case 409:
-              return {
-                code: 'UPDATE_IN_PROGRESS',
-                message:
-                  'Another subscription update is already in progress for this user',
-              };
-            case 500:
-              return {
-                code: 'SERVER_ERROR',
-                message: 'Internal server error',
-              };
-            default:
-              return {
-                code: 'HTTP_ERROR',
-                message: `HTTP error! status: ${response.status}`,
-              };
-          }
+          return match(response.status)
+            .with(400, () => ({
+              code: 'TIER_UNCHANGED' as const,
+              message: 'Subscription is already on the requested tier',
+            }))
+            .with(401, () => ({
+              code: 'UNAUTHORIZED' as const,
+              message: 'Unauthorized access',
+            }))
+            .with(403, () => ({
+              code: 'USER_IN_TEAM' as const,
+              message:
+                'User is a member of a team; tier is managed by the team owner',
+            }))
+            .with(404, () => ({
+              code: 'NO_SUBSCRIPTION' as const,
+              message: 'User does not have an active subscription',
+            }))
+            .with(409, () => ({
+              code: 'UPDATE_IN_PROGRESS' as const,
+              message:
+                'Another subscription update is already in progress for this user',
+            }))
+            .with(500, () => ({
+              code: 'SERVER_ERROR' as const,
+              message: 'Internal server error',
+            }))
+            .otherwise(() => ({
+              code: 'HTTP_ERROR' as const,
+              message: `HTTP error! status: ${response.status}`,
+            }));
         },
       }
     );

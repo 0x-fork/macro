@@ -7,6 +7,7 @@ import type { SoupApiItem } from '@service-storage/generated/schemas';
 import type { SoupPage } from '@service-storage/generated/schemas/soupPage';
 import type { InfiniteData } from '@tanstack/solid-query';
 import { QueryClient } from '@tanstack/solid-query';
+import { match } from 'ts-pattern';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let testQueryClient: QueryClient;
@@ -108,27 +109,38 @@ function mockSoupCache(
 }
 
 function mockSearchResult(type: string, id: string): UnifiedSearchResponseItem {
-  switch (type) {
-    case 'document':
-      return {
-        type: 'document',
-        document_id: id,
-      } as unknown as UnifiedSearchResponseItem;
-    case 'chat':
-      return {
-        type: 'chat',
-        chat_id: id,
-      } as unknown as UnifiedSearchResponseItem;
-    case 'channel':
-      return {
-        type: 'channel',
-        channel_id: id,
-      } as unknown as UnifiedSearchResponseItem;
-    case 'project':
-      return { type: 'project', id } as unknown as UnifiedSearchResponseItem;
-    default:
+  return match(type)
+    .with(
+      'document',
+      () =>
+        ({
+          type: 'document',
+          document_id: id,
+        }) as unknown as UnifiedSearchResponseItem
+    )
+    .with(
+      'chat',
+      () =>
+        ({
+          type: 'chat',
+          chat_id: id,
+        }) as unknown as UnifiedSearchResponseItem
+    )
+    .with(
+      'channel',
+      () =>
+        ({
+          type: 'channel',
+          channel_id: id,
+        }) as unknown as UnifiedSearchResponseItem
+    )
+    .with(
+      'project',
+      () => ({ type: 'project', id }) as unknown as UnifiedSearchResponseItem
+    )
+    .otherwise(() => {
       throw new Error(`Unknown search type: ${type}`);
-  }
+    });
 }
 
 function mockSearchCache(

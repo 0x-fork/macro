@@ -1,5 +1,6 @@
 import { createBlockStore } from '@core/block';
 import { produce } from 'solid-js/store';
+import { match } from 'ts-pattern';
 import {
   decodeString,
   // LINE_HEIGHT,
@@ -160,29 +161,26 @@ const handler = (
   draft: Partial<ISectionPopupContext>,
   action: ISectionPopupAction
 ) => {
-  switch (action.type) {
-    case 'SET_RECTS':
-      draft.pageWidth = action.pageWidth;
-      // draft.element = action.element as unknown as Draft<Element>;
+  match(action)
+    .with({ type: 'SET_RECTS' }, (a) => {
+      draft.pageWidth = a.pageWidth;
+      // draft.element = a.element as unknown as Draft<Element>;
 
       updateTermIDToSizingMap(draft);
-
-      break;
-    case 'SET_TERM_FROM_ELEMENT':
-      draft.pageWidth = action.pageWidth;
-      draft.element = action.element;
-      draft.terms = [action.term];
+    })
+    .with({ type: 'SET_TERM_FROM_ELEMENT' }, (a) => {
+      draft.pageWidth = a.pageWidth;
+      draft.element = a.element;
+      draft.terms = [a.term];
       updateTermIDs(draft);
       updateTermIDToSizingMap(draft);
-
-      break;
-    case 'SET_TERM':
-      draft.terms = [action.term];
+    })
+    .with({ type: 'SET_TERM' }, (a) => {
+      draft.terms = [a.term];
       updateTermIDs(draft);
       updateTermIDToSizingMap(draft);
-
-      break;
-    case 'ADD_NEXT_TERM':
+    })
+    .with({ type: 'ADD_NEXT_TERM' }, (a) => {
       if (draft.terms?.length === 0) {
         console.error(
           'Invalid state, cannot add term if there is not already a term'
@@ -190,17 +188,16 @@ const handler = (
         return;
       }
 
-      if (draft.termIDs?.includes(action.term.id)) {
+      if (draft.termIDs?.includes(a.term.id)) {
         return; // Do nothing
       }
 
-      draft.terms?.push(action.term);
+      draft.terms?.push(a.term);
       updateTermIDs(draft);
       updateTermIDToSizingMap(draft);
-
-      break;
-    case 'REMOVE_NEXT_TERMS':
-      const { index } = action;
+    })
+    .with({ type: 'REMOVE_NEXT_TERMS' }, (a) => {
+      const { index } = a;
 
       if (!draft.terms) {
         return;
@@ -218,9 +215,8 @@ const handler = (
       draft.terms = draft.terms.slice(0, index + 1);
       updateTermIDs(draft);
       updateTermIDToSizingMap(draft);
-
-      break;
-    case 'REMOVE_POPUPS':
+    })
+    .with({ type: 'REMOVE_POPUPS' }, () => {
       draft.terms = [];
 
       // Clear rectangles
@@ -229,10 +225,10 @@ const handler = (
 
       updateTermIDs(draft);
       updateTermIDToSizingMap(draft);
-      break;
-    default:
-      throw new InvalidActionError(action);
-  }
+    })
+    .otherwise((a) => {
+      throw new InvalidActionError(a);
+    });
 };
 
 const rootDefinitionStore = createBlockStore({ ...defaultState });

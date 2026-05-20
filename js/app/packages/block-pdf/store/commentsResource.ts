@@ -29,6 +29,7 @@ import type { EditAnchorResponse } from '@service-storage/generated/schemas/edit
 import type { EditCommentRequest } from '@service-storage/generated/schemas/editCommentRequest';
 import type { EditCommentResponse } from '@service-storage/generated/schemas/editCommentResponse';
 import { batch } from 'solid-js';
+import { match } from 'ts-pattern';
 
 const isPdfBlock = createBlockMemo(() => useBlockName() === 'pdf');
 export const commentThreadsResource = createBlockResource(
@@ -556,28 +557,27 @@ createConnectionBlockWebsocketEffect((msg) => {
       return;
     }
 
-    switch (incrementalUpdate.updateType) {
-      case 'create-comment':
-        handleCommentUpdate(incrementalUpdate.payload.response);
-        break;
-      case 'create-anchor':
-        handleCreateUnthreadedAnchor(incrementalUpdate.payload.response);
-        break;
-      case 'edit-comment':
-        handleEditComment(incrementalUpdate.payload.response);
-        break;
-      case 'edit-anchor':
-        handleEditAnchor(incrementalUpdate.payload.response);
-        break;
-      case 'delete-comment':
-        handleDeleteComment(incrementalUpdate.payload.response);
-        break;
-      case 'delete-anchor':
-        handleDeleteUnthreadedAnchor(incrementalUpdate.payload.response);
-        break;
-      default:
+    match(incrementalUpdate)
+      .with({ updateType: 'create-comment' }, (u) => {
+        handleCommentUpdate(u.payload.response);
+      })
+      .with({ updateType: 'create-anchor' }, (u) => {
+        handleCreateUnthreadedAnchor(u.payload.response);
+      })
+      .with({ updateType: 'edit-comment' }, (u) => {
+        handleEditComment(u.payload.response);
+      })
+      .with({ updateType: 'edit-anchor' }, (u) => {
+        handleEditAnchor(u.payload.response);
+      })
+      .with({ updateType: 'delete-comment' }, (u) => {
+        handleDeleteComment(u.payload.response);
+      })
+      .with({ updateType: 'delete-anchor' }, (u) => {
+        handleDeleteUnthreadedAnchor(u.payload.response);
+      })
+      .otherwise(() => {
         console.error('unknown comment update type', msg);
-        break;
-    }
+      });
   }
 });

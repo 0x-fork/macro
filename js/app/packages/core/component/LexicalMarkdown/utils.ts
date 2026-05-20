@@ -74,6 +74,7 @@ import {
   type TextNode,
 } from 'lexical';
 import type { Setter } from 'solid-js';
+import { match } from 'ts-pattern';
 import { MarkdownEditorErrors } from './constants';
 import {
   $applyDocumentMetadataFromSerialized,
@@ -476,29 +477,33 @@ export function bindStateAs<T extends EditorState | string>(
   setter: Setter<T>,
   mode: 'json' | 'plain' | 'markdown' | 'markdown-internal' = 'json'
 ) {
-  switch (mode) {
-    case 'json':
-      return editor.registerUpdateListener(({ editorState }) => {
+  return match(mode)
+    .with('json', () =>
+      editor.registerUpdateListener(({ editorState }) => {
         setter(() => editorState as EditorState as T);
-      });
-    case 'plain':
-      return editor.registerUpdateListener(({ editorState }) => {
+      })
+    )
+    .with('plain', () =>
+      editor.registerUpdateListener(({ editorState }) => {
         setter(
           () =>
             editorState.read(() => $getRoot().getTextContent()) as string as T
         );
-      });
-    case 'markdown':
-      return editor.registerUpdateListener(({ editorState }) => {
+      })
+    )
+    .with('markdown', () =>
+      editor.registerUpdateListener(({ editorState }) => {
         setter(() => editorStateAsMarkdown(editorState) as string as T);
-      });
-    case 'markdown-internal':
-      return editor.registerUpdateListener(({ editorState }) => {
+      })
+    )
+    .with('markdown-internal', () =>
+      editor.registerUpdateListener(({ editorState }) => {
         setter(
           () => editorStateAsMarkdown(editorState, 'internal') as string as T
         );
-      });
-  }
+      })
+    )
+    .exhaustive();
 }
 
 /**

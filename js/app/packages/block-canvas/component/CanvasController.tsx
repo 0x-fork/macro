@@ -49,6 +49,7 @@ import {
   type ParentProps,
   Show,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import {
   MAX_PAN_FLICK_SPEED,
   ReorderOperations,
@@ -93,33 +94,19 @@ false && observedSize;
 false && fileDrop;
 
 function toolToCursor(tool: Tool) {
-  switch (tool) {
-    case Tools.Select:
-      return 'cursor-auto';
-    case Tools.Grab:
-      return 'cursor-grab';
-    case Tools.ZoomIn:
-      return 'cursor-zoom-in';
-    case Tools.ZoomOut:
-      return 'cursor-zoom-out';
-    case Tools.Shape:
-      return 'cursor-crosshair';
-    case Tools.Image:
-      return 'cursor-crosshair';
-    case Tools.File:
-      return 'cursor-context-menu';
-    case Tools.Line:
-      return 'cursor-crosshair';
-    case Tools.Move:
-      return 'cursor-move';
-    case Tools.Pencil:
-      return `cursor-crosshair`;
-    case Tools.Text:
-    case Tools.Typing:
-      return `cursor-text`;
-    default:
-      return 'cursor-auto';
-  }
+  return match(tool)
+    .with(Tools.Select, () => 'cursor-auto')
+    .with(Tools.Grab, () => 'cursor-grab')
+    .with(Tools.ZoomIn, () => 'cursor-zoom-in')
+    .with(Tools.ZoomOut, () => 'cursor-zoom-out')
+    .with(Tools.Shape, () => 'cursor-crosshair')
+    .with(Tools.Image, () => 'cursor-crosshair')
+    .with(Tools.File, () => 'cursor-context-menu')
+    .with(Tools.Line, () => 'cursor-crosshair')
+    .with(Tools.Move, () => 'cursor-move')
+    .with(Tools.Pencil, () => `cursor-crosshair`)
+    .with(Tools.Text, Tools.Typing, () => `cursor-text`)
+    .otherwise(() => 'cursor-auto');
 }
 
 // Track unique canvas controller instances to allow drag and drop to different canvases.

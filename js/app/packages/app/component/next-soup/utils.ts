@@ -187,8 +187,8 @@ export const openEntityInNewTab = ({
       entityUrl.searchParams.set(CHANNEL_PARAMS.thread, entity.threadId);
     }
   } else if (location) {
-    switch (location.type) {
-      case 'channel':
+    match(location)
+      .with({ type: 'channel' }, (location) => {
         if (location.messageId) {
           entityUrl.searchParams.set(
             CHANNEL_PARAMS.message,
@@ -198,19 +198,18 @@ export const openEntityInNewTab = ({
         if (location.threadId) {
           entityUrl.searchParams.set(CHANNEL_PARAMS.thread, location.threadId);
         }
-        break;
-      case 'email':
+      })
+      .with({ type: 'email' }, (location) => {
         if (location.messageId) {
           entityUrl.searchParams.set('email_message_id', location.messageId);
         }
-
-        break;
-      case 'md':
+      })
+      .with({ type: 'md' }, (location) => {
         if (location.nodeId) {
           entityUrl.searchParams.set('node_id', location.nodeId);
         }
-        break;
-      case 'pdf':
+      })
+      .with({ type: 'pdf' }, (location) => {
         if (location.searchPage !== undefined) {
           entityUrl.searchParams.set(
             'search_page',
@@ -232,16 +231,16 @@ export const openEntityInNewTab = ({
         if (location.searchSnippet) {
           entityUrl.searchParams.set('search_snippet', location.searchSnippet);
         }
-        break;
-      case 'call_record':
+      })
+      .with({ type: 'call_record' }, (location) => {
         if (location.transcriptId) {
           entityUrl.searchParams.set(
             CALL_PARAMS.transcriptId,
             location.transcriptId
           );
         }
-        break;
-    }
+      })
+      .otherwise(() => {});
   }
 
   window.open(entityUrl.toString(), '_blank', 'noopener');
@@ -397,27 +396,24 @@ async function navigateToLocation(
   const blockHandle = await blockOrchestrator.getBlockHandle(entityId);
   if (!blockHandle) return;
 
-  switch (location.type) {
-    case 'channel': {
+  await match(location)
+    .with({ type: 'channel' }, async (location) => {
       // NOTE: this is handled by the channel block params but this can be used to re-flash an open channel
       await blockHandle.goToLocationFromParams(
         getChannelParams(location.messageId, location.threadId)
       );
-      break;
-    }
-    case 'email': {
+    })
+    .with({ type: 'email' }, async (location) => {
       await blockHandle.goToLocationFromParams({
         [EMAIL_PARAMS.messageId]: location.messageId,
       });
-      break;
-    }
-    case 'md': {
+    })
+    .with({ type: 'md' }, async (location) => {
       await blockHandle.goToLocationFromParams({
         [MD_PARAMS.nodeId]: location.nodeId,
       });
-      break;
-    }
-    case 'pdf': {
+    })
+    .with({ type: 'pdf' }, async (location) => {
       await blockHandle.goToLocationFromParams({
         [PDF_PARAMS.searchPage]: location.searchPage.toString(),
         [PDF_PARAMS.searchRawQuery]: location.searchRawQuery,
@@ -426,15 +422,13 @@ async function navigateToLocation(
         ),
         [PDF_PARAMS.searchSnippet]: location.searchSnippet,
       });
-      break;
-    }
-    case 'call_record': {
+    })
+    .with({ type: 'call_record' }, async (location) => {
       await blockHandle.goToLocationFromParams({
         [CALL_PARAMS.transcriptId]: location.transcriptId,
       });
-      break;
-    }
-  }
+    })
+    .otherwise(() => Promise.resolve());
 }
 
 export async function archiveEmail(

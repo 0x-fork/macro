@@ -4,6 +4,7 @@ import {
 } from '@core/component/Properties/constants';
 import { EntityType } from '@service-storage/generated/schemas/entityType';
 import type { PropertyInput } from '@service-storage/generated/schemas/propertyInput';
+import { match } from 'ts-pattern';
 
 export const LINEAR_CSV_HEADERS = {
   title: 'Title',
@@ -49,18 +50,12 @@ function parseLinearPriority(
   if (Number.isFinite(asNum)) {
     // Linear exports priority as 0-4 in some formats:
     // 0 = none, 1 = urgent, 2 = high, 3 = medium, 4 = low
-    switch (Math.trunc(asNum)) {
-      case 1:
-        return PROPERTY_OPTION_IDS.PRIORITY.URGENT;
-      case 2:
-        return PROPERTY_OPTION_IDS.PRIORITY.HIGH;
-      case 3:
-        return PROPERTY_OPTION_IDS.PRIORITY.MEDIUM;
-      case 4:
-        return PROPERTY_OPTION_IDS.PRIORITY.LOW;
-      default:
-        return null;
-    }
+    return match(Math.trunc(asNum))
+      .with(1, () => PROPERTY_OPTION_IDS.PRIORITY.URGENT)
+      .with(2, () => PROPERTY_OPTION_IDS.PRIORITY.HIGH)
+      .with(3, () => PROPERTY_OPTION_IDS.PRIORITY.MEDIUM)
+      .with(4, () => PROPERTY_OPTION_IDS.PRIORITY.LOW)
+      .otherwise(() => null);
   }
 
   const p = raw.toLowerCase();

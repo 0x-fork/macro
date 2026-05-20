@@ -31,6 +31,7 @@ import {
   Show,
   untrack,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { InlineTaskProperties } from './InlineTaskProperties';
 import { InstructionsEditor } from './InstructionsEditor';
 import { MarkdownEditor } from './MarkdownEditor';
@@ -197,67 +198,49 @@ export function Notebook() {
   const containerClasses = createMemo(() => {
     const mode = layoutMode();
     const shared = 'flex relative text-ink min-h-full min-w-0 isolate';
-    switch (mode) {
-      case CommentLayoutMode.lg:
-        return shared;
-      case CommentLayoutMode.md:
-        return `${shared} gap-9 justify-center`;
-      case CommentLayoutMode.sm:
-        return `${shared} px-36`;
-      case CommentLayoutMode.xs:
-        return `${shared} px-6 gap-9 justify-center`;
-      default:
-        return `${shared} px-6`;
-    }
+    return match(mode)
+      .with(CommentLayoutMode.lg, () => shared)
+      .with(CommentLayoutMode.md, () => `${shared} gap-9 justify-center`)
+      .with(CommentLayoutMode.sm, () => `${shared} px-36`)
+      .with(CommentLayoutMode.xs, () => `${shared} px-6 gap-9 justify-center`)
+      .otherwise(() => `${shared} px-6`);
   });
 
   const contentDivClasses = createMemo(() => {
     const mode = layoutMode();
     const shared = 'grow max-w-3xl pt-12 min-w-0';
-    switch (mode) {
-      case CommentLayoutMode.lg:
-        return `${shared} mx-auto`;
-      case CommentLayoutMode.md:
-        return `${shared} flex-3`;
-      case CommentLayoutMode.sm:
-        return `${shared} mx-auto`;
-      case CommentLayoutMode.xs:
-        return `${shared} flex-3`;
-      default:
-        return `${shared} mx-auto`;
-    }
+    return match(mode)
+      .with(CommentLayoutMode.lg, () => `${shared} mx-auto`)
+      .with(CommentLayoutMode.md, () => `${shared} flex-3`)
+      .with(CommentLayoutMode.sm, () => `${shared} mx-auto`)
+      .with(CommentLayoutMode.xs, () => `${shared} flex-3`)
+      .otherwise(() => `${shared} mx-auto`);
   });
 
   const commentPositioning = createMemo(() => {
     const mode = layoutMode();
     const leftFloat = leftFloatX();
-    switch (mode) {
-      case CommentLayoutMode.lg:
-        return {
-          classes: 'absolute top-0 h-full w-xs pointer-events-none',
-          style: { left: `${leftFloat}px` },
-        };
-      case CommentLayoutMode.md:
-        return {
-          classes: 'flex-2 max-w-xs min-w-0 pointer-events-none',
-          style: {},
-        };
-      case CommentLayoutMode.sm:
-        return {
-          classes: 'absolute top-0 h-full w-20 pointer-events-none',
-          style: { left: `${leftFloat}px` },
-        };
-      case CommentLayoutMode.xs:
-        return {
-          classes: 'flex-1 max-w-6.5 min-w-0 shrink-0 pointer-events-none',
-          style: { left: `${leftFloat}px` },
-        };
-      default:
-        return {
-          classes: 'hidden',
-          style: {},
-        };
-    }
+    return match(mode)
+      .with(CommentLayoutMode.lg, () => ({
+        classes: 'absolute top-0 h-full w-xs pointer-events-none',
+        style: { left: `${leftFloat}px` },
+      }))
+      .with(CommentLayoutMode.md, () => ({
+        classes: 'flex-2 max-w-xs min-w-0 pointer-events-none',
+        style: {},
+      }))
+      .with(CommentLayoutMode.sm, () => ({
+        classes: 'absolute top-0 h-full w-20 pointer-events-none',
+        style: { left: `${leftFloat}px` },
+      }))
+      .with(CommentLayoutMode.xs, () => ({
+        classes: 'flex-1 max-w-6.5 min-w-0 shrink-0 pointer-events-none',
+        style: { left: `${leftFloat}px` },
+      }))
+      .otherwise(() => ({
+        classes: 'hidden',
+        style: {},
+      }));
   });
 
   return (

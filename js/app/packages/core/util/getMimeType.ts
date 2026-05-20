@@ -1,52 +1,33 @@
+import { match } from 'ts-pattern';
+
 // Map file extension to MIME type
 export const getMimeType = (ext: string) => {
-  switch (ext.toLowerCase()) {
-    case '.txt':
-      return 'text/plain';
-    case '.js':
-      return 'application/javascript';
-    case '.jsx':
-      return 'text/jsx';
-    case '.ts':
-      return 'application/typescript';
-    case '.tsx':
-      return 'text/tsx';
-    case '.json':
-      return 'application/json';
-    case '.html':
-      return 'text/html';
-    case '.css':
-      return 'text/css';
-    case '.md':
-      return 'text/markdown';
-    case '.py':
-      return 'text/x-python';
-    case '.java':
-      return 'text/x-java-source';
-    case '.c':
-      return 'text/x-c';
-    case '.cpp':
-      return 'text/x-c++';
-    case '.rs':
-      return 'text/rust';
-    case '.go':
-      return 'text/x-go';
-    case '.rb':
-      return 'text/ruby';
-    case '.php':
-      return 'application/x-httpd-php';
-    case '.sql':
-      return 'application/sql';
-    case '.xml':
-      return 'application/xml';
-    case '.yaml':
-    case '.yml':
-      return 'application/x-yaml';
-    case '.pdf':
-      return 'application/pdf';
-    case '.docx':
-      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    default:
-      return 'text/plain';
-  }
+  return match(ext.toLowerCase())
+    .with('.txt', () => 'text/plain')
+    .with('.js', () => 'application/javascript')
+    .with('.jsx', () => 'text/jsx')
+    .with('.ts', () => 'application/typescript')
+    .with('.tsx', () => 'text/tsx')
+    .with('.json', () => 'application/json')
+    .with('.html', () => 'text/html')
+    .with('.css', () => 'text/css')
+    .with('.md', () => 'text/markdown')
+    .with('.py', () => 'text/x-python')
+    .with('.java', () => 'text/x-java-source')
+    .with('.c', () => 'text/x-c')
+    .with('.cpp', () => 'text/x-c++')
+    .with('.rs', () => 'text/rust')
+    .with('.go', () => 'text/x-go')
+    .with('.rb', () => 'text/ruby')
+    .with('.php', () => 'application/x-httpd-php')
+    .with('.sql', () => 'application/sql')
+    .with('.xml', () => 'application/xml')
+    .with('.yaml', '.yml', () => 'application/x-yaml')
+    .with('.pdf', () => 'application/pdf')
+    .with(
+      '.docx',
+      () =>
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+    .otherwise(() => 'text/plain');
 };

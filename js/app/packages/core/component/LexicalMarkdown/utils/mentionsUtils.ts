@@ -11,6 +11,7 @@ import { waitBulkUploadStatus } from '@service-connection/bulkUpload';
 import type { DocumentMentionMetadata } from '@service-notification/client';
 import type { UploadSuccess } from '@service-storage/util/upload';
 import type { LexicalEditor } from 'lexical';
+import { match } from 'ts-pattern';
 import { v7 } from 'uuid';
 import {
   INSERT_DATE_MENTION_COMMAND,
@@ -87,21 +88,20 @@ export const getCombinedEntityBlockName = (
   item: CombinedEntity<'item' | 'channel' | 'email'>,
   icon?: boolean
 ): BlockName | BlockAlias => {
-  switch (item.kind) {
-    case 'item':
-      if (item.data.type === 'document')
+  return match(item)
+    .with({ kind: 'item' }, (i) => {
+      if (i.data.type === 'document')
         return fileTypeToBlockName(
-          (item.data.subType?.type as string | undefined) ?? item.data.fileType,
+          (i.data.subType?.type as string | undefined) ?? i.data.fileType,
           icon
         );
-      if (item.data.type === 'chat') return 'chat';
-      if (item.data.type === 'project') return 'project';
+      if (i.data.type === 'chat') return 'chat';
+      if (i.data.type === 'project') return 'project';
       return 'unknown';
-    case 'email':
-      return 'email';
-    case 'channel':
-      return 'channel';
-  }
+    })
+    .with({ kind: 'email' }, () => 'email' as const)
+    .with({ kind: 'channel' }, () => 'channel' as const)
+    .exhaustive();
 };
 
 const getUserName = (item: IUser): string => {
@@ -111,20 +111,14 @@ const getUserName = (item: IUser): string => {
 };
 
 export const getItemName = (item: CombinedEntity): string => {
-  switch (item.kind) {
-    case 'item':
-      return item.data.name;
-    case 'user':
-      return getUserName(item.data);
-    case 'channel':
-      return item.data.name ?? '';
-    case 'email':
-      return item.data.name ?? 'No Subject';
-    case 'date':
-      return item.data.displayFormat;
-    case 'group':
-      return `@${item.data.groupAlias}`;
-  }
+  return match(item)
+    .with({ kind: 'item' }, (i) => i.data.name)
+    .with({ kind: 'user' }, (i) => getUserName(i.data))
+    .with({ kind: 'channel' }, (i) => i.data.name ?? '')
+    .with({ kind: 'email' }, (i) => i.data.name ?? 'No Subject')
+    .with({ kind: 'date' }, (i) => i.data.displayFormat)
+    .with({ kind: 'group' }, (i) => `@${i.data.groupAlias}`)
+    .exhaustive();
 };
 
 /**

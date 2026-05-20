@@ -1,24 +1,21 @@
+import { match } from 'ts-pattern';
 import type { GroupByField, GroupedSoupPage, GroupMeta } from './types';
 
 /**
  * Serialize GroupByField to the API's expected JSON format.
  */
 export function serializeGroupByField(field: GroupByField): unknown {
-  switch (field.type) {
-    case 'date':
-      return 'date';
-    case 'entity_type':
-      return 'entity_type';
-    case 'project':
-      return 'project';
-    case 'property':
-      return {
-        property: {
-          property_definition_id: field.propertyDefinitionId,
-          ...(field.entityType && { entity_type: field.entityType }),
-        },
-      };
-  }
+  return match(field)
+    .with({ type: 'date' }, () => 'date')
+    .with({ type: 'entity_type' }, () => 'entity_type')
+    .with({ type: 'project' }, () => 'project')
+    .with({ type: 'property' }, (field) => ({
+      property: {
+        property_definition_id: field.propertyDefinitionId,
+        ...(field.entityType && { entity_type: field.entityType }),
+      },
+    }))
+    .exhaustive();
 }
 
 /**

@@ -1,5 +1,6 @@
 import { blockAcceptedFileExtensionToMimeType } from '@core/constant/allBlocks';
 import { fileExtension } from '@service-storage/util/filename';
+import { match } from 'ts-pattern';
 import { NotImplementedError } from './error';
 import {
   type FileHandle,
@@ -16,20 +17,16 @@ export async function readFileFromHandle({
   handle: FileHandle;
   readonly: boolean;
 }): Promise<FileSystemFile> {
-  switch (handle.source) {
-    case FileSource.Browser: {
-      return await _readFromBrowserHandle(handle);
-    }
-    case FileSource.DocumentStorageService: {
-      return await _readFromDocumentStorageServiceHandle(handle);
-    }
-
-    default: {
+  return match(handle)
+    .with({ source: FileSource.Browser }, (h) => _readFromBrowserHandle(h))
+    .with({ source: FileSource.DocumentStorageService }, (h) =>
+      _readFromDocumentStorageServiceHandle(h)
+    )
+    .otherwise((h) => {
       throw new NotImplementedError(
-        `Tried to open a file handle type which doesnt have an implementation: ${handle.source}`
+        `Tried to open a file handle type which doesnt have an implementation: ${h.source}`
       );
-    }
-  }
+    });
 }
 
 async function _readFromBrowserHandle(handle: {

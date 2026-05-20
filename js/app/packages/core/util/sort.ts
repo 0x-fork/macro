@@ -1,5 +1,6 @@
 import { useUserId } from '@core/context/user';
 import type { Item } from '@service-storage/generated/schemas/item';
+import { match } from 'ts-pattern';
 
 export type SortType =
   | 'name'
@@ -24,26 +25,16 @@ export const fileSortLabels: Map<SortPair, string> = new Map([
 ]);
 
 function getSortProperty(item: Item, sort: SortType) {
-  switch (sort) {
-    case 'name': {
-      return item.name.toLowerCase();
-    }
-    case 'updatedAt': {
-      return item.updatedAt;
-    }
-    case 'createdAt': {
-      return item.createdAt;
-    }
-    case 'deletedAt': {
-      return item.deletedAt;
-    }
-    case 'owner': {
-      return item.type === 'document' ? item.owner : item.userId;
-    }
-    default:
+  return match(sort)
+    .with('name', () => item.name.toLowerCase())
+    .with('updatedAt', () => item.updatedAt)
+    .with('createdAt', () => item.createdAt)
+    .with('deletedAt', () => item.deletedAt)
+    .with('owner', () => (item.type === 'document' ? item.owner : item.userId))
+    .otherwise(() => {
       console.error('Invalid sort type', sort);
       return 0;
-  }
+    });
 }
 
 export function sortItems(

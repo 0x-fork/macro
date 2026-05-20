@@ -1,4 +1,5 @@
 import { createSignal } from 'solid-js';
+import { match } from 'ts-pattern';
 
 interface SliderProps {
   label: string;
@@ -78,31 +79,27 @@ export function DebugSlider(props: SliderProps) {
 
   const handleKeyDown = (e: KeyboardEvent) => {
     const stepSize = e.shiftKey ? step() * 10 : step();
-    let newValue = props.value;
 
-    switch (e.key) {
-      case 'ArrowLeft':
-      case 'ArrowDown':
+    const newValue = match(e.key)
+      .with('ArrowLeft', 'ArrowDown', () => {
         e.preventDefault();
-        newValue = props.value - stepSize;
-        break;
-      case 'ArrowRight':
-      case 'ArrowUp':
+        return props.value - stepSize;
+      })
+      .with('ArrowRight', 'ArrowUp', () => {
         e.preventDefault();
-        newValue = props.value + stepSize;
-        break;
-      case 'Home':
+        return props.value + stepSize;
+      })
+      .with('Home', () => {
         e.preventDefault();
-        newValue = min();
-        break;
-      case 'End':
+        return min();
+      })
+      .with('End', () => {
         e.preventDefault();
-        newValue = max();
-        break;
-      default:
-        return;
-    }
+        return max();
+      })
+      .otherwise(() => undefined);
 
+    if (newValue === undefined) return;
     props.onChange(clampValue(newValue));
   };
 

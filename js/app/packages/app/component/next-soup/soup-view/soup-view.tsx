@@ -127,6 +127,7 @@ import {
 } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
 import { Dynamic } from 'solid-js/web';
+import { match } from 'ts-pattern';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
@@ -1167,16 +1168,17 @@ export const SoupViewList = (props: SoupViewListProps) => {
                               const sort_ = soup.sort.active();
                               if (!sort_.length) return;
 
-                              switch (sort_[0].id) {
-                                case 'viewed_at':
-                                  return row.original.viewedAt;
-                                case 'created_at':
-                                  return row.original.createdAt;
-                                case 'updated_at':
-                                  return row.original.updatedAt;
-                                default:
-                                  return row.original.createdAt;
-                              }
+                              return match(sort_[0].id)
+                                .with('viewed_at', () => row.original.viewedAt)
+                                .with(
+                                  'created_at',
+                                  () => row.original.createdAt
+                                )
+                                .with(
+                                  'updated_at',
+                                  () => row.original.updatedAt
+                                )
+                                .otherwise(() => row.original.createdAt);
                             };
 
                             return (

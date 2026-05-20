@@ -1,6 +1,7 @@
 import type { UploadFolderStatusUpdate } from '@service-connection/generated/schemas/uploadFolderStatusUpdate';
 import { createWebsocketEventEffect } from '@websocket/index';
 import { toast } from 'core/component/Toast/Toast';
+import { match } from 'ts-pattern';
 import type { FromWebsocketMessage } from './websocket';
 import { ws } from './websocket';
 
@@ -63,23 +64,18 @@ createWebsocketEventEffect<
   try {
     const update: UploadFolderStatusUpdate = JSON.parse(wsData.data);
 
-    let projectId: string | undefined;
-    switch (update.status) {
-      case 'partially_completed':
-        projectId = update.projectId;
-        break;
-      case 'completed':
-        projectId = update.projectId;
-        break;
-      case 'failed':
-        break;
-      case 'unknown':
+    const projectId: string | undefined = match(update)
+      .with({ status: 'partially_completed' }, (u) => u.projectId)
+      .with({ status: 'completed' }, (u) => u.projectId)
+      .with({ status: 'failed' }, () => undefined)
+      .with({ status: 'unknown' }, () => {
         // it may or may not have completed, so refetch resources anyway
-        break;
-      default:
+        return undefined;
+      })
+      .otherwise(() => {
         console.warn('unhandled bulk upload status', update);
-        break;
-    }
+        return undefined;
+      });
 
     const requestId = update.requestId;
     if (!requestId) {

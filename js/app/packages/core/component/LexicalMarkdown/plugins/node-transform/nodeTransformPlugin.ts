@@ -35,6 +35,7 @@ import {
   createCommand,
   ParagraphNode,
 } from 'lexical';
+import { match } from 'ts-pattern';
 
 createCommand();
 
@@ -96,17 +97,17 @@ function registerNodeTransform(editor: LexicalEditor) {
       }
 
       if (transform.includes('list')) {
-        switch (transform) {
-          case 'list-bullet':
+        match(transform)
+          .with('list-bullet', () => {
             editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
-            break;
-          case 'list-number':
+          })
+          .with('list-number', () => {
             editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
-            break;
-          case 'list-check':
+          })
+          .with('list-check', () => {
             editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined);
-            break;
-        }
+          })
+          .otherwise(() => {});
         return true;
       }
 

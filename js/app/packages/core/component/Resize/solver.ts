@@ -6,6 +6,7 @@ import {
   createSignal,
   untrack,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import type { LayoutResult, Panel, PanelConfig, PanelId } from './types';
 
 export type ResizeSolver = {
@@ -270,20 +271,17 @@ export function createResizeSolver(params: {
       let incomingShare = 1 / nextLength;
 
       if (panel.target && usableSize > 0) {
-        switch (panel.target.kind) {
-          case 'percent':
-            incomingShare = panel.target.percent / 100;
-            break;
-          case 'px':
-            incomingShare = panel.target.px / usableSize;
-            break;
-          case 'fr':
+        incomingShare = match(panel.target)
+          .with({ kind: 'percent' }, (t) => t.percent / 100)
+          .with({ kind: 'px' }, (t) => t.px / usableSize)
+          .with({ kind: 'fr' }, () => {
             // fr needs total fr units across all panels - not supported yet, use equal
-            break;
-          default:
+            return incomingShare;
+          })
+          .otherwise(() => {
             // keep equal share
-            break;
-        }
+            return incomingShare;
+          });
       }
 
       // Clamp to max size constraint

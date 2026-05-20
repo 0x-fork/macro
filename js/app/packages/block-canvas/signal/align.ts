@@ -1,6 +1,7 @@
 import { sharedInstance } from '@block-canvas/util/sharedInstance';
 import { type Vector2, vec2 } from '@block-canvas/util/vector2';
 import { batch } from 'solid-js';
+import { match } from 'ts-pattern';
 import {
   useBoundingBox,
   useCanvasEdges,
@@ -53,38 +54,38 @@ export const useAlign = sharedInstance(() => {
           groupsPos.set(groupId, groupPos);
         }
         if (!groupsToMove.get(groupId)) {
-          switch (alignment) {
-            case 0:
-              groupsToMove.set(groupId, vec2(groupPos.x - boundsXStart, 0));
-              break;
-            case 1:
+          match(alignment)
+            .with(0, () => {
+              groupsToMove.set(groupId, vec2(groupPos!.x - boundsXStart, 0));
+            })
+            .with(1, () => {
               groupsToMove.set(
                 groupId,
-                vec2(groupPos.x - (boundsXMid - groupPos.width / 2), 0)
+                vec2(groupPos!.x - (boundsXMid - groupPos!.width / 2), 0)
               );
-              break;
-            case 2:
+            })
+            .with(2, () => {
               groupsToMove.set(
                 groupId,
-                vec2(groupPos.x - (boundsXEnd - groupPos.width), 0)
+                vec2(groupPos!.x - (boundsXEnd - groupPos!.width), 0)
               );
-              break;
-            case 3:
-              groupsToMove.set(groupId, vec2(0, groupPos.y - boundsYStart));
-              break;
-            case 4:
+            })
+            .with(3, () => {
+              groupsToMove.set(groupId, vec2(0, groupPos!.y - boundsYStart));
+            })
+            .with(4, () => {
               groupsToMove.set(
                 groupId,
-                vec2(0, groupPos.y - (boundsYMid - groupPos.height / 2))
+                vec2(0, groupPos!.y - (boundsYMid - groupPos!.height / 2))
               );
-              break;
-            case 5:
+            })
+            .with(5, () => {
               groupsToMove.set(
                 groupId,
-                vec2(0, groupPos.y - (boundsYEnd - groupPos.height))
+                vec2(0, groupPos!.y - (boundsYEnd - groupPos!.height))
               );
-              break;
-          }
+            })
+            .otherwise(() => {});
         }
       });
 
@@ -105,34 +106,34 @@ export const useAlign = sharedInstance(() => {
                   return;
                 }
               } else {
-                switch (alignment) {
-                  case 0:
+                match(alignment)
+                  .with(0, () => {
                     nodes.updateNode(nodeId, { x: boundsXStart });
-                    break;
-                  case 1:
+                  })
+                  .with(1, () => {
                     nodes.updateNode(nodeId, {
                       x: boundsXMid - original.width / 2,
                     });
-                    break;
-                  case 2:
+                  })
+                  .with(2, () => {
                     nodes.updateNode(nodeId, {
                       x: boundsXEnd - original.width,
                     });
-                    break;
-                  case 3:
+                  })
+                  .with(3, () => {
                     nodes.updateNode(nodeId, { y: boundsYStart });
-                    break;
-                  case 4:
+                  })
+                  .with(4, () => {
                     nodes.updateNode(nodeId, {
                       y: boundsYMid - original.height / 2,
                     });
-                    break;
-                  case 5:
+                  })
+                  .with(5, () => {
                     nodes.updateNode(nodeId, {
                       y: boundsYEnd - original.height,
                     });
-                    break;
-                }
+                  })
+                  .otherwise(() => {});
               }
             });
           },
@@ -165,8 +166,8 @@ export const useAlign = sharedInstance(() => {
                       : original.to,
                 });
               } else {
-                switch (alignment) {
-                  case 0:
+                match(alignment)
+                  .with(0, () => {
                     if (
                       original.from.type === 'free' &&
                       original.to.type === 'free'
@@ -204,8 +205,8 @@ export const useAlign = sharedInstance(() => {
                         },
                       });
                     }
-                    break;
-                  case 1:
+                  })
+                  .with(1, () => {
                     if (
                       original.from.type === 'free' &&
                       original.to.type === 'free'
@@ -240,8 +241,8 @@ export const useAlign = sharedInstance(() => {
                         },
                       });
                     }
-                    break;
-                  case 2:
+                  })
+                  .with(2, () => {
                     if (
                       original.from.type === 'free' &&
                       original.to.type === 'free'
@@ -290,8 +291,8 @@ export const useAlign = sharedInstance(() => {
                         },
                       });
                     }
-                    break;
-                  case 3:
+                  })
+                  .with(3, () => {
                     if (
                       original.from.type === 'free' &&
                       original.to.type === 'free'
@@ -329,8 +330,8 @@ export const useAlign = sharedInstance(() => {
                         },
                       });
                     }
-                    break;
-                  case 4:
+                  })
+                  .with(4, () => {
                     if (
                       original.from.type === 'free' &&
                       original.to.type === 'free'
@@ -365,8 +366,8 @@ export const useAlign = sharedInstance(() => {
                         },
                       });
                     }
-                    break;
-                  case 5:
+                  })
+                  .with(5, () => {
                     if (
                       original.from.type === 'free' &&
                       original.to.type === 'free'
@@ -415,8 +416,8 @@ export const useAlign = sharedInstance(() => {
                         },
                       });
                     }
-                    break;
-                }
+                  })
+                  .otherwise(() => {});
               }
             });
           },

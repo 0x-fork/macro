@@ -5,6 +5,7 @@ import {
   FileSource,
 } from './base';
 
+import { match } from 'ts-pattern';
 import { FileSystemError, NotImplementedError } from '../error';
 import { EphemeralFile } from './ephemeral';
 
@@ -39,28 +40,25 @@ type FileReturn<T extends FileHandle | undefined> = T extends undefined
  * Throws filesystem error if the file handle is invalid at runtime
  */
 function _validateFileHandle(handle: FileHandle) {
-  switch (handle.source) {
-    case FileSource.Path: {
-      if (!handle.ref) {
+  match(handle)
+    .with({ source: FileSource.Path }, (h) => {
+      if (!h.ref) {
         throw new FileSystemError(
-          `Received PathHandle but path is invalid, expected OS path but received: ${handle.ref}`
+          `Received PathHandle but path is invalid, expected OS path but received: ${h.ref}`
         );
       }
-      return;
-    }
-    case FileSource.Browser: {
-      if (!handle.ref?.getFile || !handle.ref?.createWritable) {
+    })
+    .with({ source: FileSource.Browser }, (h) => {
+      if (!h.ref?.getFile || !h.ref?.createWritable) {
         throw new FileSystemError(
-          `Expected FileSystemFileHandle, received object without getFile or createWritable methods: ${handle.ref}`
+          `Expected FileSystemFileHandle, received object without getFile or createWritable methods: ${h.ref}`
         );
       }
-      return;
-    }
-    case FileSource.DocumentStorageService: {
-      IDocumentStorageServiceFile.validateDocumentStorageServiceHandle(handle);
-      return;
-    }
-  }
+    })
+    .with({ source: FileSource.DocumentStorageService }, (h) => {
+      IDocumentStorageServiceFile.validateDocumentStorageServiceHandle(h);
+    })
+    .exhaustive();
 }
 
 /*
@@ -108,19 +106,20 @@ export async function makeFile<T extends FileHandle | undefined>({
   // throw if handle is invalid
   _validateFileHandle(handle);
 
-  switch (handle.source) {
-    case FileSource.DocumentStorageService: {
-      return new IDocumentStorageServiceFile({
-        ...(args as Omit<
-          ConstructorArgs<DocumentStorageServiceHandle>,
-          'handle'
-        >),
-        handle,
-        fileName,
-      }) as FileReturn<T>;
-    }
-    default: {
+  return match(handle)
+    .with(
+      { source: FileSource.DocumentStorageService },
+      (h) =>
+        new IDocumentStorageServiceFile({
+          ...(args as Omit<
+            ConstructorArgs<DocumentStorageServiceHandle>,
+            'handle'
+          >),
+          handle: h,
+          fileName,
+        }) as FileReturn<T>
+    )
+    .otherwise(() => {
       throw new NotImplementedError('This function is not implemented');
-    }
-  }
+    });
 }

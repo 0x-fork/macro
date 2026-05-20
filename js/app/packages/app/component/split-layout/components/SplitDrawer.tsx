@@ -5,6 +5,7 @@ import CloseIcon from '@phosphor/x.svg';
 import { Button, Layer } from '@ui';
 import { registerHotkey } from 'core/hotkey/hotkeys';
 import { type JSX, type ParentProps, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 import { useSplitPanel } from '../layoutUtils';
 import { useDrawerControl, useDrawerGroup } from './SplitDrawerContext';
 
@@ -65,23 +66,12 @@ export function SplitDrawer(
 
   const getPositionClasses = () => {
     const baseClasses = `absolute bg-surface border-edge-muted z-annotation-layer flex flex-col`;
-    let positionClasses = '';
-    switch (props.side) {
-      case 'top':
-        positionClasses = 'left-px right-px border-b';
-        break;
-      case 'bottom':
-        positionClasses = 'top-unset left-px right-px bottom-px border-t';
-        break;
-      case 'left':
-        positionClasses = 'bottom-px left-px border-r border-t';
-        break;
-      case 'right':
-        positionClasses = 'bottom-px right-px border-l border-t';
-        break;
-      default:
-        break;
-    }
+    const positionClasses = match(props.side)
+      .with('top', () => 'left-px right-px border-b')
+      .with('bottom', () => 'top-unset left-px right-px bottom-px border-t')
+      .with('left', () => 'bottom-px left-px border-r border-t')
+      .with('right', () => 'bottom-px right-px border-l border-t')
+      .otherwise(() => '');
 
     return `${baseClasses} ${positionClasses}`;
   };
@@ -98,18 +88,28 @@ export function SplitDrawer(
 
   const getGradientMaskClasses = () => {
     const baseClasses = 'absolute pattern-panel pattern-diagonal-4 opacity-100';
-    switch (props.side) {
-      case 'left':
-        return `${baseClasses} h-full w-4 left-0 top-0 -translate-x-[calc(100%+1px)] mask-l-from-0`;
-      case 'right':
-        return `${baseClasses} h-full w-4 left-0 top-0 -translate-x-[calc(100%+1px)] mask-l-from-0`;
-      case 'top':
-        return `${baseClasses} w-full h-4 left-0 top-0 -translate-y-[calc(100%+1px)] mask-t-from-0`;
-      case 'bottom':
-        return `${baseClasses} w-full h-4 left-0 bottom-0 translate-y-[calc(100%+1px)] mask-b-from-0`;
-      default:
-        return baseClasses;
-    }
+    return match(props.side)
+      .with(
+        'left',
+        () =>
+          `${baseClasses} h-full w-4 left-0 top-0 -translate-x-[calc(100%+1px)] mask-l-from-0`
+      )
+      .with(
+        'right',
+        () =>
+          `${baseClasses} h-full w-4 left-0 top-0 -translate-x-[calc(100%+1px)] mask-l-from-0`
+      )
+      .with(
+        'top',
+        () =>
+          `${baseClasses} w-full h-4 left-0 top-0 -translate-y-[calc(100%+1px)] mask-t-from-0`
+      )
+      .with(
+        'bottom',
+        () =>
+          `${baseClasses} w-full h-4 left-0 bottom-0 translate-y-[calc(100%+1px)] mask-b-from-0`
+      )
+      .otherwise(() => baseClasses);
   };
 
   return (

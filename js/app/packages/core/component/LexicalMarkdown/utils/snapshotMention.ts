@@ -8,6 +8,7 @@ import { fetchDocumentAsMarkdown } from '@queries/sync/markdownText';
 import { propertiesServiceClient } from '@service-properties/client';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { storageServiceClient } from '@service-storage/client';
+import { match } from 'ts-pattern';
 import { INSERT_SNAPSHOT_NODE_COMMAND } from '../plugins/mentions';
 import {
   entityMapper,
@@ -31,14 +32,10 @@ const SNAPSHOT_SUPPORTED_BLOCK_NAMES: Set<BlockName | BlockAlias> = new Set([
  * Returns null for block types that don't support properties.
  */
 function blockNameToEntityType(blockName: string): EntityType | null {
-  switch (blockName) {
-    case 'md':
-      return EntityType.DOCUMENT;
-    case 'task':
-      return EntityType.TASK;
-    default:
-      return null;
-  }
+  return match(blockName)
+    .with('md', () => EntityType.DOCUMENT)
+    .with('task', () => EntityType.TASK)
+    .otherwise(() => null);
 }
 
 /**
@@ -49,49 +46,46 @@ function formatPropertyValue(property: Property): string | null {
     return null;
   }
 
-  switch (property.valueType) {
-    case 'STRING':
-      return property.value;
-    case 'NUMBER':
-      return String(property.value);
-    case 'BOOLEAN':
-      return property.value ? 'true' : 'false';
-    case 'DATE':
-      return property.value.toISOString().split('T')[0];
-    case 'SELECT_STRING':
-    case 'SELECT_NUMBER': {
-      if (!property.value || property.value.length === 0) {
-        return null;
+  return match(property)
+    .with({ valueType: 'STRING' }, (p) => p.value)
+    .with({ valueType: 'NUMBER' }, (p) => String(p.value))
+    .with({ valueType: 'BOOLEAN' }, (p) => (p.value ? 'true' : 'false'))
+    .with({ valueType: 'DATE' }, (p) =>
+      p.value === null ? null : p.value.toISOString().split('T')[0]
+    )
+    .with(
+      { valueType: 'SELECT_STRING' },
+      { valueType: 'SELECT_NUMBER' },
+      (p) => {
+        if (!p.value || p.value.length === 0) {
+          return null;
+        }
+        // Map option IDs to display values
+        const selectedLabels = p.value
+          .map((optionId) => {
+            const option = p.options?.find((opt) => opt.id === optionId);
+            return option?.value?.value ?? optionId;
+          })
+          .filter(Boolean);
+        return selectedLabels.length > 0 ? selectedLabels.join(', ') : null;
       }
-      // Map option IDs to display values
-      const selectedLabels = property.value
-        .map((optionId) => {
-          const option = property.options?.find((opt) => opt.id === optionId);
-          return option?.value?.value ?? optionId;
-        })
-        .filter(Boolean);
-      return selectedLabels.length > 0 ? selectedLabels.join(', ') : null;
-    }
-    case 'ENTITY': {
-      if (!property.value || property.value.length === 0) {
+    )
+    .with({ valueType: 'ENTITY' }, (p) => {
+      if (!p.value || p.value.length === 0) {
         return null;
       }
       // Format entity references as type:id pairs
-      return property.value
+      return p.value
         .map((ref) => `${ref.entity_type}:${ref.entity_id}`)
         .join(', ');
-    }
-    case 'LINK': {
-      if (!property.value || property.value.length === 0) {
+    })
+    .with({ valueType: 'LINK' }, (p) => {
+      if (!p.value || p.value.length === 0) {
         return null;
       }
-      return property.value.join(', ');
-    }
-    default: {
-      const _exhaustive: never = property;
-      return null;
-    }
-  }
+      return p.value.join(', ');
+    })
+    .otherwise(() => null);
 }
 
 /**

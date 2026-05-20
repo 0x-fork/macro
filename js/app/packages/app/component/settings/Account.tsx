@@ -49,6 +49,7 @@ import {
 import { useAnalytics } from '@app/component/analytics-context';
 import { useTauri, type BundleUpdateStatus } from '@macro/tauri';
 import { invoke } from '@tauri-apps/api/core';
+import { match } from 'ts-pattern';
 
 // NOTE: solid directives
 false && fileSelector;
@@ -74,17 +75,29 @@ async function uploadProfilePicture(
 }
 
 function formatBundleUpdateStatus(status: BundleUpdateStatus): string {
-  switch (status.status) {
-    case 'Idle': return 'Idle';
-    case 'CheckingForUpdate': return 'Checking for update...';
-    case 'UpdateFound': return `Update available: v${status.data.version}`;
-    case 'NoUpdateNeeded': return 'Up to date';
-    case 'WaitingForWifi': return 'Waiting for Wi-Fi to download';
-    case 'Downloading': return `Downloading: ${Math.round(status.data.progress)}%`;
-    case 'Unzipping': return `Installing: ${Math.round(status.data.progress)}%`;
-    case 'Completed': return 'Update ready';
-    case 'Error': return 'An error occurred when checking for updates';
-  }
+  return match(status)
+    .with({ status: 'Idle' }, () => 'Idle')
+    .with({ status: 'CheckingForUpdate' }, () => 'Checking for update...')
+    .with(
+      { status: 'UpdateFound' },
+      (s) => `Update available: v${s.data.version}`
+    )
+    .with({ status: 'NoUpdateNeeded' }, () => 'Up to date')
+    .with({ status: 'WaitingForWifi' }, () => 'Waiting for Wi-Fi to download')
+    .with(
+      { status: 'Downloading' },
+      (s) => `Downloading: ${Math.round(s.data.progress)}%`
+    )
+    .with(
+      { status: 'Unzipping' },
+      (s) => `Installing: ${Math.round(s.data.progress)}%`
+    )
+    .with({ status: 'Completed' }, () => 'Update ready')
+    .with(
+      { status: 'Error' },
+      () => 'An error occurred when checking for updates'
+    )
+    .exhaustive();
 }
 
 function useUserName() {
@@ -613,20 +626,13 @@ function bundleUpdateAction(
   status: BundleUpdateStatus,
   cancelWifiWait: () => void,
 ): { label: string; action: () => void } | null {
-  switch (status.status) {
-    case 'Idle':
-      return { label: 'Check for Update', action: () => invoke('check_for_update') };
-    case 'Error':
-      return { label: 'Retry', action: () => invoke('check_for_update') };
-    case 'UpdateFound':
-      return { label: 'Download', action: () => invoke('grant_bundle_update', { approved: true }).catch(console.error) };
-    case 'WaitingForWifi':
-      return { label: 'Download anyway', action: cancelWifiWait };
-    case 'Completed':
-      return { label: 'Update', action: () => invoke('perform_update') };
-    default:
-      return null;
-  }
+  return match(status.status)
+    .with('Idle', () => ({ label: 'Check for Update', action: () => invoke('check_for_update') }))
+    .with('Error', () => ({ label: 'Retry', action: () => invoke('check_for_update') }))
+    .with('UpdateFound', () => ({ label: 'Download', action: () => invoke('grant_bundle_update', { approved: true }).catch(console.error) }))
+    .with('WaitingForWifi', () => ({ label: 'Download anyway', action: cancelWifiWait }))
+    .with('Completed', () => ({ label: 'Update', action: () => invoke('perform_update') }))
+    .otherwise(() => null);
 }
 
 function BundleUpdateRow() {

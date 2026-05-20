@@ -98,14 +98,10 @@ export function hasSoupEntity(entityId: string): boolean {
 
 /** Extract the canonical entity ID from a SoupApiItem (handles channel's nested `data.channel.id` and callRecord's `data.callId`). */
 export function getSoupItemId(item: SoupApiItem): string {
-  switch (item.tag) {
-    case 'channel':
-      return item.data.channel.id;
-    case 'call':
-      return item.data.callId;
-    default:
-      return item.data.id;
-  }
+  return match(item)
+    .with({ tag: 'channel' }, (item) => item.data.channel.id)
+    .with({ tag: 'call' }, (item) => item.data.callId)
+    .otherwise((item) => item.data.id);
 }
 
 /**

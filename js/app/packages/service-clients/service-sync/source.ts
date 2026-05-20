@@ -31,6 +31,7 @@ import { createWebsocketStateSignal } from '@websocket/solid/state-signal';
 import { encodeFrontiers, type Frontiers } from 'loro-crdt';
 import { err, ok, type Result, ResultAsync } from 'neverthrow';
 import { createStore } from 'solid-js/store';
+import { match } from 'ts-pattern';
 import {
   FromPeer,
   FromRemote,
@@ -41,16 +42,18 @@ import {
 const SYNC_SERVICE_WS_URL = `${SYNC_SERVICE_HOSTS['ws']}/document`;
 
 function mapToSyncStatus(status: WebsocketConnectionState): SyncSourceStatus {
-  switch (status) {
-    case WebsocketConnectionState.Connecting:
-      return SyncSourceStatus.Connecting;
-    case WebsocketConnectionState.Open:
-      return SyncSourceStatus.Connected;
-    case WebsocketConnectionState.Closed:
-    case WebsocketConnectionState.Closing:
-    case WebsocketConnectionState.Reconnecting:
-      return SyncSourceStatus.Disconnected;
-  }
+  // .otherwise() used instead of .exhaustive() because ts-pattern cannot
+  // verify exhaustiveness over numeric enums (values widen to `number`).
+  return match(status)
+    .with(WebsocketConnectionState.Connecting, () => SyncSourceStatus.Connecting)
+    .with(WebsocketConnectionState.Open, () => SyncSourceStatus.Connected)
+    .with(WebsocketConnectionState.Closed, () => SyncSourceStatus.Disconnected)
+    .with(WebsocketConnectionState.Closing, () => SyncSourceStatus.Disconnected)
+    .with(
+      WebsocketConnectionState.Reconnecting,
+      () => SyncSourceStatus.Disconnected
+    )
+    .otherwise(() => SyncSourceStatus.Disconnected);
 }
 
 function createSyncServiceSocket(documentId: string, initialToken: string) {

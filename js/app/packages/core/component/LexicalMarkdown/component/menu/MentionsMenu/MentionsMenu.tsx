@@ -28,6 +28,7 @@ import {
   Suspense,
   untrack,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { floatWithElement } from '../../../directive/floatWithElement';
 import { floatWithSelection } from '../../../directive/floatWithSelection';
 import { CLOSE_INLINE_SEARCH_COMMAND } from '../../../plugins';
@@ -376,16 +377,16 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       }
     },
     onSpace: () => {
-      switch (escapeSpaceState()) {
-        case 'single':
-        case 'start':
+      return match(escapeSpaceState())
+        .with('single', 'start', () => {
           closeMenu();
           return true;
-        case null:
+        })
+        .with(null, () => {
           setEscapeSpaceState('single');
           return false;
-      }
-      return false;
+        })
+        .exhaustive();
     },
     onOtherKey: () => {
       setEscapeSpaceState(null);

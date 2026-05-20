@@ -9,6 +9,7 @@ import { type LoroManager, LoroStateTag, type StateUpdate } from './manager';
 import type { GenericRootSchema, LoroRawUpdate, RawUpdate } from './shared';
 import type { SyncSource, TimeoutError } from './source';
 import { compareLoroDocVersions, loroDocFromSnapshot } from './utils';
+import { match } from 'ts-pattern';
 
 export type EngineBindings<S extends GenericRootSchema, D> = {
   /**
@@ -226,19 +227,19 @@ export function createSyncEngine<
     if (!running()) return;
 
     source.listen(async (event) => {
-      switch (event.type) {
-        case 'update':
-          handleRemoteUpdate(event.update);
-          break;
-        case 'awareness':
-          awareness.importRemoteAwareness(event.awareness);
-          break;
-        case 'incremental_snapshot':
-          handleRemoteUpdate(event.snapshot);
-          break;
-        case 'reconnect': {
+      match(event)
+        .with({ type: 'update' }, (e) => {
+          handleRemoteUpdate(e.update);
+        })
+        .with({ type: 'awareness' }, (e) => {
+          awareness.importRemoteAwareness(e.awareness);
+        })
+        .with({ type: 'incremental_snapshot' }, (e) => {
+          handleRemoteUpdate(e.snapshot);
+        })
+        .with({ type: 'reconnect' }, (e) => {
           const doc = loroManager.getDoc();
-          const tempDoc = loroDocFromSnapshot(event.snapshot);
+          const tempDoc = loroDocFromSnapshot(e.snapshot);
           const cmp = compareLoroDocVersions(doc, tempDoc);
           if (cmp >= 0) {
             return;
@@ -247,8 +248,8 @@ export function createSyncEngine<
             documentId: source.documentId,
           });
           requestAndHandleUpdatesSince(doc.frontiers());
-        }
-      }
+        })
+        .otherwise(() => {});
     });
   });
 

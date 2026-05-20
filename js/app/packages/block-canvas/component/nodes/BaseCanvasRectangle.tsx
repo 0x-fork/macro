@@ -9,6 +9,7 @@ import {
   useContext,
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { match } from 'ts-pattern';
 import {
   DRAG_THRESHOLD,
   type Edge,
@@ -30,36 +31,32 @@ import { type Vector2, vec2 } from '../../util/vector2';
 import { LayerContext } from '../LayerContext';
 
 function edgeToPosition(edge: Edge, size: number): Partial<JSX.CSSProperties> {
-  switch (edge) {
-    case Edges.Top:
-      return {
-        top: -size / 2 + 'px',
-        left: 0,
-        width: '100%',
-        height: size + 'px',
-      };
-    case Edges.Right:
-      return {
-        top: 0,
-        right: -size / 2 + 'px',
-        width: size + 'px',
-        height: '100%',
-      };
-    case Edges.Bottom:
-      return {
-        bottom: -size / 2 + 'px',
-        left: 0,
-        width: '100%',
-        height: size + 'px',
-      };
-    case Edges.Left:
-      return {
-        top: 0,
-        left: -size / 2 + 'px',
-        width: size + 'px',
-        height: '100%',
-      };
-  }
+  return match<Edge, Partial<JSX.CSSProperties>>(edge)
+    .with(Edges.Top, () => ({
+      top: -size / 2 + 'px',
+      left: 0,
+      width: '100%',
+      height: size + 'px',
+    }))
+    .with(Edges.Right, () => ({
+      top: 0,
+      right: -size / 2 + 'px',
+      width: size + 'px',
+      height: '100%',
+    }))
+    .with(Edges.Bottom, () => ({
+      bottom: -size / 2 + 'px',
+      left: 0,
+      width: '100%',
+      height: size + 'px',
+    }))
+    .with(Edges.Left, () => ({
+      top: 0,
+      left: -size / 2 + 'px',
+      width: size + 'px',
+      height: '100%',
+    }))
+    .exhaustive();
 }
 
 function EdgeHandle(props: {

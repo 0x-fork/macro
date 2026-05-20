@@ -17,6 +17,7 @@ import {
   createCommand,
 } from 'lexical';
 import { createEffect } from 'solid-js';
+import { match } from 'ts-pattern';
 import { mapRegisterDelete } from '../shared/utils';
 
 interface Diff {
@@ -80,28 +81,26 @@ function registerDiffPlugin(editor: LexicalEditor, props: DiffPluginArgs) {
     for (const revision of cleanedRevisions) {
       const key = revision.node_key;
       const markdownText = revision.markdown_text;
-      switch (revision.operation) {
-        case 'INSERT_BEFORE':
+      match(revision.operation)
+        .with('INSERT_BEFORE', () => {
           editor.dispatchCommand(INSERT_BEFORE_DIFF_COMMAND, {
             key,
             markdownText,
           });
-          break;
-        case 'INSERT_AFTER':
+        })
+        .with('INSERT_AFTER', () => {
           editor.dispatchCommand(INSERT_AFTER_DIFF_COMMAND, {
             key,
             markdownText,
           });
-          break;
-        case 'MODIFY':
+        })
+        .with('MODIFY', () => {
           editor.dispatchCommand(MODIFY_DIFF_COMMAND, { key, markdownText });
-          break;
-        case 'DELETE':
+        })
+        .with('DELETE', () => {
           editor.dispatchCommand(DELETE_DIFF_COMMAND, key);
-          break;
-        default:
-          break;
-      }
+        })
+        .otherwise(() => {});
     }
   });
 

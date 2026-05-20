@@ -2,6 +2,7 @@ import type { EntityItem } from '@core/context/quickAccess';
 import { trackMention } from '@core/signal/mention';
 import type { DateOption } from '@core/util/dateSearch/useDateSearch';
 import type { ChannelEntity, EmailEntity } from '@entity';
+import { match } from 'ts-pattern';
 import { REMOVE_INLINE_SEARCH_COMMAND } from '../../../../plugins';
 import {
   INSERT_DATE_MENTION_COMMAND,
@@ -105,15 +106,15 @@ export function createItemHandler(dependencies: HandlerDependencies) {
       REMOVE_INLINE_SEARCH_COMMAND,
       undefined
     );
-    switch (item.kind) {
-      case 'user':
-        return await handleUserMention(item.data, dependencies);
-      case 'date':
-        return await handleDateMentionFromOption(item.data, dependencies);
-      case 'group':
-        return await handleGroupMentionItem(item.data, dependencies);
-      case 'entity':
-        return await handleEntityMention(item, dependencies);
-    }
+    return await match(item)
+      .with({ kind: 'user' }, (i) => handleUserMention(i.data, dependencies))
+      .with({ kind: 'date' }, (i) =>
+        handleDateMentionFromOption(i.data, dependencies)
+      )
+      .with({ kind: 'group' }, (i) =>
+        handleGroupMentionItem(i.data, dependencies)
+      )
+      .with({ kind: 'entity' }, (i) => handleEntityMention(i, dependencies))
+      .exhaustive();
   };
 }

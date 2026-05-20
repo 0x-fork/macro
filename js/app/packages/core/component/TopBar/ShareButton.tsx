@@ -137,21 +137,17 @@ createBlockEffect(() => {
 
 const accessLevelText = (accessLevel?: AccessLevel | null) => {
   const blockName = isInBlock() ? useBlockName() : undefined;
-  switch (accessLevel) {
-    case 'comment':
+  return match(accessLevel)
+    .with('comment', () => {
       if (blockName === 'md' && !ENABLE_MARKDOWN_COMMENTS) {
         return 'View';
       }
       return 'Comment';
-    case 'view':
-      return 'View';
-    case 'edit':
-      return 'Edit';
-    case 'owner':
-      return 'Owner';
-    default:
-      return 'Remove Access';
-  }
+    })
+    .with('view', () => 'View')
+    .with('edit', () => 'Edit')
+    .with('owner', () => 'Owner')
+    .otherwise(() => 'Remove Access');
 };
 
 const [refetchArray, setRefetchArray] = createSignal<(() => void)[]>([]);

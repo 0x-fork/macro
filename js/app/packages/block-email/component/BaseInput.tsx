@@ -88,6 +88,7 @@ import {
 } from 'core/component/LexicalMarkdown/plugins';
 import { registerHotkey, useHotkeyDOMScope } from 'core/hotkey/hotkeys';
 import { $getRoot, type LexicalEditor } from 'lexical';
+import { match } from 'ts-pattern';
 import {
   type Accessor,
   createEffect,
@@ -129,13 +130,14 @@ false && fileSelector;
 false && observedSize;
 
 const getRecipientDisplayName = (item: EmailRecipient): string => {
-  switch (item.kind) {
-    case 'user':
-    case 'contact':
-      return getFirstName(item.data.name) || item.data.email;
-    case 'custom':
-      return item.data.email;
-  }
+  return match(item)
+    .with(
+      { kind: 'user' },
+      { kind: 'contact' },
+      (i) => getFirstName(i.data.name) || i.data.email
+    )
+    .with({ kind: 'custom' }, (i) => i.data.email)
+    .exhaustive();
 };
 
 // Shared constants for recipient display - used in both measurement and rendering

@@ -6,6 +6,7 @@ import EmailIcon from '@phosphor/envelope.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { cn } from '@ui';
 import { createEffect } from 'solid-js';
+import { match } from 'ts-pattern';
 import type { MentionItem } from '../../../../utils/mentionsUtils';
 import {
   getBlockNameFromEntity,
@@ -33,22 +34,20 @@ export function MentionsMenuItem(props: {
   const name = () => getMentionItemName(props.item);
 
   const icon = () => {
-    switch (props.item.kind) {
-      case 'user':
-        return <UserIcon id={props.item.id} size="sm" isDeleted={false} />;
-
-      case 'group':
-        return <UsersIcon class="size-4 text-ink-muted" />;
-
-      case 'date':
-        return <ClockIcon class="size-4 text-ink-muted" />;
-
-      case 'entity':
-        if (props.item.bucket === 'email') {
+    return match(props.item)
+      .with({ kind: 'user' }, (item) => (
+        <UserIcon id={item.id} size="sm" isDeleted={false} />
+      ))
+      .with({ kind: 'group' }, () => (
+        <UsersIcon class="size-4 text-ink-muted" />
+      ))
+      .with({ kind: 'date' }, () => <ClockIcon class="size-4 text-ink-muted" />)
+      .with({ kind: 'entity' }, (item) => {
+        if (item.bucket === 'email') {
           return <EmailIcon class="size-4 text-ink-muted" />;
         }
-        if (props.item.bucket === 'channel' || props.item.bucket === 'dm') {
-          const entity = props.item.data as ChannelEntity;
+        if (item.bucket === 'channel' || item.bucket === 'dm') {
+          const entity = item.data as ChannelEntity;
           return (
             <EntityIcon
               size="xs"
@@ -57,12 +56,10 @@ export function MentionsMenuItem(props: {
           );
         }
         return (
-          <EntityIcon
-            targetType={getBlockNameFromEntity(props.item)}
-            size="xs"
-          />
+          <EntityIcon targetType={getBlockNameFromEntity(item)} size="xs" />
         );
-    }
+      })
+      .exhaustive();
   };
 
   return (

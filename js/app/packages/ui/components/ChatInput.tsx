@@ -1,4 +1,5 @@
 import { createContext, Show, splitProps, useContext } from 'solid-js';
+import { match } from 'ts-pattern';
 import { cn } from '../utils/classname';
 import type { JSX  } from 'solid-js';
 
@@ -24,27 +25,24 @@ export type ChatInputProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, 'style'> &
 };
 
 function gridStyle(rows: ChatInputRows): JSX.CSSProperties {
-  switch (rows) {
-    case 1:
-      return {
-        'grid-template-areas': '"left editor right"',
-        'grid-template-columns': 'auto minmax(0, 1fr) auto',
-        'grid-template-rows': 'auto',
-      };
-    case 2:
-      return {
-        'grid-template-areas': '"editor editor editor" "left . right"',
-        'grid-template-columns': 'auto minmax(0, 1fr) auto',
-        'grid-template-rows': 'minmax(0, 1fr) auto',
-      };
-    case 3:
-      return {
-        'grid-template-areas':
-          '"extras extras extras" "editor editor editor" "left . right"',
-        'grid-template-columns': 'auto minmax(0, 1fr) auto',
-        'grid-template-rows': 'auto minmax(0, 1fr) auto',
-      };
-  }
+  return match(rows)
+    .with(1, () => ({
+      'grid-template-areas': '"left editor right"',
+      'grid-template-columns': 'auto minmax(0, 1fr) auto',
+      'grid-template-rows': 'auto',
+    }))
+    .with(2, () => ({
+      'grid-template-areas': '"editor editor editor" "left . right"',
+      'grid-template-columns': 'auto minmax(0, 1fr) auto',
+      'grid-template-rows': 'minmax(0, 1fr) auto',
+    }))
+    .with(3, () => ({
+      'grid-template-areas':
+        '"extras extras extras" "editor editor editor" "left . right"',
+      'grid-template-columns': 'auto minmax(0, 1fr) auto',
+      'grid-template-rows': 'auto minmax(0, 1fr) auto',
+    }))
+    .exhaustive();
 }
 
 function ChatInputRoot(props: ChatInputProps) {

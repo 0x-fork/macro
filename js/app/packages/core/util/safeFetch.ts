@@ -1,4 +1,5 @@
 import { err, ok, type Result } from 'neverthrow';
+import { match } from 'ts-pattern';
 import { platformFetch } from './platformFetch';
 import type { ObjectLike, ResultError } from './result';
 import { sleep } from './sleep';
@@ -191,36 +192,62 @@ export async function safeFetch<
           return fetchErr(customError ? [customError] : []);
         }
 
-        switch (response.status) {
-          case 404:
-            return fetchErr([
-              { code: 'NOT_FOUND', message: 'Resource not found' },
-            ]);
-          case 401:
-            return fetchErr([
-              { code: 'UNAUTHORIZED', message: 'Unauthorized access' },
-            ]);
-          case 403:
-            return fetchErr([{ code: 'FORBIDDEN', message: 'Forbidden' }]);
-          case 409:
-            return fetchErr([
-              { code: 'CONFLICT', message: 'Resource conflict' },
-            ]);
-          case 410:
-            return fetchErr([{ code: 'GONE', message: 'Resource deleted' }]);
-          case 500:
-            lastError = fetchErr([
-              { code: 'SERVER_ERROR', message: 'Internal server error' },
-            ]);
-            break;
-          default:
-            return fetchErr([
+        const statusResult = match(response.status)
+          .with(404, () => ({
+            kind: 'return' as const,
+            value: fetchErr([
+              { code: 'NOT_FOUND' as const, message: 'Resource not found' },
+            ]),
+          }))
+          .with(401, () => ({
+            kind: 'return' as const,
+            value: fetchErr([
               {
-                code: 'HTTP_ERROR',
+                code: 'UNAUTHORIZED' as const,
+                message: 'Unauthorized access',
+              },
+            ]),
+          }))
+          .with(403, () => ({
+            kind: 'return' as const,
+            value: fetchErr([
+              { code: 'FORBIDDEN' as const, message: 'Forbidden' },
+            ]),
+          }))
+          .with(409, () => ({
+            kind: 'return' as const,
+            value: fetchErr([
+              { code: 'CONFLICT' as const, message: 'Resource conflict' },
+            ]),
+          }))
+          .with(410, () => ({
+            kind: 'return' as const,
+            value: fetchErr([
+              { code: 'GONE' as const, message: 'Resource deleted' },
+            ]),
+          }))
+          .with(500, () => ({
+            kind: 'continue' as const,
+            lastError: fetchErr([
+              {
+                code: 'SERVER_ERROR' as const,
+                message: 'Internal server error',
+              },
+            ]),
+          }))
+          .otherwise(() => ({
+            kind: 'return' as const,
+            value: fetchErr([
+              {
+                code: 'HTTP_ERROR' as const,
                 message: `HTTP error! status: ${response.status}`,
               },
-            ]);
+            ]),
+          }));
+        if (statusResult.kind === 'return') {
+          return statusResult.value;
         }
+        lastError = statusResult.lastError;
       } else {
         if (fetchInit.method === 'HEAD') return ok({} as T);
 

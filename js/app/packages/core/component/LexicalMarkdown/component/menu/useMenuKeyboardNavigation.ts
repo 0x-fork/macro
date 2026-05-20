@@ -1,4 +1,5 @@
 import { onCleanup, onMount } from 'solid-js';
+import { match } from 'ts-pattern';
 
 export type MenuKeyboardHandlers = {
   /** Called when the user navigates up (ArrowUp, Ctrl+K, Ctrl+P, Shift+Tab) */
@@ -92,62 +93,40 @@ export function createMenuKeyboardNavigation(handlers: MenuKeyboardHandlers): {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (isActive && !isActive()) return;
 
-    let handler: ((e: KeyboardEvent) => void) | undefined;
-
-    switch (e.key) {
-      case 'ArrowUp':
-        handler = onUp;
-        break;
-
-      case 'ArrowDown':
-        handler = onDown;
-        break;
-
-      case 'ArrowLeft':
-        handler = onLeft;
-        break;
-
-      case 'ArrowRight':
-        handler = onRight;
-        break;
-
-      case 'Tab':
-        handler = e.shiftKey ? onUp : onDown;
-        break;
-
-      case 'j':
-        if (e.ctrlKey || e.metaKey) {
-          handler = onDown;
-        }
-        break;
-
-      case 'k':
-        if (e.ctrlKey || e.metaKey) {
-          handler = onUp;
-        }
-        break;
-
-      case 'n':
-        if (e.ctrlKey) {
-          handler = onDown;
-        }
-        break;
-
-      case 'p':
-        if (e.ctrlKey) {
-          handler = onUp;
-        }
-        break;
-
-      case 'Enter':
-        handler = onSelect;
-        break;
-
-      case 'Escape':
-        handler = onClose;
-        break;
-
-      case ' ':
+    const result = match(e.key)
+      .with('ArrowUp', () => ({ kind: 'handler' as const, handler: onUp }))
+      .with('ArrowDown', () => ({ kind: 'handler' as const, handler: onDown }))
+      .with('ArrowLeft', () => ({ kind: 'handler' as const, handler: onLeft }))
+      .with('ArrowRight', () => ({
+        kind: 'handler' as const,
+        handler: onRight,
+      }))
+      .with('Tab', () => ({
+        kind: 'handler' as const,
+        handler: e.shiftKey ? onUp : onDown,
+      }))
+      .with('j', () => ({
+        kind: 'handler' as const,
+        handler: e.ctrlKey || e.metaKey ? onDown : undefined,
+      }))
+      .with('k', () => ({
+        kind: 'handler' as const,
+        handler: e.ctrlKey || e.metaKey ? onUp : undefined,
+      }))
+      .with('n', () => ({
+        kind: 'handler' as const,
+        handler: e.ctrlKey ? onDown : undefined,
+      }))
+      .with('p', () => ({
+        kind: 'handler' as const,
+        handler: e.ctrlKey ? onUp : undefined,
+      }))
+      .with('Enter', () => ({
+        kind: 'handler' as const,
+        handler: onSelect,
+      }))
+      .with('Escape', () => ({ kind: 'handler' as const, handler: onClose }))
+      .with(' ', () => {
         if (onSpace) {
           const shouldPrevent = onSpace(e);
           if (shouldPrevent) {
@@ -155,9 +134,16 @@ export function createMenuKeyboardNavigation(handlers: MenuKeyboardHandlers): {
             e.stopPropagation();
           }
         }
-        return;
-    }
+        return { kind: 'early-return' as const };
+      })
+      .otherwise(() => ({
+        kind: 'handler' as const,
+        handler: undefined as ((e: KeyboardEvent) => void) | undefined,
+      }));
 
+    if (result.kind === 'early-return') return;
+
+    const handler = result.handler;
     if (handler) {
       if (preventDefault) {
         e.preventDefault();

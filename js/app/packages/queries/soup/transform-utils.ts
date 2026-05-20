@@ -38,6 +38,7 @@ import type {
 } from '@service-storage/generated/schemas';
 import type { UseQueryResult } from '@tanstack/solid-query';
 import { differenceInMilliseconds } from 'date-fns';
+import { match } from 'ts-pattern';
 
 type InnerSearchResult =
   | DocumentSearchResult
@@ -61,11 +62,9 @@ type TypedInnerSearchResult =
     };
 
 const getSearchData = (data: TypedInnerSearchResult): SearchData => {
-  let contentHitData: ContentHitData[] = [];
-
-  switch (data.type) {
-    case 'channel': {
-      contentHitData = data.results.flatMap((r) => {
+  const contentHitData: ContentHitData[] = match(data)
+    .with({ type: 'channel' }, (data) =>
+      data.results.flatMap((r) => {
         const isContentHit = !!r.message_id;
         if (!isContentHit) return [];
 
@@ -82,11 +81,10 @@ const getSearchData = (data: TypedInnerSearchResult): SearchData => {
             messageId: r.message_id!,
           },
         }));
-      });
-      break;
-    }
-    case 'pdf': {
-      contentHitData = data.results.flatMap((r) => {
+      })
+    )
+    .with({ type: 'pdf' }, (data) =>
+      data.results.flatMap((r) => {
         const contents = r.highlight.content ?? [];
         return contents.map((content) => {
           const mergedContent = mergeAdjacentMacroEmTags(content);
@@ -102,11 +100,10 @@ const getSearchData = (data: TypedInnerSearchResult): SearchData => {
             },
           };
         });
-      });
-      break;
-    }
-    case 'md': {
-      contentHitData = data.results.flatMap((r) => {
+      })
+    )
+    .with({ type: 'md' }, (data) =>
+      data.results.flatMap((r) => {
         const isContentHit = !!r.node_id;
         if (!isContentHit) return [];
 
@@ -116,11 +113,10 @@ const getSearchData = (data: TypedInnerSearchResult): SearchData => {
           content: mergeAdjacentMacroEmTags(content),
           location: { type: 'md' as const, nodeId: r.node_id! },
         }));
-      });
-      break;
-    }
-    case 'email': {
-      contentHitData = data.results.flatMap((r) => {
+      })
+    )
+    .with({ type: 'email' }, (data) =>
+      data.results.flatMap((r) => {
         const contents = r.highlight.content ?? [];
         return contents.map((content) => ({
           type: 'email' as const,
@@ -133,11 +129,10 @@ const getSearchData = (data: TypedInnerSearchResult): SearchData => {
             messageId: r.message_id!,
           },
         }));
-      });
-      break;
-    }
-    case 'call_record': {
-      contentHitData = data.results.flatMap((r) => {
+      })
+    )
+    .with({ type: 'call_record' }, (data) =>
+      data.results.flatMap((r) => {
         // TODO: support name only hits for call records when we support rename
         const isContentHit = !!r.transcript_id;
         if (!isContentHit) return [];
@@ -161,19 +156,17 @@ const getSearchData = (data: TypedInnerSearchResult): SearchData => {
             transcriptId: r.transcript_id!,
           },
         }));
-      });
-      break;
-    }
-    default: {
-      contentHitData = data.results.flatMap((r) => {
+      })
+    )
+    .otherwise((data) =>
+      data.results.flatMap((r) => {
         const contents = r.highlight.content ?? [];
         return contents.map((content) => ({
           content: mergeAdjacentMacroEmTags(content),
           location: undefined,
         }));
-      });
-    }
-  }
+      })
+    );
 
   const nameHighlight =
     data.results.find((r) => r.highlight.name)?.highlight.name ?? null;
@@ -267,8 +260,9 @@ export const useSearchResponseItemMapper = () => {
     result: UnifiedSearchResponseItem,
     searchQuery: string
   ): (WithSearch<EntityData> | undefined)[] => {
-    switch (result.type) {
-      case 'document': {
+    return match(result)
+      .returnType<(WithSearch<EntityData> | undefined)[]>()
+      .with({ type: 'document' }, (result) => {
         if (!result.metadata || result.metadata.deleted_at) return [];
         const searchFileType =
           result.file_type === 'docx' ? 'pdf' : result.file_type;
@@ -305,8 +299,8 @@ export const useSearchResponseItemMapper = () => {
             search,
           },
         ];
-      }
-      case 'email': {
+      })
+      .with({ type: 'email' }, (result) => {
         const search = getSearchData({
           results: result.email_message_search_results,
           type: 'email',
@@ -338,8 +332,8 @@ export const useSearchResponseItemMapper = () => {
             snippet: result.snippet ?? undefined,
           },
         ];
-      }
-      case 'chat': {
+      })
+      .with({ type: 'chat' }, (result) => {
         if (!result.metadata || result.metadata.deleted_at) return [];
         const search = getSearchData({
           results: result.chat_search_results,
@@ -356,8 +350,8 @@ export const useSearchResponseItemMapper = () => {
             search,
           },
         ];
-      }
-      case 'channel': {
+      })
+      .with({ type: 'channel' }, (result) => {
         return mapChannelSearchResultItem(
           {
             channel_id: result.channel_id,
@@ -368,9 +362,8 @@ export const useSearchResponseItemMapper = () => {
           },
           channels()
         );
-      }
-
-      case 'project': {
+      })
+      .with({ type: 'project' }, (result) => {
         if (!result.metadata || result.metadata.deleted_at) return [];
         const search = getSearchData({
           results: result.project_search_results,
@@ -388,9 +381,8 @@ export const useSearchResponseItemMapper = () => {
             search,
           },
         ];
-      }
-
-      case 'call': {
+      })
+      .with({ type: 'call' }, (result) => {
         if (!result.metadata) return [];
         const search = getSearchData({
           type: 'call_record',
@@ -421,8 +413,8 @@ export const useSearchResponseItemMapper = () => {
             search,
           },
         ];
-      }
-    }
+      })
+      .exhaustive();
   };
 };
 

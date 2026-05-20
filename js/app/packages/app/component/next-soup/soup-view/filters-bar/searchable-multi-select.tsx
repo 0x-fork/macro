@@ -11,6 +11,7 @@ import {
   type JSX,
   Show,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import type { SearchableOption } from './search-filter-controls';
 
@@ -250,8 +251,8 @@ export const SearchableMultiSelectInline = (
   };
 
   const handleInputKeyDown = (e: KeyboardEvent) => {
-    switch (e.key) {
-      case 'ArrowLeft': {
+    match(e.key)
+      .with('ArrowLeft', () => {
         const input = e.currentTarget as HTMLInputElement;
         // At the start of the input (no caret movement possible), collapse
         // back to the parent menu. Otherwise let the input move the caret.
@@ -260,25 +261,27 @@ export const SearchableMultiSelectInline = (
           return;
         }
         e.stopPropagation();
-        return;
-      }
-      case 'Escape':
+      })
+      .with('Escape', () => {
         // Let parent close
-        return;
-      case 'ArrowDown':
-      case 'ArrowUp':
-      case 'Enter':
-      case 'Home':
-      case 'End':
-      case 'PageUp':
-      case 'PageDown':
-        e.stopPropagation();
-        return;
-      default:
+      })
+      .with(
+        'ArrowDown',
+        'ArrowUp',
+        'Enter',
+        'Home',
+        'End',
+        'PageUp',
+        'PageDown',
+        () => {
+          e.stopPropagation();
+        }
+      )
+      .otherwise(() => {
         // Character keys, backspace, etc. — Combobox.Input handles them;
         // stop bubbling so the outer menu doesn't run typeahead.
         e.stopPropagation();
-    }
+      });
   };
 
   return (

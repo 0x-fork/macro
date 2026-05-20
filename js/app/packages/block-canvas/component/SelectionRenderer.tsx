@@ -1,5 +1,6 @@
 import { createCallback } from '@solid-primitives/rootless';
 import { createMemo, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 import {
   type Corner,
   Corners,
@@ -20,43 +21,35 @@ import { vec2 } from '../util/vector2';
 
 function cornerToPosition(corner: Corner, size: number) {
   const halfSize = size / 2;
-  switch (corner) {
-    case Corners.TopLeft:
-      return {
-        top: -halfSize + 'px',
-        left: -halfSize + 'px',
-      };
-    case Corners.TopRight:
-      return {
-        top: -halfSize + 'px',
-        right: -halfSize + 'px',
-      };
-    case Corners.BottomRight:
-      return {
-        bottom: -halfSize + 'px',
-        right: -halfSize + 'px',
-      };
-    case Corners.BottomLeft:
-      return {
-        bottom: -halfSize + 'px',
-        left: -halfSize + 'px',
-      };
-  }
+  return match(corner)
+    .with(Corners.TopLeft, () => ({
+      top: -halfSize + 'px',
+      left: -halfSize + 'px',
+    }))
+    .with(Corners.TopRight, () => ({
+      top: -halfSize + 'px',
+      right: -halfSize + 'px',
+    }))
+    .with(Corners.BottomRight, () => ({
+      bottom: -halfSize + 'px',
+      right: -halfSize + 'px',
+    }))
+    .with(Corners.BottomLeft, () => ({
+      bottom: -halfSize + 'px',
+      left: -halfSize + 'px',
+    }))
+    .exhaustive();
 }
 
 function cornerToCursor(corner: Corner) {
   const { activeTool } = useToolManager();
   if (activeTool() === Tools.Grab) return 'grab';
-  switch (corner) {
-    case Corners.TopLeft:
-      return 'nwse-resize';
-    case Corners.TopRight:
-      return 'nesw-resize';
-    case Corners.BottomRight:
-      return 'nwse-resize';
-    case Corners.BottomLeft:
-      return 'nesw-resize';
-  }
+  return match(corner)
+    .with(Corners.TopLeft, () => 'nwse-resize')
+    .with(Corners.TopRight, () => 'nesw-resize')
+    .with(Corners.BottomRight, () => 'nwse-resize')
+    .with(Corners.BottomLeft, () => 'nesw-resize')
+    .exhaustive();
 }
 
 function CornerHandle(props: {
@@ -101,52 +94,44 @@ export function edgeToPosition(
 ) {
   const scaledSize = size * scale;
   const offset = size - scaledSize;
-  switch (edge) {
-    case Edges.Top:
-      return {
-        top: offset - (HANDLE_SIZE + borderWidth) + 'px',
-        left: -borderWidth + 'px',
-        width: '100%',
-        height: scaledSize + 'px',
-      };
-    case Edges.Right:
-      return {
-        top: -borderWidth + 'px',
-        right: offset - (HANDLE_SIZE - borderWidth) + 'px',
-        width: scaledSize + 'px',
-        height: '100%',
-      };
-    case Edges.Bottom:
-      return {
-        bottom: offset - (HANDLE_SIZE - borderWidth) + 'px',
-        left: -borderWidth + 'px',
-        width: '100%',
-        height: scaledSize + 'px',
-      };
-    case Edges.Left:
-      return {
-        top: -borderWidth + 'px',
-        left: offset - (HANDLE_SIZE + borderWidth) + 'px',
-        width: scaledSize + 'px',
-        height: '100%',
-      };
-  }
+  return match(edge)
+    .with(Edges.Top, () => ({
+      top: offset - (HANDLE_SIZE + borderWidth) + 'px',
+      left: -borderWidth + 'px',
+      width: '100%',
+      height: scaledSize + 'px',
+    }))
+    .with(Edges.Right, () => ({
+      top: -borderWidth + 'px',
+      right: offset - (HANDLE_SIZE - borderWidth) + 'px',
+      width: scaledSize + 'px',
+      height: '100%',
+    }))
+    .with(Edges.Bottom, () => ({
+      bottom: offset - (HANDLE_SIZE - borderWidth) + 'px',
+      left: -borderWidth + 'px',
+      width: '100%',
+      height: scaledSize + 'px',
+    }))
+    .with(Edges.Left, () => ({
+      top: -borderWidth + 'px',
+      left: offset - (HANDLE_SIZE + borderWidth) + 'px',
+      width: scaledSize + 'px',
+      height: '100%',
+    }))
+    .exhaustive();
 }
 
 export function edgeToCursor(edge: Edge) {
   const { activeTool } = useToolManager();
   if (activeTool() === Tools.Grab) return 'grab';
 
-  switch (edge) {
-    case Edges.Top:
-      return 'ns-resize';
-    case Edges.Right:
-      return 'ew-resize';
-    case Edges.Bottom:
-      return 'ns-resize';
-    case Edges.Left:
-      return 'ew-resize';
-  }
+  return match(edge)
+    .with(Edges.Top, () => 'ns-resize')
+    .with(Edges.Right, () => 'ew-resize')
+    .with(Edges.Bottom, () => 'ns-resize')
+    .with(Edges.Left, () => 'ew-resize')
+    .exhaustive();
 }
 
 function EdgeHandle(props: { edge: Edge; size: number; scaleFactor: number }) {

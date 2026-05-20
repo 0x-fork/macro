@@ -42,6 +42,7 @@ import {
   Show,
   Switch,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 
 function ChipWithUserTooltip(props: {
@@ -90,71 +91,55 @@ function RecipientChip(props: {
 function getRecipientOptionEmail(
   option: CombinedRecipientItem
 ): string | undefined {
-  switch (option.kind) {
-    case 'user':
-      return option.data.email;
-    case 'channel':
-      return undefined;
-    case 'contact':
-      return option.data.email;
-    case 'custom':
-      return option.data.email;
-  }
+  return match(option)
+    .with({ kind: 'user' }, (o) => o.data.email)
+    .with({ kind: 'channel' }, () => undefined)
+    .with({ kind: 'contact' }, (o) => o.data.email)
+    .with({ kind: 'custom' }, (o) => o.data.email)
+    .exhaustive();
 }
 
 function getRecipientOptionName(option: CombinedRecipientItem) {
-  switch (option.kind) {
-    case 'user':
-      const name = option.data.name;
-      if (name && name !== option.data.email) return name;
+  return match(option)
+    .with({ kind: 'user' }, (o) => {
+      const name = o.data.name;
+      if (name && name !== o.data.email) return name;
       return undefined;
-    case 'channel':
-      return option.data.name;
-    case 'contact':
-      return option.data.name;
-    case 'custom':
-      return undefined;
-  }
+    })
+    .with({ kind: 'channel' }, (o) => o.data.name)
+    .with({ kind: 'contact' }, (o) => o.data.name)
+    .with({ kind: 'custom' }, () => undefined)
+    .exhaustive();
 }
 
 function getRecipientOptionValue(option: CombinedRecipientItem) {
-  switch (option.kind) {
-    case 'user':
-      return `user-${option.data.id}`;
-    case 'channel':
-      return `channel-${option.data.id}`;
-    case 'contact':
-      return `contact-${option.data.email}`;
-    case 'custom':
-      return `current-user-input-${option.data.email}`;
-  }
+  return match(option)
+    .with({ kind: 'user' }, (o) => `user-${o.data.id}`)
+    .with({ kind: 'channel' }, (o) => `channel-${o.data.id}`)
+    .with({ kind: 'contact' }, (o) => `contact-${o.data.email}`)
+    .with({ kind: 'custom' }, (o) => `current-user-input-${o.data.email}`)
+    .exhaustive();
 }
 
 function getRecipientOptionLabel(option: CombinedRecipientItem) {
-  switch (option.kind) {
-    case 'user':
-      return option.data.email;
-    case 'channel':
-      return option.data.id;
-    case 'contact':
-      return option.data.email;
-    case 'custom':
-      return option.data.email;
-  }
+  return match(option)
+    .with({ kind: 'user' }, (o) => o.data.email)
+    .with({ kind: 'channel' }, (o) => o.data.id)
+    .with({ kind: 'contact' }, (o) => o.data.email)
+    .with({ kind: 'custom' }, (o) => o.data.email)
+    .exhaustive();
 }
 
 function getRecipientOptionTextValue(option: CombinedRecipientItem) {
   const name = getRecipientOptionName(option);
   const email = getRecipientOptionEmail(option);
-  switch (option.kind) {
-    case 'user':
-    case 'contact':
-      return name ? `${name} ${email}` : (email ?? '');
-    case 'channel':
-      return option.data.name ?? '';
-    case 'custom':
-      return option.data.email;
-  }
+  return match(option)
+    .with({ kind: 'user' }, { kind: 'contact' }, () =>
+      name ? `${name} ${email}` : (email ?? '')
+    )
+    .with({ kind: 'channel' }, (o) => o.data.name ?? '')
+    .with({ kind: 'custom' }, (o) => o.data.email)
+    .exhaustive();
 }
 
 type RecipientComboboxItemProps = CollectionNode<CombinedRecipientItem>;

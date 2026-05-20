@@ -2,6 +2,7 @@ import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHea
 import { StaticSplitLabel } from '@app/component/split-layout/components/SplitLabel';
 import { debounce } from '@solid-primitives/scheduled';
 import { cn } from '@ui';
+import { match } from 'ts-pattern';
 import {
   type Accessor,
   createEffect,
@@ -122,20 +123,13 @@ const getSavedSingleLine = (): boolean => {
 };
 
 const getThemeByType = (themeType: ThemeType) => {
-  switch (themeType) {
-    case 'aiChat':
-      return aiChatTheme;
-    case 'channel':
-      return channelTheme;
-    case 'channelSender':
-      return channelThemeSender;
-    case 'embeddedCode':
-      return embeddedCodeBlock;
-    case 'unifiedList':
-      return unifiedListMarkdownTheme;
-    default:
-      return theme;
-  }
+  return match(themeType)
+    .with('aiChat', () => aiChatTheme)
+    .with('channel', () => channelTheme)
+    .with('channelSender', () => channelThemeSender)
+    .with('embeddedCode', () => embeddedCodeBlock)
+    .with('unifiedList', () => unifiedListMarkdownTheme)
+    .otherwise(() => theme);
 };
 
 export function TestEditor(props: {

@@ -7,6 +7,7 @@ import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { tabTitleSignal } from '@core/signal/tabTitle';
 import { useNavigate } from '@solidjs/router';
 import { cn } from '@ui';
+import { match } from 'ts-pattern';
 import {
   type Accessor,
   createEffect,
@@ -184,21 +185,19 @@ function createSplitFocusTracker(props: {
   };
 
   const focusFromEvent = (event: SplitEventWithType) => {
-    switch (event.type) {
-      case SplitEvent.Insert: {
-        if (event.activate === false) break;
+    match(event)
+      .with({ type: SplitEvent.Insert }, (event) => {
+        if (event.activate === false) return;
         const splitId = event.splitId;
         focusSplitById(splitId);
-        break;
-      }
-      case SplitEvent.Remove: {
+      })
+      .with({ type: SplitEvent.Remove }, (event) => {
         const splitId = findNextSplitToActivate(event.splitIndex);
         if (splitId) {
           focusSplitById(splitId);
         }
-        break;
-      }
-    }
+      })
+      .otherwise(() => {});
   };
 
   // Both of these effects need to be debounced to prevent race conditions.

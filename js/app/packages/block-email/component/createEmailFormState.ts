@@ -3,6 +3,7 @@ import type { ApiMessage } from '@service-email/generated/schemas';
 import type { LexicalEditor } from 'lexical';
 import { createSignal, type Setter } from 'solid-js';
 import { createStore, reconcile, unwrap } from 'solid-js/store';
+import { match } from 'ts-pattern';
 import { decodeBase64Utf8 } from '../util/decodeBase64';
 import { TOGGLE_APPEND_EMAIL_THREAD_COMMAND } from '../util/prepareEmailBody';
 import {
@@ -222,15 +223,12 @@ export function createEmailFormState(
     if (msg) {
       let calculated: EmailFormRecipients = { to: [], cc: [], bcc: [] };
 
-      switch (rt) {
-        case 'reply-all': {
-          calculated = getReplyAllRecipients(msg, userEmail() ?? '');
-          break;
-        }
-        case 'reply': {
-          calculated = getReplyRecipientsFromParent(msg, userEmail() ?? '');
-        }
-      }
+      calculated = match(rt)
+        .with('reply-all', () => getReplyAllRecipients(msg, userEmail() ?? ''))
+        .with('reply', () =>
+          getReplyRecipientsFromParent(msg, userEmail() ?? '')
+        )
+        .otherwise(() => calculated);
 
       setRecipients('to', calculated.to ?? []);
       setRecipients('cc', calculated.cc ?? []);

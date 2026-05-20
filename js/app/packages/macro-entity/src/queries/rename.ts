@@ -16,6 +16,7 @@ import { ChannelTypeEnum } from '@service-comms/client';
 import type { ApiChannelWithLatest } from '@service-comms/generated/models';
 import type { ItemType } from '@service-storage/client';
 import { useMutation } from '@tanstack/solid-query';
+import { match } from 'ts-pattern';
 
 type RenamableEntity = Pick<EntityData, 'id' | 'type' | 'name'> &
   Partial<EntityData>;
@@ -78,21 +79,23 @@ const performEntityRename = async (operation: EntityRenameOperation) => {
 };
 
 const validateEntityRename = (entity: EntityData): void => {
-  switch (entity.type) {
-    case 'channel':
+  match(entity)
+    .with({ type: 'channel' }, (e) => {
       // NOTE: channel type is undefined if provided from the split modal due to casting in createEntityData
-      if (entity.channelType === ChannelTypeEnum.DirectMessage) {
+      if (e.channelType === ChannelTypeEnum.DirectMessage) {
         throw new Error('Direct messages do not support renaming');
       }
-      break;
-    case 'document':
-    case 'chat':
-    case 'project':
-    case 'call':
-      return;
-    default:
-      throw new Error(`Unsupported entity type: ${entity.type}`);
-  }
+    })
+    .with(
+      { type: 'document' },
+      { type: 'chat' },
+      { type: 'project' },
+      { type: 'call' },
+      () => {}
+    )
+    .otherwise((e) => {
+      throw new Error(`Unsupported entity type: ${e.type}`);
+    });
 };
 
 const renameDssSetData = (

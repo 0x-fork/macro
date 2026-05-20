@@ -5,6 +5,7 @@ import {
   recipientEntityMapper,
 } from '@core/user';
 import type { ApiMessage } from '@service-email/generated/schemas';
+import { match } from 'ts-pattern';
 import type { EmailRecipient } from '../component/EmailContext';
 
 const extractedContactInfo = (contact: ContactInfo): ExtractedContactInfo => ({
@@ -16,14 +17,14 @@ const extractedContactInfo = (contact: ContactInfo): ExtractedContactInfo => ({
 export const convertEmailRecipientToContactInfo = (
   item: EmailRecipient
 ): ContactInfo => {
-  switch (item.kind) {
-    case 'user':
-      return { email: item.data.email, name: item.data.name };
-    case 'contact':
-      return item.data;
-    case 'custom':
-      return { email: item.data.email };
-  }
+  return match(item)
+    .with({ kind: 'user' }, (i) => ({
+      email: i.data.email,
+      name: i.data.name,
+    }))
+    .with({ kind: 'contact' }, (i) => i.data)
+    .with({ kind: 'custom' }, (i) => ({ email: i.data.email }))
+    .exhaustive();
 };
 
 export const convertContactInfoToEmailRecipient = (

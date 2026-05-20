@@ -8,14 +8,11 @@ import type { InputAttachmentData, InputSnapshot } from './types';
 export function attachmentEntityType(
   kind: InputAttachmentData['kind']
 ): string {
-  switch (kind) {
-    case 'image':
-      return STATIC_IMAGE;
-    case 'video':
-      return STATIC_VIDEO;
-    case 'document':
-      return 'document';
-  }
+  return match(kind)
+    .with('image', () => STATIC_IMAGE)
+    .with('video', () => STATIC_VIDEO)
+    .with('document', () => 'document')
+    .exhaustive();
 }
 
 function expandGroupMention(

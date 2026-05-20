@@ -31,17 +31,17 @@ export function getBlockNameFromEntity(
  * Get display name for a MentionItem.
  */
 export function getMentionItemName(item: MentionItem): string {
-  switch (item.kind) {
-    case 'user': {
-      const { email, name } = item.data;
+  return match(item)
+    .with({ kind: 'user' }, (i) => {
+      const { email, name } = i.data;
       if (name === email) return email;
       return `${name} | ${email}`;
-    }
-    case 'group':
-      return `@${item.data.groupAlias}`;
-    case 'date':
-      return item.data.displayText;
-    case 'entity':
-      return item.data.name ?? (item.bucket === 'email' ? 'No Subject' : '');
-  }
+    })
+    .with({ kind: 'group' }, (i) => `@${i.data.groupAlias}`)
+    .with({ kind: 'date' }, (i) => i.data.displayText)
+    .with(
+      { kind: 'entity' },
+      (i) => i.data.name ?? (i.bucket === 'email' ? 'No Subject' : '')
+    )
+    .exhaustive();
 }

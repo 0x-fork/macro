@@ -4,6 +4,7 @@ import {
   type CanvasEdge,
   EDGE_CONNECTION_STYLES,
 } from '@block-canvas/model/CanvasModel';
+import { match } from 'ts-pattern';
 import { rayRayIntersection } from './intersect';
 import { clamp, cubicBezierPoint } from './math';
 import { PathBuilder } from './svg';
@@ -234,9 +235,8 @@ export function getEdgeEndVectors(
   const dir = toPos.subtract(fromPos).normalize();
   const iDir = dir.multiply(-1);
 
-  switch (connectionStyle) {
-    case 'stepped':
-    case 'smooth':
+  return match(connectionStyle)
+    .with('stepped', 'smooth', (): [Vector2, Vector2] => {
       const { from, to } = edge;
       const horizontal = isHorizontal(dir);
       const sign = horizontal ? Math.sign(dir.x) : Math.sign(dir.y);
@@ -264,10 +264,8 @@ export function getEdgeEndVectors(
       }
 
       return [fromDir, toDir];
-
-    default:
-      return [dir.clone(), iDir.clone()];
-  }
+    })
+    .otherwise((): [Vector2, Vector2] => [dir.clone(), iDir.clone()]);
 }
 
 /**
@@ -287,39 +285,35 @@ export function edgeToRenderData(
   const connectionStyle =
     EDGE_CONNECTION_STYLES[edge.style?.connectionStyle ?? 0];
 
-  let path: SvgPath;
-  switch (connectionStyle) {
-    case 'stepped':
-      path = steppedPath(
+  const path: SvgPath = match(connectionStyle)
+    .with('stepped', () =>
+      steppedPath(
         { pos: fromPos, outgoingVector: fromVec },
         {
           pos: toPos,
           outgoingVector: toVec.clone(),
         },
         10
-      );
-      break;
-
-    case 'smooth':
-      path = bezierPath(
+      )
+    )
+    .with('smooth', () =>
+      bezierPath(
         { pos: fromPos, outgoingVector: fromVec },
         {
           pos: toPos,
           outgoingVector: toVec.clone(),
         }
-      );
-      break;
-
-    default:
-      path = linePath(
+      )
+    )
+    .otherwise(() =>
+      linePath(
         { pos: fromPos, outgoingVector: fromVec },
         {
           pos: toPos,
           outgoingVector: toVec.clone(),
         }
-      );
-      break;
-  }
+      )
+    );
 
   return {
     fromPos,
@@ -339,11 +333,12 @@ export function edgeToCollisionData(
   const connectionStyle =
     EDGE_CONNECTION_STYLES[edge.style?.connectionStyle ?? 0];
 
-  switch (connectionStyle) {
-    case 'stepped':
-      return getRectilinearPoints(fromPos, toPos, fromVec, toVec, ARROW_OFFSET);
-    case 'smooth':
-      return segmentedBezier(
+  return match(connectionStyle)
+    .with('stepped', () =>
+      getRectilinearPoints(fromPos, toPos, fromVec, toVec, ARROW_OFFSET)
+    )
+    .with('smooth', () =>
+      segmentedBezier(
         {
           pos: fromPos,
           outgoingVector: fromVec,
@@ -353,8 +348,7 @@ export function edgeToCollisionData(
           outgoingVector: toVec,
         },
         10
-      );
-    default:
-      return [fromPos, toPos];
-  }
+      )
+    )
+    .otherwise(() => [fromPos, toPos]);
 }

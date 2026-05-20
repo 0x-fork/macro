@@ -1,3 +1,5 @@
+import { match } from 'ts-pattern';
+
 export type ShaderKind = 'vertex' | 'fragment';
 export type UniformKind = 'float' | 'vec2' | 'vec3' | 'vec4';
 
@@ -193,20 +195,20 @@ export function bindUniforms<T extends UniformConfig>(
   };
 
   function setOne(m: Meta, v: any) {
-    switch (m.kind) {
-      case 'float':
+    match(m.kind)
+      .with('float', () => {
         gl.uniform1f(m.location, v as number);
-        break;
-      case 'vec2':
+      })
+      .with('vec2', () => {
         gl.uniform2fv(m.location, v as Vec2 | Float32Array);
-        break;
-      case 'vec3':
+      })
+      .with('vec3', () => {
         gl.uniform3fv(m.location, v as Vec3 | Float32Array);
-        break;
-      case 'vec4':
+      })
+      .with('vec4', () => {
         gl.uniform4fv(m.location, v as Vec4 | Float32Array);
-        break;
-    }
+      })
+      .exhaustive();
   }
 
   const uniforms = {} as UniformSetters<

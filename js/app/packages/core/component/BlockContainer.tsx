@@ -9,6 +9,7 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { blockLiveTrackingEnabledSignal } from '../internal/BlockLoader';
 import {
   blockContainerMountedSignal,
@@ -23,16 +24,11 @@ export const getBlockElementId = (blockId: string) => `block-${blockId}`;
 const PING_INTERVAL = 20_000;
 
 function resolveEntityType(blockName: BlockName) {
-  switch (blockName) {
-    case 'chat':
-      return 'chat';
-    case 'channel':
-      return 'channel';
-    case 'project':
-      return 'project';
-    default:
-      return 'document';
-  }
+  return match(blockName)
+    .with('chat', () => 'chat' as const)
+    .with('channel', () => 'channel' as const)
+    .with('project', () => 'project' as const)
+    .otherwise(() => 'document' as const);
 }
 
 interface BlockContainerProps extends FlowProps {

@@ -21,6 +21,7 @@ import { buildSimpleEntityUrl } from '@core/util/url';
 import { waitForSignal } from '@core/util/waitForSignal';
 import { createCallback } from '@solid-primitives/rootless';
 import { type Accessor, createMemo } from 'solid-js';
+import { match } from 'ts-pattern';
 import { z } from 'zod';
 import { pdfViewLocation } from './document';
 import {
@@ -225,24 +226,22 @@ export function locationToUrl(location: PdfLocation | undefined): string {
 
   const format = (n: number) => Number(n.toFixed(3)).toString();
 
-  switch (location.type) {
-    case 'general':
-      params.set(URL_PARAMS.pageNumber, format(location.pageIndex));
-      params.set(URL_PARAMS.yPos, format(location.y));
-      break;
-
-    case 'precise':
-      params.set(URL_PARAMS.pageNumber, format(location.pageIndex));
-      params.set(URL_PARAMS.yPos, format(location.y));
-      params.set(URL_PARAMS.x, format(location.x));
-      params.set(URL_PARAMS.width, format(location.width));
-      params.set(URL_PARAMS.height, format(location.height));
-      break;
-
-    case 'annotation':
-      params.set(URL_PARAMS.annotationId, location.id);
-      break;
-  }
+  match(location)
+    .with({ type: 'general' }, (loc) => {
+      params.set(URL_PARAMS.pageNumber, format(loc.pageIndex));
+      params.set(URL_PARAMS.yPos, format(loc.y));
+    })
+    .with({ type: 'precise' }, (loc) => {
+      params.set(URL_PARAMS.pageNumber, format(loc.pageIndex));
+      params.set(URL_PARAMS.yPos, format(loc.y));
+      params.set(URL_PARAMS.x, format(loc.x));
+      params.set(URL_PARAMS.width, format(loc.width));
+      params.set(URL_PARAMS.height, format(loc.height));
+    })
+    .with({ type: 'annotation' }, (loc) => {
+      params.set(URL_PARAMS.annotationId, loc.id);
+    })
+    .otherwise(() => {});
 
   return url.toString();
 }
@@ -591,34 +590,31 @@ function useGoToPdfLocation() {
     const viewer = getRootViewer();
     if (!viewer) return;
 
-    switch (location.type) {
-      case 'general':
+    await match(location)
+      .with({ type: 'general' }, async (loc) => {
         await viewer.scrollTo({
-          pageNumber: location.pageIndex,
-          yPos: location.y,
+          pageNumber: loc.pageIndex,
+          yPos: loc.y,
         });
-        return;
-      case 'precise':
+      })
+      .with({ type: 'precise' }, async (loc) => {
         await viewer.scrollTo({
-          pageNumber: location.pageIndex,
-          yPos: location.y,
+          pageNumber: loc.pageIndex,
+          yPos: loc.y,
         });
-        viewer.generateOverlayForSelectionRect(
-          location.pageIndex - 1,
-          location
-        );
-        return;
-      case 'annotation':
+        viewer.generateOverlayForSelectionRect(loc.pageIndex - 1, loc);
+      })
+      .with({ type: 'annotation' }, async (loc) => {
         // TODO: implement specific annotation navigation, e.g. comments
         await viewer.scrollTo({
-          pageNumber: location.pageIndex,
+          pageNumber: loc.pageIndex,
           yPos: 0,
         });
-        return;
-      case 'search':
+      })
+      .with({ type: 'search' }, async (loc) => {
         // Go to the page of the match
         await viewer.scrollTo({
-          pageNumber: location.pageIndex,
+          pageNumber: loc.pageIndex,
           yPos: 0,
         });
 
@@ -628,13 +624,13 @@ function useGoToPdfLocation() {
 
         // Pre-warm text extraction for just the target page
         const findController = viewer.findController;
-        const pageIdx = location.pageIndex - 1; // Convert to 0-indexed
+        const pageIdx = loc.pageIndex - 1; // Convert to 0-indexed
 
         await findController.warmSearchTextForPage(pageIdx);
 
         // Use the snippet to find the location in the PDF
         viewer.search({
-          query: location.snippet,
+          query: loc.snippet,
           again: false,
           phraseSearch: true,
           caseSensitive: true,
@@ -659,7 +655,7 @@ function useGoToPdfLocation() {
 
         // Break early if we can't find the match
         if (findControllerStateEvent.state === FindState.NOT_FOUND) {
-          console.warn('unable to find match', { location });
+          console.warn('unable to find match', { location: loc });
           // TODO: fallback to raw query
           return;
         }
@@ -702,7 +698,7 @@ function useGoToPdfLocation() {
           findController,
           findControllerStateEventSignal,
           pageIdx,
-          location.highlightTerms,
+          loc.highlightTerms,
           snippetStartPos,
           snippetEndPos
         );
@@ -711,13 +707,14 @@ function useGoToPdfLocation() {
         findController.forceFullExtraction();
 
         // resets the highlight after a short delay
-        return new Promise((resolve) => {
+        return new Promise<void>((resolve) => {
           setTimeout(() => {
             viewer.findBarClose();
             resolve();
           }, 2000);
         });
-    }
+      })
+      .exhaustive();
   };
 
   return async (location: PdfLocation) => {

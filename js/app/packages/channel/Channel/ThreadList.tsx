@@ -4,6 +4,7 @@ import {
   type ScrollDirection,
 } from '@core/util/scroll-intent';
 import { type Accessor, createSignal, type JSX } from 'solid-js';
+import { match } from 'ts-pattern';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import type { ScrollToIndexOpts } from 'virtua/unstable_core';
 import { NEAR_BOTTOM_THRESHOLD } from './constants';
@@ -86,15 +87,11 @@ export function getTargetAlign(
   target: ThreadListScrollTarget
 ): ScrollAlignment {
   if (target.align) return target.align;
-  switch (target.tag) {
-    case 'top':
-      return 'start';
-    case 'bottom':
-      return 'end';
-    case 'index':
-    case 'id':
-      return 'center';
-  }
+  return match(target.tag)
+    .with('top', () => 'start' as const)
+    .with('bottom', () => 'end' as const)
+    .with('index', 'id', () => 'center' as const)
+    .exhaustive();
 }
 
 export function ThreadList(props: ThreadListProps) {
@@ -127,18 +124,15 @@ export function ThreadList(props: ThreadListProps) {
     const maxIndex = keys.length - 1;
     if (maxIndex < 0) return -1;
 
-    switch (target.tag) {
-      case 'top':
-        return 0;
-      case 'bottom':
-        return maxIndex;
-      case 'index':
-        return clamp(target.index, 0, maxIndex);
-      case 'id': {
-        const idx = keys.indexOf(target.id);
+    return match(target)
+      .with({ tag: 'top' }, () => 0)
+      .with({ tag: 'bottom' }, () => maxIndex)
+      .with({ tag: 'index' }, (t) => clamp(t.index, 0, maxIndex))
+      .with({ tag: 'id' }, (t) => {
+        const idx = keys.indexOf(t.id);
         return idx === -1 ? -1 : idx;
-      }
-    }
+      })
+      .exhaustive();
   };
 
   const scrollToTarget = (
@@ -158,21 +152,21 @@ export function ThreadList(props: ThreadListProps) {
     handle: VirtualizerHandle,
     target: ThreadListScrollTarget
   ): boolean => {
-    switch (target.tag) {
-      case 'bottom':
-        return getDistanceFromBottom(handle) <= NEAR_BOTTOM_THRESHOLD;
-      case 'top':
-        return handle.scrollOffset <= NEAR_BOTTOM_THRESHOLD;
-      case 'id':
-      case 'index': {
+    return match(target)
+      .with(
+        { tag: 'bottom' },
+        () => getDistanceFromBottom(handle) <= NEAR_BOTTOM_THRESHOLD
+      )
+      .with({ tag: 'top' }, () => handle.scrollOffset <= NEAR_BOTTOM_THRESHOLD)
+      .with({ tag: 'id' }, { tag: 'index' }, () => {
         const targetIndex = resolveTargetIndex(target);
         if (targetIndex < 0) return true; // target gone, nothing to verify
         const currentIndex = handle.findItemIndex(handle.scrollOffset);
         // Consider correct if the target is within a reasonable range of
         // the current viewport (within ±5 items accounts for alignment).
         return Math.abs(currentIndex - targetIndex) <= 5;
-      }
-    }
+      })
+      .exhaustive();
   };
 
   const getCurrentIndex = (handle: VirtualizerHandle): number => {

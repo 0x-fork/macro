@@ -42,6 +42,7 @@ import { useUserId } from '@core/context/user';
 import { createCallback } from '@solid-primitives/rootless';
 import type { PageViewport } from 'pdfjs-dist';
 import { batch } from 'solid-js';
+import { match } from 'ts-pattern';
 import { v7 as uuid7 } from 'uuid';
 import { activeCommentThreadSignal } from './comments/commentStore';
 import { commentPlaceables, isThreadPlaceable } from './comments/freeComments';
@@ -705,19 +706,15 @@ export function useCreatePlaceable() {
     }
 
     const index = PageModel.getPageIndex(pageRef)!;
-    switch (mode()) {
-      case PayloadMode.Thread:
-        placeable = makeThread(e, pageRef, index);
-        break;
-      case PayloadMode.Signature:
-        placeable = makeSignature(e, pageRef, index);
-        break;
-      case PayloadMode.FreeTextAnnotation:
-        placeable = makeTextAnnotation(pageRef, index, '', e);
-        break;
-      default:
+    placeable = match(mode())
+      .with(PayloadMode.Thread, () => makeThread(e, pageRef, index))
+      .with(PayloadMode.Signature, () => makeSignature(e, pageRef, index))
+      .with(PayloadMode.FreeTextAnnotation, () =>
+        makeTextAnnotation(pageRef, index, '', e)
+      )
+      .otherwise(() => {
         throw new Error('Placeable mode not implemented');
-    }
+      });
 
     batch(() => {
       if (!isThreadPlaceable(placeable)) {
@@ -918,14 +915,17 @@ export function useUpdatePlaceablePosition() {
             });
           }
         }
-        switch (newPlaceable.payloadType) {
-          case PayloadMode.FreeTextAnnotation:
-          case PayloadMode.Signature:
-            break;
-          default:
+        const payloadTypeHandled = match(newPlaceable.payloadType)
+          .with(
+            PayloadMode.FreeTextAnnotation,
+            PayloadMode.Signature,
+            () => true
+          )
+          .otherwise(() => {
             console.error('Unhandled payload type', newPlaceable.payload);
             return false;
-        }
+          });
+        if (!payloadTypeHandled) return false;
       }
 
       if (isThreadPlaceable(newPlaceable)) {

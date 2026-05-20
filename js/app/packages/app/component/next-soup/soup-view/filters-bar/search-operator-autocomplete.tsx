@@ -4,6 +4,7 @@ import { useQuickAccess } from '@core/context/quickAccess';
 import { useUserId } from '@core/context/user';
 import { cn } from '@ui';
 import { createMemo, For, type JSX, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 import type { ActiveOperator, OperatorType } from './parse-search-operators';
 import { INDEX_OPTIONS as INDEX_OPTIONS_SOURCE } from './search-filter-controls';
 
@@ -70,14 +71,11 @@ export const SearchOperatorAutocomplete = (
   });
 
   const baseOptions = createMemo((): AutocompleteOption[] => {
-    switch (props.activeOperator.type) {
-      case 'index':
-        return INDEX_OPTIONS;
-      case 'in':
-        return channelOptions();
-      case 'from':
-        return contactOptions();
-    }
+    return match(props.activeOperator.type)
+      .with('index', () => INDEX_OPTIONS)
+      .with('in', () => channelOptions())
+      .with('from', () => contactOptions())
+      .exhaustive();
   });
 
   const filteredOptions = createMemo((): AutocompleteOption[] => {

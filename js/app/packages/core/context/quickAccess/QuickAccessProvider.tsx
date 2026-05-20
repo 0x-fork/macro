@@ -17,6 +17,7 @@ import { createLazyMemo } from '@solid-primitives/memo';
 import { toDate } from 'date-fns';
 import type { Accessor } from 'solid-js';
 import { createEffect, createSignal } from 'solid-js';
+import { match } from 'ts-pattern';
 import { createAssertedContextProvider } from '../createContext';
 import type {
   Bucket,
@@ -54,26 +55,30 @@ function historyItemToEntity(item: HistoryItem): QuickAccessEntity {
     ownerId: item.ownerId,
   };
 
-  switch (item.type) {
-    case 'chat':
-      return {
-        ...base,
-        type: 'chat',
-      } as QuickAccessEntity;
-
-    case 'project':
-      return {
-        ...base,
-        type: 'project',
-      } as QuickAccessEntity;
-
-    case 'document': {
-      const fileType = item.fileType ?? undefined;
-      const subType = item.subType ?? undefined;
+  return match(item)
+    .with(
+      { type: 'chat' },
+      () =>
+        ({
+          ...base,
+          type: 'chat',
+        }) as QuickAccessEntity
+    )
+    .with(
+      { type: 'project' },
+      () =>
+        ({
+          ...base,
+          type: 'project',
+        }) as QuickAccessEntity
+    )
+    .with({ type: 'document' }, (i) => {
+      const fileType = i.fileType ?? undefined;
+      const subType = i.subType ?? undefined;
       const name = formatDocumentName(
         itemToSafeName({
-          name: item.rawName ?? item.name,
-          type: item.type,
+          name: i.rawName ?? i.name,
+          type: i.type,
           fileType,
           subType,
         }),
@@ -87,16 +92,16 @@ function historyItemToEntity(item: HistoryItem): QuickAccessEntity {
         name,
         type: 'document',
         fileType,
-        subType: item.subType,
+        subType: i.subType,
       } as QuickAccessEntity;
-    }
-
-    default:
-      return {
-        ...base,
-        type: 'document',
-      } as QuickAccessEntity;
-  }
+    })
+    .otherwise(
+      () =>
+        ({
+          ...base,
+          type: 'document',
+        }) as QuickAccessEntity
+    );
 }
 
 function channelToEntity(channel: ApiChannelWithLatest): ChannelEntity {
@@ -118,19 +123,15 @@ function channelToEntity(channel: ApiChannelWithLatest): ChannelEntity {
  * Determines the bucket for a history item.
  */
 function getBucketForHistoryItem(item: HistoryItem): EntityBucket {
-  switch (item.type) {
-    case 'chat':
-      return 'chat';
-    case 'project':
-      return 'project';
-    case 'document': {
-      if (item.subType?.type === 'task') return 'task';
-      if (item.fileType === 'md') return 'note';
+  return match(item)
+    .with({ type: 'chat' }, (): EntityBucket => 'chat')
+    .with({ type: 'project' }, (): EntityBucket => 'project')
+    .with({ type: 'document' }, (i): EntityBucket => {
+      if (i.subType?.type === 'task') return 'task';
+      if (i.fileType === 'md') return 'note';
       return 'document';
-    }
-    default:
-      return 'document';
-  }
+    })
+    .otherwise((): EntityBucket => 'document');
 }
 
 function getUserSearchText(user: IUser): string {

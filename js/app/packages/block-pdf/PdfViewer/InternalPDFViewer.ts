@@ -4,6 +4,7 @@ import { showMessageBoxSync } from '@core/util/dialog';
 import debounce from 'lodash/debounce';
 import { AnnotationMode, type PageViewport } from 'pdfjs-dist';
 import scriptingSandbox from 'pdfjs-dist/build/pdf.sandbox.js?url';
+import { match } from 'ts-pattern';
 import {
   PDFViewer as BaseViewer,
   NullL10n,
@@ -1300,18 +1301,19 @@ export class InternalPDFViewer {
       name: string,
       args: any
     ) {
-      switch (name) {
-        case 'alert': {
-          return showMessageBoxSync({
+      return match(name)
+        .with('alert', () =>
+          showMessageBoxSync({
             type: 'warning',
             title: 'Macro',
             message: args[0],
             buttons: ['OK'],
             defaultId: 0,
-          });
-        }
-        case 'confirm': {
-          return (
+          })
+        )
+        .with(
+          'confirm',
+          () =>
             showMessageBoxSync({
               type: 'question',
               title: 'Macro',
@@ -1320,13 +1322,9 @@ export class InternalPDFViewer {
               defaultId: 0,
               cancelId: 1,
             }) === 0
-          );
-        }
+        )
         // TODO: Nothing we can do about prompt, but hopefully that's not going to get used?
-        default: {
-          return externalCallHandler(name, args);
-        }
-      }
+        .otherwise(() => externalCallHandler(name, args));
     };
   };
 

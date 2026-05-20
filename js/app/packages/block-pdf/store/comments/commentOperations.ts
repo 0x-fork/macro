@@ -12,6 +12,7 @@ import type {
 } from '@service-storage/generated/schemas';
 import type { CreateCommentResponse } from '@service-storage/generated/schemas/createCommentResponse';
 import { createCallback } from '@solid-primitives/rootless';
+import { match } from 'ts-pattern';
 import {
   useAttachHighlightCommentResource,
   useCreateFreeCommentResource,
@@ -47,12 +48,12 @@ export function useCreateComment() {
         }
 
         let response: CreateCommentResponse | null = null;
-        switch (comment.type) {
-          case 'highlight':
+        const result = await match(comment.type)
+          .with('highlight', async () => {
             const highlight = highlightsUuidMap()?.[comment.anchorId];
             if (!highlight) {
               console.error('Unable to find highlight');
-              return response;
+              return { earlyReturn: true as const };
             }
 
             if (highlight.existsOnServer) {
@@ -68,15 +69,16 @@ export function useCreateComment() {
                 mentions
               );
             }
-            break;
-          case 'free':
+            return { earlyReturn: false as const };
+          })
+          .with('free', async () => {
             const newThreadPlaceable_ = newThreadPlaceable();
             if (
               !newThreadPlaceable_ ||
               newThreadPlaceable_.internalId !== comment.anchorId
             ) {
               console.error('Unable to find new thread placeable');
-              return response;
+              return { earlyReturn: true as const };
             }
 
             response = await createFreeComment(
@@ -84,10 +86,15 @@ export function useCreateComment() {
               newThreadPlaceable_,
               mentions
             );
-            break;
-          default:
+            return { earlyReturn: false as const };
+          })
+          .otherwise(async () => {
             console.error('invalid comment type', comment.type);
-            return response;
+            return { earlyReturn: true as const };
+          });
+
+        if (result.earlyReturn) {
+          return response;
         }
 
         if (response) {

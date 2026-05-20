@@ -9,18 +9,14 @@ import {
   KEY_ENTER_COMMAND,
   type LexicalEditor,
 } from 'lexical';
+import { match } from 'ts-pattern';
 
 function getRegExp(transformer: Transformer) {
-  const { type } = transformer;
-  switch (type) {
-    case 'element':
-      return transformer.regExp;
-    case 'multiline-element':
-      return transformer.regExpStart;
-    case 'text-format':
-    case 'text-match':
-      return null;
-  }
+  return match(transformer)
+    .with({ type: 'element' }, (t) => t.regExp)
+    .with({ type: 'multiline-element' }, (t) => t.regExpStart)
+    .with({ type: 'text-format' }, { type: 'text-match' }, () => null)
+    .exhaustive();
 }
 
 export type MarkdownShortcutsPluginProps = {

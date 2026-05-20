@@ -21,6 +21,7 @@ import {
   onMount,
   Show,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import {
   type CombinedEntity,
   createEntitySearchConfig,
@@ -52,26 +53,16 @@ function getEntityTypePluralLabel(
   entityType: EntityType | null | undefined
 ): string {
   if (!entityType) return 'entities';
-  switch (entityType) {
-    case 'USER':
-      return 'users';
-    case 'DOCUMENT':
-      return 'documents';
-    case 'CHANNEL':
-      return 'channels';
-    case 'PROJECT':
-      return 'projects';
-    case 'CHAT':
-      return 'chats';
-    case 'COMPANY':
-      return 'companies';
-    case 'THREAD':
-      return 'emails';
-    case 'TASK':
-      return 'tasks';
-    default:
-      return 'entities';
-  }
+  return match(entityType)
+    .with('USER', () => 'users')
+    .with('DOCUMENT', () => 'documents')
+    .with('CHANNEL', () => 'channels')
+    .with('PROJECT', () => 'projects')
+    .with('CHAT', () => 'chats')
+    .with('COMPANY', () => 'companies')
+    .with('THREAD', () => 'emails')
+    .with('TASK', () => 'tasks')
+    .otherwise(() => 'entities');
 }
 
 /** Gets display name for a CombinedEntity */

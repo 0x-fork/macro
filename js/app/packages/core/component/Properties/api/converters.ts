@@ -1,4 +1,5 @@
 import type { PropertyValue } from '@service-properties/generated/schemas/propertyValue';
+import { match } from 'ts-pattern';
 import { NUMBER_DECIMAL_PLACES } from '../constants';
 import type {
   EntityPropertyWithDefinition,
@@ -67,18 +68,21 @@ export function entityPropertyFromApi(
   const valueType = apiProperty.definition.data_type as ValueType;
 
   // Handle each value type with proper type checking
-  switch (valueType) {
-    case 'STRING': {
+  return match(valueType)
+    .with('STRING', () => {
       if (hasPropertyValueType(propertyValue, 'String')) {
         const stringVal = propertyValue.value;
         if (typeof stringVal === 'string' && stringVal) {
-          return { ...baseProperty, valueType: 'STRING', value: stringVal };
+          return {
+            ...baseProperty,
+            valueType: 'STRING' as const,
+            value: stringVal,
+          };
         }
       }
-      return { ...baseProperty, valueType: 'STRING', value: null };
-    }
-
-    case 'NUMBER': {
+      return { ...baseProperty, valueType: 'STRING' as const, value: null };
+    })
+    .with('NUMBER', () => {
       if (hasPropertyValueType(propertyValue, 'Number')) {
         const numVal = propertyValue.value;
         if (
@@ -88,25 +92,27 @@ export function entityPropertyFromApi(
         ) {
           return {
             ...baseProperty,
-            valueType: 'NUMBER',
+            valueType: 'NUMBER' as const,
             value: parseFloat(numVal.toFixed(NUMBER_DECIMAL_PLACES)),
           };
         }
       }
-      return { ...baseProperty, valueType: 'NUMBER', value: null };
-    }
-
-    case 'BOOLEAN': {
+      return { ...baseProperty, valueType: 'NUMBER' as const, value: null };
+    })
+    .with('BOOLEAN', () => {
       if (hasPropertyValueType(propertyValue, 'Boolean')) {
         const boolVal = propertyValue.value;
         if (typeof boolVal === 'boolean') {
-          return { ...baseProperty, valueType: 'BOOLEAN', value: boolVal };
+          return {
+            ...baseProperty,
+            valueType: 'BOOLEAN' as const,
+            value: boolVal,
+          };
         }
       }
-      return { ...baseProperty, valueType: 'BOOLEAN', value: null };
-    }
-
-    case 'DATE': {
+      return { ...baseProperty, valueType: 'BOOLEAN' as const, value: null };
+    })
+    .with('DATE', () => {
       if (hasPropertyValueType(propertyValue, 'Date')) {
         const dateVal = propertyValue.value;
         if (
@@ -115,60 +121,53 @@ export function entityPropertyFromApi(
         ) {
           return {
             ...baseProperty,
-            valueType: 'DATE',
+            valueType: 'DATE' as const,
             value: new Date(dateVal),
           };
         }
       }
-      return { ...baseProperty, valueType: 'DATE', value: null };
-    }
-
-    case 'SELECT_STRING':
-    case 'SELECT_NUMBER': {
+      return { ...baseProperty, valueType: 'DATE' as const, value: null };
+    })
+    .with('SELECT_STRING', 'SELECT_NUMBER', (vt) => {
       if (hasPropertyValueType(propertyValue, 'SelectOption')) {
         const selectVal = propertyValue.value;
         if (isStringArray(selectVal)) {
           return {
             ...baseProperty,
-            valueType,
+            valueType: vt,
             value: selectVal,
           };
         }
       }
-      return { ...baseProperty, valueType, value: null };
-    }
-
-    case 'ENTITY': {
+      return { ...baseProperty, valueType: vt, value: null };
+    })
+    .with('ENTITY', () => {
       if (hasPropertyValueType(propertyValue, 'EntityReference')) {
         const entityVal = propertyValue.value;
         if (isEntityReferenceArray(entityVal)) {
-          return { ...baseProperty, valueType: 'ENTITY', value: entityVal };
+          return {
+            ...baseProperty,
+            valueType: 'ENTITY' as const,
+            value: entityVal,
+          };
         }
       }
-      return { ...baseProperty, valueType: 'ENTITY', value: null };
-    }
-
-    case 'LINK': {
+      return { ...baseProperty, valueType: 'ENTITY' as const, value: null };
+    })
+    .with('LINK', () => {
       if (hasPropertyValueType(propertyValue, 'Link')) {
         const linkVal = propertyValue.value;
         if (isStringArray(linkVal)) {
           return {
             ...baseProperty,
-            valueType: 'LINK',
+            valueType: 'LINK' as const,
             value: linkVal,
           };
         }
       }
-      return { ...baseProperty, valueType: 'LINK', value: null };
-    }
-
-    default: {
-      const exhaustiveCheck: never = valueType;
-      throw new Error(
-        `Unsupported value type: ${(exhaustiveCheck as { valueType: string }).valueType}`
-      );
-    }
-  }
+      return { ...baseProperty, valueType: 'LINK' as const, value: null };
+    })
+    .exhaustive();
 }
 
 /**
@@ -184,96 +183,89 @@ export function propertyValueToApi(
   apiValues: PropertyApiValues,
   isMultiSelect: boolean
 ): SetPropertyValue | null {
-  switch (apiValues.valueType) {
-    case 'STRING':
-      if (apiValues.value == null) {
+  return match(apiValues)
+    .with({ valueType: 'STRING' }, (v) => {
+      if (v.value == null) {
         return null;
       }
       return {
-        type: 'string',
-        value: apiValues.value,
+        type: 'string' as const,
+        value: v.value,
       };
-
-    case 'NUMBER':
-      if (apiValues.value == null) {
+    })
+    .with({ valueType: 'NUMBER' }, (v) => {
+      if (v.value == null) {
         return null;
       }
       return {
-        type: 'number',
-        value: parseFloat(apiValues.value.toFixed(NUMBER_DECIMAL_PLACES)),
+        type: 'number' as const,
+        value: parseFloat(v.value.toFixed(NUMBER_DECIMAL_PLACES)),
       };
-
-    case 'DATE':
-      if (apiValues.value == null) {
+    })
+    .with({ valueType: 'DATE' }, (v) => {
+      if (v.value == null) {
         return null;
       }
       return {
-        type: 'date',
-        value: apiValues.value.toISOString(),
+        type: 'date' as const,
+        value: v.value.toISOString(),
       };
-
-    case 'BOOLEAN':
-      if (apiValues.value == null) {
+    })
+    .with({ valueType: 'BOOLEAN' }, (v) => {
+      if (v.value == null) {
         return null;
       }
       return {
-        type: 'boolean',
-        value: apiValues.value,
+        type: 'boolean' as const,
+        value: v.value,
       };
-
-    case 'SELECT_STRING':
-    case 'SELECT_NUMBER':
-      if (!apiValues.values || apiValues.values.length === 0) {
-        return null;
-      }
-      if (isMultiSelect) {
-        return {
-          type: 'multi_select_option',
-          option_ids: apiValues.values,
-        };
-      }
-      return {
-        type: 'select_option',
-        option_id: apiValues.values[0],
-      };
-
-    case 'ENTITY':
-      if (!apiValues.refs || apiValues.refs.length === 0) {
+    })
+    .with({ valueType: 'SELECT_STRING' }, { valueType: 'SELECT_NUMBER' }, (v) => {
+      if (!v.values || v.values.length === 0) {
         return null;
       }
       if (isMultiSelect) {
         return {
-          type: 'multi_entity_reference',
-          references: apiValues.refs,
+          type: 'multi_select_option' as const,
+          option_ids: v.values,
         };
       }
       return {
-        type: 'entity_reference',
-        reference: apiValues.refs[0],
+        type: 'select_option' as const,
+        option_id: v.values[0],
       };
-
-    case 'LINK':
-      if (!apiValues.values || apiValues.values.length === 0) {
+    })
+    .with({ valueType: 'ENTITY' }, (v) => {
+      if (!v.refs || v.refs.length === 0) {
         return null;
       }
       if (isMultiSelect) {
         return {
-          type: 'multi_link',
-          urls: apiValues.values,
+          type: 'multi_entity_reference' as const,
+          references: v.refs,
         };
       }
       return {
-        type: 'link',
-        url: apiValues.values[0],
+        type: 'entity_reference' as const,
+        reference: v.refs[0],
       };
-
-    default: {
-      const exhaustiveCheck: never = apiValues;
-      throw new Error(
-        `Unsupported value type: ${(exhaustiveCheck as { valueType: string }).valueType}`
-      );
-    }
-  }
+    })
+    .with({ valueType: 'LINK' }, (v) => {
+      if (!v.values || v.values.length === 0) {
+        return null;
+      }
+      if (isMultiSelect) {
+        return {
+          type: 'multi_link' as const,
+          urls: v.values,
+        };
+      }
+      return {
+        type: 'link' as const,
+        url: v.values[0],
+      };
+    })
+    .exhaustive();
 }
 
 /**
@@ -293,71 +285,61 @@ export function propertyApiValuesToNormalized(
   }
 
   // Handle each PropertyApiValues type
-  switch (apiValues.valueType) {
-    case 'STRING': {
-      if (apiValues.value !== null && typeof apiValues.value === 'string') {
-        return { type: 'STRING', value: apiValues.value };
+  return match(apiValues)
+    .with({ valueType: 'STRING' }, (v): NormalizedPropertyValue => {
+      if (v.value !== null && typeof v.value === 'string') {
+        return { type: 'STRING', value: v.value };
       }
       return { type: 'EMPTY', value: null };
-    }
-
-    case 'NUMBER': {
+    })
+    .with({ valueType: 'NUMBER' }, (v): NormalizedPropertyValue => {
       if (
-        apiValues.value !== null &&
-        typeof apiValues.value === 'number' &&
-        !isNaN(apiValues.value)
+        v.value !== null &&
+        typeof v.value === 'number' &&
+        !isNaN(v.value)
       ) {
         return {
           type: 'NUMBER',
-          value: parseFloat(apiValues.value.toFixed(NUMBER_DECIMAL_PLACES)),
+          value: parseFloat(v.value.toFixed(NUMBER_DECIMAL_PLACES)),
         };
       }
       return { type: 'EMPTY', value: null };
-    }
-
-    case 'BOOLEAN': {
-      if (apiValues.value !== null && typeof apiValues.value === 'boolean') {
-        return { type: 'BOOLEAN', value: apiValues.value };
+    })
+    .with({ valueType: 'BOOLEAN' }, (v): NormalizedPropertyValue => {
+      if (v.value !== null && typeof v.value === 'boolean') {
+        return { type: 'BOOLEAN', value: v.value };
       }
       return { type: 'EMPTY', value: null };
-    }
-
-    case 'DATE': {
-      if (apiValues.value !== null && apiValues.value instanceof Date) {
-        if (!isNaN(apiValues.value.getTime())) {
-          return { type: 'DATE', value: apiValues.value };
+    })
+    .with({ valueType: 'DATE' }, (v): NormalizedPropertyValue => {
+      if (v.value !== null && v.value instanceof Date) {
+        if (!isNaN(v.value.getTime())) {
+          return { type: 'DATE', value: v.value };
         }
       }
       return { type: 'EMPTY', value: null };
-    }
-
-    case 'SELECT_STRING':
-    case 'SELECT_NUMBER': {
-      if (apiValues.values && isStringArray(apiValues.values)) {
-        return { type: 'SELECT_OPTION', value: apiValues.values };
+    })
+    .with(
+      { valueType: 'SELECT_STRING' },
+      { valueType: 'SELECT_NUMBER' },
+      (v): NormalizedPropertyValue => {
+        if (v.values && isStringArray(v.values)) {
+          return { type: 'SELECT_OPTION', value: v.values };
+        }
+        return { type: 'EMPTY', value: null };
+      }
+    )
+    .with({ valueType: 'ENTITY' }, (v): NormalizedPropertyValue => {
+      if (v.refs && isEntityReferenceArray(v.refs)) {
+        return { type: 'ENTITY_REFERENCE', value: v.refs };
       }
       return { type: 'EMPTY', value: null };
-    }
-
-    case 'ENTITY': {
-      if (apiValues.refs && isEntityReferenceArray(apiValues.refs)) {
-        return { type: 'ENTITY_REFERENCE', value: apiValues.refs };
+    })
+    .with({ valueType: 'LINK' }, (v): NormalizedPropertyValue => {
+      if (v.values && isStringArray(v.values)) {
+        return { type: 'LINK', value: v.values };
       }
       return { type: 'EMPTY', value: null };
-    }
-
-    case 'LINK': {
-      if (apiValues.values && isStringArray(apiValues.values)) {
-        return { type: 'LINK', value: apiValues.values };
-      }
-      return { type: 'EMPTY', value: null };
-    }
-
-    default: {
-      const exhaustiveCheck: never = apiValues;
-      throw new Error(
-        `Unsupported value type: ${(exhaustiveCheck as { valueType: string }).valueType}`
-      );
-    }
-  }
+    })
+    .exhaustive();
 }

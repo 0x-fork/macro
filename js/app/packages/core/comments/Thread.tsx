@@ -17,6 +17,7 @@ import {
   type Signal,
   useContext,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { getAndClearCommentMentions } from '.';
 import { Comment, CommentReply } from './Comment';
 import type { CommentOperations, Layout, Reply, Root } from './commentType';
@@ -115,17 +116,17 @@ export function Thread(props: {
 
   // Function to handle state updates
   const dispatch = (action: Action) => {
-    switch (action.action) {
-      case 'soft':
-        setIsEditingNewReply((prev) => (textValue() ? prev : action.editing));
-        break;
-      case 'hard':
-        setIsEditingNewReply(action.editing);
-        break;
-      case 'text':
-        setTextValue(action.val);
-        break;
-    }
+    match(action)
+      .with({ action: 'soft' }, (a) => {
+        setIsEditingNewReply((prev) => (textValue() ? prev : a.editing));
+      })
+      .with({ action: 'hard' }, (a) => {
+        setIsEditingNewReply(a.editing);
+      })
+      .with({ action: 'text' }, (a) => {
+        setTextValue(a.val);
+      })
+      .exhaustive();
   };
 
   const showNewReplyInput = createMemo(() => {
