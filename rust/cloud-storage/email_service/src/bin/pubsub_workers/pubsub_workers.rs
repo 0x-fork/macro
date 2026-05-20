@@ -420,6 +420,7 @@ async fn main() -> anyhow::Result<()> {
     let auth_service_client_link_manager = auth_service_client.clone();
     let redis_client_link_manager = redis_client.clone();
     let sqs_client_link_manager = sqs_client.clone();
+    let crm_service_link_manager = crm_service.clone();
     // daily link_manager operations for user contacts and inbox subscriptions
     tokio::spawn(async move {
         email_service::pubsub::link_manager::worker::run_worker(
@@ -429,6 +430,7 @@ async fn main() -> anyhow::Result<()> {
             auth_service_client_link_manager,
             redis_client_link_manager,
             sqs_client_link_manager,
+            crm_service_link_manager,
         )
         .await;
     });
