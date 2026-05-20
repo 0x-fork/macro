@@ -160,21 +160,36 @@ async fn handle_delete(
     gmail_access_token: Option<&str>,
     deletion_reason: &DeletionReason,
 ) -> anyhow::Result<()> {
+    // TEMP: timing logs at tracing::warn — added for performance debugging
+    // in testing. Remove once we have steady-state metrics.
+    let total_start = std::time::Instant::now();
     tracing::info!("Deleting link");
+
     // set sync status to false so any future inbox updates get ignored
+    let step_start = std::time::Instant::now();
     email_db_client::links::update::update_link_sync_status(&ctx.db, link.id, false)
         .await
         .context("Failed to update link sync status")?;
+    tracing::warn!(
+        elapsed_ms = step_start.elapsed().as_millis() as u64,
+        "handle_delete: update_link_sync_status"
+    );
 
     // cancel any running backfill jobs
+    let step_start = std::time::Instant::now();
     email_db_client::backfill::job::update::cancel_active_jobs_by_link_id(&ctx.db, link.id)
         .await
         .inspect_err(|e| {
             tracing::error!(error=?e, "Failed to update backfill job statuses");
         })
         .ok();
+    tracing::warn!(
+        elapsed_ms = step_start.elapsed().as_millis() as u64,
+        "handle_delete: cancel_active_jobs_by_link_id"
+    );
 
     // delete cached access token, in case user re-enables within cache window
+    let step_start = std::time::Instant::now();
     ctx.redis_client
         .delete_gmail_access_token(&TokenCacheKey::new(
             link.fusionauth_user_id.clone(),
@@ -186,18 +201,28 @@ async fn handle_delete(
             tracing::warn!(error=?e, "Failed to delete Gmail access token");
         })
         .ok();
+    tracing::warn!(
+        elapsed_ms = step_start.elapsed().as_millis() as u64,
+        "handle_delete: redis delete_gmail_access_token"
+    );
 
     // make call to gmail to unregister. may fail if the user revoked our access (which is a reason
     // that we may be deleting their link in the first place)
     if let Some(token) = gmail_access_token {
+        let step_start = std::time::Instant::now();
         if let Err(e) = ctx.gmail_client.stop_watch(token).await {
             tracing::warn!(error=?e, "Gmail call to stop watch failed");
         }
+        tracing::warn!(
+            elapsed_ms = step_start.elapsed().as_millis() as u64,
+            "handle_delete: gmail_client.stop_watch"
+        );
     } else {
         tracing::debug!("Skipping Gmail stop_watch - no access token available");
     }
 
     // remove google fusionauth link with gmail inbox permissions
+    let step_start = std::time::Instant::now();
     let _ = ctx
         .auth_service_client
         .remove_link(
@@ -209,8 +234,13 @@ async fn handle_delete(
         .inspect_err(|e| {
             tracing::error!(error=?e, "unable to unlink idp");
         });
+    tracing::warn!(
+        elapsed_ms = step_start.elapsed().as_millis() as u64,
+        "handle_delete: auth_service_client.remove_link"
+    );
 
     // inform search of deletion so it can wipe the email records from OS
+    let step_start = std::time::Instant::now();
     ctx.sqs_client
         .send_message_to_search_event_queue(SearchQueueMessage::RemoveEmailLink(EmailLinkMessage {
             link_id: link.id.to_string(),
@@ -221,6 +251,10 @@ async fn handle_delete(
             tracing::error!(error=?e, "failed to send message to search extractor queue");
         })
         .ok();
+    tracing::warn!(
+        elapsed_ms = step_start.elapsed().as_millis() as u64,
+        "handle_delete: send_message_to_search_event_queue"
+    );
 
     // Tear down CRM rows this link contributed to the user's team before
     // the big cascading link delete fires. Best-effort: a failure here
@@ -228,9 +262,17 @@ async fn handle_delete(
     // (the `crm_contact_sources` FK to `email_links` cascades on the
     // upcoming `delete_link_by_id`, so the link-scoped source rows go
     // away regardless), so we log and continue rather than bailing.
+    let crm_start = std::time::Instant::now();
     let macro_id_str = link.macro_id.to_string();
-    match ctx.crm_service.get_team_id_for_user(&macro_id_str).await {
+    let step_start = std::time::Instant::now();
+    let team_lookup = ctx.crm_service.get_team_id_for_user(&macro_id_str).await;
+    tracing::warn!(
+        elapsed_ms = step_start.elapsed().as_millis() as u64,
+        "handle_delete: crm_service.get_team_id_for_user"
+    );
+    match team_lookup {
         Ok(Some(team_id)) => {
+            let step_start = std::time::Instant::now();
             if let Err(e) = ctx
                 .crm_service
                 .depopulate_link_in_team(&team_id, &link.id)
@@ -238,6 +280,10 @@ async fn handle_delete(
             {
                 tracing::error!(error=?e, team_id=%team_id, link_id=%link.id, "Failed to depopulate CRM rows before link delete; orphan crm_contacts/crm_companies may remain");
             }
+            tracing::warn!(
+                elapsed_ms = step_start.elapsed().as_millis() as u64,
+                "handle_delete: crm_service.depopulate_link_in_team"
+            );
         }
         Ok(None) => {
             tracing::debug!("User has no team; skipping CRM teardown before link delete");
@@ -246,13 +292,23 @@ async fn handle_delete(
             tracing::error!(error=?e, link_id=%link.id, "Failed to look up team for CRM teardown before link delete");
         }
     }
+    tracing::warn!(
+        elapsed_ms = crm_start.elapsed().as_millis() as u64,
+        "handle_delete: crm teardown subtotal"
+    );
 
     // finally, delete all the user's link as well as all of their email data in a big cascading delete
+    let step_start = std::time::Instant::now();
     email_db_client::links::delete::delete_link_by_id(&ctx.db, link.id)
         .await
         .context("Failed to delete link in background task")?;
+    tracing::warn!(
+        elapsed_ms = step_start.elapsed().as_millis() as u64,
+        "handle_delete: delete_link_by_id (big cascade)"
+    );
 
     // Mark the link as deleted in history table for tracking (best-effort)
+    let step_start = std::time::Instant::now();
     if let Err(e) = email_db_client::links_history::update::set_deleted_at(
         &ctx.db,
         link.id,
@@ -262,7 +318,15 @@ async fn handle_delete(
     {
         tracing::error!(error=?e, link_id=?link.id, "Failed to set deleted_at on email link history");
     }
+    tracing::warn!(
+        elapsed_ms = step_start.elapsed().as_millis() as u64,
+        "handle_delete: set_deleted_at"
+    );
 
+    tracing::warn!(
+        elapsed_ms = total_start.elapsed().as_millis() as u64,
+        "handle_delete: TOTAL"
+    );
     tracing::info!("Successfully deleted link");
 
     Ok(())
