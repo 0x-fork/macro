@@ -61,5 +61,3 @@ export const themeStyles: Record<Theme, string> = {
   current: 'bg-transparent hover:bg-current/20',
   reverse: 'bg-current hover:bg-current/90',
 };
-
-
