@@ -116,7 +116,11 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
   return (
     <Surface
       depth={2}
-      class="flex flex-col rounded-xl shadow-lg shadow-drop-shadow"
+      class="flex flex-col rounded-xl shadow-lg shadow-drop-shadow after:shadow-none"
+      style={{
+        'background-image': 'linear-gradient(var(--b0), var(--b0))',
+        border: 'none',
+      }}
       ref={props.ref}
       onFocusIn={(event) => {
         if (interactedWith()) return;
@@ -198,7 +202,7 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
 
 export const PreviewPanel: Component<PreviewPanel> = (props) => {
   return (
-    <div class="flex flex-row size-full p-2 pl-0">
+    <div class="flex flex-row size-full p-2 pl-0 pt-0">
       <Show when={props.selectedEntity}>
         {(selectedEntity) => (
           <PreviewPanelContent

@@ -19,7 +19,7 @@ type SlotProps = ParentProps<{ class?: string }>;
 type PanelProps = SurfaceProps;
 
 function PanelRoot(props: PanelProps) {
-  const [local, surfaceProps] = splitProps(props, ['children', 'class']);
+  const [local, surfaceProps] = splitProps(props, ['children', 'class', 'style']);
 
   return (
     <Surface
@@ -27,6 +27,7 @@ function PanelRoot(props: PanelProps) {
         'grid-template-areas': '"header" "toolbar" "body" "footer"',
         'grid-template-rows': 'auto auto minmax(0, 1fr) auto',
         'grid-template-columns': 'minmax(0, 1fr)',
+        ...local.style,
       }}
       class={cn('grid min-h-0 min-w-0', local.class)}
       {...surfaceProps}
