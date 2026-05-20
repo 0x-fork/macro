@@ -2,7 +2,6 @@ import { useAnalytics } from '@app/component/analytics-context';
 import { getSearchSplit } from '@app/component/next-soup/soup-view/search-controllers';
 import { isListViewID } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { TabsInset } from '@core/component/TabsInset';
 import { itemToBlockName } from '@core/constant/allBlocks';
 import { getActiveCommandsFromScope } from '@core/hotkey/getCommands';
 import type { RegisterHotkeyReturn } from '@core/hotkey/types';
@@ -11,7 +10,7 @@ import { debouncedDependent } from '@core/util/debounce';
 import { type EntityData, InlineEntity } from '@entity';
 import Macro from '@icon/macro-logo.svg';
 import ArrowLeft from '@phosphor/arrow-left.svg';
-import { cn, Dialog, Hotkey, Panel } from '@ui';
+import { cn, Dialog, Hotkey, OverflowTabGroup, Panel } from '@ui';
 import { registerHotkey, useHotkeyDOMScope } from 'core/hotkey/hotkeys';
 import {
   createEffect,
@@ -456,12 +455,11 @@ export function CommandMenuInner(props: {
 
   return (
     <Panel
-      class={cn('max-h-[75vh] rounded-xl', props.class)}
+      class={cn('max-h-[75vh] rounded-xl after:shadow-none', props.class)}
       ref={setCommandMenuRef}
       depth={props.depth}
-      active
     >
-      <Panel.Header class="gap-2 px-2 bg-surface">
+      <Panel.Header class="gap-2 px-2 bg-surface border-0">
         <Show
           when={isInCommandScope()}
           fallback={
@@ -498,14 +496,11 @@ export function CommandMenuInner(props: {
           <Show
             when={isEntityActionMode()}
             fallback={
-              <TabsInset
-                depth={1}
-                list={categoryTabs}
+              <OverflowTabGroup
+                items={categoryTabs}
                 value={CommandState.categoryFilter()}
                 onChange={(value) => {
-                  if (value) {
-                    CommandState.setCategoryFilter(value as CategoryFilter);
-                  }
+                  CommandState.setCategoryFilter(value as CategoryFilter);
                 }}
               />
             }
@@ -540,7 +535,7 @@ export function CommandMenuInner(props: {
         </div>
       </Panel.Body>
 
-      <Panel.Footer class="gap-4 px-4 bg-surface text-xs text-ink-extra-muted/80">
+      <Panel.Footer class="gap-4 px-4 bg-surface text-xs text-ink-extra-muted/80 border-0">
         <span class="flex items-center gap-1">
           <div class="flex gap-1">
             <div class="flex border border-edge-muted text-xxs rounded-xs items-center px-1.5 py-px font-normal">
