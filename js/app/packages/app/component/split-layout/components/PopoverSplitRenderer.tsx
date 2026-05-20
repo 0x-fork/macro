@@ -2,7 +2,13 @@ import { SoupContextProvider } from '@app/component/next-soup/soup-context';
 import clickOutside from '@core/directive/clickOutside';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { Dialog, Surface } from '@ui';
-import { createMemo, createSignal, For, Show } from 'solid-js';
+import {
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  Show,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { SplitPanelContext, type SplitPanelContextType } from '../context';
 import type {
@@ -49,6 +55,9 @@ function PopoverSplitModal(props: {
   const [panelRef, setPanelRef] = createSignal<HTMLElement | null>(null);
   const [contentOffsetTop, setContentOffsetTop] = createSignal(0);
   const [previewState, setPreviewState] = createSignal(false);
+  const [previewContent, setPreviewContent] = createSignal<
+    (() => JSX.Element) | undefined
+  >(undefined);
 
   const stubHandle: SplitHandle = {
     id: props.popover.id as SplitId,
@@ -98,6 +107,10 @@ function PopoverSplitModal(props: {
     previewState: [previewState, setPreviewState] as [
       typeof previewState,
       typeof setPreviewState,
+    ],
+    previewContent: [previewContent, setPreviewContent] as [
+      typeof previewContent,
+      typeof setPreviewContent,
     ],
     layoutRefs: {},
     headerCollapser: { register: () => () => {} },

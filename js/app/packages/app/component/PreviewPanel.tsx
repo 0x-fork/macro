@@ -49,6 +49,15 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
   scopedLayoutRefs.headerLeft = undefined;
   scopedLayoutRefs.headerRight = undefined;
 
+  // Route any <SplitToolbarLeft/Right> rendered by the previewed block into
+  // the outer <SplitPanel>'s preview-toolbar slots. Those live in the same
+  // toolbar row as the soup list's toolbar (Preview/Sort/Filter), but inside
+  // the preview-side Resize.Panel so widths align with the body split.
+  scopedLayoutRefs.toolbarLeft =
+    props.splitPanelContext.layoutRefs.previewToolbarLeft;
+  scopedLayoutRefs.toolbarRight =
+    props.splitPanelContext.layoutRefs.previewToolbarRight;
+
   if (props.selectedEntity.type === 'project') {
     const [previewState, setPreviewState] = createSignal(true);
     scopedSplitPanelContextType.previewState = [previewState, setPreviewState];
@@ -145,27 +154,12 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
       }}
       tabIndex={-1}
     >
-      {/* Preview-specific toolbar slots so blocks can render the "share" bar (via SplitToolbarLeft/Right) */}
-      <div
-        class="relative w-full flex items-center justify-between shrink-0 h-10 bg-surface px-2 border-b border-edge-muted"
-        data-preview-split-toolbar
-      >
-        <div
-          // In preview mode, anchor left-side controls (e.g. file menu) to the top-left
-          // so the dropdown doesn't feel like it's "hanging" from the middle of the bar.
-          class="flex h-full items-center gap-1"
-          ref={(ref) => {
-            scopedLayoutRefs.toolbarLeft = ref;
-          }}
-        />
-        <div
-          class="flex h-full items-center gap-1"
-          ref={(ref) => {
-            scopedLayoutRefs.toolbarRight = ref;
-          }}
-        />
-      </div>
-
+      {/*
+        Note: the preview toolbar used to live here as an inline row. It now
+        portals into <SplitPanel>'s preview-toolbar slots via
+        scopedLayoutRefs.toolbarLeft/Right above, so the block's
+        <SplitToolbarLeft/Right> usages "just work".
+      */}
       <div class="flex-1 min-h-0">
         <SplitPanelContext.Provider
           value={{

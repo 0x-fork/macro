@@ -8,11 +8,13 @@ import {
 import { Portal } from 'solid-js/web';
 import { useSplitPanelOrThrow } from '../layoutUtils';
 
-export function SplitToolbar(props: { ref: Setter<HTMLDivElement | null> }) {
+export function SplitToolbar(props: {
+  ref?: Setter<HTMLDivElement | null>;
+}) {
   const panel = useSplitPanelOrThrow();
 
-  // Layout / spacing / border / min-height live on <Panel.Toolbar> in
-  // SplitPanel. This wrapper only mounts the portal targets so consumers
+  // Layout / spacing / border / min-height live on the toolbar row in
+  // <SplitPanel>. This wrapper only mounts the portal targets so consumers
   // (<SplitToolbarLeft />, <SplitToolbarRight />) have somewhere to render
   // into.
   return (

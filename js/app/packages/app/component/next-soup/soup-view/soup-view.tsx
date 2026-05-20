@@ -70,7 +70,6 @@ import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
 import { SYSTEM_PROPERTY_IDS } from '@core/component/Properties/constants';
-import { Resize } from '@core/component/Resize';
 import { UserIcon } from '@core/component/UserIcon';
 import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
@@ -1065,12 +1064,44 @@ export const SoupViewList = (props: SoupViewListProps) => {
   );
 
   createEffect(() => {
-    const hasPreviewEntity = !!soup.previewEntity();
+    // Mirror the local previewVisible memo: the preview pane only shows when
+    // there is both a preview entity AND an item in focus. <SplitPanel> now
+    // drives the preview Resize.Panel off panel.previewState, so this signal
+    // is the source of truth.
+    const shouldShow = !!soup.previewEntity() && !!soup.focus.item();
     const [getPreview, setPreview] = panel.previewState;
-    if (hasPreviewEntity !== getPreview()) {
-      setPreview(hasPreviewEntity);
+    if (shouldShow !== getPreview()) {
+      setPreview(shouldShow);
     }
   });
+
+  // Push the <PreviewPanel> up to <SplitPanel> so its toolbar can live in the
+  // outer panel's toolbar row alongside the soup list's toolbar (Preview/Sort/
+  // Filter). <SplitPanel> only mounts the preview Resize.Panel when
+  // previewState is true, so the closure is invoked lazily.
+  //
+  // Skip when this soup-view is itself rendered inside another preview pane
+  // (`previewPanel` is set) -- it shares the outer SplitPanel context, and we
+  // don't want a nested soup to clobber the parent's preview slot.
+  if (!previewPanel) {
+    const [, setPreviewContent] = panel.previewContent;
+    onMount(() => {
+      // Double-arrow: outer fn is the Solid setter's "updater" form, inner fn
+      // is the actual factory we want stored. Without the wrap the JSX would
+      // be invoked as an updater and a raw Element would be stored.
+      setPreviewContent(() => () => (
+        <PreviewPanel
+          selectedEntity={soup.focus.item()}
+          orchestrator={orchestrator}
+          splitPanelContext={panel}
+          onFocusOut={() => {
+            soupViewRef()?.focus();
+          }}
+        />
+      ));
+      onCleanup(() => setPreviewContent(undefined));
+    });
+  }
 
   return (
     <MaybeSoupEntityActionDrawerManager>
@@ -1088,20 +1119,12 @@ export const SoupViewList = (props: SoupViewListProps) => {
         data-soup-view
         data-soup-view-id={panel.handle.id + (previewPanel ? '-preview' : '')}
       >
-        <Resize.Zone direction="horizontal" gutter={0}>
-          <Resize.Panel
-            id="soup-list"
-            minSize={200}
-            maxSize={previewVisible() ? 840 : undefined}
-          >
-            <div
-              class={cn(
-                '@container/u-list size-full unified-list-root flex flex-col',
-                soup.previewEntity() !== undefined &&
-                  'border-r border-edge-muted'
-              )}
-            >
-              <StaticMarkdownContext>
+        <div
+          class={cn(
+            '@container/u-list size-full unified-list-root flex flex-col'
+          )}
+        >
+          <StaticMarkdownContext>
                 <Switch>
                   <Match when={source.isLoading() && !rows().length}>
                     <LoadingBlock />
@@ -1397,26 +1420,8 @@ export const SoupViewList = (props: SoupViewListProps) => {
                     </Show>
                   </Match>
                 </Switch>
-              </StaticMarkdownContext>
-            </div>
-          </Resize.Panel>
-          <Show when={previewVisible()}>
-            <Resize.Panel
-              id="soup-preview"
-              minSize={300}
-              target={{ kind: 'percent', percent: 70 }}
-            >
-              <PreviewPanel
-                selectedEntity={soup.focus.item()}
-                orchestrator={orchestrator}
-                splitPanelContext={panel}
-                onFocusOut={() => {
-                  soupViewRef()?.focus();
-                }}
-              />
-            </Resize.Panel>
-          </Show>
-        </Resize.Zone>
+          </StaticMarkdownContext>
+        </div>
         <Show when={soup.selection.count() > 0}>
           <SoupEntitySelectionToolbar
             selected={soup.selection.selected()}
