@@ -1068,7 +1068,6 @@ export function StackedRowListEntity(props: StackedRowListEntityProps) {
             <Entity.Notification.Stacks
               entity={props.entity}
               visibleCount={3}
-              variant="timeline"
             />
           </Show>
         </div>
