@@ -20,7 +20,7 @@ use roles_and_permissions::domain::{
     port::UserRolesAndPermissionsService,
 };
 
-use crate::domain::populate_crm_enqueuer::NoOpPopulateCrmEnqueuer;
+use crate::domain::crm_enqueuer::NoOpCrmEnqueuer;
 
 fn test_team_receipt<T: RequiredPermission>(
     team_id: uuid::Uuid,
@@ -580,7 +580,7 @@ fn build_service(
         MockTeamChannelsRepository,
         MockUserRolesAndPermissionsService,
         notification_ingress.clone(),
-        NoOpPopulateCrmEnqueuer,
+        NoOpCrmEnqueuer,
     );
     (service, notification_ingress)
 }
@@ -739,7 +739,7 @@ fn build_service_with_team(
         MockTeamChannelsRepository,
         MockUserRolesAndPermissionsService,
         notification_ingress,
-        NoOpPopulateCrmEnqueuer,
+        NoOpCrmEnqueuer,
     );
     (service, role_calls, name_calls)
 }
@@ -964,7 +964,7 @@ fn build_rollback_service(
         channel_repo,
         roles_service,
         notification_ingress,
-        NoOpPopulateCrmEnqueuer,
+        NoOpCrmEnqueuer,
     );
 
     (

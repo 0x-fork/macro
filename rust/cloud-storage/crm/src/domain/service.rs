@@ -53,6 +53,24 @@ pub trait CrmService: Clone + Send + Sync + 'static {
         email: &str,
     ) -> impl Future<Output = Result<(), CrmError>> + Send;
 
+    /// Bulk teardown for one user's email link within one team: drops
+    /// the team's `crm_contact_sources` rows owned by `link_id`, then
+    /// cascades to `crm_contacts` and `crm_companies` for the rows
+    /// orphaned as a result. Companies with `email_sync = false` are
+    /// preserved. See
+    /// [`crate::domain::companies_repo::CompaniesRepository::depopulate_link_in_team`].
+    ///
+    /// Used by the `DepopulateCrmForUser` backfill step. Unlike
+    /// [`depopulate_contact`], this bypasses any per-message gate — the
+    /// trigger here is "user is no longer on this team", which makes
+    /// the presence of the user's sent messages in `email_messages`
+    /// irrelevant.
+    fn depopulate_link_in_team(
+        &self,
+        team_id: &uuid::Uuid,
+        link_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<(), CrmError>> + Send;
+
     /// Returns the team id `macro_id` belongs to, or `None` when the user
     /// has no team membership. See
     /// [`crate::domain::companies_repo::CompaniesRepository::get_team_id_for_user`]
@@ -163,6 +181,17 @@ where
         }
         self.companies_repository
             .depopulate_contact(team_id, link_id, domain, email)
+            .await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn depopulate_link_in_team(
+        &self,
+        team_id: &uuid::Uuid,
+        link_id: &uuid::Uuid,
+    ) -> Result<(), CrmError> {
+        self.companies_repository
+            .depopulate_link_in_team(team_id, link_id)
             .await
     }
 

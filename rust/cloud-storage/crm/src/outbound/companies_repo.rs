@@ -398,6 +398,81 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
     }
 
     #[tracing::instrument(skip(self), err)]
+    async fn depopulate_link_in_team(
+        &self,
+        team_id: &uuid::Uuid,
+        link_id: &uuid::Uuid,
+    ) -> Result<(), CrmError> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        // 1. Drop the link's source rows scoped to this team.
+        sqlx::query!(
+            r#"
+            DELETE FROM crm_contact_sources cs
+            USING crm_contacts ct, crm_companies co
+            WHERE cs.contact_id = ct.id
+              AND ct.company_id = co.id
+              AND co.team_id = $1
+              AND cs.link_id = $2
+            "#,
+            team_id,
+            link_id,
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        // 2. Drop every contact in this team that no longer has any
+        //    source.
+        sqlx::query!(
+            r#"
+            DELETE FROM crm_contacts ct
+            USING crm_companies co
+            WHERE ct.company_id = co.id
+              AND co.team_id = $1
+              AND NOT EXISTS (
+                  SELECT 1 FROM crm_contact_sources WHERE contact_id = ct.id
+              )
+            "#,
+            team_id,
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        // 3. Drop every company in this team that no longer has any
+        //    contact AND is not killswitched. Companies with
+        //    `email_sync = false` are preserved so the team's
+        //    configuration survives teardown — a future populate will
+        //    re-find the row and short-circuit on the same flag.
+        //    `crm_domains` falls out via FK cascade.
+        sqlx::query!(
+            r#"
+            DELETE FROM crm_companies co
+            WHERE co.team_id = $1
+              AND co.email_sync = TRUE
+              AND NOT EXISTS (
+                  SELECT 1 FROM crm_contacts WHERE company_id = co.id
+              )
+            "#,
+            team_id,
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self), err)]
     async fn get_team_id_for_user(&self, macro_id: &str) -> Result<Option<uuid::Uuid>, CrmError> {
         sqlx::query_scalar!(
             r#"
