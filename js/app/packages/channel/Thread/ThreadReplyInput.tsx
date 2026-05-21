@@ -6,9 +6,9 @@ import { useChannelParticipants } from '@channel/use-channel-participants';
 import { useUserId } from '@core/context/user';
 import { useSendMessageMutation } from '@queries/channel/message';
 import { usePostTypingUpdateMutation } from '@queries/channel/typing';
-import { type Accessor, createSignal, onCleanup, type Setter } from 'solid-js';
+import { type Accessor, onCleanup, type Setter } from 'solid-js';
 import { createEntityDropZone } from '../Channel/create-entity-drop-zone';
-import type { InputHandle, InputSnapshot } from '../Input';
+import type { InputSnapshot } from '../Input';
 import { ChannelInput, createInputAttachmentTracker } from '../Input';
 import { buildPostMessageRequest } from '../Input/message-payload';
 import { hasSendableInputContent } from '../Input/utils/sendable-content';
@@ -46,8 +46,6 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
     tracker,
   });
 
-  const [replyInputHandle, setReplyInputHandle] = createSignal<InputHandle>();
-
   return (
     <div
       class="relative pt-2"
@@ -78,7 +76,6 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                 threadId: props.messageId,
               })}
               markdownNamespace={`thread-reply-input-${props.messageId}-markdown`}
-              onReady={setReplyInputHandle}
               onChange={(snapshot) => void props.setReplyInputState(snapshot)}
               onStartTyping={() =>
                 typingMutation.mutate({
@@ -102,6 +99,9 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                 const senderId = userId();
                 if (!senderId) return;
 
+                props.setReplyInputState(undefined);
+                props.setIsReplying(false);
+
                 sendMessageMutation.mutate(
                   {
                     channelID: props.channelId,
@@ -114,16 +114,11 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                     }),
                   },
                   {
-                    onSuccess: () => {
-                      props.setReplyInputState(undefined);
-                      props.setIsReplying(false);
-                    },
                     onError: () => {
-                      const handle = replyInputHandle();
-                      if (!handle) return;
                       const current = props.replyInputState();
                       if (current && hasSendableInputContent(current)) return;
-                      handle.restoreSnapshot(snapshot);
+                      props.setReplyInputState(snapshot);
+                      props.setIsReplying(true);
                     },
                   }
                 );
