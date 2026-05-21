@@ -6,7 +6,13 @@ import ThemeList from '@theme/components/ThemeList';
 import { isMobile } from '@core/mobile/isMobile';
 import { createSignal, Show } from 'solid-js';
 import { TabsInset } from '@core/component/TabsInset';
-import { Panel, ToggleSwitch } from '@ui';
+import { Button, Panel, ToggleSwitch } from '@ui';
+import ArrowsOutIcon from '@phosphor/arrows-out.svg';
+import {
+  settingsModalOpen,
+  setThemePickerFloating,
+  themePickerFloating,
+} from '@core/constant/SettingsState';
 
 type PanelA = 'basic' | 'advanced';
 type PanelB ='themes' | 'ui'
@@ -39,9 +45,9 @@ export function Appearance() {
   const [activeTabB, setActiveTabB] = createSignal<PanelB>('themes');
 
   return (
-    <div class="h-full overflow-hidden flex justify-center p-2">
+    <div class="h-full overflow-hidden flex p-2">
       <div
-        class="max-w-200 size-full"
+        class="size-full"
         style={{
           'grid-template-rows': `${isMobile() ? '322.5px' : '432.5px'} 1fr`,
           'grid-template-columns': '1fr',
@@ -63,6 +69,16 @@ export function Appearance() {
             />
             <Show when={!isMobile()}>
               <ThemeTools class="flex-1 min-w-0" />
+            </Show>
+            <Show when={settingsModalOpen() && !themePickerFloating()}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                tooltip="Pop out picker"
+                onClick={() => setThemePickerFloating(true)}
+              >
+                <ArrowsOutIcon />
+              </Button>
             </Show>
           </Panel.Header>
 

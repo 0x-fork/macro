@@ -177,8 +177,8 @@ export function Account() {
   };
 
   return (
-      <div class="h-full overflow-hidden flex justify-center p-2">
-        <div class="max-w-200 size-full">
+      <div class="h-full overflow-hidden flex p-2">
+        <div class="size-full">
           <Panel depth={2} class="h-full overflow-hidden text-ink">
           <Panel.Header class="px-6">
             <div class="text-sm font-semibold">Account</div>

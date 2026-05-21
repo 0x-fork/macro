@@ -408,8 +408,8 @@ export function Agent() {
   ];
 
   return (
-    <div class="h-full overflow-hidden flex justify-center p-2">
-      <div class="max-w-200 size-full">
+    <div class="h-full overflow-hidden flex p-2">
+      <div class="size-full">
         <Panel depth={2} class="relative portal-scope">
           <Panel.Header>
             <TabsInset

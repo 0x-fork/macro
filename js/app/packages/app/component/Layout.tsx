@@ -31,6 +31,7 @@ import { BundleUpdateProgressBar } from './BundleUpdateProgressBar';
 import Banner from './banner/Banner';
 import { GlobalBulkEditEntityModal } from './bulk-edit-entity/BulkEditEntityModal';
 import { CommandMenu } from './command';
+import { SettingsModal } from './settings/SettingsModal';
 import { DevStatusBar } from './DevStatusBar';
 import GlobalShortcuts from './GlobalHotkeys';
 import { GlobalShareModal } from './global-share-modal/GlobalShareModal';
@@ -149,6 +150,9 @@ function LayoutInner(props: RouteSectionProps) {
             <PropertyEditorModal />
           </Suspense>
           <GlobalBulkEditEntityModal />
+          <Suspense>
+            <SettingsModal />
+          </Suspense>
           <GlobalShareModal />
           <IosShareSheet />
           <MacroMcpSetupModal />
