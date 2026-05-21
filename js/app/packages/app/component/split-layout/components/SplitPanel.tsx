@@ -27,7 +27,7 @@ import { SplitDrawerGroup } from './SplitDrawerContext';
 import { SplitHeader } from './SplitHeader';
 import { SplitToolbar } from './SplitToolbar';
 
-export type SplitPanelProps = {
+type SplitPanelProps = {
   setPanelRef: (ref: HTMLDivElement) => void;
   handle: SplitHandle;
   split: SplitState;
@@ -159,6 +159,7 @@ export function SplitPanel(props: SplitPanelProps) {
               depth={1}
             >
               <Panel.Header
+                data-split-header
                 class={cn(
                   'block min-h-0 touch:min-h-0 p-0 overflow-visible border-b-0 not-has-[[data-split-portal-target]:not(:empty)]:hidden',
                   shouldHideSplitHeader() && 'hidden'

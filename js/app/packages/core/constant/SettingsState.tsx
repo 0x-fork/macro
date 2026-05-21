@@ -3,6 +3,7 @@ import { globalSplitManager } from '@app/signal/splitLayout';
 import { createMemo, createSignal } from 'solid-js';
 
 export type SettingsTab =
+  | 'Account'
   | 'Subscription'
   | 'Organization'
   | 'Appearance'
@@ -10,9 +11,9 @@ export type SettingsTab =
   | 'AI Memory'
   | 'Inbox'
   | 'Shortcuts'
-  | 'Keyboard Shortcuts'
-  | 'Account & Team'
-  | 'Mobile & MCPs';
+  | 'Mobile App'
+  | 'Agent'
+  | 'Team';
 
 /** Top-level tabs surfaced in the new SettingsModal. */
 export type SettingsModalTab =
@@ -40,15 +41,17 @@ export const [themePickerFloating, setThemePickerFloating] = createSignal(false)
 /** Map legacy split tab id → new modal tab id, so call sites that pass the old name still land on the right tab. */
 function legacyTabToModalTab(tab: SettingsTab | undefined): SettingsModalTab {
   switch (tab) {
-    case 'Account & Team':
+    case 'Account':
       return 'account';
     case 'Appearance':
       return 'appearance';
-    case 'Keyboard Shortcuts':
     case 'Shortcuts':
       return 'shortcuts';
-    case 'Mobile & MCPs':
+    case 'Mobile':
+    case 'Mobile App':
+    case 'Agent':
       return 'agents';
+    case 'Team':
     case 'Organization':
       return 'team';
     default:

@@ -86,7 +86,7 @@ import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import { useDisplayName } from '@core/user/displayName';
-import type { MacroId } from '@core/user/macroId';
+import { type MacroId, tryMacroId } from '@core/user/macroId';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import {
   type EntityData,
@@ -140,21 +140,6 @@ import { ListHeader } from './list-header';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
-
-// Property values for entity-reference properties (e.g. assignees) are stored
-// as `{"entity_id": "...", "entity_type": "USER"}` and arrive in group keys as
-// the JSON-encoded text of that object.
-const parseEntityRefId = (key: string): string | null => {
-  try {
-    const parsed: unknown = JSON.parse(key);
-    if (typeof parsed === 'string') return parsed;
-    if (typeof parsed !== 'object' || parsed === null) return null;
-    const id = (parsed as Record<string, unknown>).entity_id;
-    return typeof id === 'string' ? id : null;
-  } catch {
-    return null;
-  }
-};
 
 export const SoupSectionHeader = (props: {
   children: JSX.Element;
@@ -211,9 +196,9 @@ const DefaultGroupHeader = (
       field.propertyDefinitionId !== SYSTEM_PROPERTY_IDS.ASSIGNEES ||
       props.group.key === ''
     ) {
-      return null;
+      return;
     }
-    return parseEntityRefId(props.group.key);
+    return tryMacroId(props.group.key);
   });
 
   return (
@@ -244,7 +229,7 @@ const DefaultGroupHeader = (
       >
         {(id) => (
           <AssigneeGroupContent
-            assigneeId={id() as MacroId}
+            assigneeId={id()}
             fallbackLabel={props.group.label}
           />
         )}
@@ -571,8 +556,6 @@ export const SoupView = (props: SoupViewProps) => {
   });
 
   const [mobileSearchOpen, setMobileSearchOpen] = createSignal(false);
-  const [searchIsCollapsed, setSearchIsCollapsed] = createSignal(false);
-  const [narrowSearchExpanded, setNarrowSearchExpanded] = createSignal(false);
   const [mobileScrollY, setMobileScrollY] = createSignal(0);
   const [floatingButtonsVisible, setFloatingButtonsVisible] =
     createSignal(true);
@@ -616,9 +599,7 @@ export const SoupView = (props: SoupViewProps) => {
         setMobileSearchOpen(true);
         return true;
       }
-      if (narrowSearchExpanded() || !searchIsCollapsed()) return false;
-      setNarrowSearchExpanded(true);
-      return true;
+      return false;
     },
   });
 
@@ -668,23 +649,11 @@ export const SoupView = (props: SoupViewProps) => {
             <Show when={!isMobile()}>
               <div class="flex flex-col w-full">
                 <SplitHeaderLeft>
-                  <div
-                    class={cn('h-full flex gap-3 items-center', {
-                      'shrink-0': !narrowSearchExpanded(),
-                      'flex-1 min-w-0': narrowSearchExpanded(),
-                    })}
-                  >
-                    <Show when={!narrowSearchExpanded()}>
-                      <h1 class="font-semibold text-ink select-none text-sm leading-none">
-                        {props.viewName}
-                      </h1>
-                    </Show>
-                    <Show
-                      when={
-                        !narrowSearchExpanded() &&
-                        !isComponentListView('search')
-                      }
-                    >
+                  <div class="h-full flex gap-3 items-center shrink-0">
+                    <h1 class="font-semibold text-ink select-none text-sm leading-none">
+                      {props.viewName}
+                    </h1>
+                    <Show when={!isComponentListView('search')}>
                       <CollapsibleHeaderItem
                         id="tabs"
                         priority={1}
@@ -696,74 +665,8 @@ export const SoupView = (props: SoupViewProps) => {
                   </div>
                 </SplitHeaderLeft>
                 <SplitHeaderRight>
-                  <Show
-                    when={
-                      !narrowSearchExpanded() && !isComponentListView('search')
-                    }
-                  >
+                  <Show when={!isComponentListView('search')}>
                     <SoupViewCreateButton />
-                  </Show>
-                  <Show when={narrowSearchExpanded()}>
-                    <Layer depth={2}>
-                      <div class="flex-1 min-w-0">
-                        <SoupSearchbar
-                          variant="secondary"
-                          autoFocus
-                          initialValue={props.initialSearchText}
-                          onDismiss={() => setNarrowSearchExpanded(false)}
-                        />
-                      </div>
-                    </Layer>
-                  </Show>
-                  <Show
-                    when={!isComponentListView('search')}
-                    fallback={
-                      <Layer depth={2}>
-                        <div class="grow ml-2">
-                          <SoupSearchbar
-                            variant="secondary"
-                            placeholder="Search, @mention contacts"
-                            initialValue={props.initialSearchText}
-                          />
-                        </div>
-                      </Layer>
-                    }
-                  >
-                    <CollapsibleHeaderItem
-                      id="search"
-                      priority={0}
-                      onCollapsedChange={(isCollapsed) => {
-                        setSearchIsCollapsed(isCollapsed);
-                        if (!isCollapsed) setNarrowSearchExpanded(false);
-                      }}
-                      expanded={() => (
-                        <Layer depth={2}>
-                          <div class="w-60 ml-2">
-                            <SoupSearchbar
-                              variant="secondary"
-                              initialValue={props.initialSearchText}
-                            />
-                          </div>
-                        </Layer>
-                      )}
-                      collapsed={() => (
-                        <Show when={!narrowSearchExpanded()}>
-                          <Tooltip
-                            label="Search"
-                            hotkey={TOKENS.soup.openSearch}
-                          >
-                            <Button
-                              variant="base"
-                              class="p-1 rounded-lg ml-2 bg-surface"
-                              onClick={() => setNarrowSearchExpanded(true)}
-                              depth={2}
-                            >
-                              <SearchIcon class="size-4 touch:size-6" />
-                            </Button>
-                          </Tooltip>
-                        </Show>
-                      )}
-                    />
                   </Show>
                 </SplitHeaderRight>
                 <SoupFiltersBar

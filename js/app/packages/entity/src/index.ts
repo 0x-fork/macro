@@ -1,6 +1,5 @@
 // Export types
 
-export { DraftBadge, SharedBadge } from './components/Badges';
 export { DisplayName } from './components/DisplayName';
 export { MultiSelectCheckbox } from './components/MultiSelectCheckbox';
 export { ProjectBreadCrumb } from './components/ProjectBreadCrumb';
@@ -22,15 +21,10 @@ export {
 export { default as DebugEntityView } from './debug/DebugEntityView';
 export { Entity } from './entity';
 export { NotificationRow } from './extractors-notification';
-export type {
-  NotificationRowProps,
-  NotificationRowVariant,
-} from './extractors-notification/notification-row';
+export type {} from './extractors-notification/notification-row';
 export {
   getSnippetHit,
-  isHitSnippetComplete,
   isSnippetEntity,
-  type SnippetEntity,
 } from './extractors-search/snippet-entity';
 export * from './types/drag';
 export * from './types/entity';
@@ -52,13 +46,8 @@ export {
   getPropertyOptionLabel,
   getTaskAssigneeIds,
   getTaskStatusOptionId,
-  isCurrentUserAssigned,
-  isTaskClosed,
-  TASK_PRIORITY_OPTIONS,
-  TASK_STATUS_OPTIONS,
 } from './utils/task-properties';
 export {
   formatDateAndTime,
   formatRelativeTimestamp,
-  formatTimestamp,
 } from './utils/timestamp';
