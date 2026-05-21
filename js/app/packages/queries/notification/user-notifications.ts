@@ -1,4 +1,3 @@
-import { removeBadgeNotifications } from '@app/signal/sidebarBadges';
 import type { Maybe } from '@core/types';
 import { type ResultError, throwOnErr } from '@core/util/result';
 import type { UnifiedNotification } from '@notifications/types';
@@ -447,9 +446,6 @@ export function applyNotificationStatusUpdate(
       .map((patch) => patch.id)
   );
   const removeIds = new Set([...deleteIds, ...doneIds]);
-  const viewedIds = patches
-    .filter((patch) => patch.viewed_at)
-    .map((patch) => patch.id);
 
   queryClient.setQueriesData<NotificationData<UserNotificationsPageParam>>(
     { queryKey: notificationKeys.user._def },
@@ -472,8 +468,6 @@ export function applyNotificationStatusUpdate(
       };
     }
   );
-
-  removeBadgeNotifications([...removeIds, ...viewedIds]);
 
   queryClient.invalidateQueries({
     queryKey: notificationKeys.user._def,
