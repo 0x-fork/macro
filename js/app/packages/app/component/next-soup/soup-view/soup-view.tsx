@@ -28,6 +28,7 @@ import {
   soupViewCacheKey,
 } from '@app/component/next-soup/soup-view/soup-view-cache-key';
 import {
+  type SoupLayout,
   SoupViewContextProvider,
   useSoupView,
 } from '@app/component/next-soup/soup-view/soup-view-context';
@@ -45,6 +46,7 @@ import {
   SoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
+import { KanbanView } from '@app/component/next-soup/soup-view/views/kanban/KanbanView';
 import { TaskListEntity } from '@app/component/next-soup/soup-view/views/tasks/TaskListEntity';
 import { ResponsiveTaskListHeader } from '@app/component/next-soup/soup-view/views/tasks/TaskListHeader';
 import {
@@ -298,9 +300,10 @@ type PersistedSoupViewState = {
   assigneeFilter: string[];
   groupBy: string | undefined;
   collapsedGroups: string[];
+  layout?: SoupLayout;
 };
 
-const PERSISTED_STATE_VERSION = 8;
+const PERSISTED_STATE_VERSION = 9;
 
 const listStateCache = new Map<
   string,
@@ -623,6 +626,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
     setActiveTab,
     assigneeFilter,
     setAssigneeFilter,
+    groupByField,
+    layout,
+    setLayout,
   } = useSoupView();
   const { hasActiveRefinements, resetToTabDefaults } = useFilterRefinements();
 
@@ -959,6 +965,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
         setAssigneeFilter(initialPersistedState.assigneeFilter ?? []);
         soup.grouping.setActiveGroupId(initialPersistedState.groupBy);
         soup.grouping.collapseAll(initialPersistedState.collapsedGroups ?? []);
+        setLayout(initialPersistedState.layout ?? 'list');
       });
     } else {
       if (props.initialClientFilters) {
@@ -993,6 +1000,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
           assigneeFilter: assigneeFilter(),
           groupBy: soup.grouping.activeGroupId(),
           collapsedGroups: [...soup.grouping.collapsedGroups()],
+          layout: layout(),
         }) satisfies PersistedSoupViewState,
       (state) => {
         if (!persistenceDisabled) setPersistedState(state);
@@ -1109,6 +1117,13 @@ export const SoupViewList = (props: SoupViewListProps) => {
                       hasRefinementsFromBase={hasActiveRefinements()}
                       onClearFilters={resetToTabDefaults}
                     />
+                  </Match>
+                  <Match
+                    when={
+                      rows().length && layout() === 'kanban' && groupByField()
+                    }
+                  >
+                    <KanbanView />
                   </Match>
                   <Match when={rows().length}>
                     <ListLayoutProvider ref={localEntityListRef}>

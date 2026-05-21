@@ -2,6 +2,7 @@ import { useAnalytics } from '@app/component/analytics-context';
 import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-bar/active-filter-chips';
 import { SoupViewContextGroup } from '@app/component/next-soup/soup-view/filters-bar/soup-view-context-group';
 import { SoupViewContextSort } from '@app/component/next-soup/soup-view/filters-bar/soup-view-context-sort';
+import { SoupViewLayoutToggle } from '@app/component/next-soup/soup-view/filters-bar/soup-view-layout-toggle';
 import { UnifiedFilterDropdown } from '@app/component/next-soup/soup-view/filters-bar/unified-filter-dropdown';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import {
@@ -68,6 +69,7 @@ export function SoupFiltersBar() {
           <Show when={!isSearchView()}>
             <SoupViewContextSort />
             <SoupViewContextGroup />
+            <SoupViewLayoutToggle />
           </Show>
           <UnifiedFilterDropdown />
           <ActiveFilterChips

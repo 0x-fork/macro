@@ -64,6 +64,13 @@ type DataSource<T> = {
   fetchNextPage: VoidFunction;
 };
 
+export type SoupLayout = 'list' | 'kanban';
+
+export type SoupGroup = {
+  meta: GroupMeta;
+  entities: SoupEntity[];
+};
+
 interface SoupViewContextValues {
   soup: SoupState;
   source: DataSource<EntityData>;
@@ -73,6 +80,7 @@ interface SoupViewContextValues {
   setSearchPaused: Setter<boolean>;
   featuredIds: Accessor<string[]>;
   rows: Accessor<SoupRow[]>;
+  groups: Accessor<SoupGroup[]>;
   isSearchServiceLoading: Accessor<boolean>;
   isLocalSearchSettling: Accessor<boolean>;
   queryFilters: QueryStore;
@@ -81,6 +89,8 @@ interface SoupViewContextValues {
   activeTab: Accessor<string | undefined>;
   setActiveTab: Setter<string | undefined>;
   groupByField: Accessor<GroupByField | undefined>;
+  layout: Accessor<SoupLayout>;
+  setLayout: Setter<SoupLayout>;
 }
 
 const SoupViewContext = createContext<SoupViewContextValues>();
@@ -182,6 +192,7 @@ export const SoupViewContextProvider: FlowComponent<
   const [searchPaused, setSearchPaused] = createSignal(false);
   const [assigneeFilter, setAssigneeFilter] = createSignal<string[]>([]);
   const [activeTab, setActiveTab] = createSignal<string | undefined>(undefined);
+  const [layout, setLayout] = createSignal<SoupLayout>('list');
 
   const groupByField = createMemo((): GroupByField | undefined => {
     const id = soup.grouping.activeGroupId();
@@ -518,6 +529,28 @@ export const SoupViewContextProvider: FlowComponent<
     return result;
   });
 
+  const groups = createMemo((): SoupGroup[] => {
+    const field = groupByField();
+    const apiGroups = itemsQuery.data?.groups;
+    if (!field || !apiGroups || search.isSearching()) return [];
+
+    const result: SoupGroup[] = [];
+    for (const apiGroup of apiGroups) {
+      const meta = buildGroupMeta(apiGroup);
+      const query = groupQueries().find((q) => q.key === apiGroup.key);
+      const entities = query?.data() ?? [];
+      result.push({ meta, entities });
+    }
+    return result;
+  });
+
+  // Kanban layout requires grouping. Snap back to list when grouping is off.
+  createEffect(() => {
+    if (!groupByField() && layout() === 'kanban') {
+      setLayout('list');
+    }
+  });
+
   const { searchQuery } = search;
 
   const context = {
@@ -544,6 +577,7 @@ export const SoupViewContextProvider: FlowComponent<
       },
     },
     rows,
+    groups,
     searchText: search.searchText,
     setSearchText: search.setSearchText,
     searchPaused,
@@ -557,6 +591,8 @@ export const SoupViewContextProvider: FlowComponent<
     activeTab,
     setActiveTab,
     groupByField,
+    layout,
+    setLayout,
   };
 
   return (
