@@ -1,7 +1,7 @@
 import type { BlockTool } from '@app/component/ResponsiveBlockToolbar';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import type { BlockAlias, BlockName } from '@core/block';
-import { EntityIcon, getIconConfig } from '@core/component/EntityIcon';
+import { EntityIcon } from '@core/component/EntityIcon';
 import {
   PROPERTY_OPTION_IDS,
   SYSTEM_PROPERTY_IDS,
@@ -15,20 +15,11 @@ import {
   createMarkdownFile,
   createTask,
 } from '@core/util/create';
-import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import PlusIcon from '@phosphor/plus.svg';
+import ChevronDownIcon from '@phosphor/caret-down.svg';
+import PlusCircleIcon from '@phosphor/plus.svg';
 import { createProject } from '@queries/storage/projects';
-import { Button, cn, Dialog, Layer, Surface } from '@ui';
+import { Dialog, Dropdown, Surface } from '@ui';
 import { type Component, createSignal, For } from 'solid-js';
-
-type MenuItemProps = {
-  label: string;
-  blockName: BlockName | BlockAlias;
-  index?: number;
-  hotkeyToken: HotkeyToken;
-  Icon: Component;
-  action: () => void | Promise<void>;
-};
 
 type CreateBlockSpec = {
   label: string;
@@ -253,53 +244,6 @@ function ProjectCreateDialog(props: {
   );
 }
 
-function MenuItem(props: MenuItemProps) {
-  const selectedColor = getIconConfig(props.blockName).foreground;
-
-  return (
-    <DropdownMenu.Item
-      class={cn(
-        'flex justify-between items-center gap-12 px-1.5 py-1 text-sm isolate transition-transform ease-out duration-200 text-ink-extra-muted outline-none data-highlighted:bg-active',
-        `data-highlighted:${selectedColor}`
-      )}
-      onSelect={props.action}
-    >
-      <div class="flex items-center gap-1">
-        <div class="size-4">
-          <props.Icon />
-        </div>
-        <span>{props.label}</span>
-      </div>
-    </DropdownMenu.Item>
-  );
-}
-
-function MenuContent(props: { projectId: string }) {
-  const { replaceSplit, insertSplit } = useSplitLayout();
-  const createBlock = makeCreateBlock({ replaceSplit, insertSplit });
-
-  const items: MenuItemProps[] = BLOCK_CREATE_SPECS.map((spec) => ({
-    label: spec.label,
-    blockName: spec.blockName,
-    hotkeyToken: spec.hotkeyToken,
-    Icon: spec.icon,
-    action: () =>
-      createBlock({
-        blockName: spec.blockName,
-        loading: spec.loading,
-        createFn: () => spec.createFn(props.projectId),
-      }),
-  }));
-
-  return (
-    <DropdownMenu.Content class="isolate relative flex flex-col gap-2 bg-surface -mb-1 p-2 border-2 border-accent min-w-max">
-      <For each={items}>
-        {(item, index) => <MenuItem {...item} index={index() + 1} />}
-      </For>
-    </DropdownMenu.Content>
-  );
-}
-
 export function useProjectCreateTools(
   projectId: string,
   name: () => string,
@@ -310,7 +254,7 @@ export function useProjectCreateTools(
   const tools: BlockTool[] = [
     {
       label: 'Create',
-      icon: PlusIcon,
+      icon: PlusCircleIcon,
       // Using a setTimeout here so that the synthetic click event after the touch doesn't instantly select an item
       action: () => setTimeout(() => setOpen(true), 0),
       divideAbove: true,
@@ -331,21 +275,45 @@ export function useProjectCreateTools(
 }
 
 export function ProjectCreateMenu(props: { id: string }) {
-  const [open, setOpen] = createSignal(false);
+  const { replaceSplit, insertSplit } = useSplitLayout();
+  const createBlock = makeCreateBlock({ replaceSplit, insertSplit });
+
+  const handleSelect = (spec: CreateBlockSpec) => {
+    createBlock({
+      blockName: spec.blockName,
+      loading: spec.loading,
+      createFn: () => spec.createFn(props.id),
+    });
+  };
+
   return (
-    <DropdownMenu open={open()} onOpenChange={setOpen}>
-      <div class="flex items-center">
-        <DropdownMenu.Trigger class="h-min">
-          <Button size="sm" variant={open() ? 'active' : 'base'}>
-            Create
-          </Button>
-        </DropdownMenu.Trigger>
-      </div>
-      <DropdownMenu.Portal>
-        <Layer depth={2}>
-          <MenuContent projectId={props.id} />
-        </Layer>
-      </DropdownMenu.Portal>
-    </DropdownMenu>
+    <Dropdown placement="bottom-start" gutter={4}>
+      <Dropdown.Trigger
+        variant="active"
+        class="border-0 rounded-full px-3 py-2 pl-1 font-semibold"
+      >
+        <PlusCircleIcon class="size-3.5 text-accent" />
+        <span>Create</span>
+        <ChevronDownIcon class="size-2.5" />
+      </Dropdown.Trigger>
+      <Dropdown.Content class="min-w-35">
+        <Dropdown.Group>
+          <For each={BLOCK_CREATE_SPECS}>
+            {(spec) => (
+              <Dropdown.Item onSelect={() => handleSelect(spec)}>
+                <span class="size-3.5 flex items-center justify-center shrink-0 text-ink-muted">
+                  <EntityIcon
+                    targetType={spec.blockName as BlockName}
+                    size="xs"
+                    class="mobile:size-6"
+                  />
+                </span>
+                <span class="flex-1 truncate text-ink-muted">{spec.label}</span>
+              </Dropdown.Item>
+            )}
+          </For>
+        </Dropdown.Group>
+      </Dropdown.Content>
+    </Dropdown>
   );
 }
