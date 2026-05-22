@@ -26,17 +26,18 @@ use crate::domain::{
     customer_repo::CustomerRepository,
     model::{
         CreateTeamError, CustomerError, DeleteTeamError, InviteUsersToTeamError, JoinTeamError,
-        PatchTeamRequest, RemoveTeamInviteError, RemoveUserFromTeamError,
-        RestorePermissionsForTeamMembersError, RevokePermissionsForTeamMembersError, Team,
-        TeamError, TeamInvite, TeamInviteDetails, TeamMember, TeamMembers, TeamRole,
-        TeamWithMembers,
+        PatchTeamCrmSettingsResponse, PatchTeamRequest, RemoveTeamInviteError,
+        RemoveUserFromTeamError, RestorePermissionsForTeamMembersError,
+        RevokePermissionsForTeamMembersError, Team, TeamError, TeamInvite, TeamInviteDetails,
+        TeamMember, TeamMembers, TeamRole, TeamWithMembers,
     },
+    team_crm_settings_repo::TeamCrmSettingsRepository,
     team_repo::{TeamChannelsRepository, TeamMembersService, TeamRepository, TeamService},
 };
 
 /// Implementation of the TeamService using a TeamRepository
 #[derive(Debug)]
-pub struct TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
+pub struct TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -44,6 +45,7 @@ where
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
     CE: CrmEnqueuer,
+    TCRMS: TeamCrmSettingsRepository,
 {
     /// The underlying team repository
     team_repository: TR,
@@ -59,9 +61,12 @@ where
     /// fired from `create_team` / `join_team` / `remove_user_from_team`.
     /// See [`CrmEnqueuer`].
     crm_enqueuer: CE,
+    /// Repository for the `team_crm_settings` row and the bulk CRM
+    /// teardown invoked from `set_team_crm_enabled`.
+    team_crm_settings_repository: TCRMS,
 }
 
-impl<TR, CR, TCR, URPS, NI, CE> Clone for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS> Clone for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -69,6 +74,7 @@ where
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
     CE: CrmEnqueuer,
+    TCRMS: TeamCrmSettingsRepository,
 {
     fn clone(&self) -> Self {
         Self {
@@ -78,11 +84,12 @@ where
             user_roles_and_permissions_service: self.user_roles_and_permissions_service.clone(),
             notification_ingress: self.notification_ingress.clone(),
             crm_enqueuer: self.crm_enqueuer.clone(),
+            team_crm_settings_repository: self.team_crm_settings_repository.clone(),
         }
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, CE> TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS> TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -90,6 +97,7 @@ where
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
     CE: CrmEnqueuer,
+    TCRMS: TeamCrmSettingsRepository,
 {
     /// Creates a new TeamService
     pub fn new(
@@ -99,6 +107,7 @@ where
         user_roles_and_permissions_service: URPS,
         notification_ingress: Arc<NI>,
         crm_enqueuer: CE,
+        team_crm_settings_repository: TCRMS,
     ) -> Self {
         Self {
             team_repository,
@@ -107,11 +116,12 @@ where
             user_roles_and_permissions_service,
             notification_ingress,
             crm_enqueuer,
+            team_crm_settings_repository,
         }
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, CE> TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS> TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -119,6 +129,7 @@ where
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
     CE: CrmEnqueuer,
+    TCRMS: TeamCrmSettingsRepository,
 {
     /// Gets the teams subscription id
     /// If the team doesn't have a subscription yet, it will convert the owners personal subscription into a team subscription
@@ -231,7 +242,8 @@ impl GetTeamSubscriptionError {
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, CE> TeamMembersService for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS> TeamMembersService
+    for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -239,6 +251,7 @@ where
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
     CE: CrmEnqueuer,
+    TCRMS: TeamCrmSettingsRepository,
 {
     #[tracing::instrument(skip(self), err)]
     async fn list_team_members(
@@ -255,7 +268,8 @@ where
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, CE> TeamService for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE>
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS> TeamService
+    for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -263,6 +277,7 @@ where
     URPS: UserRolesAndPermissionsService,
     NI: NotificationIngress,
     CE: CrmEnqueuer,
+    TCRMS: TeamCrmSettingsRepository,
 {
     #[tracing::instrument(skip(self), err)]
     async fn create_team(
@@ -872,5 +887,79 @@ where
             .get_user_permissions(user_id)
             .await
             .map_err(|e| TeamError::StorageLayerError(e.into()))
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn set_team_crm_enabled(
+        &self,
+        entity_access_receipt: EntityAccessReceipt<AdminTeamRole>,
+        enabled: bool,
+    ) -> Result<PatchTeamCrmSettingsResponse, TeamError> {
+        let team_id =
+            macro_uuid::string_to_uuid(&entity_access_receipt.entity().entity_id).unwrap();
+
+        if enabled {
+            let changed = self
+                .team_crm_settings_repository
+                .enable_crm(&team_id)
+                .await?;
+
+            if !changed {
+                return Ok(PatchTeamCrmSettingsResponse {
+                    enabled: true,
+                    changed: false,
+                    backfill_enqueued: 0,
+                    backfill_failed: 0,
+                });
+            }
+
+            let members = self.team_repository.get_team_members(&team_id).await?;
+            let mut enqueued = 0usize;
+            let mut failed = 0usize;
+
+            for member in members {
+                match self
+                    .crm_enqueuer
+                    .enqueue_populate_crm_for_user(&member.user_id)
+                    .await
+                {
+                    Ok(()) => enqueued += 1,
+                    Err(e) => {
+                        failed += 1;
+                        tracing::error!(
+                            error = ?e,
+                            team_id = %team_id,
+                            macro_id = %member.user_id,
+                            "Failed to enqueue PopulateCrmForUser during team CRM enable"
+                        );
+                    }
+                }
+            }
+
+            Ok(PatchTeamCrmSettingsResponse {
+                enabled: true,
+                changed: true,
+                backfill_enqueued: enqueued,
+                backfill_failed: failed,
+            })
+        } else {
+            let was_enabled = self
+                .team_crm_settings_repository
+                .get_crm_enabled(&team_id)
+                .await?;
+
+            // Run the disable+purge unconditionally so a stale row left
+            // over from a prior failed disable still gets cleaned up.
+            self.team_crm_settings_repository
+                .disable_crm_and_purge_data(&team_id)
+                .await?;
+
+            Ok(PatchTeamCrmSettingsResponse {
+                enabled: false,
+                changed: was_enabled,
+                backfill_enqueued: 0,
+                backfill_failed: 0,
+            })
+        }
     }
 }
