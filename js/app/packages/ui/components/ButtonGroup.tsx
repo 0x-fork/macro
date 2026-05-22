@@ -46,6 +46,7 @@ const dividerVariantStyles: Record<ButtonVariant, string> = {
 const groupHorizontalSize: Record<ButtonSize, string> = {
   'lg':      '',
   'md':      '',
+  'row':     'h-8',
   'sm':      'h-6',
   'icon-lg': 'h-11',
   'icon-md': 'h-9',
@@ -55,6 +56,7 @@ const groupHorizontalSize: Record<ButtonSize, string> = {
 const groupVerticalSize: Record<ButtonSize, string> = {
   'lg':      '',
   'md':      '',
+  'row':     '',
   'sm':      '',
   'icon-lg': 'w-11',
   'icon-md': 'w-9',

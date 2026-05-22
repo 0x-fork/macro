@@ -25,7 +25,7 @@ export type ButtonProps = ButtonRootProps<'button'> & ComponentProps<'button'> &
   class?: string;
 };
 
-export type ButtonSize = 'sm' | 'icon-sm' | 'md' | 'icon-md' | 'lg' | 'icon-lg';
+export type ButtonSize = 'sm' | 'icon-sm' | 'row' | 'md' | 'icon-md' | 'lg' | 'icon-lg';
 
 export type ButtonVariant = 'ghost' | 'base' | 'active' | 'danger' | 'cta';
 
@@ -40,6 +40,7 @@ const variantStyles: Record<ButtonVariant, string> = {
 const sizeStyles: Record<ButtonSize, string> = {
   'lg':      '          p-2.5  [&_:where(svg)]:size-5 gap-2   text-base',
   'md':      '          p-2                           gap-1.5 text-sm  ', /* scuffed */
+  'row':     'h-8       px-2   [&_:where(svg)]:size-4 gap-2.5 text-xs  ', /* menu/list row — matches Dropdown.Item */
   'sm':      'h-6       px-2   [&_:where(svg)]:size-4 gap-1   text-xs  ',
   'icon-lg': 'size-11   p-2    [&_:where(svg)]:size-7                  ', /* unused */
   'icon-md': 'size-9    p-1.5  [&_:where(svg)]:size-6                  ',
