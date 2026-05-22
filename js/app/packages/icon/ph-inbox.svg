@@ -1,2 +1,12 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg version="1.1" viewBox="0 0 256 256" xml:space="preserve" xmlns="http://www.w3.org/2000/svg"><path d="m32 128v56a8 8 45 0 0 8 8h176a8 8 135 0 0 8-8v-56h-64l-16 16h-32l-16-16z" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="16" style="paint-order:markers stroke fill"/><path d="m224 128-40-64h-112l-40 64" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="16" style="paint-order:markers stroke fill"/></svg>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  stroke-linejoin="round"
+  stroke-linecap="round"
+  viewBox="0 0 256 256"
+  stroke="currentColor"
+  stroke-width="16"
+  fill="none"
+>
+  <path d="m32 128v56a8 8 45 0 0 8 8h176a8 8 135 0 0 8-8v-56h-64l-16 16h-32l-16-16z"/>
+  <path d="m224 128-40-64h-112l-40 64"/>
+</svg>
