@@ -411,11 +411,10 @@ const SidebarShortcutLink = (props: SidebarShortcutLinkProps) => {
 
   return (
     <Button
-      class="justify-start group-data-[slim=true]/sidebar:justify-center cursor-default w-full text-ink-extra-muted not-disabled:hover:bg-ink/3"
       label={props.isSlim() ? props.label : undefined}
       onMouseLeave={() => setIsHovering(false)}
       onMouseEnter={() => setIsHovering(true)}
-      size={props.isSlim() ? 'icon-sm' : 'sm'}
+      size="icon-sm"
       onMouseDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault();
@@ -523,11 +522,11 @@ const SidebarActionButton = (props: SidebarActionButtonProps) => {
 
   return (
     <Button
-      class="justify-start group-data-[slim=true]/sidebar:justify-center cursor-default w-full text-ink-extra-muted not-disabled:hover:bg-ink/3"
+      class="justify-start group-data-[slim=true]/sidebar:justify-center cursor-default w-full group-data-[slim=true]/sidebar:w-6 group-data-[slim=true]/sidebar:px-1 text-ink-extra-muted not-disabled:hover:bg-ink/3"
       hotkey={props.isSlim() ? props.hotkeyToken : undefined}
       onClick={(event: MouseEvent) => props.onClick(event)}
       label={props.isSlim() ? props.label : undefined}
-      size={props.isSlim() ? 'icon-sm' : 'sm'}
+      size="sm"
       onMouseLeave={() => setHovering(false)}
       onMouseEnter={() => setHovering(true)}
       onMouseDown={(e) => {
@@ -1010,11 +1009,11 @@ const SidebarLink = (props: SidebarLinkProps) => {
         <Button
           draggable={false}
           variant="ghost"
-          size={props.sidebarState === 'slim' ? 'icon-sm' : 'sm'}
+          size="sm"
           data-sidebar-link={props.id}
           data-active={isActive() ? '' : undefined}
           class={cn(
-            'justify-start group-data-[slim=true]/sidebar:justify-center cursor-default w-full text-ink-extra-muted not-disabled:hover:bg-ink/3',
+            'justify-start group-data-[slim=true]/sidebar:justify-center cursor-default w-full group-data-[slim=true]/sidebar:w-6 group-data-[slim=true]/sidebar:px-1 text-ink-extra-muted not-disabled:hover:bg-ink/3',
             isActive() && 'bg-ink/6 not-disabled:hover:bg-ink/6 text-ink'
           )}
           tooltipPlacement="right"
