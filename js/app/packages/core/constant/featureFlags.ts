@@ -71,7 +71,7 @@ export const ENABLE_PDF_MULTISPLIT = resolveFeatureFlag(
 
 export const ENABLE_PROJECT_SHARING = resolveFeatureFlag(
   'ENABLE_PROJECT_SHARING',
-  DEV_MODE_ENV
+  true
 );
 
 export const ENABLE_CANVAS_IMAGES = resolveFeatureFlag(
@@ -331,6 +331,8 @@ export function ENABLE_CALLS(): boolean {
 }
 
 export const ENABLE_NEW_ONBOARDING_OVERRIDE = DEV_MODE_ENV ? true : undefined;
+
+export const ENABLE_NEW_LOGIN_OVERRIDE = DEV_MODE_ENV ? true : undefined;
 
 export const ENABLE_INVITE_TEAM_ONBOARDING_OVERRIDE = DEV_MODE_ENV
   ? true

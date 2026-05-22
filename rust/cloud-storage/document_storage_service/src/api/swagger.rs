@@ -251,7 +251,12 @@ use utoipa::OpenApi;
         github::inbound::github_sync_router::install_sync_handler,
 
         // /internal/sync_service
-        sync_service_hex::inbound::axum_router::bulk_wakeup_handler
+        sync_service_hex::inbound::axum_router::bulk_wakeup_handler,
+
+        // /crm
+        crm::inbound::axum_router::set_email_sync::handler,
+        crm::inbound::axum_router::set_company_hidden::handler,
+        crm::inbound::axum_router::set_contact_hidden::handler,
     ),
     components(
         schemas(
@@ -433,6 +438,11 @@ use utoipa::OpenApi;
             // Sync service
             sync_service_hex::domain::models::BulkWakeupRequest,
             sync_service_hex::domain::models::BulkWakeupResponse,
+
+            // CRM
+            crm::inbound::axum_router::set_email_sync::SetEmailSyncRequest,
+            crm::inbound::axum_router::set_company_hidden::SetCompanyHiddenRequest,
+            crm::inbound::axum_router::set_contact_hidden::SetContactHiddenRequest,
         ),
     ),
     tags(

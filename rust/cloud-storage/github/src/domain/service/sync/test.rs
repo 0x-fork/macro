@@ -176,6 +176,7 @@ impl DocumentService for StubDocumentService {
     ) -> Result<CreateDocumentResponseData, DocumentError> {
         unimplemented!()
     }
+
     async fn get_document_content(
         &self,
         _document_context: &DocumentBasic,

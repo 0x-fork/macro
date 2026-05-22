@@ -38,7 +38,7 @@ use super::content::{DocumentContent, DocumentContentLocation, DocumentContentSt
 use super::models::{
     CloudFrontConfig, CommentThread, CopyDocumentRepoArgs, CreateDocumentRepoArgs,
     CreateTaskRequest, DocumentError, EditDocumentRepoArgs, EditDocumentServiceArgs,
-    FileTypeUpdate, LocationQueryParams,
+    FileTypeUpdate, LocationQueryParams, TeamTaskMetadata,
 };
 #[cfg(feature = "document_create")]
 use super::ports::create::DocumentCreationService;
@@ -376,6 +376,16 @@ impl<
             tracing::error!(error=?e, document_id=?document_id, "failed to clean up document");
         }
     }
+
+    async fn team_task_metadata_for_document(
+        &self,
+        document_id: &str,
+    ) -> Result<Option<TeamTaskMetadata>, DocumentError> {
+        self.repo
+            .get_team_task_metadata(document_id)
+            .await
+            .map_err(|e| DocumentError::Internal(e.into()))
+    }
 }
 
 #[cfg(feature = "document_create")]
@@ -484,9 +494,11 @@ impl<
             .as_deref()
             .and_then(|file_type| FileType::from_str(file_type).ok());
         let content = self.content_for_document(&document_id, file_type).await?;
+        let team_task_metadata = self.team_task_metadata_for_document(&document_id).await?;
 
         Ok(GetDocumentResponseData {
-            document_metadata: DocumentMetadataWithContent::new(document_metadata, content),
+            document_metadata: DocumentMetadataWithContent::new(document_metadata, content)
+                .with_team_task_metadata(team_task_metadata),
             user_access_level: *access_level,
             view_location,
         })
@@ -800,12 +812,15 @@ impl<
                 })?;
         }
 
+        let team_task_metadata = self.team_task_metadata_for_document(&document_id).await?;
+
         Ok(CreateDocumentResponseData {
             document_response: DocumentResponse {
                 document_metadata: DocumentResponseMetadataWithContent::new(
                     document_response_metadata,
                     initial_content,
-                ),
+                )
+                .with_team_task_metadata(team_task_metadata),
                 presigned_url: Some(presigned_url),
             },
             content_type: mime_type,
@@ -1004,6 +1019,20 @@ impl<
         // Clean the document name
         let document_name = FileType::clean_document_name(&document_name).unwrap_or(document_name);
 
+        let copy_team_id = if original_metadata.sub_type == Some(DocumentSubType::Task) {
+            let team_id = self
+                .repo
+                .get_team_ids_for_user(user_id.as_ref())
+                .await
+                .map_err(|e| DocumentError::Internal(e.into()))?;
+
+            let team_id = team_id.first();
+
+            team_id.copied()
+        } else {
+            None
+        };
+
         // Create the copy in the database
         let new_metadata = self
             .repo
@@ -1012,6 +1041,7 @@ impl<
                 user_id: user_id.clone(),
                 document_name,
                 file_type,
+                team_id: copy_team_id,
             })
             .await
             .map_err(|e| DocumentError::Internal(e.into()))?;
@@ -1156,11 +1186,16 @@ impl<
                 DocumentError::Internal(anyhow!("unable to convert document metadata"))
             })?;
 
+        let team_task_metadata = self
+            .team_task_metadata_for_document(&new_document_id)
+            .await?;
+
         Ok(DocumentResponse {
             document_metadata: DocumentResponseMetadataWithContent::new(
                 document_response_metadata,
                 content,
-            ),
+            )
+            .with_team_task_metadata(team_task_metadata),
             presigned_url: None,
         })
     }
@@ -1201,10 +1236,12 @@ impl<
         document_id: &str,
         request: &CreateTaskRequest,
     ) -> Result<(), DocumentError> {
-        if request.share_with_team {
+        if request.share_with_team
+            && let Some(team_id) = request.team_id
+        {
             let _ = self
                 .repo
-                .share_with_team(user_id.as_ref(), document_id)
+                .share_with_team(&team_id, document_id)
                 .await
                 .inspect_err(|e| {
                     tracing::error!(error=?e, "failed to share task with team");
