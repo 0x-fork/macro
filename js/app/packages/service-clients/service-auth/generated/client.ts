@@ -31,6 +31,8 @@ import type {
   PasswordlessRequest,
   PasswordRequest,
   PatchSubscriptionTierRequest,
+  PatchTeamCrmSettingsRequest,
+  PatchTeamCrmSettingsResponse,
   PatchTeamRequest,
   PatchUserGroupRequest,
   PatchUserOnboardingRequest,
@@ -1928,6 +1930,90 @@ export const patchTeam = async (
     status: res.status,
     headers: res.headers,
   } as patchTeamResponse;
+};
+
+/**
+ * @summary Enables or disables CRM for the team. On enable, kicks off a
+best-effort backfill that enqueues a `PopulateCrmForUser` message
+per team member (no-op if CRM is already enabled). On disable,
+flips the flag and purges the team's CRM data (cascading through
+`crm_companies` → `crm_domains` / `crm_contacts` /
+`crm_contact_sources`). Requires the caller to be an Admin or
+Owner of the team.
+ */
+export type patchTeamCrmSettingsResponse200 = {
+  data: PatchTeamCrmSettingsResponse;
+  status: 200;
+};
+
+export type patchTeamCrmSettingsResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type patchTeamCrmSettingsResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type patchTeamCrmSettingsResponse403 = {
+  data: ErrorResponse;
+  status: 403;
+};
+
+export type patchTeamCrmSettingsResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type patchTeamCrmSettingsResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type patchTeamCrmSettingsResponseSuccess =
+  patchTeamCrmSettingsResponse200 & {
+    headers: Headers;
+  };
+export type patchTeamCrmSettingsResponseError = (
+  | patchTeamCrmSettingsResponse400
+  | patchTeamCrmSettingsResponse401
+  | patchTeamCrmSettingsResponse403
+  | patchTeamCrmSettingsResponse404
+  | patchTeamCrmSettingsResponse500
+) & {
+  headers: Headers;
+};
+
+export type patchTeamCrmSettingsResponse =
+  | patchTeamCrmSettingsResponseSuccess
+  | patchTeamCrmSettingsResponseError;
+
+export const getPatchTeamCrmSettingsUrl = () => {
+  return `/team/crm`;
+};
+
+export const patchTeamCrmSettings = async (
+  patchTeamCrmSettingsRequest: PatchTeamCrmSettingsRequest,
+  options?: RequestInit
+): Promise<patchTeamCrmSettingsResponse> => {
+  const res = await fetch(getPatchTeamCrmSettingsUrl(), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(patchTeamCrmSettingsRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: patchTeamCrmSettingsResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as patchTeamCrmSettingsResponse;
 };
 
 /**
