@@ -53,6 +53,21 @@ import { AnimatedPlusIcon } from '@icon/wide-plus';
 import { AnimatedSearchIcon } from '@icon/wide-search';
 import { AnimatedStarIcon } from '@icon/wide-star';
 import { AnimatedTaskIcon } from '@icon/wide-task';
+
+import IconSearch from '@phosphor/magnifying-glass.svg';
+import IconPlusCircle from '@phosphor/plus-circle.svg';
+import IconPhone from '@phosphor/phone.svg';
+import IconUsers from '@phosphor/users.svg';
+
+import IconTask from '@icon/ph-task.svg';
+import IconMail from '@icon/ph-mail.svg';
+import IconInbox from '@icon/ph-inbox.svg';
+import IconDoc from '@icon/ph-doc.svg';
+import IconStar from '@icon/ph-star.svg';
+import IconFolder from '@icon/ph-folder.svg';
+import IconSidebar from '@icon/ph-sidebar-expand.svg';
+
+
 import { ContextMenu } from '@kobalte/core/context-menu';
 import { useNotificationSettings } from '@notifications';
 import BellIcon from '@phosphor/bell.svg';
@@ -61,8 +76,8 @@ import DeviceMobileIcon from '@phosphor/device-mobile-speaker.svg';
 import KeyboardIcon from '@phosphor/keyboard.svg';
 import PaintBucketIcon from '@phosphor/paint-bucket.svg';
 import PlugIcon from '@phosphor/plug.svg';
-import UserIconPhosphor from '@phosphor/user.svg';
-import UsersThreeIcon from '@phosphor/users-three.svg';
+import IconUser from '@phosphor/user.svg';
+import IconUsersThree from '@phosphor/users-three.svg';
 import { debounce } from '@solid-primitives/scheduled';
 import { useLocation } from '@solidjs/router';
 import { Button, cn, Dropdown, Hotkey } from '@ui';
@@ -81,9 +96,7 @@ interface SidebarItem {
   id: ListView;
   label: string;
   href: string;
-  icon?: Component<
-    JSX.SvgSVGAttributes<SVGSVGElement> | { triggerAnimation?: boolean }
-  >;
+  icon?: Component<JSX.SvgSVGAttributes<SVGSVGElement> | { triggerAnimation?: boolean }>;
   hotkey: ValidHotkey;
   hotkeyToken: HotkeyToken;
   standaloneHotkey?: boolean;
@@ -94,7 +107,7 @@ const SIDEBAR_LINKS = [
     id: 'inbox',
     label: 'Inbox',
     href: LIST_VIEW_PATHS.inbox,
-    icon: AnimatedInboxIcon,
+    icon: IconInbox,
     hotkey: 'i',
     hotkeyToken: TOKENS.sidebar.goTo.inbox,
   },
@@ -102,7 +115,7 @@ const SIDEBAR_LINKS = [
     id: 'search',
     label: 'Search',
     href: LIST_VIEW_PATHS.search,
-    icon: AnimatedSearchIcon,
+    icon: IconSearch,
     hotkey: '/',
     hotkeyToken: TOKENS.sidebar.goTo.search,
     standaloneHotkey: true,
@@ -111,7 +124,7 @@ const SIDEBAR_LINKS = [
     id: 'agents',
     label: 'Agents',
     href: LIST_VIEW_PATHS.agents,
-    icon: AnimatedStarIcon,
+    icon: IconStar,
     hotkey: 'a',
     hotkeyToken: TOKENS.sidebar.goTo.agents,
   },
@@ -119,7 +132,7 @@ const SIDEBAR_LINKS = [
     id: 'mail',
     label: 'Email',
     href: LIST_VIEW_PATHS.mail,
-    icon: AnimatedEmailIcon,
+    icon: IconMail,
     hotkey: 'e',
     hotkeyToken: TOKENS.sidebar.goTo.mail,
   },
@@ -127,7 +140,7 @@ const SIDEBAR_LINKS = [
     id: 'documents',
     label: 'Documents',
     href: LIST_VIEW_PATHS.documents,
-    icon: AnimatedFileMdIcon,
+    icon: IconDoc,
     hotkey: 'd',
     hotkeyToken: TOKENS.sidebar.goTo.documents,
   },
@@ -135,7 +148,7 @@ const SIDEBAR_LINKS = [
     id: 'tasks',
     label: 'Tasks',
     href: LIST_VIEW_PATHS.tasks,
-    icon: AnimatedTaskIcon,
+    icon: IconTask,
     hotkey: 't',
     hotkeyToken: TOKENS.sidebar.goTo.tasks,
   },
@@ -143,7 +156,7 @@ const SIDEBAR_LINKS = [
     id: 'channels',
     label: 'Channels',
     href: LIST_VIEW_PATHS.channels,
-    icon: AnimatedChannelIcon,
+    icon: IconUsersThree,
     hotkey: 'c',
     hotkeyToken: TOKENS.sidebar.goTo.channels,
   },
@@ -151,7 +164,7 @@ const SIDEBAR_LINKS = [
     id: 'folders',
     label: 'Folders',
     href: LIST_VIEW_PATHS.folders,
-    icon: AnimatedFolderIcon,
+    icon: IconFolder,
     hotkey: 'f',
     hotkeyToken: TOKENS.sidebar.goTo.folders,
   },
@@ -455,7 +468,7 @@ const SETTINGS_MENU_TOP_ITEMS: SettingsMenuItem[] = [
   {
     tab: 'Team',
     label: 'Team',
-    icon: UsersThreeIcon,
+    icon: IconUsers,
   },
 ];
 
@@ -473,7 +486,7 @@ const SETTINGS_MENU_BOTTOM_ITEMS: SettingsMenuItem[] = [
   {
     tab: 'Account',
     label: 'Account',
-    icon: UserIconPhosphor,
+    icon: IconUser,
   },
 ];
 
@@ -657,7 +670,7 @@ const CALLS_LINK: SidebarItem = {
   id: 'calls',
   label: 'Calls',
   href: LIST_VIEW_PATHS.calls,
-  icon: AnimatedCallIcon,
+  icon: IconPhone,
   hotkey: 'l',
   hotkeyToken: TOKENS.sidebar.goTo.calls,
 };
@@ -838,7 +851,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
             </div>
           </Show>
           <Button
-            class="rounded-md p-1 text-ink-extra-muted [&_svg]:size-4"
+            class="rounded-md p-1 text-ink-extra-muted"
             size="icon-sm"
             onMouseDown={(e) => {
               if (e.button !== 0) return;
@@ -851,7 +864,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
             label={isExpanded() ? 'Shrink Sidebar' : 'Expand Sidebar'}
             hotkey={TOKENS.global.toggleSidebar}
           >
-            <SquareSidebarIcon />
+            <IconSidebar />
           </Button>
         </div>
       </div>
@@ -866,7 +879,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
           hotkeyToken={TOKENS.global.createCommand}
           isSlim={isSlim}
           onClick={handleCreateClick}
-          icon={() => <AnimatedPlusIcon class="size-4" />}
+          icon={IconPlusCircle}
         />
       </div>
 
@@ -930,7 +943,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
             label="Team"
             isSlim={isSlim}
             onClick={() => openSettingsTab('Team')}
-            icon={() => <UsersThreeIcon class="size-4" />}
+            icon={() => <IconUsersThree class="size-4" />}
           />
         </Show>
       </div>
