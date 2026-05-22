@@ -4,18 +4,64 @@ import { ThemeEditorBasic } from '@theme/components/ThemeEditorBasic';
 import ThemeTools from '@theme/components/ThemeTools';
 import ThemeList from '@theme/components/ThemeList';
 import { isMobile } from '@core/mobile/isMobile';
-import { createSignal, Show } from 'solid-js';
+import { createSignal, onCleanup, Show } from 'solid-js';
 import { TabsInset } from '@core/component/TabsInset';
-import { Button, Panel, ToggleSwitch } from '@ui';
-import ArrowsOutIcon from '@phosphor/arrows-out.svg';
+import { Panel, ToggleSwitch } from '@ui';
 import {
   settingsModalOpen,
   setThemePickerFloating,
-  themePickerFloating,
 } from '@core/constant/SettingsState';
 
 type PanelA = 'basic' | 'advanced';
 type PanelB ='themes' | 'ui'
+
+/**
+ * Listens for pointerdown on the theme editor area to enter the "floating preview"
+ * mode where the settings modal becomes transparent and a mini picker mirrors
+ * the user's input from the bottom-right. The mode releases on the next pointerup
+ * anywhere on the document.
+ */
+function useThemePickerDragHandlers() {
+  let endListener: (() => void) | undefined;
+
+  const onPointerDown = (e: PointerEvent) => {
+    if (!settingsModalOpen()) return;
+    // Only react when the press is actually inside one of the theme controls —
+    // sliders, ranges, swatches, or canvas-based pickers. Buttons / tabs / etc.
+    // shouldn't dim the modal.
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    const isThemeControl =
+      target.closest(
+        'input[type="range"], canvas, [data-theme-color-control], .theme-editor-basic-slider'
+      ) !== null;
+    if (!isThemeControl) return;
+    setThemePickerFloating(true);
+    if (endListener) return;
+    const end = () => {
+      setThemePickerFloating(false);
+      if (endListener) {
+        document.removeEventListener('pointerup', endListener, true);
+        document.removeEventListener('pointercancel', endListener, true);
+        endListener = undefined;
+      }
+    };
+    endListener = end;
+    document.addEventListener('pointerup', end, true);
+    document.addEventListener('pointercancel', end, true);
+  };
+
+  onCleanup(() => {
+    if (endListener) {
+      document.removeEventListener('pointerup', endListener, true);
+      document.removeEventListener('pointercancel', endListener, true);
+      endListener = undefined;
+    }
+    setThemePickerFloating(false);
+  });
+
+  return { onPointerDown };
+}
 
 function UserInterface() {
   return (
@@ -40,12 +86,28 @@ function UserInterface() {
   );
 }
 
-export function Appearance() {
+export function Appearance(props: { mini?: boolean } = {}) {
   const [activeTabA, setActiveTabA] = createSignal<PanelA>('basic');
   const [activeTabB, setActiveTabB] = createSignal<PanelB>('themes');
+  const dragHandlers = useThemePickerDragHandlers();
+
+  if (props.mini) {
+    return (
+      <div class="size-full overflow-hidden p-2">
+        <Panel depth={2} class="size-full">
+          <Panel.Body scroll>
+            <ThemeEditorBasic />
+          </Panel.Body>
+        </Panel>
+      </div>
+    );
+  }
 
   return (
-    <div class="h-full overflow-hidden flex p-2">
+    <div
+      class="h-full overflow-hidden flex p-2"
+      onPointerDown={dragHandlers.onPointerDown}
+    >
       <div
         class="size-full"
         style={{
@@ -69,16 +131,6 @@ export function Appearance() {
             />
             <Show when={!isMobile()}>
               <ThemeTools class="flex-1 min-w-0" />
-            </Show>
-            <Show when={settingsModalOpen() && !themePickerFloating()}>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                tooltip="Pop out picker"
-                onClick={() => setThemePickerFloating(true)}
-              >
-                <ArrowsOutIcon />
-              </Button>
             </Show>
           </Panel.Header>
 

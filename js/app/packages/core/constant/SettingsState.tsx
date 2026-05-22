@@ -34,7 +34,8 @@ export const [settingsModalTab, setSettingsModalTab] =
 /**
  * When true, the settings modal hides its chrome and a compact theme picker
  * floats at the bottom-right so the user can preview color changes against the
- * full UI.
+ * full UI. Toggled on while the user is actively dragging a theme editor slider/
+ * swatch so they can see the live effect on the app behind the modal.
  */
 export const [themePickerFloating, setThemePickerFloating] = createSignal(false);
 

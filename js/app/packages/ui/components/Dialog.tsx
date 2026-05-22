@@ -11,6 +11,7 @@ export type DialogProps = {
   position?: 'top' | 'center';                      /* Vertical position    */
   children: JSX.Element;                            /* Content children     */
   class?: string;                                   /* classes for content  */
+  overlayClass?: string;                            /* extra overlay classes */
   open: boolean;                                    /* if dialog is open    */
 };
 
@@ -22,7 +23,7 @@ export function Dialog(props: DialogProps) {
       modal
     >
       <KobalteDialog.Portal>
-        <KobalteDialog.Overlay class="fixed inset-0 z-modal bg-modal-overlay pattern-edge-muted pattern-diagonal-4" />
+        <KobalteDialog.Overlay class={cn('fixed inset-0 z-modal bg-modal-overlay pattern-edge-muted pattern-diagonal-4', props.overlayClass)} />
         <div class={cn('fixed inset-0 z-modal flex justify-center px-2', props.position === 'center' ? 'items-center' : 'items-start pt-[10vh]')}>
           <KobalteDialog.Content
             ref={props.contentRef}

@@ -92,27 +92,38 @@ export function SettingsModal() {
   };
 
   return (
-    <Dialog
-      open={settingsModalOpen()}
-      onOpenChange={onOpenChange}
-      position="center"
-      class={cn(
-        'w-[min(1200px,calc(100vw-48px))] h-[min(840px,calc(100vh-48px))] max-w-none bg-transparent shadow-none transition-opacity duration-150',
-        themePickerFloating() ? 'pointer-events-none opacity-0' : 'opacity-100'
-      )}
-    >
-      <Show
-        when={!themePickerFloating()}
-        fallback={<FloatingThemePicker />}
+    <>
+      <Dialog
+        open={settingsModalOpen()}
+        onOpenChange={onOpenChange}
+        position="center"
+        overlayClass={cn(
+          'transition-opacity duration-150',
+          themePickerFloating() && 'opacity-0 pointer-events-none'
+        )}
+        class={cn(
+          'w-[min(1200px,calc(100vw-48px))] h-[min(840px,calc(100vh-48px))] max-w-none bg-transparent shadow-none transition-opacity duration-150',
+          // While the user is actively dragging a theme picker control we
+          // collapse the modal chrome away so they can see the live UI behind
+          // it. The picker controls themselves remain hit-testable because the
+          // pointer is already captured by the slider thumb.
+          themePickerFloating() ? 'opacity-0' : 'opacity-100'
+        )}
       >
         <Surface
           depth={1}
-          class="size-full rounded-xl shadow-2xl shadow-drop-shadow"
+          class={cn(
+            'size-full rounded-xl shadow-2xl shadow-drop-shadow transition-opacity duration-150',
+            themePickerFloating() && 'opacity-0 pointer-events-none'
+          )}
         >
           <SettingsModalContent />
         </Surface>
+      </Dialog>
+      <Show when={settingsModalOpen() && themePickerFloating()}>
+        <ThemePickerMirror />
       </Show>
-    </Dialog>
+    </>
   );
 }
 
@@ -239,32 +250,23 @@ function SettingsContent() {
 }
 
 /**
- * Floating compact picker shown when the user pops the theme picker out of the
- * modal. The settings modal itself is rendered transparent so this pane sits
- * over the live UI for previewing color changes.
+ * Compact bottom-right mirror of the appearance picker that becomes visible
+ * while the user is dragging a theme control inside the (now-transparent)
+ * settings modal. It shares the same theme signals as the main picker, so
+ * slider/swatch positions reflect the user's input in real time.
+ *
+ * It's purely a read-out — pointer events fall through so the user can keep
+ * the drag glued to the main control even if their cursor wanders over the
+ * mirror.
  */
-function FloatingThemePicker() {
+function ThemePickerMirror() {
   return (
     <div
-      class="pointer-events-auto fixed bottom-4 right-4 z-modal w-80 max-w-[calc(100vw-32px)] rounded-xl bg-surface border border-edge-muted shadow-2xl shadow-drop-shadow flex flex-col overflow-hidden"
-      onPointerDown={(e) => e.stopPropagation()}
+      class="pointer-events-none fixed bottom-4 right-4 z-modal w-72 h-[280px] rounded-xl bg-surface border border-edge-muted shadow-2xl shadow-drop-shadow overflow-hidden"
+      aria-hidden="true"
     >
-      <header class="shrink-0 flex items-center justify-between gap-2 h-10 px-3 border-b border-edge-muted">
-        <div class="flex items-center gap-2 text-sm font-medium text-ink">
-          <PaintBrushIcon class="size-3.5 text-ink-muted" />
-          Theme
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          tooltip="Back to settings"
-          onClick={() => setThemePickerFloating(false)}
-        >
-          <XIcon />
-        </Button>
-      </header>
-      <div class="flex-1 min-h-0 overflow-auto">
-        <Appearance />
+      <div class="origin-top-left scale-[0.6] w-[166%] h-[166%]">
+        <Appearance mini />
       </div>
     </div>
   );
