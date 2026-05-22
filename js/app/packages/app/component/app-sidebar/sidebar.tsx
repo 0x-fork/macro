@@ -40,19 +40,8 @@ import { activateClosestDOMScope } from '@core/hotkey/utils';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import LogoIcon from '@icon/macro-logo.svg';
-import SquareSidebarIcon from '@icon/square-sidebar.svg';
-import { AnimatedCallIcon } from '@icon/wide-call';
-import { AnimatedChannelIcon } from '@icon/wide-channel';
 import CommandKIcon from '@icon/wide-command-k.svg';
-import { AnimatedEmailIcon } from '@icon/wide-email';
-import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
-import { AnimatedFolderIcon } from '@icon/wide-folder';
-import { AnimatedInboxIcon } from '@icon/wide-inbox';
 import { AnimatedNewSplitIcon } from '@icon/wide-newSplit';
-import { AnimatedPlusIcon } from '@icon/wide-plus';
-import { AnimatedSearchIcon } from '@icon/wide-search';
-import { AnimatedStarIcon } from '@icon/wide-star';
-import { AnimatedTaskIcon } from '@icon/wide-task';
 
 import IconSearch from '@phosphor/magnifying-glass.svg';
 import IconPlusCircle from '@phosphor/plus-circle.svg';
@@ -104,69 +93,69 @@ interface SidebarItem {
 
 const SIDEBAR_LINKS = [
   {
-    id: 'inbox',
-    label: 'Inbox',
+    hotkeyToken: TOKENS.sidebar.goTo.inbox,
     href: LIST_VIEW_PATHS.inbox,
     icon: IconInbox,
+    label: 'Inbox',
     hotkey: 'i',
-    hotkeyToken: TOKENS.sidebar.goTo.inbox,
+    id: 'inbox',
   },
   {
-    id: 'search',
-    label: 'Search',
-    href: LIST_VIEW_PATHS.search,
-    icon: IconSearch,
-    hotkey: '/',
     hotkeyToken: TOKENS.sidebar.goTo.search,
+    href: LIST_VIEW_PATHS.search,
     standaloneHotkey: true,
+    icon: IconSearch,
+    label: 'Search',
+    id: 'search',
+    hotkey: '/',
   },
   {
-    id: 'agents',
-    label: 'Agents',
-    href: LIST_VIEW_PATHS.agents,
-    icon: IconStar,
-    hotkey: 'a',
     hotkeyToken: TOKENS.sidebar.goTo.agents,
+    href: LIST_VIEW_PATHS.agents,
+    label: 'Agents',
+    icon: IconStar,
+    id: 'agents',
+    hotkey: 'a',
   },
   {
-    id: 'mail',
-    label: 'Email',
+    hotkeyToken: TOKENS.sidebar.goTo.mail,
     href: LIST_VIEW_PATHS.mail,
+    label: 'Email',
     icon: IconMail,
     hotkey: 'e',
-    hotkeyToken: TOKENS.sidebar.goTo.mail,
+    id: 'mail',
   },
   {
-    id: 'documents',
-    label: 'Documents',
+    hotkeyToken: TOKENS.sidebar.goTo.documents,
     href: LIST_VIEW_PATHS.documents,
+    label: 'Documents',
+    id: 'documents',
     icon: IconDoc,
     hotkey: 'd',
-    hotkeyToken: TOKENS.sidebar.goTo.documents,
   },
   {
-    id: 'tasks',
-    label: 'Tasks',
+    hotkeyToken: TOKENS.sidebar.goTo.tasks,
     href: LIST_VIEW_PATHS.tasks,
+    label: 'Tasks',
     icon: IconTask,
     hotkey: 't',
-    hotkeyToken: TOKENS.sidebar.goTo.tasks,
+    id: 'tasks',
   },
   {
-    id: 'channels',
-    label: 'Channels',
+    hotkeyToken: TOKENS.sidebar.goTo.channels,
     href: LIST_VIEW_PATHS.channels,
     icon: IconUsersThree,
+    label: 'Channels',
+    id: 'channels',
     hotkey: 'c',
-    hotkeyToken: TOKENS.sidebar.goTo.channels,
   },
   {
-    id: 'folders',
-    label: 'Folders',
-    href: LIST_VIEW_PATHS.folders,
-    icon: IconFolder,
-    hotkey: 'f',
     hotkeyToken: TOKENS.sidebar.goTo.folders,
+    href: LIST_VIEW_PATHS.folders,
+    label: 'Folders',
+    icon: IconFolder,
+    id: 'folders',
+    hotkey: 'f',
   },
 ] satisfies SidebarItem[];
 
@@ -422,28 +411,24 @@ const SidebarShortcutLink = (props: SidebarShortcutLinkProps) => {
 
   return (
     <Button
-      draggable={false}
-      variant="ghost"
-      class={cn(
-        'flex items-center justify-start text-sm gap-2 cursor-default w-full rounded-md py-1 text-ink-extra-muted not-disabled:hover:bg-ink/3'
-      )}
-      tooltipPlacement="right"
+      class="justify-start group-data-[slim=true]/sidebar:justify-center cursor-default w-full text-ink-extra-muted not-disabled:hover:bg-ink/3"
       label={props.isSlim() ? props.label : undefined}
-      onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
+      onMouseEnter={() => setIsHovering(true)}
+      size={props.isSlim() ? 'icon-sm' : 'sm'}
       onMouseDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault();
         props.onClick();
       }}
+      tooltipPlacement="right"
+      draggable={false}
+      variant="ghost"
     >
-      <div class="relative shrink-0 [&_svg]:size-4">
-        <Dynamic component={props.icon} triggerAnimation={isHovering()} />
-      </div>
-
-      <div class="flex items-center gap-1 group-data-[slim=true]/sidebar:hidden">
-        <span class="whitespace-nowrap">{props.label}</span>
-      </div>
+      <Dynamic component={props.icon} triggerAnimation={isHovering()} />
+      <span class="whitespace-nowrap group-data-[slim=true]/sidebar:hidden">
+        {props.label}
+      </span>
     </Button>
   );
 };
@@ -538,25 +523,22 @@ const SidebarActionButton = (props: SidebarActionButtonProps) => {
 
   return (
     <Button
-      class={cn(
-        'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-sm gap-2 cursor-default w-full rounded-md py-1 text-ink-extra-muted not-disabled:hover:bg-ink/3'
-      )}
-      variant="ghost"
-      tooltipPlacement="right"
-      label={props.isSlim() ? props.label : undefined}
+      class="justify-start group-data-[slim=true]/sidebar:justify-center cursor-default w-full text-ink-extra-muted not-disabled:hover:bg-ink/3"
       hotkey={props.isSlim() ? props.hotkeyToken : undefined}
+      onClick={(event: MouseEvent) => props.onClick(event)}
+      label={props.isSlim() ? props.label : undefined}
+      size={props.isSlim() ? 'icon-sm' : 'sm'}
+      onMouseLeave={() => setHovering(false)}
+      onMouseEnter={() => setHovering(true)}
       onMouseDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault();
       }}
-      onClick={(event: MouseEvent) => props.onClick(event)}
+      tooltipPlacement="right"
       disabled={isDisabled()}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
+      variant="ghost"
     >
-      <div class="size-4 shrink-0">
-        <Dynamic component={props.icon} triggerAnimation={hovering()} />
-      </div>
+      <Dynamic component={props.icon} triggerAnimation={hovering()} />
       <span class="whitespace-nowrap group-data-[slim=true]/sidebar:hidden">
         {props.label}
       </span>
@@ -593,8 +575,8 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
         variant="ghost"
         class={cn(
           'flex items-center w-full rounded-md cursor-default text-ink-extra-muted not-disabled:hover:bg-ink/3 h-9',
+          'group-data-[slim=true]/sidebar:justify-center group-data-[slim=true]/sidebar:gap-0',
           'justify-start gap-2 px-1.5 py-1',
-          'group-data-[slim=true]/sidebar:justify-center group-data-[slim=true]/sidebar:gap-0'
         )}
         label={props.isSlim() ? 'Settings' : undefined}
         tooltipPlacement="right"
@@ -604,8 +586,8 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
         }}
       >
         <Show
-          when={userId()}
           fallback={<div class="size-5 shrink-0 rounded-full bg-ink/10" />}
+          when={userId()}
         >
           {(id) => (
             <div class="size-5">
@@ -667,12 +649,12 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
 };
 
 const CALLS_LINK: SidebarItem = {
-  id: 'calls',
-  label: 'Calls',
+  hotkeyToken: TOKENS.sidebar.goTo.calls,
   href: LIST_VIEW_PATHS.calls,
   icon: IconPhone,
+  label: 'Calls',
   hotkey: 'l',
-  hotkeyToken: TOKENS.sidebar.goTo.calls,
+  id: 'calls',
 };
 
 export const AppSidebar = (props: AppSidebarProps) => {
@@ -1028,10 +1010,11 @@ const SidebarLink = (props: SidebarLinkProps) => {
         <Button
           draggable={false}
           variant="ghost"
+          size={props.sidebarState === 'slim' ? 'icon-sm' : 'sm'}
           data-sidebar-link={props.id}
           data-active={isActive() ? '' : undefined}
           class={cn(
-            'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-sm gap-2 cursor-default w-full rounded-md py-1 text-ink-extra-muted not-disabled:hover:bg-ink/3',
+            'justify-start group-data-[slim=true]/sidebar:justify-center cursor-default w-full text-ink-extra-muted not-disabled:hover:bg-ink/3',
             isActive() && 'bg-ink/6 not-disabled:hover:bg-ink/6 text-ink'
           )}
           tooltipPlacement="right"
@@ -1078,14 +1061,12 @@ const SidebarLink = (props: SidebarLinkProps) => {
           }}
         >
           <Show when={props.icon}>
-            <div class="shrink-0 [&_svg]:size-4">
-              <Dynamic component={props.icon} triggerAnimation={isHovering()} />
-            </div>
+            <Dynamic component={props.icon} triggerAnimation={isHovering()} />
           </Show>
 
-          <div class="flex items-center gap-1 group-data-[slim=true]/sidebar:hidden">
-            <span class="whitespace-nowrap">{props.label}</span>
-          </div>
+          <span class="whitespace-nowrap group-data-[slim=true]/sidebar:hidden">
+            {props.label}
+          </span>
 
           <Show when={isHovering() && !props.hotkeyVisible}>
             <div class="group-data-[slim=true]/sidebar:hidden ml-auto">
