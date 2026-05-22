@@ -285,27 +285,12 @@ where
         user_id: &MacroUserIdStr<'_>,
         team_name: &str,
     ) -> Result<Team, CreateTeamError> {
-        let team = self.team_repository.create_team(user_id, team_name).await?;
-
-        // Best-effort: ask the email service to seed CRM tables from this
-        // user's historical sent mail. Log and swallow failures — the team
-        // is already committed and the email-service consumer is idempotent,
-        // so a missed enqueue can be retried (or covered by per-message CRM
-        // fan-out) without leaving the system in an inconsistent state.
-        if let Err(e) = self
-            .crm_enqueuer
-            .enqueue_populate_crm_for_user(user_id)
-            .await
-        {
-            tracing::error!(
-                error = ?e,
-                team_id = %team.id,
-                macro_id = %user_id,
-                "Failed to enqueue PopulateCrmForUser after create_team; CRM tables will not be seeded from sent-mail history (per-message fan-out will still cover future sends)"
-            );
-        }
-
-        Ok(team)
+        // New teams start with `team_crm_settings.crm_enabled = false`
+        // (seeded by `team_repository.create_team`), so there's nothing
+        // for the email-backfill fan-out to populate yet. The fan-out
+        // happens later, on the disabled → enabled transition in
+        // `set_team_crm_enabled`.
+        self.team_repository.create_team(user_id, team_name).await
     }
 
     #[tracing::instrument(skip(self), err)]
