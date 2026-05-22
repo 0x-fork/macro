@@ -810,7 +810,7 @@ const SidebarIconButton = (props: SidebarIconButtonProps) => {
   return (
     <Button
       size="sm"
-      class="flex items-center justify-center size-6 p-1 rounded-xs [&_svg]:size-3.5"
+      class="flex items-center justify-center size-6 p-1 rounded-md [&_svg]:size-3.5"
       variant="ghost"
       tooltipPlacement="top"
       label={props.label}
@@ -1165,7 +1165,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
             />
           </div>
           <Button
-            class="size-7 rounded-xs p-1 [&_svg]:size-4"
+            class="size-7 rounded-md p-1 [&_svg]:size-4"
             onMouseDown={(e) => {
               if (e.button !== 0) return;
               e.preventDefault();
