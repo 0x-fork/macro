@@ -1,9 +1,13 @@
+import { useSoup } from '@app/component/next-soup/soup-context';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useListLayout } from '@entity/composed/list-entity/shared';
 import StatusInProgress from '@icon/task-in-progress-circle-pie.svg';
 import PriorityHigh from '@icon/wide-priority-high.svg';
+import { Checkbox } from '@kobalte/core/checkbox';
 import ArrowDownIcon from '@phosphor/arrow-down.svg';
+import CheckIcon from '@phosphor/check.svg';
+import MinusIcon from '@phosphor/minus.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { cn } from '@ui/utils/classname';
 import { createMemo, For, type JSX, Show } from 'solid-js';
@@ -65,7 +69,7 @@ function TaskListHeader(props: { class?: string }) {
   return (
     <div
       class={cn(
-        'task-grid-row w-full grid items-center gap-2 px-2 h-10',
+        'task-grid-row w-[calc(100%-1.5rem)] mx-3 grid items-center gap-2 px-2 h-10',
         'text-xs font-medium text-ink-extra-muted',
         'bg-surface',
         props.class
@@ -75,7 +79,12 @@ function TaskListHeader(props: { class?: string }) {
         'grid-template-areas': TASK_GRID_TEMPLATE_AREAS_WIDE,
       }}
     >
-      <div style={{ 'grid-area': 'indicator' }} />
+      <div
+        style={{ 'grid-area': 'indicator' }}
+        class="flex items-center justify-center"
+      >
+        <SelectAllCheckbox />
+      </div>
       <div style={{ 'grid-area': 'content' }} class="truncate">
         Task
       </div>
@@ -111,6 +120,61 @@ function TaskListHeader(props: { class?: string }) {
         align="end"
       />
     </div>
+  );
+}
+
+export function SelectAllCheckbox() {
+  const soup = useSoup();
+
+  const selectableEntities = () =>
+    soup
+      .rows()
+      .filter((r) => !r.getIsGrouped() && !r.getIsLoadMore())
+      .map((r) => r.original);
+
+  const selectionCount = () => soup.selection.count();
+  const totalCount = () => selectableEntities().length;
+  const hasSelection = () => selectionCount() > 0;
+  const isAllSelected = () =>
+    totalCount() > 0 && selectionCount() === totalCount();
+  const isIndeterminate = () => hasSelection() && !isAllSelected();
+
+  return (
+    <Checkbox
+      checked={isAllSelected()}
+      indeterminate={isIndeterminate()}
+      onChange={(checked) => {
+        if (checked) soup.selection.set(selectableEntities());
+        else soup.selection.clear();
+      }}
+      class="flex items-center"
+    >
+      <Checkbox.Input class="sr-only" />
+      <Checkbox.Control
+        class={cn(
+          'size-4 flex items-center justify-center rounded-xs border transition-colors cursor-pointer',
+          hasSelection()
+            ? 'bg-accent border-accent'
+            : 'border-ink/20 hover:border-accent'
+        )}
+      >
+        <Checkbox.Indicator forceMount>
+          <Show
+            when={isIndeterminate()}
+            fallback={
+              <CheckIcon
+                class={cn(
+                  'size-3',
+                  isAllSelected() ? 'text-surface' : 'text-transparent'
+                )}
+              />
+            }
+          >
+            <MinusIcon class="size-3 text-surface" />
+          </Show>
+        </Checkbox.Indicator>
+      </Checkbox.Control>
+    </Checkbox>
   );
 }
 

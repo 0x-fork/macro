@@ -653,15 +653,6 @@ export const SoupView = (props: SoupViewProps) => {
                     <h1 class="font-semibold text-ink select-none text-sm leading-none">
                       {props.viewName}
                     </h1>
-                    <Show when={!isComponentListView('search')}>
-                      <CollapsibleHeaderItem
-                        id="tabs"
-                        priority={1}
-                        expanded={() => <SoupViewTabs />}
-                        collapsed={() => <CollapsedSoupViewTabs />}
-                        containerClass="h-full"
-                      />
-                    </Show>
                   </div>
                 </SplitHeaderLeft>
                 <SplitHeaderRight>

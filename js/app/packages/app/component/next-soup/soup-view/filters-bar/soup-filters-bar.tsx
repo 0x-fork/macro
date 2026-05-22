@@ -1,20 +1,16 @@
-import { useAnalytics } from '@app/component/analytics-context';
-import { CommandState } from '@app/component/command/state';
 import { isMobile } from '@core/mobile/isMobile';
-import { Checkbox } from '@kobalte/core/checkbox';
 import SearchIcon from '@icon/macro-magnifying-glass.svg';
-import ArchiveIcon from '@phosphor/archive.svg';
-import CheckIcon from '@phosphor/check.svg';
-import DotsThreeIcon from '@phosphor/dots-three.svg';
-import MinusIcon from '@phosphor/minus.svg';
-import TrashIcon from '@phosphor/trash.svg';
 import { Button, cn } from '@ui';
 import { createSignal, Show } from 'solid-js';
-import { useSoup } from '../../soup-context';
 import { ActiveFilterChips } from './active-filter-chips';
 import { SoupSearchbar } from './soup-view-search-bar';
 import { useFilterRefinements } from './use-filter-refinements';
 import { ViewOptionsPopover } from './view-options-popover';
+import {
+  CollapsedSoupViewTabs,
+  SoupViewTabs,
+} from '../soup-view-tabs';
+import { CollapsibleHeaderItem } from '@app/component/split-layout/components/CollapsibleHeaderItem';
 
 interface SoupFiltersBarProps {
   hideSelectAll?: boolean;
@@ -24,37 +20,6 @@ interface SoupFiltersBarProps {
 }
 
 export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
-  const soup = useSoup();
-  const analytics = useAnalytics();
-
-  const selectableEntities = () =>
-    soup
-      .rows()
-      .filter((r) => !r.getIsGrouped() && !r.getIsLoadMore())
-      .map((r) => r.original);
-
-  const selectionCount = () => soup.selection.count();
-  const totalCount = () => selectableEntities().length;
-  const hasSelection = () => selectionCount() > 0;
-  const isAllSelected = () =>
-    totalCount() > 0 && selectionCount() === totalCount();
-  const isIndeterminate = () => hasSelection() && !isAllSelected();
-
-  const handleSelectAllChange = (checked: boolean) => {
-    if (checked) {
-      soup.selection.set(selectableEntities());
-    } else {
-      soup.selection.clear();
-    }
-  };
-
-  const handleOpenActions = () => {
-    const selected = soup.selection.selected();
-    if (selected.length === 0) return;
-    analytics.track('command_menu_open', { from: 'filters_bar_bulk_action' });
-    CommandState.openForEntityAction(selected);
-  };
-
   const [searchExpanded, setSearchExpanded] = createSignal(false);
 
   const {
@@ -69,7 +34,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
 
   return (
     <Show when={!isMobile()}>
-      <div class="@container/filters flex flex-col w-full pt-2 pb-3 gap-2">
+      <div class="@container/filters flex flex-col w-full gap-2 py-2">
         <Show when={props.searchView}>
           <div class="mx-2">
             <SoupSearchbar
@@ -83,129 +48,54 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
         <div class="mx-2 rounded-lg">
           <div
             class={cn(
-              'flex flex-col gap-1.5 px-2 pt-1.5 bg-ink/5',
-              hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg pb-1.5'
+              'flex flex-col gap-1.5 px-2',
+              hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg'
             )}
           >
             <div class="flex items-center gap-2">
-              <Show when={!props.hideSelectAll}>
-                <Checkbox
-                  checked={isAllSelected()}
-                  indeterminate={isIndeterminate()}
-                  onChange={handleSelectAllChange}
-                  class="flex items-center"
-                >
-                  <Checkbox.Input class="sr-only" />
-                  <Checkbox.Control
-                    class={cn(
-                      'size-4 flex items-center justify-center rounded-xs border transition-colors cursor-pointer',
-                      hasSelection()
-                        ? 'bg-accent border-accent'
-                        : 'border-ink/20 hover:border-accent'
-                    )}
-                  >
-                    <Checkbox.Indicator forceMount>
-                      <Show
-                        when={isIndeterminate()}
-                        fallback={
-                          <CheckIcon
-                            class={cn(
-                              'size-3',
-                              isAllSelected() ? 'text-surface' : 'text-transparent'
-                            )}
-                          />
-                        }
-                      >
-                        <MinusIcon class="size-3 text-surface" />
-                      </Show>
-                    </Checkbox.Indicator>
-                  </Checkbox.Control>
-                </Checkbox>
+              <Show when={!props.searchView}>
+                <CollapsibleHeaderItem
+                  id="filters-tabs"
+                  priority={1}
+                  expanded={() => <SoupViewTabs />}
+                  collapsed={() => <CollapsedSoupViewTabs />}
+                  containerClass="h-full"
+                />
+              </Show>
+              <div class="flex-1" />
+              <Show when={!props.searchView && !props.hideSearch}>
                 <Show
-                  when={hasSelection()}
+                  when={!searchExpanded()}
                   fallback={
-                    <span class="text-sm text-ink-muted whitespace-nowrap">
-                      Select all
-                    </span>
+                    <div class="w-52">
+                      <SoupSearchbar
+                        variant="filled"
+                        autoFocus
+                        onDismiss={() => setSearchExpanded(false)}
+                      />
+                    </div>
                   }
                 >
-                  <span class="text-sm font-medium text-ink">
-                    <span class="@md/filters:hidden">{selectionCount()}</span>
-                    <span class="hidden @md/filters:inline">
-                      {selectionCount()} Selected
-                    </span>
-                  </span>
                   <div class="flex items-center gap-1">
+                    <div class="hidden @xl/filters:block w-52">
+                      <SoupSearchbar variant="filled" />
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleOpenActions}
+                      class="@xl/filters:hidden"
+                      onClick={() => setSearchExpanded(true)}
                     >
-                      <ArchiveIcon />
-                      <span class="hidden @lg/filters:inline">Archive</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleOpenActions}
-                    >
-                      <TrashIcon />
-                      <span class="hidden @lg/filters:inline">Trash</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleOpenActions}
-                    >
-                      <DotsThreeIcon />
-                      <span class="hidden @lg/filters:inline">More</span>
+                      <SearchIcon />
                     </Button>
                   </div>
                 </Show>
-              </Show>
-              <Show
-                when={props.searchView}
-                fallback={
-                  <>
-                    <div class="flex-1" />
-                    <Show when={!props.hideSearch}>
-                      <Show
-                        when={!searchExpanded()}
-                        fallback={
-                          <div class="w-52">
-                            <SoupSearchbar
-                              variant="filled"
-                              autoFocus
-                              onDismiss={() => setSearchExpanded(false)}
-                            />
-                          </div>
-                        }
-                      >
-                        <div class="flex items-center gap-1">
-                          <div class="hidden @xl/filters:block w-52">
-                            <SoupSearchbar variant="filled" />
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            class="@xl/filters:hidden"
-                            onClick={() => setSearchExpanded(true)}
-                          >
-                            <SearchIcon />
-                          </Button>
-                        </div>
-                      </Show>
-                    </Show>
-                  </>
-                }
-              >
-                <div class="flex-1" />
               </Show>
               <ViewOptionsPopover />
             </div>
           </div>
           <Show when={hasActiveFilters()}>
-            <div class="px-2 py-1.5 bg-ink/[0.03] border-t border-edge-muted/30 rounded-b-lg">
+            <div class="px-2 py-1.5 border-t border-edge-muted/30 rounded-b-lg">
               <ActiveFilterChips
                 filters={activeFiltersList()}
                 onRemove={removeFilter}
