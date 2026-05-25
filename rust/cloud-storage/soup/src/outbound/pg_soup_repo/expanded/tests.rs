@@ -365,7 +365,8 @@ async fn test_expanded_soup_by_ids(pool: Pool<Postgres>) {
             | SoupItem::Project(_)
             | SoupItem::EmailThread(_)
             | SoupItem::Channel(_)
-            | SoupItem::Call(_) => None,
+            | SoupItem::Call(_)
+            | SoupItem::CrmCompany(_) => None,
         })
         .expect("The document should exist");
     let expected_doc_id = Uuid::parse_str("11111111-aaaa-aaaa-aaaa-aaaaaaaaaaaa").unwrap(); // doc-in-A
@@ -5457,6 +5458,7 @@ fn mock_empty_ast() -> EntityFilterAst {
         email_filter: item_filters::ast::EmailFilterAst::default(),
         channel_filter: None,
         call_filter: None,
+        crm_company_filter: None,
         properties_filter: None,
     }
 }

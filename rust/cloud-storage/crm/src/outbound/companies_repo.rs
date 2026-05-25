@@ -4,10 +4,10 @@
 mod test;
 
 use crate::domain::{
-    companies_repo::CompaniesRepository,
+    companies_repo::{CompaniesRepository, CrmCompanyListSort},
     model::{
-        CrmAddressStatus, CrmCompany, CrmDomain, CrmDomainStatus, CrmError, CrmScopePrecheck,
-        DomainMetadata,
+        CrmAddressStatus, CrmCompany, CrmCompanyForSoup, CrmDomain, CrmDomainStatus, CrmError,
+        CrmScopePrecheck, DomainMetadata,
     },
 };
 use chrono::{DateTime, Utc};
@@ -962,5 +962,112 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
             domains: domain_statuses,
             addresses: address_statuses,
         })
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn list_companies_for_soup(
+        &self,
+        team_id: &uuid::Uuid,
+        company_ids: &[uuid::Uuid],
+        sort: CrmCompanyListSort,
+        limit: i64,
+    ) -> Result<Vec<CrmCompanyForSoup>, CrmError> {
+        let sort_method_str = match sort {
+            CrmCompanyListSort::UpdatedAt => "updated_at",
+            CrmCompanyListSort::CreatedAt => "created_at",
+        };
+
+        // CTE limits companies before the domain/directory joins; the
+        // outer ORDER BY repeats the CTE's sort + `d.created_at ASC`
+        // so rows arrive contiguous per company with the primary
+        // domain first.
+        let rows = sqlx::query!(
+            r#"
+            WITH limited_companies AS (
+                SELECT c.id, c.team_id, c.email_sync, c.hidden, c.created_at, c.updated_at
+                FROM crm_companies c
+                WHERE c.team_id = $1
+                  AND c.hidden = FALSE
+                  AND EXISTS (
+                      SELECT 1 FROM team_crm_settings tcs
+                      WHERE tcs.team_id = $1 AND tcs.crm_enabled
+                  )
+                  AND (cardinality($2::uuid[]) = 0 OR c.id = ANY($2::uuid[]))
+                ORDER BY
+                    CASE $4
+                        WHEN 'created_at' THEN c.created_at
+                        ELSE c.updated_at
+                    END DESC,
+                    c.id DESC
+                LIMIT $3
+            )
+            SELECT
+                lc.id              AS "company_id!",
+                lc.team_id         AS "company_team_id!",
+                lc.email_sync      AS "company_email_sync!",
+                lc.hidden          AS "company_hidden!",
+                lc.created_at      AS "company_created_at!",
+                lc.updated_at      AS "company_updated_at!",
+                d.id               AS "domain_id?",
+                d.domain           AS "domain?",
+                d.created_at       AS "domain_created_at?",
+                dd.name            AS "dir_name?",
+                dd.description     AS "dir_description?"
+            FROM limited_companies lc
+            LEFT JOIN crm_domains d ON d.company_id = lc.id
+            LEFT JOIN crm_domain_directory dd
+                ON LOWER(dd.domain) = LOWER(d.domain)
+            ORDER BY
+                CASE $4
+                    WHEN 'created_at' THEN lc.created_at
+                    ELSE lc.updated_at
+                END DESC,
+                lc.id DESC,
+                d.created_at ASC NULLS LAST
+            "#,
+            team_id,
+            company_ids,
+            limit,
+            sort_method_str,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        // First row per company carries the primary domain's directory
+        // metadata; remaining rows only contribute to `domains`.
+        let mut result: Vec<CrmCompanyForSoup> = Vec::new();
+        for row in rows {
+            let cid = row.company_id;
+            if result.last().is_none_or(|c| c.company.id != cid) {
+                result.push(CrmCompanyForSoup {
+                    company: CrmCompany {
+                        id: cid,
+                        team_id: row.company_team_id,
+                        email_sync: row.company_email_sync,
+                        hidden: row.company_hidden,
+                        created_at: row.company_created_at,
+                        updated_at: row.company_updated_at,
+                        domains: Vec::new(),
+                    },
+                    name: row.dir_name,
+                    description: row.dir_description,
+                });
+            }
+            // LEFT JOIN gives an all-NULL domain row for companies with
+            // zero domains — skip the push then.
+            if let (Some(did), Some(domain), Some(created_at)) =
+                (row.domain_id, row.domain, row.domain_created_at)
+            {
+                result.last_mut().unwrap().company.domains.push(CrmDomain {
+                    id: did,
+                    company_id: cid,
+                    domain,
+                    created_at,
+                });
+            }
+        }
+
+        Ok(result)
     }
 }

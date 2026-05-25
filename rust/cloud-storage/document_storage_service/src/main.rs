@@ -575,6 +575,7 @@ async fn main() -> anyhow::Result<()> {
                 readonly_email_service,
                 channel_service_for_soup,
                 call_record_query_service,
+                crm_service.clone(),
             ),
             email_service,
             entity_access_service.clone(),

@@ -50,6 +50,8 @@ pub enum EntityType {
     Call,
     /// A public file in the static file service
     StaticFile,
+    /// The entity is a CRM company tracked by a team
+    CrmCompany,
 }
 
 impl EntityType {
@@ -68,6 +70,8 @@ impl EntityType {
             // owning channel (access is inherited from channel membership).
             EntityType::Call => true,
             EntityType::StaticFile => false,
+            // CRM companies are gated by team membership, not entity_access.
+            EntityType::CrmCompany => false,
         }
     }
     /// provide an entity string slice to upgrade this type into an [Entity]

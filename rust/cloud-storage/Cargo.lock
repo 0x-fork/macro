@@ -7281,6 +7281,7 @@ dependencies = [
  "call",
  "chrono",
  "comms",
+ "crm",
  "document_sub_type",
  "doppleganger",
  "email",

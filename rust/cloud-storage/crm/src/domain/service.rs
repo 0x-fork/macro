@@ -1,10 +1,10 @@
 //! The CrmService trait and its default implementation.
 
 use crate::domain::{
-    companies_repo::CompaniesRepository,
+    companies_repo::{CompaniesRepository, CrmCompanyListSort},
     company_metadata_resolver::CompanyMetadataResolver,
     generic_email_domains::is_generic_email_domain,
-    model::{CrmCompany, CrmError, CrmScopePrecheck},
+    model::{CrmCompany, CrmCompanyForSoup, CrmError, CrmScopePrecheck},
 };
 use chrono::{DateTime, Utc};
 
@@ -176,6 +176,16 @@ pub trait CrmService: Clone + Send + Sync + 'static {
         domains: &[String],
         addresses: &[String],
     ) -> impl Future<Output = Result<CrmScopePrecheck, CrmError>> + Send;
+
+    /// List the team's CRM companies for the soup feed. See
+    /// [`CompaniesRepository::list_companies_for_soup`].
+    fn list_companies_for_soup(
+        &self,
+        team_id: &uuid::Uuid,
+        company_ids: &[uuid::Uuid],
+        sort: CrmCompanyListSort,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<CrmCompanyForSoup>, CrmError>> + Send;
 }
 
 /// Implementation of [`CrmService`] backed by a [`CompaniesRepository`]
@@ -421,5 +431,116 @@ where
         self.companies_repository
             .crm_scope_precheck(team_id, domains, addresses)
             .await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn list_companies_for_soup(
+        &self,
+        team_id: &uuid::Uuid,
+        company_ids: &[uuid::Uuid],
+        sort: CrmCompanyListSort,
+        limit: i64,
+    ) -> Result<Vec<CrmCompanyForSoup>, CrmError> {
+        self.companies_repository
+            .list_companies_for_soup(team_id, company_ids, sort, limit)
+            .await
+    }
+}
+
+/// No-op [`CrmService`] for binaries that need to satisfy the bound
+/// but never call CRM. `list_companies_for_soup` returns empty; every
+/// other method panics — swap for [`CrmServiceImpl`] if you actually
+/// need CRM functionality.
+#[derive(Clone, Debug)]
+pub struct NoOpCrmService;
+
+impl CrmService for NoOpCrmService {
+    async fn get_company_by_domain(
+        &self,
+        _team_id: &uuid::Uuid,
+        _domain: &str,
+    ) -> Result<Option<CrmCompany>, CrmError> {
+        unimplemented!("NoOpCrmService.get_company_by_domain")
+    }
+
+    async fn populate_contact(
+        &self,
+        _team_id: &uuid::Uuid,
+        _link_id: &uuid::Uuid,
+        _user_email: &str,
+        _email: &str,
+        _name: Option<&str>,
+        _first_at: DateTime<Utc>,
+        _last_at: DateTime<Utc>,
+        _is_sent: bool,
+    ) -> Result<(), CrmError> {
+        unimplemented!("NoOpCrmService.populate_contact")
+    }
+
+    async fn depopulate_contact(
+        &self,
+        _team_id: &uuid::Uuid,
+        _link_id: &uuid::Uuid,
+        _email: &str,
+    ) -> Result<(), CrmError> {
+        unimplemented!("NoOpCrmService.depopulate_contact")
+    }
+
+    async fn depopulate_link_in_team(
+        &self,
+        _team_id: &uuid::Uuid,
+        _link_id: &uuid::Uuid,
+    ) -> Result<(), CrmError> {
+        unimplemented!("NoOpCrmService.depopulate_link_in_team")
+    }
+
+    async fn get_team_id_for_user(&self, _macro_id: &str) -> Result<Option<uuid::Uuid>, CrmError> {
+        unimplemented!("NoOpCrmService.get_team_id_for_user")
+    }
+
+    async fn set_email_sync(
+        &self,
+        _team_id: &uuid::Uuid,
+        _company_id: &uuid::Uuid,
+        _email_sync: bool,
+    ) -> Result<(), CrmError> {
+        unimplemented!("NoOpCrmService.set_email_sync")
+    }
+
+    async fn set_company_hidden(
+        &self,
+        _team_id: &uuid::Uuid,
+        _company_id: &uuid::Uuid,
+        _hidden: bool,
+    ) -> Result<(), CrmError> {
+        unimplemented!("NoOpCrmService.set_company_hidden")
+    }
+
+    async fn set_contact_hidden(
+        &self,
+        _team_id: &uuid::Uuid,
+        _contact_id: &uuid::Uuid,
+        _hidden: bool,
+    ) -> Result<(), CrmError> {
+        unimplemented!("NoOpCrmService.set_contact_hidden")
+    }
+
+    async fn crm_scope_precheck(
+        &self,
+        _team_id: &uuid::Uuid,
+        _domains: &[String],
+        _addresses: &[String],
+    ) -> Result<CrmScopePrecheck, CrmError> {
+        unimplemented!("NoOpCrmService.crm_scope_precheck")
+    }
+
+    async fn list_companies_for_soup(
+        &self,
+        _team_id: &uuid::Uuid,
+        _company_ids: &[uuid::Uuid],
+        _sort: CrmCompanyListSort,
+        _limit: i64,
+    ) -> Result<Vec<CrmCompanyForSoup>, CrmError> {
+        Ok(Vec::new())
     }
 }

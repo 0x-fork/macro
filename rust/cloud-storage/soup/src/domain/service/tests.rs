@@ -75,6 +75,8 @@ impl CallRecordQueryService for NoopCallRecordQueryService {
     }
 }
 
+use crm::domain::service::NoOpCrmService;
+
 fn soup_document(id: &str) -> SoupDocument {
     // Create a deterministic UUID from the string ID
     let uuid = Uuid::parse_str(id).unwrap_or_else(|_| {
@@ -174,6 +176,7 @@ async fn it_should_not_query_frecency() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -259,6 +262,7 @@ async fn it_should_query_frecency() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -341,6 +345,7 @@ async fn it_should_sort_frecency_descending() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -437,6 +442,7 @@ async fn frecency_should_fallback() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -517,6 +523,7 @@ async fn frecency_should_paginate() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -599,6 +606,7 @@ async fn frecency_should_resume_cursor() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -697,6 +705,7 @@ async fn frecency_fallback_cursor_should_resume() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -771,6 +780,7 @@ async fn cursor_should_return_simple_sort() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -841,6 +851,7 @@ async fn cursor_should_return_frecency() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -901,6 +912,7 @@ async fn it_should_return_is_completed_true_for_completed_tasks() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -951,6 +963,7 @@ async fn it_should_return_is_completed_false_for_incomplete_tasks() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -1001,6 +1014,7 @@ async fn it_should_return_is_completed_none_for_non_tasks() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -1063,6 +1077,7 @@ async fn it_should_preserve_is_completed_for_mixed_items() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {
@@ -1144,6 +1159,7 @@ async fn it_should_preserve_is_completed_in_by_ids_queries() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
     )
     .get_user_soup(
         SoupRequest {

@@ -2,6 +2,20 @@
 
 use chrono::{DateTime, Utc};
 
+/// A [`CrmCompany`] bundled with display metadata resolved from
+/// `crm_domain_directory` against the primary (earliest-created) domain.
+/// `name` / `description` are `None` when no directory row exists or
+/// the row is in negative-cache state (NULL fields).
+#[derive(Debug, Clone)]
+pub struct CrmCompanyForSoup {
+    /// The underlying company record.
+    pub company: CrmCompany,
+    /// Display name from the primary domain's directory entry.
+    pub name: Option<String>,
+    /// Display description from the primary domain's directory entry.
+    pub description: Option<String>,
+}
+
 /// A known external company tracked by a team (CRM-style record). A company
 /// aggregates one or more email domains and individual contacts that are
 /// considered to belong to the same external party.

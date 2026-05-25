@@ -1547,3 +1547,172 @@ async fn populate_contact_seed_style_range_merges_into_existing(
     assert_eq!(contact_last, seed_last);
     Ok(())
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn list_for_soup_returns_empty_when_killswitch_missing(pool: PgPool) -> anyhow::Result<()> {
+    let team = Uuid::now_v7();
+    let owner = "macro|owner@test.com";
+    seed_team(&pool, team, owner).await?;
+    // No team_crm_settings row → killswitch defaults to off.
+    insert_company(&pool, team, true, &["acme.com"]).await?;
+
+    let repo = CompaniesRepositoryImpl::new(pool);
+    let result = repo
+        .list_companies_for_soup(&team, &[], CrmCompanyListSort::UpdatedAt, 100)
+        .await?;
+    assert!(
+        result.is_empty(),
+        "killswitch missing must short-circuit to empty list even when companies exist"
+    );
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn list_for_soup_returns_empty_when_killswitch_off(pool: PgPool) -> anyhow::Result<()> {
+    let team = Uuid::now_v7();
+    let owner = "macro|owner@test.com";
+    seed_team(&pool, team, owner).await?;
+    sqlx::query(r#"INSERT INTO team_crm_settings (team_id, crm_enabled) VALUES ($1, FALSE)"#)
+        .bind(team)
+        .execute(&pool)
+        .await?;
+    insert_company(&pool, team, true, &["acme.com"]).await?;
+
+    let repo = CompaniesRepositoryImpl::new(pool);
+    let result = repo
+        .list_companies_for_soup(&team, &[], CrmCompanyListSort::UpdatedAt, 100)
+        .await?;
+    assert!(result.is_empty());
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn list_for_soup_excludes_hidden_rows(pool: PgPool) -> anyhow::Result<()> {
+    let team = Uuid::now_v7();
+    let owner = "macro|owner@test.com";
+    seed_team(&pool, team, owner).await?;
+    enable_crm_for_team(&pool, team).await?;
+    let visible = insert_company(&pool, team, true, &["acme.com"]).await?;
+    let hidden = insert_company(&pool, team, true, &["zeta.com"]).await?;
+    sqlx::query("UPDATE crm_companies SET hidden = TRUE WHERE id = $1")
+        .bind(hidden)
+        .execute(&pool)
+        .await?;
+
+    let repo = CompaniesRepositoryImpl::new(pool);
+    let result = repo
+        .list_companies_for_soup(&team, &[], CrmCompanyListSort::UpdatedAt, 100)
+        .await?;
+    let ids: Vec<Uuid> = result.iter().map(|c| c.company.id).collect();
+    assert_eq!(ids, vec![visible], "hidden = TRUE rows must not appear");
+    // The visible row must have its domains hydrated.
+    assert_eq!(result[0].company.domains.len(), 1);
+    assert_eq!(result[0].company.domains[0].domain, "acme.com");
+    // No directory row for acme.com — both display fields should be None.
+    assert_eq!(result[0].name, None);
+    assert_eq!(result[0].description, None);
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn list_for_soup_hydrates_name_and_description_from_directory(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    let team = Uuid::now_v7();
+    let owner = "macro|owner@test.com";
+    seed_team(&pool, team, owner).await?;
+    enable_crm_for_team(&pool, team).await?;
+    insert_company(&pool, team, true, &["acme.com", "acmecorp.com"]).await?;
+    // Directory row only on the primary — secondary must not be picked.
+    sqlx::query(
+        r#"INSERT INTO crm_domain_directory (domain, name, description)
+           VALUES ($1, $2, $3)"#,
+    )
+    .bind("acme.com")
+    .bind("Acme Inc.")
+    .bind("Maker of rocket-powered roller skates.")
+    .execute(&pool)
+    .await?;
+
+    let repo = CompaniesRepositoryImpl::new(pool);
+    let result = repo
+        .list_companies_for_soup(&team, &[], CrmCompanyListSort::UpdatedAt, 100)
+        .await?;
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].name.as_deref(), Some("Acme Inc."));
+    assert_eq!(
+        result[0].description.as_deref(),
+        Some("Maker of rocket-powered roller skates.")
+    );
+    // Domain order is by created_at ASC; both should be present.
+    assert_eq!(result[0].company.domains.len(), 2);
+    assert_eq!(result[0].company.domains[0].domain, "acme.com");
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn list_for_soup_returns_none_for_negative_cache_directory_row(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    // Negative-cache directory row (NULL name/description) → soup
+    // surfaces as None, not Some("").
+    let team = Uuid::now_v7();
+    let owner = "macro|owner@test.com";
+    seed_team(&pool, team, owner).await?;
+    enable_crm_for_team(&pool, team).await?;
+    insert_company(&pool, team, true, &["acme.com"]).await?;
+    sqlx::query(
+        r#"INSERT INTO crm_domain_directory (domain, name, description)
+           VALUES ($1, NULL, NULL)"#,
+    )
+    .bind("acme.com")
+    .execute(&pool)
+    .await?;
+
+    let repo = CompaniesRepositoryImpl::new(pool);
+    let result = repo
+        .list_companies_for_soup(&team, &[], CrmCompanyListSort::UpdatedAt, 100)
+        .await?;
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].name, None);
+    assert_eq!(result[0].description, None);
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn list_for_soup_filters_by_company_ids_when_non_empty(pool: PgPool) -> anyhow::Result<()> {
+    let team = Uuid::now_v7();
+    let owner = "macro|owner@test.com";
+    seed_team(&pool, team, owner).await?;
+    enable_crm_for_team(&pool, team).await?;
+    let wanted = insert_company(&pool, team, true, &["acme.com"]).await?;
+    let _other = insert_company(&pool, team, true, &["zeta.com"]).await?;
+
+    let repo = CompaniesRepositoryImpl::new(pool);
+    let result = repo
+        .list_companies_for_soup(&team, &[wanted], CrmCompanyListSort::UpdatedAt, 100)
+        .await?;
+    let ids: Vec<Uuid> = result.iter().map(|c| c.company.id).collect();
+    assert_eq!(ids, vec![wanted]);
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn list_for_soup_does_not_leak_other_team_rows(pool: PgPool) -> anyhow::Result<()> {
+    let team_a = Uuid::now_v7();
+    let team_b = Uuid::now_v7();
+    seed_team(&pool, team_a, "macro|a@test.com").await?;
+    seed_team(&pool, team_b, "macro|b@test.com").await?;
+    enable_crm_for_team(&pool, team_a).await?;
+    enable_crm_for_team(&pool, team_b).await?;
+    insert_company(&pool, team_a, true, &["acme.com"]).await?;
+    let b_only = insert_company(&pool, team_b, true, &["zeta.com"]).await?;
+
+    let repo = CompaniesRepositoryImpl::new(pool);
+    let result = repo
+        .list_companies_for_soup(&team_b, &[], CrmCompanyListSort::UpdatedAt, 100)
+        .await?;
+    let ids: Vec<Uuid> = result.iter().map(|c| c.company.id).collect();
+    assert_eq!(ids, vec![b_only]);
+    Ok(())
+}

@@ -174,6 +174,7 @@ pub async fn build_tool_service_context_from_env(
         ReadonlyEmailPreviewAdapter(email_service),
         channels_service,
         call::domain::ports::NoOpCallRecordQueryService,
+        crm::domain::service::NoOpCrmService,
     ));
 
     let s3_client = macro_aws_config::s3_client().await;

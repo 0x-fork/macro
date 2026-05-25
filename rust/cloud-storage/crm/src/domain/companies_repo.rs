@@ -1,7 +1,19 @@
 //! Port for persistence operations on CRM companies.
 
-use crate::domain::model::{CrmCompany, CrmError, CrmScopePrecheck, DomainMetadata};
+use crate::domain::model::{
+    CrmCompany, CrmCompanyForSoup, CrmError, CrmScopePrecheck, DomainMetadata,
+};
 use chrono::{DateTime, Utc};
+
+/// Sort order for [`CompaniesRepository::list_companies_for_soup`].
+/// Both variants tiebreak on `id DESC` for deterministic pagination.
+#[derive(Debug, Clone, Copy)]
+pub enum CrmCompanyListSort {
+    /// Sort by `crm_companies.last_interaction` (falling back to `updated_at`) DESC.
+    UpdatedAt,
+    /// Sort by `crm_companies.first_interaction` (falling back to `created_at`) DESC.
+    CreatedAt,
+}
 
 /// The CompaniesRepository defines persistence operations for CRM
 /// companies and their associated domains.
@@ -267,4 +279,18 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
         domains: &[String],
         addresses: &[String],
     ) -> impl Future<Output = Result<CrmScopePrecheck, CrmError>> + Send;
+
+    /// Lists a team's CRM companies for the soup feed, hydrated with
+    /// domains and primary-domain directory metadata. Honors the
+    /// team-level killswitch (missing or `crm_enabled = false` →
+    /// empty) and excludes `hidden = true` rows. Empty `company_ids`
+    /// = all non-hidden companies; non-empty = whitelist. Both sort
+    /// orders tiebreak on `id DESC`.
+    fn list_companies_for_soup(
+        &self,
+        team_id: &uuid::Uuid,
+        company_ids: &[uuid::Uuid],
+        sort: CrmCompanyListSort,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<CrmCompanyForSoup>, CrmError>> + Send;
 }

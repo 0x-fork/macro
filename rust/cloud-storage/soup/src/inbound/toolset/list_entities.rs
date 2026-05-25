@@ -12,8 +12,8 @@ use item_filters::{
     SharedEmailFilter,
     ast::{
         EntityFilterAst, LiteralTree, call::CallLiteral, channel::ChannelLiteral,
-        chat::ChatLiteral, document::DocumentLiteral, email::EmailLiteral, project::ProjectLiteral,
-        properties::PropertiesLiteral,
+        chat::ChatLiteral, crm_company::CrmCompanyLiteral, document::DocumentLiteral,
+        email::EmailLiteral, project::ProjectLiteral, properties::PropertiesLiteral,
     },
 };
 use models_pagination::{SimpleSortMethod, TypeEraseCursor};
@@ -122,6 +122,11 @@ impl From<SoupItem> for EntityItem {
                 id: record.call_id,
                 created_by: record.created_by,
             },
+            // `entity_filter_ast` force-filters CrmCompany out — kept
+            // loud here so a contract break is obvious, not silent.
+            SoupItem::CrmCompany(_) => {
+                unreachable!("ListEntities tool does not surface CrmCompany rows")
+            }
         }
     }
 }
@@ -240,6 +245,9 @@ impl ListEntities {
             },
             channel_filter: self.channel_filter.clone(),
             call_filter: self.call_filter.clone(),
+            // CrmCompany not in the tool surface — force-filter so the
+            // AI never sees one.
+            crm_company_filter: Some(Arc::new(Expr::val(CrmCompanyLiteral::Id(Uuid::nil())))),
             properties_filter: self.properties_filter.clone(),
         };
 
@@ -288,6 +296,9 @@ impl ListEntities {
             } else {
                 Some(Arc::new(Expr::val(CallLiteral::CallId(Uuid::nil()))))
             },
+            // Preserve the upstream nil filter — no ItemType::CrmCompany
+            // to toggle against.
+            crm_company_filter: ast.crm_company_filter,
             properties_filter: ast.properties_filter,
         }
     }

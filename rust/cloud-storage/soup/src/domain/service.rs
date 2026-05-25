@@ -1,14 +1,15 @@
 use crate::domain::{
     models::{
-        AdvancedSortParams, FrecencyQueryInner, FrecencySoupItem, GroupedSortRequest,
-        GroupedSoupItem, IntoSoupReqAst, SimpleQueryInner, SimpleSortQuery, SimpleSortRequest,
-        SoupErr, SoupQuery, SoupRequest, SoupType,
+        AdvancedSortParams, FrecencyQueryInner, FrecencySoupItem, GetCrmCompaniesRequest,
+        GroupedSortRequest, GroupedSoupItem, IntoSoupReqAst, SimpleQueryInner, SimpleSortQuery,
+        SimpleSortRequest, SoupErr, SoupQuery, SoupRequest, SoupType,
     },
     ports::{SoupOutput, SoupRepo, SoupService},
 };
 use call::domain::{models::GetCallRecordsRequest, ports::CallRecordQueryService};
 use comms::domain::{models::GetChannelsRequest, ports::ChannelsService};
 use cowlike::CowLike;
+use crm::domain::service::CrmService;
 use doppleganger::Mirror;
 use either::Either;
 use email::domain::{
@@ -28,6 +29,7 @@ use models_pagination::{
 use models_soup::{
     call_record::SoupCallRecord,
     comms::SoupChannel,
+    crm_company::SoupCrmCompany,
     email_thread::{
         SoupAttachment, SoupContact, SoupEmailThreadPreview, SoupEnrichedEmailThreadPreview,
         SoupLabel,
@@ -42,7 +44,7 @@ use uuid::Uuid;
 mod tests;
 
 /// struct which handles the actual implementation of soup with abstracted interfaces for mocking
-pub struct SoupImpl<T, U, V, C, K> {
+pub struct SoupImpl<T, U, V, C, K, Crm> {
     /// the interface for interacting with the db
     soup_storage: T,
     /// the interface for interacting with frecency
@@ -53,9 +55,11 @@ pub struct SoupImpl<T, U, V, C, K> {
     comms_service: C,
     /// the interface for interacting with call records
     call_record_service: K,
+    /// the interface for interacting with CRM (companies)
+    crm_service: Crm,
 }
 
-impl<T, U, V, C, K> SoupImpl<T, U, V, C, K>
+impl<T, U, V, C, K, Crm> SoupImpl<T, U, V, C, K, Crm>
 where
     T: SoupRepo,
     anyhow::Error: From<T::Err>,
@@ -63,6 +67,7 @@ where
     V: EmailPreviewServiceReadOnly,
     C: ChannelsService,
     K: CallRecordQueryService,
+    Crm: CrmService,
 {
     pub fn new(
         soup_storage: T,
@@ -70,6 +75,7 @@ where
         email_service: V,
         comms_service: C,
         call_record_service: K,
+        crm_service: Crm,
     ) -> Self {
         SoupImpl {
             soup_storage,
@@ -77,6 +83,7 @@ where
             email_service,
             comms_service,
             call_record_service,
+            crm_service,
         }
     }
 
@@ -370,6 +377,35 @@ where
     }
 
     #[tracing::instrument(err, skip(self, req))]
+    async fn handle_crm_company_request(
+        &self,
+        req: Option<GetCrmCompaniesRequest>,
+    ) -> Result<impl Iterator<Item = FrecencySoupItem>, SoupErr> {
+        let Some(req) = req else {
+            return Ok(Either::Left(None.into_iter()));
+        };
+
+        let GetCrmCompaniesRequest {
+            team_id,
+            company_ids,
+            sort,
+            limit,
+        } = req;
+
+        Ok(Either::Right(
+            self.crm_service
+                .list_companies_for_soup(&team_id, &company_ids, sort, limit)
+                .await
+                .map_err(|_| SoupErr::CrmErr)?
+                .into_iter()
+                .map(|company| FrecencySoupItem {
+                    item: SoupItem::CrmCompany(SoupCrmCompany::from(company)),
+                    frecency_score: None,
+                }),
+        ))
+    }
+
+    #[tracing::instrument(err, skip(self, req))]
     async fn handle_call_request(
         &self,
         req: Option<GetCallRecordsRequest>,
@@ -398,7 +434,7 @@ where
     }
 }
 
-impl<T, U, V, C, K> SoupService for SoupImpl<T, U, V, C, K>
+impl<T, U, V, C, K, Crm> SoupService for SoupImpl<T, U, V, C, K, Crm>
 where
     T: SoupRepo,
     anyhow::Error: From<T::Err>,
@@ -406,6 +442,7 @@ where
     V: EmailPreviewServiceReadOnly,
     C: ChannelsService,
     K: CallRecordQueryService,
+    Crm: CrmService,
 {
     #[tracing::instrument(err, skip(self, req, team_receipt))]
     async fn get_user_soup<R>(
@@ -421,6 +458,8 @@ where
         let req = req.into_ast()?;
         let limit = req.limit.clamp(20, 500);
 
+        // Borrow before email's builder consumes team_receipt.
+        let crm_company_request = req.build_crm_company_request(&team_receipt);
         let email_request = req.build_email_request(team_receipt);
         let comms_request = req.build_comms_request();
         let call_request = req.build_call_request();
@@ -444,13 +483,21 @@ where
 
                 let call_soup_fut = self.handle_call_request(call_request);
 
-                let (main_soup, email_soup, comms_soup, call_soup) =
-                    tokio::join!(main_soup_fut, email_soup_fut, comms_soup_fut, call_soup_fut);
+                let crm_company_soup_fut = self.handle_crm_company_request(crm_company_request);
+
+                let (main_soup, email_soup, comms_soup, call_soup, crm_company_soup) = tokio::join!(
+                    main_soup_fut,
+                    email_soup_fut,
+                    comms_soup_fut,
+                    call_soup_fut,
+                    crm_company_soup_fut,
+                );
 
                 let page = main_soup?
                     .chain(email_soup?)
                     .chain(comms_soup?)
                     .chain(call_soup?)
+                    .chain(crm_company_soup?)
                     .paginate_on(limit.into(), sort_method)
                     .filter_on(entity_filter.clone())
                     .sort_desc()
