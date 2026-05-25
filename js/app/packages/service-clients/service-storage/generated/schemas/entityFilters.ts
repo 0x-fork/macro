@@ -7,6 +7,7 @@
 import type { CallFilters } from './callFilters';
 import type { ChannelFilters } from './channelFilters';
 import type { ChatFilters } from './chatFilters';
+import type { CrmCompanyFilters } from './crmCompanyFilters';
 import type { DocumentFilters } from './documentFilters';
 import type { EmailFilters } from './emailFilters';
 import type { ProjectFilters } from './projectFilters';
@@ -22,6 +23,8 @@ export interface EntityFilters {
   channel_filters?: ChannelFilters;
   /** the bundled [ChatFilters] */
   chat_filters?: ChatFilters;
+  /** the bundled [CrmCompanyFilters] */
+  crm_company_filters?: CrmCompanyFilters;
   /** the bundled [DocumentFilters] */
   document_filters?: DocumentFilters;
   /** the bundled [EmailFilters] */

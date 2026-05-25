@@ -6570,6 +6570,9 @@
           "callf": {
             "description": "the filters that should be applied to the call entity"
           },
+          "ccf": {
+            "description": "Filters applied to the crm_company entity (wire key `ccf`).\nEmpty/omitted = team's full visible list."
+          },
           "cf": {
             "description": "the filters that should be applied to the chat entity"
           },
@@ -8083,6 +8086,19 @@
           }
         }
       },
+      "CrmCompanyFilters": {
+        "type": "object",
+        "description": "The crm company filters used to narrow which CRM companies appear in soup.",
+        "properties": {
+          "company_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "CRM company ids to filter by. Examples: ['11111111-...']. Empty to\ninclude all of the team's visible CRM companies."
+          }
+        }
+      },
       "CustomSpeakerAssignment": {
         "type": "object",
         "description": "One per-diarized-speaker override, used in [`EditCallTranscriptRequest`].\n\n`custom_speaker = None` clears any existing override for this\n`diarized_speaker_id`; `Some(macro_user_id)` sets it. The string is\nexpected to parse as a `MacroUserId` (e.g. `macro|alice@example.com`);\nthe service layer rejects malformed values with `400 Bad Request`.",
@@ -9164,6 +9180,10 @@
           "chat_filters": {
             "$ref": "#/components/schemas/ChatFilters",
             "description": "the bundled [ChatFilters]"
+          },
+          "crm_company_filters": {
+            "$ref": "#/components/schemas/CrmCompanyFilters",
+            "description": "the bundled [CrmCompanyFilters]"
           },
           "document_filters": {
             "$ref": "#/components/schemas/DocumentFilters",
@@ -12380,6 +12400,90 @@
           }
         }
       },
+      "SoupCrmCompany": {
+        "type": "object",
+        "description": "A CRM company as displayed in Soup. Carries the core company\nfields plus display metadata resolved from `crm_domain_directory`\nagainst the primary (earliest-created) domain.",
+        "required": [
+          "id",
+          "teamId",
+          "emailSync",
+          "hidden",
+          "createdAt",
+          "updatedAt",
+          "domains"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the company was created."
+          },
+          "description": {
+            "type": ["string", "null"],
+            "description": "Display description from the primary domain's directory entry."
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoupCrmDomain"
+            },
+            "description": "Domains associated with this company, ordered by creation time\nascending (primary first)."
+          },
+          "emailSync": {
+            "type": "boolean",
+            "description": "Whether email sync is enabled for this company."
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "Whether the company is hidden from CRM listings. Soup filters\nthese out by default."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The id of the company."
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "Display name from the primary domain's directory entry, or\n`None` when unresolved."
+          },
+          "teamId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The id of the team that owns this company record."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the company was last updated."
+          }
+        }
+      },
+      "SoupCrmDomain": {
+        "type": "object",
+        "description": "A CRM domain as displayed in Soup. Mirrors the crm crate's\n[`CrmDomain`] with a stable wire shape that the FE can rely on.",
+        "required": ["id", "companyId", "domain", "createdAt"],
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The id of the company the domain belongs to."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the domain record was created."
+          },
+          "domain": {
+            "type": "string",
+            "description": "The domain (lowercased, e.g. \"acme.com\")."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The id of the domain record."
+          }
+        }
+      },
       "SoupDocument": {
         "type": "object",
         "required": [
@@ -12684,6 +12788,19 @@
               "tag": {
                 "type": "string",
                 "enum": ["call"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["data", "tag"],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/SoupCrmCompany"
+              },
+              "tag": {
+                "type": "string",
+                "enum": ["crmCompany"]
               }
             }
           }

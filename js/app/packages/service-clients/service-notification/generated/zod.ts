@@ -117,6 +117,7 @@ export const listTypedNotificationsResponse = zod
                 'team',
                 'call',
                 'static_file',
+                'crm_company',
               ])
               .describe('The type of an entity in Macro'),
           })
@@ -633,6 +634,7 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                 'team',
                 'call',
                 'static_file',
+                'crm_company',
               ])
               .describe('The type of an entity in Macro'),
           })
@@ -1143,6 +1145,7 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                 'team',
                 'call',
                 'static_file',
+                'crm_company',
               ])
               .describe('The type of an entity in Macro'),
           })
@@ -1664,6 +1667,7 @@ export const getTypedNotificationByIdResponse = zod
         'team',
         'call',
         'static_file',
+        'crm_company',
       ])
       .describe('The type of an entity in Macro'),
   })

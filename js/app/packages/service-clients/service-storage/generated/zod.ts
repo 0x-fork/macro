@@ -5730,6 +5730,71 @@ export const getItemsSoupResponse = zod.object({
             ),
           tag: zod.enum(['call']),
         }),
+        zod.object({
+          data: zod
+            .object({
+              createdAt: zod.iso
+                .datetime({})
+                .describe('When the company was created.'),
+              description: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Display description from the primary domain's directory entry."
+                ),
+              domains: zod
+                .array(
+                  zod
+                    .object({
+                      companyId: zod
+                        .uuid()
+                        .describe(
+                          'The id of the company the domain belongs to.'
+                        ),
+                      createdAt: zod.iso
+                        .datetime({})
+                        .describe('When the domain record was created.'),
+                      domain: zod
+                        .string()
+                        .describe(
+                          'The domain (lowercased, e.g. \"acme.com\").'
+                        ),
+                      id: zod.uuid().describe('The id of the domain record.'),
+                    })
+                    .describe(
+                      "A CRM domain as displayed in Soup. Mirrors the crm crate's\n[`CrmDomain`] with a stable wire shape that the FE can rely on."
+                    )
+                )
+                .describe(
+                  'Domains associated with this company, ordered by creation time\nascending (primary first).'
+                ),
+              emailSync: zod
+                .boolean()
+                .describe('Whether email sync is enabled for this company.'),
+              hidden: zod
+                .boolean()
+                .describe(
+                  'Whether the company is hidden from CRM listings. Soup filters\nthese out by default.'
+                ),
+              id: zod.uuid().describe('The id of the company.'),
+              name: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Display name from the primary domain's directory entry, or\n`None` when unresolved."
+                ),
+              teamId: zod
+                .uuid()
+                .describe('The id of the team that owns this company record.'),
+              updatedAt: zod.iso
+                .datetime({})
+                .describe('When the company was last updated.'),
+            })
+            .describe(
+              'A CRM company as displayed in Soup. Carries the core company\nfields plus display metadata resolved from `crm_domain_directory`\nagainst the primary (earliest-created) domain.'
+            ),
+          tag: zod.enum(['crmCompany']),
+        }),
       ])
       .and(
         zod.object({
@@ -5903,6 +5968,19 @@ export const postItemsSoupBody = zod
       .optional()
       .describe(
         'The chat filters used to filter down what chats you search over.'
+      ),
+    crm_company_filters: zod
+      .object({
+        company_ids: zod
+          .array(zod.string())
+          .optional()
+          .describe(
+            "CRM company ids to filter by. Examples: ['11111111-...']. Empty to\ninclude all of the team's visible CRM companies."
+          ),
+      })
+      .optional()
+      .describe(
+        'The crm company filters used to narrow which CRM companies appear in soup.'
       ),
     document_filters: zod
       .object({
@@ -7431,6 +7509,71 @@ export const postItemsSoupResponse = zod.object({
             ),
           tag: zod.enum(['call']),
         }),
+        zod.object({
+          data: zod
+            .object({
+              createdAt: zod.iso
+                .datetime({})
+                .describe('When the company was created.'),
+              description: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Display description from the primary domain's directory entry."
+                ),
+              domains: zod
+                .array(
+                  zod
+                    .object({
+                      companyId: zod
+                        .uuid()
+                        .describe(
+                          'The id of the company the domain belongs to.'
+                        ),
+                      createdAt: zod.iso
+                        .datetime({})
+                        .describe('When the domain record was created.'),
+                      domain: zod
+                        .string()
+                        .describe(
+                          'The domain (lowercased, e.g. \"acme.com\").'
+                        ),
+                      id: zod.uuid().describe('The id of the domain record.'),
+                    })
+                    .describe(
+                      "A CRM domain as displayed in Soup. Mirrors the crm crate's\n[`CrmDomain`] with a stable wire shape that the FE can rely on."
+                    )
+                )
+                .describe(
+                  'Domains associated with this company, ordered by creation time\nascending (primary first).'
+                ),
+              emailSync: zod
+                .boolean()
+                .describe('Whether email sync is enabled for this company.'),
+              hidden: zod
+                .boolean()
+                .describe(
+                  'Whether the company is hidden from CRM listings. Soup filters\nthese out by default.'
+                ),
+              id: zod.uuid().describe('The id of the company.'),
+              name: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Display name from the primary domain's directory entry, or\n`None` when unresolved."
+                ),
+              teamId: zod
+                .uuid()
+                .describe('The id of the team that owns this company record.'),
+              updatedAt: zod.iso
+                .datetime({})
+                .describe('When the company was last updated.'),
+            })
+            .describe(
+              'A CRM company as displayed in Soup. Carries the core company\nfields plus display metadata resolved from `crm_domain_directory`\nagainst the primary (earliest-created) domain.'
+            ),
+          tag: zod.enum(['crmCompany']),
+        }),
       ])
       .and(
         zod.object({
@@ -7456,6 +7599,12 @@ export const postItemsSoupAstBody = zod
       .unknown()
       .optional()
       .describe('the filters that should be applied to the call entity'),
+    ccf: zod
+      .unknown()
+      .optional()
+      .describe(
+        "Filters applied to the crm_company entity (wire key `ccf`).\nEmpty\/omitted = team's full visible list."
+      ),
     cf: zod
       .unknown()
       .optional()
@@ -8762,6 +8911,71 @@ export const postItemsSoupAstResponse = zod.object({
               'A call record as displayed in Soup. Excludes room_name, egress_id,\nand transcript — fields that are irrelevant for the soup feed.'
             ),
           tag: zod.enum(['call']),
+        }),
+        zod.object({
+          data: zod
+            .object({
+              createdAt: zod.iso
+                .datetime({})
+                .describe('When the company was created.'),
+              description: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Display description from the primary domain's directory entry."
+                ),
+              domains: zod
+                .array(
+                  zod
+                    .object({
+                      companyId: zod
+                        .uuid()
+                        .describe(
+                          'The id of the company the domain belongs to.'
+                        ),
+                      createdAt: zod.iso
+                        .datetime({})
+                        .describe('When the domain record was created.'),
+                      domain: zod
+                        .string()
+                        .describe(
+                          'The domain (lowercased, e.g. \"acme.com\").'
+                        ),
+                      id: zod.uuid().describe('The id of the domain record.'),
+                    })
+                    .describe(
+                      "A CRM domain as displayed in Soup. Mirrors the crm crate's\n[`CrmDomain`] with a stable wire shape that the FE can rely on."
+                    )
+                )
+                .describe(
+                  'Domains associated with this company, ordered by creation time\nascending (primary first).'
+                ),
+              emailSync: zod
+                .boolean()
+                .describe('Whether email sync is enabled for this company.'),
+              hidden: zod
+                .boolean()
+                .describe(
+                  'Whether the company is hidden from CRM listings. Soup filters\nthese out by default.'
+                ),
+              id: zod.uuid().describe('The id of the company.'),
+              name: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Display name from the primary domain's directory entry, or\n`None` when unresolved."
+                ),
+              teamId: zod
+                .uuid()
+                .describe('The id of the team that owns this company record.'),
+              updatedAt: zod.iso
+                .datetime({})
+                .describe('When the company was last updated.'),
+            })
+            .describe(
+              'A CRM company as displayed in Soup. Carries the core company\nfields plus display metadata resolved from `crm_domain_directory`\nagainst the primary (earliest-created) domain.'
+            ),
+          tag: zod.enum(['crmCompany']),
         }),
       ])
       .and(

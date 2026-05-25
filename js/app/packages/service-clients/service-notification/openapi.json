@@ -1473,7 +1473,8 @@
           "email_thread",
           "team",
           "call",
-          "static_file"
+          "static_file",
+          "crm_company"
         ]
       },
       "ErrorResponse": {
