@@ -463,6 +463,11 @@ export const mapSoupPageToEntityList: (
         !options.instructionsIdQuery.isSuccess ||
         item.data.id !== options.instructionsIdQuery.data
     )
+    // crmCompany has no Entity mapping yet — drop here until one's needed.
+    .filter(
+      (item): item is Exclude<typeof item, { tag: 'crmCompany' }> =>
+        item.tag !== 'crmCompany'
+    )
     .map(
       (
         item
