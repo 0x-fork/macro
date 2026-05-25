@@ -384,15 +384,21 @@ impl SoupRequest<Option<EntityFilterAst>> {
         };
 
         let mut company_ids = Vec::new();
-        if let Some(tree) = filter_ast.and_then(|a| a.crm_company_filter.as_ref()) {
-            collect_crm_company_ids(tree, &mut company_ids);
+        if let Some(tree) = filter_ast.and_then(|a| a.crm_company_filter.as_ref())
+            && !collect_crm_company_ids(tree, &mut company_ids)
+        {
+            // Fail closed: unsupported AST shape would widen the result
+            // set. Skip the CRM sub-request rather than over-include.
+            return None;
         }
 
         Some(GetCrmCompaniesRequest {
             team_id,
             company_ids,
             sort,
-            limit: self.limit as i64,
+            // Match the soup paginator's bounds so the CRM layer doesn't
+            // overfetch on an oversized client limit.
+            limit: self.limit.clamp(20, 500) as i64,
         })
     }
 
@@ -438,18 +444,18 @@ pub struct GetCrmCompaniesRequest {
 }
 
 /// Walks a `CrmCompanyLiteral` AST collecting every `Id(uuid)` literal.
-/// Producer today emits flat `OR`-of-Ids; walker handles any shape so
-/// future literals can extend without breaking this collector.
-fn collect_crm_company_ids(expr: &Expr<CrmCompanyLiteral>, out: &mut Vec<Uuid>) {
+/// Returns `false` when the AST contains `And` or `Not` — both shapes
+/// would change set semantics (`And` would intersect, `Not` would
+/// invert) but a flat collector can't represent that, so the caller
+/// fails closed rather than widening the result.
+fn collect_crm_company_ids(expr: &Expr<CrmCompanyLiteral>, out: &mut Vec<Uuid>) -> bool {
     match expr {
-        Expr::And(a, b) | Expr::Or(a, b) => {
-            collect_crm_company_ids(a, out);
-            collect_crm_company_ids(b, out);
+        Expr::Or(a, b) => collect_crm_company_ids(a, out) && collect_crm_company_ids(b, out),
+        Expr::Literal(CrmCompanyLiteral::Id(id)) => {
+            out.push(*id);
+            true
         }
-        // Producer never emits Not today; revisit if that changes —
-        // silently dropping it would under-filter.
-        Expr::Not(_) => {}
-        Expr::Literal(CrmCompanyLiteral::Id(id)) => out.push(*id),
+        Expr::And(_, _) | Expr::Not(_) => false,
     }
 }
 
