@@ -940,48 +940,50 @@ const SidebarUserMenu = (props: {
         </span>
         <CaretDownIcon class="size-3 shrink-0 text-ink-extra-muted group-data-[slim=true]/sidebar:hidden" />
       </Dropdown.Trigger>
-      <Dropdown.Content depth={2} class="min-w-56">
-        <div class="flex items-center gap-2.5 px-2 py-2.5">
-          <UserIcon
-            id={userId() ?? ''}
-            size="lg"
-            suppressClick
-            showTooltip={false}
-          />
-          <div class="flex-1 min-w-0 flex flex-col gap-0.5">
-            <div class="text-sm font-semibold text-ink truncate leading-tight">
-              {displayName() || 'Account'}
-            </div>
-            <Show when={email()}>
-              <div class="text-xs text-ink-muted truncate leading-tight">
-                {email()}
+      <Dropdown.Content depth={1} class="min-w-56">
+        <div class="flex flex-col bg-surface p-1">
+          <div class="flex items-center gap-2.5 px-2 py-2.5">
+            <UserIcon
+              id={userId() ?? ''}
+              size="lg"
+              suppressClick
+              showTooltip={false}
+            />
+            <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+              <div class="text-sm font-semibold text-ink truncate leading-tight">
+                {displayName() || 'Account'}
               </div>
-            </Show>
+              <Show when={email()}>
+                <div class="text-xs text-ink-muted truncate leading-tight">
+                  {email()}
+                </div>
+              </Show>
+            </div>
           </div>
+          <div class="mx-2 my-1 h-px bg-edge-muted" />
+          <Dropdown.Item
+            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+            onSelect={props.onCommandMenu}
+          >
+            <CommandKIcon class="size-3.5 shrink-0" />
+            <span class="flex-1 truncate">Command menu</span>
+            <Hotkey token={TOKENS.global.commandMenu} class="flex gap-0.5 text-ink-extra-muted" />
+          </Dropdown.Item>
+          <Dropdown.Item
+            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+            onSelect={props.onSettings}
+          >
+            <GearIcon class="size-3.5 shrink-0" />
+            <span class="flex-1 truncate">Settings</span>
+          </Dropdown.Item>
+          <Dropdown.Item
+            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-failure hover:bg-failure-bg focus:bg-failure-bg outline-none cursor-default rounded-sm"
+            onSelect={logout}
+          >
+            <SignOutIcon class="size-3.5 shrink-0" />
+            <span class="flex-1 truncate">Log out</span>
+          </Dropdown.Item>
         </div>
-        <div class="mx-2 my-1 h-px bg-edge-muted" />
-        <Dropdown.Item
-          class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
-          onSelect={props.onCommandMenu}
-        >
-          <CommandKIcon class="size-3.5 shrink-0" />
-          <span class="flex-1 truncate">Command menu</span>
-          <Hotkey token={TOKENS.global.commandMenu} class="flex gap-0.5 text-ink-extra-muted" />
-        </Dropdown.Item>
-        <Dropdown.Item
-          class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
-          onSelect={props.onSettings}
-        >
-          <GearIcon class="size-3.5 shrink-0" />
-          <span class="flex-1 truncate">Settings</span>
-        </Dropdown.Item>
-        <Dropdown.Item
-          class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-failure hover:bg-failure-bg focus:bg-failure-bg outline-none cursor-default rounded-sm"
-          onSelect={logout}
-        >
-          <SignOutIcon class="size-3.5 shrink-0" />
-          <span class="flex-1 truncate">Log out</span>
-        </Dropdown.Item>
       </Dropdown.Content>
     </Dropdown>
   );
