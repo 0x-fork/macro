@@ -9,9 +9,9 @@ import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-contex
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import { type TabItem, Tabs } from '@core/component/Tabs';
-import { TabsInset } from '@core/component/TabsInset';
 import { TabsInsetDropdown } from '@core/component/TabsInsetDropdown';
 import { useUserContext } from '@core/context/user';
+import { OverflowTabGroup } from '@ui';
 import { batch, createEffect, createMemo, For, Match, Switch } from 'solid-js';
 
 /** Views that have tab definitions. Shared between VIEW_TAB_LISTS and VIEW_TAB_PRESETS. */
@@ -135,10 +135,9 @@ const ViewTabs = (props: { view: TabbedListView }) => {
   const list = () => VIEW_TAB_LISTS[props.view];
 
   return (
-    <TabsInset
-      list={list()}
-      value={activeTab()}
-      defaultValue={VIEW_TAB_PRESETS[props.view].default}
+    <OverflowTabGroup
+      items={list().map((tab) => ({ value: tab.value, label: tab.label }))}
+      value={activeTab() ?? VIEW_TAB_PRESETS[props.view].default ?? ''}
       onChange={(value) => applyTabPreset(props.view, value)}
     />
   );
