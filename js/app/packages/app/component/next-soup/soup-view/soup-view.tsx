@@ -62,7 +62,6 @@ import {
 import { SplitPanelContext } from '@app/component/split-layout/context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { isListViewID, type ListView } from '@app/constants/list-views';
-import { usePreference } from '@app/preferences/use-preference';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { EmailPermissionsBanner } from '@core/component/EmailPermissionsBanner';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
@@ -884,52 +883,53 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
   const cacheKey = `soup-view-${panel.handle.id}-${contentId}${previewPanel ? '-preview' : ''}`;
 
-  // Cross-session, view-kind-scoped user preferences. Each has its own
-  // localStorage key under `macro:pref:soup:{contentId}:*`.
-  const [sortPref, setSortPref] = usePreference<string[]>(
-    `macro:pref:soup:${contentId}:sort`,
-    { default: [] }
-  );
-  const [groupByPref, setGroupByPref] = usePreference<string | undefined>(
-    `macro:pref:soup:${contentId}:groupBy`,
-    { default: undefined }
-  );
+  // Per-entry state slices that need to round-trip on back/forward. Each is
+  // read synchronously in the body so the first render sees the correct
+  // value, and registers a captor so the latest value is stashed back into
+  // the current history entry just before any navigation away.
+  const entryState = panel.handle.currentEntryState();
 
-  // Preview-pane open state is transient per history entry: captured into
-  // per-entry state on nav-away and restored on back/forward. Read
-  // synchronously in the body so the first render sees the correct value
-  // and we avoid a transient flash where the pane is closed.
-  const persistedPreview = panel.handle.currentEntryState()?.['soup.preview'] as
-    | string
+  const persistedSort = entryState?.['soup.sort'] as string[] | undefined;
+  const persistedGroupBy = entryState?.['soup.groupBy'] as string | undefined;
+  const persistedCollapsedGroups = entryState?.['soup.collapsedGroups'] as
+    | string[]
     | undefined;
-  soup.setPreviewEntity(persistedPreview);
-  const previewCaptorTeardown = panel.handle.registerEntryStateCaptor(
-    'soup.preview',
-    () => soup.previewEntity()
-  );
-  onCleanup(previewCaptorTeardown);
+  const persistedPreview = entryState?.['soup.preview'] as string | undefined;
 
-  // Which groups are collapsed is also per-entry state: captured on nav-away
-  // and restored on back/forward.
-  const persistedCollapsedGroups = panel.handle.currentEntryState()?.[
-    'soup.collapsedGroups'
-  ] as string[] | undefined;
-  const collapsedCaptorTeardown = panel.handle.registerEntryStateCaptor(
-    'soup.collapsedGroups',
-    () => [...soup.grouping.collapsedGroups()]
+  // Restore preview synchronously so the first render sees the correct
+  // open/closed state and we avoid a transient flash.
+  soup.setPreviewEntity(persistedPreview);
+
+  onCleanup(
+    panel.handle.registerEntryStateCaptor('soup.sort', () =>
+      soup.sort.active().map((s) => s.id)
+    )
   );
-  onCleanup(collapsedCaptorTeardown);
+  onCleanup(
+    panel.handle.registerEntryStateCaptor('soup.groupBy', () =>
+      soup.grouping.activeGroupId()
+    )
+  );
+  onCleanup(
+    panel.handle.registerEntryStateCaptor('soup.collapsedGroups', () => [
+      ...soup.grouping.collapsedGroups(),
+    ])
+  );
+  onCleanup(
+    panel.handle.registerEntryStateCaptor('soup.preview', () =>
+      soup.previewEntity()
+    )
+  );
 
   onMount(() => {
     batch(() => {
-      const savedSort = sortPref();
-      if (savedSort.length > 0) {
-        soup.sort.setAll(savedSort as SystemSortOption[]);
+      if (persistedSort && persistedSort.length > 0) {
+        soup.sort.setAll(persistedSort as SystemSortOption[]);
       }
       // soup state is shared at the SplitPanel level, so a prior view in the
       // same split (e.g. tasks) may have left grouping state behind. Always
-      // reset to this view's saved or initial grouping, even when undefined.
-      soup.grouping.setActiveGroupId(groupByPref() ?? props.initialGroupBy);
+      // reset to this view's captured or initial grouping, even when undefined.
+      soup.grouping.setActiveGroupId(persistedGroupBy ?? props.initialGroupBy);
       soup.grouping.collapseAll(persistedCollapsedGroups ?? []);
 
       // Apply view-supplied client filters only when per-entry state didn't
@@ -948,24 +948,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
       }
     });
   });
-
-  // Bridge live soup state back to preferences. `defer: true` skips the
-  // initial run on mount, so we only write when the user actually changes
-  // something.
-  createEffect(
-    on(
-      () => soup.sort.active().map((s) => s.id),
-      (ids) => setSortPref(ids),
-      { defer: true }
-    )
-  );
-  createEffect(
-    on(
-      () => soup.grouping.activeGroupId(),
-      (id) => setGroupByPref(id),
-      { defer: true }
-    )
-  );
 
   onCleanup(() => {
     if (isProjectList) return;
