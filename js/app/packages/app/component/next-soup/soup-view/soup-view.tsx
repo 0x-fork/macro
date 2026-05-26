@@ -363,33 +363,38 @@ const SoupViewSkeleton = () => (
   <div class="size-full flex flex-col">
     <SplitHeaderLeft>
       <div class="flex gap-3 items-center">
-        <div class="h-3.5 w-14 rounded bg-edge-muted animate-pulse" />
-        <div class="flex items-center gap-1">
-          <div class="h-6 w-12 rounded-md bg-edge-muted/60 animate-pulse" />
-          <div class="h-6 w-14 rounded-md bg-edge-muted/40 animate-pulse" />
-          <div class="h-6 w-10 rounded-md bg-edge-muted/40 animate-pulse" />
-        </div>
+        <div class="h-3.5 w-20 rounded bg-edge-muted animate-pulse" />
       </div>
     </SplitHeaderLeft>
-    <div class="pt-2 pb-3 px-2">
-      <div class="rounded-lg border border-edge-muted/50">
-        <div class="flex items-center gap-2 px-2 py-1.5">
-          <div class="flex-1 flex items-center gap-2 h-7 px-2 rounded-md bg-ink/5">
-            <div class="size-4 rounded bg-edge-muted/60" />
-            <div class="h-3 w-16 rounded bg-edge-muted/50" />
-          </div>
-          <div class="flex items-center gap-1">
-            <div
-              class="h-7 w-20 rounded-md bg-edge-muted/40 animate-pulse"
-              style={{ 'animation-delay': '50ms' }}
-            />
-            <div
-              class="h-7 w-16 rounded-md bg-edge-muted/40 animate-pulse"
-              style={{ 'animation-delay': '100ms' }}
-            />
-          </div>
-        </div>
+    {/* Filters bar: tabs on the left, search + options on the right */}
+    <div class="flex items-center gap-2 px-2 py-2">
+      <div class="flex items-center gap-1">
+        <div class="h-6 w-14 rounded-md bg-edge-muted/60 animate-pulse" />
+        <div
+          class="h-6 w-14 rounded-md bg-edge-muted/40 animate-pulse"
+          style={{ 'animation-delay': '50ms' }}
+        />
+        <div
+          class="h-6 w-10 rounded-md bg-edge-muted/40 animate-pulse"
+          style={{ 'animation-delay': '100ms' }}
+        />
       </div>
+      <div class="flex-1" />
+      <div
+        class="h-7 w-40 rounded-md bg-edge-muted/40 animate-pulse"
+        style={{ 'animation-delay': '150ms' }}
+      />
+      <div
+        class="size-7 rounded-md bg-edge-muted/40 animate-pulse"
+        style={{ 'animation-delay': '200ms' }}
+      />
+    </div>
+    {/* List column header */}
+    <div class="flex items-center gap-2 px-3 h-10">
+      <div class="size-4 rounded-xs bg-edge-muted/40" />
+      <div class="h-3 w-12 rounded bg-edge-muted/40" />
+      <div class="flex-1" />
+      <div class="h-3 w-12 rounded bg-edge-muted/30" />
     </div>
     <div class="flex-1">
       <SoupListSkeleton />
