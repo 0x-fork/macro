@@ -12,11 +12,14 @@ import type {
   BlockOrchestrator,
 } from '@core/orchestrator';
 import { useFocusLock } from '@core/util/createControlledOpenSignal';
+import { debounce } from '@solid-primitives/scheduled';
 import {
   type Accessor,
+  createEffect,
   createMemo,
   createSignal,
   type JSXElement,
+  onCleanup,
 } from 'solid-js';
 import { createStore, produce, reconcile, type Store } from 'solid-js/store';
 import {
@@ -25,6 +28,7 @@ import {
   resolveComponent,
 } from './componentRegistry';
 import { createHistory, type History } from './history';
+import { readPersistedLayout, writePersistedLayout } from './persisted-layout';
 
 const ENABLE_DEFAULT_ALWAYS_IN_HISTORY = false;
 
@@ -147,8 +151,18 @@ export type CreateNewSplitOptions = {
   /**
    * Optional prior navigation entries to pre-populate this split's history stack.
    * The `content` field is appended as the final (current) entry.
+   *
+   * When `initialHistoryIndex` is also provided, `initialHistory` is treated
+   * as the *full* history (including the current entry) and the cursor is
+   * placed at `initialHistoryIndex`; `content` is then ignored.
    */
   initialHistory?: SplitContent[];
+  /**
+   * Index within `initialHistory` to mount as the current entry. Used to
+   * restore a split's full back/forward stack on boot. Has no effect if
+   * `initialHistory` is empty or undefined.
+   */
+  initialHistoryIndex?: number;
 };
 
 export type OpenWithSplitOptions = {
@@ -598,25 +612,47 @@ export function createSplitLayout(
     isDefault?: boolean;
     referredFrom?: ReferredFrom;
     initialHistory?: SplitContent[];
+    initialHistoryIndex?: number;
   }): SplitState {
-    const { initialContent, isDefault, referredFrom, initialHistory } = options;
+    const {
+      initialContent,
+      isDefault,
+      referredFrom,
+      initialHistory,
+      initialHistoryIndex,
+    } = options;
     const id = newSplitId();
     const history = createHistory<SplitContent>();
-    const content = attachAliasContext(initialContent);
+    let content: SplitContent;
 
-    if (initialHistory && initialHistory.length > 0) {
-      // Pre-populate prior navigation entries so previousContent() is accurate.
+    if (
+      initialHistory &&
+      initialHistory.length > 0 &&
+      initialHistoryIndex !== undefined
+    ) {
+      // Restore a full history stack and place the cursor on the given index;
+      // ignore `initialContent` since the mounted entry is taken from the
+      // history itself.
       for (const item of initialHistory) {
         history.push(attachAliasContext(item));
       }
+      const target = history.goToIndex(initialHistoryIndex);
+      content = target ?? attachAliasContext(initialContent);
+    } else if (initialHistory && initialHistory.length > 0) {
+      // Legacy: prior entries before the new current entry.
+      for (const item of initialHistory) {
+        history.push(attachAliasContext(item));
+      }
+      content = attachAliasContext(initialContent);
+      history.push(content);
     } else {
-      // If enabled, we always want to be able to go back to the default split
       if (!isDefault && ENABLE_DEFAULT_ALWAYS_IN_HISTORY) {
         history.push(DEFAULT_SPLIT_CONTENT);
       }
+      content = attachAliasContext(initialContent);
+      history.push(content);
     }
 
-    history.push(content);
     const mount = createPinnedMount(orchestrator, content);
 
     return {
@@ -1016,8 +1052,14 @@ export function createSplitLayout(
   };
 
   function createNewSplit(options: CreateNewSplitOptions): SplitHandle {
-    const { content, activate, referredFrom, allowDuplicate, initialHistory } =
-      options;
+    const {
+      content,
+      activate,
+      referredFrom,
+      allowDuplicate,
+      initialHistory,
+      initialHistoryIndex,
+    } = options;
     const initialContent = content ?? DEFAULT_SPLIT_CONTENT;
     const isDefault = sameContent(initialContent, DEFAULT_SPLIT_CONTENT);
 
@@ -1039,6 +1081,7 @@ export function createSplitLayout(
       isDefault,
       referredFrom,
       initialHistory,
+      initialHistoryIndex,
     });
 
     setState('splits', (previousSplits) => [...previousSplits, split]);
@@ -1170,9 +1213,58 @@ export function createSplitLayout(
 
   const lastEvent = createMemo(() => state.events[state.events.length - 1]);
 
-  for (const split of initial) {
-    createNewSplit({ content: split, activate: true, referredFrom: null });
+  // Cross-reload hydration: if a persisted layout exists and its current
+  // entries line up with the URL-derived `initial` splits, restore each
+  // split's full back/forward history (and per-entry state). When the URL
+  // doesn't match the persisted snapshot (e.g. the user typed a different
+  // URL), fall back to a fresh split for that position.
+  const persistedLayout = readPersistedLayout();
+  for (let i = 0; i < initial.length; i++) {
+    const split = initial[i];
+    const persistedSplit = persistedLayout?.splits[i];
+    const persistedCurrent =
+      persistedSplit &&
+      persistedSplit.index >= 0 &&
+      persistedSplit.index < persistedSplit.history.length
+        ? persistedSplit.history[persistedSplit.index]
+        : undefined;
+
+    const matchesPersisted =
+      persistedCurrent !== undefined && sameContent(persistedCurrent, split);
+
+    createNewSplit({
+      content: split,
+      activate: true,
+      referredFrom: null,
+      initialHistory: matchesPersisted ? persistedSplit?.history : undefined,
+      initialHistoryIndex: matchesPersisted ? persistedSplit?.index : undefined,
+    });
   }
+
+  // Persist the split tree (each split's full history + cursor) on any
+  // change so a page reload can rehydrate the same nav stacks and per-entry
+  // state. Reading `state.splits[i].content` here is enough to register a
+  // dependency: every layout-mutating path goes through `reattach` /
+  // `captureCurrentEntryState`, both of which `setState` on the live split's
+  // content. Reads of `history.items` / `history.index` then pick up the
+  // freshly mutated underlying arrays.
+  const persistLayout = debounce(() => {
+    writePersistedLayout({
+      splits: state.splits
+        .filter((s) => !isExcluded(s))
+        .map((s) => ({
+          history: [...s.history.items],
+          index: s.history.index,
+        })),
+    });
+  }, 500);
+  createEffect(() => {
+    for (const split of state.splits) {
+      void split.content;
+    }
+    persistLayout();
+  });
+  onCleanup(() => persistLayout.clear());
 
   const tabTitle = () => {
     if (state.activeSplitId === undefined) return undefined;
