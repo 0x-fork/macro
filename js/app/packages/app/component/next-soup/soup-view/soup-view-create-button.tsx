@@ -140,10 +140,8 @@ export const SoupViewCreateButton = () => {
   const SingleOptionButton = (props: { hideLabel?: boolean }) => (
     <Button
       variant="active"
-      class={cn(
-        'border-0 rounded-full px-3 py-2 pl-1 font-semibold',
-        props.hideLabel && 'pr-1'
-      )}
+      noTouchResize
+      class="border-0 rounded-full py-1 pl-1 pr-2 gap-1 font-semibold"
       size="sm"
       onClick={() => handleSelect(options()[0])}
     >
@@ -158,10 +156,8 @@ export const SoupViewCreateButton = () => {
     <Dropdown placement="bottom-start">
       <Dropdown.Trigger
         variant="active"
-        class={cn(
-          'border-0 rounded-full px-3 py-2 pl-1 font-semibold',
-          props.hideLabel && 'pr-1'
-        )}
+        noTouchResize
+        class="border-0 rounded-full py-1 pl-1 pr-2 gap-1 font-semibold"
       >
         <PlusCircleIcon class="size-3.5" />
         <Show when={!props.hideLabel}>
