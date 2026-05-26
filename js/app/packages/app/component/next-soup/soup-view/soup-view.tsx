@@ -1623,8 +1623,7 @@ const SoupList = (props: SoupListProps) => {
         props.class
       )}
     >
-      {/* Gradient fades */}
-      <div class="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-surface to-transparent z-10 pointer-events-none" />
+      {/* Gradient fade (bottom only) */}
       <div class="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-surface to-transparent z-10 pointer-events-none" />
       <VList
         cache={props.cache}
