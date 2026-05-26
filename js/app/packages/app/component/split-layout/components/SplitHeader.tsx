@@ -1,10 +1,12 @@
-import { isListViewID } from '@app/constants/list-views';
+import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
+import { globalSplitManager } from '@app/signal/splitLayout';
 import {
   ENABLE_PREVIEW,
   ENABLE_PROJECT_VIEW_PREVIEW,
 } from '@core/constant/featureFlags';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
+import { AnimatedNewSplitIcon } from '@icon/wide-newSplit';
 import CollapseIcon from '@phosphor/arrows-in.svg';
 import ExpandIcon from '@phosphor/arrows-out.svg';
 import CaretLeft from '@phosphor/caret-left.svg';
@@ -23,6 +25,37 @@ import {
 import { Portal } from 'solid-js/web';
 import { SplitLayoutContext, SplitPanelContext } from '../context';
 import { canSpotlight } from '../utils/canSpotlight';
+
+function SplitNewSplitButton() {
+  const canCreateNewSplit = () =>
+    globalSplitManager()?.canAppendSplit() ?? true;
+
+  const handleNewSplitClick = () => {
+    const manager = globalSplitManager();
+    if (!manager || !manager.canAppendSplit()) return;
+    manager.createNewSplit({
+      content: { type: 'component', id: LIST_VIEW_ID.inbox },
+      activate: true,
+      allowDuplicate: true,
+      referredFrom: 'split-header',
+    });
+  };
+
+  return (
+    <Show when={!isMobile()}>
+      <Button
+        size="sm"
+        class="p-1 [&_svg]:size-4"
+        label="New Split"
+        hotkey={TOKENS.global.createNewSplit}
+        disabled={!canCreateNewSplit()}
+        onClick={handleNewSplitClick}
+      >
+        <AnimatedNewSplitIcon class="text-ink-extra-muted" />
+      </Button>
+    </Show>
+  );
+}
 
 function SplitBackButton() {
   const context = useContext(SplitPanelContext);
@@ -197,6 +230,10 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
             panel.layoutRefs.headerRight = ref;
           }}
         />
+
+        <div class="shrink-0 flex items-center pr-2">
+          <SplitNewSplitButton />
+        </div>
       </div>
     </div>
   );

@@ -9,11 +9,7 @@ import { createMenuOpen, setCreateMenuOpen } from '@app/component/Launcher';
 import { requestSearchFocus } from '@app/component/next-soup/soup-view/search-controllers';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
-import {
-  LIST_VIEW_ID,
-  LIST_VIEW_PATHS,
-  type ListView,
-} from '@app/constants/list-views';
+import { LIST_VIEW_PATHS, type ListView } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
 import { clearSidebarBadge, hasSidebarBadge } from '@app/signal/sidebarBadges';
@@ -53,7 +49,6 @@ import { AnimatedEmailIcon } from '@icon/wide-email';
 import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
 import { AnimatedFolderIcon } from '@icon/wide-folder';
 import { AnimatedInboxIcon } from '@icon/wide-inbox';
-import { AnimatedNewSplitIcon } from '@icon/wide-newSplit';
 import { AnimatedSearchIcon } from '@icon/wide-search';
 import { AnimatedStarIcon } from '@icon/wide-star';
 import { AnimatedTaskIcon } from '@icon/wide-task';
@@ -67,7 +62,6 @@ import PaintBucketIcon from '@phosphor/paint-bucket.svg';
 import PlugIcon from '@phosphor/plug.svg';
 import UserIconPhosphor from '@phosphor/user.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
-import { createElementSize } from '@solid-primitives/resize-observer';
 import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
 import { useLocation } from '@solidjs/router';
@@ -822,7 +816,7 @@ type SidebarCreateButtonProps = {
 const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
   return (
     <Button
-      class="flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-1.5 cursor-default w-full rounded-md py-2 group-data-[slim=true]/sidebar:py-0 group-data-[slim=true]/sidebar:aspect-square [&_svg]:size-4"
+      class="flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-1.5 cursor-default w-full rounded-md py-2 bg-ink/5 hover:bg-ink/10 group-data-[slim=true]/sidebar:py-0 group-data-[slim=true]/sidebar:aspect-square [&_svg]:size-4"
       variant="ghost"
       tooltipPlacement="right"
       label={props.isSlim() ? props.label : undefined}
@@ -887,7 +881,7 @@ const SidebarIconButton = (props: SidebarIconButtonProps) => {
  */
 const SidebarUserMenu = (props: {
   onSettings: () => void;
-  isSlim: () => boolean;
+  onCommandMenu: () => void;
 }) => {
   const userId = useUserId();
   const email = useEmail();
@@ -896,58 +890,52 @@ const SidebarUserMenu = (props: {
 
   const label = () => displayName() || email() || 'Account';
 
-  const [triggerRef, setTriggerRef] = createSignal<HTMLElement | null>(null);
-  const triggerSize = createElementSize(triggerRef);
-
   return (
-    <Dropdown placement="top" gutter={6}>
+    <Dropdown placement="bottom-start" gutter={6}>
       <Dropdown.Trigger
         as="button"
         type="button"
-        ref={setTriggerRef}
         class={cn(
-          'flex items-center gap-2 px-2 py-3 rounded-md hover:bg-ink/5 data-expanded:bg-ink/5 transition-colors text-left',
-          'group-data-[slim=true]/sidebar:justify-center group-data-[slim=true]/sidebar:px-0'
+          'flex items-center gap-2.5 w-full min-w-0 px-2 py-1.5 rounded-md ring-1 ring-edge-muted hover:bg-ink/5 data-expanded:bg-ink/5 transition-colors text-left',
+          'group-data-[slim=true]/sidebar:px-0 group-data-[slim=true]/sidebar:py-1 group-data-[slim=true]/sidebar:ring-0'
         )}
       >
-        <UserIcon
-          id={userId() ?? ''}
-          size="md"
-          suppressClick
-          showTooltip={false}
-        />
-        <span class="flex-1 min-w-0 text-sm font-medium text-ink truncate group-data-[slim=true]/sidebar:hidden">
+        <LogoIcon class="size-4 shrink-0 text-accent" />
+        <span class="flex-1 min-w-0 text-xs font-medium text-ink truncate group-data-[slim=true]/sidebar:hidden">
           {label()}
         </span>
         <CaretDownIcon class="size-3 shrink-0 text-ink-extra-muted group-data-[slim=true]/sidebar:hidden" />
       </Dropdown.Trigger>
       <Dropdown.Portal>
         <Layer depth={2}>
-          <Dropdown.Content
-            class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-md shadow-drop-shadow p-1"
-            style={{
-              width: triggerSize.width ? `${triggerSize.width}px` : undefined,
-            }}
-          >
-            <div class="flex items-center gap-2 px-2 py-2 rounded-sm">
+          <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-md shadow-drop-shadow min-w-56 p-1">
+            <div class="flex items-center gap-2.5 px-2 py-2.5">
               <UserIcon
                 id={userId() ?? ''}
-                size="md"
+                size="lg"
                 suppressClick
                 showTooltip={false}
               />
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium text-ink truncate">
+              <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+                <div class="text-sm font-semibold text-ink truncate leading-tight">
                   {displayName() || 'Account'}
                 </div>
                 <Show when={email()}>
-                  <div class="text-xxs text-ink-extra-muted truncate">
+                  <div class="text-xs text-ink-muted truncate leading-tight">
                     {email()}
                   </div>
                 </Show>
               </div>
             </div>
-            <Dropdown.Separator />
+            <div class="mx-2 my-1 h-px bg-edge-muted" />
+            <Dropdown.Item
+              class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+              onSelect={props.onCommandMenu}
+            >
+              <CommandKIcon class="size-3.5 shrink-0" />
+              <span class="flex-1 truncate">Command menu</span>
+              <Hotkey token={TOKENS.global.commandMenu} class="flex gap-0.5 text-ink-extra-muted" />
+            </Dropdown.Item>
             <Dropdown.Item
               class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
               onSelect={props.onSettings}
@@ -1143,25 +1131,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
     setCreateMenuOpen((p) => !p);
   };
 
-  const canCreateNewSplit = () =>
-    globalSplitManager()?.canAppendSplit() ?? true;
-
-  const handleNewSplitClick = () => {
-    const manager = globalSplitManager();
-    if (!manager || !manager.canAppendSplit()) return;
-
-    analytics.track('split_created', { from: 'sidebar' });
-    manager.createNewSplit({
-      content: {
-        type: 'component',
-        id: LIST_VIEW_ID.inbox,
-      },
-      activate: true,
-      allowDuplicate: true,
-      referredFrom: 'sidebar',
-    });
-  };
-
   const openSettingsTab = (tab: SettingsTab) => {
     if (!isTabAvailable(tab)) return;
     if (settingsOpen()) {
@@ -1200,7 +1169,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       class={cn(
         'group/sidebar h-full py-2 flex flex-col gap-0 mobile:absolute mobile:z-modal-content overflow-hidden',
         isExpanded() &&
-          'max-w-56 w-full mobile:max-w-2/3 translate-x-0 opacity-100',
+          'max-w-52 w-full mobile:max-w-2/3 translate-x-0 opacity-100',
         props.sidebarState === 'hidden' &&
           '-translate-x-full overflow-hidden opacity-0',
 
@@ -1210,12 +1179,14 @@ export const AppSidebar = (props: AppSidebarProps) => {
       data-slim={isSlim()}
       style={{ transition: SIDEBAR_MAX_WIDTH_TRANSITION_STYLE }}
     >
-      <div class="flex items-center justify-between p-2 relative group-data-[slim=true]/sidebar:pr-2.25">
-        <div class="flex items-center group/logo-area w-full group-data-[slim=true]/sidebar:justify-end">
-          <div class="text-accent group-data-[slim=true]/sidebar:opacity-0 group-data-[slim=true]/sidebar:max-w-0 min-w-0 pl-1 group-data-[slim=true]/sidebar:pl-0">
-            <LogoIcon class="size-6" />
-          </div>
-          <div class="grow shrink-10 min-w-0 group-data-[slim=true]/sidebar:hidden" />
+      <div class="flex items-center justify-between gap-1.5 group-data-[slim=true]/sidebar:gap-0 p-2 relative group-data-[slim=true]/sidebar:pr-2.25">
+        <div class="min-w-0 group-data-[slim=true]/sidebar:max-w-0 group-data-[slim=true]/sidebar:overflow-hidden">
+          <SidebarUserMenu
+            onSettings={() => openSettingsTab('Account')}
+            onCommandMenu={handleCommandPaletteClick}
+          />
+        </div>
+        <div class="flex items-center gap-0.5 shrink-0 ml-auto">
           <div class="flex items-center gap-0.5 group-data-[slim=true]/sidebar:hidden">
             <Show when={showEnableNotifications()}>
               <SidebarIconButton
@@ -1225,26 +1196,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
                 isSlim={isSlim}
               />
             </Show>
-            <SidebarIconButton
-              label="New Split"
-              hotkeyToken={TOKENS.global.createNewSplit}
-              onClick={handleNewSplitClick}
-              disabled={() => !canCreateNewSplit()}
-              icon={(p) => (
-                <AnimatedNewSplitIcon
-                  class={cn('text-ink-extra-muted', p.class)}
-                  triggerAnimation={p.triggerAnimation}
-                />
-              )}
-              isSlim={isSlim}
-            />
-            <SidebarIconButton
-              label="Command"
-              hotkeyToken={TOKENS.global.commandMenu}
-              onClick={handleCommandPaletteClick}
-              icon={(p) => <CommandKIcon class={p.class} />}
-              isSlim={isSlim}
-            />
           </div>
           <Button
             class="size-7 rounded-md p-1 [&_svg]:size-4"
@@ -1264,7 +1215,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
         </div>
       </div>
 
-      <div class="w-full px-2 mt-4 mb-6">
+      <div class="w-full px-2 mt-4 mb-2">
         <SidebarCreateButton
           label="Create"
           hotkeyToken={TOKENS.global.createCommand}
@@ -1275,7 +1226,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       </div>
 
       <nav>
-        <ul class="size-full px-2 flex flex-col gap-1">
+        <ul class="size-full px-2 flex flex-col gap-0.5">
           <For each={visibleLinks()}>
             {(link) => (
               <li>
@@ -1376,11 +1327,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
             onDismiss={() => setMobileAppCardDismissed(true)}
           />
         </Show>
-
-        <SidebarUserMenu
-          onSettings={() => openSettingsTab('Account')}
-          isSlim={isSlim}
-        />
       </div>
       <InviteModal />
     </div>
@@ -1463,9 +1409,9 @@ const SidebarLink = (props: SidebarLinkProps) => {
           data-sidebar-link={props.id}
           data-active={isActive() ? '' : undefined}
           class={cn(
-            'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-2 cursor-default w-full rounded-md py-2 text-ink-extra-muted [&_svg]:size-4',
+            'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-2 cursor-default w-full rounded-md py-2 text-ink-extra-muted/60 not-disabled:hover:text-ink-extra-muted [&_svg]:size-4',
             isActive() &&
-              'bg-ink/10 not-disabled:hover:bg-ink/15 text-ink shadow-sm'
+              'bg-ink/10 not-disabled:hover:bg-ink/15 text-ink not-disabled:hover:text-ink shadow-sm'
           )}
           tooltipPlacement="right"
           onMouseEnter={() => setIsHovering(true)}
