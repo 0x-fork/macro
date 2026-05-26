@@ -78,6 +78,10 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
     } else if (props.selectedEntity.type === 'channel_message') {
       blockType = 'channel';
       blockId = props.selectedEntity.channelId;
+    } else if (props.selectedEntity.type === 'crm_company') {
+      // crm companies aren't previewable; this path isn't reachable in practice.
+      blockType = 'unknown';
+      blockId = props.selectedEntity.id;
     } else {
       blockType = props.selectedEntity.type;
       blockId = props.selectedEntity.id;

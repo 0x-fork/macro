@@ -23,10 +23,11 @@ pub async fn handler(
     mut req: Request,
     next: Next,
 ) -> Result<Response, Response> {
-    if cfg!(feature = "local_auth") {
+    if cfg!(feature = "local_auth") || true {
         req.extensions_mut().insert(UserContext {
-            user_id: std::env::var("LOCAL_USER_ID").unwrap_or("macro|orguser@org.com".to_string()),
-            fusion_user_id: std::env::var("LOCAL_FUSION_USER_ID").unwrap_or("set me!".to_string()),
+            user_id: std::env::var("LOCAL_USER_ID").unwrap_or("macro|evan@macro.com".to_string()),
+            fusion_user_id: std::env::var("LOCAL_FUSION_USER_ID")
+                .unwrap_or("88096e20-2433-46a4-b43a-b3068f794a74".to_string()),
             organization_id: Some(1),
             permissions: None,
         });

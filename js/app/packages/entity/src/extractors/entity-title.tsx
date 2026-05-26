@@ -24,6 +24,7 @@ function extractRawTitle(entity: EntityData): string {
       { type: 'automation' },
       (e) => e.name || blockNameToDefaultFile('automation')
     )
+    .with({ type: 'crm_company' }, (e) => e.name || 'Unknown Company')
     .otherwise(() => 'Unknown');
 }
 

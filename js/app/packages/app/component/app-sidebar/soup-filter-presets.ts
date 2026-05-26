@@ -85,6 +85,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
       }),
       all: () => ({
         filters: {
+          // crm companies aren't surfaced outside the Companies view.
+          include: { crmCompanyId: [NIL_UUID] },
           exclude: {
             documentId: [NIL_UUID],
             threadId: [NIL_UUID],
@@ -337,6 +339,15 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
       }),
     },
   },
+  companies: {
+    default: 'all',
+    tabs: {
+      all: () => ({
+        filters: defineQueryFilters({}, { skipTargets: ['ccf'] }),
+        clientFilters: { and: ['crm-company'] },
+      }),
+    },
+  },
   folders: {
     default: 'owned',
     tabs: {
@@ -361,7 +372,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
     default: 'all',
     tabs: {
       all: () => ({
-        filters: {},
+        // crm companies aren't surfaced outside the Companies view.
+        filters: { include: { crmCompanyId: [NIL_UUID] } },
         clientFilters: {},
       }),
     },

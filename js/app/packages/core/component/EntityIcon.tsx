@@ -32,6 +32,7 @@ import WideUnknown from '@icon/wide-unknown.svg';
 import WideUser from '@icon/wide-user.svg';
 import WideVideo from '@icon/wide-video.svg';
 import Building from '@phosphor/building.svg';
+import Buildings from '@phosphor/buildings.svg';
 import Chat from '@phosphor/chat.svg';
 import Check from '@phosphor/check-fat.svg';
 import FileCode from '@phosphor/code.svg';
@@ -77,6 +78,7 @@ export type EntityWithValidIcon =
   | 'emailRead'
   | 'emailInvite'
   | 'archive'
+  | 'crm_company'
   | 'html';
 
 const ARCHIVE_EXTENSIONS = new Set(
@@ -254,6 +256,12 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-default/20',
     prettyName: 'Automation',
   },
+  crm_company: {
+    icon: Buildings,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Company',
+  },
 };
 
 // this will match fall-through cases like code files which match multiple extensions
@@ -310,6 +318,7 @@ const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
   emailInvite: WideCalendar,
   task: WideTask,
   automation: Robot,
+  crm_company: Buildings,
 };
 
 const ICON_SIZES = {

@@ -15,6 +15,7 @@ import type {
   ChannelMessageEntity,
   ChatEntity,
   ContentHitData,
+  CrmCompanyEntity,
   DocumentEntity,
   EmailEntity,
   EntityData,
@@ -49,7 +50,7 @@ type InnerSearchResult =
 
 type DisplayableSoupItem = Exclude<
   SoupPage['items'][number],
-  { tag: 'foreignEntity' } | { tag: 'crmCompany' }
+  { tag: 'foreignEntity' }
 >;
 
 type TypedInnerSearchResult =
@@ -460,12 +461,12 @@ export const mapSoupPageToEntityList: (
   | EmailEntity
   | ChannelEntity
   | CallEntity
+  | CrmCompanyEntity
 )[] = (data, options) => {
   return data.items
     .filter(
       (item): item is DisplayableSoupItem =>
         item.tag !== 'foreignEntity' &&
-        item.tag !== 'crmCompany' &&
         (item.tag !== 'document' ||
           !options.instructionsIdQuery.isSuccess ||
           item.data.id !== options.instructionsIdQuery.data)
@@ -479,7 +480,8 @@ export const mapSoupPageToEntityList: (
         | ProjectEntity
         | EmailEntity
         | ChannelEntity
-        | CallEntity => {
+        | CallEntity
+        | CrmCompanyEntity => {
         if (item.tag === 'chat') {
           return {
             ...item.data,
@@ -566,6 +568,29 @@ export const mapSoupPageToEntityList: (
             participantIds: item.data.participants.map((p) => p.userId),
             summary: item.data.summary ?? undefined,
           } satisfies CallEntity;
+        }
+
+        if (item.tag === 'crmCompany') {
+          const primaryDomain = item.data.domains[0]?.domain;
+          return {
+            type: 'crm_company',
+            id: item.data.id,
+            teamId: item.data.teamId,
+            name: item.data.name || primaryDomain || 'Unknown Company',
+            ownerId: item.data.teamId,
+            description: item.data.description ?? undefined,
+            emailSync: item.data.emailSync,
+            createdAt: item.data.createdAt,
+            updatedAt: item.data.updatedAt,
+            sortTs: item.data.updatedAt,
+            frecencyScore: item.frecency_score,
+            domains: item.data.domains.map((d) => ({
+              id: d.id,
+              companyId: d.companyId,
+              domain: d.domain,
+              createdAt: d.createdAt,
+            })),
+          } satisfies CrmCompanyEntity;
         }
 
         if (item.tag === 'channel') {

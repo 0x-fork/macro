@@ -4,6 +4,7 @@ import {
   activeAgentFilter as activeAgentPredicate,
   callsFilter as callsPredicate,
   channelsFilter as channelsPredicate,
+  crmCompanyFilter as crmCompanyPredicate,
   filesAndFolderFilter as filesAndFolderPredicate,
   projectFilter as projectPredicate,
   taskFilter as taskPredicate,
@@ -58,4 +59,10 @@ export const callsFilter = config({
   id: 'calls',
   predicate: callsPredicate,
   query: defineQueryFilters({}, { skipTargets: ['callf'] }),
+});
+
+export const crmCompanyFilter = config({
+  id: 'crm-company',
+  predicate: crmCompanyPredicate,
+  query: defineQueryFilters({}, { skipTargets: ['ccf'] }),
 });

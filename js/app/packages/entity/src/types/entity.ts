@@ -144,6 +144,21 @@ export type AutomationEntity = EntityBase & {
   isRunning?: boolean;
 };
 
+export type CrmCompanyDomain = {
+  id: string;
+  companyId: string;
+  domain: string;
+  createdAt?: DateValue | null;
+};
+
+export type CrmCompanyEntity = EntityBase & {
+  type: 'crm_company';
+  teamId: string;
+  description?: string;
+  emailSync: boolean;
+  domains: CrmCompanyDomain[];
+};
+
 export type EntityData =
   | ChannelEntity
   | ChannelMessageEntity
@@ -153,6 +168,7 @@ export type EntityData =
   | EmailEntity
   | ProjectEntity
   | CallEntity
+  | CrmCompanyEntity
   | AutomationEntity;
 
 const ENTITY_TYPE_VALUES = new Set<EntityData['type']>([
@@ -163,6 +179,7 @@ const ENTITY_TYPE_VALUES = new Set<EntityData['type']>([
   'email',
   'project',
   'call',
+  'crm_company',
   'automation',
 ]);
 
@@ -218,6 +235,12 @@ export const isAutomationEntity = (
   entity: EntityData
 ): entity is AutomationEntity => {
   return entity.type === 'automation';
+};
+
+export const isCrmCompanyEntity = (
+  entity: EntityData
+): entity is CrmCompanyEntity => {
+  return entity.type === 'crm_company';
 };
 
 export const isDocumentEntity = (

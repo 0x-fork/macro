@@ -865,6 +865,8 @@ export function CanvasController(props: ParentProps) {
     if (entityType === 'channel_message') return;
     // Automation entities aren't yet renderable as canvas mentions.
     if (entityType === 'automation') return;
+    // CRM companies aren't renderable as canvas mentions.
+    if (entityType === 'crm_company') return;
 
     // Track document mention and get UUID
     let mentionUuid: string | undefined;

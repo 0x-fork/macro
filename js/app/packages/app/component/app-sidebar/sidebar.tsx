@@ -67,6 +67,7 @@ import { AnimatedTaskIcon } from '@icon/wide-task';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import { useNotificationSettings } from '@notifications';
 import BellIcon from '@phosphor/bell.svg';
+import BuildingsIcon from '@phosphor/buildings.svg';
 import CaretUpIcon from '@phosphor/caret-up.svg';
 import DeviceMobileIcon from '@phosphor/device-mobile-speaker.svg';
 import KeyboardIcon from '@phosphor/keyboard.svg';
@@ -158,6 +159,14 @@ const SIDEBAR_LINKS = [
     icon: AnimatedChannelIcon,
     hotkey: 'c',
     hotkeyToken: TOKENS.sidebar.goTo.channels,
+  },
+  {
+    id: 'companies',
+    label: 'Companies',
+    href: LIST_VIEW_PATHS.companies,
+    icon: BuildingsIcon,
+    hotkey: 'o',
+    hotkeyToken: TOKENS.sidebar.goTo.companies,
   },
   {
     id: 'folders',

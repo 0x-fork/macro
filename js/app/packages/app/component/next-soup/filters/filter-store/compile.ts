@@ -287,11 +287,6 @@ export function compileToAst(state: QueryState): TargetAstMap {
     result.emailView = state.emailView;
   }
 
-  // crm companies are opt-in: excluded unless a view sets `crmCompanyId`.
-  if (!result.ccf) {
-    result.ccf = AST.literal('id', NIL_UUID);
-  }
-
   return result;
 }
 
