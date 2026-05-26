@@ -980,11 +980,19 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
         // CTE limits companies before the domain/directory joins; the
         // outer ORDER BY repeats the CTE's sort + `d.created_at ASC`
         // so rows arrive contiguous per company with the primary
-        // domain first.
+        // domain first. Sort columns are `first_interaction` /
+        // `last_interaction` from populate_contact (both NOT NULL —
+        // see the `crm_interaction_timestamps` migration).
         let rows = sqlx::query!(
             r#"
             WITH limited_companies AS (
-                SELECT c.id, c.team_id, c.email_sync, c.hidden, c.created_at, c.updated_at
+                SELECT
+                    c.id,
+                    c.team_id,
+                    c.email_sync,
+                    c.hidden,
+                    c.first_interaction,
+                    c.last_interaction
                 FROM crm_companies c
                 WHERE c.team_id = $1
                   AND c.hidden = FALSE
@@ -995,21 +1003,21 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
                   AND (cardinality($2::uuid[]) = 0 OR c.id = ANY($2::uuid[]))
                 ORDER BY
                     CASE $4
-                        WHEN 'created_at' THEN c.created_at
-                        ELSE c.updated_at
+                        WHEN 'created_at' THEN c.first_interaction
+                        ELSE c.last_interaction
                     END DESC,
                     c.id DESC
                 LIMIT $3
             )
             SELECT
-                lc.id              AS "company_id!",
-                lc.team_id         AS "company_team_id!",
-                lc.email_sync      AS "company_email_sync!",
-                lc.hidden          AS "company_hidden!",
-                lc.created_at      AS "company_created_at!",
-                lc.updated_at      AS "company_updated_at!",
-                d.id               AS "domain_id?",
-                d.domain           AS "domain?",
+                lc.id                AS "company_id!",
+                lc.team_id           AS "company_team_id!",
+                lc.email_sync        AS "company_email_sync!",
+                lc.hidden            AS "company_hidden!",
+                lc.first_interaction AS "company_created_at!",
+                lc.last_interaction  AS "company_updated_at!",
+                d.id                 AS "domain_id?",
+                d.domain             AS "domain?",
                 d.created_at       AS "domain_created_at?",
                 dd.name            AS "dir_name?",
                 dd.description     AS "dir_description?"
@@ -1019,8 +1027,8 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
                 ON LOWER(dd.domain) = LOWER(d.domain)
             ORDER BY
                 CASE $4
-                    WHEN 'created_at' THEN lc.created_at
-                    ELSE lc.updated_at
+                    WHEN 'created_at' THEN lc.first_interaction
+                    ELSE lc.last_interaction
                 END DESC,
                 lc.id DESC,
                 d.created_at ASC NULLS LAST

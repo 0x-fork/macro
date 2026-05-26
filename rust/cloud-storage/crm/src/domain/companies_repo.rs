@@ -9,9 +9,9 @@ use chrono::{DateTime, Utc};
 /// Both variants tiebreak on `id DESC` for deterministic pagination.
 #[derive(Debug, Clone, Copy)]
 pub enum CrmCompanyListSort {
-    /// Sort by `crm_companies.last_interaction` (falling back to `updated_at`) DESC.
+    /// Sort by `crm_companies.last_interaction` DESC.
     UpdatedAt,
-    /// Sort by `crm_companies.first_interaction` (falling back to `created_at`) DESC.
+    /// Sort by `crm_companies.first_interaction` DESC.
     CreatedAt,
 }
 
