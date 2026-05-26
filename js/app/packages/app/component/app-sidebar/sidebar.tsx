@@ -67,6 +67,7 @@ import PaintBucketIcon from '@phosphor/paint-bucket.svg';
 import PlugIcon from '@phosphor/plug.svg';
 import UserIconPhosphor from '@phosphor/user.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
+import { createElementSize } from '@solid-primitives/resize-observer';
 import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
 import { useLocation } from '@solidjs/router';
@@ -895,11 +896,15 @@ const SidebarUserMenu = (props: {
 
   const label = () => displayName() || email() || 'Account';
 
+  const [triggerRef, setTriggerRef] = createSignal<HTMLElement | null>(null);
+  const triggerSize = createElementSize(triggerRef);
+
   return (
-    <Dropdown placement="top-end" gutter={6}>
+    <Dropdown placement="top" gutter={6}>
       <Dropdown.Trigger
         as="button"
         type="button"
+        ref={setTriggerRef}
         class={cn(
           'flex items-center gap-2 px-2 py-3 rounded-md hover:bg-ink/5 data-expanded:bg-ink/5 transition-colors text-left',
           'group-data-[slim=true]/sidebar:justify-center group-data-[slim=true]/sidebar:px-0'
@@ -918,7 +923,31 @@ const SidebarUserMenu = (props: {
       </Dropdown.Trigger>
       <Dropdown.Portal>
         <Layer depth={2}>
-          <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-md shadow-drop-shadow min-w-44 p-1">
+          <Dropdown.Content
+            class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-md shadow-drop-shadow p-1"
+            style={{
+              width: triggerSize.width ? `${triggerSize.width}px` : undefined,
+            }}
+          >
+            <div class="flex items-center gap-2 px-2 py-2 rounded-sm">
+              <UserIcon
+                id={userId() ?? ''}
+                size="md"
+                suppressClick
+                showTooltip={false}
+              />
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-ink truncate">
+                  {displayName() || 'Account'}
+                </div>
+                <Show when={email()}>
+                  <div class="text-xxs text-ink-extra-muted truncate">
+                    {email()}
+                  </div>
+                </Show>
+              </div>
+            </div>
+            <Dropdown.Separator />
             <Dropdown.Item
               class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
               onSelect={props.onSettings}
