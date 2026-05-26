@@ -1,4 +1,3 @@
-import { ChatWithAgentButton, toChatChannelType } from '@app/component/ChatWithAgentButton';
 import { useBlockEntityCommands } from '@app/component/next-soup/actions';
 import { useMaybePreviewPanel } from '@app/component/PreviewPanel';
 import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
@@ -71,17 +70,10 @@ type ChannelPropsTargetMessage = Pick<
 function ChannelHeader(props: { channelId: string }) {
   const channelName = useChannelName(props.channelId);
   const channelType = useChannelType(props.channelId);
-  const chatChannelType = () => toChatChannelType(channelType());
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
   const participants = () =>
     participantsQuery.isLoading ? [] : participantsQuery.data;
   const detailsDrawer = useDrawerControl(CHANNEL_DETAILS_DRAWER_ID);
-
-  const callButton = () => (
-    <Show when={ENABLE_CALLS()}>
-      <ChannelCallButton channelId={props.channelId} />
-    </Show>
-  );
 
   return (
     <Suspense>
@@ -90,22 +82,12 @@ function ChannelHeader(props: { channelId: string }) {
         channelType={channelType()!}
         participants={participants() ?? []}
         channelName={channelName() ?? 'New Channel'}
-        callButton={callButton()}
         trackingIndicator={<ChannelTopBarLiveIndicators />}
       />
       <SplitHeaderRight>
         <div class="flex items-center gap-1 touch:gap-0.5">
-          <Show when={chatChannelType()}>
-            {(type) => (
-              <ChatWithAgentButton
-                entity={{
-                  type: 'channel',
-                  id: props.channelId,
-                  name: channelName() ?? 'Channel',
-                  channelType: type(),
-                }}
-              />
-            )}
+          <Show when={ENABLE_CALLS()}>
+            <ChannelCallButton channelId={props.channelId} />
           </Show>
           <Button
             class={cn('rounded-md touch:[&_svg]:size-4', detailsDrawer.isOpen() && 'bg-ink/10')}
