@@ -1,12 +1,8 @@
 import { useUserId } from '@core/context/user';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import SmileyIcon from '@phosphor/smiley.svg';
 import { cn } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { For, Show } from 'solid-js';
 import { useMessage, useMessageActions } from './context';
-import { EmojiReactionPopover } from './EmojiReactionPopover';
 import { ReactionChip } from './ReactionChip';
-import { renderIcon } from './render-icon';
 
 type ReactionsProps = {
   class?: string;
@@ -16,7 +12,6 @@ export function Reactions(props: ReactionsProps) {
   const message = useMessage();
   const actions = useMessageActions();
   const userId = useUserId();
-  const [emojiMenuOpen, setEmojiMenuOpen] = createSignal(false);
 
   const canReact = () => actions?.onReact !== undefined;
 
@@ -53,28 +48,6 @@ export function Reactions(props: ReactionsProps) {
             );
           }}
         </For>
-
-        <Show when={canReact() && !isTouchDevice()}>
-          <EmojiReactionPopover
-            placement="top"
-            open={emojiMenuOpen()}
-            onOpenChange={setEmojiMenuOpen}
-            onEmojiSelect={(emoji) => {
-              void actions?.onReact?.({
-                message: message(),
-                emoji,
-              });
-            }}
-            trigger={renderIcon(SmileyIcon)}
-            triggerProps={{
-              size: 'icon-sm',
-              tooltip: 'Add reaction',
-              variant: 'base',
-              'aria-label': 'Add reaction',
-              onClick: (e: MouseEvent) => e.stopPropagation(),
-            }}
-          />
-        </Show>
       </div>
     </Show>
   );

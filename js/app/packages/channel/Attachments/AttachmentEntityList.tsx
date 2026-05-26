@@ -29,23 +29,25 @@ export function AttachmentEntityList(props: {
         </Show>
 
         <Show when={hasDocuments()}>
-          <For each={props.rows}>
-            {(row) => (
-              <AttachmentEntityRow
-                entity={row.entity}
-                timestamp={row.timestamp}
-                senderId={row.senderId}
-                onClick={row.onClick}
-              />
-            )}
-          </For>
+          <div class="min-h-0 h-full overflow-y-auto">
+            <For each={props.rows}>
+              {(row) => (
+                <AttachmentEntityRow
+                  entity={row.entity}
+                  timestamp={row.timestamp}
+                  senderId={row.senderId}
+                  onClick={row.onClick}
+                />
+              )}
+            </For>
 
-          <Show when={props.hasNextPage}>
-            <LoadMoreButton
-              onLoadMore={props.onLoadMore}
-              isFetching={() => props.isFetchingNextPage}
-            />
-          </Show>
+            <Show when={props.hasNextPage}>
+              <LoadMoreButton
+                onLoadMore={props.onLoadMore}
+                isFetching={() => props.isFetchingNextPage}
+              />
+            </Show>
+          </div>
         </Show>
       </div>
     </AttachmentSection>

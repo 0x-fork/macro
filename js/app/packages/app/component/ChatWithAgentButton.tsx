@@ -13,7 +13,7 @@ export { AnimatedStarIcon as ChatWithAgentIcon };
 
 const CHANNEL_TYPE_VALUES = new Set<string>(Object.values(ChannelType));
 
-function _toChatChannelType(
+export function toChatChannelType(
   t: string | undefined | null
 ): ChannelType | undefined {
   if (t && CHANNEL_TYPE_VALUES.has(t)) return t as ChannelType;

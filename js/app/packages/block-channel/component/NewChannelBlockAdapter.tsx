@@ -1,15 +1,15 @@
+import { ChatWithAgentButton, toChatChannelType } from '@app/component/ChatWithAgentButton';
 import { useBlockEntityCommands } from '@app/component/next-soup/actions';
 import { useMaybePreviewPanel } from '@app/component/PreviewPanel';
+import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
 import { SplitHeaderRight } from '@app/component/split-layout/components/SplitHeader';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { URL_PARAMS } from '@block-channel/constants';
-import { ChannelAttachmentsTab } from '@channel/Attachments/ChannelAttachmentsTab';
 import {
   CallEventSync,
   ChannelCallAutoJoin,
   ChannelCallButton,
   ChannelCallTab,
-  useCall,
   useCallContextOptional,
 } from '@channel/Call';
 import {
@@ -18,12 +18,12 @@ import {
   Channel as NewChannel,
 } from '@channel/Channel/Channel';
 import {
-  ChannelTabProvider,
-  useChannelTab,
-} from '@channel/Channel/ChannelTabContext';
+  CHANNEL_DETAILS_DRAWER_ID,
+  ChannelDetailsDrawer,
+} from '@channel/Channel/ChannelDetailsDrawer';
+import { ChannelTabProvider } from '@channel/Channel/ChannelTabContext';
 import { ChannelTopBarLiveIndicators } from '@channel/Channel/ChannelTopBarLiveIndicators';
 import {
-  CHANNEL_TABS,
   type ChannelTabId,
   DEFAULT_CHANNEL_TAB,
 } from '@channel/Channel/channel-tabs';
@@ -32,7 +32,6 @@ import {
   isJoinCallRequested,
   isOpenCallTabRequested,
 } from '@channel/Channel/link';
-import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
 import { useBlockId } from '@core/block';
 import { EntityPermissionsGate } from '@core/component/EntityPermissionsGate';
 import { ENABLE_CALLS } from '@core/constant/featureFlags';
@@ -40,13 +39,15 @@ import { useChannelName, useChannelType } from '@core/context/channels';
 import { createMethodRegistration } from '@core/orchestrator';
 import { blockHandleSignal } from '@core/signal/load';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
-import { ChannelTypeEnum } from '@service-comms/client';
 import { useSearchParams } from '@solidjs/router';
+import SidebarIcon from '@phosphor/sidebar-simple.svg';
+import { Button, cn } from '@ui';
 import {
   createComputed,
   createSignal,
   Match,
   onCleanup,
+  onMount,
   Show,
   Suspense,
   Switch,
@@ -67,39 +68,20 @@ type ChannelPropsTargetMessage = Pick<
   'targetMessageId' | 'targetMessageReplyId'
 >;
 
-function CallTabLabel() {
-  return (
-    <span class="flex items-center gap-1.5">
-      <span class="size-1.5 rounded-full bg-accent animate-pulse" />
-      Call
-    </span>
-  );
-}
-
-function NewTop(props: { channelId: string }) {
-  const { activeTab, setActiveTab } = useChannelTab();
+function ChannelHeader(props: { channelId: string }) {
   const channelName = useChannelName(props.channelId);
   const channelType = useChannelType(props.channelId);
+  const chatChannelType = () => toChatChannelType(channelType());
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
-  const call = useCall(() => props.channelId);
   const participants = () =>
     participantsQuery.isLoading ? [] : participantsQuery.data;
-  // Show the Call tab whenever we're actually in the call, mid-join, or
-  // the tab is being displayed (e.g. via the auto-join flow that flips
-  // `activeTab` to `call` before the join request resolves).
-  const showCallTab = () =>
-    ENABLE_CALLS() &&
-    (call.isInThisChannel() || call.isJoining() || activeTab() === 'call');
-  const tabs = () => {
-    let filtered = [...CHANNEL_TABS];
-    if (channelType() === ChannelTypeEnum.DirectMessage)
-      filtered = filtered.filter((tab) => tab.value !== 'participants');
-    if (!showCallTab())
-      filtered = filtered.filter((tab) => tab.value !== 'call');
-    return filtered.map((tab) =>
-      tab.value === 'call' ? { ...tab, label: <CallTabLabel /> } : tab
-    );
-  };
+  const detailsDrawer = useDrawerControl(CHANNEL_DETAILS_DRAWER_ID);
+
+  const callButton = () => (
+    <Show when={ENABLE_CALLS()}>
+      <ChannelCallButton channelId={props.channelId} />
+    </Show>
+  );
 
   return (
     <Suspense>
@@ -108,18 +90,33 @@ function NewTop(props: { channelId: string }) {
         channelType={channelType()!}
         participants={participants() ?? []}
         channelName={channelName() ?? 'New Channel'}
-        tabs={tabs()}
-        activeTab={activeTab()}
-        onTabChange={setActiveTab}
+        callButton={callButton()}
+        trackingIndicator={<ChannelTopBarLiveIndicators />}
       />
-      <Show when={ENABLE_CALLS()}>
-        <SplitHeaderRight>
-          <div class="flex items-center gap-1.5">
-            <ChannelCallButton channelId={props.channelId} />
-          </div>
-        </SplitHeaderRight>
-      </Show>
-      <ChannelTopBarLiveIndicators />
+      <SplitHeaderRight>
+        <div class="flex items-center gap-1 touch:gap-0.5">
+          <Show when={chatChannelType()}>
+            {(type) => (
+              <ChatWithAgentButton
+                entity={{
+                  type: 'channel',
+                  id: props.channelId,
+                  name: channelName() ?? 'Channel',
+                  channelType: type(),
+                }}
+              />
+            )}
+          </Show>
+          <Button
+            class={cn('rounded-md touch:[&_svg]:size-4', detailsDrawer.isOpen() && 'bg-ink/10')}
+            size="icon-sm"
+            tooltip="Details"
+            onClick={detailsDrawer.toggle}
+          >
+            <SidebarIcon class="size-4 touch:size-5" />
+          </Button>
+        </div>
+      </SplitHeaderRight>
     </Suspense>
   );
 }
@@ -270,29 +267,33 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
           onHandled={() => setPendingJoinCall(false)}
         />
         <div class="h-full flex flex-col px-2 mobile:px-0">
-          <Switch>
-            <Match when={activeTab() === 'messages'}>
-              <NewChannel
-                channelId={channelId}
-                onHandleReady={onChannelReady}
-                autofocus={!isPreview}
-                {...convertTargetMessage(initialTargetMessageParams())}
-              />
-            </Match>
-            <Match when={activeTab() === 'attachments'}>
-              <ChannelAttachmentsTab channelId={channelId} />
-            </Match>
-            <Match when={activeTab() === 'participants'}>
-              <ChannelParticipantsTab channelId={channelId} />
-            </Match>
-            <Match when={activeTab() === 'call'}>
-              <ChannelCallTab
-                channelId={channelId}
-                pendingJoin={pendingJoinCall}
-              />
-            </Match>
-          </Switch>
-          <NewTop channelId={channelId} />
+          <ChannelHeader channelId={channelId} />
+          {(() => {
+            let containerRef!: HTMLDivElement;
+            return (
+              <div ref={containerRef} class="flex-1 flex flex-row min-h-0 relative">
+                <div class="flex-1 min-w-0 flex flex-col">
+                  <Switch>
+                    <Match when={activeTab() === 'messages'}>
+                      <NewChannel
+                        channelId={channelId}
+                        onHandleReady={onChannelReady}
+                        autofocus={!isPreview}
+                        {...convertTargetMessage(initialTargetMessageParams())}
+                      />
+                    </Match>
+                    <Match when={activeTab() === 'call'}>
+                      <ChannelCallTab
+                        channelId={channelId}
+                        pendingJoin={pendingJoinCall}
+                      />
+                    </Match>
+                  </Switch>
+                </div>
+                <ChannelDetailsDrawer channelId={channelId} containerRef={() => containerRef} />
+              </div>
+            );
+          })()}
         </div>
       </ChannelTabProvider>
     </EntityPermissionsGate>

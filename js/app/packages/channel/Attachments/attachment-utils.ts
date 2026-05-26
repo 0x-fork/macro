@@ -6,17 +6,18 @@ import type { ApiChannelAttachment } from '@service-comms/client';
 import { stringToItemType } from '@service-storage/client';
 import { match } from 'ts-pattern';
 
-/** size-23 = 92px */
-export const THUMB_SIZE = 92;
+/** size for collapsed thumbnails */
+export const THUMB_SIZE = 52;
+export const THUMB_SIZE_EXPANDED = 92;
 const THUMB_GAP = 6;
 
 const NIL_ID = '00000000-0000-0000-0000-000000000000';
 
-export function itemsPerRow(containerWidth: number): number {
+export function itemsPerRow(containerWidth: number, thumbSize = THUMB_SIZE): number {
   if (containerWidth <= 0) return 1;
   return Math.max(
     1,
-    Math.floor((containerWidth + THUMB_GAP) / (THUMB_SIZE + THUMB_GAP))
+    Math.floor((containerWidth + THUMB_GAP) / (thumbSize + THUMB_GAP))
   );
 }
 

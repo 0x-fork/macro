@@ -5,14 +5,22 @@ import { useMessage } from './context';
 type SenderIconProps = {
   class?: string;
   hidden?: boolean;
+  size?: 'sm' | 'md' | 'default';
+};
+
+const sizeClasses = {
+  sm: 'size-6',
+  md: 'size-8',
+  default: 'size-(--user-icon-width)',
 };
 
 export function SenderIcon(props: SenderIconProps) {
   const message = useMessage();
+  const sizeClass = () => sizeClasses[props.size ?? 'md'];
 
   return (
     <div
-      class={cn('shrink-0 size-(--user-icon-width)', props.class, {
+      class={cn('shrink-0', sizeClass(), props.class, {
         invisible: props.hidden,
       })}
       aria-hidden={props.hidden ? 'true' : undefined}

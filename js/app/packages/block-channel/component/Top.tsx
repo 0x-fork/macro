@@ -66,6 +66,9 @@ type ChannelTopLeftProps = TopProps & {
   tabs?: readonly TabItem[];
   activeTab?: ChannelTabId;
   onTabChange?: (value: ChannelTabId) => void;
+  participantsIndicator?: JSX.Element;
+  trackingIndicator?: JSX.Element;
+  callButton?: JSX.Element;
 };
 
 export function ChannelTopLeft(props: ChannelTopLeftProps) {
@@ -86,7 +89,7 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
 
   return (
     <SplitHeaderLeft>
-      <div class="ph-no-capture z-page-overlay relative flex items-center gap-2 max-w-full h-full shrink min-w-15">
+      <div class="ph-no-capture z-page-overlay relative flex items-center gap-1 max-w-full h-full shrink min-w-15">
         <TopIcon
           channelType={props.channelType}
           participants={props.participants}
@@ -97,6 +100,8 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
           renameOverrides={{ channelType: props.channelType }}
           maxDisplayLength={48}
         />
+        <Show when={props.callButton}>{props.callButton}</Show>
+        {props.trackingIndicator}
       </div>
       <Show when={props.tabs && props.activeTab && props.onTabChange}>
         <Show

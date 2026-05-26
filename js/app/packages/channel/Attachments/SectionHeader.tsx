@@ -1,5 +1,5 @@
 import Spinner from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
-import { Button, cn, Panel } from '@ui';
+import { Button, cn } from '@ui';
 import { type Accessor, type JSX, Show } from 'solid-js';
 
 export function AttachmentSection(props: {
@@ -10,15 +10,13 @@ export function AttachmentSection(props: {
   label: string;
 }) {
   return (
-    <Panel depth={2} class={cn('h-auto', props.class)}>
-      <Panel.Header class="justify-between px-6">
+    <div class={cn('rounded-sm py-3', props.class)}>
+      <div class="flex items-center justify-between pb-2">
         <h3 class="text-sm font-medium text-ink">{props.label}</h3>
         <div class="shrink-0">{props.action}</div>
-      </Panel.Header>
-      <Panel.Body scroll class={props.contentClass}>
-        {props.children}
-      </Panel.Body>
-    </Panel>
+      </div>
+      <div class={cn('pt-2', props.contentClass)}>{props.children}</div>
+    </div>
   );
 }
 

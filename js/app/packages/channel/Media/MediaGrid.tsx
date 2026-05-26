@@ -8,7 +8,7 @@ import type { MediaItem } from './media-items';
 
 const ATTACHMENT_TILE_SIZE = 106;
 const SINGLE_IMAGE_MAX_WIDTH = 400;
-const SINGLE_IMAGE_MAX_HEIGHT = 400;
+const SINGLE_IMAGE_MAX_HEIGHT = 300;
 const MESSAGE_GALLERY_IMAGE_MAX_WIDTH = 200;
 const MESSAGE_GALLERY_IMAGE_MAX_HEIGHT = 200;
 
@@ -55,20 +55,18 @@ function MessageImageTile(props: {
 
 function AttachmentImageTile(props: { item: MediaItem; onOpen?: () => void }) {
   return (
-    <MediaImage.Root>
-      <MediaImage.Image
+    <div class="aspect-square overflow-hidden rounded-lg border border-edge">
+      <img
         src={props.item.src}
         class={cn(
-          'size-25.5 select-none rounded-2xl border border-edge object-cover',
-          props.onOpen && 'hover:opacity-80'
+          'w-full h-full select-none object-cover',
+          props.onOpen && 'hover:opacity-80 cursor-pointer'
         )}
-        onOpen={props.onOpen}
-        width={ATTACHMENT_TILE_SIZE}
-        height={ATTACHMENT_TILE_SIZE}
+        onClick={() => props.onOpen?.()}
         loading="lazy"
-        fallback={<MediaImage.Fallback square />}
+        alt=""
       />
-    </MediaImage.Root>
+    </div>
   );
 }
 
@@ -79,7 +77,8 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
   const videoHeight = () => props.item.height ?? undefined;
 
   return (
-    <div class="group relative flex min-h-20 max-h-120 max-w-120 min-w-0 overflow-hidden rounded-2xl border border-edge bg-surface">
+    <div class="group relative flex min-h-20 max-h-75 max-w-100 min-w-0 overflow-hidden rounded-2xl border border-edge bg-surface">
+
       <Show
         when={isInlinePlaying()}
         fallback={
@@ -92,7 +91,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
             >
               <MediaVideo.Preview
                 src={props.item.src}
-                class="block max-h-120 max-w-full"
+                class="block max-h-75 max-w-full"
                 width={videoWidth()}
                 height={videoHeight()}
               />
@@ -112,7 +111,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
         }
       >
         <video
-          class="block max-h-120 max-w-full"
+          class="block max-h-75 max-w-full"
           controls
           autoplay
           playsinline
@@ -140,14 +139,20 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
 
 function AttachmentVideoTile(props: { item: MediaItem; onOpen?: () => void }) {
   return (
-    <MediaVideo.Root class="size-25.5 group overflow-hidden border border-edge bg-surface">
-      <MediaVideo.Preview
+    <div class="aspect-square relative group overflow-hidden rounded-lg border border-edge bg-surface">
+      <video
+        class="w-full h-full object-cover"
+        preload="metadata"
+        playsinline
+        muted
         src={props.item.src}
-        class="size-full object-cover"
-        onOpen={props.onOpen}
+        onClick={() => props.onOpen?.()}
+        onLoadedMetadata={(e) => {
+          e.currentTarget.currentTime = 0.001;
+        }}
       />
       <MediaVideo.PlayOverlay onOpen={props.onOpen} />
-    </MediaVideo.Root>
+    </div>
   );
 }
 
@@ -156,19 +161,25 @@ export function MediaGrid(props: {
   variant: 'message' | 'attachments';
   onOpen: (index: number) => void;
   class?: string;
+  tileSize?: number;
 }) {
   const hasSingleLargeImage = createMemo(
     () => props.items.length === 1 && props.items[0]?.kind === 'image'
   );
 
+  const tileSize = () => props.tileSize ?? ATTACHMENT_TILE_SIZE;
+
   return (
     <div
       class={cn(
         props.variant === 'attachments'
-          ? 'flex flex-row flex-wrap gap-1.5'
+          ? 'grid gap-1.5'
           : 'flex flex-row flex-wrap gap-2',
         props.class
       )}
+      style={props.variant === 'attachments' ? {
+        'grid-template-columns': `repeat(auto-fill, minmax(${tileSize()}px, 1fr))`,
+      } : undefined}
     >
       <For each={props.items}>
         {(item, index) => (

@@ -23,12 +23,14 @@ export function Content(props: ContentProps) {
 
   createSearchHighlightOverlay({ root: markdownRoot, content, terms });
 
+  const hasContent = () => !!message().content?.trim();
+
   return (
-    <Show when={message().content}>
+    <Show when={hasContent()}>
       <div
         class={cn(
           'whitespace-pre-wrap wrap-break-word max-w-full',
-          bigEmoji() ? 'text-4xl' : 'text-sm',
+          bigEmoji() ? 'text-4xl' : 'text-sm text-ink/85',
           props.class
         )}
       >

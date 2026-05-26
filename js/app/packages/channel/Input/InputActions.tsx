@@ -1,5 +1,6 @@
 import FormatIcon from '@phosphor/text-aa.svg';
 import TrashIcon from '@phosphor/trash.svg';
+import XIcon from '@phosphor/x.svg';
 import PaperclipIcon from '@phosphor-icons/core/regular/paperclip.svg?component-solid';
 import type { JSX } from 'solid-js';
 import { InputActionButton } from './ActionButton';
@@ -61,8 +62,8 @@ export function CloseReplyAction() {
   const commands = useInputCommands();
 
   return (
-    <InputActionButton label="Delete reply" onClick={() => commands.close()}>
-      <TrashIcon />
+    <InputActionButton label="Cancel reply" onClick={() => commands.close()}>
+      <XIcon class="size-5" />
     </InputActionButton>
   );
 }
