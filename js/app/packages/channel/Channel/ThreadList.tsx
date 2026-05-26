@@ -490,6 +490,10 @@ export function ThreadList(props: ThreadListProps) {
           style={{
             position: 'relative',
             width: '100%',
+            // The rows are absolutely positioned, so this sizer has no
+            // intrinsic content height. Without flex-shrink: 0 the flex column
+            // would collapse it to 0 and the list would appear empty.
+            'flex-shrink': 0,
             height: `${virtualizer.getTotalSize()}px`,
           }}
         >
