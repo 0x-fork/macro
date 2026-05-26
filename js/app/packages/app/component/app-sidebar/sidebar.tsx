@@ -78,6 +78,7 @@ import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckCircleIcon from '@phosphor/check-circle.svg';
 import GearIcon from '@phosphor/gear.svg';
 import SignOutIcon from '@phosphor/sign-out.svg';
+import AppStoreQr from '@design/app-store-qr.svg';
 import {
   type Component,
   createEffect,
@@ -419,6 +420,58 @@ const [notificationsCardDismissed, setNotificationsCardDismissed] =
   makePersisted(createSignal<boolean>(false), {
     name: 'sidebar-notifications-card-dismissed',
   });
+const [mobileAppCardDismissed, setMobileAppCardDismissed] = makePersisted(
+  createSignal<boolean>(false),
+  { name: 'sidebar-mobile-app-card-dismissed' }
+);
+
+/**
+ * Compact horizontal version of the MobileApp settings card. Slot it above the
+ * user menu so phone-less users get a nudge without taking up the QR-scale real
+ * estate the settings panel uses.
+ */
+const SidebarMobileAppCard = (props: {
+  isSlim: () => boolean;
+  onDismiss: () => void;
+}) => {
+  return (
+    <Show when={!props.isSlim()}>
+      <div class="relative group/promo w-full rounded-md border border-edge-muted bg-ink/3 hover:bg-ink/5 transition-colors p-2">
+        <a
+          href="https://apps.apple.com/us/app/macro-app/id6743133649"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Download Macro on the App Store"
+          class="flex items-center gap-2"
+        >
+          <div class="shrink-0 size-14 rounded-sm bg-surface flex items-center justify-center overflow-hidden p-1 text-ink">
+            <AppStoreQr style="display: block; width: 100%; height: 100%;" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-medium text-ink leading-tight">
+              Get the iOS app
+            </div>
+            <div class="text-xxs text-ink-extra-muted leading-snug">
+              Scan to download
+            </div>
+          </div>
+        </a>
+        <button
+          type="button"
+          class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-surface border border-edge-muted shadow-sm flex items-center justify-center text-ink-muted hover:text-ink hover:bg-hover opacity-0 group-hover/promo:opacity-100 transition-opacity"
+          aria-label="Dismiss mobile app card"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            props.onDismiss();
+          }}
+        >
+          <XIcon class="size-2.5" />
+        </button>
+      </div>
+    </Show>
+  );
+};
 
 /** Session-only signals so a hint shows after dismissal until the user acknowledges or the timer expires. */
 const [inviteHintVisible, setInviteHintVisible] = createSignal(false);
@@ -1286,6 +1339,12 @@ export const AppSidebar = (props: AppSidebarProps) => {
             title="Invite teammates"
             message="You can invite teammates anytime from the user menu below."
             onDone={() => setInviteHintVisible(false)}
+          />
+        </Show>
+        <Show when={!mobileAppCardDismissed()}>
+          <SidebarMobileAppCard
+            isSlim={isSlim}
+            onDismiss={() => setMobileAppCardDismissed(true)}
           />
         </Show>
 
