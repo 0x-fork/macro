@@ -6,6 +6,7 @@ import {
   type SoupEntityTag,
 } from '@queries/soup/normalized-cache';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
+import { websocketPayloadSchema } from '@service-connection/websocketPayload';
 import { notificationServiceClient } from '@service-notification/client';
 import type { ApiUserNotification } from '@service-notification/generated/schemas/apiUserNotification';
 import type { GetAllUserNotificationsResponse } from '@service-notification/generated/schemas/getAllUserNotificationsResponse';
@@ -417,42 +418,34 @@ export type NotificationStatusUpdate = {
   updates: NotificationStatusPatchDelete[];
 };
 
-const jsonStringSchema = z.string().transform((value, ctx) => {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid JSON' });
-    return z.NEVER;
-  }
-});
-
-export const notificationStatusUpdateSchema = z.object({
-  type: z.literal('notification_status_updated'),
-  updates: z.array(
-    z.discriminatedUnion('t', [
-      z.object({
-        t: z.literal('Patch'),
-        c: z.object({
-          id: z.string(),
-          done: z.boolean(),
-          viewed_at: z.string().nullable(),
-          updated_at: z.string(),
+export const notificationStatusUpdateSchema = z
+  .object({
+    type: z.literal('notification_status_updated'),
+    updates: z.array(
+      z.discriminatedUnion('t', [
+        z.object({
+          t: z.literal('Patch'),
+          c: z.object({
+            id: z.string(),
+            done: z.boolean(),
+            viewed_at: z.string().nullable(),
+            updated_at: z.string(),
+          }),
         }),
-      }),
-      z.object({
-        t: z.literal('Delete'),
-        c: z.object({
-          id: z.string(),
+        z.object({
+          t: z.literal('Delete'),
+          c: z.object({
+            id: z.string(),
+          }),
         }),
-      }),
-    ])
-  ),
-}) satisfies z.ZodType<NotificationStatusUpdate>;
+      ])
+    ),
+  })
+  .passthrough() satisfies z.ZodType<NotificationStatusUpdate>;
 
-export const notificationStatusUpdatePayloadSchema = z.union([
-  notificationStatusUpdateSchema,
-  jsonStringSchema.pipe(notificationStatusUpdateSchema),
-]);
+export const notificationStatusUpdatePayloadSchema = websocketPayloadSchema(
+  notificationStatusUpdateSchema
+);
 
 function applyNotificationStatusPatch(
   notification: NotificationItem,

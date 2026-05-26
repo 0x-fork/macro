@@ -6,15 +6,29 @@ import {
   createConnectionWebsocketEffect,
   type FromWebsocketMessage,
 } from '@service-connection/websocket';
+import { parseWebsocketPayload } from '@service-connection/websocketPayload';
 import { makePersisted } from '@solid-primitives/storage';
 import { Button, cn } from '@ui';
 import { WebsocketConnectionState } from '@websocket';
 import { createEffect, createMemo, createSignal, For, Show } from 'solid-js';
+import { z } from 'zod';
 
 interface StreamChunk {
   timestamp: Date;
   raw: unknown;
 }
+
+const streamDebugItemSchema = z
+  .object({
+    id: z
+      .object({
+        entity_id: z.string(),
+        stream_id: z.string(),
+      })
+      .passthrough(),
+    payload: z.unknown(),
+  })
+  .passthrough();
 
 export default function HttpStreamDebug() {
   const [chatId, setChatId] = makePersisted(createSignal(''), {
@@ -61,23 +75,26 @@ export default function HttpStreamDebug() {
   createConnectionWebsocketEffect((data: FromWebsocketMessage) => {
     if (data.type !== 'stream') return;
 
-    let msgData = data.data;
-    if (typeof msgData === 'string') {
-      try {
-        msgData = JSON.parse(msgData);
-      } catch {
-        return;
-      }
-    }
-    if (msgData.id?.entity_id !== chatId()) return;
-    if (msgData.id?.stream_id) setStreamId(msgData.id.stream_id);
+    const msgData = parseWebsocketPayload(
+      data.type,
+      data.data,
+      streamDebugItemSchema
+    );
+    if (!msgData) return;
+    if (msgData.id.entity_id !== chatId()) return;
+    setStreamId(msgData.id.stream_id);
 
     setChunks((prev) => [
       ...prev,
       { timestamp: new Date(), raw: msgData.payload },
     ]);
 
-    if (msgData.payload?.type === 'stream_end') {
+    if (
+      msgData.payload &&
+      typeof msgData.payload === 'object' &&
+      'type' in msgData.payload &&
+      msgData.payload.type === 'stream_end'
+    ) {
       setIsStreaming(false);
     }
   });

@@ -1,11 +1,42 @@
 import type { UploadFolderStatusUpdate } from '@service-connection/generated/schemas/uploadFolderStatusUpdate';
+import { parseWebsocketPayload } from '@service-connection/websocketPayload';
 import { createWebsocketEventEffect } from '@websocket/index';
 import { toast } from 'core/component/Toast/Toast';
+import { z } from 'zod';
 import type { FromWebsocketMessage } from './websocket';
 import { ws } from './websocket';
 
 const BULK_UPLOAD_WEBSOCKET_EVENT = 'bulk_upload';
 type BulkUploadEventType = FromWebsocketMessage['type'];
+
+const uploadFolderStatusUpdateSchema = z.discriminatedUnion('status', [
+  z
+    .object({
+      projectId: z.string(),
+      requestId: z.string(),
+      status: z.literal('completed'),
+    })
+    .passthrough(),
+  z
+    .object({
+      projectId: z.string(),
+      requestId: z.string(),
+      status: z.literal('partially_completed'),
+    })
+    .passthrough(),
+  z
+    .object({
+      requestId: z.string(),
+      status: z.literal('failed'),
+    })
+    .passthrough(),
+  z
+    .object({
+      requestId: z.string(),
+      status: z.literal('unknown'),
+    })
+    .passthrough(),
+]) satisfies z.ZodType<UploadFolderStatusUpdate>;
 
 // Store upload results by requestId
 const uploadResults: Map<string, string | undefined> = new Map();
@@ -61,7 +92,12 @@ createWebsocketEventEffect<
   FromWebsocketMessage & { type: BulkUploadEventType }
 >(ws, BULK_UPLOAD_WEBSOCKET_EVENT, (wsData) => {
   try {
-    const update: UploadFolderStatusUpdate = JSON.parse(wsData.data);
+    const update = parseWebsocketPayload(
+      wsData.type,
+      wsData.data,
+      uploadFolderStatusUpdateSchema
+    );
+    if (!update) return;
 
     let projectId: string | undefined;
     switch (update.status) {

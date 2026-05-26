@@ -1,5 +1,7 @@
 import { createConnectionWebsocketEffect } from '@service-connection/websocket';
+import { parseWebsocketPayload } from '@service-connection/websocketPayload';
 import { match } from 'ts-pattern';
+import { z } from 'zod';
 import { useCallContext } from './CallContext';
 
 type CallShareWithTeamToggledPayload = {
@@ -8,6 +10,15 @@ type CallShareWithTeamToggledPayload = {
   share_with_team: boolean;
   toggled_by: string | null;
 };
+
+const callShareWithTeamToggledPayloadSchema = z
+  .object({
+    call_id: z.string(),
+    channel_id: z.string(),
+    share_with_team: z.boolean(),
+    toggled_by: z.string().nullable(),
+  })
+  .passthrough() satisfies z.ZodType<CallShareWithTeamToggledPayload>;
 
 /**
  * Applies connection-gateway events that mutate active-call state held in
@@ -24,14 +35,16 @@ export function CallEventSync() {
   const callCtx = useCallContext();
 
   createConnectionWebsocketEffect((data) => {
-    const payload =
-      typeof data.data === 'string' ? JSON.parse(data.data) : data.data;
-
     match(data)
       .with({ type: 'call_share_with_team_toggled' }, () => {
-        const typed = payload as CallShareWithTeamToggledPayload;
-        if (typed.call_id !== callCtx.activeCallId()) return;
-        callCtx.setSharedWithTeam(typed.share_with_team);
+        const payload = parseWebsocketPayload(
+          data.type,
+          data.data,
+          callShareWithTeamToggledPayloadSchema
+        );
+        if (!payload) return;
+        if (payload.call_id !== callCtx.activeCallId()) return;
+        callCtx.setSharedWithTeam(payload.share_with_team);
       })
       .otherwise(() => {});
   });

@@ -24,7 +24,7 @@ export type ConnectionGatewayWebsocket = Websocket<
 
 export type FromWebsocketMessage = {
   type: string;
-  data: any;
+  data: unknown;
 };
 
 async function resolveWsUrl() {

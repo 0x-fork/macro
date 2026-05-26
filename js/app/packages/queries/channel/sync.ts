@@ -4,6 +4,7 @@ import type {
   Message as ApiMessage,
   CountedReaction,
 } from '@service-comms/generated/models';
+import { z } from 'zod';
 import { consumeNonce } from '../nonce';
 import { ChannelNonceKeys } from './keys';
 import {
@@ -35,6 +36,59 @@ type CommsAttachmentPayload = {
   attachments: ApiAttachment[];
   nonce: string;
 };
+
+export const commsMessagePayloadSchema = z
+  .object({
+    channel_id: z.string(),
+    content: z.string(),
+    created_at: z.string(),
+    deleted_at: z.string().nullable().optional(),
+    edited_at: z.string().nullable().optional(),
+    id: z.string(),
+    nonce: z.string(),
+    sender_id: z.string(),
+    thread_id: z.string().nullable().optional(),
+    updated_at: z.string(),
+  })
+  .passthrough() satisfies z.ZodType<CommsMessagePayload>;
+
+const countedReactionSchema = z
+  .object({
+    emoji: z.string(),
+    users: z.array(z.string()),
+  })
+  .passthrough() satisfies z.ZodType<CountedReaction>;
+
+export const commsReactionPayloadSchema = z
+  .object({
+    channel_id: z.string(),
+    message_id: z.string(),
+    nonce: z.string(),
+    reactions: z.array(countedReactionSchema),
+  })
+  .passthrough() satisfies z.ZodType<CommsReactionPayload>;
+
+const commsAttachmentSchema = z
+  .object({
+    channel_id: z.string(),
+    created_at: z.string(),
+    entity_id: z.string(),
+    entity_type: z.string(),
+    height: z.number().nullable().optional(),
+    id: z.string(),
+    message_id: z.string(),
+    width: z.number().nullable().optional(),
+  })
+  .passthrough() satisfies z.ZodType<ApiAttachment>;
+
+export const commsAttachmentPayloadSchema = z
+  .object({
+    attachments: z.array(commsAttachmentSchema),
+    channel_id: z.string(),
+    message_id: z.string(),
+    nonce: z.string(),
+  })
+  .passthrough() satisfies z.ZodType<CommsAttachmentPayload>;
 
 /**
  * Handle incoming message from websocket.

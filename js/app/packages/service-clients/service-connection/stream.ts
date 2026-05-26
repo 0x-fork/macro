@@ -4,7 +4,9 @@ import type { Accessor, Setter } from 'solid-js';
 import { createSignal } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
 import { match } from 'ts-pattern';
+import { z } from 'zod';
 import { createConnectionWebsocketEffect } from './websocket';
+import { parseWebsocketPayload } from './websocketPayload';
 // entities that support streaming
 export type StreamType = {
   chat: ChatStream;
@@ -27,6 +29,19 @@ type StreamItem<K extends keyof StreamType> = {
   id: StreamId;
   payload: StreamType[K];
 };
+
+const streamItemSchema = z
+  .object({
+    id: z
+      .object({
+        entity_id: z.string(),
+        entity_type: z.literal('chat'),
+        stream_id: z.string(),
+      })
+      .passthrough(),
+    payload: z.custom<StreamType[keyof StreamType]>(() => true),
+  })
+  .passthrough() satisfies z.ZodType<StreamItem<keyof StreamType>>;
 
 export interface Stream<K extends keyof StreamType> {
   id: Accessor<StreamId | undefined>;
@@ -106,13 +121,12 @@ createConnectionWebsocketEffect((message) => {
   // not a stream
   if (message.type !== 'stream') return;
 
-  let item: StreamItem<keyof StreamType>;
-  try {
-    item = JSON.parse(message.data);
-  } catch {
-    console.error('unparsable stream payload', message);
-    return;
-  }
+  const item = parseWebsocketPayload(
+    message.type,
+    message.data,
+    streamItemSchema
+  );
+  if (!item) return;
   // if this is not the 1st item proces new item / add to stream
   if (
     streams[item.id.entity_id] &&

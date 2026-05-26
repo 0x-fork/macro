@@ -1,23 +1,42 @@
 import type { EntityData } from '@entity';
 import type { Accessor } from 'solid-js';
 import { createStore } from 'solid-js/store';
+import { z } from 'zod';
 import type { StreamEvent } from './generated/schemas';
 import { isStreamEntity } from './stream';
 import { createConnectionWebsocketEffect, ws } from './websocket';
+import { parseWebsocketPayload } from './websocketPayload';
 
 const [streamState, setStreamState] = createStore<Record<string, StreamEvent>>(
   {}
 );
 const subscribed = new Set<string>();
 
+const streamEventSchema = z
+  .object({
+    entity_id: z.string(),
+    entity_type: z.enum([
+      'user',
+      'chat',
+      'channel',
+      'document',
+      'project',
+      'email_thread',
+      'team',
+      'call',
+      'static_file',
+    ]),
+    stream_id: z.string(),
+    type: z.enum(['created', 'closed']),
+  })
+  .passthrough() satisfies z.ZodType<StreamEvent>;
+
 createConnectionWebsocketEffect((data) => {
   if (data.type !== 'stream_event') return;
-  try {
-    const event = JSON.parse(data.data) as StreamEvent;
-    setStreamState(event.entity_id, event);
-  } catch {
-    return;
-  }
+  const event = parseWebsocketPayload(data.type, data.data, streamEventSchema);
+  if (!event) return;
+
+  setStreamState(event.entity_id, event);
 });
 
 export function getStreamState(

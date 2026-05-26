@@ -7,6 +7,7 @@ import {
 import { compareDateAsc } from '@core/util/date';
 
 import { createConnectionBlockWebsocketEffect } from '@service-connection/websocket';
+import { decodeWebsocketPayload } from '@service-connection/websocketPayload';
 import { storageServiceClient } from '@service-storage/client';
 import type { AnnotationIncrementalUpdate } from '@service-storage/generated/schemas/annotationIncrementalUpdate';
 import type { Comment } from '@service-storage/generated/schemas/comment';
@@ -253,7 +254,12 @@ createConnectionBlockWebsocketEffect((msg) => {
   if (msg.type === 'comment') {
     let incrementalUpdate: AnnotationIncrementalUpdate;
     try {
-      incrementalUpdate = JSON.parse(msg.data) as AnnotationIncrementalUpdate;
+      const decoded = decodeWebsocketPayload(msg.type, msg.data) as
+        | AnnotationIncrementalUpdate
+        | undefined;
+      if (!decoded) return;
+      incrementalUpdate = decoded;
+
       if (incrementalUpdate.payload.documentId !== currentDocumentId) {
         return;
       }

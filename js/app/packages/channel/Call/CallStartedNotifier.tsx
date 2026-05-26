@@ -4,6 +4,8 @@ import { useUserId } from '@core/context/user';
 import { usePlatformNotificationState } from '@notifications';
 import { DefaultUserNameResolver } from '@notifications/notification-resolvers';
 import { createConnectionWebsocketEffect } from '@service-connection/websocket';
+import { parseWebsocketPayload } from '@service-connection/websocketPayload';
+import { z } from 'zod';
 import { useCallContext } from './CallContext';
 import { joinChannelCall } from './join-channel-call';
 
@@ -12,6 +14,14 @@ type CallStartedPayload = {
   call_id?: string;
   created_by?: string | null;
 };
+
+const callStartedPayloadSchema = z
+  .object({
+    call_id: z.string().optional(),
+    channel_id: z.string().optional(),
+    created_by: z.string().nullable().optional(),
+  })
+  .passthrough() satisfies z.ZodType<CallStartedPayload>;
 
 const RING_VOLUME = 0.15;
 const RING_PULSE_DURATION_S = 0.4;
@@ -89,25 +99,6 @@ function startRingingLoop(shouldStop: () => boolean): { stop: () => void } {
   return { stop };
 }
 
-function safeJsonParse(s: string): unknown {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
-}
-
-function parsePayload(raw: unknown): CallStartedPayload | null {
-  const obj =
-    typeof raw === 'string'
-      ? safeJsonParse(raw)
-      : typeof raw === 'object'
-        ? raw
-        : null;
-  if (!obj || typeof obj !== 'object') return null;
-  return obj as CallStartedPayload;
-}
-
 /**
  * Listens for `call_started` websocket events broadcast to channel members
  * and surfaces a browser notification + ring tone for the recipients.
@@ -128,7 +119,11 @@ export function CallStartedNotifier() {
     if (data.type !== 'call_started') return;
     if (!ENABLE_CALLS()) return;
 
-    const payload = parsePayload(data.data);
+    const payload = parseWebsocketPayload(
+      data.type,
+      data.data,
+      callStartedPayloadSchema
+    );
     if (!payload) return;
 
     const {

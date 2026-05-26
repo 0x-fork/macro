@@ -1,9 +1,11 @@
 import { queryClient } from '@queries/client';
 import { createConnectionWebsocketEffect } from '@service-connection/websocket';
+import { parseWebsocketPayload } from '@service-connection/websocketPayload';
 import type {
   ActionExecutionRecord,
   ScheduledAction,
 } from '@service-scheduled-action/generated/schemas';
+import { z } from 'zod';
 import { scheduledActionKeys } from './keys';
 
 const UPDATE = 'scheduled_action_update';
@@ -23,24 +25,25 @@ type StoppedPayload = {
 };
 type UpdatePayload = StartedPayload | StoppedPayload;
 
-function parsePayload(data: unknown): UpdatePayload | undefined {
-  try {
-    const parsed =
-      typeof data === 'string' ? (JSON.parse(data) as unknown) : data;
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      'type' in parsed &&
-      (parsed.type === 'started' || parsed.type === 'stopped')
-    ) {
-      return parsed as UpdatePayload;
-    }
-    return undefined;
-  } catch (e) {
-    console.warn('scheduled-action live update: unparsable payload', data, e);
-    return undefined;
-  }
-}
+const updatePayloadSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      action_id: z.string(),
+      chat_id: z.string(),
+      owner: z.string(),
+      type: z.literal('started'),
+    })
+    .passthrough(),
+  z
+    .object({
+      action_id: z.string(),
+      chat_id: z.string(),
+      is_success: z.boolean(),
+      owner: z.string(),
+      type: z.literal('stopped'),
+    })
+    .passthrough(),
+]) satisfies z.ZodType<UpdatePayload>;
 
 function patchClaimed(actionId: string, claimed: string | null) {
   queryClient.setQueryData(
@@ -100,7 +103,11 @@ function removePendingHistoryRow(chatId: string, scheduleId: string) {
 
 createConnectionWebsocketEffect((data) => {
   if (data.type !== UPDATE) return;
-  const payload = parsePayload(data.data);
+  const payload = parseWebsocketPayload(
+    data.type,
+    data.data,
+    updatePayloadSchema
+  );
   if (!payload) return;
 
   if (payload.type === 'started') {

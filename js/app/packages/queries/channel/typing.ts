@@ -1,6 +1,7 @@
 import { commsServiceClient } from '@service-comms/client';
 import { useMutation } from '@tanstack/solid-query';
 import { createSignal } from 'solid-js';
+import { z } from 'zod';
 
 export const TYPING_INDICATOR_TIMEOUT_MS = 8_000;
 
@@ -14,12 +15,21 @@ type TypingTimeoutsByChannel = Map<
 /**
  * Websocket payload type for typing events
  */
-type CommsTypingPayload = {
+export type CommsTypingPayload = {
   channel_id: string;
   user_id: string;
   action: 'start' | 'stop';
   thread_id?: string | null;
 };
+
+export const commsTypingPayloadSchema = z
+  .object({
+    action: z.enum(['start', 'stop']),
+    channel_id: z.string(),
+    thread_id: z.string().nullable().optional(),
+    user_id: z.string(),
+  })
+  .passthrough() satisfies z.ZodType<CommsTypingPayload>;
 
 /**
  * Ephemeral store for typing indicators.

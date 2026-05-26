@@ -7,6 +7,7 @@ import {
   useUserNotificationsQuery,
 } from '@queries/notification/user-notifications';
 import type { ConnectionGatewayWebsocket } from '@service-connection/websocket';
+import { decodeWebsocketPayload } from '@service-connection/websocketPayload';
 import { notificationServiceClient } from '@service-notification/client';
 import type {
   ConnGatewayInnerNotifValue,
@@ -217,7 +218,10 @@ export function createNotificationSource(
     }
     let parsedNotification: UnifiedNotification;
     try {
-      const raw = JSON.parse(wsData.data) as ConnGatewayInnerNotifValue;
+      const raw = decodeWebsocketPayload(
+        wsData.type,
+        wsData.data
+      ) as ConnGatewayInnerNotifValue;
       const unsafeMapped = mapWebsocketNotification(raw);
       const parseResult = unifiedNotificationSchema.safeParse(unsafeMapped);
       if (!parseResult.success) {
