@@ -1118,7 +1118,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       class={cn(
         'group/sidebar h-full py-2 flex flex-col gap-0 mobile:absolute mobile:z-modal-content overflow-hidden',
         isExpanded() &&
-          'max-w-49.75 w-full mobile:max-w-2/3 translate-x-0 opacity-100',
+          'max-w-56 w-full mobile:max-w-2/3 translate-x-0 opacity-100',
         props.sidebarState === 'hidden' &&
           '-translate-x-full overflow-hidden opacity-0',
 
@@ -1182,7 +1182,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
         </div>
       </div>
 
-      <div class="w-full px-2 mt-1 mb-3">
+      <div class="w-full px-2 mt-4 mb-6">
         <SidebarCreateButton
           label="Create"
           hotkeyToken={TOKENS.global.createCommand}
@@ -1375,7 +1375,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
           data-sidebar-link={props.id}
           data-active={isActive() ? '' : undefined}
           class={cn(
-            'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-2 cursor-default w-full rounded-md py-1 text-ink-extra-muted [&_svg]:size-4',
+            'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-2 cursor-default w-full rounded-md py-2 text-ink-extra-muted [&_svg]:size-4',
             isActive() &&
               'bg-ink/10 not-disabled:hover:bg-ink/15 text-ink shadow-sm'
           )}
