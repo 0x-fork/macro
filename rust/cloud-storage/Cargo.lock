@@ -2639,13 +2639,19 @@ name = "crm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "chrono",
+ "entity_access",
  "macro_db_migrator",
+ "macro_uuid",
+ "model-error-response",
  "serde",
  "sqlx",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
+ "unfurl",
+ "utoipa",
  "uuid",
 ]
 
@@ -3976,6 +3982,7 @@ dependencies = [
  "tower 0.5.2",
  "tower-http",
  "tracing",
+ "unfurl",
  "url",
  "urlencoding",
  "utoipa",
@@ -11228,6 +11235,7 @@ dependencies = [
  "model-error-response",
  "model_notifications",
  "model_user",
+ "models_email",
  "non_empty",
  "notification",
  "roles_and_permissions",
@@ -11236,6 +11244,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "sqs_client",
  "thiserror 2.0.17",
  "tokio",
  "tracing",

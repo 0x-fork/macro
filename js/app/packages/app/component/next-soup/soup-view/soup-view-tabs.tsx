@@ -136,7 +136,7 @@ const ViewTabs = (props: { view: TabbedListView }) => {
 
   return (
     <OverflowTabGroup
-      items={list().map((tab) => ({ value: tab.value, label: tab.label }))}
+      items={list().map((tab) => ({ value: tab.value, label: String(tab.label) }))}
       value={activeTab() ?? VIEW_TAB_PRESETS[props.view].default ?? ''}
       onChange={(value) => applyTabPreset(props.view, value)}
     />

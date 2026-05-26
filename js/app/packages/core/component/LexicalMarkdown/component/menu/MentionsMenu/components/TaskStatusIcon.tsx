@@ -1,7 +1,7 @@
 import { createMemo, Show } from 'solid-js';
-import { useEntityProperties } from '@core/component/Properties/hooks';
-import { SYSTEM_PROPERTY_IDS } from '@core/component/Properties/constants';
-import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
+import { useEntityProperties } from '@property/hooks';
+import { SYSTEM_PROPERTY_IDS } from '@property/constants';
+import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
 import { EntityIcon } from '@core/component/EntityIcon';
 
 export function TaskStatusIcon(props: { taskId: string }) {

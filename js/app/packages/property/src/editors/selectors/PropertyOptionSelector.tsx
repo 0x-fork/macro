@@ -1,11 +1,11 @@
-import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue';
-import { useSearchInputFocus } from '@core/component/Properties/utils';
-import { ERROR_MESSAGES } from '@core/component/Properties/utils/errorHandling';
 import { useKeyPressed } from '@core/util/useKeyPressed';
 import CircleDashedEmpty from '@phosphor/circle-dashed.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import LoadingSpinner from '@phosphor/spinner.svg';
+import { PropertyValueIcon } from '@property/component/propertyValue';
+import { useSearchInputFocus } from '@property/utils';
+import { ERROR_MESSAGES } from '@property/utils/errorHandling';
 import { Hotkey } from '@ui';
 import { cn } from '@ui/utils/classname';
 import type { JSX, ParentComponent } from 'solid-js';
@@ -58,10 +58,12 @@ const useDropdownSearch = (options: UseDropdownSearchOptions) => {
     const count = options.itemCount();
     if (count === 0) return;
 
-    if (shouldShowHotkeys() && /^[1-9]$/.test(e.key)) {
+    if (shouldShowHotkeys() && /^[0-9]$/.test(e.key)) {
       e.preventDefault();
-      const idx = parseInt(e.key) - 1;
-      if (idx < count) options.onSelect(idx);
+      const keyNum = parseInt(e.key);
+      // 0 selects index 0 (the clear option when present)
+      // 1-9 select indices 1-9 (the actual options)
+      if (keyNum < count) options.onSelect(keyNum);
       return;
     }
 
@@ -362,7 +364,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
                 <Show
                   when={isValidNewOption() && props.onAddOption}
                   fallback={
-                    <div class="text-center py-6 text-ink-muted text-sm">
+                    <div class="text-center py-6 text-ink-muted">
                       No options available
                     </div>
                   }
@@ -383,7 +385,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
                 <Show
                   when={selectableItems().length > 0}
                   fallback={
-                    <div class="text-center py-4 text-ink-muted text-sm">
+                    <div class="text-center py-4 text-ink-muted">
                       No options match your search
                     </div>
                   }
@@ -414,9 +416,9 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
                                 }}
                                 onMouseEnter={onMouseEnter}
                                 showHotkey={
-                                  dropdown.shouldShowHotkeys() && index() < 9
+                                  dropdown.shouldShowHotkeys() && index() <= 9
                                 }
-                                hotkeyShortcut={`${index() + 1}`}
+                                hotkeyShortcut={`${index()}`}
                                 rightContent={
                                   <Show when={props.config.isMultiSelect}>
                                     <OptionCheckBox
@@ -432,7 +434,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
                                   optionId={optionItem().option.id}
                                 />
                                 <div class="flex-1 min-w-0 text-left">
-                                  <p class="text-sm font-medium truncate">
+                                  <p class="truncate">
                                     {optionItem().option.label}
                                   </p>
                                 </div>
@@ -455,10 +457,12 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
                                   }
                                 }}
                                 onMouseEnter={onMouseEnter}
+                                showHotkey={dropdown.shouldShowHotkeys()}
+                                hotkeyShortcut="0"
                               >
                                 <CircleDashedEmpty class="size-3 shrink-0 text-ink-extra-muted" />
                                 <div class="flex-1 min-w-0 text-left">
-                                  <p class="text-sm font-medium text-ink-muted truncate">
+                                  <p class="text-ink-muted truncate">
                                     {clear().label}
                                   </p>
                                 </div>

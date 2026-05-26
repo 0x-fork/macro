@@ -1,4 +1,3 @@
-import { removeBadgeNotifications } from '@app/signal/sidebarBadges';
 import type { Maybe } from '@core/types';
 import { type ResultError, throwOnErr } from '@core/util/result';
 import type { UnifiedNotification } from '@notifications/types';
@@ -18,6 +17,7 @@ import {
 } from '@tanstack/solid-query';
 import type { Result } from 'neverthrow';
 import { match, P } from 'ts-pattern';
+import { z } from 'zod';
 import { queryClient } from '../client';
 import { notificationKeys } from './keys';
 
@@ -417,6 +417,43 @@ export type NotificationStatusUpdate = {
   updates: NotificationStatusPatchDelete[];
 };
 
+const jsonStringSchema = z.string().transform((value, ctx) => {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid JSON' });
+    return z.NEVER;
+  }
+});
+
+export const notificationStatusUpdateSchema = z.object({
+  type: z.literal('notification_status_updated'),
+  updates: z.array(
+    z.discriminatedUnion('t', [
+      z.object({
+        t: z.literal('Patch'),
+        c: z.object({
+          id: z.string(),
+          done: z.boolean(),
+          viewed_at: z.string().nullable(),
+          updated_at: z.string(),
+        }),
+      }),
+      z.object({
+        t: z.literal('Delete'),
+        c: z.object({
+          id: z.string(),
+        }),
+      }),
+    ])
+  ),
+}) satisfies z.ZodType<NotificationStatusUpdate>;
+
+export const notificationStatusUpdatePayloadSchema = z.union([
+  notificationStatusUpdateSchema,
+  jsonStringSchema.pipe(notificationStatusUpdateSchema),
+]);
+
 function applyNotificationStatusPatch(
   notification: NotificationItem,
   patch: NotificationStatusPatch
@@ -447,9 +484,6 @@ export function applyNotificationStatusUpdate(
       .map((patch) => patch.id)
   );
   const removeIds = new Set([...deleteIds, ...doneIds]);
-  const viewedIds = patches
-    .filter((patch) => patch.viewed_at)
-    .map((patch) => patch.id);
 
   queryClient.setQueriesData<NotificationData<UserNotificationsPageParam>>(
     { queryKey: notificationKeys.user._def },
@@ -472,8 +506,6 @@ export function applyNotificationStatusUpdate(
       };
     }
   );
-
-  removeBadgeNotifications([...removeIds, ...viewedIds]);
 
   queryClient.invalidateQueries({
     queryKey: notificationKeys.user._def,

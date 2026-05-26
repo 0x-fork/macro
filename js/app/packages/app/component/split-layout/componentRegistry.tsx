@@ -283,10 +283,6 @@ registerComponent(
   withAuth((params: SearchComponentParams = {}) => {
     usePageViewTracking('search');
     const preset = getViewPreset('search');
-    const hasExplicitParams =
-      params.initialQuery !== undefined ||
-      params.initialFilters !== undefined ||
-      params.initialClientFilters !== undefined;
     return (
       <SoupView
         viewName="Search"
@@ -295,7 +291,6 @@ registerComponent(
           params.initialClientFilters ?? preset?.clientFilters
         }
         initialSearchText={params.initialQuery}
-        skipPersistedState={hasExplicitParams}
       />
     );
   })
@@ -394,11 +389,6 @@ if (LOCAL_ONLY) {
         default: m.NotificationsPlayground,
       }))
     )
-  );
-
-  registerComponent(
-    'properties-debug',
-    lazy(() => import('@core/component/Properties/debug/PropertiesDebug'))
   );
 
   registerComponent(

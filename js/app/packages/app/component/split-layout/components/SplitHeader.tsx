@@ -37,7 +37,7 @@ function SplitNewSplitButton() {
       content: { type: 'component', id: LIST_VIEW_ID.inbox },
       activate: true,
       allowDuplicate: true,
-      referredFrom: 'split-header',
+      referredFrom: 'sidebar',
     });
   };
 

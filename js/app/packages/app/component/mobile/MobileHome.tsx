@@ -34,13 +34,13 @@ import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
 import { AnimatedStarIcon } from '@icon/wide-star';
 import { Entity, type EntityData, isTaskEntity, type TaskEntity, unreadFilterFn } from '@entity';
 import { TaskPropertyGroup } from '@entity/composed/StackedListEntity';
-import { SYSTEM_PROPERTY_IDS } from '@core/component/Properties/constants';
+import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useSoupItemsQuery, type SoupItemsQueryArgs } from '@queries/soup/items';
 import { useUserNotificationsQuery } from '@queries/notification/user-notifications';
 import { itemToBlockName } from '@core/constant/allBlocks';
 import type { ListView } from '@app/constants/list-views';
 import type { Component, JSX } from 'solid-js';
-import { PROPERTY_OPTION_IDS } from '@core/component/Properties/constants';
+import { PROPERTY_OPTION_IDS } from '@property/constants';
 import { queryClient } from '@queries/client';
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';

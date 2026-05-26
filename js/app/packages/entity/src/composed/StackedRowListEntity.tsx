@@ -40,19 +40,19 @@ import type { EntityRowConfig } from '../extractors-notification';
 import {
   PropertiesProvider,
   type PropertySaveHandler,
-} from '@core/component/Properties/context/PropertiesContext';
-import { Modals } from '@core/component/Properties/component/modal';
+} from '@property/context/PropertiesContext';
+import { Modals } from '@property/component/modal';
 import type {
   Property,
   PropertyApiValues,
-} from '@core/component/Properties/types';
+} from '@property/types';
 import {
   SYSTEM_PROPERTY_IDS,
   PROPERTY_OPTION_IDS,
-} from '@core/component/Properties/constants';
-import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
+} from '@property/constants';
+import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
 import { HexDashedIcon } from '@icon/HexDashedIcon';
-import { formatPropertyValue } from '@core/component/Properties/utils/formatting';
+import { formatPropertyValue } from '@property/utils/formatting';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
 import { soupPropertyToProperty } from '../extractors-property/property-helpers';

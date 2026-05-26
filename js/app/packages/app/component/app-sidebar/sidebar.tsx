@@ -8,20 +8,26 @@ import { CommandState } from '@app/component/command';
 import { createMenuOpen, setCreateMenuOpen } from '@app/component/Launcher';
 import { requestSearchFocus } from '@app/component/next-soup/soup-view/search-controllers';
 import { useSplitLayout } from '@app/component/split-layout/layout';
+import type {
+  ReferredFrom,
+  SplitContent,
+  SplitHandle,
+} from '@app/component/split-layout/layoutManager';
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { LIST_VIEW_PATHS, type ListView } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
-import { clearSidebarBadge, hasSidebarBadge } from '@app/signal/sidebarBadges';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { InCallPanel } from '@channel/Call';
 import { useCallContextOptional } from '@channel/Call/CallContext';
-import { ContextMenuContent, MenuItem } from '@core/component/Menu';
+import { useHasPaidAccess } from '@core/auth';
+import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import { UserIcon } from '@core/component/UserIcon';
 import {
   DEV_MODE_ENV,
   ENABLE_APP_STORE_QR_CODE,
   ENABLE_CALLS,
+  ENABLE_NEW_PRICING_OVERRIDE,
   ENABLE_TEAMS_OVERRIDE,
 } from '@core/constant/featureFlags';
 import {
@@ -76,7 +82,6 @@ import SignOutIcon from '@phosphor/sign-out.svg';
 import AppStoreQr from '@design/app-store-qr.svg';
 import {
   type Component,
-  createEffect,
   createMemo,
   createSignal,
   For,
@@ -270,6 +275,45 @@ type SidebarHotkeyDeps = {
   openWithSplit: ReturnType<typeof useSplitLayout>['openWithSplit'];
 };
 
+type OpenWithSplitFn = ReturnType<typeof useSplitLayout>['openWithSplit'];
+
+const isComponentEntry =
+  (id: ListView) =>
+  (entry: SplitContent): boolean =>
+    entry.type === 'component' && entry.id === id;
+
+/**
+ * Navigate to a sidebar view, preserving prior state when possible.
+ *
+ * If the active split's history already contains an entry for this view, jump
+ * back to it so search text, filters, preview state, etc. are restored from
+ * that entry. Otherwise push a fresh entry. Holding shift bypasses the lookup
+ * and forces a new entry / new split.
+ */
+function navigateToSidebarView(args: {
+  viewId: ListView;
+  shiftKey: boolean;
+  activeSplit: SplitHandle | undefined;
+  openWithSplit: OpenWithSplitFn;
+  referredFrom?: ReferredFrom;
+}): SplitHandle | undefined {
+  const { viewId, shiftKey, activeSplit, openWithSplit, referredFrom } = args;
+
+  if (!shiftKey && activeSplit?.goToEntry(isComponentEntry(viewId))) {
+    return activeSplit;
+  }
+
+  return openWithSplit(
+    { type: 'component', id: viewId },
+    {
+      preferNewSplit: shiftKey,
+      mergeHistory: false,
+      allowDuplicate: true,
+      referredFrom,
+    }
+  );
+}
+
 const registerSidebarHotkeys = ({
   links,
   isSlim,
@@ -378,17 +422,12 @@ const registerSidebarHotkeys = ({
         }
       }
 
-      const handle = openWithSplit(
-        {
-          type: 'component',
-          id: link.id,
-        },
-        {
-          preferNewSplit: e?.shiftKey,
-          mergeHistory: false,
-          allowDuplicate: true,
-        }
-      );
+      const handle = navigateToSidebarView({
+        viewId: link.id,
+        shiftKey: !!e?.shiftKey,
+        activeSplit: globalSplitManager()?.activeSplit(),
+        openWithSplit,
+      });
       if (link.id === 'search' && handle) {
         requestSearchFocus(handle.id);
       }
@@ -628,6 +667,8 @@ const SidebarPromoCard = (props: SidebarPromoCardProps) => {
     </Show>
   );
 };
+/** Session-only signal so a hint shows after dismissal until the user acknowledges or the timer expires. */
+const [premiumHintVisible, setPremiumHintVisible] = createSignal(false);
 
 type SidebarActionButtonProps = {
   icon: Component<{ triggerAnimation?: boolean; class?: string }>;
@@ -679,7 +720,6 @@ const SidebarShortcutLink = (props: SidebarShortcutLinkProps) => {
 type SettingsMenuItem = {
   tab: SettingsTab;
   label: string;
-  description: string;
   icon: Component<{ class?: string }>;
 };
 
@@ -687,19 +727,16 @@ const SETTINGS_MENU_TOP_ITEMS: SettingsMenuItem[] = [
   {
     tab: 'Mobile App',
     label: 'App',
-    description: 'Get the mobile app',
     icon: DeviceMobileIcon,
   },
   {
     tab: 'Agent',
     label: 'MCPs',
-    description: 'Agent connectors and MCP servers',
     icon: PlugIcon,
   },
   {
     tab: 'Team',
     label: 'Team',
-    description: 'Members and invites',
     icon: UsersThreeIcon,
   },
 ];
@@ -708,19 +745,16 @@ const SETTINGS_MENU_BOTTOM_ITEMS: SettingsMenuItem[] = [
   {
     tab: 'Shortcuts',
     label: 'Shortcuts',
-    description: 'Keyboard shortcuts',
     icon: KeyboardIcon,
   },
   {
     tab: 'Appearance',
     label: 'Appearance',
-    description: 'Theme and UI customization',
     icon: PaintBucketIcon,
   },
   {
     tab: 'Account',
     label: 'Account',
-    description: 'Profile, email, and subscription',
     icon: UserIconPhosphor,
   },
 ];
@@ -906,53 +940,49 @@ const SidebarUserMenu = (props: {
         </span>
         <CaretDownIcon class="size-3 shrink-0 text-ink-extra-muted group-data-[slim=true]/sidebar:hidden" />
       </Dropdown.Trigger>
-      <Dropdown.Portal>
-        <Layer depth={2}>
-          <Dropdown.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-md shadow-drop-shadow min-w-56 p-1">
-            <div class="flex items-center gap-2.5 px-2 py-2.5">
-              <UserIcon
-                id={userId() ?? ''}
-                size="lg"
-                suppressClick
-                showTooltip={false}
-              />
-              <div class="flex-1 min-w-0 flex flex-col gap-0.5">
-                <div class="text-sm font-semibold text-ink truncate leading-tight">
-                  {displayName() || 'Account'}
-                </div>
-                <Show when={email()}>
-                  <div class="text-xs text-ink-muted truncate leading-tight">
-                    {email()}
-                  </div>
-                </Show>
-              </div>
+      <Dropdown.Content depth={2} class="min-w-56">
+        <div class="flex items-center gap-2.5 px-2 py-2.5">
+          <UserIcon
+            id={userId() ?? ''}
+            size="lg"
+            suppressClick
+            showTooltip={false}
+          />
+          <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+            <div class="text-sm font-semibold text-ink truncate leading-tight">
+              {displayName() || 'Account'}
             </div>
-            <div class="mx-2 my-1 h-px bg-edge-muted" />
-            <Dropdown.Item
-              class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
-              onSelect={props.onCommandMenu}
-            >
-              <CommandKIcon class="size-3.5 shrink-0" />
-              <span class="flex-1 truncate">Command menu</span>
-              <Hotkey token={TOKENS.global.commandMenu} class="flex gap-0.5 text-ink-extra-muted" />
-            </Dropdown.Item>
-            <Dropdown.Item
-              class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
-              onSelect={props.onSettings}
-            >
-              <GearIcon class="size-3.5 shrink-0" />
-              <span class="flex-1 truncate">Settings</span>
-            </Dropdown.Item>
-            <Dropdown.Item
-              class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-failure hover:bg-failure-bg focus:bg-failure-bg outline-none cursor-default rounded-sm"
-              onSelect={logout}
-            >
-              <SignOutIcon class="size-3.5 shrink-0" />
-              <span class="flex-1 truncate">Log out</span>
-            </Dropdown.Item>
-          </Dropdown.Content>
-        </Layer>
-      </Dropdown.Portal>
+            <Show when={email()}>
+              <div class="text-xs text-ink-muted truncate leading-tight">
+                {email()}
+              </div>
+            </Show>
+          </div>
+        </div>
+        <div class="mx-2 my-1 h-px bg-edge-muted" />
+        <Dropdown.Item
+          class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+          onSelect={props.onCommandMenu}
+        >
+          <CommandKIcon class="size-3.5 shrink-0" />
+          <span class="flex-1 truncate">Command menu</span>
+          <Hotkey token={TOKENS.global.commandMenu} class="flex gap-0.5 text-ink-extra-muted" />
+        </Dropdown.Item>
+        <Dropdown.Item
+          class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+          onSelect={props.onSettings}
+        >
+          <GearIcon class="size-3.5 shrink-0" />
+          <span class="flex-1 truncate">Settings</span>
+        </Dropdown.Item>
+        <Dropdown.Item
+          class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-failure hover:bg-failure-bg focus:bg-failure-bg outline-none cursor-default rounded-sm"
+          onSelect={logout}
+        >
+          <SignOutIcon class="size-3.5 shrink-0" />
+          <span class="flex-1 truncate">Log out</span>
+        </Dropdown.Item>
+      </Dropdown.Content>
     </Dropdown>
   );
 };
@@ -976,7 +1006,6 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
   return (
     <Dropdown placement="top-start" gutter={6}>
       <Dropdown.Trigger
-        as={Button}
         variant="ghost"
         class={cn(
           'flex items-center w-full rounded-md cursor-default text-ink-extra-muted not-disabled:hover:bg-ink/3 h-9',
@@ -1011,57 +1040,44 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
         </span>
         <CaretUpIcon class="size-3 text-ink-extra-muted shrink-0 group-data-[slim=true]/sidebar:hidden" />
       </Dropdown.Trigger>
-      <Dropdown.Portal>
-        <Layer depth={3}>
-          <Dropdown.Content class="min-w-56">
-            <For each={topItems()}>
-              {(item) => (
-                <Dropdown.Item
-                  class="flex items-start gap-2 px-2.5 py-2.5 text-sm cursor-default outline-none text-ink-muted"
-                  onSelect={() => props.onSelect(item.tab)}
-                >
-                  <span class="size-5 flex items-center justify-center">
-                    <Dynamic
-                      component={item.icon}
-                      class="size-4 shrink-0 text-ink-extra-muted"
-                    />
-                  </span>
-                  <div class="flex flex-col min-w-0">
-                    <span class="text-ink">{item.label}</span>
-                    <span class="text-xxs text-ink-extra-muted leading-tight">
-                      {item.description}
-                    </span>
-                  </div>
-                </Dropdown.Item>
-              )}
-            </For>
-            <Show when={topItems().length > 0 && bottomItems().length > 0}>
-              <Dropdown.Separator />
-            </Show>
-            <For each={bottomItems()}>
-              {(item) => (
-                <Dropdown.Item
-                  class="flex items-start gap-2 px-2.5 py-2.5 text-sm cursor-default outline-none text-ink-muted"
-                  onSelect={() => props.onSelect(item.tab)}
-                >
-                  <span class="size-5 flex items-center justify-center">
-                    <Dynamic
-                      component={item.icon}
-                      class="size-4 shrink-0 text-ink-extra-muted"
-                    />
-                  </span>
-                  <div class="flex flex-col min-w-0">
-                    <span class="text-ink">{item.label}</span>
-                    <span class="text-xxs text-ink-extra-muted leading-tight">
-                      {item.description}
-                    </span>
-                  </div>
-                </Dropdown.Item>
-              )}
-            </For>
-          </Dropdown.Content>
-        </Layer>
-      </Dropdown.Portal>
+      <Dropdown.Content>
+        <Dropdown.Group>
+          <For each={topItems()}>
+            {(item) => (
+              <Dropdown.Item
+                class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-ink-muted"
+                onSelect={() => props.onSelect(item.tab)}
+              >
+                <span class="size-5 flex items-center justify-center">
+                  <Dynamic
+                    component={item.icon}
+                    class="size-4 shrink-0 text-ink-extra-muted"
+                  />
+                </span>
+                <span class="text-ink">{item.label}</span>
+              </Dropdown.Item>
+            )}
+          </For>
+        </Dropdown.Group>
+        <Dropdown.Group>
+          <For each={bottomItems()}>
+            {(item) => (
+              <Dropdown.Item
+                class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-ink-muted"
+                onSelect={() => props.onSelect(item.tab)}
+              >
+                <span class="size-5 flex items-center justify-center">
+                  <Dynamic
+                    component={item.icon}
+                    class="size-4 shrink-0 text-ink-extra-muted"
+                  />
+                </span>
+                <span class="text-ink">{item.label}</span>
+              </Dropdown.Item>
+            )}
+          </For>
+        </Dropdown.Group>
+      </Dropdown.Content>
     </Dropdown>
   );
 };
@@ -1082,6 +1098,18 @@ export const AppSidebar = (props: AppSidebarProps) => {
   const isTabAvailable = useIsSettingsTabAvailable();
   const notificationSettings = useNotificationSettings();
   const callCtx = useCallContextOptional();
+
+  const hasPaidAccess = useHasPaidAccess();
+
+  /** Persisted dismissal for the Premium upgrade promo card. */
+  const [premiumCardDismissed, setPremiumCardDismissed] = makePersisted(
+    createSignal<boolean>(false),
+    { name: 'sidebar-premium-card-dismissed' }
+  );
+
+  const newPricingFF = useFeatureFlag('enable-new-pricing', {
+    enabledOverride: ENABLE_NEW_PRICING_OVERRIDE,
+  });
 
   const showEnableNotifications = () =>
     notificationSettings.isSupported && notificationSettings.canPrompt();
@@ -1251,6 +1279,11 @@ export const AppSidebar = (props: AppSidebarProps) => {
         </div>
       </Show>
 
+      {/* MERGE NOTE: kept HEAD's redesigned footer (notifications/invite/mobile
+          cards using the local SidebarPromoCard API with isSlim+icon). Dropped
+          main's Premium-upgrade card + shortcut-link block, which relied on the
+          extracted sidebar-promo.tsx API that lacks isSlim/icon. premiumHintVisible
+          / setPremiumCardDismissed remain defined if that card is reintroduced. */}
       <div
         class={cn(
           'w-full px-2 flex flex-col gap-2',
@@ -1344,7 +1377,6 @@ const SidebarLink = (props: SidebarLinkProps) => {
   const analytics = useAnalytics();
   const layout = useSplitLayout();
   const layoutManager = globalSplitManager();
-  const hasUnread = () => hasSidebarBadge(props.id);
 
   const location = useLocation();
 
@@ -1360,10 +1392,6 @@ const SidebarLink = (props: SidebarLinkProps) => {
 
     return activeContent?.id === props.id;
   };
-
-  createEffect(() => {
-    if (isActive()) clearSidebarBadge(props.id);
-  });
 
   const content = () =>
     ({
@@ -1428,7 +1456,6 @@ const SidebarLink = (props: SidebarLinkProps) => {
           onMouseLeave={() => setIsHovering(false)}
           onMouseDown={(e) => {
             if (e.button !== 0) return;
-            clearSidebarBadge(props.id);
             analytics.track('sidebar_click', {
               view: props.id,
             });
@@ -1442,10 +1469,11 @@ const SidebarLink = (props: SidebarLinkProps) => {
               currentContent?.id === props.id;
 
             if (!isSameContent || e.shiftKey) {
-              currentContentHandle = layout.openWithSplit(content(), {
-                preferNewSplit: e.shiftKey,
-                mergeHistory: false,
-                allowDuplicate: true,
+              currentContentHandle = navigateToSidebarView({
+                viewId: props.id,
+                shiftKey: e.shiftKey,
+                activeSplit: currentContentHandle,
+                openWithSplit: layout.openWithSplit,
                 referredFrom: 'sidebar',
               });
             }
@@ -1458,11 +1486,8 @@ const SidebarLink = (props: SidebarLinkProps) => {
           }}
         >
           <Show when={props.icon}>
-            <div class="relative shrink-0 [&_svg]:size-4">
+            <div class="shrink-0 [&_svg]:size-4">
               <Dynamic component={props.icon} triggerAnimation={isHovering()} />
-              <Show when={hasUnread() && !isActive()}>
-                <div class="absolute -top-0.5 -right-0.5 size-1.5 bg-accent rounded-full ring-surface ring-2" />
-              </Show>
             </div>
           </Show>
 

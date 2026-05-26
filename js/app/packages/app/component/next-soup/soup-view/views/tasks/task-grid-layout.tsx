@@ -1,14 +1,3 @@
-import { Modals } from '@core/component/Properties/component/modal';
-import { PropertyValueIcon } from '@core/component/Properties/component/propertyValue/PropertyValueIcon';
-import { SYSTEM_PROPERTY_IDS } from '@core/component/Properties/constants';
-import {
-  PropertiesProvider,
-  type PropertySaveHandler,
-} from '@core/component/Properties/context/PropertiesContext';
-import type {
-  Property,
-  PropertyApiValues,
-} from '@core/component/Properties/types';
 import { UserGroup } from '@core/component/UserGroup';
 import { UserIcon } from '@core/component/UserIcon';
 import { isMobile } from '@core/mobile/isMobile';
@@ -34,6 +23,14 @@ import { HexDashedIcon } from '@icon/HexDashedIcon';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg?component-solid';
 import UserFillIcon from '@phosphor-icons/core/fill/user-fill.svg?component-solid';
 import UsersIcon from '@phosphor-icons/core/fill/users-fill.svg?component-solid';
+import { Modals } from '@property/component/modal';
+import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
+import { SYSTEM_PROPERTY_IDS } from '@property/constants';
+import {
+  PropertiesProvider,
+  type PropertySaveHandler,
+} from '@property/context/PropertiesContext';
+import type { Property, PropertyApiValues } from '@property/types';
 import { useUserId } from '@queries/auth';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
 import { EntityType } from '@service-properties/generated/schemas/entityType';

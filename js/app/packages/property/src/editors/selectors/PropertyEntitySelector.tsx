@@ -1,4 +1,3 @@
-import { useSearchInputFocus } from '@core/component/Properties/utils';
 import { UserIcon } from '@core/component/UserIcon';
 import { useEmail, useUserId } from '@core/context/user';
 import { useAugmentUserWithDmActivity } from '@core/user';
@@ -9,6 +8,7 @@ import type { EmailEntity } from '@entity';
 import { Entity, type EntityData } from '@entity';
 import { createEmailsInfiniteQuery } from '@macro-entity';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
+import { useSearchInputFocus } from '@property/utils';
 import { useSearchSoupQuery } from '@queries/soup/search';
 import type { EntityType } from '@service-properties/generated/schemas/entityType';
 import { debounce } from '@solid-primitives/scheduled';
@@ -414,7 +414,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
       </div>
 
       <Show when={totalCount() > 0}>
-        <div class="p-1">
+        <div class="p-1.5">
           <For each={visiblePinnedOptions()}>
             {(option, i) => {
               const isSelected = () => props.selectedOptions().has(option.id);

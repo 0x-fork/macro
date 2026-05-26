@@ -2,6 +2,7 @@ import '@entity/composed/ListEntity.css';
 import { EntityRow, EntityRowContext } from '@app/component/mobile/EntityRow';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { isMobile } from '@core/mobile/isMobile';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import {
   createEntityDraggable,
   Entity,
@@ -128,7 +129,8 @@ export function TaskListEntity(props: TaskListEntityProps) {
         !isMobile() && 'min-h-10',
         {
           'bg-accent/8': props.checked,
-          'ring ring-accent/16 ring-inset': props.checked && props.highlighted,
+          'ring ring-accent/16 ring-inset':
+            props.checked && props.highlighted && !isTouchDevice(),
           'ring ring-edge bg-active/60 ring-inset':
             props.highlighted && !props.checked && !isMobile(),
           'bg-active/40': props.hovered && !props.highlighted && !props.checked,

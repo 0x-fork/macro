@@ -1,11 +1,10 @@
 import { DatePickerUI } from '@core/component/DatePicker/DatePickerUI';
-import type { DateProperty } from '@core/component/Properties/types';
-import { useSearchInputFocus } from '@core/component/Properties/utils';
 import { useDateSearch } from '@core/util/dateSearch/useDateSearch';
 import { useKeyPressed } from '@core/util/useKeyPressed';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
+import type { DateProperty } from '@property/types';
+import { useSearchInputFocus } from '@property/utils';
 import { cn } from '@ui';
-import { format } from 'date-fns';
 import {
   createEffect,
   createMemo,
@@ -40,10 +39,21 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
     showTimeInResults: false,
   });
 
-  const totalOptions = createMemo(() => dateOptions().length + 1); // +1 for calendar button
+  const hasClear = () => props.selectedDate != null;
+  // When a date is set, replace the last suggestion with the Clear row so
+  // the section height stays the same.
+  const visibleDateOptions = createMemo(() => {
+    const all = dateOptions();
+    return hasClear() && all.length > 0 ? all.slice(0, -1) : all;
+  });
+  const calendarOptionIndex = () => visibleDateOptions().length;
+  const clearOptionIndex = () => visibleDateOptions().length + 1;
+  const totalOptions = createMemo(
+    () => visibleDateOptions().length + 1 + (hasClear() ? 1 : 0)
+  );
 
   createEffect(
-    on(dateOptions, (options) => {
+    on(visibleDateOptions, (options) => {
       if (options.length === 0) {
         setSelectedIndex(0);
       } else {
@@ -67,7 +77,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
   };
 
   const scrollSelectedIntoView = () => {
-    const options = dateOptions();
+    const options = visibleDateOptions();
     const currentIndex = selectedIndex();
     if (currentIndex >= 0 && currentIndex < options.length) {
       const element = document.querySelector(
@@ -80,7 +90,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    const options = dateOptions();
+    const options = visibleDateOptions();
     const total = totalOptions();
 
     if (
@@ -104,8 +114,10 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
       e.preventDefault();
       const currentIndex = selectedIndex();
 
-      if (currentIndex === options.length) {
+      if (currentIndex === calendarOptionIndex()) {
         setMode('calendar');
+      } else if (hasClear() && currentIndex === clearOptionIndex()) {
+        handleClearDate();
       } else {
         const selectedOption = options[currentIndex];
         if (selectedOption) {
@@ -127,15 +139,6 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
     () => searchInputRef,
     () => true
   );
-
-  const currentDateDisplay = createMemo(() => {
-    if (!props.selectedDate) return 'No date set';
-    try {
-      return format(props.selectedDate, "MMMM d, yyyy 'at' h:mm a");
-    } catch {
-      return 'Invalid date';
-    }
-  });
 
   const handleCalendarChange = (date: Date) => {
     handleSelectDate(date);
@@ -166,36 +169,22 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
       </div>
       <Switch>
         <Match when={mode() === 'search'}>
-          <Show when={props.selectedDate}>
-            <div class="px-3 py-2 border-b border-edge-muted">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-ink-muted">Current:</span>
-                  <span class="text-xs font-medium">
-                    {currentDateDisplay()}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleClearDate(true)}
-                  class="text-xs text-ink-muted hover:text-ink underline"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-          </Show>
-
+          {/* MERGE NOTE: HEAD had a "Current:" block referencing an undefined
+              currentDateDisplay(); dropped in favor of main's clear-row logic.
+              Kept HEAD's flex/gap container styling. */}
           <div class="p-1">
             <div class="max-h-50 overflow-y-auto overflow-x-hidden scrollbar-hidden flex flex-col gap-0.5">
               <Show
-                when={dateOptions().length > 0}
+                when={visibleDateOptions().length > 0}
                 fallback={
                   <Show
                     when={searchQuery().trim()}
                     fallback={
-                      <div class="text-center py-2 text-ink-muted text-sm">
-                        Enter a date or duration
-                      </div>
+                      <Show when={!hasClear()}>
+                        <div class="text-center py-2 text-ink-muted text-sm">
+                          Enter a date or duration
+                        </div>
+                      </Show>
                     }
                   >
                     <div class="text-center py-2 text-ink-muted text-sm">
@@ -204,7 +193,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                   </Show>
                 }
               >
-                <For each={dateOptions()}>
+                <For each={visibleDateOptions()}>
                   {(option, index) => (
                     <div
                       data-date-index={index()}
@@ -235,15 +224,15 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
 
               <div class="border-t border-edge-muted/50 mt-1 pt-1">
                 <div
-                  data-date-index={dateOptions().length}
+                  data-date-index={calendarOptionIndex()}
                   class={cn(
                     'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors',
-                    selectedIndex() === dateOptions().length && 'bg-accent/20'
+                    selectedIndex() === calendarOptionIndex() && 'bg-accent/20'
                   )}
                   onClick={() => setMode('calendar')}
                   onMouseEnter={() => {
                     if (!keyboardMode()) {
-                      setSelectedIndex(dateOptions().length);
+                      setSelectedIndex(calendarOptionIndex());
                     }
                   }}
                 >
@@ -258,6 +247,25 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                     </span>
                   </div>
                 </div>
+                <Show when={hasClear()}>
+                  <div
+                    data-date-index={clearOptionIndex()}
+                    class={cn(
+                      'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors',
+                      selectedIndex() === clearOptionIndex() && 'bg-accent/20'
+                    )}
+                    onClick={() => handleClearDate()}
+                    onMouseEnter={() => {
+                      if (!keyboardMode()) {
+                        setSelectedIndex(clearOptionIndex());
+                      }
+                    }}
+                  >
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                      <p class="truncate text-ink-muted">Clear date</p>
+                    </div>
+                  </div>
+                </Show>
               </div>
             </div>
           </div>
