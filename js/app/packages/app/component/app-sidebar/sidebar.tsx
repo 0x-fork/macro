@@ -50,7 +50,7 @@ import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
 import { AnimatedCallIcon } from '@icon/wide-call';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
-import CommandKIcon from '@icon/wide-command-k.svg';
+import CommandIcon from '@phosphor/command.svg';
 import { AnimatedEmailIcon } from '@icon/wide-email';
 import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
 import { AnimatedFolderIcon } from '@icon/wide-folder';
@@ -965,7 +965,7 @@ const SidebarUserMenu = (props: {
             class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
             onSelect={props.onCommandMenu}
           >
-            <CommandKIcon class="size-3.5 shrink-0" />
+            <CommandIcon class="size-3.5 shrink-0" />
             <span class="flex-1 truncate">Command menu</span>
             <Hotkey token={TOKENS.global.commandMenu} class="flex gap-0.5 text-ink-extra-muted" />
           </Dropdown.Item>
