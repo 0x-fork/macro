@@ -80,6 +80,7 @@ export function EntityIcon(props: EntityIconProps) {
       )
       .when(isCallEntity, () => 'call')
       .with({ type: 'automation' }, () => 'automation')
+      .with({ type: 'crm_company' }, () => 'crm_company')
       .otherwise(() => 'default');
   };
 

@@ -205,7 +205,8 @@ export function blockNameToDefaultFile(block?: BlockName | string | null) {
 }
 
 export type ItemLike = {
-  type: ItemType | 'call';
+  // 'crm_company' has no block; resolvers fall back to 'unknown'.
+  type: ItemType | 'call' | 'crm_company';
   fileType?: BasicDocumentFileType;
   subType?: SubType | BasicDocumentSubTypeProperty;
   name?: string;

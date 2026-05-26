@@ -235,6 +235,22 @@ registerComponent(
 );
 
 registerComponent(
+  'companies',
+  withAuth(() => {
+    usePageViewTracking('companies');
+    const preset = getViewPreset('companies');
+    return (
+      <SoupView
+        viewName="Companies"
+        initialFilters={preset?.filters}
+        initialClientFilters={preset?.clientFilters}
+        initialGroupBy={preset?.groupBy}
+      />
+    );
+  })
+);
+
+registerComponent(
   'folders',
   withAuth(() => {
     usePageViewTracking('folders');

@@ -103,6 +103,9 @@ export function EmptyState(props: {
       <Match when={props.viewId === 'tasks'}>
         <EmptyStateInner message={'No tasks to show.'} />
       </Match>
+      <Match when={props.listView === 'companies'}>
+        <EmptyStateInner message={'No companies to show.'} />
+      </Match>
       <Match when={props.viewId === 'all'}>
         <EmptyStateInner />
       </Match>

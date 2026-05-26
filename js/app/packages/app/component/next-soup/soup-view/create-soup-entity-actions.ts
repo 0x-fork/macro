@@ -162,6 +162,9 @@ export function createSoupEntityActions(): {
           await blockHandle?.goToLocationFromParams(
             getChannelParams(entity.messageId, entity.threadId)
           );
+        } else if (entity.type === 'crm_company') {
+          // crm companies aren't openable yet — no split action.
+          return;
         } else {
           splitManager.createNewSplit({
             content: {

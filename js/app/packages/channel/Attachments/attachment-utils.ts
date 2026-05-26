@@ -110,5 +110,8 @@ export function getEntityClickContent(entity: EntityData): SplitContent {
       type: 'automation' as const,
       id: e.id,
     }))
+    .with({ type: 'crm_company' }, () => {
+      throw new Error('crm companies are not openable as attachments');
+    })
     .exhaustive();
 }
