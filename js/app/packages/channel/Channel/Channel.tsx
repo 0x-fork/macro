@@ -215,8 +215,6 @@ export function Channel(props: ChannelProps) {
       targetMessageController.activeTargetMessageId()
     );
 
-  const shift = () => threadPaginator.isShifting();
-
   const activityTracker = createActivityTracker({
     lastViewedAt: () => activity()?.viewed_at,
     userId,
@@ -428,8 +426,6 @@ export function Channel(props: ChannelProps) {
                     <ThreadList
                       keys={() => messageIndex.keys}
                       initialScrollTarget={threadListInitialScrollTarget()}
-                      shift={shift}
-                      prepend={threadPaginator.isPrepending}
                       onScrollNearTop={threadPaginator.shiftPaginate}
                       onScrollNearBottom={threadPaginator.prependPaginate}
                       onNavigationReady={setThreadListNavigation}
