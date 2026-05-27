@@ -316,8 +316,6 @@ export const openEntityInSplitFromUnifiedList = async (
   options: OpenEntityOptions
 ): Promise<void> => {
   const { openInNewSplit, splitHandle, mergeHistory } = options;
-  // crm companies aren't openable yet — clicking a row is a no-op.
-  if (entity.type === 'crm_company') return;
   let { location } = options;
 
   if (!location && isSnippetEntity(entity)) {
@@ -383,8 +381,8 @@ function getEntitySplitContent(entity: EntityData) {
     .with({ type: 'channel_message' }, (entity) => {
       return { type: 'channel' as const, id: entity.channelId };
     })
-    .with({ type: 'crm_company' }, () => {
-      throw new Error('crm companies have no split content');
+    .with({ type: 'crm_company' }, (entity) => {
+      return { type: 'company' as const, id: entity.id };
     })
     .otherwise((entity) => {
       return { type: entity.type, id: entity.id };

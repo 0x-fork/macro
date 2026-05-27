@@ -140,6 +140,12 @@
       "@channel/*": [
         "./packages/channel/*"
       ],
+      "@companies/*": [
+        "./packages/companies/*"
+      ],
+      "@block-companies/*": [
+        "./packages/block-companies/*"
+      ],
       "@block-email/*": [
         "./packages/block-email/*"
       ],

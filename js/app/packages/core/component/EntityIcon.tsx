@@ -262,6 +262,12 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-default/20',
     prettyName: 'Company',
   },
+  company: {
+    icon: Buildings,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Company',
+  },
 };
 
 // this will match fall-through cases like code files which match multiple extensions
@@ -319,6 +325,7 @@ const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
   task: WideTask,
   automation: Robot,
   crm_company: Buildings,
+  company: Buildings,
 };
 
 const ICON_SIZES = {
