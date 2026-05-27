@@ -7,6 +7,7 @@
 import type { HttpSendChatMessageRequestAdditionalInstructions } from './httpSendChatMessageRequestAdditionalInstructions';
 import type { HttpSendChatMessageRequestAttachments } from './httpSendChatMessageRequestAttachments';
 import type { HttpSendChatMessageRequestChatId } from './httpSendChatMessageRequestChatId';
+import type { HttpSendChatMessageRequestToolGrants } from './httpSendChatMessageRequestToolGrants';
 import type { ToolSet } from './toolSet';
 
 /**
@@ -24,6 +25,12 @@ export interface HttpSendChatMessageRequest {
   content: string;
   /** The model to respond with (provider api id) */
   model: string;
+  /** Decisions for tool calls awaiting permission in the latest assistant
+message. Present when the user resumes a chat that suspended on a
+permission request. Each decision grants or denies one pending call by
+its `tool_call_id`; pending calls with no listed decision are treated as
+denied so the message chain stays valid. */
+  tool_grants?: HttpSendChatMessageRequestToolGrants;
   /** Which toolset to use. Defaults to `all` */
   toolset?: ToolSet;
 }

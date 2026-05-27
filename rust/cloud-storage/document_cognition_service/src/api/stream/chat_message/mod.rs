@@ -1,4 +1,6 @@
 //! HTTP endpoint for sending chat messages with streaming responses.
+mod resume;
+
 use super::util::chat_message::ai_request::build_chat_messages;
 use super::util::chat_message::toolset::choose_tools_prompt;
 use super::util::chat_message::{store_conversation_messages, store_incoming_message};
@@ -83,6 +85,25 @@ pub struct HttpSendChatMessageRequest {
     /// Which toolset to use. Defaults to `all`
     #[serde(default)]
     pub toolset: ToolSet,
+    /// Decisions for tool calls awaiting permission in the latest assistant
+    /// message. Present when the user resumes a chat that suspended on a
+    /// permission request. Each decision grants or denies one pending call by
+    /// its `tool_call_id`; pending calls with no listed decision are treated as
+    /// denied so the message chain stays valid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_grants: Option<Vec<ToolGrantDecision>>,
+}
+
+/// A user's grant/deny decision for a single pending tool call, delivered with
+/// a chat-resume request. This is the stateless replacement for the old
+/// channel-based grant endpoint.
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+pub struct ToolGrantDecision {
+    /// The provider-assigned tool call id this decision applies to (from the
+    /// `permissionRequest` part).
+    pub tool_call_id: String,
+    /// Whether the user approved the call. `false` denies it.
+    pub approved: bool,
 }
 
 /// Response for initiating a chat message stream
@@ -240,6 +261,25 @@ async fn send_chat_message_inner(
     };
     let should_auto_rename_chat = created_new_chat || chat.messages.is_empty();
 
+    // If the latest assistant message has tool calls awaiting permission, this
+    // request resumes that suspended turn. The pending state is derived purely
+    // from the persisted chain (a `permissionRequest` part with no result), not
+    // a server-held grant store. Capture the message id so its resolved results
+    // can be persisted back onto it.
+    let pending_permission_message_id = chat
+        .messages
+        .iter()
+        .rev()
+        .find(|m| m.role == agent::types::Role::Assistant)
+        .filter(|m| match &m.content {
+            ChatMessageContent::AssistantMessageParts(parts) => {
+                resume::has_pending_permission(parts)
+            }
+            ChatMessageContent::Text(_) => false,
+        })
+        .map(|m| m.id.clone());
+    let tool_grants = request.tool_grants.clone().unwrap_or_default();
+
     // Convert HTTP request to internal payload for existing functions
     let payload = SendChatMessagePayload {
         stream_id: stream_id.clone(),
@@ -254,20 +294,28 @@ async fn send_chat_message_inner(
         },
     };
 
-    // Store the incoming user message and resolve its attachments
-    let resolved = store_incoming_message(ctx.clone(), user_id.0.as_ref(), &chat, &model, &payload)
-        .await
-        .map_err(|err| {
-            tracing::error!(error=?err, "failed to store incoming message");
-            ChatMessageError {
-                error: "Failed to store message".to_string(),
-                stream_id: Some(stream_id.clone()),
-                status: None,
-            }
-        })?;
-    let user_message_id = resolved.message_id;
+    // A resume (carrying tool grants) continues the suspended assistant turn —
+    // there is no new user message to store. Otherwise store the incoming user
+    // message and resolve its attachments.
+    let is_resume = pending_permission_message_id.is_some();
+    let user_message_id = if is_resume {
+        String::new()
+    } else {
+        let resolved =
+            store_incoming_message(ctx.clone(), user_id.0.as_ref(), &chat, &model, &payload)
+                .await
+                .map_err(|err| {
+                    tracing::error!(error=?err, "failed to store incoming message");
+                    ChatMessageError {
+                        error: "Failed to store message".to_string(),
+                        stream_id: Some(stream_id.clone()),
+                        status: None,
+                    }
+                })?;
+        resolved.message_id
+    };
 
-    if should_auto_rename_chat {
+    if !is_resume && should_auto_rename_chat {
         spawn_initial_chat_rename(
             ctx.clone(),
             (*user_id).clone(),
@@ -299,14 +347,15 @@ async fn send_chat_message_inner(
 
     // Build the chat messages
     let tools_prompt = choose_tools_prompt(&payload, &*ctx.all_tools_prompt);
-    let ai_request = build_chat_messages(&chat, &payload, all_resolved_parts).map_err(|err| {
-        tracing::error!(error=?err, "failed to build chat messages");
-        ChatMessageError {
-            error: "Failed to build request".to_string(),
-            stream_id: Some(stream_id.clone()),
-            status: None,
-        }
-    })?;
+    let ai_request =
+        build_chat_messages(&chat, &payload, all_resolved_parts, is_resume).map_err(|err| {
+            tracing::error!(error=?err, "failed to build chat messages");
+            ChatMessageError {
+                error: "Failed to build request".to_string(),
+                stream_id: Some(stream_id.clone()),
+                status: None,
+            }
+        })?;
 
     // Log time to send request
     log::log_timing(log::LatencyMetric::TimeToSendRequest, &model, now.elapsed());
@@ -354,6 +403,8 @@ async fn send_chat_message_inner(
         request.attachments.clone().unwrap_or_default(),
         durable_stream_id,
         cancellation_sub,
+        pending_permission_message_id,
+        tool_grants,
     );
 
     Ok(Json(SendChatMessageResponse {
@@ -477,6 +528,8 @@ fn stream_and_save_message(
     user_message_attachments: Vec<Entity<'static>>,
     durable_stream_id: StreamId,
     cancellation_sub: CancellationSubscription,
+    pending_permission_message_id: Option<String>,
+    tool_grants: Vec<ToolGrantDecision>,
 ) {
     tracing::trace!(request=?request, "streaming chat request");
     let tool_context = ctx.tool_service_context.clone();
@@ -496,30 +549,89 @@ fn stream_and_save_message(
         // impl aborts the Redis subscriber task.
         let _cancellation_sub = cancellation_sub;
 
-        // Yield the user message as the first item so other clients can display it
-        let user_msg = ChatStream::ChatUserMessage {
-            stream_id: stream_id.clone(),
-            chat_id: chat_id.clone(),
-            message_id: user_message_id,
-            content: user_message_content,
-            attachments: user_message_attachments,
-        };
-        if let Ok(json) = serde_json::to_value(&user_msg) {
-            yield json;
+        // Yield the user message as the first item so other clients can display
+        // it. A resume continues the suspended assistant turn and has no new
+        // user message, so this is skipped.
+        if pending_permission_message_id.is_none() {
+            let user_msg = ChatStream::ChatUserMessage {
+                stream_id: stream_id.clone(),
+                chat_id: chat_id.clone(),
+                message_id: user_message_id,
+                content: user_message_content,
+                attachments: user_message_attachments,
+            };
+            if let Ok(json) = serde_json::to_value(&user_msg) {
+                yield json;
+            }
         }
 
+        let mut request = request;
         let mcp_records = mcp_store.list(&user_id).await.unwrap_or_default();
         let toolset: Arc<dyn ai_toolset::ToolSet<_> + Send + Sync> = Arc::new(
             mcp_client::domain::service::CombinedToolSet::new(static_tools, &mcp_records).await,
         );
         let agent_loop =
             AgentLoop::new(tool_context.recorder.clone()).with_model(&model);
-        let rig_messages = agent::to_rig_messages(&request);
         let usage_ctx = ai_usage::UsageContext::new(ai_usage::AiFeature::Chat, user_id.clone())
             .with_entity(macro_uuid::string_to_uuid(&chat_id).ok());
         // Carry the feature on the context so tool-spawned subagents attribute to it.
         let mut tool_context = tool_context;
         tool_context.usage_context = usage_ctx.clone();
+
+        // Stateless resume: if the latest assistant message has tool calls
+        // awaiting permission, materialize the user's grant/deny decisions into
+        // the chain before sending it to the agent. Granted calls are executed
+        // here; denied or ignored calls get a placeholder result. The resolved
+        // parts are persisted back onto the suspended assistant message and
+        // streamed to the client so the pending UI updates to its result.
+        if let Some(pending_message_id) = pending_permission_message_id.as_ref()
+            && let Some(last_assistant) = request
+                .iter_mut()
+                .rev()
+                .find(|m| m.role == agent::types::Role::Assistant)
+            && let ChatMessageContent::AssistantMessageParts(parts) = &last_assistant.content
+            && resume::has_pending_permission(parts)
+        {
+            let request_context = ai_toolset::RequestContext {
+                user_id: user_id.clone(),
+            };
+            let resolved_parts = resume::resolve_permission_grants(
+                parts.clone(),
+                &tool_grants,
+                &toolset,
+                &tool_context,
+                &request_context,
+            )
+            .await;
+
+            // Stream the newly resolved tool calls + results so the suspended
+            // permission UI is replaced by the actual tool outcome.
+            for part in &resolved_parts {
+                let chat_part = ChatStream::ChatMessageResponse {
+                    stream_id: stream_id.clone(),
+                    chat_id: chat_id.clone(),
+                    message_id: pending_message_id.clone(),
+                    content: part.clone(),
+                };
+                if let Ok(json) = serde_json::to_value(&chat_part) {
+                    yield json;
+                }
+            }
+
+            // Persist the resolved parts back onto the suspended assistant
+            // message so the chain is permanently valid.
+            let resolved_content = ChatMessageContent::AssistantMessageParts(resolved_parts.clone());
+            if let Err(err) = ctx
+                .message_service
+                .update(&user_id, &chat_id, pending_message_id, &resolved_content)
+                .await
+            {
+                tracing::error!(error=?err, chat_id = %chat_id, stream_id = %stream_id, "failed to persist resolved permission grants");
+            }
+            last_assistant.content = resolved_content;
+        }
+
+        let rig_messages = agent::to_rig_messages(&request);
         let mut session = agent_loop
             .session(toolset, Arc::new(tool_context), &system_prompt, usage_ctx)
             .await;

@@ -97,6 +97,11 @@ fn stream_part_to_message_part(part: StreamPart) -> Option<AssistantMessagePart>
             description,
             id,
         }),
+        StreamPart::PermissionRequest(pr) => Some(AssistantMessagePart::PermissionRequest {
+            name: pr.tool_name,
+            json: pr.args,
+            id: pr.tool_call_id,
+        }),
         // Empty text/thinking deltas and usage events carry nothing to persist.
         StreamPart::Content(_) | StreamPart::Thinking(_) | StreamPart::Usage(_) => None,
     }

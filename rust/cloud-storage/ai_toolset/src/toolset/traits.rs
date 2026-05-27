@@ -1,4 +1,5 @@
 //! The core ToolSet trait implemented by the ToolSet and AsyncToolset
+use crate::annotations::ToolAnnotations;
 use crate::toolset::types::{RequestSchema, ToolInfo};
 use crate::{AsyncToolCollection, RequestContext, ToolResult, ToolSetError};
 use std::pin::Pin;
@@ -22,6 +23,15 @@ pub trait ToolSet<Context>: Send + Sync {
     /// Dynamic routers use this to demangle tool names for frontend consumption
     fn routing_description<'a>(&'a self, _tool_name: &'a str) -> Option<ToolInfo> {
         None
+    }
+
+    /// Returns the behavioral annotations for a given tool.
+    ///
+    /// The default returns [`ToolAnnotations::default()`] (all fields
+    /// `None`), which the agent loop treats conservatively. Implementations
+    /// should override this to return per-tool annotations.
+    fn get_annotations(&self, _tool_name: &str) -> ToolAnnotations {
+        ToolAnnotations::default()
     }
 }
 
@@ -55,5 +65,12 @@ where
         } else {
             Some(schemas)
         }
+    }
+
+    fn get_annotations(&self, tool_name: &str) -> ToolAnnotations {
+        self.tools
+            .get(tool_name)
+            .map(|tool| tool.annotations.clone())
+            .unwrap_or_default()
     }
 }

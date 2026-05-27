@@ -7,6 +7,7 @@
 import type { AssistantMessagePartOneOf } from './assistantMessagePartOneOf';
 import type { AssistantMessagePartOneOfEight } from './assistantMessagePartOneOfEight';
 import type { AssistantMessagePartOneOfFive } from './assistantMessagePartOneOfFive';
+import type { AssistantMessagePartOneOfOnefour } from './assistantMessagePartOneOfOnefour';
 import type { AssistantMessagePartOneOfOnetwo } from './assistantMessagePartOneOfOnetwo';
 import type { AssistantMessagePartOneOfOnezero } from './assistantMessagePartOneOfOnezero';
 import type { AssistantMessagePartOneOfThree } from './assistantMessagePartOneOfThree';
@@ -24,4 +25,5 @@ export type AssistantMessagePart =
   | AssistantMessagePartOneOfFive
   | AssistantMessagePartOneOfEight
   | AssistantMessagePartOneOfOnezero
-  | AssistantMessagePartOneOfOnetwo;
+  | AssistantMessagePartOneOfOnetwo
+  | AssistantMessagePartOneOfOnefour;

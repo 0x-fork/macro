@@ -173,6 +173,13 @@ fn convert_assistant(msg: &ChatMessage) -> Vec<Message> {
                     OneOrMany::one(ToolResultContent::text(description.clone())),
                 ));
             }
+            AssistantMessagePart::PermissionRequest { name, json, id } => {
+                saw_tool_call = true;
+                assistant_parts.push(AssistantContent::ToolCall(ToolCall::new(
+                    id.clone(),
+                    ToolFunction::new(name.clone(), json.clone()),
+                )));
+            }
             AssistantMessagePart::Thinking { .. } => {}
         }
     }

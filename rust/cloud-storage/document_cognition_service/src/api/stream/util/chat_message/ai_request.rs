@@ -13,6 +13,7 @@ pub fn build_chat_messages(
     chat: &ChatResponse,
     incoming_message: &SendChatMessagePayload,
     resolved_parts: Vec<FormattedParts>,
+    is_resume: bool,
 ) -> Result<Vec<ChatMessage>> {
     let attachments = merge_formatted_parts_to_attachments(resolved_parts);
 
@@ -26,11 +27,16 @@ pub fn build_chat_messages(
         })
         .collect();
 
-    messages.push(ChatMessage {
-        role: Role::User,
-        content: ChatMessageContent::Text(incoming_message.content.clone()),
-        attachments,
-    });
+    // On a resume the turn continues from the suspended assistant message
+    // (whose pending tool calls are materialized later), so there is no new
+    // user message to append.
+    if !is_resume {
+        messages.push(ChatMessage {
+            role: Role::User,
+            content: ChatMessageContent::Text(incoming_message.content.clone()),
+            attachments,
+        });
+    }
 
     Ok(messages)
 }

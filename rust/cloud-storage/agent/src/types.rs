@@ -101,6 +101,15 @@ pub enum AssistantMessagePart {
         /// The thinking text content.
         thinking: String,
     },
+    /// A tool call that requires user permission before execution.
+    PermissionRequest {
+        /// Tool name.
+        name: String,
+        /// Tool arguments as JSON.
+        json: serde_json::Value,
+        /// Provider-assigned call id.
+        id: String,
+    },
 }
 
 impl fmt::Display for AssistantMessagePart {
@@ -118,6 +127,9 @@ impl fmt::Display for AssistantMessagePart {
                 name, description, ..
             } => write!(f, "[tool_err:{name}: {description}]"),
             Self::Thinking { .. } => Ok(()),
+            Self::PermissionRequest { name, id, .. } => {
+                write!(f, "[permission_request:{name}({id})]")
+            }
         }
     }
 }

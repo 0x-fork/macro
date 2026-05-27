@@ -2,6 +2,7 @@ import { ChatMessageMarkdown } from '@core/component/AI/component/message/ChatMe
 import { ThinkingBlock } from '@core/component/AI/component/message/ThinkingBlock';
 import { RenderTool } from '@core/component/AI/component/tool/handler';
 import { McpToolCall } from '@core/component/AI/component/tool/McpToolCall';
+import { PermissionRequest } from '@core/component/AI/component/tool/PermissionRequest';
 import { Tool } from '@core/component/AI/component/tool/Tool';
 import { useChatContext } from '@core/component/AI/context';
 import type { AssistantMessagePart } from '@service-cognition/generated/schemas/assistantMessagePart';
@@ -23,7 +24,8 @@ function getAssistantPartKey(
   if (
     part.type === 'toolCall' ||
     part.type === 'toolCallErr' ||
-    part.type === 'mcpToolCall'
+    part.type === 'mcpToolCall' ||
+    part.type === 'permissionRequest'
   ) {
     return `${part.type}:${part.id}`;
   }
@@ -282,6 +284,21 @@ export function AssistantMessageParts(props: {
               </Show>
             );
           })()}
+        </Match>
+        <Match
+          when={(() => {
+            const p = part();
+            return p.type === 'permissionRequest' ? p : undefined;
+          })()}
+        >
+          {(pr) => (
+            <PermissionRequest
+              id={pr().id}
+              name={pr().name}
+              json={pr().json}
+              message_id={outer.message.id}
+            />
+          )}
         </Match>
       </Switch>
     );

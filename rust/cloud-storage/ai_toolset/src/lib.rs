@@ -129,11 +129,13 @@
 
 #![deny(missing_docs)]
 
+mod annotations;
 mod context;
 pub mod schema;
 mod tool;
 mod toolset;
 
+pub use annotations::ToolAnnotations;
 pub use context::{RequestContext, ServiceContext};
 pub use tool::{AsyncTool, NoContext, ToolCallError, ToolResult};
 pub use toolset::{

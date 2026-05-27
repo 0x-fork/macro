@@ -1,3 +1,4 @@
+use crate::annotations::ToolAnnotations;
 use crate::{RequestContext, ServiceContext};
 use async_trait::async_trait;
 use serde::Serialize;
@@ -37,6 +38,19 @@ impl std::fmt::Display for ToolCallError {
 pub trait AsyncTool<Context>: Sync + Send {
     /// The output type produced by this tool.
     type Output: Serialize + 'static;
+
+    /// Behavioral annotations for this tool, used by the agent loop to
+    /// decide whether execution requires user confirmation.
+    ///
+    /// The default leaves all hints unset, which the agent loop treats
+    /// as needing permission. Override with `read_only(true)` for tools
+    /// that don't mutate state.
+    fn annotations() -> ToolAnnotations
+    where
+        Self: Sized,
+    {
+        ToolAnnotations::default()
+    }
 
     /// Execute the tool asynchronously with the given contexts.
     async fn call(

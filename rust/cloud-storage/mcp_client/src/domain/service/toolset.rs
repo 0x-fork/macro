@@ -1,8 +1,8 @@
 use crate::domain::models::{Error, McpServer, McpServerRecord};
 use crate::domain::ports::McpConnector;
 use ai_toolset::{
-    AsyncToolCollection, RequestContext, RequestSchema, ToolCallError, ToolInfo, ToolResult,
-    ToolSet, ToolSetError,
+    AsyncToolCollection, RequestContext, RequestSchema, ToolAnnotations, ToolCallError, ToolInfo,
+    ToolResult, ToolSet, ToolSetError,
 };
 use rmcp::RoleClient;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
@@ -219,6 +219,23 @@ impl<Context: Send + Sync + 'static> ToolSet<Context> for McpToolSet {
             display_name,
         })
     }
+
+    fn get_annotations(&self, tool_name: &str) -> ToolAnnotations {
+        let key = MangledName(tool_name.to_owned());
+        let Some(entry) = self.tools.get(&key) else {
+            return ToolAnnotations::default();
+        };
+        match &entry.tool.annotations {
+            Some(ann) => ToolAnnotations::from_raw(
+                ann.title.clone(),
+                ann.read_only_hint,
+                ann.destructive_hint,
+                ann.idempotent_hint,
+                ann.open_world_hint,
+            ),
+            None => ToolAnnotations::default(),
+        }
+    }
 }
 
 /// Wraps a static [`AsyncToolCollection`] and an optional [`McpToolSet`],
@@ -278,6 +295,14 @@ impl<T: Send + Sync + 'static> ToolSet<T> for CombinedToolSet<T> {
             <McpToolSet as ToolSet<T>>::routing_description(&self.mcp_tools, tool_name)
         } else {
             self.static_tools.routing_description(tool_name)
+        }
+    }
+
+    fn get_annotations(&self, tool_name: &str) -> ToolAnnotations {
+        if tool_name.starts_with(MANGLED_PREFIX) {
+            <McpToolSet as ToolSet<T>>::get_annotations(&self.mcp_tools, tool_name)
+        } else {
+            self.static_tools.get_annotations(tool_name)
         }
     }
 }

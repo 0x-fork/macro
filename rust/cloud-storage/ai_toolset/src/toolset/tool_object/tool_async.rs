@@ -185,6 +185,7 @@ where
             description,
             deserializer,
             schema_registrar,
+            annotations: T::annotations(),
         })
     }
 
@@ -266,6 +267,7 @@ where
             description: self.description,
             deserializer: new_deserializer,
             schema_registrar: self.schema_registrar,
+            annotations: self.annotations,
         }
     }
 }

@@ -9,6 +9,7 @@ mod convert;
 mod error;
 mod hook;
 mod model;
+mod permission;
 mod provider_env;
 mod stream;
 /// Structured output via prompted JSON generation.
@@ -23,7 +24,13 @@ pub use convert::{merge_consecutive_parts, to_rig_messages};
 pub use error::AgentError;
 pub use hook::StreamBridge;
 pub use model::{AgentModel, Provider};
-pub use stream::{ChatCompletionStream, McpInfo, StreamPart, ToolCall, ToolResponse, Usage};
+pub use permission::{
+    PERMISSION_DENIED_PLACEHOLDER, PendingToolCall, ToolGrant, ToolPermission,
+    denied_placeholder_part,
+};
+pub use stream::{
+    ChatCompletionStream, McpInfo, PermissionRequest, StreamPart, ToolCall, ToolResponse, Usage,
+};
 pub use tool_adapter::{DynToolSetAdapter, ToolsetToolAdapter, normalize_request_schema};
 
 pub use rig_core::message::Message;

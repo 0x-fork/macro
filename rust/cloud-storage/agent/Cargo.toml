@@ -4,9 +4,6 @@ name = "agent"
 publish = false
 version = "0.1.0"
 
-[features]
-debug-messages = []
-
 [dependencies]
 anyhow = { workspace = true }
 async-openai = { workspace = true }

@@ -19,8 +19,23 @@ pub enum StreamPart {
     ToolCall(ToolCall),
     /// The result of executing a tool.
     ToolResponse(ToolResponse),
+    /// A tool call that requires user permission before it can execute.
+    /// The loop is paused until [`Session::grant_permission`] or
+    /// [`Session::deny_permission`] is called.
+    PermissionRequest(PermissionRequest),
     /// Token usage for one completion round-trip.
     Usage(Usage),
+}
+
+/// A tool call awaiting user permission.
+#[derive(Debug, Clone, Serialize)]
+pub struct PermissionRequest {
+    /// Provider-assigned call ID (used to resolve the request).
+    pub tool_call_id: String,
+    /// Tool name (mangled for MCP tools).
+    pub tool_name: String,
+    /// Parsed JSON arguments the agent wants to pass.
+    pub args: serde_json::Value,
 }
 
 /// Metadata identifying an MCP (external) tool.

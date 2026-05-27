@@ -1,3 +1,4 @@
+use crate::annotations::ToolAnnotations;
 use schemars::SchemaGenerator;
 use serde_json::Map;
 use serde_json::Value;
@@ -22,4 +23,7 @@ pub struct ToolObject<T> {
     /// Registers this tool's input/output types with a shared generator
     /// for combined schema generation.
     pub schema_registrar: SchemaRegistrar,
+    /// Behavioral annotations (read-only, destructive, etc.) used for
+    /// permission decisions.
+    pub annotations: ToolAnnotations,
 }

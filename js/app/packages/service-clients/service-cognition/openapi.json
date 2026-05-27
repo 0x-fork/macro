@@ -1681,6 +1681,28 @@
                 "enum": ["thinking"]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "A tool call that requires user permission before execution.",
+            "required": ["name", "json", "id", "type"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Provider-assigned call id."
+              },
+              "json": {
+                "description": "Tool arguments as JSON."
+              },
+              "name": {
+                "type": "string",
+                "description": "Tool name."
+              },
+              "type": {
+                "type": "string",
+                "enum": ["permissionRequest"]
+              }
+            }
           }
         ],
         "description": "A structured part within an assistant message.\n\nWhen the model responds with tool calls the full turn is persisted as a\nflat sequence of these parts.  [`crate::convert::to_rig_messages`]\nreconstructs the turn boundaries that providers expect."
@@ -2946,6 +2968,13 @@
             "type": "string",
             "description": "The model to respond with (provider api id)"
           },
+          "tool_grants": {
+            "type": ["array", "null"],
+            "items": {
+              "$ref": "#/components/schemas/ToolGrantDecision"
+            },
+            "description": "Decisions for tool calls awaiting permission in the latest assistant\nmessage. Present when the user resumes a chat that suspended on a\npermission request. Each decision grants or denies one pending call by\nits `tool_call_id`; pending calls with no listed decision are treated as\ndenied so the message chain stays valid."
+          },
           "toolset": {
             "$ref": "#/components/schemas/ToolSet",
             "description": "Which toolset to use. Defaults to `all`"
@@ -3470,6 +3499,21 @@
         "required": ["result"],
         "properties": {
           "result": {}
+        }
+      },
+      "ToolGrantDecision": {
+        "type": "object",
+        "description": "A user's grant/deny decision for a single pending tool call, delivered with\na chat-resume request. This is the stateless replacement for the old\nchannel-based grant endpoint.",
+        "required": ["tool_call_id", "approved"],
+        "properties": {
+          "approved": {
+            "type": "boolean",
+            "description": "Whether the user approved the call. `false` denies it."
+          },
+          "tool_call_id": {
+            "type": "string",
+            "description": "The provider-assigned tool call id this decision applies to (from the\n`permissionRequest` part)."
+          }
         }
       },
       "ToolSet": {

@@ -1,6 +1,6 @@
 /// The main entry point: [`AgentLoop`] and [`Session`].
 use crate::error::AgentError;
-use crate::hook::{StreamBridge, ToolRouter};
+use crate::hook::{AnnotationsFn, StreamBridge, ToolRouter};
 use crate::model::AgentModel;
 use crate::model::router::{AllModelsRouter, RoutedModel};
 use crate::model::types::Model;
@@ -19,7 +19,7 @@ use rig_core::tool::server::{ToolServer, ToolServerHandle};
 use std::sync::{Arc, RwLock};
 
 const DEFAULT_MAX_TURNS: usize = 16;
-const DEFAULT_MAX_TOKENS: u64 = 16_000;
+const DEFAULT_MAX_TOKENS: u64 = 32_000;
 
 /// Factory for creating per-request agent sessions.
 ///
@@ -108,6 +108,13 @@ impl AgentLoop {
     /// `system_prompt` is the system prompt for this request.
     /// `usage_ctx` identifies the calling user (used for tool dispatch) and the
     /// feature/entity that token usage is recorded against.
+    ///
+    /// The session is fully stateless with respect to permissions: when a tool
+    /// requires permission the streamed turn emits a
+    /// [`PermissionRequest`](crate::PermissionRequest) part and ends. The chat
+    /// resumes through the HTTP entry point, which materializes the user's
+    /// decision into the message chain and starts a fresh turn — no live channel
+    /// or sender is held anywhere.
     pub async fn session<Context>(
         &self,
         toolset: Arc<dyn AiToolSet<Context> + Send + Sync>,
@@ -128,6 +135,13 @@ impl AgentLoop {
         let routing_toolset = toolset.clone();
         let routing: ToolRouter =
             Arc::new(move |name: &str| routing_toolset.routing_description(name));
+
+        // Resolve a tool's behavioral annotations so the bridge can decide
+        // whether a call needs user permission.
+        let annotations_fn: AnnotationsFn = {
+            let ts = toolset.clone();
+            Arc::new(move |name: &str| ts.get_annotations(name))
+        };
 
         let adapters = DynToolSetAdapter::from_toolset(toolset, context, request_context);
 
@@ -178,6 +192,7 @@ impl AgentLoop {
             recorder: self.recorder.clone(),
             usage_ctx,
             model: self.model.clone(),
+            annotations_fn,
         }
     }
 }
@@ -197,13 +212,17 @@ pub struct Session {
     recorder: Arc<dyn UsageRecorder>,
     usage_ctx: UsageContext,
     model: String,
+    annotations_fn: AnnotationsFn,
 }
 
 impl Session {
     /// Send a message and stream the response.
     ///
-    /// The returned stream yields [`StreamPart`] items compatible with the
-    /// existing DCS consumer code.
+    /// When a tool requires permission the stream emits a
+    /// [`StreamPart::PermissionRequest`] and the turn ends. Nothing is held
+    /// open waiting for a decision — the chat resumes statelessly through the
+    /// HTTP entry point, which records the user's grant/deny choice into the
+    /// message chain and starts a fresh turn.
     #[tracing::instrument(name = "invoke_agent", skip_all)]
     pub async fn send_message(
         &mut self,
@@ -211,39 +230,38 @@ impl Session {
     ) -> Result<ChatCompletionStream<'_>, AgentError> {
         self.history = messages;
 
-        let Some((prompt, history)) = self.history.split_last() else {
+        let Some((first_prompt, first_history)) = self.history.split_last() else {
             return Err(AgentError::Other(anyhow::anyhow!(
                 "messages must not be empty"
             )));
         };
 
+        let prompt = first_prompt.clone();
+        let history = first_history.to_vec();
+
         let stream = match &self.agent {
-            ProviderAgent::Anthropic(agent) => {
-                run_stream(
-                    agent,
-                    prompt.clone(),
-                    history.to_vec(),
-                    self.max_turns,
-                    self.routing.clone(),
-                    self.recorder.clone(),
-                    self.usage_ctx.clone(),
-                    self.model.clone(),
-                )
-                .await
-            }
-            ProviderAgent::OpenAi(agent) => {
-                run_stream(
-                    agent,
-                    prompt.clone(),
-                    history.to_vec(),
-                    self.max_turns,
-                    self.routing.clone(),
-                    self.recorder.clone(),
-                    self.usage_ctx.clone(),
-                    self.model.clone(),
-                )
-                .await
-            }
+            ProviderAgent::Anthropic(agent) => run_stream(
+                agent,
+                prompt,
+                history,
+                self.max_turns,
+                self.routing.clone(),
+                self.recorder.clone(),
+                self.usage_ctx.clone(),
+                self.model.clone(),
+                self.annotations_fn.clone(),
+            ),
+            ProviderAgent::OpenAi(agent) => run_stream(
+                agent,
+                prompt,
+                history,
+                self.max_turns,
+                self.routing.clone(),
+                self.recorder.clone(),
+                self.usage_ctx.clone(),
+                self.model.clone(),
+                self.annotations_fn.clone(),
+            ),
         };
 
         Ok(stream)
@@ -255,37 +273,50 @@ impl Session {
     }
 }
 
-/// Run the agentic loop on `agent` and adapt rig's stream into the
+/// Drive the agentic loop against `agent` and adapt rig's stream into the
 /// provider-agnostic [`StreamPart`] stream consumed by DCS.
+///
+/// When a tool needs permission the hook emits a
+/// [`StreamPart::PermissionRequest`] and terminates rig's loop. This function
+/// then simply ends the stream — the turn is *suspended*. No grant is awaited
+/// and no channel is held. The chat resumes through the HTTP entry point, which
+/// materializes the user's decision into the persisted message chain (executing
+/// granted tools, inserting a placeholder result for denied/ignored ones) and
+/// starts a fresh turn.
 #[allow(clippy::too_many_arguments)]
-async fn run_stream<M>(
-    agent: &Agent<M>,
-    prompt: Message,
-    history: Vec<Message>,
+fn run_stream<'a, M>(
+    agent: &'a Agent<M>,
+    initial_prompt: Message,
+    initial_history: Vec<Message>,
     max_turns: usize,
     routing: ToolRouter,
     recorder: Arc<dyn UsageRecorder>,
     usage_ctx: UsageContext,
     model: String,
-) -> ChatCompletionStream<'static>
+    annotations_fn: AnnotationsFn,
+) -> ChatCompletionStream<'a>
 where
     M: CompletionModel + 'static,
     M::StreamingResponse: GetTokenUsage + Send + Sync,
 {
-    let (bridge, mut rx) = StreamBridge::channel(routing);
-
-    let mut rig_stream = agent
-        .stream_prompt(prompt)
-        .with_history(history)
-        .multi_turn(max_turns)
-        .with_hook(bridge)
-        .await;
-
     let stream = async_stream::stream! {
+        let prompt = initial_prompt;
+        let history = initial_history;
         let mut thinking_buf = String::new();
 
+        let (bridge, mut hook_rx) =
+            StreamBridge::new(annotations_fn.clone(), routing.clone());
+        let pending = bridge.pending.clone();
+
+        let mut rig_stream = agent
+            .stream_prompt(prompt)
+            .with_history(history)
+            .multi_turn(max_turns)
+            .with_hook(bridge)
+            .await;
+
         while let Some(item) = rig_stream.next().await {
-            while let Ok(part) = rx.try_recv() {
+            while let Ok(part) = hook_rx.try_recv() {
                 yield part;
             }
             match item {
@@ -313,19 +344,32 @@ where
                             }));
                         }
                         Err(e) => {
-                            yield Err(AgentError::Streaming(e));
+                            // When the hook terminates the loop for a permission
+                            // request, rig surfaces it as a PromptCancelled
+                            // error. Don't forward it — the turn is intentionally
+                            // suspended pending the user's decision.
+                            if pending.lock().expect("pending lock poisoned").is_some() {
+                                tracing::debug!(
+                                    "rig loop suspended for permission request"
+                                );
+                            } else {
+                                yield Err(AgentError::Streaming(e));
+                            }
                         }
                         _ => {}
                     }
                 }
             }
         }
+
         if !thinking_buf.is_empty() {
             yield Ok(StreamPart::Thinking(std::mem::take(&mut thinking_buf)));
         }
-        while let Ok(part) = rx.try_recv() {
+        while let Ok(part) = hook_rx.try_recv() {
             yield part;
         }
+        // If a permission request is pending the turn ends here (suspended);
+        // resume is handled statelessly by the chat HTTP entry point.
     };
 
     Box::pin(stream)

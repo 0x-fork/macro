@@ -178,6 +178,7 @@ dependencies = [
  "axum",
  "axum-macros",
  "macro_user_id",
+ "rmcp",
  "schemars 1.2.1",
  "serde",
  "serde_json",
