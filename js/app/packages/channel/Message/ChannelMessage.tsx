@@ -105,7 +105,7 @@ function DeletedMessageLayout() {
           <TrashIcon class="size-5" aria-hidden="true" />
         </div>
       </Message.Slot>
-      <Message.Slot placement="content" class="ph-no-capture">
+      <Message.Slot placement="header" class="ph-no-capture flex items-center">
         <p class="text-sm text-ink-muted italic">This message was deleted.</p>
       </Message.Slot>
     </Message.Layout>
@@ -132,7 +132,7 @@ function RegularMessageLayout(props: {
         <Message.EditedIndicator />
       </Message.Slot>
       <Show when={hasContent() || isEditing()}>
-        <Message.Slot placement="content" class="ph-no-capture -mt-1">
+        <Message.Slot placement="content" class="ph-no-capture mt-1.5">
           <MessageContentSlot
             channelId={props.channelId}
             messageEditor={props.messageEditor}
@@ -156,9 +156,6 @@ function GroupedMessageLayout(props: {
 }) {
   return (
     <Message.Layout>
-      <Message.Slot placement="icon">
-        <Message.SenderIcon hidden />
-      </Message.Slot>
       <Message.Slot placement="content">
         <div class={cn('ph-no-capture flex gap-3 min-w-0 items-start')}>
           <MessageContentSlot

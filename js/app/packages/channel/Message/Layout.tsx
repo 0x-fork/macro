@@ -11,10 +11,10 @@ export function Layout(props: JSX.HTMLAttributes<HTMLDivElement>) {
       {...rest}
     >
       <div
-        class="grid min-w-0 items-start gap-x-2 gap-y-0"
+        class="grid min-w-0 items-center gap-x-2 gap-y-0"
         style={{
           'grid-template-columns': '2rem minmax(0, 1fr)',
-          'grid-template-areas': '"icon header" "icon content" "icon footer"',
+          'grid-template-areas': '"icon header" "content content" "footer footer"',
         }}
       >
         <div class="contents">{local.children}</div>

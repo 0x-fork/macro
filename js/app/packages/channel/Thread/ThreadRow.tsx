@@ -5,7 +5,6 @@ import {
   DateDivider,
   NewDivider,
 } from '../Message';
-import { ThreadRail } from './ThreadRail';
 
 type ThreadRowProps = ParentProps & {
   message: ApiChannelMessage;
@@ -25,10 +24,7 @@ export function ThreadRow(props: ThreadRowProps) {
           createdAt={props.message.created_at}
           listMeta={props.listMeta}
         />
-        <div class="relative isolate">
-          <ThreadRail newMessage={props.listMeta?.isNewMessage} />
-          {props.children}
-        </div>
+        <div class="relative isolate">{props.children}</div>
       </div>
     </div>
   );

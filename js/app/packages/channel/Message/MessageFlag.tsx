@@ -16,20 +16,6 @@ export function MessageFlag(props: MessageFlagProps) {
         props.class
       )}
     >
-      {/* Top connector terminator square */}
-      <div
-        class={cn(
-          'absolute left-(--left-of-connector) top-0 size-1.5 -translate-x-1/2 bg-edge-muted',
-          props.highlightAbove && 'bg-accent'
-        )}
-      />
-      {/* Bottom connector terminator square */}
-      <div
-        class={cn(
-          'absolute left-(--left-of-connector) bottom-0 size-1.5 -translate-x-1/2 bg-edge-muted',
-          props.highlightBelow && 'bg-accent'
-        )}
-      />
       <Tooltip label={props.tooltip ?? props.text} placement="top">
         <span
           class={cn(
