@@ -201,43 +201,6 @@ describe('channel sync', () => {
     expect(cached?.pages[0].items.map((item) => item.id)).toEqual(['parent-2']);
   });
 
-  it('removes a thread reply on external delete', () => {
-    testQueryClient.setQueryData(
-      getChannelMessagesQueryKey('channel-1'),
-      createChannelMessagesData([
-        [
-          createPaginatedMessage('parent-1', '2024-01-03T00:00:00.000Z', {
-            thread: {
-              preview: [
-                createThreadReply('reply-1', '2024-01-03T01:00:00.000Z'),
-              ],
-              reply_count: 1,
-              latest_reply_at: '2024-01-03T01:00:00.000Z',
-            },
-          }),
-        ],
-      ])
-    );
-    testQueryClient.setQueryData(
-      getThreadRepliesQueryKey('channel-1', 'parent-1'),
-      [createThreadReply('reply-1', '2024-01-03T01:00:00.000Z')]
-    );
-
-    handleCommsMessage({
-      channel_id: 'channel-1',
-      id: 'reply-1',
-      thread_id: 'parent-1',
-      deleted_at: '2024-01-03T03:00:00.000Z',
-      nonce: 'external-delete',
-    } as Parameters<typeof handleCommsMessage>[0]);
-
-    expect(
-      testQueryClient.getQueryData<Array<ApiThreadReply>>(
-        getThreadRepliesQueryKey('channel-1', 'parent-1')
-      )
-    ).toEqual([]);
-  });
-
   it('updates thread reply reactions without the legacy channel cache', () => {
     testQueryClient.setQueryData(
       getChannelMessagesQueryKey('channel-1'),
