@@ -298,6 +298,16 @@
   animation: agent-phase-color 3.2s ease-in-out infinite;
 }
 
+/* Light mode drops the Surface's border-gradient layer (keep just the fill)
+ * and leans on a soft shadow for separation instead. Dark mode keeps the
+ * border. Active/highlighted surfaces keep their accent selection border. */
+html[data-theme-mode="light"] .ui-surface:not(.ui-surface-active) {
+  background-image: linear-gradient(var(--b0), var(--b0)) !important;
+}
+html[data-theme-mode="light"] .ui-surface {
+  box-shadow: 0 2px 8px -8px oklch(0 0 0 / 0.06);
+}
+
 /* Big hammer fix for cursor pointer. */
 @utility cursor-pointer {
   cursor: default;

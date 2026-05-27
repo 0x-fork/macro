@@ -39,7 +39,8 @@ export function Surface(props: SurfaceProps) {
           ...local.style,
         }}
         class={cn(
-          'relative rounded-md overflow-clip min-h-0 size-full',
+          'ui-surface relative rounded-md overflow-clip min-h-0 size-full',
+          local.active && 'ui-surface-active',
           local.class,
         )}
         {...rest}
