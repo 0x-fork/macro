@@ -30,12 +30,13 @@ import {
 import { Dynamic } from 'solid-js/web';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
+import CheckIcon from '@phosphor/check.svg';
 import HashIcon from '@phosphor/hash.svg';
 import UserIcon from '@phosphor/user.svg';
 import ChatTeardropIcon from '@phosphor/chat-teardrop.svg';
 import ListChecksIcon from '@phosphor/list-checks.svg';
 import { VList } from 'virtua/solid';
-import { DropdownMenu } from '@kobalte/core/dropdown-menu';
+import { TabGroup, Dropdown, Tooltip } from '@ui';
 import {
   type EntityData,
   ListLayoutProvider,
@@ -206,6 +207,25 @@ function getThreadId(notification: UnifiedNotification): string | undefined {
   return undefined;
 }
 
+function notificationRowClass(props: {
+  highlighted?: boolean;
+  hovered?: boolean;
+  checked?: boolean;
+}) {
+  return cn(
+    'w-[calc(100%-0.5rem)] mx-1 relative group/row flex flex-col rounded min-h-10 cursor-pointer',
+    {
+      'bg-accent/8': props.checked,
+      'ring ring-accent/16 ring-inset': props.checked && props.highlighted,
+      'ring ring-edge bg-active/60 ring-inset':
+        props.highlighted && !props.checked,
+      'bg-active/40': props.hovered && !props.highlighted && !props.checked,
+      'hover:bg-active/40 hover:ring hover:ring-edge hover:ring-inset':
+        !props.checked && !props.highlighted && !props.hovered,
+    }
+  );
+}
+
 type MessageGroup = {
   id: string;
   channelId: string;
@@ -365,10 +385,7 @@ function MessageNotificationRow(props: {
   return (
     <div
       class={cn(
-        'relative w-full rounded-xs cursor-pointer group/row',
-        props.highlighted && 'bg-accent/5',
-        props.hovered && !props.highlighted && 'bg-ink/5',
-        !props.highlighted && !props.hovered && 'hover:bg-ink/5',
+        notificationRowClass(props),
         (isMention() || isDirectMessage()) && 'py-0.5'
       )}
       onClick={props.onClick}
@@ -376,12 +393,6 @@ function MessageNotificationRow(props: {
       role="button"
       tabIndex={0}
     >
-      <div
-        class={cn(
-          'absolute h-full w-[3px] left-0 top-0 bg-accent rounded-r-full',
-          props.highlighted ? 'opacity-100' : 'opacity-0'
-        )}
-      />
       <div
         class="grid w-full text-sm py-2 px-2"
         style={{
@@ -492,23 +503,12 @@ function DocumentNotificationRow(props: {
 
   return (
     <div
-      class={cn(
-        'relative w-full rounded-xs cursor-pointer group/row',
-        props.highlighted && 'bg-accent/5',
-        props.hovered && !props.highlighted && 'bg-ink/5',
-        !props.highlighted && !props.hovered && 'hover:bg-ink/5'
-      )}
+      class={notificationRowClass(props)}
       onClick={props.onClick}
       onMouseMove={props.onMouseMove}
       role="button"
       tabIndex={0}
     >
-      <div
-        class={cn(
-          'absolute h-full w-[3px] left-0 top-0 bg-accent rounded-r-full',
-          props.highlighted ? 'opacity-100' : 'opacity-0'
-        )}
-      />
       <div
         class="grid w-full text-sm py-2 px-2"
         style={{
@@ -602,23 +602,12 @@ function TaskNotificationRow(props: {
 
   return (
     <div
-      class={cn(
-        'relative w-full rounded-xs cursor-pointer group/row',
-        props.highlighted && 'bg-accent/5',
-        props.hovered && !props.highlighted && 'bg-ink/5',
-        !props.highlighted && !props.hovered && 'hover:bg-ink/5'
-      )}
+      class={notificationRowClass(props)}
       onClick={props.onClick}
       onMouseMove={props.onMouseMove}
       role="button"
       tabIndex={0}
     >
-      <div
-        class={cn(
-          'absolute h-full w-[3px] left-0 top-0 bg-accent rounded-r-full',
-          props.highlighted ? 'opacity-100' : 'opacity-0'
-        )}
-      />
       <div
         class="grid w-full text-sm py-2 px-2"
         style={{
@@ -743,12 +732,7 @@ function MessageNotificationGroup(props: {
   return (
     <div class="flex flex-col">
       <div
-        class={cn(
-          'relative w-full rounded-xs cursor-pointer group/row',
-          props.highlighted && 'bg-accent/5',
-          props.hovered && !props.highlighted && 'bg-ink/5',
-          !props.highlighted && !props.hovered && 'hover:bg-ink/5'
-        )}
+        class={notificationRowClass(props)}
         onClick={props.onClick}
         onMouseMove={props.onMouseMove}
         role="button"
@@ -899,50 +883,53 @@ function NotificationFilterBar(props: {
   sort: SortOption;
   onSortChange: (sort: SortOption) => void;
 }) {
+  const sortLabel = () =>
+    SORT_OPTIONS.find((o) => o.value === props.sort)?.label;
+
   return (
-    <div class="flex items-center justify-between px-4 py-2 border-b border-edge-muted/50">
-      <div class="flex gap-1">
-        <For each={FILTER_TABS}>
-          {(tab) => (
-            <button
-              class={cn(
-                'px-2 py-1 text-xs rounded-xs transition-colors',
-                props.filter === tab.value
-                  ? 'bg-accent/10 text-accent font-medium'
-                  : 'text-ink-muted hover:bg-hover/10'
-              )}
-              onClick={() => props.onFilterChange(tab.value)}
-            >
-              {tab.label}
-            </button>
-          )}
-        </For>
-      </div>
-      <DropdownMenu>
-        <DropdownMenu.Trigger class="flex items-center gap-1 px-2 py-1 text-xs text-ink-muted hover:bg-hover/10 rounded-xs">
-          {SORT_OPTIONS.find((o) => o.value === props.sort)?.label}
-          <CaretDownIcon class="size-3" />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content class="bg-surface border border-edge-muted rounded-sm shadow-lg py-1 min-w-32 z-50">
+    <div class="flex items-center justify-between gap-2 px-4 py-2 border-b border-edge-muted/50">
+      <TabGroup
+        items={FILTER_TABS}
+        value={props.filter}
+        onChange={(value) => props.onFilterChange(value as FilterTab)}
+      />
+      <Dropdown placement="bottom-end">
+        <Tooltip label="Sort">
+          <Dropdown.Trigger
+            depth={2}
+            class="whitespace-nowrap rounded-xs gap-1 [&_svg]:size-3 py-1.5 bg-surface text-xs text-ink-muted"
+          >
+            {sortLabel()}
+            <CaretDownIcon />
+          </Dropdown.Trigger>
+        </Tooltip>
+        <Dropdown.Content>
+          <Dropdown.Group>
             <For each={SORT_OPTIONS}>
               {(option) => (
-                <DropdownMenu.Item
-                  class={cn(
-                    'px-3 py-1.5 text-xs cursor-pointer outline-none',
-                    props.sort === option.value
-                      ? 'bg-accent/10 text-accent'
-                      : 'text-ink-muted hover:bg-hover/10'
-                  )}
+                <Dropdown.Item
                   onSelect={() => props.onSortChange(option.value)}
                 >
-                  {option.label}
-                </DropdownMenu.Item>
+                  <span
+                    class="flex-1 truncate"
+                    classList={{
+                      'text-ink font-medium': props.sort === option.value,
+                      'text-ink-muted': props.sort !== option.value,
+                    }}
+                  >
+                    {option.label}
+                  </span>
+                  <span class="size-3.5 flex items-center justify-center shrink-0">
+                    <Show when={props.sort === option.value}>
+                      <CheckIcon class="size-3 text-accent" />
+                    </Show>
+                  </span>
+                </Dropdown.Item>
               )}
             </For>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu>
+          </Dropdown.Group>
+        </Dropdown.Content>
+      </Dropdown>
     </div>
   );
 }
