@@ -222,35 +222,48 @@ export function ChannelThread(props: ThreadProps) {
         onDismissNewMessages={props.threadActions?.onDismissNewMessages}
       >
         <div class="flex flex-col w-full">
-          <MarkMessageNotifications
-            messageId={props.data().id}
-            channelId={props.channelId()}
-          >
-            <DebugSuspense name="ChannelThread.message">
-              <ChannelMessage
-                channelId={props.channelId()}
-                message={props.data()}
-                actions={props.getMessageActions?.(props.data())}
-                listMeta={props.listMeta}
-                messageEditor={props.messageEditor}
-                onClick={selectThreadMessage}
-                highlighted={isSelected() && !isThreadFocused()}
-                selectionState={
-                  isSelected() && !isThreadFocused()
-                    ? { isSelected: true }
-                    : undefined
-                }
+          <div class="relative">
+            <Show when={hasReplies() || props.isReplying()}>
+              {/* Small rail next to the root message: starts below its avatar
+               * and runs to the bottom, where the curve branches to replies. */}
+              <div
+                class="pointer-events-none absolute border-l border-rail -z-1"
+                classList={{ 'border-accent': firstReplyIsNewMessage() }}
+                style={{
+                  left: 'var(--left-of-user-icon)',
+                  top: 'calc(var(--regular-message-padding-t) + var(--user-icon-width))',
+                  bottom: '0',
+                }}
               />
-            </DebugSuspense>
-          </MarkMessageNotifications>
-          <Show when={hasReplies() || props.isReplying()}>
-            <div class="relative w-full">
-              <DebugSuspense name="ChannelThread.reply-rail">
-                <Thread.ReplyRailDecorations
-                  isReplying={props.isReplying}
-                  firstThreadReplyNewMessage={firstReplyIsNewMessage()}
+            </Show>
+            <MarkMessageNotifications
+              messageId={props.data().id}
+              channelId={props.channelId()}
+            >
+              <DebugSuspense name="ChannelThread.message">
+                <ChannelMessage
+                  channelId={props.channelId()}
+                  message={props.data()}
+                  actions={props.getMessageActions?.(props.data())}
+                  listMeta={props.listMeta}
+                  messageEditor={props.messageEditor}
+                  onClick={selectThreadMessage}
+                  highlighted={isSelected() && !isThreadFocused()}
+                  selectionState={
+                    isSelected() && !isThreadFocused()
+                      ? { isSelected: true }
+                      : undefined
+                  }
                 />
               </DebugSuspense>
+            </MarkMessageNotifications>
+          </div>
+          <Show when={hasReplies() || props.isReplying()}>
+            <div class="relative w-full">
+              <Thread.ReplyRailDecorations
+                isReplying={props.isReplying}
+                firstThreadReplyNewMessage={firstReplyIsNewMessage()}
+              />
               <DebugSuspense name="ChannelThread.replies">
                 <Thread.RepliesContainer>
                   <DebugSuspense name="ChannelThread.ReplyList">

@@ -73,6 +73,10 @@ export function ThreadReplyList(props: {
             class="relative"
           >
             <ThreadRail
+              left="calc(var(--left-of-user-icon) - 0.375rem)"
+              top={
+                index() === 0 ? 'calc(var(--user-icon-width) / 2)' : undefined
+              }
               newMessage={listMetaByReplyId()[reply.id].isNewMessage}
             />
             <MarkMessageNotifications

@@ -8,9 +8,9 @@ export const innerRailTop =
   'calc(var(--regular-message-padding-t) + var(--thread-padding-y))';
 
 export const threadConnectorStyle = {
-  left: 'var(--left-of-connector)',
-  top: 'calc(var(--regular-message-padding-t) + var(--thread-padding-y))',
-  width: 'calc(var(--thread-shift) - var(--user-icon-width) / 2 + .5rem)',
+  left: 'var(--left-of-user-icon)',
+  top: '0',
+  width: 'calc(var(--thread-shift) - 0.375rem)',
 } as const;
 
 /** Left offset for the reply-input wrapper, placing it icon-width/2 right of the inner rail. */
