@@ -286,6 +286,18 @@
   to   { opacity: 1; }
 }
 
+/* Running agent: cycle the star icon color through the task phase colors. */
+@keyframes agent-phase-color {
+  0%   { color: var(--color-task); }
+  25%  { color: var(--color-alert-ink); }
+  50%  { color: var(--color-note); }
+  75%  { color: var(--color-accent); }
+  100% { color: var(--color-task); }
+}
+.animated-star-icon.phase-colors {
+  animation: agent-phase-color 3.2s ease-in-out infinite;
+}
+
 /* Big hammer fix for cursor pointer. */
 @utility cursor-pointer {
   cursor: default;

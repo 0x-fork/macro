@@ -3,6 +3,7 @@ import { createUniqueId } from 'solid-js';
 
 export const AnimatedStarIcon = (props: {
   triggerAnimation?: boolean;
+  phaseColors?: boolean;
   class?: string;
 }) => {
   const maskId = createUniqueId();
@@ -18,6 +19,7 @@ export const AnimatedStarIcon = (props: {
       class={cn(
         'animated-star-icon',
         props.triggerAnimation && 'animating',
+        props.phaseColors && 'phase-colors',
         props.class
       )}
     >

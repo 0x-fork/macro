@@ -27,7 +27,11 @@ export function PulsingStar(props: {
 
   return (
     <div class={kind[props.kind]}>
-      <AnimatedStarIcon class={props.class} triggerAnimation={pulse()} />
+      <AnimatedStarIcon
+        class={props.class}
+        triggerAnimation={pulse()}
+        phaseColors={props.animate}
+      />
     </div>
   );
 }
