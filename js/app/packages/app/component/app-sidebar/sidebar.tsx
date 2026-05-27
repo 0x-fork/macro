@@ -1439,7 +1439,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
           data-sidebar-link={props.id}
           data-active={isActive() ? '' : undefined}
           class={cn(
-            'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-2 cursor-default w-full rounded-md py-2 text-ink-muted not-disabled:hover:text-ink [&_svg]:size-4',
+            'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-2 cursor-default w-full rounded-md py-1.5 text-ink-muted not-disabled:hover:text-ink [&_svg]:size-4',
             isActive() &&
               'bg-ink/10 not-disabled:hover:bg-ink/15 text-ink not-disabled:hover:text-ink shadow-sm'
           )}
