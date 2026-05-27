@@ -36,76 +36,88 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
     <Show when={!isMobile()}>
       <div class="@container/filters flex flex-col w-full gap-2 py-2">
         <Show when={props.searchView}>
-          <div class="mx-2">
-            <SoupSearchbar
-              variant="filled"
-              placeholder="Search, @mention contacts"
-              initialValue={props.initialSearchText}
-              class="py-3 shadow-sm"
-            />
-          </div>
-        </Show>
-        <div class="mx-2 rounded-lg">
-          <div
-            class={cn(
-              'flex flex-col gap-1.5 px-2',
-              hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg'
-            )}
-          >
-            <div class="flex items-center gap-2">
-              <Show when={!props.searchView}>
-                <CollapsibleHeaderItem
-                  id="filters-tabs"
-                  priority={1}
-                  expanded={() => <SoupViewTabs />}
-                  collapsed={() => <CollapsedSoupViewTabs />}
-                  containerClass="h-full"
-                />
-              </Show>
-              <div class="flex-1" />
-              <Show when={!props.searchView && !props.hideSearch}>
-                <Show
-                  when={!searchExpanded()}
-                  fallback={
-                    <div class="w-52">
-                      <SoupSearchbar
-                        variant="filled"
-                        autoFocus
-                        onDismiss={() => setSearchExpanded(false)}
-                      />
-                    </div>
-                  }
-                >
-                  <div class="flex items-center gap-1">
-                    <div class="hidden @xl/filters:block w-52">
-                      <SoupSearchbar variant="filled" />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="@xl/filters:hidden"
-                      onClick={() => setSearchExpanded(true)}
-                    >
-                      <SearchIcon />
-                    </Button>
-                  </div>
-                </Show>
-              </Show>
-              <ViewOptionsPopover />
-            </div>
-          </div>
-          <Show when={hasActiveFilters()}>
-            <div class="px-2 py-1.5 border-t border-edge-muted/30 rounded-b-lg">
-              <ActiveFilterChips
-                filters={activeFiltersList()}
-                onRemove={removeFilter}
-                onReplace={replaceFilter}
-                onClearAll={resetToTabDefaults}
-                isOptionActive={isOptionActive}
+          <div class="mx-2 flex items-center gap-2">
+            <div class="flex-1 min-w-0">
+              <SoupSearchbar
+                variant="filled"
+                placeholder="Search, @mention contacts"
+                initialValue={props.initialSearchText}
+                class="py-3 shadow-sm"
               />
             </div>
-          </Show>
-        </div>
+            <ViewOptionsPopover />
+          </div>
+        </Show>
+        <Show when={!props.searchView || hasActiveFilters()}>
+          <div class="mx-2 rounded-lg">
+            <Show when={!props.searchView}>
+              <div
+                class={cn(
+                  'flex flex-col gap-1.5 px-2',
+                  hasActiveFilters() ? 'rounded-t-lg' : 'rounded-lg'
+                )}
+              >
+                <div class="flex items-center gap-2">
+                  <CollapsibleHeaderItem
+                    id="filters-tabs"
+                    priority={1}
+                    expanded={() => <SoupViewTabs />}
+                    collapsed={() => <CollapsedSoupViewTabs />}
+                    containerClass="h-full"
+                  />
+                  <div class="flex-1" />
+                  <Show when={!props.hideSearch}>
+                    <Show
+                      when={!searchExpanded()}
+                      fallback={
+                        <div class="w-52">
+                          <SoupSearchbar
+                            variant="filled"
+                            autoFocus
+                            onDismiss={() => setSearchExpanded(false)}
+                          />
+                        </div>
+                      }
+                    >
+                      <div class="flex items-center gap-1">
+                        <div class="hidden @xl/filters:block w-52">
+                          <SoupSearchbar variant="filled" />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          class="@xl/filters:hidden"
+                          onClick={() => setSearchExpanded(true)}
+                        >
+                          <SearchIcon />
+                        </Button>
+                      </div>
+                    </Show>
+                  </Show>
+                  <ViewOptionsPopover />
+                </div>
+              </div>
+            </Show>
+            <Show when={hasActiveFilters()}>
+              <div
+                class={cn(
+                  'px-2 py-1.5',
+                  props.searchView
+                    ? 'rounded-lg'
+                    : 'border-t border-edge-muted/30 rounded-b-lg'
+                )}
+              >
+                <ActiveFilterChips
+                  filters={activeFiltersList()}
+                  onRemove={removeFilter}
+                  onReplace={replaceFilter}
+                  onClearAll={resetToTabDefaults}
+                  isOptionActive={isOptionActive}
+                />
+              </div>
+            </Show>
+          </div>
+        </Show>
       </div>
     </Show>
   );

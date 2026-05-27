@@ -13,6 +13,7 @@ import { UserIcon } from '@core/component/UserIcon';
 import { useUserId } from '@core/context/user';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
+import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import CircleDashedIcon from '@phosphor/circle-dashed.svg';
@@ -412,11 +413,16 @@ const SearchableFilterSubmenu = (props: {
           if (!isOpen()) setIsOpen(true);
         }}
       >
-        <span class="text-ink">{props.label}</span>
+        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+          <span class="text-ink truncate">{props.label}</span>
+          <Show when={props.activeIds().length > 0}>
+            <span class="size-1.5 rounded-full bg-accent shrink-0" />
+          </Show>
+        </div>
         <CaretRightIcon class="size-3 text-ink-muted" />
       </Dropdown.SubTrigger>
 
-      <Dropdown.SubContent class="w-65 max-w-[90vw]">
+      <Dropdown.SubContent depth={4} class="w-65 max-w-[90vw]">
         <Dropdown.Group class="p-0 gap-0">
           <SearchableMultiSelectInline
             onRequestClose={() => setIsOpen(false)}
@@ -445,7 +451,7 @@ function SingleValueSubmenu<T>(props: {
         <span class="text-ink">{props.label}</span>
         <CaretRightIcon class="size-3 text-ink-muted" />
       </Dropdown.SubTrigger>
-      <Dropdown.SubContent>
+      <Dropdown.SubContent depth={4} class="min-w-[180px]">
         <Dropdown.Group>
           <For each={props.options}>
             {(option) => {
@@ -455,7 +461,6 @@ function SingleValueSubmenu<T>(props: {
                   onSelect={() => props.onSelect(option.value)}
                   closeOnSelect
                 >
-                  <TypeIndicator active={active()} />
                   <span
                     class={cn(
                       'flex-1 truncate',
@@ -464,6 +469,9 @@ function SingleValueSubmenu<T>(props: {
                   >
                     {option.label}
                   </span>
+                  <Show when={active()}>
+                    <CheckIcon class="size-3 text-accent shrink-0" />
+                  </Show>
                 </Dropdown.Item>
               );
             }}
@@ -577,9 +585,9 @@ const CallSearchSubContent = (props: {
 const SearchIndexRowLabel = (props: {
   option: (typeof INDEX_OPTIONS)[number];
   active: Accessor<boolean>;
+  dot?: Accessor<boolean>;
 }) => (
-  <>
-    <TypeIndicator active={props.active()} />
+  <div class="flex items-center gap-1.5 min-w-0 flex-1">
     <Show when={props.option.icon}>
       {(icon) => (
         <span class="size-4 flex items-center justify-center shrink-0">
@@ -588,14 +596,14 @@ const SearchIndexRowLabel = (props: {
       )}
     </Show>
     <span
-      class={cn(
-        'flex-1 truncate',
-        props.active() ? 'text-ink' : 'text-ink-muted'
-      )}
+      class={cn('truncate', props.active() ? 'text-ink' : 'text-ink-muted')}
     >
       {props.option.label}
     </span>
-  </>
+    <Show when={props.dot?.()}>
+      <span class="size-1.5 rounded-full bg-accent shrink-0" />
+    </Show>
+  </div>
 );
 
 /** Flat row — selecting it just switches the active index. */
@@ -606,6 +614,9 @@ const SearchIndexItem = (props: {
 }) => (
   <Dropdown.Item onSelect={props.onSelect} closeOnSelect>
     <SearchIndexRowLabel option={props.option} active={props.active} />
+    <Show when={props.active()}>
+      <CheckIcon class="size-3 text-accent shrink-0" />
+    </Show>
   </Dropdown.Item>
 );
 
@@ -620,6 +631,7 @@ const SearchIndexItem = (props: {
 const SearchIndexSubRow = (props: {
   option: (typeof INDEX_OPTIONS)[number];
   active: Accessor<boolean>;
+  subFilterActive?: Accessor<boolean>;
   onSelect: () => void;
   closeRoot: () => void;
   children: JSX.Element;
@@ -636,10 +648,14 @@ const SearchIndexSubRow = (props: {
         }
       }}
     >
-      <SearchIndexRowLabel option={props.option} active={props.active} />
+      <SearchIndexRowLabel
+        option={props.option}
+        active={props.active}
+        dot={props.subFilterActive}
+      />
       <CaretRightIcon class="size-3 text-ink-muted" />
     </Dropdown.SubTrigger>
-    <Dropdown.SubContent>
+    <Dropdown.SubContent depth={4} class="min-w-[180px]">
       <Dropdown.Group>{props.children}</Dropdown.Group>
     </Dropdown.SubContent>
   </Dropdown.Sub>
@@ -978,5 +994,138 @@ export const UnifiedFilterDropdown = () => {
         </Dropdown.Content>
       </Dropdown>
     </Show>
+  );
+};
+
+/** Search-index filters (type + channel/email/call refinements) packaged as a
+ * single popover row, so they can live inside the ViewOptionsPopover the same
+ * way other views' filter categories do. */
+export const SearchFilterDropdown = () => {
+  const [open, setOpen] = createSignal(false);
+  const panel = useSplitPanelOrThrow();
+  const { soup } = useSoupView();
+  const contentId = panel.handle.content().id;
+  const isSearchView = () => {
+    const content = panel.handle.content();
+    return content.type === 'component' && content.id === 'search';
+  };
+
+  const { changeIndex: handleIndexChange } = useSearchIndexController();
+  const channel = useChannelSearchFilter({ contentId, isSearchView });
+  const email = useEmailSearchFilter({ contentId, isSearchView });
+  const call = useCallSearchFilter({ contentId, isSearchView });
+  const { channelOptions: inChannelOptions, senderOptions: fromSenderOptions } =
+    useSearchFilterOptions();
+
+  const hasActiveIndex = () =>
+    INDEX_OPTIONS.some((opt) => soup.predicates.isActive(opt.value));
+
+  const activeLabel = () =>
+    INDEX_OPTIONS.find((opt) => soup.predicates.isActive(opt.value))?.label ??
+    'All';
+
+  const channelSubActive = () =>
+    channel.isActive() &&
+    (channel.channelIds().length > 0 || channel.senderIds().length > 0);
+  const emailSubActive = () =>
+    email.isActive() && email.importance() !== undefined;
+  const callSubActive = () =>
+    call.isActive() &&
+    (call.channelIds().length > 0 ||
+      call.speakerIds().length > 0 ||
+      (call.attended() !== undefined && call.attended() !== null));
+
+  return (
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs text-ink-muted">Type</span>
+        <Show when={hasActiveIndex()}>
+          <span class="size-1.5 rounded-full bg-accent" />
+        </Show>
+      </div>
+      <Dropdown
+        open={open()}
+        onOpenChange={setOpen}
+        placement="bottom-end"
+        gutter={4}
+      >
+        <Dropdown.Trigger
+          variant="ghost"
+          class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10"
+        >
+          <span class={hasActiveIndex() ? 'text-ink' : 'text-ink-muted'}>
+            {activeLabel()}
+          </span>
+          <CaretDownIcon class="size-3 text-ink-muted" />
+        </Dropdown.Trigger>
+        <Dropdown.Content depth={3}>
+          <Dropdown.Group>
+            <Dropdown.Item
+              onSelect={() => handleIndexChange('all')}
+              closeOnSelect
+            >
+              <span
+                class={cn(
+                  'flex-1 truncate',
+                  !hasActiveIndex() ? 'text-ink' : 'text-ink-muted'
+                )}
+              >
+                All
+              </span>
+              <Show when={!hasActiveIndex()}>
+                <CheckIcon class="size-3 text-accent shrink-0" />
+              </Show>
+            </Dropdown.Item>
+
+            <For each={INDEX_OPTIONS}>
+              {(option) => {
+                const rowProps = {
+                  option,
+                  active: () => soup.predicates.isActive(option.value),
+                  onSelect: () => handleIndexChange(option.value),
+                  closeRoot: () => setOpen(false),
+                };
+                return (
+                  <Switch fallback={<SearchIndexItem {...rowProps} />}>
+                    <Match when={option.value === 'channels'}>
+                      <SearchIndexSubRow
+                        {...rowProps}
+                        subFilterActive={channelSubActive}
+                      >
+                        <ChannelSearchSubContent
+                          channel={channel}
+                          channelOptions={inChannelOptions}
+                          senderOptions={fromSenderOptions}
+                        />
+                      </SearchIndexSubRow>
+                    </Match>
+                    <Match when={option.value === 'email'}>
+                      <SearchIndexSubRow
+                        {...rowProps}
+                        subFilterActive={emailSubActive}
+                      >
+                        <EmailSearchSubContent email={email} />
+                      </SearchIndexSubRow>
+                    </Match>
+                    <Match when={option.value === 'calls'}>
+                      <SearchIndexSubRow
+                        {...rowProps}
+                        subFilterActive={callSubActive}
+                      >
+                        <CallSearchSubContent
+                          call={call}
+                          channelOptions={inChannelOptions}
+                          senderOptions={fromSenderOptions}
+                        />
+                      </SearchIndexSubRow>
+                    </Match>
+                  </Switch>
+                );
+              }}
+            </For>
+          </Dropdown.Group>
+        </Dropdown.Content>
+      </Dropdown>
+    </div>
   );
 };

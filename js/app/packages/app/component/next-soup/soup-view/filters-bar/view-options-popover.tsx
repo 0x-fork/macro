@@ -32,9 +32,11 @@ import { useAnalytics } from '@app/component/analytics-context';
 import type { ListView } from '@app/constants/list-views';
 import { isListViewID } from '@app/constants/list-views';
 import {
+  SearchFilterDropdown,
   VIEW_FILTER_CATEGORIES,
   type FilterCategory,
 } from './unified-filter-dropdown';
+import { INDEX_OPTIONS } from './search-filter-controls';
 
 const VIEW_SORT_OPTIONS: Partial<Record<ListView, SortOption[]>> = {
   mail: EMAIL_SORT_OPTIONS,
@@ -143,8 +145,13 @@ export const ViewOptionsPopover: Component = () => {
     return count;
   });
 
+  const hasActiveSearchIndex = createMemo(() => {
+    if (currentView() !== 'search') return false;
+    return INDEX_OPTIONS.some((opt) => isOptionActive(opt.value));
+  });
+
   const hasActiveOptions = createMemo(() => {
-    return activeFilterCount() > 0 || isPreviewActive();
+    return activeFilterCount() > 0 || hasActiveSearchIndex() || isPreviewActive();
   });
 
   registerHotkey({
@@ -187,6 +194,9 @@ export const ViewOptionsPopover: Component = () => {
         <Layer depth={2}>
           <Popover.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-lg min-w-[220px] p-2 flex flex-col gap-2">
             {/* Filters Section */}
+            <Show when={currentView() === 'search'}>
+              <SearchFilterDropdown />
+            </Show>
             <For each={filterCategories()}>
               {(category) => (
                 <FilterCategoryDropdown

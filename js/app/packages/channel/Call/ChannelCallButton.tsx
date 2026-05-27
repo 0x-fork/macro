@@ -17,7 +17,6 @@ export function ChannelCallButton(props: { channelId: string }) {
   const isCallInProgress = () => !!activeCallQuery.data;
 
   const tooltip = () => (isCallInProgress() ? 'Join Call' : 'Start Call');
-  const label = () => (isCallInProgress() ? 'Join' : 'Call');
 
   const handleClick = async () => {
     if (call.isJoining()) return;
