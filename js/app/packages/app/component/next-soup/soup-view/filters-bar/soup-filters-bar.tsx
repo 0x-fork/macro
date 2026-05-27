@@ -6,11 +6,7 @@ import { ActiveFilterChips } from './active-filter-chips';
 import { SoupSearchbar } from './soup-view-search-bar';
 import { useFilterRefinements } from './use-filter-refinements';
 import { ViewOptionsPopover } from './view-options-popover';
-import {
-  CollapsedSoupViewTabs,
-  SoupViewTabs,
-} from '../soup-view-tabs';
-import { CollapsibleHeaderItem } from '@app/component/split-layout/components/CollapsibleHeaderItem';
+import { SoupViewTabs } from '../soup-view-tabs';
 
 interface SoupFiltersBarProps {
   hideSelectAll?: boolean;
@@ -58,14 +54,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
                 )}
               >
                 <div class="flex items-center gap-2">
-                  <CollapsibleHeaderItem
-                    id="filters-tabs"
-                    priority={1}
-                    expanded={() => <SoupViewTabs />}
-                    collapsed={() => <CollapsedSoupViewTabs />}
-                    containerClass="h-full"
-                  />
-                  <div class="flex-1" />
+                  <SoupViewTabs />
                   <Show when={!props.hideSearch}>
                     <Show
                       when={!searchExpanded()}

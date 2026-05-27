@@ -90,7 +90,13 @@ export const OverflowTabGroup = (props: OverflowTabGroupProps) => {
 
   const calculateVisibleTabs = () => {
     const container = containerRef();
-    if (!container || tabWidths.length === 0) return;
+    if (!container) return;
+
+    // Re-measure on every pass: the initial ref-time measurement runs while
+    // the node is still detached (offsetWidth === 0). The ResizeObserver fires
+    // after layout, so measuring here yields real widths.
+    measureTabWidths();
+    if (tabWidths.length === 0) return;
 
     const containerWidth = container.offsetWidth;
     const overflowButtonWidth = props.overflowButtonWidth ?? 28;
