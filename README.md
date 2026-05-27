@@ -1,6 +1,6 @@
 <div align="center">
   <a target="_blank" href="https://macro.com">
-    <img width="100%" alt="Macro, built for high-output teams" src=".github/readme/Hero Image from Figma.png" />
+    <img width="100%" alt="Macro, builttttt for high-output teams" src=".github/readme/Hero Image from Figma.png" />
   </a>
 
   <p>
