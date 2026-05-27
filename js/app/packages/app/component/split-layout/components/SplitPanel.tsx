@@ -1,7 +1,6 @@
 import { createSoupState } from '@app/component/next-soup/create-soup-state';
 import { SoupContextProvider } from '@app/component/next-soup/soup-context';
 import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
-import { globalSplitManager } from '@app/signal/splitLayout';
 import { splitContainerAttribute } from '@core/dom-selectors';
 import { isMobile } from '@core/mobile/isMobile';
 import { createElementSize } from '@solid-primitives/resize-observer';
@@ -97,11 +96,6 @@ export function SplitPanel(props: SplitPanelProps) {
     return offset;
   });
 
-  function multipleSplits() {
-    const splits = globalSplitManager()?.splits?.();
-    return Boolean(splits && splits.length > 1);
-  }
-
   const shouldHideSplitHeader = createMemo(
     () => isMobile() && isListViewID(props.handle.content().id)
   );
@@ -149,12 +143,6 @@ export function SplitPanel(props: SplitPanelProps) {
             tabindex={-1}
           >
             <Panel
-              active={
-                !isMobile() &&
-                props.active &&
-                multipleSplits() &&
-                !props.handle.isSpotLight()
-              }
               class="rounded-xl mobile:rounded-none mobile:after:hidden mobile:!border-0"
               depth={1}
             >

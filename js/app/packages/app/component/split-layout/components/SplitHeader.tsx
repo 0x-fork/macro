@@ -192,10 +192,19 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
     throw new Error('<SplitHeader> must be used within a <SplitLayout>');
   }
 
+  // Active-split indicator: an accent gradient tint on the header (only when
+  // more than one split is open, on non-mobile, outside spotlight).
+  const showActiveGradient = () =>
+    !isMobile() &&
+    panel.isPanelActive() &&
+    (globalSplitManager()?.splits?.()?.length ?? 0) > 1 &&
+    !panel.handle.isSpotLight();
+
   return (
     <div
       class={cn(
         'isolate w-full py-2 overflow-clip text-ink shrink-0 bg-surface',
+        showActiveGradient() && 'bg-linear-to-b from-accent/10 to-transparent',
         isMobile() && isListViewID(panel.handle.content().id) && 'hidden'
       )}
       data-split-header

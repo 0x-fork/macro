@@ -304,7 +304,7 @@
 html[data-theme-mode="light"] .ui-surface:not(.ui-surface-active) {
   background-image: linear-gradient(var(--b0), var(--b0)) !important;
 }
-html[data-theme-mode="light"] .ui-surface {
+html[data-theme-mode="light"] .ui-surface:not(.ui-surface-active) {
   box-shadow: 0 2px 8px -8px oklch(0 0 0 / 0.06);
 }
 
