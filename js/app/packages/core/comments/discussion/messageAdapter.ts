@@ -1,15 +1,18 @@
 import type { MessageData } from '@channel/Message/types';
 import type { ApiChannelMessage } from '@service-storage/generated/schemas/apiChannelMessage';
-import type { Comment } from '@service-storage/generated/schemas/comment';
+import type { DiscussionComment } from './types';
 
-export function commentToMessageData(comment: Comment): MessageData {
+/** Maps a normalized discussion comment to the channel `Message` shape. */
+export function discussionCommentToMessageData(
+  comment: DiscussionComment
+): MessageData {
   return {
-    id: String(comment.commentId),
+    id: comment.id,
     content: comment.text,
-    sender_id: comment.sender ?? comment.owner,
-    created_at: comment.createdAt ?? '',
-    updated_at: comment.updatedAt ?? comment.createdAt ?? '',
-    deleted_at: comment.deletedAt ?? null,
+    sender_id: comment.authorId,
+    created_at: comment.createdAt,
+    updated_at: comment.updatedAt,
+    deleted_at: comment.deletedAt,
     edited_at:
       comment.updatedAt && comment.updatedAt !== comment.createdAt
         ? comment.updatedAt
@@ -19,16 +22,17 @@ export function commentToMessageData(comment: Comment): MessageData {
   };
 }
 
-export function commentToApiChannelMessage(
-  comment: Comment
+/** Maps a normalized discussion comment to the channel `Thread.Row` shape. */
+export function discussionCommentToApiChannelMessage(
+  comment: DiscussionComment
 ): ApiChannelMessage {
   return {
-    id: String(comment.commentId),
+    id: comment.id,
     content: comment.text,
-    sender_id: comment.sender ?? comment.owner,
-    created_at: comment.createdAt ?? '',
-    updated_at: comment.updatedAt ?? comment.createdAt ?? '',
-    deleted_at: comment.deletedAt ?? null,
+    sender_id: comment.authorId,
+    created_at: comment.createdAt,
+    updated_at: comment.updatedAt,
+    deleted_at: comment.deletedAt,
     edited_at:
       comment.updatedAt && comment.updatedAt !== comment.createdAt
         ? comment.updatedAt
