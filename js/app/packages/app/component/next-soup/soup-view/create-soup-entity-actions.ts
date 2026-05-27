@@ -163,8 +163,13 @@ export function createSoupEntityActions(): {
             getChannelParams(entity.messageId, entity.threadId)
           );
         } else if (entity.type === 'crm_company') {
-          // crm companies aren't openable yet — no split action.
-          return;
+          splitManager.createNewSplit({
+            content: {
+              type: 'company',
+              id: entity.id,
+            },
+            referredFrom: 'entity-actions-menu',
+          });
         } else {
           splitManager.createNewSplit({
             content: {
