@@ -48,19 +48,10 @@ import {
   type PropertySaveHandler,
 } from '@property/context/PropertiesContext';
 import { Modals } from '@property/component/modal';
-import type {
-  Property,
-  PropertyApiValues,
-} from '@property/types';
-import {
-  SYSTEM_PROPERTY_IDS,
-  PROPERTY_OPTION_IDS,
-} from '@property/constants';
+import type { Property, PropertyApiValues } from '@property/types';
+import { SYSTEM_PROPERTY_IDS, PROPERTY_OPTION_IDS } from '@property/constants';
 import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
-import {
-  TaskCircleIcon,
-  type TaskStatus,
-} from '@icon/TaskCircleIcon';
+import { TaskCircleIcon, type TaskStatus } from '@icon/TaskCircleIcon';
 import { HexDashedIcon } from '@icon/HexDashedIcon';
 import { formatPropertyValue } from '@property/utils/formatting';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
@@ -164,7 +155,7 @@ function LayoutShell(props: {
             gap: '0 0.5rem',
           }}
         >
-          <div class="self-center size-4 flex items-center justify-center relative group">
+          <div class="self-center size-4 flex items-center justify-center relative group mx-auto">
             <UnreadIndicator
               active={props.unread}
               class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
@@ -172,7 +163,9 @@ function LayoutShell(props: {
             <div
               class={cn(
                 'absolute inset-0 flex items-center justify-center',
-                props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                props.checked
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100'
               )}
             >
               <MultiSelectCheckbox
@@ -199,7 +192,7 @@ function LayoutShell(props: {
           gap: '0 0.5rem',
         }}
       >
-        <div class="self-center size-4 flex items-center justify-center relative group">
+        <div class="self-center size-4 flex items-center justify-center relative group mx-auto">
           <UnreadIndicator
             active={props.unread}
             class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
@@ -207,7 +200,9 @@ function LayoutShell(props: {
           <div
             class={cn(
               'absolute inset-0 flex items-center justify-center',
-              props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              props.checked
+                ? 'opacity-100'
+                : 'opacity-0 group-hover:opacity-100'
             )}
           >
             <MultiSelectCheckbox
@@ -216,9 +211,7 @@ function LayoutShell(props: {
             />
           </div>
         </div>
-        <div class="flex items-center min-w-0">
-          {props.children}
-        </div>
+        <div class="flex items-center min-w-0">{props.children}</div>
       </div>
     </Show>
   );
@@ -303,10 +296,7 @@ export function TaskPropertyGroup(props: {
               class="contents"
             >
               <PropertyPrimitive.EditTrigger class="inline-flex items-center justify-center shrink-0 size-4 p-0 m-0 border-0 bg-transparent leading-none transition-colors rounded-sm hover:bg-hover">
-                <PropertyPrimitive.Icon
-                  property={property()}
-                  class="size-4"
-                />
+                <PropertyPrimitive.Icon property={property()} class="size-4" />
               </PropertyPrimitive.EditTrigger>
               <PropertyPrimitive.PopoverEditor />
             </PropertyPrimitive.Root>
@@ -357,9 +347,13 @@ function EmailLayout(props: BaseLayoutProps & { email: EmailEntity }) {
             <SharedIndicator ownerId={props.entity.ownerId} />
           </Show>
           <span class="text-ink-extra-muted/50 shrink-0">—</span>
-          <span class="shrink-0"><Entity.Title entity={props.entity} /></span>
+          <span class="shrink-0">
+            <Entity.Title entity={props.entity} />
+          </span>
           <Show when={props.email.snippet}>
-            <span class="truncate text-ink/40 font-normal">{props.email.snippet}</span>
+            <span class="truncate text-ink/40 font-normal">
+              {props.email.snippet}
+            </span>
           </Show>
         </span>
         <span />
@@ -386,7 +380,9 @@ function ChannelLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
     >
       <div
         class="grid items-center gap-x-2 min-w-0 w-full"
-        style={{ 'grid-template-columns': 'auto 12rem minmax(0, 1fr) 21rem 4.5rem' }}
+        style={{
+          'grid-template-columns': 'auto 12rem minmax(0, 1fr) 21rem 4.5rem',
+        }}
       >
         <div class="size-4 shrink-0">
           <Show
@@ -529,15 +525,28 @@ export function useTaskAssignees(entity: EntityWithProperties<EntityData>) {
 }
 
 function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
-  const taskStatus = useTaskStatus(props.entity as EntityWithProperties<EntityData>);
-  const taskPriority = useTaskPriority(props.entity as EntityWithProperties<EntityData>);
-  const taskAssignees = useTaskAssignees(props.entity as EntityWithProperties<EntityData>);
+  const taskStatus = useTaskStatus(
+    props.entity as EntityWithProperties<EntityData>
+  );
+  const taskPriority = useTaskPriority(
+    props.entity as EntityWithProperties<EntityData>
+  );
+  const taskAssignees = useTaskAssignees(
+    props.entity as EntityWithProperties<EntityData>
+  );
 
   const properties = createMemo((): Property[] => {
-    const soupProperties = (props.entity as EntityWithProperties<EntityData>).properties ?? [];
+    const soupProperties =
+      (props.entity as EntityWithProperties<EntityData>).properties ?? [];
     return soupProperties
       .map(soupPropertyToProperty)
-      .filter((p) => [SYSTEM_PROPERTY_IDS.STATUS, SYSTEM_PROPERTY_IDS.PRIORITY, SYSTEM_PROPERTY_IDS.ASSIGNEES].includes(p.propertyDefinitionId as typeof SYSTEM_PROPERTY_IDS.STATUS));
+      .filter((p) =>
+        [
+          SYSTEM_PROPERTY_IDS.STATUS,
+          SYSTEM_PROPERTY_IDS.PRIORITY,
+          SYSTEM_PROPERTY_IDS.ASSIGNEES,
+        ].includes(p.propertyDefinitionId as typeof SYSTEM_PROPERTY_IDS.STATUS)
+      );
   });
 
   const saveMutation = useBulkSaveEntityPropertiesMutation();
@@ -579,7 +588,10 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
       >
         <div
           class="grid items-center gap-x-2 min-w-0 w-full"
-          style={{ 'grid-template-columns': '1rem minmax(0, 1fr) minmax(0, 8rem) 5.5rem 7.5rem 4.5rem' }}
+          style={{
+            'grid-template-columns':
+              '1rem minmax(0, 1fr) minmax(0, 8rem) 5.5rem 7.5rem 4.5rem',
+          }}
         >
           <div class="[&_svg]:size-4 flex justify-center">
             <Show
@@ -602,7 +614,11 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           </span>
           <Show
             when={isProjectContainedEntity(props.entity) && props.entity}
-            fallback={<span class="flex justify-center"><span class="w-3 h-px bg-edge-muted" /></span>}
+            fallback={
+              <span class="flex justify-center">
+                <span class="w-3 h-px bg-edge-muted" />
+              </span>
+            }
           >
             {(entity) => (
               <div class="flex justify-end min-w-0">
@@ -617,25 +633,41 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           </Show>
           <Show
             when={taskPriority()?.id}
-            fallback={<span class="flex justify-center"><span class="w-3 h-px bg-edge-muted" /></span>}
+            fallback={
+              <span class="flex justify-center">
+                <span class="w-3 h-px bg-edge-muted" />
+              </span>
+            }
           >
             <div class="flex justify-end min-w-0">
               <TaskPropertyPill property={taskPriority()!.property}>
-                <PropertyValueIcon optionId={taskPriority()!.id!} class="size-3 shrink-0" />
+                <PropertyValueIcon
+                  optionId={taskPriority()!.id!}
+                  class="size-3 shrink-0"
+                />
                 <span class="truncate">{taskPriority()!.label}</span>
               </TaskPropertyPill>
             </div>
           </Show>
           <Show
             when={taskAssignees()?.ids.length}
-            fallback={<span class="flex justify-center"><span class="w-3 h-px bg-edge-muted" /></span>}
+            fallback={
+              <span class="flex justify-center">
+                <span class="w-3 h-px bg-edge-muted" />
+              </span>
+            }
           >
             <div class="flex justify-end min-w-0">
               <TaskPropertyPill property={taskAssignees()!.property}>
                 <div class="flex items-center shrink-0">
                   <For each={taskAssignees()!.ids.slice(0, 2)}>
                     {(id, index) => (
-                      <span class={cn("size-4 shrink-0 rounded-full ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-1.5")}>
+                      <span
+                        class={cn(
+                          'size-4 shrink-0 rounded-full ring-1 ring-edge-muted overflow-hidden',
+                          index() > 0 && '-ml-1.5'
+                        )}
+                      >
                         <UserIcon id={id} size="fill" />
                       </span>
                     )}
@@ -647,9 +679,15 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
                   </Show>
                 </div>
                 <span class="truncate">
-                  <DisplayName id={taskAssignees()!.ids[0]} format="firstName" />
+                  <DisplayName
+                    id={taskAssignees()!.ids[0]}
+                    format="firstName"
+                  />
                   <Show when={taskAssignees()!.ids.length > 1}>
-                    <span class="text-ink-extra-muted"> +{taskAssignees()!.ids.length - 1}</span>
+                    <span class="text-ink-extra-muted">
+                      {' '}
+                      +{taskAssignees()!.ids.length - 1}
+                    </span>
                   </Show>
                 </span>
               </TaskPropertyPill>
@@ -667,7 +705,12 @@ function TaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
   );
 }
 
-export function TaskPropertyPill(props: { property?: Property; empty?: boolean; dim?: boolean; children: JSX.Element }) {
+export function TaskPropertyPill(props: {
+  property?: Property;
+  empty?: boolean;
+  dim?: boolean;
+  children: JSX.Element;
+}) {
   const { openPropertyEditor } = usePropertiesContext();
 
   const handleClick = (e: MouseEvent) => {
@@ -680,16 +723,16 @@ export function TaskPropertyPill(props: { property?: Property; empty?: boolean; 
   return (
     <div
       class={cn(
-        "flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs transition-colors  max-w-full",
+        'flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-xs transition-colors  max-w-full',
         props.empty
-          ? "border-dashed border-edge-muted text-ink-extra-muted hover:border-edge"
+          ? 'border-dashed border-edge-muted text-ink-extra-muted hover:border-edge'
           : props.dim
-            ? "bg-surface border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50"
-            : "bg-surface border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50",
-        props.property && "cursor-pointer"
+            ? 'bg-surface border-edge-muted/50 text-ink-muted/70 hover:border-edge hover:bg-hover/50'
+            : 'bg-surface border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50',
+        props.property && 'cursor-pointer'
       )}
       onClick={handleClick}
-      role={props.property ? "button" : undefined}
+      role={props.property ? 'button' : undefined}
       tabIndex={props.property ? 0 : undefined}
     >
       {props.children}
@@ -760,7 +803,12 @@ function CallLayout(props: BaseLayoutProps & { call: CallEntity }) {
             <div class="flex items-center shrink-0">
               <For each={participants()}>
                 {(id, index) => (
-                  <span class={cn("size-4 shrink-0 rounded-full ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-1.5")}>
+                  <span
+                    class={cn(
+                      'size-4 shrink-0 rounded-full ring-1 ring-edge-muted overflow-hidden',
+                      index() > 0 && '-ml-1.5'
+                    )}
+                  >
                     <UserIcon id={id} size="fill" />
                   </span>
                 )}
@@ -891,7 +939,10 @@ function NarrowIconShell(props: {
 
   return (
     <div
-      class={cn('grid w-full text-sm py-2 px-2', mobile && !props.hasNotifications && 'min-h-[4.5rem]')}
+      class={cn(
+        'grid w-full text-sm py-2 px-2',
+        mobile && !props.hasNotifications && 'min-h-[4.5rem]'
+      )}
       style={{
         'grid-template-columns': mobile ? '3rem 1fr auto' : '1.5rem 1fr auto',
         gap: '0 0.75rem',
@@ -925,7 +976,10 @@ function NarrowIconShell(props: {
         }
       >
         <div
-          class={cn('flex items-start justify-center', !props.hasNotifications && 'row-span-full')}
+          class={cn(
+            'flex items-start justify-center',
+            !props.hasNotifications && 'row-span-full'
+          )}
           style={{ 'grid-column': '1' }}
         >
           <div class="relative flex">
@@ -1076,7 +1130,10 @@ function NarrowChannelShell(props: {
 
   return (
     <div
-      class={cn('grid w-full text-sm py-2 px-2', mobile && !props.hasNotifications && 'min-h-[4.5rem]')}
+      class={cn(
+        'grid w-full text-sm py-2 px-2',
+        mobile && !props.hasNotifications && 'min-h-[4.5rem]'
+      )}
       style={{
         'grid-template-columns': mobile ? '3rem 1fr auto' : '1.5rem 1fr auto',
         gap: '0 0.75rem',
@@ -1110,7 +1167,10 @@ function NarrowChannelShell(props: {
         }
       >
         <div
-          class={cn('flex items-start justify-center', !props.hasNotifications && 'row-span-full')}
+          class={cn(
+            'flex items-start justify-center',
+            !props.hasNotifications && 'row-span-full'
+          )}
           style={{ 'grid-column': '1' }}
         >
           <button
@@ -1212,38 +1272,41 @@ function NarrowChannelLayout(
       <Show when={!props.hasNotifications}>
         <Show
           when={props.channel.latestMessage}
-          fallback={<span class="text-ink-extra-muted text-xs">No messages</span>}
+          fallback={
+            <span class="text-ink-extra-muted text-xs">No messages</span>
+          }
         >
-        {(msg) => (
-          <span class="flex items-center gap-1.5 min-w-0 text-sm text-ink-muted">
-            <Show
-              when={
-                props.channel.channelType !== 'direct_message' && msg().senderId
-              }
-            >
-              {(id) => (
-                <span class="flex items-center gap-1 shrink-0">
-                  <UserIcon id={id()} size="xs" />
-                  <Show when={senderName?.firstName()}>
-                    {(name) => <span class="text-xs">{name()}</span>}
-                  </Show>
-                </span>
-              )}
-            </Show>
-            <span class="truncate min-w-0 text-ink-extra-muted text-xs">
+          {(msg) => (
+            <span class="flex items-center gap-1.5 min-w-0 text-sm text-ink-muted">
               <Show
-                when={msg().content?.trim()}
-                fallback={<span class="italic">Attached Items</span>}
+                when={
+                  props.channel.channelType !== 'direct_message' &&
+                  msg().senderId
+                }
               >
-                <StaticMarkdown
-                  theme={twoLineClampMarkdownTheme}
-                  markdown={msg().content.trim()}
-                  singleLine
-                />
+                {(id) => (
+                  <span class="flex items-center gap-1 shrink-0">
+                    <UserIcon id={id()} size="xs" />
+                    <Show when={senderName?.firstName()}>
+                      {(name) => <span class="text-xs">{name()}</span>}
+                    </Show>
+                  </span>
+                )}
               </Show>
+              <span class="truncate min-w-0 text-ink-extra-muted text-xs">
+                <Show
+                  when={msg().content?.trim()}
+                  fallback={<span class="italic">Attached Items</span>}
+                >
+                  <StaticMarkdown
+                    theme={twoLineClampMarkdownTheme}
+                    markdown={msg().content.trim()}
+                    singleLine
+                  />
+                </Show>
+              </span>
             </span>
-          </span>
-        )}
+          )}
         </Show>
       </Show>
     </NarrowChannelShell>
@@ -1392,7 +1455,12 @@ function AssigneesPillContent(props: {
       <div class="flex items-center">
         <For each={assigneeIds().slice(0, 3)}>
           {(id, index) => (
-            <span class={cn("size-4 shrink-0 flex items-center justify-center rounded-full bg-surface ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-2")}>
+            <span
+              class={cn(
+                'size-4 shrink-0 flex items-center justify-center rounded-full bg-surface ring-1 ring-edge-muted overflow-hidden',
+                index() > 0 && '-ml-2'
+              )}
+            >
               <UserIcon id={id} size="fill" />
             </span>
           )}
@@ -1471,7 +1539,10 @@ function TaskPropertyPills(props: {
                 : 'bg-surface border-edge-muted text-ink-muted hover:border-edge hover:bg-hover/50'
             )}
           >
-            <PropertyValueIcon optionId={priority().id} class="size-3 shrink-0" />
+            <PropertyValueIcon
+              optionId={priority().id}
+              class="size-3 shrink-0"
+            />
             <span class="truncate">{priority().label}</span>
           </span>
         )}
@@ -1488,7 +1559,12 @@ function TaskPropertyPills(props: {
           <div class="flex items-center">
             <For each={assigneeIds().slice(0, 3)}>
               {(id, index) => (
-                <span class={cn("size-4 shrink-0 flex items-center justify-center rounded-full bg-surface ring-1 ring-edge-muted overflow-hidden", index() > 0 && "-ml-2")}>
+                <span
+                  class={cn(
+                    'size-4 shrink-0 flex items-center justify-center rounded-full bg-surface ring-1 ring-edge-muted overflow-hidden',
+                    index() > 0 && '-ml-2'
+                  )}
+                >
                   <UserIcon id={id} size="fill" />
                 </span>
               )}
@@ -1502,7 +1578,10 @@ function TaskPropertyPills(props: {
           <span class="truncate">
             <DisplayName id={assigneeIds()[0]} format="firstName" />
             <Show when={assigneeIds().length > 1}>
-              <span class="text-ink-extra-muted"> +{assigneeIds().length - 1}</span>
+              <span class="text-ink-extra-muted">
+                {' '}
+                +{assigneeIds().length - 1}
+              </span>
             </Show>
           </span>
         </span>
@@ -1513,15 +1592,28 @@ function TaskPropertyPills(props: {
 
 function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
   const mobile = isMobile();
-  const taskStatus = useTaskStatus(props.entity as EntityWithProperties<EntityData>);
-  const taskPriority = useTaskPriority(props.entity as EntityWithProperties<EntityData>);
-  const taskAssignees = useTaskAssignees(props.entity as EntityWithProperties<EntityData>);
+  const taskStatus = useTaskStatus(
+    props.entity as EntityWithProperties<EntityData>
+  );
+  const taskPriority = useTaskPriority(
+    props.entity as EntityWithProperties<EntityData>
+  );
+  const taskAssignees = useTaskAssignees(
+    props.entity as EntityWithProperties<EntityData>
+  );
 
   const properties = createMemo((): Property[] => {
-    const soupProperties = (props.entity as EntityWithProperties<EntityData>).properties ?? [];
+    const soupProperties =
+      (props.entity as EntityWithProperties<EntityData>).properties ?? [];
     return soupProperties
       .map(soupPropertyToProperty)
-      .filter((p) => [SYSTEM_PROPERTY_IDS.STATUS, SYSTEM_PROPERTY_IDS.PRIORITY, SYSTEM_PROPERTY_IDS.ASSIGNEES].includes(p.propertyDefinitionId as typeof SYSTEM_PROPERTY_IDS.STATUS));
+      .filter((p) =>
+        [
+          SYSTEM_PROPERTY_IDS.STATUS,
+          SYSTEM_PROPERTY_IDS.PRIORITY,
+          SYSTEM_PROPERTY_IDS.ASSIGNEES,
+        ].includes(p.propertyDefinitionId as typeof SYSTEM_PROPERTY_IDS.STATUS)
+      );
   });
 
   const saveMutation = useBulkSaveEntityPropertiesMutation();
@@ -1557,7 +1649,10 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
       saveHandler={saveHandler}
     >
       <div
-        class={cn('grid w-full text-sm py-2 px-2', mobile && !props.hasNotifications && 'min-h-[4.5rem]')}
+        class={cn(
+          'grid w-full text-sm py-2 px-2',
+          mobile && !props.hasNotifications && 'min-h-[4.5rem]'
+        )}
         style={{
           'grid-template-columns': mobile ? '3rem 1fr' : '1.5rem 1fr',
           gap: '0 0.75rem',
@@ -1572,7 +1667,10 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
             >
               <UnreadIndicator
                 active={props.unread}
-                class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+                class={cn(
+                  props.checked && 'opacity-0',
+                  'group-hover:opacity-0'
+                )}
               />
               <div
                 class={cn(
@@ -1591,7 +1689,10 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
           }
         >
           <div
-            class={cn('flex items-start justify-center', !props.hasNotifications && 'row-span-full')}
+            class={cn(
+              'flex items-start justify-center',
+              !props.hasNotifications && 'row-span-full'
+            )}
             style={{ 'grid-column': '1' }}
           >
             <div class="relative flex">
@@ -2032,17 +2133,17 @@ export function StackedListEntity(props: StackedListEntityProps) {
       ref={mergeRefs(props.ref, draggable)}
       class={cn(
         'soup-stacked-entity @container/entity w-[calc(100%-0.5rem)] mx-1 relative group/stacked flex flex-col rounded',
-        !isWide() && isMobile() && 'border-b border-edge-muted mx-0 w-full rounded-none',
+        !isWide() &&
+          isMobile() &&
+          'border-b border-edge-muted mx-0 w-full rounded-none',
         !isMobile() && 'min-h-10',
         hasNotifications() && !isMobile() && 'pt-2',
         {
           'bg-accent/8': props.checked,
-          'ring ring-accent/16 ring-inset':
-            props.checked && props.highlighted,
+          'ring ring-accent/16 ring-inset': props.checked && props.highlighted,
           'ring ring-edge bg-active/60 ring-inset':
             props.highlighted && !props.checked && !isMobile(),
-          'bg-active/40':
-            props.hovered && !props.highlighted && !props.checked,
+          'bg-active/40': props.hovered && !props.highlighted && !props.checked,
           'hover:bg-active/40 hover:ring hover:ring-edge hover:ring-inset group-data-expanded/cm-trigger:bg-active/40':
             !props.checked &&
             !props.highlighted &&
@@ -2052,7 +2153,6 @@ export function StackedListEntity(props: StackedListEntityProps) {
       )}
       onMouseMove={props.onMouseMove}
     >
-
       <Show
         when={isWide()}
         fallback={
@@ -2064,7 +2164,10 @@ export function StackedListEntity(props: StackedListEntityProps) {
             </Match>
             <Match when={isChannelMessageEntity(props.entity) && props.entity}>
               {(message) => (
-                <NarrowChannelMessageLayout {...baseProps()} message={message()} />
+                <NarrowChannelMessageLayout
+                  {...baseProps()}
+                  message={message()}
+                />
               )}
             </Match>
             <Match when={isChannelEntity(props.entity) && props.entity}>
@@ -2148,4 +2251,3 @@ export function StackedListEntity(props: StackedListEntityProps) {
     </Entity.Root>
   );
 }
-
