@@ -43,6 +43,7 @@ import {
   CloudStorageItemType as CloudStorageItemTypeMap,
 } from './generated/schemas/cloudStorageItemType';
 import type { CreateCommentResponse } from './generated/schemas/createCommentResponse';
+import type { CreateCrmCommentRequest } from './generated/schemas/createCrmCommentRequest';
 import type { CreateDocument200 as CreateDocumentResponse } from './generated/schemas/createDocument200';
 import type { CreateDocumentRequest } from './generated/schemas/createDocumentRequest';
 import type { CreateInstructionsDocumentResponse } from './generated/schemas/createInstructionsDocumentResponse';
@@ -52,14 +53,19 @@ import type { CreateProjectResponse } from './generated/schemas/createProjectRes
 import type { CreateTaskHandler200 } from './generated/schemas/createTaskHandler200';
 import type { CreateTaskRequest } from './generated/schemas/createTaskRequest';
 import type { CreateUnthreadedAnchorResponse } from './generated/schemas/createUnthreadedAnchorResponse';
+import type { CrmComment } from './generated/schemas/crmComment';
+import type { CrmCommentEntityType } from './generated/schemas/crmCommentEntityType';
+import type { CrmCommentThread } from './generated/schemas/crmCommentThread';
 import type { CrmContactResponse } from './generated/schemas/crmContactResponse';
 import type { DeleteCommentResponse } from './generated/schemas/deleteCommentResponse';
+import type { DeleteCrmCommentResult } from './generated/schemas/deleteCrmCommentResult';
 import type { DeleteUnthreadedAnchorResponse } from './generated/schemas/deleteUnthreadedAnchorResponse';
 import type { DocumentMetadata } from './generated/schemas/documentMetadata';
 import type { DocumentPreview } from './generated/schemas/documentPreview';
 import type { DocumentResponseMetadataWithContent } from './generated/schemas/documentResponseMetadataWithContent';
 import type { EditAnchorResponse } from './generated/schemas/editAnchorResponse';
 import type { EditCommentResponse } from './generated/schemas/editCommentResponse';
+import type { EditCrmCommentRequest } from './generated/schemas/editCrmCommentRequest';
 import type { ExportDocumentResponse } from './generated/schemas/exportDocumentResponse';
 import type { GetBatchProjectPreviewResponse } from './generated/schemas/getBatchProjectPreviewResponse';
 import type { GetDocumentPermissionsResponseDataV2 } from './generated/schemas/getDocumentPermissionsResponseDataV2';
@@ -1371,6 +1377,52 @@ export const storageServiceClient = {
       `/crm/companies/${companyId}/contacts`,
       { method: 'GET' }
     );
+  },
+  crmComments: {
+    async list({
+      entityType,
+      entityId,
+    }: {
+      entityType: CrmCommentEntityType;
+      entityId: string;
+    }) {
+      return await dssFetch<CrmCommentThread[]>(
+        `/crm/comments/${entityType}/${entityId}`,
+        { method: 'GET' }
+      );
+    },
+    async create({
+      entityType,
+      entityId,
+      body,
+    }: {
+      entityType: CrmCommentEntityType;
+      entityId: string;
+      body: CreateCrmCommentRequest;
+    }) {
+      return await dssFetch<CrmCommentThread>(
+        `/crm/comments/${entityType}/${entityId}`,
+        { method: 'POST', body: JSON.stringify(body) }
+      );
+    },
+    async edit({
+      commentId,
+      body,
+    }: {
+      commentId: string;
+      body: EditCrmCommentRequest;
+    }) {
+      return await dssFetch<CrmComment>(`/crm/comment/${commentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+    },
+    async delete({ commentId }: { commentId: string }) {
+      return await dssFetch<DeleteCrmCommentResult>(
+        `/crm/comment/${commentId}`,
+        { method: 'DELETE' }
+      );
+    },
   },
 } satisfies StorageServiceClient &
   typeof enhancements &

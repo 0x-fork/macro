@@ -1,5 +1,6 @@
 import { SidePanel } from '@app/component/side-panel';
 import { CompanyContactsSection } from './CompanyContactsSection';
+import { CompanyDiscussionSection } from './CompanyDiscussionSection';
 import { CompanyEmailsSection } from './CompanyEmailsSection';
 import { CompanyHeader } from './CompanyHeader';
 import { CompanyMetadataSection } from './CompanyMetadataSection';
@@ -21,6 +22,7 @@ export function Company(props: { companyId: string }) {
         <div class="mx-auto flex w-full max-w-3xl min-w-0 grow flex-col gap-6 px-6 pt-12 pb-12">
           <CompanyHeader company={company()} />
           <CompanyEmailsSection company={company()} />
+          <CompanyDiscussionSection companyId={props.companyId} />
         </div>
       </div>
 
