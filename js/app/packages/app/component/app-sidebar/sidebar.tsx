@@ -940,7 +940,7 @@ const SidebarUserMenu = (props: {
         </span>
         <CaretDownIcon class="size-3 shrink-0 text-ink-extra-muted group-data-[slim=true]/sidebar:hidden" />
       </Dropdown.Trigger>
-      <Dropdown.Content depth={1} class="min-w-56">
+      <Dropdown.Content depth={1} class="min-w-56 shadow-lg">
         <div class="flex flex-col bg-surface p-1">
           <div class="flex items-center gap-2.5 px-2 py-2.5">
             <UserIcon
