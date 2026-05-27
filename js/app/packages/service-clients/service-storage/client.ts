@@ -66,6 +66,7 @@ import type { CreateProjectResponse } from './generated/schemas/createProjectRes
 import type { CreateTaskHandler200 } from './generated/schemas/createTaskHandler200';
 import type { CreateTaskRequest } from './generated/schemas/createTaskRequest';
 import type { CreateUnthreadedAnchorResponse } from './generated/schemas/createUnthreadedAnchorResponse';
+import type { CrmContactResponse } from './generated/schemas/crmContactResponse';
 import type { DeleteCommentResponse } from './generated/schemas/deleteCommentResponse';
 import type { DeleteEntityMentionResponse } from './generated/schemas/deleteEntityMentionResponse';
 import type { DeleteUnthreadedAnchorResponse } from './generated/schemas/deleteUnthreadedAnchorResponse';
@@ -1801,6 +1802,12 @@ export const storageServiceClient = {
         body: JSON.stringify(body),
       })
     ).map((result) => result.data);
+  },
+  async getCompanyContacts({ companyId }: { companyId: string }) {
+    return await dssFetch<CrmContactResponse[]>(
+      `/crm/companies/${companyId}/contacts`,
+      { method: 'GET' }
+    );
   },
 } satisfies StorageServiceClient &
   typeof enhancements &
