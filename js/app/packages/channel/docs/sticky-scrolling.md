@@ -11,25 +11,29 @@ The following are cases where sticky scrolling should be applied.
 ## Initial scroll on open
 
 When a channel opens it should _appear_ already pinned to its initial target —
-the bottom for a normal open, or a specific message for a deep link. Getting
-there is not a single operation: the list is virtualized (`virtua`) and only
-knows an _estimated_ row height (`BASE_ITEM_SIZE`) until each row is actually
-measured. Real rows (markdown, attachments, thread replies, images that load
-in) are taller, so the first `scrollToIndex` lands short of the true target and
-the position keeps moving as rows are measured.
+the bottom for a normal open, or a specific message for a deep link.
 
-If the list were visible during this, the user would see it render partway up
-and then jump to the bottom (worse on a cold open, where content is not cached
-and measures later — hence the flicker feeling "random").
+The list is virtualized (TanStack Virtual) and only knows an _estimated_ row
+height (`BASE_ITEM_SIZE`) until each row is actually measured. Real rows
+(markdown, attachments, thread replies, images that load in) are taller, so a
+naive `scrollToIndex(last)` lands short of the true bottom; as rows are then
+measured the content grows and — without intervention — the newest message is
+pushed below the fold, which is the "renders mid-list, then jumps to the
+bottom" flicker. It correlated with cache state because warm reopens measure
+rows in the same frame while cold opens measure later.
 
-`ThreadList` handles this by:
+`ThreadList` solves this with TanStack Virtual's **end anchoring**
+(`anchorTo: 'end'`):
 
-- Keeping the scroll container **hidden** (`opacity: 0`, the layout/measurement
-  still happens) until the initial scroll has settled (`didInitialScroll`).
-- Running a short, time-bounded **settle loop** that re-pins to the target each
-  animation frame and only completes once the position is within tolerance _and_
-  the measured `scrollSize` has stabilized across frames. The stability check is
-  what prevents revealing against a still-estimated size.
+- The virtualizer is anchored to the end of the list. After the on-mount
+  `scrollToEnd()`, any row growth from measurement applies a compensating
+  scroll adjustment, so the bottom stays pinned instead of being left behind at
+  the estimated offset. There is no scroll-then-correct for the user to see.
+- The same anchoring holds the viewport steady when older pages are prepended
+  (this is what the old `shift` prop did) and keeps the tail of the last
+  message in view when it grows (covering the reaction / reply-box cases above).
 
-The net effect: the convergence happens off-screen and the user's first view of
-the channel is already at the correct position.
+Live new-message stickiness (case 1) is still driven by `createStickyScrollEffect`,
+because it must _not_ follow appends while there are newer pages left to load
+(e.g. while paging down from a deep link) — a distinction `anchorTo` alone
+cannot make.
