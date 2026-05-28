@@ -2,7 +2,9 @@ use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
-use crate::domain::models::{GithubKey, MacroTaskId};
+use crate::domain::models::{
+    GithubAppInstallationSource, GithubKey, MacroTaskId, TeamTaskReference,
+};
 use crate::domain::ports::GithubSyncRepo;
 use crate::outbound::pg_github_sync_repo::PgGithubSyncRepo;
 
@@ -170,6 +172,81 @@ async fn test_filter_duplicate_tasks_empty_input(pool: Pool<Postgres>) {
     assert!(new_only.is_empty());
 }
 
+// ---------------------------------------------------------------------------
+// resolve_team_task_references
+// ---------------------------------------------------------------------------
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("github_team_task_test_data"))
+)]
+async fn test_resolve_team_task_references(pool: Pool<Postgres>) {
+    let repo = PgGithubSyncRepo::new(pool);
+
+    let refs = vec![
+        TeamTaskReference::new("eng", 123).unwrap(),
+        TeamTaskReference::new("platform_api", 7).unwrap(),
+    ];
+
+    let task_ids = repo
+        .resolve_team_task_references("12345", &refs)
+        .await
+        .unwrap();
+
+    let expected_known =
+        MacroTaskId::from_uuid(&Uuid::parse_str("0d0dc589-f301-43f1-8b11-4ab448ca4bb4").unwrap());
+    let expected_platform =
+        MacroTaskId::from_uuid(&Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap());
+
+    assert_eq!(task_ids.len(), 2);
+    assert!(task_ids.contains(&expected_known));
+    assert!(task_ids.contains(&expected_platform));
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("github_team_task_test_data"))
+)]
+async fn test_resolve_team_task_references_requires_team_source(pool: Pool<Postgres>) {
+    let repo = PgGithubSyncRepo::new(pool);
+    let refs = vec![TeamTaskReference::new("eng", 123).unwrap()];
+
+    let task_ids = repo
+        .resolve_team_task_references("99999", &refs)
+        .await
+        .unwrap();
+
+    assert!(task_ids.is_empty());
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("github_team_task_test_data"))
+)]
+async fn test_resolve_team_task_references_ignores_user_source(pool: Pool<Postgres>) {
+    sqlx::query(
+        r#"
+        INSERT INTO github_app_installation (id, source_id, source_type)
+        VALUES ($1, $2, 'user'::github_app_installation_source_type)
+        "#,
+    )
+    .bind("user-installation")
+    .bind("dddddddd-dddd-dddd-dddd-dddddddddddd")
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let repo = PgGithubSyncRepo::new(pool);
+    let refs = vec![TeamTaskReference::new("eng", 123).unwrap()];
+
+    let task_ids = repo
+        .resolve_team_task_references("user-installation", &refs)
+        .await
+        .unwrap();
+
+    assert!(task_ids.is_empty());
+}
+
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("github_sync_test_data"))
@@ -185,6 +262,41 @@ async fn test_filter_duplicate_tasks_different_key_not_filtered(pool: Pool<Postg
 
     assert_eq!(new_only.len(), 1);
     assert_eq!(new_only[0].short_uuid, "s61deeZUHehUjkNT8rxB3S");
+}
+
+// ---------------------------------------------------------------------------
+// get_installation_sources
+// ---------------------------------------------------------------------------
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("github_team_task_test_data"))
+)]
+async fn test_get_installation_sources_returns_sources(pool: Pool<Postgres>) {
+    let repo = PgGithubSyncRepo::new(pool);
+
+    let sources = repo.get_installation_sources("12345").await.unwrap();
+
+    assert_eq!(
+        sources,
+        vec![
+            GithubAppInstallationSource::Team(
+                "dddddddd-dddd-dddd-dddd-dddddddddddd".parse().unwrap()
+            ),
+            GithubAppInstallationSource::Team(
+                "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee".parse().unwrap()
+            ),
+        ]
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn test_get_installation_sources_empty(pool: Pool<Postgres>) {
+    let repo = PgGithubSyncRepo::new(pool);
+
+    let sources = repo.get_installation_sources("missing").await.unwrap();
+
+    assert!(sources.is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -245,70 +357,131 @@ async fn test_get_user_team_ids(pool: Pool<Postgres>) {
     );
 }
 
-#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("github_installation_test_data"))
+)]
 async fn test_get_user_team_ids_no_teams(pool: Pool<Postgres>) {
     let repo = PgGithubSyncRepo::new(pool);
 
-    let team_ids = repo
-        .get_user_team_ids("macro|nobody@test.com")
-        .await
-        .unwrap();
+    let team_ids = repo.get_user_team_ids("macro|solo@user.com").await.unwrap();
 
     assert!(team_ids.is_empty());
 }
 
 // ---------------------------------------------------------------------------
-// insert_installation_team_associations
+// upsert_installation_sources
 // ---------------------------------------------------------------------------
 
-#[sqlx::test(
-    migrator = "MACRO_DB_MIGRATIONS",
-    fixtures(path = "../../../fixtures", scripts("github_installation_test_data"))
-)]
-async fn test_insert_installation_team_associations(pool: Pool<Postgres>) {
-    let repo = PgGithubSyncRepo::new(pool.clone());
-
-    let team_ids: Vec<Uuid> = vec![
-        "dddddddd-dddd-dddd-dddd-dddddddddddd".parse().unwrap(),
-        "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee".parse().unwrap(),
-    ];
-
-    repo.insert_installation_team_associations("123456", &team_ids, "macro|user@user.com")
-        .await
-        .unwrap();
-
-    let rows: Vec<(String, Uuid)> =
-        sqlx::query_as("SELECT id, team_id FROM github_app_installation_team ORDER BY team_id")
-            .fetch_all(&pool)
-            .await
-            .unwrap();
-
-    assert_eq!(rows.len(), 2);
-    assert!(rows.iter().all(|r| r.0 == "123456"));
+async fn get_installation_sources(
+    pool: &Pool<Postgres>,
+    installation_id: &str,
+) -> Vec<(String, String, String)> {
+    sqlx::query_as(
+        r#"
+        SELECT id, source_id, source_type::text
+        FROM github_app_installation
+        WHERE id = $1
+        ORDER BY source_type, source_id
+        "#,
+    )
+    .bind(installation_id)
+    .fetch_all(pool)
+    .await
+    .unwrap()
 }
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("github_installation_test_data"))
 )]
-async fn test_insert_installation_team_associations_idempotent(pool: Pool<Postgres>) {
+async fn test_upsert_installation_sources_inserts_team_sources(pool: Pool<Postgres>) {
     let repo = PgGithubSyncRepo::new(pool.clone());
 
-    let team_ids: Vec<Uuid> = vec!["dddddddd-dddd-dddd-dddd-dddddddddddd".parse().unwrap()];
+    let sources = vec![
+        GithubAppInstallationSource::Team("dddddddd-dddd-dddd-dddd-dddddddddddd".parse().unwrap()),
+        GithubAppInstallationSource::Team("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee".parse().unwrap()),
+    ];
 
-    repo.insert_installation_team_associations("123456", &team_ids, "macro|user@user.com")
+    repo.upsert_installation_sources("123456", &sources)
         .await
         .unwrap();
-    // Insert again — should not error
-    repo.insert_installation_team_associations("123456", &team_ids, "macro|user@user.com")
+
+    let rows = get_installation_sources(&pool, "123456").await;
+
+    assert_eq!(
+        rows,
+        vec![
+            (
+                "123456".to_string(),
+                "dddddddd-dddd-dddd-dddd-dddddddddddd".to_string(),
+                "team".to_string(),
+            ),
+            (
+                "123456".to_string(),
+                "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee".to_string(),
+                "team".to_string(),
+            ),
+        ]
+    );
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("github_installation_test_data"))
+)]
+async fn test_upsert_installation_sources_idempotent_team_source(pool: Pool<Postgres>) {
+    let repo = PgGithubSyncRepo::new(pool.clone());
+
+    let sources = vec![GithubAppInstallationSource::Team(
+        "dddddddd-dddd-dddd-dddd-dddddddddddd".parse().unwrap(),
+    )];
+
+    repo.upsert_installation_sources("123456", &sources)
+        .await
+        .unwrap();
+    repo.upsert_installation_sources("123456", &sources)
         .await
         .unwrap();
 
-    let count: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM github_app_installation_team WHERE id = '123456'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let rows = get_installation_sources(&pool, "123456").await;
 
-    assert_eq!(count.0, 1);
+    assert_eq!(
+        rows,
+        vec![(
+            "123456".to_string(),
+            "dddddddd-dddd-dddd-dddd-dddddddddddd".to_string(),
+            "team".to_string(),
+        )]
+    );
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("github_installation_test_data"))
+)]
+async fn test_upsert_installation_sources_idempotent_user_source(pool: Pool<Postgres>) {
+    let repo = PgGithubSyncRepo::new(pool.clone());
+
+    let sources = vec![GithubAppInstallationSource::User(
+        "macro|solo@user.com".to_string(),
+    )];
+
+    repo.upsert_installation_sources("654321", &sources)
+        .await
+        .unwrap();
+    repo.upsert_installation_sources("654321", &sources)
+        .await
+        .unwrap();
+
+    let rows = get_installation_sources(&pool, "654321").await;
+
+    assert_eq!(
+        rows,
+        vec![(
+            "654321".to_string(),
+            "macro|solo@user.com".to_string(),
+            "user".to_string(),
+        )]
+    );
 }

@@ -5,12 +5,23 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { AssistantMessagePartOneOf } from './assistantMessagePartOneOf';
+import type { AssistantMessagePartOneOfEight } from './assistantMessagePartOneOfEight';
 import type { AssistantMessagePartOneOfFive } from './assistantMessagePartOneOfFive';
-import type { AssistantMessagePartOneOfSeven } from './assistantMessagePartOneOfSeven';
+import type { AssistantMessagePartOneOfOnetwo } from './assistantMessagePartOneOfOnetwo';
+import type { AssistantMessagePartOneOfOnezero } from './assistantMessagePartOneOfOnezero';
 import type { AssistantMessagePartOneOfThree } from './assistantMessagePartOneOfThree';
 
+/**
+ * A structured part within an assistant message.
+
+When the model responds with tool calls the full turn is persisted as a
+flat sequence of these parts.  [`crate::convert::to_rig_messages`]
+reconstructs the turn boundaries that providers expect.
+ */
 export type AssistantMessagePart =
   | AssistantMessagePartOneOf
   | AssistantMessagePartOneOfThree
   | AssistantMessagePartOneOfFive
-  | AssistantMessagePartOneOfSeven;
+  | AssistantMessagePartOneOfEight
+  | AssistantMessagePartOneOfOnezero
+  | AssistantMessagePartOneOfOnetwo;

@@ -1,4 +1,3 @@
-import { isErr } from '@core/util/maybeResult';
 import {
   deserializeToolCall,
   deserializeToolResponse,
@@ -10,6 +9,8 @@ import { createDocumentHandler } from './CreateDocument';
 import { getThreadHandler } from './GetThread';
 import { listCallRecordsHandler } from './ListCallRecords';
 import { listEntitiesHandler } from './ListEntities';
+import { listLabelsHandler } from './ListLabels';
+import { listTeamMembersHandler } from './ListTeamMembers';
 import {
   listNotificationsHandler,
   markNotificationsDoneHandler,
@@ -48,10 +49,12 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   GetEntityProperties: getEntityPropertiesHandler,
   ListCallRecords: listCallRecordsHandler,
   ListEntities: listEntitiesHandler,
+  ListLabels: listLabelsHandler,
   ListNotifications: listNotificationsHandler,
+  ListTeamMembers: listTeamMembersHandler,
   MarkNotificationsDone: markNotificationsDoneHandler,
   MarkNotificationsSeen: markNotificationsSeenHandler,
-  bash_code_execution: bashCodeExecutionHandler,
+  BashCodeExecution: bashCodeExecutionHandler,
   ContentSearch: contentSearchHandler,
   CreateDocument: createDocumentHandler,
   GetThread: getThreadHandler,
@@ -67,10 +70,10 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   SendEmail: sendEmailHandler,
   SetEntityProperty: setEntityPropertyHandler,
   Subagent: subagentHandler,
-  text_editor_code_execution: textEditorCodeExecutionHandler,
+  TextEditorCodeExecution: textEditorCodeExecutionHandler,
   UpdateThreadLabels: updateThreadLabelsHandler,
-  web_fetch: webFetchHandler,
-  web_search: webSearchHandler,
+  WebFetch: webFetchHandler,
+  WebSearch: webSearchHandler,
 };
 
 type ToolProps = {
@@ -101,9 +104,9 @@ export function RenderTool(props: ToolProps) {
     json: props.json,
     name: props.name as ToolName,
   });
-  if (isErr(maybeTool)) return null;
+  if (maybeTool.isErr()) return null;
 
-  const tool = maybeTool[1];
+  const tool = maybeTool.value;
   const handler = toolHandlers[tool.name] as ToolHandler<
     ToolName,
     RenderContext
@@ -125,8 +128,8 @@ export function RenderTool(props: ToolProps) {
       name: props.response.name as ToolName,
     });
 
-    if (isErr(maybeResponse)) return undefined;
-    return maybeResponse[1];
+    if (maybeResponse.isErr()) return undefined;
+    return maybeResponse.value;
   };
 
   return (
@@ -165,9 +168,9 @@ export async function triggerToolCall(args: TriggerToolArgs) {
           name: name as ToolName,
         });
 
-  if (isErr(maybeTool)) return;
+  if (maybeTool.isErr()) return;
 
-  const tool = maybeTool[1];
+  const tool = maybeTool.value;
   const handler = toolHandlers[tool.name] as ToolHandler<
     ToolName,
     RenderContext

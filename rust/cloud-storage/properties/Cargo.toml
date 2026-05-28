@@ -6,14 +6,14 @@ version = "0.1.0"
 
 [features]
 ai_tools = [
-  "dep:ai",
+  "dep:ai_toolset",
   "dep:async-trait",
   "dep:chrono",
   "dep:schemars",
 ]
 
 [dependencies]
-ai = { path = "../ai", optional = true }
+ai_toolset = { path = "../ai_toolset", optional = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
@@ -22,7 +22,6 @@ entity_access_db_utils = { path = "../entity_access_db_utils" }
 futures = { workspace = true }
 email_db_client = { path = "../email_db_client" }
 macro_db_client = { path = "../macro_db_client" }
-macro_middleware = { path = "../macro_middleware", default-features = false, features = ["cloud_storage", "user_permissions"] }
 notification = { path = "../notification" }
 macro_user_id = { path = "../macro_user_id" }
 macro_uuid = { path = "../macro_uuid" }
@@ -40,7 +39,7 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-ai = { path = "../ai" }
+ai_toolset = { path = "../ai_toolset" }
 mockall = { workspace = true }
 macro_db_migrator = { path = "../macro_db_migrator" }
 serde_json = { workspace = true }

@@ -1,20 +1,18 @@
 import type { SurfaceProps } from './Surface';
 import type { ParentProps } from 'solid-js';
-import { Show, splitProps } from 'solid-js';
+import { children, Show, splitProps } from 'solid-js';
 import { cn } from '../utils/classname';
 import { Surface } from './Surface';
 import { Scroll } from './Scroll';
 
-/**
- * ```tsx
- * <Panel>
- *   <Panel.Header>Title</Panel.Header>
- *   <Panel.Toolbar>...</Panel.Toolbar>
- *   <Panel.Body>...</Panel.Body>
- *   <Panel.Footer>...</Panel.Footer>
- * </Panel>
- * ```
- */
+/*
+<Panel>
+  <Panel.Header></Panel.Header>
+  <Panel.Toolbar></Panel.Toolbar>
+  <Panel.Body></Panel.Body>
+  <Panel.Footer></Panel.Footer>
+</Panel>
+*/
 
 type BodyProps = ParentProps<{ class?: string; scroll?: boolean }>;
 type SlotProps = ParentProps<{ class?: string }>;
@@ -39,34 +37,37 @@ function PanelRoot(props: PanelProps) {
 }
 
 function PanelHeader(props: SlotProps) {
+  const resolved = children(() => props.children);
   return (
-    <Show when={props.children}>
+    <Show when={resolved()}>
       <div
         class={cn('flex flex-none items-center min-h-10 px-2 overflow-x-hidden border-b border-edge-muted overflow-hidden', props.class)}
         style={{ 'grid-area': 'header' }}
       >
-        {props.children}
+        {resolved()}
       </div>
     </Show>
   );
 }
 
 function PanelToolbar(props: SlotProps) {
+  const resolved = children(() => props.children);
   return (
-    <Show when={props.children}>
+    <Show when={resolved()}>
       <div
         class={cn('flex flex-none items-center min-h-10 px-2 overflow-x-hidden border-b border-edge-muted overflow-hidden', props.class)}
         style={{ 'grid-area': 'toolbar' }}
       >
-        {props.children}
+        {resolved()}
       </div>
     </Show>
   );
 }
 
 function PanelBody(props: BodyProps) {
+  const resolved = children(() => props.children);
   return (
-    <Show when={props.children}>
+    <Show when={resolved()}>
       <Show
         when={props.scroll}
         fallback={
@@ -74,12 +75,12 @@ function PanelBody(props: BodyProps) {
             class={cn('relative min-h-0 min-w-0 overflow-hidden', props.class)}
             style={{ 'grid-area': 'body' }}
           >
-            {props.children}
+            {resolved()}
           </div>
         }
       >
         <Scroll class={props.class} style={{ 'grid-area': 'body' }}>
-          {props.children}
+          {resolved()}
         </Scroll>
       </Show>
     </Show>
@@ -87,13 +88,14 @@ function PanelBody(props: BodyProps) {
 }
 
 function PanelFooter(props: SlotProps) {
+  const resolved = children(() => props.children);
   return (
-    <Show when={props.children}>
+    <Show when={resolved()}>
       <div
         class={cn('flex flex-none items-center min-h-10 px-2 overflow-x-hidden border-t border-edge-muted overflow-hidden', props.class)}
         style={{ 'grid-area': 'footer' }}
       >
-        {props.children}
+        {resolved()}
       </div>
     </Show>
   );

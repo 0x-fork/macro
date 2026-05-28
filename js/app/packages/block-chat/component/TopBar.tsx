@@ -23,10 +23,10 @@ import {
 } from '@core/component/TopBar/ShareButton';
 import { ENABLE_REFERENCES_MODAL } from '@core/constant/featureFlags';
 import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
-import Info from '@icon/regular/info.svg';
-import Notepad from '@icon/regular/notepad.svg';
-import Quotes from '@icon/regular/quotes.svg';
-import IconShared from '@macro-icons/wide/share.svg';
+import IconShared from '@icon/wide-share.svg';
+import Info from '@phosphor/info.svg';
+import Notepad from '@phosphor/notepad.svg';
+import Quotes from '@phosphor/quotes.svg';
 import { useOpenInstructionsMd } from 'core/component/AI/util/instructions';
 
 export function TopBar() {
@@ -48,10 +48,10 @@ export function TopBar() {
       icon: Info,
       action: detailsControl.toggle,
     },
-    { op: 'rename', divideAbove: true },
+    { op: 'rename' },
     { op: 'copy' },
     { op: 'moveToProject' },
-    { op: 'delete', divideAbove: true },
+    { op: 'delete' },
   ];
 
   const tools: BlockTool[] = [
@@ -78,7 +78,6 @@ export function TopBar() {
       label: 'Share',
       icon: IconShared,
       action: () => shareCtx.open(),
-      divideAbove: true,
       buttonComponent: () => <ShareTrigger />,
       focusTarget: getShareDrawerRecipientInput,
     },

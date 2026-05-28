@@ -1,32 +1,31 @@
 import { useAnalytics } from '@app/component/analytics-context';
-import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-bar/active-filter-chips';
+import { SoupActiveFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-active-filters-bar';
+import { SoupViewContextGroup } from '@app/component/next-soup/soup-view/filters-bar/soup-view-context-group';
 import { SoupViewContextSort } from '@app/component/next-soup/soup-view/filters-bar/soup-view-context-sort';
 import { UnifiedFilterDropdown } from '@app/component/next-soup/soup-view/filters-bar/unified-filter-dropdown';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
+import {
+  SplitToolbarLeft,
+  SplitToolbarRight,
+} from '@app/component/split-layout/components/SplitToolbar';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { LabelAndHotKey, Tooltip } from '@core/component/Tooltip';
 import { registerHotkey } from '@core/hotkey/hotkeys';
+import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
-import { AnimatedPreviewIcon } from '@macro-icons/wide/animating/preview';
-import { Button } from '@ui';
+import EyeIcon from '@phosphor-icons/core/regular/eye.svg?component-solid';
+import EyeSlashIcon from '@phosphor-icons/core/regular/eye-slash.svg?component-solid';
+import { Button, Tooltip } from '@ui';
 import { createMemo, createSignal, Show } from 'solid-js';
 import { useSoup } from '../../soup-context';
 
-export const SoupFiltersBar = () => {
-  const {
-    resetToTabDefaults,
-    activeFiltersList,
-    removeFilter,
-    replaceFilter,
-    isOptionActive,
-  } = useFilterRefinements();
+export function SoupFiltersBar() {
+  const { resetToTabDefaults, consolidatedFiltersList } =
+    useFilterRefinements();
+  const [filterDropdownOpen, setFilterDropdownOpen] = createSignal(false);
 
-  const analytics = useAnalytics();
-
-  const [previewBtnHovering, setPreviewBtnHovering] = createSignal(false);
-
-  const soup = useSoup();
   const panel = useSplitPanelOrThrow();
+  const analytics = useAnalytics();
+  const soup = useSoup();
 
   const togglePreview = () => {
     const currentPreview = soup.previewEntity();
@@ -34,23 +33,23 @@ export const SoupFiltersBar = () => {
       soup.setPreviewEntity(undefined);
       return;
     }
-
     const focused = soup.focus.id();
-
-    if (!focused) return;
-
+    if (!focused) {
+      return;
+    }
     analytics.track('preview_panel_use');
     soup.setPreviewEntity(focused);
   };
 
   registerHotkey({
-    hotkey: 'space',
+    hotkeyToken: TOKENS.unifiedList.togglePreview,
     scopeId: panel.splitHotkeyScope,
     description: 'Toggle preview',
     keyDownHandler: () => {
       togglePreview();
       return true;
     },
+    hotkey: 'space',
   });
 
   const isSearchView = createMemo(() => {
@@ -60,32 +59,37 @@ export const SoupFiltersBar = () => {
 
   return (
     <Show when={!isMobile()}>
-      <div class="flex items-start gap-2 border-b border-edge-muted w-full px-2 py-1.5">
-        <UnifiedFilterDropdown />
-        <ActiveFilterChips
-          filters={activeFiltersList()}
-          onRemove={removeFilter}
-          onReplace={replaceFilter}
-          onClearAll={resetToTabDefaults}
-          isOptionActive={isOptionActive}
-        />
-        <div class="flex-1" />
-        <Tooltip tooltip={<LabelAndHotKey label="Preview" shortcut="space" />}>
+      <SplitToolbarLeft>
+        <div class="flex items-start gap-2 min-w-0 flex-1">
+          <Show when={!isSearchView()}>
+            <SoupViewContextSort />
+            <SoupViewContextGroup />
+          </Show>
+          <UnifiedFilterDropdown
+            open={filterDropdownOpen}
+            onOpenChange={setFilterDropdownOpen}
+          />
+        </div>
+      </SplitToolbarLeft>
+      <SplitToolbarRight>
+        <Tooltip hotkey={TOKENS.unifiedList.togglePreview} label="Preview">
           <Button
-            variant={soup.previewEntity() ? 'active' : 'ghost'}
-            size="sm"
-            class="rounded-xs [&_svg]:size-4 px-1 border border-transparent"
             onClick={togglePreview}
-            onMouseEnter={() => setPreviewBtnHovering(true)}
-            onMouseLeave={() => setPreviewBtnHovering(false)}
+            variant="base"
+            size="sm"
+            depth={2}
+            class="bg-surface"
           >
-            <AnimatedPreviewIcon triggerAnimation={previewBtnHovering()} />
+            {soup.previewEntity() ? <EyeSlashIcon /> : <EyeIcon />}
+            <span>Preview</span>
           </Button>
         </Tooltip>
-        <Show when={!isSearchView()}>
-          <SoupViewContextSort />
-        </Show>
-      </div>
+      </SplitToolbarRight>
+      {/* Active filters bar - shown below the toolbar when there are filters */}
+      <SoupActiveFiltersBar
+        filters={consolidatedFiltersList()}
+        onClearAll={resetToTabDefaults}
+      />
     </Show>
   );
-};
+}

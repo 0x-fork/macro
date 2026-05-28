@@ -19,62 +19,87 @@ import {
   type FetchWithTokenErrorCode,
   fetchWithToken,
 } from '@core/util/fetchWithToken';
-import {
-  err,
-  isErr,
-  isOk,
-  type MaybeError,
-  type MaybeResult,
-  mapOk,
-  ok,
-} from '@core/util/maybeResult';
 import { registerClient } from '@core/util/mockClient';
+import type { ResultError } from '@core/util/result';
+
 import type { SafeFetchInit } from '@core/util/safeFetch';
 import type { IDocumentStorageServiceFile } from '@filesystem/file';
+import type { ApiChannelWithLatest } from '@service-comms/generated/models/apiChannelWithLatest';
 import { platformFetch } from 'core/util/platformFetch';
+import { err, ok, type Result } from 'neverthrow';
 import type {
   AccessLevel,
   CallRecordPreview,
+  GithubPullRequestsResponse,
   PostSoupAstRequest,
   PostSoupRequest,
   SoupPage,
   View,
   ViewsResponse,
 } from './generated/schemas';
+import type { AddParticipantsRequest } from './generated/schemas/addParticipantsRequest';
 import type { AddPinRequest } from './generated/schemas/addPinRequest';
 import type { AnchorResponse } from './generated/schemas/anchorResponse';
+import type { ApiChannelAttachmentsPage } from './generated/schemas/apiChannelAttachmentsPage';
+import type { ApiChannelMessagesPage } from './generated/schemas/apiChannelMessagesPage';
+import type { ApiChannelParticipant } from './generated/schemas/apiChannelParticipant';
+import type { ApiResolvedChannelMessage } from './generated/schemas/apiResolvedChannelMessage';
+import type { ApiThreadReply } from './generated/schemas/apiThreadReply';
+import type { ChannelMessageFilters } from './generated/schemas/channelMessageFilters';
+import { ChannelType } from './generated/schemas/channelType';
 import {
   type CloudStorageItemType,
   CloudStorageItemType as CloudStorageItemTypeMap,
 } from './generated/schemas/cloudStorageItemType';
+import type { CreateChannelRequest } from './generated/schemas/createChannelRequest';
+import type { CreateChannelResponse } from './generated/schemas/createChannelResponse';
 import type { CreateCommentResponse } from './generated/schemas/createCommentResponse';
 import type { CreateDocument200 as CreateDocumentResponse } from './generated/schemas/createDocument200';
 import type { CreateDocumentRequest } from './generated/schemas/createDocumentRequest';
+import type { CreateEntityMentionRequest } from './generated/schemas/createEntityMentionRequest';
+import type { CreateEntityMentionResponse } from './generated/schemas/createEntityMentionResponse';
 import type { CreateInstructionsDocumentResponse } from './generated/schemas/createInstructionsDocumentResponse';
+import type { CreateMarkdownDocumentRequest } from './generated/schemas/createMarkdownDocumentRequest';
+import type { CreateMarkdownHandler200 } from './generated/schemas/createMarkdownHandler200';
 import type { CreateProjectResponse } from './generated/schemas/createProjectResponse';
-import type { CreateTaskHandler200 as CreateTaskResponse } from './generated/schemas/createTaskHandler200';
+import type { CreateTaskHandler200 } from './generated/schemas/createTaskHandler200';
 import type { CreateTaskRequest } from './generated/schemas/createTaskRequest';
 import type { CreateUnthreadedAnchorResponse } from './generated/schemas/createUnthreadedAnchorResponse';
 import type { DeleteCommentResponse } from './generated/schemas/deleteCommentResponse';
+import type { DeleteEntityMentionResponse } from './generated/schemas/deleteEntityMentionResponse';
 import type { DeleteUnthreadedAnchorResponse } from './generated/schemas/deleteUnthreadedAnchorResponse';
 import type { DocumentMetadata } from './generated/schemas/documentMetadata';
 import type { DocumentPreview } from './generated/schemas/documentPreview';
+import type { DocumentResponseMetadataWithContent } from './generated/schemas/documentResponseMetadataWithContent';
 import type { EditAnchorResponse } from './generated/schemas/editAnchorResponse';
 import type { EditCommentResponse } from './generated/schemas/editCommentResponse';
 import type { ExportDocumentResponse } from './generated/schemas/exportDocumentResponse';
+import type { GetAttachmentReferencesResponse } from './generated/schemas/getAttachmentReferencesResponse';
 import type { GetBatchProjectPreviewResponse } from './generated/schemas/getBatchProjectPreviewResponse';
 import type { GetDocumentPermissionsResponseDataV2 } from './generated/schemas/getDocumentPermissionsResponseDataV2';
 import type { GetDocumentProcessingResultResponse } from './generated/schemas/getDocumentProcessingResultResponse';
 import type { GetDocumentResponseData } from './generated/schemas/getDocumentResponseData';
 import type { GetDocumentSearchResponse } from './generated/schemas/getDocumentSearchResponse';
 import type { GetInstructionsDocumentResponse } from './generated/schemas/getInstructionsDocumentResponse';
+import type { GetMessageWithContextParams } from './generated/schemas/getMessageWithContextParams';
+import type { GetMessageWithContextResponse } from './generated/schemas/getMessageWithContextResponse';
+import type { GetOrCreateChannelResponse } from './generated/schemas/getOrCreateChannelResponse';
+import type { GetOrCreateDmRequest } from './generated/schemas/getOrCreateDmRequest';
+import type { GetOrCreatePrivateRequest } from './generated/schemas/getOrCreatePrivateRequest';
 import type { GetPendingProjectsHandler200 } from './generated/schemas/getPendingProjectsHandler200';
 import type { GetProjectContentResponse } from './generated/schemas/getProjectContentResponse';
 import type { GetProjectResponse } from './generated/schemas/getProjectResponse';
 import type { Item } from './generated/schemas/item';
-import type { LocationResponseData } from './generated/schemas/locationResponseData';
+import type { LocationResponseV3 } from './generated/schemas/locationResponseV3';
+import type { PatchChannelRequest } from './generated/schemas/patchChannelRequest';
+import type { PatchMessageRequest } from './generated/schemas/patchMessageRequest';
 import type { PinRequest } from './generated/schemas/pinRequest';
+import type { PostMessageRequest } from './generated/schemas/postMessageRequest';
+import type { PostMessageResponse } from './generated/schemas/postMessageResponse';
+import type { PostReactionRequest } from './generated/schemas/postReactionRequest';
+import type { PostTypingRequest } from './generated/schemas/postTypingRequest';
 import type { Project } from './generated/schemas/project';
+import type { RemoveParticipantsRequest } from './generated/schemas/removeParticipantsRequest';
 import type { ReorderPinRequest } from './generated/schemas/reorderPinRequest';
 import type { SaveDocumentResponseData } from './generated/schemas/saveDocumentResponseData';
 import type { SharePermissionV2 } from './generated/schemas/sharePermissionV2';
@@ -96,6 +121,10 @@ import {
   getDocxExpandedParts,
 } from './util/getDocxFile';
 
+function normalizeLocationResponseV3(response: LocationResponseV3) {
+  return response;
+}
+
 // the server is set to expire at 15 minutes, so expire just before that
 const MINUTES_BEFORE_PRESIGNED_EXPIRES = 14;
 
@@ -104,21 +133,21 @@ const dssHost = SERVER_HOSTS['document-storage-service'];
 export function dssFetch(
   url: string,
   init?: SafeFetchInit
-): Promise<MaybeError<FetchWithTokenErrorCode>>;
+): Promise<Result<void, ResultError<FetchWithTokenErrorCode>[]>>;
 export function dssFetch<T extends Record<string, any>>(
   url: string,
   init?: SafeFetchInit
-): Promise<MaybeResult<FetchWithTokenErrorCode, T>>;
+): Promise<Result<T, ResultError<FetchWithTokenErrorCode>[]>>;
 export function dssFetch<T extends Record<string, any> = never>(
   url: string,
   init?: SafeFetchInit
 ):
-  | Promise<MaybeResult<FetchWithTokenErrorCode, T>>
-  | Promise<MaybeError<FetchWithTokenErrorCode>> {
+  | Promise<Result<T, ResultError<FetchWithTokenErrorCode>[]>>
+  | Promise<Result<void, ResultError<FetchWithTokenErrorCode>[]>> {
   return fetchWithToken<T>(`${dssHost}${url}`, init);
 }
 
-export type Success = {
+type Success = {
   id: string | null | undefined;
   success: boolean;
 };
@@ -134,6 +163,35 @@ export type ItemType =
 
 export const DEFAULT_ITEM_TYPE: ItemType = 'document';
 
+export type { ApiAttachmentChannelReference } from './generated/schemas/apiAttachmentChannelReference';
+export type { ApiAttachmentEntityReference } from './generated/schemas/apiAttachmentEntityReference';
+export type { ApiAttachmentGenericReference } from './generated/schemas/apiAttachmentGenericReference';
+export type { ApiChannelAttachment } from './generated/schemas/apiChannelAttachment';
+export type { ApiChannelAttachmentsPage as ChannelAttachmentsPage } from './generated/schemas/apiChannelAttachmentsPage';
+export type { ApiChannelContextMessage } from './generated/schemas/apiChannelContextMessage';
+export type { ApiChannelMessage } from './generated/schemas/apiChannelMessage';
+export type { ApiChannelMessagesPage as ChannelMessagesPage } from './generated/schemas/apiChannelMessagesPage';
+export type { ApiChannelParticipant } from './generated/schemas/apiChannelParticipant';
+export type { ApiThreadReply } from './generated/schemas/apiThreadReply';
+export type { GetOrCreateChannelResponse } from './generated/schemas/getOrCreateChannelResponse';
+
+export type IdResponse = { id: string };
+export type MessageResponse = { message: string };
+
+type WithChannelId = { channel_id: string };
+type WithMessageId = { message_id: string };
+type WithMentionId = { mention_id: string };
+type WithEntity = { entity_type: string; entity_id: string };
+export type ChannelAttachmentType = 'static' | 'dss';
+
+export const ChannelTypeEnum = {
+  Public: ChannelType.public,
+  Organization: ChannelType.organization,
+  Private: ChannelType.private,
+  DirectMessage: ChannelType.direct_message,
+  Team: ChannelType.team,
+} as const satisfies Record<string, ChannelType>;
+
 const itemTypeSet = new Set([
   'document',
   'chat',
@@ -146,7 +204,7 @@ const itemTypeSet = new Set([
   'thread',
 ]);
 
-export function isItemType(str: string): str is ItemType {
+function _isItemType(str: string): str is ItemType {
   return itemTypeSet.has(str);
 }
 
@@ -177,6 +235,7 @@ export function stringToItemType(str: string): ItemType | undefined {
     case 'thread': {
       return 'email';
     }
+    case 'call':
     case 'chat':
     case 'document':
     case 'project':
@@ -193,14 +252,14 @@ export function isCloudStorageItem(
   return Object.values(CloudStorageItemTypeMap).includes(item as any);
 }
 
-export type ProcessingResultType = 'PREPROCESS' | 'SPLIT_TEXTS';
+type ProcessingResultType = 'PREPROCESS' | 'SPLIT_TEXTS';
 export type ProcessingResultResponseType<T extends ProcessingResultType> =
   T extends 'PREPROCESS'
     ? ICoParse
     : T extends 'SPLIT_TEXTS'
       ? TSegment[]
       : never;
-export type UserPins = UserPinsResponse;
+type UserPins = UserPinsResponse;
 
 function withVersionId(version_id?: string | undefined | null): string {
   return version_id ? `?version_id=${version_id}` : '';
@@ -215,20 +274,18 @@ const { showPaywall } = usePaywallState();
 
 export const storageServiceClient = {
   async ping() {
-    return mapOk(
-      await dssFetch<SuccessResponse>(`/ping`),
+    return (await dssFetch<SuccessResponse>(`/ping`)).map(
       (result) => result.data
     );
   },
 
   async bulkWakeupSyncServiceDocuments(args: { document_ids: string[] }) {
-    return mapOk(
+    return (
       await dssFetch<{ dispatched: number }>(`/sync_service/wakeup`, {
         method: 'POST',
         body: JSON.stringify({ document_ids: args.document_ids }),
-      }),
-      (result) => result
-    );
+      })
+    ).map((result) => result);
   },
 
   async getSoupItems(args: {
@@ -260,6 +317,389 @@ export const storageServiceClient = {
     });
   },
 
+  async getGroupedSoupAstItems(args: {
+    params: {
+      cursor?: string | null;
+      group_by: unknown;
+      group_key?: string | null;
+    };
+    body: PostSoupAstRequest;
+  }) {
+    const params = new URLSearchParams();
+    if (args.params.cursor) params.set('cursor', args.params.cursor);
+    const searchParams = params.toString() ? `?${params.toString()}` : '';
+
+    const body: Record<string, unknown> = { ...args.body };
+    if (args.params.group_by) body.group_by = args.params.group_by;
+    if (args.params.group_key != null) body.group_key = args.params.group_key;
+
+    return await dssFetch<
+      SoupPage & {
+        groups?: {
+          key: string;
+          label: string;
+          display_order: number | null;
+          total_count: number;
+          page_count: number;
+          start_index: number;
+          next_cursor: string | null;
+        }[];
+      }
+    >(`/items/soup/ast/grouped${searchParams}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async createChannel(args: CreateChannelRequest) {
+    return (
+      await dssFetch<CreateChannelResponse>(`/channels`, {
+        method: 'POST',
+        body: JSON.stringify(args),
+      })
+    ).map((result) => result);
+  },
+
+  // The channel list is still served by the comms hex, mounted at
+  // `/comms/channels` on the same DSS host. Repoint to `/channels` once the
+  // list moves into the channels hex (alongside the comms teardown).
+  async getChannels() {
+    return (
+      await dssFetch<ApiChannelWithLatest[]>(`/comms/channels`, {
+        method: 'GET',
+      })
+    ).map((result) => result);
+  },
+
+  async getOrCreateDirectMessage(args: GetOrCreateDmRequest) {
+    const { recipient_id } = args;
+    return (
+      await dssFetch<GetOrCreateChannelResponse>(`/channels/get_or_create_dm`, {
+        method: 'POST',
+        body: JSON.stringify({ recipient_id }),
+      })
+    ).map((result) => result);
+  },
+
+  async getOrCreatePrivateChannel(args: GetOrCreatePrivateRequest) {
+    const { recipients } = args;
+    return (
+      await dssFetch<GetOrCreateChannelResponse>(
+        `/channels/get_or_create_private`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ recipients }),
+        }
+      )
+    ).map((result) => result);
+  },
+
+  async patchChannel(args: WithChannelId & PatchChannelRequest) {
+    const { channel_id, channel_name } = args;
+    return (
+      await dssFetch<MessageResponse>(`/channels/${channel_id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ channel_name }),
+      })
+    ).map((result) => result);
+  },
+
+  async deleteChannel(args: WithChannelId) {
+    const { channel_id } = args;
+    return (
+      await dssFetch<MessageResponse>(`/channels/${channel_id}`, {
+        method: 'DELETE',
+      })
+    ).map((result) => result);
+  },
+
+  async postMessage(
+    args: WithChannelId & { message: PostMessageRequest; nonce?: string }
+  ) {
+    const { channel_id, message, nonce } = args;
+    const uniqueMentions = Array.from(new Set(message.mentions));
+    const sendMessage = { ...message, mentions: uniqueMentions, nonce };
+    return (
+      await dssFetch<PostMessageResponse>(`/channels/${channel_id}/message`, {
+        method: 'POST',
+        body: JSON.stringify(sendMessage),
+      })
+    ).map((result) => result);
+  },
+
+  async patchMessage(
+    args: PatchMessageRequest &
+      WithChannelId &
+      WithMessageId & { nonce?: string }
+  ) {
+    const {
+      channel_id,
+      content,
+      message_id,
+      mentions,
+      attachment_ids_to_delete,
+      attachments_to_add,
+      nonce,
+    } = args;
+    return (
+      await dssFetch<MessageResponse>(
+        `/channels/${channel_id}/message/${message_id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            content,
+            mentions,
+            attachment_ids_to_delete,
+            attachments_to_add,
+            nonce,
+          }),
+        }
+      )
+    ).map((result) => result);
+  },
+
+  async deleteMessage(
+    args: WithChannelId & WithMessageId & { nonce?: string }
+  ) {
+    const { channel_id, message_id, nonce } = args;
+    const params = new URLSearchParams();
+    if (nonce) params.append('nonce', nonce);
+    const query = params.toString();
+    return (
+      await dssFetch<MessageResponse>(
+        `/channels/${channel_id}/message/${message_id}${query ? `?${query}` : ''}`,
+        {
+          method: 'DELETE',
+        }
+      )
+    ).map((result) => result);
+  },
+
+  async postReaction(
+    args: PostReactionRequest & WithChannelId & { nonce?: string }
+  ) {
+    const { channel_id, action, emoji, message_id, nonce } = args;
+    return (
+      await dssFetch<MessageResponse>(`/channels/${channel_id}/reaction`, {
+        method: 'POST',
+        body: JSON.stringify({ action, emoji, message_id, nonce }),
+      })
+    ).map((result) => result);
+  },
+
+  async postTypingUpdate(
+    args: PostTypingRequest & WithChannelId & { nonce?: string }
+  ) {
+    const { channel_id, action, thread_id, nonce } = args;
+    return (
+      await dssFetch<MessageResponse>(`/channels/${channel_id}/typing`, {
+        method: 'POST',
+        body: JSON.stringify({ action, thread_id, nonce }),
+      })
+    ).map((result) => result);
+  },
+
+  async addParticipantsToChanenl(args: AddParticipantsRequest & WithChannelId) {
+    const { channel_id, participants } = args;
+    return (
+      await dssFetch<MessageResponse>(`/channels/${channel_id}/participants`, {
+        method: 'POST',
+        body: JSON.stringify({ participants }),
+      })
+    ).map((result) => result);
+  },
+
+  async addParticipantsToChannel(args: AddParticipantsRequest & WithChannelId) {
+    const { channel_id, participants } = args;
+    return (
+      await dssFetch<MessageResponse>(`/channels/${channel_id}/participants`, {
+        method: 'POST',
+        body: JSON.stringify({ participants }),
+      })
+    ).map((result) => result);
+  },
+
+  async removeParticipantsFromChannel(
+    args: RemoveParticipantsRequest & WithChannelId
+  ) {
+    const { channel_id, participants } = args;
+    return (
+      await dssFetch<MessageResponse>(`/channels/${channel_id}/participants`, {
+        method: 'DELETE',
+        body: JSON.stringify({ participants }),
+      })
+    ).map((result) => result);
+  },
+
+  async joinChannel(args: WithChannelId) {
+    const { channel_id } = args;
+    return (
+      await dssFetch<MessageResponse>(`/channels/${channel_id}/join`, {
+        method: 'POST',
+      })
+    ).map((result) => result);
+  },
+
+  async leaveChannel(args: WithChannelId) {
+    const { channel_id } = args;
+    return (
+      await dssFetch<MessageResponse>(`/channels/${channel_id}/leave`, {
+        method: 'POST',
+      })
+    ).map((result) => result);
+  },
+
+  async getChannelMessages(
+    args: WithChannelId & {
+      limit: number;
+      next_cursor: string | null;
+      previous_cursor: string | null;
+      load_around_message_id: string | null;
+    }
+  ) {
+    const {
+      channel_id,
+      limit,
+      next_cursor,
+      previous_cursor,
+      load_around_message_id,
+    } = args;
+    const params = new URLSearchParams();
+    params.append('limit', limit.toString());
+    if (load_around_message_id) {
+      params.append('load_around_message_id', load_around_message_id);
+    } else if (next_cursor) {
+      params.append('cursor', next_cursor);
+    } else if (previous_cursor) {
+      params.append('previous_cursor', previous_cursor);
+    }
+    return (
+      await dssFetch<ApiChannelMessagesPage>(
+        `/channels/${channel_id}/messages?${params.toString()}`,
+        { method: 'GET' }
+      )
+    ).map((result) => result);
+  },
+
+  async postChannelMessages(
+    args: WithChannelId & { filters: ChannelMessageFilters; limit?: number }
+  ) {
+    const { channel_id, filters, limit } = args;
+    const params = new URLSearchParams();
+    if (limit !== undefined) params.append('limit', limit.toString());
+    const query = params.toString();
+    return (
+      await dssFetch<ApiChannelMessagesPage>(
+        `/channels/${channel_id}/messages${query ? `?${query}` : ''}`,
+        {
+          method: 'POST',
+          body: JSON.stringify(filters),
+        }
+      )
+    ).map((result) => result);
+  },
+
+  async getThreadReplies(args: WithChannelId & WithMessageId) {
+    const { channel_id, message_id } = args;
+    return (
+      await dssFetch<Array<ApiThreadReply>>(
+        `/channels/${channel_id}/messages/${message_id}/replies`,
+        { method: 'GET' }
+      )
+    ).map((result) => result);
+  },
+
+  async resolveChannelMessage(args: WithChannelId & WithMessageId) {
+    const { channel_id, message_id } = args;
+    return (
+      await dssFetch<ApiResolvedChannelMessage>(
+        `/channels/${channel_id}/messages/${message_id}/resolve`,
+        { method: 'GET' }
+      )
+    ).map((result) => result);
+  },
+
+  async getMessageWithContext(
+    args: WithChannelId &
+      WithMessageId &
+      GetMessageWithContextParams & { signal?: AbortSignal }
+  ) {
+    const { channel_id, message_id, before, after, signal } = args;
+    const params = new URLSearchParams();
+    if (before !== undefined) params.append('before', before.toString());
+    if (after !== undefined) params.append('after', after.toString());
+    const query = params.toString();
+    return (
+      await dssFetch<GetMessageWithContextResponse>(
+        `/channels/${channel_id}/messages/${message_id}/context${query ? `?${query}` : ''}`,
+        { method: 'GET', signal }
+      )
+    ).map((result) => result);
+  },
+
+  async getChannelAttachments(
+    args: WithChannelId & {
+      limit: number;
+      cursor: string | null;
+      attachment_type?: ChannelAttachmentType;
+      signal?: AbortSignal;
+    }
+  ) {
+    const { channel_id, limit, cursor, attachment_type, signal } = args;
+    const params = new URLSearchParams();
+    params.append('limit', limit.toString());
+    if (cursor) params.append('cursor', cursor);
+    if (attachment_type) params.append('attachment_type', attachment_type);
+    return (
+      await dssFetch<ApiChannelAttachmentsPage>(
+        `/channels/${channel_id}/attachments?${params.toString()}`,
+        { method: 'GET', signal }
+      )
+    ).map((result) => result);
+  },
+
+  async getChannelParticipants(args: WithChannelId) {
+    const { channel_id } = args;
+    return (
+      await dssFetch<ApiChannelParticipant[]>(
+        `/channels/${channel_id}/participants`,
+        { method: 'GET' }
+      )
+    ).map((result) => result);
+  },
+
+  async createEntityMention(args: CreateEntityMentionRequest, token?: string) {
+    return (
+      await dssFetch<CreateEntityMentionResponse>(`/channels/mentions`, {
+        method: 'POST',
+        body: JSON.stringify(args),
+        headers: token ? { 'x-permissions-token': token } : undefined,
+      })
+    ).map((result) => result);
+  },
+
+  async deleteEntityMention(args: WithMentionId, token?: string) {
+    return (
+      await dssFetch<DeleteEntityMentionResponse>(
+        `/channels/mentions/${args.mention_id}`,
+        {
+          method: 'DELETE',
+          headers: token ? { 'x-permissions-token': token } : undefined,
+        }
+      )
+    ).map((result) => result);
+  },
+
+  async attachmentReferences(args: WithEntity) {
+    const { entity_type, entity_id } = args;
+    return (
+      await dssFetch<GetAttachmentReferencesResponse>(
+        `/channels/attachments/${entity_type}/${entity_id}/references`,
+        { method: 'GET' }
+      )
+    ).map((result) => result);
+  },
+
   permissionsTokens: {
     // Uses SYNC_PERMISSION_TOKEN_DSS_HOST instead of dssFetch so that tokens are
     // always signed by the DSS whose JWT secret matches the sync service's secret.
@@ -282,123 +722,113 @@ export const storageServiceClient = {
     },
   },
   async getUsersHistory() {
-    return mapOk(await dssFetch<{ data: Item[] }>(`/history`), (result) => ({
+    return (await dssFetch<{ data: Item[] }>(`/history`)).map((result) => ({
       data: result.data,
     }));
   },
 
   async upsertItemToUserHistory({ itemType, itemId }) {
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(`/history/${itemType}/${itemId}`, {
         method: 'POST',
-      }),
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 
   async removeItemFromUserHistory(params: {
     itemId: string;
     itemType: ItemType;
   }) {
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(
         `/history/${params.itemType}/${params.itemId}`,
         {
           method: 'DELETE',
         }
-      ),
-      (result) => result.data
-    );
+      )
+    ).map((result) => result.data);
   },
 
   async editDocument(params) {
     const { documentId, ...body } = params;
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(`/documents/${documentId}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
-      }),
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 
   async getUserDocuments(params: { limit: number; offset: number }) {
-    return mapOk(
+    return (
       await dssFetch<{
         data: {
           documents: DocumentMetadata[];
           total: number;
           next_offset: number;
         };
-      }>(`/documents?limit=${params.limit}&offset=${params.offset}`),
-      (result) => ({
-        documents: result.data.documents,
-        total: result.data.total,
-        nextOffset: result.data.next_offset,
-      })
-    );
+      }>(`/documents?limit=${params.limit}&offset=${params.offset}`)
+    ).map((result) => ({
+      documents: result.data.documents,
+      total: result.data.total,
+      nextOffset: result.data.next_offset,
+    }));
   },
 
   async initializeUserDocuments() {
-    return mapOk(
+    return (
       await dssFetch<{ success: boolean }>(
         '/documents/initialize_user_documents',
         {
           method: 'POST',
         }
-      ),
-      (result) => result
-    );
+      )
+    ).map((result) => result);
   },
 
   async deleteDocument(params: { documentId: string }) {
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(`/documents/${params.documentId}`, {
         method: 'DELETE',
-      }),
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 
   async getPins(params?: { limit?: number; offset?: number }) {
-    return mapOk(
+    return (
       await dssFetch<{ data: UserPins }>(
         `/pins?limit=${params?.limit ?? 10}&offset=${params?.offset ?? 0}`
-      ),
-      (result) => result.data
-    );
+      )
+    ).map((result) => result.data);
   },
 
   async pinItem(params: { id: string } & AddPinRequest) {
     const { id, ...body } = params;
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(`/pins/${id}`, {
         method: 'POST',
         body: JSON.stringify(body),
-      }),
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 
   async removePin(params: { id: string } & PinRequest) {
     const { id, ...body } = params;
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(`/pins/${id}`, {
         method: 'DELETE',
         body: JSON.stringify(body),
-      }),
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 
   async reorderPins(params: { pins: Array<ReorderPinRequest> }) {
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(`/pins`, {
         method: 'PATCH',
         body: JSON.stringify(params.pins),
-      }),
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 
   async getDocumentMetadata(params: {
@@ -416,18 +846,17 @@ export const storageServiceClient = {
         maxTries: 5,
       },
     };
-    return mapOk(
+    return (
       await dssFetch<{
         data: GetDocumentResponseData;
-      }>(`/documents/${params.documentId}${versionSuffix}`, fetchOptions),
-      (result) => {
-        const data = result.data;
-        return {
-          ...data,
-          documentMetadata: data.documentMetadata,
-        };
-      }
-    );
+      }>(`/documents/${params.documentId}${versionSuffix}`, fetchOptions)
+    ).map((result) => {
+      const data = result.data;
+      return {
+        ...data,
+        documentMetadata: data.documentMetadata,
+      };
+    });
   },
 
   async createDocument(request: CreateDocumentRequest) {
@@ -436,20 +865,20 @@ export const storageServiceClient = {
       body: JSON.stringify(request),
     });
 
-    if (!isOk(result)) {
-      const err = result[0];
+    if (!result.isOk()) {
+      const errors = result.error;
 
-      if (err[0].message.includes('403')) {
+      if (errors[0].message.includes('403')) {
         showPaywall(PaywallKey.FILE_LIMIT);
       }
-      return result;
+      return err(result.error);
     }
 
-    const [, { data }] = result;
+    const { data } = result.value;
 
     if (!data.presignedUrl) {
       console.error('no presigned url found for upload');
-      return err('SERVER_ERROR', 'Failed to upload file');
+      return err([{ code: 'SERVER_ERROR', message: 'Failed to upload file' }]);
     }
 
     return ok({
@@ -461,11 +890,34 @@ export const storageServiceClient = {
   },
 
   /**
-   * Creates a task with properties in a single call.
-   * NOTE: Content must be initialized separately via sync service (initializeFromSnapshot).
+   * Creates a markdown document and initializes its sync-service content on the backend.
+   */
+  async createMarkdownDocument(request: CreateMarkdownDocumentRequest) {
+    const result = await dssFetch<CreateMarkdownHandler200>(
+      `/documents/create_markdown`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }
+    );
+
+    if (!result.isOk()) {
+      const errors = result.error;
+      if (errors[0].message.includes('403')) {
+        showPaywall(PaywallKey.FILE_LIMIT);
+      }
+      return err(result.error);
+    }
+
+    const response = result.value;
+    return ok({ documentId: response.documentId });
+  },
+
+  /**
+   * Creates a task with properties and initializes its sync-service content on the backend.
    */
   async createTask(request: CreateTaskRequest) {
-    const result = await dssFetch<CreateTaskResponse>(
+    const result = await dssFetch<CreateTaskHandler200>(
       `/documents/create_task`,
       {
         method: 'POST',
@@ -473,16 +925,16 @@ export const storageServiceClient = {
       }
     );
 
-    if (!isOk(result)) {
-      const err = result[0];
-      if (err[0].message.includes('403')) {
+    if (!result.isOk()) {
+      const errors = result.error;
+      if (errors[0].message.includes('403')) {
         showPaywall(PaywallKey.FILE_LIMIT);
       }
-      return result;
+      return err(result.error);
     }
 
-    const [, response] = result;
-    return ok({ documentId: response.documentId });
+    const response = result.value;
+    return ok(response);
   },
 
   async copyDocument(params: {
@@ -493,64 +945,64 @@ export const storageServiceClient = {
   }) {
     const { documentId, documentVersionId, syncServiceVersion, ...body } =
       params;
-    const result: MaybeResult<FetchWithTokenErrorCode, DocumentMetadata> =
-      mapOk(
-        await dssFetch<{ data: { documentMetadata: DocumentMetadata } }>(
-          `/documents/${documentId}/copy${documentVersionId ? `?version_id=${documentVersionId}` : ''}`,
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              ...body,
-              versionId: syncServiceVersion,
-            }),
-          }
-        ),
-        (result) => result.data.documentMetadata
-      );
+    const copyResult = await dssFetch<{
+      data: { documentMetadata: DocumentResponseMetadataWithContent };
+    }>(
+      `/documents/${documentId}/copy${documentVersionId ? `?version_id=${documentVersionId}` : ''}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          ...body,
+          versionId: syncServiceVersion,
+        }),
+      }
+    );
 
-    if (isErr(result)) {
-      const err = result[0];
+    const result: Result<
+      DocumentResponseMetadataWithContent,
+      ResultError<FetchWithTokenErrorCode>[]
+    > = copyResult.map((result) => result.data.documentMetadata);
 
-      if (err[0].message.includes('403')) {
+    if (result.isErr()) {
+      const errors = result.error;
+
+      if (errors[0].message.includes('403')) {
         showPaywall(PaywallKey.FILE_LIMIT);
       }
-      return result;
+      return err(result.error);
     }
     return result;
   },
 
   async permanentlyDeleteDocument({ documentId }) {
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(`/documents/${documentId}/permanent`, {
         method: 'DELETE',
-      }),
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 
   async revertDocumentDelete({ documentId }) {
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(
         `/documents/${documentId}/revert_delete`,
         {
           method: 'PUT',
         }
-      ),
-      (result) => result.data
-    );
+      )
+    ).map((result) => result.data);
   },
 
   async getDocumentShortId({
     documentId,
   }: {
     documentId: string;
-  }): Promise<MaybeResult<FetchWithTokenErrorCode, string>> {
-    return mapOk(
+  }): Promise<Result<string, ResultError<FetchWithTokenErrorCode>[]>> {
+    return (
       await dssFetch<{ shortId: string }>(`/documents/${documentId}/short_id`, {
         method: 'GET',
-      }),
-      (result) => result.shortId
-    );
+      })
+    ).map((result) => result.shortId);
   },
 
   async getDocumentBranchName({
@@ -558,70 +1010,78 @@ export const storageServiceClient = {
   }: {
     documentId: string;
   }): Promise<
-    MaybeResult<
-      FetchWithTokenErrorCode,
-      { shortId: string; branchName: string }
+    Result<
+      { shortId: string; branchName: string },
+      ResultError<FetchWithTokenErrorCode>[]
     >
   > {
-    return mapOk(
+    return (
       await dssFetch<{ shortId: string; branchName: string }>(
         `/documents/${documentId}/branch_name`,
         { method: 'GET' }
-      ),
-      (result) => ({
-        shortId: result.shortId,
-        branchName: result.branchName,
-      })
+      )
+    ).map((result) => ({
+      shortId: result.shortId,
+      branchName: result.branchName,
+    }));
+  },
+
+  async getDocumentGithubPullRequests({
+    documentId,
+  }: {
+    documentId: string;
+  }): Promise<
+    Result<GithubPullRequestsResponse, ResultError<FetchWithTokenErrorCode>[]>
+  > {
+    return await dssFetch<GithubPullRequestsResponse>(
+      `/documents/${documentId}/github_prs`,
+      { method: 'GET' }
     );
   },
 
   async exportDocument({ documentId }) {
-    return mapOk(
+    return (
       await dssFetch<ExportDocumentResponse>(
         `/documents/${documentId}/export`,
         {
           method: 'GET',
         }
-      ),
-      (result) => result
-    );
+      )
+    ).map((result) => result);
   },
 
   async uploadModificationData(uploadData: unknown) {
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(`/documents/metadata/modification-data`, {
         method: 'PATCH',
         body: JSON.stringify(uploadData, modificationDataReplacer),
-      }),
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 
   async getBatchDocumentPreviews(args: { document_ids: string[] }) {
-    return mapOk(
+    return (
       await dssFetch<{ previews: DocumentPreview[] }>(`/documents/preview`, {
         method: 'POST',
         body: JSON.stringify({ document_ids: args.document_ids }),
-      }),
-      (result) => ({
-        previews: result.previews,
       })
-    );
+    ).map((result) => ({
+      previews: result.previews,
+    }));
   },
 
   async getBatchCallPreviews(args: { call_ids: string[] }) {
-    return mapOk(
+    return (
       await dssFetch<{ previews: CallRecordPreview[] }>(
         `/call/record/preview`,
         {
           method: 'POST',
           body: JSON.stringify({ callIds: args.call_ids }),
         }
-      ),
-      (result) => ({
-        previews: result.previews,
-      })
-    );
+      )
+    ).map((result) => ({
+      previews: result.previews,
+    }));
   },
 
   async getDocumentProcessingResult<T extends ProcessingResultType>(params: {
@@ -631,12 +1091,14 @@ export const storageServiceClient = {
     const result = await dssFetch<GetDocumentProcessingResultResponse>(
       `/documents/${params.documentId}/processing`
     );
-    if (!isOk(result)) return result;
+    if (!result.isOk()) return err(result.error);
 
-    const [, { data }] = result;
+    const { data } = result.value;
 
     if (!data?.result) {
-      return err('INVALID_RESPONSE', 'Processing result is missing');
+      return err([
+        { code: 'INVALID_RESPONSE', message: 'Processing result is missing' },
+      ]);
     }
     switch (params.type) {
       case 'PREPROCESS': {
@@ -645,10 +1107,17 @@ export const storageServiceClient = {
           ? ok({
               preprocess: parseResult.data,
             })
-          : err('INVALID_RESPONSE', 'Invalid PREPROCESS result');
+          : err([
+              {
+                code: 'INVALID_RESPONSE',
+                message: 'Invalid PREPROCESS result',
+              },
+            ]);
       }
       default:
-        return err('INVALID_RESPONSE', `Invalid type ${params.type}`);
+        return err([
+          { code: 'INVALID_RESPONSE', message: `Invalid type ${params.type}` },
+        ]);
     }
   },
   async getJobProcessingResult<T extends ProcessingResultType>(params: {
@@ -659,12 +1128,14 @@ export const storageServiceClient = {
     const result = await dssFetch<GetDocumentProcessingResultResponse>(
       `/documents/${params.documentId}/processing/${params.jobId}`
     );
-    if (!isOk(result)) return result;
+    if (!result.isOk()) return err(result.error);
 
-    const [, { data }] = result;
+    const { data } = result.value;
 
     if (!data?.result) {
-      return err('INVALID_RESPONSE', 'Processing result is missing');
+      return err([
+        { code: 'INVALID_RESPONSE', message: 'Processing result is missing' },
+      ]);
     }
     switch (params.type) {
       case 'PREPROCESS': {
@@ -673,16 +1144,22 @@ export const storageServiceClient = {
           ? ok({
               preprocess: parseResult.data,
             })
-          : err('INVALID_RESPONSE', 'Invalid PREPROCESS result');
+          : err([
+              {
+                code: 'INVALID_RESPONSE',
+                message: 'Invalid PREPROCESS result',
+              },
+            ]);
       }
       default:
-        return err('INVALID_RESPONSE', `Invalid type ${params.type}`);
+        return err([
+          { code: 'INVALID_RESPONSE', message: `Invalid type ${params.type}` },
+        ]);
     }
   },
 
   async listDocuments() {
-    return mapOk(
-      await dssFetch<GetDocumentSearchResponse>(`/documents/list`),
+    return (await dssFetch<GetDocumentSearchResponse>(`/documents/list`)).map(
       (result) => ({ documents: result.data })
     );
   },
@@ -701,7 +1178,9 @@ export const storageServiceClient = {
       JSON.parse(modificationDataString)
     );
     if (!attemptParse.success) {
-      return err('INVALID_DATA', 'Invalid modification data to save');
+      return err([
+        { code: 'INVALID_DATA', message: 'Invalid modification data to save' },
+      ]);
     }
 
     const body = `{ "sha": "${sha}", "modificationData": ${modificationDataString} }`;
@@ -712,19 +1191,21 @@ export const storageServiceClient = {
         body,
       }
     );
-    if (!isOk(result)) return result;
+    if (!result.isOk()) return err(result.error);
 
-    const [, { data }] = result;
+    const { data } = result.value;
 
     const metadata =
       saveDocumentHandlerResponse.shape.data.shape.documentMetadata.safeParse(
         data.documentMetadata
       );
     if (!metadata.success) {
-      return err(
-        'INVALID_RESPONSE',
-        'Invalid document metadata in server response'
-      );
+      return err([
+        {
+          code: 'INVALID_RESPONSE',
+          message: 'Invalid document metadata in server response',
+        },
+      ]);
     }
     return ok(metadata.data);
   },
@@ -740,90 +1221,86 @@ export const storageServiceClient = {
         body: formData,
       }
     );
-    if (!isOk(result)) return result;
+    if (!result.isOk()) return err(result.error);
 
-    const [, { data }] = result;
+    const { data } = result.value;
 
     const metadata =
       saveDocumentHandlerResponse.shape.data.shape.documentMetadata.safeParse(
         data.documentMetadata
       );
     if (!metadata.success) {
-      return err(
-        'INVALID_RESPONSE',
-        'Invalid document metatdata in server response'
-      );
+      return err([
+        {
+          code: 'INVALID_RESPONSE',
+          message: 'Invalid document metatdata in server response',
+        },
+      ]);
     }
     return ok(metadata.data);
   },
 
   annotations: {
     async getComments({ documentId }) {
-      return mapOk(
+      return (
         await dssFetch<ThreadResponse>(
           `/annotations/comments/document/${documentId}`,
           {
             method: 'GET',
           }
-        ),
-        (result) => ({ data: result.data })
-      );
+        )
+      ).map((result) => ({ data: result.data }));
     },
     async getAnchors({ documentId }) {
-      return mapOk(
+      return (
         await dssFetch<AnchorResponse>(
           `/annotations/anchors/document/${documentId}`,
           {
             method: 'GET',
           }
-        ),
-        (result) => ({ data: result.data })
-      );
+        )
+      ).map((result) => ({ data: result.data }));
     },
     async createComment({ documentId, body }) {
-      return mapOk(
+      return (
         await dssFetch<CreateCommentResponse>(
           `/annotations/comments/document/${documentId}`,
           {
             method: 'POST',
             body: JSON.stringify(body),
           }
-        ),
-        (result) => result
-      );
+        )
+      ).map((result) => result);
     },
     async createAnchor({ documentId, body }) {
-      return mapOk(
+      return (
         await dssFetch<CreateUnthreadedAnchorResponse>(
           `/annotations/anchors/document/${documentId}`,
           {
             method: 'POST',
             body: JSON.stringify(body),
           }
-        ),
-        (result) => result
-      );
+        )
+      ).map((result) => result);
     },
     async deleteComment({ commentId, body }) {
-      return mapOk(
+      return (
         await dssFetch<DeleteCommentResponse>(
           `/annotations/comments/comment/${commentId}`,
           {
             method: 'DELETE',
             body: JSON.stringify(body),
           }
-        ),
-        (result) => result
-      );
+        )
+      ).map((result) => result);
     },
     async deleteAnchor({ body }) {
-      return mapOk(
+      return (
         await dssFetch<DeleteUnthreadedAnchorResponse>(`/annotations/anchors`, {
           method: 'DELETE',
           body: JSON.stringify(body),
-        }),
-        (result) => result
-      );
+        })
+      ).map((result) => result);
     },
     async editComment({ commentId, body }) {
       return await dssFetch<EditCommentResponse>(
@@ -835,13 +1312,12 @@ export const storageServiceClient = {
       );
     },
     async editAnchor({ body }) {
-      return mapOk(
+      return (
         await dssFetch<EditAnchorResponse>(`/annotations/anchors`, {
           method: 'PATCH',
           body: JSON.stringify(body),
-        }),
-        (result) => result
-      );
+        })
+      ).map((result) => result);
     },
   },
 
@@ -849,9 +1325,9 @@ export const storageServiceClient = {
     async function getDocxFile(
       args
     ): Promise<
-      MaybeResult<
-        FetchError | 'INVALID_FILETYPE' | 'INVALID_DOCUMENT',
-        GetDocxFileResponse
+      Result<
+        GetDocxFileResponse,
+        ResultError<FetchError | 'INVALID_FILETYPE' | 'INVALID_DOCUMENT'>[]
       >
     > {
       const { documentId, documentVersionId } = args;
@@ -865,7 +1341,7 @@ export const storageServiceClient = {
             documentVersionId,
           }),
           args.withoutParts
-            ? (Promise.resolve([null, { presignedUrls: [] }]) as ReturnType<
+            ? (Promise.resolve(ok({ presignedUrls: [] })) as ReturnType<
                 typeof storageServiceClient.getWriterPartUrls
               >)
             : storageServiceClient.getWriterPartUrls({
@@ -875,11 +1351,11 @@ export const storageServiceClient = {
         ]);
       } else {
         metadataResult = await storageServiceClient.getDocumentMetadata(args);
-        if (isErr(metadataResult)) return metadataResult;
-        const [, { documentMetadata: metadata }] = metadataResult;
+        if (metadataResult.isErr()) return err(metadataResult.error);
+        const { documentMetadata: metadata } = metadataResult.value;
         const versionId = metadata.documentVersionId.toString();
         locationResult = args.withoutParts
-          ? await (Promise.resolve([null, { presignedUrls: [] }]) as ReturnType<
+          ? await (Promise.resolve(ok({ presignedUrls: [] })) as ReturnType<
               typeof storageServiceClient.getWriterPartUrls
             >)
           : await storageServiceClient.getWriterPartUrls({
@@ -888,27 +1364,31 @@ export const storageServiceClient = {
             });
       }
 
-      if (isErr(locationResult)) {
-        return locationResult;
+      if (locationResult.isErr()) {
+        return err(locationResult.error);
       }
 
-      if (isErr(metadataResult)) {
-        return metadataResult;
+      if (metadataResult.isErr()) {
+        return err(metadataResult.error);
       }
 
-      const [, info] = locationResult;
-      const [, { documentMetadata: metadata, userAccessLevel }] =
-        metadataResult;
+      const info = locationResult.value;
+      const { documentMetadata: metadata, userAccessLevel } =
+        metadataResult.value;
 
       if (metadata.fileType !== 'docx') {
-        return err('INVALID_FILETYPE', metadata.fileType ?? 'unknown');
+        return err([
+          { code: 'INVALID_FILETYPE', message: metadata.fileType ?? 'unknown' },
+        ]);
       }
 
       if (
         !args.withoutParts &&
         (info.presignedUrls == null || metadata.documentBom == null)
       ) {
-        return err('INVALID_DOCUMENT', 'Document has no parts');
+        return err([
+          { code: 'INVALID_DOCUMENT', message: 'Document has no parts' },
+        ]);
       }
 
       return ok<GetDocxFileResponse>({
@@ -927,26 +1407,36 @@ export const storageServiceClient = {
     async function getTextDocument(args) {
       const metadataResult =
         await storageServiceClient.getDocumentMetadata(args);
-      if (isErr(metadataResult)) return metadataResult;
-      const [, { documentMetadata, userAccessLevel }] = metadataResult;
+      if (metadataResult.isErr()) return err(metadataResult.error);
+      const { documentMetadata, userAccessLevel } = metadataResult.value;
       const locationResult = await storageServiceClient.getDocumentLocation({
         documentId: documentMetadata.documentId,
         versionId: documentMetadata.documentVersionId,
       });
-      if (isErr(locationResult, 'GONE'))
-        return err('NOT_FOUND', 'The document resource is no longer available');
-      else if (isErr(locationResult)) return locationResult;
-      const [, { data }] = locationResult;
-      if (!('presignedUrl' in data)) {
-        return err(
-          'INVALID_DOCUMENT',
-          'Document location is missing presignedUrl'
-        );
+      if (
+        locationResult.isErr() &&
+        locationResult.error.some((error) => error.code === 'GONE')
+      )
+        return err([
+          {
+            code: 'NOT_FOUND',
+            message: 'The document resource is no longer available',
+          },
+        ]);
+      else if (locationResult.isErr()) return err(locationResult.error);
+      const { data } = locationResult.value;
+      if (data.type !== 'presignedUrl') {
+        return err([
+          {
+            code: 'INVALID_DOCUMENT',
+            message: 'Document location is missing presignedUrl',
+          },
+        ]);
       }
 
       const result = await fetchPresigned(data.presignedUrl, 'text');
-      if (isErr(result)) return result;
-      const [, text] = result;
+      if (result.isErr()) return err(result.error);
+      const text = result.value;
       return ok({
         text,
         documentMetadata,
@@ -961,18 +1451,18 @@ export const storageServiceClient = {
   async getBinaryDocument(
     args
   ): Promise<
-    MaybeResult<
-      FetchError | 'INVALID_DOCUMENT',
-      GetDocumentResponseData & { blobUrl: string }
+    Result<
+      GetDocumentResponseData & { blobUrl: string },
+      ResultError<FetchError | 'INVALID_DOCUMENT'>[]
     >
   > {
     const maybeDocument = await storageServiceClient.getDocumentMetadata(args);
 
-    if (isErr(maybeDocument)) {
+    if (maybeDocument.isErr()) {
       console.error('error in getDocument', maybeDocument);
-      return maybeDocument;
+      return err(maybeDocument.error);
     }
-    const [, documentData] = maybeDocument;
+    const documentData = maybeDocument.value;
     const {
       documentMetadata: { documentId, documentVersionId: versionId },
     } = documentData;
@@ -981,17 +1471,19 @@ export const storageServiceClient = {
       documentId,
       versionId,
     });
-    if (isErr(maybeLocation)) {
+    if (maybeLocation.isErr()) {
       console.error('error in getLocation', maybeLocation);
-      return maybeLocation;
+      return err(maybeLocation.error);
     }
 
-    const [, { data }] = maybeLocation;
-    if (!('presignedUrl' in data)) {
-      return err(
-        'INVALID_DOCUMENT',
-        'Document location is missing presignedUrl'
-      );
+    const { data } = maybeLocation.value;
+    if (data.type !== 'presignedUrl') {
+      return err([
+        {
+          code: 'INVALID_DOCUMENT',
+          message: 'Document location is missing presignedUrl',
+        },
+      ]);
     }
 
     return ok({
@@ -1011,19 +1503,21 @@ export const storageServiceClient = {
         body: formData,
       }
     );
-    if (!isOk(result)) return result;
+    if (!result.isOk()) return err(result.error);
 
-    const [, { data }] = result;
+    const { data } = result.value;
 
     const metadata =
       saveDocumentHandlerResponse.shape.data.shape.documentMetadata.safeParse(
         data.documentMetadata
       );
     if (!metadata.success) {
-      return err(
-        'INVALID_RESPONSE',
-        'Invalid document metatdata in server response'
-      );
+      return err([
+        {
+          code: 'INVALID_RESPONSE',
+          message: 'Invalid document metatdata in server response',
+        },
+      ]);
     }
     return ok(metadata.data);
   },
@@ -1032,17 +1526,16 @@ export const storageServiceClient = {
     // this can be cached because it requires the version ID
     async function getWriterPartUrls(args) {
       const { uuid, versionId } = args;
-      return mapOk(
+      return (
         await dssFetch<{
           presignedUrls: Array<{ sha: string; presignedUrl: string }>;
-        }>(`/documents/${uuid}/location${withVersionId(versionId)}`),
-        (result) => ({
-          presignedUrls: result.presignedUrls.map((x) => ({
-            url: x.presignedUrl,
-            sha: x.sha,
-          })),
-        })
-      );
+        }>(`/documents/${uuid}/location${withVersionId(versionId)}`)
+      ).map((result) => ({
+        presignedUrls: result.presignedUrls.map((x) => ({
+          url: x.presignedUrl,
+          sha: x.sha,
+        })),
+      }));
     },
     {
       minutes: MINUTES_BEFORE_PRESIGNED_EXPIRES,
@@ -1053,12 +1546,18 @@ export const storageServiceClient = {
     async function getDocumentLocation(args) {
       const { documentId, versionId } = args;
       // we want to ensure we get the converted docx url if we have enabled the DOCX to PDF feature flag
-      const maybeResult = await dssFetch<LocationResponseData>(
-        `/documents/${documentId}/location?document_version_id=${versionId}&get_converted_docx_url=${ENABLE_DOCX_TO_PDF}`
+      const params = new URLSearchParams({
+        get_converted_docx_url: String(ENABLE_DOCX_TO_PDF),
+      });
+      if (versionId != null)
+        params.set('document_version_id', String(versionId));
+
+      const result = await dssFetch<LocationResponseV3>(
+        `/documents/${documentId}/location_v3?${params.toString()}`
       );
 
-      return mapOk(maybeResult, (result) => ({
-        data: result,
+      return result.map((result) => ({
+        data: normalizeLocationResponseV3(result),
       }));
     },
     {
@@ -1080,12 +1579,11 @@ export const storageServiceClient = {
 
   async getDocumentPermissions(args) {
     const { document_id } = args;
-    return mapOk(
+    return (
       await dssFetch<GetDocumentPermissionsResponseDataV2>(
         `/documents/${document_id}/permissions`
-      ),
-      (result) => result.documentPermissions
-    );
+      )
+    ).map((result) => result.documentPermissions);
   },
 
   getDocxExpandedParts,
@@ -1105,24 +1603,21 @@ export const storageServiceClient = {
 
   projects: {
     async getAll() {
-      return mapOk(
-        await dssFetch<{ data: Project[] }>('/projects'),
+      return (await dssFetch<{ data: Project[] }>('/projects')).map(
         (result) => ({ data: result.data })
       );
     },
 
     async getProject({ id }) {
-      return mapOk(
-        await dssFetch<GetProjectResponse>(`/projects/${id}`),
+      return (await dssFetch<GetProjectResponse>(`/projects/${id}`)).map(
         (result) => result.data
       );
     },
 
     async getPending() {
-      return mapOk(
-        await dssFetch<GetPendingProjectsHandler200>('/projects/pending'),
-        (result) => ({ data: result.data })
-      );
+      return (
+        await dssFetch<GetPendingProjectsHandler200>('/projects/pending')
+      ).map((result) => ({ data: result.data }));
     },
 
     async create(params: {
@@ -1130,102 +1625,92 @@ export const storageServiceClient = {
       projectParentId?: string;
       sharePermission?: null;
     }) {
-      return mapOk(
+      return (
         await dssFetch<CreateProjectResponse>('/projects', {
           method: 'POST',
           body: JSON.stringify(params),
-        }),
-        (result) => result.data
-      );
+        })
+      ).map((result) => result.data);
     },
 
     async delete({ id }: { id: string }) {
-      return mapOk(
+      return (
         await dssFetch<SuccessResponse>(`/projects/${id}`, {
           method: 'DELETE',
-        }),
-        (result) => result.data
-      );
+        })
+      ).map((result) => result.data);
     },
 
     async edit(args) {
       const { id, ...body } = args;
-      return mapOk(
+      return (
         await dssFetch<SuccessResponse>(`/projects/${id}`, {
           method: 'PATCH',
           body: JSON.stringify(body),
-        }),
-        (result) => result.data
-      );
+        })
+      ).map((result) => result.data);
     },
 
     async getContent({ id }: { id: string }) {
-      return mapOk(
-        await dssFetch<GetProjectContentResponse>(`/projects/${id}/content`),
-        (result) => result
-      );
+      return (
+        await dssFetch<GetProjectContentResponse>(`/projects/${id}/content`)
+      ).map((result) => result);
     },
 
     async getPermissions({ id }) {
-      return mapOk(
-        await dssFetch<SharePermissionV2>(`/projects/${id}/permissions`),
-        (result) => result
-      );
+      return (
+        await dssFetch<SharePermissionV2>(`/projects/${id}/permissions`)
+      ).map((result) => result);
     },
 
     async getUserAccessLevel({
       id,
-    }): Promise<MaybeResult<FetchWithTokenErrorCode, AccessLevel>> {
+    }): Promise<Result<AccessLevel, ResultError<FetchWithTokenErrorCode>[]>> {
       return await dssFetch<any>(`/projects/${id}/access_level`);
     },
 
     async getPreview(args) {
-      return mapOk(
+      return (
         await dssFetch<GetBatchProjectPreviewResponse>(`/projects/preview`, {
           method: 'POST',
           body: JSON.stringify(args),
-        }),
-        (result) => result
-      );
+        })
+      ).map((result) => result);
     },
 
     async createUploadZipRequest(args) {
-      return mapOk(
+      return (
         await dssFetch<UploadExtractFolderHandler200>(
           `/projects/upload_extract`,
           {
             method: 'POST',
             body: JSON.stringify(args),
           }
-        ),
-        (result) => result.data
-      );
+        )
+      ).map((result) => result.data);
     },
     async permanentlyDelete({ id }) {
-      return mapOk(
+      return (
         await dssFetch<SuccessResponse>(`/projects/${id}/permanent`, {
           method: 'DELETE',
-        }),
-        (result) => result.data
-      );
+        })
+      ).map((result) => result.data);
     },
 
     async revertDelete({ id }) {
-      return mapOk(
+      return (
         await dssFetch<SuccessResponse>(`/projects/${id}/revert_delete`, {
           method: 'PUT',
-        }),
-        (result) => result.data
-      );
+        })
+      ).map((result) => result.data);
     },
   },
   async getDeletedItems() {
-    return mapOk(
+    return (
       await dssFetch<TypedSuccessResponse>('/recents/deleted', {
         method: 'GET',
-      }),
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 
   instructions: {
@@ -1244,19 +1729,17 @@ export const storageServiceClient = {
 
   views: {
     async getSavedViews() {
-      return mapOk(
-        await dssFetch<ViewsResponse>('/saved_views'),
+      return (await dssFetch<ViewsResponse>('/saved_views')).map(
         (result) => result
       );
     },
     async createSavedView(params) {
-      return mapOk(
+      return (
         await dssFetch<View>('/saved_views', {
           method: 'POST',
           body: JSON.stringify(params),
-        }),
-        (result) => result
-      );
+        })
+      ).map((result) => result);
     },
     async excludeDefaultView(params) {
       return await dssFetch('/saved_views/exclude_default', {
@@ -1280,20 +1763,18 @@ export const storageServiceClient = {
   async editThread(params) {
     const { threadId, ...body } = params;
 
-    return mapOk(
+    return (
       await dssFetch<SuccessResponse>(`/threads/${threadId}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
-      }),
-
-      (result) => result.data
-    );
+      })
+    ).map((result) => result.data);
   },
 } satisfies StorageServiceClient &
   typeof enhancements &
   Record<string, unknown>;
 
-export const uploadFileToPresignedUrl = async (
+const _uploadFileToPresignedUrl = async (
   presignedUrl: URL,
   file: IDocumentStorageServiceFile,
   signal?: AbortSignal

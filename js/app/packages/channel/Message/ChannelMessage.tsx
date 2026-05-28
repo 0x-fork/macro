@@ -1,7 +1,7 @@
 import { useMessageActionDrawer } from '@channel/Mobile/message-action-drawer-context';
 import { longPressHighlight } from '@core/directive/longPressHighlight';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import TrashIcon from '@macro-icons/square/trash.svg';
+import TrashIcon from '@icon/square-trash.svg';
 import { cn } from '@ui';
 import { type JSX, Match, Show, Switch } from 'solid-js';
 import type { MessageEditor } from '../Channel/create-message-editor';
@@ -85,7 +85,7 @@ function _GroupedMeta(props: { messageEditor?: MessageEditor }) {
       <div
         class={cn(
           'absolute right-4 -top-9 z-10',
-          'items-center gap-2 shrink-0 bg-panel p-1',
+          'items-center gap-2 shrink-0 bg-surface p-1',
           'hidden group-hover/message:flex',
           isTouchDevice() && 'hidden'
         )}
@@ -189,6 +189,7 @@ export function ChannelMessage(props: ChannelMessageProps) {
       onClick={props.onClick}
       ref={(el) =>
         longPressHighlight(el, () => ({
+          className: 'channel-message-long-press-highlight',
           onLongPress: () => drawerManager?.open(props.message, props.actions),
         }))
       }

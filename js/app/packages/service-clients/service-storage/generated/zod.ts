@@ -564,6 +564,16 @@ export const editCommentResponse = zod
       documentName: zod.string(),
       documentOwner: zod.string(),
       fileType: zod.string().nullish(),
+      subType: zod
+        .union([
+          zod.null(),
+          zod
+            .enum(['task'])
+            .describe(
+              'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+            ),
+        ])
+        .optional(),
     })
   );
 
@@ -839,6 +849,12 @@ export const getBatchCallRecordPreviewResponse = zod
                   .string()
                   .nullish()
                   .describe('Resolved display name for the channel.'),
+                customName: zod
+                  .string()
+                  .nullish()
+                  .describe(
+                    'User-supplied or AI-generated display name for the call. Only set on\narchived `call_records`; active calls always return `None`.'
+                  ),
                 endedAt: zod.iso
                   .datetime({})
                   .nullish()
@@ -950,6 +966,9 @@ export const getCallRecordResponse = zod
       .nullish()
       .describe('Presigned URL for the call recording, if available.'),
     roomName: zod.string().describe('The RTC room name.'),
+    shareWithTeam: zod
+      .boolean()
+      .describe("Whether the call is shared with the creator's team."),
     startedAt: zod.iso
       .datetime({})
       .describe(
@@ -1192,6 +1211,12 @@ export const ingestTranscriptBody = zod
       .describe(
         "Stable per-speaker identifier produced by the STT provider's diarization\npass. Namespaced upstream by audio track so values are unique across all\ntracks in a call. `None` when the provider didn't return a speaker label."
       ),
+    embedding: zod
+      .array(zod.number())
+      .nullish()
+      .describe(
+        'Speaker voice embedding computed by the transcription agent\n(e.g. a Resemblyzer 256-dim vector). When present, the server\nupserts a `voice` row and stores the resulting id on the transcript\nsegment so the call-finished pipeline can match it to enrolled users.'
+      ),
     endedAt: zod.iso
       .datetime({})
       .nullish()
@@ -1218,6 +1243,209 @@ export const ingestTranscriptBody = zod
       ),
   })
   .describe('A transcript segment from LiveKit Inference STT.');
+
+/**
+ * @summary Handler for `POST /channels`.
+ */
+export const createChannelBody = zod
+  .object({
+    channel_type: zod
+      .enum(['public', 'organization', 'private', 'direct_message', 'team'])
+      .describe('Type of channel.'),
+    name: zod.string().nullish().describe('Optional channel name.'),
+    participants: zod
+      .array(zod.string())
+      .describe('Participants to add, excluding the owner.'),
+    team_id: zod.uuid().nullish().describe('Team id for team channels.'),
+  })
+  .describe('Request to create a channel.');
+
+export const createChannelResponse = zod
+  .object({
+    id: zod.string().describe('Created channel id.'),
+  })
+  .describe('Response returned after creating a channel.');
+
+/**
+ * @summary Handler for `GET /channels/attachments/{entity_type}/{entity_id}/references`.
+ */
+export const getAttachmentReferencesParams = zod.object({
+  entity_type: zod.string().describe('Type of the attachment entity'),
+  entity_id: zod.string().describe('Id of the attachment entity'),
+});
+
+export const getAttachmentReferencesResponse = zod
+  .object({
+    references: zod
+      .array(
+        zod
+          .union([
+            zod
+              .object({
+                attachment_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the attachment row was created.'),
+                channel_id: zod
+                  .uuid()
+                  .describe('Channel that contains the message.'),
+                channel_name: zod
+                  .string()
+                  .nullish()
+                  .describe('Optional channel name (DMs do not have a name).'),
+                message_content: zod
+                  .string()
+                  .describe(
+                    'Full message content (might be used for preview\/snippet).'
+                  ),
+                message_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the message itself was created.'),
+                message_id: zod
+                  .uuid()
+                  .describe('Message that contains the attachment reference.'),
+                sender_id: zod.string().describe('Sender of the message.'),
+                thread_id: zod
+                  .uuid()
+                  .nullish()
+                  .describe(
+                    'If the message belongs to a thread this is the parent id.'
+                  ),
+              })
+              .describe(
+                'A reference to an attachment entity from a channel message.'
+              )
+              .and(
+                zod.object({
+                  reference_type: zod.enum(['channel']),
+                })
+              )
+              .describe('Referenced from a channel message.'),
+            zod
+              .object({
+                created_at: zod.iso
+                  .datetime({})
+                  .describe('When this reference was created.'),
+                entity_id: zod
+                  .string()
+                  .describe('ID of the referenced entity.'),
+                entity_type: zod
+                  .string()
+                  .describe('Type of the referenced entity.'),
+                source_entity_id: zod
+                  .string()
+                  .describe('ID of the source entity.'),
+                source_entity_type: zod
+                  .string()
+                  .describe(
+                    'Type of the source entity (e.g., \"document\", \"chat\", etc.).'
+                  ),
+                user_id: zod
+                  .string()
+                  .nullish()
+                  .describe(
+                    'User who created this reference (optional for non-user sources).'
+                  ),
+              })
+              .describe(
+                'A reference to an attachment entity from a non-message source.'
+              )
+              .and(
+                zod.object({
+                  reference_type: zod.enum(['generic']),
+                })
+              )
+              .describe('Referenced from any non-message source entity.'),
+          ])
+          .describe('An attachment reference, tagged by source kind.')
+      )
+      .describe('References to the requested entity, newest-first.'),
+  })
+  .describe('Response from the attachment-references endpoint.');
+
+/**
+ * @summary Handler for `POST /channels/get_or_create_dm`.
+ */
+export const getOrCreateDmBody = zod
+  .object({
+    recipient_id: zod.string().describe('Recipient user id.'),
+  })
+  .describe('Request to get or create a direct message channel.');
+
+export const getOrCreateDmResponse = zod
+  .object({
+    action: zod
+      .enum(['get', 'create'])
+      .describe('Result of a get-or-create channel operation.'),
+    channel_id: zod.string().describe('Channel id.'),
+  })
+  .describe('Response for get-or-create channel operations.');
+
+/**
+ * @summary Handler for `POST /channels/get_or_create_private`.
+ */
+export const getOrCreatePrivateBody = zod
+  .object({
+    recipients: zod.array(zod.string()).describe('Recipient user ids.'),
+  })
+  .describe('Request to get or create a private channel.');
+
+export const getOrCreatePrivateResponse = zod
+  .object({
+    action: zod
+      .enum(['get', 'create'])
+      .describe('Result of a get-or-create channel operation.'),
+    channel_id: zod.string().describe('Channel id.'),
+  })
+  .describe('Response for get-or-create channel operations.');
+
+/**
+ * @summary Handler for `POST /channels/mentions`.
+ */
+export const createEntityMentionBody = zod
+  .object({
+    entity_id: zod.string().describe('Id of the mentioned entity.'),
+    entity_type: zod.string().describe('Type of the mentioned entity.'),
+    source_entity_id: zod
+      .string()
+      .describe('Id of the entity that owns the mention.'),
+    source_entity_type: zod
+      .string()
+      .describe('Type of the entity that owns the mention.'),
+  })
+  .describe('Request body for `POST \/channels\/mentions`.');
+
+/**
+ * @summary Handler for `DELETE /channels/mentions/{mention_id}`.
+ */
+export const deleteEntityMentionParams = zod.object({
+  mention_id: zod.uuid().describe('Entity mention id'),
+});
+
+export const deleteEntityMentionResponse = zod
+  .object({
+    deleted: zod.boolean().describe('Whether the mention was deleted.'),
+  })
+  .describe('Response body for `DELETE \/channels\/mentions\/{mention_id}`.');
+
+/**
+ * @summary Handler for `DELETE /channels/{channel_id}`.
+ */
+export const deleteChannelParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+/**
+ * @summary Handler for `PATCH /channels/{channel_id}`.
+ */
+export const patchChannelParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+export const patchChannelBody = zod
+  .object({
+    channel_name: zod.string().nullish().describe('New channel name.'),
+  })
+  .describe('Request to patch a channel.');
 
 /**
  * @summary Handler for `GET /channels/{channel_id}/attachments`.
@@ -1276,6 +1504,128 @@ export const getChannelAttachmentsResponse = zod
       .describe('Cursor for the next page, null if no more pages.'),
   })
   .describe('Paginated response of channel attachments.');
+
+/**
+ * @summary Handler for `POST /channels/{channel_id}/join`.
+ */
+export const joinChannelParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+/**
+ * @summary Handler for `POST /channels/{channel_id}/leave`.
+ */
+export const leaveChannelParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+/**
+ * @summary Handler for `POST /channels/{channel_id}/message`.
+ */
+export const postMessageParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+export const postMessageBody = zod
+  .object({
+    attachments: zod
+      .array(
+        zod
+          .object({
+            entity_id: zod.string().describe('Attachment entity id.'),
+            entity_type: zod.string().describe('Attachment entity type.'),
+            height: zod
+              .number()
+              .nullish()
+              .describe('Optional rendered height.'),
+            width: zod.number().nullish().describe('Optional rendered width.'),
+          })
+          .describe('New attachment to add to a channel message.')
+      )
+      .describe('Attachments to add after message creation.'),
+    content: zod.string().describe('Message body.'),
+    mentions: zod
+      .array(
+        zod
+          .object({
+            entity_id: zod.string().describe('Mentioned entity id.'),
+            entity_type: zod.string().describe('Mentioned entity type.'),
+          })
+          .describe('Simple entity mention attached to a message.')
+      )
+      .describe('Message mentions.'),
+    nonce: zod.string().nullish().describe('Optional optimistic-update nonce.'),
+    thread_id: zod.uuid().nullish().describe('Optional thread parent id.'),
+  })
+  .describe('Request to send a channel message.');
+
+export const postMessageResponse = zod
+  .object({
+    id: zod.string().describe('Created message id.'),
+    nonce: zod.string().nullish().describe('Optional optimistic-update nonce.'),
+  })
+  .describe('Response returned after sending a message.');
+
+/**
+ * @summary Handler for `DELETE /channels/{channel_id}/message/{message_id}`.
+ */
+export const deleteMessageParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+  message_id: zod.uuid().describe('Message ID'),
+});
+
+export const deleteMessageQueryParams = zod.object({
+  nonce: zod.string().optional().describe('Optional optimistic-update nonce'),
+});
+
+/**
+ * @summary Handler for `PATCH /channels/{channel_id}/message/{message_id}`.
+ */
+export const patchMessageParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+  message_id: zod.uuid().describe('Message ID'),
+});
+
+export const patchMessageBody = zod
+  .object({
+    attachment_ids_to_delete: zod
+      .array(zod.string())
+      .nullish()
+      .describe('Attachment ids to remove.'),
+    attachments_to_add: zod
+      .array(
+        zod
+          .object({
+            entity_id: zod.string().describe('Attachment entity id.'),
+            entity_type: zod.string().describe('Attachment entity type.'),
+            height: zod
+              .number()
+              .nullish()
+              .describe('Optional rendered height.'),
+            width: zod.number().nullish().describe('Optional rendered width.'),
+          })
+          .describe('New attachment to add to a channel message.')
+      )
+      .nullish()
+      .describe('Attachments to add.'),
+    content: zod
+      .string()
+      .nullish()
+      .describe('Optional replacement message body.'),
+    mentions: zod
+      .array(
+        zod
+          .object({
+            entity_id: zod.string().describe('Mentioned entity id.'),
+            entity_type: zod.string().describe('Mentioned entity type.'),
+          })
+          .describe('Simple entity mention attached to a message.')
+      )
+      .nullish()
+      .describe('Optional replacement mentions.'),
+    nonce: zod.string().nullish().describe('Optional optimistic-update nonce.'),
+  })
+  .describe('Request to patch a channel message.');
 
 /**
  * @summary Handler for `GET /channels/{channel_id}/messages`.
@@ -1672,6 +2022,64 @@ export const postChannelMessagesResponse = zod
   .describe('Paginated response of channel messages.');
 
 /**
+ * @summary Handler for `GET /channels/{channel_id}/messages/{message_id}/context`.
+ */
+export const getMessageWithContextParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+  message_id: zod.uuid().describe('Message ID to get context around'),
+});
+
+export const getMessageWithContextQueryParams = zod.object({
+  before: zod
+    .number()
+    .optional()
+    .describe('Number of older messages to include'),
+  after: zod
+    .number()
+    .optional()
+    .describe('Number of newer messages to include'),
+});
+
+export const getMessageWithContextResponse = zod
+  .object({
+    messages: zod
+      .array(
+        zod
+          .object({
+            channel_id: zod.uuid().describe('Channel id.'),
+            content: zod.string().describe('Message content.'),
+            created_at: zod.iso
+              .datetime({})
+              .describe('When the message was created.'),
+            deleted_at: zod.iso
+              .datetime({})
+              .nullish()
+              .describe('When the message was soft-deleted.'),
+            edited_at: zod.iso
+              .datetime({})
+              .nullish()
+              .describe('When the message was edited.'),
+            id: zod.uuid().describe('Message id.'),
+            sender_id: zod.string().describe('Sender user id.'),
+            thread_id: zod
+              .uuid()
+              .nullish()
+              .describe('Parent thread id for replies.'),
+            updated_at: zod.iso
+              .datetime({})
+              .describe('When the message was last updated.'),
+          })
+          .describe(
+            'A channel message returned by the message-context endpoint.'
+          )
+      )
+      .describe(
+        'Messages around the requested message in chronological order.'
+      ),
+  })
+  .describe('Response from the message-context endpoint.');
+
+/**
  * @summary Handler for `GET /channels/{channel_id}/messages/{message_id}/replies`.
  */
 export const getThreadRepliesParams = zod.object({
@@ -1770,6 +2178,120 @@ export const getChannelParticipantsResponseItem = zod
 export const getChannelParticipantsResponse = zod.array(
   getChannelParticipantsResponseItem
 );
+
+/**
+ * @summary Handler for `POST /channels/{channel_id}/participants`.
+ */
+export const addParticipantsParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+export const addParticipantsBody = zod
+  .object({
+    participants: zod.array(zod.string()).describe('User ids to add.'),
+  })
+  .describe('Request to add participants.');
+
+/**
+ * @summary Handler for `DELETE /channels/{channel_id}/participants`.
+ */
+export const removeParticipantsParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+export const removeParticipantsBody = zod
+  .object({
+    participants: zod.array(zod.string()).describe('User ids to remove.'),
+  })
+  .describe('Request to remove participants.');
+
+/**
+ * @summary Handler for `POST /channels/{channel_id}/reaction`.
+ */
+export const postReactionParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+export const postReactionBody = zod
+  .object({
+    action: zod.enum(['Add', 'Remove']).describe('Reaction mutation action.'),
+    emoji: zod.string().describe('Reaction emoji.'),
+    message_id: zod.string().describe('Message id to react to.'),
+    nonce: zod.string().nullish().describe('Optional optimistic-update nonce.'),
+  })
+  .describe('Request to mutate a reaction.');
+
+/**
+ * @summary Handler for `POST /channels/{channel_id}/typing`.
+ */
+export const postTypingParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+export const postTypingBody = zod
+  .object({
+    action: zod.enum(['start', 'stop']).describe('Typing indicator action.'),
+    nonce: zod.string().nullish().describe('Optional optimistic-update nonce.'),
+    thread_id: zod.string().nullish().describe('Optional thread id.'),
+  })
+  .describe('Request to emit a typing event.');
+
+/**
+ * @summary Toggle `email_sync` on a CRM company. `false` disables CRM email
+sharing for the company and permanently removes its existing CRM
+contacts and contact sources.
+ */
+export const setEmailSyncParams = zod.object({
+  company_id: zod.uuid().describe('The CRM company to update'),
+});
+
+export const setEmailSyncBody = zod
+  .object({
+    email_sync: zod
+      .boolean()
+      .describe(
+        "New value for `crm_companies.email_sync`. Setting to `false`\npermanently deletes the company's CRM contacts and contact sources."
+      ),
+  })
+  .describe(
+    'Request body for `PUT \/crm\/companies\/{company_id}\/email-sync`.'
+  );
+
+/**
+ * @summary Toggle `hidden` on a CRM company. Hiding also disables `email_sync`
+and cascades to clearing the company's contacts and contact sources.
+ */
+export const setCompanyHiddenParams = zod.object({
+  company_id: zod.uuid().describe('The CRM company to update'),
+});
+
+export const setCompanyHiddenBody = zod
+  .object({
+    hidden: zod
+      .boolean()
+      .describe(
+        "New value for `crm_companies.hidden`. Setting to `true` hides\nthe company from CRM listings AND disables `email_sync` (which\npermanently deletes the company's contacts and contact sources).\nSetting to `false` un-hides the company; `email_sync` is left\nuntouched and the team must re-enable it explicitly."
+      ),
+  })
+  .describe('Request body for `PUT \/companies\/{company_id}\/hidden`.');
+
+/**
+ * @summary Toggle `hidden` on a CRM contact. Hiding is a display-only opt-out
+scoped to the team that owns the contact's company.
+ */
+export const setContactHiddenParams = zod.object({
+  contact_id: zod.uuid().describe('The CRM contact to update'),
+});
+
+export const setContactHiddenBody = zod
+  .object({
+    hidden: zod
+      .boolean()
+      .describe(
+        'New value for `crm_contacts.hidden`. `true` hides the contact\nfrom CRM listings for the team; `false` un-hides it. Display-only\n— does not affect populate\/depopulate.'
+      ),
+  })
+  .describe('Request body for `PUT \/contacts\/{contact_id}\/hidden`.');
 
 /**
  * @summary Gets the users documents to populate their recent document list
@@ -1963,113 +2485,207 @@ export const createDocumentBody = zod.object({
     .describe(
       'Whether to add a viewed_at record for this document upon creation.'
     ),
+  teamId: zod
+    .uuid()
+    .nullish()
+    .describe(
+      'Team to assign the task number within when creating a task document. If omitted,\nthe service may infer it only when the creator belongs to exactly one team.'
+    ),
 });
 
 export const createDocumentResponse = zod.object({
   data: zod
     .object({
-      documentMetadata: zod.object({
-        branchedFromId: zod
-          .string()
-          .nullish()
-          .describe('The id of the document this document branched from'),
-        branchedFromVersionId: zod
-          .number()
-          .nullish()
-          .describe(
-            'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-          ),
-        createdAt: zod.iso
-          .datetime({})
-          .nullish()
-          .describe('The time the document was created'),
-        documentBom: zod
-          .array(
-            zod.object({
-              id: zod.string().describe('The uuid of the bom part'),
-              path: zod
-                .string()
-                .describe('The file path of the bom part content'),
-              sha: zod
-                .string()
+      documentMetadata: zod
+        .object({
+          branchedFromId: zod
+            .string()
+            .nullish()
+            .describe('The id of the document this document branched from'),
+          branchedFromVersionId: zod
+            .number()
+            .nullish()
+            .describe(
+              'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+            ),
+          createdAt: zod.iso
+            .datetime({})
+            .nullish()
+            .describe('The time the document was created'),
+          documentBom: zod
+            .array(
+              zod.object({
+                id: zod.string().describe('The uuid of the bom part'),
+                path: zod
+                  .string()
+                  .describe('The file path of the bom part content'),
+                sha: zod
+                  .string()
+                  .describe(
+                    'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                  ),
+              })
+            )
+            .nullish()
+            .describe(
+              'If the document is a DOCX document, the document_bom will be present'
+            ),
+          documentFamilyId: zod
+            .number()
+            .nullish()
+            .describe('The id of the document family this document belongs to'),
+          documentId: zod.string().describe('The document id'),
+          documentName: zod.string().describe('The name of the document'),
+          documentVersionId: zod
+            .number()
+            .describe(
+              'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+            ),
+          fileType: zod
+            .string()
+            .nullish()
+            .describe('The file type of the document'),
+          modificationData: zod
+            .unknown()
+            .optional()
+            .describe(
+              'The modification data for the document instance.\nThis is only used for PDF documents.'
+            ),
+          owner: zod.string().describe('The owner of the document'),
+          sha: zod
+            .string()
+            .nullish()
+            .describe(
+              'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+            ),
+          subType: zod
+            .union([
+              zod.null(),
+              zod
+                .enum(['task'])
                 .describe(
-                  'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                  'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
                 ),
-            })
-          )
-          .nullish()
-          .describe(
-            'If the document is a DOCX document, the document_bom will be present'
-          ),
-        documentFamilyId: zod
-          .number()
-          .nullish()
-          .describe('The id of the document family this document belongs to'),
-        documentId: zod.string().describe('The document id'),
-        documentName: zod.string().describe('The name of the document'),
-        documentVersionId: zod
-          .number()
-          .describe(
-            'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-          ),
-        fileType: zod
-          .string()
-          .nullish()
-          .describe('The file type of the document'),
-        modificationData: zod
-          .unknown()
-          .optional()
-          .describe(
-            'The modification data for the document instance.\nThis is only used for PDF documents.'
-          ),
-        owner: zod.string().describe('The owner of the document'),
-        sha: zod
-          .string()
-          .nullish()
-          .describe(
-            'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
-          ),
-        subType: zod
-          .union([
-            zod.null(),
-            zod
-              .enum(['task'])
+            ])
+            .optional(),
+          updatedAt: zod.iso
+            .datetime({})
+            .nullish()
+            .describe(
+              'The time the document instance \/ document BOM was updated'
+            ),
+        })
+        .and(
+          zod.object({
+            content: zod
+              .object({
+                location: zod
+                  .union([
+                    zod.null(),
+                    zod
+                      .enum([
+                        'object_storage',
+                        'sync_service',
+                        'docx_bom_parts',
+                        'converted_pdf',
+                        'unknown',
+                      ])
+                      .describe(
+                        'Where document content is, or is expected to be, read from.'
+                      ),
+                  ])
+                  .optional(),
+                state: zod
+                  .enum(['unknown', 'pending', 'ready'])
+                  .describe(
+                    'API-visible content lifecycle state derived from current document metadata.'
+                  ),
+              })
+              .describe('API-visible content lifecycle and location metadata.'),
+            teamId: zod
+              .uuid()
+              .nullish()
               .describe(
-                'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+                'The team this task number is scoped to, for task documents.'
               ),
-          ])
-          .optional(),
-        updatedAt: zod.iso
-          .datetime({})
-          .nullish()
-          .describe(
-            'The time the document instance \/ document BOM was updated'
-          ),
-      }),
-      presignedUrl: zod.string().nullish(),
+            teamTaskId: zod
+              .number()
+              .nullish()
+              .describe(
+                'The task number assigned within the team, for task documents.'
+              ),
+          })
+        )
+        .describe(
+          'Create\/copy response metadata plus content lifecycle metadata.'
+        ),
+      presignedUrl: zod
+        .string()
+        .nullish()
+        .describe(
+          'Presigned upload URL, when the caller still needs to upload bytes.'
+        ),
     })
+    .describe('Document response with content lifecycle metadata.')
     .and(
       zod.object({
         contentType: zod
           .string()
-          .describe('Content type of the document converted from file type'),
+          .describe('Content type of the document converted from file type.'),
         fileType: zod
           .string()
           .nullish()
-          .describe('The file type of the document'),
+          .describe('The file type of the document.'),
       })
     )
+    .describe('Create document response data with content lifecycle metadata.')
     .describe('Data to be returned'),
   error: zod.boolean().describe('Indicates if an error occurred'),
 });
 
 /**
- * This endpoint creates task metadata and sets properties atomically.
-Task content should be set separately via the sync service.
- * @summary Creates a task document with properties in a single call.
+ * @summary Creates and initializes a markdown document in one backend-owned lifecycle.
+ */
+export const createMarkdownHandlerBody = zod
+  .object({
+    documentName: zod.string().describe('The document name.'),
+    markdown: zod
+      .string()
+      .nullish()
+      .describe('Markdown source text. Defaults to an empty document.'),
+    projectId: zod
+      .uuid()
+      .nullish()
+      .describe('Optional project ID to associate the document with.'),
+    skipHistory: zod
+      .boolean()
+      .optional()
+      .describe(
+        'Whether to add a viewed_at record for this document upon creation.'
+      ),
+  })
+  .describe(
+    'Request body for creating a markdown document whose content is initialized\nby the backend.'
+  );
+
+export const createMarkdownHandlerResponse = zod
+  .object({
+    documentId: zod
+      .string()
+      .describe('The document ID of the created markdown document.'),
+  })
+  .describe('Response for creating a markdown document.');
+
+/**
+ * @summary Creates a task document with properties and initialized markdown content in
+one backend-owned lifecycle.
  */
 export const createTaskHandlerBody = zod
   .object({
+    markdown: zod
+      .string()
+      .nullish()
+      .describe('Markdown source text. Defaults to an empty task document.'),
     projectId: zod
       .uuid()
       .nullish()
@@ -2217,12 +2833,26 @@ export const createTaskHandlerBody = zod
         'Whether to share the task with your team or not\nDefaults to true'
       ),
     taskName: zod.string().describe('The name of the task.'),
+    teamId: zod
+      .uuid()
+      .nullish()
+      .describe(
+        'Team to assign the task number within. If omitted, it is inferred only\nwhen the creator belongs to exactly one team.'
+      ),
   })
   .describe('Request body for creating a task.');
 
 export const createTaskHandlerResponse = zod
   .object({
     documentId: zod.string().describe('The document ID of the created task.'),
+    teamId: zod
+      .uuid()
+      .nullish()
+      .describe('The team this task number is scoped to.'),
+    teamTaskId: zod
+      .number()
+      .nullish()
+      .describe('The task number assigned within the team.'),
   })
   .describe('Response for creating a task.');
 
@@ -2428,103 +3058,140 @@ export const getDocumentParams = zod.object({
 });
 
 export const getDocumentResponse = zod.object({
-  data: zod.object({
-    documentMetadata: zod.object({
-      branchedFromId: zod
-        .string()
-        .nullish()
-        .describe('The id of the document this document branched from'),
-      branchedFromVersionId: zod
-        .number()
-        .nullish()
-        .describe(
-          'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-        ),
-      createdAt: zod.iso
-        .datetime({})
-        .nullish()
-        .describe('The time the document was created'),
-      deletedAt: zod.iso
-        .datetime({})
-        .nullish()
-        .describe('The time the document was deleted'),
-      documentBom: zod
+  data: zod
+    .object({
+      items: zod
         .array(
-          zod.object({
-            id: zod.string().describe('The uuid of the bom part'),
-            path: zod
-              .string()
-              .describe('The file path of the bom part content'),
-            sha: zod
-              .string()
-              .describe(
-                'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
-              ),
-          })
+          zod.union([
+            zod.object({
+              branchedFromId: zod
+                .string()
+                .nullish()
+                .describe('The id of the document this document branched from'),
+              branchedFromVersionId: zod
+                .number()
+                .nullish()
+                .describe(
+                  'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+                ),
+              createdAt: zod.iso
+                .datetime({})
+                .nullish()
+                .describe('The time the document was created'),
+              deletedAt: zod.iso
+                .datetime({})
+                .nullish()
+                .describe('The time the document was deleted'),
+              documentFamilyId: zod
+                .number()
+                .nullish()
+                .describe(
+                  'The id of the document family this document belongs to'
+                ),
+              documentVersionId: zod
+                .number()
+                .describe(
+                  'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+                ),
+              fileType: zod
+                .string()
+                .nullish()
+                .describe('The file type of the document (e.g. pdf, docx)'),
+              id: zod.string().describe('The document id'),
+              name: zod.string().describe('The name of the document'),
+              owner: zod.string().describe('The owner of the document'),
+              projectId: zod
+                .string()
+                .nullish()
+                .describe(
+                  'The id of the project that this document belongs to'
+                ),
+              sha: zod
+                .string()
+                .nullish()
+                .describe(
+                  'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+                ),
+              subType: zod
+                .union([
+                  zod.null(),
+                  zod
+                    .object({
+                      is_completed: zod
+                        .boolean()
+                        .describe(
+                          'Whether the task is completed.\nTrue if the Status property is set to \"Completed\".'
+                        ),
+                      type: zod.enum(['task']),
+                    })
+                    .describe('A task document with its associated properties')
+                    .describe(
+                      'Sub type of a document with associated properties encoded in each variant.\nThis ensures type-safety: task properties only exist when the document is a task.'
+                    ),
+                ])
+                .optional(),
+              updatedAt: zod.iso
+                .datetime({})
+                .nullish()
+                .describe(
+                  'The time the document instance \/ document BOM was updated'
+                ),
+              type: zod.enum(['document']),
+            }),
+            zod.object({
+              createdAt: zod.iso
+                .datetime({})
+                .nullish()
+                .describe('The time the chat was created'),
+              deletedAt: zod.iso
+                .datetime({})
+                .nullish()
+                .describe('The time the chat was deleted'),
+              id: zod.string().describe('The chat uuid'),
+              isPersistent: zod.boolean(),
+              model: zod
+                .string()
+                .nullish()
+                .describe('The model used to generate the chat'),
+              name: zod.string().describe('The name of the chat'),
+              projectId: zod
+                .string()
+                .nullish()
+                .describe('The project id of the chat'),
+              tokenCount: zod.number().nullish(),
+              updatedAt: zod.iso
+                .datetime({})
+                .nullish()
+                .describe('The time the chat was last updated'),
+              userId: zod.string().describe('Who the chat belongs to'),
+              type: zod.enum(['chat']),
+            }),
+            zod.object({
+              createdAt: zod.iso
+                .datetime({})
+                .nullish()
+                .describe('The time the project was created'),
+              deletedAt: zod.iso.datetime({}).nullish(),
+              id: zod.string().describe('The id of the project'),
+              name: zod.string().describe('The name of the project'),
+              parentId: zod
+                .string()
+                .nullish()
+                .describe('The parent project id'),
+              updatedAt: zod.iso
+                .datetime({})
+                .nullish()
+                .describe('The time the project was updated'),
+              userId: zod
+                .string()
+                .describe('The user id of who created the project'),
+              type: zod.enum(['project']),
+            }),
+          ])
         )
-        .nullish()
-        .describe(
-          'If the document is a DOCX document and unzipped, the document_bom will be present'
-        ),
-      documentFamilyId: zod
-        .number()
-        .nullish()
-        .describe('The id of the document family this document belongs to'),
-      documentId: zod.string().describe('The document id'),
-      documentName: zod.string().describe('The name of the document'),
-      documentVersionId: zod
-        .number()
-        .describe(
-          'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-        ),
-      fileType: zod
-        .string()
-        .nullish()
-        .describe('The file type of the document (file extension)'),
-      modificationData: zod
-        .unknown()
-        .optional()
-        .describe(
-          'The modification data for the document instance.\nThis is only used for PDF documents.'
-        ),
-      owner: zod.string().describe('The owner of the document'),
-      projectId: zod
-        .string()
-        .nullish()
-        .describe('The id of the project that this document belongs to'),
-      projectName: zod
-        .string()
-        .nullish()
-        .describe('The name of the project that this document belongs to'),
-      sha: zod
-        .string()
-        .nullish()
-        .describe(
-          'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
-        ),
-      subType: zod
-        .union([
-          zod.null(),
-          zod
-            .enum(['task'])
-            .describe(
-              'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
-            ),
-        ])
-        .optional(),
-      updatedAt: zod.iso
-        .datetime({})
-        .nullish()
-        .describe('The time the document instance \/ document BOM was updated'),
-    }),
-    userAccessLevel: zod
-      .enum(['view', 'comment', 'edit', 'owner'])
-      .describe('Ordered from least to most access top -> bottom'),
-    viewLocation: zod
-      .string()
-      .nullish()
-      .describe('The users view location if there is one'),
-  }),
+        .describe('The items returned from the call'),
+    })
+    .describe('Data to be returned'),
   error: zod.boolean().describe('Indicates if an error occurred'),
 });
 
@@ -3235,87 +3902,143 @@ export const copyDocumentBody = zod
 
 export const copyDocumentResponse = zod
   .object({
-    data: zod.object({
-      documentMetadata: zod.object({
-        branchedFromId: zod
-          .string()
-          .nullish()
-          .describe('The id of the document this document branched from'),
-        branchedFromVersionId: zod
-          .number()
-          .nullish()
-          .describe(
-            'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
-          ),
-        createdAt: zod.iso
-          .datetime({})
-          .nullish()
-          .describe('The time the document was created'),
-        documentBom: zod
-          .array(
+    data: zod
+      .object({
+        documentMetadata: zod
+          .object({
+            branchedFromId: zod
+              .string()
+              .nullish()
+              .describe('The id of the document this document branched from'),
+            branchedFromVersionId: zod
+              .number()
+              .nullish()
+              .describe(
+                'The id of the version this document branched from\nThis could be either DocumentInstance or DocumentBom id depending on\nthe file type'
+              ),
+            createdAt: zod.iso
+              .datetime({})
+              .nullish()
+              .describe('The time the document was created'),
+            documentBom: zod
+              .array(
+                zod.object({
+                  id: zod.string().describe('The uuid of the bom part'),
+                  path: zod
+                    .string()
+                    .describe('The file path of the bom part content'),
+                  sha: zod
+                    .string()
+                    .describe(
+                      'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                    ),
+                })
+              )
+              .nullish()
+              .describe(
+                'If the document is a DOCX document, the document_bom will be present'
+              ),
+            documentFamilyId: zod
+              .number()
+              .nullish()
+              .describe(
+                'The id of the document family this document belongs to'
+              ),
+            documentId: zod.string().describe('The document id'),
+            documentName: zod.string().describe('The name of the document'),
+            documentVersionId: zod
+              .number()
+              .describe(
+                'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
+              ),
+            fileType: zod
+              .string()
+              .nullish()
+              .describe('The file type of the document'),
+            modificationData: zod
+              .unknown()
+              .optional()
+              .describe(
+                'The modification data for the document instance.\nThis is only used for PDF documents.'
+              ),
+            owner: zod.string().describe('The owner of the document'),
+            sha: zod
+              .string()
+              .nullish()
+              .describe(
+                'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+              ),
+            subType: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['task'])
+                  .describe(
+                    'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+                  ),
+              ])
+              .optional(),
+            updatedAt: zod.iso
+              .datetime({})
+              .nullish()
+              .describe(
+                'The time the document instance \/ document BOM was updated'
+              ),
+          })
+          .and(
             zod.object({
-              id: zod.string().describe('The uuid of the bom part'),
-              path: zod
-                .string()
-                .describe('The file path of the bom part content'),
-              sha: zod
-                .string()
+              content: zod
+                .object({
+                  location: zod
+                    .union([
+                      zod.null(),
+                      zod
+                        .enum([
+                          'object_storage',
+                          'sync_service',
+                          'docx_bom_parts',
+                          'converted_pdf',
+                          'unknown',
+                        ])
+                        .describe(
+                          'Where document content is, or is expected to be, read from.'
+                        ),
+                    ])
+                    .optional(),
+                  state: zod
+                    .enum(['unknown', 'pending', 'ready'])
+                    .describe(
+                      'API-visible content lifecycle state derived from current document metadata.'
+                    ),
+                })
                 .describe(
-                  'The sha of the bom part content\nThere is an index on sha for more performant queries based on it.'
+                  'API-visible content lifecycle and location metadata.'
+                ),
+              teamId: zod
+                .uuid()
+                .nullish()
+                .describe(
+                  'The team this task number is scoped to, for task documents.'
+                ),
+              teamTaskId: zod
+                .number()
+                .nullish()
+                .describe(
+                  'The task number assigned within the team, for task documents.'
                 ),
             })
           )
-          .nullish()
           .describe(
-            'If the document is a DOCX document, the document_bom will be present'
+            'Create\/copy response metadata plus content lifecycle metadata.'
           ),
-        documentFamilyId: zod
-          .number()
-          .nullish()
-          .describe('The id of the document family this document belongs to'),
-        documentId: zod.string().describe('The document id'),
-        documentName: zod.string().describe('The name of the document'),
-        documentVersionId: zod
-          .number()
-          .describe(
-            'The version of the document\nThis could be the document_instance_id or document_bom_id depending on\nthe file type'
-          ),
-        fileType: zod
-          .string()
-          .nullish()
-          .describe('The file type of the document'),
-        modificationData: zod
-          .unknown()
-          .optional()
-          .describe(
-            'The modification data for the document instance.\nThis is only used for PDF documents.'
-          ),
-        owner: zod.string().describe('The owner of the document'),
-        sha: zod
+        presignedUrl: zod
           .string()
           .nullish()
           .describe(
-            'If the document is a PDF, this is the SHA of the pdf\nIf the document is a DOCX, this will not be present'
+            'Presigned upload URL, when the caller still needs to upload bytes.'
           ),
-        subType: zod
-          .union([
-            zod.null(),
-            zod
-              .enum(['task'])
-              .describe(
-                'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
-              ),
-          ])
-          .optional(),
-        updatedAt: zod.iso
-          .datetime({})
-          .nullish()
-          .describe(
-            'The time the document instance \/ document BOM was updated'
-          ),
-      }),
-      presignedUrl: zod.string().nullish(),
-    }),
+      })
+      .describe('Document response with content lifecycle metadata.'),
     error: zod.boolean().describe('Indicates if an error occurred.'),
   })
   .describe('Response wrapper for the copy document endpoint.');
@@ -3333,6 +4056,89 @@ export const exportDocumentResponse = zod.object({
     .string()
     .describe('The presigned url to download the raw content of the document'),
 });
+
+/**
+ * Returns GitHub pull requests associated with a task document.
+Returns 400 if the document is not a task.
+ * @summary Handler for `GET /documents/{document_id}/github_prs`.
+ */
+export const getDocumentGithubPullRequestsParams = zod.object({
+  document_id: zod.string().describe('Document ID'),
+});
+
+export const getDocumentGithubPullRequestsResponsePullRequestsItemAdditionsMin = 0;
+
+export const getDocumentGithubPullRequestsResponsePullRequestsItemDeletionsMin = 0;
+
+export const getDocumentGithubPullRequestsResponsePullRequestsItemNumberMin = 0;
+
+export const getDocumentGithubPullRequestsResponse = zod
+  .object({
+    pullRequests: zod
+      .array(
+        zod
+          .object({
+            additions: zod
+              .number()
+              .min(
+                getDocumentGithubPullRequestsResponsePullRequestsItemAdditionsMin
+              )
+              .nullish()
+              .describe(
+                'The number of added lines in the pull request, when enrichment data is available.'
+              ),
+            deletions: zod
+              .number()
+              .min(
+                getDocumentGithubPullRequestsResponsePullRequestsItemDeletionsMin
+              )
+              .nullish()
+              .describe(
+                'The number of deleted lines in the pull request, when enrichment data is available.'
+              ),
+            displayName: zod
+              .string()
+              .describe('A compact label suitable for display in the UI.'),
+            githubKey: zod
+              .string()
+              .describe(
+                'The stored GitHub association key, in `owner\/repo\/pull\/number` format.'
+              ),
+            name: zod
+              .string()
+              .nullish()
+              .describe(
+                'The GitHub pull request title, when enrichment data is available.'
+              ),
+            number: zod
+              .number()
+              .min(
+                getDocumentGithubPullRequestsResponsePullRequestsItemNumberMin
+              )
+              .describe('The GitHub pull request number.'),
+            owner: zod
+              .string()
+              .describe('The GitHub repository owner or organization.'),
+            repo: zod.string().describe('The GitHub repository name.'),
+            status: zod
+              .string()
+              .nullish()
+              .describe(
+                'The GitHub pull request status, when enrichment data is available.'
+              ),
+            url: zod
+              .string()
+              .describe('The public GitHub URL for the pull request.'),
+          })
+          .describe(
+            'Display-ready data for a GitHub pull request associated with a task.'
+          )
+      )
+      .describe('Parsed pull requests, in repository query order.'),
+  })
+  .describe(
+    'Response containing all GitHub pull requests associated with a task.'
+  );
 
 /**
  * @summary Gets the presigned url(s) for the document. aka location
@@ -3392,6 +4198,189 @@ export const getDocumentLocationV3QueryParams = zod.object({
     .optional()
     .describe('If true, this will return the converted docx url.'),
 });
+
+export const getDocumentLocationV3Response = zod
+  .union([
+    zod
+      .object({
+        content: zod
+          .object({
+            location: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum([
+                    'object_storage',
+                    'sync_service',
+                    'docx_bom_parts',
+                    'converted_pdf',
+                    'unknown',
+                  ])
+                  .describe(
+                    'Where document content is, or is expected to be, read from.'
+                  ),
+              ])
+              .optional(),
+            state: zod
+              .enum(['unknown', 'pending', 'ready'])
+              .describe(
+                'API-visible content lifecycle state derived from current document metadata.'
+              ),
+          })
+          .describe('API-visible content lifecycle and location metadata.'),
+        metadata: zod
+          .object({
+            branchedFromId: zod.string().nullish(),
+            branchedFromVersionId: zod.number().nullish(),
+            deletedAt: zod.iso.datetime({}).nullish(),
+            documentFamilyId: zod.number().nullish(),
+            documentId: zod.string(),
+            documentName: zod.string(),
+            fileType: zod.string().nullish(),
+            owner: zod.string(),
+            projectId: zod.string().nullish(),
+            subType: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['task'])
+                  .describe(
+                    'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+                  ),
+              ])
+              .optional(),
+          })
+          .describe(
+            'Returns basic information of a document used for some db queries'
+          ),
+        presignedUrl: zod.string().describe('Presigned URL.'),
+        type: zod.enum(['presignedUrl']),
+      })
+      .describe('A single document-storage URL.'),
+    zod
+      .object({
+        content: zod
+          .object({
+            location: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum([
+                    'object_storage',
+                    'sync_service',
+                    'docx_bom_parts',
+                    'converted_pdf',
+                    'unknown',
+                  ])
+                  .describe(
+                    'Where document content is, or is expected to be, read from.'
+                  ),
+              ])
+              .optional(),
+            state: zod
+              .enum(['unknown', 'pending', 'ready'])
+              .describe(
+                'API-visible content lifecycle state derived from current document metadata.'
+              ),
+          })
+          .describe('API-visible content lifecycle and location metadata.'),
+        metadata: zod
+          .object({
+            branchedFromId: zod.string().nullish(),
+            branchedFromVersionId: zod.number().nullish(),
+            deletedAt: zod.iso.datetime({}).nullish(),
+            documentFamilyId: zod.number().nullish(),
+            documentId: zod.string(),
+            documentName: zod.string(),
+            fileType: zod.string().nullish(),
+            owner: zod.string(),
+            projectId: zod.string().nullish(),
+            subType: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['task'])
+                  .describe(
+                    'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+                  ),
+              ])
+              .optional(),
+          })
+          .describe(
+            'Returns basic information of a document used for some db queries'
+          ),
+        presignedUrls: zod
+          .array(
+            zod.object({
+              presignedUrl: zod
+                .string()
+                .describe('The presigned url used to upload the sha'),
+              sha: zod.string().describe('The sha of the item'),
+            })
+          )
+          .describe('Presigned URLs.'),
+        type: zod.enum(['presignedUrls']),
+      })
+      .describe(
+        'Multiple document-storage URLs, currently for DOCX BOM parts.'
+      ),
+    zod
+      .object({
+        content: zod
+          .object({
+            location: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum([
+                    'object_storage',
+                    'sync_service',
+                    'docx_bom_parts',
+                    'converted_pdf',
+                    'unknown',
+                  ])
+                  .describe(
+                    'Where document content is, or is expected to be, read from.'
+                  ),
+              ])
+              .optional(),
+            state: zod
+              .enum(['unknown', 'pending', 'ready'])
+              .describe(
+                'API-visible content lifecycle state derived from current document metadata.'
+              ),
+          })
+          .describe('API-visible content lifecycle and location metadata.'),
+        metadata: zod
+          .object({
+            branchedFromId: zod.string().nullish(),
+            branchedFromVersionId: zod.number().nullish(),
+            deletedAt: zod.iso.datetime({}).nullish(),
+            documentFamilyId: zod.number().nullish(),
+            documentId: zod.string(),
+            documentName: zod.string(),
+            fileType: zod.string().nullish(),
+            owner: zod.string(),
+            projectId: zod.string().nullish(),
+            subType: zod
+              .union([
+                zod.null(),
+                zod
+                  .enum(['task'])
+                  .describe(
+                    'The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.'
+                  ),
+              ])
+              .optional(),
+          })
+          .describe(
+            'Returns basic information of a document used for some db queries'
+          ),
+        type: zod.enum(['syncServiceContent']),
+      })
+      .describe('Sync-service backed content.'),
+  ])
+  .describe('Location response with content lifecycle metadata.');
 
 /**
  * @summary Permanently deletes a document.
@@ -3725,6 +4714,16 @@ export const getEntityPermissionResponse = zod
               type: zod.enum(['channel_role']),
             })
             .describe('Permission for channel-based entities.'),
+          zod
+            .object({
+              role: zod
+                .enum(['member', 'admin', 'owner'])
+                .describe(
+                  'The role a user has within a team.\n\nOrdered least to most privileged so comparisons reflect access strength.'
+                ),
+              type: zod.enum(['team_role']),
+            })
+            .describe('Permission for team-based entities.'),
         ])
         .describe(
           "A user's permission for an entity, discriminated by entity kind.\n\nItems (documents, chats, projects, threads) use access levels.\nChannels use participant roles."
@@ -5020,13 +6019,15 @@ export const getItemsSoupResponse = zod.object({
           data: zod
             .object({
               channel: zod.object({
-                channel_type: zod.enum([
-                  'public',
-                  'organization',
-                  'private',
-                  'direct_message',
-                  'team',
-                ]),
+                channel_type: zod
+                  .enum([
+                    'public',
+                    'organization',
+                    'private',
+                    'direct_message',
+                    'team',
+                  ])
+                  .describe('Type of channel.'),
                 created_at: zod.iso.datetime({}),
                 id: zod.uuid(),
                 name: zod.string().nullish(),
@@ -5442,6 +6443,18 @@ export const postItemsSoupBody = zod
           .describe(
             "Email CC addresses to filter by. Examples: ['user@example.com']. Empty if not filtering by CC."
           ),
+        crm_addresses: zod
+          .array(zod.string())
+          .optional()
+          .describe(
+            "CRM-scoped address filter. When non-empty, expands visibility to every\nteammate's mailbox and restricts to threads involving any of these\nfully-qualified addresses. Each address is authorized against\n`crm_contacts` + `crm_companies` (contact must not be hidden, company\nmust not be hidden, `email_sync` must be true).\nMutually exclusive with `crm_domains`."
+          ),
+        crm_domains: zod
+          .array(zod.string())
+          .optional()
+          .describe(
+            "CRM-scoped domain filter. When non-empty, expands visibility to every\nteammate's mailbox and restricts to threads involving any of these\ndomains (in any of sender\/cc\/bcc\/recipient). Each domain is authorized\nagainst `crm_domains` + `crm_companies` (must exist for the caller's\nteam, company must not be hidden, `email_sync` must be true).\nMutually exclusive with `crm_addresses`."
+          ),
         email_thread_ids: zod
           .array(zod.string())
           .optional()
@@ -5520,6 +6533,12 @@ export const postItemsSoupBody = zod
           .describe(
             'Filter by project importance. None to ignore, true to pass through (no clause), false to short-circuit and return nothing.'
           ),
+        include_root: zod
+          .boolean()
+          .optional()
+          .describe(
+            'When true, `project_ids` also matches the projects themselves in addition to their children.'
+          ),
         notification_filters: zod
           .object({
             done: zod
@@ -5547,7 +6566,7 @@ export const postItemsSoupBody = zod
           .array(zod.string())
           .optional()
           .describe(
-            "Project IDs to search within. Examples: ['project1']. Empty to search all accessible projects."
+            "Project IDs to search within. Examples: ['project1']. Empty to search all accessible projects.\nBy default matches children of these projects; set `include_root` to also match the projects themselves."
           ),
       })
       .optional()
@@ -6703,13 +7722,15 @@ export const postItemsSoupResponse = zod.object({
           data: zod
             .object({
               channel: zod.object({
-                channel_type: zod.enum([
-                  'public',
-                  'organization',
-                  'private',
-                  'direct_message',
-                  'team',
-                ]),
+                channel_type: zod
+                  .enum([
+                    'public',
+                    'organization',
+                    'private',
+                    'direct_message',
+                    'team',
+                  ])
+                  .describe('Type of channel.'),
                 created_at: zod.iso.datetime({}),
                 id: zod.uuid(),
                 name: zod.string().nullish(),
@@ -6891,10 +7912,24 @@ export const postItemsSoupAstBody = zod
       .unknown()
       .optional()
       .describe('the filters that should be applied to the document entity'),
+    eca: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        'CRM-scoped address filter (wire key: `eca`). Symmetric counterpart\nto `ecd` for fully-qualified email addresses.'
+      ),
+    ecd: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        'CRM-scoped domain filter (wire key: `ecd`). Parallel to the\nfreeform `ef` AST. Expanded by the router into an any-direction\nOR sub-tree AND-merged into `ef`, plus a `CrmScope` tag stamped\non the resulting [`item_filters::ast::EmailFilterAst::crm_scope`].\nDrives the per-team CRM authorization pre-check and candidate-set\nwidening downstream. Mutually exclusive with `eca`.'
+      ),
     ef: zod
       .unknown()
       .optional()
-      .describe('the filters that should be applied to the email entity'),
+      .describe(
+        'the filters that should be applied to the email entity (raw AST\ntree only; CRM scope is carried by the `ecd` \/ `eca` sibling\nfields). On this endpoint the email filter stays a bare tree,\nunlike the materialized [`EntityFilterAst`] used for cursors.'
+      ),
     pf: zod
       .unknown()
       .optional()
@@ -6906,9 +7941,6 @@ export const postItemsSoupAstBody = zod
         'the filters that should be applied based on entity properties'
       ),
   })
-  .describe(
-    'Describes a bundle of filters that should be applied across different entity types'
-  )
   .and(
     zod.object({
       expand: zod
@@ -8024,13 +9056,15 @@ export const postItemsSoupAstResponse = zod.object({
           data: zod
             .object({
               channel: zod.object({
-                channel_type: zod.enum([
-                  'public',
-                  'organization',
-                  'private',
-                  'direct_message',
-                  'team',
-                ]),
+                channel_type: zod
+                  .enum([
+                    'public',
+                    'organization',
+                    'private',
+                    'direct_message',
+                    'team',
+                  ])
+                  .describe('Type of channel.'),
                 created_at: zod.iso.datetime({}),
                 id: zod.uuid(),
                 name: zod.string().nullish(),

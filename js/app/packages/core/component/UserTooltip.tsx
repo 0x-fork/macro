@@ -1,18 +1,17 @@
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
-import { isOk } from '@core/util/maybeResult';
-import IconCheck from '@icon/regular/check.svg';
-import WideChat from '@macro-icons/wide/chat.svg';
-import WideCopy from '@macro-icons/wide/copy.svg';
-import WideTask from '@macro-icons/wide/task.svg';
-import { commsServiceClient } from '@service-comms/client';
+import WideChat from '@icon/wide-chat.svg';
+import WideCopy from '@icon/wide-copy.svg';
+import WideTask from '@icon/wide-task.svg';
+import IconCheck from '@phosphor/check.svg';
+import { useGetOrCreateDirectMessageMutation } from '@queries/channel/get-or-create-dm';
 import { debounce } from '@solid-primitives/scheduled';
 import { Button, Surface } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { UserIcon } from './UserIcon';
 
-export type UserTooltipProps = {
+type UserTooltipProps = {
   displayName: string;
   email?: string;
   id?: string;
@@ -36,29 +35,27 @@ export function UserTooltip(props: UserTooltipProps) {
   }
   const currentUserId = useUserId();
   const { openWithSplit, popoverSplit } = useSplitLayout();
+  const getOrCreateDmMutation = useGetOrCreateDirectMessageMutation({
+    onError: () => toast.failure('Failed to open direct message'),
+  });
 
-  const openDM = async (e: PointerEvent | MouseEvent) => {
+  const openDM = (e: PointerEvent | MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     props.onClose?.();
-    if (props.id) {
-      try {
-        const result = await commsServiceClient.getOrCreateDirectMessage({
-          recipient_id: props.id,
-        });
-        const channelId = isOk(result) && result[1]?.channel_id;
-        if (channelId) {
+    if (!props.id) return;
+    const preferNewSplit = e.shiftKey;
+    getOrCreateDmMutation.mutate(
+      { recipient_id: props.id },
+      {
+        onSuccess: ({ channel_id }) => {
           openWithSplit(
-            { type: 'channel', id: channelId },
-            { preferNewSplit: e.shiftKey }
+            { type: 'channel', id: channel_id },
+            { preferNewSplit }
           );
-        } else {
-          toast.failure('Failed to open direct message');
-        }
-      } catch {
-        toast.failure('Failed to open direct message');
+        },
       }
-    }
+    );
   };
 
   const openTaskComposer = (e: MouseEvent) => {
@@ -91,7 +88,7 @@ export function UserTooltip(props: UserTooltipProps) {
 
   return (
     <Surface depth={2} active>
-      <div class="bg-panel text-ink box-border border-accent overflow-hidden max-w-lg">
+      <div class="text-ink max-w-lg">
         <div class="flex items-center gap-2 p-2">
           <UserIcon
             {...avatarProps()}

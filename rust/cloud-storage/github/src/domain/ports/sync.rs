@@ -3,7 +3,8 @@
 use std::future::Future;
 
 use crate::domain::models::{
-    GithubError, GithubInstallationAccessToken, GithubKey, MacroTaskId, ValidatedGithubWebhookEvent,
+    GithubAppInstallationSource, GithubError, GithubInstallationAccessToken, GithubKey,
+    MacroTaskId, TeamTaskReference, ValidatedGithubWebhookEvent,
 };
 
 /// Repository for accessing github sync data from the database.
@@ -36,6 +37,17 @@ pub trait GithubSyncRepo: Send + Sync + 'static {
         task_ids: &[MacroTaskId],
     ) -> impl Future<Output = Result<Vec<MacroTaskId>, Self::Err>> + Send;
 
+    /// Resolves team-scoped task references for a GitHub App installation.
+    ///
+    /// Implementations should use the installation's team sources from
+    /// `github_app_installation` (`source_type = 'team'`) and the referenced
+    /// team slug/task number to find the backing Macro task document.
+    fn resolve_team_task_references(
+        &self,
+        installation_id: &str,
+        references: &[TeamTaskReference],
+    ) -> impl Future<Output = Result<Vec<MacroTaskId>, Self::Err>> + Send;
+
     /// Looks up the macro user ID associated with a GitHub user ID via the `github_links` table.
     /// Returns `None` if no link exists.
     fn get_macro_id_by_github_user_id(
@@ -49,13 +61,18 @@ pub trait GithubSyncRepo: Send + Sync + 'static {
         macro_id: &str,
     ) -> impl Future<Output = Result<Vec<uuid::Uuid>, Self::Err>> + Send;
 
-    /// Inserts associations between a GitHub App installation and the given teams.
-    /// Ignores conflicts (idempotent).
-    fn insert_installation_team_associations(
+    /// Returns the Macro sources associated with a GitHub App installation.
+    fn get_installation_sources(
         &self,
         installation_id: &str,
-        team_ids: &[uuid::Uuid],
-        installed_by: &str,
+    ) -> impl Future<Output = Result<Vec<GithubAppInstallationSource>, Self::Err>> + Send;
+
+    /// Upserts associations between a GitHub App installation and its sources.
+    /// Ignores conflicts (idempotent).
+    fn upsert_installation_sources(
+        &self,
+        installation_id: &str,
+        sources: &[GithubAppInstallationSource],
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 }
 

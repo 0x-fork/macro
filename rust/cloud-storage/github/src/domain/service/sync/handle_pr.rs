@@ -5,11 +5,14 @@ use crate::domain::{
     ports::{GithubSyncClient, GithubSyncRepo},
 };
 use documents::domain::ports::DocumentService;
+use foreign_entity::domain::ports::ForeignEntityService;
 use std::collections::HashSet;
 
 use super::GithubSyncServiceImpl;
 
-impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServiceImpl<D, R, C> {
+impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient, F: ForeignEntityService>
+    GithubSyncServiceImpl<D, R, C, F>
+{
     /// Handle `pull_request` events with action `opened` or `reopened`.
     #[tracing::instrument(skip(self, event), err)]
     pub(crate) async fn handle_pr_open(
@@ -18,7 +21,7 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
     ) -> Result<(), GithubError> {
         let searchable_texts = event.extract_searchable_text();
         let combined = searchable_texts.join(" ");
-        let task_ids = MacroTaskId::extract_from_text(&combined);
+        let task_ids = self.extract_task_ids_from_text(event, &combined).await;
 
         tracing::trace!(
             task_id_count = task_ids.len(),
@@ -99,7 +102,7 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
     ) -> Result<(), GithubError> {
         let searchable_texts = event.extract_searchable_text();
         let combined = searchable_texts.join(" ");
-        let task_ids: Vec<MacroTaskId> = MacroTaskId::extract_from_text(&combined);
+        let task_ids = self.extract_task_ids_from_text(event, &combined).await;
 
         tracing::trace!(
             task_id_count = task_ids.len(),
@@ -170,8 +173,11 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
 
     /// Handle `pull_request` events with action `closed`.
     ///
-    /// Gathers all tracked task IDs from the repo plus any from PR text,
-    /// then updates status to "Completed" (if merged) or "Canceled".
+    /// Gathers all tracked task IDs from the repo plus any from PR text.
+    ///
+    /// If the PR was merged, updates their status to "Completed". If the PR was
+    /// closed without being merged, moves associated tasks back to "Not Started"
+    /// (the TODO status) instead of canceling them.
     /// Does NOT post a new bot comment.
     #[tracing::instrument(skip(self, event), err)]
     pub(crate) async fn handle_pr_close(
@@ -184,7 +190,9 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
         // Gather task IDs from PR title/body/branch
         let searchable_texts = event.extract_searchable_text();
         let combined = searchable_texts.join(" ");
-        let mut task_id_set: HashSet<MacroTaskId> = MacroTaskId::extract_from_text(&combined)
+        let mut task_id_set: HashSet<MacroTaskId> = self
+            .extract_task_ids_from_text(event, &combined)
+            .await
             .into_iter()
             .collect();
 
@@ -227,7 +235,11 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
         let resolved = self.resolve_tasks(&all_task_ids).await;
 
         // No bot comment on close
-        let status = if is_merged { "Completed" } else { "Canceled" };
+        let status = if is_merged {
+            "Completed"
+        } else {
+            "Not Started"
+        };
         tracing::trace!(
             status,
             doc_count = resolved.doc_ids.len(),

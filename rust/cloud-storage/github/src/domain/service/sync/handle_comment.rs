@@ -5,10 +5,13 @@ use crate::domain::{
     ports::{GithubSyncClient, GithubSyncRepo},
 };
 use documents::domain::ports::DocumentService;
+use foreign_entity::domain::ports::ForeignEntityService;
 
 use super::GithubSyncServiceImpl;
 
-impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServiceImpl<D, R, C> {
+impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient, F: ForeignEntityService>
+    GithubSyncServiceImpl<D, R, C, F>
+{
     /// Handle `issue_comment`, `pull_request_review`, and
     /// `pull_request_review_comment` events.
     ///
@@ -22,7 +25,7 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
         // Extract task IDs from the new comment/review text only
         let searchable_texts = event.extract_searchable_text();
         let combined = searchable_texts.join(" ");
-        let comment_task_ids: Vec<MacroTaskId> = MacroTaskId::extract_from_text(&combined);
+        let comment_task_ids = self.extract_task_ids_from_text(event, &combined).await;
 
         tracing::trace!(
             new_task_id_count = comment_task_ids.len(),
@@ -50,7 +53,7 @@ impl<D: DocumentService, R: GithubSyncRepo, C: GithubSyncClient> GithubSyncServi
         if let Some(ref key) = github_key {
             let pr_context_tasks = {
                 let pr_context = event.extract_pr_context_text().join(" ");
-                let extracted = MacroTaskId::extract_from_text(&pr_context);
+                let extracted = self.extract_task_ids_from_text(event, &pr_context).await;
                 // Validate PR context task IDs too
                 self.resolve_tasks(&extracted).await.validated_task_ids
             };

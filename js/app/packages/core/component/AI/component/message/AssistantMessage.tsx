@@ -1,6 +1,8 @@
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { ChatMessageMarkdown } from '@core/component/AI/component/message/ChatMessageMarkdown';
+import { ThinkingBlock } from '@core/component/AI/component/message/ThinkingBlock';
 import { RenderTool } from '@core/component/AI/component/tool/handler';
+import { McpToolCall } from '@core/component/AI/component/tool/McpToolCall';
 import { useChatContext } from '@core/component/AI/context';
 import { replaceCitations } from '@core/component/LexicalMarkdown/citationsUtils';
 import { ENABLE_TTFT } from '@core/constant/featureFlags';
@@ -34,7 +36,7 @@ function messageContentIsEmpty(content: ChatMessageContent) {
   }
 }
 
-export function extractMessageText(content: ChatMessageContent) {
+function extractMessageText(content: ChatMessageContent) {
   if (typeof content === 'string') {
     return content;
   } else if (Array.isArray(content)) {
@@ -215,7 +217,7 @@ export function AssistantMessage(props: {
                   </button>
                 </div>
                 <Show when={props.ttft && ENABLE_TTFT}>
-                  <div class="flex flex-row items-center space-x-1 text-xs font-mono bg-panel px-2 py-1">
+                  <div class="flex flex-row items-center space-x-1 text-xs font-mono bg-surface px-2 py-1">
                     <span class="text-ink-muted">Time to first token:</span>
                     <span class="text-ink font-medium">
                       {props.ttft! / 1000}s
@@ -287,6 +289,12 @@ function AssistantMessageParts(props: {
     );
   });
 
+  const isThinkingDone = createMemo(() => {
+    if (!props.isStreaming) return true;
+    const p = parts();
+    return p.some((part) => part.type !== 'thinking');
+  });
+
   const keyedParts = createMemo(() => {
     const counts = new Map<AssistantMessagePart['type'], number>();
     const partsByKey = new Map<string, AssistantMessagePart>();
@@ -342,6 +350,28 @@ function AssistantMessageParts(props: {
                 );
               })()}
             </Match>
+            <Match when={type() === 'mcpToolCall'}>
+              {(() => {
+                const mcpCall = () =>
+                  currentPart() as Extract<
+                    AssistantMessagePart,
+                    { type: 'mcpToolCall' }
+                  >;
+                return (
+                  <McpToolCall
+                    name={mcpCall().name}
+                    service={mcpCall().service}
+                    display_name={mcpCall().display_name ?? undefined}
+                    isComplete={isCompleteSelector(mcpCall().id)}
+                    renderContext={{
+                      renderContext: {
+                        isStreaming: props.isStreaming,
+                      },
+                    }}
+                  />
+                );
+              })()}
+            </Match>
             <Match when={type() === 'text'}>
               {(() => {
                 const text = () => {
@@ -353,6 +383,22 @@ function AssistantMessageParts(props: {
                     <ChatMessageMarkdown
                       text={text()}
                       generating={() => props.isStreaming}
+                    />
+                  </Show>
+                );
+              })()}
+            </Match>
+            <Match when={type() === 'thinking'}>
+              {(() => {
+                const thinking = () => {
+                  const p = currentPart();
+                  return p?.type === 'thinking' ? p.thinking : '';
+                };
+                return (
+                  <Show when={thinking().trim().length > 0}>
+                    <ThinkingBlock
+                      thinking={thinking()}
+                      isStreaming={!isThinkingDone()}
                     />
                   </Show>
                 );

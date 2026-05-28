@@ -29,14 +29,15 @@ import {
 } from '@core/user';
 import { useSendMessageToPeople } from '@core/util/channels';
 import { getDestinationFromOptions } from '@core/util/destination';
-import { isErr } from '@core/util/maybeResult';
+import { isPlatform } from '@core/util/platform';
+
 import {
   chatRuleset,
   handleFileFolderDrop,
   uploadFile,
 } from '@core/util/upload';
-import InfoIcon from '@icon/regular/info.svg';
-import { commsServiceClient } from '@service-comms/client';
+import InfoIcon from '@phosphor/info.svg';
+import { useCreateChannelMutation } from '@queries/channel/channels';
 import { Surface } from '@ui';
 import { createEffect, createMemo, createSignal, on, Show } from 'solid-js';
 
@@ -104,6 +105,7 @@ export function ChannelCompose() {
   const [error, setError] = createSignal<string>();
 
   const { sendToUsers, sendToChannel } = useSendMessageToPeople();
+  const createChannelMutation = useCreateChannelMutation();
 
   async function handleSend(snapshot: InputSnapshot) {
     setError(undefined);
@@ -125,15 +127,11 @@ export function ChannelCompose() {
         channelName() &&
         destination.users.length > 1
       ) {
-        const res = await commsServiceClient.createChannel({
+        const { id } = await createChannelMutation.mutateAsync({
           channel_type: 'private',
           name: channelName() ?? null,
           participants: destination.users,
         });
-        if (isErr(res)) {
-          throw new Error('Could not create channel');
-        }
-        const [, { id }] = res;
         await sendToChannel({
           channelId: id,
           content,
@@ -261,13 +259,17 @@ export function ChannelCompose() {
             </div>
           </div>
         </Show>
-        <div class="p-2">
+        <div class="px-2">
           <ChannelInputContainer>
             <Input.Root
               input={inputState.view()}
               commands={inputState.commands}
             >
-              <Surface depth={2}>
+              <Surface
+                depth={2}
+                class="rounded-xl ring-1 ring-edge"
+                style={{ border: '0' }}
+              >
                 <Input.DropZone
                   onDragStart={(valid) => inputState.setIsDraggedOver(valid)}
                   onDragEnd={() => inputState.setIsDraggedOver(false)}
@@ -308,7 +310,12 @@ export function ChannelCompose() {
                     <Input.Footer>
                       <Input.Actions>
                         <Input.Actions.Left>
-                          <Input.AttachFilesAction />
+                          <Show
+                            when={!isPlatform('ios')}
+                            fallback={<Input.AttachNativeMediaAction />}
+                          >
+                            <Input.AttachFilesAction />
+                          </Show>
                           <Input.ToggleFormatAction />
                         </Input.Actions.Left>
                         <Input.Actions.Right>

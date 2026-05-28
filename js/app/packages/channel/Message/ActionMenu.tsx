@@ -1,10 +1,10 @@
-import AddEmojiIcon from '@macro-icons/square/add-emoji.svg';
-import EditIcon from '@macro-icons/square/edit.svg';
-import LinkIcon from '@macro-icons/square/link.svg';
-import ReplyIcon from '@macro-icons/square/reply.svg';
-import TrashIcon from '@macro-icons/square/trash.svg';
-import StarIcon from '@macro-icons/wide/star.svg';
-import TaskIcon from '@macro-icons/wide/task.svg';
+import AddEmojiIcon from '@icon/square-add-emoji.svg';
+import EditIcon from '@icon/square-edit.svg';
+import LinkIcon from '@icon/square-link.svg';
+import ReplyIcon from '@icon/square-reply.svg';
+import TrashIcon from '@icon/square-trash.svg';
+import StarIcon from '@icon/wide-star.svg';
+import TaskIcon from '@icon/wide-task.svg';
 import { Button, Layer } from '@ui';
 import { type Component, createSignal, For, type JSX, Show } from 'solid-js';
 import { useMessage, useMessageActions } from './context';
@@ -122,7 +122,7 @@ export function ActionMenu(props: ActionMenuProps) {
       <HoverActions class={props.class} persistentVisible={emojiMenuOpen()}>
         <Layer depth={2}>
           <div
-            class="flex flex-row bg-panel ring ring-edge p-1 shadow items-center rounded-md"
+            class="flex flex-row bg-surface ring ring-edge p-1 shadow items-center rounded-md"
             onClick={(e) => e.stopPropagation()}
           >
             <Show when={hasReactAction()}>

@@ -8,7 +8,7 @@ import {
   allSupportedExtensionSet,
   isCodeEditorExtensionSupported,
 } from '@core/util/languageQuery';
-import { isOk } from '@core/util/maybeResult';
+
 import Terminal from '@phosphor-icons/core/regular/terminal.svg';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import type {
@@ -68,9 +68,9 @@ function CreateResult(props: {
       source_id: props.toolId,
     });
 
-    if (isOk(result) && result[1]) {
+    if (result.isOk() && result.value) {
       try {
-        const fileInfo = JSON.parse(result[1]) as CreatedFileInfo;
+        const fileInfo = JSON.parse(result.value) as CreatedFileInfo;
         createdFilesMap[props.toolId] = fileInfo;
         setCreatedFile(fileInfo);
       } catch {
@@ -152,14 +152,10 @@ function InlineTextEditorResult(props: {
 }
 
 const handler = createToolRenderer({
-  name: 'text_editor_code_execution',
-  handleCall: async (ctx) => {
-    if (ctx.tool.data.command === 'create' && ctx.tool.data.file_text) {
-      toolFileDataMap[ctx.tool.id] = {
-        path: ctx.tool.data.path,
-        fileText: ctx.tool.data.file_text,
-      };
-    }
+  name: 'TextEditorCodeExecution',
+  handleCall: async (_ctx) => {
+    // The new tool shape has a single `input` string field;
+    // file-creation side effects are no longer possible from the call data alone.
   },
   handleResponse: async (ctx) => {
     const { content } = ctx.tool.data;
@@ -193,8 +189,8 @@ const handler = createToolRenderer({
       title: fileName,
     });
 
-    if (isOk(result)) {
-      const documentId = result[1].documentId;
+    if (result.isOk()) {
+      const documentId = result.value.documentId;
       createdFilesMap[ctx.tool.id] = {
         documentId,
         fileName,

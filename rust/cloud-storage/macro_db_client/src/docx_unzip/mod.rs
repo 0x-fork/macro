@@ -2,6 +2,7 @@ use model::document::{BomPart, SaveBomPart};
 
 /// Saves the bom parts to the db under the documents bom id
 #[tracing::instrument(skip(db, bom_parts))]
+#[allow(clippy::disallowed_methods, reason = "legacy code. fix later")]
 pub async fn save_bom_parts_to_db(
     db: &sqlx::Pool<sqlx::Postgres>,
     bom_parts: &[SaveBomPart],
@@ -36,14 +37,25 @@ pub async fn save_bom_parts_to_db(
 
 /// Updates the `uploaded` status of the document to be true.
 #[tracing::instrument(skip(db))]
+#[allow(clippy::disallowed_methods, reason = "legacy code. fix later")]
 pub async fn update_uploaded_status(
     db: &sqlx::Pool<sqlx::Postgres>,
     document_id: &str,
 ) -> anyhow::Result<()> {
-    sqlx::query!(
-        r#"UPDATE "Document" SET "uploaded" = true WHERE id = $1"#,
-        document_id
+    sqlx::query(
+        r#"
+        UPDATE "Document"
+        SET "uploaded" = true,
+            "contentState" = CASE
+                WHEN "contentState" = 'ready' AND "contentLocation" = 'converted_pdf'
+                    THEN 'ready'
+                ELSE 'pending'
+            END,
+            "contentLocation" = 'converted_pdf'
+        WHERE id = $1
+        "#,
     )
+    .bind(document_id)
     .execute(db)
     .await?;
 
@@ -130,17 +142,18 @@ mod tests {
 
         let uploaded = sqlx::query!(
             r#"
-            SELECT uploaded
+            SELECT uploaded, "contentState", "contentLocation"
             FROM "Document"
             WHERE id = $1
             "#,
             "document-one"
         )
-        .map(|row| row.uploaded)
         .fetch_one(&pool)
         .await?;
 
-        assert!(uploaded);
+        assert!(uploaded.uploaded);
+        assert_eq!(uploaded.contentState, "pending");
+        assert_eq!(uploaded.contentLocation.as_deref(), Some("converted_pdf"));
 
         Ok(())
     }

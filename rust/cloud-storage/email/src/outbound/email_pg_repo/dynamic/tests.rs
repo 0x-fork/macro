@@ -136,6 +136,123 @@ fn test_build_message_email_filter_sender_partial() {
     assert!(result.has_no_raw_containing("example"));
 }
 
+// ---------------------------------------------------------------------------
+// Email::Domain emits an exact-domain predicate, not an ILIKE substring
+// ---------------------------------------------------------------------------
+//
+// `Email::Domain("acme.com")` must match contacts whose address ends in
+// `@acme.com` exactly — not anything containing the substring "acme.com".
+// The SQL predicate is `LOWER(SPLIT_PART(c.email_address, '@', 2)) = $domain`,
+// backed by the expression index `idx_email_contacts_email_domain`.
+// These tests guard against three regressions:
+//   1. accidentally falling back to `ILIKE '%domain%'` (would re-introduce
+//      false positives like `macro.community` matching `macro.com`)
+//   2. forgetting to lowercase the bound value before sending it (the index
+//      is built on `LOWER(...)`, so a mixed-case bind would miss the index)
+//   3. leaking the domain into raw SQL instead of binding it (sql injection)
+
+#[test]
+fn test_build_message_email_filter_sender_domain_emits_split_part_eq() {
+    let expr = Expr::Literal(EmailLiteral::Sender(Email::Domain("acme.com".to_string())));
+    let result = build_message_email_filter(&expr, &ResolvedFilters::empty());
+    let debug = result.to_debug_sql();
+
+    assert!(
+        debug.contains("LOWER(SPLIT_PART(c.email_address, '@', 2)) ="),
+        "expected exact-domain predicate, got: {debug}"
+    );
+    assert!(!debug.contains("ILIKE"), "domain match must not use ILIKE");
+    assert!(result.has_bind_string("acme.com"));
+    // No `%domain%` wildcards — that would re-introduce the substring bug.
+    assert!(!result.has_bind_string("%acme.com%"));
+    assert!(result.has_no_raw_containing("acme.com"));
+}
+
+#[test]
+fn test_build_message_email_filter_domain_lowercases_bind_value() {
+    // The expression index is `LOWER(SPLIT_PART(email_address, '@', 2))`. If
+    // we bind a mixed-case domain, the predicate becomes
+    // `LOWER(SPLIT_PART(c.email_address, '@', 2)) = 'ACME.COM'`, which never
+    // matches anything (LHS is lowercase, RHS isn't) AND can't use the
+    // index. The fix is to lowercase the bound value.
+    let expr = Expr::Literal(EmailLiteral::Sender(Email::Domain("AcMe.CoM".to_string())));
+    let result = build_message_email_filter(&expr, &ResolvedFilters::empty());
+
+    assert!(result.has_bind_string("acme.com"));
+    assert!(!result.has_bind_string("AcMe.CoM"));
+}
+
+#[test]
+fn test_build_message_email_filter_recipient_domain() {
+    let expr = Expr::Literal(EmailLiteral::Recipient(Email::Domain(
+        "acme.com".to_string(),
+    )));
+    let result = build_message_email_filter(&expr, &ResolvedFilters::empty());
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("email_message_recipients"));
+    assert!(debug.contains("recipient_type = 'TO'"));
+    assert!(debug.contains("LOWER(SPLIT_PART(c.email_address, '@', 2)) ="));
+    assert!(!debug.contains("ILIKE"));
+    assert!(result.has_bind_string("acme.com"));
+    assert!(result.has_no_raw_containing("acme.com"));
+}
+
+#[test]
+fn test_build_message_email_filter_cc_domain() {
+    let expr = Expr::Literal(EmailLiteral::Cc(Email::Domain("acme.com".to_string())));
+    let result = build_message_email_filter(&expr, &ResolvedFilters::empty());
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("recipient_type = 'CC'"));
+    assert!(debug.contains("LOWER(SPLIT_PART(c.email_address, '@', 2)) ="));
+    assert!(!debug.contains("ILIKE"));
+    assert!(result.has_bind_string("acme.com"));
+}
+
+#[test]
+fn test_build_message_email_filter_bcc_domain() {
+    let expr = Expr::Literal(EmailLiteral::Bcc(Email::Domain("acme.com".to_string())));
+    let result = build_message_email_filter(&expr, &ResolvedFilters::empty());
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("recipient_type = 'BCC'"));
+    assert!(debug.contains("LOWER(SPLIT_PART(c.email_address, '@', 2)) ="));
+    assert!(!debug.contains("ILIKE"));
+    assert!(result.has_bind_string("acme.com"));
+}
+
+#[test]
+fn test_partial_and_domain_emit_different_predicates_for_same_string() {
+    // A regression test: before the split, `Email::Partial("acme.com")` and
+    // `Email::Domain("acme.com")` shared the same `ILIKE '%acme.com%'`
+    // predicate. Splitting them is the whole point of the change — confirm
+    // they now produce structurally different SQL even with identical input.
+    let s = "acme.com";
+
+    let partial = build_message_email_filter(
+        &Expr::Literal(EmailLiteral::Sender(Email::Partial(s.to_string()))),
+        &ResolvedFilters::empty(),
+    );
+    let domain = build_message_email_filter(
+        &Expr::Literal(EmailLiteral::Sender(Email::Domain(s.to_string()))),
+        &ResolvedFilters::empty(),
+    );
+
+    let partial_debug = partial.to_debug_sql();
+    let domain_debug = domain.to_debug_sql();
+
+    // Partial is a substring scan against the full address.
+    assert!(partial_debug.contains("ILIKE"));
+    assert!(!partial_debug.contains("SPLIT_PART"));
+    assert!(partial.has_bind_string("%acme.com%"));
+
+    // Domain is an exact match against the domain portion only.
+    assert!(domain_debug.contains("SPLIT_PART"));
+    assert!(!domain_debug.contains("ILIKE"));
+    assert!(domain.has_bind_string("acme.com"));
+}
+
 #[test]
 fn test_build_message_email_filter_importance_true_includes_drafts() {
     let expr = Expr::Literal(EmailLiteral::Importance(true));
@@ -406,11 +523,13 @@ fn test_build_query_orders_by_id_to_match_cursor_tiebreak() {
     assert!(!sql.contains("ORDER BY t.effective_ts DESC, t.updated_at DESC"));
 }
 
+const DEFAULT_SORT_TS: &str = "t.updated_at";
+
 #[test]
 fn test_build_thread_email_filter_single_thread_id() {
     let id = Uuid::new_v4();
     let expr = Expr::Literal(EmailLiteral::ThreadId(id));
-    let result = build_thread_email_filter(&expr);
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
     let debug = result.to_debug_sql();
 
     assert!(debug.contains("t.id = "));
@@ -426,7 +545,7 @@ fn test_build_thread_email_filter_multiple_thread_ids() {
         Expr::Literal(EmailLiteral::ThreadId(id1)),
         Expr::Literal(EmailLiteral::ThreadId(id2)),
     );
-    let result = build_thread_email_filter(&expr);
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
     let debug = result.to_debug_sql();
 
     assert!(result.has_bind_uuid(&id1));
@@ -439,7 +558,7 @@ fn test_build_thread_email_filter_multiple_thread_ids() {
 #[test]
 fn test_build_thread_email_filter_maps_sender_to_true() {
     let expr = Expr::Literal(EmailLiteral::Sender(complete("test@example.com")));
-    let result = build_thread_email_filter(&expr);
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
     let debug = result.to_debug_sql();
 
     assert!(debug.contains("TRUE"));
@@ -466,7 +585,7 @@ fn test_combined_thread_id_and_sender_splits_correctly() {
         Expr::Literal(EmailLiteral::Sender(complete("sender@example.com"))),
     );
 
-    let thread_result = build_thread_email_filter(&expr);
+    let thread_result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
     let thread_debug = thread_result.to_debug_sql();
     assert!(thread_result.has_bind_uuid(&id));
     assert!(!thread_debug.contains("from_contact_id"));
@@ -518,7 +637,7 @@ fn test_has_both_literals_in_combined_ast() {
 #[test]
 fn test_build_thread_email_filter_single_project_id() {
     let expr = Expr::Literal(EmailLiteral::ProjectId("project-123".to_string()));
-    let result = build_thread_email_filter(&expr);
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
     let debug = result.to_debug_sql();
 
     assert!(debug.contains("t.project_id = "));
@@ -532,7 +651,7 @@ fn test_build_thread_email_filter_multiple_project_ids() {
         Expr::Literal(EmailLiteral::ProjectId("project-1".to_string())),
         Expr::Literal(EmailLiteral::ProjectId("project-2".to_string())),
     );
-    let result = build_thread_email_filter(&expr);
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
     let debug = result.to_debug_sql();
 
     assert!(debug.contains("OR"));
@@ -572,7 +691,7 @@ fn test_combined_project_id_and_sender_splits_correctly() {
         Expr::Literal(EmailLiteral::Sender(complete("sender@example.com"))),
     );
 
-    let thread_result = build_thread_email_filter(&expr);
+    let thread_result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
     let thread_debug = thread_result.to_debug_sql();
     assert!(thread_debug.contains("t.project_id = "));
     assert!(thread_result.has_bind_string("project-123"));
@@ -589,7 +708,7 @@ fn test_combined_project_id_and_sender_splits_correctly() {
 #[test]
 fn test_sql_injection_project_id_not_in_raw_sql() {
     let expr = Expr::Literal(EmailLiteral::ProjectId("'; DROP TABLE--".to_string()));
-    let result = build_thread_email_filter(&expr);
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
 
     assert!(result.has_bind_string("'; DROP TABLE--"));
     assert!(result.has_no_raw_containing("DROP"));
@@ -635,7 +754,7 @@ fn test_sql_injection_user_label_not_in_raw_sql() {
 fn test_sql_injection_thread_id_not_in_raw_sql() {
     let id = Uuid::new_v4();
     let expr = Expr::Literal(EmailLiteral::ThreadId(id));
-    let result = build_thread_email_filter(&expr);
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
 
     assert!(result.has_bind_uuid(&id));
     assert!(result.has_no_raw_containing(&id.to_string()));
@@ -757,6 +876,54 @@ fn test_matching_threads_cte_body_partial_emits_ilike_branch_with_email_contacts
 }
 
 #[test]
+fn test_matching_threads_cte_body_domain_emits_split_part_branch() {
+    // The union-branch path is the candidate-thread pushdown — it has its
+    // own copy of the address-match SQL builder. Domain on this path must
+    // also emit the exact-domain predicate, not ILIKE.
+    let expr = Expr::Literal(EmailLiteral::Sender(Email::Domain("acme.com".into())));
+    let body =
+        build_matching_threads_cte_body(&expr, &ResolvedFilters::empty()).expect("body present");
+    let debug = body.to_debug_sql();
+
+    assert!(debug.contains("FROM email_contacts c"));
+    assert!(
+        debug.contains("LOWER(SPLIT_PART(c.email_address, '@', 2)) ="),
+        "expected exact-domain predicate in CTE branch, got: {debug}"
+    );
+    assert!(!debug.contains("ILIKE"));
+    assert!(body.has_bind_string("acme.com"));
+    assert!(!body.has_bind_string("%acme.com%"));
+    assert!(body.has_no_raw_containing("acme.com"));
+}
+
+#[test]
+fn test_matching_threads_cte_body_domain_recipient_kind_uses_split_part() {
+    // Recipient (and CC/BCC) go through the recipient join in the
+    // union-branch builder. Verify the predicate shape is consistent across
+    // address kinds.
+    let expr = Expr::Literal(EmailLiteral::Recipient(Email::Domain("acme.com".into())));
+    let body =
+        build_matching_threads_cte_body(&expr, &ResolvedFilters::empty()).expect("body present");
+    let debug = body.to_debug_sql();
+
+    assert!(debug.contains("email_message_recipients"));
+    assert!(debug.contains("mr.recipient_type = 'TO'"));
+    assert!(debug.contains("LOWER(SPLIT_PART(c.email_address, '@', 2)) ="));
+    assert!(!debug.contains("ILIKE"));
+    assert!(body.has_bind_string("acme.com"));
+}
+
+#[test]
+fn test_matching_threads_cte_body_domain_lowercases_bind_value() {
+    let expr = Expr::Literal(EmailLiteral::Sender(Email::Domain("AcMe.CoM".into())));
+    let body =
+        build_matching_threads_cte_body(&expr, &ResolvedFilters::empty()).expect("body present");
+
+    assert!(body.has_bind_string("acme.com"));
+    assert!(!body.has_bind_string("AcMe.CoM"));
+}
+
+#[test]
 fn test_matching_threads_cte_body_and_of_conjuncts_uses_combined_predicate_form() {
     // `Sender(X) AND Recipient(Y)` requires single-message semantics —
     // can't UNION the two (would change AND to OR). Expect a single
@@ -842,7 +1009,7 @@ fn test_full_query_emits_matching_threads_cte_and_in_reference() {
 #[test]
 fn test_build_thread_email_filter_calendar_only_true_emits_ics_exists() {
     let expr = Expr::Literal(EmailLiteral::CalendarOnly(true));
-    let result = build_thread_email_filter(&expr);
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
     let debug = result.to_debug_sql();
 
     assert!(debug.contains("EXISTS"));
@@ -856,7 +1023,7 @@ fn test_build_thread_email_filter_calendar_only_true_emits_ics_exists() {
 #[test]
 fn test_build_thread_email_filter_calendar_only_false_maps_to_true() {
     let expr = Expr::Literal(EmailLiteral::CalendarOnly(false));
-    let result = build_thread_email_filter(&expr);
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
     let debug = result.to_debug_sql();
 
     assert!(debug.contains("TRUE"));
@@ -882,5 +1049,102 @@ fn test_has_thread_literals_true_when_calendar_only_present() {
 #[test]
 fn test_has_message_literals_false_when_only_calendar_only() {
     let expr = Expr::Literal(EmailLiteral::CalendarOnly(true));
+    assert!(!has_message_literals(&expr));
+}
+
+#[test]
+fn test_build_thread_email_filter_created_at_greater_than() {
+    use chrono::TimeZone;
+    use item_filters::ast::date::DateLiteral;
+
+    let dt = chrono::Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).unwrap();
+    let expr = Expr::Literal(EmailLiteral::CreatedAt(DateLiteral::GreaterThan(dt)));
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("t.created_at >"));
+    assert!(debug.contains("2024-01-15"));
+}
+
+#[test]
+fn test_build_thread_email_filter_created_at_less_than_or_equal() {
+    use chrono::TimeZone;
+    use item_filters::ast::date::DateLiteral;
+
+    let dt = chrono::Utc
+        .with_ymd_and_hms(2024, 6, 30, 23, 59, 59)
+        .unwrap();
+    let expr = Expr::Literal(EmailLiteral::CreatedAt(DateLiteral::LessThanOrEqual(dt)));
+    let result = build_thread_email_filter(&expr, DEFAULT_SORT_TS);
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("t.created_at <="));
+    assert!(debug.contains("2024-06-30"));
+}
+
+#[test]
+fn test_build_thread_email_filter_updated_at_uses_sort_ts_field() {
+    use chrono::TimeZone;
+    use item_filters::ast::date::DateLiteral;
+
+    let dt = chrono::Utc.with_ymd_and_hms(2024, 3, 1, 0, 0, 0).unwrap();
+    let expr = Expr::Literal(EmailLiteral::UpdatedAt(DateLiteral::GreaterThanOrEqual(dt)));
+
+    // Inbox view uses latest_inbound_message_ts
+    let inbox_sort_ts = "t.latest_inbound_message_ts";
+    let result = build_thread_email_filter(&expr, inbox_sort_ts);
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("t.latest_inbound_message_ts >="));
+    assert!(debug.contains("2024-03-01"));
+}
+
+#[test]
+fn test_build_thread_email_filter_updated_at_with_different_sort_fields() {
+    use chrono::TimeZone;
+    use item_filters::ast::date::DateLiteral;
+
+    let dt = chrono::Utc.with_ymd_and_hms(2024, 5, 15, 0, 0, 0).unwrap();
+    let expr = Expr::Literal(EmailLiteral::UpdatedAt(DateLiteral::LessThan(dt)));
+
+    // Sent view uses latest_outbound_message_ts
+    let sent_sort_ts = "t.latest_outbound_message_ts";
+    let result = build_thread_email_filter(&expr, sent_sort_ts);
+    let debug = result.to_debug_sql();
+
+    assert!(debug.contains("t.latest_outbound_message_ts <"));
+    assert!(!debug.contains("t.updated_at <"));
+}
+
+#[test]
+fn test_has_thread_literals_true_when_created_at_present() {
+    use chrono::TimeZone;
+    use item_filters::ast::date::DateLiteral;
+
+    let dt = chrono::Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
+    let expr = Expr::Literal(EmailLiteral::CreatedAt(DateLiteral::GreaterThan(dt)));
+    assert!(has_thread_literals(&expr));
+}
+
+#[test]
+fn test_has_thread_literals_true_when_updated_at_present() {
+    use chrono::TimeZone;
+    use item_filters::ast::date::DateLiteral;
+
+    let dt = chrono::Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
+    let expr = Expr::Literal(EmailLiteral::UpdatedAt(DateLiteral::LessThan(dt)));
+    assert!(has_thread_literals(&expr));
+}
+
+#[test]
+fn test_has_message_literals_false_when_only_date_filters() {
+    use chrono::TimeZone;
+    use item_filters::ast::date::DateLiteral;
+
+    let dt = chrono::Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
+    let expr = Expr::and(
+        Expr::Literal(EmailLiteral::CreatedAt(DateLiteral::GreaterThan(dt))),
+        Expr::Literal(EmailLiteral::UpdatedAt(DateLiteral::LessThan(dt))),
+    );
     assert!(!has_message_literals(&expr));
 }

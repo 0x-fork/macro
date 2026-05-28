@@ -1,7 +1,6 @@
 import { ENABLE_MENTION_TRACKING } from '@core/constant/featureFlags';
-import { isErr } from '@core/util/maybeResult';
-import { commsServiceClient } from '@service-comms/client';
-import type { ItemType } from '@service-storage/client';
+
+import { type ItemType, storageServiceClient } from '@service-storage/client';
 import { getPermissionToken } from './token';
 
 type MentionId = string;
@@ -15,7 +14,7 @@ export async function trackMention(
   const token = await getPermissionToken('document', sourceId);
   if (!token) return;
 
-  const response = await commsServiceClient.createEntityMention(
+  const response = await storageServiceClient.createEntityMention(
     {
       source_entity_type: 'document',
       source_entity_id: sourceId,
@@ -25,12 +24,12 @@ export async function trackMention(
     token
   );
 
-  if (isErr(response)) {
+  if (response.isErr()) {
     console.error('Failed to track document mention', response);
     return;
   }
 
-  return response[1]?.id;
+  return response.value?.id;
 }
 
 export async function untrackMention(
@@ -41,14 +40,14 @@ export async function untrackMention(
   const token = await getPermissionToken('document', sourceId);
   if (!token) return;
 
-  const response = await commsServiceClient.deleteEntityMention(
+  const response = await storageServiceClient.deleteEntityMention(
     {
       mention_id: mentionId,
     },
     token
   );
 
-  if (isErr(response)) {
+  if (response.isErr()) {
     console.error('Failed to untrack document mention', response);
   }
 }

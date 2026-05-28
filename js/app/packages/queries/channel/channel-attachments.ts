@@ -1,10 +1,10 @@
-import { throwOnErr } from '@core/util/maybeResult';
+import { throwOnErr } from '@core/util/result';
 import {
   type ApiChannelAttachment,
   type ChannelAttachmentsPage,
   type ChannelAttachmentType,
-  commsServiceClient,
-} from '@service-comms/client';
+  storageServiceClient,
+} from '@service-storage/client';
 import { type InfiniteData, useInfiniteQuery } from '@tanstack/solid-query';
 import { type Accessor, createMemo } from 'solid-js';
 import { queryClient } from '../client';
@@ -15,7 +15,7 @@ export type ChannelAttachmentsData = InfiniteData<
   string | null
 >;
 
-export type ChannelAttachmentsQueryKey = ReturnType<
+type ChannelAttachmentsQueryKey = ReturnType<
   typeof channelKeys.attachments
 >['queryKey'];
 
@@ -34,7 +34,7 @@ export function channelAttachmentsQueryOptions(
     }) => {
       return await throwOnErr(
         async () =>
-          await commsServiceClient.getChannelAttachments({
+          await storageServiceClient.getChannelAttachments({
             channel_id: channelId,
             limit: 100,
             cursor: pageParam,
@@ -50,7 +50,7 @@ export function channelAttachmentsQueryOptions(
   };
 }
 
-export function useChannelAttachmentsQuery(
+function useChannelAttachmentsQuery(
   channelId: Accessor<string>,
   attachmentType?: Accessor<ChannelAttachmentType | undefined>
 ) {
@@ -69,7 +69,7 @@ export function useChannelDocumentAttachmentsQuery(
   return useChannelAttachmentsQuery(channelId, () => 'dss');
 }
 
-export function useChannelAttachmentsWithIndex(channelId: Accessor<string>) {
+function _useChannelAttachmentsWithIndex(channelId: Accessor<string>) {
   const query = useChannelAttachmentsQuery(channelId);
   const byId = createMemo(() => {
     const flat = flattenAttachments(
@@ -102,7 +102,7 @@ export function getChannelAttachmentsQueryKeyPrefix(channelId: string) {
   return [...channelKeys.attachments._def, channelId];
 }
 
-export function softInvalidateChannelAttachments(channelId: string) {
+function _softInvalidateChannelAttachments(channelId: string) {
   queryClient.invalidateQueries({
     queryKey: getChannelAttachmentsQueryKeyPrefix(channelId),
     refetchType: 'inactive',

@@ -70,10 +70,24 @@ export type ContentType =
   | 'chat-message'
   | 'project';
 /**
+ * Where document content is, or is expected to be, read from.
+ */
+export type DocumentContentLocation =
+  | 'object_storage'
+  | 'sync_service'
+  | 'docx_bom_parts'
+  | 'converted_pdf'
+  | 'unknown';
+/**
+ * API-visible content lifecycle state derived from current document metadata.
+ */
+export type DocumentContentState = 'unknown' | 'pending' | 'ready';
+/**
  * The document sub type enum represents all values of document sub types.
  * These values should match the `document_sub_type_value` table in macrodb.
  */
 export type DocumentSubType = 'task';
+export type EmailPreset = 'signal';
 export type EntityItem =
   | {
       id: string;
@@ -171,6 +185,8 @@ export type ReadThreadReadContent =
  * A single search result from web search
  */
 export type SearchResult = {
+  encrypted_content?: string | null;
+  page_age?: string | null;
   title: string;
   type: 'web_search_result';
   url: string;
@@ -277,7 +293,20 @@ export type WebFetchErrorCode =
   | 'unsupported_content_type'
   | 'max_uses_exceeded'
   | 'unavailable';
+/**
+ * Content of a web search response — either search results or an error.
+ */
+export type WebSearchContent = SearchResult[] | WebSearchToolError;
 
+/**
+ * Execute a bash command in a sandboxed environment using Claude's built-in code execution tool.
+ */
+export interface BashCodeExecution {
+  /**
+   * The bash command or instruction to execute.
+   */
+  input: string;
+}
 /**
  * Successful bash code execution result
  */
@@ -320,15 +349,6 @@ export interface BashCodeExecutionToolError {
 export interface BashCodeExecutionResponse {
   content: BashCodeExecutionContent;
   tool_use_id: string;
-}
-/**
- * The expected shape of the streamed JSON following a `server_tool_use` for bash_code_execution
- */
-export interface BashCodeExecutionToolCall {
-  /**
-   * The bash command to execute
-   */
-  command: string;
 }
 export interface CallRecordMetadata {
   attended: boolean;
@@ -717,7 +737,7 @@ export interface MarkdownNode {
   type: string;
 }
 /**
- * Search items by their content: document body text; email subject/body/sender/recipient/cc/bcc and the display names on those addresses; chat messages; call transcripts. For emails, whitespace-separated terms are ANDed and each term is matched independently across the text fields and the local-part of address fields, with the two groups OR'd. For all other types the whole query is matched as a single adjacent phrase prefix — so pass 1-3 targeted keywords drawn from words that would literally appear in the content, not the user's natural-language description; long phrases will not match. Wrap a term in double quotes (e.g. `"deal review"` or `"alice@example.com"`) to force exact-token matching instead of prefix. If the user's request combines a person with a topic, run separate searches rather than one combined query. Leave entityTypes empty by default; only filter when the user explicitly scopes to a type.
+ * Search items by their content: document body text; email subject/body/sender/recipient/cc/bcc and the display names on those addresses; chat messages; call transcripts. Whitespace-separated terms are ANDed. For documents and emails, every term must match somewhere in the document — different terms can appear in different chunks/pages or different fields. For documents and emails specifically, each single-word term is matched as a prefix (so `scri` matches `script`); for emails the prefix expansion also runs against the local-part of address fields. For chats, channels, and call transcripts the whole query is matched as a single adjacent phrase prefix — so pass 1-3 targeted keywords drawn from words that would literally appear in the content, not the user's natural-language description; long phrases will not match. Wrap a term in double quotes (e.g. `"deal review"` or `"alice@example.com"`) to force exact-token / exact-phrase matching instead of prefix. If the user's request combines a person with a topic, run separate searches rather than one combined query. Leave entityTypes empty by default; only filter when the user explicitly scopes to a type.
  */
 export interface ContentSearch {
   /**
@@ -725,7 +745,7 @@ export interface ContentSearch {
    */
   entityTypes?: UnifiedSearchIndex[];
   /**
-   * The text to search. Pass 1-3 keywords drawn from words that would literally appear in the content, not the user's natural-language description. Whitespace-separated terms are ANDed. For non-email types the whole query is matched as a single adjacent phrase prefix, so long phrases will not match. For emails each term is matched across subject/body/sender/recipient. Wrap a term in double quotes to force exact-token (or full-email-address) matching.
+   * The text to search. Pass 1-3 keywords drawn from words that would literally appear in the content, not the user's natural-language description. Whitespace-separated terms are ANDed. For documents, every term must appear somewhere in the document (different chunks/pages are fine). For emails each term is matched across subject/body/sender/recipient. For chats/channels/calls the whole query is matched as a single adjacent phrase prefix, so long phrases will not match. Wrap a term in double quotes to force exact-token (or full-email-address) matching.
    */
   query: string;
 }
@@ -768,6 +788,16 @@ export interface CreateDocumentResponse {
    * The id of the document
    */
   documentId: string;
+}
+/**
+ * API-visible content lifecycle and location metadata.
+ */
+export interface DocumentContent {
+  /**
+   * The content location, when known.
+   */
+  location?: DocumentContentLocation | null;
+  state: DocumentContentState;
 }
 /**
  * Metadata for a document fetched from the database
@@ -1137,14 +1167,117 @@ export interface ListCallRecordsResponse {
  */
 export interface ListEntities {
   /**
-   * Filter to specific item types. If not provided, returns all types. Example: ["document", "email"] returns only documents and emails.
+   * Full soup AST call filter (callf).
+   */
+  callf?: {
+    [k: string]: unknown;
+  };
+  /**
+   * Full soup AST AI chat filter (cf).
+   */
+  cf?: {
+    [k: string]: unknown;
+  };
+  /**
+   * Full soup AST channel filter (chanf).
+   */
+  chanf?: {
+    [k: string]: unknown;
+  };
+  /**
+   * Full soup AST document filter (df). Use the same shape as /items/soup/ast, e.g. {"l":{"id":"..."}}.
+   */
+  df?: {
+    [k: string]: unknown;
+  };
+  /**
+   * Advanced full soup AST email filter (ef). Prefer emailPreset="signal" for common requests. Signal emails and important emails are synonymous; they use {"&":[{"l":{"Importance":true}},{"l":{"Shared":"exclude"}}]}.
+   */
+  ef?: {
+    [k: string]: unknown;
+  };
+  /**
+   * High-level email filter preset. Use "signal" for signal emails. Signal emails and important emails are synonymous: if the user asks for important emails, use emailPreset="signal". This expands to the email AST {"&":[{"l":{"Importance":true}},{"l":{"Shared":"exclude"}}]} and defaults results to emails if includeTypes is omitted.
+   */
+  emailPreset?: EmailPreset | null;
+  /**
+   * Which mailbox view to hydrate previews from for email results. Valid values: inbox (default), sent, drafts, starred, all, important, other, or user:<label>.
+   *
+   * When the user asks about signal or important emails, use emailView="inbox" together with emailPreset="signal" — do not set emailView="important" in that case. Only override the default when the user explicitly asks for a specific mailbox or label view (e.g. "sent", "drafts", "my Foo label").
+   */
+  emailView?: string | null;
+  /**
+   * Filter returned items to specific item types. If not provided, returns all types. Example: ["document", "email"] returns only documents and emails. This is folded into the AST and applied as part of cursor-level filtering.
    */
   includeTypes?: ItemType[] | null;
+  /**
+   * Maximum number of items to return. Defaults to 50; max 500.
+   */
+  limit?: number | null;
+  /**
+   * Full soup AST project filter (pf).
+   */
+  pf?: {
+    [k: string]: unknown;
+  };
+  /**
+   * Full soup AST property filter (propf).
+   */
+  propf?: {
+    [k: string]: unknown;
+  };
   sortBy?: SortBy;
 }
 export interface ListEntitiesResponse {
   items: EntityItem[];
   summary: string;
+}
+/**
+ * List the user's Gmail labels. Returns both system labels (INBOX, SENT, DRAFTS, UNREAD, STARRED, TRASH, SPAM, IMPORTANT, CATEGORY_PERSONAL, CATEGORY_SOCIAL, CATEGORY_PROMOTIONS, CATEGORY_UPDATES, CATEGORY_FORUMS, etc.) and any custom user-created labels. Each label has a UUID `id` and a `name`.
+ *
+ * Gmail represents nearly every inbox operation as a label add/remove, so this tool is the first step for almost any thread-management action: call ListLabels once to find the label `id` by `name`, then pass that `id` to UpdateThreadLabels. Common pairings (look up the named system label here, then call UpdateThreadLabels with that id):
+ * - Archive a thread → remove `INBOX` (add=false)
+ * - Move back to inbox → add `INBOX` (add=true)
+ * - Mark as read → remove `UNREAD` (add=false)
+ * - Mark as unread → add `UNREAD` (add=true)
+ * - Star → add `STARRED`; Unstar → remove `STARRED`
+ * - Move to trash → add `TRASH`; Restore from trash → remove `TRASH`
+ * - Mark important → add `IMPORTANT`; Mark unimportant → remove `IMPORTANT`
+ * - Report spam → add `SPAM`; Not spam → remove `SPAM`
+ * - Apply or remove a custom user label → look up the label by its display name and add/remove it
+ *
+ * Match label names case-insensitively when searching the response. You can also use this to understand how the user's mail is organized before filtering or searching by label.
+ */
+export type ListLabels = {};
+/**
+ * Response from the ListLabels tool.
+ */
+export interface ListLabelsResponse {
+  /**
+   * The user's email labels.
+   */
+  labels: ToolLabel[];
+  /**
+   * A human-readable summary of the labels.
+   */
+  summary: string;
+}
+/**
+ * A simplified label for tool output.
+ */
+export interface ToolLabel {
+  /**
+   * The label's unique identifier.
+   */
+  id: string;
+  /**
+   * The display name of the label.
+   */
+  name: string;
+  /**
+   * Whether this is a "system" or "user" label.
+   */
+  type: string;
 }
 /**
  * List the current user's notifications. By default returns active notifications (not deleted, not done), ordered by most recent first. Use `done` and `seen` to request done/not-done or seen/unseen notifications.
@@ -1238,6 +1371,49 @@ export interface NotificationItem {
   senderId?: string | null;
 }
 /**
+ * List the current members and pending invites for the authenticated user's team. Requires the caller to be a team member.
+ */
+export type ListTeamMembers = {};
+/**
+ * Response from [`ListTeamMembers`].
+ */
+export interface ListTeamMembersResponse {
+  /**
+   * Pending team invites.
+   */
+  invited: ToolTeamInvite[];
+  /**
+   * Current accepted team members.
+   */
+  members: ToolTeamMember[];
+}
+/**
+ * A pending team invite returned by [`ListTeamMembers`].
+ */
+export interface ToolTeamInvite {
+  /**
+   * The invited email address.
+   */
+  email: string;
+  /**
+   * The role the invited user will receive.
+   */
+  role: string;
+}
+/**
+ * A current team member returned by [`ListTeamMembers`].
+ */
+export interface ToolTeamMember {
+  /**
+   * The user's role in the team.
+   */
+  role: string;
+  /**
+   * The user's Macro user id.
+   */
+  userId: string;
+}
+/**
  * Mark one or more notifications as done or not done for the current user. Use this when the user has completed the action associated with a notification.
  */
 export interface MarkNotificationsDone {
@@ -1325,7 +1501,7 @@ export interface ProjectSearchResult {
   score?: number | null;
 }
 /**
- * Retrieve the transcript for a specific call record. Use ListCallRecords first to find the callId. Only the transcript is returned — other metadata (participants, duration, etc.) is already available from ListCallRecords.
+ * Retrieve the transcript for a specific call record. Use ListCallRecords first to find the callId. Only the transcript is returned — other metadata (participants, duration, etc.) is already available from ListCallRecords. In transcript segments, speakerId is the associated user/track, not guaranteed speaker identity; use diarizedSpeakerId to distinguish actual voices, and treat different diarizedSpeakerIds as potentially different speakers even if speakerId is the caller/"you".
  */
 export interface ReadCallRecord {
   /**
@@ -1342,12 +1518,23 @@ export interface ReadCallRecordResponse {
    */
   callId: string;
   /**
-   * Transcript segments in chronological order.
+   * The AI generated summary of the call if one was generated. Use this before you read through the transcript.
+   */
+  summary?: string | null;
+  /**
+   * Transcript segments in chronological order. Use `diarized_speaker_id`
+   * alongside `speaker_id` before attributing speech to a person.
    */
   transcript: TranscriptSegment[];
 }
 /**
  * A single transcript segment.
+ *
+ * Speaker attribution is best-effort. `speaker_id` identifies the user/track
+ * associated with the segment, while `diarized_speaker_id` identifies the
+ * diarized voice cluster that likely spoke it. If diarized IDs differ, treat
+ * those segments as potentially different real speakers even when `speaker_id`
+ * is the same (including when `speaker_id` is the caller/"you").
  */
 export interface TranscriptSegment {
   /**
@@ -1356,7 +1543,9 @@ export interface TranscriptSegment {
   content: string;
   /**
    * Stable per-speaker identifier produced by diarization, when available.
-   * Distinguishes multiple speakers sharing one audio track.
+   * Distinguishes multiple speakers sharing one audio track. Different
+   * diarized IDs should be treated as potentially different actual speakers,
+   * even if they share the same `speaker_id`.
    */
   diarizedSpeakerId?: string | null;
   /**
@@ -1364,7 +1553,12 @@ export interface TranscriptSegment {
    */
   endedAt?: string | null;
   /**
-   * The speaker's user id.
+   * The user id associated with the segment's audio track/participant.
+   *
+   * This is not guaranteed to be the human who spoke. Use
+   * `diarized_speaker_id` to distinguish actual diarized voices; when the
+   * same `speaker_id` appears with different diarized IDs, do not assume all
+   * of those utterances were said by this user (or by "you").
    */
   speakerId: string;
   /**
@@ -1898,6 +2092,9 @@ export interface ReadContentResponse {
   comments: CommentThread[];
   content: Content;
 }
+/**
+ * Full document metadata plus content lifecycle metadata.
+ */
 export interface ReadDocumentMetadata {
   /**
    * If the document is a "task" the branch name of the document will be provided.
@@ -1913,6 +2110,7 @@ export interface ReadDocumentMetadata {
    * the file type
    */
   branchedFromVersionId?: number | null;
+  content: DocumentContent;
   /**
    * The time the document was created
    */
@@ -1977,6 +2175,14 @@ export interface ReadDocumentMetadata {
    * The sub type of the document if present.
    */
   subType?: DocumentSubType | null;
+  /**
+   * The team this task number is scoped to, for task documents.
+   */
+  teamId?: string | null;
+  /**
+   * The task number assigned within the team, for task documents.
+   */
+  teamTaskId?: number | null;
   /**
    * The time the document instance / document BOM was updated
    */
@@ -2055,7 +2261,7 @@ export interface SendEmail {
  * Tasks always have these system properties (use these property_definition_id values directly):
  * - Assignees (00000001-0000-0000-0000-000000000001): entity type, multi-select. Use entity_refs with entity_type='user' and entity_id='macro|email@domain.com'.
  * - Status (00000001-0000-0000-0000-000000000002): select_string, single. Options: Not Started (00000001-0000-0000-0002-000000000001), In Progress (...0002), In Review (...0003), Completed (...0004), Canceled (...0005).
- * - Priority (00000001-0000-0000-0000-000000000003): select_string, single. Options: Low (...0001), Medium (...0002), High (...0003), Critical (...0004). Option IDs: 00000001-0000-0000-0003-0000000000XX.
+ * - Priority (00000001-0000-0000-0000-000000000003): select_string, single. Options: Low (...0001), Medium (...0002), High (...0003), Urgent (...0004). Option IDs: 00000001-0000-0000-0003-0000000000XX.
  * - Due Date (00000001-0000-0000-0000-000000000004): date, single. Use date_value with ISO 8601.
  * - Parent Task (00000001-0000-0000-0000-000000000005): entity, single. Use entity_ref with entity_type='task'.
  * - Subtasks (00000001-0000-0000-0000-000000000006): entity, multi. Use entity_refs with entity_type='task'.
@@ -2138,6 +2344,15 @@ export interface SubagentResponse {
   result: string;
 }
 /**
+ * Use a text editor in a sandboxed environment using Claude's built-in code execution tool.
+ */
+export interface TextEditorCodeExecution {
+  /**
+   * The text editing instruction.
+   */
+  input: string;
+}
+/**
  * Result from text editor operations (view, create, str_replace)
  * Fields are optional as different operations return different fields
  */
@@ -2201,44 +2416,34 @@ export interface TextEditorCodeExecutionResponse {
   tool_use_id: string;
 }
 /**
- * The expected shape of the streamed JSON following a `server_tool_use` for text_editor_code_execution
- */
-export interface TextEditorCodeExecutionToolCall {
-  /**
-   * The command to execute: "view", "create", or "str_replace"
-   */
-  command: string;
-  /**
-   * File content for create operations
-   */
-  file_text?: string | null;
-  /**
-   * Replacement string for str_replace operations
-   */
-  new_str?: string | null;
-  /**
-   * String to find for str_replace operations
-   */
-  old_str?: string | null;
-  /**
-   * Path to the file
-   */
-  path: string;
-}
-/**
- * Add or remove a label from all messages in an email thread. Use ListLabels first to get valid label IDs. Set `add` to true to apply the label, or false to remove it.
+ * Add or remove a single label from every message in a Gmail thread. In Gmail, nearly all inbox operations are just label add/remove operations, so this tool is the primitive for archiving, marking read/unread, starring, trashing, marking important/spam, and applying or removing custom labels.
+ *
+ * Workflow: call ListLabels first to discover the UUID `id` for the label name you need, then call this tool with that `label_id` plus the thread's `thread_id` and `add=true` (apply) or `add=false` (remove). Each call modifies one label — to do multiple changes on the same thread (e.g. archive AND mark read), call this tool once per label.
+ *
+ * Common operations (look up each system label's id via ListLabels first):
+ * - Archive: remove `INBOX` (add=false)
+ * - Move back to inbox: add `INBOX` (add=true)
+ * - Mark as read: remove `UNREAD` (add=false)
+ * - Mark as unread: add `UNREAD` (add=true)
+ * - Star: add `STARRED` (add=true) / Unstar: remove (add=false)
+ * - Move to trash: add `TRASH` (add=true) / Restore: remove (add=false)
+ * - Mark important: add `IMPORTANT` (add=true) / Mark unimportant: remove (add=false)
+ * - Report spam: add `SPAM` (add=true) / Not spam: remove (add=false)
+ * - Apply custom user label: add the label with that display name (add=true) / Remove: (add=false)
+ *
+ * `thread_id` is the email thread UUID (the same id returned by ListEntities, search results, or GetThread). `label_id` is the UUID returned by ListLabels — NOT the label name.
  */
 export interface UpdateThreadLabels {
   /**
-   * Whether to add (true) or remove (false) the label.
+   * Whether to add (true) or remove (false) the label from every message in the thread.
    */
   add: boolean;
   /**
-   * The ID of the label to add or remove. Use ListLabels to get valid label IDs.
+   * The UUID of the label to add or remove. Obtain this by calling ListLabels and looking up the label by name — do not pass the label name here.
    */
   label_id: string;
   /**
-   * The ID of the email thread to modify.
+   * The ID of the email thread to modify. Same UUID returned by ListEntities, search, or GetThread.
    */
   thread_id: string;
 }
@@ -2258,6 +2463,15 @@ export interface UpdateThreadLabelsResponse {
    * A human-readable summary of the operation.
    */
   summary: string;
+}
+/**
+ * Fetch the contents of a web page using Claude's built-in web fetch tool.
+ */
+export interface WebFetch {
+  /**
+   * The URL to fetch or an instruction describing what to fetch.
+   */
+  input: string;
 }
 /**
  * Successful web fetch result containing the fetched content
@@ -2301,25 +2515,25 @@ export interface WebFetchResponse {
   tool_use_id: string;
 }
 /**
- * The expected shape of the streamed JSON following a `server_tool_use` in content_block_start event
+ * Search the web for information using Claude's built-in web search tool.
  */
-export interface WebFetchToolCall {
-  url: string;
+export interface WebSearch {
+  /**
+   * The search query or instruction.
+   */
+  input: string;
+}
+/**
+ * Error returned when web search fails
+ */
+export interface WebSearchToolError {
+  error_code: string;
+  type: string;
 }
 /**
  * Web search response content returned by Claude when using the web_search tool
  */
 export interface WebSearchResponse {
-  /**
-   * The search query that was executed
-   * Array of search results
-   */
-  content: SearchResult[];
+  content: WebSearchContent;
   tool_use_id: string;
-}
-/**
- * This is the expected shape of the streamed json following a `server_tool_use` in content_block_start event
- */
-export interface WebSearchToolCall {
-  query: string;
 }

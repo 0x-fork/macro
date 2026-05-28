@@ -22,16 +22,17 @@ import { isListViewID } from '@app/constants/list-views';
 import { UserIcon } from '@core/component/UserIcon';
 import { ScrollIndicators } from '@core/component/VerticalScrollIndicators';
 import { useUserId } from '@core/context/user';
-import ChevronDownIcon from '@icon/regular/caret-down.svg';
-import CheckIcon from '@icon/regular/check.svg';
-import CircleDashedIcon from '@icon/regular/circle-dashed.svg';
-import SearchIcon from '@icon/regular/magnifying-glass.svg';
 import { Accordion } from '@kobalte/core/accordion';
-import SlidersHorizontalIcon from '@macro-icons/wide/sliders-horizontal.svg';
+import ChevronDownIcon from '@phosphor/caret-down.svg';
+import CheckIcon from '@phosphor/check.svg';
+import CircleDashedIcon from '@phosphor/circle-dashed.svg';
+import SearchIcon from '@phosphor/magnifying-glass.svg';
+import XIcon from '@phosphor/x.svg';
+import SlidersHorizontalIcon from '@phosphor-icons/core/regular/sliders-horizontal.svg?component-solid';
 import { useContacts } from '@queries/contacts/contacts';
 import { Button, cn } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
-import { ActiveFilterChips } from './active-filter-chips';
+import { ConsolidatedFilterChip } from './consolidated-filter-chip';
 import {
   buildContactLabel,
   type FilterOption,
@@ -60,13 +61,8 @@ function scrollAccordionItemToTop(
 }
 
 export const MobileFilterDrawer = () => {
-  const {
-    activeFiltersList,
-    removeFilter,
-    replaceFilter,
-    resetToTabDefaults,
-    isOptionActive,
-  } = useFilterRefinements();
+  const { consolidatedFiltersList, resetToTabDefaults } =
+    useFilterRefinements();
 
   const { soup, queryFilters, assigneeFilter, setAssigneeFilter } =
     useSoupView();
@@ -188,7 +184,7 @@ export const MobileFilterDrawer = () => {
     );
   });
 
-  const activeCount = () => activeFiltersList().length;
+  const activeCount = () => consolidatedFiltersList().length;
 
   const [scrollRef, setScrollRef] = createSignal<HTMLElement>();
 
@@ -205,11 +201,11 @@ export const MobileFilterDrawer = () => {
           aria-label="Open filters"
           variant="ghost"
           size="sm"
-          class="rounded-xs [&_svg]:size-6 relative"
+          class="rounded-xs [&_svg]:size-6 relative h-full"
         >
           <SlidersHorizontalIcon />
           <Show when={activeCount() > 0}>
-            <span class="absolute -top-0.5 right-0 translate-x-1/2 size-4 flex items-center justify-center rounded-full bg-accent text-page text-xxs font-medium leading-none">
+            <span class="absolute -top-0.5 right-0 translate-x-1/2 size-4 flex items-center justify-center rounded-full bg-accent text-surface text-xxs font-medium leading-none">
               {activeCount()}
             </span>
           </Show>
@@ -249,7 +245,7 @@ export const MobileFilterDrawer = () => {
                             type="button"
                             role="radio"
                             aria-checked={active()}
-                            class="w-full bg-panel flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-hover transition-colors text-left not-last:mb-px"
+                            class="w-full bg-surface flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-hover transition-colors text-left not-last:mb-px"
                             onClick={() => setSort(option.value)}
                           >
                             <Show when={option.icon}>
@@ -259,16 +255,7 @@ export const MobileFilterDrawer = () => {
                                 </span>
                               )}
                             </Show>
-                            <span
-                              class={cn(
-                                'flex-1 truncate',
-                                active()
-                                  ? 'text-ink font-medium'
-                                  : 'text-ink-muted'
-                              )}
-                            >
-                              {option.label}
-                            </span>
+                            <span class="flex-1 truncate">{option.label}</span>
                             <Show when={active()}>
                               <CheckIcon class="size-3.5 text-accent shrink-0" />
                             </Show>
@@ -308,7 +295,7 @@ export const MobileFilterDrawer = () => {
                           >
                             <Accordion.Header>
                               <Accordion.Trigger
-                                class="w-full flex bg-panel items-center justify-between p-3 text-sm text-ink hover:bg-hover transition-colors outline-none group mb-px"
+                                class="w-full flex bg-surface items-center justify-between p-3 text-sm text-ink hover:bg-hover transition-colors outline-none group mb-px"
                                 onClick={(e) =>
                                   scrollAccordionItemToTop(e, scrollRef())
                                 }
@@ -318,7 +305,7 @@ export const MobileFilterDrawer = () => {
                                 </span>
                                 <div class="flex items-center gap-2">
                                   <Show when={activeCount() > 0}>
-                                    <span class="group-data-expanded:hidden size-4 flex items-center justify-center rounded-full bg-accent text-page text-xxs font-medium leading-none">
+                                    <span class="group-data-expanded:hidden size-4 flex items-center justify-center rounded-full bg-accent text-surface text-xxs font-medium leading-none">
                                       {activeCount()}
                                     </span>
                                   </Show>
@@ -336,7 +323,7 @@ export const MobileFilterDrawer = () => {
                                       type="button"
                                       role="checkbox"
                                       aria-checked={active()}
-                                      class="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-hover transition-colors text-left bg-panel not-last:mb-px"
+                                      class="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-hover transition-colors text-left bg-surface not-last:mb-px"
                                       onClick={() => toggleFilter(option.id)}
                                     >
                                       <span
@@ -348,7 +335,7 @@ export const MobileFilterDrawer = () => {
                                         )}
                                       >
                                         <Show when={active()}>
-                                          <CheckIcon class="size-2.5 text-page" />
+                                          <CheckIcon class="size-2.5 text-surface" />
                                         </Show>
                                       </span>
                                       <Show when={option.icon}>
@@ -377,7 +364,7 @@ export const MobileFilterDrawer = () => {
                     <MobileDrawer.Section as={Accordion.Item} value="assignee">
                       <Accordion.Header>
                         <Accordion.Trigger
-                          class="w-full flex items-center justify-between p-3 text-sm text-ink hover:bg-hover transition-colors outline-none group bg-panel mb-px"
+                          class="w-full flex items-center justify-between p-3 text-sm text-ink hover:bg-hover transition-colors outline-none group bg-surface mb-px"
                           onClick={(e) =>
                             scrollAccordionItemToTop(e, scrollRef())
                           }
@@ -385,7 +372,7 @@ export const MobileFilterDrawer = () => {
                           <span class="font-medium">Assignee</span>
                           <div class="flex items-center gap-2">
                             <Show when={assigneeFilter().length > 0}>
-                              <span class="group-data-expanded:hidden size-4 flex items-center justify-center rounded-full bg-accent text-page text-xxs font-medium leading-none">
+                              <span class="group-data-expanded:hidden size-4 flex items-center justify-center rounded-full bg-accent text-surface text-xxs font-medium leading-none">
                                 {assigneeFilter().length}
                               </span>
                             </Show>
@@ -395,7 +382,7 @@ export const MobileFilterDrawer = () => {
                       </Accordion.Header>
                       <Accordion.Content>
                         {/* Search */}
-                        <div class="flex items-center gap-2 px-3 py-2 muted bg-panel mb-px">
+                        <div class="flex items-center gap-2 px-3 py-2 muted bg-surface mb-px">
                           <SearchIcon class="size-3.5 text-ink-muted shrink-0" />
                           <input
                             type="text"
@@ -418,7 +405,7 @@ export const MobileFilterDrawer = () => {
                                   type="button"
                                   role="checkbox"
                                   aria-checked={active()}
-                                  class="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-hover transition-colors text-left bg-panel not-last:mb-px"
+                                  class="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-hover transition-colors text-left bg-surface not-last:mb-px"
                                   onClick={() => toggleAssignee(option.id)}
                                 >
                                   <span
@@ -430,7 +417,7 @@ export const MobileFilterDrawer = () => {
                                     )}
                                   >
                                     <Show when={active()}>
-                                      <CheckIcon class="size-2.5 text-page" />
+                                      <CheckIcon class="size-2.5 text-surface" />
                                     </Show>
                                   </span>
                                   <span class="size-4 flex items-center justify-center shrink-0">
@@ -464,16 +451,27 @@ export const MobileFilterDrawer = () => {
 
             {/* Active filter chips footer */}
             <Show when={activeCount() > 0}>
-              <div class="shrink-0 border-t border-edge-muted py-2">
-                <ActiveFilterChips
-                  filters={activeFiltersList()}
-                  onRemove={removeFilter}
-                  onReplace={replaceFilter}
-                  onClearAll={resetToTabDefaults}
-                  isOptionActive={isOptionActive}
-                  chipClass="min-h-11 bg-menu border-none rounded-lg"
-                  hideCategoryLabel
-                />
+              <div class="shrink-0 border-t border-edge-muted p-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <For each={consolidatedFiltersList()}>
+                    {(filter) => (
+                      <ConsolidatedFilterChip
+                        filter={filter}
+                        hideCategoryLabel
+                        mobile
+                      />
+                    )}
+                  </For>
+                  <Button
+                    onClick={() => resetToTabDefaults()}
+                    variant="base"
+                    size="sm"
+                    class="min-h-10 rounded-lg bg-active!"
+                  >
+                    <XIcon class="size-3!" />
+                    Clear all
+                  </Button>
+                </div>
               </div>
             </Show>
           </MobileDrawer.Content>

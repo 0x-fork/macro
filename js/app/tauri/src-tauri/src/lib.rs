@@ -6,12 +6,11 @@ use reqwest::cookie::CookieStore;
 use reqwest::header::{COOKIE, ORIGIN};
 use rootcause::{Report, report};
 use serde::Serialize;
-#[cfg(target_os = "ios")]
-use share_target::cleanup_stale_staged_shared_files;
 use share_target::{
     PendingShareFilesState, clear_shared_files, get_pending_share_filenames,
-    maybe_handle_share_deep_link, pop_shared_files, upload_shared_file_to_presigned_url,
+    maybe_handle_share_deep_link, pop_shared_files, read_shared_file_text,
 };
+use staged_upload::cleanup_stale_staged_files;
 use tauri::http::{HeaderMap, HeaderValue};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, Runtime};
 
@@ -24,6 +23,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 
 mod share_target;
+mod staged_upload;
 
 /// This module provides debuging utilities and should not be compiled in prodiction builds
 #[cfg(debug_assertions)] // do not remove this
@@ -98,6 +98,8 @@ pub fn run() {
         builder = builder
             .plugin(tauri_plugin_haptics::init())
             .plugin(tauri_plugin_input_accessory::init())
+            .plugin(tauri_plugin_pasteboard::init())
+            .plugin(tauri_plugin_photo_library::init())
             .plugin(tauri_plugin_call_kit::init());
     }
 
@@ -192,7 +194,8 @@ pub fn run() {
             get_pending_share_filenames,
             pop_shared_files,
             clear_shared_files,
-            upload_shared_file_to_presigned_url,
+            read_shared_file_text,
+            staged_upload::upload_staged_file_to_presigned_url,
         ])
         .setup(|app| {
             // Restore persisted bundle root on startup
@@ -219,8 +222,7 @@ pub fn run() {
             }
 
             app.chain(attach_deep_link_handler);
-            #[cfg(target_os = "ios")]
-            cleanup_stale_staged_shared_files(&app.handle());
+            cleanup_stale_staged_files(&app.handle());
 
             Ok(())
         })

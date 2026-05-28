@@ -20,16 +20,27 @@ use call::{
     inbound::axum_router::{CallRouterState, InternalCallRouterState, WebhookRouterState},
     outbound::{
         ai_call_summarizer::AiCallSummarizer, livekit_rtc_client::LivekitRtcClient,
-        pg_call_repo::PgCallRepo,
+        pg_call_repo::PgCallRepo, pg_voice_repo::PgVoiceRepo,
     },
 };
 use channels::{
-    domain::service::ChannelMessagesServiceImpl, inbound::axum_router::ChannelsRouterState,
-    outbound::pg_channels_repo::PgChannelMessagesRepo,
+    domain::{
+        service::ChannelServiceImpl,
+        side_effects::{ChannelSideEffectService, SpawnedChannelEventDispatcher},
+    },
+    inbound::axum_router::ChannelsRouterState,
+    outbound::{
+        connection_gateway_realtime::ConnectionGatewayChannelRealtimePublisher,
+        contacts_dispatcher::ContactsChannelDispatcher,
+        notification_sender::NotificationChannelSender,
+        pg_channel_reference_share_permissions::PgChannelReferenceSharePermissions,
+        pg_channels_repo::PgChannelsRepo, pg_side_effect_context::PgChannelSideEffectContext,
+        sqs_search_indexer::SqsChannelSearchIndexer,
+    },
 };
 use comms::{
-    domain::service::ChannelServiceImpl,
-    inbound::CommsRouterState,
+    domain::service::ChannelServiceImpl as CommsChannelServiceImpl,
+    inbound::router::CommsRouterState,
     outbound::postgres::{comms_repo::PgCommsRepo, user_repo::PgUserRepo},
 };
 use config::{Config, Environment};
@@ -48,10 +59,15 @@ use email::{
     domain::{ports::ReadonlyEmailPreviewAdapter, service::EmailServiceImpl},
     outbound::EmailPgRepo,
 };
+use foreign_entity::{
+    domain::service::ForeignEntityServiceImpl,
+    outbound::pg_foreign_entity_repo::PgForeignEntityRepo,
+};
 use frecency::{domain::services::FrecencyQueryServiceImpl, outbound::postgres::FrecencyPgStorage};
 use github::domain::service::{GithubSyncConfig, GithubSyncServiceImpl};
 use github::outbound::github_sync_client::GithubSyncClientImpl;
 use github::outbound::pg_github_sync_repo::PgGithubSyncRepo;
+use lexical_client::LexicalClient;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_entrypoint::MacroEntrypoint;
 use macro_middleware::auth::internal_access::InternalApiSecretKey;
@@ -207,10 +223,15 @@ async fn main() -> anyhow::Result<()> {
             .to_string(),
     };
 
-    let sync_service_client = SyncServiceClient::new(
+    let sync_service_client = Arc::new(SyncServiceClient::new(
         sync_service_auth_key,
         config.vars.sync_service_url.as_ref().to_string(),
-    );
+    ));
+
+    let lexical_client = Arc::new(LexicalClient::new(
+        internal_api_secret.as_ref().to_string(),
+        config.vars.lexical_service_url.as_ref().to_string(),
+    ));
 
     let jwt_validation_args =
         JwtValidationArgs::new_with_secret_manager(config.environment, &secretsmanager_client)
@@ -241,16 +262,24 @@ async fn main() -> anyhow::Result<()> {
 
     let frecency_storage = FrecencyPgStorage::new(db.clone());
     let frecency_service = FrecencyQueryServiceImpl::new(frecency_storage.clone());
+    // DSS only reads CRM rows — no-op resolver keeps reqwest/scraper
+    // out of this binary.
+    let crm_service = crm::domain::service::CrmServiceImpl::new(
+        crm::outbound::companies_repo::CompaniesRepositoryImpl::new(db.clone()),
+        crm::outbound::no_op_resolver::NoOpCompanyMetadataResolver,
+    );
     let email_service = EmailServiceImpl::new(
         EmailPgRepo::new(db.clone()),
         frecency_service.clone(),
         email::domain::ports::NoOpEnqueuer,
+        crm_service.clone(),
         0,
     );
     let readonly_email_service = ReadonlyEmailPreviewAdapter(EmailServiceImpl::new(
         EmailPgRepo::new(readonly_db.clone()),
         frecency_service.clone(),
         email::domain::ports::NoOpEnqueuer,
+        crm_service.clone(),
         0,
     ));
     let system_properties_service =
@@ -280,13 +309,13 @@ async fn main() -> anyhow::Result<()> {
         Some(notification_service),
     ));
 
-    // Create the ChannelServiceImpl - we need to create separate instances as it doesn't impl Clone
-    let channel_service_for_soup = ChannelServiceImpl::new(
+    // Create the comms ChannelServiceImpl instances.
+    let channel_service_for_soup = CommsChannelServiceImpl::new(
         PgCommsRepo::new(readonly_pool::ReadOnlyPool(readonly_db.clone())),
         PgUserRepo::new(readonly_db.clone()),
         frecency_storage.clone(),
     );
-    let channel_service_for_comms = ChannelServiceImpl::new(
+    let channel_service_for_comms = CommsChannelServiceImpl::new(
         PgCommsRepo::new(readonly_pool::ReadOnlyPool(db.clone())),
         PgUserRepo::new(db.clone()),
         frecency_storage.clone(),
@@ -328,6 +357,11 @@ async fn main() -> anyhow::Result<()> {
         config.vars.document_storage_bucket.as_ref(),
         config.vars.docx_document_upload_bucket.as_ref(),
     );
+    let markdown_initializer =
+        documents_hex::outbound::markdown_init::LexicalSyncMarkdownInitializer::new(
+            lexical_client.as_ref().clone(),
+            sync_service_client.as_ref().clone(),
+        );
 
     let connection_gateway = Arc::new(ConnectionGatewayImpl::new(conn_gateway_client.clone()));
 
@@ -342,7 +376,7 @@ async fn main() -> anyhow::Result<()> {
     let document_service = Arc::new(DocumentServiceImpl::new(
         document_repo,
         cloudfront_config,
-        sync_service_client.clone(),
+        sync_service_client.as_ref().clone(),
         s3_upload_adapter,
         TaskPropertiesAdapter {
             system_properties: system_properties_service.clone(),
@@ -360,6 +394,10 @@ async fn main() -> anyhow::Result<()> {
         .get_maybe_secret_value(env, GithubSyncAppPemSecretKey::new()?)
         .await?;
 
+    let foreign_entity_service = Arc::new(ForeignEntityServiceImpl::new(PgForeignEntityRepo::new(
+        db.clone(),
+    )));
+
     let github_sync_service_impl = GithubSyncServiceImpl::new(
         GithubSyncConfig {
             webhook_secret: github_webhook_secret.as_ref().to_string(),
@@ -368,6 +406,7 @@ async fn main() -> anyhow::Result<()> {
             sync_app_client_id: config.vars.github_sync_app_client_id.to_string(),
         },
         document_service.clone(),
+        foreign_entity_service,
         PgGithubSyncRepo::new(db.clone()),
         GithubSyncClientImpl::default(),
     );
@@ -498,7 +537,11 @@ async fn main() -> anyhow::Result<()> {
     let call_search_indexer = crate::service::call_search_indexer::SqsCallSearchIndexer::new(
         Arc::new(sqs_client.clone()),
     );
-    let call_service = Arc::new(call_service_builder.with_search_indexer(call_search_indexer));
+    let call_service = Arc::new(
+        call_service_builder
+            .with_search_indexer(call_search_indexer)
+            .with_voice_repo(PgVoiceRepo::new(db.clone())),
+    );
 
     let call_state = CallRouterState::new(call_service.clone(), entity_access_service.clone());
     let call_webhook_state = WebhookRouterState::new(call_service.clone());
@@ -516,8 +559,24 @@ async fn main() -> anyhow::Result<()> {
         PgCallRepo::new(readonly_db.clone()),
     );
 
+    let sqs_client = Arc::new(sqs_client);
+    let conn_gateway_client = Arc::new(conn_gateway_client);
+    let channels_repo = PgChannelsRepo::new(db.clone());
+
+    let channels_service = ChannelServiceImpl::with_dependencies(
+        channels_repo,
+        SpawnedChannelEventDispatcher::new(ChannelSideEffectService::new(
+            PgChannelSideEffectContext::new(db.clone()),
+            ConnectionGatewayChannelRealtimePublisher::new(conn_gateway_client.clone()),
+            NotificationChannelSender::new(notification_ingress_service.clone()),
+            SqsChannelSearchIndexer::new(sqs_client.clone()),
+            ContactsChannelDispatcher::new(contacts_ingress.clone()),
+        )),
+        PgChannelReferenceSharePermissions::new(db.clone(), entity_access_service.clone()),
+    );
+
     let api_context = ApiContext {
-        contacts_ingress,
+        contacts_ingress: contacts_ingress.clone(),
         soup_router_state: SoupRouterState::new(
             SoupImpl::new(
                 PgSoupRepo::new(readonly_pool::ReadOnlyPool(readonly_db.clone())),
@@ -527,6 +586,7 @@ async fn main() -> anyhow::Result<()> {
                 call_record_query_service,
             ),
             email_service,
+            entity_access_service.clone(),
         ),
         github_sync_service: Arc::new(github_sync_service_impl),
         db: db.clone(),
@@ -535,10 +595,10 @@ async fn main() -> anyhow::Result<()> {
         s3_client: s3,
         dynamodb_client: Arc::new(dynamodb_client),
         dynamo_db,
-        sqs_client: Arc::new(sqs_client),
-        notification_ingress_service,
-        conn_gateway_client: Arc::new(conn_gateway_client),
-        sync_service_client: Arc::new(sync_service_client),
+        sqs_client: sqs_client.clone(),
+        notification_ingress_service: notification_ingress_service.clone(),
+        conn_gateway_client: conn_gateway_client.clone(),
+        sync_service_client: sync_service_client.clone(),
         system_properties_service: system_properties_service.clone(),
         properties_service: properties_service.clone(),
         opensearch_client: Arc::new(opensearch_client),
@@ -551,12 +611,17 @@ async fn main() -> anyhow::Result<()> {
         permissions_token_secret: comms_permissions_token_secret,
         entity_access_service: entity_access_service.clone(),
         documents_state: DocumentRouterState {
-            service: document_service,
+            service: document_service.clone(),
             access_service: entity_access_service.clone(),
             pool: db.clone(),
+            creator: documents_hex::domain::create::DocumentCreator::new(
+                document_service,
+                markdown_initializer,
+                documents_hex::outbound::document_bytes_upload::ReqwestDocumentBytesUploader::default(),
+            ),
         },
         channels_state: ChannelsRouterState::new(
-            ChannelMessagesServiceImpl::new(PgChannelMessagesRepo::new(db.clone())),
+            channels_service,
             (*entity_access_service).clone(),
         ),
         call_state,
@@ -564,6 +629,10 @@ async fn main() -> anyhow::Result<()> {
         call_internal_state,
         cal_webhook_state,
         entity_access_management_service,
+        crm_state: crm::inbound::axum_router::CrmRouterState {
+            service: Arc::new(crm_service),
+            entity_access_service: entity_access_service.clone(),
+        },
     };
 
     // Spawn the delete document worker

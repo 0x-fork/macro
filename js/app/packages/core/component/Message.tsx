@@ -1,7 +1,7 @@
 import { observedSize } from '@core/directive/observedSize';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { type DateValue, formatDate } from '@core/util/date';
-import IconPlus from '@icon/regular/plus.svg';
+import IconPlus from '@phosphor/plus.svg';
 import { Button, cn } from '@ui';
 import {
   type Accessor,
@@ -24,7 +24,7 @@ import { UserIcon } from './UserIcon';
 
 false && observedSize;
 
-export type MessageRootProps = {
+type MessageRootProps = {
   id?: string;
   focused: boolean;
   unfocusable?: boolean;
@@ -70,7 +70,7 @@ type MessageContextValue = {
 };
 
 const MessageContext = createContext<MessageContextValue>();
-export function useMessageContext(): MessageContextValue {
+function useMessageContext(): MessageContextValue {
   const ctx = useContext(MessageContext);
   if (!ctx) throw new Error('Message.* must be used within <Message>');
   return ctx;
@@ -78,20 +78,18 @@ export function useMessageContext(): MessageContextValue {
 
 /* TopBar */
 
-export type MessageTopBarSimpleProps = {
+type MessageTopBarSimpleProps = {
   name: string;
   timestamp?: DateValue | null;
   tagLabel?: string;
   tagIcon?: Component<JSX.SvgSVGAttributes<SVGSVGElement>> | undefined;
 };
 
-export type MessageTopBarChildrenProps = {
+type MessageTopBarChildrenProps = {
   children: JSX.Element;
 };
 
-export type MessageTopBarProps =
-  | MessageTopBarSimpleProps
-  | MessageTopBarChildrenProps;
+type MessageTopBarProps = MessageTopBarSimpleProps | MessageTopBarChildrenProps;
 
 function isTopBarChildrenProps(
   props: MessageTopBarProps
@@ -143,7 +141,7 @@ const TopBar: Component<MessageTopBarProps> = (props) => {
 
 /* Body */
 
-export type MessageBodyProps = {
+type MessageBodyProps = {
   children: JSX.Element;
   isDeleted?: boolean;
 };
@@ -166,9 +164,7 @@ type NestedConnectorLinesProps = {
   isParentNewMessage?: boolean;
 };
 
-export const NestedConnectorLines: Component<NestedConnectorLinesProps> = (
-  props
-) => {
+const NestedConnectorLines: Component<NestedConnectorLinesProps> = (props) => {
   const NestedLines: JSX.Element[] = [];
   for (let i = 0; i < (props.threadDepth ?? 0); i++) {
     NestedLines.push(
@@ -360,14 +356,14 @@ const Root: Component<MessageRootProps> = (props) => {
           >
             <Show when={props.timestamp}>
               {(timestamp) => (
-                <div class="absolute top-0 -translate-y-full bg-panel pl-2 pt-2 text-xs text-ink-muted font-mono mb-0.5 select-text cursor-default">
+                <div class="absolute top-0 -translate-y-full bg-surface pl-2 pt-2 text-xs text-ink-muted font-mono mb-0.5 select-text cursor-default">
                   {formatDate(timestamp(), {
                     showTime: true,
                   })}
                 </div>
               )}
             </Show>
-            <div class="border border-edge bg-panel">
+            <div class="border border-edge bg-surface">
               {props.hoverActions?.()}
             </div>
           </div>
@@ -394,7 +390,7 @@ const Root: Component<MessageRootProps> = (props) => {
                     tabIndex={0}
                     class="text-ink-muted flex flex-row justify-center items-center relative p-0 hover:bg-transparent active:border-transparent active:bg-transparent active:text-inherit hover:opacity-100"
                   >
-                    <div class="border border-edge-muted bg-menu hover:bg-hover hover-transition-bg flex flex-row justify-center items-center mx-2 mb-2 size-(--user-icon-width) touch:min-h-(--user-icon-width) touch:min-w-(--user-icon-width)">
+                    <div class="border border-edge-muted bg-surface hover:bg-hover hover-transition-bg flex flex-row justify-center items-center mx-2 mb-2 size-(--user-icon-width) touch:min-h-(--user-icon-width) touch:min-w-(--user-icon-width)">
                       <IconPlus class="size-1/2" />
                     </div>
                   </Button>

@@ -1,10 +1,10 @@
 import { toast } from '@core/component/Toast/Toast';
-import { throwOnErr } from '@core/util/maybeResult';
+import { throwOnErr } from '@core/util/result';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import {
-  commsServiceClient,
   type MessageResponse,
-} from '@service-comms/client';
+  storageServiceClient,
+} from '@service-storage/client';
 import { useMutation } from '@tanstack/solid-query';
 import { queryClient } from '../client';
 import { softInvalidateChannelParticipants } from './channel-participants';
@@ -13,11 +13,11 @@ import type { ChannelParticipant } from './types';
 
 type WithChannelId<T> = T & { channelId: string };
 
-export type AddParticipantsContext = {
+type AddParticipantsContext = {
   addedUserIds: string[];
 };
 
-export type RemoveParticipantsContext = {
+type RemoveParticipantsContext = {
   removedParticipants: ChannelParticipant[];
 };
 
@@ -25,7 +25,7 @@ export type RemoveParticipantsContext = {
  * Optimistically add participants to a channel.
  * Returns minimal context for rollback.
  */
-export function optimisticAddParticipants(
+function optimisticAddParticipants(
   vars: WithChannelId<{ participants: string[] }>
 ): AddParticipantsContext | undefined {
   const participantsQueryKey = channelKeys.participants(
@@ -69,7 +69,7 @@ export function optimisticAddParticipants(
 /**
  * Rollback an optimistic add participants by removing them.
  */
-export function rollbackAddParticipants(
+function rollbackAddParticipants(
   channelId: string,
   context: AddParticipantsContext
 ): void {
@@ -90,7 +90,7 @@ export function rollbackAddParticipants(
  * Optimistically remove participants from a channel.
  * Returns minimal context for rollback.
  */
-export function optimisticRemoveParticipants(
+function optimisticRemoveParticipants(
   vars: WithChannelId<{ participants: string[] }>
 ): RemoveParticipantsContext | undefined {
   const participantsQueryKey = channelKeys.participants(
@@ -127,7 +127,7 @@ export function optimisticRemoveParticipants(
 /**
  * Rollback an optimistic remove participants by re-adding them.
  */
-export function rollbackRemoveParticipants(
+function rollbackRemoveParticipants(
   channelId: string,
   context: RemoveParticipantsContext
 ): void {
@@ -180,7 +180,7 @@ export function useAddParticipantsMutation(
     mutationFn: async (vars: AddParticipantsParams) => {
       return await throwOnErr(
         async () =>
-          await commsServiceClient.addParticipantsToChanenl({
+          await storageServiceClient.addParticipantsToChannel({
             channel_id: vars.channelId,
             participants: vars.participants,
           })
@@ -229,7 +229,7 @@ export function useRemoveParticipantsMutation(
     mutationFn: async (vars: RemoveParticipantsParams) => {
       return await throwOnErr(
         async () =>
-          await commsServiceClient.removeParticipantsFromChannel({
+          await storageServiceClient.removeParticipantsFromChannel({
             channel_id: vars.channelId,
             participants: vars.participants,
           })

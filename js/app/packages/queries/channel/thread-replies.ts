@@ -1,5 +1,8 @@
-import { throwOnErr } from '@core/util/maybeResult';
-import { type ApiThreadReply, commsServiceClient } from '@service-comms/client';
+import { throwOnErr } from '@core/util/result';
+import {
+  type ApiThreadReply,
+  storageServiceClient,
+} from '@service-storage/client';
 import type { ApiCountedReaction } from '@service-storage/generated/schemas';
 import type { ApiMessageAttachment } from '@service-storage/generated/schemas/apiMessageAttachment';
 import { useQuery } from '@tanstack/solid-query';
@@ -12,7 +15,7 @@ export type ThreadReplySnapshot = {
   reply: ApiThreadReply;
 };
 
-export type ThreadRepliesQueryKey = ReturnType<
+type ThreadRepliesQueryKey = ReturnType<
   typeof channelKeys.threadReplies
 >['queryKey'];
 
@@ -25,7 +28,7 @@ export function threadRepliesQueryOptions(
     queryFn: async (): Promise<Array<ApiThreadReply>> => {
       return await throwOnErr(
         async () =>
-          await commsServiceClient.getThreadReplies({
+          await storageServiceClient.getThreadReplies({
             channel_id: channelId,
             message_id: messageId,
           })
@@ -56,7 +59,7 @@ export function getThreadRepliesQueryKey(
 }
 
 /** Returns the shared prefix for all thread reply queries in a channel. */
-export function getThreadRepliesQueryKeyPrefix(channelId: string) {
+function getThreadRepliesQueryKeyPrefix(channelId: string) {
   return [...channelKeys.threadReplies._def, channelId];
 }
 

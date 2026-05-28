@@ -1,27 +1,30 @@
 import { openBulkEditModal } from '@app/component/bulk-edit-entity/BulkEditEntityModal';
+import { MobileDrawer } from '@app/component/mobile/MobileDrawer';
 import type { BlockTool } from '@app/component/ResponsiveBlockToolbar';
-import { ResponsiveDropdown } from '@app/component/SimpleDropdown';
 import { useBlockAliasedName, useBlockName } from '@core/block';
 import { useItemOperations } from '@core/component/FileList/useItemOperations';
 import { toast } from '@core/component/Toast/Toast';
 import { triggerFocusInput } from '@core/directive/focusInput';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { useIsDocumentOwner } from '@core/signal/permissions';
 import { buildEntityData } from '@entity';
-import ArrowRight from '@icon/regular/arrow-right.svg';
-import Copy from '@icon/regular/copy.svg';
-import ThreeDots from '@icon/regular/list.svg';
-import Rename from '@icon/regular/pencil-line.svg';
-import Trash from '@icon/regular/trash-simple.svg';
+import ArrowRight from '@phosphor/arrow-right.svg';
+import Copy from '@phosphor/copy.svg';
+import ThreeDots from '@phosphor/list.svg';
+import Rename from '@phosphor/pencil-line.svg';
+import Trash from '@phosphor/trash-simple.svg';
 import { blockNameToItemType, type ItemType } from '@service-storage/client';
-import { Button, cn, Layer } from '@ui';
+import { Button, Dropdown } from '@ui';
 import {
   type Component,
   createMemo,
   createSignal,
   For,
+  type JSX,
   Show,
   useContext,
 } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import { SplitPanelContext } from '../context';
 import { useSplitLayout } from '../layout';
 
@@ -29,14 +32,12 @@ export type FileOperationName = 'delete' | 'rename' | 'copy' | 'moveToProject';
 
 export type DefaultFileOperation = {
   op: FileOperationName;
-  divideAbove?: boolean;
 };
 
 export type CustomFileOperation = {
   label: string;
   icon: Component;
   action: () => void;
-  divideAbove?: boolean;
 };
 
 const isDefaultFileOperation = (
@@ -46,6 +47,131 @@ const isDefaultFileOperation = (
 };
 
 export type FileOperation = DefaultFileOperation | CustomFileOperation;
+
+type SplitMenuAction = {
+  label: string | JSX.Element;
+  icon: Component;
+  action: (e?: MouseEvent) => void;
+  group?: 'delete';
+};
+
+function SplitMenuItemContent(props: Pick<SplitMenuAction, 'icon' | 'label'>) {
+  return (
+    <>
+      <Dynamic
+        component={props.icon as Component<JSX.SvgSVGAttributes<SVGSVGElement>>}
+        class="size-4 shrink-0"
+      />
+      <div class="flex-1 truncate">{props.label}</div>
+    </>
+  );
+}
+
+type SplitFileMenuRenderProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  triggerClass?: string;
+  ops: SplitMenuAction[];
+  tools: SplitMenuAction[];
+};
+
+function DesktopRender(props: SplitFileMenuRenderProps) {
+  const primaryOps = () => props.ops.filter((op) => op.group !== 'delete');
+  const deleteOps = () => props.ops.filter((op) => op.group === 'delete');
+
+  const item = (action: SplitMenuAction) => (
+    <Dropdown.Item
+      onSelect={() => {
+        action.action();
+        props.onOpenChange(false);
+      }}
+    >
+      <SplitMenuItemContent icon={action.icon} label={action.label} />
+    </Dropdown.Item>
+  );
+
+  return (
+    <Dropdown open={props.open} onOpenChange={props.onOpenChange}>
+      <Dropdown.Trigger
+        class={props.triggerClass}
+        size="icon-sm"
+        variant="ghost"
+      >
+        <ThreeDots />
+      </Dropdown.Trigger>
+      <Dropdown.Content class="w-fit">
+        <Show when={primaryOps().length > 0}>
+          <Dropdown.Group>
+            <For each={primaryOps()}>{item}</For>
+          </Dropdown.Group>
+        </Show>
+        <Show when={props.tools.length > 0}>
+          <Dropdown.Group>
+            <For each={props.tools}>{item}</For>
+          </Dropdown.Group>
+        </Show>
+        <Show when={deleteOps().length > 0}>
+          <Dropdown.Group>
+            <For each={deleteOps()}>{item}</For>
+          </Dropdown.Group>
+        </Show>
+      </Dropdown.Content>
+    </Dropdown>
+  );
+}
+
+function MobileRender(props: SplitFileMenuRenderProps) {
+  const item = (action: SplitMenuAction) => (
+    <button
+      type="button"
+      class="w-full bg-surface flex items-center gap-3 px-4 py-3 text-sm hover:bg-hover hover-transition-bg text-left not-last:mb-px text-ink"
+      onClick={(e) => {
+        action.action(e);
+        props.onOpenChange(false);
+      }}
+    >
+      <SplitMenuItemContent icon={action.icon} label={action.label} />
+    </button>
+  );
+
+  return (
+    <MobileDrawer
+      side="bottom"
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      preventScroll={false}
+      preventScrollbarShift={false}
+    >
+      <MobileDrawer.Trigger
+        as={Button}
+        class={props.triggerClass}
+        size="icon-sm"
+        variant="ghost"
+      >
+        <ThreeDots />
+      </MobileDrawer.Trigger>
+      <MobileDrawer.Portal>
+        <MobileDrawer.Overlay class="fixed inset-0 z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted" />
+        <MobileDrawer.Content aria-label="File actions">
+          <MobileDrawer.Handle />
+          <Show when={props.ops.length > 0}>
+            <MobileDrawer.Section class="flex flex-col shrink-0">
+              <For each={props.ops}>{item}</For>
+            </MobileDrawer.Section>
+          </Show>
+          <Show when={props.tools.length > 0}>
+            <Show when={props.ops.length > 0}>
+              <div class="mt-3" />
+            </Show>
+            <MobileDrawer.Section class="flex flex-col shrink-0">
+              <For each={props.tools}>{item}</For>
+            </MobileDrawer.Section>
+          </Show>
+        </MobileDrawer.Content>
+      </MobileDrawer.Portal>
+    </MobileDrawer>
+  );
+}
 
 export function SplitFileMenu(props: {
   id: string;
@@ -91,7 +217,7 @@ export function SplitFileMenu(props: {
                   }
                 },
                 icon: Trash,
-                divideAbove: op.divideAbove || false,
+                group: 'delete',
               };
 
             case 'rename':
@@ -114,7 +240,6 @@ export function SplitFileMenu(props: {
                   });
                 },
                 icon: Rename,
-                divideAbove: op.divideAbove || false,
               };
 
             case 'copy':
@@ -143,7 +268,6 @@ export function SplitFileMenu(props: {
                   }
                 },
                 icon: Copy,
-                divideAbove: op.divideAbove || false,
               };
 
             case 'moveToProject':
@@ -166,7 +290,6 @@ export function SplitFileMenu(props: {
                   });
                 },
                 icon: ArrowRight,
-                divideAbove: op.divideAbove || false,
               };
           }
         } else {
@@ -180,76 +303,43 @@ export function SplitFileMenu(props: {
     (props.tools ?? []).filter((t) => !t.condition || t.condition())
   );
 
+  const tools = createMemo<SplitMenuAction[]>(() =>
+    filteredTools().map((tool) => ({
+      label: typeof tool.label === 'function' ? tool.label() : tool.label,
+      icon: tool.icon,
+      action: (e?: MouseEvent) => {
+        tool.action();
+        if (tool.focusTarget) {
+          triggerFocusInput(
+            tool.focusTarget,
+            e?.currentTarget as HTMLElement | undefined
+          );
+        }
+        setOpen(false);
+      },
+    }))
+  );
+
   return (
-    <ResponsiveDropdown
-      open={open()}
-      onOpenChange={setOpen}
-      boundary={ctx.panelRef}
+    <Show
+      when={isTouchDevice()}
+      fallback={
+        <DesktopRender
+          open={open()}
+          onOpenChange={setOpen}
+          triggerClass={props.buttonClass}
+          ops={ops()}
+          tools={tools()}
+        />
+      }
     >
-      <ResponsiveDropdown.Trigger
-        as={Button}
-        class={cn(
-          'px-1',
-          open() && 'bg-accent/20 hover:bg-accent/30 text-accent-ink',
-          props.buttonClass
-        )}
-        size="icon-sm"
-      >
-        <ThreeDots />
-      </ResponsiveDropdown.Trigger>
-      <ResponsiveDropdown.Portal>
-        <Layer depth={2}>
-          <ResponsiveDropdown.Content class="bg-menu w-fit p-1 border border-edge-muted rounded-xs shadow">
-            <For each={ops()}>
-              {(op, i) => (
-                <>
-                  <Show when={op.divideAbove && i() >= 1}>
-                    <div class="my-1 h-px bg-edge-muted" />
-                  </Show>
-                  <ResponsiveDropdown.Item
-                    text={op.label}
-                    onClick={() => {
-                      op.action();
-                      setOpen(false);
-                    }}
-                    icon={op.icon}
-                  />
-                </>
-              )}
-            </For>
-            <Show when={filteredTools().length > 0 && ops().length > 0}>
-              <div class="my-1 h-px bg-edge-muted" />
-            </Show>
-            <For each={filteredTools()}>
-              {(tool, i) => (
-                <>
-                  <Show when={tool.divideAbove && i() > 0}>
-                    <div class="my-1 h-px bg-edge-muted" />
-                  </Show>
-                  <ResponsiveDropdown.Item
-                    text={
-                      typeof tool.label === 'function'
-                        ? tool.label()
-                        : tool.label
-                    }
-                    onClick={(e?: MouseEvent) => {
-                      tool.action();
-                      if (tool.focusTarget) {
-                        triggerFocusInput(
-                          tool.focusTarget,
-                          e?.currentTarget as HTMLElement | undefined
-                        );
-                      }
-                      setOpen(false);
-                    }}
-                    icon={tool.icon}
-                  />
-                </>
-              )}
-            </For>
-          </ResponsiveDropdown.Content>
-        </Layer>
-      </ResponsiveDropdown.Portal>
-    </ResponsiveDropdown>
+      <MobileRender
+        open={open()}
+        onOpenChange={setOpen}
+        triggerClass={props.buttonClass}
+        ops={ops()}
+        tools={tools()}
+      />
+    </Show>
   );
 }

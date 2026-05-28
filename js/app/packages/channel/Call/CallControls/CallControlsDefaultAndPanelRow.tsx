@@ -1,36 +1,22 @@
-import {
-  GroupLabel,
-  MenuGroup,
-  MenuItem,
-  MenuSeparator,
-} from '@core/component/Menu';
-import Microphone from '@icon/regular/microphone.svg';
-import MicrophoneSlash from '@icon/regular/microphone-slash.svg';
-import Screencast from '@icon/regular/screencast.svg';
-import Users from '@icon/regular/users.svg';
-import VideoCamera from '@icon/regular/video-camera.svg';
-import VideoCameraSlash from '@icon/regular/video-camera-slash.svg';
+import PhoneDisconnect from '@icon/wide-call-disconnect.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
-import PhoneDisconnect from '@macro-icons/wide/call-disconnect.svg';
-import { useToggleShareWithTeamMutation } from '@queries/call/call';
-import { cn } from '@ui';
-import { type Accessor, For, Show } from 'solid-js';
+import Gear from '@phosphor/gear.svg';
+import Microphone from '@phosphor/microphone.svg';
+import MicrophoneSlash from '@phosphor/microphone-slash.svg';
+import Screencast from '@phosphor/screencast.svg';
+import VideoCamera from '@phosphor/video-camera.svg';
+import VideoCameraSlash from '@phosphor/video-camera-slash.svg';
+import { Button, Dropdown, SingleSelectCheck } from '@ui';
+import { For, type JSX, Show } from 'solid-js';
 import { BACKGROUND_IMAGES, useCallContext } from '../CallContext';
 import { CallDeviceList } from '../CallDeviceList';
-import {
-  CallControlButton,
-  type CallControlButtonSize,
-} from './CallControlButton';
-import { CallControlButtonWithDropdown } from './CallControlButtonWithDropdown';
 
 export type CallControlsDefaultAndPanelRowProps = {
-  size: Accessor<CallControlButtonSize>;
-  class?: string;
   onLeave: () => void | Promise<void>;
 };
 
-// Mirrors @livekit/track-processors' supportsBackgroundProcessors()
-// so this menu can render without statically importing heavy processor bundles.
+// Mirrors @livekit/track-processors' supportsBackgroundProcessors() so this
+// menu can render without statically importing heavy processor bundles.
 function isBackgroundBlurSupported(): boolean {
   if (typeof window === 'undefined') return false;
   if (
@@ -95,176 +81,189 @@ function BackgroundEffectSelector() {
   };
 
   return (
-    <DropdownMenu.RadioGroup
-      class="w-full"
-      value={currentEffectValue()}
-      onChange={handleChange}
-    >
-      <MenuGroup>
-        <GroupLabel>Background</GroupLabel>
-        <MenuItem
-          text="None"
-          selectorType="radio"
-          value="none"
-          groupValue={currentEffectValue()}
-        />
-      </MenuGroup>
-      <MenuGroup>
-        <GroupLabel>Blur</GroupLabel>
-        <MenuItem
-          text="Light"
-          selectorType="radio"
-          value="blur-light"
-          groupValue={currentEffectValue()}
-        />
-        <MenuItem
-          text="Medium"
-          selectorType="radio"
-          value="blur-medium"
-          groupValue={currentEffectValue()}
-        />
-        <MenuItem
-          text="Heavy"
-          selectorType="radio"
-          value="blur-heavy"
-          groupValue={currentEffectValue()}
-        />
-      </MenuGroup>
+    <>
+      <Dropdown.Group>
+        <Dropdown.GroupLabel>Background</Dropdown.GroupLabel>
+        <Dropdown.Item
+          closeOnSelect={false}
+          onSelect={() => handleChange('none')}
+        >
+          <span class="flex-1 truncate">None</span>
+          <SingleSelectCheck active={currentEffectValue() === 'none'} />
+        </Dropdown.Item>
+      </Dropdown.Group>
+      <Dropdown.Group>
+        <Dropdown.GroupLabel>Blur</Dropdown.GroupLabel>
+        <For each={['light', 'medium', 'heavy'] as const}>
+          {(intensity) => {
+            const value = `blur-${intensity}`;
+            const label = intensity[0]!.toUpperCase() + intensity.slice(1);
+            return (
+              <Dropdown.Item
+                closeOnSelect={false}
+                onSelect={() => handleChange(value)}
+              >
+                <span class="flex-1 truncate">{label}</span>
+                <SingleSelectCheck active={currentEffectValue() === value} />
+              </Dropdown.Item>
+            );
+          }}
+        </For>
+      </Dropdown.Group>
       <Show when={BACKGROUND_IMAGES.length}>
-        <MenuGroup>
-          <GroupLabel>Image</GroupLabel>
+        <Dropdown.Group>
+          <Dropdown.GroupLabel>Image</Dropdown.GroupLabel>
           <For each={BACKGROUND_IMAGES}>
-            {(bg) => (
-              <MenuItem
-                text={bg.label}
-                selectorType="radio"
-                value={`image-${bg.id}`}
-                groupValue={currentEffectValue()}
-              />
-            )}
+            {(bg) => {
+              const value = `image-${bg.id}`;
+              return (
+                <Dropdown.Item
+                  closeOnSelect={false}
+                  onSelect={() => handleChange(value)}
+                >
+                  <span class="flex-1 truncate">{bg.label}</span>
+                  <SingleSelectCheck active={currentEffectValue() === value} />
+                </Dropdown.Item>
+              );
+            }}
           </For>
-        </MenuGroup>
+        </Dropdown.Group>
       </Show>
-    </DropdownMenu.RadioGroup>
+    </>
   );
 }
 
+function Cell(props: { children: JSX.Element }) {
+  return <div class="flex items-center p-1">{props.children}</div>;
+}
+
+/**
+ * Mic / camera / screen-share / settings / hang-up arranged as a single
+ * rounded card with hairline dividers — matches the in-call sidebar panel
+ * styling. Each cell holds a plain ghost `Button`, so the hover stays
+ * contained inside the button rather than filling the cell to the dividers.
+ */
 export function CallControlsDefaultAndPanelRow(
   props: CallControlsDefaultAndPanelRowProps
 ) {
   const callCtx = useCallContext();
   const isConnecting = () => callCtx.isConnecting();
-  const size = () => props.size();
-  const iconClass = () => (size() === 'sm' ? 'w-4 h-4' : 'w-5 h-5');
-  const toggleShareWithTeam = useToggleShareWithTeamMutation();
-
-  const handleToggleShareWithTeam = async () => {
-    const callId = callCtx.activeCallId();
-    if (!callId) return;
-    const newValue = await toggleShareWithTeam.mutateAsync(callId);
-    callCtx.setSharedWithTeam(newValue);
-  };
 
   return (
-    <div
-      data-call-controls
-      class={cn(
-        'flex flex-row flex-wrap items-center',
-        size() === 'md' && 'justify-center gap-3',
-        size() === 'sm' && 'justify-around gap-0 py-1',
-        props.class
-      )}
-    >
-      <CallControlButtonWithDropdown
-        size={size()}
-        onClick={() => callCtx.toggleAudio()}
-        active={!callCtx.isAudioMuted()}
-        disabled={isConnecting()}
-        dropdownContent={() => (
-          <>
-            <CallDeviceList
-              label="Microphone"
-              devices={callCtx.audioInputDevices()}
-              activeDeviceId={callCtx.activeAudioInputDeviceId()}
-              onSelect={(id) => callCtx.switchAudioInput(id)}
-            />
-            <Show when={callCtx.audioOutputDevices().length > 0}>
-              <MenuSeparator />
-              <CallDeviceList
-                label="Speaker"
-                devices={callCtx.audioOutputDevices()}
-                activeDeviceId={callCtx.activeAudioOutputDeviceId()}
-                onSelect={(id) => callCtx.switchAudioOutput(id)}
-              />
-            </Show>
-          </>
-        )}
-      >
-        <Show
-          when={!callCtx.isAudioMuted()}
-          fallback={<MicrophoneSlash class={iconClass()} />}
+    <div class="inline-flex items-center overflow-hidden rounded-lg border border-ink-muted/[0.08] bg-ink-muted/[0.025] divide-x divide-ink-muted/[0.08]">
+      <Cell>
+        <Button
+          size="icon-sm"
+          onClick={() => void callCtx.toggleAudio()}
+          disabled={isConnecting()}
+          aria-label={
+            callCtx.isAudioMuted() ? 'Unmute microphone' : 'Mute microphone'
+          }
+          aria-pressed={!callCtx.isAudioMuted()}
         >
-          <Microphone class={iconClass()} />
-        </Show>
-      </CallControlButtonWithDropdown>
+          <Show when={!callCtx.isAudioMuted()} fallback={<MicrophoneSlash />}>
+            <Microphone />
+          </Show>
+        </Button>
+      </Cell>
 
-      <CallControlButtonWithDropdown
-        size={size()}
-        onClick={() => callCtx.toggleVideo()}
-        active={!callCtx.isVideoMuted()}
-        disabled={isConnecting()}
-        dropdownContent={() => (
-          <>
-            <CallDeviceList
-              label="Camera"
-              devices={callCtx.videoInputDevices()}
-              activeDeviceId={callCtx.activeVideoInputDeviceId()}
-              onSelect={(id) => callCtx.switchVideoInput(id)}
-            />
+      <Cell>
+        <Button
+          size="icon-sm"
+          onClick={() => void callCtx.toggleVideo()}
+          disabled={isConnecting()}
+          aria-label={
+            callCtx.isVideoMuted() ? 'Turn on camera' : 'Turn off camera'
+          }
+          aria-pressed={!callCtx.isVideoMuted()}
+        >
+          <Show when={!callCtx.isVideoMuted()} fallback={<VideoCameraSlash />}>
+            <VideoCamera />
+          </Show>
+        </Button>
+      </Cell>
+
+      <Cell>
+        <Button
+          size="icon-sm"
+          onClick={() => void callCtx.toggleScreenShare()}
+          disabled={isConnecting()}
+          aria-label={
+            callCtx.isScreenSharing() ? 'Stop sharing screen' : 'Share screen'
+          }
+          aria-pressed={callCtx.isScreenSharing()}
+        >
+          <Screencast />
+        </Button>
+      </Cell>
+
+      <Cell>
+        <Dropdown placement="top" gutter={6}>
+          <DropdownMenu.Trigger
+            as={Button}
+            size="icon-sm"
+            disabled={isConnecting()}
+            aria-label="Call settings"
+          >
+            <Gear />
+          </DropdownMenu.Trigger>
+          <Dropdown.Content class="min-w-56">
+            <Dropdown.Group>
+              <CallDeviceList
+                label="Microphone"
+                devices={callCtx.audioInputDevices()}
+                activeDeviceId={callCtx.activeAudioInputDeviceId()}
+                onSelect={(id) => callCtx.switchAudioInput(id)}
+              />
+            </Dropdown.Group>
+            <Show when={callCtx.audioOutputDevices().length > 0}>
+              <Dropdown.Group>
+                <CallDeviceList
+                  label="Speaker"
+                  devices={callCtx.audioOutputDevices()}
+                  activeDeviceId={callCtx.activeAudioOutputDeviceId()}
+                  onSelect={(id) => callCtx.switchAudioOutput(id)}
+                />
+              </Dropdown.Group>
+            </Show>
+            <Dropdown.Group>
+              <CallDeviceList
+                label="Camera"
+                devices={callCtx.videoInputDevices()}
+                activeDeviceId={callCtx.activeVideoInputDeviceId()}
+                onSelect={(id) => callCtx.switchVideoInput(id)}
+              />
+            </Dropdown.Group>
+            <Dropdown.Group>
+              <Dropdown.GroupLabel>Audio processing</Dropdown.GroupLabel>
+              <Dropdown.Item
+                closeOnSelect={false}
+                onSelect={() => void callCtx.toggleNoiseSuppression()}
+              >
+                <span class="flex-1 truncate">Noise suppression</span>
+                <SingleSelectCheck
+                  active={callCtx.noiseSuppressionMode() !== 'off'}
+                />
+              </Dropdown.Item>
+            </Dropdown.Group>
             <Show when={isBackgroundBlurSupported()}>
-              <MenuSeparator />
               <BackgroundEffectSelector />
             </Show>
-          </>
-        )}
-      >
-        <Show
-          when={!callCtx.isVideoMuted()}
-          fallback={<VideoCameraSlash class={iconClass()} />}
+          </Dropdown.Content>
+        </Dropdown>
+      </Cell>
+
+      <Cell>
+        <Button
+          size="icon-sm"
+          class="text-failure not-disabled:hover:text-failure not-disabled:hover:bg-failure/10"
+          onClick={() => void props.onLeave()}
+          disabled={isConnecting()}
+          aria-label="Leave call"
         >
-          <VideoCamera class={iconClass()} />
-        </Show>
-      </CallControlButtonWithDropdown>
-
-      <CallControlButton
-        class="border-0"
-        size={size()}
-        onClick={() => callCtx.toggleScreenShare()}
-        active={callCtx.isScreenSharing()}
-        disabled={isConnecting()}
-      >
-        <Screencast class={iconClass()} />
-      </CallControlButton>
-
-      <CallControlButton
-        class="border-0"
-        size={size()}
-        onClick={handleToggleShareWithTeam}
-        active={callCtx.isSharedWithTeam()}
-        disabled={isConnecting()}
-      >
-        <Users class={iconClass()} />
-      </CallControlButton>
-
-      <CallControlButton
-        class="border-0"
-        size={size()}
-        onClick={props.onLeave}
-        disabled={isConnecting()}
-        danger
-      >
-        <PhoneDisconnect class={iconClass()} />
-      </CallControlButton>
+          <PhoneDisconnect />
+        </Button>
+      </Cell>
     </div>
   );
 }

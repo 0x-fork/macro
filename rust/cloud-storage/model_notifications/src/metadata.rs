@@ -16,6 +16,9 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+#[cfg(test)]
+mod test;
+
 #[derive(Debug, Clone, ToSchema, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiResponseMetadata {
@@ -189,8 +192,8 @@ pub struct DocumentMentionMetadata {
     #[serde(alias = "sub_type")]
     #[serde(default)]
     pub sub_type: Option<NotificationDocumentSubType>,
-    #[serde(default)]
-    pub sender_profile_picture_url: Option<String>,
+    #[serde(flatten)]
+    pub channel: ChannelMentionMetadata,
 }
 
 impl From<DocumentMentionMetadata> for serde_json::Value {
@@ -349,12 +352,12 @@ impl NotificationTitle for MentionedInDocumentCommentMetadata {
 impl NotificationTitle for ChannelReplyMetadata {
     fn format_title(
         &self,
-        sender_id: Option<MacroUserIdStr<'_>>,
+        _sender_id: Option<MacroUserIdStr<'_>>,
     ) -> Result<String, rootcause::Report> {
-        let sender =
-            sender_id.ok_or_else(|| report!("Expected sender id to exist for {:?}", &self))?;
-
-        Ok(format!("Reply from {}", sender.0.email_part().email_str()))
+        Ok(format!(
+            "Reply from {}",
+            self.user_id.email_part().local_part()
+        ))
     }
 
     fn format_body(
@@ -375,6 +378,10 @@ pub struct TaskAssignedMetadata {
     /// The name of the task (optional)
     #[serde(alias = "task_name")]
     pub task_name: Option<String>,
+    /// The sub type of the backing document (task).
+    #[serde(alias = "sub_type")]
+    #[serde(default)]
+    pub sub_type: Option<NotificationDocumentSubType>,
     /// The user who assigned the task
     #[serde(alias = "assigned_by")]
     #[schema(value_type = String)]
@@ -528,9 +535,8 @@ impl NotificationExtIos for ChannelReplyMetadata {
 impl NotificationExtIos for DocumentMentionMetadata {
     type NotifData = ::notification::domain::models::apple::PushNotificationData;
 
-    fn collapse_key(&self, entity: &Entity<'_>) -> NotifCollapseKey {
-        let entity_type: &'static str = entity.entity_type.into();
-        NotifCollapseKey::new(entity_type).append(&entity.entity_id)
+    fn collapse_key(&self, _entity: &Entity<'_>) -> NotifCollapseKey {
+        NotifCollapseKey::new(&self.channel.message_id)
     }
 
     fn as_apns<'a>(
@@ -539,7 +545,7 @@ impl NotificationExtIos for DocumentMentionMetadata {
         _entity: &Entity<'_>,
         notification_id: Uuid,
     ) -> Option<APNSPushNotification<Self::NotifData>> {
-        let profile_pic = self.sender_profile_picture_url.clone();
+        let profile_pic = self.channel.sender_profile_picture_url.clone();
         alert_apns(self, sender_id, notification_id, profile_pic).ok()
     }
 }
@@ -601,6 +607,10 @@ pub struct MentionedInDocumentCommentMetadata {
     pub owner: MacroUserIdStr<'static>,
     /// The file type of the document.
     pub file_type: Option<String>,
+    /// The sub type of the document (e.g. task).
+    #[serde(alias = "sub_type")]
+    #[serde(default)]
+    pub sub_type: Option<NotificationDocumentSubType>,
     /// The mention ID.
     pub mention_id: String,
     /// the comment id
@@ -647,6 +657,10 @@ pub struct RepliedToDocumentCommentThreadMetadata {
     pub owner: MacroUserIdStr<'static>,
     /// The file type of the document.
     pub file_type: Option<String>,
+    /// The sub type of the document (e.g. task).
+    #[serde(alias = "sub_type")]
+    #[serde(default)]
+    pub sub_type: Option<NotificationDocumentSubType>,
     /// the comment id
     pub comment_id: i64,
     /// the thread id
@@ -715,6 +729,10 @@ pub struct CommentedOnDocumentMetadata {
     pub owner: MacroUserIdStr<'static>,
     /// The file type of the document.
     pub file_type: Option<String>,
+    /// The sub type of the document (e.g. task).
+    #[serde(alias = "sub_type")]
+    #[serde(default)]
+    pub sub_type: Option<NotificationDocumentSubType>,
     /// the comment id
     pub comment_id: i64,
     /// the thread id

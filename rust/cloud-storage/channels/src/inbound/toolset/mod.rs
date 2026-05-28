@@ -8,8 +8,8 @@ mod types;
 #[cfg(test)]
 mod test;
 
-use crate::domain::ports::ChannelMessagesService;
-use ai::tool::{AsyncToolSet, RequestContext, ToolCallError};
+use crate::domain::ports::ChannelService;
+use ai_toolset::{AsyncToolCollection, RequestContext, ToolCallError};
 use entity_access::domain::{
     models::{AccessError, AccessLevel, EntityType},
     ports::EntityAccessService,
@@ -26,7 +26,7 @@ pub use read_channel_thread::{ReadChannelThread, ReadChannelThreadResponse};
 /// Service context for channel AI tools.
 pub struct ChannelToolContext<Svc, AccessSvc>
 where
-    Svc: ChannelMessagesService,
+    Svc: ChannelService,
     AccessSvc: EntityAccessService,
 {
     /// Channel message service used to read timelines, resolve messages, and fetch threads.
@@ -37,7 +37,7 @@ where
 
 impl<Svc, AccessSvc> Clone for ChannelToolContext<Svc, AccessSvc>
 where
-    Svc: ChannelMessagesService,
+    Svc: ChannelService,
     AccessSvc: EntityAccessService,
 {
     fn clone(&self) -> Self {
@@ -50,7 +50,7 @@ where
 
 impl<Svc, AccessSvc> ChannelToolContext<Svc, AccessSvc>
 where
-    Svc: ChannelMessagesService,
+    Svc: ChannelService,
     AccessSvc: EntityAccessService,
 {
     /// Create a new channel tool context.
@@ -99,12 +99,12 @@ fn channel_access_error(err: AccessError) -> ToolCallError {
 }
 
 /// Create the channel AI toolset.
-pub fn channel_toolset<Svc, AccessSvc>() -> AsyncToolSet<ChannelToolContext<Svc, AccessSvc>>
+pub fn channel_toolset<Svc, AccessSvc>() -> AsyncToolCollection<ChannelToolContext<Svc, AccessSvc>>
 where
-    Svc: ChannelMessagesService,
+    Svc: ChannelService,
     AccessSvc: EntityAccessService,
 {
-    AsyncToolSet::new()
+    AsyncToolCollection::new()
         .add_tool::<ReadChannelMessages, ChannelToolContext<Svc, AccessSvc>>()
         .add_tool::<ReadChannelMessageContext, ChannelToolContext<Svc, AccessSvc>>()
         .add_tool::<ReadChannelThread, ChannelToolContext<Svc, AccessSvc>>()

@@ -2,9 +2,15 @@ import { blockNameToFileExtensionSet } from '@core/constant/allBlocks';
 import { staticFileIdEndpoint } from '@core/constant/servers';
 import { heicConversionService } from '@core/heic/service';
 import type { FetchError } from '@core/service';
-import { createStaticFile } from '@core/util/create';
-import { contentHash } from '@core/util/hash';
-import { type MaybeResult, mapOk } from '@core/util/maybeResult';
+import type { ResultError } from '@core/util/result';
+import {
+  createStaticUploadFile,
+  createUploadFile,
+  createUploadFilePreviewUrl,
+  getUploadFileCacheKey,
+  type UploadFile,
+} from '@core/util/uploadFile';
+
 import { mergeRegister } from '@lexical/utils';
 import {
   $createImageNode,
@@ -15,7 +21,7 @@ import {
   type MediaType,
   type VideoNode,
 } from '@lexical-core';
-import { storageServiceClient } from '@service-storage/client';
+import { fetchBinaryDocumentData } from '@queries/storage/binary-document';
 import { fileExtension } from '@service-storage/util/filename';
 import {
   $createNodeSelection,
@@ -34,33 +40,34 @@ import {
   type LexicalEditor,
   type NodeKey,
 } from 'lexical';
+import { ok, type Result } from 'neverthrow';
 import { $insertNodesAndSplitList } from '../../utils';
 import { mapRegisterDelete } from '../shared';
 
-export type DSSMedia = {
+type DSSMedia = {
   type: 'dss';
   id: string;
 };
 
-export type SFSMedia = {
+type SFSMedia = {
   type: 'sfs';
   id: string;
 };
 
-export type LocalMedia = {
+type LocalMedia = {
   type: 'local';
   url: string;
   file: File;
 };
 
-export type URLMedia = {
+type URLMedia = {
   type: 'url';
   url: string;
 };
 
-export type MediaSource = DSSMedia | SFSMedia | LocalMedia | URLMedia;
-export type MediaSourceType = MediaSource['type'];
-export type MediaCreationPayload = Exclude<MediaSource, 'file'> & {
+type MediaSource = DSSMedia | SFSMedia | LocalMedia | URLMedia;
+
+type MediaCreationPayload = Exclude<MediaSource, 'file'> & {
   alt?: string;
   mediaType: MediaType;
   constrainedMediaDimensions?: { width: number; height: number };
@@ -92,7 +99,7 @@ export const TRY_INSERT_MEDIA_UPLOAD_COMMAND: LexicalCommand<
   MediaType | 'all'
 > = createCommand('TRY_INSERT_MEDIA_UPLOAD_COMMAND');
 
-export function validateMediaFile(file: File, mediaType: MediaType): boolean {
+function validateMediaFile(file: UploadFile, mediaType: MediaType): boolean {
   const ext = fileExtension(file.name);
   return ext != null && blockNameToFileExtensionSet[mediaType].has(ext);
 }
@@ -103,12 +110,12 @@ export async function addMediaFromFile(
   mediaType: MediaType,
   constrainedMediaDimensions?: { width: number; height: number }
 ) {
-  const processedFile = await processFile(file);
+  const processedFile = await processFile(createUploadFile(file));
   if (!validateMediaFile(processedFile, mediaType)) return { success: false };
   editor.dispatchCommand(INSERT_MEDIA_COMMAND, {
     type: 'local',
-    url: URL.createObjectURL(processedFile),
-    file: processedFile,
+    url: createUploadFilePreviewUrl(processedFile),
+    file: processedFile.file,
     mediaType,
     constrainedMediaDimensions,
   });
@@ -122,38 +129,29 @@ export async function getMediaUrl(src: {
   type: string;
   id: string;
   url: string;
-}): Promise<MaybeResult<FetchError | 'INVALID_DOCUMENT', string>> {
-  if (src.type === 'local' || src.type === 'url') return [null, src.url];
+}): Promise<Result<string, ResultError<FetchError | 'INVALID_DOCUMENT'>[]>> {
+  if (src.type === 'local' || src.type === 'url') return ok(src.url);
   if (src.type === 'sfs') {
     const url = staticFileIdEndpoint(src.id);
-    return [null, url];
+    return ok(url);
   }
   if (src.type === 'dss') {
-    return mapOk(
-      await storageServiceClient.getBinaryDocument({
-        documentId: src.id,
-      }),
-      (res) => res.blobUrl
-    );
+    return (await fetchBinaryDocumentData(src.id)).map((res) => res.blobUrl);
   }
   console.warn('Get media url failed for src:', src);
-  return [null, ''];
+  return ok('');
 }
 
 /**
  * Generate a unique key for a file to prevent duplicate uploads.
  */
-async function getFileKey(file: File, chunks = 8) {
-  const hash = await contentHash(
-    await file.slice(0, chunks * 1024).arrayBuffer()
-  );
-  return `${file.name}_${file.size}_${hash}`;
+async function getFileKey(file: UploadFile, chunks = 8) {
+  return getUploadFileCacheKey(file, chunks);
 }
 
-async function processFile(file: File): Promise<File> {
-  if (heicConversionService.canConvert(file)) {
-    const convertedFile = await heicConversionService.convertFile(file);
-    return convertedFile;
+async function processFile(file: UploadFile): Promise<UploadFile> {
+  if (file.kind === 'browser' && heicConversionService.canConvert(file.file)) {
+    return createUploadFile(await heicConversionService.convertFile(file.file));
   }
   return file;
 }
@@ -168,8 +166,8 @@ async function uploadStaticFiles(
 ) {
   for (const file of files) {
     try {
-      const processedFile = await processFile(file);
-      const id = await createStaticFile(processedFile);
+      const processedFile = await processFile(createUploadFile(file));
+      const id = await createStaticUploadFile(processedFile);
       onUpload(id);
     } catch (_error) {
       onError?.();
@@ -198,7 +196,7 @@ function $staticUploadSuccess(key: NodeKey, id: string, mediaType: MediaType) {
 /**
  * Delete any media nodes that are part of the current node selection.
  */
-export function $deleteSelectedMedia() {
+function $deleteSelectedMedia() {
   const sel = $getSelection();
   if (!$isNodeSelection(sel)) return false;
   let foundNodesToBeDeleted = false;
@@ -217,7 +215,7 @@ export function $deleteSelectedMedia() {
 /**
  * Safely insert media node handling various selection states.
  */
-export function $safeInsertMediaNode(node: ImageNode | VideoNode) {
+function $safeInsertMediaNode(node: ImageNode | VideoNode) {
   const selection = $getSelection();
 
   if (!selection) {
@@ -316,7 +314,7 @@ function registerMediaPlugin(editor: LexicalEditor) {
     localUrl: string,
     mediaType: MediaType
   ) => {
-    const uploadKey = await getFileKey(file);
+    const uploadKey = await getFileKey(createUploadFile(file));
 
     if (cachedUploads.has(uploadKey)) {
       const id = cachedUploads.get(uploadKey)!;

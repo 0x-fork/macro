@@ -6,7 +6,7 @@ version = "0.1.0"
 
 
 [dependencies]
-ai = { path = "../ai" }
+agent = { path = "../agent" }
 ai_tools = { path = "../ai_tools" }
 ai_toolset = { path = "../ai_toolset" }
 anyhow = { workspace = true }
@@ -30,6 +30,7 @@ utoipa = { workspace = true }
 
 # For building ToolServiceContext
 comms = { path = "../comms" }
+crm = { path = "../crm" }
 documents = { path = "../documents" }
 email = { path = "../email" }
 email_service_client = { path = "../email_service_client" }

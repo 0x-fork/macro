@@ -1,20 +1,22 @@
-import type { ApiThreadReply } from '@service-comms/client';
 import type {
   Attachment as ApiAttachment,
   Message as ApiMessage,
   CountedReaction,
 } from '@service-comms/generated/models';
+import type { ApiThreadReply } from '@service-storage/client';
 import { consumeNonce } from '../nonce';
 import { ChannelNonceKeys } from './keys';
 import {
   getTargetMessageState,
   insertMessageIntoTargetCaches,
+  markTopLevelMessageDeletedInTargetCaches,
   removeMessageFromTargetCaches,
   replaceTargetAttachments,
   replaceTargetMessageState,
   replaceTargetReactions,
   resolveMessageTarget,
   softInvalidateTargetCaches,
+  topLevelMessageHasReplies,
 } from './reconcile';
 
 /**
@@ -57,14 +59,23 @@ export function handleCommsMessage(payload: CommsMessagePayload): void {
   if (isExternalUpdate) {
     try {
       if (payload.deleted_at) {
-        removeMessageFromTargetCaches(
-          payload.channel_id,
-          resolveMessageTarget({
-            channelId: payload.channel_id,
-            messageId: payload.id,
-            threadId: payload.thread_id ?? undefined,
-          })
-        );
+        const target = resolveMessageTarget({
+          channelId: payload.channel_id,
+          messageId: payload.id,
+          threadId: payload.thread_id ?? undefined,
+        });
+        if (
+          target.kind === 'top_level' &&
+          topLevelMessageHasReplies(payload.channel_id, target.messageId)
+        ) {
+          markTopLevelMessageDeletedInTargetCaches(
+            payload.channel_id,
+            target,
+            payload.deleted_at
+          );
+        } else {
+          removeMessageFromTargetCaches(payload.channel_id, target);
+        }
       } else {
         const target = resolveMessageTarget({
           channelId: payload.channel_id,

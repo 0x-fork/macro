@@ -3,13 +3,17 @@ import { useSplitLayout } from '@app/component/split-layout/layout';
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import { toast } from '@core/component/Toast/Toast';
 import { invalidateContacts } from '@core/user/contactService';
-import { isErr } from '@core/util/maybeResult';
+
 import { invalidateListChannels } from '@queries/channel/channels';
-import { commsServiceClient, type IdResponse } from '@service-comms/client';
+import {
+  useGetOrCreateDirectMessageMutation,
+  useGetOrCreatePrivateChannelMutation,
+} from '@queries/channel/get-or-create-dm';
 import type {
   NewAttachment,
   SimpleMention,
 } from '@service-comms/generated/models';
+import { storageServiceClient } from '@service-storage/client';
 import { createCallback } from '@solid-primitives/rootless';
 
 type SendContent = {
@@ -23,12 +27,12 @@ type NavigationOptions = {
   mergeHistory?: boolean;
 };
 
-export type SendToUsersArgs = SendContent & {
+type SendToUsersArgs = SendContent & {
   users: string[];
   navigate?: NavigationOptions;
 };
 
-export type SendToChannelArgs = SendContent & {
+type SendToChannelArgs = SendContent & {
   channelId: string;
   navigate?: NavigationOptions;
 };
@@ -36,6 +40,9 @@ export type SendToChannelArgs = SendContent & {
 export function useSendMessageToPeople() {
   const { replaceSplit } = useSplitLayout();
   const orchestrator = useGlobalBlockOrchestrator();
+  const getOrCreateDmMutation = useGetOrCreateDirectMessageMutation();
+  const getOrCreatePrivateChannelMutation =
+    useGetOrCreatePrivateChannelMutation();
 
   async function sendAndNavigateToChannel(
     channelId: string,
@@ -44,7 +51,7 @@ export function useSendMessageToPeople() {
     attachments: NewAttachment[],
     navigate?: NavigationOptions
   ) {
-    const message = await commsServiceClient.postMessage({
+    const message = await storageServiceClient.postMessage({
       channel_id: channelId,
       message: {
         content,
@@ -53,13 +60,13 @@ export function useSendMessageToPeople() {
       },
     });
 
-    if (isErr(message) || !message.at(1)) {
+    if (message.isErr()) {
       toast.failure('Failed to send message to people');
-      console.error('failed to post message to channel', message);
+      console.error('failed to post message to channel', message.error);
       return;
     }
 
-    const messageResponse = message.at(1) as IdResponse;
+    const messageResponse = message.value;
 
     invalidateListChannels();
     invalidateContacts();
@@ -86,23 +93,25 @@ export function useSendMessageToPeople() {
   }
 
   async function sendToUsers(args: SendToUsersArgs) {
-    const result =
-      args.users.length === 1
-        ? await commsServiceClient.getOrCreateDirectMessage({
-            recipient_id: args.users[0],
-          })
-        : await commsServiceClient.getOrCreatePrivateChannel({
-            recipients: args.users,
-          });
-
-    if (isErr(result)) {
+    let channelId: string;
+    try {
+      const result =
+        args.users.length === 1
+          ? await getOrCreateDmMutation.mutateAsync({
+              recipient_id: args.users[0],
+            })
+          : await getOrCreatePrivateChannelMutation.mutateAsync({
+              recipients: args.users,
+            });
+      channelId = result.channel_id;
+    } catch (err) {
       toast.failure('Failed to send message to people');
-      console.error('failed to create new channel to forward', result);
+      console.error('failed to create new channel to forward', err);
       return;
     }
 
     return sendAndNavigateToChannel(
-      result[1].channel_id,
+      channelId,
       args.content,
       args.mentions,
       args.attachments ?? [],

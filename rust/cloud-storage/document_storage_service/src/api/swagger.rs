@@ -63,13 +63,18 @@ use crate::{
     },
 };
 use channels::inbound::axum_router::{
-    ApiChannelAttachment, ApiChannelAttachmentsPage, ApiChannelMessage, ApiChannelMessageKind,
-    ApiChannelMessagesPage, ApiChannelParticipant, ApiCountedReaction, ApiMessageAttachment,
-    ApiParticipantRole, ApiResolvedChannelMessage, ApiThreadInfo, ApiThreadReply,
-    ChannelMessageFilters,
+    ApiAttachmentChannelReference, ApiAttachmentEntityReference, ApiAttachmentGenericReference,
+    ApiChannelAttachment, ApiChannelAttachmentsPage, ApiChannelContextMessage, ApiChannelMessage,
+    ApiChannelMessageKind, ApiChannelMessagesPage, ApiChannelParticipant, ApiCountedReaction,
+    ApiMessageAttachment, ApiParticipantRole, ApiResolvedChannelMessage, ApiThreadInfo,
+    ApiThreadReply, ChannelMessageFilters, CreateEntityMentionRequest, CreateEntityMentionResponse,
+    DeleteEntityMentionResponse, GetAttachmentReferencesResponse, GetMessageWithContextResponse,
 };
 use document_sub_type::DocumentSubType;
-use documents_hex::inbound::axum_router::{BranchNameResponse, ShortIdResponse};
+use documents_hex::inbound::axum_router::{
+    edit_document::EditDocumentResponse, get_branch_name::BranchNameResponse,
+    get_short_id::ShortIdResponse,
+};
 use model::document::response::{
     CreateDocumentRequest, CreateDocumentResponse, CreateDocumentResponseData,
     DocumentResponseMetadata,
@@ -139,22 +144,24 @@ use utoipa::OpenApi;
 
         // documents
         documents::get_user_documents::get_user_documents_handler,
-        documents_hex::inbound::axum_router::get_document_handler,
+        documents_hex::inbound::axum_router::get_document::get_document_handler,
         documents::get_document_version::handler,
-        documents_hex::inbound::axum_router::create_document_handler,
-        documents_hex::inbound::axum_router::copy_document_handler,
+        documents_hex::inbound::axum_router::create_document::create_document_handler,
+        documents_hex::inbound::axum_router::create_markdown::create_markdown_handler,
+        documents_hex::inbound::axum_router::copy_document::copy_document_handler,
         documents::save_document::save_document_handler,
         documents::pre_save::presave_document_handler,
-        documents_hex::inbound::axum_router::edit_document_handler,
-        documents_hex::inbound::axum_router::delete_document_handler,
+        documents_hex::inbound::axum_router::edit_document::edit_document_handler,
+        documents_hex::inbound::axum_router::delete_document::delete_document_handler,
         documents::delete_document::permanently_delete_document_handler,
         documents::get_document_list::get_document_list_handler,
         documents::get_document_permissions::get_document_permissions_handler_v2,
         documents::get_document_views::get_document_views_handler,
         documents::location::get_location_handler,
-        documents_hex::inbound::axum_router::get_location_v3_handler,
-        documents_hex::inbound::axum_router::get_branch_name_handler,
-        documents_hex::inbound::axum_router::get_short_id_handler,
+        documents_hex::inbound::axum_router::get_location::get_location_v3_handler,
+        documents_hex::inbound::axum_router::get_branch_name::get_branch_name_handler,
+        documents_hex::inbound::axum_router::get_github_pull_requests::get_github_pull_requests_handler,
+        documents_hex::inbound::axum_router::get_short_id::get_short_id_handler,
         documents::simple_save::handler,
         documents::initialize_user_documents::handler,
         documents::get_batch_preview::get_batch_preview_handler,
@@ -162,7 +169,7 @@ use utoipa::OpenApi;
         documents::permissions_token::validate_permissions_token::handler,
         documents::revert_delete_document::handler,
         documents::export_document::handler,
-        documents_hex::inbound::axum_router::create_task_handler,
+        documents_hex::inbound::axum_router::create_task::create_task_handler,
 
         // instructions
         instructions::create_instructions::create_instructions_handler,
@@ -188,12 +195,30 @@ use utoipa::OpenApi;
         soup::inbound::axum_router::post_soup_ast_handler,
 
         // channels
+        channels::inbound::axum_router::create_channel_handler,
+        channels::inbound::axum_router::get_or_create_dm_handler,
+        channels::inbound::axum_router::get_or_create_private_handler,
+        channels::inbound::axum_router::patch_channel_handler,
+        channels::inbound::axum_router::delete_channel_handler,
+        channels::inbound::axum_router::post_message_handler,
+        channels::inbound::axum_router::patch_message_handler,
+        channels::inbound::axum_router::delete_message_handler,
+        channels::inbound::axum_router::post_reaction_handler,
+        channels::inbound::axum_router::post_typing_handler,
+        channels::inbound::axum_router::add_participants_handler,
+        channels::inbound::axum_router::remove_participants_handler,
+        channels::inbound::axum_router::join_channel_handler,
+        channels::inbound::axum_router::leave_channel_handler,
         channels::inbound::axum_router::get_channel_messages_handler,
         channels::inbound::axum_router::post_channel_messages_handler,
         channels::inbound::axum_router::get_thread_replies_handler,
+        channels::inbound::axum_router::get_message_with_context_handler,
         channels::inbound::axum_router::resolve_channel_message_handler,
         channels::inbound::axum_router::get_channel_attachments_handler,
         channels::inbound::axum_router::get_channel_participants_handler,
+        channels::inbound::axum_router::create_mention_handler,
+        channels::inbound::axum_router::delete_mention_handler,
+        channels::inbound::axum_router::get_attachment_references_handler,
 
         // calls
         call::inbound::axum_router::get_or_create_call_handler,
@@ -247,7 +272,12 @@ use utoipa::OpenApi;
         github::inbound::github_sync_router::install_sync_handler,
 
         // /internal/sync_service
-        sync_service_hex::inbound::axum_router::bulk_wakeup_handler
+        sync_service_hex::inbound::axum_router::bulk_wakeup_handler,
+
+        // /crm
+        crm::inbound::axum_router::set_email_sync::handler,
+        crm::inbound::axum_router::set_company_hidden::handler,
+        crm::inbound::axum_router::set_contact_hidden::handler,
     ),
     components(
         schemas(
@@ -270,6 +300,8 @@ use utoipa::OpenApi;
             CreateDocumentRequest,
             CreateDocumentResponse,
             CreateDocumentResponseData, // Create document
+            documents_hex::domain::models::CreateMarkdownDocumentRequest,
+            documents_hex::domain::models::CreateMarkdownDocumentResponse,
             documents_hex::domain::models::CreateTaskRequest,
             documents_hex::domain::models::CreateTaskResponse,
             documents_hex::domain::models::PropertyInput,
@@ -284,7 +316,7 @@ use utoipa::OpenApi;
             documents_hex::domain::models::CopyDocumentQueryParams,
             documents_hex::domain::models::CopyDocumentResponse, // Copy document
             documents_hex::domain::models::EditDocumentServiceArgs,
-            documents_hex::inbound::axum_router::EditDocumentResponse, // Edit document
+            EditDocumentResponse, // Edit document
             UserDocumentsResponse,
             GetDocumentsResponse, // Get user documents
             GetDocumentProcessingResult,
@@ -339,6 +371,8 @@ use utoipa::OpenApi;
             // Channels
             ApiChannelMessagesPage,
             ApiChannelMessage,
+            GetMessageWithContextResponse,
+            ApiChannelContextMessage,
             ApiThreadInfo,
             ApiThreadReply,
             ApiChannelMessageKind,
@@ -349,7 +383,34 @@ use utoipa::OpenApi;
             ApiChannelAttachment,
             ApiChannelParticipant,
             ApiParticipantRole,
+            GetAttachmentReferencesResponse,
+            ApiAttachmentEntityReference,
+            ApiAttachmentChannelReference,
+            ApiAttachmentGenericReference,
             ChannelMessageFilters,
+            channels::domain::models::ChannelType,
+            channels::domain::models::GetOrCreateAction,
+            channels::domain::models::TypingAction,
+            channels::domain::models::ReactionAction,
+            channels::domain::models::NewChannelAttachment,
+            channels::domain::models::SimpleMention,
+            channels::domain::models::CreateChannelRequest,
+            channels::domain::models::CreateChannelResponse,
+            channels::domain::models::GetOrCreateDmRequest,
+            channels::domain::models::GetOrCreatePrivateRequest,
+            channels::domain::models::GetOrCreateChannelResponse,
+            channels::domain::models::PatchChannelRequest,
+            channels::domain::models::PostMessageRequest,
+            channels::domain::models::PostMessageResponse,
+            channels::domain::models::PatchMessageRequest,
+            channels::domain::models::DeleteMessageQuery,
+            channels::domain::models::PostReactionRequest,
+            channels::domain::models::PostTypingRequest,
+            channels::domain::models::AddParticipantsRequest,
+            channels::domain::models::RemoveParticipantsRequest,
+            CreateEntityMentionRequest,
+            CreateEntityMentionResponse,
+            DeleteEntityMentionResponse,
 
             // Calls
             call::domain::models::CallTokenResponse,
@@ -423,10 +484,17 @@ use utoipa::OpenApi;
             ExcludeDefaultViewRequest,
             BranchNameResponse,
             ShortIdResponse,
+            documents_hex::domain::models::GithubPullRequest,
+            documents_hex::domain::models::GithubPullRequestsResponse,
 
             // Sync service
             sync_service_hex::domain::models::BulkWakeupRequest,
             sync_service_hex::domain::models::BulkWakeupResponse,
+
+            // CRM
+            crm::inbound::axum_router::set_email_sync::SetEmailSyncRequest,
+            crm::inbound::axum_router::set_company_hidden::SetCompanyHiddenRequest,
+            crm::inbound::axum_router::set_contact_hidden::SetContactHiddenRequest,
         ),
     ),
     tags(

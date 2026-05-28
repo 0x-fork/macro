@@ -13,12 +13,23 @@ use call::{
     outbound::{livekit_rtc_client::LivekitRtcClient, pg_call_repo::PgCallRepo},
 };
 use channels::{
-    domain::service::ChannelMessagesServiceImpl, inbound::axum_router::ChannelsRouterState,
-    outbound::pg_channels_repo::PgChannelMessagesRepo,
+    domain::{
+        service::ChannelServiceImpl,
+        side_effects::{ChannelSideEffectService, SpawnedChannelEventDispatcher},
+    },
+    inbound::axum_router::ChannelsRouterState,
+    outbound::{
+        connection_gateway_realtime::ConnectionGatewayChannelRealtimePublisher,
+        contacts_dispatcher::ContactsChannelDispatcher,
+        notification_sender::NotificationChannelSender,
+        pg_channel_reference_share_permissions::PgChannelReferenceSharePermissions,
+        pg_channels_repo::PgChannelsRepo, pg_side_effect_context::PgChannelSideEffectContext,
+        sqs_search_indexer::SqsChannelSearchIndexer,
+    },
 };
 use comms::{
-    domain::service::ChannelServiceImpl,
-    inbound::CommsRouterState,
+    domain::service::ChannelServiceImpl as CommsChannelServiceImpl,
+    inbound::router::CommsRouterState,
     outbound::postgres::{comms_repo::PgCommsRepo, user_repo::PgUserRepo},
 };
 use comms_service::CommsHandlerState;
@@ -38,6 +49,10 @@ use email::{
     outbound::EmailPgRepo,
 };
 use entity_access::{domain::service::EntityAccessServiceImpl, outbound::PgAccessRepository};
+use foreign_entity::{
+    domain::service::ForeignEntityServiceImpl,
+    outbound::pg_foreign_entity_repo::PgForeignEntityRepo,
+};
 use frecency::{domain::services::FrecencyQueryServiceImpl, outbound::postgres::FrecencyPgStorage};
 use github::domain::service::GithubSyncServiceImpl;
 use github::outbound::github_sync_client::GithubSyncClientImpl;
@@ -72,21 +87,33 @@ pub struct InternalFlag {
     pub internal: bool,
 }
 
+/// CRM service for DSS — no-op resolver since DSS doesn't populate.
+pub(crate) type DssCrmService = crm::domain::service::CrmServiceImpl<
+    crm::outbound::companies_repo::CompaniesRepositoryImpl,
+    crm::outbound::no_op_resolver::NoOpCompanyMetadataResolver,
+>;
+
 type DssEmailService = EmailServiceImpl<
     EmailPgRepo,
     FrecencyQueryServiceImpl<FrecencyPgStorage>,
     email::domain::ports::NoOpEnqueuer,
+    DssCrmService,
 >;
+
+/// CRM router state.
+pub(crate) type DssCrmState =
+    crm::inbound::axum_router::CrmRouterState<DssCrmService, EntityAccessService>;
 
 type DssSoupState = SoupRouterState<
     SoupImpl<
         PgSoupRepo,
         FrecencyQueryServiceImpl<FrecencyPgStorage>,
         ReadonlyEmailPreviewAdapter<DssEmailService>,
-        ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage>,
+        CommsChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage>,
         call::domain::service::CallRecordQueryServiceImpl<call::outbound::pg_call_repo::PgCallRepo>,
     >,
     DssEmailService,
+    EntityAccessService,
 >;
 
 type SystemPropertiesService = SystemPropertiesServiceImpl<PgSystemPropertiesRepository>;
@@ -177,14 +204,28 @@ pub(crate) type DocumentsState = DocumentRouterState<DocumentService, EntityAcce
 
 /// Type alias for the ChannelServiceImpl used by comms
 pub(crate) type CommsChannelService =
-    ChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage>;
+    CommsChannelServiceImpl<PgCommsRepo, PgUserRepo, FrecencyPgStorage>;
 
 /// Type alias for the CommsRouterState
 pub(crate) type CommsState = CommsRouterState<CommsChannelService>;
 
+/// Type alias for the channels service wired into DSS.
+pub(crate) type DssChannelService = ChannelServiceImpl<
+    PgChannelsRepo,
+    SpawnedChannelEventDispatcher<
+        ChannelSideEffectService<
+            PgChannelSideEffectContext,
+            ConnectionGatewayChannelRealtimePublisher,
+            NotificationChannelSender<NotificationIngressType>,
+            SqsChannelSearchIndexer,
+            ContactsChannelDispatcher<SqsContactsIngress<SqsContactsQueue>>,
+        >,
+    >,
+    PgChannelReferenceSharePermissions<EntityAccessService>,
+>;
+
 /// Type alias for the channels router state.
-pub(crate) type DssChannelsState =
-    ChannelsRouterState<ChannelMessagesServiceImpl<PgChannelMessagesRepo>, EntityAccessService>;
+pub(crate) type DssChannelsState = ChannelsRouterState<DssChannelService, EntityAccessService>;
 
 /// Type alias for the call connection service.
 pub(crate) type CallConnectionService =
@@ -209,6 +250,7 @@ pub(crate) type DssCallService = CallServiceImpl<
     call::outbound::ai_call_summarizer::AiCallSummarizer,
     crate::service::call_search_indexer::SqsCallSearchIndexer,
     DssVoipPushSender,
+    call::outbound::pg_voice_repo::PgVoiceRepo,
 >;
 
 /// Type alias for the call router state.
@@ -220,9 +262,16 @@ pub(crate) type DssCallWebhookState = WebhookRouterState<DssCallService>;
 /// Type alias for the internal call router state.
 pub(crate) type DssCallInternalState = InternalCallRouterState<DssCallService>;
 
+/// Type alias for the foreign entity service.
+pub(crate) type ForeignEntityServiceType = ForeignEntityServiceImpl<PgForeignEntityRepo>;
+
 /// Type alias for the github sync service.
-pub(crate) type GithubSyncServiceType =
-    GithubSyncServiceImpl<DocumentService, PgGithubSyncRepo, GithubSyncClientImpl>;
+pub(crate) type GithubSyncServiceType = GithubSyncServiceImpl<
+    DocumentService,
+    PgGithubSyncRepo,
+    GithubSyncClientImpl,
+    ForeignEntityServiceType,
+>;
 
 /// Type alias for the cal.com webhook service.
 pub(crate) type CalWebhookServiceType = CalWebhookServiceImpl<AnalyticsClientSink>;
@@ -264,6 +313,7 @@ pub(crate) struct ApiContext {
     pub call_internal_state: DssCallInternalState,
     pub cal_webhook_state: DssCalWebhookState,
     pub entity_access_management_service: EntityAccessManagementService,
+    pub crm_state: DssCrmState,
 }
 
 env_var! {

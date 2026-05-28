@@ -1,13 +1,12 @@
-import { LabelAndHotKey } from '@core/component/Tooltip';
-import ExpandIcon from '@icon/regular/arrows-out-simple.svg';
 import { constrainImageDimensions } from '@lexical-core/utils/media';
+import ExpandIcon from '@phosphor/arrows-out-simple.svg';
 import { Button, cn } from '@ui';
 import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
 import { MediaImage } from './MediaImage';
 import { MediaVideo } from './MediaVideo';
 import type { MediaItem } from './media-items';
 
-const ATTACHMENT_TILE_SIZE = 92;
+const ATTACHMENT_TILE_SIZE = 106;
 const SINGLE_IMAGE_MAX_WIDTH = 400;
 const SINGLE_IMAGE_MAX_HEIGHT = 400;
 const MESSAGE_GALLERY_IMAGE_MAX_WIDTH = 200;
@@ -35,6 +34,7 @@ function MessageImageTile(props: {
     >
       <MediaImage.Image
         src={props.item.src}
+        previewSrc={props.item.previewSrc}
         class="max-h-[80vh] w-full select-none rounded-2xl border border-edge object-contain"
         width={dimensions()?.width ?? props.item.width ?? undefined}
         height={dimensions()?.height ?? props.item.height ?? undefined}
@@ -59,8 +59,9 @@ function AttachmentImageTile(props: { item: MediaItem; onOpen?: () => void }) {
     <MediaImage.Root>
       <MediaImage.Image
         src={props.item.src}
+        previewSrc={props.item.previewSrc}
         class={cn(
-          'size-23 select-none rounded-2xl border border-edge object-cover',
+          'size-25.5 select-none rounded-2xl border border-edge object-cover',
           props.onOpen && 'hover:opacity-80'
         )}
         onOpen={props.onOpen}
@@ -80,7 +81,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
   const videoHeight = () => props.item.height ?? undefined;
 
   return (
-    <div class="group relative flex min-h-20 max-h-120 max-w-120 min-w-0 overflow-hidden rounded-2xl border border-edge bg-menu">
+    <div class="group relative flex min-h-20 max-h-120 max-w-120 min-w-0 overflow-hidden rounded-2xl border border-edge bg-surface">
       <Show
         when={isInlinePlaying()}
         fallback={
@@ -101,7 +102,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
             </button>
             <button
               type="button"
-              class="absolute bottom-2 left-2 rounded-md bg-dialog/90 px-2 py-1 text-xs font-medium text-ink shadow-sm"
+              class="absolute bottom-2 left-2 rounded-md bg-surface/90 px-2 py-1 text-xs font-medium text-ink shadow-sm"
               onClick={(event) => {
                 event.stopPropagation();
                 setIsInlinePlaying(true);
@@ -130,7 +131,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
             event.stopPropagation();
             props.onOpen();
           }}
-          tooltip={<LabelAndHotKey label="Open video viewer" />}
+          label="Open video viewer"
         >
           <ExpandIcon />
         </Button>
@@ -141,7 +142,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
 
 function AttachmentVideoTile(props: { item: MediaItem; onOpen?: () => void }) {
   return (
-    <MediaVideo.Root class="size-23 group overflow-hidden border border-edge bg-menu">
+    <MediaVideo.Root class="size-25.5 group overflow-hidden border border-edge bg-surface">
       <MediaVideo.Preview
         src={props.item.src}
         class="size-full object-cover"

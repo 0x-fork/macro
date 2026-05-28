@@ -14,10 +14,6 @@ import { BlockItemSplitLabel } from '@app/component/split-layout/components/Spli
 import { useIsAuthenticated } from '@core/auth';
 import { createBlockSignal, useBlockId } from '@core/block';
 import { DETAILS_DRAWER_ID } from '@core/component/DetailsDrawer';
-import {
-  DocumentPropertiesButton,
-  PROPERTIES_DRAWER_ID,
-} from '@core/component/DocumentPropertiesModal';
 import { BlockLiveIndicators } from '@core/component/LiveIndicators';
 import {
   REFERENCES_DRAWER_ID,
@@ -36,11 +32,10 @@ import {
 } from '@core/util/currentBlockDocumentName';
 import { buildSimpleEntityUrl } from '@core/util/url';
 import { downloadFile } from '@filesystem/download';
-import DownloadSimple from '@icon/regular/download-simple.svg';
-import Info from '@icon/regular/info.svg';
-import Quotes from '@icon/regular/quotes.svg';
-import TagIcon from '@icon/regular/tag.svg';
-import IconShared from '@macro-icons/wide/share.svg';
+import IconShared from '@icon/wide-share.svg';
+import DownloadSimple from '@phosphor/download-simple.svg';
+import Info from '@phosphor/info.svg';
+import Quotes from '@phosphor/quotes.svg';
 import { createCallback } from '@solid-primitives/rootless';
 import { toast } from 'core/component/Toast/Toast';
 import { onMount } from 'solid-js';
@@ -65,7 +60,6 @@ export function TopBar() {
   const canvasFile = blockFileSignal.get;
 
   const referencesControl = useDrawerControl(REFERENCES_DRAWER_ID);
-  const propertiesControl = useDrawerControl(PROPERTIES_DRAWER_ID);
   const detailsControl = useDrawerControl(DETAILS_DRAWER_ID);
   const shareCtx = useShareDialogContext();
 
@@ -111,16 +105,15 @@ export function TopBar() {
       icon: Info,
       action: detailsControl.toggle,
     },
-    { op: 'copy', divideAbove: true },
+    { op: 'copy' },
     { op: 'rename' },
     { op: 'moveToProject' },
     {
       label: 'Download',
       icon: DownloadSimple,
       action: downloadDocument,
-      divideAbove: true,
     },
-    { op: 'delete', divideAbove: true },
+    { op: 'delete' },
   ];
 
   const tools: BlockTool[] = [
@@ -138,24 +131,9 @@ export function TopBar() {
       ),
     },
     {
-      label: 'Properties',
-      icon: TagIcon,
-      action: propertiesControl.toggle,
-      buttonComponent: () => (
-        <DocumentPropertiesButton
-          buttonSize="sm"
-          onOpenChange={(open) =>
-            open &&
-            analytics.track('properties_panel_open', { blockType: 'canvas' })
-          }
-        />
-      ),
-    },
-    {
       label: 'Share',
       icon: IconShared,
       action: () => shareCtx.open(),
-      divideAbove: true,
       condition: () => !!canvasFile(),
       buttonComponent: () => <ShareTrigger copyLink={copyLink} />,
       focusTarget: getShareDrawerRecipientInput,
