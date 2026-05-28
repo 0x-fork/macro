@@ -10,57 +10,6 @@
     "version": "0.1.0"
   },
   "paths": {
-    "/activity": {
-      "get": {
-        "tags": ["activity"],
-        "operationId": "get_activity",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ApiActivity"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/channels": {
       "get": {
         "tags": ["channels"],
@@ -75,64 +24,6 @@
                   "items": {
                     "$ref": "#/components/schemas/ApiChannelWithLatest"
                   }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/comms/activity": {
-      "post": {
-        "tags": ["activity"],
-        "operationId": "post_activity",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PostActivityRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Activity"
                 }
               }
             }
@@ -1527,10 +1418,6 @@
           }
         }
       },
-      "ActivityType": {
-        "type": "string",
-        "enum": ["view", "interact"]
-      },
       "AddParticipantsRequest": {
         "type": "object",
         "required": ["participants"],
@@ -1540,41 +1427,6 @@
             "items": {
               "type": "string"
             }
-          }
-        }
-      },
-      "ApiActivity": {
-        "type": "object",
-        "required": ["id", "user_id", "channel_id", "created_at", "updated_at"],
-        "properties": {
-          "channel_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "interacted_at": {
-            "type": ["string", "null"],
-            "format": "date-time",
-            "description": "the last time the user intereacted with the channel\neg. reacting, replying, sending a message"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "user_id": {
-            "type": "string"
-          },
-          "viewed_at": {
-            "type": ["string", "null"],
-            "format": "date-time",
-            "description": "the last time the user viewed the channel"
           }
         }
       },
@@ -2549,18 +2401,6 @@
           },
           "nonce": {
             "type": ["string", "null"]
-          }
-        }
-      },
-      "PostActivityRequest": {
-        "type": "object",
-        "required": ["channel_id", "activity_type"],
-        "properties": {
-          "activity_type": {
-            "$ref": "#/components/schemas/ActivityType"
-          },
-          "channel_id": {
-            "type": "string"
           }
         }
       },

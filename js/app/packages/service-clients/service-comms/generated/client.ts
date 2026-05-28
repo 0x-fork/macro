@@ -5,9 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type {
-  Activity,
   AddParticipantsRequest,
-  ApiActivity,
   ApiChannelWithLatest,
   CreateChannelRequest,
   CreateChannelResponse,
@@ -29,70 +27,12 @@ import type {
   GetOrCreatePrivateResponse,
   PatchChannelOptions,
   PatchMessageRequest,
-  PostActivityRequest,
   PostMessageRequest,
   PostMessageResponse,
   PostReactionRequest,
   PostTypingRequest,
   RemoveParticipantsRequest,
 } from './models';
-
-export type getActivityResponse200 = {
-  data: ApiActivity[];
-  status: 200;
-};
-
-export type getActivityResponse401 = {
-  data: string;
-  status: 401;
-};
-
-export type getActivityResponse404 = {
-  data: string;
-  status: 404;
-};
-
-export type getActivityResponse500 = {
-  data: string;
-  status: 500;
-};
-
-export type getActivityResponseSuccess = getActivityResponse200 & {
-  headers: Headers;
-};
-export type getActivityResponseError = (
-  | getActivityResponse401
-  | getActivityResponse404
-  | getActivityResponse500
-) & {
-  headers: Headers;
-};
-
-export type getActivityResponse =
-  | getActivityResponseSuccess
-  | getActivityResponseError;
-
-export const getGetActivityUrl = () => {
-  return `/activity`;
-};
-
-export const getActivity = async (
-  options?: RequestInit
-): Promise<getActivityResponse> => {
-  const res = await fetch(getGetActivityUrl(), {
-    ...options,
-    method: 'GET',
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: getActivityResponse['data'] = body ? JSON.parse(body) : {};
-  return {
-    data,
-    status: res.status,
-    headers: res.headers,
-  } as getActivityResponse;
-};
 
 export type getChannelsResponse200 = {
   data: ApiChannelWithLatest[];
@@ -149,66 +89,6 @@ export const getChannels = async (
     status: res.status,
     headers: res.headers,
   } as getChannelsResponse;
-};
-
-export type postActivityResponse200 = {
-  data: Activity;
-  status: 200;
-};
-
-export type postActivityResponse401 = {
-  data: string;
-  status: 401;
-};
-
-export type postActivityResponse404 = {
-  data: string;
-  status: 404;
-};
-
-export type postActivityResponse500 = {
-  data: string;
-  status: 500;
-};
-
-export type postActivityResponseSuccess = postActivityResponse200 & {
-  headers: Headers;
-};
-export type postActivityResponseError = (
-  | postActivityResponse401
-  | postActivityResponse404
-  | postActivityResponse500
-) & {
-  headers: Headers;
-};
-
-export type postActivityResponse =
-  | postActivityResponseSuccess
-  | postActivityResponseError;
-
-export const getPostActivityUrl = () => {
-  return `/comms/activity`;
-};
-
-export const postActivity = async (
-  postActivityRequest: PostActivityRequest,
-  options?: RequestInit
-): Promise<postActivityResponse> => {
-  const res = await fetch(getPostActivityUrl(), {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(postActivityRequest),
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: postActivityResponse['data'] = body ? JSON.parse(body) : {};
-  return {
-    data,
-    status: res.status,
-    headers: res.headers,
-  } as postActivityResponse;
 };
 
 export type getAttachmentReferencesResponse200 = {

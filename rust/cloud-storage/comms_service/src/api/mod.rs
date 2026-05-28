@@ -1,9 +1,8 @@
-use crate::api::{activity::post_activity, context::AppState};
-use axum::{Router, routing::post};
+use crate::api::context::AppState;
+use axum::Router;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-pub mod activity;
 pub mod attachments;
 pub mod channels;
 pub mod context;
@@ -21,7 +20,6 @@ pub fn router(app_state: &AppState) -> Router<AppState> {
         .merge(comms::inbound::router::comms_router(
             app_state.comms_state.clone(),
         ))
-        .route("/activity", post(post_activity::post_activity_handler))
         .nest("/channels", channels::router())
         .nest("/preview", preview::router())
         .nest("/attachments", attachments::router())

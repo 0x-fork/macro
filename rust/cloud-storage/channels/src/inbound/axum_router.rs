@@ -1,16 +1,16 @@
 #[cfg(test)]
 mod test;
 
+use crate::domain::models::{
+    Activity, ActivityType, ChannelAttachment, ChannelAttachmentType, ChannelContextMessage,
+    ChannelMessage, ChannelMessageKind, ChannelParticipant, CountedReaction, MessageAttachment,
+    MessagePageDirection, ParticipantRole, ResolvedChannelMessage, ThreadInfo, ThreadReply,
+};
 pub use crate::domain::models::{
     AddParticipantsRequest, CreateChannelRequest, CreateChannelResponse, DeleteMessageQuery,
     GetOrCreateChannelResponse, GetOrCreateDmRequest, GetOrCreatePrivateRequest,
     PatchChannelRequest, PatchMessageRequest, PostMessageRequest, PostMessageResponse,
     PostReactionRequest, PostTypingRequest, RemoveParticipantsRequest,
-};
-use crate::domain::models::{
-    ChannelAttachment, ChannelAttachmentType, ChannelContextMessage, ChannelMessage,
-    ChannelMessageKind, ChannelParticipant, CountedReaction, MessageAttachment,
-    MessagePageDirection, ParticipantRole, ResolvedChannelMessage, ThreadInfo, ThreadReply,
 };
 pub use crate::domain::models::{ChannelMessageFilters, NotificationFilters};
 use crate::domain::ports::{
@@ -291,6 +291,10 @@ where
         .route(
             "/{channel_id}/participants",
             get(get_channel_participants_handler::<S, Svc>),
+        )
+        .route(
+            "/activity",
+            get(get_activity_handler::<S, Svc>).post(post_activity_handler::<S, Svc>),
         )
         .with_state(state)
 }
@@ -1116,6 +1120,102 @@ pub async fn get_channel_participants_handler<S: ChannelService, Svc: EntityAcce
             .map(ApiChannelParticipant::from)
             .collect(),
     ))
+}
+
+/// Handler for `GET /channels/activity`.
+#[utoipa::path(
+    get,
+    tag = "channels",
+    operation_id = "get_activity",
+    path = "/channels/activity",
+    responses(
+        (status = 200, body = Vec<ApiActivity>),
+        (status = 401, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(err, skip_all)]
+pub async fn get_activity_handler<S: ChannelService, Svc: EntityAccessService>(
+    State(state): State<ChannelsRouterState<S, Svc>>,
+    Extension(user_context): Extension<UserContext>,
+) -> Result<Json<Vec<ApiActivity>>, ChannelsHandlerErr> {
+    let activities = state.service.get_activities(user_context.user_id).await?;
+    Ok(Json(
+        activities.into_iter().map(ApiActivity::from).collect(),
+    ))
+}
+
+/// Handler for `POST /channels/activity`.
+#[utoipa::path(
+    post,
+    tag = "channels",
+    operation_id = "post_activity",
+    path = "/channels/activity",
+    request_body = PostActivityRequest,
+    responses(
+        (status = 200, body = ApiActivity),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(err, skip_all)]
+pub async fn post_activity_handler<S: ChannelService, Svc: EntityAccessService>(
+    State(state): State<ChannelsRouterState<S, Svc>>,
+    Extension(user_context): Extension<UserContext>,
+    Json(req): Json<PostActivityRequest>,
+) -> Result<(StatusCode, Json<ApiActivity>), ChannelsHandlerErr> {
+    let channel_id = Uuid::parse_str(&req.channel_id)
+        .map_err(|_| ChannelsHandlerErr::BadRequest("Invalid channel_id"))?;
+    let activity = state
+        .service
+        .post_activity(user_context.user_id, channel_id, req.activity_type)
+        .await?;
+    Ok((StatusCode::OK, Json(ApiActivity::from(activity))))
+}
+
+/// Request body for `POST /channels/activity`.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct PostActivityRequest {
+    /// Channel id to record activity for.
+    pub channel_id: String,
+    /// The kind of activity to record.
+    pub activity_type: ActivityType,
+}
+
+/// A user's activity (view/interaction) within a channel.
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct ApiActivity {
+    /// Activity id.
+    id: Uuid,
+    /// User id.
+    user_id: String,
+    /// Channel id.
+    channel_id: Uuid,
+    /// When the activity row was created.
+    created_at: DateTime<Utc>,
+    /// When the activity row was last updated.
+    updated_at: DateTime<Utc>,
+    /// The last time the user viewed the channel.
+    viewed_at: Option<DateTime<Utc>>,
+    /// The last time the user interacted with the channel.
+    interacted_at: Option<DateTime<Utc>>,
+}
+
+impl From<Activity> for ApiActivity {
+    fn from(a: Activity) -> Self {
+        Self {
+            id: a.id,
+            user_id: a.user_id,
+            channel_id: a.channel_id,
+            created_at: a.created_at,
+            updated_at: a.updated_at,
+            viewed_at: a.viewed_at,
+            interacted_at: a.interacted_at,
+        }
+    }
 }
 
 /// Paginated response of channel messages.

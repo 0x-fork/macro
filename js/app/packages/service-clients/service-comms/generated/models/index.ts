@@ -7,12 +7,8 @@
 
 export * from './activity';
 export * from './activityInteractedAt';
-export * from './activityType';
 export * from './activityViewedAt';
 export * from './addParticipantsRequest';
-export * from './apiActivity';
-export * from './apiActivityInteractedAt';
-export * from './apiActivityViewedAt';
 export * from './apiChannelWithLatest';
 export * from './apiChannelWithLatestAllOf';
 export * from './apiChannelWithLatestAllOfFrecencyScore';
@@ -109,7 +105,6 @@ export * from './patchMessageRequestAttachmentsToAdd';
 export * from './patchMessageRequestContent';
 export * from './patchMessageRequestMentions';
 export * from './patchMessageRequestNonce';
-export * from './postActivityRequest';
 export * from './postMessageRequest';
 export * from './postMessageRequestNonce';
 export * from './postMessageRequestThreadId';

@@ -12,11 +12,9 @@ import type { ApiChannelParticipant } from '@service-storage/generated/schemas/a
 import type { ChannelMessageFilters } from '@service-storage/generated/schemas/channelMessageFilters';
 import type { Result } from 'neverthrow';
 import type {
-  ApiActivity,
   ApiChannelWithLatest,
   GetMentionsResponse,
 } from './generated/models';
-import type { Activity } from './generated/models/activity';
 import type { AddParticipantsRequest } from './generated/models/addParticipantsRequest';
 import { ChannelType } from './generated/models/channelType';
 import type { CreateChannelRequest } from './generated/models/createChannelRequest';
@@ -35,7 +33,6 @@ import type { GetOrCreateDmResponse } from './generated/models/getOrCreateDmResp
 import type { GetOrCreatePrivateRequest } from './generated/models/getOrCreatePrivateRequest';
 import type { GetOrCreatePrivateResponse } from './generated/models/getOrCreatePrivateResponse';
 import type { PatchMessageRequest } from './generated/models/patchMessageRequest';
-import type { PostActivityRequest } from './generated/models/postActivityRequest';
 import type { PostMessageRequest } from './generated/models/postMessageRequest';
 import type { PostReactionRequest } from './generated/models/postReactionRequest';
 import type { PostTypingRequest } from './generated/models/postTypingRequest';
@@ -200,22 +197,6 @@ export const commsServiceClient = {
     return (
       await commsFetch<MessageResponse>(url, {
         method: 'DELETE',
-      })
-    ).map((result) => result);
-  },
-  async postActivity(args: PostActivityRequest) {
-    const { activity_type, channel_id } = args;
-    return (
-      await commsFetch<Activity>(`/comms/activity`, {
-        method: 'POST',
-        body: JSON.stringify({ activity_type, channel_id }),
-      })
-    ).map((result) => result);
-  },
-  async getActivity() {
-    return (
-      await commsFetch<ApiActivity[]>(`/comms/activity`, {
-        method: 'GET',
       })
     ).map((result) => result);
   },

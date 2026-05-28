@@ -49,13 +49,6 @@ impl ChannelsService for NoopCommsService {
         Ok(Vec::new())
     }
 
-    async fn get_activities(
-        &self,
-        _user: MacroUserIdStr<'_>,
-    ) -> Result<Vec<comms::domain::models::channel::Activity>, Report> {
-        Ok(Vec::new())
-    }
-
     async fn get_names(
         &self,
         _names: std::collections::HashSet<MacroUserIdStr<'_>>,

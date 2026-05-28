@@ -49,11 +49,6 @@ pub trait ChannelsService: Send + Sync + 'static {
         req: GetChannelsRequest,
     ) -> impl Future<Output = Result<Vec<ChannelWithLatest>, Report>> + Send;
 
-    fn get_activities(
-        &self,
-        user: MacroUserIdStr<'_>,
-    ) -> impl Future<Output = Result<Vec<Activity>, Report>> + Send;
-
     fn get_names(
         &self,
         names: HashSet<MacroUserIdStr<'_>>,

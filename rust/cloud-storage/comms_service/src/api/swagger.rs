@@ -1,5 +1,4 @@
 use crate::api::{
-    activity::post_activity::PostActivityRequest,
     channels::{
         add_participants::AddParticipantsRequest,
         create_channel::{CreateChannelRequest, CreateChannelResponse},
@@ -20,11 +19,10 @@ use crate::api::{
     },
     preview::get_batch_preview::{GetBatchChannelPreviewRequest, GetBatchChannelPreviewResponse},
 };
-use comms::inbound::router::{ApiActivity, ApiChannelWithLatest};
+use comms::inbound::router::ApiChannelWithLatest;
 use comms_db_client::channels::patch_channel::PatchChannelOptions;
 use comms_db_client::model::{
-    Activity, ActivityType, CountedReaction, EntityMention, Message, NewAttachment, Reaction,
-    SimpleMention,
+    CountedReaction, EntityMention, Message, NewAttachment, Reaction, SimpleMention,
 };
 use model::comms::{
     Channel, ChannelParticipant, ChannelType, ChannelWithParticipants,
@@ -49,7 +47,6 @@ use comms_db_client::attachments::get_attachment_references::{
 
 use super::channels::get_mentions::GetMentionsResponse;
 
-use super::activity::post_activity;
 use super::mentions::{
     create_mention::__path_create_mention_handler, delete_mention::__path_delete_mention_handler,
 };
@@ -69,8 +66,6 @@ use super::preview::get_batch_preview;
             post_reaction::post_reaction_handler,
             patch_message::patch_message_handler,
             delete_message::delete_message_handler,
-            comms::inbound::router::get_activity_handler,
-            post_activity::post_activity_handler,
             join_channel::join_channel_handler,
             leave_channel::leave_channel_handler,
             get_batch_preview::handler,
@@ -103,7 +98,6 @@ use super::preview::get_batch_preview;
                 PatchMessageParams,
                 PatchMessageRequest,
                 DeleteMessageParams,
-                PostActivityRequest,
                 AddParticipantsRequest,
                 RemoveParticipantsRequest,
 
@@ -114,9 +108,6 @@ use super::preview::get_batch_preview;
                 Message,
                 Reaction,
                 CountedReaction,
-                Activity,
-                ApiActivity,
-                ActivityType,
                 NewAttachment,
                 ParticipantAccess,
                 SimpleMention,

@@ -129,13 +129,6 @@ where
         Ok(channels)
     }
 
-    fn get_activities(
-        &self,
-        user: macro_user_id::user_id::MacroUserIdStr<'_>,
-    ) -> impl Future<Output = Result<Vec<Activity>, rootcause::Report>> + Send {
-        self.comms.get_activities(user)
-    }
-
     fn get_names(
         &self,
         names: HashSet<macro_user_id::user_id::MacroUserIdStr<'_>>,
