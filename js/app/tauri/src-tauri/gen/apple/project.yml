@@ -54,8 +54,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 2.0.2
-        CFBundleVersion: "142"
+        CFBundleShortVersionString: 2.0.3
+        CFBundleVersion: "166"
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - macro
@@ -124,8 +124,8 @@ targets:
       path: ShareExtension/Info.plist
       properties:
         CFBundleDisplayName: Share to Macro
-        CFBundleShortVersionString: 2.0.2
-        CFBundleVersion: "142"
+        CFBundleShortVersionString: 2.0.3
+        CFBundleVersion: "166"
         LSApplicationQueriesSchemes:
           - macro
         NSExtension:
@@ -160,7 +160,7 @@ targets:
       properties:
         CFBundleDisplayName: NotificationServiceExtension
         CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: "142"
+        CFBundleVersion: "166"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.usernotifications.service
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
