@@ -100,10 +100,10 @@ export function createTargetMessageController(
 
         // Defer the scroll until the ThreadList has completed its initial
         // scroll. This prevents a goToMessage call from being overridden by
-        // the initial-scroll retry logic in ThreadList's handleScrollEnd,
-        // which validates position against the *original* scroll target.
-        // The pending target stays queued; once didInitialScroll flips to
-        // true the effect re-fires and executes the scroll.
+        // ThreadList's initial-scroll settle loop, which keeps re-pinning to
+        // the *original* scroll target until it stabilizes. The pending target
+        // stays queued; once didInitialScroll flips to true the effect
+        // re-fires and executes the scroll.
         if (!didInitialScroll) return;
 
         if (!navigation.scrollToId(pendingTargetId)) return;

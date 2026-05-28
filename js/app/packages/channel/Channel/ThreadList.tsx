@@ -3,7 +3,7 @@ import {
   createScrollIntentTracker,
   type ScrollDirection,
 } from '@core/util/scroll-intent';
-import { type Accessor, createSignal, type JSX } from 'solid-js';
+import { type Accessor, createSignal, type JSX, onCleanup } from 'solid-js';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import type { ScrollToIndexOpts } from 'virtua/unstable_core';
 import { NEAR_BOTTOM_THRESHOLD } from './constants';
@@ -74,6 +74,14 @@ type ThreadListProps = {
 const NEAR_TOP_THRESHOLD = 800;
 const EXPLICIT_SCROLL_DOWN_TRIGGER_DISTANCE = 64;
 
+/**
+ * Upper bound on how long the initial scroll may keep re-pinning to its target
+ * before we reveal the list anyway. The list is kept hidden until the initial
+ * scroll settles, so this also bounds how long a cold open can stay blank if
+ * row heights never fully stabilize (e.g. media that keeps resizing).
+ */
+const INITIAL_SCROLL_SETTLE_BUDGET_MS = 600;
+
 export const DEFAULT_INITIAL_SCROLL_TARGET: ThreadListScrollTarget = {
   tag: 'bottom',
   align: 'end',
@@ -112,15 +120,24 @@ export function ThreadList(props: ThreadListProps) {
   const scrollIntent = createScrollIntentTracker();
 
   let initialScrollStarted = false;
-  let initialScrollRetried = false;
   let initialScrollTarget: ThreadListScrollTarget =
     DEFAULT_INITIAL_SCROLL_TARGET;
+  let settleRafId: number | undefined;
+
+  const cancelSettleLoop = () => {
+    if (settleRafId !== undefined) {
+      cancelAnimationFrame(settleRafId);
+      settleRafId = undefined;
+    }
+  };
 
   const resetInitialScroll = () => {
     initialScrollStarted = false;
-    initialScrollRetried = false;
     initialScrollTarget = DEFAULT_INITIAL_SCROLL_TARGET;
+    cancelSettleLoop();
   };
+
+  onCleanup(cancelSettleLoop);
 
   const resolveTargetIndex = (target: ThreadListScrollTarget): number => {
     const keys = props.keys();
@@ -200,6 +217,8 @@ export function ThreadList(props: ThreadListProps) {
 
   /** Mark the initial scroll as complete and broadcast the scroll state. */
   const completeInitialScroll = (handle: VirtualizerHandle) => {
+    if (didInitialScroll()) return;
+    cancelSettleLoop();
     setDidInitialScroll(true);
     emitScrollState(handle, false);
   };
@@ -274,66 +293,74 @@ export function ThreadList(props: ThreadListProps) {
       return;
     }
 
-    // If no actual scrolling was needed (content fits in viewport),
-    // onScrollEnd will never fire. Use a RAF to detect this case and
-    // finalize immediately.
-    requestAnimationFrame(() => {
-      if (didInitialScroll()) return;
-      if (isScrollPositionCorrect(handle, target)) {
-        console.debug(
-          'ThreadList: position already correct (RAF fallback), completing'
-        );
-        completeInitialScroll(handle);
-      }
-    });
+    // The first scrollToIndex aims at the *estimated* position of the target,
+    // but real row heights (markdown, attachments, thread replies, images that
+    // load in) differ from the 64px estimate, so the target keeps moving as
+    // rows are measured. Re-pin to the target each frame until the position is
+    // stable (or the time budget elapses). The list stays visually hidden
+    // until this completes (see `didInitialScroll` -> opacity), so the user
+    // never sees it converge from the estimated position to the true bottom.
+    startSettleLoop(handle);
   }
 
-  const handleScrollEnd = () => {
-    if (didInitialScroll()) return;
+  /**
+   * Re-pin to the initial scroll target each animation frame until the scroll
+   * position settles, then mark the initial scroll complete. Runs while the
+   * list is hidden so no intermediate position is shown, and is bounded by
+   * `INITIAL_SCROLL_SETTLE_BUDGET_MS` so a cold open can never stay blank.
+   *
+   * Row heights are only known after the virtualizer measures them (a
+   * ResizeObserver pass that lands *after* this frame's rAF), so the target's
+   * true position keeps moving until measured sizes stop changing. We treat
+   * the position as final only once it is within tolerance AND the measured
+   * `scrollSize` has stabilized across two consecutive frames. Without the
+   * stability check, the first frame would read "at the bottom" against the
+   * still-estimated size and reveal the list mid-convergence — exactly the
+   * "renders in the middle, then jumps to the bottom" glitch.
+   */
+  function startSettleLoop(handle: VirtualizerHandle) {
+    cancelSettleLoop();
+    const startedAt = performance.now();
+    let previousScrollSize = -1;
 
-    const handle = virtualHandle();
-    if (!handle) return;
+    const step = () => {
+      settleRafId = undefined;
+      if (didInitialScroll()) return;
 
-    if (isScrollPositionCorrect(handle, initialScrollTarget)) {
-      console.debug('ThreadList: onScrollEnd confirmed position, completing', {
-        scrollOffset: handle.scrollOffset,
-        distanceFromBottom: getDistanceFromBottom(handle),
-      });
-      completeInitialScroll(handle);
-      return;
-    }
+      const scrollSize = handle.scrollSize;
+      // Tolerance (not strict equality) so sub-pixel measurement jitter from
+      // fractional row heights doesn't keep the loop running until the budget.
+      const sizeStable = Math.abs(scrollSize - previousScrollSize) <= 1;
 
-    if (!initialScrollRetried) {
-      initialScrollRetried = true;
-      console.debug('ThreadList: initial scroll missed target, retrying', {
-        target: initialScrollTarget,
-        scrollOffset: handle.scrollOffset,
-        scrollSize: handle.scrollSize,
-        viewportSize: handle.viewportSize,
-        distanceFromBottom: getDistanceFromBottom(handle),
-      });
-      requestAnimationFrame(() => {
-        const retryScrolled = scrollToTarget(handle, initialScrollTarget);
-        if (!retryScrolled) {
-          // Target disappeared between mount and retry — finalize now since
-          // no scroll events will fire to trigger another onScrollEnd.
-          completeInitialScroll(handle);
-        }
-      });
-      return;
-    }
-    console.warn(
-      'ThreadList: initial scroll did not reach target after retry',
-      {
-        target: initialScrollTarget,
-        scrollOffset: handle.scrollOffset,
-        scrollSize: handle.scrollSize,
-        viewportSize: handle.viewportSize,
-        distanceFromBottom: getDistanceFromBottom(handle),
+      if (sizeStable && isScrollPositionCorrect(handle, initialScrollTarget)) {
+        completeInitialScroll(handle);
+        return;
       }
-    );
-    completeInitialScroll(handle);
-  };
+
+      if (performance.now() - startedAt >= INITIAL_SCROLL_SETTLE_BUDGET_MS) {
+        // Give up waiting for a perfect landing — re-pin one last time so we
+        // reveal as close to the target as possible, then show the list.
+        console.warn('ThreadList: initial scroll settle budget exceeded', {
+          target: initialScrollTarget,
+          scrollOffset: handle.scrollOffset,
+          scrollSize,
+          viewportSize: handle.viewportSize,
+          distanceFromBottom: getDistanceFromBottom(handle),
+        });
+        scrollToTarget(handle, initialScrollTarget);
+        completeInitialScroll(handle);
+        return;
+      }
+
+      // Not settled yet: re-aim at the target with the latest measurements and
+      // re-check next frame, once more rows have been measured.
+      previousScrollSize = scrollSize;
+      scrollToTarget(handle, initialScrollTarget);
+      settleRafId = requestAnimationFrame(step);
+    };
+
+    settleRafId = requestAnimationFrame(step);
+  }
 
   const handleScroll = () => {
     const handle = virtualHandle();
@@ -412,6 +439,13 @@ export function ThreadList(props: ThreadListProps) {
           height: '100%',
           display: 'flex',
           'flex-direction': 'column',
+          // Keep the list hidden until the initial scroll has settled on its
+          // target, so the user never sees it converge from the estimated
+          // position to the true bottom. Opacity (not display/visibility)
+          // preserves layout + measurement while hidden.
+          opacity: didInitialScroll() ? 1 : 0,
+          'pointer-events': didInitialScroll() ? 'auto' : 'none',
+          transition: 'opacity 120ms ease-out',
         }}
       >
         <div style="flex-grow: 1" />
@@ -430,13 +464,15 @@ export function ThreadList(props: ThreadListProps) {
           bufferSize={BASE_BUFFER_SIZE}
           data={props.keys()}
           onScroll={handleScroll}
-          onScrollEnd={handleScrollEnd}
           shift={props.shift?.() ?? false}
         >
           {(key) => props.children({ id: key })}
         </Virtualizer>
       </div>
-      <CustomScrollbar scrollContainer={scrollEl} />
+      <CustomScrollbar
+        scrollContainer={scrollEl}
+        enabled={didInitialScroll()}
+      />
     </>
   );
 }
