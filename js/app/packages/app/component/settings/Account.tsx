@@ -19,6 +19,8 @@ import {
   ENABLE_PROFILE_PICTURES,
   ENABLE_NEW_PRICING_OVERRIDE,
 } from '@core/constant/featureFlags';
+import { useTauri, type BundleUpdateStatus } from '@macro/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { useUserTeamsQuery } from '@queries/team';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { fileSelector } from '@core/directive/fileSelector';
@@ -27,7 +29,8 @@ import {
   useProfilePictureUrl,
 } from '@core/signal/profilePicture';
 import IconUpload from '@phosphor-icons/core/regular/upload-simple.svg?component-solid';
-import SignOutIcon from '@phosphor-icons/core/regular/sign-out.svg?component-solid';
+import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
+import WarningIcon from '@phosphor/warning.svg';
 import { authServiceClient } from '@service-auth/client';
 import { useEmail, useLicenseStatus, useUserId } from '@core/context/user';
 import {
@@ -41,21 +44,8 @@ import {
   Switch,
 } from 'solid-js';
 import { usePermissions } from '@core/context/user';
-import { useSettingsState } from '@core/constant/SettingsState';
 import PaywallComponent from '../paywall/PaywallComponent';
-import PaywallTeamMemberView from '../paywall/PaywallTeamMemberView';
-import PaywallTeamOwnerView from '../paywall/PaywallTeamOwnerView';
-import {
-    useEmailLinks,
-  useEmailLinksStatus,
-} from '@core/email-link';
-import {
-  type SupportedNotificationSettings,
-  useNotificationSettings,
-} from '@notifications';
-import { useAnalytics } from '@app/component/analytics-context';
-import { useTauri, type BundleUpdateStatus } from '@macro/tauri';
-import { invoke } from '@tauri-apps/api/core';
+import { useEmailLinks, useEmailLinksStatus } from '@core/email-link';
 
 // NOTE: solid directives
 false && fileSelector;
@@ -77,20 +67,6 @@ async function uploadProfilePicture(
     return { id, url };
   } catch (_error) {
     return toast.failure('Failed to upload profile picture');
-  }
-}
-
-function formatBundleUpdateStatus(status: BundleUpdateStatus): string {
-  switch (status.status) {
-    case 'Idle': return 'Idle';
-    case 'CheckingForUpdate': return 'Checking for update...';
-    case 'UpdateFound': return `Update available: v${status.data.version}`;
-    case 'NoUpdateNeeded': return 'Up to date';
-    case 'WaitingForWifi': return 'Waiting for Wi-Fi to download';
-    case 'Downloading': return `Downloading: ${Math.round(status.data.progress)}%`;
-    case 'Unzipping': return `Installing: ${Math.round(status.data.progress)}%`;
-    case 'Completed': return 'Update ready';
-    case 'Error': return 'An error occurred when checking for updates';
   }
 }
 
@@ -119,7 +95,6 @@ export function Account() {
   const { showPaywall } = usePaywallState();
   const hasPaidAccess = useHasPaidAccess();
   const permissions = usePermissions();
-    const { toggleSettings } = useSettingsState();
   const [showEmailModal, setShowEmailModal] = createSignal<boolean>(false);
   const [showEnableEmailModal, setShowEnableEmailModal] = createSignal<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = createSignal<boolean>(false);
@@ -188,365 +163,432 @@ export function Account() {
     return undefined;
   };
 
-  const logoutHandler = () => {
-    logout();
-  };
-
   const deleteAccountHandler = async () => {
     await authServiceClient.deleteUser();
     logout();
   };
 
+  const displayName = () => {
+    const full = [firstName(), lastName()].filter(Boolean).join(' ').trim();
+    return full || email() || 'Account';
+  };
+
+  const profilePictureUpload = {
+    acceptedFileExtensions: blockNameToFileExtensions.image,
+    acceptedMimeTypes: blockNameToMimeTypes.image,
+    onSelect: async (files: File[]) => {
+      const response = await uploadProfilePicture(files[0]);
+      const uid = userId();
+      if (!response || !uid) return;
+      const pic: ProfilePictureItem = {
+        _createdAt: new Date(),
+        url: response.url,
+        id: uid,
+        loading: false,
+      };
+      const [_, controls] = useProfilePictureUrl(uid);
+      controls.mutate(pic);
+    },
+  };
+
+  const handleClearProfilePicture = async () => {
+    const uid = userId();
+    if (!uid) return;
+    await authServiceClient.putProfilePicture({ url: '' });
+    const [_, controls] = useProfilePictureUrl(uid);
+    controls.mutate({
+      _createdAt: new Date(),
+      id: uid,
+      loading: false,
+    });
+  };
+
+  const isTeamUser = () => !!ownedTeam() || isNonOwnerTeamMember();
+  const planName = () => capitalize(licenseStatus() ?? '') || 'Active';
+  const planDescription = () => {
+    if (isTeamUser()) return 'Managed by your team';
+    if (hasPaidAccess()) return `You're on the ${planName()} plan`;
+    return 'Choose a plan to unlock all features';
+  };
+
   return (
-      <div class="h-full overflow-hidden flex p-2">
-        <div class="size-full">
-          <Panel depth={2} class="h-full overflow-hidden text-ink">
-          <Panel.Header class="px-6">
-            <div class="text-sm font-semibold">Account</div>
-          </Panel.Header>
+    <div class="flex w-full flex-col divide-y divide-edge-muted text-ink">
+      <div>
+      <div class="flex items-center gap-4 pt-6">
+        <UserIcon
+          id={userId() as string}
+          isDeleted={false}
+          size="lg"
+          class="shrink-0"
+        />
+        <div class="flex min-w-0 flex-col gap-0.5">
+          <div class="ph-no-capture truncate text-base font-semibold">
+            {displayName()}
+          </div>
+          <div class="ph-no-capture truncate text-sm text-ink-muted">
+            {email() ?? ''}
+          </div>
+        </div>
+      </div>
 
-          <Panel.Toolbar class="h-full w-full">
-            <Show when={permissions()?.includes('write:stripe_subscription') && !isNativeMobilePlatform()}>
-              <div class="px-4 py-2 w-full">
-                <ShowFeatureFlag
-                  key="enable-new-pricing"
-                  enabledOverride={ENABLE_NEW_PRICING_OVERRIDE}
-                  fallback={
-                    <PaywallComponent
-                      hideCloseButton
-                      cb={() => {}}
-                      handleGuest={() => toggleSettings()}
-                    />
-                  }
-                >
-                  <Switch
-                    fallback={
-                      <PaywallComponent
-                        hideCloseButton
-                        cb={() => {}}
-                        handleGuest={() => toggleSettings()}
-                      />
-                    }
-                  >
-                    <Match when={ownedTeam()}>
-                      {(team) => <PaywallTeamOwnerView team={team()} />}
-                    </Match>
-                    <Match when={isNonOwnerTeamMember()}>
-                      <PaywallTeamMemberView />
-                    </Match>
-                  </Switch>
-                </ShowFeatureFlag>
-              </div>
-            </Show>
-          </Panel.Toolbar>
-
-          <Panel.Body scroll class="text-ink">
-            <div class="grid gap-px bg-edge-muted border-b border-edge-muted">
-              <Show when={ENABLE_PROFILE_PICTURES && userId()}>
-                <Row label="Profile Picture">
-                  <div
-                    class="relative group"
-                    use:fileSelector={{
-                      acceptedFileExtensions: blockNameToFileExtensions.image,
-                      acceptedMimeTypes: blockNameToMimeTypes.image,
-                      onSelect: async (files: File[]) => {
-                        let response = await uploadProfilePicture(files[0]);
-                        if (!response || !userId()) return;
-                        let { url } = response;
-                        let pic: ProfilePictureItem = {
-                          _createdAt: new Date(),
-                          url,
-                          id: userId()!,
-                          loading: false,
-                        };
-                        // update the cache directly to force a reload
-                        const [_, controls] = useProfilePictureUrl(userId());
-                        controls.mutate(pic);
-                      },
-                    }}
-                  >
-                    <UserIcon
-                      id={userId() as string}
-                      isDeleted={false}
-                      size="lg"
-                      class="bg-transparent"
-                    />
-                    <div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <IconUpload class="size-5 text-white" />
-                    </div>
+      <div class="py-6">
+        <Section title="Profile">
+          <Show when={ENABLE_PROFILE_PICTURES && userId()}>
+            <Row
+              label="Profile picture"
+              description="JPG or PNG up to 16MB"
+            >
+              <div class="flex items-center gap-3">
+                <UserIcon
+                  id={userId() as string}
+                  isDeleted={false}
+                  size="lg"
+                  class="shrink-0"
+                />
+                <div class="flex gap-1">
+                  <div use:fileSelector={profilePictureUpload} class="contents">
+                    <Button variant="base" size="sm" depth={3}>
+                      <IconUpload class="size-3.5" />
+                      Upload
+                    </Button>
                   </div>
-                </Row>
-              </Show>
-
-              <Row label="Email">
-                <span class="ph-no-capture text-sm text-ink-muted">
-                  {email() ?? ''}
-                </span>
-              </Row>
-
-              <Row label="First Name">
-                <NameInput
-                  value={firstName()}
-                  onSave={(newValue) => {
-                    setUpdatedFirstName(newValue);
-                    authServiceClient.putUserName({ first_name: newValue });
-                  }}
-                  placeholder="Enter First Name"
-                />
-              </Row>
-
-              <Row label="Last Name">
-                <NameInput
-                  value={lastName()}
-                  onSave={(newValue) => {
-                    setUpdatedLastName(newValue);
-                    authServiceClient.putUserName({ last_name: newValue });
-                  }}
-                  placeholder="Enter Last Name"
-                />
-              </Row>
-
-              <Row label="License Status">
-                <div class="flex items-center gap-3">
-                  <span class="text-sm text-ink-muted">
-                    {capitalize(licenseStatus() ?? '')}
-                  </span>
-                  <Show when={!hasPaidAccess()}>
-                    <Button
-                      variant="active"
-                      size="sm"
-                      depth={3}
-                      onClick={() => showPaywall()}
-                    >
-                      Upgrade
-                    </Button>
-                  </Show>
+                  <Button
+                    variant="base"
+                    size="sm"
+                    depth={3}
+                    onClick={handleClearProfilePicture}
+                  >
+                    Clear
+                  </Button>
                 </div>
-              </Row>
+              </div>
+            </Row>
+          </Show>
+          <Row label="First name">
+            <NameInput
+              value={firstName()}
+              onSave={(newValue) => {
+                setUpdatedFirstName(newValue);
+                authServiceClient.putUserName({ first_name: newValue });
+              }}
+              placeholder="Enter first name"
+            />
+          </Row>
+          <Row label="Last name">
+            <NameInput
+              value={lastName()}
+              onSave={(newValue) => {
+                setUpdatedLastName(newValue);
+                authServiceClient.putUserName({ last_name: newValue });
+              }}
+              placeholder="Enter last name"
+            />
+          </Row>
+        </Section>
+      </div>
+      </div>
 
-              <Show when={ENABLE_AUTO_UPDATE_UI}>
-                <BundleUpdateRow />
-              </Show>
+      <div class="py-6">
+        <Section title="Subscription">
+          <Row
+            label="License"
+            description={
+              <span class="inline-flex items-center gap-1 text-alert-ink/70">
+                <WarningIcon class="size-3" />
+                Deprecated
+              </span>
+            }
+          >
+            <span class="text-sm text-ink-muted opacity-60">
+              {capitalize(licenseStatus() ?? '')}
+            </span>
+          </Row>
+          <Row label="Plan" description={planDescription()}>
+            <Switch fallback={null}>
+              <Match when={isTeamUser()}>
+                <span class="text-sm text-ink-muted">Team managed</span>
+              </Match>
+              <Match when={hasPaidAccess()}>
+                <span class="text-sm text-ink-muted">{planName()}</span>
+              </Match>
+            </Switch>
+          </Row>
+          <Show
+            when={
+              !isTeamUser() &&
+              !hasPaidAccess() &&
+              permissions()?.includes('write:stripe_subscription') &&
+              !isNativeMobilePlatform()
+            }
+          >
+            <ShowFeatureFlag
+              key="enable-new-pricing"
+              enabledOverride={ENABLE_NEW_PRICING_OVERRIDE}
+              fallback={
+                <div class="pt-3">
+                  <PaywallComponent
+                    hideCloseButton
+                    cb={() => {}}
+                    handleGuest={() => {}}
+                  />
+                </div>
+              }
+            >
+              <div class="pt-3">
+                <PaywallComponent
+                  hideCloseButton
+                  cb={() => {}}
+                  handleGuest={() => {}}
+                />
+              </div>
+            </ShowFeatureFlag>
+          </Show>
+        </Section>
+      </div>
 
-              <Show when={ENABLE_EMAIL && (!emailActive() || DEV_MODE_ENV)}>
-                <Row label="Email">
-                  <Show
-                    when={!emailActive()}
-                    fallback={
-                      <Button
-                        variant="base"
-                        size="sm"
-                        depth={3}
-                        onClick={() => setShowEmailModal(true)}
-                      >
-                        Disable
-                      </Button>
-                    }
+      <div class="py-6">
+        <Section title="Integrations">
+          <Show when={ENABLE_EMAIL && (!emailActive() || DEV_MODE_ENV)}>
+            <Row label="Email">
+              <Show
+                when={!emailActive()}
+                fallback={
+                  <Button
+                    variant="base"
+                    size="sm"
+                    depth={3}
+                    onClick={() => setShowEmailModal(true)}
                   >
-                    <Show when={!showEnableEmailModal()}>
-                      <Button
-                        variant="base"
-                        size="sm"
-                        depth={3}
-                        onClick={() => setShowEnableEmailModal(true)}
-                      >
-                        Enable
-                      </Button>
-                    </Show>
-                  </Show>
-                </Row>
-              </Show>
-
-              <Row label="GitHub">
-                <Show
-                  when={!githubLinkExists.loading}
-                  fallback={
-                    <span class="text-sm text-ink-muted">Loading…</span>
-                  }
-                >
-                  <Show
-                    when={!githubLinkExists()}
-                    fallback={
-                      <Button
-                        variant="base"
-                        size="sm"
-                        depth={3}
-                        onClick={handleGithubDisable}
-                      >
-                        Disable
-                      </Button>
-                    }
+                    Disable
+                  </Button>
+                }
+              >
+                <Show when={!showEnableEmailModal()}>
+                  <Button
+                    variant="base"
+                    size="sm"
+                    depth={3}
+                    onClick={() => setShowEnableEmailModal(true)}
                   >
-                    <Button
-                      variant="base"
-                      size="sm"
-                      depth={3}
-                      onClick={handleGithubEnable}
-                    >
-                      Enable
-                    </Button>
-                  </Show>
+                    Enable
+                    <ArrowSquareOutIcon class="size-3.5" />
+                  </Button>
                 </Show>
-              </Row>
+              </Show>
+            </Row>
+          </Show>
 
-              <NotificationToggle />
-            </div>
+          <Row label="GitHub">
+            <Show
+              when={!githubLinkExists.loading}
+              fallback={<span class="text-sm text-ink-muted">Loading…</span>}
+            >
+              <Show
+                when={!githubLinkExists()}
+                fallback={
+                  <Button
+                    variant="base"
+                    size="sm"
+                    depth={3}
+                    onClick={handleGithubDisable}
+                  >
+                    Disable
+                  </Button>
+                }
+              >
+                <Button
+                  variant="base"
+                  size="sm"
+                  depth={3}
+                  onClick={handleGithubEnable}
+                >
+                  Enable
+                  <ArrowSquareOutIcon class="size-3.5" />
+                </Button>
+              </Show>
+            </Show>
+          </Row>
+        </Section>
+      </div>
 
-            <div class="flex items-center justify-end h-10 px-6">
+      <Show when={ENABLE_AUTO_UPDATE_UI}>
+        <div class="py-6">
+          <Section title="App updates">
+            <BundleUpdateRow />
+          </Section>
+        </div>
+      </Show>
+
+      <Show when={showEnableEmailModal()}>
+        <div class="flex items-center gap-3 py-4">
+          <div class="text-sm text-ink-muted">
+            Email requires additional Google permissions. Select the permissions
+            on sign-in to enable.
+          </div>
+          <div class="ml-auto flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              depth={3}
+              onClick={() => {
+                setShowEnableEmailModal(false);
+                logout();
+              }}
+            >
+              Logout
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              depth={3}
+              onClick={() => setShowEnableEmailModal(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={showEmailModal()}>
+        <div class="flex items-center gap-3 py-4">
+          <div class="text-sm text-ink-muted">
+            Disabling will clear all email data from Macro
+          </div>
+          <div class="ml-auto flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              depth={3}
+              onClick={async () => {
+                setShowEmailModal(false);
+                await disconnectEmail().match(
+                  () => {
+                    toast.success('Email disabled — clearing your email data, this may take a moment.');
+                  },
+                  () => {
+                    toast.failure('Failed to disable email. Please try again.');
+                  },
+                );
+              }}
+            >
+              Confirm
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              depth={3}
+              onClick={() => setShowEmailModal(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={isNativeMobilePlatform()}>
+        <div class="py-6">
+          <Section title="Danger zone">
+            <Row label="Delete account">
               <Button
-                variant="base"
+                variant="danger"
                 size="sm"
                 depth={3}
-                onClick={logoutHandler}
+                onClick={() => setShowDeleteModal(true)}
               >
-                <SignOutIcon class="size-4" />
-                Logout
+                Delete
               </Button>
-            </div>
-
-            <Show when={showEnableEmailModal()}>
-              <div class="flex flex-row items-center">
-                <div class="text-sm">
-                  Email requires additional Google permissions. Select the permissions on sign-in to enable.
-                </div>
-                <div class="ml-auto flex flex-row">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    depth={3}
-                    onClick={() => {
-                      setShowEnableEmailModal(false);
-                      logout();
-                    }}
-                  >
-                    Logout
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    depth={3}
-                    onClick={() => setShowEnableEmailModal(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </Show>
-
-            <Show when={showEmailModal()}>
-              <div class="flex flex-row items-center">
-                <div class="text-sm">
-                  Disabling will clear all email data from Macro
-                </div>
-                <div class="ml-auto flex flex-row">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    depth={3}
-                    onClick={async () => {
-                      setShowEmailModal(false);
-                      await disconnectEmail().match(
-                        () => {
-                          toast.success('Email disabled — clearing your email data, this may take a moment.');
-                        },
-                        () => {
-                          toast.failure('Failed to disable email. Please try again.');
-                        },
-                      );
-                    }}
-                  >
-                    Confirm
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    depth={3}
-                    onClick={() => setShowEmailModal(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </Show>
-
-            <Show when={isNativeMobilePlatform()}>
-              <div class="border-t border-edge pt-4">
-                <Button variant="danger" depth={3} onClick={() => setShowDeleteModal(true)}>
-                  Delete Account
+            </Row>
+          </Section>
+        </div>
+        <Dialog
+          open={showDeleteModal()}
+          onOpenChange={setShowDeleteModal}
+          position="center"
+          class="w-120"
+        >
+          <Panel active depth={2} class="rounded-xl">
+            <Panel.Header class="px-6">
+              <Dialog.Title class="text-ink text-sm font-semibold">
+                Delete Account
+              </Dialog.Title>
+            </Panel.Header>
+            <Panel.Body class="p-6 font-sans flex flex-col gap-3">
+              <Dialog.Description class="text-ink-muted text-sm/tight font-normal">
+                Are you sure you want to delete your account? This action is
+                permanent and cannot be undone.
+              </Dialog.Description>
+              <div class="pt-3 justify-end items-center gap-3 inline-flex">
+                <Button variant="base" depth={3} onClick={() => setShowDeleteModal(false)}>
+                  Cancel
                 </Button>
-                <Dialog
-                  open={showDeleteModal()}
-                  onOpenChange={setShowDeleteModal}
-                  position="center"
-                  class="w-120"
-                >
-                  <Panel active depth={2} class="rounded-xl">
-                    <Panel.Header class="px-6">
-                      <Dialog.Title class="text-ink text-sm font-semibold">
-                        Delete Account
-                      </Dialog.Title>
-                    </Panel.Header>
-                    <Panel.Body class="p-6 font-sans flex flex-col gap-3">
-                      <Dialog.Description class="text-ink-muted text-sm/tight font-normal">
-                        Are you sure you want to delete your account? This action is
-                        permanent and cannot be undone.
-                      </Dialog.Description>
-                      <div class="pt-3 justify-end items-center gap-3 inline-flex">
-                        <Button variant="base" depth={3} onClick={() => setShowDeleteModal(false)}>
-                          Cancel
-                        </Button>
-                        <Button variant="danger" depth={3} onClick={() => {
-                          setShowDeleteModal(false);
-                          setShowDeleteConfirmModal(true);
-                        }}>
-                          Delete
-                        </Button>
-                      </div>
-                    </Panel.Body>
-                  </Panel>
-                </Dialog>
-                <Dialog
-                  open={showDeleteConfirmModal()}
-                  onOpenChange={setShowDeleteConfirmModal}
-                  position="center"
-                  class="w-120"
-                >
-                  <Panel active depth={2} class="rounded-xl">
-                    <Panel.Header class="px-6">
-                      <Dialog.Title class="text-ink text-sm font-semibold">
-                        Are you absolutely sure?
-                      </Dialog.Title>
-                    </Panel.Header>
-                    <Panel.Body class="p-6 font-sans flex flex-col gap-3">
-                      <Dialog.Description class="text-ink-muted text-sm/tight font-normal">
-                        This will permanently delete your account and all associated
-                        data. This cannot be undone.
-                      </Dialog.Description>
-                      <div class="pt-3 justify-end items-center gap-3 inline-flex">
-                        <Button variant="base" depth={3} onClick={() => setShowDeleteConfirmModal(false)}>
-                          Cancel
-                        </Button>
-                        <Button variant="danger" depth={3} onClick={deleteAccountHandler}>
-                          Delete My Account
-                        </Button>
-                      </div>
-                    </Panel.Body>
-                  </Panel>
-                </Dialog>
+                <Button variant="danger" depth={3} onClick={() => {
+                  setShowDeleteModal(false);
+                  setShowDeleteConfirmModal(true);
+                }}>
+                  Delete
+                </Button>
               </div>
-            </Show>
-          </Panel.Body>
-        </Panel>
-      </div>
+            </Panel.Body>
+          </Panel>
+        </Dialog>
+        <Dialog
+          open={showDeleteConfirmModal()}
+          onOpenChange={setShowDeleteConfirmModal}
+          position="center"
+          class="w-120"
+        >
+          <Panel active depth={2} class="rounded-xl">
+            <Panel.Header class="px-6">
+              <Dialog.Title class="text-ink text-sm font-semibold">
+                Are you absolutely sure?
+              </Dialog.Title>
+            </Panel.Header>
+            <Panel.Body class="p-6 font-sans flex flex-col gap-3">
+              <Dialog.Description class="text-ink-muted text-sm/tight font-normal">
+                This will permanently delete your account and all associated
+                data. This cannot be undone.
+              </Dialog.Description>
+              <div class="pt-3 justify-end items-center gap-3 inline-flex">
+                <Button variant="base" depth={3} onClick={() => setShowDeleteConfirmModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="danger" depth={3} onClick={deleteAccountHandler}>
+                  Delete My Account
+                </Button>
+              </div>
+            </Panel.Body>
+          </Panel>
+        </Dialog>
+      </Show>
     </div>
   );
 }
 
-function Row(props: { label: string; children?: any }) {
+function Section(props: { title?: string; children: JSX.Element }) {
   return (
-    <div class="bg-surface flex items-center justify-between h-15.25 px-6">
-      <div class="text-sm">{props.label}</div>
-      <div class="text-right">{props.children}</div>
+    <div class="flex flex-col gap-3">
+      <Show when={props.title}>
+        <h3 class="text-sm font-semibold text-ink">{props.title}</h3>
+      </Show>
+      <div class="flex flex-col gap-3">{props.children}</div>
+    </div>
+  );
+}
+
+function Row(props: {
+  label: string;
+  description?: JSX.Element;
+  children?: JSX.Element;
+}) {
+  return (
+    <div class="flex min-h-10 items-center justify-between gap-4 py-1.5">
+      <div class="flex min-w-0 flex-col gap-0.5">
+        <div class="text-sm">{props.label}</div>
+        <Show when={props.description}>
+          <div class="text-xs text-ink-extra-muted">{props.description}</div>
+        </Show>
+      </div>
+      <div class="shrink-0 text-right">{props.children}</div>
     </div>
   );
 }
@@ -586,10 +628,10 @@ function NameInput(props: {
   };
 
   return (
-    <div class="ph-no-capture group relative flex items-center gap-1 rounded-lg h-7 mobile:h-9 px-2 border text-xs bg-transparent text-ink-muted border-edge-muted hover:text-ink focus-within:text-ink focus-within:border-accent">
+    <div class="ph-no-capture group relative flex w-56 items-center gap-1 rounded-lg h-9 mobile:h-11 px-3 border text-sm bg-transparent text-ink-muted border-edge-muted hover:text-ink focus-within:text-ink focus-within:border-accent">
       <input
         type="text"
-        class="flex-1 min-w-0 bg-transparent outline-none border-0 p-0 text-xs placeholder:text-ink-extra-muted"
+        class="flex-1 min-w-0 bg-transparent outline-none border-0 p-0 text-sm placeholder:text-ink-extra-muted"
         value={inputValue()}
         onInput={(e) => setInputValue(e.currentTarget.value)}
         onFocus={() => setIsFocused(true)}
@@ -607,63 +649,49 @@ function NameInput(props: {
   );
 }
 
-function NotificationToggle() {
-  const settings = useNotificationSettings();
-
-  return (
-    <Show
-      when={settings.isSupported && settings}
-      fallback={<NotificationNotSupported />}
-    >
-      {(s) => <NotificationSettings settings={s()} />}
-    </Show>
-  );
-}
-
-function NotificationSettings(props: {
-  settings: SupportedNotificationSettings;
-}) {
-  const analytics = useAnalytics()
-
-  const handleToggle = () =>  {
-    analytics.track('notifications_toggled')
-    props.settings.toggle(!props.settings.isEnabled())
+function formatBundleUpdateStatus(status: BundleUpdateStatus): string {
+  switch (status.status) {
+    case 'Idle':
+      return 'Idle';
+    case 'CheckingForUpdate':
+      return 'Checking for update…';
+    case 'UpdateFound':
+      return `Update available: v${status.data.version}`;
+    case 'NoUpdateNeeded':
+      return 'Up to date';
+    case 'WaitingForWifi':
+      return 'Waiting for Wi-Fi to download';
+    case 'Downloading':
+      return `Downloading: ${Math.round(status.data.progress)}%`;
+    case 'Unzipping':
+      return `Installing: ${Math.round(status.data.progress)}%`;
+    case 'Completed':
+      return 'Update ready';
+    case 'Error':
+      return 'An error occurred when checking for updates';
   }
-
-
-  return (
-    <Row label="Notifications">
-      <Button
-        variant="base"
-        size="sm"
-        depth={3}
-        onClick={handleToggle}
-      >
-        {props.settings.isEnabled() ? "Disable" : "Enable"}
-      </Button>
-    </Row>
-  );
-}
-
-function NotificationNotSupported() {
-  return (
-    <Row label="Notifications">
-      <span class="text-sm text-ink-muted">Not supported on this device</span>
-    </Row>
-  );
 }
 
 function bundleUpdateAction(
   status: BundleUpdateStatus,
-  cancelWifiWait: () => void,
+  cancelWifiWait: () => void
 ): { label: string; action: () => void } | null {
   switch (status.status) {
     case 'Idle':
-      return { label: 'Check for Update', action: () => invoke('check_for_update') };
+      return {
+        label: 'Check for update',
+        action: () => invoke('check_for_update'),
+      };
     case 'Error':
       return { label: 'Retry', action: () => invoke('check_for_update') };
     case 'UpdateFound':
-      return { label: 'Download', action: () => invoke('grant_bundle_update', { approved: true }).catch(console.error) };
+      return {
+        label: 'Download',
+        action: () =>
+          invoke('grant_bundle_update', { approved: true }).catch(
+            console.error
+          ),
+      };
     case 'WaitingForWifi':
       return { label: 'Download anyway', action: cancelWifiWait };
     case 'Completed':
@@ -681,22 +709,26 @@ function BundleUpdateRow() {
         const status = () => ctx().bundleUpdateStatus();
         const action = () => bundleUpdateAction(status(), ctx().cancelWifiWait);
         return (
-          <Row label="App Update">
-            <div class="flex items-center gap-3">
-              <span class="text-sm text-ink-muted">
-                {formatBundleUpdateStatus(status())}
-              </span>
-              <Show when={action()}>
-                {(a) => (
-                  <Button variant="active" size="sm" depth={3} onClick={a().action}>
-                    {a().label}
-                  </Button>
-                )}
-              </Show>
-            </div>
+          <Row
+            label="App update"
+            description={formatBundleUpdateStatus(status())}
+          >
+            <Show when={action()}>
+              {(a) => (
+                <Button
+                  variant="active"
+                  size="sm"
+                  depth={3}
+                  onClick={a().action}
+                >
+                  {a().label}
+                </Button>
+              )}
+            </Show>
           </Row>
         );
       }}
     </Show>
   );
 }
+
