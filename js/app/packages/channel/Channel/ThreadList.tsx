@@ -4,7 +4,14 @@ import {
   type ScrollDirection,
 } from '@core/util/scroll-intent';
 import { createVirtualizer } from '@tanstack/solid-virtual';
-import { type Accessor, createSignal, For, type JSX, onMount } from 'solid-js';
+import {
+  type Accessor,
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  onMount,
+} from 'solid-js';
 import { NEAR_BOTTOM_THRESHOLD } from './constants';
 
 /**
@@ -135,6 +142,15 @@ export function ThreadList(props: ThreadListProps) {
   // overlay (matches the previous behavior).
   let previousScrollOffset: number | undefined;
   let explicitScrollDownDistance = 0;
+
+  // Inner content sizer, observed during the post-open settle so the newest
+  // message stays pinned to the bottom as rows measure and media/fonts load in
+  // (see the ResizeObserver in onMount).
+  let contentRef: HTMLDivElement | undefined;
+  // Whether the viewport should stay pinned to the bottom. True on open and
+  // while the user sits at the bottom; cleared the moment a scroll leaves it.
+  let followBottom = true;
+  let settleObserver: ResizeObserver | undefined;
 
   const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
     get count() {
@@ -273,6 +289,17 @@ export function ThreadList(props: ThreadListProps) {
     const nearTop = distanceFromTop <= NEAR_TOP_THRESHOLD;
     const nearBottom = distanceFromBottom <= NEAR_BOTTOM_THRESHOLD;
 
+    // Track bottom-follow intent from the resulting scroll position. Content
+    // growth doesn't emit scroll events, so this only flips on real scrolls
+    // (user or programmatic) — never on measurement reflow. Once a scroll
+    // leaves the bottom, tear down the post-open settle pinning so it can't
+    // fight history reading or newer-page (load-around) pagination.
+    followBottom = nearBottom;
+    if (!nearBottom) {
+      settleObserver?.disconnect();
+      settleObserver = undefined;
+    }
+
     let nextIsScrollingDown = false;
     if (previousScrollOffset !== undefined) {
       const delta = distanceFromTop - previousScrollOffset;
@@ -332,6 +359,25 @@ export function ThreadList(props: ThreadListProps) {
       setDidInitialScroll(true);
       emitScrollState(false);
     });
+
+    // A virtualized list can't land its first scroll exactly on the bottom:
+    // rows mount at the BASE_ITEM_SIZE estimate and are measured a microtask
+    // later, and media / fonts / late content keep growing rows (or the
+    // composer can shrink the viewport) for a short while after open. Rather
+    // than hide the list while it converges, keep the bottom pinned through the
+    // settle: ResizeObserver callbacks run *before paint*, so re-pinning here
+    // moves the convergence into the off-screen content above the newest
+    // message instead of showing it as a downward scroll. Guarded by
+    // `followBottom`, so it's a no-op (and self-disconnects) the instant the
+    // user scrolls away — including a deep-link open, which lands mid-history.
+    const repinIfFollowing = () => {
+      if (!followBottom) return;
+      if (measureMetrics().distanceFromBottom > 1) virtualizer.scrollToEnd();
+    };
+    settleObserver = new ResizeObserver(repinIfFollowing);
+    if (scrollRef) settleObserver.observe(scrollRef);
+    if (contentRef) settleObserver.observe(contentRef);
+    onCleanup(() => settleObserver?.disconnect());
   });
 
   return (
@@ -355,6 +401,9 @@ export function ThreadList(props: ThreadListProps) {
         }}
       >
         <div
+          ref={(el) => {
+            contentRef = el;
+          }}
           style={{
             position: 'relative',
             width: '100%',
