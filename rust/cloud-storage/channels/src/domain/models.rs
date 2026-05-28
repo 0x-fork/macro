@@ -738,3 +738,61 @@ pub struct ChannelInfo {
     /// Team id.
     pub team_id: Option<Uuid>,
 }
+
+/// Request for a batched channel preview lookup.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+pub struct GetBatchChannelPreviewRequest {
+    /// Channel ids to look up.
+    pub channel_ids: Vec<String>,
+}
+
+/// Response for a batched channel preview lookup.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+pub struct GetBatchChannelPreviewResponse {
+    /// Resolved channel previews, one per requested channel id.
+    pub previews: Vec<ChannelPreview>,
+}
+
+/// Preview entry for a single channel id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ChannelPreview {
+    /// Viewer can access the channel.
+    Access(ChannelPreviewData),
+    /// Viewer cannot access the channel.
+    NoAccess(WithChannelId),
+    /// Channel does not exist.
+    DoesNotExist(WithChannelId),
+}
+
+/// Preview payload returned for accessible channels.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+pub struct ChannelPreviewData {
+    /// Channel id.
+    pub channel_id: String,
+    /// Resolved channel display name.
+    pub channel_name: String,
+    /// Channel type.
+    pub channel_type: ChannelType,
+}
+
+/// Preview payload returned for channels with only id information.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+pub struct WithChannelId {
+    /// Channel id.
+    pub channel_id: String,
+}
+
+/// Raw preview row returned from the repository.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChannelPreviewRow {
+    /// Channel info.
+    pub info: ChannelInfo,
+    /// Whether the viewer can access the channel.
+    pub has_access: bool,
+}

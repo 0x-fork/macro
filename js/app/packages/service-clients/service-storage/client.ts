@@ -70,6 +70,8 @@ import type { DocumentResponseMetadataWithContent } from './generated/schemas/do
 import type { EditAnchorResponse } from './generated/schemas/editAnchorResponse';
 import type { EditCommentResponse } from './generated/schemas/editCommentResponse';
 import type { ExportDocumentResponse } from './generated/schemas/exportDocumentResponse';
+import type { GetBatchChannelPreviewRequest } from './generated/schemas/getBatchChannelPreviewRequest';
+import type { GetBatchChannelPreviewResponse } from './generated/schemas/getBatchChannelPreviewResponse';
 import type { GetBatchProjectPreviewResponse } from './generated/schemas/getBatchProjectPreviewResponse';
 import type { GetDocumentPermissionsResponseDataV2 } from './generated/schemas/getDocumentPermissionsResponseDataV2';
 import type { GetDocumentProcessingResultResponse } from './generated/schemas/getDocumentProcessingResultResponse';
@@ -524,6 +526,16 @@ export const storageServiceClient = {
     return (
       await dssFetch<MessageResponse>(`/channels/${channel_id}/leave`, {
         method: 'POST',
+      })
+    ).map((result) => result);
+  },
+
+  async getBatchChannelPreviews(args: GetBatchChannelPreviewRequest) {
+    const { channel_ids } = args;
+    return (
+      await dssFetch<GetBatchChannelPreviewResponse>(`/channels/preview`, {
+        method: 'POST',
+        body: JSON.stringify({ channel_ids }),
       })
     ).map((result) => result);
   },

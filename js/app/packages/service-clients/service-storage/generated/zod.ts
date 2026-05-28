@@ -1303,6 +1303,77 @@ export const getOrCreatePrivateResponse = zod
   .describe('Response for get-or-create channel operations.');
 
 /**
+ * @summary Handler for `POST /channels/preview`.
+ */
+export const getBatchChannelPreviewBody = zod
+  .object({
+    channel_ids: zod.array(zod.string()).describe('Channel ids to look up.'),
+  })
+  .describe('Request for a batched channel preview lookup.');
+
+export const getBatchChannelPreviewResponse = zod
+  .object({
+    previews: zod
+      .array(
+        zod
+          .union([
+            zod
+              .object({
+                channel_id: zod.string().describe('Channel id.'),
+                channel_name: zod
+                  .string()
+                  .describe('Resolved channel display name.'),
+                channel_type: zod
+                  .enum([
+                    'public',
+                    'organization',
+                    'private',
+                    'direct_message',
+                    'team',
+                  ])
+                  .describe('Type of channel.'),
+              })
+              .describe('Preview payload returned for accessible channels.')
+              .and(
+                zod.object({
+                  type: zod.enum(['access']),
+                })
+              )
+              .describe('Viewer can access the channel.'),
+            zod
+              .object({
+                channel_id: zod.string().describe('Channel id.'),
+              })
+              .describe(
+                'Preview payload returned for channels with only id information.'
+              )
+              .and(
+                zod.object({
+                  type: zod.enum(['no_access']),
+                })
+              )
+              .describe('Viewer cannot access the channel.'),
+            zod
+              .object({
+                channel_id: zod.string().describe('Channel id.'),
+              })
+              .describe(
+                'Preview payload returned for channels with only id information.'
+              )
+              .and(
+                zod.object({
+                  type: zod.enum(['does_not_exist']),
+                })
+              )
+              .describe('Channel does not exist.'),
+          ])
+          .describe('Preview entry for a single channel id.')
+      )
+      .describe('Resolved channel previews, one per requested channel id.'),
+  })
+  .describe('Response for a batched channel preview lookup.');
+
+/**
  * @summary Handler for `DELETE /channels/{channel_id}`.
  */
 export const deleteChannelParams = zod.object({

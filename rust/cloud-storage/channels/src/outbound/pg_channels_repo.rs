@@ -5,7 +5,7 @@ use crate::domain::{
     models::{
         ChannelAttachment, ChannelAttachmentType, ChannelContextMessage, ChannelInfo,
         ChannelMessageFilters, ChannelMessageKind, ChannelMetadata, ChannelParticipant,
-        ChannelType, CountedReaction, CreateChannelRequest, MessageAttachment,
+        ChannelPreviewRow, ChannelType, CountedReaction, CreateChannelRequest, MessageAttachment,
         MessagePageDirection, MutatedAttachment, MutatedMessage, NewChannelAttachment,
         ParticipantRole, PatchChannelRequest, ResolvedChannelMessage, SimpleMention, ThreadData,
         ThreadReplyRow, TopLevelMessageRow,
@@ -198,6 +198,17 @@ struct ChannelInfoRow {
     channel_type: ChannelType,
     org_id: Option<i64>,
     team_id: Option<Uuid>,
+}
+
+/// Intermediate row for batch channel preview lookups.
+#[derive(Debug, sqlx::FromRow)]
+struct ChannelPreviewQueryRow {
+    id: Uuid,
+    name: Option<String>,
+    channel_type: ChannelType,
+    org_id: Option<i64>,
+    team_id: Option<Uuid>,
+    has_access: bool,
 }
 
 /// Intermediate row for user display-name lookups.
@@ -1436,6 +1447,68 @@ impl ChannelRepo for PgChannelsRepo {
             channel_type: info.channel_type,
             channel_name,
         })
+    }
+
+    async fn batch_get_channel_previews(
+        &self,
+        channel_ids: &[String],
+        viewer_user_id: &str,
+        org_id: Option<i64>,
+    ) -> Result<Vec<ChannelPreviewRow>, Self::Err> {
+        let rows = sqlx::query_as!(
+            ChannelPreviewQueryRow,
+            r#"
+            SELECT
+                c.id,
+                c.name,
+                c.channel_type AS "channel_type: ChannelType",
+                c.org_id,
+                c.team_id,
+                CASE WHEN (
+                    c.channel_type = 'public'
+                    OR
+                    (c.channel_type = 'organization' AND $3::bigint IS NOT NULL AND c.org_id = $3)
+                    OR
+                    (c.channel_type IN ('private', 'direct_message', 'team') AND EXISTS (
+                        SELECT 1 FROM comms_channel_participants cp
+                        WHERE cp.channel_id = c.id
+                        AND cp.user_id = $2
+                        AND cp.left_at IS NULL
+                    ))
+                ) THEN true ELSE false END AS "has_access!: bool"
+            FROM comms_channels c
+            WHERE c.id::text = ANY($1)
+              AND (c.channel_type != 'organization' OR $3::bigint IS NOT NULL)
+            "#,
+            channel_ids,
+            viewer_user_id,
+            org_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .context("unable to batch get channel previews")?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| ChannelPreviewRow {
+                info: ChannelInfo {
+                    id: row.id,
+                    name: row.name,
+                    channel_type: row.channel_type,
+                    org_id: row.org_id,
+                    team_id: row.team_id,
+                },
+                has_access: row.has_access,
+            })
+            .collect())
+    }
+
+    async fn resolve_channel_name(
+        &self,
+        info: &ChannelInfo,
+        viewer_user_id: MacroUserIdStr<'static>,
+    ) -> Result<String, Self::Err> {
+        resolve_channel_display_name(&self.pool, info, viewer_user_id).await
     }
 
     async fn user_has_team(&self, user_id: String, team_id: Uuid) -> Result<bool, Self::Err> {

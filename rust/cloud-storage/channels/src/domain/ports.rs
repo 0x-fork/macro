@@ -1,13 +1,14 @@
 use crate::domain::events::ChannelEvent;
 use crate::domain::models::{
     AddParticipantsRequest, ChannelAttachment, ChannelAttachmentType, ChannelContextMessage,
-    ChannelInfo, ChannelMessageFilters, ChannelMetadata, ChannelParticipant, CountedReaction,
-    CreateChannelRequest, CreateChannelResponse, DeleteMessageQuery, GetOrCreateChannelResponse,
-    GetOrCreateDmRequest, GetOrCreatePrivateRequest, MessageAttachment, MessagePageDirection,
-    MutatedAttachment, MutatedMessage, NewChannelAttachment, PatchChannelRequest,
-    PatchMessageRequest, PostMessageRequest, PostMessageResponse, PostReactionRequest,
-    PostTypingRequest, ReferencedShareItem, RemoveParticipantsRequest, ResolvedChannelMessage,
-    SimpleMention, ThreadData, ThreadReply, ThreadReplyRow, TopLevelMessageRow,
+    ChannelInfo, ChannelMessageFilters, ChannelMetadata, ChannelParticipant, ChannelPreview,
+    ChannelPreviewRow, CountedReaction, CreateChannelRequest, CreateChannelResponse,
+    DeleteMessageQuery, GetOrCreateChannelResponse, GetOrCreateDmRequest,
+    GetOrCreatePrivateRequest, MessageAttachment, MessagePageDirection, MutatedAttachment,
+    MutatedMessage, NewChannelAttachment, PatchChannelRequest, PatchMessageRequest,
+    PostMessageRequest, PostMessageResponse, PostReactionRequest, PostTypingRequest,
+    ReferencedShareItem, RemoveParticipantsRequest, ResolvedChannelMessage, SimpleMention,
+    ThreadData, ThreadReply, ThreadReplyRow, TopLevelMessageRow,
 };
 use crate::domain::side_effects::{
     ChannelDocumentMention, ChannelNotificationEffect, ChannelRealtimeEffect,
@@ -124,6 +125,22 @@ pub trait ChannelRepo: Send + Sync + 'static {
         channel_id: Uuid,
         viewer_user_id: MacroUserIdStr<'static>,
     ) -> impl Future<Output = Result<ChannelMetadata, Self::Err>> + Send;
+
+    /// Batch fetch channel preview rows for the requested ids, computing
+    /// per-channel access for the given viewer/org.
+    fn batch_get_channel_previews(
+        &self,
+        channel_ids: &[String],
+        viewer_user_id: &str,
+        org_id: Option<i64>,
+    ) -> impl Future<Output = Result<Vec<ChannelPreviewRow>, Self::Err>> + Send;
+
+    /// Resolve a channel's display name from the viewer's perspective.
+    fn resolve_channel_name(
+        &self,
+        info: &ChannelInfo,
+        viewer_user_id: MacroUserIdStr<'static>,
+    ) -> impl Future<Output = Result<String, Self::Err>> + Send;
 
     /// Check whether a user belongs to a team.
     fn user_has_team(
@@ -342,6 +359,16 @@ pub trait ChannelService: Send + Sync + 'static {
         &self,
         channel_id: Uuid,
     ) -> impl Future<Output = Result<Vec<ChannelParticipant>, ChannelMessagesErr>> + Send;
+
+    /// Batch fetch channel previews for the requested ids.
+    fn batch_get_channel_previews(
+        &self,
+        _viewer_user_id: MacroUserIdStr<'static>,
+        _org_id: Option<i64>,
+        _channel_ids: Vec<String>,
+    ) -> impl Future<Output = Result<Vec<ChannelPreview>, ChannelMessagesErr>> + Send {
+        async move { Ok(Vec::new()) }
+    }
 
     /// Fetch messages around a target message in chronological order.
     fn get_message_context(

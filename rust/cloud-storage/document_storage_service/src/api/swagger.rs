@@ -214,6 +214,7 @@ use utoipa::OpenApi;
         channels::inbound::axum_router::resolve_channel_message_handler,
         channels::inbound::axum_router::get_channel_attachments_handler,
         channels::inbound::axum_router::get_channel_participants_handler,
+        channels::inbound::axum_router::get_batch_channel_preview_handler,
 
         // calls
         call::inbound::axum_router::get_or_create_call_handler,
@@ -399,6 +400,11 @@ use utoipa::OpenApi;
             channels::domain::models::PostTypingRequest,
             channels::domain::models::AddParticipantsRequest,
             channels::domain::models::RemoveParticipantsRequest,
+            channels::domain::models::GetBatchChannelPreviewRequest,
+            channels::domain::models::GetBatchChannelPreviewResponse,
+            channels::domain::models::ChannelPreview,
+            channels::domain::models::ChannelPreviewData,
+            channels::domain::models::WithChannelId,
 
             // Calls
             call::domain::models::CallTokenResponse,

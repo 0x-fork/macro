@@ -360,6 +360,23 @@ impl ChannelRepo for FakeMutationRepo {
         })
     }
 
+    async fn batch_get_channel_previews(
+        &self,
+        _channel_ids: &[String],
+        _viewer_user_id: &str,
+        _org_id: Option<i64>,
+    ) -> Result<Vec<crate::domain::models::ChannelPreviewRow>, Self::Err> {
+        Ok(vec![])
+    }
+
+    async fn resolve_channel_name(
+        &self,
+        _info: &ChannelInfo,
+        _viewer_user_id: MacroUserIdStr<'static>,
+    ) -> Result<String, Self::Err> {
+        Ok("Project".to_string())
+    }
+
     async fn user_has_team(&self, _user_id: String, _team_id: Uuid) -> Result<bool, Self::Err> {
         Ok(true)
     }
