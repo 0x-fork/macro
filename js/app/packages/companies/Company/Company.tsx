@@ -21,8 +21,8 @@ export function Company(props: { companyId: string }) {
       <div class="flex h-full flex-col overflow-y-auto scrollbar-hidden">
         <div class="mx-auto flex w-full max-w-3xl min-w-0 grow flex-col gap-6 px-6 pt-12 pb-12">
           <CompanyHeader company={company()} />
-          <CompanyEmailsSection company={company()} />
           <CompanyDiscussionSection companyId={props.companyId} />
+          <CompanyEmailsSection company={company()} />
         </div>
       </div>
 
