@@ -540,7 +540,14 @@ where
                     foreign_entity_query,
                 );
 
-                let (main_soup, email_soup, comms_soup, call_soup, crm_company_soup, foreign_entity_soup) = tokio::join!(
+                let (
+                    main_soup,
+                    email_soup,
+                    comms_soup,
+                    call_soup,
+                    crm_company_soup,
+                    foreign_entity_soup,
+                ) = tokio::join!(
                     main_soup_fut,
                     email_soup_fut,
                     comms_soup_fut,
