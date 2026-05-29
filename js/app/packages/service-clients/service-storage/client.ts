@@ -24,9 +24,9 @@ import type { ResultError } from '@core/util/result';
 
 import type { SafeFetchInit } from '@core/util/safeFetch';
 import type { IDocumentStorageServiceFile } from '@filesystem/file';
-import type { ApiChannelWithLatest } from '@service-comms/generated/models/apiChannelWithLatest';
 import { platformFetch } from 'core/util/platformFetch';
 import { err, ok, type Result } from 'neverthrow';
+import type { ApiChannelWithLatest } from './channel-list-types';
 import type {
   AccessLevel,
   CallRecordPreview,
@@ -40,6 +40,7 @@ import type {
 import type { AddParticipantsRequest } from './generated/schemas/addParticipantsRequest';
 import type { AddPinRequest } from './generated/schemas/addPinRequest';
 import type { AnchorResponse } from './generated/schemas/anchorResponse';
+import type { ApiActivity } from './generated/schemas/apiActivity';
 import type { ApiChannelAttachmentsPage } from './generated/schemas/apiChannelAttachmentsPage';
 import type { ApiChannelMessagesPage } from './generated/schemas/apiChannelMessagesPage';
 import type { ApiChannelParticipant } from './generated/schemas/apiChannelParticipant';
@@ -75,6 +76,8 @@ import type { EditAnchorResponse } from './generated/schemas/editAnchorResponse'
 import type { EditCommentResponse } from './generated/schemas/editCommentResponse';
 import type { ExportDocumentResponse } from './generated/schemas/exportDocumentResponse';
 import type { GetAttachmentReferencesResponse } from './generated/schemas/getAttachmentReferencesResponse';
+import type { GetBatchChannelPreviewRequest } from './generated/schemas/getBatchChannelPreviewRequest';
+import type { GetBatchChannelPreviewResponse } from './generated/schemas/getBatchChannelPreviewResponse';
 import type { GetBatchProjectPreviewResponse } from './generated/schemas/getBatchProjectPreviewResponse';
 import type { GetDocumentPermissionsResponseDataV2 } from './generated/schemas/getDocumentPermissionsResponseDataV2';
 import type { GetDocumentProcessingResultResponse } from './generated/schemas/getDocumentProcessingResultResponse';
@@ -94,6 +97,7 @@ import type { LocationResponseV3 } from './generated/schemas/locationResponseV3'
 import type { PatchChannelRequest } from './generated/schemas/patchChannelRequest';
 import type { PatchMessageRequest } from './generated/schemas/patchMessageRequest';
 import type { PinRequest } from './generated/schemas/pinRequest';
+import type { PostActivityRequest } from './generated/schemas/postActivityRequest';
 import type { PostMessageRequest } from './generated/schemas/postMessageRequest';
 import type { PostMessageResponse } from './generated/schemas/postMessageResponse';
 import type { PostReactionRequest } from './generated/schemas/postReactionRequest';
@@ -549,6 +553,16 @@ export const storageServiceClient = {
     ).map((result) => result);
   },
 
+  async getBatchChannelPreviews(args: GetBatchChannelPreviewRequest) {
+    const { channel_ids } = args;
+    return (
+      await dssFetch<GetBatchChannelPreviewResponse>(`/channels/preview`, {
+        method: 'POST',
+        body: JSON.stringify({ channel_ids }),
+      })
+    ).map((result) => result);
+  },
+
   async getChannelMessages(
     args: WithChannelId & {
       limit: number;
@@ -697,6 +711,24 @@ export const storageServiceClient = {
         `/channels/attachments/${entity_type}/${entity_id}/references`,
         { method: 'GET' }
       )
+    ).map((result) => result);
+  },
+
+  async getActivity() {
+    return (
+      await dssFetch<Array<ApiActivity>>(`/channels/activity`, {
+        method: 'GET',
+      })
+    ).map((result) => result);
+  },
+
+  async postActivity(args: PostActivityRequest) {
+    const { activity_type, channel_id } = args;
+    return (
+      await dssFetch<ApiActivity>(`/channels/activity`, {
+        method: 'POST',
+        body: JSON.stringify({ activity_type, channel_id }),
+      })
     ).map((result) => result);
   },
 

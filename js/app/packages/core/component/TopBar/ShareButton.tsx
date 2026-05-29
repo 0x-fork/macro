@@ -47,7 +47,6 @@ import IconEdit from '@phosphor/pencil.svg';
 import IconShared from '@phosphor/share.svg';
 import IconX from '@phosphor/x.svg';
 import { cognitionApiServiceClient } from '@service-cognition/client';
-import { commsServiceClient } from '@service-comms/client';
 import {
   blockNameToItemType,
   type ItemType,
@@ -602,7 +601,7 @@ export function ShareModal(props: ShareModalProps) {
       );
       return { channel_ids };
     },
-    commsServiceClient.getBatchChannelPreviews,
+    storageServiceClient.getBatchChannelPreviews,
     { initialValue: undefined }
   );
 

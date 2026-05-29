@@ -1,8 +1,97 @@
 use chrono::{DateTime, Utc};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_pagination::{CreatedAt, CursorVal, Identify, SortOn};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use uuid::Uuid;
+
+pub use bot_id::BotId;
+
+/// Error returned when a sender storage string is not a user or bot id.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("invalid sender id: {value}")]
+pub struct SenderParseError {
+    value: String,
+}
+
+impl SenderParseError {
+    fn invalid(value: &str) -> Self {
+        Self {
+            value: value.to_string(),
+        }
+    }
+}
+
+/// Actor identity for channel mutations.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Sender {
+    /// A first-party Macro user.
+    User(MacroUserIdStr<'static>),
+    /// A channel-scoped or system bot.
+    Bot(BotId),
+}
+
+impl Sender {
+    /// Parse a sender id from the existing TEXT storage representation.
+    pub fn parse_storage_str(value: &str) -> Result<Self, SenderParseError> {
+        if let Ok(bot_id) = BotId::parse_storage_str(value) {
+            return Ok(Self::Bot(bot_id));
+        }
+
+        MacroUserIdStr::try_from(value.to_string())
+            .map(Self::User)
+            .map_err(|_| SenderParseError::invalid(value))
+    }
+
+    /// Canonical storage representation for existing TEXT sender/participant columns.
+    pub fn to_storage_string(&self) -> String {
+        match self {
+            Self::User(user_id) => user_id.as_ref().to_string(),
+            Self::Bot(bot_id) => bot_id.to_storage_string(),
+        }
+    }
+
+    /// Return the authenticated user id when the sender is a user.
+    pub fn as_user(&self) -> Option<&MacroUserIdStr<'static>> {
+        match self {
+            Self::User(user_id) => Some(user_id),
+            Self::Bot(_) => None,
+        }
+    }
+
+    /// Whether this sender is a bot.
+    pub const fn is_bot(&self) -> bool {
+        matches!(self, Self::Bot(_))
+    }
+}
+
+impl From<MacroUserIdStr<'static>> for Sender {
+    fn from(user_id: MacroUserIdStr<'static>) -> Self {
+        Self::User(user_id)
+    }
+}
+
+impl std::str::FromStr for Sender {
+    type Err = SenderParseError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::parse_storage_str(value)
+    }
+}
+
+impl std::fmt::Display for Sender {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.to_storage_string())
+    }
+}
+
+impl Serialize for Sender {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_storage_string())
+    }
+}
 
 /// Request to fetch a page of channel messages.
 #[derive(Debug)]
@@ -439,6 +528,37 @@ pub enum ChannelType {
     Team,
 }
 
+/// A user's activity (view/interaction) within a channel.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Activity {
+    /// Activity row id.
+    pub id: Uuid,
+    /// Id of the user this activity belongs to.
+    pub user_id: String,
+    /// Id of the channel this activity is for.
+    pub channel_id: Uuid,
+    /// When the activity row was created.
+    pub created_at: DateTime<Utc>,
+    /// When the activity row was last updated.
+    pub updated_at: DateTime<Utc>,
+    /// The last time the user viewed the channel.
+    pub viewed_at: Option<DateTime<Utc>>,
+    /// The last time the user interacted with the channel
+    /// (e.g. reacting, replying, sending a message).
+    pub interacted_at: Option<DateTime<Utc>>,
+}
+
+/// The kind of activity a user performs in a channel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ActivityType {
+    /// The user viewed the channel.
+    View,
+    /// The user interacted with the channel.
+    Interact,
+}
+
 /// Result of a get-or-create channel operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
@@ -736,8 +856,8 @@ pub struct MutatedMessage {
     pub channel_id: Uuid,
     /// Thread parent id.
     pub thread_id: Option<Uuid>,
-    /// Sender user id.
-    pub sender_id: MacroUserIdStr<'static>,
+    /// Sender actor id.
+    pub sender_id: Sender,
     /// Message body.
     pub content: String,
     /// Created timestamp.
@@ -784,6 +904,64 @@ pub struct ChannelInfo {
     pub org_id: Option<i64>,
     /// Team id.
     pub team_id: Option<Uuid>,
+}
+
+/// Request for a batched channel preview lookup.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+pub struct GetBatchChannelPreviewRequest {
+    /// Channel ids to look up.
+    pub channel_ids: Vec<String>,
+}
+
+/// Response for a batched channel preview lookup.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+pub struct GetBatchChannelPreviewResponse {
+    /// Resolved channel previews, one per requested channel id.
+    pub previews: Vec<ChannelPreview>,
+}
+
+/// Preview entry for a single channel id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ChannelPreview {
+    /// Viewer can access the channel.
+    Access(ChannelPreviewData),
+    /// Viewer cannot access the channel.
+    NoAccess(WithChannelId),
+    /// Channel does not exist.
+    DoesNotExist(WithChannelId),
+}
+
+/// Preview payload returned for accessible channels.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+pub struct ChannelPreviewData {
+    /// Channel id.
+    pub channel_id: String,
+    /// Resolved channel display name.
+    pub channel_name: String,
+    /// Channel type.
+    pub channel_type: ChannelType,
+}
+
+/// Preview payload returned for channels with only id information.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+pub struct WithChannelId {
+    /// Channel id.
+    pub channel_id: String,
+}
+
+/// Raw preview row returned from the repository.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChannelPreviewRow {
+    /// Channel info.
+    pub info: ChannelInfo,
+    /// Whether the viewer can access the channel.
+    pub has_access: bool,
 }
 
 /// Persisted entity-to-entity mention.
@@ -861,4 +1039,27 @@ pub struct CreateEntityMentionResponse {
 pub struct DeleteEntityMentionResponse {
     /// Whether the mention was deleted.
     pub deleted: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sender_round_trips_user_storage_string() {
+        let sender = Sender::parse_storage_str("macro|alice@example.com").unwrap();
+
+        assert_eq!(sender.to_storage_string(), "macro|alice@example.com");
+        assert!(matches!(sender, Sender::User(_)));
+    }
+
+    #[test]
+    fn sender_round_trips_bot_storage_string() {
+        let id = Uuid::new_v4();
+        let storage = format!("bot|{id}");
+        let sender = Sender::parse_storage_str(&storage).unwrap();
+
+        assert_eq!(sender.to_storage_string(), storage);
+        assert_eq!(serde_json::to_value(&sender).unwrap(), storage);
+    }
 }

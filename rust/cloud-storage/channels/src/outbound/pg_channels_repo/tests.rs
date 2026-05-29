@@ -1174,6 +1174,21 @@ async fn notification_filter_requires_requesting_user(pool: Pool<Postgres>) -> a
     Ok(())
 }
 
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("channels_repo"))
+)]
+async fn batch_preview_returns_existing_public_channel(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let rows = repo(pool)
+        .batch_get_channel_previews(&[CH1.to_string()], USER_A, None)
+        .await?;
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].info.id, CH1);
+    assert!(rows[0].has_access);
+    Ok(())
+}
+
 fn mention_opts(
     source_id: &str,
     entity_type: &str,
@@ -1310,6 +1325,21 @@ async fn attachment_references_returns_channel_reference_for_participant(
     assert_eq!(channel[0].channel_id, CH1);
     assert_eq!(channel[0].message_id, MSG1);
     assert_eq!(channel[0].message_content, "first message");
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("channels_repo"))
+)]
+async fn batch_preview_omits_missing_channels(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let missing = Uuid::from_u128(0x00000000_0000_0000_0000_0000000099ff);
+    let rows = repo(pool)
+        .batch_get_channel_previews(&[CH1.to_string(), missing.to_string()], USER_A, None)
+        .await?;
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].info.id, CH1);
     Ok(())
 }
 

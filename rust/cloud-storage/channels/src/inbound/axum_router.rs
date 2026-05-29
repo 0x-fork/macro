@@ -1,19 +1,21 @@
 #[cfg(test)]
 mod test;
 
+use crate::domain::models::{
+    Activity, ActivityType, AttachmentChannelReference, AttachmentEntityReference,
+    AttachmentGenericReference, ChannelAttachment, ChannelAttachmentType, ChannelContextMessage,
+    ChannelMessage, ChannelMessageKind, ChannelParticipant, ChannelType, CountedReaction,
+    CreateEntityMentionOptions, MessageAttachment, MessagePageDirection, ParticipantRole,
+    ResolvedChannelMessage, Sender, ThreadInfo, ThreadReply,
+};
 pub use crate::domain::models::{
-    AddParticipantsRequest, CreateChannelRequest, CreateChannelResponse,
-    CreateEntityMentionRequest, CreateEntityMentionResponse, DeleteEntityMentionResponse,
-    DeleteMessageQuery, GetOrCreateChannelResponse, GetOrCreateDmRequest,
+    AddParticipantsRequest, ChannelPreview, ChannelPreviewData, CreateChannelRequest,
+    CreateChannelResponse, CreateEntityMentionRequest, CreateEntityMentionResponse,
+    DeleteEntityMentionResponse, DeleteMessageQuery, GetBatchChannelPreviewRequest,
+    GetBatchChannelPreviewResponse, GetOrCreateChannelResponse, GetOrCreateDmRequest,
     GetOrCreatePrivateRequest, PatchChannelRequest, PatchMessageRequest, PostMessageRequest,
     PostMessageResponse, PostReactionRequest, PostTypingRequest, RemoveParticipantsRequest,
-};
-use crate::domain::models::{
-    AttachmentChannelReference, AttachmentEntityReference, AttachmentGenericReference,
-    ChannelAttachment, ChannelAttachmentType, ChannelContextMessage, ChannelMessage,
-    ChannelMessageKind, ChannelParticipant, CountedReaction, CreateEntityMentionOptions,
-    MessageAttachment, MessagePageDirection, ParticipantRole, ResolvedChannelMessage, ThreadInfo,
-    ThreadReply,
+    WithChannelId,
 };
 pub use crate::domain::models::{ChannelMessageFilters, NotificationFilters};
 use crate::domain::ports::{
@@ -31,8 +33,9 @@ use chrono::{DateTime, Utc};
 use entity_access::{
     domain::{
         models::{
-            AccessError, AccessLevel, AdminParticipantRole, EntityAccessReceipt, EntityPermission,
-            EntityType, MemberParticipantRole, OwnerParticipantRole, RequiredPermission,
+            AccessError, AccessLevel, AdminParticipantRole, EntityAccessAuth, EntityAccessReceipt,
+            EntityPermission, EntityType, MemberParticipantRole, OwnerParticipantRole,
+            RequiredPermission,
         },
         ports::EntityAccessService,
     },
@@ -103,10 +106,22 @@ fn notification_user_id_from_receipt<T: RequiredPermission>(
 
 fn actor_from_receipt<T: RequiredPermission>(
     receipt: &EntityAccessReceipt<T>,
-) -> Result<MacroUserIdStr<'static>, ChannelsHandlerErr> {
+) -> Result<Sender, ChannelsHandlerErr> {
+    match receipt.auth() {
+        EntityAccessAuth::Authenticated(user_id) => Ok(Sender::User(user_id.clone())),
+        EntityAccessAuth::Unauthenticated | EntityAccessAuth::Internal => Err(
+            ChannelsHandlerErr::BadRequest("authenticated actor required"),
+        ),
+    }
+}
+
+fn user_actor_from_receipt<T: RequiredPermission>(
+    receipt: &EntityAccessReceipt<T>,
+) -> Result<Sender, ChannelsHandlerErr> {
     receipt
         .get_authenticated_user()
         .cloned()
+        .map(Sender::User)
         .map_err(|_| ChannelsHandlerErr::BadRequest("authenticated user required"))
 }
 
@@ -277,6 +292,7 @@ where
     T: Send + Sync,
 {
     channel_mutation_router::<S, Svc>()
+        .route("/{channel_id}", get(get_channel_handler::<S, Svc>))
         .route(
             "/{channel_id}/messages",
             get(get_channel_messages_handler::<S, Svc>)
@@ -303,8 +319,16 @@ where
             get(get_channel_participants_handler::<S, Svc>),
         )
         .route(
+            "/preview",
+            post(get_batch_channel_preview_handler::<S, Svc>),
+        )
+        .route(
             "/attachments/{entity_type}/{entity_id}/references",
             get(get_attachment_references_handler::<S, Svc>),
+        )
+        .route(
+            "/activity",
+            get(get_activity_handler::<S, Svc>).post(post_activity_handler::<S, Svc>),
         )
         .with_state(state)
 }
@@ -333,7 +357,7 @@ pub async fn create_channel_handler<S: ChannelService, Svc: EntityAccessService>
     let res = state
         .service
         .create_channel(
-            user.macro_user_id,
+            Sender::User(user.macro_user_id),
             user.user_context.organization_id.map(i64::from),
             req,
         )
@@ -364,7 +388,7 @@ pub async fn get_or_create_dm_handler<S: ChannelService, Svc: EntityAccessServic
 ) -> Result<(StatusCode, Json<GetOrCreateChannelResponse>), ChannelsHandlerErr> {
     let res = state
         .service
-        .get_or_create_dm(user.macro_user_id, req)
+        .get_or_create_dm(Sender::User(user.macro_user_id), req)
         .await?;
     Ok((StatusCode::OK, Json(res)))
 }
@@ -392,7 +416,7 @@ pub async fn get_or_create_private_handler<S: ChannelService, Svc: EntityAccessS
 ) -> Result<(StatusCode, Json<GetOrCreateChannelResponse>), ChannelsHandlerErr> {
     let res = state
         .service
-        .get_or_create_private(user.macro_user_id, req)
+        .get_or_create_private(Sender::User(user.macro_user_id), req)
         .await?;
     Ok((StatusCode::OK, Json(res)))
 }
@@ -423,7 +447,7 @@ pub async fn patch_channel_handler<S: ChannelService, Svc: EntityAccessService>(
     Json(req): Json<PatchChannelRequest>,
 ) -> Result<(StatusCode, String), ChannelsHandlerErr> {
     let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
-    let actor = actor_from_receipt(&access.entity_access_receipt)?;
+    let actor = user_actor_from_receipt(&access.entity_access_receipt)?;
     state.service.patch_channel(actor, channel_id, req).await?;
     Ok((StatusCode::OK, "patched channel".to_string()))
 }
@@ -452,7 +476,7 @@ pub async fn delete_channel_handler<S: ChannelService, Svc: EntityAccessService>
     access: ChannelAccessLevelExtractor<OwnerParticipantRole, Svc>,
 ) -> Result<(StatusCode, String), ChannelsHandlerErr> {
     let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
-    let actor = actor_from_receipt(&access.entity_access_receipt)?;
+    let actor = user_actor_from_receipt(&access.entity_access_receipt)?;
     state.service.delete_channel(actor, channel_id).await?;
     Ok((StatusCode::OK, "channel successfully deleted".to_string()))
 }
@@ -648,7 +672,7 @@ pub async fn add_participants_handler<S: ChannelService, Svc: EntityAccessServic
     Json(req): Json<AddParticipantsRequest>,
 ) -> Result<StatusCode, ChannelsHandlerErr> {
     let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
-    let actor = actor_from_receipt(&access.entity_access_receipt)?;
+    let actor = user_actor_from_receipt(&access.entity_access_receipt)?;
     state
         .service
         .add_participants(actor, channel_id, req)
@@ -682,7 +706,11 @@ pub async fn remove_participants_handler<S: ChannelService, Svc: EntityAccessSer
     Json(req): Json<RemoveParticipantsRequest>,
 ) -> Result<StatusCode, ChannelsHandlerErr> {
     let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
-    state.service.remove_participants(channel_id, req).await?;
+    let actor = user_actor_from_receipt(&access.entity_access_receipt)?;
+    state
+        .service
+        .remove_participants(actor, channel_id, req)
+        .await?;
     Ok(StatusCode::OK)
 }
 
@@ -712,7 +740,7 @@ pub async fn join_channel_handler<S: ChannelService, Svc: EntityAccessService>(
     let channel_id = path.channel_id;
     state
         .service
-        .join_channel(user.macro_user_id, channel_id)
+        .join_channel(Sender::User(user.macro_user_id), channel_id)
         .await?;
     Ok(StatusCode::OK)
 }
@@ -741,7 +769,7 @@ pub async fn leave_channel_handler<S: ChannelService, Svc: EntityAccessService>(
     access: ChannelAccessLevelExtractor<MemberParticipantRole, Svc>,
 ) -> Result<StatusCode, ChannelsHandlerErr> {
     let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
-    let actor = actor_from_receipt(&access.entity_access_receipt)?;
+    let actor = user_actor_from_receipt(&access.entity_access_receipt)?;
     state.service.leave_channel(actor, channel_id).await?;
     Ok(StatusCode::OK)
 }
@@ -1251,6 +1279,83 @@ pub async fn get_channel_attachments_handler<S: ChannelService, Svc: EntityAcces
     Ok(Json(page.type_erase().map(ApiChannelAttachment::from)))
 }
 
+/// Channel detail: metadata, active participants, and a recent page of messages.
+///
+/// `messages` is the newest-first first page (size controlled by `limit`); use the
+/// dedicated `/{channel_id}/messages` endpoint for cursor pagination.
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct ApiChannelDetail {
+    /// Channel id.
+    channel_id: Uuid,
+    /// Channel type.
+    channel_type: ChannelType,
+    /// Resolved display name from the viewer's perspective.
+    channel_name: String,
+    /// Active participants.
+    participants: Vec<ApiChannelParticipant>,
+    /// Recent messages (newest-first first page).
+    messages: Vec<ApiChannelMessage>,
+}
+
+/// Handler for `GET /channels/{channel_id}`.
+#[utoipa::path(
+    get,
+    operation_id = "get_channel",
+    path = "/channels/{channel_id}",
+    params(
+        ("channel_id" = Uuid, Path, description = "Channel ID"),
+        ("limit" = Option<u16>, Query, description = "Recent message page size (1-100, default 50)"),
+    ),
+    responses(
+        (status = 200, body = ApiChannelDetail),
+        (status = 401, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(err, skip_all, fields(channel_id = tracing::field::Empty))]
+pub async fn get_channel_handler<S: ChannelService, Svc: EntityAccessService>(
+    State(state): State<ChannelsRouterState<S, Svc>>,
+    access: ChannelAccessLevelExtractor<MemberParticipantRole, Svc>,
+    Query(params): Query<Params>,
+) -> Result<Json<ApiChannelDetail>, ChannelsHandlerErr> {
+    let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
+    tracing::Span::current().record("channel_id", tracing::field::display(channel_id));
+    let viewer = access
+        .entity_access_receipt
+        .get_authenticated_user()
+        .cloned()
+        .map_err(|_| ChannelsHandlerErr::BadRequest("authenticated user required"))?;
+
+    let metadata = state
+        .service
+        .get_channel_metadata(channel_id, viewer)
+        .await?;
+    let participants = state.service.get_channel_participants(channel_id).await?;
+    let messages = channel_messages_response(
+        &state,
+        params,
+        None,
+        channel_id,
+        &ChannelMessageFilters::default(),
+        None,
+    )
+    .await?
+    .0
+    .items;
+
+    Ok(Json(ApiChannelDetail {
+        channel_id,
+        channel_type: metadata.channel_type,
+        channel_name: metadata.channel_name,
+        participants: participants
+            .into_iter()
+            .map(ApiChannelParticipant::from)
+            .collect(),
+        messages,
+    }))
+}
+
 /// Handler for `GET /channels/{channel_id}/participants`.
 #[utoipa::path(
     get,
@@ -1281,6 +1386,38 @@ pub async fn get_channel_participants_handler<S: ChannelService, Svc: EntityAcce
             .map(ApiChannelParticipant::from)
             .collect(),
     ))
+}
+
+/// Handler for `POST /channels/preview`.
+#[utoipa::path(
+    post,
+    tag = "channels",
+    operation_id = "get_batch_channel_preview",
+    path = "/channels/preview",
+    request_body = GetBatchChannelPreviewRequest,
+    responses(
+        (status = 200, body = GetBatchChannelPreviewResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(err, skip_all)]
+pub async fn get_batch_channel_preview_handler<S: ChannelService, Svc: EntityAccessService>(
+    State(state): State<ChannelsRouterState<S, Svc>>,
+    MacroUserExtractor {
+        macro_user_id,
+        user_context,
+        ..
+    }: MacroUserExtractor,
+    Json(req): Json<GetBatchChannelPreviewRequest>,
+) -> Result<Json<GetBatchChannelPreviewResponse>, ChannelsHandlerErr> {
+    let org_id = user_context.organization_id.map(i64::from);
+    let previews = state
+        .service
+        .batch_get_channel_previews(macro_user_id, org_id, req.channel_ids)
+        .await?;
+    Ok(Json(GetBatchChannelPreviewResponse { previews }))
 }
 
 /// Handler for `GET /channels/attachments/{entity_type}/{entity_id}/references`.
@@ -1333,6 +1470,109 @@ pub async fn get_attachment_references_handler<S: ChannelService, Svc: EntityAcc
     }))
 }
 
+/// Handler for `GET /channels/activity`.
+#[utoipa::path(
+    get,
+    tag = "channels",
+    operation_id = "get_activity",
+    path = "/channels/activity",
+    responses(
+        (status = 200, body = Vec<ApiActivity>),
+        (status = 401, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(err, skip_all)]
+pub async fn get_activity_handler<S: ChannelService, Svc: EntityAccessService>(
+    State(state): State<ChannelsRouterState<S, Svc>>,
+    user: MacroUserExtractor,
+) -> Result<Json<Vec<ApiActivity>>, ChannelsHandlerErr> {
+    let activities = state
+        .service
+        .get_activities(user.macro_user_id.to_string())
+        .await?;
+    Ok(Json(
+        activities.into_iter().map(ApiActivity::from).collect(),
+    ))
+}
+
+/// Handler for `POST /channels/activity`.
+#[utoipa::path(
+    post,
+    tag = "channels",
+    operation_id = "post_activity",
+    path = "/channels/activity",
+    request_body = PostActivityRequest,
+    responses(
+        (status = 200, body = ApiActivity),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(err, skip_all)]
+pub async fn post_activity_handler<S: ChannelService, Svc: EntityAccessService>(
+    State(state): State<ChannelsRouterState<S, Svc>>,
+    user: MacroUserExtractor,
+    Json(req): Json<PostActivityRequest>,
+) -> Result<(StatusCode, Json<ApiActivity>), ChannelsHandlerErr> {
+    let channel_id = Uuid::parse_str(&req.channel_id)
+        .map_err(|_| ChannelsHandlerErr::BadRequest("Invalid channel_id"))?;
+    let activity = state
+        .service
+        .post_activity(
+            Sender::User(user.macro_user_id),
+            channel_id,
+            req.activity_type,
+        )
+        .await?;
+    Ok((StatusCode::OK, Json(ApiActivity::from(activity))))
+}
+
+/// Request body for `POST /channels/activity`.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct PostActivityRequest {
+    /// Channel id to record activity for.
+    pub channel_id: String,
+    /// The kind of activity to record.
+    pub activity_type: ActivityType,
+}
+
+/// A user's activity (view/interaction) within a channel.
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct ApiActivity {
+    /// Activity id.
+    id: Uuid,
+    /// User id.
+    user_id: String,
+    /// Channel id.
+    channel_id: Uuid,
+    /// When the activity row was created.
+    created_at: DateTime<Utc>,
+    /// When the activity row was last updated.
+    updated_at: DateTime<Utc>,
+    /// The last time the user viewed the channel.
+    viewed_at: Option<DateTime<Utc>>,
+    /// The last time the user interacted with the channel.
+    interacted_at: Option<DateTime<Utc>>,
+}
+
+impl From<Activity> for ApiActivity {
+    fn from(a: Activity) -> Self {
+        Self {
+            id: a.id,
+            user_id: a.user_id,
+            channel_id: a.channel_id,
+            created_at: a.created_at,
+            updated_at: a.updated_at,
+            viewed_at: a.viewed_at,
+            interacted_at: a.interacted_at,
+        }
+    }
+}
+
 /// Paginated response of channel messages.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ApiChannelMessagesPage {
@@ -1344,6 +1584,45 @@ pub struct ApiChannelMessagesPage {
     previous_cursor: Option<String>,
 }
 
+/// Public sender identity for channel messages.
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct ApiMessageSender {
+    /// Sender type.
+    #[serde(rename = "type")]
+    sender_type: ApiMessageSenderType,
+    /// Sender id without the storage namespace prefix.
+    id: String,
+}
+
+/// Public sender type.
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiMessageSenderType {
+    /// Macro user sender.
+    User,
+    /// Bot sender.
+    Bot,
+}
+
+impl ApiMessageSender {
+    fn from_storage_string(sender_id: &str) -> Self {
+        match Sender::parse_storage_str(sender_id) {
+            Ok(Sender::Bot(bot_id)) => Self {
+                sender_type: ApiMessageSenderType::Bot,
+                id: bot_id.as_uuid().to_string(),
+            },
+            Ok(Sender::User(user_id)) => Self {
+                sender_type: ApiMessageSenderType::User,
+                id: user_id.to_string(),
+            },
+            Err(_) => Self {
+                sender_type: ApiMessageSenderType::User,
+                id: sender_id.to_string(),
+            },
+        }
+    }
+}
+
 /// A top-level channel message with thread info.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ApiChannelMessage {
@@ -1353,6 +1632,8 @@ pub struct ApiChannelMessage {
     channel_id: Uuid,
     /// Sender user id.
     sender_id: String,
+    /// Structured sender identity.
+    sender: ApiMessageSender,
     /// Message content.
     content: String,
     /// When the message was created.
@@ -1376,6 +1657,7 @@ impl From<ChannelMessage> for ApiChannelMessage {
         Self {
             id: m.id,
             channel_id: m.channel_id,
+            sender: ApiMessageSender::from_storage_string(&m.sender_id),
             sender_id: m.sender_id,
             content: m.content,
             created_at: m.created_at,
@@ -1415,6 +1697,8 @@ pub struct ApiChannelContextMessage {
     thread_id: Option<Uuid>,
     /// Sender user id.
     sender_id: String,
+    /// Structured sender identity.
+    sender: ApiMessageSender,
     /// Message content.
     content: String,
     /// When the message was created.
@@ -1433,6 +1717,7 @@ impl From<ChannelContextMessage> for ApiChannelContextMessage {
             id: message.id,
             channel_id: message.channel_id,
             thread_id: message.thread_id,
+            sender: ApiMessageSender::from_storage_string(&message.sender_id),
             sender_id: message.sender_id,
             content: message.content,
             created_at: message.created_at,
@@ -1567,6 +1852,8 @@ pub struct ApiThreadReply {
     id: Uuid,
     /// Sender user id.
     sender_id: String,
+    /// Structured sender identity.
+    sender: ApiMessageSender,
     /// Reply content.
     content: String,
     /// When the reply was created.
@@ -1585,6 +1872,7 @@ impl From<ThreadReply> for ApiThreadReply {
     fn from(r: ThreadReply) -> Self {
         Self {
             id: r.id,
+            sender: ApiMessageSender::from_storage_string(&r.sender_id),
             sender_id: r.sender_id,
             content: r.content,
             created_at: r.created_at,
