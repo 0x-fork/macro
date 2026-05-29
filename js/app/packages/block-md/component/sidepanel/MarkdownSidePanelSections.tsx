@@ -54,6 +54,7 @@ import {
   Match,
   onCleanup,
   Show,
+  Suspense,
   Switch,
 } from 'solid-js';
 import { mdStore } from '../../signal/markdownBlockData';
@@ -911,9 +912,11 @@ function ReferencesSectionConditional(props: { documentId: string }) {
         title={<SidePanel.CountTitle label="References" count={count()} />}
         order={50}
       >
-        <div class="text-xs">
-          <References documentId={props.documentId} />
-        </div>
+        <Suspense fallback={<SidePanel.Loading />}>
+          <div class="text-xs">
+            <References documentId={props.documentId} />
+          </div>
+        </Suspense>
       </SidePanel.Section>
     </Show>
   );
