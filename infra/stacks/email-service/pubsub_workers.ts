@@ -83,6 +83,13 @@ export class EmailPubSubWorkers extends pulumi.ComponentResource {
       {
         tags,
         cluster: ecsClusterArn,
+        // Queue-consumer workers have no user traffic and no ALB health gate, so
+        // there's no value in `pulumi up` blocking ~3.5min for all tasks to reach
+        // steady state (observed: this service was the 207s long pole of the
+        // email deploy). Return once the new task definition is registered — the
+        // rollout still happens, and deploymentCircuitBreaker + alarms below guard
+        // it server-side. This takes the worker off the deploy's critical path.
+        continueBeforeSteadyState: true,
         networkConfiguration: {
           subnets: vpc.privateSubnetIds,
           securityGroups: [this.serviceSg.id],
