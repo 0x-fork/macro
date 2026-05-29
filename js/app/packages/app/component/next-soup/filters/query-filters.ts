@@ -14,6 +14,7 @@ export const QUERY_FILTERS_BASE: SoupItemsQueryFilters = {
   crm_company_filters: { company_ids: EXCLUDE },
   document_filters: { document_ids: EXCLUDE },
   email_filters: { email_thread_ids: EXCLUDE },
+  foreign_entity_filters: { ids: EXCLUDE },
   project_filters: { project_ids: EXCLUDE },
 };
 
@@ -83,6 +84,19 @@ export function filterSoupItemByRequestBody(
       { tag: 'crmCompany' },
       ({ data }) =>
         !isIdFilteredOut(body.crm_company_filters?.company_ids, data.id)
+    )
+    .with(
+      { tag: 'foreignEntity' },
+      ({ data }) =>
+        !isIdFilteredOut(body.foreign_entity_filters?.ids, data.id) &&
+        !isIdFilteredOut(
+          body.foreign_entity_filters?.foreign_entity_ids,
+          data.foreignEntityId
+        ) &&
+        !isValueFilteredOut(
+          body.foreign_entity_filters?.foreign_entity_sources,
+          data.foreignEntitySource
+        )
     )
     .exhaustive();
 }

@@ -17,6 +17,10 @@ use email::domain::{
     ports::EmailPreviewServiceReadOnly,
 };
 use entity_access::domain::models::{EntityAccessReceipt, MemberTeamRole};
+use foreign_entity::domain::{
+    models::{ForeignEntity, SourceId},
+    ports::{ForeignEntityListQuery, ForeignEntityService},
+};
 use frecency::domain::{
     models::{AggregateId, FrecencyPageRequest, JoinFrecency},
     ports::FrecencyQueryService,
@@ -34,6 +38,7 @@ use models_soup::{
         SoupAttachment, SoupContact, SoupEmailThreadPreview, SoupEnrichedEmailThreadPreview,
         SoupLabel,
     },
+    foreign_entity::SoupForeignEntity,
     item::SoupItem,
 };
 use serde::Serialize;
@@ -43,8 +48,21 @@ use uuid::Uuid;
 #[cfg(test)]
 mod tests;
 
+fn foreign_entity_to_soup_item(entity: ForeignEntity) -> SoupItem {
+    SoupItem::ForeignEntity(SoupForeignEntity {
+        id: entity.id,
+        foreign_entity_id: entity.foreign_entity_id,
+        foreign_entity_source: entity.foreign_entity_source,
+        metadata: entity.metadata,
+        stored_for_id: entity.stored_for_id,
+        stored_for_auth_entity: entity.stored_for_auth_entity,
+        created_at: entity.created_at,
+        updated_at: entity.updated_at,
+    })
+}
+
 /// struct which handles the actual implementation of soup with abstracted interfaces for mocking
-pub struct SoupImpl<T, U, V, C, K, Crm> {
+pub struct SoupImpl<T, U, V, C, K, Crm, F> {
     /// the interface for interacting with the db
     soup_storage: T,
     /// the interface for interacting with frecency
@@ -57,9 +75,11 @@ pub struct SoupImpl<T, U, V, C, K, Crm> {
     call_record_service: K,
     /// the interface for interacting with CRM (companies)
     crm_service: Crm,
+    /// the interface for interacting with foreign entities
+    foreign_entity_service: F,
 }
 
-impl<T, U, V, C, K, Crm> SoupImpl<T, U, V, C, K, Crm>
+impl<T, U, V, C, K, Crm, F> SoupImpl<T, U, V, C, K, Crm, F>
 where
     T: SoupRepo,
     anyhow::Error: From<T::Err>,
@@ -68,6 +88,7 @@ where
     C: ChannelsService,
     K: CallRecordQueryService,
     Crm: CrmService,
+    F: ForeignEntityService,
 {
     pub fn new(
         soup_storage: T,
@@ -76,6 +97,7 @@ where
         comms_service: C,
         call_record_service: K,
         crm_service: Crm,
+        foreign_entity_service: F,
     ) -> Self {
         SoupImpl {
             soup_storage,
@@ -84,6 +106,7 @@ where
             comms_service,
             call_record_service,
             crm_service,
+            foreign_entity_service,
         }
     }
 
@@ -432,9 +455,32 @@ where
                 })?,
         ))
     }
+
+    #[tracing::instrument(err, skip(self, source_ids, query))]
+    async fn handle_foreign_entity_request(
+        &self,
+        source_ids: Vec<SourceId>,
+        limit: u32,
+        query: Option<ForeignEntityListQuery>,
+    ) -> Result<impl Iterator<Item = FrecencySoupItem>, SoupErr> {
+        let Some(query) = query else {
+            return Ok(Either::Left(None.into_iter()));
+        };
+
+        Ok(Either::Right(
+            self.foreign_entity_service
+                .get_foreign_entities_for_user(source_ids, limit, query)
+                .await?
+                .into_iter()
+                .map(|entity| FrecencySoupItem {
+                    item: foreign_entity_to_soup_item(entity),
+                    frecency_score: None,
+                }),
+        ))
+    }
 }
 
-impl<T, U, V, C, K, Crm> SoupService for SoupImpl<T, U, V, C, K, Crm>
+impl<T, U, V, C, K, Crm, F> SoupService for SoupImpl<T, U, V, C, K, Crm, F>
 where
     T: SoupRepo,
     anyhow::Error: From<T::Err>,
@@ -443,6 +489,7 @@ where
     C: ChannelsService,
     K: CallRecordQueryService,
     Crm: CrmService,
+    F: ForeignEntityService,
 {
     #[tracing::instrument(err, skip(self, req, team_receipt))]
     async fn get_user_soup<R>(
@@ -460,6 +507,8 @@ where
 
         // Borrow before email's builder consumes team_receipt.
         let crm_company_request = req.build_crm_company_request(&team_receipt);
+        let foreign_entity_source_ids = req.build_foreign_entity_source_ids(team_receipt.as_ref());
+        let foreign_entity_query = req.build_foreign_entity_query();
         let email_request = req.build_email_request(team_receipt);
         let comms_request = req.build_comms_request();
         let call_request = req.build_call_request();
@@ -485,12 +534,19 @@ where
 
                 let crm_company_soup_fut = self.handle_crm_company_request(crm_company_request);
 
-                let (main_soup, email_soup, comms_soup, call_soup, crm_company_soup) = tokio::join!(
+                let foreign_entity_soup_fut = self.handle_foreign_entity_request(
+                    foreign_entity_source_ids,
+                    limit as u32,
+                    foreign_entity_query,
+                );
+
+                let (main_soup, email_soup, comms_soup, call_soup, crm_company_soup, foreign_entity_soup) = tokio::join!(
                     main_soup_fut,
                     email_soup_fut,
                     comms_soup_fut,
                     call_soup_fut,
                     crm_company_soup_fut,
+                    foreign_entity_soup_fut,
                 );
 
                 let page = main_soup?
@@ -498,6 +554,7 @@ where
                     .chain(comms_soup?)
                     .chain(call_soup?)
                     .chain(crm_company_soup?)
+                    .chain(foreign_entity_soup?)
                     .paginate_on(limit.into(), sort_method)
                     .filter_on(entity_filter.clone())
                     .sort_desc()

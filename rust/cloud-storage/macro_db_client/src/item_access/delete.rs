@@ -37,7 +37,8 @@ pub async fn delete_user_entity_access_bulk(
         | EntityType::Team
         | EntityType::Channel
         | EntityType::StaticFile
-        | EntityType::CrmCompany => {
+        | EntityType::CrmCompany
+        | EntityType::ForeignEntity => {
             anyhow::bail!("invalid entity type")
         }
         EntityType::Project => {

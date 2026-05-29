@@ -299,6 +299,10 @@ export function buildSingleEntityFilter(
       ...base,
       crm_company_filters: { company_ids: [entityId] },
     }))
+    .with('foreignEntity', () => ({
+      ...base,
+      foreign_entity_filters: { ids: [entityId] },
+    }))
     .exhaustive();
 }
 
@@ -323,8 +327,8 @@ export function optimisticUpdateSoupItemViewedAt(itemId: string) {
       data: { channel: { id: itemId }, viewed_at: now },
       frecency_score: current.frecency_score,
     });
-  } else if (current.tag === 'call') {
-    // Call records don't have viewedAt — skip.
+  } else if (current.tag === 'call' || current.tag === 'foreignEntity') {
+    // Call records and foreign entities don't have viewedAt — skip.
     return;
   } else {
     optimisticUpdateSoupEntity({

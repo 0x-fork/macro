@@ -129,6 +129,7 @@ export * from './entityReferenceSpecificMessageId';
 export * from './entityType';
 export * from './errorResponse';
 export * from './fileType';
+export * from './foreignEntityFilters';
 export * from './matchType';
 export * from './notificationFilters';
 export * from './notificationFiltersDone';

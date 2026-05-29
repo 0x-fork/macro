@@ -3,13 +3,14 @@
 
 use crate::{
     CallFilters, ChannelFilters, ChatFilters, CrmCompanyFilters, DocumentFilters, EmailFilters,
-    EntityFilters, ProjectFilters, PropertyFilter,
+    EntityFilters, ForeignEntityFilters, ProjectFilters, PropertyFilter,
     ast::{
         call::CallLiteral,
         channel::{ChannelLiteral, ChannelTypeFilter},
         chat::{ChatLiteral, ChatRole},
         crm_company::CrmCompanyLiteral,
         email::EmailLiteral,
+        foreign_entity::ForeignEntityLiteral,
         project::ProjectLiteral,
         properties::PropertiesLiteral,
     },
@@ -35,6 +36,8 @@ pub mod date;
 pub mod document;
 /// contains the ast literal value for emails
 pub mod email;
+/// contains the ast literal value for foreign entities
+pub mod foreign_entity;
 /// contains the ast literal value for projects
 pub mod project;
 /// contains the ast literal value for property-based filtering
@@ -200,6 +203,10 @@ pub struct EntityFilterAst {
     #[serde(default, rename = "ccf")]
     #[cfg_attr(feature = "schema", schema(value_type = serde_json::Value))]
     pub crm_company_filter: LiteralTree<CrmCompanyLiteral>,
+    /// the filters that should be applied to foreign entity records
+    #[serde(default, rename = "fef")]
+    #[cfg_attr(feature = "schema", schema(value_type = serde_json::Value))]
+    pub foreign_entity_filter: LiteralTree<ForeignEntityLiteral>,
     /// the filters that should be applied based on entity properties
     #[serde(default, rename = "propf")]
     #[cfg_attr(feature = "schema", schema(value_type = serde_json::Value))]
@@ -237,6 +244,10 @@ impl EntityFilterAst {
             call_filter: CallFilters::expand_ast(entity_filter.call_filters)?.map(Arc::new),
             crm_company_filter: CrmCompanyFilters::expand_ast(entity_filter.crm_company_filters)?
                 .map(Arc::new),
+            foreign_entity_filter: ForeignEntityFilters::expand_ast(
+                entity_filter.foreign_entity_filters,
+            )?
+            .map(Arc::new),
             properties_filter: Vec::<PropertyFilter>::expand_ast(entity_filter.property_filters)?
                 .map(Arc::new),
         }))
@@ -253,6 +264,7 @@ impl EntityFilterAst {
             channel_filter: None,
             call_filter: None,
             crm_company_filter: None,
+            foreign_entity_filter: None,
             properties_filter: None,
         }
     }
@@ -268,6 +280,7 @@ impl IsEmpty for EntityFilterAst {
             channel_filter,
             call_filter,
             crm_company_filter,
+            foreign_entity_filter,
             properties_filter,
         } = self;
         document_filter.is_none()
@@ -277,6 +290,7 @@ impl IsEmpty for EntityFilterAst {
             && channel_filter.is_none()
             && call_filter.is_none()
             && crm_company_filter.is_none()
+            && foreign_entity_filter.is_none()
             && properties_filter.is_none()
     }
 }
