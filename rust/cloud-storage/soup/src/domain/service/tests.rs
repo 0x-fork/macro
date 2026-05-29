@@ -396,6 +396,7 @@ async fn simple_soup_includes_foreign_entities() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
         foreign_entity_service.clone(),
     )
     .get_user_soup(
@@ -476,6 +477,7 @@ async fn frecency_soup_does_not_query_foreign_entities() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
         foreign_entity_service.clone(),
     )
     .get_user_soup(
@@ -521,6 +523,7 @@ async fn team_receipt_contributes_team_foreign_entity_source_id() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
         foreign_entity_service.clone(),
     )
     .get_user_soup(
@@ -576,6 +579,7 @@ async fn foreign_entity_filter_suppresses_non_matching_foreign_entities() {
         NoopEmailPreviewService,
         NoopCommsService,
         NoopCallRecordQueryService,
+        NoOpCrmService,
         foreign_entity_service.clone(),
     )
     .get_user_soup(
