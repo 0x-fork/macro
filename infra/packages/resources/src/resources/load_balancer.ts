@@ -41,6 +41,18 @@ export function serviceLoadBalancer(
       healthCheck: {
         path: healthCheckPath,
         protocol: 'HTTP',
+        // A new task is marked healthy after `healthyThreshold` consecutive
+        // passes at `interval` seconds. The ALB defaults (interval 30s,
+        // healthyThreshold ~5) meant ~150s before a freshly deployed task went
+        // healthy, and `pulumi up` blocks on the ECS service reaching steady
+        // state — so that wait was essentially the whole deploy.
+        interval: 10,
+        timeout: 5,
+        healthyThreshold: 2, // ~20s to healthy instead of ~150s
+        // Kill window stays generous (10 × 10s = 100s) so a slow-booting
+        // service is never replaced before it can start serving /health —
+        // at least as much startup tolerance as the previous default.
+        unhealthyThreshold: 10,
       },
       tags,
     },
