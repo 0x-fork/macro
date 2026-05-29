@@ -136,12 +136,11 @@ pub trait ChannelRepo: Send + Sync + 'static {
     ) -> impl Future<Output = Result<ChannelMetadata, Self::Err>> + Send;
 
     /// Batch fetch channel preview rows for the requested ids, computing
-    /// per-channel access for the given viewer/org.
+    /// per-channel access for the given viewer.
     fn batch_get_channel_previews(
         &self,
         channel_ids: &[String],
         viewer_user_id: &str,
-        org_id: Option<i64>,
     ) -> impl Future<Output = Result<Vec<ChannelPreviewRow>, Self::Err>> + Send;
 
     /// Resolve a channel's display name from the viewer's perspective.
@@ -162,7 +161,6 @@ pub trait ChannelRepo: Send + Sync + 'static {
     fn create_channel(
         &self,
         owner_id: String,
-        org_id: Option<i64>,
         req: CreateChannelRequest,
     ) -> impl Future<Output = Result<Uuid, Self::Err>> + Send;
 
@@ -419,7 +417,6 @@ pub trait ChannelService: Send + Sync + 'static {
     fn batch_get_channel_previews(
         &self,
         _viewer_user_id: MacroUserIdStr<'static>,
-        _org_id: Option<i64>,
         _channel_ids: Vec<String>,
     ) -> impl Future<Output = Result<Vec<ChannelPreview>, ChannelMessagesErr>> + Send {
         async move { Ok(Vec::new()) }
@@ -489,7 +486,6 @@ pub trait ChannelService: Send + Sync + 'static {
     fn create_channel(
         &self,
         _actor: Sender,
-        _actor_org_id: Option<i64>,
         _req: CreateChannelRequest,
     ) -> impl Future<Output = Result<CreateChannelResponse, ChannelMutationErr>> + Send {
         async move {

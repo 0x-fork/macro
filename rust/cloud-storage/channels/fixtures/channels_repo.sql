@@ -1,6 +1,6 @@
 -- Fixture for channels outbound repo integration tests.
 --
--- Channel: ch1 (public, in org 1)
+-- Channel: ch1 (public)
 -- Top-level messages: msg1 (oldest), msg2, msg3 (newest)
 -- msg1 has a thread with 4 replies (r1..r4), reactions, and an attachment
 -- msg2 is soft-deleted but has an active reply → should still appear in message listings
@@ -13,10 +13,10 @@
 -- Participants: owner, admin, member (active), left_user (left)
 
 -- channels
-INSERT INTO comms_channels (id, name, channel_type, org_id, owner_id, created_at, updated_at) VALUES
-  ('00000000-0000-0000-0000-000000000c01', 'test-channel', 'public', NULL, 'macro|user-a@test.com',
+INSERT INTO comms_channels (id, name, channel_type, owner_id, created_at, updated_at) VALUES
+  ('00000000-0000-0000-0000-000000000c01', 'test-channel', 'public', 'macro|user-a@test.com',
    '2024-01-01 00:00:00+00', '2024-01-01 00:00:00+00'),
-  ('00000000-0000-0000-0000-000000000c02', 'other-channel', 'public', NULL, 'macro|user-b@test.com',
+  ('00000000-0000-0000-0000-000000000c02', 'other-channel', 'public', 'macro|user-b@test.com',
    '2024-01-01 00:00:00+00', '2024-01-01 00:00:00+00');
 
 -- top-level messages in ch1 (thread_id IS NULL)

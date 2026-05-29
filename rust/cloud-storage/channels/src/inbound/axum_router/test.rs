@@ -521,7 +521,6 @@ impl ChannelService for RecordingMutationService {
     async fn create_channel(
         &self,
         _actor: Sender,
-        _actor_org_id: Option<i64>,
         _req: CreateChannelRequest,
     ) -> Result<CreateChannelResponse, ChannelMutationErr> {
         Ok(CreateChannelResponse {

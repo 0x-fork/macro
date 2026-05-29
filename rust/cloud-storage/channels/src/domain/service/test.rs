@@ -354,7 +354,6 @@ impl ChannelRepo for FakeMutationRepo {
             id: channel_id,
             name: Some("Project".to_string()),
             channel_type: ChannelType::Private,
-            org_id: None,
             team_id: None,
         })
     }
@@ -374,7 +373,6 @@ impl ChannelRepo for FakeMutationRepo {
         &self,
         _channel_ids: &[String],
         _viewer_user_id: &str,
-        _org_id: Option<i64>,
     ) -> Result<Vec<crate::domain::models::ChannelPreviewRow>, Self::Err> {
         Ok(vec![])
     }
@@ -394,7 +392,6 @@ impl ChannelRepo for FakeMutationRepo {
     async fn create_channel(
         &self,
         _owner_id: String,
-        _org_id: Option<i64>,
         _req: crate::domain::models::CreateChannelRequest,
     ) -> Result<Uuid, Self::Err> {
         Ok(self.state.lock().unwrap().channel_id)

@@ -356,11 +356,7 @@ pub async fn create_channel_handler<S: ChannelService, Svc: EntityAccessService>
 ) -> Result<(StatusCode, Json<CreateChannelResponse>), ChannelsHandlerErr> {
     let res = state
         .service
-        .create_channel(
-            Sender::User(user.macro_user_id),
-            user.user_context.organization_id.map(i64::from),
-            req,
-        )
+        .create_channel(Sender::User(user.macro_user_id), req)
         .await?;
     Ok((StatusCode::OK, Json(res)))
 }
@@ -1405,17 +1401,12 @@ pub async fn get_channel_participants_handler<S: ChannelService, Svc: EntityAcce
 #[tracing::instrument(err, skip_all)]
 pub async fn get_batch_channel_preview_handler<S: ChannelService, Svc: EntityAccessService>(
     State(state): State<ChannelsRouterState<S, Svc>>,
-    MacroUserExtractor {
-        macro_user_id,
-        user_context,
-        ..
-    }: MacroUserExtractor,
+    MacroUserExtractor { macro_user_id, .. }: MacroUserExtractor,
     Json(req): Json<GetBatchChannelPreviewRequest>,
 ) -> Result<Json<GetBatchChannelPreviewResponse>, ChannelsHandlerErr> {
-    let org_id = user_context.organization_id.map(i64::from);
     let previews = state
         .service
-        .batch_get_channel_previews(macro_user_id, org_id, req.channel_ids)
+        .batch_get_channel_previews(macro_user_id, req.channel_ids)
         .await?;
     Ok(Json(GetBatchChannelPreviewResponse { previews }))
 }

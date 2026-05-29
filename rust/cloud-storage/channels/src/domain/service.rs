@@ -247,7 +247,6 @@ where
     async fn create_channel(
         &self,
         actor: Sender,
-        actor_org_id: Option<i64>,
         req: crate::domain::models::CreateChannelRequest,
     ) -> Result<crate::domain::models::CreateChannelResponse, ChannelMutationErr> {
         let actor = require_user_actor(&actor)?;
@@ -273,10 +272,6 @@ where
             ));
         }
 
-        let org_id = match req.channel_type {
-            ChannelType::Organization => actor_org_id,
-            _ => None,
-        };
         let participants = lower_macro_users(&req.participants);
         if participants.is_empty() {
             return Err(ChannelMutationErr::BadRequest(
@@ -289,7 +284,7 @@ where
         };
 
         let channel_id = self
-            .create_channel_record(actor.as_ref().to_string(), org_id, create_req)
+            .create_channel_record(actor.as_ref().to_string(), create_req)
             .await?;
 
         self.events.dispatch(ChannelEvent::ChannelCreated {
@@ -339,7 +334,6 @@ where
         self.get_or_create_channel(
             existing_channel_id,
             user_id.clone(),
-            None,
             crate::domain::models::CreateChannelRequest {
                 name: None,
                 channel_type: ChannelType::DirectMessage,
@@ -376,7 +370,6 @@ where
         self.get_or_create_channel(
             existing_channel_id,
             user_id,
-            None,
             crate::domain::models::CreateChannelRequest {
                 name: None,
                 channel_type: ChannelType::Private,
@@ -930,11 +923,6 @@ where
             .await
             .map_err(|e| ChannelMutationErr::Repo(e.into()))?;
         match (info.channel_type, participants.len()) {
-            (ChannelType::Organization, _) => {
-                return Err(ChannelMutationErr::BadRequest(
-                    "cannot leave organization channel".to_string(),
-                ));
-            }
             (ChannelType::Private, 2) | (ChannelType::DirectMessage, _) => {
                 return Err(ChannelMutationErr::BadRequest(
                     "cannot leave channel with only 2 participants".to_string(),
@@ -958,11 +946,10 @@ where
     async fn create_channel_record(
         &self,
         owner_id: String,
-        org_id: Option<i64>,
         req: crate::domain::models::CreateChannelRequest,
     ) -> Result<Uuid, ChannelMutationErr> {
         self.repo
-            .create_channel(owner_id, org_id, req)
+            .create_channel(owner_id, req)
             .await
             .map_err(|e| ChannelMutationErr::Repo(e.into()))
     }
@@ -971,7 +958,6 @@ where
         &self,
         existing_channel_id: Option<Uuid>,
         owner_id: String,
-        org_id: Option<i64>,
         create_req: crate::domain::models::CreateChannelRequest,
     ) -> Result<GetOrCreateChannelResponse, ChannelMutationErr> {
         if let Some(channel_id) = existing_channel_id {
@@ -986,9 +972,7 @@ where
             created_channel_participant_ids(&owner_id, &create_req.participants)?;
         let owner_sender = Sender::parse_storage_str(&owner_id)
             .map_err(|err| ChannelMutationErr::BadRequest(format!("invalid owner id: {err}")))?;
-        let channel_id = self
-            .create_channel_record(owner_id, org_id, create_req)
-            .await?;
+        let channel_id = self.create_channel_record(owner_id, create_req).await?;
         self.events.dispatch(ChannelEvent::ChannelCreated {
             channel_id,
             actor: owner_sender,
@@ -1271,12 +1255,11 @@ where
     async fn batch_get_channel_previews(
         &self,
         viewer_user_id: MacroUserIdStr<'static>,
-        org_id: Option<i64>,
         channel_ids: Vec<String>,
     ) -> Result<Vec<ChannelPreview>, ChannelMessagesErr> {
         let rows = self
             .repo
-            .batch_get_channel_previews(&channel_ids, viewer_user_id.as_ref(), org_id)
+            .batch_get_channel_previews(&channel_ids, viewer_user_id.as_ref())
             .await
             .map_err(anyhow::Error::from)?;
 
@@ -1484,10 +1467,9 @@ where
     async fn create_channel(
         &self,
         actor: Sender,
-        actor_org_id: Option<i64>,
         req: crate::domain::models::CreateChannelRequest,
     ) -> Result<crate::domain::models::CreateChannelResponse, ChannelMutationErr> {
-        ChannelServiceImpl::create_channel(self, actor, actor_org_id, req).await
+        ChannelServiceImpl::create_channel(self, actor, req).await
     }
 
     async fn get_or_create_dm(

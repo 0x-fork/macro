@@ -518,8 +518,6 @@ pub struct ThreadReplyRow {
 pub enum ChannelType {
     /// Public channel.
     Public,
-    /// Organization-wide channel.
-    Organization,
     /// Private group channel.
     Private,
     /// One-to-one direct message channel.
@@ -900,8 +898,6 @@ pub struct ChannelInfo {
     pub name: Option<String>,
     /// Channel type.
     pub channel_type: ChannelType,
-    /// Organization id.
-    pub org_id: Option<i64>,
     /// Team id.
     pub team_id: Option<Uuid>,
 }

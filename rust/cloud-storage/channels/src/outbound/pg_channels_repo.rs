@@ -198,7 +198,6 @@ struct ChannelInfoRow {
     id: Uuid,
     name: Option<String>,
     channel_type: ChannelType,
-    org_id: Option<i64>,
     team_id: Option<Uuid>,
 }
 
@@ -208,7 +207,6 @@ struct ChannelPreviewQueryRow {
     id: Uuid,
     name: Option<String>,
     channel_type: ChannelType,
-    org_id: Option<i64>,
     team_id: Option<Uuid>,
     has_access: bool,
 }
@@ -474,10 +472,6 @@ fn static_channel_name(
     }
 
     match channel_type {
-        ChannelType::Organization => {
-            tracing::warn!(channel_id=%channel_id, "organization channel should have a name");
-            "Organization".to_string()
-        }
         ChannelType::Public => {
             tracing::warn!(channel_id=%channel_id, "public channel should have a name");
             "Public".to_string()
@@ -496,9 +490,11 @@ async fn resolve_channel_display_name(
     viewer_user_id: MacroUserIdStr<'_>,
 ) -> anyhow::Result<String> {
     match info.channel_type {
-        ChannelType::Organization | ChannelType::Public | ChannelType::Team => Ok(
-            static_channel_name(info.channel_type, info.name.as_deref(), info.id),
-        ),
+        ChannelType::Public | ChannelType::Team => Ok(static_channel_name(
+            info.channel_type,
+            info.name.as_deref(),
+            info.id,
+        )),
         ChannelType::Private
             if info
                 .name
@@ -1558,7 +1554,7 @@ impl ChannelRepo for PgChannelsRepo {
         let row = sqlx::query_as!(
             ChannelInfoRow,
             r#"
-            SELECT id, name, channel_type AS "channel_type: ChannelType", org_id, team_id
+            SELECT id, name, channel_type AS "channel_type: ChannelType", team_id
             FROM comms_channels
             WHERE id = $1
             "#,
@@ -1570,7 +1566,6 @@ impl ChannelRepo for PgChannelsRepo {
             id: row.id,
             name: row.name,
             channel_type: row.channel_type,
-            org_id: row.org_id,
             team_id: row.team_id,
         })
     }
@@ -1592,7 +1587,6 @@ impl ChannelRepo for PgChannelsRepo {
         &self,
         channel_ids: &[String],
         viewer_user_id: &str,
-        org_id: Option<i64>,
     ) -> Result<Vec<ChannelPreviewRow>, Self::Err> {
         let rows = sqlx::query_as!(
             ChannelPreviewQueryRow,
@@ -1601,12 +1595,9 @@ impl ChannelRepo for PgChannelsRepo {
                 c.id,
                 c.name,
                 c.channel_type AS "channel_type: ChannelType",
-                c.org_id,
                 c.team_id,
                 CASE WHEN (
                     c.channel_type = 'public'
-                    OR
-                    (c.channel_type = 'organization' AND $3::bigint IS NOT NULL AND c.org_id = $3)
                     OR
                     (c.channel_type IN ('private', 'direct_message', 'team') AND EXISTS (
                         SELECT 1 FROM comms_channel_participants cp
@@ -1617,11 +1608,9 @@ impl ChannelRepo for PgChannelsRepo {
                 ) THEN true ELSE false END AS "has_access!: bool"
             FROM comms_channels c
             WHERE c.id::text = ANY($1)
-              AND (c.channel_type != 'organization' OR $3::bigint IS NOT NULL)
             "#,
             channel_ids,
             viewer_user_id,
-            org_id,
         )
         .fetch_all(&self.pool)
         .await
@@ -1634,7 +1623,6 @@ impl ChannelRepo for PgChannelsRepo {
                     id: row.id,
                     name: row.name,
                     channel_type: row.channel_type,
-                    org_id: row.org_id,
                     team_id: row.team_id,
                 },
                 has_access: row.has_access,
@@ -1670,20 +1658,18 @@ impl ChannelRepo for PgChannelsRepo {
     async fn create_channel(
         &self,
         owner_id: String,
-        org_id: Option<i64>,
         req: CreateChannelRequest,
     ) -> Result<Uuid, Self::Err> {
         let channel_id = macro_uuid::generate_uuid_v7();
         let mut transaction = self.pool.begin().await?;
         sqlx::query!(
             r#"
-            INSERT INTO comms_channels (id, name, owner_id, org_id, team_id, channel_type)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO comms_channels (id, name, owner_id, team_id, channel_type)
+            VALUES ($1, $2, $3, $4, $5)
             "#,
             channel_id,
             req.name.as_deref(),
             &owner_id,
-            org_id,
             req.team_id,
             req.channel_type as ChannelType,
         )
