@@ -78,6 +78,29 @@ pub struct CrmDomain {
     pub created_at: DateTime<Utc>,
 }
 
+/// A contact (individual external party) belonging to a [`CrmCompany`].
+/// Tracked per `(company_id, email)`; `name` is the first non-NULL display
+/// name observed across the team's populates.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CrmContact {
+    /// The id of the contact record
+    pub id: uuid::Uuid,
+    /// The id of the company the contact belongs to
+    pub company_id: uuid::Uuid,
+    /// The contact's email address
+    pub email: String,
+    /// Display name observed for the contact, if any
+    pub name: Option<String>,
+    /// Earliest known interaction with this contact
+    pub first_interaction: DateTime<Utc>,
+    /// Most recent known interaction with this contact
+    pub last_interaction: DateTime<Utc>,
+    /// When the contact record was created
+    pub created_at: DateTime<Utc>,
+    /// When the contact record was last updated
+    pub updated_at: DateTime<Utc>,
+}
+
 /// Result of [`crate::domain::companies_repo::CompaniesRepository::crm_scope_precheck`].
 ///
 /// Carries the per-input authorization status the caller (`EmailService`)
@@ -145,6 +168,16 @@ pub enum CrmError {
     /// Contact id is not owned by the requesting team.
     #[error("crm contact not found for team")]
     ContactNotFoundForTeam,
+    /// Comment thread id does not exist, is deleted, or does not belong
+    /// to the addressed entity / team.
+    #[error("crm comment thread not found")]
+    ThreadNotFound,
+    /// Comment id does not exist or does not belong to the team.
+    #[error("crm comment not found for team")]
+    CommentNotFound,
+    /// Request rejected for a client-side reason (e.g. blank comment text).
+    #[error("{0}")]
+    InvalidRequest(String),
     /// Tried to mutate a CRM company in a way that contradicts its
     /// `hidden = true` state — currently raised when attempting to
     /// re-enable `email_sync` on a hidden company.

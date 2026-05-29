@@ -1,12 +1,14 @@
 //! The CrmService trait and its default implementation.
 
 use crate::domain::{
+    comment::{CrmComment, CrmCommentEntityType, CrmCommentThread, DeleteCrmCommentResult},
     companies_repo::{CompaniesRepository, CrmCompanyListSort},
     company_metadata_resolver::CompanyMetadataResolver,
     generic_email_domains::is_generic_email_domain,
-    model::{CrmCompany, CrmCompanyForSoup, CrmError, CrmScopePrecheck},
+    model::{CrmCompany, CrmCompanyForSoup, CrmContact, CrmError, CrmScopePrecheck},
 };
 use chrono::{DateTime, Utc};
+use serde_json::Value;
 
 /// The CrmService exposes operations over CRM records (companies, their
 /// domains and contacts).
@@ -186,6 +188,58 @@ pub trait CrmService: Clone + Send + Sync + 'static {
         sort: CrmCompanyListSort,
         limit: i64,
     ) -> impl Future<Output = Result<Vec<CrmCompanyForSoup>, CrmError>> + Send;
+
+    /// List a company's non-hidden contacts, scoped to `team_id`. See
+    /// [`CompaniesRepository::list_contacts_for_company`].
+    fn list_contacts_for_company(
+        &self,
+        team_id: &uuid::Uuid,
+        company_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Vec<CrmContact>, CrmError>> + Send;
+
+    /// Create a comment on a CRM company or contact, optionally as a reply
+    /// to an existing thread. See
+    /// [`CompaniesRepository::create_crm_comment`]. Authorization (team
+    /// membership) is the caller's responsibility; the entity-ownership
+    /// scoping is enforced in the repository.
+    #[allow(clippy::too_many_arguments)]
+    fn create_crm_comment(
+        &self,
+        team_id: &uuid::Uuid,
+        entity_type: CrmCommentEntityType,
+        entity_id: &uuid::Uuid,
+        owner: &str,
+        thread_id: Option<uuid::Uuid>,
+        thread_metadata: Option<Value>,
+        text: &str,
+        metadata: Option<Value>,
+    ) -> impl Future<Output = Result<CrmCommentThread, CrmError>> + Send;
+
+    /// List a CRM entity's comment threads. See
+    /// [`CompaniesRepository::get_crm_comment_threads`].
+    fn get_crm_comment_threads(
+        &self,
+        team_id: &uuid::Uuid,
+        entity_type: CrmCommentEntityType,
+        entity_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Vec<CrmCommentThread>, CrmError>> + Send;
+
+    /// Edit a CRM comment's text, scoped to `team_id`. See
+    /// [`CompaniesRepository::edit_crm_comment`].
+    fn edit_crm_comment(
+        &self,
+        team_id: &uuid::Uuid,
+        comment_id: &uuid::Uuid,
+        text: &str,
+    ) -> impl Future<Output = Result<CrmComment, CrmError>> + Send;
+
+    /// Soft-delete a CRM comment, scoped to `team_id`. See
+    /// [`CompaniesRepository::delete_crm_comment`].
+    fn delete_crm_comment(
+        &self,
+        team_id: &uuid::Uuid,
+        comment_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<DeleteCrmCommentResult, CrmError>> + Send;
 }
 
 /// Implementation of [`CrmService`] backed by a [`CompaniesRepository`]
@@ -445,6 +499,79 @@ where
             .list_companies_for_soup(team_id, company_ids, sort, limit)
             .await
     }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn list_contacts_for_company(
+        &self,
+        team_id: &uuid::Uuid,
+        company_id: &uuid::Uuid,
+    ) -> Result<Vec<CrmContact>, CrmError> {
+        self.companies_repository
+            .list_contacts_for_company(team_id, company_id)
+            .await
+    }
+
+    #[tracing::instrument(skip(self, thread_metadata, text, metadata), err)]
+    #[allow(clippy::too_many_arguments)]
+    async fn create_crm_comment(
+        &self,
+        team_id: &uuid::Uuid,
+        entity_type: CrmCommentEntityType,
+        entity_id: &uuid::Uuid,
+        owner: &str,
+        thread_id: Option<uuid::Uuid>,
+        thread_metadata: Option<Value>,
+        text: &str,
+        metadata: Option<Value>,
+    ) -> Result<CrmCommentThread, CrmError> {
+        self.companies_repository
+            .create_crm_comment(
+                team_id,
+                entity_type,
+                entity_id,
+                owner,
+                thread_id,
+                thread_metadata,
+                text,
+                metadata,
+            )
+            .await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_crm_comment_threads(
+        &self,
+        team_id: &uuid::Uuid,
+        entity_type: CrmCommentEntityType,
+        entity_id: &uuid::Uuid,
+    ) -> Result<Vec<CrmCommentThread>, CrmError> {
+        self.companies_repository
+            .get_crm_comment_threads(team_id, entity_type, entity_id)
+            .await
+    }
+
+    #[tracing::instrument(skip(self, text), err)]
+    async fn edit_crm_comment(
+        &self,
+        team_id: &uuid::Uuid,
+        comment_id: &uuid::Uuid,
+        text: &str,
+    ) -> Result<CrmComment, CrmError> {
+        self.companies_repository
+            .edit_crm_comment(team_id, comment_id, text)
+            .await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn delete_crm_comment(
+        &self,
+        team_id: &uuid::Uuid,
+        comment_id: &uuid::Uuid,
+    ) -> Result<DeleteCrmCommentResult, CrmError> {
+        self.companies_repository
+            .delete_crm_comment(team_id, comment_id)
+            .await
+    }
 }
 
 /// No-op [`CrmService`] for binaries that need to satisfy the bound
@@ -542,5 +669,54 @@ impl CrmService for NoOpCrmService {
         _limit: i64,
     ) -> Result<Vec<CrmCompanyForSoup>, CrmError> {
         Ok(Vec::new())
+    }
+
+    async fn list_contacts_for_company(
+        &self,
+        _team_id: &uuid::Uuid,
+        _company_id: &uuid::Uuid,
+    ) -> Result<Vec<CrmContact>, CrmError> {
+        Ok(Vec::new())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn create_crm_comment(
+        &self,
+        _team_id: &uuid::Uuid,
+        _entity_type: CrmCommentEntityType,
+        _entity_id: &uuid::Uuid,
+        _owner: &str,
+        _thread_id: Option<uuid::Uuid>,
+        _thread_metadata: Option<Value>,
+        _text: &str,
+        _metadata: Option<Value>,
+    ) -> Result<CrmCommentThread, CrmError> {
+        unimplemented!("NoOpCrmService.create_crm_comment")
+    }
+
+    async fn get_crm_comment_threads(
+        &self,
+        _team_id: &uuid::Uuid,
+        _entity_type: CrmCommentEntityType,
+        _entity_id: &uuid::Uuid,
+    ) -> Result<Vec<CrmCommentThread>, CrmError> {
+        Ok(Vec::new())
+    }
+
+    async fn edit_crm_comment(
+        &self,
+        _team_id: &uuid::Uuid,
+        _comment_id: &uuid::Uuid,
+        _text: &str,
+    ) -> Result<CrmComment, CrmError> {
+        unimplemented!("NoOpCrmService.edit_crm_comment")
+    }
+
+    async fn delete_crm_comment(
+        &self,
+        _team_id: &uuid::Uuid,
+        _comment_id: &uuid::Uuid,
+    ) -> Result<DeleteCrmCommentResult, CrmError> {
+        unimplemented!("NoOpCrmService.delete_crm_comment")
     }
 }
