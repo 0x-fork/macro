@@ -33,11 +33,9 @@ import { observedSize } from '@core/directive/observedSize';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import { useTouchOutsideToDismissKeyboard } from '@core/mobile/useTouchOutsideToDismissKeyboard';
-import { trackMention } from '@core/signal/mention';
 import { tryMacroId, useDisplayName } from '@core/user';
 import { plural } from '@core/util/string';
 import { handleFileFolderDrop } from '@core/util/upload';
-
 import { ToggleButton as KToggleButton } from '@kobalte/core/toggle-button';
 import { $generateHtmlFromNodes } from '@lexical/html';
 import {
@@ -48,11 +46,9 @@ import { logger } from '@observability';
 import ReplyAll from '@phosphor/arrow-bend-double-up-left.svg';
 import Reply from '@phosphor/arrow-bend-up-left.svg';
 import Forward from '@phosphor/arrow-bend-up-right.svg';
-
 import ChevronDown from '@phosphor/caret-down.svg';
 import Paperclip from '@phosphor/paperclip.svg';
 import Quotes from '@phosphor/quotes.svg';
-
 import TextAa from '@phosphor/text-aa.svg';
 import Trash from '@phosphor/trash.svg';
 import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
@@ -74,6 +70,7 @@ import {
   useUnscheduleMessageMutation,
 } from '@queries/email/thread';
 import { invalidateSoupEntity } from '@queries/soup/cache';
+import { useTrackMention } from '@queries/storage/mentions';
 import { emailClient } from '@service-email/client';
 import type {
   ApiDraftOutputDbId,
@@ -427,6 +424,7 @@ export function BaseInput(props: {
     return getOrInitEmailFormContext();
   });
   const blockId = useBlockId();
+  const trackMention = useTrackMention();
   const emailLinksQuery = useEmailLinksQuery();
 
   const [bodyMacro, setBodyMacro] = createSignal<string>('');

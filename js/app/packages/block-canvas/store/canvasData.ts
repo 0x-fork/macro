@@ -98,7 +98,7 @@ export const useDeleteNode = sharedInstance(() => {
 
     // Handle mention cleanup before deletion
     if (blockId) {
-      untrackMentionsInTextNode_(node, blockId, id);
+      untrackMentionsInTextNode_(node, id);
     }
 
     node.edges.forEach((edgeId) => {

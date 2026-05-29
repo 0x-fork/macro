@@ -3,11 +3,11 @@ import {
   isEntityMentionNode,
 } from '@block-canvas/model/CanvasModel';
 import { useTextNodeEditors } from '@block-canvas/store/textNodeEditors';
-import { untrackMention } from '@core/signal/mention';
 import {
   $isDocumentMentionNode,
   type DocumentMentionNode,
 } from '@lexical-core/nodes/DocumentMentionNode';
+import { untrackMention } from '@queries/storage/mentions';
 import { $getRoot, $isElementNode, type LexicalEditor } from 'lexical';
 
 export interface MentionInfo {
@@ -45,13 +45,12 @@ function extractMentionsFromEditor(editor: LexicalEditor): MentionInfo[] {
 
 export async function untrackMentionsInTextNode(
   node: CanvasNode,
-  blockId: string,
   nodeId: string
 ) {
   const getTextNodeEditor = useTextNodeEditors().getEditor;
   if (isEntityMentionNode(node) && node.entityType === 'document') {
     if (node.mentionUuid) {
-      await untrackMention(blockId, node.mentionUuid);
+      await untrackMention(node.mentionUuid);
     }
   }
 
@@ -61,7 +60,7 @@ export async function untrackMentionsInTextNode(
     if (editor) {
       const mentions = extractMentionsFromEditor(editor);
       await Promise.all(
-        mentions.map(({ mentionUuid }) => untrackMention(blockId, mentionUuid))
+        mentions.map(({ mentionUuid }) => untrackMention(mentionUuid))
       );
     }
   }

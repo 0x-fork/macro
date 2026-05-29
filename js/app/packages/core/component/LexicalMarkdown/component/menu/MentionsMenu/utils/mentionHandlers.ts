@@ -1,7 +1,7 @@
 import type { EntityItem } from '@core/context/quickAccess';
-import { trackMention } from '@core/signal/mention';
 import type { DateOption } from '@core/util/dateSearch/useDateSearch';
 import type { ChannelEntity, EmailEntity } from '@entity';
+import { trackMention } from '@queries/storage/mentions';
 import { REMOVE_INLINE_SEARCH_COMMAND } from '../../../../plugins';
 import {
   INSERT_DATE_MENTION_COMMAND,

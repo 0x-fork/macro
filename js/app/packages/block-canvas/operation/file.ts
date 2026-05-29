@@ -1,7 +1,7 @@
 import { createBlockSignal, useBlockId } from '@core/block';
 import { DEV_MODE_ENV } from '@core/constant/featureFlags';
-import { trackMention } from '@core/signal/mention';
 import { copiedItem } from '@core/state/clipboard';
+import { useTrackMention } from '@queries/storage/mentions';
 import type { ItemType } from '@service-storage/client';
 import { unwrap } from 'solid-js/store';
 import { OPERATION_LOGGING, Tools } from '../constants';
@@ -47,6 +47,7 @@ export const useFile = sharedInstance((): Operator => {
   const history = useCanvasHistory();
   const highestOrder = highestOrderSignal.get;
   const blockId = useBlockId();
+  const trackMention = useTrackMention();
 
   const selectedFile = selectedFileSignal.get;
   const setSelectedFile = selectedFileSignal.set;

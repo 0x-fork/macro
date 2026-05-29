@@ -682,23 +682,21 @@ export const storageServiceClient = {
     ).map((result) => result);
   },
 
-  async createEntityMention(args: CreateEntityMentionRequest, token?: string) {
+  async createEntityMention(args: CreateEntityMentionRequest) {
     return (
       await dssFetch<CreateEntityMentionResponse>(`/channels/mentions`, {
         method: 'POST',
         body: JSON.stringify(args),
-        headers: token ? { 'x-permissions-token': token } : undefined,
       })
     ).map((result) => result);
   },
 
-  async deleteEntityMention(args: WithMentionId, token?: string) {
+  async deleteEntityMention(args: WithMentionId) {
     return (
       await dssFetch<DeleteEntityMentionResponse>(
         `/channels/mentions/${args.mention_id}`,
         {
           method: 'DELETE',
-          headers: token ? { 'x-permissions-token': token } : undefined,
         }
       )
     ).map((result) => result);

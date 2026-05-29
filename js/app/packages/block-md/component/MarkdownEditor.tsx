@@ -132,7 +132,6 @@ import {
   blockLoroManagerSignal,
   blockSourceSignal,
 } from '@core/signal/load';
-import { trackMention } from '@core/signal/mention';
 import { useCanComment, useCanEdit } from '@core/signal/permissions';
 import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
 import { isSourceDSS, isSourceSyncService } from '@core/util/source';
@@ -150,6 +149,7 @@ import {
   peerIdPlugin,
 } from '@lexical-core';
 import WarningIcon from '@phosphor/warning.svg';
+import { useTrackMention } from '@queries/storage/mentions';
 import { onElementConnect } from '@solid-primitives/lifecycle';
 import { isIOS } from '@solid-primitives/platform';
 import { createCallback } from '@solid-primitives/rootless';
@@ -201,6 +201,7 @@ const TASK_EDITOR_PADDING_BOTTOM = 48;
 export function MarkdownEditor(props: { autoFocusOnMount?: boolean } = {}) {
   const blockData = blockDataSignal.get;
   const blockId = useBlockId();
+  const trackMention = useTrackMention();
   const userId = useUserId();
   const blockName = useMaybeBlockAliasedName();
 

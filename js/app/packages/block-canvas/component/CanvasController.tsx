@@ -17,7 +17,6 @@ import { HEIC_EXTENSIONS, HEIC_MIME_TYPES } from '@core/heic/constants';
 import { TOKENS } from '@core/hotkey/tokens';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { blockHandleSignal } from '@core/signal/load';
-import { trackMention } from '@core/signal/mention';
 import { useCanEdit } from '@core/signal/permissions';
 import type { EntityDragEvent } from '@entity';
 import TrashSimple from '@phosphor/trash-simple.svg';
@@ -31,6 +30,7 @@ import SquaresFour from '@phosphor-icons/core/regular/squares-four.svg?component
 import Stack from '@phosphor-icons/core/regular/stack.svg?component-solid';
 import StackMinus from '@phosphor-icons/core/regular/stack-minus.svg?component-solid';
 import StackPlus from '@phosphor-icons/core/regular/stack-plus.svg?component-solid';
+import { useTrackMention } from '@queries/storage/mentions';
 import { createCallback } from '@solid-primitives/rootless';
 import { throttle } from '@solid-primitives/scheduled';
 import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
@@ -185,6 +185,7 @@ export function CanvasController(props: ParentProps) {
   const deleteGroup = useDeleteGroup();
   const deleteSelection = handleDelete();
   const blockId = useBlockId();
+  const trackMention = useTrackMention();
   const [middleMousePressed] = middleMousePressedSignal;
   const [handlersByTool] = handlersByToolSignal;
   const [_, setConnectorTypeMenuTrigger] = connectorTypeMenuTriggerSignal;

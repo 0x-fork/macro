@@ -1,5 +1,4 @@
 import { verifyBlockName } from '@core/constant/allBlocks';
-import { untrackMention } from '@core/signal/mention';
 import { $wrapNodeInElement, mergeRegister } from '@lexical/utils';
 import type { PeerIdValidator } from '@lexical-core';
 import {
@@ -38,6 +37,7 @@ import {
 } from '@lexical-core';
 import { $getId } from '@lexical-core/plugins/nodeIdPlugin';
 import type { MentionNode } from '@lexical-core/utils/mentions';
+import { untrackMention } from '@queries/storage/mentions';
 import { blockNameToItemType, type ItemType } from '@service-storage/client';
 import {
   $createParagraphNode,
@@ -230,7 +230,7 @@ function $deleteSelectedMentions(sourceDocumentId?: string) {
       if (!$isGroupMentionNode(node)) {
         const mentionUuid = node.getMentionUuid();
         if (mentionUuid && sourceDocumentId) {
-          untrackMention(sourceDocumentId, mentionUuid);
+          untrackMention(mentionUuid);
         }
       }
       node.remove();
@@ -653,7 +653,7 @@ function registerMentionsPlugin(
             }
             const mentionUuid = node.getMentionUuid();
             if (mentionUuid && sourceDocumentId) {
-              untrackMention(sourceDocumentId, mentionUuid);
+              untrackMention(mentionUuid);
             }
             if (onRemoveMention) {
               onRemoveMention({
@@ -691,7 +691,7 @@ function registerMentionsPlugin(
             if (node) {
               const mentionUuid = node.getMentionUuid();
               if (mentionUuid && sourceDocumentId) {
-                untrackMention(sourceDocumentId, mentionUuid);
+                untrackMention(mentionUuid);
               }
               if (onRemoveMention) {
                 onRemoveMention({
@@ -729,7 +729,7 @@ function registerMentionsPlugin(
             if (node) {
               const mentionUuid = node.getMentionUuid();
               if (mentionUuid && sourceDocumentId) {
-                untrackMention(sourceDocumentId, mentionUuid);
+                untrackMention(mentionUuid);
               }
               if (onRemoveMention) {
                 onRemoveMention({
@@ -764,7 +764,7 @@ function registerMentionsPlugin(
             if (node) {
               const mentionUuid = node.getMentionUuid();
               if (mentionUuid && sourceDocumentId) {
-                untrackMention(sourceDocumentId, mentionUuid);
+                untrackMention(mentionUuid);
               }
               if (onRemoveMention) {
                 onRemoveMention({

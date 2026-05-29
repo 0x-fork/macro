@@ -1,12 +1,12 @@
 import type { BlockAlias, BlockName } from '@core/block';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import type { QuickAccessItem } from '@core/context/quickAccess';
-import { trackMention } from '@core/signal/mention';
 import type { ChannelWithParticipants, IUser } from '@core/user';
 import type { ParsedDate } from '@core/util/dateParser';
 import type { DateOption } from '@core/util/dateSearch/useDateSearch';
 import type { EmailEntity } from '@entity';
 import type { HistoryItem as Item } from '@queries/history/history';
+import { trackMention } from '@queries/storage/mentions';
 import { waitBulkUploadStatus } from '@service-connection/bulkUpload';
 import type { DocumentMentionMetadata } from '@service-notification/client';
 import type { UploadSuccess } from '@service-storage/util/upload';

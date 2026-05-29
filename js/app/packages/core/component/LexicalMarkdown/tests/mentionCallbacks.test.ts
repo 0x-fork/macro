@@ -28,7 +28,8 @@ vi.hoisted(() => {
 vi.mock('@core/constant/allBlocks', () => ({
   verifyBlockName: (name: string) => name,
 }));
-vi.mock('@core/signal/mention', () => ({
+vi.mock('@queries/storage/mentions', () => ({
+  trackMention: vi.fn(),
   untrackMention: vi.fn(),
 }));
 vi.mock('@service-storage/client', () => ({
