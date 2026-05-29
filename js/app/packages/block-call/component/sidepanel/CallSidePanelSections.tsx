@@ -175,7 +175,10 @@ function SharingSectionContent(props: { record: Accessor<CallRecord> }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ReferencesSectionConditional(props: { callId: string }) {
-  const references = useAttachmentReferencesQuery(() => props.callId, 'call');
+  const references = useAttachmentReferencesQuery(
+    () => props.callId,
+    () => 'call'
+  );
 
   const count = () => references.data?.length ?? 0;
 

@@ -900,7 +900,7 @@ function NotificationsSectionConditional(props: { entity: Entity }) {
 function ReferencesSectionConditional(props: { documentId: string }) {
   const references = useAttachmentReferencesQuery(
     () => props.documentId,
-    'document'
+    () => 'document'
   );
 
   const count = createMemo(() => references.data?.length ?? 0);
