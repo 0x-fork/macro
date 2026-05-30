@@ -1757,11 +1757,10 @@ async fn post_activity_records_and_returns_activity() {
     let channel_id = Uuid::new_v4();
     let request = Request::builder()
         .method("POST")
-        .uri("/activity")
+        .uri(format!("/{channel_id}/activity"))
         .header("content-type", "application/json")
         .body(axum::body::Body::from(
             serde_json::json!({
-                "channel_id": channel_id.to_string(),
                 "activity_type": "view"
             })
             .to_string(),
@@ -1790,11 +1789,10 @@ async fn post_activity_rejects_invalid_channel_id() {
     .layer(user_extension());
     let request = Request::builder()
         .method("POST")
-        .uri("/activity")
+        .uri("/not-a-uuid/activity")
         .header("content-type", "application/json")
         .body(axum::body::Body::from(
             serde_json::json!({
-                "channel_id": "not-a-uuid",
                 "activity_type": "interact"
             })
             .to_string(),
@@ -1803,4 +1801,28 @@ async fn post_activity_rejects_invalid_channel_id() {
 
     let res = router.oneshot(request).await.unwrap();
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn non_member_cannot_post_activity() {
+    let service = ActivityService::default();
+    let posts = service.posts.clone();
+    let router = channels_router(ChannelsRouterState::new(service, TestAccessService::deny()))
+        .layer(user_extension());
+    let channel_id = Uuid::new_v4();
+    let request = Request::builder()
+        .method("POST")
+        .uri(format!("/{channel_id}/activity"))
+        .header("content-type", "application/json")
+        .body(axum::body::Body::from(
+            serde_json::json!({
+                "activity_type": "view"
+            })
+            .to_string(),
+        ))
+        .unwrap();
+
+    let res = router.oneshot(request).await.unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    assert!(posts.lock().unwrap().is_empty());
 }

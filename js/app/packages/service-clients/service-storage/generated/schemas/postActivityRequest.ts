@@ -7,11 +7,9 @@
 import type { ActivityType } from './activityType';
 
 /**
- * Request body for `POST /channels/activity`.
+ * Request body for `POST /channels/{channel_id}/activity`.
  */
 export interface PostActivityRequest {
   /** The kind of activity to record. */
   activity_type: ActivityType;
-  /** Channel id to record activity for. */
-  channel_id: string;
 }

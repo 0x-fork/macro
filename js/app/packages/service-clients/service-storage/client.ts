@@ -722,12 +722,12 @@ export const storageServiceClient = {
     ).map((result) => result);
   },
 
-  async postActivity(args: PostActivityRequest) {
+  async postActivity(args: WithChannelId & PostActivityRequest) {
     const { activity_type, channel_id } = args;
     return (
-      await dssFetch<ApiActivity>(`/channels/activity`, {
+      await dssFetch<ApiActivity>(`/channels/${channel_id}/activity`, {
         method: 'POST',
-        body: JSON.stringify({ activity_type, channel_id }),
+        body: JSON.stringify({ activity_type }),
       })
     ).map((result) => result);
   },

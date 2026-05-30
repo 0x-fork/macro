@@ -326,9 +326,10 @@ where
             "/attachments/{entity_type}/{entity_id}/references",
             get(get_attachment_references_handler::<S, Svc>),
         )
+        .route("/activity", get(get_activity_handler::<S, Svc>))
         .route(
-            "/activity",
-            get(get_activity_handler::<S, Svc>).post(post_activity_handler::<S, Svc>),
+            "/{channel_id}/activity",
+            post(post_activity_handler::<S, Svc>),
         )
         .with_state(state)
 }
@@ -1497,17 +1498,21 @@ pub async fn get_activity_handler<S: ChannelService, Svc: EntityAccessService>(
     ))
 }
 
-/// Handler for `POST /channels/activity`.
+/// Handler for `POST /channels/{channel_id}/activity`.
 #[utoipa::path(
     post,
     tag = "channels",
     operation_id = "post_activity",
-    path = "/channels/activity",
+    path = "/channels/{channel_id}/activity",
+    params(
+        ("channel_id" = Uuid, Path, description = "Channel ID")
+    ),
     request_body = PostActivityRequest,
     responses(
         (status = 200, body = ApiActivity),
         (status = 400, body = ErrorResponse),
         (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
         (status = 404, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
@@ -1515,27 +1520,21 @@ pub async fn get_activity_handler<S: ChannelService, Svc: EntityAccessService>(
 #[tracing::instrument(err, skip_all)]
 pub async fn post_activity_handler<S: ChannelService, Svc: EntityAccessService>(
     State(state): State<ChannelsRouterState<S, Svc>>,
-    user: MacroUserExtractor,
+    access: ChannelAccessLevelExtractor<MemberParticipantRole, Svc>,
     Json(req): Json<PostActivityRequest>,
 ) -> Result<(StatusCode, Json<ApiActivity>), ChannelsHandlerErr> {
-    let channel_id = Uuid::parse_str(&req.channel_id)
-        .map_err(|_| ChannelsHandlerErr::BadRequest("Invalid channel_id"))?;
+    let channel_id = channel_id_from_receipt(&access.entity_access_receipt)?;
+    let actor = actor_from_receipt(&access.entity_access_receipt)?;
     let activity = state
         .service
-        .post_activity(
-            Sender::User(user.macro_user_id),
-            channel_id,
-            req.activity_type,
-        )
+        .post_activity(actor, channel_id, req.activity_type)
         .await?;
     Ok((StatusCode::OK, Json(ApiActivity::from(activity))))
 }
 
-/// Request body for `POST /channels/activity`.
+/// Request body for `POST /channels/{channel_id}/activity`.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct PostActivityRequest {
-    /// Channel id to record activity for.
-    pub channel_id: String,
     /// The kind of activity to record.
     pub activity_type: ActivityType,
 }
