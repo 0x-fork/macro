@@ -51,7 +51,7 @@ Enterprise-grade security. Zero data retention with model providers, including n
 
 # License
 
-Macro is licensed under the GNU Affero General Public License v3.0. See `LICENSE.md` for details.
+Macro is licensed under the GNU Affero General Public License v3.0. See `licence.txt` for details.
 
 You can self-host Macro under the terms of the AGPLv3. If you want to discuss managed hosting or commercial arrangements, contact [self-host@macro.com](mailto:self-host@macro.com).
 
