@@ -39,7 +39,10 @@ import { cn } from '@ui/utils/classname';
 import { createMemo, Show, Suspense } from 'solid-js';
 import {
   TASK_GRID_TEMPLATE_AREAS_WIDE,
+  TASK_GRID_TEMPLATE_AREAS_WIDE_NO_INDICATOR,
   TASK_GRID_TEMPLATE_COLUMNS_WIDE,
+  TASK_GRID_TEMPLATE_COLUMNS_WIDE_NO_INDICATOR,
+  type TaskGridColumn,
 } from './task-grid-template';
 
 function SharedIndicator(props: { ownerId: string }) {
@@ -113,32 +116,34 @@ export function TaskGridLayout(props: LayoutProps) {
           'gap-2 grid grid-rows-[1fr]'
         )}
         style={{
-          'grid-template-columns': TASK_GRID_TEMPLATE_COLUMNS_WIDE,
-          'grid-template-areas': TASK_GRID_TEMPLATE_AREAS_WIDE,
+          'grid-template-columns': props.hideCheckbox
+            ? TASK_GRID_TEMPLATE_COLUMNS_WIDE_NO_INDICATOR
+            : TASK_GRID_TEMPLATE_COLUMNS_WIDE,
+          'grid-template-areas': props.hideCheckbox
+            ? TASK_GRID_TEMPLATE_AREAS_WIDE_NO_INDICATOR
+            : TASK_GRID_TEMPLATE_AREAS_WIDE,
         }}
       >
-        <Entity.Slot
-          placement="indicator"
-          class="self-center size-4 flex items-center justify-center relative group"
-        >
-          <UnreadIndicator
-            active={props.unread}
-            class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
-          />
-          <div
-            class={cn(
-              'absolute inset-0 flex items-center justify-center',
-              props.checked
-                ? 'opacity-100'
-                : 'opacity-0 group-hover:opacity-100'
-            )}
-          >
-            <MultiSelectCheckbox
-              checked={props.checked}
-              onChecked={props.onChecked}
-            />
-          </div>
-        </Entity.Slot>
+        <Show when={!props.hideCheckbox}>
+          <Entity.Slot placement="indicator" class="relative size-full group">
+            <div class="absolute inset-0 grid place-items-center group-hover:opacity-0">
+              <UnreadIndicator active={props.unread} />
+            </div>
+            <div
+              class={cn(
+                'absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100',
+                {
+                  'opacity-100': props.checked,
+                }
+              )}
+            >
+              <MultiSelectCheckbox
+                checked={props.checked}
+                onChecked={props.onChecked}
+              />
+            </div>
+          </Entity.Slot>
+        </Show>
 
         <Entity.Slot
           placement="content"

@@ -12,14 +12,14 @@ required-features = ["backfill_binary"]
 [features]
 attachment = [
     "dep:attachment",
-    "dep:ai",
+    "dep:ai_toolset",
     "dep:lexical_client",
     "dep:model_file_type",
     "dep:reqwest",
     "ports",
 ]
 ai_tools = [
-  "dep:ai",
+  "dep:ai_toolset",
   "dep:async-trait",
   "dep:model_file_type",
   "dep:schemars",
@@ -33,6 +33,7 @@ axum = [
   "dep:axum-extra",
   "dep:model-error-response",
   "dep:model_user",
+  "dep:task_dedup",
   "dep:utoipa",
   "entity_access/axum",
 ]
@@ -112,10 +113,11 @@ futures = { workspace = true }
 hex = { workspace = true, optional = true }
 sqlx = { workspace = true, optional = true }
 sync_service_client = { path = "../sync_service_client" }
+task_dedup = { path = "../task_dedup", optional = true }
 urlencoding = { workspace = true }
 
 # AI Tool dependencies
-ai = { path = "../ai", optional = true }
+ai_toolset = { path = "../ai_toolset", optional = true }
 async-trait = { workspace = true, optional = true }
 lexical_client = { path = "../lexical_client", optional = true }
 model_file_type = { path = "../model_file_type", optional = true }

@@ -1,5 +1,7 @@
 use logger::Logger;
-use macro_bundle_updater_plugin::inbound::plugin::{PluginService, apply_completed_update};
+use macro_bundle_updater_plugin::inbound::plugin::{
+    PluginService, allow_update_reload_retry, apply_completed_update, retry_waiting_for_wifi,
+};
 use navigation_plugin::MacroNavigationPlugin;
 use navigation_plugin::scheme::MacroScheme;
 use reqwest::cookie::CookieStore;
@@ -7,10 +9,10 @@ use reqwest::header::{COOKIE, ORIGIN};
 use rootcause::{Report, report};
 use serde::Serialize;
 use share_target::{
-    PendingShareFilesState, cleanup_stale_staged_shared_files, clear_shared_files,
-    get_pending_share_filenames, maybe_handle_share_deep_link, pop_shared_files,
-    read_shared_file_text, upload_shared_file_to_presigned_url,
+    PendingShareFilesState, clear_shared_files, get_pending_share_filenames,
+    maybe_handle_share_deep_link, pop_shared_files, read_shared_file_text,
 };
+use staged_upload::cleanup_stale_staged_files;
 use tauri::http::{HeaderMap, HeaderValue};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, Runtime};
 
@@ -23,6 +25,37 @@ use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 
 mod share_target;
+mod staged_upload;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AppEnvironment {
+    Development,
+    Production,
+}
+
+impl AppEnvironment {
+    fn current() -> Self {
+        match env!("MACRO_TAURI_APP_ENV") {
+            "development" => Self::Development,
+            "production" => Self::Production,
+            other => unreachable!("invalid MACRO_TAURI_APP_ENV: {other}"),
+        }
+    }
+
+    fn auth_service_url(self) -> &'static str {
+        match self {
+            Self::Development => "https://auth-service-dev.macro.com/",
+            Self::Production => "https://auth-service.macro.com/",
+        }
+    }
+
+    fn web_origin(self) -> &'static str {
+        match self {
+            Self::Development => "https://dev.macro.com",
+            Self::Production => "https://macro.com",
+        }
+    }
+}
 
 /// This module provides debuging utilities and should not be compiled in prodiction builds
 #[cfg(debug_assertions)] // do not remove this
@@ -36,6 +69,7 @@ static ALLOWED_DOMAINS: &[&str] = &[
     "http://tauri.localhost",
     "tauri://localhost",
     "https://macro.com",
+    "https://dev.macro.com",
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:3002",
@@ -97,6 +131,8 @@ pub fn run() {
         builder = builder
             .plugin(tauri_plugin_haptics::init())
             .plugin(tauri_plugin_input_accessory::init())
+            .plugin(tauri_plugin_pasteboard::init())
+            .plugin(tauri_plugin_photo_library::init())
             .plugin(tauri_plugin_call_kit::init());
     }
 
@@ -124,13 +160,10 @@ pub fn run() {
         .plugin(MacroNavigationPlugin::new(ALLOWED_DOMAINS).expect("Domains must be valid urls"))
         .plugin(
             macro_bundle_updater_plugin::inbound::plugin::MacroBundleUpdaterPlugin::new(
-                if cfg!(debug_assertions) {
-                    "https://auth-service-dev.macro.com/"
-                } else {
-                    "https://auth-service.macro.com/"
-                }
-                .parse()
-                .expect("valid url"),
+                AppEnvironment::current()
+                    .auth_service_url()
+                    .parse()
+                    .expect("valid url"),
             ),
         );
 
@@ -185,14 +218,15 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             macro_bundle_updater_plugin::inbound::plugin::grant_bundle_update,
             macro_bundle_updater_plugin::inbound::plugin::perform_update,
+            macro_bundle_updater_plugin::inbound::plugin::ack_bundle_update_reload,
             macro_bundle_updater_plugin::inbound::plugin::check_for_update,
             macro_bundle_updater_plugin::inbound::plugin::get_bundle_update_status,
             macro_bundle_updater_plugin::inbound::plugin::clear_bundle,
             get_pending_share_filenames,
             pop_shared_files,
             clear_shared_files,
-            upload_shared_file_to_presigned_url,
             read_shared_file_text,
+            staged_upload::upload_staged_file_to_presigned_url,
         ])
         .setup(|app| {
             // Restore persisted bundle root on startup
@@ -219,30 +253,53 @@ pub fn run() {
             }
 
             app.chain(attach_deep_link_handler);
-            cleanup_stale_staged_shared_files(&app.handle());
+            cleanup_stale_staged_files(&app.handle());
 
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| {
-            #[cfg(feature = "auto_apply_update")]
-            {
-                if let RunEvent::Resumed = event {
+        .run(move |app_handle, event| match &event {
+            RunEvent::Ready => {
+                #[cfg(feature = "auto_apply_update")]
+                {
                     let app = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
                         match apply_completed_update(&app).await {
-                            Ok(true) => {
-                                tracing::info!("auto-applied pending bundle update on foreground");
-                            }
-                            Ok(false) => {}
+                            Ok(_) => {}
                             Err(e) => {
-                                tracing::error!("failed to auto-apply bundle update: {e}");
+                                tracing::error!("Failed to auto-apply bundle update on ready: {e}");
                             }
                         }
                     });
                 }
             }
+            RunEvent::Resumed => {
+                let app = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = retry_waiting_for_wifi(&app).await {
+                        tracing::warn!("Failed to retry bundle update Wi-Fi wait on resume: {e}");
+                    }
+                });
+                #[cfg(feature = "auto_apply_update")]
+                {
+                    let app = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = allow_update_reload_retry(&app).await {
+                            tracing::warn!(
+                                "Failed to allow bundle update reload retry on resume: {e}"
+                            );
+                        }
+                        match apply_completed_update(&app).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                tracing::error!("Failed to auto-apply bundle update: {e}");
+                            }
+                        }
+                    });
+                }
+            }
+            _ => {}
         });
 }
 
@@ -253,20 +310,17 @@ fn merge_header_callback<R: Runtime>(url: String, headers: &mut HeaderMap, handl
         return;
     };
 
-    // Origin headers are required for service auth and must be set unconditionally,
-    // independent of whether cookie state is available.
+    // These services (including the macroverse.workers.dev sync service) validate
+    // Origin for auth, so set it to our web origin unconditionally — independent of
+    // whether cookie state is available.
     match parsed_url.host_str() {
-        Some("services.macro.com") | Some("services-dev.macro.com") => {
-            headers.insert(ORIGIN, HeaderValue::from_static("https://macro.com"));
-        }
-        // The sync service (macroverse.workers.dev) also validates Origin.
-        Some("macroverse.workers.dev") => {
-            let origin = if cfg!(debug_assertions) {
-                "https://dev.macro.com"
-            } else {
-                "https://macro.com"
-            };
-            headers.insert(ORIGIN, HeaderValue::from_static(origin));
+        Some("services.macro.com")
+        | Some("services-dev.macro.com")
+        | Some("macroverse.workers.dev") => {
+            headers.insert(
+                ORIGIN,
+                HeaderValue::from_static(AppEnvironment::current().web_origin()),
+            );
         }
         _ => {}
     }

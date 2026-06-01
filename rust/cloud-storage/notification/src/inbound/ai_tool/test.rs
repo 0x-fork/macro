@@ -1,6 +1,6 @@
 use super::*;
-use ai::generate_tool_input_schema;
-use ai::tool::types::tool_object::validate_tool_schema;
+use ai_toolset::generate_tool_input_schema;
+use ai_toolset::tool_object::validate_tool_schema;
 
 #[test]
 fn test_list_notifications_schema_validation() {
@@ -32,7 +32,7 @@ fn test_list_notifications_deserialization() {
     assert_eq!(tool.entities, None);
 
     // With explicit filters
-    let json = r#"{"limit": 10, "done": true, "seen": false, "includeTypes": ["email", "message"], "entities": [{"entityType": "email", "id": "thread-1"}]}"#;
+    let json = r#"{"limit": 10, "done": true, "seen": false, "includeTypes": ["email", "message", "github"], "entities": [{"entityType": "email", "id": "thread-1"}, {"entityType": "github", "id": "foreign-entity-1"}]}"#;
     let tool: ListNotifications = serde_json::from_str(json).unwrap();
     assert_eq!(tool.limit, Some(10));
     assert_eq!(tool.done, Some(true));
@@ -41,15 +41,22 @@ fn test_list_notifications_deserialization() {
         tool.include_types,
         Some(vec![
             NotificationItemType::Email,
-            NotificationItemType::Message
+            NotificationItemType::Message,
+            NotificationItemType::Github
         ])
     );
     assert_eq!(
         tool.entities,
-        Some(vec![NotificationEntityRef {
-            entity_type: NotificationItemType::Email,
-            id: "thread-1".to_string()
-        }])
+        Some(vec![
+            NotificationEntityRef {
+                entity_type: NotificationItemType::Email,
+                id: "thread-1".to_string()
+            },
+            NotificationEntityRef {
+                entity_type: NotificationItemType::Github,
+                id: "foreign-entity-1".to_string()
+            }
+        ])
     );
 }
 
@@ -65,7 +72,7 @@ fn print_list_notifications_input_schema() {
 #[test]
 #[ignore = "prints the output schema"]
 fn print_list_notifications_output_schema() {
-    let generator = ai::tool::minimized_output_schema_generator();
+    let generator = ai_toolset::tool_object::minimized_output_schema_generator();
     let schema = generator.into_root_schema_for::<ListNotificationsResponse>();
     println!("{}", serde_json::to_string_pretty(&schema).unwrap());
 }
@@ -133,7 +140,7 @@ fn print_mark_done_input_schema() {
 #[test]
 #[ignore = "prints the output schema"]
 fn print_output_schema() {
-    let generator = ai::tool::minimized_output_schema_generator();
+    let generator = ai_toolset::tool_object::minimized_output_schema_generator();
     let schema = generator.into_root_schema_for::<MarkNotificationsResponse>();
     println!("{}", serde_json::to_string_pretty(&schema).unwrap());
 }

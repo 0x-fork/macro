@@ -3,7 +3,8 @@ import { Thread } from '@channel/Thread/Thread';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { formatVideoTimestamp } from '@core/util/duration';
 import Subtitles from '@phosphor/subtitles.svg';
-import type { ApiChannelMessage } from '@service-comms/client';
+import { senderFromStorageId } from '@queries/channel/message-sender';
+import type { ApiChannelMessage } from '@service-storage/generated/schemas/apiChannelMessage';
 import type { CallRecordTranscriptSegment } from '@service-storage/generated/schemas/callRecordTranscriptSegment';
 import {
   createEffect,
@@ -83,6 +84,7 @@ function segmentToApiChannelMessage(
     id: s.segmentId ?? `transcript-${s.sequenceNum}`,
     channel_id: channelId,
     content: s.content,
+    sender: senderFromStorageId(s.speakerId),
     sender_id: s.speakerId,
     created_at: s.startedAt,
     updated_at: s.startedAt,
@@ -365,7 +367,7 @@ export function CallTranscript(props: {
 
   return (
     <div class="relative flex h-full min-h-0 flex-col overflow-hidden">
-      <div class="relative flex flex-1 min-h-0 flex-col">
+      <div class="relative flex flex-1 min-h-0 flex-col overflow-hidden">
         <div
           ref={setScrollRef}
           class="h-full min-h-0 flex-1 overflow-y-auto scrollbar-hidden"
@@ -423,6 +425,7 @@ export function CallTranscript(props: {
             </For>
           </div>
         </div>
+        <CustomScrollbar scrollContainer={scrollRef} />
       </div>
       <Show
         when={
@@ -452,7 +455,6 @@ export function CallTranscript(props: {
           </button>
         </div>
       </Show>
-      <CustomScrollbar scrollContainer={scrollRef} />
     </div>
   );
 }

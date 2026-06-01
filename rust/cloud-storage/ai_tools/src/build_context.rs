@@ -5,9 +5,10 @@
 //! instead of duplicating the wiring logic.
 
 use crate::tool_context::{
-    NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress, NoOpNotificationService,
-    NoOpSnsEndpointManager, NoOpTaskProperties, ToolNotificationQueue, ToolServiceContext,
+    NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress, NoOpSnsEndpointManager,
+    ToolNotificationQueue, ToolServiceContext,
 };
+use anthropic::toolset::AnthropicToolContext;
 use anyhow::Context;
 use comms::domain::service::ChannelServiceImpl;
 use comms::outbound::postgres::comms_repo::PgCommsRepo;
@@ -22,6 +23,10 @@ use email::outbound::EmailPgRepo;
 use email_service_client::EmailServiceClientExternal;
 use entity_access::domain::service::EntityAccessServiceImpl;
 use entity_access::outbound::PgAccessRepository;
+use foreign_entity::{
+    domain::service::ForeignEntityServiceImpl,
+    outbound::pg_foreign_entity_repo::PgForeignEntityRepo,
+};
 use frecency::domain::services::FrecencyQueryServiceImpl;
 use frecency::outbound::postgres::FrecencyPgStorage;
 use lexical_client::LexicalClient;
@@ -167,12 +172,16 @@ pub async fn build_tool_service_context_from_env(
     let channel_tool_context = crate::tool_context::build_channel_tool_context(pool.clone());
     let email_service_for_tools: Arc<crate::tool_context::ToolEmailService> =
         Arc::new(email_service.clone());
+    let foreign_entity_service =
+        ForeignEntityServiceImpl::new(PgForeignEntityRepo::new(pool.clone()));
     let soup_service = Arc::new(SoupImpl::new(
         PgSoupRepo::new(ReadOnlyPool(pool.clone())),
         frecency_service,
         ReadonlyEmailPreviewAdapter(email_service),
         channels_service,
         call::domain::ports::NoOpCallRecordQueryService,
+        crm::domain::service::NoOpCrmService,
+        foreign_entity_service,
     ));
 
     let s3_client = macro_aws_config::s3_client().await;
@@ -193,12 +202,21 @@ pub async fn build_tool_service_context_from_env(
         presigned_url_expiry_seconds: 3600,
         browser_cache_expiry_seconds: 86400,
     };
+    let entity_access_service = Arc::new(EntityAccessServiceImpl::new(PgAccessRepository::new(
+        pool.clone(),
+    )));
+    let properties_service =
+        crate::tool_context::build_properties_service(pool.clone(), entity_access_service.clone());
+    let task_properties_service = crate::tool_context::build_task_properties_adapter(
+        pool.clone(),
+        properties_service.clone(),
+    );
     let document_service = documents::domain::service::DocumentServiceImpl {
         repo: document_repo,
         cloudfront_config,
         sync_service_client: sync_client.as_ref().clone(),
         upload_url_service: s3_upload_adapter,
-        task_properties_service: NoOpTaskProperties,
+        task_properties_service,
         connection_service: NoOpConnectionService,
         entity_access_management_service:
             entity_access_management::domain::service::EntityAccessManagementServiceImpl::new(
@@ -206,9 +224,6 @@ pub async fn build_tool_service_context_from_env(
             ),
     };
 
-    let entity_access_service = Arc::new(EntityAccessServiceImpl::new(PgAccessRepository::new(
-        pool.clone(),
-    )));
     let document_tool_context = DocumentToolContext::new(
         document_service,
         (*entity_access_service).clone(),
@@ -216,16 +231,8 @@ pub async fn build_tool_service_context_from_env(
         sync_client.as_ref().clone(),
     );
 
-    let properties_service = properties::PropertiesServiceImpl::new(
-        properties::PropertiesPgRepo::new(pool.clone()),
-        Some(properties::PermissionServiceImpl::new(
-            pool.clone(),
-            entity_access_service.clone(),
-        )),
-        Some(NoOpNotificationService),
-    );
     let properties_tool_context =
-        properties::inbound::toolset::PropertiesToolContext::new(properties_service);
+        crate::tool_context::build_properties_tool_context(properties_service);
 
     let email_tool_context = email::inbound::toolset::EmailToolContext::new(
         Arc::new(EmailServiceImpl::new(
@@ -287,6 +294,8 @@ pub async fn build_tool_service_context_from_env(
         (*entity_access_service).clone(),
     );
 
+    let anthropic_tool_context = build_anthropic_tool_context();
+
     Ok(ToolServiceContext {
         search_service_client: search_client,
         email_service_client: email_ext_client,
@@ -301,5 +310,32 @@ pub async fn build_tool_service_context_from_env(
         channel_tool_context,
         team_tool_context: crate::tool_context::build_team_tool_context(pool.clone()),
         schedule_tool_context: crate::NoOpScheduleContext,
+        anthropic_tool_context,
     })
+}
+
+/// Build an [`AnthropicToolContext`] from environment variables.
+///
+/// Reads `ANTHROPIC_API_KEY` and configures the client with the beta headers
+/// required for web fetch and code execution server tools.
+pub fn build_anthropic_tool_context() -> AnthropicToolContext {
+    let mut config = anthropic::config::Config::dangrously_try_from_env();
+    config.headers.append(
+        anthropic::prelude::WEB_FETCH_TOOL_HEADER.0.clone(),
+        anthropic::prelude::WEB_FETCH_TOOL_HEADER.1.clone(),
+    );
+    config.headers.append(
+        anthropic::prelude::CODE_EXECUTION_TOOL_HEADER.0.clone(),
+        anthropic::prelude::CODE_EXECUTION_TOOL_HEADER.1.clone(),
+    );
+    let client = anthropic::client::Client::with_config(config);
+    AnthropicToolContext::new(client, "claude-haiku-4-5".into())
+}
+
+/// Dummy [`AnthropicToolContext`] that does not require an API key.
+#[cfg(any(test, feature = "test-support"))]
+pub fn build_anthropic_tool_context_test() -> AnthropicToolContext {
+    let config = anthropic::config::Config::default();
+    let client = anthropic::client::Client::with_config(config);
+    AnthropicToolContext::new(client, "test-model".into())
 }

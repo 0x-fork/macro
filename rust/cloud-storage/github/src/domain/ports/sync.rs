@@ -2,9 +2,12 @@
 
 use std::future::Future;
 
+use macro_user_id::user_id::MacroUserIdStr;
+
 use crate::domain::models::{
-    GithubError, GithubInstallationAccessToken, GithubKey, MacroTaskId, TeamTaskReference,
-    ValidatedGithubWebhookEvent,
+    EnrichedGithubPullRequest, GithubAppInstallationSource, GithubError,
+    GithubInstallationAccessToken, GithubKey, GithubPullRequestDetails, MacroTaskId,
+    TeamTaskReference, ValidatedGithubWebhookEvent,
 };
 
 /// Repository for accessing github sync data from the database.
@@ -39,9 +42,9 @@ pub trait GithubSyncRepo: Send + Sync + 'static {
 
     /// Resolves team-scoped task references for a GitHub App installation.
     ///
-    /// Implementations should use the installation's teams (via
-    /// `github_app_installation_team`) and the referenced team slug/task number
-    /// to find the backing Macro task document.
+    /// Implementations should use the installation's team sources from
+    /// `github_app_installation` (`source_type = 'team'`) and the referenced
+    /// team slug/task number to find the backing Macro task document.
     fn resolve_team_task_references(
         &self,
         installation_id: &str,
@@ -61,13 +64,24 @@ pub trait GithubSyncRepo: Send + Sync + 'static {
         macro_id: &str,
     ) -> impl Future<Output = Result<Vec<uuid::Uuid>, Self::Err>> + Send;
 
-    /// Inserts associations between a GitHub App installation and the given teams.
-    /// Ignores conflicts (idempotent).
-    fn insert_installation_team_associations(
+    /// Returns the Macro sources associated with a GitHub App installation.
+    fn get_installation_sources(
         &self,
         installation_id: &str,
-        team_ids: &[uuid::Uuid],
-        installed_by: &str,
+    ) -> impl Future<Output = Result<Vec<GithubAppInstallationSource>, Self::Err>> + Send;
+
+    /// Returns all Macro user IDs that belong to the given team.
+    fn get_team_member_ids(
+        &self,
+        team_id: uuid::Uuid,
+    ) -> impl Future<Output = Result<Vec<MacroUserIdStr<'static>>, Self::Err>> + Send;
+
+    /// Upserts associations between a GitHub App installation and its sources.
+    /// Ignores conflicts (idempotent).
+    fn upsert_installation_sources(
+        &self,
+        installation_id: &str,
+        sources: &[GithubAppInstallationSource],
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 }
 
@@ -92,6 +106,21 @@ pub trait GithubSyncClient: Send + Sync + 'static {
         pull_number: u64,
         body: &str,
     ) -> impl Future<Output = Result<(), GithubError>> + Send;
+
+    /// Fetches enriched pull request details using a GitHub App installation token.
+    fn get_pull_request_details(
+        &self,
+        access_token: &str,
+        owner: &str,
+        repo: &str,
+        number: u64,
+    ) -> impl Future<Output = Result<GithubPullRequestDetails, GithubError>> + Send;
+
+    /// Lists open pull requests for repositories accessible to a GitHub App installation token.
+    fn list_open_pull_requests(
+        &self,
+        access_token: &str,
+    ) -> impl Future<Output = Result<Vec<EnrichedGithubPullRequest>, GithubError>> + Send;
 }
 
 /// Service interface for github sync operations (webhooks and sync app).

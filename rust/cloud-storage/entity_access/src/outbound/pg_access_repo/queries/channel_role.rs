@@ -5,7 +5,6 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 /// Row returned from the channel role query.
-#[derive(sqlx::FromRow)]
 struct ChannelRoleRow {
     role: Option<String>,
     channel_type: String,
@@ -33,26 +32,28 @@ fn parse_role(s: &str) -> ParticipantRole {
 /// - Organization channels: default to Member only if user's org matches
 /// - Private/DM: require explicit participation
 #[tracing::instrument(err, skip(pool))]
+#[allow(clippy::disallowed_methods, reason = "legacy code. fix later")]
 pub async fn get_channel_role(
     pool: &PgPool,
     channel_id: &Uuid,
     user_id: &str,
     user_org_id: Option<i64>,
 ) -> Result<ChannelRoleResult, sqlx::Error> {
-    let row = sqlx::query_as::<_, ChannelRoleRow>(
+    let row = sqlx::query_as!(
+        ChannelRoleRow,
         r#"
         SELECT
-            cp.role::text as role,
-            c.channel_type::text as channel_type,
-            c.org_id
+            cp.role::text as "role?",
+            c.channel_type::text as "channel_type!",
+            c.org_id as "org_id?"
         FROM comms_channels c
         LEFT JOIN comms_channel_participants cp
             ON cp.channel_id = c.id AND cp.user_id = $2 AND cp.left_at IS NULL
         WHERE c.id = $1
         "#,
+        channel_id,
+        user_id,
     )
-    .bind(channel_id)
-    .bind(user_id)
     .fetch_optional(pool)
     .await?;
 

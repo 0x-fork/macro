@@ -19,6 +19,7 @@ import type {
   ListEmailFiltersResponse,
   ListLabelsResponse,
   ListLinksResponse,
+  ResyncResponse,
   SendMessageRequest,
   SendMessageResponse,
   UpdateLabelBatchRequest,
@@ -52,9 +53,12 @@ function emailFetch<T extends ObjectLike = never>(
 }
 
 export const emailClient = {
-  async init() {
+  async init(args?: { linkId?: string }) {
+    const path = args?.linkId
+      ? `/email/init?link_id=${encodeURIComponent(args.linkId)}`
+      : '/email/init';
     return (
-      await emailFetch<EmptyResponse>('/email/init', {
+      await emailFetch<EmptyResponse>(path, {
         method: 'POST',
       })
     ).map((result) => result);
@@ -205,6 +209,30 @@ export const emailClient = {
       await emailFetch<ListLinksResponse>('/email/links', {
         method: 'GET',
       })
+    ).map((result) => result);
+  },
+
+  async deleteLink(args: { linkId: string }) {
+    const { linkId } = args;
+    return (
+      await emailFetch<EmptyResponse>(
+        `/email/links/${encodeURIComponent(linkId)}`,
+        {
+          method: 'DELETE',
+        }
+      )
+    ).map((result) => result);
+  },
+
+  async resyncLink(args: { linkId: string }) {
+    const { linkId } = args;
+    return (
+      await emailFetch<ResyncResponse>(
+        `/email/links/${encodeURIComponent(linkId)}/resync`,
+        {
+          method: 'POST',
+        }
+      )
     ).map((result) => result);
   },
 
