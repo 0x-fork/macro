@@ -305,6 +305,13 @@ export function InteractiveOnboardingModal(
       open={open()}
       onOpenChange={setOpen}
       position="center"
+      // Don't let Kobalte's focus scope steal focus to the dialog content on
+      // open. InteractiveOnboarding focuses its own shell in onMount, which is
+      // what activates the detached `onboarding-shell` hotkey scope. Without
+      // this, Kobalte's deferred auto-focus runs after the shell's onMount and
+      // moves focus off the shell, so the tutorial hotkeys (cmd+enter, cmd+k)
+      // silently don't fire until the user clicks back into the modal.
+      onOpenAutoFocus={(e) => e.preventDefault()}
       class="w-[min(1600px,calc(100vw-32px))] h-[min(900px,calc(100vh-32px))] max-w-none rounded-xl bg-surface shadow-2xl"
     >
       <div class="relative size-full overflow-hidden rounded-xl flex flex-col">
