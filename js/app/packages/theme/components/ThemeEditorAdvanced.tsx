@@ -3,6 +3,7 @@ import { convertOklchTo, getOklch, validateColor } from '../utils/colorUtil';
 import type { ThemeReactiveColor } from '../types/themeTypes';
 import { themeReactive } from '../signals/themeReactive';
 import { ColorSwatch } from './ColorSwatch';
+import { Tooltip } from '@ui';
 
 const displayType = () => 'hex';
 
@@ -51,6 +52,7 @@ export function ThemeEditorAdvanced(){
             box-sizing: border-box;
             overflow-x: hidden;
             display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
             gap: 1px;
           "
         >
@@ -77,15 +79,16 @@ export function ThemeEditorAdvanced(){
                     style="
                       font-family: var(--font-mono);
                       background-color: var(--b0);
+                      padding: 0.375rem 0;
                     "
                   >
                     <div
                       style="
-                        grid-template-columns: 104px calc(7ch + 40px) 1fr calc(4ch + 40px);
+                        grid-template-columns: 4rem 9ch minmax(0, 1fr);
                         background-color: var(--b3);
                         align-items: center;
                         display: grid;
-                        height: 61px;
+                        height: 32px;
                         gap: 1px 0px;
                       "
                     >
@@ -94,7 +97,7 @@ export function ThemeEditorAdvanced(){
                           background-color: var(--b0);
                           box-sizing: border-box;
                           align-items: center;
-                          padding: 0 20px;
+                          padding: 0 8px;
                           display: grid;
                           height: 100%;
                           width: 100%;
@@ -112,7 +115,7 @@ export function ThemeEditorAdvanced(){
                           box-sizing: border-box;
                           align-items: center;
                           white-space: nowrap;
-                          padding: 0 20px;
+                          padding: 0 8px;
                           display: grid;
                           height: 100%;
                           width: 100%;
@@ -142,30 +145,20 @@ export function ThemeEditorAdvanced(){
                           background-color: var(--b0);
                           box-sizing: border-box;
                           align-items: center;
+                          justify-content: end;
                           white-space: nowrap;
-                          text-overflow: ellipsis;
-                          padding: 0 20px;
+                          padding: 0 8px;
                           overflow: hidden;
-                          display: grid;
+                          display: flex;
                           height: 100%;
                           width: 100%;
                         "
                       >
-                        {colorValue.description}
-                      </div>
-                      <div
-                        style="
-                          background-color: var(--b0);
-                          box-sizing: border-box;
-                          white-space: nowrap;
-                          align-items: center;
-                          padding: 0 20px;
-                          display: grid;
-                          height: 100%;
-                          width: 100%;
-                        "
-                      >
-                        --{colorKey}
+                        <Tooltip label={`--${colorKey}`}>
+                          <span style="text-overflow: ellipsis; overflow: hidden;">
+                            {colorValue.description}
+                          </span>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>

@@ -1,19 +1,20 @@
-import { monochromeIcons, setMonochromeIcons, setTooltipsEnabled, tooltipsEnabled } from '@ui/signals/signals';
+import {
+  monochromeIcons,
+  setMonochromeIcons,
+  setTooltipsEnabled,
+  tooltipsEnabled,
+} from '@ui/signals/signals';
 import { ThemeEditorAdvanced } from '@theme/components/ThemeEditorAdvanced';
 import { ThemeEditorBasic } from '@theme/components/ThemeEditorBasic';
 import ThemeTools from '@theme/components/ThemeTools';
 import ThemeList from '@theme/components/ThemeList';
-import { isMobile } from '@core/mobile/isMobile';
-import { createSignal, onCleanup, Show } from 'solid-js';
-import { TabsInset } from '@core/component/TabsInset';
+import { createSignal, type JSX, onCleanup, Show } from 'solid-js';
 import { Panel, ToggleSwitch } from '@ui';
+import CaretRight from '@phosphor/caret-right.svg';
 import {
   settingsModalOpen,
   setThemePickerFloating,
 } from '@core/constant/SettingsState';
-
-type PanelA = 'basic' | 'advanced';
-type PanelB ='themes' | 'ui'
 
 /**
  * Listens for pointerdown on the theme editor area to enter the "floating preview"
@@ -26,9 +27,6 @@ function useThemePickerDragHandlers() {
 
   const onPointerDown = (e: PointerEvent) => {
     if (!settingsModalOpen()) return;
-    // Only react when the press is actually inside one of the theme controls —
-    // sliders, ranges, swatches, or canvas-based pickers. Buttons / tabs / etc.
-    // shouldn't dim the modal.
     const target = e.target as HTMLElement | null;
     if (!target) return;
     const isThemeControl =
@@ -63,33 +61,63 @@ function useThemePickerDragHandlers() {
   return { onPointerDown };
 }
 
+function Section(props: {
+  title: string;
+  right?: JSX.Element;
+  children: JSX.Element;
+}) {
+  return (
+    <div class="flex flex-col gap-3">
+      <div class="flex min-h-7 items-center justify-between gap-3">
+        <h3 class="text-sm font-semibold text-ink">{props.title}</h3>
+        <Show when={props.right}>{props.right}</Show>
+      </div>
+      <div>{props.children}</div>
+    </div>
+  );
+}
+
+function ToggleRow(props: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <div class="flex min-h-10 items-center justify-between gap-4 py-1.5">
+      <div class="flex min-w-0 flex-col gap-0.5">
+        <div class="text-sm">{props.label}</div>
+        <Show when={props.description}>
+          <div class="text-xs text-ink-extra-muted">{props.description}</div>
+        </Show>
+      </div>
+      <ToggleSwitch onChange={props.onChange} checked={props.checked} />
+    </div>
+  );
+}
+
 function UserInterface() {
   return (
-    <div class="grid gap-px bg-edge-muted border-b border-edge-muted">
-      <div class="bg-surface flex items-center justify-between h-15.25 px-6">
-        <div class="text-sm">Monochrome Icons</div>
-        <ToggleSwitch
-          onChange={setMonochromeIcons}
-          checked={monochromeIcons()}
-        />
-      </div>
-
-      <div class="bg-surface flex items-center justify-between h-15.25 px-6">
-        <div class="text-sm">Show Tooltips</div>
-        <ToggleSwitch
-          onChange={setTooltipsEnabled}
-          checked={tooltipsEnabled()}
-        />
-      </div>
-
+    <div class="flex flex-col gap-3">
+      <ToggleRow
+        label="Monochrome icons"
+        description="Render entity icons in a single tone"
+        checked={monochromeIcons()}
+        onChange={setMonochromeIcons}
+      />
+      <ToggleRow
+        label="Show tooltips"
+        description="Show hover tooltips throughout the app"
+        checked={tooltipsEnabled()}
+        onChange={setTooltipsEnabled}
+      />
     </div>
   );
 }
 
 export function Appearance(props: { mini?: boolean } = {}) {
-  const [activeTabA, setActiveTabA] = createSignal<PanelA>('basic');
-  const [activeTabB, setActiveTabB] = createSignal<PanelB>('themes');
   const dragHandlers = useThemePickerDragHandlers();
+  const [showAdvanced, setShowAdvanced] = createSignal(false);
 
   if (props.mini) {
     return (
@@ -105,72 +133,44 @@ export function Appearance(props: { mini?: boolean } = {}) {
 
   return (
     <div
-      class="h-full overflow-hidden flex p-2"
+      class="flex w-full flex-col divide-y divide-edge-muted text-ink"
       onPointerDown={dragHandlers.onPointerDown}
     >
-      <div
-        class="size-full"
-        style={{
-          'grid-template-rows': `${isMobile() ? '322.5px' : '432.5px'} 1fr`,
-          'grid-template-columns': '1fr',
-          'overflow': 'hidden',
-          'display': 'grid',
-          'gap': '8px',
-        }}
-      >
-        <Panel depth={2}>
-          <Panel.Header>
-            <TabsInset
-              onChange={(value) => setActiveTabA(value as PanelA)}
-              list={[
-                { value: 'basic', label: 'Basic' },
-                { value: 'advanced', label: 'Advanced' },
-              ]}
-              value={activeTabA()}
-              defaultValue="basic"
-            />
-            <Show when={!isMobile()}>
-              <ThemeTools class="flex-1 min-w-0" />
-            </Show>
-          </Panel.Header>
+      <div class="pb-6">
+        <Section title="Interface">
+          <UserInterface />
+        </Section>
+      </div>
 
-          <Show when={isMobile()}>
-            <Panel.Toolbar>
-              <ThemeTools class="flex-1 min-w-0" />
-            </Panel.Toolbar>
-          </Show>
+      <div class="py-6">
+        <Section title="Colors" right={<ThemeTools />}>
+          <div class="flex flex-col gap-4">
+            <ThemeEditorBasic />
+            <div class="flex flex-col gap-3">
+              <button
+                type="button"
+                class="flex items-center gap-1 self-start text-xs text-ink-muted hover:text-ink"
+                onClick={() => setShowAdvanced((v) => !v)}
+              >
+                <CaretRight
+                  class={`size-3 transition-transform ${
+                    showAdvanced() ? 'rotate-90' : ''
+                  }`}
+                />
+                Advanced colors
+              </button>
+              <Show when={showAdvanced()}>
+                <ThemeEditorAdvanced />
+              </Show>
+            </div>
+          </div>
+        </Section>
+      </div>
 
-          <Panel.Body scroll>
-            <Show when={activeTabA() === 'basic'}>
-              <ThemeEditorBasic />
-            </Show>
-            <Show when={activeTabA() === 'advanced'}>
-              <ThemeEditorAdvanced />
-            </Show>
-          </Panel.Body>
-        </Panel>
-
-        <Panel depth={2}>
-          <Panel.Header>
-            <TabsInset
-            onChange={(value) => setActiveTabB(value as PanelB)}
-              list={[
-                { value: 'themes', label: 'Themes' },
-                { value: 'ui', label: 'UI' },
-              ]}
-              value={activeTabB()}
-              defaultValue="list"
-            />
-          </Panel.Header>
-          <Panel.Body scroll>
-            <Show when={activeTabB() === 'themes'}>
-              <ThemeList />
-            </Show>
-            <Show when={activeTabB() === 'ui'}>
-              <UserInterface />
-            </Show>
-          </Panel.Body>
-        </Panel>
+      <div class="py-6">
+        <Section title="Theme presets">
+          <ThemeList />
+        </Section>
       </div>
     </div>
   );

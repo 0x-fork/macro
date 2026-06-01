@@ -18,14 +18,12 @@ export function ThemeCrud(props: ThemeCrudProps) {
     <div
       style="
         grid-auto-columns: min-content;
-        background-color: var(--b0);
+        background-color: transparent;
         grid-auto-flow: column;
         box-sizing: border-box;
         align-items: center;
         direction: rtl;
-        padding: 0 12px;
         display: grid;
-        height: 100%;
         gap: 4.5px;
       "
       onClick={stop}

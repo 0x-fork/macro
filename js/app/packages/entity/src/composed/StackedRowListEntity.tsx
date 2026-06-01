@@ -8,7 +8,7 @@ import { isMobile } from '@core/mobile/isMobile';
 import { tryMacroId, useDisplayName, useDisplayNameParts } from '@core/user';
 import type { DateValue } from '@core/util/date';
 import { DisplayName } from '@entity/components/DisplayName';
-import UsersIcon from '@phosphor-icons/core/fill/users-fill.svg?component-solid';
+import UsersIcon from '@phosphor/core/fill/users-fill.svg?component-solid';
 import UserFillIcon from '@phosphor-icons/core/fill/user-fill.svg?component-solid';
 import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg';
 import EnvelopeOpenIcon from '@phosphor/envelope-open.svg';
@@ -42,14 +42,8 @@ import {
   type PropertySaveHandler,
 } from '@property/context/PropertiesContext';
 import { Modals } from '@property/component/modal';
-import type {
-  Property,
-  PropertyApiValues,
-} from '@property/types';
-import {
-  SYSTEM_PROPERTY_IDS,
-  PROPERTY_OPTION_IDS,
-} from '@property/constants';
+import type { Property, PropertyApiValues } from '@property/types';
+import { SYSTEM_PROPERTY_IDS, PROPERTY_OPTION_IDS } from '@property/constants';
 import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
 import { HexDashedIcon } from '@icon/HexDashedIcon';
 import { formatPropertyValue } from '@property/utils/formatting';
@@ -188,6 +182,7 @@ function RowShell(props: {
 }
 
 function SharedIndicator(props: { ownerId: string }) {
+  !props.ownerId && console.warn(props.ownerId);
   const [displayName] = useDisplayName(tryMacroId(props.ownerId));
   return (
     <Tooltip label={`${displayName() || 'User'} shared this`}>
@@ -196,7 +191,11 @@ function SharedIndicator(props: { ownerId: string }) {
   );
 }
 
-function MetaPill(props: { class?: string; dim?: boolean; children: JSX.Element }) {
+function MetaPill(props: {
+  class?: string;
+  dim?: boolean;
+  children: JSX.Element;
+}) {
   return (
     <span
       class={cn(
@@ -258,9 +257,7 @@ function EmailRowLayout(props: BaseLayoutProps & { email: EmailEntity }) {
       </div>
       {/* Row 2: Subject */}
       <div class="flex items-center gap-2 min-w-0">
-        <span
-          class={cn('truncate text-ink-muted', props.unread && 'text-ink')}
-        >
+        <span class={cn('truncate text-ink-muted', props.unread && 'text-ink')}>
           <Entity.Title entity={props.entity} />
         </span>
       </div>
@@ -306,7 +303,13 @@ function ChannelRowLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
               />
             }
           >
-            {(participantId) => <UserIcon id={participantId()} size="fill" class="size-4 rounded-full" />}
+            {(participantId) => (
+              <UserIcon
+                id={participantId()}
+                size="fill"
+                class="size-4 rounded-full"
+              />
+            )}
           </Show>
         </span>
         <span
@@ -333,9 +336,7 @@ function ChannelRowLayout(props: BaseLayoutProps & { channel: ChannelEntity }) {
                 <span class="flex items-center gap-1 text-ink-muted shrink-0">
                   <UserIcon id={id()} size="xs" />
                   <Show when={senderName?.firstName()}>
-                    {(name) => (
-                      <span class="text-xs">{name()}</span>
-                    )}
+                    {(name) => <span class="text-xs">{name()}</span>}
                   </Show>
                 </span>
               )}
@@ -555,9 +556,7 @@ function TaskRowLayout(props: BaseLayoutProps & { task: TaskEntity }) {
         </div>
         {/* Row 3: Properties as pills */}
         <div class="flex flex-wrap items-center gap-1.5 min-w-0">
-          <Show
-            when={isProjectContainedEntity(props.entity) && props.entity}
-          >
+          <Show when={isProjectContainedEntity(props.entity) && props.entity}>
             {(entity) => (
               <MetaPill>
                 <ProjectBreadCrumb
@@ -598,13 +597,11 @@ function TaskRowLayout(props: BaseLayoutProps & { task: TaskEntity }) {
                 </Show>
               </div>
               <span class="truncate">
-                <DisplayName
-                  id={taskAssignees()!.ids[0]}
-                  format="firstName"
-                />
+                <DisplayName id={taskAssignees()!.ids[0]} format="firstName" />
                 <Show when={taskAssignees()!.ids.length > 1}>
                   <span class="text-ink-extra-muted">
-                    {' '}+{taskAssignees()!.ids.length - 1}
+                    {' '}
+                    +{taskAssignees()!.ids.length - 1}
                   </span>
                 </Show>
               </span>
@@ -775,9 +772,7 @@ function AutomationRowLayout(
         <span
           class={cn(
             'flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-xs whitespace-nowrap',
-            isRunning()
-              ? 'bg-accent/10 text-accent'
-              : 'bg-ink/5 text-ink-muted'
+            isRunning() ? 'bg-accent/10 text-accent' : 'bg-ink/5 text-ink-muted'
           )}
         >
           <Show when={isRunning()}>

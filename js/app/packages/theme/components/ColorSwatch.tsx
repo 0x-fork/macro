@@ -1,4 +1,8 @@
-export function ColorSwatch(props: { width: string; color: string }) {
+export function ColorSwatch(props: {
+  width: string;
+  height?: string;
+  color: string;
+}) {
   return (
     <div
       class="theme-color-swatch"
@@ -14,7 +18,7 @@ export function ColorSwatch(props: { width: string; color: string }) {
           'background-color': props.color,
           'border-radius': '1px',
           width: props.width,
-          height: '10px',
+          height: props.height ?? '10px',
         }}
       />
     </div>

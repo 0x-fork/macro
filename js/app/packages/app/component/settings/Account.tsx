@@ -214,7 +214,7 @@ export function Account() {
   return (
     <div class="flex w-full flex-col divide-y divide-edge-muted text-ink">
       <div>
-      <div class="flex items-center gap-4 pt-6">
+      <div class="flex items-center gap-4">
         <UserIcon
           id={userId() as string}
           isDeleted={false}
