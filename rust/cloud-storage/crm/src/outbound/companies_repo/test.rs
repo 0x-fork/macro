@@ -1788,7 +1788,15 @@ async fn list_for_soup_returns_empty_when_killswitch_missing(pool: PgPool) -> an
 
     let repo = CompaniesRepositoryImpl::new(pool);
     let result = repo
-        .list_companies_for_soup(&team, &[], None, CrmCompanyListSort::UpdatedAt, None, 100)
+        .list_companies_for_soup(
+            &team,
+            "macro|owner@test.com",
+            &[],
+            None,
+            CrmCompanyListSort::UpdatedAt,
+            None,
+            100,
+        )
         .await?;
     assert!(
         result.is_empty(),
@@ -1810,7 +1818,15 @@ async fn list_for_soup_returns_empty_when_killswitch_off(pool: PgPool) -> anyhow
 
     let repo = CompaniesRepositoryImpl::new(pool);
     let result = repo
-        .list_companies_for_soup(&team, &[], None, CrmCompanyListSort::UpdatedAt, None, 100)
+        .list_companies_for_soup(
+            &team,
+            "macro|owner@test.com",
+            &[],
+            None,
+            CrmCompanyListSort::UpdatedAt,
+            None,
+            100,
+        )
         .await?;
     assert!(result.is_empty());
     Ok(())
@@ -1831,7 +1847,15 @@ async fn list_for_soup_excludes_hidden_rows(pool: PgPool) -> anyhow::Result<()> 
 
     let repo = CompaniesRepositoryImpl::new(pool);
     let result = repo
-        .list_companies_for_soup(&team, &[], None, CrmCompanyListSort::UpdatedAt, None, 100)
+        .list_companies_for_soup(
+            &team,
+            "macro|owner@test.com",
+            &[],
+            None,
+            CrmCompanyListSort::UpdatedAt,
+            None,
+            100,
+        )
         .await?;
     let ids: Vec<Uuid> = result.iter().map(|c| c.company.id).collect();
     assert_eq!(ids, vec![visible], "hidden = TRUE rows must not appear");
@@ -1862,6 +1886,7 @@ async fn list_for_soup_returns_hidden_when_hidden_true(pool: PgPool) -> anyhow::
     let hidden_only = repo
         .list_companies_for_soup(
             &team,
+            "macro|owner@test.com",
             &[],
             Some(true),
             CrmCompanyListSort::UpdatedAt,
@@ -1879,6 +1904,7 @@ async fn list_for_soup_returns_hidden_when_hidden_true(pool: PgPool) -> anyhow::
     let visible_only_explicit = repo
         .list_companies_for_soup(
             &team,
+            "macro|owner@test.com",
             &[],
             Some(false),
             CrmCompanyListSort::UpdatedAt,
@@ -1917,7 +1943,15 @@ async fn list_for_soup_hydrates_name_and_description_from_directory(
 
     let repo = CompaniesRepositoryImpl::new(pool);
     let result = repo
-        .list_companies_for_soup(&team, &[], None, CrmCompanyListSort::UpdatedAt, None, 100)
+        .list_companies_for_soup(
+            &team,
+            "macro|owner@test.com",
+            &[],
+            None,
+            CrmCompanyListSort::UpdatedAt,
+            None,
+            100,
+        )
         .await?;
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].name.as_deref(), Some("Acme Inc."));
@@ -1952,7 +1986,15 @@ async fn list_for_soup_returns_none_for_negative_cache_directory_row(
 
     let repo = CompaniesRepositoryImpl::new(pool);
     let result = repo
-        .list_companies_for_soup(&team, &[], None, CrmCompanyListSort::UpdatedAt, None, 100)
+        .list_companies_for_soup(
+            &team,
+            "macro|owner@test.com",
+            &[],
+            None,
+            CrmCompanyListSort::UpdatedAt,
+            None,
+            100,
+        )
         .await?;
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].name, None);
@@ -1973,6 +2015,7 @@ async fn list_for_soup_filters_by_company_ids_when_non_empty(pool: PgPool) -> an
     let result = repo
         .list_companies_for_soup(
             &team,
+            "macro|owner@test.com",
             &[wanted],
             None,
             CrmCompanyListSort::UpdatedAt,
@@ -1998,7 +2041,15 @@ async fn list_for_soup_does_not_leak_other_team_rows(pool: PgPool) -> anyhow::Re
 
     let repo = CompaniesRepositoryImpl::new(pool);
     let result = repo
-        .list_companies_for_soup(&team_b, &[], None, CrmCompanyListSort::UpdatedAt, None, 100)
+        .list_companies_for_soup(
+            &team_b,
+            "macro|b@test.com",
+            &[],
+            None,
+            CrmCompanyListSort::UpdatedAt,
+            None,
+            100,
+        )
         .await?;
     let ids: Vec<Uuid> = result.iter().map(|c| c.company.id).collect();
     assert_eq!(ids, vec![b_only]);
@@ -2042,7 +2093,15 @@ async fn list_for_soup_paginates_past_cursor(pool: PgPool) -> anyhow::Result<()>
     let mut first_page: Vec<Uuid> = Vec::new();
     for page_idx in 0..10 {
         let page = repo
-            .list_companies_for_soup(&team, &[], None, CrmCompanyListSort::UpdatedAt, cursor, 2)
+            .list_companies_for_soup(
+                &team,
+                "macro|owner@test.com",
+                &[],
+                None,
+                CrmCompanyListSort::UpdatedAt,
+                cursor,
+                2,
+            )
             .await?;
         if page.is_empty() {
             break;
@@ -2118,7 +2177,15 @@ async fn list_for_soup_pagination_breaks_ties_on_id(pool: PgPool) -> anyhow::Res
     let mut cursor: Option<CrmCompanySoupCursor> = None;
     for _ in 0..10 {
         let page = repo
-            .list_companies_for_soup(&team, &[], None, CrmCompanyListSort::UpdatedAt, cursor, 2)
+            .list_companies_for_soup(
+                &team,
+                "macro|owner@test.com",
+                &[],
+                None,
+                CrmCompanyListSort::UpdatedAt,
+                cursor,
+                2,
+            )
             .await?;
         if page.is_empty() {
             break;

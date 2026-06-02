@@ -1071,6 +1071,7 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
     async fn list_companies_for_soup(
         &self,
         team_id: &uuid::Uuid,
+        user_id: &str,
         company_ids: &[uuid::Uuid],
         hidden: Option<bool>,
         sort: CrmCompanyListSort,
@@ -1080,6 +1081,8 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
         let sort_method_str = match sort {
             CrmCompanyListSort::UpdatedAt => "updated_at",
             CrmCompanyListSort::CreatedAt => "created_at",
+            CrmCompanyListSort::ViewedAt => "viewed_at",
+            CrmCompanyListSort::ViewedUpdated => "viewed_updated",
         };
         // Keyset seek past the previous soup page's last row. Compared as
         // (sort_ts, id::text) to match the main soup query's tiebreak in
@@ -1092,7 +1095,10 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
         // so rows arrive contiguous per company with the primary
         // domain first. Sort columns are `first_interaction` /
         // `last_interaction` from populate_contact (both NOT NULL —
-        // see the `crm_interaction_timestamps` migration).
+        // see the `crm_interaction_timestamps` migration). `Viewed*`
+        // variants join `UserHistory` per-user — same shape as the
+        // soup repo's `viewed_at` / `viewed_updated` sorts for
+        // docs/chats/projects (see pg_soup_repo/expanded/by_cursor.rs).
         //
         // `$5` (`hidden`) defaults to visible-only when `NULL`; the
         // admin/owner role check for `Some(true)` is enforced upstream
@@ -1108,6 +1114,10 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
                     c.first_interaction,
                     c.last_interaction
                 FROM crm_companies c
+                LEFT JOIN "UserHistory" uh
+                    ON uh."itemId" = c.id::text
+                   AND uh."itemType" = 'crm_company'
+                   AND uh."userId" = $8
                 WHERE c.team_id = $1
                   AND c.hidden = COALESCE($5::bool, FALSE)
                   AND EXISTS (
@@ -1122,6 +1132,9 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
                       OR (
                           CASE $4
                               WHEN 'created_at' THEN c.first_interaction
+                              WHEN 'viewed_at' THEN uh."updatedAt"
+                              WHEN 'viewed_updated'
+                                  THEN COALESCE(uh."updatedAt", c.last_interaction)
                               ELSE c.last_interaction
                           END,
                           c.id::text
@@ -1130,8 +1143,11 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
                 ORDER BY
                     CASE $4
                         WHEN 'created_at' THEN c.first_interaction
+                        WHEN 'viewed_at' THEN uh."updatedAt"
+                        WHEN 'viewed_updated'
+                            THEN COALESCE(uh."updatedAt", c.last_interaction)
                         ELSE c.last_interaction
-                    END DESC,
+                    END DESC NULLS LAST,
                     c.id DESC
                 LIMIT $3
             )
@@ -1148,14 +1164,21 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
                 dd.name            AS "dir_name?",
                 dd.description     AS "dir_description?"
             FROM limited_companies lc
+            LEFT JOIN "UserHistory" uh
+                ON uh."itemId" = lc.id::text
+               AND uh."itemType" = 'crm_company'
+               AND uh."userId" = $8
             LEFT JOIN crm_domains d ON d.company_id = lc.id
             LEFT JOIN crm_domain_directory dd
                 ON LOWER(dd.domain) = LOWER(d.domain)
             ORDER BY
                 CASE $4
                     WHEN 'created_at' THEN lc.first_interaction
+                    WHEN 'viewed_at' THEN uh."updatedAt"
+                    WHEN 'viewed_updated'
+                        THEN COALESCE(uh."updatedAt", lc.last_interaction)
                     ELSE lc.last_interaction
-                END DESC,
+                END DESC NULLS LAST,
                 lc.id DESC,
                 d.created_at ASC NULLS LAST
             "#,
@@ -1166,6 +1189,7 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
             hidden,
             cursor_ts,
             cursor_id,
+            user_id,
         )
         .fetch_all(&self.pool)
         .await
