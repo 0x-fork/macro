@@ -201,6 +201,7 @@ pub(crate) type DocumentService = DocumentServiceImpl<
     TaskPropertiesAdapter,
     ConnectionServiceImpl<EntityAccessService, ConnectionGatewayImpl>,
     EntityAccessManagementService,
+    ForeignEntityServiceImpl<PgForeignEntityRepo>,
 >;
 
 /// Type alias for the documents router state.
@@ -285,6 +286,7 @@ pub(crate) type GithubSyncServiceType = GithubSyncServiceImpl<
     PgGithubSyncRepo,
     GithubSyncClientImpl,
     ForeignEntityServiceType,
+    NotificationIngressType,
 >;
 
 /// Type alias for the cal.com webhook service.
