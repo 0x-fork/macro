@@ -536,6 +536,11 @@ export const SoupViewContextProvider: FlowComponent<
         })
       );
 
+      // Collapsed groups render only their header row. Excluding the children
+      // here (rather than hiding them per-row) shrinks the virtualized list so
+      // the rows actually disappear instead of leaving stale content behind.
+      if (!groupMeta.isExpanded()) continue;
+
       // Entity rows
       for (const entity of groupEntities) {
         result.push(
