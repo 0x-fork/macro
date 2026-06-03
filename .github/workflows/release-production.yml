@@ -39,6 +39,7 @@ jobs:
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+          sccache-s3-key-prefix: sccache/prod/
       - name: Build for Production
         working-directory: js/app
         run: just build-prod
@@ -69,6 +70,7 @@ jobs:
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+          sccache-s3-key-prefix: sccache/prod/
       - name: Download Build Artifact
         uses: actions/download-artifact@v5
         with:

@@ -1,4 +1,53 @@
 {
+  "binary_build_priority": [
+    "document-storage-service",
+    "document-cognition-service",
+    "email-service",
+    "agent-schedule-service",
+    "search-processing-service",
+    "authentication-service",
+    "mcp-server",
+    "contacts-service",
+    "notification-service",
+    "convert-service",
+    "static-file-service",
+    "connection-gateway",
+    "image-proxy-service",
+    "unfurl-service"
+  ],
+  "lambda_build_priority": [
+    "document_upload_finalizer_handler",
+    "email_refresh_handler",
+    "upload_extractor_lambda_handler",
+    "email_sfs_delete_handler",
+    "deleted_item_poller",
+    "docx_unzip_handler",
+    "organization_retention_trigger",
+    "upload_extractor_lambda_trigger",
+    "document_text_extractor",
+    "email_scheduled_handler",
+    "organization_retention_handler",
+    "image_optimizer",
+    "email_suppression_handler",
+    "delete_chat_handler",
+    "search_upload_handler",
+    "dataloss_prevention_handler",
+    "user_link_cleanup_handler"
+  ],
+  "lambda_service_build_priority": [
+    "document-storage-service",
+    "bulk-upload",
+    "email-service",
+    "organization-retention",
+    "email-sfs-delete-handler",
+    "deleted-item-poller",
+    "document-text-extractor",
+    "static-file-service",
+    "email-suppression",
+    "search-upload",
+    "dlp-handler",
+    "authentication-service"
+  ],
   "services": {
     "agent-schedule-service": {
       "source_paths": [

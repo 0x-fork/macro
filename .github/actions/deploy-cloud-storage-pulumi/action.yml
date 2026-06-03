@@ -60,6 +60,10 @@ inputs:
     description: 'Optional S3 bucket for shared sccache storage during inline Lambda artifact builds'
     required: false
     default: ''
+  sccache-s3-key-prefix:
+    description: 'S3 key prefix for shared sccache storage during inline Lambda artifact builds'
+    required: false
+    default: sccache/
 
 runs:
   using: composite
@@ -114,6 +118,7 @@ runs:
       with:
         cachix-auth-token: ${{ inputs.cachix-auth-token }}
         sccache-bucket: ${{ inputs.sccache-bucket }}
+        sccache-s3-key-prefix: ${{ inputs.sccache-s3-key-prefix }}
 
     - name: Build Lambda artifacts inline
       if: ${{ inputs.lambda-artifacts == '' && inputs.cloud-storage-service-name != '' && steps.check-lambdas.outputs.has_lambdas == 'true' }}

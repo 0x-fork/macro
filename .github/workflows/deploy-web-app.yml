@@ -65,6 +65,7 @@ jobs:
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+          sccache-s3-key-prefix: sccache/${{ inputs.environment }}/
       - name: Build
         working-directory: js/app
         run: just build-${{ inputs.environment }}

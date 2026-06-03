@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM debian:trixie-slim AS runner
 ARG SERVICE_NAME=__MISSING_SERVICE_NAME__
 WORKDIR /app
@@ -11,8 +12,7 @@ RUN apt-get update \
 
 # Copy the runtime closure and pre-built Linux binary from the GitHub Actions artifact.
 COPY ./prebuilt/nix-store/ /nix/store/
-COPY ./prebuilt/${SERVICE_NAME} /app/svc
-RUN chmod +x /app/svc
+COPY --chmod=755 ./prebuilt/${SERVICE_NAME} /app/svc
 
 ENV PORT=8080
 EXPOSE ${PORT}

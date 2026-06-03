@@ -13,6 +13,10 @@ inputs:
     description: Optional S3 bucket for shared sccache storage.
     required: false
     default: ''
+  sccache-s3-key-prefix:
+    description: S3 key prefix for shared sccache storage.
+    required: false
+    default: sccache/
 
 runs:
   using: composite
@@ -23,6 +27,7 @@ runs:
         cachix-auth-token: ${{ inputs.cachix-auth-token }}
         dev-shell: 'true'
         sccache-bucket: ${{ inputs.sccache-bucket }}
+        sccache-s3-key-prefix: ${{ inputs.sccache-s3-key-prefix }}
 
     - name: Setup bunfig.toml
       working-directory: js

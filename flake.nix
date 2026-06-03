@@ -103,6 +103,38 @@
           BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.glibc.dev}/include -I${pkgs.gcc.cc}/lib/gcc/${pkgs.stdenv.hostPlatform.config}/${pkgs.gcc.version}/include";
         };
 
+        deploySccacheDir = "/tmp/macro-nix-sccache";
+
+        deploySccacheWrapper = pkgs.writeShellScript "rustc-sccache-wrapper" ''
+          if [ -r "${deploySccacheDir}/config.toml" ]; then
+            exec ${pkgs.sccache}/bin/sccache "$@"
+          fi
+
+          echo "warning: ${deploySccacheDir}/config.toml not readable; compiling without sccache" >&2
+          exec "$@"
+        '';
+
+        # CI-only deploy builds use a remote sccache backend. These args are
+        # applied only to the deploy-service-binaries-sccache-* package attrs so
+        # the normal deploy-service-binaries-* attrs remain sandbox-pure.
+        deploySccacheArgs = pkgs.lib.optionalAttrs isLinux {
+          nativeBuildInputs = commonArgs.nativeBuildInputs ++ [ pkgs.sccache ];
+          RUSTC_WRAPPER = deploySccacheWrapper;
+          SCCACHE_CONF = "${deploySccacheDir}/config.toml";
+          SCCACHE_DIR = "${deploySccacheDir}/cache";
+          SCCACHE_CACHE_SIZE = "5G";
+          SCCACHE_BASEDIR = "/build/source";
+          SCCACHE_BASEDIRS = "/build/source:/build";
+          AWS_SHARED_CREDENTIALS_FILE = "${deploySccacheDir}/aws-credentials";
+          AWS_CONFIG_FILE = "${deploySccacheDir}/aws-config";
+          __noChroot = true;
+          postBuild = ''
+            if [ -r "$SCCACHE_CONF" ]; then
+              ${pkgs.sccache}/bin/sccache --show-stats || true
+            fi
+          '';
+        };
+
         # Pre-built third-party deps — Cachix caches this; hash is driven by Cargo.lock
         # (workspace member sources are stubbed by crane), so it survives most PRs.
         # --all-features matches the test job (cargo nextest --all-features) and clippy
@@ -184,21 +216,29 @@
           }
         );
 
-        deployCargoArtifacts = craneLib.buildDepsOnly (
-          commonArgs
-          // {
-            pname = "cloud-storage-deploy-deps";
-            cargoExtraArgs = "--locked";
-            CARGO_PROFILE = "release";
-          }
-        );
+        deployCargoArtifactsFor =
+          extraArgs:
+          craneLib.buildDepsOnly (
+            commonArgs
+            // extraArgs
+            // {
+              pname = "cloud-storage-deploy-deps";
+              cargoExtraArgs = "--locked";
+              CARGO_PROFILE = "release";
+            }
+          );
 
-        deployServiceBinaryPackage =
+        deployCargoArtifacts = deployCargoArtifactsFor { };
+        deployCargoArtifactsWithSccache = deployCargoArtifactsFor deploySccacheArgs;
+
+        deployServiceBinaryPackageFor =
+          cargoArtifacts: extraArgs:
           serviceName: binaries:
           craneLib.buildPackage (
             commonArgs
+            // extraArgs
             // {
-              cargoArtifacts = deployCargoArtifacts;
+              inherit cargoArtifacts;
               pname = "cloud-storage-${serviceName}-binaries";
               doCheck = false;
               cargoExtraArgs =
@@ -214,49 +254,58 @@
             }
           );
 
-        deployServiceBinaryPackages = {
-          deploy-service-binaries-agent-schedule-service =
-            deployServiceBinaryPackage "agent-schedule-service"
-              [ "service" ];
-          deploy-service-binaries-authentication-service =
-            deployServiceBinaryPackage "authentication-service"
-              [ "authentication_service" ];
-          deploy-service-binaries-connection-gateway = deployServiceBinaryPackage "connection-gateway" [
-            "connection_gateway_service"
-          ];
-          deploy-service-binaries-contacts-service = deployServiceBinaryPackage "contacts-service" [
-            "contacts_service"
-          ];
-          deploy-service-binaries-convert-service = deployServiceBinaryPackage "convert-service" [
-            "convert_service"
-          ];
-          deploy-service-binaries-document-cognition-service =
-            deployServiceBinaryPackage "document-cognition-service"
-              [ "document_cognition_service" ];
-          deploy-service-binaries-document-storage-service =
-            deployServiceBinaryPackage "document-storage-service"
-              [ "document_storage_service" ];
-          deploy-service-binaries-email-service = deployServiceBinaryPackage "email-service" [
-            "email_service"
-            "pubsub_workers"
-          ];
-          deploy-service-binaries-image-proxy-service = deployServiceBinaryPackage "image-proxy-service" [
-            "image_proxy_service"
-          ];
-          deploy-service-binaries-mcp-server = deployServiceBinaryPackage "mcp-server" [ "mcp_service" ];
-          deploy-service-binaries-notification-service = deployServiceBinaryPackage "notification-service" [
-            "notification_service"
-          ];
-          deploy-service-binaries-search-processing-service =
-            deployServiceBinaryPackage "search-processing-service"
-              [ "search_processing_service" ];
-          deploy-service-binaries-static-file-service = deployServiceBinaryPackage "static-file-service" [
-            "static_file_service"
-          ];
-          deploy-service-binaries-unfurl-service = deployServiceBinaryPackage "unfurl-service" [
-            "unfurl_service"
-          ];
-        };
+        deployServiceBinaryPackage = deployServiceBinaryPackageFor deployCargoArtifacts { };
+        deployServiceBinaryPackageWithSccache =
+          deployServiceBinaryPackageFor deployCargoArtifactsWithSccache deploySccacheArgs;
+
+        deployServiceBinaryPackagesFor =
+          prefix: deployPackage:
+          {
+            "${prefix}-agent-schedule-service" = deployPackage "agent-schedule-service" [ "service" ];
+            "${prefix}-authentication-service" = deployPackage "authentication-service" [
+              "authentication_service"
+            ];
+            "${prefix}-connection-gateway" = deployPackage "connection-gateway" [
+              "connection_gateway_service"
+            ];
+            "${prefix}-contacts-service" = deployPackage "contacts-service" [
+              "contacts_service"
+            ];
+            "${prefix}-convert-service" = deployPackage "convert-service" [
+              "convert_service"
+            ];
+            "${prefix}-document-cognition-service" = deployPackage "document-cognition-service" [
+              "document_cognition_service"
+            ];
+            "${prefix}-document-storage-service" = deployPackage "document-storage-service" [
+              "document_storage_service"
+            ];
+            "${prefix}-email-service" = deployPackage "email-service" [
+              "email_service"
+              "pubsub_workers"
+            ];
+            "${prefix}-image-proxy-service" = deployPackage "image-proxy-service" [
+              "image_proxy_service"
+            ];
+            "${prefix}-mcp-server" = deployPackage "mcp-server" [ "mcp_service" ];
+            "${prefix}-notification-service" = deployPackage "notification-service" [
+              "notification_service"
+            ];
+            "${prefix}-search-processing-service" = deployPackage "search-processing-service" [
+              "search_processing_service"
+            ];
+            "${prefix}-static-file-service" = deployPackage "static-file-service" [
+              "static_file_service"
+            ];
+            "${prefix}-unfurl-service" = deployPackage "unfurl-service" [
+              "unfurl_service"
+            ];
+          };
+
+        deployServiceBinaryPackages =
+          deployServiceBinaryPackagesFor "deploy-service-binaries" deployServiceBinaryPackage;
+        deployServiceBinaryPackagesWithSccache =
+          deployServiceBinaryPackagesFor "deploy-service-binaries-sccache" deployServiceBinaryPackageWithSccache;
 
         shellTools =
           with pkgs;
@@ -469,7 +518,8 @@
             ;
           default = cargoArtifacts;
         }
-        // deployServiceBinaryPackages;
+        // deployServiceBinaryPackages
+        // deployServiceBinaryPackagesWithSccache;
 
         devShells = {
           default = pkgs.mkShell (

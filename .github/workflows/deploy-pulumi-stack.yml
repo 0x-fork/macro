@@ -48,5 +48,6 @@ jobs:
           cloud-storage-service-name: ${{ inputs.cloud-storage-service-name }}
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+          sccache-s3-key-prefix: sccache/${{ inputs.environment }}/
           dd-app-key: ${{ secrets.DD_APP_KEY }}
           dd-api-key: ${{ secrets.DD_API_KEY }}
