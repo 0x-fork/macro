@@ -6,6 +6,9 @@
   "version": "2.5.0",
   "scripts": {
     "dev": "vite -c vite.config.ts",
+    "dev:demo": "VITE_DEMO=true vite -c vite.config.ts",
+    "build:demo": "VITE_DEMO=true vite build -c vite.config.ts && bun run postbuild:semver && bun run postbuild:bundle-manifest",
+    "setup:demo-worker": "bunx msw init ./public --save",
     "build": "vite build -c vite.config.ts && bun run postbuild:semver && bun run postbuild:bundle-manifest",
     "postbuild:semver": "echo $npm_package_version+$(git rev-parse --short HEAD) > ./dist/semver.txt",
     "postbuild:bundle-manifest": "bun ./scripts/write-bundle-manifest.mjs",
@@ -21,6 +24,7 @@
   },
   "devDependencies": {
     "@datadog/datadog-ci": "^3.7.0",
-    "jsdom": "^26.1.0"
+    "jsdom": "^26.1.0",
+    "msw": "^2.7.0"
   }
 }

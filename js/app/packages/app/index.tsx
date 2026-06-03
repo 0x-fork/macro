@@ -85,8 +85,13 @@ const renderApp = () => {
   render(() => <Root />, root);
 };
 
-function main() {
+async function main() {
   console.log('App Version ', import.meta.env.__APP_VERSION__);
+
+  if (import.meta.env.VITE_DEMO === 'true') {
+    const { bootstrapDemo } = await import('./demo/bootstrap');
+    await bootstrapDemo();
+  }
 
   // during `vite dev` (but not dev builds), don't inject analytics/observability
   if (!import.meta.hot) {
