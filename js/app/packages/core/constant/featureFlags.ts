@@ -345,6 +345,17 @@ export function ENABLE_CALLS(): boolean {
   return analytics.posthog.isFeatureEnabled('enable-calls') ?? false;
 }
 
+// The sidebar active-calls widget polls GET /call/{channelId}/active for every
+// channel the user is in, every 15s (one request per channel). For users with
+// many channels this fans out to hundreds of requests. Flagged off by default
+// until it's batched / driven off websocket call events. Re-enable via the
+// 'enable-sidebar-active-calls' PostHog flag.
+export function ENABLE_SIDEBAR_ACTIVE_CALLS(): boolean {
+  return (
+    analytics.posthog.isFeatureEnabled('enable-sidebar-active-calls') ?? false
+  );
+}
+
 export const ENABLE_NEW_ONBOARDING_OVERRIDE = DEV_MODE_ENV ? true : undefined;
 
 export const ENABLE_NEW_LOGIN_OVERRIDE = DEV_MODE_ENV ? true : undefined;

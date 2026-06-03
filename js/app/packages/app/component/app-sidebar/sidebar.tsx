@@ -38,6 +38,7 @@ import {
   ENABLE_APP_STORE_QR_CODE,
   ENABLE_CALLS,
   ENABLE_NEW_PRICING_OVERRIDE,
+  ENABLE_SIDEBAR_ACTIVE_CALLS,
   ENABLE_TEAMS_OVERRIDE,
 } from '@core/constant/featureFlags';
 import {
@@ -1000,7 +1001,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       </div>
 
       <div class="mt-auto">
-        <Show when={ENABLE_CALLS()}>
+        <Show when={ENABLE_CALLS() && ENABLE_SIDEBAR_ACTIVE_CALLS()}>
           <div class="block max-h-[clamp(10%,60%,20rem)]">
             <SidebarActiveCallWidget
               sidebarState={props.sidebarState ?? 'expanded'}
