@@ -15,26 +15,6 @@ import {
   DEMO_USER,
 } from './seed';
 
-// Hosts the app talks to. Any request matching one of these but not handled
-// below is logged and returned as 200 `{}` so the demo doesn't crash —
-// watch the console while clicking around to find routes worth mocking.
-const MOCKED_HOSTS = [
-  'auth-service',
-  'cloud-storage',
-  'document-cognition',
-  'notifications',
-  'static-file-service',
-  'unfurl-service',
-  'contacts',
-  'email-service',
-  'image-proxy',
-  'agent-schedule',
-];
-
-function isBackendRequest(url: URL): boolean {
-  return MOCKED_HOSTS.some((h) => url.hostname.includes(h));
-}
-
 export const handlers = [
   // --- auth-service ---
   http.get('*/user/legacy_user_permissions', () =>
@@ -87,12 +67,13 @@ export const handlers = [
     return HttpResponse.json(doc);
   }),
 
-  // Catch-all: any other request to a known backend host gets a 200 `{}`
-  // so the demo doesn't crash. Keep this last.
+  // Catch-all: block every cross-origin request so no real API ever gets
+  // hit. Same-origin requests (Vite dev server, HMR, static assets) fall
+  // through to the network. Keep this last.
   http.all('*', ({ request }) => {
     const url = new URL(request.url);
-    if (!isBackendRequest(url)) return;
-    console.warn('[demo] unmocked', request.method, url.pathname);
+    if (url.origin === window.location.origin) return;
+    console.warn('[demo] blocked', request.method, url.href);
     return HttpResponse.json({}, { status: 200 });
   }),
 ];
