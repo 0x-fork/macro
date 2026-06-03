@@ -81,6 +81,8 @@ export const handlers = [
 
   http.get('*/email/links', () => HttpResponse.json({ links: [] })),
 
+  http.get('*/scheduled-actions', () => HttpResponse.json([])),
+
   http.get('*/items/:id', ({ params }) => {
     const doc = DEMO_DOCS.find((d) => d.id === params.id);
     if (!doc) return HttpResponse.json({}, { status: 404 });
