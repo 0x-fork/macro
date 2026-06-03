@@ -57,7 +57,7 @@ export const TypeIndicator = (props: { active: boolean }) => (
       'size-3.5 flex items-center justify-center shrink-0 rounded-sm border text-surface',
       props.active
         ? 'bg-accent border-accent'
-        : 'border-transparent group-hover:not-hover:border-edge-muted group-data-highlighted:not-hover:border-edge-muted hover:border-accent'
+        : 'border-transparent group-hover:not-hover:border-edge group-data-highlighted:not-hover:border-edge hover:border-accent'
     )}
   >
     <Show when={props.active}>
@@ -673,6 +673,7 @@ export const UnifiedFilterDropdown = (
     setInternalOpen(v);
     props.onOpenChange?.(v);
   };
+
   const panel = useSplitPanelOrThrow();
   const { soup, queryFilters, assigneeFilter, setAssigneeFilter, activeTab } =
     useSoupView();
@@ -810,6 +811,15 @@ export const UnifiedFilterDropdown = (
 
   const isTasksView = () => currentView() === 'tasks';
   const isSearchView = () => currentView() === 'search';
+
+  // The top-level menu renders its options as checkboxes directly only for a single-category
+  // view (e.g. inbox); otherwise it renders caret sub-menu triggers (tasks, search). Auto-
+  // highlight belongs on checkbox menus, not caret menus — so the top-level content opts in
+  // only here. Category sub-menus and the searchable assignee list are checkbox menus and opt
+  // in independently below.
+  const topLevelShowsCheckboxes = createMemo(
+    () => categories().length === 1 && !isTasksView() && !isSearchView()
+  );
   const hasActiveIndex = () =>
     INDEX_OPTIONS.some((opt) => soup.predicates.isActive(opt.value));
 
@@ -879,12 +889,10 @@ export const UnifiedFilterDropdown = (
           </Switch>
         </Show>
 
-        <Dropdown.Content>
+        <Dropdown.Content autoHighlightFirst={topLevelShowsCheckboxes()}>
           <Dropdown.Group>
             <Show
-              when={
-                categories().length === 1 && !isTasksView() && !isSearchView()
-              }
+              when={topLevelShowsCheckboxes()}
               fallback={
                 <>
                   <For each={categories()}>
@@ -895,7 +903,7 @@ export const UnifiedFilterDropdown = (
                           <CaretRightIcon class="size-3 text-ink-muted" />
                         </Dropdown.SubTrigger>
 
-                        <Dropdown.SubContent>
+                        <Dropdown.SubContent autoHighlightFirst>
                           <Dropdown.Group>
                             <For each={category.options}>
                               {(option) => {

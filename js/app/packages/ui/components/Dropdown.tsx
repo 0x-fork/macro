@@ -31,20 +31,27 @@ import { Surface, type SurfaceProps } from './Surface';
 type PortalMount = ComponentProps<typeof KobalteDropdownMenu.Portal>['mount'];
 type DropdownPortalScope = 'local';
 
+/**
+ * `autoHighlightFirst`: opt in to "first row highlighted on open, and one row always
+ * highlighted while open". Off by default; enable per menu where it fits (e.g. filter menus).
+ * See {@link attachAutoHighlightFirst} for how it works and its caveats.
+ */
+type AutoHighlightProp = { autoHighlightFirst?: boolean };
+
 export type DropdownSubContentProps = ComponentProps<
   typeof KobalteDropdownMenu.SubContent
 > & {
   depth?: SurfaceProps['depth'];
   mount?: PortalMount;
   portalScope?: DropdownPortalScope;
-};
+} & AutoHighlightProp;
 export type DropdownContentProps = ComponentProps<
   typeof KobalteDropdownMenu.Content
 > & {
   depth?: SurfaceProps['depth'];
   mount?: PortalMount;
   portalScope?: DropdownPortalScope;
-};
+} & AutoHighlightProp;
 export type DropdownTriggerProps = ComponentProps<
   typeof KobalteDropdownMenu.Trigger
 > &
@@ -73,6 +80,68 @@ export type DropdownSubProps = ComponentProps<typeof KobalteDropdownMenu.Sub>;
 const ROW_CLASS =
   'group rounded-lg w-full flex items-center gap-2 px-2 h-8 text-left font-medium text-xs cursor-default outline-none hover:bg-ink/5 data-highlighted:bg-ink/5 data-disabled:opacity-50 data-disabled:cursor-not-allowed';
 
+const MENU_ITEM_SELECTOR =
+  '[role="menuitem"],[role="menuitemcheckbox"],[role="menuitemradio"]';
+
+/**
+ * Keeps one row highlighted while a menu (content or sub-content) is open. Kobalte's menu
+ * context — which owns the highlighted key — isn't publicly exported, so we use the public
+ * lever: DOM focus. Focusing a menu item fires its onFocus, which sets the highlighted key;
+ * crucially, that key survives the item losing DOM focus (the menu's onFocusOut only flips an
+ * "is focused" flag, it doesn't clear the key), so the highlight sticks even when focus moves
+ * elsewhere. The listener/handlers live on the content element, which Kobalte discards when the
+ * menu closes, so they need no explicit teardown.
+ *
+ * Top-level menu: opens focused on its *container* (no row highlighted), and focus returns to
+ * the container whenever the pointer leaves a row. We listen for focus landing on the container
+ * and redirect it to the first row. Caveat: that means the highlight snaps back to the *first*
+ * row on mouse-away rather than staying on the last-hovered row.
+ */
+function attachAutoHighlightFirst(content: HTMLElement) {
+  const focusFirstRow = () => {
+    // Leave an existing highlight alone — hover or arrow keys already chose a row.
+    if (content.querySelector('[data-highlighted]')) return;
+    content
+      .querySelector<HTMLElement>(MENU_ITEM_SELECTOR)
+      ?.focus({ preventScroll: true });
+  };
+  content.addEventListener('focusin', (e) => {
+    if (e.target === content) focusFirstRow();
+  });
+  requestAnimationFrame(focusFirstRow);
+}
+
+/**
+ * Sub-content variant. A sub-menu opened by hover never receives focus — Kobalte keeps it on
+ * the parent trigger — so the focusin path never fires; we seed the first row after one frame
+ * (the frame lets Kobalte's DismissableLayer register, so moving focus in isn't read as "focus
+ * outside" and doesn't close the menu). But focusing the row also flags the sub-menu "focused",
+ * and the parent SubTrigger's onPointerMove clears the highlighted key whenever it sees that
+ * flag set — so the highlight would vanish the instant the cursor moves over the parent. To
+ * avoid that, we focus the row to set the key, then immediately restore focus to wherever it was
+ * (the trigger). The key persists (onFocusOut doesn't clear it) and, with the sub-menu no longer
+ * "focused", the SubTrigger leaves it alone — so the highlight survives the cursor sitting on
+ * the parent.
+ */
+function attachAutoHighlightFirstSub(content: HTMLElement) {
+  // Capture the opener (the trigger that opened this sub-menu) *now*, before deferring — by the
+  // time the frame runs the pointer may have slid to a sibling trigger.
+  const opener = document.activeElement as HTMLElement | null;
+  requestAnimationFrame(() => {
+    if (content.querySelector('[data-highlighted]')) return;
+    // If focus already moved on (pointer slid to a sibling trigger), bail rather than fight it:
+    // focusing+restoring here would thrash focus across two triggers and can leave both rows
+    // highlighted. The sibling's own sub-menu will seed itself when it opens.
+    if (document.activeElement !== opener) return;
+    const first = content.querySelector<HTMLElement>(MENU_ITEM_SELECTOR);
+    if (!first) return;
+    first.focus({ preventScroll: true });
+    if (opener && opener !== first && opener.isConnected) {
+      opener.focus({ preventScroll: true });
+    }
+  });
+}
+
 function resolvePortalMount(
   searchRef: HTMLElement | undefined,
   mount: PortalMount,
@@ -80,6 +149,24 @@ function resolvePortalMount(
 ): PortalMount {
   if (mount || portalScope !== 'local') return mount;
   return searchRef?.closest<HTMLElement>('.portal-scope') ?? undefined;
+}
+
+// Composes an optional user-supplied ref with the auto-highlight wiring, so passing
+// `autoHighlightFirst` doesn't clobber a `ref` on the same content. Sub-content needs the
+// focus-restoring variant (see attachAutoHighlightFirstSub).
+function composeContentRef(
+  autoHighlightFirst: boolean | undefined,
+  isSubContent: boolean,
+  userRef: unknown
+) {
+  return (el: HTMLElement) => {
+    if (autoHighlightFirst) {
+      if (isSubContent) attachAutoHighlightFirstSub(el);
+      else attachAutoHighlightFirst(el);
+    }
+    if (typeof userRef === 'function')
+      (userRef as (el: HTMLElement) => void)(el);
+  };
 }
 
 function DropdownContent(props: DropdownContentProps) {
@@ -90,6 +177,8 @@ function DropdownContent(props: DropdownContentProps) {
     'mount',
     'portalScope',
     'children',
+    'autoHighlightFirst',
+    'ref',
   ]);
   return (
     <>
@@ -98,6 +187,7 @@ function DropdownContent(props: DropdownContentProps) {
         mount={resolvePortalMount(searchRef, local.mount, local.portalScope)}
       >
         <KobalteDropdownMenu.Content
+          ref={composeContentRef(local.autoHighlightFirst, false, local.ref)}
           class={cn('rounded-xl size-auto z-action-menu', local.class)}
           depth={local.depth ?? 2}
           as={Surface}
@@ -120,6 +210,8 @@ function DropdownSubContent(props: DropdownSubContentProps) {
     'mount',
     'portalScope',
     'children',
+    'autoHighlightFirst',
+    'ref',
   ]);
   return (
     <>
@@ -128,6 +220,7 @@ function DropdownSubContent(props: DropdownSubContentProps) {
         mount={resolvePortalMount(searchRef, local.mount, local.portalScope)}
       >
         <KobalteDropdownMenu.SubContent
+          ref={composeContentRef(local.autoHighlightFirst, true, local.ref)}
           class={cn('rounded-xl size-auto z-action-menu', local.class)}
           depth={local.depth ?? 2}
           as={Surface}

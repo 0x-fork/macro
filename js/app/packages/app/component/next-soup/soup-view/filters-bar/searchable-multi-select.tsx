@@ -1,14 +1,16 @@
 import { useSelectedFirst } from '@core/util/useSelectedFirst';
 import type { CollectionNode } from '@kobalte/core';
-import { Combobox } from '@kobalte/core/combobox';
+import { Combobox, useComboboxContext } from '@kobalte/core/combobox';
 import CheckIcon from '@phosphor/check.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import { cn, Layer } from '@ui';
 import {
   type Accessor,
+  createEffect,
   createMemo,
   createSignal,
   type JSX,
+  onCleanup,
   Show,
 } from 'solid-js';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
@@ -16,6 +18,34 @@ import type { SearchableOption } from './search-filter-controls';
 
 const ITEM_HEIGHT = 36;
 const LISTBOX_CLASS = 'max-h-[240px] overflow-y-auto scrollbar-hidden';
+
+/**
+ * Keeps exactly one option highlighted while the combobox is open. Kobalte leaves the
+ * highlight empty on open and clears the focused key on every keystroke; reacting to the
+ * focused key re-seeds it to the first (filtered) option whenever it goes empty. We never
+ * override an existing highlight, so hover and arrow navigation still win. Rendered as a
+ * child of <Combobox> so it can read the combobox context.
+ */
+const HighlightFirstOption = () => {
+  const ctx = useComboboxContext();
+  createEffect(() => {
+    if (!ctx.isOpen()) return;
+    const selection = ctx.listState().selectionManager();
+    if (selection.focusedKey() != null) return;
+    const first = ctx.listState().collection().getFirstKey();
+    if (first == null) return;
+
+    const raf = requestAnimationFrame(() => {
+      if (!ctx.isOpen()) return;
+      if (selection.focusedKey() != null) return;
+      selection.setFocused(true);
+      selection.setFocusedKey(first);
+    });
+
+    onCleanup(() => cancelAnimationFrame(raf));
+  });
+  return null;
+};
 
 type SearchableMultiSelectProps = {
   options: Accessor<SearchableOption[]>;
@@ -47,7 +77,13 @@ const SearchableMultiSelectItem = (itemProps: {
     <span
       class={cn(
         'size-3.5 flex items-center justify-center shrink-0 rounded-sm border text-surface',
-        'border-transparent group-hover:not-hover:border-edge-muted group-data-highlighted:not-hover:border-edge-muted hover:border-accent',
+        // invisible at rest; only appears once the row is hovered/highlighted
+        'border-transparent',
+        // visible (and a touch stronger than before) when the row is hovered/highlighted but the box isn't directly hovered
+        'group-hover:not-hover:border-edge group-data-highlighted:not-hover:border-edge',
+        // accent when the box itself is hovered
+        'hover:border-accent',
+        // selected: filled accent + white check
         'group-data-selected:bg-accent group-data-selected:border-accent'
       )}
     >
@@ -176,6 +212,7 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
       placement={props.placement ?? 'bottom-start'}
       gutter={props.gutter ?? 4}
     >
+      <HighlightFirstOption />
       <Combobox.Control class="flex items-center h-full">
         {props.children}
         <Combobox.Input class="sr-only" />
@@ -305,6 +342,7 @@ export const SearchableMultiSelectInline = (
       allowsEmptyCollection
       virtualized
     >
+      <HighlightFirstOption />
       <div class="flex items-center gap-2 px-3 py-2 border-b border-edge-muted">
         <SearchIcon class="size-3.5 text-ink-muted shrink-0" />
         <Combobox.Input
