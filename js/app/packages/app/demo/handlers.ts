@@ -75,7 +75,11 @@ export const handlers = [
     HttpResponse.json({ pictures: [] })
   ),
 
-  http.get('*/contacts', () => HttpResponse.json([])),
+  http.get('*/contacts', () => HttpResponse.json({ contacts: [] })),
+
+  http.get('*/properties/definitions', () => HttpResponse.json([])),
+
+  http.get('*/email/links', () => HttpResponse.json({ links: [] })),
 
   http.get('*/items/:id', ({ params }) => {
     const doc = DEMO_DOCS.find((d) => d.id === params.id);
