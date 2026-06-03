@@ -17,6 +17,8 @@ import {
 
 export const handlers = [
   // --- auth-service ---
+  http.post('*/jwt/refresh', () => HttpResponse.json({})),
+
   http.get('*/user/legacy_user_permissions', () =>
     HttpResponse.json(DEMO_PERMISSIONS)
   ),
@@ -60,6 +62,20 @@ export const handlers = [
   http.get('*/channels/:channelId/messages', () =>
     HttpResponse.json({ messages: [], next_cursor: null })
   ),
+
+  http.get('*/channels/activity', () => HttpResponse.json([])),
+
+  http.get('*/instructions', () =>
+    HttpResponse.json({ documentId: 'demo-doc-welcome' })
+  ),
+
+  http.get('*/history', () => HttpResponse.json([])),
+
+  http.post('*/user/profile_pictures', () =>
+    HttpResponse.json({ pictures: [] })
+  ),
+
+  http.get('*/contacts', () => HttpResponse.json([])),
 
   http.get('*/items/:id', ({ params }) => {
     const doc = DEMO_DOCS.find((d) => d.id === params.id);

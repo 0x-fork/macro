@@ -26,5 +26,10 @@
     "@datadog/datadog-ci": "^3.7.0",
     "jsdom": "^26.1.0",
     "msw": "^2.7.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }

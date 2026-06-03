@@ -1,3 +1,8 @@
+// Demo-mode init must run BEFORE any other import. Uses top-level await
+// to block the import graph until MSW is registered, so module-load-time
+// fetches (e.g. service-connection/websocket.ts → fetchToken) can't leak
+// to the network. Self-noops outside demo builds.
+import './demo/init';
 import './index.css';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/roboto-mono';
@@ -85,13 +90,8 @@ const renderApp = () => {
   render(() => <Root />, root);
 };
 
-async function main() {
+function main() {
   console.log('App Version ', import.meta.env.__APP_VERSION__);
-
-  if (import.meta.env.VITE_DEMO === 'true') {
-    const { bootstrapDemo } = await import('./demo/bootstrap');
-    await bootstrapDemo();
-  }
 
   // during `vite dev` (but not dev builds), don't inject analytics/observability
   if (!import.meta.hot) {
