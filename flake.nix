@@ -464,6 +464,7 @@
           inherit
             cargoArtifacts
             workspaceArtifacts
+            deployCargoArtifacts
             openApiBins
             nextestArchive
             ;
