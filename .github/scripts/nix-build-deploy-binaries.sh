@@ -90,8 +90,65 @@ EOF
   echo "Configured deploy Nix build sccache files under $sccache_root"
 }
 
+print_sccache_stats() {
+  if [[ -z "${SCCACHE_BUCKET:-}" ]]; then
+    return 0
+  fi
+
+  if [[ ! -e result ]]; then
+    echo "::warning::Cannot print sccache stats because the Nix result symlink is missing."
+    return 0
+  fi
+
+  local result_path
+  result_path="$(readlink -f result)"
+
+  echo "::group::Nix build sccache stats"
+  if ! nix log "$result_path" 2>/dev/null | awk '
+    /macro-nix-sccache-stats-begin/ {
+      found = 1
+      in_stats = 1
+      next
+    }
+    /macro-nix-sccache-stats-end/ {
+      in_stats = 0
+      next
+    }
+    in_stats {
+      print
+      next
+    }
+    /Compile requests/ ||
+    /Cache hits/ ||
+    /Cache misses/ ||
+    /Cache timeouts/ ||
+    /Cache read errors/ ||
+    /Cache write errors/ ||
+    /Cache errors/ ||
+    /Non-cacheable/ ||
+    /Non-compilation/ ||
+    /Unsupported compiler calls/ ||
+    /Compilation failures/ ||
+    /Cache location/ ||
+    /Cache size/ ||
+    /Max cache size/ {
+      found = 1
+      print
+    }
+    END {
+      if (!found) {
+        exit 1
+      }
+    }
+  '; then
+    echo "::warning::No sccache stats were found in the Nix build log."
+  fi
+  echo "::endgroup::"
+}
+
 trap cleanup_sccache_secrets EXIT
 
 cleanup_sccache_secrets
 prepare_sccache_config
 nix build --option sandbox relaxed "$@"
+print_sccache_stats

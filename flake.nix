@@ -130,7 +130,9 @@
           __noChroot = true;
           postBuild = ''
             if [ -r "$SCCACHE_CONF" ]; then
+              echo "macro-nix-sccache-stats-begin"
               ${pkgs.sccache}/bin/sccache --show-stats || true
+              echo "macro-nix-sccache-stats-end"
             fi
           '';
         };
