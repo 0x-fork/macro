@@ -211,6 +211,7 @@ dev-rebuild service:
     bin=$(docker inspect "$container" | jq -r '.[0].Config.Cmd[0]' | xargs basename)
 
     echo "==> Building $bin (incremental)..."
+    docker compose up rust-builder -d --wait 2>/dev/null || true
     docker exec macro-rust-builder-1 cargo build --bin "$bin"
 
     echo "==> Copying binary into $container..."
