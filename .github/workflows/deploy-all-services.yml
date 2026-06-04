@@ -112,6 +112,10 @@ jobs:
           nix develop --print-build-logs .# -c true
           echo "Shared deps + dev shell realised into /nix/store; committed on job exit."
 
+      - name: Teardown Nix (free sticky disk for commit)
+        if: always()
+        uses: ./.github/actions/teardown-nix
+
   build-service-binaries:
     name: Build ${{ matrix.service }} binaries
     needs: [setup, warm-deps]
@@ -182,6 +186,10 @@ jobs:
           path: prebuilt-binaries.tar.gz
           retention-days: 7
 
+      - name: Teardown Nix (free sticky disk for commit)
+        if: always()
+        uses: ./.github/actions/teardown-nix
+
   build-lambda-artifacts:
     name: Build ${{ matrix.service }} Lambda artifacts
     needs: [setup, warm-deps]
@@ -235,6 +243,10 @@ jobs:
           name: cloud-storage-lambdas-${{ matrix.service }}-${{ github.sha }}
           path: lambda-artifacts.tar.gz
           retention-days: 7
+
+      - name: Teardown Nix (free sticky disk for commit)
+        if: always()
+        uses: ./.github/actions/teardown-nix
 
   migrate-db:
     name: Run Database Migrations

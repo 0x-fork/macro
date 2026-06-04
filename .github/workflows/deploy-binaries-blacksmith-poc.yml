@@ -101,6 +101,10 @@ jobs:
           nix build --print-build-logs ".#deployCargoArtifacts"
           echo "Shared deps realised into /nix/store and committed to sticky disk on job exit."
 
+      - name: Teardown Nix (free sticky disk for commit)
+        if: always()
+        uses: ./.github/actions/teardown-nix
+
   build-binaries:
     name: Build ${{ matrix.service }} (warm disk)
     needs: [setup, warm-deps]
@@ -149,6 +153,10 @@ jobs:
           name: poc-binaries-${{ matrix.service }}-${{ github.sha }}
           path: prebuilt/
           retention-days: 3
+
+      - name: Teardown Nix (free sticky disk for commit)
+        if: always()
+        uses: ./.github/actions/teardown-nix
 
   summary:
     name: PoC summary
