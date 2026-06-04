@@ -286,6 +286,7 @@ const DocumentMention: RenderableEntity<DocumentMentionNode> = {
     return (
       <span class={getTextClassName(props.node, props.theme)}>
         <LazyDecorator
+          cacheKey={`document-mention:${componentProps.documentId}:${componentProps.blockName}:${JSON.stringify(componentProps.blockParams ?? {})}`}
           placeholder={<MentionPlaceholder />}
           render={() =>
             DocumentMentionDecorator({

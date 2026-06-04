@@ -22,6 +22,7 @@ const OBSERVER_OPTS: IntersectionObserverInit = {
 };
 
 const upgradeCallbacks = new WeakMap<Element, () => void>();
+const upgradedCacheKeys = new Set<string>();
 let sharedObserver: IntersectionObserver | undefined;
 
 function getSharedObserver(): IntersectionObserver {
@@ -37,18 +38,25 @@ function getSharedObserver(): IntersectionObserver {
 }
 
 export function LazyDecorator(props: {
+  cacheKey?: string;
   placeholder: JSX.Element;
   render: () => JSX.Element;
 }): JSX.Element {
-  const [upgraded, setUpgraded] = createSignal(false);
+  const [upgraded, setUpgraded] = createSignal(
+    props.cacheKey ? upgradedCacheKeys.has(props.cacheKey) : false
+  );
   let el: HTMLSpanElement | undefined;
 
   onMount(() => {
+    if (upgraded()) return;
     if (!el) return;
     const observer = getSharedObserver();
     const upgrade = () => {
       observer.unobserve(el!);
       upgradeCallbacks.delete(el!);
+      if (props.cacheKey) {
+        upgradedCacheKeys.add(props.cacheKey);
+      }
       setUpgraded(true);
     };
     upgradeCallbacks.set(el, upgrade);
