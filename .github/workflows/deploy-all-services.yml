@@ -75,9 +75,40 @@ jobs:
           echo "Building binaries for services: ${binary_services}"
           echo "Building lambdas for services: ${lambda_services}"
 
+  build-deploy-workspace-artifacts:
+    name: Build deploy workspace artifacts
+    needs: setup
+    if: ${{ needs.setup.outputs.binary_matrix != '[]' }}
+    runs-on: linux-extra-beefy
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          clean: false
+
+      - name: Configure Cachix
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build deploy workspace artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v cachix >/dev/null 2>&1; then
+            cachix watch-store "$CACHIX_CACHE_NAME" &
+            cachix_pid=$!
+            trap 'kill "$cachix_pid" || true' EXIT
+          else
+            echo "::warning::Cachix is unavailable; skipping Cachix store uploads."
+          fi
+
+          nix build .#deploy-workspace-artifacts
+
   build-service-binaries:
     name: Build ${{ matrix.service }} binaries
-    needs: setup
+    needs:
+      - setup
+      - build-deploy-workspace-artifacts
     if: ${{ needs.setup.outputs.binary_matrix != '[]' }}
     runs-on: linux-extra-beefy
     strategy:
@@ -94,15 +125,11 @@ jobs:
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
-          sccache-s3-key-prefix: sccache/${{ inputs.environment }}/
 
       - name: Build prebuilt binaries
         shell: bash
         env:
           SERVICE: ${{ matrix.service }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
           mkdir -p prebuilt
@@ -117,7 +144,7 @@ jobs:
               echo "::warning::Cachix is unavailable; skipping Cachix store uploads."
             fi
 
-            bash .github/scripts/nix-build-deploy-binaries.sh ".#deploy-service-binaries-sccache-${SERVICE}"
+            bash .github/scripts/nix-build-deploy-binaries.sh ".#deploy-service-binaries-${SERVICE}"
             cp -r result/bin/* prebuilt/
             mkdir -p prebuilt/nix-store
             result_path="$(readlink -f result)"
@@ -160,8 +187,6 @@ jobs:
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
-          sccache-s3-key-prefix: sccache/${{ inputs.environment }}/
 
       - name: Check Lambda config
         id: check-lambdas
@@ -247,7 +272,6 @@ jobs:
           pulumi-service-name: ${{ steps.project-name.outputs.project-name }}
           prebuilt-binaries-artifact: ${{ steps.check-artifacts.outputs.has_binaries == 'true' && format('cloud-storage-service-binaries-{0}-{1}', matrix.service, github.sha) || '' }}
           lambda-artifacts: ${{ steps.check-artifacts.outputs.has_lambdas == 'true' && format('cloud-storage-lambdas-{0}-{1}', matrix.service, github.sha) || '' }}
-          sccache-s3-key-prefix: sccache/${{ inputs.environment }}/
           dd-app-key: ${{ secrets.DD_APP_KEY }}
           dd-api-key: ${{ secrets.DD_API_KEY }}
 

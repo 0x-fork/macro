@@ -103,40 +103,6 @@
           BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.glibc.dev}/include -I${pkgs.gcc.cc}/lib/gcc/${pkgs.stdenv.hostPlatform.config}/${pkgs.gcc.version}/include";
         };
 
-        deploySccacheDir = "/tmp/macro-nix-sccache";
-
-        deploySccacheWrapper = pkgs.writeShellScript "rustc-sccache-wrapper" ''
-          if [ -r "${deploySccacheDir}/config.toml" ]; then
-            exec ${pkgs.sccache}/bin/sccache "$@"
-          fi
-
-          echo "warning: ${deploySccacheDir}/config.toml not readable; compiling without sccache" >&2
-          exec "$@"
-        '';
-
-        # CI-only deploy builds use a remote sccache backend. These args are
-        # applied only to the deploy-service-binaries-sccache-* package attrs so
-        # the normal deploy-service-binaries-* attrs remain sandbox-pure.
-        deploySccacheArgs = pkgs.lib.optionalAttrs isLinux {
-          nativeBuildInputs = commonArgs.nativeBuildInputs ++ [ pkgs.sccache ];
-          RUSTC_WRAPPER = deploySccacheWrapper;
-          SCCACHE_CONF = "${deploySccacheDir}/config.toml";
-          SCCACHE_DIR = "${deploySccacheDir}/cache";
-          SCCACHE_CACHE_SIZE = "5G";
-          SCCACHE_BASEDIR = "/build/source";
-          SCCACHE_BASEDIRS = "/build/source:/build";
-          AWS_SHARED_CREDENTIALS_FILE = "${deploySccacheDir}/aws-credentials";
-          AWS_CONFIG_FILE = "${deploySccacheDir}/aws-config";
-          __noChroot = true;
-          postBuild = ''
-            if [ -r "$SCCACHE_CONF" ]; then
-              echo "macro-nix-sccache-stats-begin"
-              ${pkgs.sccache}/bin/sccache --show-stats || true
-              echo "macro-nix-sccache-stats-end"
-            fi
-          '';
-        };
-
         # Pre-built third-party deps — Cachix caches this; hash is driven by Cargo.lock
         # (workspace member sources are stubbed by crane), so it survives most PRs.
         # --all-features matches the test job (cargo nextest --all-features) and clippy
@@ -227,14 +193,26 @@
           }
         );
 
+        # Pre-compile workspace libraries in the release profile so per-service
+        # deploy binary derivations share source-level Rust artifacts through Cachix.
+        deployWorkspaceArtifacts = craneLib.cargoBuild (
+          commonArgs
+          // {
+            cargoArtifacts = deployCargoArtifacts;
+            pname = "cloud-storage-deploy-workspace";
+            doCheck = false;
+            doInstallCargoArtifacts = true;
+            cargoExtraArgs = "--locked --workspace --lib";
+            CARGO_PROFILE = "release";
+          }
+        );
+
         deployServiceBinaryPackageFor =
-          cargoArtifacts: extraArgs:
           serviceName: binaries:
           craneLib.buildPackage (
             commonArgs
-            // extraArgs
             // {
-              inherit cargoArtifacts;
+              cargoArtifacts = deployWorkspaceArtifacts;
               pname = "cloud-storage-${serviceName}-binaries";
               doCheck = false;
               cargoExtraArgs =
@@ -250,58 +228,53 @@
             }
           );
 
-        deployServiceBinaryPackage = deployServiceBinaryPackageFor deployCargoArtifacts { };
-        deployServiceBinaryPackageWithSccache =
-          deployServiceBinaryPackageFor deployCargoArtifacts deploySccacheArgs;
-
         deployServiceBinaryPackagesFor =
-          prefix: deployPackage:
+          prefix:
           {
-            "${prefix}-agent-schedule-service" = deployPackage "agent-schedule-service" [ "service" ];
-            "${prefix}-authentication-service" = deployPackage "authentication-service" [
+            "${prefix}-agent-schedule-service" = deployServiceBinaryPackageFor "agent-schedule-service" [
+              "service"
+            ];
+            "${prefix}-authentication-service" = deployServiceBinaryPackageFor "authentication-service" [
               "authentication_service"
             ];
-            "${prefix}-connection-gateway" = deployPackage "connection-gateway" [
+            "${prefix}-connection-gateway" = deployServiceBinaryPackageFor "connection-gateway" [
               "connection_gateway_service"
             ];
-            "${prefix}-contacts-service" = deployPackage "contacts-service" [
+            "${prefix}-contacts-service" = deployServiceBinaryPackageFor "contacts-service" [
               "contacts_service"
             ];
-            "${prefix}-convert-service" = deployPackage "convert-service" [
+            "${prefix}-convert-service" = deployServiceBinaryPackageFor "convert-service" [
               "convert_service"
             ];
-            "${prefix}-document-cognition-service" = deployPackage "document-cognition-service" [
+            "${prefix}-document-cognition-service" = deployServiceBinaryPackageFor "document-cognition-service" [
               "document_cognition_service"
             ];
-            "${prefix}-document-storage-service" = deployPackage "document-storage-service" [
+            "${prefix}-document-storage-service" = deployServiceBinaryPackageFor "document-storage-service" [
               "document_storage_service"
             ];
-            "${prefix}-email-service" = deployPackage "email-service" [
+            "${prefix}-email-service" = deployServiceBinaryPackageFor "email-service" [
               "email_service"
               "pubsub_workers"
             ];
-            "${prefix}-image-proxy-service" = deployPackage "image-proxy-service" [
+            "${prefix}-image-proxy-service" = deployServiceBinaryPackageFor "image-proxy-service" [
               "image_proxy_service"
             ];
-            "${prefix}-mcp-server" = deployPackage "mcp-server" [ "mcp_service" ];
-            "${prefix}-notification-service" = deployPackage "notification-service" [
+            "${prefix}-mcp-server" = deployServiceBinaryPackageFor "mcp-server" [ "mcp_service" ];
+            "${prefix}-notification-service" = deployServiceBinaryPackageFor "notification-service" [
               "notification_service"
             ];
-            "${prefix}-search-processing-service" = deployPackage "search-processing-service" [
+            "${prefix}-search-processing-service" = deployServiceBinaryPackageFor "search-processing-service" [
               "search_processing_service"
             ];
-            "${prefix}-static-file-service" = deployPackage "static-file-service" [
+            "${prefix}-static-file-service" = deployServiceBinaryPackageFor "static-file-service" [
               "static_file_service"
             ];
-            "${prefix}-unfurl-service" = deployPackage "unfurl-service" [
+            "${prefix}-unfurl-service" = deployServiceBinaryPackageFor "unfurl-service" [
               "unfurl_service"
             ];
           };
 
-        deployServiceBinaryPackages =
-          deployServiceBinaryPackagesFor "deploy-service-binaries" deployServiceBinaryPackage;
-        deployServiceBinaryPackagesWithSccache =
-          deployServiceBinaryPackagesFor "deploy-service-binaries-sccache" deployServiceBinaryPackageWithSccache;
+        deployServiceBinaryPackages = deployServiceBinaryPackagesFor "deploy-service-binaries";
 
         shellTools =
           with pkgs;
@@ -347,7 +320,6 @@
             biome
             jq
             stripe-cli
-            sccache
             rustToolchain
           ]
           ++ pkgs.lib.optionals isLinux [ mold ];
@@ -509,13 +481,14 @@
           inherit
             cargoArtifacts
             workspaceArtifacts
+            deployWorkspaceArtifacts
             openApiBins
             nextestArchive
             ;
+          deploy-workspace-artifacts = deployWorkspaceArtifacts;
           default = cargoArtifacts;
         }
-        // deployServiceBinaryPackages
-        // deployServiceBinaryPackagesWithSccache;
+        // deployServiceBinaryPackages;
 
         devShells = {
           default = pkgs.mkShell (
@@ -524,7 +497,6 @@
               PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
               LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
               SOPS_KMS_ARN = "arn:aws:kms:us-east-1:569036502058:key/mrk-cab29bf948044eb79005a81f48d40e93,arn:aws:kms:us-west-1:569036502058:key/mrk-cab29bf948044eb79005a81f48d40e93";
-              RUSTC_WRAPPER = "${pkgs.sccache}/bin/sccache";
             }
             // pkgs.lib.optionalAttrs isLinux {
               LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath libraries}";
