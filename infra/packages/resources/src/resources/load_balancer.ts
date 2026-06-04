@@ -14,6 +14,15 @@ export function serviceLoadBalancer(
     isPrivate,
     tags,
     idleTimeout,
+    // Health-check tuning. Defaults are tuned for fast deploys: a new task is
+    // marked healthy after ~2 checks x 10s (~20s) instead of the AWS ALB
+    // defaults (~5 checks x 30s = 120-150s), which dominated ECS rollout time.
+    // Services with an expensive /health endpoint can override these.
+    healthCheckInterval = 10,
+    healthyThreshold = 2,
+    unhealthyThreshold = 2,
+    healthCheckTimeout = 5,
+    healthCheckMatcher = '200',
   }: {
     serviceName: string;
     serviceContainerPort: number;
@@ -27,6 +36,11 @@ export function serviceLoadBalancer(
     isPrivate?: boolean;
     tags: { [key: string]: string };
     idleTimeout?: number;
+    healthCheckInterval?: number;
+    healthyThreshold?: number;
+    unhealthyThreshold?: number;
+    healthCheckTimeout?: number;
+    healthCheckMatcher?: string;
   }
 ) {
   const targetGroup = new aws.alb.TargetGroup(
@@ -41,6 +55,11 @@ export function serviceLoadBalancer(
       healthCheck: {
         path: healthCheckPath,
         protocol: 'HTTP',
+        interval: healthCheckInterval,
+        healthyThreshold,
+        unhealthyThreshold,
+        timeout: healthCheckTimeout,
+        matcher: healthCheckMatcher,
       },
       tags,
     },
