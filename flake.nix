@@ -216,20 +216,14 @@
           }
         );
 
-        deployCargoArtifactsFor =
-          extraArgs:
-          craneLib.buildDepsOnly (
-            commonArgs
-            // extraArgs
-            // {
-              pname = "cloud-storage-deploy-deps";
-              cargoExtraArgs = "--locked";
-              CARGO_PROFILE = "release";
-            }
-          );
-
-        deployCargoArtifacts = deployCargoArtifactsFor { };
-        deployCargoArtifactsWithSccache = deployCargoArtifactsFor deploySccacheArgs;
+        deployCargoArtifacts = craneLib.buildDepsOnly (
+          commonArgs
+          // {
+            pname = "cloud-storage-deploy-deps";
+            cargoExtraArgs = "--locked";
+            CARGO_PROFILE = "release";
+          }
+        );
 
         deployServiceBinaryPackageFor =
           cargoArtifacts: extraArgs:
@@ -256,7 +250,7 @@
 
         deployServiceBinaryPackage = deployServiceBinaryPackageFor deployCargoArtifacts { };
         deployServiceBinaryPackageWithSccache =
-          deployServiceBinaryPackageFor deployCargoArtifactsWithSccache deploySccacheArgs;
+          deployServiceBinaryPackageFor deployCargoArtifacts deploySccacheArgs;
 
         deployServiceBinaryPackagesFor =
           prefix: deployPackage:
