@@ -86,8 +86,13 @@ function ProfileImage(props: {
 
   const [profilePicUrl] = useProfilePictureUrl(props.id);
 
-  // Macro profile picture wins; fall back to a contact photo before initials.
-  const imageUrl = () => profilePicUrl() || props.photoUrl;
+  const imageUrl = () => {
+    const macro = profilePicUrl();
+    // Still loading: show initials; don't flash the contact photo.
+    if (macro === undefined) return undefined;
+    // Resolved: macro pic wins, then contact photo, then initials.
+    return macro || props.photoUrl;
+  };
 
   return (
     <Show

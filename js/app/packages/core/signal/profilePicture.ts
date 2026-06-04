@@ -39,10 +39,13 @@ function queueItemsForFetch(items: string[]) {
   setProfilePictureFetchQueue((prev) => [...prev, ...items]);
 }
 
-function defaultUrlTransform(item: ProfilePictureItem): string | undefined {
-  if (item.loading) return;
+/** `undefined` while loading, `null` once resolved with no picture, otherwise the URL. */
+type ProfilePictureUrl = string | null | undefined;
 
-  return item.url;
+function defaultUrlTransform(item: ProfilePictureItem): ProfilePictureUrl {
+  if (item.loading) return undefined;
+
+  return item.url ?? null;
 }
 
 async function fetchProfilePictures(
@@ -66,7 +69,7 @@ async function fetchProfilePictures(
 }
 
 type ProfilePictureUrlFetcher = [
-  Accessor<string | undefined>,
+  Accessor<ProfilePictureUrl>,
   {
     refetch: () => void;
     mutate: (value: ProfilePictureItem) => void;
@@ -98,7 +101,7 @@ async function batchFetchProfilePictures(ids: string[]) {
 export function useProfilePictureUrl(id?: string): ProfilePictureUrlFetcher {
   if (!id) {
     const dummy_accessor = () => {
-      return '';
+      return null;
     };
 
     const dummy_controls = {
