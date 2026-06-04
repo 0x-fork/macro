@@ -6,7 +6,11 @@ import Check from '@phosphor/check.svg';
 import { Dropdown } from '@ui';
 import { For, Show } from 'solid-js';
 
-type FromInbox = { id: string; email_address: string };
+type FromInbox = {
+  id: string;
+  email_address: string;
+  photo_url?: string | null;
+};
 
 /** A single inbox: the account's user icon, name, and address. */
 function FromInboxOption(props: { inbox: FromInbox }) {
@@ -15,6 +19,7 @@ function FromInboxOption(props: { inbox: FromInbox }) {
     <>
       <UserIcon
         {...inboxIconProps(props.inbox.email_address)}
+        photoUrl={props.inbox.photo_url ?? undefined}
         size="sm"
         suppressClick
         class="shrink-0"
@@ -40,6 +45,10 @@ export function FromInboxSelector(props: {
 }) {
   const activeInbox = () =>
     props.links.find((l) => l.id === props.activeLinkId) ?? props.links[0];
+  const sortedLinks = () =>
+    [...props.links].sort((a, b) =>
+      a.email_address.localeCompare(b.email_address)
+    );
   return (
     <Show when={activeInbox()}>
       {(active) => (
@@ -62,7 +71,7 @@ export function FromInboxSelector(props: {
             </Dropdown.Trigger>
             <Dropdown.Content>
               <Dropdown.Group>
-                <For each={props.links}>
+                <For each={sortedLinks()}>
                   {(inbox) => (
                     <Dropdown.Item onSelect={() => props.onSelect(inbox.id)}>
                       <FromInboxOption inbox={inbox} />

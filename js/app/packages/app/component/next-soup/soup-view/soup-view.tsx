@@ -17,6 +17,7 @@ import type { QueryState } from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
+import { InboxSelector } from '@app/component/next-soup/soup-view/filters-bar/inbox-selector';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
@@ -435,6 +436,15 @@ export const SoupView = (props: SoupViewProps) => {
                       containerClass="h-full"
                     />
                   </Show>
+                </Show>
+                <Show
+                  when={
+                    !isMobile() &&
+                    !narrowSearchExpanded() &&
+                    isComponentListView('mail')
+                  }
+                >
+                  <InboxSelector />
                 </Show>
               </div>
             </SplitHeaderLeft>
