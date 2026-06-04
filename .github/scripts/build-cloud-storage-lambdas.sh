@@ -19,7 +19,11 @@ fi
 
 echo "Building Lambda artifacts for $SERVICE: ${LAMBDAS[*]}"
 
-LAMBDAS_ENV="${LAMBDAS[*]}" nix develop .# -c bash -lc '
+# Use a non-login shell: `nix develop -c` already exports the dev-shell PATH
+# (just, cargo-lambda, toolchain). A login shell (`-l`) would re-source
+# /etc/profile and reset PATH, dropping those tools on runners without a
+# system-wide install (e.g. fresh Blacksmith images).
+LAMBDAS_ENV="${LAMBDAS[*]}" nix develop .# -c bash -c '
   set -euo pipefail
   cd rust/cloud-storage
   for lambda in $LAMBDAS_ENV; do
