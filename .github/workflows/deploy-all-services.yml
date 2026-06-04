@@ -267,15 +267,10 @@ jobs:
     name: Deploy ${{ matrix.service }}
     needs: [setup, build-service-binaries, build-lambda-artifacts, migrate-db]
     if: ${{ needs.setup.outputs.matrix != '[]' }}
-    runs-on:
-      [
-        runs-on,
-        runner=8cpu-linux-x64,
-        hdd=40,
-        spot=false,
-        ssh=false,
-        'run-id=${{github.run_id}}-${{ matrix.service }}',
-      ]
+    # Deploys via Pulumi + Docker; AWS auth is via explicit static keys
+    # (configure-aws-credentials), so no dependency on a RunsOn instance role.
+    # NOTE: adjust to a provisioned Blacksmith runner label for the org.
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     strategy:
       fail-fast: false
       max-parallel: 20  # Limit concurrent deployments
