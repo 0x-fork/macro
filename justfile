@@ -196,3 +196,31 @@ setup:
 destroy:
   just infra/stacks/fusionauth-instance/destroy
   docker compose down -v
+
+dev-rebuild service:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  container="macro-{{ service }}-1"
+
+  if [ "{{ service }}" = "sync_service" ]; then
+    echo "==> Building sync_service wasm inside container..."
+    docker exec "$container" worker-build --release
+    docker restart "$container"
+  else
+    bin=$(docker inspect "$container" | jq -r '.[0].Config.Cmd[0]' | xargs basename)
+
+    echo "==> Building $bin (incremental)..."
+    docker exec macro-rust-builder-1 cargo build --bin "$bin"
+
+    echo "==> Copying binary into $container..."
+    tmp=$(mktemp)
+    docker cp "macro-rust-builder-1:/app/target/debug/$bin" "$tmp"
+    docker cp "$tmp" "$container:/app/out/$bin"
+    rm "$tmp"
+
+    echo "==> Restarting $container..."
+    docker restart "$container"
+  fi
+
+  echo "==> Done. $container is live with the new binary."
