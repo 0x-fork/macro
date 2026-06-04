@@ -45,21 +45,36 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      binaries: ${{ steps.set-matrix.outputs.binaries }}
+      lambdas: ${{ steps.set-matrix.outputs.lambdas }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Set deployment matrix
         id: set-matrix
         run: |
-          # Get all services
-          services=$(jq -r '.services | keys | @json' .github/services-config.json)
-          echo "matrix=${services}" >> $GITHUB_OUTPUT
-          echo "Deploying services: ${services}"
+          set -euo pipefail
+          cfg=.github/services-config.json
+          # Full list drives deploy-services; the filtered lists keep each build
+          # matrix to only the services that actually produce that artifact, so
+          # no Blacksmith job spins up Nix + a sticky disk for nothing.
+          services=$(jq -c '.services | keys' "$cfg")
+          binaries=$(jq -c '[.services | to_entries[] | select((.value.deploy_binaries // []) | length > 0) | .key]' "$cfg")
+          lambdas=$(jq -c '[.services | to_entries[] | select((.value.deploy_lambdas // []) | length > 0) | .key]' "$cfg")
+          echo "matrix=${services}" >> "$GITHUB_OUTPUT"
+          echo "binaries=${binaries}" >> "$GITHUB_OUTPUT"
+          echo "lambdas=${lambdas}" >> "$GITHUB_OUTPUT"
+          echo "All services: ${services}"
+          echo "With binaries: ${binaries}"
+          echo "With lambdas: ${lambdas}"
 
-  # Build the shared release dependency closure once and commit it to the /nix
-  # sticky disk, so the per-service matrix below clones a warm store instead of
-  # each job rebuilding/refetching the deps.
+  # Warm the /nix sticky disk once, before either build matrix fans out:
+  #   - deployCargoArtifacts: shared release deps for the crane-built binaries.
+  #   - the dev shell closure: toolchain + cargo-lambda + just, so the lambda
+  #     matrix gets an instant `nix develop`.
+  # Both are committed to the same disk in a single job (a single committer
+  # avoids the sticky-disk last-write-wins race between parallel writers).
   warm-deps:
-    name: Warm shared Rust deps onto sticky disk
+    name: Warm shared deps + dev shell onto sticky disk
     needs: setup
     if: ${{ needs.setup.outputs.matrix != '[]' }}
     # NOTE: adjust to a provisioned Blacksmith runner label for the org.
@@ -82,7 +97,7 @@ jobs:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
 
-      - name: Build shared release dependency closure
+      - name: Warm shared deps and dev shell
         shell: bash
         run: |
           set -euo pipefail
@@ -91,13 +106,16 @@ jobs:
             cachix watch-store "$CACHIX_CACHE_NAME" &
             trap 'kill %1 2>/dev/null || true' EXIT
           fi
+          # Shared release deps for the crane-built service binaries.
           nix build --print-build-logs ".#deployCargoArtifacts"
-          echo "Shared deps realised into /nix/store; committed to sticky disk on job exit."
+          # Dev shell closure so the lambda matrix gets an instant `nix develop`.
+          nix develop --print-build-logs .# -c true
+          echo "Shared deps + dev shell realised into /nix/store; committed on job exit."
 
   build-service-binaries:
     name: Build ${{ matrix.service }} binaries
     needs: [setup, warm-deps]
-    if: ${{ needs.setup.outputs.matrix != '[]' }}
+    if: ${{ needs.setup.outputs.binaries != '[]' }}
     # Runs on Blacksmith, cloning the warm /nix sticky disk committed by
     # warm-deps so only each service's own crate compiles.
     runs-on: blacksmith-8vcpu-ubuntu-2404
@@ -105,7 +123,7 @@ jobs:
       fail-fast: false
       max-parallel: 8
       matrix:
-        service: ${{ fromJson(needs.setup.outputs.matrix) }}
+        service: ${{ fromJson(needs.setup.outputs.binaries) }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -166,35 +184,45 @@ jobs:
 
   build-lambda-artifacts:
     name: Build ${{ matrix.service }} Lambda artifacts
-    needs: setup
-    if: ${{ needs.setup.outputs.matrix != '[]' }}
-    runs-on: linux-extra-beefy
+    needs: [setup, warm-deps]
+    if: ${{ needs.setup.outputs.lambdas != '[]' }}
+    # Lambdas compile via cargo-lambda inside the dev shell (not crane), so they
+    # ride two warm caches: the /nix sticky disk (instant dev shell from
+    # warm-deps) and a per-service cargo target sticky disk (compiled deps warm
+    # across runs). Per-service target keys avoid cross-job contention.
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     strategy:
       fail-fast: false
       max-parallel: 8
       matrix:
-        service: ${{ fromJson(needs.setup.outputs.matrix) }}
+        service: ${{ fromJson(needs.setup.outputs.lambdas) }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           clean: false
 
-      - name: Configure Cachix
+      - name: Mount Nix store sticky disk (clones warmed snapshot)
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-nix-store
+          path: /nix
+
+      - name: Mount cargo target sticky disk
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-lambda-target-${{ matrix.service }}
+          path: ${{ github.workspace }}/rust/cloud-storage/target
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Configure Cachix fallback substituter
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
 
-      - name: Check Lambda config
-        id: check-lambdas
-        env:
-          SERVICE: ${{ matrix.service }}
-        run: |
-          has_lambdas=$(jq -r --arg service "$SERVICE" '((.services[$service].deploy_lambdas // []) | length) > 0' .github/services-config.json)
-          echo "has_lambdas=$has_lambdas" >> "$GITHUB_OUTPUT"
-
       - name: Build Lambda artifacts
-        if: ${{ steps.check-lambdas.outputs.has_lambdas == 'true' }}
         env:
           SERVICE: ${{ matrix.service }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
@@ -202,7 +230,6 @@ jobs:
         run: .github/scripts/build-cloud-storage-lambdas.sh
 
       - name: Upload Lambda artifacts
-        if: ${{ steps.check-lambdas.outputs.has_lambdas == 'true' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: cloud-storage-lambdas-${{ matrix.service }}-${{ github.sha }}
