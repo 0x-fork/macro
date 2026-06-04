@@ -23,7 +23,7 @@ prepare_sccache_config() {
   fi
 
   local region="${SCCACHE_REGION:-us-east-1}"
-  local endpoint="${SCCACHE_ENDPOINT:-s3.${region}.amazonaws.com}"
+  local endpoint="${SCCACHE_ENDPOINT:-}"
   local key_prefix="${SCCACHE_S3_KEY_PREFIX:-sccache/}"
   local use_ssl="${SCCACHE_S3_USE_SSL:-true}"
 
@@ -47,10 +47,14 @@ prepare_sccache_config() {
   cat > "$tmp_config" <<EOF
 [cache.s3]
 bucket = "$SCCACHE_BUCKET"
-endpoint = "$endpoint"
-use_ssl = $use_ssl
+region = "$region"
 key_prefix = "$key_prefix"
+no_credentials = false
+use_ssl = $use_ssl
 EOF
+  if [[ -n "$endpoint" ]]; then
+    echo "endpoint = \"$endpoint\"" >> "$tmp_config"
+  fi
   chmod 0644 "$tmp_config"
   mv "$tmp_config" "$sccache_config"
 
