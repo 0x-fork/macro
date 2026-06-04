@@ -25,6 +25,10 @@ echo "Building Lambda artifacts for $SERVICE: ${LAMBDAS[*]}"
 # system-wide install (e.g. fresh Blacksmith images).
 LAMBDAS_ENV="${LAMBDAS[*]}" nix develop .# -c bash -c '
   set -euo pipefail
+  # Lambdas do not need max optimization; opt-level 2 (vs the release default 3)
+  # trims leaf-crate codegen time with negligible runtime impact. Scoped to this
+  # cargo-lambda build only (service binaries build via crane and are unaffected).
+  export CARGO_PROFILE_RELEASE_OPT_LEVEL=2
   cd rust/cloud-storage
   for lambda in $LAMBDAS_ENV; do
     echo "::group::Build $lambda"
