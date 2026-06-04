@@ -202,7 +202,8 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2404
     strategy:
       fail-fast: false
-      max-parallel: 8
+      # No max-parallel: Blacksmith autoscales runners, so all lambda services
+      # build concurrently instead of batching 8.
       matrix:
         service: ${{ fromJson(needs.setup.outputs.lambdas) }}
     steps:
