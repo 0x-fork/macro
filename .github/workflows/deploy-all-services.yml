@@ -55,11 +55,52 @@ jobs:
           echo "matrix=${services}" >> $GITHUB_OUTPUT
           echo "Deploying services: ${services}"
 
-  build-service-binaries:
-    name: Build ${{ matrix.service }} binaries
+  # Build the shared release dependency closure once and commit it to the /nix
+  # sticky disk, so the per-service matrix below clones a warm store instead of
+  # each job rebuilding/refetching the deps.
+  warm-deps:
+    name: Warm shared Rust deps onto sticky disk
     needs: setup
     if: ${{ needs.setup.outputs.matrix != '[]' }}
-    runs-on: linux-extra-beefy
+    # NOTE: adjust to a provisioned Blacksmith runner label for the org.
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Mount Nix store sticky disk
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-nix-store
+          path: /nix
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Configure Cachix fallback substituter
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+
+      - name: Build shared release dependency closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Keep pushing to Cachix during migration so both cache tiers stay warm.
+          if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
+            cachix watch-store "$CACHIX_CACHE_NAME" &
+            trap 'kill %1 2>/dev/null || true' EXIT
+          fi
+          nix build --print-build-logs ".#deployCargoArtifacts"
+          echo "Shared deps realised into /nix/store; committed to sticky disk on job exit."
+
+  build-service-binaries:
+    name: Build ${{ matrix.service }} binaries
+    needs: [setup, warm-deps]
+    if: ${{ needs.setup.outputs.matrix != '[]' }}
+    # Runs on Blacksmith, cloning the warm /nix sticky disk committed by
+    # warm-deps so only each service's own crate compiles.
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     strategy:
       fail-fast: false
       max-parallel: 8
@@ -70,7 +111,16 @@ jobs:
         with:
           clean: false
 
-      - name: Configure Cachix
+      - name: Mount Nix store sticky disk (clones warmed snapshot)
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-nix-store
+          path: /nix
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Configure Cachix fallback substituter
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -225,7 +275,7 @@ jobs:
   deployment-summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
-    needs: [setup, build-service-binaries, build-lambda-artifacts, deploy-services]
+    needs: [setup, warm-deps, build-service-binaries, build-lambda-artifacts, deploy-services]
     if: always()
     steps:
       - name: Check deployment results
@@ -235,6 +285,9 @@ jobs:
             exit 1
           elif [[ "${{ needs.setup.result }}" == "skipped" ]]; then
             echo "⏭️ Deployment setup was skipped"
+          elif [[ "${{ needs.warm-deps.result }}" == "failure" ]]; then
+            echo "❌ Warming shared Rust deps onto the sticky disk failed"
+            exit 1
           elif [[ "${{ needs.build-service-binaries.result }}" == "failure" ]]; then
             echo "❌ One or more service binary builds failed"
             exit 1
