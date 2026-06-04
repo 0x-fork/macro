@@ -27,6 +27,12 @@ on:
         type: boolean
         required: false
         default: false
+  # Branch-scoped push trigger so the PoC can be validated directly from the
+  # feature branch (workflow_dispatch only works once a workflow is on the
+  # default branch). REMOVE this push trigger before merging.
+  push:
+    branches:
+      - claude/gracious-thompson-LXyqN
 
 concurrency:
   group: blacksmith-poc-${{ github.ref }}
