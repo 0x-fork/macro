@@ -364,6 +364,10 @@ jobs:
         uses: ./.github/actions/deploy-cloud-storage-pulumi
         with:
           environment: ${{ inputs.environment }}
+          # Blacksmith buildkit builder: keeps the docker layer cache on a
+          # per-Dockerfile sticky disk so heavy bases (LibreOffice/Collabora)
+          # stay warm instead of re-pulling from ECR each deploy.
+          use-blacksmith-builder: 'true'
           aws-access-key: ${{ secrets.AWS_ACCESS_KEY }}
           aws-secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           pulumi-access-token: ${{ secrets.PULUMI_ACCESS_TOKEN }}

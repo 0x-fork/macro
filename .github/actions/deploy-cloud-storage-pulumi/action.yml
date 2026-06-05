@@ -6,6 +6,13 @@ inputs:
     description: 'Whether to setup docker'
     required: false
     default: 'true'
+  use-blacksmith-builder:
+    description: >-
+      Use a Blacksmith buildkit builder whose layer cache lives on a per-Dockerfile
+      sticky disk (persists the heavy base layers across runs). Only valid on
+      Blacksmith runners; defaults to the stock docker/setup-buildx-action.
+    required: false
+    default: 'false'
   use-lfs:
     description: 'Whether to checkout LFS content'
     required: false
@@ -140,9 +147,17 @@ runs:
         AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-key }}
       run: .github/scripts/build-cloud-storage-lambdas.sh
 
-    # setup docker
+    # setup docker -- a Blacksmith builder keeps the buildkit layer cache on a
+    # per-Dockerfile sticky disk (so heavy bases like LibreOffice/Collabora stay
+    # warm across runs instead of re-pulling ~hundreds of MB from ECR each time);
+    # otherwise the stock buildx builder. Pulumi's docker-build provider uses
+    # whichever is set as the default builder.
+    - name: Set up Blacksmith Docker builder
+      if: ${{ inputs.use-docker == 'true' && inputs.use-blacksmith-builder == 'true' }}
+      uses: useblacksmith/setup-docker-builder@v1
+
     - uses: docker/setup-buildx-action@v3
-      if: ${{ inputs.use-docker == 'true' }}
+      if: ${{ inputs.use-docker == 'true' && inputs.use-blacksmith-builder != 'true' }}
 
     # install bun
     - uses: oven-sh/setup-bun@v2
