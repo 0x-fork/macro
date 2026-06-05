@@ -1,29 +1,26 @@
-# Spike: build one Rust Lambda handler with crane + cargo-zigbuild under Nix,
-# on a Blacksmith runner (x86_64 Linux, where the lambda triple == host triple).
+# Validation + prototype for the crane + cargo-zigbuild lambda build.
 #
-# Validates the unknowns from the flake spike before rolling out to all handlers:
-#   1. zig works inside the Nix build sandbox (cache redirected to $TMPDIR).
-#   2. cargo-zigbuild + the nixpkgs zig are version-compatible.
-#   3. the glibc pin (target suffix .2.26) actually takes effect.
-#   4. crane's buildDepsOnly closure + buildPackage produce a runnable
-#      bootstrap.zip for the Lambda custom runtime.
+# Builds EVERY deployed handler via `nix build .#deploy-lambda-<name>` on a
+# DEDICATED lambda sticky disk (separate from the binaries' /nix-store disk),
+# so this doubles as the prototype of the two-disk lambda topology that will go
+# into deploy-all-services: warm-lambdas (shared closure) -> per-handler matrix.
 #
-# Cold on the first run (the lambda dep closure has never been built); it's
-# pushed to Cachix + committed to the /nix sticky disk so reruns are warm.
-# workflow_dispatch-only and additive — touches nothing in the deploy path.
-name: "[Spike] Lambda via crane + zigbuild"
+# Validates all handlers compile + link against the pinned Lambda glibc before
+# we flip the production deploy path. workflow_dispatch-only in steady state;
+# the temporary push trigger lets it run off this feature branch.
+name: "[Spike] Lambda crane build (all handlers)"
 
 on:
   workflow_dispatch:
-  # TEMPORARY: lets the spike run off this feature branch (a dispatch-only
-  # workflow needs the file on the default branch to show a Run button).
-  # Remove once we've got a green run.
+  # TEMPORARY: run off the feature branch (a dispatch-only workflow needs the
+  # file on the default branch to show a Run button). Remove once landed.
   push:
     branches:
       - claude/gracious-thompson-LXyqN
     paths:
       - flake.nix
       - flake.lock
+      - .github/services-config.json
       - .github/workflows/lambda-crane-spike.yml
 
 concurrency:
@@ -31,21 +28,78 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  STICKY_DISK_KEY: ${{ github.repository }}-nix-store
-  LAMBDA: user_link_cleanup_handler
+  # Dedicated lambda disk, distinct from the binaries' ${repo}-nix-store disk,
+  # so the two warm/build chains never collide on a last-write-wins commit.
+  LAMBDA_DISK_KEY: ${{ github.repository }}-nix-lambdas
 
 jobs:
-  build:
-    name: Build lambda (crane + zigbuild)
+  setup:
+    name: Resolve lambda matrix
+    runs-on: ubuntu-latest
+    outputs:
+      lambdas: ${{ steps.set.outputs.lambdas }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Build matrix of deployed lambda handlers
+        id: set
+        run: |
+          set -euo pipefail
+          lambdas=$(jq -c '[.services[].deploy_lambdas // []] | add | unique' .github/services-config.json)
+          echo "lambdas=${lambdas}" >> "$GITHUB_OUTPUT"
+          echo "Handlers: ${lambdas}"
+
+  warm-lambdas:
+    name: Warm shared lambda dep closure
+    needs: setup
     # NOTE: adjust to a provisioned Blacksmith runner label for the org.
     runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
-      - name: Mount Nix store sticky disk
+      - name: Mount lambda Nix store sticky disk
         uses: useblacksmith/stickydisk@v1
         with:
-          key: ${{ env.STICKY_DISK_KEY }}
+          key: ${{ env.LAMBDA_DISK_KEY }}
+          path: /nix
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Configure Cachix fallback substituter
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+
+      - name: Build shared lambda dep closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
+            cachix watch-store "$CACHIX_CACHE_NAME" &
+            trap 'kill %1 2>/dev/null || true' EXIT
+          fi
+          nix build --print-build-logs ".#lambdaDeployCargoArtifacts"
+
+      - name: Teardown Nix (free sticky disk for commit)
+        if: always()
+        uses: ./.github/actions/teardown-nix
+
+  build:
+    name: Build ${{ matrix.lambda }}
+    needs: [setup, warm-lambdas]
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        lambda: ${{ fromJson(needs.setup.outputs.lambdas) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Mount lambda Nix store sticky disk (clones warmed closure)
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ env.LAMBDA_DISK_KEY }}
           path: /nix
 
       - name: Setup Nix
@@ -59,9 +113,10 @@ jobs:
 
       - name: Build lambda package
         shell: bash
+        env:
+          LAMBDA: ${{ matrix.lambda }}
         run: |
           set -euo pipefail
-          # Push whatever we realise so reruns (and the eventual rollout) are warm.
           if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
             cachix watch-store "$CACHIX_CACHE_NAME" &
             trap 'kill %1 2>/dev/null || true' EXIT
@@ -70,17 +125,15 @@ jobs:
 
       - name: Inspect bootstrap.zip
         shell: bash
+        env:
+          LAMBDA: ${{ matrix.lambda }}
         run: |
           set -euo pipefail
-          echo "::group::zip contents (expect a single 'bootstrap')"
-          ls -la "result/${LAMBDA}/"
           unzip -l "result/${LAMBDA}/bootstrap.zip"
-          echo "::endgroup::"
-          # Deref the /nix/store symlink into the workspace for upload + inspection.
-          cp -L "result/${LAMBDA}/bootstrap.zip" ./bootstrap.zip
+          cp -L "result/${LAMBDA}/bootstrap.zip" "./${LAMBDA}-bootstrap.zip"
           tmp="$(mktemp -d)"
-          unzip -o ./bootstrap.zip -d "$tmp" >/dev/null
-          echo "::group::binary type + max glibc (best-effort; expect <= GLIBC_2.26)"
+          unzip -o "./${LAMBDA}-bootstrap.zip" -d "$tmp" >/dev/null
+          echo "::group::binary type + max glibc (expect <= GLIBC_2.26)"
           file "$tmp/bootstrap" || true
           readelf -V "$tmp/bootstrap" 2>/dev/null | grep -oE 'GLIBC_[0-9.]+' | sort -V | tail -3 || true
           echo "::endgroup::"
@@ -88,10 +141,26 @@ jobs:
       - name: Upload bootstrap.zip
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: lambda-crane-spike-${{ env.LAMBDA }}-${{ github.sha }}
-          path: bootstrap.zip
+          name: lambda-crane-${{ matrix.lambda }}-${{ github.sha }}
+          path: ${{ matrix.lambda }}-bootstrap.zip
           retention-days: 7
 
       - name: Teardown Nix (free sticky disk for commit)
         if: always()
         uses: ./.github/actions/teardown-nix
+
+  summary:
+    name: Validation summary
+    needs: [setup, warm-lambdas, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        run: |
+          echo "warm-lambdas: ${{ needs.warm-lambdas.result }}"
+          echo "build:        ${{ needs.build.result }}"
+          if [[ "${{ needs.warm-lambdas.result }}" == "failure" || "${{ needs.build.result }}" == "failure" ]]; then
+            echo "❌ One or more lambda handlers failed to build via crane"
+            exit 1
+          fi
+          echo "✅ All lambda handlers built via crane + zigbuild"

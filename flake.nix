@@ -294,18 +294,30 @@
           '';
         };
 
-        # Cached dep closure for the Lambda target. Built with *plain* cargo for
-        # the plain triple (x86_64-unknown-linux-gnu) — the glibc pin is a
-        # link-time concern handled only by zigbuild in the final package step,
-        # and plain cargo/rustc reject the `.2.26` target suffix. Scoped with
-        # --package so the C-heavy service deps (pdfium, libreoffice) stay out.
-        # SPIKE: just the one handler; the rollout enumerates every lambda
-        # package here for a single shared closure.
+        # Every handler deployed as a lambda, read straight from the deploy
+        # config so the flake never drifts from services-config.json. For every
+        # handler, crate name == dir name == deploy_lambdas entry.
+        lambdaNames =
+          let
+            cfg = builtins.fromJSON (builtins.readFile ./.github/services-config.json);
+          in
+          pkgs.lib.unique (
+            pkgs.lib.concatMap (svc: svc.deploy_lambdas or [ ]) (pkgs.lib.attrValues cfg.services)
+          );
+
+        # One shared dep closure for all lambda handlers. Built with *plain*
+        # cargo for the plain triple (x86_64-unknown-linux-gnu) — the glibc pin
+        # is a link-time concern handled only by zigbuild in the final package
+        # step, and plain cargo/rustc reject the `.2.26` target suffix. Scoped to
+        # the lambda packages so the C-heavy service deps (pdfium, libreoffice)
+        # stay out of the closure.
         lambdaDeployCargoArtifacts = craneLib.buildDepsOnly (
           lambdaCommonArgs
           // {
             pname = "cloud-storage-lambda-deps";
-            cargoExtraArgs = "--locked --target ${lambdaTarget} --package user_link_cleanup_handler";
+            cargoExtraArgs =
+              "--locked --target ${lambdaTarget} "
+              + pkgs.lib.concatMapStringsSep " " (n: "--package ${n}") lambdaNames;
           }
         );
 
@@ -337,10 +349,12 @@
             }
           );
 
-        deployLambdaPackages = {
-          deploy-lambda-user_link_cleanup_handler =
-            deployLambdaPackage "user_link_cleanup_handler";
-        };
+        deployLambdaPackages = pkgs.lib.listToAttrs (
+          map (n: {
+            name = "deploy-lambda-${n}";
+            value = deployLambdaPackage n;
+          }) lambdaNames
+        );
 
         shellTools =
           with pkgs;
