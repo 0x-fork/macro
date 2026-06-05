@@ -306,6 +306,11 @@ jobs:
     # (configure-aws-credentials), so no dependency on a RunsOn instance role.
     # NOTE: adjust to a provisioned Blacksmith runner label for the org.
     runs-on: blacksmith-8vcpu-ubuntu-2404
+    # Pin PULUMI_HOME to a fixed path (outside the workspace, which the deploy
+    # action's checkout cleans) so the plugins subdir can be backed by a sticky
+    # disk. Propagates into the composite action's pulumi step via the job env.
+    env:
+      PULUMI_HOME: /pulumi
     strategy:
       fail-fast: false
       # No max-parallel: all services deploy concurrently.
@@ -348,6 +353,25 @@ jobs:
         with:
           key: ${{ github.repository }}-handoff-lambdas-${{ matrix.service }}-${{ github.sha }}
           path: /handoff-lambdas
+
+      # Cache Pulumi's provider plugins ($PULUMI_HOME/plugins) on a sticky disk.
+      # Plugins are version-pinned by infra/ and identical across services, so a
+      # single stable-keyed disk is shared by every deploy job: the first run
+      # downloads + commits, later runs clone it warm and skip the ~45s pull.
+      - name: Cache Pulumi plugins (sticky disk)
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-pulumi-plugins
+          path: /pulumi/plugins
+
+      # PULUMI_HOME (/pulumi) and its mounted plugins subdir come up root-owned;
+      # make them writable so pulumi can write credentials + plugins as the
+      # runner. No-op when the runner already runs as root.
+      - name: Ensure Pulumi home is writable
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(id -u)" -ne 0 ]; then sudo chown -R "$(id -u):$(id -g)" /pulumi; fi
 
       - name: Deploy ${{ matrix.service }}
         uses: ./.github/actions/deploy-cloud-storage-pulumi
