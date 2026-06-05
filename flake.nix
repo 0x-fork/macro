@@ -217,8 +217,7 @@
         deployServiceBinaryPackages = {
           deploy-service-binaries-agent-schedule-service =
             deployServiceBinaryPackage "agent-schedule-service"
-              [ "service" ];
-          deploy-service-binaries-authentication-service =
+              [ "service" ];          deploy-service-binaries-authentication-service =
             deployServiceBinaryPackage "authentication-service"
               [ "authentication_service" ];
           deploy-service-binaries-connection-gateway = deployServiceBinaryPackage "connection-gateway" [
@@ -256,6 +255,78 @@
           deploy-service-binaries-unfurl-service = deployServiceBinaryPackage "unfurl-service" [
             "unfurl_service"
           ];
+        };
+
+        # ── Lambda builds (crane + cargo-zigbuild) ─────────────────────
+        # SPIKE: build a Rust Lambda handler reproducibly under nix/crane so
+        # lambdas ride the same content-addressed cache as the service binaries
+        # (nix store + Cachix + sticky disk) instead of a cargo-in-checkout that
+        # recompiles the workspace every run. cargo-zigbuild pins the Lambda
+        # glibc via a target *suffix* (no toolchain swap; host triple == lambda
+        # triple, so no extra rust-std). The binary is renamed `bootstrap` and
+        # zipped for the provided.al2/al2023 custom runtime.
+        lambdaTarget = "x86_64-unknown-linux-gnu";
+        # glibc 2.26 == Amazon Linux 2; forward-compatible with al2023.
+        lambdaZigTarget = "${lambdaTarget}.2.26";
+
+        lambdaCommonArgs = commonArgs // {
+          # zig is the linker for cargo-zigbuild; drop the host-only mold arg.
+          RUSTFLAGS = "";
+          CARGO_PROFILE = "release";
+          # Lambdas don't need max opt; matches the cargo-lambda CI setting.
+          CARGO_PROFILE_RELEASE_OPT_LEVEL = "2";
+          cargoBuildCommand = "cargo zigbuild --release";
+          nativeBuildInputs = (commonArgs.nativeBuildInputs or [ ]) ++ [
+            pkgs.cargo-zigbuild
+            pkgs.zig
+          ];
+          # zig needs a writable cache inside the sandbox ($HOME is read-only).
+          preBuild = ''
+            export ZIG_GLOBAL_CACHE_DIR="$TMPDIR/zig-cache"
+            export ZIG_LOCAL_CACHE_DIR="$TMPDIR/zig-cache"
+            export XDG_CACHE_HOME="$TMPDIR/xdg"
+          '';
+        };
+
+        # Cached dep closure for the Lambda target (the lambda analog of
+        # deployCargoArtifacts, linked for the Lambda glibc via zig). Scoped with
+        # --package so the C-heavy service deps (pdfium, libreoffice bindings)
+        # stay out of the closure. SPIKE: just the one handler; the rollout
+        # enumerates every lambda package here for a single shared closure.
+        lambdaDeployCargoArtifacts = craneLib.buildDepsOnly (
+          lambdaCommonArgs
+          // {
+            pname = "cloud-storage-lambda-deps";
+            cargoExtraArgs = "--locked --target ${lambdaZigTarget} --package user_link_cleanup_handler";
+          }
+        );
+
+        # bin name == crate name == handler dir name (see per-lambda justfiles).
+        deployLambdaPackage =
+          lambdaName:
+          craneLib.buildPackage (
+            lambdaCommonArgs
+            // {
+              cargoArtifacts = lambdaDeployCargoArtifacts;
+              pname = "cloud-storage-lambda-${lambdaName}";
+              doCheck = false;
+              cargoExtraArgs = "--locked --target ${lambdaZigTarget} --bin ${lambdaName}";
+              # Emit the Lambda custom-runtime artifact: a zip whose single entry
+              # is named `bootstrap`, mirroring cargo-lambda's
+              # target/lambda/<name>/bootstrap.zip layout. zigbuild writes to
+              # target/<triple>/release (suffix stripped from the dir name).
+              installPhaseCommand = ''
+                mkdir -p "$out/${lambdaName}"
+                cp "target/${lambdaTarget}/release/${lambdaName}" bootstrap
+                ${pkgs.binutils}/bin/strip bootstrap || true
+                ${pkgs.zip}/bin/zip -j -X "$out/${lambdaName}/bootstrap.zip" bootstrap
+              '';
+            }
+          );
+
+        deployLambdaPackages = {
+          deploy-lambda-user_link_cleanup_handler =
+            deployLambdaPackage "user_link_cleanup_handler";
         };
 
         shellTools =
@@ -465,12 +536,14 @@
             cargoArtifacts
             workspaceArtifacts
             deployCargoArtifacts
+            lambdaDeployCargoArtifacts
             openApiBins
             nextestArchive
             ;
           default = cargoArtifacts;
         }
-        // deployServiceBinaryPackages;
+        // deployServiceBinaryPackages
+        // deployLambdaPackages;
 
         devShells = {
           default = pkgs.mkShell (
