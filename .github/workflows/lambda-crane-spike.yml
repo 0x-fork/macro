@@ -12,16 +12,6 @@ name: "[Spike] Lambda crane build (all handlers)"
 
 on:
   workflow_dispatch:
-  # TEMPORARY: run off the feature branch (a dispatch-only workflow needs the
-  # file on the default branch to show a Run button). Remove once landed.
-  push:
-    branches:
-      - claude/gracious-thompson-LXyqN
-    paths:
-      - flake.nix
-      - flake.lock
-      - .github/services-config.json
-      - .github/workflows/lambda-crane-spike.yml
 
 concurrency:
   group: lambda-crane-spike-${{ github.ref }}
