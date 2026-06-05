@@ -140,6 +140,30 @@ jobs:
           key: ${{ github.repository }}-nix-store
           path: /nix
 
+      # Hand the built artifact straight to the matching deploy job over a
+      # Blacksmith sticky disk instead of GitHub Actions artifacts. The keyed
+      # snapshot is committed on job exit and cloned by deploy-services (which
+      # `needs` this job), so the ~96MB closure rides Blacksmith's co-located
+      # NVMe fabric (seconds) rather than the GitHub artifact API (~70s).
+      # Keyed per service + commit SHA: same SHA builds byte-identical (the Nix
+      # build is deploy-env-independent) so concurrent dev/prod runs are safe,
+      # different SHAs get distinct keys, and unused snapshots auto-evict after
+      # 7 days of inactivity.
+      - name: Mount binaries handoff sticky disk
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-handoff-binaries-${{ matrix.service }}-${{ github.sha }}
+          path: /handoff-binaries
+
+      # A fresh ext4 sticky disk mounts as root:root; make it writable by the
+      # (possibly non-root) runner so the build step can write the tar. No-op
+      # when the runner already runs as root.
+      - name: Ensure binaries handoff is writable
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(id -u)" -ne 0 ]; then sudo chown -R "$(id -u):$(id -g)" /handoff-binaries; fi
+
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
 
@@ -178,14 +202,8 @@ jobs:
           fi
 
           touch prebuilt/.keep
-          tar -C prebuilt -czf prebuilt-binaries.tar.gz .
-
-      - name: Upload prebuilt binaries
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: cloud-storage-service-binaries-${{ matrix.service }}-${{ github.sha }}
-          path: prebuilt-binaries.tar.gz
-          retention-days: 7
+          # Write straight onto the handoff sticky disk; deploy-services reads it.
+          tar -C prebuilt -czf /handoff-binaries/prebuilt-binaries.tar.gz .
 
       - name: Teardown Nix (free sticky disk for commit)
         if: always()
@@ -223,6 +241,23 @@ jobs:
           key: ${{ github.repository }}-lambda-target-${{ matrix.service }}
           path: ${{ github.workspace }}/rust/cloud-storage/target
 
+      # Hand the Lambda bundle to the matching deploy job over a sticky disk
+      # instead of GitHub artifacts (see build-service-binaries for rationale).
+      - name: Mount lambdas handoff sticky disk
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-handoff-lambdas-${{ matrix.service }}-${{ github.sha }}
+          path: /handoff-lambdas
+
+      # A fresh ext4 sticky disk mounts as root:root; make it writable by the
+      # (possibly non-root) runner so the handoff copy can write the tar. No-op
+      # when the runner already runs as root.
+      - name: Ensure lambdas handoff is writable
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(id -u)" -ne 0 ]; then sudo chown -R "$(id -u):$(id -g)" /handoff-lambdas; fi
+
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
 
@@ -239,12 +274,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: .github/scripts/build-cloud-storage-lambdas.sh
 
-      - name: Upload Lambda artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: cloud-storage-lambdas-${{ matrix.service }}-${{ github.sha }}
-          path: lambda-artifacts.tar.gz
-          retention-days: 7
+      - name: Hand off Lambda artifacts to deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The build script writes lambda-artifacts.tar.gz to the workspace root.
+          cp lambda-artifacts.tar.gz /handoff-lambdas/lambda-artifacts.tar.gz
 
       - name: Teardown Nix (free sticky disk for commit)
         if: always()
@@ -295,6 +330,25 @@ jobs:
           echo "has_binaries=$has_binaries" >> "$GITHUB_OUTPUT"
           echo "has_lambdas=$has_lambdas" >> "$GITHUB_OUTPUT"
 
+      # Clone the handoff snapshots committed by the build jobs (which this job
+      # `needs`). Mounted outside the workspace at /handoff-* so the composite
+      # action's own checkout (which cleans the workspace) can't touch them.
+      # Gated on the artifact flags so services with no binaries/lambdas don't
+      # mount an empty disk.
+      - name: Mount binaries handoff sticky disk
+        if: ${{ steps.check-artifacts.outputs.has_binaries == 'true' }}
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-handoff-binaries-${{ matrix.service }}-${{ github.sha }}
+          path: /handoff-binaries
+
+      - name: Mount lambdas handoff sticky disk
+        if: ${{ steps.check-artifacts.outputs.has_lambdas == 'true' }}
+        uses: useblacksmith/stickydisk@v1
+        with:
+          key: ${{ github.repository }}-handoff-lambdas-${{ matrix.service }}-${{ github.sha }}
+          path: /handoff-lambdas
+
       - name: Deploy ${{ matrix.service }}
         uses: ./.github/actions/deploy-cloud-storage-pulumi
         with:
@@ -303,8 +357,8 @@ jobs:
           aws-secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           pulumi-access-token: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           pulumi-service-name: ${{ steps.project-name.outputs.project-name }}
-          prebuilt-binaries-artifact: ${{ steps.check-artifacts.outputs.has_binaries == 'true' && format('cloud-storage-service-binaries-{0}-{1}', matrix.service, github.sha) || '' }}
-          lambda-artifacts: ${{ steps.check-artifacts.outputs.has_lambdas == 'true' && format('cloud-storage-lambdas-{0}-{1}', matrix.service, github.sha) || '' }}
+          prebuilt-binaries-tar: ${{ steps.check-artifacts.outputs.has_binaries == 'true' && '/handoff-binaries/prebuilt-binaries.tar.gz' || '' }}
+          lambda-artifacts-tar: ${{ steps.check-artifacts.outputs.has_lambdas == 'true' && '/handoff-lambdas/lambda-artifacts.tar.gz' || '' }}
           dd-app-key: ${{ secrets.DD_APP_KEY }}
           dd-api-key: ${{ secrets.DD_API_KEY }}
 

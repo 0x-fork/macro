@@ -48,6 +48,14 @@ inputs:
     description: 'Optional GitHub artifact containing built Lambda bootstrap.zip files under target/lambda'
     required: false
     default: ''
+  prebuilt-binaries-tar:
+    description: 'Optional path to a prebuilt-binaries.tar.gz already present on disk (e.g. a Blacksmith sticky-disk handoff). When set, takes precedence over prebuilt-binaries-artifact and skips the GitHub artifact download.'
+    required: false
+    default: ''
+  lambda-artifacts-tar:
+    description: 'Optional path to a lambda-artifacts.tar.gz already present on disk (e.g. a Blacksmith sticky-disk handoff). When set, takes precedence over lambda-artifacts and skips the GitHub artifact download.'
+    required: false
+    default: ''
   cloud-storage-service-name:
     description: 'Optional service key from .github/services-config.json; builds Lambda artifacts inline when lambda-artifacts is not provided'
     required: false
@@ -77,12 +85,16 @@ runs:
         path: rust/cloud-storage/prebuilt-artifact
 
     - name: Extract prebuilt service binaries
-      if: ${{ inputs.prebuilt-binaries-artifact != '' }}
+      if: ${{ inputs.prebuilt-binaries-artifact != '' || inputs.prebuilt-binaries-tar != '' }}
       shell: bash
+      env:
+        TAR_PATH: ${{ inputs.prebuilt-binaries-tar }}
       run: |
         set -euo pipefail
         mkdir -p rust/cloud-storage/prebuilt
-        tar -xzf rust/cloud-storage/prebuilt-artifact/prebuilt-binaries.tar.gz -C rust/cloud-storage/prebuilt
+        # Prefer an on-disk tar (sticky-disk handoff); fall back to the downloaded artifact.
+        src="${TAR_PATH:-rust/cloud-storage/prebuilt-artifact/prebuilt-binaries.tar.gz}"
+        tar -xzf "$src" -C rust/cloud-storage/prebuilt
 
     - name: Download Lambda artifacts
       if: ${{ inputs.lambda-artifacts != '' }}
@@ -92,14 +104,18 @@ runs:
         path: rust/cloud-storage/lambda-artifact
 
     - name: Extract Lambda artifacts
-      if: ${{ inputs.lambda-artifacts != '' }}
+      if: ${{ inputs.lambda-artifacts != '' || inputs.lambda-artifacts-tar != '' }}
       shell: bash
+      env:
+        TAR_PATH: ${{ inputs.lambda-artifacts-tar }}
       run: |
         set -euo pipefail
-        tar -xzf rust/cloud-storage/lambda-artifact/lambda-artifacts.tar.gz -C rust/cloud-storage
+        # Prefer an on-disk tar (sticky-disk handoff); fall back to the downloaded artifact.
+        src="${TAR_PATH:-rust/cloud-storage/lambda-artifact/lambda-artifacts.tar.gz}"
+        tar -xzf "$src" -C rust/cloud-storage
 
     - name: Check Lambda config for inline build
-      if: ${{ inputs.lambda-artifacts == '' && inputs.cloud-storage-service-name != '' }}
+      if: ${{ inputs.lambda-artifacts == '' && inputs.lambda-artifacts-tar == '' && inputs.cloud-storage-service-name != '' }}
       id: check-lambdas
       shell: bash
       env:
@@ -109,14 +125,14 @@ runs:
         echo "has_lambdas=$has_lambdas" >> "$GITHUB_OUTPUT"
 
     - name: Configure Cachix
-      if: ${{ inputs.lambda-artifacts == '' && inputs.cloud-storage-service-name != '' && steps.check-lambdas.outputs.has_lambdas == 'true' }}
+      if: ${{ inputs.lambda-artifacts == '' && inputs.lambda-artifacts-tar == '' && inputs.cloud-storage-service-name != '' && steps.check-lambdas.outputs.has_lambdas == 'true' }}
       uses: ./.github/actions/setup-cachix
       with:
         cachix-auth-token: ${{ inputs.cachix-auth-token }}
         sccache-bucket: ${{ inputs.sccache-bucket }}
 
     - name: Build Lambda artifacts inline
-      if: ${{ inputs.lambda-artifacts == '' && inputs.cloud-storage-service-name != '' && steps.check-lambdas.outputs.has_lambdas == 'true' }}
+      if: ${{ inputs.lambda-artifacts == '' && inputs.lambda-artifacts-tar == '' && inputs.cloud-storage-service-name != '' && steps.check-lambdas.outputs.has_lambdas == 'true' }}
       shell: bash
       env:
         SERVICE: ${{ inputs.cloud-storage-service-name }}
@@ -165,4 +181,4 @@ runs:
         DD_APP_KEY: ${{ inputs.dd-app-key }}
         DD_API_KEY: ${{ inputs.dd-api-key }}
         DD_HOST: ${{ inputs.dd-host }}
-        USE_PREBUILT_SERVICE_BINARIES: ${{ inputs.prebuilt-binaries-artifact != '' && 'true' || 'false' }}
+        USE_PREBUILT_SERVICE_BINARIES: ${{ (inputs.prebuilt-binaries-artifact != '' || inputs.prebuilt-binaries-tar != '') && 'true' || 'false' }}
