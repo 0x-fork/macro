@@ -270,12 +270,11 @@
         lambdaZigTarget = "${lambdaTarget}.2.26";
 
         lambdaCommonArgs = commonArgs // {
-          # zig is the linker for cargo-zigbuild; drop the host-only mold arg.
+          # zig links the final binary (cargo-zigbuild); drop the host-only mold arg.
           RUSTFLAGS = "";
           CARGO_PROFILE = "release";
           # Lambdas don't need max opt; matches the cargo-lambda CI setting.
           CARGO_PROFILE_RELEASE_OPT_LEVEL = "2";
-          cargoBuildCommand = "cargo zigbuild --release";
           nativeBuildInputs = (commonArgs.nativeBuildInputs or [ ]) ++ [
             pkgs.cargo-zigbuild
             pkgs.zig
@@ -288,16 +287,18 @@
           '';
         };
 
-        # Cached dep closure for the Lambda target (the lambda analog of
-        # deployCargoArtifacts, linked for the Lambda glibc via zig). Scoped with
-        # --package so the C-heavy service deps (pdfium, libreoffice bindings)
-        # stay out of the closure. SPIKE: just the one handler; the rollout
-        # enumerates every lambda package here for a single shared closure.
+        # Cached dep closure for the Lambda target. Built with *plain* cargo for
+        # the plain triple (x86_64-unknown-linux-gnu) — the glibc pin is a
+        # link-time concern handled only by zigbuild in the final package step,
+        # and plain cargo/rustc reject the `.2.26` target suffix. Scoped with
+        # --package so the C-heavy service deps (pdfium, libreoffice) stay out.
+        # SPIKE: just the one handler; the rollout enumerates every lambda
+        # package here for a single shared closure.
         lambdaDeployCargoArtifacts = craneLib.buildDepsOnly (
           lambdaCommonArgs
           // {
             pname = "cloud-storage-lambda-deps";
-            cargoExtraArgs = "--locked --target ${lambdaZigTarget} --package user_link_cleanup_handler";
+            cargoExtraArgs = "--locked --target ${lambdaTarget} --package user_link_cleanup_handler";
           }
         );
 
@@ -310,6 +311,11 @@
               cargoArtifacts = lambdaDeployCargoArtifacts;
               pname = "cloud-storage-lambda-${lambdaName}";
               doCheck = false;
+              # cargo-zigbuild links the final binary against the pinned Lambda
+              # glibc, selected via the `.2.26` target suffix (which only zigbuild
+              # understands). Dep rlibs from the closure above (plain triple) are
+              # reused; only the leaf crate compiles + links here.
+              cargoBuildCommand = "cargo zigbuild --release";
               cargoExtraArgs = "--locked --target ${lambdaZigTarget} --bin ${lambdaName}";
               # Emit the Lambda custom-runtime artifact: a zip whose single entry
               # is named `bootstrap`, mirroring cargo-lambda's
