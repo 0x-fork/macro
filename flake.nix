@@ -275,9 +275,16 @@
           CARGO_PROFILE = "release";
           # Lambdas don't need max opt; matches the cargo-lambda CI setting.
           CARGO_PROFILE_RELEASE_OPT_LEVEL = "2";
+          # aws-lc-sys (aws-lc-rs / rustls default crypto, pulled via aws-sdk &
+          # sqlx) has a cc-builder guard that rejects the zig C compiler. Force
+          # its cmake builder instead, which has no such guard and still compiles
+          # the C against the zig-pinned glibc. cmake + nasm are its build deps.
+          AWS_LC_SYS_CMAKE_BUILDER = "1";
           nativeBuildInputs = (commonArgs.nativeBuildInputs or [ ]) ++ [
             pkgs.cargo-zigbuild
             pkgs.zig
+            pkgs.cmake
+            pkgs.nasm
           ];
           # zig needs a writable cache inside the sandbox ($HOME is read-only).
           preBuild = ''
