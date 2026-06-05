@@ -29,12 +29,6 @@ fi
 
 echo "Building Lambda artifacts for $SERVICE via nix: ${LAMBDAS[*]}"
 
-# Keep pushing realised paths to Cachix so reruns / other services warm up.
-if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
-  cachix watch-store "$CACHIX_CACHE_NAME" &
-  trap 'kill %1 2>/dev/null || true' EXIT
-fi
-
 # Build every handler for this service in one nix invocation: independent
 # derivations build in parallel, and unchanged ones are pure cache hits.
 installables=()
