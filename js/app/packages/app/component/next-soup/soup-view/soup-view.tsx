@@ -24,7 +24,10 @@ import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters
 import { MaybeSoupEntityActionDrawerManager } from '@app/component/next-soup/soup-view/SoupEntityActionDrawerManager';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
-import { persistSoupNavigationTouchHighlight } from '@app/component/next-soup/soup-view/soup-navigation-touch-highlight';
+import {
+  persistSoupNavigationTouchHighlight,
+  soupNavigationTouchHighlight,
+} from '@app/component/next-soup/soup-view/soup-navigation-touch-highlight';
 import { activeSoupViewCounts } from '@app/component/next-soup/soup-view/soup-view-cache-key';
 import {
   SoupViewContextProvider,
@@ -752,13 +755,17 @@ export const SoupViewList = (props: SoupViewListProps) => {
       return;
     }
 
-    persistSoupNavigationTouchHighlight(event);
+    const finishTouchHighlight = persistSoupNavigationTouchHighlight(event);
 
-    await openEntityInSplitFromUnifiedList(entity, {
-      openInNewSplit: event.shiftKey,
-      location,
-      splitHandle: panel.handle,
-    });
+    try {
+      await openEntityInSplitFromUnifiedList(entity, {
+        openInNewSplit: event.shiftKey,
+        location,
+        splitHandle: panel.handle,
+      });
+    } finally {
+      finishTouchHighlight?.();
+    }
   };
 
   let lastClickedEntityId = -1;
@@ -1096,7 +1103,10 @@ export const SoupViewList = (props: SoupViewListProps) => {
                       >
                         <SoupList
                           cache={listStateCache.get(cacheKey)?.virtualCache}
-                          ref={setLocalEntityListRef}
+                          ref={(el) => {
+                            setLocalEntityListRef(el);
+                            soupNavigationTouchHighlight(el);
+                          }}
                           virtualizerClass={cn(
                             previewVisible() && 'pt-1' /* scuffed */,
                             'scrollbar-hidden'
@@ -1375,7 +1385,7 @@ const DEFAULT_OVERSCAN = 5;
 const FLOATING_BUTTON_SCROLL_UP_THRESHOLD = 5;
 
 interface SoupListProps {
-  ref?: (el: HTMLElement) => void;
+  ref?: (el: HTMLDivElement) => void;
   virtualizerRef?: (handle: VirtualizerHandle) => void;
   class?: string;
   virtualizerClass?: string;

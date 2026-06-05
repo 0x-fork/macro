@@ -34,6 +34,10 @@ type Args = {
   serviceContainerPort: number;
   isPrivate?: boolean;
   containerEnvVars?: { name: string; value: pulumi.Output<string> | string }[];
+  containerSecrets: {
+    name: string;
+    valueFrom: pulumi.Output<string> | string;
+  }[];
   healthCheckPath: string;
   tags: { [key: string]: string };
   queueArns: pulumi.Output<string>[];
@@ -62,6 +66,7 @@ export class AuthenticationService extends pulumi.ComponentResource {
       healthCheckPath,
       isPrivate,
       containerEnvVars,
+      containerSecrets,
       clusterName,
       tags,
       secretKeyArns,
@@ -103,7 +108,10 @@ export class AuthenticationService extends pulumi.ComponentResource {
           Statement: [
             {
               Action: ['secretsmanager:GetSecretValue'],
-              Resource: [...secretKeyArns],
+              Resource: [
+                ...secretKeyArns,
+                ...containerSecrets.map((s) => s.valueFrom),
+              ],
               Effect: 'Allow',
             },
           ],
@@ -232,11 +240,8 @@ export class AuthenticationService extends pulumi.ComponentResource {
               environment: [
                 { name: 'BASE_URL', value: this.domain },
                 ...(containerEnvVars ?? []),
-                {
-                  name: 'FUSIONAUTH_OAUTH_REDIRECT_URI',
-                  value: `https://${SERVICE_DOMAIN_NAME}/oauth/redirect`,
-                },
               ],
+              secrets: [...containerSecrets],
               logConfiguration: {
                 logDriver: 'awsfirelens',
                 options: {
