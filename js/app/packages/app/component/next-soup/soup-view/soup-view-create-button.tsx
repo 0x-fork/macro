@@ -26,7 +26,6 @@ const VIEW_CREATE_BLOCKNAMES: Partial<
   agents: ['chat', 'automation'],
   mail: ['email'],
   channels: ['channel'],
-  folders: ['project'],
 };
 
 type CreateOption = {
@@ -57,7 +56,6 @@ const VIEW_CREATE_LABELS: Partial<Record<ListView, string>> = {
   agents: 'Agent',
   channels: 'Channel',
   documents: 'Document',
-  folders: 'Folder',
   mail: 'Email',
   tasks: 'Task',
 };
@@ -73,9 +71,6 @@ function getViewCreateOptions(view: ListView): CreateOption[] {
   });
   if (view === 'documents') {
     options.push(IMPORT_FILE_OPTION);
-    options.push(IMPORT_FOLDER_OPTION);
-  }
-  if (view === 'folders') {
     options.push(IMPORT_FOLDER_OPTION);
   }
   return options;

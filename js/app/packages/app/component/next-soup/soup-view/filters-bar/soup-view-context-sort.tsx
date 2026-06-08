@@ -73,9 +73,6 @@ export const SoupViewContextSort = () => {
       <Match when={isComponentListView('channels')}>
         <ChannelsSort {...openProps()} />
       </Match>
-      <Match when={isComponentListView('folders')}>
-        <FilesSort {...openProps()} />
-      </Match>
     </Switch>
   );
 };

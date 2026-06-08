@@ -237,26 +237,6 @@ registerComponent(
   })
 );
 
-registerComponent(
-  'folders',
-  withAuth(() => {
-    usePageViewTracking('folders');
-    const user = useUserContext();
-    const preset = getViewPreset('folders', undefined, {
-      userId: user.userId(),
-      email: user.email(),
-    });
-    return (
-      <SoupView
-        viewName="Folders"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
-    );
-  })
-);
-
 type SearchComponentParams = {
   initialQuery?: string;
   initialFilters?: Query;

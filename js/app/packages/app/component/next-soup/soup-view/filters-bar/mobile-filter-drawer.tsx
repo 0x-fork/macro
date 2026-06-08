@@ -94,7 +94,6 @@ export const MobileFilterDrawer = () => {
     documents: DOCUMENT_SORT_OPTIONS,
     tasks: TASK_SORT_OPTIONS,
     channels: CHANNEL_SORT_OPTIONS,
-    folders: DEFAULT_SORT_OPTIONS,
   };
 
   const sortOptions = createMemo(() => {

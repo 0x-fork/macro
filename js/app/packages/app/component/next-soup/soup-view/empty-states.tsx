@@ -7,7 +7,6 @@ import { useEmailLinks, useEmailLinksStatus } from '@core/email-link';
 import EmptyStateAiIcon from '@design/empty-state-ai.svg';
 import EmptyStateDocIcon from '@design/empty-state-doc.svg';
 import EmptyStateEmailIcon from '@design/empty-state-email.svg';
-import EmptyStateFolderIcon from '@design/empty-state-folder.svg';
 import EmptyStateInboxZeroIcon from '@design/empty-state-inbox-zero.svg';
 import EmptyStateNoFilterMatchIcon from '@design/empty-state-no-filter-match.svg';
 import EmptyStateNoSearchMatchIcon from '@design/empty-state-no-search-match.svg';
@@ -15,7 +14,6 @@ import EmptyStateTasksIcon from '@design/empty-state-tasks.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import { EmptyStatePanel, FilteredHiddenBanner } from '@ui';
 import { type Component, type JSXElement, Match, Switch } from 'solid-js';
-import { FolderDropZone } from './FolderDropZone';
 import { useSoupView } from './soup-view-context';
 
 // Base URL for the public documentation site (https://docs.macro.com).
@@ -192,17 +190,6 @@ export function EmptyState(props: {
 
       <Match when={props.listView === 'agents'}>
         <AgentsEmptyState />
-      </Match>
-
-      <Match when={props.listView === 'folders'}>
-        <EmptyStatePanel
-          graphic={EmptyStateFolderIcon}
-          title="No folders"
-          description="Folders let you organize conversations, documents, and tasks into projects. Create a folder or drop files below to get started."
-          documentationUrl={`${DOCS_BASE}/product/folders`}
-        >
-          <FolderDropZone />
-        </EmptyStatePanel>
       </Match>
 
       <Match when={true}>
