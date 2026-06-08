@@ -312,6 +312,11 @@ const DOCUMENTS_FILTER_CATEGORIES: FilterCategory[] = [
         icon: () => <EntityIcon targetType="canvas" size="xs" />,
       },
       {
+        id: 'folders',
+        label: 'Folders',
+        icon: () => <EntityIcon targetType="project" size="xs" />,
+      },
+      {
         id: 'file-code',
         label: 'Code',
         icon: () => <EntityIcon targetType="code" size="xs" />,
@@ -364,7 +369,6 @@ export const VIEW_FILTER_CATEGORIES: Record<ListView, FilterCategory[]> = {
   tasks: TASKS_FILTER_CATEGORIES,
   channels: [],
   calls: [],
-  folders: [],
   search: [],
 };
 

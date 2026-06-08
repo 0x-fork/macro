@@ -214,13 +214,13 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           filters: defineQueryFilters({
             include: {
               documentOwnerId: [ctx.userId],
+              folderOwnerId: [ctx.userId],
               isEmailAttachment: false,
             },
-            exclude: { subType: ['task'], folderId: [NIL_UUID] },
+            exclude: { subType: ['task'] },
           }),
           clientFilters: {
-            or: ['document-or-file', 'folders'],
-            and: ['owned-entity'],
+            and: ['files-folder', 'owned-entity'],
           },
         };
       },
@@ -234,12 +234,12 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             exclude: {
               subType: ['task'],
               documentOwnerId: [ctx.userId],
+              folderOwnerId: [ctx.userId],
               folderId: [NIL_UUID],
             },
           }),
           clientFilters: {
-            or: ['document-or-file', 'folders'],
-            and: ['shared-entity'],
+            and: ['files-folder', 'shared-entity'],
           },
         };
       },
@@ -247,7 +247,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
         filters: defineQueryFilters({
           include: { isEmailAttachment: true },
         }),
-        clientFilters: { and: ['document-or-file'] },
+        clientFilters: { and: ['files-folder'] },
       }),
       folders: () => ({
         filters: defineQueryFilters({
@@ -262,7 +262,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             folderId: [NIL_UUID],
           },
         }),
-        clientFilters: { or: ['document-or-file', 'folders'] },
+        clientFilters: { and: ['files-folder'] },
       }),
     },
   },

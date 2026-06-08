@@ -56,7 +56,7 @@ const TAB_ONLY_FILTERS = new Set([
   'noise',
   'explicit-noise',
   'channels',
-  'file-folder',
+  'files-folder',
   'shared-entity',
   'shared-agent',
   'assigned-to',

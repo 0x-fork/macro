@@ -121,8 +121,7 @@ export function filesAndFolderFilter(entity: EntityData): boolean {
   if (entity.type !== 'project' && entity.type !== 'document') return false;
 
   if (entity.type === 'document') {
-    const fileType = entity.fileType ?? '';
-    return !['md', 'canvas'].includes(fileType);
+    return !taskFilter(entity);
   }
 
   return true;

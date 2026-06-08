@@ -16,7 +16,7 @@ type CategorySearchFilters = {
 const CATEGORY_TO_INDEX: Partial<Record<CategoryFilter, string>> = {
   channels: 'channels',
   dms: 'channels',
-  documents: 'document-or-file',
+  documents: 'files-folders',
   tasks: 'task',
   chats: 'agent',
   projects: 'folders',

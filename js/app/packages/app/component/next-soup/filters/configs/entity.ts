@@ -17,17 +17,19 @@ export const channelsFilter = config({
 });
 
 export const filesAndFolderFilter = config({
-  id: 'file-folder',
+  id: 'files-folder',
   predicate: filesAndFolderPredicate,
   query: {
-    exclude: { fileAssoc: ['assoc:md', 'assoc:canvas'], folderId: [NIL_UUID] },
+    exclude: { folderId: [NIL_UUID] },
   },
 });
 
 export const foldersFilter = config({
   id: 'folders',
   predicate: projectPredicate,
-  query: { exclude: { folderId: [NIL_UUID] } },
+  query: {
+    exclude: { folderId: [NIL_UUID] },
+  },
 });
 
 export const activeAgentFilter = config({
@@ -39,12 +41,6 @@ export const activeAgentFilter = config({
 export const notTaskFilter = config({
   id: 'not-task',
   predicate: (e) => !taskPredicate(e),
-  query: isNotTask,
-});
-
-export const documentOrFileFilter = config({
-  id: 'document-or-file',
-  predicate: (e) => e.type === 'document' && !taskPredicate(e),
   query: isNotTask,
 });
 
