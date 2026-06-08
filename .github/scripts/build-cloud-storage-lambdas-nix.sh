@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Build all of a service's Lambda handlers via the crane + cargo-zigbuild nix
-# packages (.#deploy-lambda-<name>), and assemble the target/lambda/<name>/
-# bootstrap.zip layout the deploy action consumes -- identical to what the old
+# packages (.#deploy-lambda-<name>), and assemble the target/lambda/<name>/ zip
+# artifact layout the deploy action consumes -- identical to what the old
 # cargo-lambda script produced, so nothing downstream changes.
 #
 # Unlike the cargo-lambda path, this never recompiles unchanged handlers: nix is
@@ -37,14 +37,18 @@ for lambda in "${LAMBDAS[@]}"; do
 done
 nix build --no-link --print-build-logs "${installables[@]}"
 
-# Assemble target/lambda/<name>/bootstrap.zip from each handler's store path.
+# Assemble target/lambda/<name>/*.zip from each handler's store path.
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR/target/lambda"
 for lambda in "${LAMBDAS[@]}"; do
   # Already built above, so this just resolves the (cached) out path.
   out="$(nix build --no-link --print-out-paths ".#deploy-lambda-${lambda}")"
   mkdir -p "$OUTPUT_DIR/target/lambda/$lambda"
-  cp "$out/$lambda/bootstrap.zip" "$OUTPUT_DIR/target/lambda/$lambda/bootstrap.zip"
+  cp -a "$out/$lambda/." "$OUTPUT_DIR/target/lambda/$lambda/"
+  test -f "$OUTPUT_DIR/target/lambda/$lambda/bootstrap.zip"
+  if [[ "$lambda" == "call_recording_preview_handler" ]]; then
+    test -f "$OUTPUT_DIR/target/lambda/$lambda/ffmpeg-layer.zip"
+  fi
 done
 
 tar -C "$OUTPUT_DIR" -czf lambda-artifacts.tar.gz target

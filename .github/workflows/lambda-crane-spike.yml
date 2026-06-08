@@ -69,7 +69,7 @@ jobs:
             cachix watch-store "$CACHIX_CACHE_NAME" &
             trap 'kill %1 2>/dev/null || true' EXIT
           fi
-          nix build --print-build-logs ".#lambdaDeployCargoArtifacts"
+          nix build --print-build-logs ".#lambdaDeployCargoArtifacts" ".#callRecordingPreviewFfmpegLayer"
 
       - name: Teardown Nix (free sticky disk for commit)
         if: always()
@@ -121,6 +121,10 @@ jobs:
           set -euo pipefail
           unzip -l "result/${LAMBDA}/bootstrap.zip"
           cp -L "result/${LAMBDA}/bootstrap.zip" "./${LAMBDA}-bootstrap.zip"
+          if [[ "$LAMBDA" == "call_recording_preview_handler" ]]; then
+            unzip -l "result/${LAMBDA}/ffmpeg-layer.zip"
+            cp -L "result/${LAMBDA}/ffmpeg-layer.zip" "./${LAMBDA}-ffmpeg-layer.zip"
+          fi
           tmp="$(mktemp -d)"
           unzip -o "./${LAMBDA}-bootstrap.zip" -d "$tmp" >/dev/null
           echo "::group::binary type + max glibc (expect <= GLIBC_2.26)"
@@ -132,7 +136,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: lambda-crane-${{ matrix.lambda }}-${{ github.sha }}
-          path: ${{ matrix.lambda }}-bootstrap.zip
+          path: ${{ matrix.lambda }}-*.zip
           retention-days: 7
 
       - name: Teardown Nix (free sticky disk for commit)

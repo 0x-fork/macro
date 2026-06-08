@@ -124,7 +124,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          nix build --print-build-logs ".#lambdaDeployCargoArtifacts"
+          nix build --print-build-logs ".#lambdaDeployCargoArtifacts" ".#callRecordingPreviewFfmpegLayer"
           echo "Shared lambda deps realised into /nix/store; committed on job exit."
 
       - name: Teardown Nix (free sticky disk for commit)
