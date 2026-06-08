@@ -216,9 +216,12 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
               documentOwnerId: [ctx.userId],
               isEmailAttachment: false,
             },
-            exclude: { subType: ['task'] },
+            exclude: { subType: ['task'], folderId: [NIL_UUID] },
           }),
-          clientFilters: { and: ['document-or-file', 'owned-entity'] },
+          clientFilters: {
+            or: ['document-or-file', 'folders'],
+            and: ['owned-entity'],
+          },
         };
       },
       shared: (ctx) => {
@@ -228,9 +231,16 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             include: {
               isEmailAttachment: false,
             },
-            exclude: { subType: ['task'], documentOwnerId: [ctx.userId] },
+            exclude: {
+              subType: ['task'],
+              documentOwnerId: [ctx.userId],
+              folderId: [NIL_UUID],
+            },
           }),
-          clientFilters: { and: ['document-or-file', 'shared-entity'] },
+          clientFilters: {
+            or: ['document-or-file', 'folders'],
+            and: ['shared-entity'],
+          },
         };
       },
       attachments: () => ({
