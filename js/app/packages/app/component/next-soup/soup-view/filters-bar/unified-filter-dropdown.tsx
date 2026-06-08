@@ -7,6 +7,7 @@ import {
 import {
   defineQueryFilters,
   type PropertyFilter,
+  type Query,
   queryStateFrom,
 } from '@app/component/next-soup/filters/filter-store';
 import { mergeQuery } from '@app/component/next-soup/filters/filter-store/query-store';
@@ -132,13 +133,16 @@ const INBOX_FILTER_CATEGORIES: FilterCategory[] = [
   },
 ];
 
-const isInboxTypeFilterId = (id: string) => {
-  for (const category of INBOX_FILTER_CATEGORIES) {
+const hasCategoryOption = (categories: FilterCategory[], id: string) => {
+  for (const category of categories) {
     if (category.options.find((o) => o.id === id)) return true;
   }
 
   return false;
 };
+
+const isInboxTypeFilterId = (id: string) =>
+  hasCategoryOption(INBOX_FILTER_CATEGORIES, id);
 
 const MAIL_FILTER_CATEGORIES: FilterCategory[] = [
   {
@@ -371,6 +375,9 @@ export const VIEW_FILTER_CATEGORIES: Record<ListView, FilterCategory[]> = {
   calls: [],
   search: [],
 };
+
+const isDocumentsTypeFilterId = (id: string) =>
+  hasCategoryOption(DOCUMENTS_FILTER_CATEGORIES, id);
 
 /** Searchable submenu for filters with many options like assignees */
 const SearchableFilterSubmenu = (props: {
@@ -732,6 +739,54 @@ export const UnifiedFilterDropdown = (
       }
 
       queryFilters.replace(nextQueryState);
+
+      return;
+    }
+
+    if (currentView() === 'documents' && isDocumentsTypeFilterId(optionId)) {
+      const baseQuery = getViewPreset('documents', activeTab(), {
+        userId: userId(),
+        email: undefined,
+      })?.filters;
+
+      if (!baseQuery) {
+        return;
+      }
+
+      const activeTypeOptions = DOCUMENTS_FILTER_CATEGORIES.flatMap(
+        (category) => category.options
+      ).filter((option) => soup.predicates.isActive(option.id));
+
+      if (activeTypeOptions.length === 0) {
+        queryFilters.replace(baseQuery);
+        return;
+      }
+
+      let nextQueryState = queryStateFrom(baseQuery);
+      let activeTargetsQuery: Query = {};
+
+      for (const activeOption of activeTypeOptions) {
+        const activeFilter = soup.predicates.getConfig(activeOption.id);
+        if (!activeFilter?.query) continue;
+
+        const activeQuery =
+          typeof activeFilter.query === 'function'
+            ? activeFilter.query(ctx)
+            : activeFilter.query;
+
+        nextQueryState = mergeQuery(nextQueryState, activeQuery);
+        activeTargetsQuery = mergeQuery(
+          queryStateFrom(activeTargetsQuery),
+          activeQuery
+        );
+      }
+
+      queryFilters.replace(
+        mergeQuery(
+          nextQueryState,
+          defineQueryFilters({}, { skipTargetsFrom: activeTargetsQuery })
+        )
+      );
 
       return;
     }
