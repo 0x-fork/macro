@@ -1,9 +1,13 @@
 use std::sync::LazyLock;
 
+use anyhow::Context;
 pub use macro_env::Environment;
 
-// BASE_URL env var. This is validated when creating the config in main.rs
-pub static BASE_URL: LazyLock<String> = LazyLock::new(|| std::env::var("BASE_URL").unwrap());
+// BASE_URL config value. This is validated when creating the config in main.rs
+pub static BASE_URL: LazyLock<String> = LazyLock::new(|| {
+    macro_config::required_config_value("BASE_URL")
+        .expect("BASE_URL must be provided via APP_SECRETS_JSON or env")
+});
 
 /// The configuration parameters for the application.
 ///
@@ -12,7 +16,7 @@ pub static BASE_URL: LazyLock<String> = LazyLock::new(|| std::env::var("BASE_URL
 /// populate the Docker container
 ///
 /// See `.env.sample` in document-storage-service root for details.
-#[derive(serde::Deserialize)]
+#[derive(macro_config::MacroConfig)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct Config {
     #[allow(dead_code)]
@@ -43,9 +47,11 @@ pub struct Config {
     pub stripe_secret_key: String,
 
     /// The port to listen for HTTP requests on.
+    #[macro_config_default(8080)]
     pub port: usize,
 
     /// The environment we are in
+    #[macro_config_default(Environment::new_or_prod())]
     pub environment: Environment,
 
     /// The internal auth key used by other services
@@ -91,4 +97,11 @@ pub struct Config {
 
     /// The stripe price id
     pub stripe_price_id: String,
+}
+
+impl Config {
+    pub fn from_env() -> anyhow::Result<Self> {
+        macro_config::ConfigLoader::load::<Config>()
+            .context("failed to load authentication service config")
+    }
 }

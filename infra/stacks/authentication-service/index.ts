@@ -19,8 +19,10 @@ const tags = {
   project: 'authentication-service',
 };
 
-const dopplerTokenArn: pulumi.Output<string> = aws.secretsmanager
-  .getSecretVersionOutput({ secretId: config.require('doppler_token_key') })
+const dopplerSecretSyncArn: pulumi.Output<string> = aws.secretsmanager
+  .getSecretVersionOutput({
+    secretId: config.require('doppler_secret_sync_key'),
+  })
   .apply((secret) => secret.arn);
 
 const DATABASE_URL = aws.secretsmanager
@@ -155,8 +157,8 @@ const service = new AuthenticationService('authentication-service', {
   ],
   containerSecrets: [
     {
-      name: 'DOPPLER_TOKEN',
-      valueFrom: pulumi.interpolate`${dopplerTokenArn}`,
+      name: 'APP_SECRETS_JSON',
+      valueFrom: pulumi.interpolate`${dopplerSecretSyncArn}`,
     },
   ],
 });
