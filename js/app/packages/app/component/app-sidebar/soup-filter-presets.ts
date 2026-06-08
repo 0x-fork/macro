@@ -239,11 +239,20 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
         }),
         clientFilters: { and: ['document-or-file'] },
       }),
+      folders: () => ({
+        filters: defineQueryFilters({
+          exclude: { folderId: [NIL_UUID] },
+        }),
+        clientFilters: { and: ['folders'] },
+      }),
       all: () => ({
         filters: defineQueryFilters({
-          exclude: { subType: ['task'] },
+          exclude: {
+            subType: ['task'],
+            folderId: [NIL_UUID],
+          },
         }),
-        clientFilters: { and: ['document-or-file'] },
+        clientFilters: { or: ['document-or-file', 'folders'] },
       }),
     },
   },
@@ -343,26 +352,6 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
       }),
     },
   },
-  folders: {
-    default: 'owned',
-    tabs: {
-      owned: (ctx) => {
-        if (!ctx.userId) return undefined;
-        return {
-          filters: defineQueryFilters({
-            include: { folderOwnerId: [ctx.userId] },
-          }),
-          clientFilters: { and: ['folders', 'owned-entity'] },
-        };
-      },
-      all: () => ({
-        filters: defineQueryFilters({
-          exclude: { folderId: [NIL_UUID] },
-        }),
-        clientFilters: { and: ['folders'] },
-      }),
-    },
-  },
   search: {
     default: 'all',
     tabs: {
@@ -375,7 +364,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
 };
 
 /** Views whose default tab requires user context */
-type ContextRequiredView = 'agents' | 'documents' | 'tasks' | 'folders';
+type ContextRequiredView = 'agents' | 'documents' | 'tasks';
 
 /** Views whose default tab works without user context */
 type ContextOptionalView = Exclude<ListView, ContextRequiredView>;

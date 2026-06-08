@@ -17,14 +17,7 @@ import { batch, createEffect, createMemo, For, Match, Switch } from 'solid-js';
 /** Views that have tab definitions. Shared between VIEW_TAB_LISTS and VIEW_TAB_PRESETS. */
 export type TabbedListView = Extract<
   ListView,
-  | 'inbox'
-  | 'agents'
-  | 'mail'
-  | 'documents'
-  | 'tasks'
-  | 'channels'
-  | 'calls'
-  | 'folders'
+  'inbox' | 'agents' | 'mail' | 'documents' | 'tasks' | 'channels' | 'calls'
 >;
 
 /** Tab definitions for each list view. */
@@ -53,6 +46,7 @@ export const VIEW_TAB_LISTS: Record<TabbedListView, TabItem[]> = {
     { value: 'owned', label: 'Owned' },
     { value: 'shared', label: 'Shared' },
     { value: 'attachments', label: 'Attachments' },
+    { value: 'folders', label: 'Folders' },
     { value: 'all', label: 'All' },
   ],
   tasks: [
@@ -68,10 +62,6 @@ export const VIEW_TAB_LISTS: Record<TabbedListView, TabItem[]> = {
   calls: [
     { value: 'all', label: 'All' },
     { value: 'unattended', label: 'Unattended' },
-  ],
-  folders: [
-    { value: 'owned', label: 'Owned' },
-    { value: 'all', label: 'All' },
   ],
 };
 
