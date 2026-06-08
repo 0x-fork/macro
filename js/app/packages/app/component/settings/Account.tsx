@@ -59,6 +59,7 @@ import PaywallTeamOwnerView from '../paywall/PaywallTeamOwnerView';
 import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 import { useEmailLinks, useEmailLinksStatus } from '@core/email-link';
 import { useInitGmailLink } from '@queries/auth';
+import { useRemoveInboxMutation } from '@queries/email/link';
 import {
   type SupportedNotificationSettings,
   useNotificationSettings,
@@ -85,10 +86,27 @@ async function uploadProfilePicture(
   try {
     const id = await createStaticFile(file);
     const url = staticFileIdEndpoint(id);
-    await authServiceClient.putProfilePicture({ url });
+    const response = await authServiceClient.putProfilePicture({ url });
+    if (response.isErr()) {
+      return toast.failure('Failed to upload profile picture');
+    }
     return { id, url };
   } catch (_error) {
     return toast.failure('Failed to upload profile picture');
+  }
+}
+
+async function removeProfilePicture(): Promise<boolean> {
+  try {
+    const response = await authServiceClient.putProfilePicture({ url: '' });
+    if (response.isErr()) {
+      toast.failure('Failed to remove profile picture');
+      return false;
+    }
+    return true;
+  } catch (_error) {
+    toast.failure('Failed to remove profile picture');
+    return false;
   }
 }
 
@@ -124,6 +142,123 @@ function useUserName() {
   return userName;
 }
 
+function ProfilePictureRow(props: { userId: string }) {
+  const [profilePictureUrl, profilePictureControls] = useProfilePictureUrl(
+    props.userId
+  );
+  const [isRemoving, setIsRemoving] = createSignal(false);
+  const [showRemoveConfirmModal, setShowRemoveConfirmModal] =
+    createSignal(false);
+
+  const mutateProfilePicture = (url?: string) => {
+    const pic: ProfilePictureItem = {
+      _createdAt: new Date(),
+      url,
+      id: props.userId,
+      loading: false,
+    };
+    profilePictureControls.mutate(pic);
+  };
+
+  const handleUpload = async (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    const response = await uploadProfilePicture(file);
+    if (!response) return;
+    mutateProfilePicture(response.url);
+  };
+
+  const handleRemove = async () => {
+    setIsRemoving(true);
+    const removed = await removeProfilePicture();
+    setIsRemoving(false);
+    if (!removed) return;
+    setShowRemoveConfirmModal(false);
+    mutateProfilePicture();
+  };
+
+  return (
+    <>
+      <Row label="Profile Picture">
+        <div class="flex items-center gap-3">
+          <UserIcon
+            id={props.userId}
+            isDeleted={false}
+            size="lg"
+            class="bg-transparent"
+          />
+          <div class="flex items-center gap-2">
+            <Show when={profilePictureUrl()}>
+              <Tooltip label="Remove profile picture">
+                <Button
+                  variant="danger"
+                  size="icon-sm"
+                  depth={3}
+                  disabled={isRemoving()}
+                  onClick={() => setShowRemoveConfirmModal(true)}
+                  aria-label="Remove profile picture"
+                >
+                  <XIcon class="size-4" />
+                </Button>
+              </Tooltip>
+            </Show>
+            <span
+              class="inline-flex"
+              use:fileSelector={{
+                acceptedFileExtensions: blockNameToFileExtensions.image,
+                acceptedMimeTypes: blockNameToMimeTypes.image,
+                onSelect: handleUpload,
+              }}
+            >
+              <Button variant="base" size="sm" depth={3}>
+                <IconUpload class="size-4" />
+                Upload
+              </Button>
+            </span>
+          </div>
+        </div>
+      </Row>
+      <Dialog
+        open={showRemoveConfirmModal()}
+        onOpenChange={setShowRemoveConfirmModal}
+        position="center"
+        class="w-120"
+      >
+        <Panel active depth={2} class="rounded-xl">
+          <Panel.Header class="px-6">
+            <Dialog.Title class="text-ink text-sm font-semibold">
+              Remove profile picture
+            </Dialog.Title>
+          </Panel.Header>
+          <Panel.Body class="p-6 font-sans flex flex-col gap-3">
+            <Dialog.Description class="text-ink-muted text-sm/tight font-normal">
+              Remove your current profile picture?
+            </Dialog.Description>
+            <div class="pt-3 justify-end items-center gap-3 inline-flex">
+              <Button
+                variant="base"
+                depth={3}
+                disabled={isRemoving()}
+                onClick={() => setShowRemoveConfirmModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                depth={3}
+                disabled={isRemoving()}
+                onClick={handleRemove}
+              >
+                Remove
+              </Button>
+            </div>
+          </Panel.Body>
+        </Panel>
+      </Dialog>
+    </>
+  );
+}
+
 // Not accessible if user is not authenticated
 export function Account() {
   const email = useEmail();
@@ -142,9 +277,12 @@ export function Account() {
   const {
     query: emailLinksQuery,
     disconnect: disconnectEmail,
-    removeInbox,
     resyncInbox,
   } = useEmailLinks();
+  const removeInboxMutation = useRemoveInboxMutation({
+    onSuccess: () => toast.success('Inbox removed'),
+    onError: () => toast.failure('Failed to remove inbox. Please try again.'),
+  });
   const [removeTarget, setRemoveTarget] = createSignal<{
     id: string;
     email: string;
@@ -218,20 +356,11 @@ export function Account() {
     });
   };
 
-  const handleRemoveInbox = async () => {
+  const handleRemoveInbox = () => {
     const target = removeTarget();
     if (!target) return;
     setRemoveTarget(null);
-    await removeInbox(target.id).match(
-      () => {
-        toast.success(
-          target.isOwn
-            ? 'Inbox removed — clearing its data, this may take a moment.'
-            : 'Inbox removed.'
-        );
-      },
-      () => toast.failure('Failed to remove inbox. Please try again.')
-    );
+    removeInboxMutation.mutate(target.id);
   };
 
   const [githubLinkStatus, { refetch: refetchGithubLinkStatus }] =
@@ -347,40 +476,10 @@ export function Account() {
 
           <Panel.Body scroll class="text-ink">
             <div class="grid gap-px bg-edge-muted border-b border-edge-muted">
-              <Show when={ENABLE_PROFILE_PICTURES && userId()}>
-                <Row label="Profile Picture">
-                  <div
-                    class="relative group"
-                    use:fileSelector={{
-                      acceptedFileExtensions: blockNameToFileExtensions.image,
-                      acceptedMimeTypes: blockNameToMimeTypes.image,
-                      onSelect: async (files: File[]) => {
-                        let response = await uploadProfilePicture(files[0]);
-                        if (!response || !userId()) return;
-                        let { url } = response;
-                        let pic: ProfilePictureItem = {
-                          _createdAt: new Date(),
-                          url,
-                          id: userId()!,
-                          loading: false,
-                        };
-                        // update the cache directly to force a reload
-                        const [_, controls] = useProfilePictureUrl(userId());
-                        controls.mutate(pic);
-                      },
-                    }}
-                  >
-                    <UserIcon
-                      id={userId() as string}
-                      isDeleted={false}
-                      size="lg"
-                      class="bg-transparent"
-                    />
-                    <div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <IconUpload class="size-5 text-white" />
-                    </div>
-                  </div>
-                </Row>
+              <Show when={ENABLE_PROFILE_PICTURES}>
+                <Show when={userId()} keyed>
+                  {(id) => <ProfilePictureRow userId={id} />}
+                </Show>
               </Show>
 
               <Row label="Email">
@@ -706,12 +805,12 @@ export function Account() {
                         </>
                       }
                     >
-                      
+
                         Remove{' '}
                         <span class="text-ink">{removeTarget()?.email}</span>?
                         This clears all of its email data from Macro and cannot be
                         undone.
-                      
+
                     </Show>
                   </Dialog.Description>
                   <div class="pt-3 justify-end items-center gap-3 inline-flex">
