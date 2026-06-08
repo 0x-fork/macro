@@ -174,17 +174,3 @@ const ChannelsSort = (props: SortOpenProps) => {
     />
   );
 };
-
-const FilesSort = (props: SortOpenProps) => {
-  const sort = useSortDropdown();
-
-  return (
-    <SortDropdown
-      value={sort.value}
-      onChange={sort.onChange}
-      options={sort.options}
-      open={props.open}
-      onOpenChange={props.onOpenChange}
-    />
-  );
-};
