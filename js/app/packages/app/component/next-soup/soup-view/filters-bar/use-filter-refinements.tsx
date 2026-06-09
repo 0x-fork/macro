@@ -563,18 +563,26 @@ export function useFilterRefinements() {
       labelMap: Accessor<Map<string, string>>;
       onChange: (ids: string[]) => void;
       searchPlaceholder: string;
+      // When set, the chip is always shown; an empty selection renders this
+      // neutral label instead of disappearing, and the remove button is hidden
+      // until a non-default subset is chosen.
+      neutralLabel?: string;
     }) => {
       const popupOpen =
         consolidatedChipCache.get(args.key)?.isPopupOpen?.() ?? false;
       const ids = args.getIds();
-      if (ids.length === 0 && !popupOpen) return;
+      if (ids.length === 0 && !popupOpen && !args.neutralLabel) return;
 
       seenKeys.add(args.key);
 
       // Compute values as accessor for reactivity
       const getValues = (): FilterValue[] => {
+        const ids = args.getIds();
+        if (ids.length === 0 && args.neutralLabel) {
+          return [{ id: '__all__', label: args.neutralLabel }];
+        }
         const options = args.searchableOptions();
-        return args.getIds().map((id) => {
+        return ids.map((id) => {
           const opt = options.find((o) => o.id === id);
           return {
             id,
@@ -606,6 +614,9 @@ export function useFilterRefinements() {
             isPopupOpen,
             setPopupOpen,
             onRemoveAll: () => args.onChange([]),
+            showRemove: args.neutralLabel
+              ? () => args.getIds().length > 0
+              : undefined,
           };
         })
       );
@@ -703,17 +714,14 @@ export function useFilterRefinements() {
         }
       }
 
-      // Email importance filter
-      if (
-        soup.predicates.isActive('email') &&
-        queryFilters.state.include.emailImportance !== undefined
-      ) {
+      // Email importance filter (always shown; "All" when unset)
+      if (soup.predicates.isActive('email')) {
         const key = 'email-importance';
         seenKeys.add(key);
 
         const getImportanceValues = (): FilterValue[] => {
           const importance = filterData().include.emailImportance;
-          if (importance === undefined) return [];
+          if (importance === undefined) return [{ id: 'all', label: 'All' }];
           return [
             {
               id: importance ? 'signal' : 'noise',
@@ -732,9 +740,13 @@ export function useFilterRefinements() {
               { id: 'noise', label: 'Noise' },
             ],
             multiple: false,
-            isValueActive: (id) =>
-              id ===
-              (filterData().include.emailImportance ? 'signal' : 'noise'),
+            showRemove: () =>
+              filterData().include.emailImportance !== undefined,
+            isValueActive: (id) => {
+              const importance = filterData().include.emailImportance;
+              if (importance === undefined) return false;
+              return id === (importance ? 'signal' : 'noise');
+            },
             onToggleValue: (id) =>
               queryFilters.add({
                 include: { emailImportance: id === 'signal' },
@@ -760,6 +772,7 @@ export function useFilterRefinements() {
           labelMap: inbox.labelMap,
           onChange: inbox.setIds,
           searchPlaceholder: 'Search inboxes...',
+          neutralLabel: 'All inboxes',
         });
       }
     }

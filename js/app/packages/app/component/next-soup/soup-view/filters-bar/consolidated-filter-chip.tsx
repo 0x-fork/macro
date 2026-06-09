@@ -39,6 +39,8 @@ export type ConsolidatedFilter = {
   onRemoveValue?: (valueId: string) => void;
   /** Remove all values (clear entire filter) */
   onRemoveAll: () => void;
+  /** Whether to show the trailing remove (✕) button. Defaults to true. */
+  showRemove?: Accessor<boolean>;
   /** Toggle a value on/off */
   onToggleValue?: (valueId: string) => void;
   /** Check if a value is active */
@@ -367,21 +369,23 @@ export const ConsolidatedFilterChip = (props: ConsolidatedFilterChipProps) => {
           </Match>
         </Switch>
 
-        <ChipDivider mobile={props.mobile} />
+        <Show when={props.filter.showRemove?.() ?? true}>
+          <ChipDivider mobile={props.mobile} />
 
-        <Button
-          class={cn(
-            'rounded-none h-full not-disabled:hover:text-failure',
-            props.mobile && 'bg-active border-none'
-          )}
-          size="icon-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            props.filter.onRemoveAll();
-          }}
-        >
-          <XIcon class="size-3.5!" />
-        </Button>
+          <Button
+            class={cn(
+              'rounded-none h-full not-disabled:hover:text-failure',
+              props.mobile && 'bg-active border-none'
+            )}
+            size="icon-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.filter.onRemoveAll();
+            }}
+          >
+            <XIcon class="size-3.5!" />
+          </Button>
+        </Show>
       </div>
     </Layer>
   );
