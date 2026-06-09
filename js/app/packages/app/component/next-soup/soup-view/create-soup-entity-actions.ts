@@ -19,6 +19,7 @@ import {
   makeMarkSenderNoiseAction,
   makeMarkSenderSignalAction,
   makeMoveToProjectAction,
+  makePinAction,
   makeRenameAction,
   makeShareAction,
 } from '../actions';
@@ -72,6 +73,7 @@ export function createSoupEntityActions(): {
   });
 
   const copyAction = makeCopyAction();
+  const pinAction = makePinAction();
   const moveToProjectAction = makeMoveToProjectAction();
   const copyLinkAction = makeCopyLinkAction();
   const copyBranchNameAction = makeCopyBranchNameAction();
@@ -182,8 +184,16 @@ export function createSoupEntityActions(): {
       });
     }
 
-    // Middle group: Rename, Move to folder, Duplicate, Copy Link, Copy Branch Name, Share
+    // Middle group: Pin, Rename, Move to folder, Duplicate, Copy Link, Copy Branch Name, Share
     const middleItems: SoupEntityActionItem[] = [];
+
+    if (canExecuteAll(pinAction.canExecute)) {
+      middleItems.push({
+        id: 'pin',
+        label: pinAction.allPinned(entities) ? 'Unpin' : 'Pin',
+        onClick: handle(pinAction.executeWithSoup),
+      });
+    }
 
     if (canExecuteAll(renameAction.canExecute)) {
       middleItems.push({

@@ -5,6 +5,7 @@ import {
   InviteModal,
   setInviteModalOpen,
 } from '@app/component/app-sidebar/invite-modal';
+import { PinnedWidget } from '@app/component/app-sidebar/pinned-widget';
 import {
   SidebarPromoCard,
   SidebarPromoHint,
@@ -1028,6 +1029,10 @@ export const AppSidebar = (props: AppSidebarProps) => {
 
       <div class="block max-h-[clamp(10%,60%,20rem)]">
         <ChannelsUnreadWidget sidebarState={props.sidebarState ?? 'expanded'} />
+      </div>
+
+      <div class="block max-h-[clamp(10%,60%,20rem)] overflow-y-auto">
+        <PinnedWidget sidebarState={props.sidebarState ?? 'expanded'} />
       </div>
 
       <div class="mt-auto">
