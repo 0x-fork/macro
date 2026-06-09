@@ -52,7 +52,9 @@ impl<R: CalendarRepository> CalendarService for CalendarDomainService<R> {
         user_id: &str,
         request: CreateEventRequest,
     ) -> Result<CalendarEvent, Report> {
-        self.repository.create_event(user_id, normalize(request)).await
+        self.repository
+            .create_event(user_id, normalize(request))
+            .await
     }
 
     #[instrument(err, skip(self, request))]
@@ -79,6 +81,8 @@ impl<R: CalendarRepository> CalendarService for CalendarDomainService<R> {
         event_id: &str,
         emails: Vec<String>,
     ) -> Result<Option<CalendarEvent>, Report> {
-        self.repository.mark_invited(user_id, event_id, emails).await
+        self.repository
+            .mark_invited(user_id, event_id, emails)
+            .await
     }
 }
