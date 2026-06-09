@@ -1,8 +1,10 @@
+import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import type { GithubPullRequestComment } from '@service-storage/generated/schemas';
 import { Layer } from '@ui';
 import { format } from 'date-fns';
 import { Show } from 'solid-js';
+import { sanitizeCommentMarkdown } from '../utils';
 
 function sourceLabel(source: string): string {
   switch (source) {
@@ -26,7 +28,7 @@ function formatWhen(value?: string | null): string | null {
 
 export function PrComment(props: { comment: GithubPullRequestComment }) {
   const when = () => formatWhen(props.comment.createdAt);
-  const body = () => props.comment.body?.trim();
+  const body = () => sanitizeCommentMarkdown(props.comment.body ?? '');
 
   return (
     <Layer depth={1}>
@@ -63,9 +65,11 @@ export function PrComment(props: { comment: GithubPullRequestComment }) {
             </div>
           }
         >
-          <div class="whitespace-pre-wrap break-words px-3 py-2 text-sm text-ink">
-            {body()}
-          </div>
+          {(text) => (
+            <div class="px-3 py-2 text-sm/6 text-ink text-pretty">
+              <StaticMarkdown markdown={text()} target="external" />
+            </div>
+          )}
         </Show>
       </div>
     </Layer>

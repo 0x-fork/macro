@@ -60,3 +60,28 @@ export const PR_STATUS_META: Record<
 export function hasLineChanges(metadata: PullRequestMetadata): boolean {
   return metadata.additions > 0 || metadata.deletions > 0;
 }
+
+/**
+ * Lightly sanitize GitHub comment markdown for our renderer: drop HTML comments
+ * and unwrap a few structural HTML tags (e.g. `<details>`/`<summary>`) that
+ * GitHub renders but our markdown renderer doesn't, so they don't show up as
+ * literal tags. Fenced code blocks are left untouched so code examples stay
+ * intact.
+ */
+export function sanitizeCommentMarkdown(body: string): string {
+  const stripHtml = (segment: string): string =>
+    segment
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(
+        /<\/?(?:details|summary|div|span|picture|source|sub|sup|kbd|img)\b[^>]*>/gi,
+        ''
+      );
+
+  return body
+    .split(/(```[\s\S]*?```)/g)
+    .map((part, index) => (index % 2 === 1 ? part : stripHtml(part)))
+    .join('')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

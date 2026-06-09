@@ -1,4 +1,6 @@
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
+import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+import { aiChatTheme } from '@core/component/LexicalMarkdown/theme';
 import { openExternalUrl } from '@core/util/url';
 import GithubIcon from '@icon/mcp-github.svg';
 import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
@@ -95,11 +97,13 @@ export function PullRequestBody(props: {
                     </div>
                   }
                 >
-                  <div class="flex flex-col gap-3">
-                    <For each={comments()}>
-                      {(comment) => <PrComment comment={comment} />}
-                    </For>
-                  </div>
+                  <StaticMarkdownContext theme={aiChatTheme}>
+                    <div class="flex flex-col gap-3">
+                      <For each={comments()}>
+                        {(comment) => <PrComment comment={comment} />}
+                      </For>
+                    </div>
+                  </StaticMarkdownContext>
                 </Show>
               </section>
             </div>
