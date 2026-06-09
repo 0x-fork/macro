@@ -1,5 +1,7 @@
 import { SidePanel } from '@app/component/side-panel';
 import { SplitToolbarLeft } from '@app/component/split-layout/components/SplitToolbar';
+import { useIsTeamAdmin } from '@queries/team/teams';
+import { Show } from 'solid-js';
 import { ContactDiscussionSection } from './ContactDiscussionSection';
 import { ContactEmailsSection } from './ContactEmailsSection';
 import { ContactHeader } from './ContactHeader';
@@ -17,6 +19,7 @@ import { useContactQuery } from './use-contact-query';
 export function Contact(props: { contactId: string }) {
   const contactQuery = useContactQuery(() => props.contactId);
   const contact = () => contactQuery.data;
+  const isTeamAdmin = useIsTeamAdmin();
 
   return (
     <SidePanel.Layout>
@@ -39,9 +42,13 @@ export function Contact(props: { contactId: string }) {
       >
         <ContactMetadataSection contact={contact()} />
       </SidePanel.Section>
-      <SidePanel.Section id="contact-sharing" title="Sharing" order={25}>
-        <ContactSharingSection contact={contact()} />
-      </SidePanel.Section>
+      {/* Sharing is admin-only; hide the whole section for non-admins
+          rather than rendering it empty. */}
+      <Show when={isTeamAdmin()}>
+        <SidePanel.Section id="contact-sharing" title="Sharing" order={25}>
+          <ContactSharingSection contact={contact()} />
+        </SidePanel.Section>
+      </Show>
       {/* TODO: add a References section (inbound channel messages + documents)
           once the references backend supports the crm_contact entity type. */}
     </SidePanel.Layout>

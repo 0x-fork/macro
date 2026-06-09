@@ -1,4 +1,5 @@
 import { throwOnErr } from '@core/util/result';
+import { crmKeys } from '@queries/crm/keys';
 import { storageServiceClient } from '@service-storage/client';
 import { useQuery } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
@@ -15,7 +16,7 @@ export function useContactQuery(contactId: Accessor<string>) {
   return useQuery(() => {
     const id = contactId();
     return {
-      queryKey: ['crm', 'contact', id],
+      queryKey: crmKeys.contact(id).queryKey,
       queryFn: () => {
         if (!id) {
           throw new Error('contact id is required to fetch contact');

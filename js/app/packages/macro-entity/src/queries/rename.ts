@@ -63,8 +63,10 @@ const getEntityRenameData = (
   operation: EntityRenameOperation
 ): EntityRenameData | null => {
   const { entity, newName } = operation;
-  // crm companies aren't renamable and have no storage item type.
-  if (entity.type === 'crm_company') return null;
+  // crm companies/contacts aren't renamable and have no storage item type.
+  if (entity.type === 'crm_company' || entity.type === 'crm_contact') {
+    return null;
+  }
   return {
     id: entity.id,
     itemType: entity.type,

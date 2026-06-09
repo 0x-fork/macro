@@ -234,9 +234,9 @@ async function fetchProjectPreviews(
  * batch endpoint, since the CRM REST surface is per-id today and
  * companies are a smaller cardinality than mentions in flight.
  *
- * 404s collapse to `access: 'does_not_exist'`. The backend already gates
- * hidden visibility by role (admin/owner sees hidden, non-admin 404s),
- * so the fetcher doesn't need to repeat that logic.
+ * The backend already gates hidden visibility by role (admin/owner sees
+ * hidden, non-admin 404s), so the fetcher doesn't need to repeat that
+ * logic.
  */
 async function fetchCrmCompanyPreviews(
   companyIds: string[]
@@ -247,7 +247,7 @@ async function fetchCrmCompanyPreviews(
       const result = await storageServiceClient.getCompany({ companyId: id });
 
       if (result.isErr()) {
-        // The backend returns 401 for every unreachable reason (wrong
+        // The backend returns 404 for every unreachable reason (wrong
         // team, hidden+member, doesn't exist) — deliberate, so existence
         // can't be probed across teams. Maps to "No Access" for parity
         // with the email fetcher's per-id convention; "Deleted" would be

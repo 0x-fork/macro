@@ -124,8 +124,7 @@ export const ENABLE_EMAIL = resolveFeatureFlag('ENABLE_EMAIL', true);
 
 // CRM companies & contacts frontend: the Companies view + sidebar entry, the
 // company/contact detail blocks, CRM mentions / quick-access, and CRM rows in
-// global search. Defaults on in dev, off in prod until GA; override with
-// VITE_ENABLE_CRM.
+// global search. Off everywhere until GA; override with VITE_ENABLE_CRM.
 export const ENABLE_CRM = resolveFeatureFlag('ENABLE_CRM', false);
 
 export const ENABLE_BLOCK_IN_BLOCK = resolveFeatureFlag(

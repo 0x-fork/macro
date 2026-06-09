@@ -1,8 +1,7 @@
+import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import type { Accessor } from 'solid-js';
 import { emailFilterForDomains } from './emailFilter';
-
-const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 export type EmailView = 'team' | 'me';
 

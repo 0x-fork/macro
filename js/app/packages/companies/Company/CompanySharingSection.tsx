@@ -1,9 +1,8 @@
 import { useSplitLayout } from '@app/component/split-layout/layout';
-import { InlineCheckbox } from '@channel/Call/CallControls/CallMenuPrimitives';
 import { toast } from '@core/component/Toast/Toast';
 import type { CrmCompanyEntity } from '@entity';
 import { useIsTeamAdmin } from '@queries/team/teams';
-import { cn } from '@ui';
+import { cn, InlineCheckbox } from '@ui';
 import { Show } from 'solid-js';
 import { useSetCompanyHiddenMutation } from './use-set-company-hidden-mutation';
 import { useSetEmailSyncMutation } from './use-set-email-sync-mutation';
@@ -35,6 +34,7 @@ export function CompanySharingSection(props: { company?: CrmCompanyEntity }) {
       }
     } catch (error) {
       console.error('failed to update company sharing', error);
+      toast.failure('Could not update company visibility');
     }
   };
 
@@ -49,6 +49,7 @@ export function CompanySharingSection(props: { company?: CrmCompanyEntity }) {
       });
     } catch (error) {
       console.error('failed to update company email sync', error);
+      toast.failure('Could not update email sync');
     }
   };
 

@@ -1,5 +1,7 @@
+import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
 import { throwOnErr } from '@core/util/result';
 import type { CrmCompanyEntity } from '@entity';
+import { crmKeys } from '@queries/crm/keys';
 import { storageServiceClient } from '@service-storage/client';
 import type { CrmCompanyResponse } from '@service-storage/generated/schemas/crmCompanyResponse';
 import type { CrmContactResponse } from '@service-storage/generated/schemas/crmContactResponse';
@@ -7,7 +9,6 @@ import { useQuery } from '@tanstack/solid-query';
 import { type Accessor, createMemo } from 'solid-js';
 
 const COMPANY_STALE_TIME = 60 * 1000;
-const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 /** A contact row as embedded in the company response. */
 export type CompanyContact = CrmContactResponse;
@@ -27,7 +28,7 @@ export function useCompanyQuery(companyId: Accessor<string>) {
   const query = useQuery(() => {
     const id = companyId();
     return {
-      queryKey: ['crm', 'company', id],
+      queryKey: crmKeys.company(id).queryKey,
       queryFn: () => {
         if (!id) {
           throw new Error('company id is required to fetch company');
@@ -62,9 +63,9 @@ function responseToEntity(response: CrmCompanyResponse): CrmCompanyEntity {
     // primary-directory `name` is nullable. Fall back to the primary
     // domain (or empty) so consumers don't have to special-case.
     name: response.name ?? response.domains[0]?.domain ?? '',
-    // Companies are team-owned, not user-owned. The entity's ownerId
-    // slot is preserved for shape parity with other EntityBase types.
-    ownerId: '',
+    // Companies are team-owned, not user-owned; the team id fills the
+    // ownerId slot (matching the soup/search mappers in transform-utils).
+    ownerId: response.teamId,
     createdAt: response.createdAt,
     updatedAt: response.updatedAt,
     teamId: response.teamId,

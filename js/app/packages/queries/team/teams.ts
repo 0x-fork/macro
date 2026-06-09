@@ -31,15 +31,22 @@ export function useTeamQuery(teamId: Accessor<string>) {
   }));
 }
 
+/** The current user's team (`getTeam()` always returns it). */
+export function useCurrentTeamQuery() {
+  return useQuery(() => ({
+    queryKey: teamKeys.currentTeam.queryKey,
+    queryFn: async () => await throwOnErr(() => authServiceClient.getTeam()),
+  }));
+}
+
 /**
  * Reactive boolean: true iff the current user has admin or owner team
  * role. Drives admin-gated UI (e.g. the companies → hidden tab and the
- * detail-page Hide button). `getTeam()` ignores the cache-key arg and
- * returns the user's current team regardless.
+ * detail-page Hide button).
  */
 export function useIsTeamAdmin(): Accessor<boolean> {
   const userId = useUserId();
-  const teamQuery = useTeamQuery(() => 'current');
+  const teamQuery = useCurrentTeamQuery();
   return () => {
     const uid = userId();
     if (!uid) return false;

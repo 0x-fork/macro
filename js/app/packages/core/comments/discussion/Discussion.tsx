@@ -135,11 +135,12 @@ function DiscussionThreadView(props: { thread: ViewThread }) {
   ): MessageActions => {
     const own = isOwn(comment);
     return {
-      onReply: isRoot
-        ? () => {
-            setIsReplying(true);
-          }
-        : undefined,
+      onReply:
+        isRoot && canEdit()
+          ? () => {
+              setIsReplying(true);
+            }
+          : undefined,
       onEdit: own
         ? () => {
             setEditingId(comment.id);

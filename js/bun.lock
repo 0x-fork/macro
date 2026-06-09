@@ -178,8 +178,8 @@
     "app/packages/block-code": {
       "name": "block-code",
     },
-    "app/packages/block-companies": {
-      "name": "block-companies",
+    "app/packages/block-company": {
+      "name": "block-company",
     },
     "app/packages/block-contact": {
       "name": "block-contact",
@@ -1662,7 +1662,7 @@
 
     "block-code": ["block-code@workspace:app/packages/block-code"],
 
-    "block-companies": ["block-companies@workspace:app/packages/block-companies"],
+    "block-company": ["block-company@workspace:app/packages/block-company"],
 
     "block-contact": ["block-contact@workspace:app/packages/block-contact"],
 

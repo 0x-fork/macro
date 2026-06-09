@@ -7,6 +7,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { compareDateAsc } from '@core/util/date';
 import { throwOnErr } from '@core/util/result';
+import { crmKeys } from '@queries/crm/keys';
 import { storageServiceClient } from '@service-storage/client';
 import type { CrmComment } from '@service-storage/generated/schemas/crmComment';
 import type { CrmCommentEntityType } from '@service-storage/generated/schemas/crmCommentEntityType';
@@ -70,7 +71,7 @@ export function useCrmDiscussionSource(
   const commentsQuery = useQuery(() => {
     const id = entityId();
     return {
-      queryKey: ['crm', entityType, id, 'comments'],
+      queryKey: crmKeys.comments(entityType, id ?? '').queryKey,
       queryFn: () => {
         if (!id) {
           throw new Error('entity id is required to fetch comments');
@@ -94,7 +95,7 @@ export function useCrmDiscussionSource(
     const id = entityId();
     if (!id) return;
     queryClient.setQueryData<CrmCommentThread[]>(
-      ['crm', entityType, id, 'comments'],
+      crmKeys.comments(entityType, id).queryKey,
       (prev) => updater(prev ?? [])
     );
   };

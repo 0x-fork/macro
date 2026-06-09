@@ -1,9 +1,8 @@
+import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
 import { ENABLE_CRM } from '@core/constant/featureFlags';
 import { type CrmCompanyEntity, isCrmCompanyEntity } from '@entity';
 import { useSoupItemsQuery } from '@queries/soup/items';
 import { createMemo } from 'solid-js';
-
-const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 const QUICK_ACCESS_COMPANIES_LIMIT = 500;
 const STALE_TIME = 5 * 60 * 1000;

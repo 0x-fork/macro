@@ -141,8 +141,8 @@
       "@companies/*": [
         "./packages/companies/*"
       ],
-      "@block-companies/*": [
-        "./packages/block-companies/*"
+      "@block-company/*": [
+        "./packages/block-company/*"
       ],
       "@contacts/*": [
         "./packages/contacts/*"

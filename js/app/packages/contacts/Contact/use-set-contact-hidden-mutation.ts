@@ -1,5 +1,6 @@
 import { throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
+import { crmKeys } from '@queries/crm/keys';
 import { soupKeys } from '@queries/soup/keys';
 import { storageServiceClient } from '@service-storage/client';
 import { useMutation } from '@tanstack/solid-query';
@@ -29,7 +30,7 @@ export function useSetContactHiddenMutation() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: soupKeys._def }),
         queryClient.invalidateQueries({
-          queryKey: ['crm', 'contact', contactId],
+          queryKey: crmKeys.contact(contactId).queryKey,
         }),
       ]),
   }));

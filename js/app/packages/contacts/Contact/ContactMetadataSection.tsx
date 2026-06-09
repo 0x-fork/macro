@@ -1,13 +1,8 @@
+import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useCompanyQuery } from '@companies/Company/use-company-query';
 import type { CrmContactResponse } from '@service-storage/generated/schemas/crmContactResponse';
 import { type JSX, Show } from 'solid-js';
-
-// Sentinel for when the contact (and thus its companyId) hasn't loaded
-// yet — useCompanyQuery's `enabled` gate excludes the nil UUID so no
-// doomed 404 fires, and the query re-runs once the real companyId
-// arrives.
-const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 function Field(props: { label: string; children: JSX.Element }) {
   return (
@@ -22,6 +17,8 @@ export function ContactMetadataSection(props: {
   contact?: CrmContactResponse;
 }) {
   const { replaceOrInsertSplit } = useSplitLayout();
+  // NIL while the contact is loading — useCompanyQuery's `enabled` gate
+  // excludes it, so no doomed 404 fires before the real companyId arrives.
   const { company } = useCompanyQuery(
     () => props.contact?.companyId ?? NIL_UUID
   );
