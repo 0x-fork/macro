@@ -2,7 +2,11 @@ import { partialMatchKey } from '@tanstack/query-core';
 import { QueryClient } from '@tanstack/solid-query';
 import { describe, expect, it, vi } from 'vitest';
 import { channelKeys } from './channel/keys';
-import { type PersistScope, setupQueryPersistence } from './persistence';
+import {
+  dehydrateFirstPage,
+  type PersistScope,
+  setupQueryPersistence,
+} from './persistence';
 import type {
   PerQueryPersistence,
   PersistedQueryEntry,
@@ -331,5 +335,105 @@ describe('setupQueryPersistence', () => {
 
     queryClient.removeQueries({ queryKey: ['channel', 'a'] });
     expect(store.remove).toHaveBeenCalledWith('["channel","a"]');
+  });
+
+  it('persists only the first page when the scope dehydrates infinite data', () => {
+    const queryClient = new QueryClient();
+    const store = createMockStore();
+    const scope = createScope(['soup'], store, {
+      dehydrateData: dehydrateFirstPage,
+    });
+
+    setupQueryPersistence({ queryClient, scopes: [scope] });
+
+    queryClient.setQueryData(['soup', 'list'], {
+      pages: [{ items: ['a'] }, { items: ['b'] }, { items: ['c'] }],
+      pageParams: [null, 'cursor-1', 'cursor-2'],
+    });
+
+    expect(store.set).toHaveBeenCalledTimes(1);
+    const entry = store.set.mock.calls[0]![0] as PersistedQueryEntry;
+    expect(entry.data).toEqual({
+      pages: [{ items: ['a'] }],
+      pageParams: [null],
+    });
+  });
+
+  it('shows a restored first page immediately, then one fresh request replaces it', async () => {
+    const queryClient = new QueryClient();
+    const store = createMockStore();
+    const queryKey = ['soup', 'list'];
+    const queryHash = JSON.stringify(queryKey);
+
+    store.entries.set(queryHash, {
+      queryHash,
+      queryKey,
+      data: { pages: [{ items: ['persisted'] }], pageParams: [null] },
+      dataUpdatedAt: Date.now() - 1000,
+      persistedAt: Date.now() - 1000,
+      buster: 'test',
+    });
+
+    const scope = createScope(['soup'], store, {
+      dehydrateData: dehydrateFirstPage,
+    });
+    setupQueryPersistence({ queryClient, scopes: [scope] });
+
+    type Page = { items: string[]; next: string | null };
+    let resolveFetch!: (page: Page) => void;
+    const queryFn = vi.fn(
+      () =>
+        new Promise<Page>((resolve) => {
+          resolveFetch = resolve;
+        })
+    );
+
+    const fetchPromise = queryClient.prefetchInfiniteQuery({
+      queryKey,
+      queryFn,
+      initialPageParam: null as string | null,
+      getNextPageParam: (lastPage: Page) => lastPage.next,
+    });
+
+    // Let the IDB read promise resolve while the initial fetch is in flight:
+    // the persisted page is visible without waiting for the network.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(queryClient.getQueryData(queryKey)).toEqual({
+      pages: [{ items: ['persisted'] }],
+      pageParams: [null],
+    });
+
+    resolveFetch({ items: ['fresh'], next: 'cursor-1' });
+    await fetchPromise;
+
+    expect(queryFn).toHaveBeenCalledTimes(1);
+    expect(queryClient.getQueryData(queryKey)).toEqual({
+      pages: [{ items: ['fresh'], next: 'cursor-1' }],
+      pageParams: [null],
+    });
+  });
+});
+
+describe('dehydrateFirstPage', () => {
+  it('slices infinite data to the first page and page param', () => {
+    expect(
+      dehydrateFirstPage({
+        pages: [{ items: [1] }, { items: [2] }],
+        pageParams: [null, 'cursor-1'],
+      })
+    ).toEqual({ pages: [{ items: [1] }], pageParams: [null] });
+  });
+
+  it('passes single-page infinite data through unchanged', () => {
+    const data = { pages: [{ items: [1] }], pageParams: [null] };
+    expect(dehydrateFirstPage(data)).toBe(data);
+  });
+
+  it('passes non-infinite data through unchanged', () => {
+    const data = { value: 1, pages: 'not-an-array' };
+    expect(dehydrateFirstPage(data)).toBe(data);
+    expect(dehydrateFirstPage(null)).toBe(null);
+    expect(dehydrateFirstPage([1, 2])).toEqual([1, 2]);
   });
 });

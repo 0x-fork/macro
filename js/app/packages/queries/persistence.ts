@@ -3,6 +3,7 @@ import {
   parsedDurationToMilliseconds,
 } from '@core/util/dateSearch/dateParser';
 import type {
+  InfiniteData,
   Query,
   QueryCacheNotifyEvent,
   QueryKey,
@@ -28,7 +29,43 @@ export type PersistScope = Readonly<{
   buster: string;
   shouldPersist: (queryKey: QueryKey) => boolean;
   shouldRestore?: (queryKey: QueryKey) => boolean;
+  /**
+   * Transforms query data before it is written to the store. Restored data
+   * is used as-is (no inverse transform), so the result must be valid data
+   * for the query.
+   */
+  dehydrateData?: (data: unknown) => unknown;
 }>;
+
+function isInfiniteData(data: unknown): data is InfiniteData<unknown> {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    Array.isArray((data as InfiniteData<unknown>).pages) &&
+    Array.isArray((data as InfiniteData<unknown>).pageParams)
+  );
+}
+
+/**
+ * Dehydrates `InfiniteData` down to its first page so that only the
+ * first (latest) page of an infinite query is persisted.
+ *
+ * Restoring a single page keeps revalidation cheap: an infinite query
+ * refetches every cached page sequentially, so restoring N pages costs N
+ * requests on the next refetch and replays cursors that may have expired,
+ * while a single restored page revalidates with one request using
+ * `pageParams[0]`. Only valid for forward-only pagination, where `pages[0]`
+ * is the page fetched with `initialPageParam` — not for bidirectional
+ * queries (`getPreviousPageParam`), which can prepend pages. Non-infinite
+ * data passes through unchanged.
+ */
+export function dehydrateFirstPage(data: unknown): unknown {
+  if (!isInfiniteData(data) || data.pages.length <= 1) return data;
+  return {
+    pages: data.pages.slice(0, 1),
+    pageParams: data.pageParams.slice(0, 1),
+  };
+}
 
 type QueryClientLike = {
   getQueryCache: () => {
@@ -106,7 +143,9 @@ function handleUpdate(scope: PersistScope, query: Query): void {
   scope.store.set({
     queryHash: query.queryHash,
     queryKey: query.queryKey,
-    data: query.state.data,
+    data: scope.dehydrateData
+      ? scope.dehydrateData(query.state.data)
+      : query.state.data,
     dataUpdatedAt: query.state.dataUpdatedAt,
     persistedAt: Date.now(),
     buster: scope.buster,

@@ -3,7 +3,11 @@ import { hasLoginCookie } from '@core/util/cookies';
 import { partialMatchKey, type QueryKey } from '@tanstack/query-core';
 import { authKeys } from './auth/keys';
 import { channelKeys } from './channel/keys';
-import { createPersistenceKey, type PersistScope } from './persistence';
+import {
+  createPersistenceKey,
+  dehydrateFirstPage,
+  type PersistScope,
+} from './persistence';
 import { createPerQueryIDBStore } from './persistence/per-query-idb';
 import { soupKeys } from './soup/keys';
 
@@ -51,6 +55,7 @@ export function createQueryPersistenceScopes(
             shouldPersist: (queryKey: QueryKey) =>
               partialMatchKey(queryKey, soupKeys.astItems._def),
             shouldRestore: hasLoginCookie,
+            dehydrateData: dehydrateFirstPage,
           } satisfies PersistScope,
           {
             store: createPerQueryIDBStore({
