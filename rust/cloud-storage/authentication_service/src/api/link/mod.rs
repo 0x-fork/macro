@@ -6,6 +6,7 @@ use axum::{
 pub(in crate::api) mod create_in_progress_link;
 pub(in crate::api) mod github;
 pub(in crate::api) mod gmail;
+pub(in crate::api) mod outlook;
 
 /// The link router
 /// We ensure the user is logged in with the `macro_middleware::auth::decode_jwt::handler`.
@@ -20,4 +21,9 @@ pub fn router(_state: ApiContext) -> Router<ApiContext> {
         )
         .route("/gmail", post(gmail::init_gmail_link_handler))
         .route("/gmail/status", get(gmail::check_gmail_link_status_handler))
+        .route("/outlook", post(outlook::init_outlook_link_handler))
+        .route(
+            "/outlook/status",
+            get(outlook::check_outlook_link_status_handler),
+        )
 }

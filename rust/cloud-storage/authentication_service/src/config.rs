@@ -43,6 +43,15 @@ pub struct Config {
     /// Google client secret key
     pub google_client_secret_key: String,
 
+    /// Microsoft (Outlook) client id. Empty when Outlook linking is not
+    /// configured for the environment.
+    #[macro_config_default(String::new())]
+    pub microsoft_client_id: String,
+    /// Microsoft (Outlook) client secret key (secrets-manager name). Empty when
+    /// Outlook linking is not configured for the environment.
+    #[macro_config_default(String::new())]
+    pub microsoft_client_secret_key: String,
+
     /// Stripe secret key
     pub stripe_secret_key: String,
 

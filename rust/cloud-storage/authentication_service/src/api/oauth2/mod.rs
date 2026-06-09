@@ -5,6 +5,7 @@ use tower_cookies::CookieManagerLayer;
 mod github;
 mod google;
 mod login;
+mod microsoft;
 
 pub fn router() -> Router<ApiContext> {
     Router::new().route(
@@ -120,6 +121,7 @@ pub(in crate::api) async fn handler(
 
     match provider.as_str() {
         "google" => google::handler(&ctx, cookies, &code, &state).await,
+        "microsoft" => microsoft::handler(&ctx, cookies, &code, &state).await,
         "github" => github::handler(&ctx, cookies, &code, &state)
             .await
             .map(|r| r.into_response())

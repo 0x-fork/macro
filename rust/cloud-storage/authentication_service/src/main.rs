@@ -142,6 +142,23 @@ async fn main() -> anyhow::Result<()> {
             .to_string(),
     };
 
+    // Outlook is optional: only resolve the Microsoft client secret when the
+    // client id and secret key are configured for this environment.
+    let microsoft_client_secret = if config.microsoft_client_id.is_empty()
+        || config.microsoft_client_secret_key.is_empty()
+    {
+        String::new()
+    } else {
+        match config.environment {
+            Environment::Local => config.microsoft_client_secret_key.clone(),
+            _ => secretsmanager_client
+                .get_secret_value(&config.microsoft_client_secret_key)
+                .await
+                .context("unable to get microsoft client secret")?
+                .to_string(),
+        }
+    };
+
     let auth_client = fusionauth::FusionAuthClient::new(
         config.fusionauth_tenant_id,
         fusionauth_api_key,
@@ -151,7 +168,8 @@ async fn main() -> anyhow::Result<()> {
         config.fusionauth_oauth_redirect_uri.clone(),
         config.google_client_id.clone(),
         google_client_secret,
-    );
+    )
+    .with_microsoft_credentials(config.microsoft_client_id.clone(), microsoft_client_secret);
     tracing::trace!("initialized auth client");
 
     let document_storage_service_client = DocumentStorageServiceClient::new(

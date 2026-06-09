@@ -1,5 +1,6 @@
 pub mod error;
 pub mod google_access_token;
+pub mod microsoft_access_token;
 pub mod unlink;
 pub mod users;
 

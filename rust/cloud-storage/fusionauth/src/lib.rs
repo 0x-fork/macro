@@ -7,6 +7,8 @@ pub mod apple;
 pub mod error;
 /// Google identity provider and OAuth.
 pub mod google;
+/// Microsoft (Outlook) identity provider and OAuth.
+pub mod microsoft;
 /// Identity provider management (links, login, lookup, search, unlink).
 pub mod identity_provider;
 /// JWT refresh operations.
@@ -108,6 +110,12 @@ pub struct FusionAuthClient {
     google_client_id: String,
     /// The client secret for Google identity provider
     google_client_secret: String,
+    /// The client ID for the Microsoft (Outlook) identity provider. Empty when
+    /// Outlook linking is not configured.
+    microsoft_client_id: String,
+    /// The client secret for the Microsoft (Outlook) identity provider. Empty
+    /// when Outlook linking is not configured.
+    microsoft_client_secret: String,
 }
 
 impl FusionAuthClient {
@@ -135,12 +143,32 @@ impl FusionAuthClient {
             unauth_client,
             google_client_id,
             google_client_secret,
+            microsoft_client_id: String::new(),
+            microsoft_client_secret: String::new(),
         }
+    }
+
+    /// Sets the Microsoft (Outlook) OAuth client credentials, enabling Outlook
+    /// linking. Returns `self` for builder-style chaining so existing call sites
+    /// that don't use Outlook are unaffected.
+    pub fn with_microsoft_credentials(
+        mut self,
+        client_id: String,
+        client_secret: String,
+    ) -> Self {
+        self.microsoft_client_id = client_id;
+        self.microsoft_client_secret = client_secret;
+        self
     }
 
     /// Returns the Google OAuth client ID.
     pub fn google_client_id(&self) -> &str {
         &self.google_client_id
+    }
+
+    /// Returns the Microsoft (Outlook) OAuth client ID.
+    pub fn microsoft_client_id(&self) -> &str {
+        &self.microsoft_client_id
     }
 
     /// Constructs the oauth2 authorize url for the given idp
