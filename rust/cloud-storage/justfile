@@ -16,6 +16,15 @@ prepare_db:
 format:
     SQLX_OFFLINE=true cargo fmt
 
+# Regenerate dependency-unification metadata after changing any Cargo.toml:
+# the workspace-hack crate (feature unification, see .config/hakari.toml) and
+# the per-artifact dep closure map consumed by the flake's deploy builds.
+# CI fails if either is stale.
+hakari:
+    cargo hakari generate
+    cargo hakari manage-deps
+    python3 ../../.github/scripts/generate-workspace-dep-closures.py
+
 clean:
     cargo clean
     git restore target/lambda

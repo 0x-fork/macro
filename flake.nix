@@ -55,32 +55,112 @@
         # Include Cargo sources plus the .sqlx offline query cache.
         # rs-libreoffice-bindings lives outside the repo; we import it explicitly
         # so the nix sandbox can resolve the path dep in convert_service.
-        src =
+        sqlxFilter = path: _type: builtins.match ".*\\.sqlx/.*\\.json$" path != null;
+        pdfiumFilter = path: _type: builtins.match ".*pdfium-lib/.*\\.(so|dylib)$" path != null;
+        assetFilter = path: _type: builtins.match ".*\\.(md|html|txt|json|canvas|sql)$" path != null;
+        binFilter = path: _type: builtins.match ".*\\.bin$" path != null;
+        srcFilter =
+          path: type:
+          (sqlxFilter path type)
+          || (pdfiumFilter path type)
+          || (assetFilter path type)
+          || (binFilter path type)
+          || (craneLib.filterCargoSources path type);
+        cloudStorageSrc = pkgs.lib.cleanSourceWith {
+          src = ./rust/cloud-storage;
+          filter = srcFilter;
+        };
+        cSourceFilter = path: _type: builtins.match ".*\\.(c|h)$" path != null;
+        libreofficeBindingsSrc = pkgs.lib.cleanSourceWith {
+          src = rs-libreoffice-bindings;
+          filter = path: type: (cSourceFilter path type) || (craneLib.filterCargoSources path type);
+        };
+        src = pkgs.runCommand "cloud-storage-src" { } ''
+          cp -rT ${cloudStorageSrc} $out
+          chmod -R +w $out
+          cp -rT ${libreofficeBindingsSrc} $out/rs-libreoffice-bindings
+        '';
+
+        # ── Per-artifact pruned deploy sources ────────────────────────
+        # .github/workspace-dep-closures.json (generated from cargo metadata by
+        # .github/scripts/generate-workspace-dep-closures.py, drift-checked in
+        # CI) maps every workspace crate to its transitive workspace dependency
+        # closure. Each deploy leaf builds from a tree where only the crates in
+        # its closure keep real sources; every other member is reduced to its
+        # manifest plus a crane stub target. A leaf's store hash then only
+        # moves when a crate it actually depends on changes — an email-only
+        # change leaves the other deploy derivations as pure substitutions
+        # (sticky disk / Cachix) instead of full workspace-subgraph rebuilds.
+        # Manifest or Cargo.lock changes still invalidate every leaf (the stub
+        # layer embeds them all); those are the rare structural commits.
+        #
+        # Soundness: a stale map fails loud, not silent. A missing closure
+        # crate means its stub (empty lib) gets compiled and the dependent
+        # crate fails to resolve its items; a deleted dir fails at eval. CI
+        # regenerates the map and rejects drift before merge.
+        workspaceDepClosures =
+          (builtins.fromJSON (builtins.readFile ./.github/workspace-dep-closures.json)).closures;
+
+        # Manifests + Cargo.lock + stub targets for every member, shared by all
+        # pruned sources; only changes when a manifest or the lock changes.
+        deployDummySrc = craneLib.mkDummySrc { inherit src; };
+
+        # Real sources of one workspace crate dir, same filter as the full tree
+        # (keeps per-crate assets: pdfium blobs, .sql migrations, templates).
+        crateDirSrc =
+          dir:
+          pkgs.lib.cleanSourceWith {
+            src = ./rust/cloud-storage + "/${dir}";
+            filter = srcFilter;
+            name = "crate-${builtins.replaceStrings [ "/" ] [ "-" ] dir}";
+          };
+
+        # Workspace-root files that crates read across crate boundaries: the
+        # .sqlx offline cache (sqlx macros resolve it from the workspace root)
+        # and loose root assets like markdown-golden.1.bin (include_bytes!-ed
+        # from the documents crate). Included in every pruned source, so a
+        # sqlx prepare still invalidates all leaves — coarser than ideal, but
+        # the query-to-crate mapping is not recoverable from the file names.
+        rootDepsSrc = pkgs.lib.cleanSourceWith {
+          src = ./rust/cloud-storage;
+          name = "cloud-storage-root-deps";
+          filter =
+            path: type:
+            let
+              rel = pkgs.lib.removePrefix ((toString ./rust/cloud-storage) + "/") (toString path);
+            in
+            (rel == ".sqlx")
+            || (pkgs.lib.hasPrefix ".sqlx/" rel)
+            || (
+              type == "regular"
+              && !(pkgs.lib.hasInfix "/" rel)
+              && ((assetFilter path type) || (binFilter path type))
+            );
+        };
+
+        prunedDeploySrc =
+          pname: rootPackage:
           let
-            sqlxFilter = path: _type: builtins.match ".*\\.sqlx/.*\\.json$" path != null;
-            pdfiumFilter = path: _type: builtins.match ".*pdfium-lib/.*\\.(so|dylib)$" path != null;
-            assetFilter = path: _type: builtins.match ".*\\.(md|html|txt|json|canvas|sql)$" path != null;
-            binFilter = path: _type: builtins.match ".*\\.bin$" path != null;
-            srcFilter =
-              path: type:
-              (sqlxFilter path type)
-              || (pdfiumFilter path type)
-              || (assetFilter path type)
-              || (binFilter path type)
-              || (craneLib.filterCargoSources path type);
-            cloudStorageSrc = pkgs.lib.cleanSourceWith {
-              src = ./rust/cloud-storage;
-              filter = srcFilter;
-            };
-            cSourceFilter = path: _type: builtins.match ".*\\.(c|h)$" path != null;
-            libreofficeBindingsSrc = pkgs.lib.cleanSourceWith {
-              src = rs-libreoffice-bindings;
-              filter = path: type: (cSourceFilter path type) || (craneLib.filterCargoSources path type);
-            };
+            # Generator emits dirs sorted, so parents always precede nested
+            # members and overlays land inside already-materialised parents.
+            dirs =
+              workspaceDepClosures.${rootPackage} or (throw (
+                "No '${rootPackage}' entry in .github/workspace-dep-closures.json; "
+                + "run .github/scripts/generate-workspace-dep-closures.py and commit the result."
+              ));
+            overlays = pkgs.lib.concatMapStrings (dir: ''
+              rm -rf "$out/${dir}"
+              cp -rT ${crateDirSrc dir} "$out/${dir}"
+              chmod -R +w "$out/${dir}"
+            '') dirs;
           in
-          pkgs.runCommand "cloud-storage-src" { } ''
-            cp -rT ${cloudStorageSrc} $out
+          pkgs.runCommand "cloud-storage-src-${pname}" { } ''
+            cp -rT ${deployDummySrc} $out
             chmod -R +w $out
+            cp -rfT ${rootDepsSrc} $out
+            chmod -R +w $out
+            ${overlays}
+            rm -rf $out/rs-libreoffice-bindings
             cp -rT ${libreofficeBindingsSrc} $out/rs-libreoffice-bindings
           '';
 
@@ -292,6 +372,9 @@
           craneLib.buildPackage (
             commonArgs
             // {
+              # Pruned source: this derivation only rebuilds when a crate in
+              # the service's own workspace closure changes.
+              src = prunedDeploySrc "service-${serviceName}" packageName;
               cargoArtifacts = deployCargoArtifacts;
               pname = "cloud-storage-${serviceName}-binaries";
               doCheck = false;
@@ -426,6 +509,9 @@
           craneLib.buildPackage (
             lambdaCommonArgs
             // {
+              # Pruned source: this derivation only rebuilds when a crate in
+              # the handler's own workspace closure changes.
+              src = prunedDeploySrc "lambda-${lambdaName}" lambdaName;
               cargoArtifacts = lambdaDeployCargoArtifacts;
               pname = "cloud-storage-lambda-${lambdaName}";
               doCheck = false;
@@ -467,6 +553,7 @@
             zip
             cargo-info
             cargo-udeps
+            cargo-hakari
             cargo-lambda
             (writeShellScriptBin "rustup" ''
               set -euo pipefail
@@ -504,6 +591,8 @@
             jq
             stripe-cli
             sccache
+            # for .github/scripts/generate-workspace-dep-closures.py (just hakari)
+            python3
             rustToolchain
           ]
           ++ pkgs.lib.optionals isLinux [ mold ];
