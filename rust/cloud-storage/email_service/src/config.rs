@@ -42,6 +42,16 @@ pub struct Config {
     /// The GCP queue name that has the subscription that hits our webhook endpoint
     pub gmail_gcp_queue: String,
 
+    /// The public HTTPS URL Microsoft Graph delivers Outlook change
+    /// notifications to (our `/outlook/webhook` endpoint). Empty when Outlook
+    /// support is not configured for the environment.
+    pub outlook_notification_url: String,
+
+    /// The opaque secret set as the Graph subscription `clientState` and verified
+    /// on every incoming Outlook notification. Empty when Outlook support is not
+    /// configured for the environment.
+    pub outlook_client_state: String,
+
     /// The SQS queue name for notification-service
     pub notification_queue: String,
 
@@ -197,6 +207,13 @@ impl Config {
 
         let gmail_gcp_queue =
             std::env::var("GMAIL_GCP_QUEUE").context("GMAIL_GCP_QUEUE must be provided")?;
+
+        // Outlook support is optional; these default to empty when unset so the
+        // service still boots in environments without Outlook configured.
+        let outlook_notification_url =
+            std::env::var("OUTLOOK_NOTIFICATION_URL").unwrap_or_default();
+
+        let outlook_client_state = std::env::var("OUTLOOK_CLIENT_STATE").unwrap_or_default();
 
         let notification_queue =
             std::env::var("NOTIFICATION_QUEUE").context("NOTIFICATION_QUEUE must be provided")?;
@@ -355,6 +372,8 @@ impl Config {
             gmail_ops_retry_queue,
             search_event_queue,
             gmail_gcp_queue,
+            outlook_notification_url,
+            outlook_client_state,
             notification_queue,
             backfill_queue,
             sfs_uploader_queue,

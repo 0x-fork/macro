@@ -14,6 +14,7 @@ mod email;
 // Misc
 pub(crate) mod context;
 pub(crate) mod gmail;
+pub(crate) mod outlook;
 mod internal;
 mod middleware;
 pub(crate) mod swagger;
@@ -56,6 +57,7 @@ fn api_router(state: ApiContext) -> Router<ApiContext> {
             )),
         )
         .nest("/gmail", gmail::router())
+        .nest("/outlook", outlook::router())
         .nest(
             "/internal",
             internal::router().layer(

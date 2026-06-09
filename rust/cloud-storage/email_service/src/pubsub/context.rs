@@ -11,6 +11,7 @@ use crm::outbound::companies_repo::CompaniesRepositoryImpl;
 use crm::outbound::unfurl_resolver::UnfurlCompanyMetadataResolver;
 use document_storage_service_client::DocumentStorageServiceClient;
 use gmail_client::GmailClient;
+use outlook_client::OutlookClient;
 use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
 use sqlx::PgPool;
@@ -61,6 +62,7 @@ pub struct PubSubContext {
     pub sqs_client: sqs_client::SQS,
     pub contacts_ingress: Arc<SqsContactsIngress<SqsContactsQueue>>,
     pub gmail_client: GmailClient,
+    pub outlook_client: OutlookClient,
     pub auth_service_client: AuthServiceClient,
     pub redis_client: RedisClient,
     pub notification_ingress_service: Arc<NotificationIngressType>,

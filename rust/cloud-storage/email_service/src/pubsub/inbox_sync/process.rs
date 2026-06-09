@@ -2,6 +2,7 @@ use crate::pubsub::context::PubSubContext;
 use crate::pubsub::inbox_sync::error_handlers::prefix_error_source;
 use crate::pubsub::inbox_sync::operations::delete_message::delete_message;
 use crate::pubsub::inbox_sync::operations::gmail_message::gmail_message;
+use crate::pubsub::inbox_sync::operations::outlook_notification::outlook_notification;
 use crate::pubsub::inbox_sync::operations::update_labels::update_labels;
 use crate::pubsub::inbox_sync::operations::upsert_message::upsert_message;
 use crate::util::redis::rate_limit::RateLimitArgs;
@@ -87,6 +88,12 @@ async fn inner_process_message(
                 .await
                 .map_err(|e| prefix_error_source(e, "gmail_message"))?;
             tracing::debug!("Successfully processed gmail message operation");
+        }
+        InboxSyncOperation::OutlookNotification(payload) => {
+            outlook_notification(ctx, &link, payload)
+                .await
+                .map_err(|e| prefix_error_source(e, "outlook_notification"))?;
+            tracing::debug!("Successfully processed outlook notification operation");
         }
         InboxSyncOperation::UpsertMessage(payload) => {
             upsert_message(ctx, &link, payload)

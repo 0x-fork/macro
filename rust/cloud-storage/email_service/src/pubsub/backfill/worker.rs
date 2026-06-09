@@ -35,6 +35,9 @@ pub async fn run_worker(
         sqs_client,
         contacts_ingress,
         gmail_client,
+        // Backfill is Gmail-only today; supply a disabled Outlook client so the
+        // shared context type is satisfied without requiring Outlook config here.
+        outlook_client: outlook_client::OutlookClient::new(String::new(), String::new()),
         auth_service_client,
         redis_client,
         notification_ingress_service,

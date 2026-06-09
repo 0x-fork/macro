@@ -188,6 +188,11 @@ async fn main() -> anyhow::Result<()> {
 
     let gmail_client = gmail_client::GmailClient::new(config.gmail_gcp_queue.clone());
 
+    let outlook_client = outlook_client::OutlookClient::new(
+        config.outlook_notification_url.clone(),
+        config.outlook_client_state.clone(),
+    );
+
     let redis_inner_client = redis::Client::open(config.redis_uri.as_str())
         .inspect(|client| {
             client
@@ -300,6 +305,7 @@ async fn main() -> anyhow::Result<()> {
         let sqs_client_inbox_sync = sqs_client.clone();
         let contacts_ingress_inbox_sync = contacts_ingress.clone();
         let gmail_client_inbox_sync = gmail_client.clone();
+        let outlook_client_inbox_sync = outlook_client.clone();
         let auth_service_client_inbox_sync = auth_service_client.clone();
         let redis_client_inbox_sync = redis_client.clone();
         let notification_ingress_service_inbox_sync = notification_ingress_service.clone();
@@ -315,6 +321,7 @@ async fn main() -> anyhow::Result<()> {
                 sqs_client_inbox_sync,
                 contacts_ingress_inbox_sync,
                 gmail_client_inbox_sync,
+                outlook_client_inbox_sync,
                 auth_service_client_inbox_sync,
                 redis_client_inbox_sync,
                 notification_ingress_service_inbox_sync,
@@ -340,6 +347,7 @@ async fn main() -> anyhow::Result<()> {
         let sqs_client_inbox_sync = sqs_client.clone();
         let contacts_ingress_inbox_sync = contacts_ingress.clone();
         let gmail_client_inbox_sync = gmail_client.clone();
+        let outlook_client_inbox_sync = outlook_client.clone();
         let auth_service_client_inbox_sync = auth_service_client.clone();
         let redis_client_inbox_sync = redis_client.clone();
         let notification_ingress_service_inbox_sync = notification_ingress_service.clone();
@@ -355,6 +363,7 @@ async fn main() -> anyhow::Result<()> {
                 sqs_client_inbox_sync,
                 contacts_ingress_inbox_sync,
                 gmail_client_inbox_sync,
+                outlook_client_inbox_sync,
                 auth_service_client_inbox_sync,
                 redis_client_inbox_sync,
                 notification_ingress_service_inbox_sync,

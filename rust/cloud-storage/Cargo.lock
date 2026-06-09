@@ -4076,6 +4076,7 @@ dependencies = [
  "models_properties",
  "notification",
  "once_cell",
+ "outlook_client",
  "redis",
  "regex",
  "reqwest 0.13.4",

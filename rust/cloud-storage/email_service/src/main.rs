@@ -88,6 +88,11 @@ async fn main() -> anyhow::Result<()> {
 
     let gmail_client = gmail_client::GmailClient::new(config.gmail_gcp_queue.clone());
 
+    let outlook_client = outlook_client::OutlookClient::new(
+        config.outlook_notification_url.clone(),
+        config.outlook_client_state.clone(),
+    );
+
     let redis_inner_client = redis::Client::open(config.redis_uri.as_str())
         .inspect(|client| {
             client
@@ -129,6 +134,7 @@ async fn main() -> anyhow::Result<()> {
 
     let sqs_client = Arc::new(sqs_client);
     let gmail_client = Arc::new(gmail_client);
+    let outlook_client = Arc::new(outlook_client);
     // HTTP API only reads CRM rows — populate runs in the pubsub
     // worker. The no-op resolver makes the unused branch explicit and
     // keeps reqwest/scraper out of this binary.
@@ -169,6 +175,7 @@ async fn main() -> anyhow::Result<()> {
         sqs_client,
         sfs_client: Arc::new(sfs_client),
         gmail_client: gmail_client.clone(),
+        outlook_client: outlook_client.clone(),
         s3_client: Arc::new(s3_client),
         dss_client: Arc::new(dss_client),
         system_properties_service,

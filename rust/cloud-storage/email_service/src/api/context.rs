@@ -36,6 +36,7 @@ pub(crate) struct ApiContext {
     pub db: sqlx::Pool<sqlx::Postgres>,
     pub auth_service_client: Arc<authentication_service_client::AuthServiceClient>,
     pub gmail_client: Arc<gmail_client::GmailClient>,
+    pub outlook_client: Arc<outlook_client::OutlookClient>,
     pub redis_client: Arc<RedisClient>,
     pub sqs_client: Arc<sqs_client::SQS>,
     pub s3_client: Arc<s3_client::S3>,
