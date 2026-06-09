@@ -399,3 +399,7 @@ impl GmailClient {
         filters::list_blocked_senders(self, access_token).await
     }
 }
+
+// Build-benchmark probe: narrow-crate change isolated to gmail_client.
+// Expected effect: only the email-service binaries job recompiles; all
+// other deploy artifacts substitute. Safe to remove.
