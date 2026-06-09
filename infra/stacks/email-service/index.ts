@@ -85,6 +85,15 @@ const GMAIL_GCP_QUEUE = aws.secretsmanager
   .getSecretVersionOutput({ secretId: gmailGcpQueue })
   .apply((secret) => secret.secretString);
 
+// Optional Outlook (Microsoft Graph) webhook configuration. Empty until the
+// Outlook integration is provisioned; the email service treats empty values as
+// "Outlook disabled" and still boots. When provisioning, point
+// OUTLOOK_NOTIFICATION_URL at the public /outlook/webhook endpoint and source
+// OUTLOOK_CLIENT_STATE from Secrets Manager (the Graph subscription clientState
+// secret).
+const OUTLOOK_NOTIFICATION_URL = config.get(`outlook_notification_url`) ?? '';
+const OUTLOOK_CLIENT_STATE = config.get(`outlook_client_state`) ?? '';
+
 const jwtSecretKeyArn: pulumi.Output<string> = aws.secretsmanager
   .getSecretVersionOutput({ secretId: JWT_SECRET_KEY })
   .apply((secret) => secret.arn);
@@ -437,6 +446,14 @@ const containerEnvVars = [
   {
     name: 'GMAIL_GCP_QUEUE',
     value: pulumi.interpolate`${GMAIL_GCP_QUEUE}`,
+  },
+  {
+    name: 'OUTLOOK_NOTIFICATION_URL',
+    value: OUTLOOK_NOTIFICATION_URL,
+  },
+  {
+    name: 'OUTLOOK_CLIENT_STATE',
+    value: OUTLOOK_CLIENT_STATE,
   },
   {
     name: 'NOTIFICATION_QUEUE',
