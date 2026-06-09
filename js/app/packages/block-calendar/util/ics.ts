@@ -74,7 +74,9 @@ export function buildIcs(event: CalendarEvent, opts: IcsOptions): string {
   }
 
   const organizerCn = opts.organizerName ?? opts.organizerEmail;
-  lines.push(`ORGANIZER;CN=${escapeText(organizerCn)}:mailto:${opts.organizerEmail}`);
+  lines.push(
+    `ORGANIZER;CN=${escapeText(organizerCn)}:mailto:${opts.organizerEmail}`
+  );
 
   for (const attendee of event.attendees) {
     const cn = escapeText(attendee.name ?? attendee.email);
@@ -95,7 +97,8 @@ export function downloadIcs(event: CalendarEvent, opts: IcsOptions): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  const safeName = event.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'event';
+  const safeName =
+    event.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'event';
   anchor.download = `${safeName}.ics`;
   document.body.appendChild(anchor);
   anchor.click();

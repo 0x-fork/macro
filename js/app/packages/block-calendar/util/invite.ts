@@ -61,10 +61,7 @@ function buildHtmlBody(
 }
 
 function buildTextBody(event: CalendarEvent, organizerName: string): string {
-  const lines = [
-    event.title || 'Untitled event',
-    `When: ${whenLabel(event)}`,
-  ];
+  const lines = [event.title || 'Untitled event', `When: ${whenLabel(event)}`];
   if (event.location) lines.push(`Where: ${event.location}`);
   if (event.description) lines.push('', event.description);
   lines.push('', `Invited by ${organizerName}.`);

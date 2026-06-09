@@ -32,7 +32,9 @@ export function useCalendarEventsQuery(
       queryKey: calendarKeys.range({ startMs, endMs }).queryKey,
       enabled: enabled(),
       queryFn: async () =>
-        throwOnErr(async () => await calendarClient.listEvents({ startMs, endMs })),
+        throwOnErr(
+          async () => await calendarClient.listEvents({ startMs, endMs })
+        ),
       placeholderData: (prev: CalendarEvent[] | undefined) => prev,
       reconcile: 'id',
       ...QUERY_REFETCH_BEHAVIOR,

@@ -4,6 +4,7 @@ import { Home } from '@app/component/home';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import type { Query } from '@app/component/next-soup/filters/filter-store/types';
 import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
+import { Calendar } from '@block-calendar';
 import { ChannelCompose } from '@block-channel/component/Compose';
 import { ComposeTask } from '@block-md/component/ComposeTask';
 import { useIsAuthenticated } from '@core/auth';
@@ -278,6 +279,13 @@ registerComponent(
         initialSearchText={params.initialQuery}
       />
     );
+  })
+);
+registerComponent(
+  'calendar',
+  withAuth(() => {
+    usePageViewTracking('calendar');
+    return <Calendar />;
   })
 );
 /** END - APP ROUTES */

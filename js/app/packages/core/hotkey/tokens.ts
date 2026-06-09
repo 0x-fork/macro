@@ -96,7 +96,19 @@ export const TOKENS = {
       channels: 'sidebar.goTo.channels',
       calls: 'sidebar.goTo.calls',
       folders: 'sidebar.goTo.folders',
+      calendar: 'sidebar.goTo.calendar',
     },
+  },
+
+  // calendar
+  calendar: {
+    prev: 'calendar.prev',
+    next: 'calendar.next',
+    today: 'calendar.today',
+    newEvent: 'calendar.newEvent',
+    viewDay: 'calendar.viewDay',
+    viewWeek: 'calendar.viewWeek',
+    viewList: 'calendar.viewList',
   },
 
   // email

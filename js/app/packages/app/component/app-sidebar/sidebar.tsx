@@ -57,6 +57,7 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import LogoIcon from '@icon/macro-logo.svg';
 import { AnimatedSquareCommandKIcon } from '@icon/square-command-k';
 import { AnimatedSquareSidebarIcon } from '@icon/square-sidebar';
+import { AnimatedCalendarIcon } from '@icon/wide-calendar';
 import { AnimatedCallIcon } from '@icon/wide-call';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
 import { AnimatedEmailIcon } from '@icon/wide-email';
@@ -773,6 +774,15 @@ const DASHBOARD_LINK: SidebarItem = {
   hotkeyToken: TOKENS.sidebar.goTo.home,
 };
 
+const CALENDAR_LINK: SidebarItem = {
+  id: 'calendar',
+  label: 'Calendar',
+  href: '/calendar',
+  icon: AnimatedCalendarIcon,
+  hotkey: 'd',
+  hotkeyToken: TOKENS.sidebar.goTo.calendar,
+};
+
 export const AppSidebar = (props: AppSidebarProps) => {
   const analytics = useAnalytics();
   const layout = useSplitLayout();
@@ -822,6 +832,8 @@ export const AppSidebar = (props: AppSidebarProps) => {
       const idx = links.findIndex((l) => l.id === 'channels');
       links = [...links.slice(0, idx + 1), CALLS_LINK, ...links.slice(idx + 1)];
     }
+
+    links = [...links, CALENDAR_LINK];
 
     return links;
   });

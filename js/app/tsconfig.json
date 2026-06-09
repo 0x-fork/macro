@@ -153,6 +153,9 @@
       "@block-unknown/*": [
         "./packages/block-unknown/*"
       ],
+      "@block-calendar": [
+        "./packages/block-calendar/index.ts"
+      ],
       "@block-calendar/*": [
         "./packages/block-calendar/*"
       ],
