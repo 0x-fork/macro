@@ -459,7 +459,9 @@ export function useFilterRefinements() {
       }
     }
 
-    if (activeIndexOptions.length > 0) {
+    // In the search view the type chip is always shown (defaulting to "All")
+    // so the index selector isn't hidden behind the filter dropdown.
+    if (activeIndexOptions.length > 0 || currentView() === 'search') {
       const key = 'type:index';
       seenKeys.add(key);
 
@@ -479,7 +481,7 @@ export function useFilterRefinements() {
             });
           }
         }
-        return result;
+        return result.length ? result : [{ id: 'all', label: 'All' }];
       };
 
       filters.push(
@@ -494,6 +496,10 @@ export function useFilterRefinements() {
             icon: o.icon,
           })),
           multiple: false,
+          showRemove: () => {
+            const [first] = getActiveIndexValues();
+            return first !== undefined && first.id !== 'all';
+          },
           isValueActive: (id) => soup.predicates.isActive(id),
           onToggleValue: (id) => changeIndex(id),
           onRemoveAll: () => changeIndex('all'),
