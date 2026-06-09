@@ -14,41 +14,10 @@ export function registerEmailHotkeys(
   scopeId: string,
   handlers: EmailHotkeyHandlers
 ) {
-  registerHotkey({
-    hotkey: 'opt+r',
-    scopeId: scopeId,
-    description: 'Reply to thread',
-    keyDownHandler: () => {
-      // handlers.setReplyMode('reply');
-      return true;
-    },
-    hotkeyToken: TOKENS.email.reply,
-    displayPriority: 9,
-  });
-  registerHotkey({
-    hotkey: 'r',
-    scopeId: scopeId,
-    description: 'Reply all to thread',
-    keyDownHandler: () => {
-      // handlers.setReplyMode('reply-all');
-      return true;
-    },
-    hotkeyToken: TOKENS.email.replyAll,
-    displayPriority: 8,
-  });
-  registerHotkey({
-    hotkey: 'f',
-    scopeId: scopeId,
-    description: 'Forward thread',
-    keyDownHandler: () => {
-      // TODO: Populate to field
-      // TODO: Attachments from last/current selected message
-      // handlers.setReplyMode('forward');
-      return true;
-    },
-    hotkeyToken: TOKENS.email.forward,
-    displayPriority: 7,
-  });
+  // NOTE: reply ('opt+r'), reply-all ('r') and forward ('f') hotkeys were
+  // removed here: their handlers were stubbed out but still consumed the
+  // keypress and showed dead entries in the hotkey UI. Re-add them with real
+  // handlers when reply-mode switching is wired up.
   registerHotkey({
     hotkey: 'e',
     scopeId,

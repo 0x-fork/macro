@@ -247,17 +247,17 @@ export const DateSelector = (props: DateSelectorProps) => {
     }
 
     const split = value.split(':');
-    if (!split.length || split.length !== 2) return;
+    if (split.length !== 2) return;
 
-    if (Number.isNaN(split[0]) || Number.isNaN(split[1])) return;
+    const hours = Number(split[0]);
+    const mins = Number(split[1]);
 
-    let hours = Number(split[0]);
-    let mins = Number(split[1]);
+    if (Number.isNaN(hours) || Number.isNaN(mins)) return;
 
     let currentDate = selectedDate() ?? new Date();
 
-    currentDate = setHours(currentDate, Number(hours));
-    currentDate = setMinutes(currentDate, Number(mins));
+    currentDate = setHours(currentDate, hours);
+    currentDate = setMinutes(currentDate, mins);
 
     onChange({ type: 'custom', date: currentDate });
   };

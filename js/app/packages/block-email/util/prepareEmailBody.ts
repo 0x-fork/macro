@@ -4,10 +4,8 @@ import { $createQuoteNode } from '@lexical/rich-text';
 import { $dfsIterator } from '@lexical/utils';
 import {
   $createClassedBlockNode,
-  $createDocumentMentionNode,
   $createHtmlRenderNode,
   $isClassedBlockNode,
-  type ClassedBlockNode,
   type DocumentMentionInfo,
 } from '@lexical-core';
 import type { ApiMessage } from '@service-email/generated/schemas';
@@ -16,7 +14,6 @@ import {
   $createParagraphNode,
   $createTextNode,
   $getRoot,
-  $isLineBreakNode,
   COMMAND_PRIORITY_EDITOR,
   createCommand,
   type LexicalEditor,
@@ -96,7 +93,7 @@ function buildHeaderDescriptor(
     'On ' +
     formattedDate +
     ' ' +
-    (replyingTo.from?.name ?? replyingTo.from?.email) +
+    (replyingTo.from?.name ?? replyingTo.from?.email ?? '') +
     ' <' +
     (replyingTo.from?.email ?? '') +
     '> wrote: ';
@@ -179,7 +176,7 @@ const $appendPreviousEmail = (
 };
 
 function* $findPreviousEmailNode(replyingToID: string | undefined) {
-  if (!replyingToID) yield;
+  if (!replyingToID) return;
   for (const { node } of $dfsIterator()) {
     if (!$isClassedBlockNode(node)) continue;
 
@@ -237,60 +234,6 @@ export function registerToggleAppendedThread(editor: LexicalEditor) {
   );
 }
 
-async function _appendItemsAsMacroMentions(
-  editor: LexicalEditor | undefined,
-  items: DocumentMentionInfo[]
-) {
-  if (!editor) return;
-  if (!items || items.length === 0) return;
-  editor.update(() => {
-    const root = $getRoot();
-
-    // Find an existing mentions wrapper (search from the end for the most recent)
-    const children = root.getChildren();
-    let wrapper: ClassedBlockNode | null = null;
-    for (let i = children.length - 1; i >= 0; i--) {
-      const candidate = children[i];
-      if (
-        $isClassedBlockNode(candidate) &&
-        (candidate as any).__classes?.includes('macro_mentions')
-      ) {
-        wrapper = candidate as any;
-        break;
-      }
-    }
-
-    // If no wrapper, create one and add an empty line above it
-    if (!wrapper) {
-      const spacer = $createParagraphNode();
-      root.append(spacer);
-      wrapper = $createClassedBlockNode({
-        tag: 'div',
-        classes: ['macro_mentions'],
-      });
-      root.append(wrapper);
-    }
-
-    // Append each mention as its own paragraph at the bottom of the wrapper
-    items.forEach((item) => {
-      const last = wrapper.getLastChild();
-      if (last && !$isLineBreakNode(last)) {
-        wrapper.append($createLineBreakNode());
-      }
-
-      const mention = $createDocumentMentionNode({
-        documentId: item.documentId,
-        documentName: item.documentName,
-        blockName: item.blockName,
-      });
-
-      wrapper.append(mention);
-      // Trailing break to keep future insertions on a new line
-      wrapper.append($createLineBreakNode());
-    });
-  });
-}
-
 function getAppendedReplyElement(
   replyingTo: ApiMessage,
   replyType: ReplyType | undefined
@@ -342,17 +285,24 @@ function convertMentionsToLinks(root: ParentNode) {
   );
   let mentions: DocumentMentionInfo[] = [];
   mentionElements.forEach((el) => {
+    let blockParams: DocumentMentionInfo['blockParams'];
+    const blockParamsAttr = el.getAttribute('data-block-params');
+    if (blockParamsAttr) {
+      // A malformed attribute shouldn't abort the whole send/draft-save path
+      try {
+        blockParams = JSON.parse(blockParamsAttr);
+      } catch {
+        blockParams = undefined;
+      }
+    }
+    const collapsedAttr = el.getAttribute('data-collapsed');
     const mention: DocumentMentionInfo = {
       documentId: el.getAttribute('data-document-id') || '',
       documentName: el.getAttribute('data-document-name') || '',
       blockName: el.getAttribute('data-block-name') || '',
-      blockParams: el.getAttribute('data-block-params')
-        ? JSON.parse(el.getAttribute('data-block-params') || '{}')
-        : undefined,
+      blockParams,
       mentionUuid: el.getAttribute('data-mention-uuid') || undefined,
-      collapsed: el.getAttribute('data-collapsed')
-        ? Boolean(el.getAttribute('data-collapsed'))
-        : undefined,
+      collapsed: collapsedAttr ? collapsedAttr === 'true' : undefined,
       channelType: el.getAttribute('data-channel-type') || undefined,
     };
     if (!mention.documentId || !mention.documentName || !mention.blockName)
@@ -502,7 +452,13 @@ export function prepareEmailBody(
     .replace(/\//g, '_')
     .replace(/={1,}$/, '');
   const bodyHtml = html;
-  const bodyText = parsed.body.firstChild?.textContent ?? '';
+  // Plain text of the user-authored content. Read from the whole body (not
+  // just the first child — flattening can leave multiple top-level elements,
+  // e.g. around lists or headings), but exclude any quoted thread so empty
+  // replies aren't mistaken for content (see hasDraftContent).
+  const bodyClone = parsed.body.cloneNode(true) as HTMLElement;
+  bodyClone.querySelectorAll('.macro_quote').forEach((quote) => quote.remove());
+  const bodyText = bodyClone.textContent ?? '';
 
   return { bodyHtml, bodyText, mentions };
 }

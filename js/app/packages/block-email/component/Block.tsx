@@ -23,14 +23,15 @@ export default function BlockEmail() {
   const title = () => {
     const data = threadQuery.data;
     if (!data || !data.thread || data.thread.messages.length === 0) return '';
-    if (data.thread.messages[0].subject?.length === 0) return '[No subject]';
+    const subject = data.thread.messages[0].subject;
+    if (!subject) return '[No subject]';
     // remove "re:" prefix(es)
-    return data.thread.messages[0].subject!.replace(/^(re:\s*)+/i, '');
+    return subject.replace(/^(re:\s*)+/i, '');
   };
 
   return (
     <Suspense>
-      <DocumentBlockContainer title={title() ?? 'Email'}>
+      <DocumentBlockContainer title={title() || 'Email'}>
         <div class="size-full" tabIndex={-1}>
           <Show when={blockData()}>
             <Show when={threadId()}>

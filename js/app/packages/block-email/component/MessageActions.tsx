@@ -28,8 +28,8 @@ export function MessageActions(props: {
   const canShowActions = () => {
     if (!props.showActions) return false;
 
-    const allActionsHidden = props.hiddenActions?.every((a) =>
-      EMAIL_MESSAGE_ACTIONS.includes(a)
+    const allActionsHidden = EMAIL_MESSAGE_ACTIONS.every((a) =>
+      props.hiddenActions?.includes(a)
     );
 
     return !allActionsHidden;

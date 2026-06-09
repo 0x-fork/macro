@@ -501,7 +501,10 @@ export function BaseInput(props: {
 
   // Register a callback so stale undoSend closures from a previous mount can
   // restore state into this (the live) component instance.
-  restoreUndoCallback = (snapshot, draftId) => {
+  const ownRestoreUndoCallback: typeof restoreUndoCallback = (
+    snapshot,
+    draftId
+  ) => {
     setSavedDraftId(draftId);
     const currentEditor = editor();
     if (currentEditor && snapshot.bodyHtml) {
@@ -511,8 +514,14 @@ export function BaseInput(props: {
       form().attachments.add(attachment);
     }
   };
+  restoreUndoCallback = ownRestoreUndoCallback;
   onCleanup(() => {
-    restoreUndoCallback = null;
+    // Multiple BaseInputs can be mounted at once (bottom input + inline
+    // reply); only clear the slot if this instance still owns it so
+    // unmounting one doesn't break the other's undo-send restore.
+    if (restoreUndoCallback === ownRestoreUndoCallback) {
+      restoreUndoCallback = null;
+    }
   });
 
   let pendingMentions: { documentId: string }[] = [];
@@ -626,8 +635,11 @@ export function BaseInput(props: {
     }
   }
 
-  // Attach side-effect handlers on mount; they replay against current state
-  onMount(() => {
+  // Attach side-effect handlers; they replay against current state. Runs in
+  // an effect (not onMount) because form() re-keys when the reply context
+  // changes (e.g. after a send) and the new form instance needs the
+  // callbacks too.
+  createEffect(() => {
     form().setOnDirty(() => {
       scheduleDraftSave();
     });
@@ -944,7 +956,11 @@ export function BaseInput(props: {
       return;
     }
 
-    let linkId: string | undefined = currentThread?.link_id;
+    // Same precedence as activeLinkId(): a user-selected "from" inbox wins
+    // over the thread's inbox, so sends go out from the inbox shown in the UI
+    // (and match where persistDraftOnSenderSwitch saved the draft).
+    let linkId: string | undefined =
+      form().selectedLinkId() ?? currentThread?.link_id ?? props.draft?.link_id;
     if (newMessage || !linkId) {
       if (emailLinksQuery.isPending) {
         toast.alert('Loading email accounts...');
@@ -963,7 +979,7 @@ export function BaseInput(props: {
         logger.error('No links found');
         return;
       }
-      linkId = primaryLinkId() ?? linksData.links[0].id;
+      linkId = linkId ?? primaryLinkId() ?? linksData.links[0].id;
     }
 
     const currentEditor = editor();
@@ -1324,27 +1340,41 @@ export function BaseInput(props: {
       // Ensure draft is saved before scheduling
       const draftID = currentDraft ?? (await executeSaveDraft());
       if (!draftID) {
+        // Clear the send time so a failed schedule doesn't leave the
+        // composer stuck in a phantom "scheduled" state with Send disabled
+        form().setSendTime(null);
         toast.failure('Failed to schedule message', {
           subtext: 'Draft required',
         });
         return;
       }
 
-      await emailClient.scheduleMessage(
-        {
-          draftID,
-          send_time: date.toISOString(),
-        },
-        headerLinkId()
-      );
+      try {
+        await emailClient.scheduleMessage(
+          {
+            draftID,
+            send_time: date.toISOString(),
+          },
+          headerLinkId()
+        );
+      } catch (error) {
+        form().setSendTime(null);
+        logger.error(error);
+        toast.failure('Failed to schedule message');
+        return;
+      }
 
       // Mark the thread as done
       const threadID = ctx.thread()?.db_id;
       if (threadID) {
-        await emailClient.flagArchived(
-          { id: threadID, value: true },
-          headerLinkId()
-        );
+        try {
+          await emailClient.flagArchived(
+            { id: threadID, value: true },
+            headerLinkId()
+          );
+        } catch (error) {
+          logger.error(error);
+        }
       }
     }
   };
@@ -1798,8 +1828,9 @@ export function BaseInput(props: {
                 size="icon-sm"
                 pressed={form().replyAppended()}
                 onChange={() => {
-                  const replyingToID = props.replyingTo()?.replying_to_id;
-                  if (!replyingToID) return;
+                  // Guard on db_id: a thread's root message has no
+                  // replying_to_id but its quoted text can still be toggled
+                  if (!props.replyingTo()?.db_id) return;
 
                   const currentlyAppended = form().replyAppended();
                   form().setReplyAppended(!currentlyAppended);

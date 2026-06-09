@@ -496,26 +496,40 @@ export function EmailCompose(props: EmailComposeProps) {
     if (date) {
       const draftID = currentDraft ?? (await executeSaveDraft());
       if (!draftID) {
+        // Clear the send time so a failed schedule doesn't leave the
+        // composer stuck in a phantom "scheduled" state with Send disabled
+        form.setSendTime(null);
         toast.failure('Failed to schedule message', {
           subtext: 'Draft required',
         });
         return;
       }
 
-      await emailClient.scheduleMessage(
-        {
-          draftID,
-          send_time: date.toISOString(),
-        },
-        headerLinkId()
-      );
+      try {
+        await emailClient.scheduleMessage(
+          {
+            draftID,
+            send_time: date.toISOString(),
+          },
+          headerLinkId()
+        );
+      } catch (error) {
+        form.setSendTime(null);
+        logger.error(error);
+        toast.failure('Failed to schedule message');
+        return;
+      }
 
       const threadID = saveDraftMutation.data?.draft.thread_db_id;
       if (threadID) {
-        await emailClient.flagArchived(
-          { id: threadID, value: true },
-          headerLinkId()
-        );
+        try {
+          await emailClient.flagArchived(
+            { id: threadID, value: true },
+            headerLinkId()
+          );
+        } catch (error) {
+          logger.error(error);
+        }
       }
     }
   };

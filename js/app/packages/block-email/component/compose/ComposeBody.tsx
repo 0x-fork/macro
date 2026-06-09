@@ -84,8 +84,6 @@ export function ComposeBody(props: {
     );
   };
 
-  let bodyDiv!: HTMLDivElement;
-
   const logComposeBody = (event: string, details?: Record<string, unknown>) => {
     if (!props.debugName) return;
     logger.log(`[ComposeBody] ${event}`, {
@@ -140,7 +138,6 @@ export function ComposeBody(props: {
       <div class="size-full min-h-0 sm:max-h-full mobile:flex-1 flex flex-col flex-1">
         <div
           class="grow size-full flex flex-col cursor-text placeholder:text-ink-placeholder placeholder:opacity-50 overflow-hidden relative"
-          ref={bodyDiv}
           onclick={() => {
             editor()?.focus();
           }}

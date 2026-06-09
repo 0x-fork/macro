@@ -21,13 +21,13 @@ describe('plainTextToHtml', () => {
 
   it('handles consecutive newlines as double br', () => {
     expect(plainTextToHtml('above\n\nbelow')).toBe(
-      `<div>${span('above')}<br><br><br>${span('below')}</div>`
+      `<div>${span('above')}<br><br>${span('below')}</div>`
     );
   });
 
   it('handles only newlines', () => {
-    // '\n\n' splits into ['', '', ''] → <br> joined by <br> = 5 <br>s
-    expect(plainTextToHtml('\n\n')).toBe('<div><br><br><br><br><br></div>');
+    // '\n\n' splits into ['', '', ''] → joined by <br> = 2 <br>s
+    expect(plainTextToHtml('\n\n')).toBe('<div><br><br></div>');
   });
 
   describe('html escaping', () => {
@@ -71,7 +71,7 @@ describe('plainTextToHtml', () => {
   it('handles multiline content matching editor format', () => {
     const input = 'Hi,\n\nSome text here';
     expect(plainTextToHtml(input)).toBe(
-      `<div>${span('Hi,')}<br><br><br>${span('Some text here')}</div>`
+      `<div>${span('Hi,')}<br><br>${span('Some text here')}</div>`
     );
   });
 });

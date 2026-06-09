@@ -6,15 +6,17 @@ export const getSubjectText = (
   replyType: ReplyType | undefined
 ) => {
   if (!replyingTo) return '';
+  const subject = replyingTo.subject ?? '';
   if (replyType === 'reply-all' || replyType === 'reply') {
-    if (replyingTo.subject?.includes('Re: ')) {
-      return replyingTo.subject;
-    } else {
-      return `Re: ${replyingTo.subject}`;
+    // Match existing prefixes case-insensitively ("RE:", "re:") so we don't
+    // stack prefixes on replies from other clients
+    if (/^re:/i.test(subject)) {
+      return subject;
     }
+    return `Re: ${subject}`;
   } else if (replyType === 'forward') {
-    return `Fwd: ${replyingTo.subject}`;
+    return `Fwd: ${subject}`;
   } else {
-    return replyingTo.subject ?? '';
+    return subject;
   }
 };

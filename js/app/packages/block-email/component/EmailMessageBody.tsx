@@ -61,13 +61,11 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
         const styleTags = Array.from(doc.head?.querySelectorAll('style') ?? [])
           .map((style) => style.outerHTML)
           .join('\n');
-        const quoted = doc.body.querySelector('.macro_quote');
-        if (quoted) {
-          quoted?.remove();
-          return styleTags
-            ? `${styleTags}\n${doc.body.innerHTML}`
-            : doc.body.innerHTML;
-        }
+        // If there is no quoted reply, the whole message is the replyless body
+        doc.body.querySelector('.macro_quote')?.remove();
+        return styleTags
+          ? `${styleTags}\n${doc.body.innerHTML}`
+          : doc.body.innerHTML;
       }
     }
     return replyless;
@@ -327,7 +325,7 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
           </Match>
           <Match when={isPlaintext()}>
             <StaticMarkdown
-              markdown={props.message.body_text!}
+              markdown={props.message.body_text ?? ''}
               theme={channelTheme}
               target="internal"
             />

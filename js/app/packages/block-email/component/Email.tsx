@@ -25,6 +25,7 @@ import {
   createMemo,
   createSignal,
   Match,
+  onCleanup,
   onMount,
   Show,
   Switch,
@@ -80,13 +81,18 @@ function EmailContent(props: EmailViewProps) {
     setIsScrolled(scrollFromTop > 1);
   };
 
+  let disposed = false;
+  onCleanup(() => {
+    disposed = true;
+  });
+
   /**
    * Waits for the query to finish fetching
    */
   const waitForQueryLoad = (): Promise<void> => {
     return new Promise((resolve) => {
       const checkInterval = setInterval(() => {
-        if (!context.query.isFetching()) {
+        if (disposed || !context.query.isFetching()) {
           clearInterval(checkInterval);
           resolve();
         }
@@ -100,7 +106,7 @@ function EmailContent(props: EmailViewProps) {
   const loadMessagesUntilFound = async (
     targetMessageId: string
   ): Promise<boolean> => {
-    while (true) {
+    while (!disposed) {
       const messages = context.messages.unfiltered();
 
       // Check if message exists in current batch
@@ -117,6 +123,7 @@ function EmailContent(props: EmailViewProps) {
       context.query.fetchNextPage();
       await waitForQueryLoad();
     }
+    return false;
   };
 
   /**
@@ -187,21 +194,12 @@ function EmailContent(props: EmailViewProps) {
     performScrollToMessage(lastMessage.db_id, { behavior, focus });
   };
 
+  // context.messages.list() is already sorted oldest-first (see EmailContext)
   const firstUnreadMessageId = createMemo(() => {
-    const messages = context.messages.list().toSorted((a, b) => {
-      if (a.internal_date_ts && b.internal_date_ts) {
-        return (
-          new Date(a.internal_date_ts).getTime() -
-          new Date(b.internal_date_ts).getTime()
-        );
-      } else if (a.sent_at && b.sent_at) {
-        return new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime();
-      }
-      return 0;
-    });
-    return messages?.find((m) =>
-      m.labels.some((l) => l.provider_label_id === 'UNREAD')
-    )?.db_id;
+    return context.messages
+      .list()
+      .find((m) => m.labels.some((l) => l.provider_label_id === 'UNREAD'))
+      ?.db_id;
   });
 
   const canRunInitialEmailScroll = () =>
@@ -219,8 +217,6 @@ function EmailContent(props: EmailViewProps) {
 
     // Check for target message
     const targetMessageId_ = context.messages.targetMessageID();
-
-    if (targetMessageId_ && typeof targetMessageId_ !== 'string') return true;
 
     if (targetMessageId_) {
       handleTargetMessage(targetMessageId_);
@@ -279,11 +275,12 @@ function EmailContent(props: EmailViewProps) {
         performScrollToMessage(messageId, { behavior: 'instant' })
       );
     }
-
     // Case 3: Message is in current batch with sufficient context
-    setTimeout(() =>
-      performScrollToMessage(messageId, { behavior: 'instant' })
-    );
+    else {
+      setTimeout(() =>
+        performScrollToMessage(messageId, { behavior: 'instant' })
+      );
+    }
   }
 
   // If there is a focused message id, but it does not currently exist in the message list, it is because the user has just sent a message. When it does come into existence, we want to scroll to the bottom.
@@ -527,7 +524,7 @@ function EmailContent(props: EmailViewProps) {
                   title={props.title}
                   isDraft={
                     emailReplyInfo()?.replyingTo == null &&
-                    emailReplyInfo()?.draft !== null
+                    emailReplyInfo()?.draft != null
                   }
                 />
                 <div

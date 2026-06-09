@@ -19,12 +19,14 @@ export function scrollToMessage(
 ): boolean {
   let messageIndex = messages.findIndex((m) => m.db_id === messageId);
 
-  if (reversed) {
-    messageIndex = messages.length - 1 - messageIndex;
-  }
-
+  // Check before applying the reversal: findIndex's -1 would otherwise map
+  // to messages.length and escape this guard
   if (messageIndex < 0) {
     return false;
+  }
+
+  if (reversed) {
+    messageIndex = messages.length - 1 - messageIndex;
   }
 
   const targetElement = messagesContainer.children[messageIndex];
@@ -39,34 +41,4 @@ export function scrollToMessage(
   });
 
   return true;
-}
-
-/**
- * Scrolls to the last message in the thread
- * @param messagesContainer - The DOM container holding the message elements
- * @param behavior - Scroll behavior ('smooth' | 'instant' | 'auto')
- */
-function _scrollToLastMessage(
-  messagesContainer: HTMLDivElement,
-  behavior: ScrollBehavior | 'instant' = 'instant'
-): void {
-  const nativeBehavior: ScrollBehavior =
-    behavior === 'instant' ? 'auto' : behavior;
-  const lastChild = messagesContainer.children[
-    messagesContainer.children.length - 1
-  ] as HTMLElement | undefined;
-
-  if (!lastChild) return;
-  // Align the last child to the bottom of the nearest scrolling container
-  lastChild.scrollIntoView({ behavior: nativeBehavior, block: 'start' });
-}
-
-/**
- * Gets the last message ID from a thread
- * @param messages - Array of messages in the current thread
- * @returns The db_id of the last message, or undefined if no messages
- */
-function _getLastMessageId(messages: ApiMessage[]): string | undefined {
-  const lastMessage = messages[messages.length - 1];
-  return lastMessage?.db_id?.toString();
 }

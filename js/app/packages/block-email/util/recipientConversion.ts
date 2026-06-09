@@ -6,6 +6,7 @@ import {
 } from '@core/user';
 import type { ApiMessage } from '@service-email/generated/schemas';
 import type { EmailRecipient } from '../component/EmailContext';
+import { emailsMatch } from './emailUser';
 
 const extractedContactInfo = (contact: ContactInfo): ExtractedContactInfo => ({
   ...contact,
@@ -46,7 +47,7 @@ export const getReplyAllRecipients = (
   if (!referenceMessage) return { to, cc, bcc: [] };
 
   // If last message was from user - reply to the to recipients (cc is handled separately below)
-  if (referenceMessage?.from?.email === userEmail) {
+  if (emailsMatch(referenceMessage?.from?.email, userEmail)) {
     if (referenceMessage.to && referenceMessage.to.length > 0) {
       to = referenceMessage.to.map(recipientEntityMapper('contact'));
     }
@@ -59,18 +60,18 @@ export const getReplyAllRecipients = (
     };
     const otherRecipients = referenceMessage.to.filter(
       (recipient) =>
-        recipient.email !== userEmail && recipient.email !== sender.email
+        !emailsMatch(recipient.email, userEmail) &&
+        !emailsMatch(recipient.email, sender.email)
     );
     to = [sender, ...otherRecipients].map(convertContactInfoToEmailRecipient);
   }
-  if (
-    referenceMessage.cc &&
-    referenceMessage.cc.filter((recipient) => recipient.email !== userEmail)
-      .length > 0
-  ) {
-    cc = referenceMessage.cc
-      .filter((recipient) => recipient.email !== userEmail)
-      .map(convertContactInfoToEmailRecipient);
+  if (referenceMessage.cc) {
+    const otherCc = referenceMessage.cc.filter(
+      (recipient) => !emailsMatch(recipient.email, userEmail)
+    );
+    if (otherCc.length > 0) {
+      cc = otherCc.map(convertContactInfoToEmailRecipient);
+    }
   }
   return { to, cc, bcc: [] };
 };
@@ -84,8 +85,9 @@ export const isReplyAllEligible = (
   userEmail: string
 ): boolean => {
   const sender = message.from?.email;
-  if (sender === userEmail) return false;
-  const isOther = (email: string) => email !== userEmail && email !== sender;
+  if (emailsMatch(sender, userEmail)) return false;
+  const isOther = (email: string) =>
+    !emailsMatch(email, userEmail) && !emailsMatch(email, sender);
   const otherTo = message.to.filter((r) => isOther(r.email));
   const otherCc = message.cc.filter((r) => isOther(r.email));
   return otherTo.length + otherCc.length > 0;
@@ -101,7 +103,7 @@ export const getReplyRecipientsFromParent = (
 } => {
   if (!replyingTo) return { to: [], cc: [], bcc: [] };
   // If last message was from user, reply === replyAll
-  if (replyingTo?.from?.email === userEmail) {
+  if (emailsMatch(replyingTo?.from?.email, userEmail)) {
     return getReplyAllRecipients(replyingTo, userEmail);
   } else {
     // Last message was NOT the user - reply to the sender

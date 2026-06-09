@@ -1,5 +1,6 @@
 import type { EmailRecipient } from '@block-email/component/EmailContext';
 import { convertContactInfoToEmailRecipient } from '@block-email/util/recipientConversion';
+import { emailsMatch } from '@block-email/util/emailUser';
 import type { UserMentionRecord } from '@core/component/LexicalMarkdown/utils/mentionsUtils';
 import { toast } from '@core/component/Toast/Toast';
 
@@ -23,7 +24,7 @@ export function addUserMentionToCc(params: {
   if (!mentionEmail) return;
 
   const matches = (recipient: EmailRecipient) =>
-    recipient.data.email === mentionEmail;
+    emailsMatch(recipient.data.email, mentionEmail);
 
   if (
     toRecipients.some(matches) ||

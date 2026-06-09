@@ -3,16 +3,25 @@ import type { ApiMessage } from '@service-email/generated/schemas';
 import { getFirstName } from './name';
 
 /**
+ * Case-insensitive email address comparison. Returns false when either
+ * address is missing.
+ */
+export function emailsMatch(
+  a: string | null | undefined,
+  b: string | null | undefined
+): boolean {
+  if (!a || !b) return false;
+  return a.toLowerCase() === b.toLowerCase();
+}
+
+/**
  * Check if a message is from the current user
  */
 function isMessageFromCurrentUser(
   message: ApiMessage,
   currentUserEmail?: string
 ): boolean {
-  if (!currentUserEmail) return false;
-  const fromEmail = message.from?.email?.toLowerCase();
-  const userEmail = currentUserEmail.toLowerCase();
-  return fromEmail !== undefined && fromEmail === userEmail;
+  return emailsMatch(message.from?.email, currentUserEmail);
 }
 
 /**
@@ -53,7 +62,7 @@ export function getRecipientDisplayName(
   recipient: Recipient,
   currentUserEmail?: string
 ): string {
-  if (recipient.email === currentUserEmail) return 'Me';
+  if (emailsMatch(recipient.email, currentUserEmail)) return 'Me';
   return recipient.name
     ? getFirstName(recipient.name)
     : (recipient.email?.split('@')[0] ?? '');

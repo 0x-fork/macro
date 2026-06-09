@@ -27,7 +27,6 @@ export function EmailComposeToolbar(props: {
 }) {
   const ctx = useCompose();
   const [showFormatRibbon, setShowFormatRibbon] = createSignal(false);
-  let attachButtonRef!: HTMLDivElement;
 
   const handleAddAttachments = (files: File[]) => {
     const currentAttachments = ctx.attachments();
@@ -81,15 +80,12 @@ export function EmailComposeToolbar(props: {
         <Show
           when={!isMobile()}
           fallback={
-            <MobileToolbar
-              attachButtonRef={attachButtonRef}
-              handleAddAttachments={handleAddAttachments}
-            />
+            <MobileToolbar handleAddAttachments={handleAddAttachments} />
           }
         >
           <div class="flex flex-row items-center gap-2">
             <Show when={!ctx.hideAttachments}>
-              <div class="relative" ref={attachButtonRef}>
+              <div class="relative">
                 <Button
                   ref={(el) =>
                     fileSelector(el, () => ({
@@ -168,7 +164,6 @@ export function EmailComposeToolbar(props: {
 }
 
 function MobileToolbar(props: {
-  attachButtonRef: HTMLDivElement;
   handleAddAttachments: (files: File[]) => void;
 }) {
   const ctx = useCompose();
@@ -176,7 +171,7 @@ function MobileToolbar(props: {
   return (
     <SplitHeaderRight>
       <div class="flex items-center pl-2">
-        <div class="relative" ref={props.attachButtonRef}>
+        <div class="relative">
           <Button
             ref={(el) =>
               fileSelector(el, () => ({

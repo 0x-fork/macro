@@ -124,22 +124,16 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
       select(data) {
         const messages = data.pages.flatMap((t) => t.messages);
 
-        // Sort all messages by recency
-        messages.sort((a, b) => {
-          if (a.internal_date_ts && b.internal_date_ts) {
-            return (
-              new Date(a.internal_date_ts).getTime() -
-              new Date(b.internal_date_ts).getTime()
-            );
-          }
-          // Below is fallback for when internal_date_ts is not set
-          else if (a.sent_at && b.sent_at) {
-            return (
-              new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime()
-            );
-          }
-          return 0;
-        });
+        // Sort all messages by recency, falling back to sent_at when
+        // internal_date_ts is not set. Comparing per-message keys (instead of
+        // requiring both messages to have the same field) keeps the
+        // comparator transitive when timestamp availability is mixed.
+        const messageTime = (m: ApiMessage) => {
+          const ts = m.internal_date_ts ?? m.sent_at;
+          // Messages with no timestamp (e.g. fresh drafts) sort newest
+          return ts ? new Date(ts).getTime() : Number.POSITIVE_INFINITY;
+        };
+        messages.sort((a, b) => messageTime(a) - messageTime(b));
 
         const filtered = [];
         const messageDraftMap: Record<string, ApiMessage> = {};
@@ -340,14 +334,6 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
     const thread = threadQuery.data;
 
     if (!thread?.db_id) return false;
-
-    archiveMutation.mutate({
-      threadId: thread.db_id,
-      archive: thread.inbox_visible,
-      linkId: toHeaderLinkId(thread.link_id),
-    });
-
-    if (!props) return false;
 
     const selectedRow = soup?.items.get(thread.db_id);
 
