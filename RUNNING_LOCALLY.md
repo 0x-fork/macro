@@ -18,7 +18,7 @@
 Export the **SOPS_KMS_ARN** (you can skip if you use nix-shell)
 
 ```bash
-export SOPS_KMS_ARN = "arn:aws:kms:us-east-1:569036502058:key/mrk-cab29bf948044eb79005a81f48d40e93,arn:aws:kms:us-west-1:569036502058:key/mrk-cab29bf948044eb79005a81f48d40e93"
+export SOPS_KMS_ARN="arn:aws:kms:us-east-1:569036502058:key/mrk-cab29bf948044eb79005a81f48d40e93,arn:aws:kms:us-west-1:569036502058:key/mrk-cab29bf948044eb79005a81f48d40e93"
 ```
 
 Run `just setup` to initialize your entire environment.
