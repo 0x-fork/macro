@@ -158,7 +158,7 @@ export function useSearchFilterOptions() {
 }
 
 type ChannelSubFilters = Pick<ChannelFilters, 'channel_ids' | 'sender_ids'>;
-type EmailSubFilters = Pick<EmailFilters, 'importance' | 'link_ids'>;
+type EmailSubFilters = Pick<EmailFilters, 'importance'>;
 type CallSubFilters = {
   channel_ids?: string[];
   speaker_ids?: string[];
@@ -312,21 +312,20 @@ export function useChannelSearchFilter(opts: SearchFilterHookOpts) {
 }
 
 /**
- * Inbox options + selection for the email search filter. Shared by the filter
- * dropdown and the active-filter chip. Empty selection means "all inboxes"
- * (no clause); the dropdown shows every inbox checked in that state.
+ * Inbox filter shared by the email view (InboxSelector), the search filter
+ * dropdown, and the active-filter chip. Selection lives in soup-view's
+ * `inboxFilter`: `undefined` = all inboxes (no clause), `[]` = no inboxes, a
+ * subset = those inboxes. Selecting every inbox collapses back to `undefined`.
+ * `applyInboxFilter` compiles it into the soup feed and search-service request.
  */
-export function useEmailInboxPicker() {
-  const { soup, queryFilters } = useSoupView();
-  const { changeIndex } = useSearchIndexController();
+export function useInboxFilter() {
+  const { inboxFilter, setInboxFilter } = useSoupView();
   const linksQuery = useEmailLinksQuery();
 
-  const allIds = createMemo(() =>
-    (linksQuery.data?.links ?? []).map((l) => l.id)
-  );
+  const links = createMemo(() => linksQuery.data?.links ?? []);
 
   const options = createMemo((): SearchableOption[] =>
-    (linksQuery.data?.links ?? [])
+    links()
       .map((link) => ({
         id: link.id,
         label: link.email_address,
@@ -349,38 +348,42 @@ export function useEmailInboxPicker() {
     return map;
   });
 
-  // The explicit selection; empty means "all inboxes" (no clause).
-  const selectedIds = createMemo(
-    () => queryFilters.state.include.emailLinkId ?? []
-  );
-
-  // Dropdown display: every inbox checked when unfiltered.
-  const activeIds = createMemo(() => {
-    const selected = selectedIds();
-    return selected.length ? selected : allIds();
-  });
+  // Checkbox state: every inbox checked when unfiltered (selection is undefined).
+  const activeIds = createMemo(() => inboxFilter() ?? links().map((l) => l.id));
 
   const setIds = (ids: string[]) =>
-    batch(() => {
-      if (!soup.predicates.isActive('email')) changeIndex('email');
-      queryFilters.set({
-        include: {
-          emailLinkId:
-            ids.length === 0 || ids.length === allIds().length
-              ? undefined
-              : ids,
-        },
-      });
-    });
+    setInboxFilter(ids.length === links().length ? undefined : ids);
 
-  return { options, labelMap, selectedIds, activeIds, setIds };
+  // Back to all inboxes (the chip's remove action).
+  const reset = () => setInboxFilter(undefined);
+
+  const hasMultiple = () => links().length > 1;
+
+  const label = () => {
+    const ids = inboxFilter();
+    if (ids === undefined) return 'All inboxes';
+    if (ids.length === 0) return 'No inboxes';
+    if (ids.length === 1) return labelMap().get(ids[0]) ?? '1 inbox';
+    return `${ids.length} inboxes`;
+  };
+
+  return {
+    options,
+    labelMap,
+    selectedIds: inboxFilter,
+    activeIds,
+    setIds,
+    reset,
+    hasMultiple,
+    label,
+  };
 }
 
 /** Email search filters (importance, inbox). */
 export function useEmailSearchFilter(opts: SearchFilterHookOpts) {
   const { soup, queryFilters } = useSoupView();
   const { changeIndex } = useSearchIndexController();
-  const inbox = useEmailInboxPicker();
+  const inbox = useInboxFilter();
 
   const isActive = () => soup.predicates.isActive('email');
   const importance = createMemo(
@@ -400,11 +403,18 @@ export function useEmailSearchFilter(opts: SearchFilterHookOpts) {
       });
     });
 
+  // Activate the email index when scoping inboxes from the dropdown while a
+  // different index is selected.
+  const setInboxIds = (ids: string[]) =>
+    batch(() => {
+      if (!isActive()) changeIndex('email');
+      inbox.setIds(ids);
+    });
+
   createEffect(() => {
     if (!opts.isSearchView() || !isActive()) return;
     cacheEmailSubFilters(opts.contentId, {
       importance: importance() ?? null,
-      link_ids: inbox.selectedIds().length ? inbox.selectedIds() : undefined,
     });
   });
 
@@ -414,7 +424,7 @@ export function useEmailSearchFilter(opts: SearchFilterHookOpts) {
     setImportance,
     inboxOptions: inbox.options,
     inboxActiveIds: inbox.activeIds,
-    setInboxIds: inbox.setIds,
+    setInboxIds,
   };
 }
 
@@ -533,7 +543,6 @@ export function useSearchIndexController() {
           include: {
             ...opt.queryFilters.include,
             emailImportance: importance,
-            emailLinkId: cached.link_ids,
           },
           exclude: opt.queryFilters.exclude,
         });

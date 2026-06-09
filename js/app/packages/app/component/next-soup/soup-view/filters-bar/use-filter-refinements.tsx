@@ -48,7 +48,7 @@ import {
   getCallStatusLabel,
   INDEX_OPTIONS,
   type SearchableOption,
-  useEmailInboxPicker,
+  useInboxFilter,
   useSearchFilterOptions,
   useSearchIndexController,
 } from './search-filter-controls';
@@ -92,7 +92,7 @@ export function useFilterRefinements() {
   const currentUserId = useUserId();
   const { channelOptions, channelLabelMap, senderOptions, senderLabelMap } =
     useSearchFilterOptions();
-  const inbox = useEmailInboxPicker();
+  const inbox = useInboxFilter();
   const { changeIndex } = useSearchIndexController();
 
   const getPresetContext = (): PresetContext => ({
@@ -556,33 +556,22 @@ export function useFilterRefinements() {
       key: string;
       categoryLabel: string;
       getIds: () => string[];
-      // Checked state for the popup, when it differs from the displayed values
-      // (e.g. inbox: empty selection means "all", shown as every box checked).
-      activeIds?: Accessor<string[]>;
       searchableOptions: Accessor<SearchableOption[]>;
       labelMap: Accessor<Map<string, string>>;
       onChange: (ids: string[]) => void;
       searchPlaceholder: string;
-      // When set, the chip is always shown; an empty selection renders this
-      // neutral label instead of disappearing, and the remove button is hidden
-      // until a non-default subset is chosen.
-      neutralLabel?: string;
     }) => {
       const popupOpen =
         consolidatedChipCache.get(args.key)?.isPopupOpen?.() ?? false;
       const ids = args.getIds();
-      if (ids.length === 0 && !popupOpen && !args.neutralLabel) return;
+      if (ids.length === 0 && !popupOpen) return;
 
       seenKeys.add(args.key);
 
       // Compute values as accessor for reactivity
       const getValues = (): FilterValue[] => {
-        const ids = args.getIds();
-        if (ids.length === 0 && args.neutralLabel) {
-          return [{ id: '__all__', label: args.neutralLabel }];
-        }
         const options = args.searchableOptions();
-        return ids.map((id) => {
+        return args.getIds().map((id) => {
           const opt = options.find((o) => o.id === id);
           return {
             id,
@@ -608,15 +597,12 @@ export function useFilterRefinements() {
             categoryLabel: args.categoryLabel,
             values: getValues,
             searchableOptions: args.searchableOptions,
-            activeSearchableIds: args.activeIds ?? args.getIds,
+            activeSearchableIds: args.getIds,
             onSearchableChange: args.onChange,
             searchPlaceholder: args.searchPlaceholder,
             isPopupOpen,
             setPopupOpen,
             onRemoveAll: () => args.onChange([]),
-            showRemove: args.neutralLabel
-              ? () => args.getIds().length > 0
-              : undefined,
           };
         })
       );
@@ -761,19 +747,42 @@ export function useFilterRefinements() {
         );
       }
 
-      // Email inbox filter (only when the account has more than one inbox)
-      if (soup.predicates.isActive('email') && inbox.options().length > 1) {
-        pushSearchableConsolidatedChip({
-          key: 'email-inbox',
-          categoryLabel: 'Inbox',
-          getIds: inbox.selectedIds,
-          activeIds: inbox.activeIds,
-          searchableOptions: inbox.options,
-          labelMap: inbox.labelMap,
-          onChange: inbox.setIds,
-          searchPlaceholder: 'Search inboxes...',
-          neutralLabel: 'All inboxes',
-        });
+      // Email inbox filter (always shown; "All inboxes" when unset). Backed by
+      // soup-view's inboxFilter — same state and semantics as the email view.
+      if (soup.predicates.isActive('email') && inbox.hasMultiple()) {
+        const key = 'email-inbox';
+        seenKeys.add(key);
+
+        const getInboxValues = (): FilterValue[] => [
+          { id: '__inbox__', label: inbox.label() },
+        ];
+
+        filters.push(
+          getOrCreateConsolidatedChip(key, () => {
+            const [isPopupOpen, _setPopupOpen] = createSignal(false);
+            const setPopupOpen = (v: boolean) => {
+              if (!v) {
+                queueMicrotask(() =>
+                  panel.panelRef()?.focus({ preventScroll: true })
+                );
+              }
+              _setPopupOpen(v);
+            };
+            return {
+              key,
+              categoryLabel: 'Inbox',
+              values: getInboxValues,
+              searchableOptions: inbox.options,
+              activeSearchableIds: inbox.activeIds,
+              onSearchableChange: inbox.setIds,
+              searchPlaceholder: 'Search inboxes...',
+              isPopupOpen,
+              setPopupOpen,
+              showRemove: () => inbox.selectedIds() !== undefined,
+              onRemoveAll: () => inbox.reset(),
+            };
+          })
+        );
       }
     }
 
