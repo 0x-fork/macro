@@ -78,6 +78,9 @@
       "@block-project/*": [
         "./packages/block-project/*"
       ],
+      "@block-pr/*": [
+        "./packages/block-pr/*"
+      ],
       "@service-auth/*": [
         "./packages/service-clients/service-auth/*"
       ],

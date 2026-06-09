@@ -52,9 +52,15 @@ export function buildEntityData(
   const { id, name, blockName, ownerId = '' } = args;
   if (!id || !name || !blockName) return undefined;
 
+  // Pull requests are foreign entities that require GitHub metadata (owner,
+  // repo, number, etc.) not available from this simple shape.
+  if (blockName === 'pr') return undefined;
+
   const base = { id, name, ownerId };
 
-  return match<BlockName | BlockAlias, EntityData | undefined>(blockName)
+  return match<Exclude<BlockName | BlockAlias, 'pr'>, EntityData | undefined>(
+    blockName
+  )
     .with(
       'task',
       (): TaskEntity => ({

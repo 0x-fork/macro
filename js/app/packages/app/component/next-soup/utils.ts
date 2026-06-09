@@ -15,7 +15,6 @@ import type { BlockOrchestrator } from '@core/orchestrator';
 import type { DateValue } from '@core/util/date';
 import { throwOnErr } from '@core/util/result';
 import { waitForFrames } from '@core/util/sleep';
-import { openExternalUrl } from '@core/util/url';
 import {
   type EntityData,
   getSnippetHit,
@@ -334,12 +333,9 @@ export const openEntityInSplitFromUnifiedList = async (
     return;
   }
 
-  // TODO(dev-rb/github): Route GitHub PRs to /pr.
-  if (isGithubPrEntity(entity)) {
-    openExternalUrl(entity.metadata.url);
-    return;
-  }
-  if (entity.type === 'foreign') return;
+  // GitHub PRs open in the in-app `pr` block (see getEntitySplitContent).
+  // Other foreign entities have no in-app block to open.
+  if (entity.type === 'foreign' && !isGithubPrEntity(entity)) return;
 
   const blockOrchestrator = splitManager.getOrchestrator();
 
@@ -382,7 +378,6 @@ export const openEntityInSplitFromUnifiedList = async (
   }
 };
 
-// TODO(dev-rb/github): Map GitHub PRs to { type: 'pr', id }.
 function getEntitySplitContent(entity: EntityData) {
   return match(entity)
     .with({ type: 'document' }, (entity) => {
@@ -394,6 +389,12 @@ function getEntitySplitContent(entity: EntityData) {
     .with({ type: 'channel_message' }, (entity) => {
       return { type: 'channel' as const, id: entity.channelId };
     })
+    .with(
+      { type: 'foreign', foreignSource: 'github_pull_request' },
+      (entity) => {
+        return { type: 'pr' as const, id: entity.id };
+      }
+    )
     .with({ type: 'foreign' }, (entity) => {
       return { type: 'unknown' as const, id: entity.id };
     })
