@@ -69,7 +69,11 @@ export function createThreadPaginator<T>(
     try {
       do {
         state.setIsPending(false);
-        await paginateFn();
+        // Never cancel an in-flight refetch (the tanstack default): message
+        // queries restore a persisted page and revalidate on mount, and with
+        // staleTime: Infinity a cancelled revalidation would leave the
+        // restored page as the permanent newest page.
+        await paginateFn({ cancelRefetch: false });
       } while (hasMore() && state.pending());
     } finally {
       state.setIs(false);

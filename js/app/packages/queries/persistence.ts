@@ -30,14 +30,22 @@ export type PersistScope = Readonly<{
   shouldPersist: (queryKey: QueryKey) => boolean;
   shouldRestore?: (queryKey: QueryKey) => boolean;
   /**
-   * Transforms query data before it is written to the store. Restored data
-   * is used as-is (no inverse transform), so the result must be valid data
-   * for the query.
+   * Transforms query data before it is written to the store. Returning
+   * `undefined` skips the write, leaving any previously persisted entry in
+   * place. Restored data is used as-is (no inverse transform), so the
+   * result must be valid data for the query.
    */
   dehydrateData?: (data: unknown) => unknown;
+  /**
+   * Keeps persisted entries when their query is removed from the cache
+   * (garbage collection or `removeQueries`). Use for queries that unmount
+   * regularly but should still restore on a later mount; entries are then
+   * evicted only by `maxAge` or a `buster` change.
+   */
+  retainOnRemoval?: boolean;
 }>;
 
-function isInfiniteData(data: unknown): data is InfiniteData<unknown> {
+export function isInfiniteData(data: unknown): data is InfiniteData<unknown> {
   return (
     typeof data === 'object' &&
     data !== null &&
@@ -140,12 +148,14 @@ async function handleRestore(
  */
 function handleUpdate(scope: PersistScope, query: Query): void {
   if (query.state.status !== 'success') return;
+  const data = scope.dehydrateData
+    ? scope.dehydrateData(query.state.data)
+    : query.state.data;
+  if (data === undefined) return;
   scope.store.set({
     queryHash: query.queryHash,
     queryKey: query.queryKey,
-    data: scope.dehydrateData
-      ? scope.dehydrateData(query.state.data)
-      : query.state.data,
+    data,
     dataUpdatedAt: query.state.dataUpdatedAt,
     persistedAt: Date.now(),
     buster: scope.buster,
@@ -159,7 +169,8 @@ function handleUpdate(scope: PersistScope, query: Query): void {
  *
  * - On 'added': restores cached data from IDB if the query has no fresh data.
  * - On 'updated': writes the query's successful data to IDB.
- * - On 'removed': deletes the query's entry from IDB.
+ * - On 'removed': deletes the query's entry from IDB, unless the scope sets
+ *   `retainOnRemoval`.
  *
  * Returns an unsubscribe function to stop listening.
  */
@@ -199,7 +210,7 @@ export function setupQueryPersistence(
       });
     } else if (type === 'updated') {
       handleUpdate(scope, query);
-    } else {
+    } else if (!scope.retainOnRemoval) {
       scope.store.remove(query.queryHash);
     }
   });

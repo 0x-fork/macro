@@ -11,7 +11,11 @@ import type {
   PerQueryPersistence,
   PersistedQueryEntry,
 } from './persistence/per-query-idb';
-import { shouldPersistChannelQuery } from './persistence-scopes';
+import {
+  dehydrateLatestChannelMessagesPage,
+  shouldPersistChannelMessagesQuery,
+  shouldPersistChannelQuery,
+} from './persistence-scopes';
 
 function createMockStore(): PerQueryPersistence & {
   entries: Map<string, PersistedQueryEntry>;
@@ -412,6 +416,98 @@ describe('setupQueryPersistence', () => {
       pages: [{ items: ['fresh'], next: 'cursor-1' }],
       pageParams: [null],
     });
+  });
+});
+
+describe('channel messages persistence', () => {
+  const bottomAnchoredData = {
+    pages: [
+      { items: ['newest'], next_cursor: 'c-1', previous_cursor: null },
+      { items: ['older'], next_cursor: null, previous_cursor: 'c-1' },
+    ],
+    pageParams: [null, { next_cursor: 'c-1', previous_cursor: null }],
+  };
+
+  it('allowlists only the default messages variant', () => {
+    expect(
+      shouldPersistChannelMessagesQuery(
+        channelKeys.messages('a', null).queryKey
+      )
+    ).toBe(true);
+    expect(
+      shouldPersistChannelMessagesQuery(
+        channelKeys.messages('a', 'msg-1').queryKey
+      )
+    ).toBe(false);
+    expect(
+      shouldPersistChannelMessagesQuery(
+        channelKeys.messagesByIds('a', ['msg-1']).queryKey
+      )
+    ).toBe(false);
+    expect(
+      shouldPersistChannelMessagesQuery(channelKeys.listChannels.queryKey)
+    ).toBe(false);
+  });
+
+  it('dehydrates bottom-anchored data to the newest page', () => {
+    expect(dehydrateLatestChannelMessagesPage(bottomAnchoredData)).toEqual({
+      pages: [{ items: ['newest'], next_cursor: 'c-1', previous_cursor: null }],
+      pageParams: [null],
+    });
+  });
+
+  it('skips mid-conversation data instead of persisting it', () => {
+    expect(
+      dehydrateLatestChannelMessagesPage({
+        pages: [{ items: ['mid'], next_cursor: 'c-2', previous_cursor: null }],
+        pageParams: [{ next_cursor: null, previous_cursor: 'c-9' }],
+      })
+    ).toBeUndefined();
+    expect(
+      dehydrateLatestChannelMessagesPage({
+        pages: [{ items: ['mid'], next_cursor: 'c-2', previous_cursor: 'c-3' }],
+        pageParams: [null],
+      })
+    ).toBeUndefined();
+    expect(dehydrateLatestChannelMessagesPage({ value: 1 })).toBeUndefined();
+  });
+
+  it('does not overwrite the stored entry when dehydrateData skips', () => {
+    const queryClient = new QueryClient();
+    const store = createMockStore();
+    const scope = createScope([], store, {
+      shouldPersist: shouldPersistChannelMessagesQuery,
+      dehydrateData: dehydrateLatestChannelMessagesPage,
+    });
+
+    setupQueryPersistence({ queryClient, scopes: [scope] });
+
+    queryClient.setQueryData(channelKeys.messages('a', null).queryKey, {
+      pages: [{ items: ['mid'], next_cursor: null, previous_cursor: 'c-1' }],
+      pageParams: [null],
+    });
+
+    expect(store.set).not.toHaveBeenCalled();
+  });
+
+  it('retains the persisted entry when the query is removed', () => {
+    const queryClient = new QueryClient();
+    const store = createMockStore();
+    const scope = createScope([], store, {
+      shouldPersist: shouldPersistChannelMessagesQuery,
+      dehydrateData: dehydrateLatestChannelMessagesPage,
+      retainOnRemoval: true,
+    });
+
+    setupQueryPersistence({ queryClient, scopes: [scope] });
+
+    const queryKey = channelKeys.messages('a', null).queryKey;
+    queryClient.setQueryData(queryKey, bottomAnchoredData);
+    expect(store.set).toHaveBeenCalledTimes(1);
+
+    queryClient.removeQueries({ queryKey });
+    expect(store.remove).not.toHaveBeenCalled();
+    expect(store.entries.size).toBe(1);
   });
 });
 
