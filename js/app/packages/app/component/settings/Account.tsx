@@ -58,7 +58,7 @@ import PaywallTeamMemberView from '../paywall/PaywallTeamMemberView';
 import PaywallTeamOwnerView from '../paywall/PaywallTeamOwnerView';
 import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 import { useEmailLinks, useEmailLinksStatus } from '@core/email-link';
-import { useInitGmailLink } from '@queries/auth';
+import { useInitGmailLink, useInitOutlookLink } from '@queries/auth';
 import { useRemoveInboxMutation } from '@queries/email/link';
 import {
   type SupportedNotificationSettings,
@@ -358,6 +358,17 @@ export function Account() {
     }
   };
 
+  const initOutlookLink = useInitOutlookLink();
+  const handleAddOutlookInbox = async () => {
+    const callbackUrl = `${window.location.origin}${ROUTER_BASE_CONCAT}inbox-link-callback`;
+    const result = await initOutlookLink.mutateAsync(callbackUrl);
+    if (result.isOk()) {
+      window.location.href = result.value.authorization_url;
+    } else {
+      toast.failure('Failed to start Outlook link flow');
+    }
+  };
+
   const handleResyncInbox = async (linkId: string) => {
     setResyncingIds((prev) => new Set(prev).add(linkId));
     await resyncInbox(linkId).match(
@@ -653,15 +664,26 @@ export function Account() {
                           </Button>
                         }
                       >
-                        <Tooltip label="Add inbox">
+                        <Tooltip label="Add Gmail inbox">
                           <Button
                             variant="base"
                             size="sm"
                             depth={3}
                             onClick={handleAddInbox}
-                            aria-label="Add inbox"
+                            aria-label="Add Gmail inbox"
                           >
                             <PlusIcon class="size-4" />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip label="Add Outlook inbox">
+                          <Button
+                            variant="base"
+                            size="sm"
+                            depth={3}
+                            onClick={handleAddOutlookInbox}
+                            aria-label="Add Outlook inbox"
+                          >
+                            Outlook
                           </Button>
                         </Tooltip>
                       </Show>

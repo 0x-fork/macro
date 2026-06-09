@@ -573,6 +573,27 @@ export const authServiceClient = {
   },
 
   /**
+   * Initializes an Outlook (Microsoft) account link for the already-authenticated
+   * user (multi-inbox flow). Mirrors {@link initGmailLink}: returns the OAuth
+   * authorization URL to redirect the browser to. After Microsoft consent, the
+   * user is redirected back to `originalUrl` with `?link_id=<uuid>` appended; the
+   * frontend then calls `emailClient.init({ linkId })` to provision the inbox.
+   *
+   * The response shape matches `InitGmailLinkResponse`; it's inlined here so the
+   * client doesn't depend on a regenerated `InitOutlookLinkResponse` schema.
+   */
+  async initOutlookLink(originalUrl?: string) {
+    const url = originalUrl
+      ? `${authHost}/link/outlook?original_url=${encodeURIComponent(originalUrl)}`
+      : `${authHost}/link/outlook`;
+    return (
+      await fetchWithAuth<{ authorization_url: string; link_id: string }>(url, {
+        method: 'POST',
+      })
+    ).map((result) => result);
+  },
+
+  /**
    * Deletes a github link for a user
    * NOTE: this does not delete the github application from being installed on a teams repository
    */
