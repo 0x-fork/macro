@@ -143,9 +143,21 @@ export function SplitPanel(props: SplitPanelProps) {
             tabindex={-1}
           >
             <Panel
-              class="rounded-xl mobile:rounded-none mobile:after:hidden mobile:!border-0"
+              class="rounded-xl mobile:rounded-none mobile:after:hidden"
               depth={1}
+              style={{
+                'background-image': 'linear-gradient(var(--b0), var(--b0))',
+                border: '0',
+              }}
             >
+              <div class="pointer-events-none absolute inset-0 z-60 rounded-[inherit] ring-1 ring-inset ring-edge mobile:hidden" />
+              <div
+                class="pointer-events-none absolute inset-x-px top-px z-50 h-8 rounded-t-[inherit]"
+                style={{
+                  background:
+                    'linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0))',
+                }}
+              />
               <Panel.Header
                 class={cn(
                   'block min-h-0 touch:min-h-0 p-0 overflow-visible border-b-0 not-has-[[data-split-portal-target]:not(:empty)]:hidden',

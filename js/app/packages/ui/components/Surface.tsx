@@ -23,8 +23,11 @@ export function Surface(props: SurfaceProps) {
 
   const border = () => {
     const edge = 'var(--b4)';
-    const top = local.active ? local.highlightColor ?? 'var(--a0)' : edge;
-    const bottom = local.active && !local.solid ? `${edge} 80%` : top;
+    const activeColor = local.highlightColor ?? 'var(--a0)';
+    const top = local.active
+      ? `color-mix(in oklch, color-mix(in oklch, ${activeColor} 75%, black) 5%, ${edge})`
+      : edge;
+    const bottom = local.active && !local.solid ? `${edge} 100%` : top;
     return `linear-gradient(${top}, ${bottom})`;
   };
 

@@ -204,7 +204,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
     <div
       class={cn(
         'isolate w-full py-2 overflow-clip text-ink shrink-0 bg-surface',
-        showActiveGradient() && 'bg-linear-to-b from-accent/10 to-transparent',
+        showActiveGradient() && 'bg-linear-to-b from-accent/5 to-transparent',
         isMobile() && isListViewID(panel.handle.content().id) && 'hidden'
       )}
       data-split-header
