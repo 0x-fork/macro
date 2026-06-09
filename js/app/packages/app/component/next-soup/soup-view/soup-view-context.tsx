@@ -22,13 +22,19 @@ import { createSearchState } from '@app/component/next-soup/soup-view/create-sea
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import { useEntryState } from '@app/component/split-layout/entry-state';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { ENABLE_FEATURED_SEARCH_RESULTS } from '@core/constant/featureFlags';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import {
+  ENABLE_FEATURED_SEARCH_RESULTS,
+  ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
+  ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
+} from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { throwOnErr } from '@core/util/result';
 import {
   type EntityData,
   getPropertyOptionLabel,
   isWithNotification,
+  toNotificationEntity,
 } from '@entity';
 import { useNotificationsForEntity } from '@notifications';
 import { useQueryClient } from '@queries/client';
@@ -68,6 +74,12 @@ type DataSource<T> = {
   data: Accessor<T[]>;
   isLoading: Accessor<boolean>;
   isFetching: Accessor<boolean>;
+  /**
+   * True while the query is showing placeholder data from a previous query
+   * key (e.g. the prior tab's rows) and fetching the real results. Used to
+   * surface a loading indicator when switching between soup tabs.
+   */
+  isPlaceholderData: Accessor<boolean>;
   isFetchingNextPage: Accessor<boolean>;
   hasNextPage: Accessor<boolean>;
   fetchNextPage: VoidFunction;
@@ -289,6 +301,12 @@ export const SoupViewContextProvider: FlowComponent<
 
   const notificationSource = useGlobalNotificationSource();
   const userId = useUserId();
+  const showSupportedForeignEntitiesFF = useFeatureFlag(
+    ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
+    {
+      enabledOverride: ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
+    }
+  );
 
   // Create filter context for context-aware filter predicates
   const getFilterContext = (): FilterContext => ({
@@ -300,7 +318,10 @@ export const SoupViewContextProvider: FlowComponent<
   const attachNotifications = (entity: EntityData) => {
     return {
       ...entity,
-      notifications: useNotificationsForEntity(notificationSource, entity),
+      notifications: useNotificationsForEntity(
+        notificationSource,
+        toNotificationEntity(entity)
+      ),
     };
   };
 
@@ -312,6 +333,7 @@ export const SoupViewContextProvider: FlowComponent<
     }),
     () => ({
       enabled: !search.isSearching(),
+      showSupportedForeignEntities: showSupportedForeignEntitiesFF().enabled,
     })
   );
 
@@ -479,7 +501,11 @@ export const SoupViewContextProvider: FlowComponent<
             const allItems = pages.flatMap((p) => p.items);
             return mapSoupPageToEntityList(
               { items: allItems, next_cursor: null },
-              { instructionsIdQuery }
+              {
+                instructionsIdQuery,
+                showSupportedForeignEntities:
+                  showSupportedForeignEntitiesFF().enabled,
+              }
             ).map((e) => attachNotifications(e)) as SoupEntity[];
           },
           enabled: true,
@@ -596,6 +622,8 @@ export const SoupViewContextProvider: FlowComponent<
       data: entities,
       isLoading: () => itemsQuery.isLoading,
       isFetching: () => itemsQuery.isFetching || searchQuery.isFetching,
+      isPlaceholderData: () =>
+        itemsQuery.isPlaceholderData && !search.isSearching(),
       isFetchingNextPage: () =>
         itemsQuery.isFetchingNextPage || searchQuery.isFetchingNextPage,
       hasNextPage: () => {
