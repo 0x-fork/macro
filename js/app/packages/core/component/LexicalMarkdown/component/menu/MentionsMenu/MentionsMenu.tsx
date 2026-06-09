@@ -3,6 +3,7 @@ import type { BlockName } from '@core/block';
 import { useMaybeBlockId, useMaybeBlockName } from '@core/block';
 import { SUPPORTED_CHAT_ATTACHMENT_BLOCKS } from '@core/component/AI/constant/fileType';
 import { type PortalScope, ScopedPortal } from '@core/component/ScopedPortal';
+import { ENABLE_CRM } from '@core/constant/featureFlags';
 import { type EntityItem, useQuickAccess } from '@core/context/quickAccess';
 import clickOutside from '@core/directive/clickOutside';
 import { isMobile } from '@core/mobile/isMobile';
@@ -124,6 +125,14 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       })
     : undefined;
 
+  const customCompanies = props.entities
+    ? useEntityMentionFromList({
+        items: props.entities,
+        buckets: ['crm_company'],
+        searchTerm,
+      })
+    : undefined;
+
   const { searchedEntities: docs } =
     customDocs ??
     useEntityMention({
@@ -137,6 +146,15 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       buckets: ['channel'],
       searchTerm,
     });
+
+  const { searchedEntities: companyEntities } =
+    customCompanies ??
+    useEntityMention({
+      buckets: ['crm_company'],
+      searchTerm,
+    });
+  // CRM companies only surface in mentions when the feature is enabled.
+  const companies = () => (ENABLE_CRM ? (companyEntities() ?? []) : []);
 
   const { emails, emailSearchQuery: emailUnifiedSearchInfiniteQuery } =
     hasCustomEntities()
@@ -215,6 +233,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       ...users,
       ...(docs() ?? []),
       ...(channels() ?? []),
+      ...(companies() ?? []),
       ...(emails() ?? []),
       ...(dates() ?? []),
     ];
@@ -251,6 +270,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         label: 'Channels',
         getData: () => channels() ?? [],
         getFullCount: () => channels()?.length ?? 0,
+      },
+      {
+        id: 'companies',
+        label: 'Companies',
+        getData: () => companies() ?? [],
+        getFullCount: () => companies()?.length ?? 0,
       },
       {
         id: 'emails',

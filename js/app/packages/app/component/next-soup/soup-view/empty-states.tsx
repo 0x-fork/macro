@@ -226,6 +226,15 @@ export function EmptyState(props: {
         <AgentsEmptyState />
       </Match>
 
+      <Match when={props.listView === 'companies'}>
+        <EmptyStatePanel
+          align="center"
+          graphic={EmptyStateInboxZeroIcon}
+          title="No companies"
+          description="Companies you add or sync into your CRM will appear here."
+        />
+      </Match>
+
       <Match when={props.listView === 'folders'}>
         <EmptyStatePanel
           graphic={EmptyStateFolderIcon}

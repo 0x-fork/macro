@@ -285,6 +285,10 @@ const ROUTES: RouteDefinition[] = [
     component: LAYOUT_ROUTE.component,
   },
   {
+    path: '/companies',
+    component: LAYOUT_ROUTE.component,
+  },
+  {
     path: '/files',
     component: LAYOUT_ROUTE.component,
   },

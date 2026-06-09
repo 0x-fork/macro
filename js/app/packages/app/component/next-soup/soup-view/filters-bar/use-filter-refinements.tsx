@@ -96,6 +96,10 @@ export function useFilterRefinements() {
   const getPresetContext = (): PresetContext => ({
     userId: user.userId(),
     email: user.email(),
+    // Filter refinements don't surface admin-gated tabs, so passing
+    // false here is safe — the value only matters where the resolver
+    // gates on it (companies → hidden).
+    isTeamAdmin: false,
   });
 
   const currentView = createMemo(() => {
