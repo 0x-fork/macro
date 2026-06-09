@@ -86,10 +86,14 @@ function createSyncServiceSocket(documentId: string, initialToken: string) {
 
   return new WebsocketBuilder(getUrl)
     .withSerializer(new BebopSerializer(FromPeer, FromRemote))
-    // Retry forever with a capped exponential backoff (500ms doubling up to
-    // 8s). A bounded retry budget left the socket permanently dead after a
-    // few seconds offline (sleep/wake, deploys), with nothing to revive it.
+    // Capped exponential backoff (500ms doubling up to 8s). With 20 retries
+    // that is ~2 minutes of automatic attempts; after that something is very
+    // wrong and we stop hammering. A given-up socket is revived by 'online' /
+    // 'visibilitychange' signals or by the user editing (see pushUpdate) —
+    // unlike before, exhausting the budget no longer strands the socket
+    // permanently.
     .withBackoff(new ExponentialBackoff(250, 5))
+    .withMaxRetries(20)
     // Queue messages sent while disconnected; they are flushed in order once
     // the connection is re-established, so edits made during a reconnect
     // aren't dropped. Unbounded on purpose: dropping the oldest updates would
@@ -109,13 +113,23 @@ function createSyncServiceSocket(documentId: string, initialToken: string) {
 
 const TIMEOUTS = {
   INITIAL_SYNC: 10_000,
-  ACK: 3_000,
+  // The server only acks after durably storing the update, and its internal
+  // budget for a storage operation is 4.5s — so a busy-but-healthy server can
+  // legitimately ack late. Waiting 5s keeps "server is busy" from being
+  // misread as "update was lost".
+  ACK: 5_000,
   SNAPSHOT: 10_000,
   REQUEST_UPDATES_SINCE: 10_000,
 } as const;
 
-/** Times an un-acked update is re-sent before pushUpdate reports missing_ack. */
-const ACK_RESENDS = 2;
+/**
+ * Times an un-acked update is re-sent before pushUpdate reports missing_ack.
+ * The ACK timeout above covers the busy-server case; the single resend covers
+ * a genuinely lost message (sent into a dying socket, or the server handler
+ * aborted before acking). Updates are idempotent CRDT ops, so a duplicate
+ * delivery is harmless.
+ */
+const ACK_RESENDS = 1;
 
 type WithCleanup<T> = T & { cleanup: () => void };
 
@@ -257,6 +271,15 @@ export const createSyncServiceSource = (
     ws.send(message);
   };
 
+  /**
+   * True once the automatic retry budget is used up (mirrors the scheduling
+   * condition in the websocket's retry logic: a retry is only scheduled while
+   * retries <= maxRetries). The counter resets on every successful open.
+   */
+  const retriesExhausted = () =>
+    ws.maxRetries !== undefined &&
+    (ws.backoff?.retries ?? 0) > ws.maxRetries;
+
   const pushUpdate = (
     update: RawUpdate
   ): ResultAsync<void, MissingAckError> => {
@@ -277,6 +300,15 @@ export const createSyncServiceSource = (
         // Not connected: the update sits in the websocket's send buffer and is
         // flushed (and acked) once the connection is re-established, so don't
         // report a missing ack while the transport is down.
+        //
+        // If automatic retries gave up (maxRetries exhausted, so no retry is
+        // scheduled anymore), this edit is the revival signal. The exhausted
+        // check means this never preempts a pending backoff timer, and
+        // reconnectIfDisconnected() is additionally a no-op while a
+        // connection is open or being established.
+        if (retriesExhausted()) {
+          ws.reconnectIfDisconnected();
+        }
         return okAsync(undefined);
       }
 
@@ -344,11 +376,7 @@ export const createSyncServiceSource = (
     // down an OPEN socket (e.g. on a missed ack) caused reconnect storms, and
     // tearing down a CONNECTING one aborts an attempt that may be about to
     // succeed. Liveness of open sockets is owned by the heartbeat.
-    const readyState = ws.underlyingWebsocket?.readyState;
-    if (readyState === WebSocket.OPEN || readyState === WebSocket.CONNECTING) {
-      return;
-    }
-    ws.reconnect();
+    ws.reconnectIfDisconnected();
   };
 
   // When the browser regains connectivity or the tab becomes visible again,
