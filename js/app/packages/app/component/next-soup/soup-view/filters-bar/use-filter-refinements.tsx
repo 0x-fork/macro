@@ -566,18 +566,25 @@ export function useFilterRefinements() {
       labelMap: Accessor<Map<string, string>>;
       onChange: (ids: string[]) => void;
       searchPlaceholder: string;
+      // When set, the chip is always shown; an empty selection renders this
+      // neutral label and hides the remove button until a value is chosen.
+      neutralLabel?: string;
     }) => {
       const popupOpen =
         consolidatedChipCache.get(args.key)?.isPopupOpen?.() ?? false;
       const ids = args.getIds();
-      if (ids.length === 0 && !popupOpen) return;
+      if (ids.length === 0 && !popupOpen && !args.neutralLabel) return;
 
       seenKeys.add(args.key);
 
       // Compute values as accessor for reactivity
       const getValues = (): FilterValue[] => {
+        const ids = args.getIds();
+        if (ids.length === 0 && args.neutralLabel) {
+          return [{ id: '__all__', label: args.neutralLabel }];
+        }
         const options = args.searchableOptions();
-        return args.getIds().map((id) => {
+        return ids.map((id) => {
           const opt = options.find((o) => o.id === id);
           return {
             id,
@@ -609,12 +616,19 @@ export function useFilterRefinements() {
             isPopupOpen,
             setPopupOpen,
             onRemoveAll: () => args.onChange([]),
+            showRemove: args.neutralLabel
+              ? () => args.getIds().length > 0
+              : undefined,
           };
         })
       );
     };
 
-    // Channel In/From filters
+    // Channel In/From filters. In the search view they default to their neutral
+    // state (shown even when empty) when the channels index is active.
+    const searchChannelsActive =
+      currentView() === 'search' && soup.predicates.isActive('channels');
+
     pushSearchableConsolidatedChip({
       key: 'channel-in',
       categoryLabel: 'In',
@@ -626,6 +640,7 @@ export function useFilterRefinements() {
       labelMap: channelLabelMap,
       onChange: setFilterIds('channelId'),
       searchPlaceholder: 'Search channels...',
+      neutralLabel: searchChannelsActive ? 'All channels' : undefined,
     });
 
     pushSearchableConsolidatedChip({
@@ -636,6 +651,7 @@ export function useFilterRefinements() {
       labelMap: senderLabelMap,
       onChange: setFilterIds('channelSenderId'),
       searchPlaceholder: 'Search senders...',
+      neutralLabel: searchChannelsActive ? 'Anyone' : undefined,
     });
 
     // Search view specific filters
@@ -652,6 +668,7 @@ export function useFilterRefinements() {
           labelMap: channelLabelMap,
           onChange: setFilterIds('callChannelId'),
           searchPlaceholder: 'Search channels...',
+          neutralLabel: 'All channels',
         });
 
         pushSearchableConsolidatedChip({
@@ -662,48 +679,48 @@ export function useFilterRefinements() {
           labelMap: senderLabelMap,
           onChange: setFilterIds('callSpeakerId'),
           searchPlaceholder: 'Search speakers...',
+          neutralLabel: 'Anyone',
         });
 
-        // Call status filter
+        // Call status filter (always shown; "All" when unset)
         const getCurrentCallStatus = (): CallStatus | undefined =>
           queryFilters.state.include.callStatus ??
           callStatusFromAttended(queryFilters.state.include.callAttended);
 
-        if (getCurrentCallStatus() !== undefined) {
-          const key = 'call-status';
-          seenKeys.add(key);
+        const key = 'call-status';
+        seenKeys.add(key);
 
-          const getCallStatusValues = (): FilterValue[] => {
-            const status = getCurrentCallStatus();
-            if (status === undefined) return [];
-            return [{ id: status, label: getCallStatusLabel(status) }];
-          };
+        const getCallStatusValues = (): FilterValue[] => {
+          const status = getCurrentCallStatus();
+          if (status === undefined) return [{ id: 'all', label: 'All' }];
+          return [{ id: status, label: getCallStatusLabel(status) }];
+        };
 
-          filters.push(
-            getOrCreateConsolidatedChip(key, () => ({
-              key,
-              categoryLabel: 'Status',
-              values: getCallStatusValues,
-              availableOptions: CALL_STATUS_FILTER_OPTIONS,
-              multiple: false,
-              isValueActive: (id) => id === getCurrentCallStatus(),
-              onToggleValue: (id) =>
-                queryFilters.set({
-                  include: {
-                    callStatus: id as CallStatus,
-                    callAttended: undefined,
-                  },
-                }),
-              onRemoveAll: () =>
-                queryFilters.set({
-                  include: {
-                    callStatus: undefined,
-                    callAttended: undefined,
-                  },
-                }),
-            }))
-          );
-        }
+        filters.push(
+          getOrCreateConsolidatedChip(key, () => ({
+            key,
+            categoryLabel: 'Status',
+            values: getCallStatusValues,
+            availableOptions: CALL_STATUS_FILTER_OPTIONS,
+            multiple: false,
+            showRemove: () => getCurrentCallStatus() !== undefined,
+            isValueActive: (id) => id === getCurrentCallStatus(),
+            onToggleValue: (id) =>
+              queryFilters.set({
+                include: {
+                  callStatus: id as CallStatus,
+                  callAttended: undefined,
+                },
+              }),
+            onRemoveAll: () =>
+              queryFilters.set({
+                include: {
+                  callStatus: undefined,
+                  callAttended: undefined,
+                },
+              }),
+          }))
+        );
       }
 
       // Email importance filter (always shown; "All" when unset)
