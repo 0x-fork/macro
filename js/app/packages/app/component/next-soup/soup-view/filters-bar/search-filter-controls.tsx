@@ -15,10 +15,12 @@ import {
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { EntityIcon } from '@core/component/EntityIcon';
+import { inboxIconProps } from '@core/component/inboxIcon';
 import { UserIcon } from '@core/component/UserIcon';
 import { useQuickAccess } from '@core/context/quickAccess';
 import { useUserId } from '@core/context/user';
 import { EntityIcon as EntityIconWithAvatar } from '@entity/extractors/entity-icon';
+import { useEmailLinksQuery } from '@queries/email/link';
 import type {
   ChannelFilters,
   EmailFilters,
@@ -156,7 +158,7 @@ export function useSearchFilterOptions() {
 }
 
 type ChannelSubFilters = Pick<ChannelFilters, 'channel_ids' | 'sender_ids'>;
-type EmailSubFilters = Pick<EmailFilters, 'importance'>;
+type EmailSubFilters = Pick<EmailFilters, 'importance' | 'link_ids'>;
 type CallSubFilters = {
   channel_ids?: string[];
   speaker_ids?: string[];
@@ -309,10 +311,76 @@ export function useChannelSearchFilter(opts: SearchFilterHookOpts) {
   };
 }
 
-/** Email search filters (importance). */
+/**
+ * Inbox options + selection for the email search filter. Shared by the filter
+ * dropdown and the active-filter chip. Empty selection means "all inboxes"
+ * (no clause); the dropdown shows every inbox checked in that state.
+ */
+export function useEmailInboxPicker() {
+  const { soup, queryFilters } = useSoupView();
+  const { changeIndex } = useSearchIndexController();
+  const linksQuery = useEmailLinksQuery();
+
+  const allIds = createMemo(() =>
+    (linksQuery.data?.links ?? []).map((l) => l.id)
+  );
+
+  const options = createMemo((): SearchableOption[] =>
+    (linksQuery.data?.links ?? [])
+      .map((link) => ({
+        id: link.id,
+        label: link.email_address,
+        icon: () => (
+          <UserIcon
+            {...inboxIconProps(link.email_address)}
+            photoUrl={link.photo_url ?? undefined}
+            size="sm"
+            suppressClick
+            showTooltip={false}
+          />
+        ),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  );
+
+  const labelMap = createMemo(() => {
+    const map = new Map<string, string>();
+    for (const opt of options()) map.set(opt.id, opt.label);
+    return map;
+  });
+
+  // The explicit selection; empty means "all inboxes" (no clause).
+  const selectedIds = createMemo(
+    () => queryFilters.state.include.emailLinkId ?? []
+  );
+
+  // Dropdown display: every inbox checked when unfiltered.
+  const activeIds = createMemo(() => {
+    const selected = selectedIds();
+    return selected.length ? selected : allIds();
+  });
+
+  const setIds = (ids: string[]) =>
+    batch(() => {
+      if (!soup.predicates.isActive('email')) changeIndex('email');
+      queryFilters.set({
+        include: {
+          emailLinkId:
+            ids.length === 0 || ids.length === allIds().length
+              ? undefined
+              : ids,
+        },
+      });
+    });
+
+  return { options, labelMap, selectedIds, activeIds, setIds };
+}
+
+/** Email search filters (importance, inbox). */
 export function useEmailSearchFilter(opts: SearchFilterHookOpts) {
   const { soup, queryFilters } = useSoupView();
   const { changeIndex } = useSearchIndexController();
+  const inbox = useEmailInboxPicker();
 
   const isActive = () => soup.predicates.isActive('email');
   const importance = createMemo(
@@ -334,10 +402,20 @@ export function useEmailSearchFilter(opts: SearchFilterHookOpts) {
 
   createEffect(() => {
     if (!opts.isSearchView() || !isActive()) return;
-    cacheEmailSubFilters(opts.contentId, { importance: importance() ?? null });
+    cacheEmailSubFilters(opts.contentId, {
+      importance: importance() ?? null,
+      link_ids: inbox.selectedIds().length ? inbox.selectedIds() : undefined,
+    });
   });
 
-  return { isActive, importance, setImportance };
+  return {
+    isActive,
+    importance,
+    setImportance,
+    inboxOptions: inbox.options,
+    inboxActiveIds: inbox.activeIds,
+    setInboxIds: inbox.setIds,
+  };
 }
 
 type CallFieldMap = {
@@ -455,6 +533,7 @@ export function useSearchIndexController() {
           include: {
             ...opt.queryFilters.include,
             emailImportance: importance,
+            emailLinkId: cached.link_ids,
           },
           exclude: opt.queryFilters.exclude,
         });

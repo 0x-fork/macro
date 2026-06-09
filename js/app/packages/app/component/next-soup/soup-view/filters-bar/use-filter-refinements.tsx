@@ -48,6 +48,7 @@ import {
   getCallStatusLabel,
   INDEX_OPTIONS,
   type SearchableOption,
+  useEmailInboxPicker,
   useSearchFilterOptions,
   useSearchIndexController,
 } from './search-filter-controls';
@@ -91,6 +92,7 @@ export function useFilterRefinements() {
   const currentUserId = useUserId();
   const { channelOptions, channelLabelMap, senderOptions, senderLabelMap } =
     useSearchFilterOptions();
+  const inbox = useEmailInboxPicker();
   const { changeIndex } = useSearchIndexController();
 
   const getPresetContext = (): PresetContext => ({
@@ -554,6 +556,9 @@ export function useFilterRefinements() {
       key: string;
       categoryLabel: string;
       getIds: () => string[];
+      // Checked state for the popup, when it differs from the displayed values
+      // (e.g. inbox: empty selection means "all", shown as every box checked).
+      activeIds?: Accessor<string[]>;
       searchableOptions: Accessor<SearchableOption[]>;
       labelMap: Accessor<Map<string, string>>;
       onChange: (ids: string[]) => void;
@@ -595,7 +600,7 @@ export function useFilterRefinements() {
             categoryLabel: args.categoryLabel,
             values: getValues,
             searchableOptions: args.searchableOptions,
-            activeSearchableIds: args.getIds,
+            activeSearchableIds: args.activeIds ?? args.getIds,
             onSearchableChange: args.onChange,
             searchPlaceholder: args.searchPlaceholder,
             isPopupOpen,
@@ -742,6 +747,20 @@ export function useFilterRefinements() {
               }),
           }))
         );
+      }
+
+      // Email inbox filter (only when the account has more than one inbox)
+      if (soup.predicates.isActive('email') && inbox.options().length > 1) {
+        pushSearchableConsolidatedChip({
+          key: 'email-inbox',
+          categoryLabel: 'Inbox',
+          getIds: inbox.selectedIds,
+          activeIds: inbox.activeIds,
+          searchableOptions: inbox.options,
+          labelMap: inbox.labelMap,
+          onChange: inbox.setIds,
+          searchPlaceholder: 'Search inboxes...',
+        });
       }
     }
 

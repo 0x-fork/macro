@@ -533,16 +533,27 @@ const IMPORTANCE_OPTIONS: {
   { label: 'All', value: undefined },
 ];
 
-/** Importance (emails). */
+/** Importance + Inbox (emails). */
 const EmailSearchSubContent = (props: {
   email: ReturnType<typeof useEmailSearchFilter>;
 }) => (
-  <SingleValueSubmenu
-    label="Importance"
-    options={IMPORTANCE_OPTIONS}
-    current={props.email.importance}
-    onSelect={props.email.setImportance}
-  />
+  <>
+    <SingleValueSubmenu
+      label="Importance"
+      options={IMPORTANCE_OPTIONS}
+      current={props.email.importance}
+      onSelect={props.email.setImportance}
+    />
+    <Show when={props.email.inboxOptions().length > 1}>
+      <SearchableFilterSubmenu
+        label="Inbox"
+        options={props.email.inboxOptions}
+        activeIds={props.email.inboxActiveIds}
+        onChange={props.email.setInboxIds}
+        placeholder="Search inboxes..."
+      />
+    </Show>
+  </>
 );
 
 /** In + From + Status (calls). */
