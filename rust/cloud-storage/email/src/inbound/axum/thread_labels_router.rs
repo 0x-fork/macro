@@ -126,7 +126,14 @@ pub async fn update_thread_labels_handler<T: EmailService, G: GmailTokenProvider
         .await?
         .ok_or_else(|| UpdateThreadLabelError::NotFound("Thread not found".to_string()))?;
 
-    let access_token = token_state.inner.fetch_gmail_access_token(&link).await?;
+    // Only Gmail links have OAuth tokens; IMAP links push label changes via
+    // the ops queue instead, and the service impl doesn't use the token.
+    let access_token = match link.provider {
+        crate::domain::models::UserProvider::Gmail => {
+            token_state.inner.fetch_gmail_access_token(&link).await?
+        }
+        crate::domain::models::UserProvider::ImapSmtp => String::new(),
+    };
 
     let result = state
         .inner

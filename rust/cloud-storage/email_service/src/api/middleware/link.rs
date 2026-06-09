@@ -13,6 +13,7 @@ pub(in crate::api) async fn attach_link_context<U: EmailService>(
 ) -> Result<Response, Response> {
     let provider = match link.provider.as_str() {
         "GMAIL" => models_email::email::service::link::UserProvider::Gmail,
+        "IMAP_SMTP" => models_email::email::service::link::UserProvider::ImapSmtp,
         other => {
             tracing::error!(provider = other, "unknown provider in link");
             return Err((

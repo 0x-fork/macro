@@ -150,6 +150,8 @@ impl ThreadPreviewCursorDbRow {
 #[dg(forward = crate::domain::models::UserProvider)]
 pub enum DbUserProvider {
     Gmail,
+    #[sqlx(rename = "IMAP_SMTP")]
+    ImapSmtp,
 }
 
 #[derive(Debug, Clone)]

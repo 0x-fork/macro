@@ -12,4 +12,7 @@ pub struct ScheduledContext {
     pub redis_client: RedisClient,
     pub s3_client: s3_client::S3,
     pub attachment_bucket: String,
+    /// Key for decrypting stored IMAP/SMTP credentials; `None` when IMAP/SMTP
+    /// links aren't configured for this deployment.
+    pub credential_key: Option<email_utils::credential_crypto::CredentialKey>,
 }

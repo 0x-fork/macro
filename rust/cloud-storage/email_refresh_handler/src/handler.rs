@@ -14,6 +14,8 @@ use sqlx::{Pool, Postgres, Type};
 #[sqlx(type_name = "email_user_provider_enum", rename_all = "UPPERCASE")]
 pub enum DbUserProvider {
     Gmail,
+    #[sqlx(rename = "IMAP_SMTP")]
+    ImapSmtp,
 }
 
 #[tracing::instrument(skip(ctx, _event))]
@@ -79,7 +81,53 @@ async fn send_refresh_messages(ctx: &context::Context) -> Result<(), Error> {
                 .ok();
         }
     }
+
+    send_imap_refresh_messages(ctx).await;
+
     Ok(())
+}
+
+/// IMAP links have no push channel, so unlike Gmail's daily watch renewal
+/// they are refreshed (polled) on every handler invocation.
+async fn send_imap_refresh_messages(ctx: &context::Context) {
+    let provider_filter = DbUserProvider::ImapSmtp;
+    let link_ids = sqlx::query_scalar!(
+        r#"
+        SELECT
+            id as "link_id"
+        FROM email_links
+        WHERE
+            is_sync_active = TRUE
+            AND provider = $1
+        "#,
+        provider_filter as _,
+    )
+    .fetch_all(&ctx.db)
+    .await
+    .unwrap_or_else(|e| {
+        tracing::error!(error = ?e, "Error fetching IMAP links for refresh");
+        Vec::new()
+    });
+
+    if link_ids.is_empty() {
+        return;
+    }
+
+    tracing::info!(
+        "Sending refresh notifications for {} IMAP links",
+        link_ids.len()
+    );
+
+    for link_id in link_ids {
+        let notif = LinkManagerMessage::Refresh { link_id };
+        ctx.sqs_client
+            .enqueue_link_manager_notification(notif)
+            .await
+            .inspect_err(|e| {
+                tracing::error!(error=?e, link_id=%link_id, "Error enqueueing refresh notification for IMAP link");
+            })
+            .ok();
+    }
 }
 
 /// delete unused and inactive links from our database

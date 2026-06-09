@@ -3,7 +3,10 @@ import { throwOnErr } from '@core/util/result';
 import { invalidateUserInfo } from '@queries/auth/user-info';
 import { queryClient } from '@queries/client';
 import { emailClient } from '@service-email/client';
-import type { ListLinksResponse } from '@service-email/generated/schemas';
+import type {
+  CreateImapLinkRequest,
+  ListLinksResponse,
+} from '@service-email/generated/schemas';
 import { useMutation, useQuery } from '@tanstack/solid-query';
 import { createMemo } from 'solid-js';
 import { type MutationCallbacks, withCallbacks } from '../utils';
@@ -65,6 +68,21 @@ export function invalidateEmailLinks() {
   queryClient.invalidateQueries({
     queryKey: emailKeys.links.queryKey,
   });
+}
+
+/**
+ * Connects an inbox on an arbitrary IMAP/SMTP server. The backend validates
+ * both server connections before persisting, so errors carry a specific,
+ * user-presentable reason. Refreshes the links list on success.
+ */
+export function useCreateImapLinkMutation() {
+  return useMutation(() => ({
+    mutationFn: async (request: CreateImapLinkRequest) =>
+      throwOnErr(() => emailClient.createImapLink(request)),
+    onSuccess: () => {
+      invalidateEmailLinks();
+    },
+  }));
 }
 
 type RemoveInboxContext = { previousLinks: ListLinksResponse | undefined };

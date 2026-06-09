@@ -318,6 +318,38 @@ where
     Ok(message_id)
 }
 
+/// Finds the thread containing any message whose global_id (RFC 5322
+/// Message-ID) is in `global_ids`. Used to thread IMAP messages by their
+/// References/In-Reply-To chain.
+#[tracing::instrument(skip(executor, global_ids), err)]
+pub async fn get_thread_id_by_global_ids<'e, E>(
+    executor: E,
+    link_id: Uuid,
+    global_ids: &[String],
+) -> anyhow::Result<Option<Uuid>>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
+    if global_ids.is_empty() {
+        return Ok(None);
+    }
+
+    let thread_id = sqlx::query_scalar!(
+        r#"
+        SELECT thread_id
+        FROM email_messages
+        WHERE link_id = $1 AND global_id = ANY($2)
+        LIMIT 1
+        "#,
+        link_id,
+        global_ids
+    )
+    .fetch_optional(executor)
+    .await?;
+
+    Ok(thread_id)
+}
+
 /// fetch draft message and sender contact info from database for sending
 #[tracing::instrument(skip(pool), err)]
 pub async fn get_message_to_send(

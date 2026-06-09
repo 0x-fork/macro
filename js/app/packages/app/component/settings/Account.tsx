@@ -34,8 +34,10 @@ import SignOutIcon from '@phosphor-icons/core/regular/sign-out.svg?component-sol
 import XIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
 import ArrowsClockwiseIcon from '@phosphor-icons/core/regular/arrows-clockwise.svg?component-solid';
 import PlusIcon from '@phosphor-icons/core/regular/plus.svg?component-solid';
+import AtIcon from '@phosphor-icons/core/regular/at.svg?component-solid';
 import { authServiceClient } from '@service-auth/client';
 import type {
+  ConnectionSecurity,
   Link as EmailLink,
   SyncStatus,
 } from '@service-email/generated/schemas';
@@ -59,7 +61,10 @@ import PaywallTeamOwnerView from '../paywall/PaywallTeamOwnerView';
 import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 import { useEmailLinks, useEmailLinksStatus } from '@core/email-link';
 import { useInitGmailLink } from '@queries/auth';
-import { useRemoveInboxMutation } from '@queries/email/link';
+import {
+  useCreateImapLinkMutation,
+  useRemoveInboxMutation,
+} from '@queries/email/link';
 import {
   type SupportedNotificationSettings,
   useNotificationSettings,
@@ -295,6 +300,7 @@ export function Account() {
     email: string;
     isOwn: boolean;
   } | null>(null);
+  const [showImapDialog, setShowImapDialog] = createSignal(false);
   const [resyncingIds, setResyncingIds] = createSignal<ReadonlySet<string>>(
     new Set()
   );
@@ -653,17 +659,30 @@ export function Account() {
                           </Button>
                         }
                       >
-                        <Tooltip label="Add inbox">
-                          <Button
-                            variant="base"
-                            size="sm"
-                            depth={3}
-                            onClick={handleAddInbox}
-                            aria-label="Add inbox"
-                          >
-                            <PlusIcon class="size-4" />
-                          </Button>
-                        </Tooltip>
+                        <div class="flex items-center gap-2">
+                          <Tooltip label="Connect IMAP/SMTP account">
+                            <Button
+                              variant="base"
+                              size="sm"
+                              depth={3}
+                              onClick={() => setShowImapDialog(true)}
+                              aria-label="Connect IMAP/SMTP account"
+                            >
+                              <AtIcon class="size-4" />
+                            </Button>
+                          </Tooltip>
+                          <Tooltip label="Add Gmail inbox">
+                            <Button
+                              variant="base"
+                              size="sm"
+                              depth={3}
+                              onClick={handleAddInbox}
+                              aria-label="Add Gmail inbox"
+                            >
+                              <PlusIcon class="size-4" />
+                            </Button>
+                          </Tooltip>
+                        </div>
                       </Show>
                     </Show>
                   </div>
@@ -773,6 +792,11 @@ export function Account() {
                 Logout
               </Button>
             </div>
+
+            <ImapConnectDialog
+              open={showImapDialog()}
+              onOpenChange={setShowImapDialog}
+            />
 
             <Dialog
               open={removeTarget() !== null}
@@ -1016,6 +1040,235 @@ function InboxRow(props: {
         </Tooltip>
       </div>
     </div>
+  );
+}
+
+
+/**
+ * Form dialog for connecting an inbox on an arbitrary email server over
+ * IMAP (receive) + SMTP (send). The backend verifies both connections with
+ * the supplied credentials before anything is persisted, so errors shown
+ * here are specific (wrong password, unreachable host, ...).
+ */
+function ImapConnectDialog(props: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const createImapLink = useCreateImapLinkMutation();
+
+  const [email, setEmail] = createSignal('');
+  const [username, setUsername] = createSignal('');
+  const [password, setPassword] = createSignal('');
+  const [imapHost, setImapHost] = createSignal('');
+  const [imapPort, setImapPort] = createSignal('993');
+  const [imapSecurity, setImapSecurity] =
+    createSignal<ConnectionSecurity>('SSL_TLS');
+  const [smtpHost, setSmtpHost] = createSignal('');
+  const [smtpPort, setSmtpPort] = createSignal('465');
+  const [smtpSecurity, setSmtpSecurity] =
+    createSignal<ConnectionSecurity>('SSL_TLS');
+  const [error, setError] = createSignal<string | null>(null);
+
+  const canSubmit = createMemo(
+    () =>
+      email().trim() !== '' &&
+      username().trim() !== '' &&
+      password() !== '' &&
+      imapHost().trim() !== '' &&
+      smtpHost().trim() !== '' &&
+      Number.parseInt(imapPort(), 10) > 0 &&
+      Number.parseInt(smtpPort(), 10) > 0 &&
+      !createImapLink.isPending
+  );
+
+  const handleConnect = async () => {
+    if (!canSubmit()) return;
+    setError(null);
+    try {
+      await createImapLink.mutateAsync({
+        email_address: email().trim(),
+        imap: {
+          host: imapHost().trim(),
+          port: Number.parseInt(imapPort(), 10),
+          security: imapSecurity(),
+          username: username().trim(),
+          password: password(),
+        },
+        smtp: {
+          host: smtpHost().trim(),
+          port: Number.parseInt(smtpPort(), 10),
+          security: smtpSecurity(),
+          username: username().trim(),
+          password: password(),
+        },
+      });
+      toast.success('Inbox connected — syncing recent mail');
+      props.onOpenChange(false);
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message
+          ? e.message
+          : 'Failed to connect. Check your server settings and credentials.'
+      );
+    }
+  };
+
+  return (
+    <Dialog
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      position="center"
+      class="w-120"
+    >
+      <Panel active depth={2} class="rounded-xl">
+        <Panel.Header class="px-6">
+          <Dialog.Title class="text-ink text-sm font-semibold">
+            Connect IMAP/SMTP account
+          </Dialog.Title>
+        </Panel.Header>
+        <Panel.Body class="p-6 font-sans flex flex-col gap-3">
+          <Dialog.Description class="text-ink-muted text-sm/tight font-normal">
+            Connect any email account using its IMAP and SMTP servers. Many
+            providers require an app-specific password.
+          </Dialog.Description>
+
+          <ImapField
+            label="Email address"
+            value={email()}
+            onInput={setEmail}
+            placeholder="you@example.com"
+            type="email"
+          />
+          <div class="grid grid-cols-2 gap-3">
+            <ImapField
+              label="Username"
+              value={username()}
+              onInput={setUsername}
+              placeholder="Usually the email address"
+            />
+            <ImapField
+              label="Password"
+              value={password()}
+              onInput={setPassword}
+              placeholder="App password"
+              type="password"
+            />
+          </div>
+
+          <div class="grid grid-cols-[1fr_5rem_8rem] gap-3">
+            <ImapField
+              label="IMAP host"
+              value={imapHost()}
+              onInput={setImapHost}
+              placeholder="imap.example.com"
+            />
+            <ImapField
+              label="Port"
+              value={imapPort()}
+              onInput={setImapPort}
+              placeholder="993"
+            />
+            <ImapSecuritySelect
+              label="IMAP security"
+              value={imapSecurity()}
+              onChange={setImapSecurity}
+            />
+          </div>
+
+          <div class="grid grid-cols-[1fr_5rem_8rem] gap-3">
+            <ImapField
+              label="SMTP host"
+              value={smtpHost()}
+              onInput={setSmtpHost}
+              placeholder="smtp.example.com"
+            />
+            <ImapField
+              label="Port"
+              value={smtpPort()}
+              onInput={setSmtpPort}
+              placeholder="465"
+            />
+            <ImapSecuritySelect
+              label="SMTP security"
+              value={smtpSecurity()}
+              onChange={setSmtpSecurity}
+            />
+          </div>
+
+          <Show when={error()}>
+            <div class="text-failure text-xs/tight whitespace-pre-wrap">
+              {error()}
+            </div>
+          </Show>
+
+          <div class="pt-3 justify-end items-center gap-3 inline-flex">
+            <Button
+              variant="base"
+              depth={3}
+              onClick={() => props.onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="cta"
+              depth={3}
+              disabled={!canSubmit()}
+              onClick={handleConnect}
+            >
+              {createImapLink.isPending ? 'Connecting…' : 'Connect'}
+            </Button>
+          </div>
+        </Panel.Body>
+      </Panel>
+    </Dialog>
+  );
+}
+
+function ImapField(props: {
+  label: string;
+  value: string;
+  onInput: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+}) {
+  return (
+    <label class="flex flex-col gap-1 min-w-0">
+      <span class="text-xs text-ink-muted">{props.label}</span>
+      <div class="ph-no-capture flex items-center rounded-lg h-7 mobile:h-9 px-2 border text-xs bg-transparent text-ink-muted border-edge-muted hover:text-ink focus-within:text-ink focus-within:border-accent">
+        <input
+          type={props.type ?? 'text'}
+          class="flex-1 min-w-0 bg-transparent outline-none border-0 p-0 text-xs placeholder:text-ink-extra-muted"
+          value={props.value}
+          onInput={(e) => props.onInput(e.currentTarget.value)}
+          placeholder={props.placeholder}
+          autocomplete="off"
+          spellcheck={false}
+          data-1p-ignore
+        />
+      </div>
+    </label>
+  );
+}
+
+function ImapSecuritySelect(props: {
+  label: string;
+  value: ConnectionSecurity;
+  onChange: (value: ConnectionSecurity) => void;
+}) {
+  return (
+    <label class="flex flex-col gap-1 min-w-0">
+      <span class="text-xs text-ink-muted">{props.label}</span>
+      <select
+        class="h-7 mobile:h-9 rounded-lg px-1 border text-xs bg-transparent text-ink-muted border-edge-muted hover:text-ink focus:text-ink focus:border-accent outline-none"
+        value={props.value}
+        onChange={(e) =>
+          props.onChange(e.currentTarget.value as ConnectionSecurity)
+        }
+      >
+        <option value="SSL_TLS">SSL/TLS</option>
+        <option value="STARTTLS">STARTTLS</option>
+      </select>
+    </label>
   );
 }
 

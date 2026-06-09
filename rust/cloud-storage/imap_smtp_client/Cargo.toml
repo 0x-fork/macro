@@ -1,0 +1,30 @@
+[package]
+edition = "2024"
+name = "imap_smtp_client"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+anyhow = { workspace = true }
+async-imap = { version = "0.11.2", default-features = false, features = [
+  "runtime-tokio",
+] }
+chrono = { workspace = true }
+futures = { workspace = true }
+mail-builder = "0.4.3"
+mail-send = { version = "0.6.0", default-features = false, features = [
+  "cram-md5",
+  "digest-md5",
+  "ring",
+  "tls12",
+] }
+macro_uuid = { path = "../macro_uuid" }
+models_email = { path = "../models_email" }
+tokio = { workspace = true, features = ["net", "io-util", "time"] }
+tokio-rustls = { version = "0.26", default-features = false, features = [
+  "ring",
+  "tls12",
+  "logging",
+] }
+tracing = { workspace = true }
+webpki-roots = "0.26"

@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO email_imap_smtp_credentials (\n            link_id,\n            imap_host, imap_port, imap_security, imap_username, imap_password_ciphertext,\n            smtp_host, smtp_port, smtp_security, smtp_username, smtp_password_ciphertext,\n            updated_at\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())\n        ON CONFLICT (link_id)\n        DO UPDATE SET\n            imap_host = EXCLUDED.imap_host,\n            imap_port = EXCLUDED.imap_port,\n            imap_security = EXCLUDED.imap_security,\n            imap_username = EXCLUDED.imap_username,\n            imap_password_ciphertext = EXCLUDED.imap_password_ciphertext,\n            smtp_host = EXCLUDED.smtp_host,\n            smtp_port = EXCLUDED.smtp_port,\n            smtp_security = EXCLUDED.smtp_security,\n            smtp_username = EXCLUDED.smtp_username,\n            smtp_password_ciphertext = EXCLUDED.smtp_password_ciphertext,\n            updated_at = NOW()\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Int4",
+        {
+          "Custom": {
+            "name": "email_connection_security_enum",
+            "kind": {
+              "Enum": [
+                "SSL_TLS",
+                "STARTTLS"
+              ]
+            }
+          }
+        },
+        "Varchar",
+        "Bytea",
+        "Varchar",
+        "Int4",
+        {
+          "Custom": {
+            "name": "email_connection_security_enum",
+            "kind": {
+              "Enum": [
+                "SSL_TLS",
+                "STARTTLS"
+              ]
+            }
+          }
+        },
+        "Varchar",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c588fc5c8adc1e58d7127b11242eb9f9a29d35648304934dc750040aad9e8f1c"
+}

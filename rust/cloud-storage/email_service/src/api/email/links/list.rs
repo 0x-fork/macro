@@ -109,7 +109,11 @@ pub async fn list_links_handler(
             .map_err(ListLinksError::DatabaseError)?
             .and_then(|contact| contact.photo_url);
 
-            let signature = if query_params.include_signature {
+            // Signatures come from the Gmail settings API; IMAP servers have
+            // no equivalent to fetch from.
+            let signature = if query_params.include_signature
+                && link.provider == models_email::service::link::UserProvider::Gmail
+            {
                 let access_token = fetch_gmail_access_token_from_link(
                     &link,
                     &ctx.redis_client,

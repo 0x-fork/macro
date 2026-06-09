@@ -29,6 +29,7 @@ pub async fn run_worker(
     crm_service: CrmServiceType,
     notifications_enabled: bool,
     retry_worker: bool,
+    credential_key: Option<email_utils::credential_crypto::CredentialKey>,
 ) {
     let ctx = PubSubContext {
         db,
@@ -46,6 +47,7 @@ pub async fn run_worker(
         crm_service,
         notifications_enabled,
         retry_worker,
+        credential_key,
     };
 
     loop {

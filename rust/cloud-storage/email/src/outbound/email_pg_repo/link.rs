@@ -14,6 +14,7 @@ pub(super) async fn link_by_fusionauth_and_macro_id(
 ) -> Result<Option<Link>, sqlx::Error> {
     let provider: DbUserProvider = match provider {
         UserProvider::Gmail => DbUserProvider::Gmail,
+        UserProvider::ImapSmtp => DbUserProvider::ImapSmtp,
     };
 
     let db_link = sqlx::query_as!(
@@ -47,6 +48,7 @@ pub(super) async fn link_by_fusionauth_email_provider(
 ) -> Result<Option<Link>, sqlx::Error> {
     let provider: DbUserProvider = match provider {
         UserProvider::Gmail => DbUserProvider::Gmail,
+        UserProvider::ImapSmtp => DbUserProvider::ImapSmtp,
     };
 
     let db_link = sqlx::query_as!(

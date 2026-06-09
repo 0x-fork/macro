@@ -67,6 +67,9 @@ pub enum InboxSyncOperation {
     DeleteMessage(DeleteMessagePayload),
     // Operation to add/remove labels from a message
     UpdateLabels(UpdateLabelsPayload),
+    // Operation to poll an IMAP_SMTP link's server for new messages. IMAP has no
+    // push channel into our infra, so polling is scheduled instead of webhook-driven.
+    ImapPoll(ImapPollPayload),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
@@ -87,6 +90,15 @@ pub struct DeleteMessagePayload {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct UpdateLabelsPayload {
     pub provider_message_id: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct ImapPollPayload {
+    /// When true this is the first sync after the link was created, so the
+    /// poll seeds the inbox with a window of recent messages instead of only
+    /// fetching messages newer than the stored folder state.
+    #[serde(default)]
+    pub initial: bool,
 }
 
 #[cfg(test)]

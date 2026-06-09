@@ -128,6 +128,19 @@ pub async fn handler(
             })?;
         presigned_request.to_string()
     } else {
+        // On-demand fetch is Gmail-only for now: IMAP attachments aren't
+        // re-downloadable yet (no per-part provider id is stored), so fail
+        // with a clear message instead of a token error.
+        if link.provider == models_email::service::link::UserProvider::ImapSmtp {
+            return Err((
+                StatusCode::NOT_IMPLEMENTED,
+                Json(ErrorResponse {
+                    message: "attachment downloads are not yet supported for IMAP inboxes".into(),
+                }),
+            )
+                .into_response());
+        }
+
         // Object doesn't exist, need to fetch from Gmail and upload.
         // Use the owning inbox's own token, not the caller's primary inbox token.
         let gmail_token = email_service::util::gmail::auth::fetch_gmail_access_token_from_link(

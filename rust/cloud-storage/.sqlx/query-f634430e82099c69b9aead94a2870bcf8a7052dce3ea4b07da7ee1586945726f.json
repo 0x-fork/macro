@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO email_imap_folder_states (link_id, folder, uid_validity, last_seen_uid, updated_at)\n        VALUES ($1, $2, $3, $4, NOW())\n        ON CONFLICT (link_id, folder)\n        DO UPDATE SET\n            uid_validity = EXCLUDED.uid_validity,\n            last_seen_uid = EXCLUDED.last_seen_uid,\n            updated_at = NOW()\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f634430e82099c69b9aead94a2870bcf8a7052dce3ea4b07da7ee1586945726f"
+}

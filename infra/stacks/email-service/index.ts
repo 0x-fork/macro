@@ -46,6 +46,19 @@ const ISSUER = config.require(`fusionauth_issuer`);
 const NOTIFICATIONS_ENABLED = config.require(`notifications_enabled`);
 const USE_APOLLO_CRM_ENRICHMENT = config.require(`use_apollo_crm_enrichment`);
 const APOLLO_API_KEY_SECRET_NAME = config.require(`apollo_api_key_secret_name`);
+// Secret holding the base64-encoded AES-256 key that encrypts stored
+// IMAP/SMTP passwords at rest. Optional: when unset the env var is empty and
+// IMAP/SMTP account linking is disabled for the deployment.
+const emailCredentialsEncryptionKeySecretName = config.get(
+  `email_credentials_encryption_key_secret_name`
+);
+const EMAIL_CREDENTIALS_ENCRYPTION_KEY = emailCredentialsEncryptionKeySecretName
+  ? aws.secretsmanager
+      .getSecretVersionOutput({
+        secretId: emailCredentialsEncryptionKeySecretName,
+      })
+      .apply((secret) => secret.secretString)
+  : pulumi.output('');
 const SENT_UNDO_DELAY_SECS = config.require(`sent_undo_delay_secs`);
 const REDIS_RATE_LIMIT_REQS = config.require(`redis_rate_limit_reqs`);
 const REDIS_RATE_LIMIT_REQS_BACKFILL = config.require(
@@ -497,6 +510,10 @@ const containerEnvVars = [
   {
     name: 'SENT_UNDO_DELAY_SECS',
     value: pulumi.interpolate`${SENT_UNDO_DELAY_SECS}`,
+  },
+  {
+    name: 'EMAIL_CREDENTIALS_ENCRYPTION_KEY',
+    value: pulumi.interpolate`${EMAIL_CREDENTIALS_ENCRYPTION_KEY}`,
   },
   {
     name: 'REDIS_RATE_LIMIT_REQS',

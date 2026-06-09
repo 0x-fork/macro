@@ -36,6 +36,10 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::from_env(cloudfront_signer_private_key)
         .context("expected to be able to generate config")?;
 
+    let credential_key =
+        email_service::util::imap::parse_credential_key(&config.email_credentials_encryption_key)
+            .context("invalid EMAIL_CREDENTIALS_ENCRYPTION_KEY")?;
+
     let auth_service_secret_key = match config.environment {
         Environment::Local => config.auth_service_secret_key.clone(),
         _ => secretsmanager_client
@@ -308,6 +312,7 @@ async fn main() -> anyhow::Result<()> {
         let dss_client_inbox_sync = dss_client.clone();
         let system_properties_service_inbox_sync = system_properties_service.clone();
         let crm_service_inbox_sync = crm_service.clone();
+        let credential_key_inbox_sync = credential_key.clone();
         tokio::spawn(async move {
             email_service::pubsub::inbox_sync::worker::run_worker(
                 db_inbox_sync,
@@ -325,6 +330,7 @@ async fn main() -> anyhow::Result<()> {
                 crm_service_inbox_sync,
                 config.notifications_enabled,
                 false,
+                credential_key_inbox_sync,
             )
             .await;
         });
@@ -348,6 +354,7 @@ async fn main() -> anyhow::Result<()> {
         let dss_client_inbox_sync = dss_client.clone();
         let system_properties_service_inbox_sync = system_properties_service.clone();
         let crm_service_inbox_sync = crm_service.clone();
+        let credential_key_inbox_sync = credential_key.clone();
         tokio::spawn(async move {
             email_service::pubsub::inbox_sync::worker::run_worker(
                 db_inbox_sync,
@@ -365,6 +372,7 @@ async fn main() -> anyhow::Result<()> {
                 crm_service_inbox_sync,
                 config.notifications_enabled,
                 true,
+                credential_key_inbox_sync,
             )
             .await;
         });
@@ -381,6 +389,7 @@ async fn main() -> anyhow::Result<()> {
         let gmail_client_gmail_ops = gmail_client.clone();
         let auth_service_client_gmail_ops = auth_service_client.clone();
         let redis_client_gmail_ops = redis_client.clone();
+        let credential_key_gmail_ops = credential_key.clone();
         tokio::spawn(async move {
             email_service::pubsub::gmail_ops::worker::run_worker(
                 db_gmail_ops,
@@ -390,6 +399,7 @@ async fn main() -> anyhow::Result<()> {
                 auth_service_client_gmail_ops,
                 redis_client_gmail_ops,
                 false,
+                credential_key_gmail_ops,
             )
             .await;
         });
@@ -406,6 +416,7 @@ async fn main() -> anyhow::Result<()> {
         let gmail_client_gmail_ops = gmail_client.clone();
         let auth_service_client_gmail_ops = auth_service_client.clone();
         let redis_client_gmail_ops = redis_client.clone();
+        let credential_key_gmail_ops = credential_key.clone();
         tokio::spawn(async move {
             email_service::pubsub::gmail_ops::worker::run_worker(
                 db_gmail_ops,
@@ -415,6 +426,7 @@ async fn main() -> anyhow::Result<()> {
                 auth_service_client_gmail_ops,
                 redis_client_gmail_ops,
                 true,
+                credential_key_gmail_ops,
             )
             .await;
         });
@@ -489,6 +501,7 @@ async fn main() -> anyhow::Result<()> {
     let redis_client_scheduled = redis_client.clone();
     let s3_client_scheduled = s3_client.clone();
     let attachment_bucket_scheduled = config.attachment_bucket.clone();
+    let credential_key_scheduled = credential_key.clone();
     // send scheduled emails
     tokio::spawn(async move {
         email_service::pubsub::scheduled::worker::run_worker(
@@ -499,6 +512,7 @@ async fn main() -> anyhow::Result<()> {
             redis_client_scheduled,
             s3_client_scheduled,
             attachment_bucket_scheduled,
+            credential_key_scheduled,
         )
         .await;
     });

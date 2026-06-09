@@ -4,9 +4,12 @@ use crate::util::gmail::send::{
     cleanup_draft_attachments, fetch_and_attach_draft_attachments,
     fetch_and_attach_forwarded_attachments, generate_email_threading_headers,
 };
+use crate::util::imap::{fetch_credentials, require_credential_key};
 use anyhow::Context;
 use chrono::Utc;
 use email_db_client::messages::scheduled::get::get_and_start_processing_scheduled_message;
+use models_email::service::imap::ImapSmtpCredentials;
+use models_email::service::link::{Link, UserProvider};
 use models_email::service::message::MessageToSend;
 use models_email::service::pubsub::ScheduledPubsubMessage;
 use sqlx_core::any::AnyConnectionBackend;
@@ -66,9 +69,18 @@ async fn process_scheduled_message_inner(
         return Ok(());
     };
 
-    let gmail_access_token =
-        fetch_gmail_access_token_from_link(&link, &ctx.redis_client, &ctx.auth_service_client)
-            .await?;
+    // Resolve provider auth up front so a broken link fails before the
+    // scheduled message is marked as processing.
+    let send_auth = match link.provider {
+        UserProvider::Gmail => SendAuth::Gmail(
+            fetch_gmail_access_token_from_link(&link, &ctx.redis_client, &ctx.auth_service_client)
+                .await?,
+        ),
+        UserProvider::ImapSmtp => {
+            let key = require_credential_key(&ctx.credential_key)?;
+            SendAuth::ImapSmtp(fetch_credentials(&ctx.db, key, link.id).await?)
+        }
+    };
 
     // Get scheduled message from database
     let scheduled_message =
@@ -140,30 +152,50 @@ async fn process_scheduled_message_inner(
     )
     .await?;
 
-    // Include forwarded attachments (fetched from Gmail at send time)
-    fetch_and_attach_forwarded_attachments(
-        &ctx.db,
-        &ctx.gmail_client,
-        &gmail_access_token,
-        &link,
-        &mut message_to_send,
-    )
-    .await?;
+    match &send_auth {
+        SendAuth::Gmail(gmail_access_token) => {
+            // Include forwarded attachments (fetched from Gmail at send time)
+            fetch_and_attach_forwarded_attachments(
+                &ctx.db,
+                &ctx.gmail_client,
+                gmail_access_token,
+                &link,
+                &mut message_to_send,
+            )
+            .await?;
 
-    // send message to gmail api
-    ctx.gmail_client
-        .send_message(
-            gmail_access_token.as_str(),
-            &mut message_to_send,
-            &sender_contact,
-            parent_message_id,
-            references,
-        )
-        .await
-        .context(format!(
-            "Failed to send message to gmail api for message_id {}",
-            data.message_id
-        ))?;
+            // send message to gmail api
+            ctx.gmail_client
+                .send_message(
+                    gmail_access_token.as_str(),
+                    &mut message_to_send,
+                    &sender_contact,
+                    parent_message_id,
+                    references,
+                )
+                .await
+                .context(format!(
+                    "Failed to send message to gmail api for message_id {}",
+                    data.message_id
+                ))?;
+        }
+        SendAuth::ImapSmtp(credentials) => {
+            send_via_smtp(
+                &ctx.db,
+                &link,
+                credentials,
+                &mut message_to_send,
+                &sender_contact,
+                parent_message_id,
+                references,
+            )
+            .await
+            .context(format!(
+                "Failed to send message via SMTP for message_id {}",
+                data.message_id
+            ))?;
+        }
+    }
 
     let mut tx = ctx
         .db
@@ -209,6 +241,79 @@ async fn process_scheduled_message_inner(
                 );
             }
             return Err(e);
+        }
+    }
+
+    Ok(())
+}
+
+/// Per-provider credentials resolved for a send.
+enum SendAuth {
+    Gmail(String),
+    ImapSmtp(ImapSmtpCredentials),
+}
+
+/// Sends the message over SMTP and files a copy into the IMAP sent folder
+/// (SMTP submission doesn't do that for us the way the Gmail API does).
+#[tracing::instrument(skip(link, credentials, message_to_send, sender_contact), fields(link_id = %link.id), err)]
+async fn send_via_smtp(
+    db: &sqlx::PgPool,
+    link: &Link,
+    credentials: &ImapSmtpCredentials,
+    message_to_send: &mut MessageToSend,
+    sender_contact: &models_email::email::service::address::ContactInfo,
+    parent_message_id: Option<String>,
+    references: Option<Vec<String>>,
+) -> anyhow::Result<()> {
+    // Forwarded attachments are re-fetched from the provider at send time on
+    // the Gmail path; that re-fetch doesn't exist for IMAP links yet, so
+    // surface the gap loudly instead of silently dropping them.
+    if let Some(db_id) = message_to_send.db_id {
+        let forwarded =
+            email_db_client::attachments::forwarded::fetch_forwarded_attachments_by_draft_id(
+                db, link.id, db_id,
+            )
+            .await
+            .unwrap_or_default();
+        if !forwarded.is_empty() {
+            tracing::warn!(
+                draft_id = %db_id,
+                count = forwarded.len(),
+                "forwarded attachments are not yet supported for IMAP/SMTP links; sending without them"
+            );
+        }
+    }
+
+    let raw_message = imap_smtp_client::smtp::send_message(
+        &credentials.smtp,
+        message_to_send,
+        sender_contact,
+        parent_message_id,
+        references,
+    )
+    .await?;
+
+    // Best effort: file a copy into the sent folder so the message shows up
+    // in other clients. Our own DB row was already created at draft time.
+    match imap_smtp_client::ImapSession::connect(&credentials.imap).await {
+        Ok(mut session) => {
+            match session.find_sent_folder().await {
+                Ok(Some(folder)) => {
+                    if let Err(e) = session.append_seen(&folder, &raw_message).await {
+                        tracing::warn!(error = ?e, folder, "failed to append sent message to IMAP sent folder");
+                    }
+                }
+                Ok(None) => {
+                    tracing::warn!("no IMAP sent folder found; sent copy not filed");
+                }
+                Err(e) => {
+                    tracing::warn!(error = ?e, "failed to look up IMAP sent folder");
+                }
+            }
+            session.logout().await;
+        }
+        Err(e) => {
+            tracing::warn!(error = ?e, "failed to connect to IMAP to file sent copy");
         }
     }
 

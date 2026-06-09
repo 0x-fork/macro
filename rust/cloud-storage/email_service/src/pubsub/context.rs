@@ -71,4 +71,7 @@ pub struct PubSubContext {
     pub crm_service: CrmServiceType,
     pub notifications_enabled: bool,
     pub retry_worker: bool,
+    /// Key for decrypting stored IMAP/SMTP credentials; `None` when IMAP/SMTP
+    /// links aren't configured for this deployment.
+    pub credential_key: Option<email_utils::credential_crypto::CredentialKey>,
 }

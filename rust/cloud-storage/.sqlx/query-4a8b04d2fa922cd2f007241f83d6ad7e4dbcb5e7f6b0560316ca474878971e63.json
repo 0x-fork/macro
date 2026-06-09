@@ -31,7 +31,8 @@
             "name": "email_user_provider_enum",
             "kind": {
               "Enum": [
-                "GMAIL"
+                "GMAIL",
+                "IMAP_SMTP"
               ]
             }
           }
@@ -62,7 +63,8 @@
             "name": "email_user_provider_enum",
             "kind": {
               "Enum": [
-                "GMAIL"
+                "GMAIL",
+                "IMAP_SMTP"
               ]
             }
           }

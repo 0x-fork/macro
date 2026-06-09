@@ -366,7 +366,7 @@ async fn handle_attachment_upload(
 }
 
 #[tracing::instrument(skip(ctx, link, recipient_emails, sender_email))]
-async fn handle_contacts_sync(
+pub(crate) async fn handle_contacts_sync(
     ctx: &PubSubContext,
     link: &link::Link,
     recipient_emails: &[String],
@@ -525,7 +525,7 @@ async fn notify_for_new_message(
 /// Send notifications for new inbound email messages
 
 #[tracing::instrument(skip(ctx, link))]
-async fn send_notifications(
+pub(crate) async fn send_notifications(
     ctx: &PubSubContext,
     link: &link::Link,
     new_message_provider_id: &str,

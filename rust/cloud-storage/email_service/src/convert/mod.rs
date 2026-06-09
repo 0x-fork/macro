@@ -5,6 +5,7 @@ mod sanitizer;
 
 pub mod contact;
 pub mod history;
+pub mod imap;
 pub mod message;
 pub mod thread;
 

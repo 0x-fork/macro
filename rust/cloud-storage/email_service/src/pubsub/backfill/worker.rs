@@ -45,6 +45,7 @@ pub async fn run_worker(
         crm_service,
         notifications_enabled,
         retry_worker: false,
+        credential_key: None,
     };
 
     loop {

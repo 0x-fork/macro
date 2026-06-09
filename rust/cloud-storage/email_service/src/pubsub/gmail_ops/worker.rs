@@ -16,6 +16,9 @@ pub struct GmailOpsContext {
     pub auth_service_client: AuthServiceClient,
     pub redis_client: RedisClient,
     pub retry_worker: bool,
+    /// Key for decrypting stored IMAP/SMTP credentials; `None` when IMAP/SMTP
+    /// links aren't configured for this deployment.
+    pub credential_key: Option<email_utils::credential_crypto::CredentialKey>,
 }
 
 /// Runs the Gmail operations worker, processing messages from the queue.
@@ -27,6 +30,7 @@ pub async fn run_worker(
     auth_service_client: AuthServiceClient,
     redis_client: RedisClient,
     retry_worker: bool,
+    credential_key: Option<email_utils::credential_crypto::CredentialKey>,
 ) {
     let ctx = GmailOpsContext {
         db,
@@ -36,6 +40,7 @@ pub async fn run_worker(
         auth_service_client,
         redis_client,
         retry_worker,
+        credential_key,
     };
 
     loop {

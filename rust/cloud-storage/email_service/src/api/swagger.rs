@@ -15,6 +15,9 @@ use crate::api::email::drafts::add_forwarded_attachment::{
 use crate::api::email::init::InitResponse;
 use crate::api::email::labels::create::CreateLabelRequest;
 use crate::api::email::labels::create::CreateLabelResponse;
+use crate::api::email::links::imap::{
+    CreateImapLinkRequest, CreateImapLinkResponse, ServerSettingsInput,
+};
 use crate::api::email::links::list::ListLinksResponse;
 use crate::api::email::links::resync::ResyncResponse;
 use crate::api::email::messages::labels::{UpdateLabelBatchRequest, UpdateLabelBatchResponse};
@@ -88,6 +91,7 @@ use utoipa::OpenApi;
         email::links::list::list_links_handler,
         email::links::delete::delete_link_handler,
         email::links::resync::resync_link_handler,
+        email::links::imap::create_imap_link_handler,
         email::labels::create::handler,
         email::labels::delete::handler,
         inbound::axum::list_labels_router::list_labels_handler,
@@ -154,6 +158,9 @@ use utoipa::OpenApi;
             Link,
             SyncStatus,
             ResyncResponse,
+            CreateImapLinkRequest,
+            CreateImapLinkResponse,
+            ServerSettingsInput,
             Settings,
             // Contact types
             ListContactsResponse,

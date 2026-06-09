@@ -2,6 +2,7 @@ use crate::pubsub::context::PubSubContext;
 use crate::pubsub::inbox_sync::error_handlers::prefix_error_source;
 use crate::pubsub::inbox_sync::operations::delete_message::delete_message;
 use crate::pubsub::inbox_sync::operations::gmail_message::gmail_message;
+use crate::pubsub::inbox_sync::operations::imap_poll::imap_poll;
 use crate::pubsub::inbox_sync::operations::update_labels::update_labels;
 use crate::pubsub::inbox_sync::operations::upsert_message::upsert_message;
 use crate::util::redis::rate_limit::RateLimitArgs;
@@ -105,6 +106,12 @@ async fn inner_process_message(
                 .await
                 .map_err(|e| prefix_error_source(e, "remove_labels"))?;
             tracing::debug!("Successfully processed update labels operation");
+        }
+        InboxSyncOperation::ImapPoll(payload) => {
+            imap_poll(ctx, &link, payload)
+                .await
+                .map_err(|e| prefix_error_source(e, "imap_poll"))?;
+            tracing::debug!("Successfully processed imap poll operation");
         }
     }
 

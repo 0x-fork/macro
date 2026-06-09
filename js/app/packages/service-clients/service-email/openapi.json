@@ -1576,6 +1576,76 @@
         }
       }
     },
+    "/email/links/imap": {
+      "post": {
+        "tags": ["Links"],
+        "summary": "Connects an email account on an arbitrary IMAP/SMTP server as an inbox.",
+        "description": "Verifies both server connections with the supplied credentials before\npersisting anything; passwords are stored encrypted. On success an initial\nsync of the inbox is scheduled.",
+        "operationId": "create_imap_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateImapLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateImapLinkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/email/links/{link_id}": {
       "delete": {
         "tags": ["Links"],
@@ -3806,6 +3876,11 @@
           }
         }
       },
+      "ConnectionSecurity": {
+        "type": "string",
+        "description": "How a connection to an IMAP/SMTP server is secured.\n\nMirrors the `email_connection_security_enum` Postgres enum.",
+        "enum": ["SSL_TLS", "STARTTLS"]
+      },
       "Contact": {
         "type": "object",
         "required": ["id", "link_id"],
@@ -3906,6 +3981,35 @@
           "draft": {
             "$ref": "#/components/schemas/ApiDraftOutput",
             "description": "The created draft."
+          }
+        }
+      },
+      "CreateImapLinkRequest": {
+        "type": "object",
+        "required": ["email_address", "imap", "smtp"],
+        "properties": {
+          "email_address": {
+            "type": "string",
+            "description": "The mailbox address being connected."
+          },
+          "imap": {
+            "$ref": "#/components/schemas/ServerSettingsInput",
+            "description": "IMAP (receiving) server settings."
+          },
+          "smtp": {
+            "$ref": "#/components/schemas/ServerSettingsInput",
+            "description": "SMTP (sending) server settings."
+          }
+        }
+      },
+      "CreateImapLinkResponse": {
+        "type": "object",
+        "required": ["link_id"],
+        "properties": {
+          "link_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The email_links row id for the newly connected inbox."
           }
         }
       },
@@ -4557,16 +4661,16 @@
       "ResyncResponse": {
         "type": "object",
         "description": "The response returned from the resync endpoint.",
-        "required": ["backfill_job_id", "already_in_progress"],
+        "required": ["already_in_progress"],
         "properties": {
           "already_in_progress": {
             "type": "boolean",
             "description": "True when a backfill was already running and this call was a no-op."
           },
           "backfill_job_id": {
-            "type": "string",
+            "type": ["string", "null"],
             "format": "uuid",
-            "description": "The backfill job driving the (re-)sync. Either the freshly enqueued job or\nthe one already in progress."
+            "description": "The backfill job driving the (re-)sync. Either the freshly enqueued job or\nthe one already in progress. Absent for IMAP/SMTP links, whose resync is a\ndirect poll of the server rather than a tracked backfill job."
           }
         }
       },
@@ -4589,6 +4693,35 @@
           "message": {
             "$ref": "#/components/schemas/ApiDraftOutput",
             "description": "The created message."
+          }
+        }
+      },
+      "ServerSettingsInput": {
+        "type": "object",
+        "description": "Connection settings for one server (the IMAP or SMTP half).",
+        "required": ["host", "port", "security", "username", "password"],
+        "properties": {
+          "host": {
+            "type": "string",
+            "description": "Server hostname, e.g. `imap.fastmail.com`."
+          },
+          "password": {
+            "type": "string",
+            "description": "Login password. Many providers require an app-specific password."
+          },
+          "port": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Server port, e.g. 993 for IMAP over TLS, 465/587 for SMTP.",
+            "minimum": 0
+          },
+          "security": {
+            "$ref": "#/components/schemas/ConnectionSecurity",
+            "description": "How the connection is secured."
+          },
+          "username": {
+            "type": "string",
+            "description": "Login username (usually the email address)."
           }
         }
       },
@@ -4939,7 +5072,7 @@
       },
       "UserProvider": {
         "type": "string",
-        "enum": ["GMAIL"]
+        "enum": ["GMAIL", "IMAP_SMTP"]
       },
       "Value": {}
     }

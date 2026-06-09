@@ -2,6 +2,7 @@ pub mod attachments;
 pub mod backfill;
 pub mod contacts;
 pub mod histories;
+pub mod imap;
 pub mod labels;
 pub mod links;
 pub mod links_history;

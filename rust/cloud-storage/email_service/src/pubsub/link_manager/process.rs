@@ -6,6 +6,9 @@ use crate::util::sync_contacts::sync_contacts;
 use anyhow::{Context, anyhow};
 use crm::domain::service::CrmService;
 use models_email::email::service::pubsub::{DeletionReason, LinkManagerMessage};
+use models_email::gmail::inbox_sync::{
+    ImapPollPayload, InboxSyncOperation, InboxSyncPubsubMessage,
+};
 use models_email::service::cache::TokenCacheKey;
 use models_email::service::link::{Link, UserProvider};
 use sqs_client::search::SearchQueueMessage;
@@ -24,14 +27,31 @@ pub async fn process_message(
             let link = get_link_or_skip(&ctx, message, link_id).await?;
             let Some(link) = link else { return Ok(()) };
 
-            let gmail_access_token = fetch_token_or_delete_on_revocation(
-                &link,
-                &ctx.redis_client,
-                &ctx.auth_service_client,
-                &ctx.sqs_client,
-            )
-            .await?;
-            handle_refresh(&ctx, &link, &gmail_access_token).await?;
+            match link.provider {
+                UserProvider::Gmail => {
+                    let gmail_access_token = fetch_token_or_delete_on_revocation(
+                        &link,
+                        &ctx.redis_client,
+                        &ctx.auth_service_client,
+                        &ctx.sqs_client,
+                    )
+                    .await?;
+                    handle_refresh(&ctx, &link, &gmail_access_token).await?;
+                }
+                UserProvider::ImapSmtp => {
+                    // IMAP has no watch subscription to renew; a refresh just
+                    // schedules a poll of the server for new mail.
+                    ctx.sqs_client
+                        .enqueue_gmail_inbox_sync_notification(InboxSyncPubsubMessage {
+                            link_id: link.id,
+                            operation: InboxSyncOperation::ImapPoll(ImapPollPayload {
+                                initial: false,
+                            }),
+                        })
+                        .await
+                        .context("Failed to enqueue IMAP poll for refresh")?;
+                }
+            }
         }
         LinkManagerMessage::DeleteLink {
             link_id,
@@ -40,13 +60,16 @@ pub async fn process_message(
             let link = get_link_or_skip(&ctx, message, link_id).await?;
             let Some(link) = link else { return Ok(()) };
 
-            let gmail_access_token = fetch_gmail_access_token_from_link(
-                &link,
-                &ctx.redis_client,
-                &ctx.auth_service_client,
-            )
-            .await
-            .ok();
+            let gmail_access_token = match link.provider {
+                UserProvider::Gmail => fetch_gmail_access_token_from_link(
+                    &link,
+                    &ctx.redis_client,
+                    &ctx.auth_service_client,
+                )
+                .await
+                .ok(),
+                UserProvider::ImapSmtp => None,
+            };
             handle_delete(&ctx, &link, gmail_access_token.as_deref(), &deletion_reason).await?;
         }
         LinkManagerMessage::DeleteUser { fusionauth_user_id } => {
@@ -132,10 +155,16 @@ async fn handle_delete_all_user_links(
     );
 
     for link in &links {
-        let gmail_access_token =
-            fetch_gmail_access_token_from_link(link, &ctx.redis_client, &ctx.auth_service_client)
-                .await
-                .ok();
+        let gmail_access_token = match link.provider {
+            UserProvider::Gmail => fetch_gmail_access_token_from_link(
+                link,
+                &ctx.redis_client,
+                &ctx.auth_service_client,
+            )
+            .await
+            .ok(),
+            UserProvider::ImapSmtp => None,
+        };
 
         if let Err(e) = handle_delete(
             ctx,
@@ -174,40 +203,45 @@ async fn handle_delete(
         })
         .ok();
 
-    // delete cached access token, in case user re-enables within cache window
-    ctx.redis_client
-        .delete_gmail_access_token(&TokenCacheKey::new(
-            link.fusionauth_user_id.clone(),
-            link.email_address.0.as_ref(),
-            UserProvider::Gmail.as_str(),
-        ))
-        .await
-        .inspect_err(|e| {
-            tracing::warn!(error=?e, "Failed to delete Gmail access token");
-        })
-        .ok();
+    // Gmail-only teardown: token cache, watch subscription, and the
+    // FusionAuth IdP link. IMAP/SMTP links have none of these — their
+    // credentials row cascades away with the email_links delete below.
+    if link.provider == UserProvider::Gmail {
+        // delete cached access token, in case user re-enables within cache window
+        ctx.redis_client
+            .delete_gmail_access_token(&TokenCacheKey::new(
+                link.fusionauth_user_id.clone(),
+                link.email_address.0.as_ref(),
+                UserProvider::Gmail.as_str(),
+            ))
+            .await
+            .inspect_err(|e| {
+                tracing::warn!(error=?e, "Failed to delete Gmail access token");
+            })
+            .ok();
 
-    // make call to gmail to unregister. may fail if the user revoked our access (which is a reason
-    // that we may be deleting their link in the first place)
-    if let Some(token) = gmail_access_token {
-        if let Err(e) = ctx.gmail_client.stop_watch(token).await {
-            tracing::warn!(error=?e, "Gmail call to stop watch failed");
+        // make call to gmail to unregister. may fail if the user revoked our access (which is a reason
+        // that we may be deleting their link in the first place)
+        if let Some(token) = gmail_access_token {
+            if let Err(e) = ctx.gmail_client.stop_watch(token).await {
+                tracing::warn!(error=?e, "Gmail call to stop watch failed");
+            }
+        } else {
+            tracing::debug!("Skipping Gmail stop_watch - no access token available");
         }
-    } else {
-        tracing::debug!("Skipping Gmail stop_watch - no access token available");
-    }
 
-    // remove google fusionauth link with gmail inbox permissions. must succeed before we delete
-    // the email_links row below, otherwise a failure leaves a stale FA IdP link with no macrodb
-    // counterpart (and the message is retried instead).
-    ctx.auth_service_client
-        .remove_link(
-            &link.fusionauth_user_id,
-            link.email_address.0.as_ref(),
-            "google_gmail",
-        )
-        .await
-        .context("Failed to remove FusionAuth IdP link")?;
+        // remove google fusionauth link with gmail inbox permissions. must succeed before we delete
+        // the email_links row below, otherwise a failure leaves a stale FA IdP link with no macrodb
+        // counterpart (and the message is retried instead).
+        ctx.auth_service_client
+            .remove_link(
+                &link.fusionauth_user_id,
+                link.email_address.0.as_ref(),
+                "google_gmail",
+            )
+            .await
+            .context("Failed to remove FusionAuth IdP link")?;
+    }
 
     // inform search of deletion so it can wipe the email records from OS
     ctx.sqs_client

@@ -12,6 +12,8 @@ import type {
   ApiPaginatedThreadCursor,
   CreateDraftRequest,
   CreateDraftResponse,
+  CreateImapLinkRequest,
+  CreateImapLinkResponse,
   GetAttachmentDocumentIDResponse,
   GetAttachmentResponse,
   GetThreadResponse,
@@ -236,6 +238,31 @@ export const emailClient = {
         `/email/links/${encodeURIComponent(linkId)}`,
         {
           method: 'DELETE',
+        }
+      )
+    ).map((result) => result);
+  },
+
+  /**
+   * Connects an email account on an arbitrary IMAP/SMTP server. The backend
+   * verifies both server connections before persisting anything, so failures
+   * surface as 400s whose body is a human-readable reason — propagate it so
+   * the form can tell the user which half is misconfigured.
+   */
+  async createImapLink(args: CreateImapLinkRequest) {
+    return (
+      await fetchWithToken<CreateImapLinkResponse, 'IMAP_LINK_FAILED'>(
+        `${emailHost}/email/links/imap`,
+        {
+          method: 'POST',
+          body: JSON.stringify(args),
+          errorResponseHandler: async (response) => {
+            const body = await response.text().catch(() => '');
+            return {
+              code: 'IMAP_LINK_FAILED',
+              message: body || `HTTP error! status: ${response.status}`,
+            };
+          },
         }
       )
     ).map((result) => result);

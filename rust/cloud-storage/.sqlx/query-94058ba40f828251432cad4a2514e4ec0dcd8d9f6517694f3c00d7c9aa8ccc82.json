@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT link_id, folder, uid_validity, last_seen_uid\n        FROM email_imap_folder_states\n        WHERE link_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "link_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "folder",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "uid_validity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_seen_uid",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "94058ba40f828251432cad4a2514e4ec0dcd8d9f6517694f3c00d7c9aa8ccc82"
+}

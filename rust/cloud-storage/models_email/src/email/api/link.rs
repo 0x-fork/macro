@@ -43,12 +43,16 @@ impl SyncStatus {
 #[serde(rename_all = "UPPERCASE")]
 pub enum UserProvider {
     Gmail,
+    /// A generic email server reached over IMAP (receive) and SMTP (send).
+    #[serde(rename = "IMAP_SMTP")]
+    ImapSmtp,
 }
 
 impl UserProvider {
     pub fn as_str(&self) -> &'static str {
         match self {
             UserProvider::Gmail => "GMAIL",
+            UserProvider::ImapSmtp => "IMAP_SMTP",
         }
     }
 }
@@ -63,6 +67,7 @@ impl From<crate::email::service::link::UserProvider> for UserProvider {
     fn from(provider: crate::email::service::link::UserProvider) -> Self {
         match provider {
             crate::email::service::link::UserProvider::Gmail => UserProvider::Gmail,
+            crate::email::service::link::UserProvider::ImapSmtp => UserProvider::ImapSmtp,
         }
     }
 }

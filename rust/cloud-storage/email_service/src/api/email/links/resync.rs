@@ -9,6 +9,9 @@ use model::user::UserContext;
 use models_email::email::service::backfill::{
     BackfillJobStatus, BackfillOperation, BackfillPubsubMessage, InitPayload, JobScopedPayload,
 };
+use models_email::gmail::inbox_sync::{
+    ImapPollPayload, InboxSyncOperation, InboxSyncPubsubMessage,
+};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -16,8 +19,10 @@ use uuid::Uuid;
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ResyncResponse {
     /// The backfill job driving the (re-)sync. Either the freshly enqueued job or
-    /// the one already in progress.
-    pub backfill_job_id: Uuid,
+    /// the one already in progress. Absent for IMAP/SMTP links, whose resync is a
+    /// direct poll of the server rather than a tracked backfill job.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backfill_job_id: Option<Uuid>,
     /// True when a backfill was already running and this call was a no-op.
     pub already_in_progress: bool,
 }
@@ -50,13 +55,31 @@ pub async fn resync_link_handler(
 ) -> Result<Response, InboxActionError> {
     let (link, _access) = authorize_inbox_access(&ctx, &user_context.user_id, link_id).await?;
 
+    // IMAP links have no backfill pipeline; a resync is an immediate poll of
+    // the server, so there's no job id to report.
+    if link.provider == models_email::service::link::UserProvider::ImapSmtp {
+        ctx.sqs_client
+            .enqueue_gmail_inbox_sync_notification(InboxSyncPubsubMessage {
+                link_id: link.id,
+                operation: InboxSyncOperation::ImapPoll(ImapPollPayload { initial: false }),
+            })
+            .await
+            .context("failed to enqueue IMAP poll for resync")?;
+
+        return Ok(Json(ResyncResponse {
+            backfill_job_id: None,
+            already_in_progress: false,
+        })
+        .into_response());
+    }
+
     if let Some(active) =
         email_db_client::backfill::job::get::get_active_backfill_job(&ctx.db, link.id)
             .await
             .context("failed to check active backfill job")?
     {
         return Ok(Json(ResyncResponse {
-            backfill_job_id: active.id,
+            backfill_job_id: Some(active.id),
             already_in_progress: true,
         })
         .into_response());
@@ -98,7 +121,7 @@ pub async fn resync_link_handler(
     }
 
     Ok(Json(ResyncResponse {
-        backfill_job_id: backfill_job.id,
+        backfill_job_id: Some(backfill_job.id),
         already_in_progress: false,
     })
     .into_response())

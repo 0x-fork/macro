@@ -5,6 +5,9 @@ publish = false
 edition = "2024"
 
 [dependencies]
+aes-gcm = "0.10.3"
+anyhow = { workspace = true }
+base64 = { workspace = true }
 ego-tree = { workspace = true }
 html2text = "0.15.1"
 lazy_static = { workspace = true }

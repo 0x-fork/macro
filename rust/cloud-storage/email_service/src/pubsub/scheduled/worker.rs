@@ -14,6 +14,7 @@ pub async fn run_worker(
     redis_client: RedisClient,
     s3_client: s3_client::S3,
     attachment_bucket: String,
+    credential_key: Option<email_utils::credential_crypto::CredentialKey>,
 ) {
     let ctx = ScheduledContext {
         db,
@@ -23,6 +24,7 @@ pub async fn run_worker(
         redis_client,
         s3_client,
         attachment_bucket,
+        credential_key,
     };
     loop {
         let worker_result = tokio::spawn({

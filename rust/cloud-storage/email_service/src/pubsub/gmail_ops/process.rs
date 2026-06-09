@@ -1,6 +1,7 @@
 use crate::pubsub::gmail_ops::error_handlers::prefix_error_source;
 use crate::pubsub::gmail_ops::operations::block_sender::block_sender;
 use crate::pubsub::gmail_ops::operations::delete_label::delete_label;
+use crate::pubsub::gmail_ops::operations::imap_modify_labels::imap_modify_message_labels;
 use crate::pubsub::gmail_ops::operations::modify_message_labels::modify_message_labels;
 use crate::pubsub::gmail_ops::operations::unblock_sender::unblock_sender;
 use crate::pubsub::gmail_ops::worker::GmailOpsContext;
@@ -8,7 +9,7 @@ use crate::util::redis::rate_limit::RateLimitArgs;
 use anyhow::{Context, Result, anyhow};
 use models_email::gmail::gmail_ops::{GmailOpsOperation, GmailOpsPubsubMessage};
 use models_email::gmail::operations::GmailApiOperation;
-use models_email::service::link::Link;
+use models_email::service::link::{Link, UserProvider};
 use models_email::service::pubsub::{DetailedError, FailureReason, ProcessingError};
 use sqs_worker::cleanup_message;
 use uuid::Uuid;
@@ -67,6 +68,23 @@ async fn inner_process_message(
                 source: anyhow!("No link found for id {}", data.link_id),
             })
         })?;
+
+    // IMAP/SMTP links have no Gmail API to push to: read-state changes are
+    // mirrored as IMAP flags, everything else stays local.
+    if link.provider == UserProvider::ImapSmtp {
+        match &data.operation {
+            GmailOpsOperation::ModifyMessageLabels(payload) => {
+                imap_modify_message_labels(ctx, &link, payload)
+                    .await
+                    .map_err(|e| prefix_error_source(e, "imap_modify_message_labels"))?;
+                tracing::debug!("Successfully processed imap modify message labels operation");
+            }
+            other => {
+                tracing::debug!(operation = %other, "operation has no IMAP equivalent; skipping");
+            }
+        }
+        return Ok(());
+    }
 
     match &data.operation {
         GmailOpsOperation::ModifyMessageLabels(payload) => {

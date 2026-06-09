@@ -49,4 +49,7 @@ pub(crate) struct ApiContext {
     pub entity_access_service: Arc<EmailEntityAccessService>,
     pub email_thread_state: EmailThreadRouterState<EmailSvc, EmailEntityAccessService>,
     pub gmail_token_state: GmailTokenState<GmailTokenProviderImpl>,
+    /// Key for encrypting/decrypting stored IMAP/SMTP credentials; `None`
+    /// when IMAP/SMTP links aren't configured for this deployment.
+    pub credential_key: Option<email_utils::credential_crypto::CredentialKey>,
 }

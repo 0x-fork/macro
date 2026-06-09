@@ -4,6 +4,7 @@
  * email_service
  * OpenAPI spec version: 0.1.0
  */
+import type { ResyncResponseBackfillJobId } from './resyncResponseBackfillJobId';
 
 /**
  * The response returned from the resync endpoint.
@@ -12,6 +13,7 @@ export interface ResyncResponse {
   /** True when a backfill was already running and this call was a no-op. */
   already_in_progress: boolean;
   /** The backfill job driving the (re-)sync. Either the freshly enqueued job or
-the one already in progress. */
-  backfill_job_id: string;
+the one already in progress. Absent for IMAP/SMTP links, whose resync is a
+direct poll of the server rather than a tracked backfill job. */
+  backfill_job_id?: ResyncResponseBackfillJobId;
 }

@@ -1,0 +1,102 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT link_id,\n               imap_host, imap_port, imap_security as \"imap_security: _\",\n               imap_username, imap_password_ciphertext,\n               smtp_host, smtp_port, smtp_security as \"smtp_security: _\",\n               smtp_username, smtp_password_ciphertext\n        FROM email_imap_smtp_credentials\n        WHERE link_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "link_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "imap_host",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "imap_port",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "imap_security: _",
+        "type_info": {
+          "Custom": {
+            "name": "email_connection_security_enum",
+            "kind": {
+              "Enum": [
+                "SSL_TLS",
+                "STARTTLS"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "imap_username",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "imap_password_ciphertext",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 6,
+        "name": "smtp_host",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "smtp_port",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "smtp_security: _",
+        "type_info": {
+          "Custom": {
+            "name": "email_connection_security_enum",
+            "kind": {
+              "Enum": [
+                "SSL_TLS",
+                "STARTTLS"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "smtp_username",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "smtp_password_ciphertext",
+        "type_info": "Bytea"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7630425280ebc21d6c451df7474e42b3ae2d0a78219ea44d4831cbbc6ecbd2ca"
+}

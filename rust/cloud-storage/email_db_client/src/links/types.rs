@@ -9,12 +9,15 @@ use sqlx::{Type, types::Uuid};
 #[dg(backward = models_email::email::service::link::UserProvider)]
 pub enum DbUserProvider {
     Gmail,
+    #[sqlx(rename = "IMAP_SMTP")]
+    ImapSmtp,
 }
 
 impl DbUserProvider {
     pub fn as_str(&self) -> &'static str {
         match self {
             DbUserProvider::Gmail => "GMAIL",
+            DbUserProvider::ImapSmtp => "IMAP_SMTP",
         }
     }
 }
@@ -45,6 +48,7 @@ impl From<models_email::email::service::link::Link> for DbLink {
                 .to_string(),
             provider: match service_link.provider {
                 models_email::service::link::UserProvider::Gmail => DbUserProvider::Gmail,
+                models_email::service::link::UserProvider::ImapSmtp => DbUserProvider::ImapSmtp,
             },
             is_sync_active: service_link.is_sync_active,
             created_at: service_link.created_at,
@@ -74,6 +78,7 @@ impl TryFrom<DbLink> for models_email::email::service::link::Link {
             email_address: EmailStr::try_from(email_address)?,
             provider: match provider {
                 DbUserProvider::Gmail => UserProvider::Gmail,
+                DbUserProvider::ImapSmtp => UserProvider::ImapSmtp,
             },
             is_sync_active,
             created_at,

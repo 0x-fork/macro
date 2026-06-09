@@ -15,6 +15,8 @@ import type {
   CancelBackfillParams,
   CreateDraftRequest,
   CreateDraftResponse,
+  CreateImapLinkRequest,
+  CreateImapLinkResponse,
   CreateLabelRequest,
   CreateLabelResponse,
   EmptyResponse,
@@ -1746,6 +1748,78 @@ export const listLinks = async (
     status: res.status,
     headers: res.headers,
   } as listLinksResponse;
+};
+
+/**
+ * Verifies both server connections with the supplied credentials before
+persisting anything; passwords are stored encrypted. On success an initial
+sync of the inbox is scheduled.
+ * @summary Connects an email account on an arbitrary IMAP/SMTP server as an inbox.
+ */
+export type createImapLinkResponse200 = {
+  data: CreateImapLinkResponse;
+  status: 200;
+};
+
+export type createImapLinkResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type createImapLinkResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type createImapLinkResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type createImapLinkResponse501 = {
+  data: ErrorResponse;
+  status: 501;
+};
+
+export type createImapLinkResponseSuccess = createImapLinkResponse200 & {
+  headers: Headers;
+};
+export type createImapLinkResponseError = (
+  | createImapLinkResponse400
+  | createImapLinkResponse401
+  | createImapLinkResponse500
+  | createImapLinkResponse501
+) & {
+  headers: Headers;
+};
+
+export type createImapLinkResponse =
+  | createImapLinkResponseSuccess
+  | createImapLinkResponseError;
+
+export const getCreateImapLinkUrl = () => {
+  return `/email/links/imap`;
+};
+
+export const createImapLink = async (
+  createImapLinkRequest: CreateImapLinkRequest,
+  options?: RequestInit
+): Promise<createImapLinkResponse> => {
+  const res = await fetch(getCreateImapLinkUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createImapLinkRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createImapLinkResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as createImapLinkResponse;
 };
 
 /**

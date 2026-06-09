@@ -154,6 +154,11 @@ pub struct Config {
 
     // How long presigned urls should be valid for attachments
     pub email_service_presigned_url_ttl_secs: u64,
+
+    /// Base64-encoded 32-byte AES-256 key used to encrypt stored IMAP/SMTP
+    /// passwords at rest. Empty when IMAP/SMTP links are not enabled for this
+    /// deployment; attempts to create or use such links then fail cleanly.
+    pub email_credentials_encryption_key: String,
 }
 
 env_var! { pub struct EmailServiceCloudfrontSignerPrivateKey; }
@@ -343,6 +348,10 @@ impl Config {
                 .parse::<u64>()
                 .unwrap();
 
+        let email_credentials_encryption_key =
+            std::env::var(email_utils::credential_crypto::ENCRYPTION_KEY_ENV_VAR)
+                .unwrap_or_default();
+
         Ok(Config {
             macro_db_url: database_url,
             port,
@@ -391,6 +400,7 @@ impl Config {
             email_service_cloudfront_signer_public_key_id,
             email_service_cloudfront_signer_private_key,
             email_service_presigned_url_ttl_secs,
+            email_credentials_encryption_key,
         })
     }
 }

@@ -48,6 +48,10 @@ async fn main() -> anyhow::Result<()> {
     let config = email_service::config::Config::from_env(cloudfront_signer_private_key)
         .context("expected to be able to generate config")?;
 
+    let credential_key =
+        email_service::util::imap::parse_credential_key(&config.email_credentials_encryption_key)
+            .context("invalid EMAIL_CREDENTIALS_ENCRYPTION_KEY")?;
+
     let auth_service_secret_key = match config.environment {
         Environment::Local => config.auth_service_secret_key.clone(),
         _ => secretsmanager_client
@@ -178,6 +182,7 @@ async fn main() -> anyhow::Result<()> {
         entity_access_service,
         email_thread_state,
         gmail_token_state,
+        credential_key,
     })
     .await?;
     Ok(())

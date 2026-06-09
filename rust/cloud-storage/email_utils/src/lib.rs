@@ -1,5 +1,6 @@
 pub mod body_parsed;
 pub mod body_replyless;
+pub mod credential_crypto;
 pub mod generic_email;
 pub mod normalize_contact;
 pub mod token_cache_key;
