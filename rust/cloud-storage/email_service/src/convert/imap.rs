@@ -197,10 +197,12 @@ fn parse_ancestor_ids(
     for source in [references, in_reply_to].into_iter().flatten() {
         for token in source.split_whitespace() {
             let token = token.trim();
-            if token.starts_with('<') && token.ends_with('>') && token != own_global_id {
-                if !ids.iter().any(|existing| existing == token) {
-                    ids.push(token.to_string());
-                }
+            if token.starts_with('<')
+                && token.ends_with('>')
+                && token != own_global_id
+                && !ids.iter().any(|existing| existing == token)
+            {
+                ids.push(token.to_string());
             }
         }
     }
@@ -256,10 +258,11 @@ fn extract_bodies(root: &ParsedMail) -> ExtractedBodies {
                 if let Ok(body) = part.get_body() {
                     out.text = Some(body);
                 }
-            } else if mime_type == "text/html" && out.html_sanitized.is_none() {
-                if let Ok(body) = part.get_body() {
-                    out.html_sanitized = Some(sanitize_email_html(&body));
-                }
+            } else if mime_type == "text/html"
+                && out.html_sanitized.is_none()
+                && let Ok(body) = part.get_body()
+            {
+                out.html_sanitized = Some(sanitize_email_html(&body));
             }
         }
 

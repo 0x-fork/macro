@@ -22,6 +22,10 @@ pub struct GmailOpsContext {
 }
 
 /// Runs the Gmail operations worker, processing messages from the queue.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "context fields, mirrors inbox_sync worker"
+)]
 pub async fn run_worker(
     db: PgPool,
     worker: sqs_worker::SQSWorker,

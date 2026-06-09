@@ -354,10 +354,8 @@ async fn ingest_message(
         }
     }
 
-    if !is_sent {
-        if let Err(e) = send_notifications(ctx, link, &global_id).await {
-            tracing::error!(error = ?e, "failed to send notification for new IMAP message");
-        }
+    if !is_sent && let Err(e) = send_notifications(ctx, link, &global_id).await {
+        tracing::error!(error = ?e, "failed to send notification for new IMAP message");
     }
 
     Ok(true)
