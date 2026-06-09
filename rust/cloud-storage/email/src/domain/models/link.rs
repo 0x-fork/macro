@@ -6,12 +6,14 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UserProvider {
     Gmail,
+    Outlook,
 }
 
 impl UserProvider {
     pub fn as_str(&self) -> &'static str {
         match self {
             UserProvider::Gmail => "GMAIL",
+            UserProvider::Outlook => "OUTLOOK",
         }
     }
 }

@@ -21,12 +21,14 @@ pub struct Link {
 #[derive(Debug, Clone, Copy, ToSchema, Serialize, Deserialize, PartialEq, Eq)]
 pub enum UserProvider {
     Gmail,
+    Outlook,
 }
 
 impl UserProvider {
     pub fn as_str(&self) -> &'static str {
         match self {
             UserProvider::Gmail => "GMAIL",
+            UserProvider::Outlook => "OUTLOOK",
         }
     }
 }

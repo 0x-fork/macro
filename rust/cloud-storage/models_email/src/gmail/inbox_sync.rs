@@ -61,6 +61,10 @@ pub enum InboxSyncOperation {
     // The original message we get from gmail when there is a change to the user's inbox.
     // Contains the new history_id for the user's inbox.
     GmailMessage(GmailMessagePayload),
+    // The notification we get from Microsoft Graph when there is a change to an
+    // Outlook user's inbox. Unlike Gmail there is no history id; the worker runs
+    // an incremental delta sync from the persisted delta link for the link.
+    OutlookNotification(OutlookNotificationPayload),
     // Operation to upsert a message
     UpsertMessage(UpsertMessagePayload),
     // Operation to delete a message
@@ -72,6 +76,17 @@ pub enum InboxSyncOperation {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct GmailMessagePayload {
     pub history_id: u64,
+}
+
+/// Payload for an Outlook change notification queued from the Graph webhook.
+/// We coalesce the notification batch down to the affected subscription; the
+/// worker then runs a delta sync from the persisted delta link rather than
+/// acting on a single message id, which keeps us resilient to dropped or merged
+/// notifications.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct OutlookNotificationPayload {
+    /// The Graph subscription id that produced the notification.
+    pub subscription_id: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
