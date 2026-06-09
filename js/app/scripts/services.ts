@@ -104,6 +104,14 @@ export const services: Service[] = [
 		output: "../packages/service-clients/service-scheduled-action/",
 		orvalKey: "scheduledActionService",
 	},
+	{
+		name: "calendar",
+		dev: "https://calendar-service-dev.macro.com/api-doc/openapi.json",
+		prod: "https://calendar-service.macro.com/api-doc/openapi.json",
+		local: "http://localhost:8101/api-doc/openapi.json",
+		output: "../packages/service-clients/service-calendar/",
+		orvalKey: "calendarService",
+	},
 ];
 
 export const documentCognitionBase: Service = {

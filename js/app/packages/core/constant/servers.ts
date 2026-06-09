@@ -13,6 +13,7 @@ const serverHostLocal: Servers = {
   'email-service': 'http://localhost:8087',
   'image-proxy-service': 'http://localhost:8097',
   'scheduled-action': 'http://localhost:8098',
+  'calendar-service': 'http://localhost:8101',
 } as const;
 
 const devServerSuffix = import.meta.env.MODE === 'development' ? '-dev' : '';
@@ -37,6 +38,7 @@ const serverHostRemote = {
   'email-service': `https://email-service${devServerSuffix}.macro.com`,
   'image-proxy-service': `https://image-proxy${devServerSuffix}.macro.com`,
   'scheduled-action': `https://agent-schedule${devServerSuffix}.macro.com`,
+  'calendar-service': `https://calendar-service${devServerSuffix}.macro.com`,
 } as const;
 
 type Servers = Record<keyof typeof serverHostRemote, string>;

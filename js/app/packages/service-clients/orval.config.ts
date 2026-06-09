@@ -125,6 +125,19 @@ export default defineConfig({
       target: './service-scheduled-action/openapi.json',
     },
   },
+  calendarService: {
+    output: {
+      client: 'fetch',
+      target: './service-calendar/generated/client.ts',
+      schemas: './service-calendar/generated/schemas',
+      override: {
+        useDates: false,
+      },
+    },
+    input: {
+      target: './service-calendar/openapi.json',
+    },
+  },
   searchService: {
     output: {
       client: 'fetch',

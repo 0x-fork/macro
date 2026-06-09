@@ -1,0 +1,36 @@
+[package]
+edition = "2024"
+name = "calendar"
+publish = false
+version = "0.1.0"
+
+[features]
+axum = [
+  "dep:axum",
+  "dep:axum-extra",
+  "dep:macro_auth",
+  "dep:macro_middleware",
+  "dep:model_user",
+  "dep:utoipa",
+]
+default = ["axum", "inbound", "outbound", "ports"]
+inbound = ["axum", "ports"]
+outbound = ["dep:sqlx", "ports"]
+ports = []
+
+[dependencies]
+axum = { workspace = true, optional = true }
+axum-extra = { workspace = true, optional = true }
+macro_auth = { path = "../macro_auth", optional = true }
+macro_middleware = { path = "../macro_middleware", default-features = false, features = [
+  "auth",
+], optional = true }
+macro_user_id = { path = "../macro_user_id" }
+model_user = { path = "../model_user", features = ["axum"], optional = true }
+rootcause = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true, optional = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true, optional = true }

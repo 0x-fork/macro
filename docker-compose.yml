@@ -98,6 +98,27 @@ services:
       start_period: 10s
 
   # ============================================================================
+  # calendar_service (Port 8101)
+  # Calendar events + attendees - MacroDB
+  # ============================================================================
+  calendar_service:
+    <<: [*common-env, *rust-services-image]
+    command: ["/app/out/calendar_service"]
+    ports:
+      - "8101:8080"
+    networks:
+      databases:
+      services:
+        aliases:
+          - calendar-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================================
   # document_cognition_service (Port 8085)
   # Document analysis and processing
   # ============================================================================

@@ -111,6 +111,9 @@
       "@service-scheduled-action/*": [
         "./packages/service-clients/service-scheduled-action/*"
       ],
+      "@service-calendar/*": [
+        "./packages/service-clients/service-calendar/*"
+      ],
       "@service-email/*": [
         "./packages/service-clients/service-email/*"
       ],
@@ -149,6 +152,9 @@
       ],
       "@block-unknown/*": [
         "./packages/block-unknown/*"
+      ],
+      "@block-calendar/*": [
+        "./packages/block-calendar/*"
       ],
       "@block-video/*": [
         "./packages/block-video/*"
