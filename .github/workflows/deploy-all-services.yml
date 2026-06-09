@@ -29,10 +29,6 @@ on:
         required: true
       CACHIX_AUTH_TOKEN:
         required: true
-      AWS_ACCESS_KEY_ID:
-        required: false
-      SCCACHE_BUCKET:
-        required: false
 
 # Only run 1 deploy-all workflow at a time per environment
 concurrency:
@@ -95,7 +91,6 @@ jobs:
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
 
       - name: Warm shared release deps
         shell: bash
@@ -136,7 +131,6 @@ jobs:
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
 
       - name: Warm shared lambda dep closure
         shell: bash
@@ -210,7 +204,6 @@ jobs:
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
 
       - name: Build prebuilt binaries
         shell: bash
@@ -296,7 +289,6 @@ jobs:
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
 
       - name: Build Lambda artifacts
         env:
