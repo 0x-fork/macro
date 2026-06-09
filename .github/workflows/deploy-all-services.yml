@@ -78,7 +78,7 @@ jobs:
     needs: setup
     if: ${{ needs.setup.outputs.binaries != '[]' }}
     # NOTE: adjust to a provisioned Blacksmith runner label for the org.
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-32vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
@@ -91,10 +91,22 @@ jobs:
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
 
+      - name: Configure Cachix fallback
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+
       - name: Warm shared release deps
         shell: bash
         run: |
           set -euo pipefail
+          cachix_pid=
+          if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
+            cachix watch-store "$CACHIX_CACHE_NAME" >/tmp/cachix-watch-store.log 2>&1 &
+            cachix_pid=$!
+            trap 'if [ -n "${cachix_pid:-}" ]; then kill "$cachix_pid" 2>/dev/null || true; wait "$cachix_pid" 2>/dev/null || true; fi' EXIT
+          fi
           nix build --print-build-logs ".#deployCargoArtifacts"
           echo "Shared release deps realised into /nix/store; committed on job exit."
 
@@ -107,7 +119,7 @@ jobs:
     needs: setup
     if: ${{ needs.setup.outputs.lambdas != '[]' }}
     # NOTE: adjust to a provisioned Blacksmith runner label for the org.
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-32vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
@@ -120,10 +132,22 @@ jobs:
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
 
+      - name: Configure Cachix fallback
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+
       - name: Warm shared lambda dep closure
         shell: bash
         run: |
           set -euo pipefail
+          cachix_pid=
+          if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
+            cachix watch-store "$CACHIX_CACHE_NAME" >/tmp/cachix-watch-store.log 2>&1 &
+            cachix_pid=$!
+            trap 'if [ -n "${cachix_pid:-}" ]; then kill "$cachix_pid" 2>/dev/null || true; wait "$cachix_pid" 2>/dev/null || true; fi' EXIT
+          fi
           nix build --print-build-logs ".#lambdaDeployCargoArtifacts" ".#callRecordingPreviewFfmpegLayer"
           echo "Shared lambda deps realised into /nix/store; committed on job exit."
 
@@ -137,7 +161,7 @@ jobs:
     if: ${{ needs.setup.outputs.binaries != '[]' }}
     # Runs on Blacksmith, cloning the warm /nix sticky disk committed by
     # warm-binaries so only each service's own crate compiles.
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-32vcpu-ubuntu-2404
     strategy:
       fail-fast: false
       # No max-parallel: all binary services build concurrently (they only clone
@@ -182,6 +206,12 @@ jobs:
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
 
+      - name: Configure Cachix fallback
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+
       - name: Build prebuilt binaries
         shell: bash
         env:
@@ -192,7 +222,13 @@ jobs:
 
           binaries=$(jq -r --arg service "$SERVICE" '.services[$service].deploy_binaries // [] | @tsv' .github/services-config.json)
           if [[ -n "$binaries" ]]; then
-            nix build ".#deploy-service-binaries-${SERVICE}"
+            cachix_pid=
+            if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
+              cachix watch-store "$CACHIX_CACHE_NAME" >/tmp/cachix-watch-store.log 2>&1 &
+              cachix_pid=$!
+              trap 'if [ -n "${cachix_pid:-}" ]; then kill "$cachix_pid" 2>/dev/null || true; wait "$cachix_pid" 2>/dev/null || true; fi' EXIT
+            fi
+            nix build --print-build-logs ".#deploy-service-binaries-${SERVICE}"
             cp -r result/bin/* prebuilt/
             mkdir -p prebuilt/nix-store
             while IFS= read -r store_path; do
@@ -218,7 +254,7 @@ jobs:
     # of a service's handlers via `nix build .#deploy-lambda-<name>`, cloning the
     # warm lambda /nix disk committed by warm-lambdas. Unchanged handlers are
     # pure cache hits (substituted from the disk/Cachix, no recompile).
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: blacksmith-32vcpu-ubuntu-2404
     strategy:
       fail-fast: false
       # No max-parallel: Blacksmith autoscales runners, so all lambda services
@@ -255,6 +291,12 @@ jobs:
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
+
+      - name: Configure Cachix fallback
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
 
       - name: Build Lambda artifacts
         env:

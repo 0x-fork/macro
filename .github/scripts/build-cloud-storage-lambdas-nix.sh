@@ -29,6 +29,13 @@ fi
 
 echo "Building Lambda artifacts for $SERVICE via nix: ${LAMBDAS[*]}"
 
+cachix_pid=
+if command -v cachix >/dev/null 2>&1 && [[ -n "${CACHIX_CACHE_NAME:-}" ]]; then
+  cachix watch-store "$CACHIX_CACHE_NAME" >/tmp/cachix-watch-store.log 2>&1 &
+  cachix_pid=$!
+  trap 'if [[ -n "${cachix_pid:-}" ]]; then kill "$cachix_pid" 2>/dev/null || true; wait "$cachix_pid" 2>/dev/null || true; fi' EXIT
+fi
+
 # Build every handler for this service in one nix invocation: independent
 # derivations build in parallel, and unchanged ones are pure cache hits.
 installables=()

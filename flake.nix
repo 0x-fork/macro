@@ -186,17 +186,109 @@
           }
         );
 
+        deployServiceBinaryDefinitions = [
+          {
+            serviceName = "agent-schedule-service";
+            packageName = "scheduled_action";
+            binaries = [ "service" ];
+          }
+          {
+            serviceName = "authentication-service";
+            packageName = "authentication_service";
+            binaries = [ "authentication_service" ];
+          }
+          {
+            serviceName = "connection-gateway";
+            packageName = "connection_gateway";
+            binaries = [ "connection_gateway_service" ];
+          }
+          {
+            serviceName = "contacts-service";
+            packageName = "contacts_service";
+            binaries = [ "contacts_service" ];
+          }
+          {
+            serviceName = "convert-service";
+            packageName = "convert_service";
+            binaries = [ "convert_service" ];
+          }
+          {
+            serviceName = "document-cognition-service";
+            packageName = "document_cognition_service";
+            binaries = [ "document_cognition_service" ];
+          }
+          {
+            serviceName = "document-storage-service";
+            packageName = "document_storage_service";
+            binaries = [ "document_storage_service" ];
+          }
+          {
+            serviceName = "email-service";
+            packageName = "email_service";
+            binaries = [
+              "email_service"
+              "pubsub_workers"
+            ];
+          }
+          {
+            serviceName = "image-proxy-service";
+            packageName = "image_proxy_service";
+            binaries = [ "image_proxy_service" ];
+          }
+          {
+            serviceName = "mcp-server";
+            packageName = "mcp_service";
+            binaries = [ "mcp_service" ];
+          }
+          {
+            serviceName = "notification-service";
+            packageName = "notification_service";
+            binaries = [ "notification_service" ];
+          }
+          {
+            serviceName = "search-processing-service";
+            packageName = "search_processing_service";
+            binaries = [ "search_processing_service" ];
+          }
+          {
+            serviceName = "static-file-service";
+            packageName = "static_file_service";
+            binaries = [ "static_file_service" ];
+          }
+          {
+            serviceName = "unfurl-service";
+            packageName = "unfurl_service";
+            binaries = [ "unfurl_service" ];
+          }
+        ];
+
+        deployBinaryCargoExtraArgs =
+          "--locked "
+          + pkgs.lib.concatMapStringsSep " " (
+            def:
+            "--package ${def.packageName} "
+            + pkgs.lib.concatMapStringsSep " " (binary: "--bin ${binary}") def.binaries
+          ) deployServiceBinaryDefinitions;
+
         deployCargoArtifacts = craneLib.buildDepsOnly (
           commonArgs
           // {
             pname = "cloud-storage-deploy-deps";
-            cargoExtraArgs = "--locked";
+            doCheck = false;
+            # buildDepsOnly runs a cargo check in buildPhase by default; keep this
+            # warm artifact to release deps only.
+            cargoCheckCommand = "true";
+            cargoExtraArgs = deployBinaryCargoExtraArgs;
             CARGO_PROFILE = "release";
           }
         );
 
         deployServiceBinaryPackage =
-          serviceName: binaries:
+          {
+            serviceName,
+            packageName,
+            binaries,
+          }:
           craneLib.buildPackage (
             commonArgs
             // {
@@ -204,7 +296,8 @@
               pname = "cloud-storage-${serviceName}-binaries";
               doCheck = false;
               cargoExtraArgs =
-                "--locked " + pkgs.lib.concatMapStringsSep " " (binary: "--bin ${binary}") binaries;
+                "--locked --package ${packageName} "
+                + pkgs.lib.concatMapStringsSep " " (binary: "--bin ${binary}") binaries;
               CARGO_PROFILE = "release";
               installPhaseCommand = ''
                 mkdir -p $out/bin
@@ -216,48 +309,12 @@
             }
           );
 
-        deployServiceBinaryPackages = {
-          deploy-service-binaries-agent-schedule-service =
-            deployServiceBinaryPackage "agent-schedule-service"
-              [ "service" ];          deploy-service-binaries-authentication-service =
-            deployServiceBinaryPackage "authentication-service"
-              [ "authentication_service" ];
-          deploy-service-binaries-connection-gateway = deployServiceBinaryPackage "connection-gateway" [
-            "connection_gateway_service"
-          ];
-          deploy-service-binaries-contacts-service = deployServiceBinaryPackage "contacts-service" [
-            "contacts_service"
-          ];
-          deploy-service-binaries-convert-service = deployServiceBinaryPackage "convert-service" [
-            "convert_service"
-          ];
-          deploy-service-binaries-document-cognition-service =
-            deployServiceBinaryPackage "document-cognition-service"
-              [ "document_cognition_service" ];
-          deploy-service-binaries-document-storage-service =
-            deployServiceBinaryPackage "document-storage-service"
-              [ "document_storage_service" ];
-          deploy-service-binaries-email-service = deployServiceBinaryPackage "email-service" [
-            "email_service"
-            "pubsub_workers"
-          ];
-          deploy-service-binaries-image-proxy-service = deployServiceBinaryPackage "image-proxy-service" [
-            "image_proxy_service"
-          ];
-          deploy-service-binaries-mcp-server = deployServiceBinaryPackage "mcp-server" [ "mcp_service" ];
-          deploy-service-binaries-notification-service = deployServiceBinaryPackage "notification-service" [
-            "notification_service"
-          ];
-          deploy-service-binaries-search-processing-service =
-            deployServiceBinaryPackage "search-processing-service"
-              [ "search_processing_service" ];
-          deploy-service-binaries-static-file-service = deployServiceBinaryPackage "static-file-service" [
-            "static_file_service"
-          ];
-          deploy-service-binaries-unfurl-service = deployServiceBinaryPackage "unfurl-service" [
-            "unfurl_service"
-          ];
-        };
+        deployServiceBinaryPackages = pkgs.lib.listToAttrs (
+          map (def: {
+            name = "deploy-service-binaries-${def.serviceName}";
+            value = deployServiceBinaryPackage def;
+          }) deployServiceBinaryDefinitions
+        );
 
         # ── Lambda builds (crane + cargo-zigbuild) ─────────────────────
         # SPIKE: build a Rust Lambda handler reproducibly under nix/crane so
@@ -344,18 +401,21 @@
             pkgs.lib.concatMap (svc: svc.deploy_lambdas or [ ]) (pkgs.lib.attrValues cfg.services)
           );
 
-        # One shared dep closure for all lambda handlers. Built with *plain*
-        # cargo for the plain triple (x86_64-unknown-linux-gnu) — the glibc pin
-        # is a link-time concern handled only by zigbuild in the final package
-        # step, and plain cargo/rustc reject the `.2.26` target suffix. Scoped to
-        # the lambda packages so the C-heavy service deps (pdfium, libreoffice)
-        # stay out of the closure.
+        # One shared dep closure for all lambda handlers. Build it with the same
+        # cargo-zigbuild target used by the final packages; Cargo fingerprints the
+        # `.2.26` target separately from the plain triple, so warming the plain
+        # target does not help the deploy builds.
         lambdaDeployCargoArtifacts = craneLib.buildDepsOnly (
           lambdaCommonArgs
           // {
             pname = "cloud-storage-lambda-deps";
+            doCheck = false;
+            # buildDepsOnly runs a cargo check in buildPhase by default; keep this
+            # warm artifact to release deps only.
+            cargoCheckCommand = "true";
+            cargoBuildCommand = "cargo zigbuild --release";
             cargoExtraArgs =
-              "--locked --target ${lambdaTarget} "
+              "--locked --target ${lambdaZigTarget} "
               + pkgs.lib.concatMapStringsSep " " (n: "--package ${n}") lambdaNames;
           }
         );
@@ -370,9 +430,7 @@
               pname = "cloud-storage-lambda-${lambdaName}";
               doCheck = false;
               # cargo-zigbuild links the final binary against the pinned Lambda
-              # glibc, selected via the `.2.26` target suffix (which only zigbuild
-              # understands). Dep rlibs from the closure above (plain triple) are
-              # reused; only the leaf crate compiles + links here.
+              # glibc, selected via the `.2.26` target suffix.
               cargoBuildCommand = "cargo zigbuild --release";
               cargoExtraArgs = "--locked --target ${lambdaZigTarget} --bin ${lambdaName}";
               # Emit the Lambda custom-runtime artifact: a zip whose single entry
