@@ -226,6 +226,14 @@ fn api_router(state: ApiContext) -> Router {
             "/crm",
             crm::inbound::axum_router::crm_router(state.crm_state.clone()),
         )
+        .nest(
+            "/google-drive",
+            google_drive::inbound::google_drive_router::google_drive_router(
+                google_drive::inbound::google_drive_router::GoogleDriveRouterState {
+                    service: state.google_drive_service.clone(),
+                },
+            ),
+        )
         .layer(
             ServiceBuilder::new()
                 .layer(axum::middleware::from_fn(

@@ -52,6 +52,9 @@ github = { path = "../github", default-features = false, features = [
   "link",
   "outbound",
 ] }
+google_drive = { path = "../google_drive", default-features = false, features = [
+  "db",
+] }
 http-body-util = { workspace = true }
 jsonwebtoken = { workspace = true }
 last_online_tracker = { path = "../last_online_tracker" }

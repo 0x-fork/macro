@@ -1,6 +1,7 @@
 use contacts::domain::service::SqsContactsIngress;
 use contacts::outbound::ingress::SqsContactsQueue;
 
+use crate::service::google_drive_import_sink::GoogleDriveImportSink;
 use crate::{config::Config, service::s3::S3};
 use axum::extract::FromRef;
 use bots::{
@@ -44,6 +45,7 @@ use connection_gateway_client::client::ConnectionGatewayClient;
 use documents_hex::domain::ports::TaskPropertiesPort;
 use documents_hex::domain::service::DocumentServiceImpl;
 use documents_hex::inbound::axum_router::DocumentRouterState;
+use documents_hex::outbound::document_bytes_upload::ReqwestDocumentBytesUploader;
 use documents_hex::outbound::pg_document_repo::PgDocumentRepo;
 use documents_hex::outbound::s3_upload_url::S3UploadUrlAdapter;
 use dynamodb_client::DynamodbClient;
@@ -60,6 +62,8 @@ use frecency::{domain::services::FrecencyQueryServiceImpl, outbound::postgres::F
 use github::domain::service::GithubSyncServiceImpl;
 use github::outbound::github_sync_client::GithubSyncClientImpl;
 use github::outbound::pg_github_sync_repo::PgGithubSyncRepo;
+use google_drive::domain::service::GoogleDriveServiceImpl;
+use google_drive::outbound::{AuthServiceAccessTokens, DriveApiClient, PgGoogleDriveLinkRepo};
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_env_var::env_var;
 use macro_sha_count_client::Redis;
@@ -289,6 +293,20 @@ pub(crate) type GithubSyncServiceType = GithubSyncServiceImpl<
     NotificationIngressType,
 >;
 
+/// Type alias for the Google Drive import sink (Macro-storage adapter). The
+/// document + foreign-entity services are stored behind `Arc` inside the sink,
+/// so the generic params here are the concrete inner service types.
+pub(crate) type GoogleDriveImportSinkType =
+    GoogleDriveImportSink<DocumentService, ReqwestDocumentBytesUploader, ForeignEntityServiceType>;
+
+/// Type alias for the Google Drive browse + import service.
+pub(crate) type GoogleDriveServiceType = GoogleDriveServiceImpl<
+    DriveApiClient,
+    AuthServiceAccessTokens,
+    PgGoogleDriveLinkRepo,
+    GoogleDriveImportSinkType,
+>;
+
 /// Type alias for the cal.com webhook service.
 pub(crate) type CalWebhookServiceType = CalWebhookServiceImpl<AnalyticsClientSink>;
 
@@ -302,6 +320,7 @@ pub(crate) struct ApiContext {
     pub redis_client: Arc<Redis>,
     pub s3_client: Arc<S3>,
     pub github_sync_service: Arc<GithubSyncServiceType>,
+    pub google_drive_service: Arc<GoogleDriveServiceType>,
     pub dynamodb_client: Arc<DynamodbClient>,
     pub dynamo_db: aws_sdk_dynamodb::Client,
     pub soup_router_state: DssSoupState,

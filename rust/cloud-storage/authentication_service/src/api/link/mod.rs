@@ -6,6 +6,7 @@ use axum::{
 pub(in crate::api) mod create_in_progress_link;
 pub(in crate::api) mod github;
 pub(in crate::api) mod gmail;
+pub(in crate::api) mod google_drive;
 
 /// The link router
 /// We ensure the user is logged in with the `macro_middleware::auth::decode_jwt::handler`.
@@ -20,4 +21,20 @@ pub fn router(_state: ApiContext) -> Router<ApiContext> {
         )
         .route("/gmail", post(gmail::init_gmail_link_handler))
         .route("/gmail/status", get(gmail::check_gmail_link_status_handler))
+        .route(
+            "/google-drive",
+            post(google_drive::init_google_drive_link_handler),
+        )
+        .route(
+            "/google-drive",
+            delete(google_drive::delete_google_drive_link_handler),
+        )
+        .route(
+            "/google-drive/finalize",
+            post(google_drive::finalize_google_drive_link_handler),
+        )
+        .route(
+            "/google-drive/status",
+            get(google_drive::check_google_drive_link_status_handler),
+        )
 }

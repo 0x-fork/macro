@@ -338,6 +338,12 @@ const GOOGLE_GMAIL_IDP_ID =
     ? undefined
     : config.require('fusionauth-google-gmail-idp-id');
 
+// Google drive identity provider id
+const GOOGLE_DRIVE_IDP_ID =
+  stack === 'local'
+    ? undefined
+    : config.require('fusionauth-google-drive-idp-id');
+
 const GOOGLE_CLIENT_ID = aws.secretsmanager
   .getSecretVersionOutput({
     secretId: config.require('google-client-id-secret-key'),
@@ -402,6 +408,42 @@ new FusionAuthIdpOpenIdConnect(
     buttonText: 'GoogleGmail',
     oauth2Scope:
       'openid profile email https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/contacts.other.readonly https://www.googleapis.com/auth/gmail.settings.basic',
+    oauth2UniqueIdClaim: 'sub',
+    linkingStrategy: 'LinkByEmail',
+    debug: stack !== 'prod',
+    lambdaReconcileId: reconcileSecondaryIdpLinkLambdaId,
+    applicationConfigurations: [
+      {
+        applicationId: pulumi.interpolate`${macroApplication.oauthConfiguration.clientId}`,
+        enabled: true,
+        createRegistration: true,
+      },
+    ],
+  },
+  {
+    dependsOn: macroApplication,
+    provider: fusionAuthProvider,
+    protect: stack !== 'local',
+  }
+);
+
+// The google drive identity provider — reuses the shared Google OAuth client
+// but requests Drive scopes, so a user can connect Drive independently of Gmail.
+new FusionAuthIdpOpenIdConnect(
+  'google-drive-idp',
+  {
+    enabled: true,
+    idpId: GOOGLE_DRIVE_IDP_ID,
+    name: 'google_drive',
+    oauth2ClientId: GOOGLE_CLIENT_ID,
+    oauth2ClientSecret: GOOGLE_CLIENT_SECRET,
+    oauth2ClientAuthenticationMethod: 'client_secret_basic',
+    oauth2AuthorizationEndpoint:
+      'https://accounts.google.com/o/oauth2/v2/auth?prompt=consent&access_type=offline',
+    oauth2TokenEndpoint: 'https://oauth2.googleapis.com/token',
+    oauth2UserInfoEndpoint: 'https://openidconnect.googleapis.com/v1/userinfo',
+    buttonText: 'GoogleDrive',
+    oauth2Scope: 'openid profile email https://www.googleapis.com/auth/drive',
     oauth2UniqueIdClaim: 'sub',
     linkingStrategy: 'LinkByEmail',
     debug: stack !== 'prod',

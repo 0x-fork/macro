@@ -418,6 +418,33 @@ async fn main() -> anyhow::Result<()> {
         GithubSyncClientImpl::default(),
     );
 
+    // Google Drive browse + import. Access tokens are resolved via
+    // authentication_service (which holds the FusionAuth refresh token), using
+    // the shared internal API key — the same one the connection gateway client
+    // uses above.
+    let google_drive_token_conn = redis_client
+        .get_multiplexed_async_connection()
+        .await
+        .context("failed to open redis connection for google drive tokens")?;
+    let auth_service_client = Arc::new(authentication_service_client::AuthServiceClient::new(
+        internal_api_secret.as_ref().to_string(),
+        macro_service_urls::AuthServiceUrl::new()?.to_string(),
+    ));
+    let google_drive_service = Arc::new(google_drive::domain::service::GoogleDriveServiceImpl::new(
+        google_drive::outbound::DriveApiClient::new(),
+        google_drive::outbound::AuthServiceAccessTokens::new(
+            auth_service_client,
+            google_drive_token_conn,
+        ),
+        google_drive::outbound::PgGoogleDriveLinkRepo::new(db.clone()),
+        crate::service::google_drive_import_sink::GoogleDriveImportSink::new(
+            document_service.clone(),
+            documents_hex::outbound::document_bytes_upload::ReqwestDocumentBytesUploader::default(),
+            foreign_entity_service.clone(),
+            db.clone(),
+        ),
+    ));
+
     let foreign_entity_state = ForeignEntityRouterState::new(
         foreign_entity_service.clone(),
         entity_access_service.clone(),
@@ -648,6 +675,7 @@ async fn main() -> anyhow::Result<()> {
             entity_access_service.clone(),
         ),
         github_sync_service: Arc::new(github_sync_service_impl),
+        google_drive_service,
         foreign_entity_state,
         db: db.clone(),
         readonly_db: readonly_pool::ReadOnlyPool(readonly_db.clone()),

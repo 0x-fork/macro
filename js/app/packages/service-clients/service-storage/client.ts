@@ -298,11 +298,71 @@ const enhancements = {
 
 const { showPaywall } = usePaywallState();
 
+// Google Drive browse/import types. Defined inline until the OpenAPI client is
+// regenerated (`bun scripts/generate-api-schema.ts cloud-storage`).
+export type DriveFile = {
+  id: string;
+  name: string;
+  mimeType: string;
+  parents?: string[];
+  size?: string | null;
+  modifiedTime?: string | null;
+  webViewLink?: string | null;
+  trashed?: boolean;
+};
+export type DriveFileList = {
+  files: DriveFile[];
+  nextPageToken?: string | null;
+};
+export type DriveImportItem = { driveId: string };
+export type DriveImportRequest = {
+  items: DriveImportItem[];
+  destinationProjectId?: string | null;
+};
+export type DriveImportedEntity = {
+  driveId: string;
+  macroId: string;
+  kind: 'folder' | 'document';
+  name: string;
+};
+export type DriveImportResult = {
+  imported: DriveImportedEntity[];
+  skipped: number;
+};
+export type DriveConnectionResponse = { connected: boolean };
+
 export const storageServiceClient = {
   async ping() {
     return (await dssFetch<SuccessResponse>(`/ping`)).map(
       (result) => result.data
     );
+  },
+
+  /** List the children of a Drive folder (omit `parentId` for the root). */
+  async listGoogleDriveFiles(args?: { parentId?: string; pageToken?: string }) {
+    const params = new URLSearchParams();
+    if (args?.parentId) params.set('parent_id', args.parentId);
+    if (args?.pageToken) params.set('page_token', args.pageToken);
+    const query = params.toString();
+    return await dssFetch<DriveFileList>(
+      `/google-drive/files${query ? `?${query}` : ''}`,
+      { method: 'GET' }
+    );
+  },
+
+  /** Import the selected Drive files/folders into Macro. */
+  async importFromGoogleDrive(body: DriveImportRequest) {
+    return await dssFetch<DriveImportResult>(`/google-drive/import`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  /** Whether the user has connected Google Drive (storage-service view). */
+  async googleDriveConnectionStatus() {
+    return await dssFetch<DriveConnectionResponse>(`/google-drive/connection`, {
+      method: 'GET',
+    });
   },
 
   async bulkWakeupSyncServiceDocuments(args: { document_ids: string[] }) {

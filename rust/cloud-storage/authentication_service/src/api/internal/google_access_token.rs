@@ -20,7 +20,7 @@ pub struct GoogleAccessTokenParams {
     email: String,
 }
 
-/// Gets link between user and identity provider
+/// Gets a Gmail access token for a user (the `google_gmail` identity provider).
 #[tracing::instrument(skip(auth_client, _internal_access))]
 pub async fn handler(
     State(auth_client): State<Arc<FusionAuthClient>>,
@@ -28,6 +28,18 @@ pub async fn handler(
     extract::Query(params): extract::Query<GoogleAccessTokenParams>,
 ) -> Result<Response, Response> {
     get_access_token(auth_client, &params, "google_gmail").await
+}
+
+/// Gets a Google Drive access token for a user (the `google_drive` identity
+/// provider). Used by `document_storage_service` to call the Drive API on the
+/// user's behalf when browsing/importing.
+#[tracing::instrument(skip(auth_client, _internal_access))]
+pub async fn drive_handler(
+    State(auth_client): State<Arc<FusionAuthClient>>,
+    _internal_access: ValidInternalKey,
+    extract::Query(params): extract::Query<GoogleAccessTokenParams>,
+) -> Result<Response, Response> {
+    get_access_token(auth_client, &params, "google_drive").await
 }
 
 /// Fetches access token for a user from specified identity provider

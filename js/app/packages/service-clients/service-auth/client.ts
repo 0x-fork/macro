@@ -50,6 +50,19 @@ import type { UserNames } from './generated/schemas/userNames';
 import type { UserOrganizationResponse } from './generated/schemas/userOrganizationResponse';
 import type { UserTokensResponse } from './generated/schemas/userTokensResponse';
 
+// Google Drive link types. Defined inline until the OpenAPI client is
+// regenerated (`bun scripts/generate-api-schema.ts auth-service`), at which
+// point these can be imported from `./generated/schemas`.
+type InitGoogleDriveLinkResponse = {
+  authorization_url: string;
+  link_id: string;
+};
+type FinalizeGoogleDriveLinkResponse = { email: string };
+type GoogleDriveLinkStatusResponse = {
+  connected: boolean;
+  reauthentication_required: boolean;
+};
+
 const authHost = SERVER_HOSTS['auth-service'];
 
 const authApiFetch = <T extends ObjectLike>(
@@ -591,6 +604,60 @@ export const authServiceClient = {
     }
 
     return authServiceClient.initGithubLink(originalUrl);
+  },
+
+  /** Whether the user has connected Google Drive (and whether it needs reauth). */
+  async checkGoogleDriveLinkStatus() {
+    return (
+      await fetchWithAuth<GoogleDriveLinkStatusResponse>(
+        `${authHost}/link/google-drive/status`,
+        { method: 'GET' }
+      )
+    ).map((result) => result);
+  },
+
+  /**
+   * Initializes a Google Drive link for the already-authenticated user.
+   * Returns the OAuth authorization URL to redirect the browser to. After
+   * Google consent the user lands back on `originalUrl` with `?link_id=<uuid>`;
+   * the frontend then calls {@link finalizeGoogleDriveLink}.
+   */
+  async initGoogleDriveLink(originalUrl?: string) {
+    const url = originalUrl
+      ? `${authHost}/link/google-drive?original_url=${encodeURIComponent(originalUrl)}`
+      : `${authHost}/link/google-drive`;
+    return (
+      await fetchWithAuth<InitGoogleDriveLinkResponse>(url, { method: 'POST' })
+    ).map((result) => result);
+  },
+
+  /** Persists the Google Drive link after the OAuth callback returns. */
+  async finalizeGoogleDriveLink() {
+    return (
+      await fetchWithAuth<FinalizeGoogleDriveLinkResponse>(
+        `${authHost}/link/google-drive/finalize`,
+        { method: 'POST' }
+      )
+    ).map((result) => result);
+  },
+
+  /** Disconnects the user's Google Drive account. */
+  async deleteGoogleDriveLink() {
+    return (
+      await fetchWithAuth<{}>(`${authHost}/link/google-drive`, {
+        method: 'DELETE',
+      })
+    ).map((_result) => {});
+  },
+
+  /** Disconnects then re-initiates the Drive link (the "Reconnect" action). */
+  async reauthenticateGoogleDrive(originalUrl?: string) {
+    const deleteResult = await authServiceClient.deleteGoogleDriveLink();
+    if (deleteResult.isErr()) {
+      return err(deleteResult.error);
+    }
+
+    return authServiceClient.initGoogleDriveLink(originalUrl);
   },
 
   async sendMobileWelcomeEmail(email: string) {

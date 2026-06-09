@@ -13,6 +13,7 @@ config:
   fusionauth-instance:default-from-email: authdev@macro.com
   fusionauth-instance:fusionauth-google-idp-id: 17dc55db-c78e-4b19-940b-2e847479a08f
   fusionauth-instance:fusionauth-google-gmail-idp-id: b99932ac-bce5-4f1d-99a1-e64760aae811
+  fusionauth-instance:fusionauth-google-drive-idp-id: c6dd2af6-228e-4925-862c-6ff19dfdc177
   fusionauth-instance:google-client-id-secret-key: google-client-id-dev
   fusionauth-instance:google-client-secret-secret-key: google-client-secret-dev
   fusionauth:host: https://fusionauth-dev.macro.com

@@ -1,0 +1,56 @@
+[package]
+edition = "2024"
+name = "google_drive"
+publish = false
+version = "0.1.0"
+
+[features]
+default = ["axum", "db", "http", "inbound", "outbound", "ports", "tokens"]
+# Pure trait definitions (domain ports). Always cheap to compile.
+ports = []
+# Drive REST v3 client adapter.
+http = ["dep:bytes", "dep:reqwest", "dep:url", "ports"]
+# Access-token adapter that calls authentication_service + caches in redis.
+tokens = ["dep:authentication_service_client", "dep:redis", "dep:tokio", "ports"]
+# Postgres adapter for the `google_drive_links` table (requires a prepared sqlx cache).
+db = ["dep:sqlx", "ports"]
+# All outbound adapters.
+outbound = ["db", "http", "tokens"]
+# Axum inbound router.
+inbound = ["axum", "ports"]
+axum = ["dep:axum", "dep:axum-extra", "dep:model-error-response", "dep:model_user", "dep:utoipa"]
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+macro_user_id = { path = "../macro_user_id" }
+macro_uuid = { path = "../macro_uuid" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+# http
+bytes = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+
+# tokens
+authentication_service_client = { path = "../authentication_service_client", optional = true }
+redis = { workspace = true, features = ["aio", "tokio-comp"], optional = true }
+tokio = { workspace = true, features = ["sync"], optional = true }
+
+# db
+sqlx = { workspace = true, optional = true }
+
+# inbound / axum
+axum = { workspace = true, optional = true }
+axum-extra = { workspace = true, optional = true }
+model-error-response = { path = "../model-error-response", optional = true }
+model_user = { path = "../model_user", optional = true }
+utoipa = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -59,6 +59,8 @@ import PaywallTeamOwnerView from '../paywall/PaywallTeamOwnerView';
 import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 import { useEmailLinks, useEmailLinksStatus } from '@core/email-link';
 import { useInitGmailLink } from '@queries/auth';
+import GoogleDriveIcon from '@icon/mcp-google-drive.svg';
+import { GoogleDriveImportDialog } from './GoogleDriveImportDialog';
 import { useRemoveInboxMutation } from '@queries/email/link';
 import {
   type SupportedNotificationSettings,
@@ -421,6 +423,52 @@ export function Account() {
     }
   };
 
+  const [driveLinkStatus, { refetch: refetchDriveLinkStatus }] =
+    createResource(async (): Promise<GithubLinkStatus> => {
+      const response = await authServiceClient.checkGoogleDriveLinkStatus();
+      if (response.isOk()) {
+        if (response.value.reauthentication_required) {
+          return 'reauthentication_required';
+        }
+        return response.value.connected ? 'linked' : 'unlinked';
+      }
+      return 'unlinked';
+    });
+
+  const [driveImportOpen, setDriveImportOpen] = createSignal(false);
+
+  // Google's OAuth redirect lands back here; the callback component finalizes
+  // the link (see GoogleDriveLinkCallback / Root.tsx).
+  const driveCallbackUrl = () =>
+    `${window.location.origin}${ROUTER_BASE_CONCAT}drive-link-callback`;
+
+  const handleDriveEnable = async () => {
+    const result = await authServiceClient.initGoogleDriveLink(
+      driveCallbackUrl()
+    );
+    if (result.isOk()) {
+      window.location.href = result.value.authorization_url;
+    } else {
+      toast.failure('Failed to start Google Drive connect flow');
+    }
+  };
+
+  const handleDriveDisable = async () => {
+    await authServiceClient.deleteGoogleDriveLink();
+    refetchDriveLinkStatus();
+  };
+
+  const handleDriveReconnect = async () => {
+    const result = await authServiceClient.reauthenticateGoogleDrive(
+      driveCallbackUrl()
+    );
+    if (result.isOk()) {
+      window.location.href = result.value.authorization_url;
+    } else {
+      toast.failure('Failed to start Google Drive reconnect flow');
+    }
+  };
+
   const firstName = () => {
     // Display any updated first name immediately without having to refetch
     if (updatedFirstName() !== undefined) return updatedFirstName();
@@ -758,6 +806,69 @@ export function Account() {
                   </Switch>
                 </Show>
               </Row>
+
+              <Row label="Google Drive">
+                <Show
+                  when={!driveLinkStatus.loading}
+                  fallback={
+                    <span class="text-sm text-ink-muted">Loading…</span>
+                  }
+                >
+                  <div class="flex items-center gap-2">
+                    <Show when={driveLinkStatus() === 'linked'}>
+                      <Button
+                        variant="base"
+                        size="sm"
+                        depth={3}
+                        onClick={() => setDriveImportOpen(true)}
+                      >
+                        <GoogleDriveIcon class="size-4" />
+                        Import files
+                      </Button>
+                    </Show>
+                    <Switch
+                      fallback={
+                        <Button
+                          variant="base"
+                          size="sm"
+                          depth={3}
+                          onClick={handleDriveEnable}
+                        >
+                          Enable
+                        </Button>
+                      }
+                    >
+                      <Match
+                        when={driveLinkStatus() === 'reauthentication_required'}
+                      >
+                        <Button
+                          variant="base"
+                          size="sm"
+                          depth={3}
+                          onClick={handleDriveReconnect}
+                        >
+                          Reconnect
+                        </Button>
+                      </Match>
+                      <Match when={driveLinkStatus() === 'linked'}>
+                        <Button
+                          variant="base"
+                          size="sm"
+                          depth={3}
+                          onClick={handleDriveDisable}
+                        >
+                          Disable
+                        </Button>
+                      </Match>
+                    </Switch>
+                  </div>
+                </Show>
+              </Row>
+
+              <GoogleDriveImportDialog
+                open={driveImportOpen()}
+                onOpenChange={setDriveImportOpen}
+              />
 
               <NotificationToggle />
             </div>

@@ -91,6 +91,7 @@ import { setCookie } from './auth/Shared';
 import { Signup } from './auth/Signup';
 import { makeEmailAuthComponents } from './EmailAuth';
 import { GlobalAppStateProvider } from './GlobalAppState';
+import { GoogleDriveLinkCallback } from './GoogleDriveLinkCallback';
 import { InteractiveOnboardingModal } from './interactive-onboarding/InteractiveOnboardingModal';
 import { Layout } from './Layout';
 import { SearchProvider } from './next-soup/search-context';
@@ -305,6 +306,10 @@ const ROUTES: RouteDefinition[] = [
   {
     path: LINK_CALLBACK_PATH,
     component: EmailLinkCallback,
+  },
+  {
+    path: '/drive-link-callback',
+    component: () => <GoogleDriveLinkCallback successPath="/" />,
   },
   {
     path: '/login/popup/success',
