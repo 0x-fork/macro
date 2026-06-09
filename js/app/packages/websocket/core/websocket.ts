@@ -396,10 +396,14 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
     // Only close if the connection is OPEN or CLOSING
     // The ws library throws an error when closing a CONNECTING WebSocket
     const readyState = this._underlyingWebsocket.readyState;
-    if (
-      readyState !== WebSocket.CONNECTING &&
-      readyState !== WebSocket.CLOSED
-    ) {
+    if (readyState === WebSocket.CONNECTING) {
+      // Close the abandoned attempt once it opens so it doesn't linger
+      // half-connected on the server.
+      const abandoned = this._underlyingWebsocket;
+      abandoned.addEventListener(WebsocketEvent.Open, () => abandoned.close(), {
+        once: true,
+      });
+    } else if (readyState !== WebSocket.CLOSED) {
       this._underlyingWebsocket.close();
     }
   }
@@ -430,6 +434,10 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
       clearTimeout(this.heartbeatTimeout);
       this.heartbeatTimeout = undefined;
     }
+
+    // A pong proves the connection is alive; only consecutive misses should
+    // count towards maxMissedHeartbeats.
+    this.missedHeartbeats = 0;
 
     const receivedHeartbeatEvent = new CustomEvent<HeartbeatEventDetail>(
       WebsocketEvent.HeartbeatReceived,
@@ -529,8 +537,12 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
             { detail }
           );
           this.dispatchEvent(WebsocketEvent.Reconnect, reconnectEvent);
-          this.backoff.reset();
         }
+
+        // Reset on every successful open (not only on reconnects), otherwise
+        // retries spent establishing the first connection permanently eat
+        // into the maxRetries budget.
+        this.backoff?.reset();
 
         if (
           this._options.heartbeat &&
@@ -779,8 +791,19 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
     }, this._options.heartbeat.interval);
   }
 
+  /**
+   * Tears down the current underlying websocket and connects a fresh one.
+   *
+   * Unlike close(), this does NOT mark the websocket as closed by the user:
+   * send(), heartbeats and automatic retries keep working on the new
+   * connection.
+   */
   reconnect() {
-    this.close();
+    this.cancelScheduledConnectionRetry();
+    this.stopHeartbeat();
+    this._closedByUser = false;
+    this.clearWebsocket(); // detach listeners from (and close) the old socket
+    this.connectionState = WebsocketConnectionState.Reconnecting;
     this.tryConnect();
   }
 }

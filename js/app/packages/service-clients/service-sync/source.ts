@@ -15,8 +15,9 @@ import { storageServiceClient } from '@service-storage/client';
 import { createEventBus } from '@solid-primitives/event-bus';
 import { raceTimeout, until } from '@solid-primitives/promise';
 import {
+  ArrayQueue,
   BebopSerializer,
-  ConstantBackoff,
+  ExponentialBackoff,
   type UrlResolver,
   untilMessage,
   WebsocketBuilder,
@@ -28,7 +29,7 @@ import {
 } from '@websocket/solid/socket-effect';
 import { createWebsocketStateSignal } from '@websocket/solid/state-signal';
 import { encodeFrontiers, type Frontiers } from 'loro-crdt';
-import { okAsync, type Result, ResultAsync } from 'neverthrow';
+import { errAsync, okAsync, type Result, ResultAsync } from 'neverthrow';
 import { createStore } from 'solid-js/store';
 import {
   FromPeer,
@@ -85,8 +86,16 @@ function createSyncServiceSocket(documentId: string, initialToken: string) {
 
   return new WebsocketBuilder(getUrl)
     .withSerializer(new BebopSerializer(FromPeer, FromRemote))
-    .withBackoff(new ConstantBackoff(500))
-    .withMaxRetries(20)
+    // Retry forever with a capped exponential backoff (500ms doubling up to
+    // 8s). A bounded retry budget left the socket permanently dead after a
+    // few seconds offline (sleep/wake, deploys), with nothing to revive it.
+    .withBackoff(new ExponentialBackoff(250, 5))
+    // Queue messages sent while disconnected; they are flushed in order once
+    // the connection is re-established, so edits made during a reconnect
+    // aren't dropped. Unbounded on purpose: dropping the oldest updates would
+    // leave dependency gaps the server can never fill, and CRDT updates are
+    // tiny relative to a session's lifetime.
+    .withBuffer(new ArrayQueue())
     .withHeartbeat({
       interval: 10_000,
       timeout: 5_000,
@@ -104,6 +113,9 @@ const TIMEOUTS = {
   SNAPSHOT: 10_000,
   REQUEST_UPDATES_SINCE: 10_000,
 } as const;
+
+/** Times an un-acked update is re-sent before pushUpdate reports missing_ack. */
+const ACK_RESENDS = 2;
 
 type WithCleanup<T> = T & { cleanup: () => void };
 
@@ -255,25 +267,47 @@ export const createSyncServiceSource = (
     }
 
     const message = FromPeer.fromPeerUpdate({ update });
-    ws.send(message);
-
     const ack = () => awaitingAckStore[rawUpdateToString(update)];
 
-    return ResultAsync.fromPromise(
-      raceTimeout(
-        until(ack),
-        TIMEOUTS.ACK,
-        /** make sure until throws **/
-        true
-      ),
-      () =>
-        ({
-          type: 'missing_ack',
-          update: update,
-        }) as const
-    ).map(() => {
-      stopAwaitingAck(update);
-    });
+    const attempt = (
+      resendsLeft: number
+    ): ResultAsync<void, MissingAckError> => {
+      const sent = ws.send(message);
+      if (!sent) {
+        // Not connected: the update sits in the websocket's send buffer and is
+        // flushed (and acked) once the connection is re-established, so don't
+        // report a missing ack while the transport is down.
+        return okAsync(undefined);
+      }
+
+      return ResultAsync.fromPromise(
+        raceTimeout(
+          until(ack),
+          TIMEOUTS.ACK,
+          /** make sure until throws **/
+          true
+        ),
+        () =>
+          ({
+            type: 'missing_ack',
+            update: update,
+          }) as const
+      )
+        .map(() => {
+          stopAwaitingAck(update);
+        })
+        .orElse((err) => {
+          // Updates are idempotent CRDT ops, so re-sending is safe. Retry
+          // before reporting missing_ack: a late ack (slow storage write on
+          // the server) shouldn't tear anything down.
+          if (resendsLeft > 0) {
+            return attempt(resendsLeft - 1);
+          }
+          return errAsync(err);
+        });
+    };
+
+    return attempt(ACK_RESENDS);
   };
 
   const pushAwareness = (awareness: RawUpdate) => {
@@ -306,10 +340,37 @@ export const createSyncServiceSource = (
   };
 
   const reconnect = () => {
+    // Only force a new connection when the socket is actually down. Tearing
+    // down an OPEN socket (e.g. on a missed ack) caused reconnect storms, and
+    // tearing down a CONNECTING one aborts an attempt that may be about to
+    // succeed. Liveness of open sockets is owned by the heartbeat.
+    const readyState = ws.underlyingWebsocket?.readyState;
+    if (readyState === WebSocket.OPEN || readyState === WebSocket.CONNECTING) {
+      return;
+    }
     ws.reconnect();
   };
 
+  // When the browser regains connectivity or the tab becomes visible again,
+  // kick the connection immediately instead of waiting out the current
+  // backoff timer (which may also have been throttled in background tabs).
+  const handleOnline = () => reconnect();
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      reconnect();
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+  }
+
   const cleanup = () => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }
     ws.close();
   };
 

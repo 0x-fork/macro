@@ -5,19 +5,14 @@ import type { Websocket } from '../';
 import { startServer, stopClient, stopServer } from './websocket-test-utils';
 
 /**
- * Repro for the "connected but messages don't send" bug.
+ * Regression test for the "connected but messages don't send" bug.
  *
- * `Websocket.reconnect()` calls `close()`, which sets `_closedByUser = true`,
- * and nothing ever resets it. The new underlying socket opens fine (UI shows
- * connected), but `send()` short-circuits on `closedByUser` and silently
- * drops every message. The sync engine calls `reconnect()` whenever an update
- * ack times out (engine.ts), so one missed ack permanently zombifies the
- * connection and every subsequent edit triggers another missed ack ->
- * reconnect -> loop.
- *
- * These tests assert the CORRECT behavior and are marked `.fails` because the
- * bug is currently present. When the bug is fixed they will start passing —
- * remove `.fails` and keep them as regression tests.
+ * `Websocket.reconnect()` used to call `close()`, which set
+ * `_closedByUser = true` permanently: the new underlying socket opened fine
+ * (UI showed connected), but `send()` short-circuited on `closedByUser` and
+ * silently dropped every message. The sync engine calls `reconnect()` when an
+ * update ack times out, so one missed ack zombified the connection and every
+ * subsequent edit triggered another missed ack -> reconnect -> loop.
  */
 describe('reconnect() should produce a usable connection', () => {
   const port = 42421;
@@ -37,7 +32,7 @@ describe('reconnect() should produce a usable connection', () => {
     server = undefined;
   });
 
-  test.fails(
+  test(
     'send() works again after a manual reconnect()',
     async () => {
       const received: string[] = [];
@@ -68,9 +63,7 @@ describe('reconnect() should produce a usable connection', () => {
 
       expect(client.underlyingWebsocket.readyState).toBe(WebSocket.OPEN);
 
-      // CORRECT behavior: a reconnected socket must be able to send.
-      // CURRENT behavior: send() returns false (closedByUser is stuck true)
-      // and the server never receives the message.
+      // A reconnected socket must be able to send.
       const sent = client.send('after-reconnect');
       await new Promise((r) => setTimeout(r, 250));
 

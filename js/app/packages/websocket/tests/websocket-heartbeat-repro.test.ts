@@ -13,21 +13,15 @@ import {
 } from './websocket-test-utils';
 
 /**
- * Repro for intermittent disconnects on long-lived, otherwise-healthy
- * connections.
+ * Regression test for intermittent disconnects on long-lived, otherwise
+ * healthy connections.
  *
- * `missedHeartbeats` is incremented in handleHeartbeatTimeout() but is never
- * reset when a pong IS received (handleHeartbeatReceived() only clears the
- * timeout). It is only reset on startHeartbeat()/stopHeartbeat(). So the
- * counter accumulates over the lifetime of a connection: with
- * maxMissedHeartbeats = 2 (the sync-service config), the 3rd missed pong —
- * even with hours of healthy ping/pong in between — force-closes a healthy
- * connection ("No heartbeat received").
- *
- * This test asserts the CORRECT behavior (isolated misses, each recovered by
- * later pongs, must not close the connection) and is marked `.fails` because
- * the bug is currently present. When fixed, remove `.fails` and keep as a
- * regression test.
+ * `missedHeartbeats` used to be incremented in handleHeartbeatTimeout() but
+ * never reset when a pong WAS received, so the counter accumulated over the
+ * lifetime of a connection: with maxMissedHeartbeats = 2 (the sync-service
+ * config), the 3rd missed pong — even with hours of healthy ping/pong in
+ * between — force-closed a healthy connection ("No heartbeat received").
+ * Only consecutive misses should close the connection.
  */
 describe('missed heartbeats should reset on received pong', () => {
   let client: Websocket | undefined;
@@ -49,7 +43,7 @@ describe('missed heartbeats should reset on received pong', () => {
     server = undefined;
   });
 
-  test.fails(
+  test(
     'non-consecutive misses, each recovered, do not close the connection',
     async () => {
       const missed: number[] = [];
@@ -98,11 +92,12 @@ describe('missed heartbeats should reset on received pong', () => {
       await missOne(); // isolated miss #3, recovered
       await new Promise((r) => setTimeout(r, 300));
 
-      // CORRECT behavior: each miss was followed by healthy pongs, so the
-      // counter should have reset and the connection should stay open.
-      // CURRENT behavior: counter accumulates 1, 2, 3 and the connection is
-      // closed with "No heartbeat received".
+      // Each miss was followed by healthy pongs, so the counter reset and the
+      // connection stays open. Without the reset the counter accumulated
+      // 1, 2, 3 and the third isolated miss closed the connection.
       expect(closed).toBe(false);
+      // Every recorded miss is an isolated first miss, never a streak.
+      expect(missed.every((m) => m === 1)).toBe(true);
     },
     20_000
   );
