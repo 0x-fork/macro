@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT memory, updated_at as \"updated_at!\"\n            FROM team_memory\n            WHERE team_id = $1\n            ORDER BY updated_at DESC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "memory",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "updated_at!",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "cbeb059dc82fad969d3f6d1ba50733a8e5a01c9584765a61536f0835ae46bca8"
+}

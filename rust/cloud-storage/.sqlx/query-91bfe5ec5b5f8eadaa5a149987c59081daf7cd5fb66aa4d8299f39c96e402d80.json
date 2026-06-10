@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT t.name,\n                   ARRAY_REMOVE(ARRAY_AGG(tu.user_id), NULL) as \"member_ids!\"\n            FROM team t\n            LEFT JOIN team_user tu ON tu.team_id = t.id\n            WHERE t.id = $1\n            GROUP BY t.id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "member_ids!",
+        "type_info": "TextArray"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "91bfe5ec5b5f8eadaa5a149987c59081daf7cd5fb66aa4d8299f39c96e402d80"
+}
