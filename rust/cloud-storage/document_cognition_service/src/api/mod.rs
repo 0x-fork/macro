@@ -71,7 +71,6 @@ pub async fn setup_and_serve(state: ApiContext) -> anyhow::Result<()> {
 
 fn api_router(api_context: ApiContext) -> Router {
     let memory_service = api_context.memory_service.clone();
-    let team_memory_service = api_context.team_memory_service.clone();
 
     let mcp_state = api_context.mcp_state.clone();
 
@@ -96,9 +95,6 @@ fn api_router(api_context: ApiContext) -> Router {
         .nest("/preview", preview::router())
         .nest("/id_mapping", id_mapping::router())
         .merge(memory::inbound::axum_router::memory_router(memory_service))
-        .merge(memory::inbound::axum_router::team_memory_router(
-            team_memory_service,
-        ))
         .merge(mcp_client::inbound::mcp_router(mcp_state.clone()))
         .with_state(api_context.clone())
         .route(

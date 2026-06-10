@@ -48,11 +48,22 @@ pub trait MemoryRepo: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Memory>> + Send;
 }
 
+/// The memories available to a user: their own and their team's.
+#[derive(Debug, Default)]
+pub struct Memories {
+    /// The user's personal memory.
+    pub user: Option<Memory>,
+    /// The latest memory of the team the user belongs to, if any.
+    pub team: Option<Memory>,
+}
+
 pub trait MemoryService: Send + Sync + 'static {
+    /// Get the user's personal memory and the memory of their team, triggering
+    /// background regeneration of whichever is stale or missing.
     fn get_or_generate_memory(
         &self,
         user: MacroUserIdStr<'static>,
-    ) -> impl Future<Output = Result<Option<Memory>>> + Send;
+    ) -> impl Future<Output = Result<Memories>> + Send;
 }
 
 /// A snapshot of team data used to ground team memory generation.
@@ -89,12 +100,4 @@ pub trait TeamMemoryRepo: Send + Sync + 'static {
         &self,
         team_id: Uuid,
     ) -> impl Future<Output = Result<Option<TeamOverview>>> + Send;
-}
-
-pub trait TeamMemoryService: Send + Sync + 'static {
-    /// Get the latest memory for the user's team, if the user belongs to one.
-    fn get_or_generate_team_memory(
-        &self,
-        user: MacroUserIdStr<'static>,
-    ) -> impl Future<Output = Result<Option<Memory>>> + Send;
 }

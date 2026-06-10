@@ -28,7 +28,7 @@ use macro_auth::headers::AccessTokenExtractor;
 use macro_db_client::dcs::create_chat;
 use macro_user_id::user_id::MacroUserIdStr;
 use mcp_client::domain::ports::McpServerStore;
-use memory::domain::{MemoryService, TeamMemoryService};
+use memory::domain::MemoryService;
 use model::user::UserContext;
 use model_entity::{Entity, EntityType};
 use models_permissions::share_permission::SharePermissionV2;
@@ -280,23 +280,14 @@ async fn send_chat_message_inner(
         .filter_map(|r| r.parts)
         .collect();
 
-    // Fetch user memory (triggers background generation if stale/missing)
-    let user_memory = ctx
+    // Fetch the user's personal and team memories (triggers background
+    // generation of whichever is stale or missing)
+    let memories = ctx
         .memory_service
         .get_or_generate_memory((*user_id).clone())
         .await
-        .inspect_err(|e| tracing::error!(error = ?e, "failed to fetch user memory"))
-        .ok()
-        .flatten();
-
-    // Fetch the memory of the user's team, if any (triggers background generation if stale/missing)
-    let team_memory = ctx
-        .team_memory_service
-        .get_or_generate_team_memory((*user_id).clone())
-        .await
-        .inspect_err(|e| tracing::error!(error = ?e, "failed to fetch team memory"))
-        .ok()
-        .flatten();
+        .inspect_err(|e| tracing::error!(error = ?e, "failed to fetch memories"))
+        .unwrap_or_default();
 
     // Build the chat messages
     let tools_prompt = choose_tools_prompt(&payload, &*ctx.all_tools_prompt);
@@ -330,12 +321,12 @@ async fn send_chat_message_inner(
             .as_deref()
             .unwrap_or_default();
         let mut prompt = format!("{}\n{}", tools_prompt, additional);
-        if let Some(memory) = user_memory.as_deref() {
+        if let Some(memory) = memories.user.as_deref() {
             prompt.push_str("\n\n<user_memory>\n");
             prompt.push_str(memory);
             prompt.push_str("\n</user_memory>");
         }
-        if let Some(memory) = team_memory.as_deref() {
+        if let Some(memory) = memories.team.as_deref() {
             prompt.push_str("\n\n<team_memory>\n");
             prompt.push_str(memory);
             prompt.push_str("\n</team_memory>");

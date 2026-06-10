@@ -6,6 +6,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use memory::config::Config;
 use memory::domain::{MemoryService, service::MemoryServiceImpl};
 use memory::outbound::pg_memory_repo::PgMemoryRepo;
+use memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo;
 use sqlx::postgres::PgPoolOptions;
 
 #[tokio::main]
@@ -22,15 +23,22 @@ async fn main() -> anyhow::Result<()> {
     let tool_context = build_tool_service_context_from_env(pool.clone()).await?;
     let tools = all_tools();
     let memory_repo = PgMemoryRepo::new(pool.clone());
-    let memory_service = MemoryServiceImpl::new(pool, memory_repo, tool_context, tools);
+    let team_memory_repo = PgTeamMemoryRepo::new(pool.clone());
+    let memory_service =
+        MemoryServiceImpl::new(pool, memory_repo, team_memory_repo, tool_context, tools);
 
     let user = MacroUserIdStr::try_from(config.user_id.clone())
         .context("USER_ID must be a valid Macro user id")?;
 
     tracing::info!("Generating memory for {user}...");
-    match memory_service.get_or_generate_memory(user).await? {
+    let memories = memory_service.get_or_generate_memory(user).await?;
+    match memories.user {
         Some(memory) => println!("{memory}"),
         None => println!("No memory yet, generation triggered in background"),
+    }
+    match memories.team {
+        Some(memory) => println!("\n<team_memory>\n{memory}\n</team_memory>"),
+        None => println!("No team memory yet (no team, or generation triggered in background)"),
     }
 
     Ok(())

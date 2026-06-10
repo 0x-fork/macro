@@ -23,7 +23,7 @@ impl MemoryRepo for PgMemoryRepo {
             r#"
             INSERT INTO memory (id, user_id, memory)
             VALUES ($1, $2, $3)
-            ON CONFLICT (user_id) DO UPDATE
+            ON CONFLICT (user_id) WHERE user_id IS NOT NULL DO UPDATE
             SET memory = EXCLUDED.memory,
                 updated_at = NOW()
             RETURNING id

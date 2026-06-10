@@ -115,6 +115,8 @@ export * from './jwtPayload';
 export * from './mcpAuthCallbackParams';
 export * from './memoryErrorBody';
 export * from './memoryResponse';
+export * from './memoryResponseMemory';
+export * from './memoryResponseTeamMemory';
 export * from './messageWithAttachments';
 export * from './newAttachment';
 export * from './newChatMessage';

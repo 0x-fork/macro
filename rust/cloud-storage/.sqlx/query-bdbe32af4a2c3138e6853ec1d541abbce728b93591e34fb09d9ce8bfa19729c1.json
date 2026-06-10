@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO memory (id, team_id, memory)\n            VALUES ($1, $2, $3)\n            ON CONFLICT (team_id) WHERE team_id IS NOT NULL DO UPDATE\n            SET memory = EXCLUDED.memory,\n                updated_at = NOW()\n            RETURNING id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bdbe32af4a2c3138e6853ec1d541abbce728b93591e34fb09d9ce8bfa19729c1"
+}

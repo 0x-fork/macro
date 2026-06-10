@@ -51,10 +51,8 @@ mod test;
 pub use test::test_api_context;
 pub(crate) type NotificationIngressType = SqsNotificationIngress<SqsQueue>;
 
-pub type DcsMemoryService =
-    memory::domain::service::MemoryServiceImpl<memory::outbound::pg_memory_repo::PgMemoryRepo>;
-
-pub type DcsTeamMemoryService = memory::domain::team_service::TeamMemoryServiceImpl<
+pub type DcsMemoryService = memory::domain::service::MemoryServiceImpl<
+    memory::outbound::pg_memory_repo::PgMemoryRepo,
     memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo,
 >;
 
@@ -85,7 +83,6 @@ pub struct ApiContext {
     pub stream_repo: Arc<dyn StreamRepo>,
     pub document_tool_context: ToolDocumentToolContext,
     pub memory_service: Arc<DcsMemoryService>,
-    pub team_memory_service: Arc<DcsTeamMemoryService>,
     pub properties_tool_context: ToolPropertiesToolContext,
     pub email_tool_context: ToolEmailToolContext,
     pub call_tool_context: ToolCallToolContext,

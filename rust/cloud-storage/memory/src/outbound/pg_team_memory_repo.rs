@@ -24,9 +24,9 @@ impl TeamMemoryRepo for PgTeamMemoryRepo {
         let id = macro_uuid::generate_uuid_v7();
         let row = sqlx::query!(
             r#"
-            INSERT INTO team_memory (id, team_id, memory)
+            INSERT INTO memory (id, team_id, memory)
             VALUES ($1, $2, $3)
-            ON CONFLICT (team_id) DO UPDATE
+            ON CONFLICT (team_id) WHERE team_id IS NOT NULL DO UPDATE
             SET memory = EXCLUDED.memory,
                 updated_at = NOW()
             RETURNING id
@@ -45,7 +45,7 @@ impl TeamMemoryRepo for PgTeamMemoryRepo {
         let row = sqlx::query!(
             r#"
             SELECT memory, updated_at as "updated_at!"
-            FROM team_memory
+            FROM memory
             WHERE team_id = $1
             ORDER BY updated_at DESC
             LIMIT 1
@@ -65,7 +65,7 @@ impl TeamMemoryRepo for PgTeamMemoryRepo {
         let row = sqlx::query!(
             r#"
             SELECT memory
-            FROM team_memory
+            FROM memory
             WHERE id = $1 AND team_id = $2
             "#,
             id,

@@ -4,11 +4,16 @@
  * Document Cognition Service
  * OpenAPI spec version: 1.0.0
  */
+import type { MemoryResponseMemory } from './memoryResponseMemory';
+import type { MemoryResponseTeamMemory } from './memoryResponseTeamMemory';
 
 /**
- * The user's latest memory.
+ * The user's latest memories.
  */
 export interface MemoryResponse {
-  /** The generated memory text. */
-  memory: string;
+  /** The user's personal memory, if one has been generated. */
+  memory?: MemoryResponseMemory;
+  /** The latest memory of the user's team, if the user belongs to a team
+and a team memory has been generated. */
+  team_memory?: MemoryResponseTeamMemory;
 }

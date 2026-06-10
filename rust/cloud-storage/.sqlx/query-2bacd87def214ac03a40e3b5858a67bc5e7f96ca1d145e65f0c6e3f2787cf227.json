@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT memory, updated_at as \"updated_at!\"\n            FROM team_memory\n            WHERE team_id = $1\n            ORDER BY updated_at DESC\n            LIMIT 1\n            ",
+  "query": "\n            SELECT memory, updated_at as \"updated_at!\"\n            FROM memory\n            WHERE team_id = $1\n            ORDER BY updated_at DESC\n            LIMIT 1\n            ",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "cbeb059dc82fad969d3f6d1ba50733a8e5a01c9584765a61536f0835ae46bca8"
+  "hash": "2bacd87def214ac03a40e3b5858a67bc5e7f96ca1d145e65f0c6e3f2787cf227"
 }

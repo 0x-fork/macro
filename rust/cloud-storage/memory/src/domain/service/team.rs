@@ -1,19 +1,17 @@
 #[cfg(test)]
 mod test;
 
-use super::ports::*;
-use super::service::judge_memory;
+use super::{GENERATION_MODEL, MAX_AGE, MemoryServiceImpl, judge_memory};
+use crate::domain::ports::*;
 use agent::types::{ChatMessage, ChatMessageContent, Role};
-use agent::{AgentLoop, AgentModel, StreamPart};
-use ai_tools::{ToolServiceContext, ToolSetWithPrompt};
+use agent::{AgentLoop, StreamPart};
+use ai_tools::ToolSetWithPrompt;
 use chrono::Utc;
 use futures::stream::StreamExt;
 use macro_env::Environment;
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 use std::sync::Arc;
-
-static GENERATION_MODEL: AgentModel = AgentModel::Smart;
 
 static GENERATE_TEAM_MEMORY_PROMPT: &str = "\
 Use tool calls to research the team identified in the system prompt: what the \
@@ -69,41 +67,18 @@ ACCEPT only if the memory contains concrete, specific, actionable context derive
 from substantial workspace data (documents, code, projects, emails, messages) that \
 would meaningfully improve future AI interactions for every member of the team.";
 
-pub struct TeamMemoryServiceImpl<Rpo> {
-    db: sqlx::PgPool,
-    team_memory_repo: Rpo,
-    tool_context: ToolServiceContext,
-    tools: ToolSetWithPrompt,
-}
-
-impl<Rpo> TeamMemoryServiceImpl<Rpo> {
-    pub fn new(
-        db: sqlx::PgPool,
-        team_memory_repo: Rpo,
-        tool_context: ToolServiceContext,
-        tools: ToolSetWithPrompt,
-    ) -> Self {
-        Self {
-            db,
-            team_memory_repo,
-            tool_context,
-            tools,
-        }
-    }
-}
-
-/// Default max age for team memory freshness (1 day).
-const MAX_AGE: std::time::Duration = std::time::Duration::from_hours(24);
-
-impl<Rpo> TeamMemoryService for TeamMemoryServiceImpl<Rpo>
+impl<Rpo, TRpo> MemoryServiceImpl<Rpo, TRpo>
 where
-    Rpo: TeamMemoryRepo,
+    Rpo: MemoryRepo,
+    TRpo: TeamMemoryRepo,
 {
+    /// Get the latest memory for the user's team, if the user belongs to one,
+    /// triggering background regeneration when it is stale or missing.
     #[tracing::instrument(skip(self), err)]
-    async fn get_or_generate_team_memory(
+    pub(super) async fn get_or_generate_team_memory(
         &self,
         user: MacroUserIdStr<'static>,
-    ) -> super::Result<Option<Memory>> {
+    ) -> crate::domain::Result<Option<Memory>> {
         let Some(team_id) = self.team_memory_repo.get_user_team_id(user.clone()).await? else {
             return Ok(None);
         };
@@ -145,10 +120,11 @@ where
                         return;
                     }
                 };
-                let repo =
+                let repo = crate::outbound::pg_memory_repo::PgMemoryRepo::new(pool.clone());
+                let team_repo =
                     crate::outbound::pg_team_memory_repo::PgTeamMemoryRepo::new(pool.clone());
                 let tools = ToolSetWithPrompt { toolset, prompt };
-                let svc = TeamMemoryServiceImpl::new(pool, repo, tool_context, tools);
+                let svc = MemoryServiceImpl::new(pool, repo, team_repo, tool_context, tools);
                 match svc
                     .generate_team_memory(team_id, user.clone(), previous_memory)
                     .await
@@ -166,12 +142,7 @@ where
 
         Ok(record.map(|r| r.memory))
     }
-}
 
-impl<Rpo> TeamMemoryServiceImpl<Rpo>
-where
-    Rpo: TeamMemoryRepo,
-{
     /// Generate a fresh team memory by researching the team's workspace with
     /// the access of the `user` who triggered the refresh.
     #[tracing::instrument(skip(self), err)]
@@ -180,7 +151,7 @@ where
         team_id: Uuid,
         user: MacroUserIdStr<'static>,
         previous_memory: Option<Memory>,
-    ) -> super::Result<Memory> {
+    ) -> crate::domain::Result<Memory> {
         let overview = self
             .team_memory_repo
             .get_team_overview(team_id)
@@ -251,7 +222,7 @@ where
 async fn try_acquire_generation_lock(
     pool: &sqlx::PgPool,
     team_id: Uuid,
-) -> super::Result<Option<sqlx::PgConnection>> {
+) -> crate::domain::Result<Option<sqlx::PgConnection>> {
     let mut conn = pool.acquire().await?.detach();
     let locked = sqlx::query_scalar!(
         r#"SELECT pg_try_advisory_lock(hashtextextended('team_memory:' || $1, 0)) as "locked!""#,

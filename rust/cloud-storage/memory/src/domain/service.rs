@@ -1,3 +1,5 @@
+mod team;
+
 use super::ports::*;
 use agent::types::{ChatMessage, ChatMessageContent, Role};
 use agent::{AgentLoop, AgentModel, StreamPart};
@@ -67,23 +69,26 @@ struct MemoryJudgement {
     reason: String,
 }
 
-pub struct MemoryServiceImpl<Rpo> {
+pub struct MemoryServiceImpl<Rpo, TRpo> {
     db: sqlx::PgPool,
     memory_repo: Rpo,
+    team_memory_repo: TRpo,
     tool_context: ToolServiceContext,
     tools: ToolSetWithPrompt,
 }
 
-impl<Rpo> MemoryServiceImpl<Rpo> {
+impl<Rpo, TRpo> MemoryServiceImpl<Rpo, TRpo> {
     pub fn new(
         db: sqlx::PgPool,
         memory_repo: Rpo,
+        team_memory_repo: TRpo,
         tool_context: ToolServiceContext,
         tools: ToolSetWithPrompt,
     ) -> Self {
         Self {
             db,
             memory_repo,
+            team_memory_repo,
             tool_context,
             tools,
         }
@@ -93,12 +98,35 @@ impl<Rpo> MemoryServiceImpl<Rpo> {
 /// Default max age for memory freshness (1 day).
 const MAX_AGE: std::time::Duration = std::time::Duration::from_hours(24);
 
-impl<Rpo> MemoryService for MemoryServiceImpl<Rpo>
+impl<Rpo, TRpo> MemoryService for MemoryServiceImpl<Rpo, TRpo>
 where
     Rpo: MemoryRepo,
+    TRpo: TeamMemoryRepo,
 {
     #[tracing::instrument(skip(self), err)]
     async fn get_or_generate_memory(
+        &self,
+        user: macro_user_id::user_id::MacroUserIdStr<'static>,
+    ) -> super::Result<Memories> {
+        let (user_memory, team_memory) = tokio::join!(
+            self.get_or_generate_user_memory(user.clone()),
+            self.get_or_generate_team_memory(user)
+        );
+
+        Ok(Memories {
+            user: user_memory?,
+            team: team_memory?,
+        })
+    }
+}
+
+impl<Rpo, TRpo> MemoryServiceImpl<Rpo, TRpo>
+where
+    Rpo: MemoryRepo,
+    TRpo: TeamMemoryRepo,
+{
+    #[tracing::instrument(skip(self), err)]
+    async fn get_or_generate_user_memory(
         &self,
         user: macro_user_id::user_id::MacroUserIdStr<'static>,
     ) -> super::Result<Option<Memory>> {
@@ -122,8 +150,10 @@ where
                 Box::new(self.tools.prompt.to_string());
             tokio::spawn(async move {
                 let repo = crate::outbound::pg_memory_repo::PgMemoryRepo::new(pool.clone());
+                let team_repo =
+                    crate::outbound::pg_team_memory_repo::PgTeamMemoryRepo::new(pool.clone());
                 let tools = ToolSetWithPrompt { toolset, prompt };
-                let svc = MemoryServiceImpl::new(pool, repo, tool_context, tools);
+                let svc = MemoryServiceImpl::new(pool, repo, team_repo, tool_context, tools);
                 match svc.generate_memory(user.clone(), previous_memory).await {
                     Ok(_) => tracing::info!(%user, "memory generated"),
                     Err(MemoryError::Rejected(reason)) => {
@@ -136,12 +166,7 @@ where
 
         Ok(record.map(|r| r.memory))
     }
-}
 
-impl<Rpo> MemoryServiceImpl<Rpo>
-where
-    Rpo: MemoryRepo,
-{
     #[tracing::instrument(skip(self), err)]
     async fn generate_memory(
         &self,

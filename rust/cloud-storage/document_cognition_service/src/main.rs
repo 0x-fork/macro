@@ -391,22 +391,15 @@ async fn main() -> anyhow::Result<()> {
     let all_tools_prompt: Arc<dyn std::fmt::Display + Send + Sync> =
         Arc::new(all_tools.prompt.to_string());
 
-    // Build memory service
+    // Build memory service (personal + team memory)
     let memory_repo = memory::outbound::pg_memory_repo::PgMemoryRepo::new(db.clone());
+    let team_memory_repo = memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo::new(db.clone());
     let memory_service = Arc::new(memory::domain::service::MemoryServiceImpl::new(
         db.clone(),
         memory_repo,
-        tool_service_context.clone(),
-        all_tools,
-    ));
-
-    // Build team memory service
-    let team_memory_repo = memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo::new(db.clone());
-    let team_memory_service = Arc::new(memory::domain::team_service::TeamMemoryServiceImpl::new(
-        db.clone(),
         team_memory_repo,
         tool_service_context.clone(),
-        ai_tools::all_tools(),
+        all_tools,
     ));
 
     tracing::info!("initialized memory service");
@@ -457,7 +450,6 @@ async fn main() -> anyhow::Result<()> {
         stream_repo,
         document_tool_context,
         memory_service,
-        team_memory_service,
         properties_tool_context,
         email_tool_context: email_tool_context.clone(),
         call_tool_context,

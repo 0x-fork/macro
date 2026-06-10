@@ -1166,12 +1166,12 @@
     "/memory": {
       "get": {
         "tags": ["memory"],
-        "summary": "Get the authenticated user's latest memory.",
-        "description": "Returns the current memory if one exists. If the memory is stale or missing,\na background generation is triggered and the endpoint returns the stale\nmemory (200) or 404 if none exists yet.",
+        "summary": "Get the authenticated user's latest personal and team memories.",
+        "description": "Returns whichever memories currently exist. If either memory is stale or\nmissing, a background generation for it is triggered and the endpoint\nreturns the stale values (200), or 404 if neither exists yet.",
         "operationId": "get_memory_handler",
         "responses": {
           "200": {
-            "description": "Latest memory for the user",
+            "description": "Latest personal and team memories for the user",
             "content": {
               "application/json": {
                 "schema": {
@@ -1181,7 +1181,7 @@
             }
           },
           "404": {
-            "description": "No memory exists for this user yet (generation triggered)"
+            "description": "No memory exists for this user or their team yet (generation triggered)"
           },
           "500": {
             "description": "Internal server error",
@@ -2784,12 +2784,15 @@
       },
       "MemoryResponse": {
         "type": "object",
-        "description": "The user's latest memory.",
-        "required": ["memory"],
+        "description": "The user's latest memories.",
         "properties": {
           "memory": {
-            "type": "string",
-            "description": "The generated memory text."
+            "type": ["string", "null"],
+            "description": "The user's personal memory, if one has been generated."
+          },
+          "team_memory": {
+            "type": ["string", "null"],
+            "description": "The latest memory of the user's team, if the user belongs to a team\nand a team memory has been generated."
           }
         }
       },

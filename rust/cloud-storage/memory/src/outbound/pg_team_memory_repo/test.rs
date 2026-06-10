@@ -1,5 +1,6 @@
 use super::PgTeamMemoryRepo;
-use crate::domain::{MemoryError, TeamMemoryRepo};
+use crate::domain::{MemoryError, MemoryRepo, TeamMemoryRepo};
+use crate::outbound::pg_memory_repo::PgMemoryRepo;
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
@@ -130,6 +131,42 @@ async fn memories_are_scoped_to_team(pool: Pool<Postgres>) {
 
     assert_eq!(latest_a.memory, "team a memory");
     assert_eq!(latest_b.memory, "team b memory");
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn team_and_user_memories_coexist_in_shared_table(pool: Pool<Postgres>) {
+    let team_id = create_team(&pool, "acme", "macro|owner@example.com").await;
+    let team_repo = PgTeamMemoryRepo::new(pool.clone());
+    let user_repo = PgMemoryRepo::new(pool);
+    let user = MacroUserIdStr::parse_from_str("macro|owner@example.com").unwrap();
+
+    user_repo
+        .save_memory(&"personal memory".to_string(), user.clone())
+        .await
+        .unwrap();
+    team_repo
+        .save_team_memory(&"team memory".to_string(), team_id)
+        .await
+        .unwrap();
+
+    // Upserts stay scoped: refreshing one must not clobber the other.
+    user_repo
+        .save_memory(&"fresh personal memory".to_string(), user.clone())
+        .await
+        .unwrap();
+    team_repo
+        .save_team_memory(&"fresh team memory".to_string(), team_id)
+        .await
+        .unwrap();
+
+    let personal = user_repo.get_latest_memory(user).await.unwrap().unwrap();
+    let team = team_repo
+        .get_latest_team_memory(team_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(personal.memory, "fresh personal memory");
+    assert_eq!(team.memory, "fresh team memory");
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]

@@ -1362,10 +1362,10 @@ export const startMcpAuth = async (
 };
 
 /**
- * Returns the current memory if one exists. If the memory is stale or missing,
-a background generation is triggered and the endpoint returns the stale
-memory (200) or 404 if none exists yet.
- * @summary Get the authenticated user's latest memory.
+ * Returns whichever memories currently exist. If either memory is stale or
+missing, a background generation for it is triggered and the endpoint
+returns the stale values (200), or 404 if neither exists yet.
+ * @summary Get the authenticated user's latest personal and team memories.
  */
 export type getMemoryHandlerResponse200 = {
   data: MemoryResponse;

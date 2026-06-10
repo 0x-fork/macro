@@ -12,8 +12,7 @@ use chat::outbound::postgres::PgChatRepo;
 use futures::StreamExt;
 use macro_db_client::dcs::create_chat_message::create_chat_message;
 use memory::domain::service::MemoryServiceImpl;
-use memory::domain::team_service::TeamMemoryServiceImpl;
-use memory::domain::{MemoryService, TeamMemoryService};
+use memory::domain::{Memories, MemoryService};
 use memory::outbound::pg_memory_repo::PgMemoryRepo;
 use memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo;
 use model::chat::NewChatMessage;
@@ -58,11 +57,11 @@ pub async fn run_agent_task(
     Ok(())
 }
 
-async fn fetch_user_memory(
+async fn fetch_memories(
     db: &PgPool,
     tool_context: &ToolServiceContext,
     owner: &macro_user_id::user_id::MacroUserIdStr<'static>,
-) -> Option<String> {
+) -> Memories {
     let tools = all_tools();
     let tools = ToolSetWithPrompt {
         toolset: tools.toolset,
@@ -71,42 +70,15 @@ async fn fetch_user_memory(
     let memory_service = MemoryServiceImpl::new(
         db.clone(),
         PgMemoryRepo::new(db.clone()),
-        tool_context.clone(),
-        tools,
-    );
-    match memory_service.get_or_generate_memory(owner.clone()).await {
-        Ok(memory) => memory,
-        Err(e) => {
-            tracing::warn!(error=?e, %owner, "failed to fetch user memory; running without it");
-            None
-        }
-    }
-}
-
-async fn fetch_team_memory(
-    db: &PgPool,
-    tool_context: &ToolServiceContext,
-    owner: &macro_user_id::user_id::MacroUserIdStr<'static>,
-) -> Option<String> {
-    let tools = all_tools();
-    let tools = ToolSetWithPrompt {
-        toolset: tools.toolset,
-        prompt: tools.prompt,
-    };
-    let team_memory_service = TeamMemoryServiceImpl::new(
-        db.clone(),
         PgTeamMemoryRepo::new(db.clone()),
         tool_context.clone(),
         tools,
     );
-    match team_memory_service
-        .get_or_generate_team_memory(owner.clone())
-        .await
-    {
-        Ok(memory) => memory,
+    match memory_service.get_or_generate_memory(owner.clone()).await {
+        Ok(memories) => memories,
         Err(e) => {
-            tracing::warn!(error=?e, %owner, "failed to fetch team memory; running without it");
-            None
+            tracing::warn!(error=?e, %owner, "failed to fetch memories; running without them");
+            Memories::default()
         }
     }
 }
@@ -149,16 +121,15 @@ async fn run_tool_loop(
     agent_task: &AgentTask,
 ) -> Result<Vec<AssistantMessagePart>> {
     let tools = all_tools();
-    let user_memory = fetch_user_memory(db, tool_context, &action.owner).await;
-    let team_memory = fetch_team_memory(db, tool_context, &action.owner).await;
-    let mut system_prompt = match user_memory {
+    let memories = fetch_memories(db, tool_context, &action.owner).await;
+    let mut system_prompt = match memories.user {
         Some(memory) => format!(
             "{}\n{}\n<user_memory>\n{}\n</user_memory>",
             tools.prompt, SCHEDULED_AGENT_PROMPT, memory
         ),
         None => tools.prompt.to_string(),
     };
-    if let Some(memory) = team_memory {
+    if let Some(memory) = memories.team {
         system_prompt.push_str(&format!("\n<team_memory>\n{memory}\n</team_memory>"));
     }
     system_prompt.push_str(&format!("\n{}", agent_task.prompt));
