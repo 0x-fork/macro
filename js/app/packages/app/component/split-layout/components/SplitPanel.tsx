@@ -161,7 +161,7 @@ export function SplitPanel(props: SplitPanelProps) {
               />
               <Panel.Header
                 class={cn(
-                  'block min-h-0 touch:min-h-0 p-0 overflow-visible border-b-0 not-has-[[data-split-portal-target]:not(:empty)]:hidden',
+                  'block h-10 min-h-10 touch:min-h-10 p-0 overflow-visible border-b-0',
                   shouldHideSplitHeader() && 'hidden'
                 )}
               >
