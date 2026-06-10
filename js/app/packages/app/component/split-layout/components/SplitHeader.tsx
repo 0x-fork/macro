@@ -27,6 +27,8 @@ import { SplitLayoutContext, SplitPanelContext } from '../context';
 import type { SplitContent } from '../layoutManager';
 import { canSpotlight } from '../utils/canSpotlight';
 
+export { SplitHeaderBadge } from './SplitLabel';
+
 function SplitNewSplitButton() {
   const canCreateNewSplit = () =>
     globalSplitManager()?.canAppendSplit() ?? true;
