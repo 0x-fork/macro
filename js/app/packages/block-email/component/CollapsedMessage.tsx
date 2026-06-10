@@ -1,9 +1,16 @@
 import { UserIcon, type UserIconProps } from '@core/component/UserIcon';
 import { useEmail } from '@core/context/user';
+import Eye from '@phosphor/eye.svg';
 import type { ApiMessage } from '@service-email/generated/schemas';
+import { Tooltip } from '@ui';
 import { cn } from '@ui/utils/classname';
-import { createMemo } from 'solid-js';
+import { createMemo, Show } from 'solid-js';
 import { getSenderDisplayName, getSenderMacroId } from '../util/emailUser';
+import {
+  formatSeenLabel,
+  formatSeenTooltip,
+  messageSeenAt,
+} from '../util/readReceipts';
 import { formatShortDate } from './EmailMessageTopBar';
 import { EmailUserTooltip } from './EmailUserTooltip';
 
@@ -88,6 +95,17 @@ export function CollapsedMessage(props: CollapsedMessageProps) {
           <div class="flex-1 min-w-0 text-sm text-ink-muted/60 truncate">
             {snippet()}
           </div>
+          <Show when={messageSeenAt(props.message)}>
+            {(seenAt) => (
+              <Tooltip
+                label={`${formatSeenLabel(seenAt())} · ${formatSeenTooltip(props.message)}`}
+              >
+                <div class="shrink-0 text-ink-extra-muted">
+                  <Eye class="size-3.5" />
+                </div>
+              </Tooltip>
+            )}
+          </Show>
           <div class="shrink-0 text-xs text-ink-extra-muted tabular-nums">
             {props.message.internal_date_ts &&
               formatShortDate(props.message.internal_date_ts)}

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id, provider_id, thread_id, provider_thread_id, replying_to_id,\n            global_id, link_id, provider_history_id, internal_date_ts, snippet,\n            size_estimate, subject, sent_at, has_attachments, is_read, is_starred,\n            is_sent, is_draft, body_text, body_html_sanitized, body_macro,\n            headers_jsonb, created_at, updated_at\n        FROM email_messages\n        WHERE is_draft = true\n          AND provider_id IS NULL\n          AND replying_to_id = ANY($1)\n          AND link_id = ANY($2)\n          AND thread_id <> $3\n        ",
+  "query": "\n        SELECT\n            id, provider_id, thread_id, provider_thread_id, replying_to_id,\n            global_id, link_id, provider_history_id, internal_date_ts, snippet,\n            size_estimate, subject, sent_at, has_attachments, is_read, is_starred,\n            is_sent, is_draft, body_text, body_html_sanitized, body_macro,\n            headers_jsonb, first_opened_at, last_opened_at, open_count,\n            created_at, updated_at\n        FROM email_messages\n        WHERE is_draft = true\n          AND provider_id IS NULL\n          AND replying_to_id = ANY($1)\n          AND link_id = ANY($2)\n          AND thread_id <> $3\n        ",
   "describe": {
     "columns": [
       {
@@ -115,11 +115,26 @@
       },
       {
         "ordinal": 22,
-        "name": "created_at",
+        "name": "first_opened_at",
         "type_info": "Timestamptz"
       },
       {
         "ordinal": 23,
+        "name": "last_opened_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 24,
+        "name": "open_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 25,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 26,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
@@ -154,9 +169,12 @@
       true,
       true,
       true,
+      true,
+      true,
+      false,
       false,
       false
     ]
   },
-  "hash": "e8bf9c53f71988ac7364aef5680e3cb74f7ddc5bacda3caf78db4b8672a8cf72"
+  "hash": "88ff49fec88dc89492d85cfe2be2764a3cddff68cc5b68b7e98251c8ec845927"
 }

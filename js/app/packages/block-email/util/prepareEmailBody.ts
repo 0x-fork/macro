@@ -22,6 +22,7 @@ import {
   type LexicalEditor,
   type LexicalNode,
 } from 'lexical';
+import { removeOwnTrackingPixels } from './readReceipts';
 import type { ReplyType } from './replyType';
 
 export function clearEmailBody(editor: LexicalEditor | undefined) {
@@ -160,10 +161,18 @@ const $appendPreviousEmail = (
   } else {
     const parser = new DOMParser();
     const dom = parser.parseFromString(replyingToBodyHTML, 'text/html');
+    // Quoting your own sent mail must not re-embed (or re-fire) its read receipt pixel
+    if (replyingTo.is_sent) {
+      removeOwnTrackingPixels(dom);
+    }
     // We are checking if the appended reply contains a table. This is not exact, but is a good indicator that an email will contain content that we can not render correctly, in which case the appended reply will be a non-editable HTML Render Node.
     const hasTable = Boolean(dom.querySelector('table'));
     if (hasTable) {
-      const htmlNode = $createHtmlRenderNode({ html: replyingToBodyHTML });
+      const htmlNode = $createHtmlRenderNode({
+        html: replyingTo.is_sent
+          ? dom.documentElement.outerHTML
+          : replyingToBodyHTML,
+      });
       quoteNode.append(htmlNode);
     } else {
       const nodes = $generateNodesFromDOM(editor, dom);
@@ -324,6 +333,10 @@ function getAppendedReplyElement(
       replyingToBodyHTML,
       'text/html'
     );
+    // Quoting your own sent mail must not re-embed (or re-fire) its read receipt pixel
+    if (replyingTo.is_sent) {
+      removeOwnTrackingPixels(innerDom);
+    }
     // Extract style tags from head to preserve email styling for weirdo emails with initial style tags.
     const styleTags = innerDom.head?.querySelectorAll('style');
     styleTags?.forEach((style) => {

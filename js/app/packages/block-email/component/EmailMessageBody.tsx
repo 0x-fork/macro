@@ -23,6 +23,7 @@ import {
 } from 'solid-js';
 import { themeReactive } from '../../theme/signals/themeReactive';
 import { themeUpdate } from '../../theme/signals/themeSignals';
+import { removeOwnTrackingPixels } from '../util/readReceipts';
 import {
   fetchImagesViaPlatform,
   resolveCidImages,
@@ -135,6 +136,10 @@ export function EmailMessageBody(props: EmailMessageBodyProps) {
     shadow.appendChild(styleEl);
     const messageDiv = document.createElement('div');
     messageDiv.innerHTML = source()?.mainContent ?? '';
+    // Viewing your own sent mail must not fire its read receipt pixel
+    if (props.message.is_sent) {
+      removeOwnTrackingPixels(messageDiv);
+    }
     // Mark button-like anchors so the font override doesn't break their sizing
     for (const a of messageDiv.querySelectorAll<HTMLAnchorElement>(
       'a[style]'

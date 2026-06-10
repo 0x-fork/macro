@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT link_id, signature_on_replies_forwards\n        FROM email_settings\n        WHERE link_id = $1\n        ",
+  "query": "\n        SELECT link_id, signature_on_replies_forwards, read_receipts_enabled\n        FROM email_settings\n        WHERE link_id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -12,6 +12,11 @@
         "ordinal": 1,
         "name": "signature_on_replies_forwards",
         "type_info": "Bool"
+      },
+      {
+        "ordinal": 2,
+        "name": "read_receipts_enabled",
+        "type_info": "Bool"
       }
     ],
     "parameters": {
@@ -21,8 +26,9 @@
     },
     "nullable": [
       false,
+      false,
       false
     ]
   },
-  "hash": "26ab5fa9630526b99a3937baff648f056a532178864f1f62ce55d107d1702f7f"
+  "hash": "c15f49a43e845355395dda29915771db33b02e31a608fdc37eda9df26edefff1"
 }

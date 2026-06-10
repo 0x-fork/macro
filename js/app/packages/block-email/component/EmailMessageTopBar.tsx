@@ -2,6 +2,7 @@ import { useEmail } from '@core/context/user';
 import type { DateValue } from '@core/util/date';
 import CaretDown from '@phosphor/caret-down.svg';
 import CaretUp from '@phosphor/caret-up.svg';
+import Eye from '@phosphor/eye.svg';
 import type { ApiMessage } from '@service-email/generated/schemas';
 import { Button, Tooltip } from '@ui';
 import {
@@ -17,6 +18,11 @@ import {
   getRecipientDisplayName,
   getSenderDisplayName,
 } from '../util/emailUser';
+import {
+  formatSeenLabel,
+  formatSeenTooltip,
+  messageSeenAt,
+} from '../util/readReceipts';
 import { useEmailContext } from './EmailContext';
 import { EmailUserTooltip } from './EmailUserTooltip';
 import { type EmailMessageAction, MessageActions } from './MessageActions';
@@ -226,6 +232,16 @@ function HeaderTopRow(props: {
           isLastMessage={props.isLastMessage}
           hiddenActions={props.hiddenActions}
         />
+        <Show when={messageSeenAt(props.message)}>
+          {(seenAt) => (
+            <Tooltip label={formatSeenTooltip(props.message)}>
+              <div class="flex flex-row items-center gap-1 text-xs text-ink-extra-muted cursor-default">
+                <Eye class="size-3.5" />
+                <span>{formatSeenLabel(seenAt())}</span>
+              </div>
+            </Tooltip>
+          )}
+        </Show>
         <Show when={props.message.internal_date_ts}>
           <Tooltip label={formatFullDate(props.message.internal_date_ts!)}>
             <div class="text-xs text-ink-extra-muted tabular-nums cursor-default">

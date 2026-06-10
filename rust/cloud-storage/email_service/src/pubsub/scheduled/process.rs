@@ -1,7 +1,7 @@
 use crate::pubsub::scheduled::context::ScheduledContext;
 use crate::util::gmail::auth::fetch_gmail_access_token_from_link;
 use crate::util::gmail::send::{
-    cleanup_draft_attachments, fetch_and_attach_draft_attachments,
+    attach_open_tracking_pixel, cleanup_draft_attachments, fetch_and_attach_draft_attachments,
     fetch_and_attach_forwarded_attachments, generate_email_threading_headers,
 };
 use anyhow::Context;
@@ -149,6 +149,9 @@ async fn process_scheduled_message_inner(
         &mut message_to_send,
     )
     .await?;
+
+    // Embed a read-receipt tracking pixel when enabled for this inbox
+    attach_open_tracking_pixel(&ctx.db, &mut message_to_send).await;
 
     // send message to gmail api
     ctx.gmail_client

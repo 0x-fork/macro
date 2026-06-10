@@ -20,9 +20,11 @@ import type {
   ListEmailFiltersResponse,
   ListLabelsResponse,
   ListLinksResponse,
+  PatchSettingsResponse,
   ResyncResponse,
   SendMessageRequest,
   SendMessageResponse,
+  Settings,
   SharedInboxConflictResponse,
   UpdateLabelBatchRequest,
   UpdateLabelBatchResponse,
@@ -413,6 +415,19 @@ export const emailClient = {
           headers: emailLinkHeaders(linkId),
         }
       )
+    ).map((result) => result);
+  },
+  /**
+   * Partially updates an inbox's settings; omitted fields keep their current
+   * value. Scoped to the primary inbox unless `linkId` targets another one.
+   */
+  async patchSettings(args: { settings: Settings }, linkId?: string) {
+    return (
+      await emailFetch<PatchSettingsResponse>('/email/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ settings: args.settings }),
+        headers: emailLinkHeaders(linkId),
+      })
     ).map((result) => result);
   },
   async markThreadAsSeen(args: { thread_id: string }, linkId?: string) {

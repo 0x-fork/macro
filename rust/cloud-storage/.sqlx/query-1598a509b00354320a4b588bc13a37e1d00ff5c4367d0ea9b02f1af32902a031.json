@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE email_messages\n        SET open_tracking_token = $3\n        WHERE id = $1 AND link_id = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1598a509b00354320a4b588bc13a37e1d00ff5c4367d0ea9b02f1af32902a031"
+}

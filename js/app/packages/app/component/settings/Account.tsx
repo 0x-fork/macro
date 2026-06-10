@@ -49,6 +49,8 @@ import { useSettingsState } from '@core/constant/SettingsState';
 import PaywallComponent from '../paywall/PaywallComponent';
 import PaywallTeamOwnerView from '../paywall/PaywallTeamOwnerView';
 import UsersThreeIcon from '@phosphor/users-three.svg';
+import { useEmailLinks } from '@core/email-link';
+import { useUpdateReadReceiptsMutation } from '@queries/email/link';
 import {
   type SupportedNotificationSettings,
   useNotificationSettings,
@@ -314,6 +316,19 @@ export function Account() {
   const [showDeleteModal, setShowDeleteModal] = createSignal<boolean>(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = createSignal<boolean>(false);
 
+  const { query: emailLinksQuery, isConnected: emailConnected } =
+    useEmailLinks();
+  const updateReadReceiptsMutation = useUpdateReadReceiptsMutation({
+    onError: () =>
+      toast.failure('Failed to update read receipts. Please try again.'),
+  });
+  // Read receipts apply across all inboxes; show enabled only when every inbox
+  // has them on, so flipping a mixed state on brings every inbox along.
+  const readReceiptsEnabled = createMemo(() => {
+    const links = emailLinksQuery.data?.links ?? [];
+    return links.every((link) => link.settings.read_receipts_enabled !== false);
+  });
+
   const userTeamsQuery = useUserTeamsQuery();
   const ownedTeam = createMemo(() => {
     const teams = userTeamsQuery.data;
@@ -430,6 +445,22 @@ export function Account() {
                   {email() ?? ''}
                 </span>
               </Row>
+
+              <Show when={emailConnected()}>
+                <Row label="Email read receipts">
+                  <Tooltip label="See when recipients open the emails you send">
+                    <div>
+                      <ToggleSwitch
+                        checked={readReceiptsEnabled()}
+                        disabled={updateReadReceiptsMutation.isPending}
+                        onChange={(checked) =>
+                          updateReadReceiptsMutation.mutate(checked)
+                        }
+                      />
+                    </div>
+                  </Tooltip>
+                </Row>
+              </Show>
 
               <Row label="First Name">
                 <NameInput

@@ -51,6 +51,12 @@ pub struct MessageRow {
     pub body_macro: Option<String>,
     /// Raw headers as JSON.
     pub headers_json: Option<serde_json::Value>,
+    /// When a sent message was first opened by a recipient (read receipt).
+    pub first_opened_at: Option<DateTime<Utc>>,
+    /// When a sent message was last opened by a recipient (read receipt).
+    pub last_opened_at: Option<DateTime<Utc>>,
+    /// How many opens have been recorded for a sent message (read receipt).
+    pub open_count: i32,
     /// When the message was created.
     pub created_at: DateTime<Utc>,
     /// When the message was last updated.
@@ -173,6 +179,12 @@ pub struct Message {
     pub attachments_forwarded: Vec<AttachmentForwarded>,
     /// Raw headers as JSON.
     pub headers_json: Option<serde_json::Value>,
+    /// When a sent message was first opened by a recipient (read receipt).
+    pub first_opened_at: Option<DateTime<Utc>>,
+    /// When a sent message was last opened by a recipient (read receipt).
+    pub last_opened_at: Option<DateTime<Utc>>,
+    /// How many opens have been recorded for a sent message (read receipt).
+    pub open_count: i32,
     /// When the message was created.
     pub created_at: DateTime<Utc>,
     /// When the message was last updated.

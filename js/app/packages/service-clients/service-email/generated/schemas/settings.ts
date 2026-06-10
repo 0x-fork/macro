@@ -4,8 +4,10 @@
  * email_service
  * OpenAPI spec version: 0.1.0
  */
+import type { SettingsReadReceiptsEnabled } from './settingsReadReceiptsEnabled';
 import type { SettingsSignatureOnRepliesForwards } from './settingsSignatureOnRepliesForwards';
 
 export interface Settings {
+  read_receipts_enabled?: SettingsReadReceiptsEnabled;
   signature_on_replies_forwards?: SettingsSignatureOnRepliesForwards;
 }

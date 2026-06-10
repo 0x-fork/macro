@@ -44,7 +44,8 @@ pub(super) async fn messages_by_thread_id_paginated(
             global_id, link_id, provider_history_id, internal_date_ts, snippet,
             size_estimate, subject, sent_at, has_attachments, is_read, is_starred,
             is_sent, is_draft, body_text, body_html_sanitized, body_macro,
-            headers_jsonb, created_at, updated_at
+            headers_jsonb, first_opened_at, last_opened_at, open_count,
+            created_at, updated_at
         FROM email_messages
         WHERE thread_id = $1
         ORDER BY internal_date_ts DESC
@@ -78,7 +79,8 @@ pub(super) async fn cross_inbox_reply_drafts(
             global_id, link_id, provider_history_id, internal_date_ts, snippet,
             size_estimate, subject, sent_at, has_attachments, is_read, is_starred,
             is_sent, is_draft, body_text, body_html_sanitized, body_macro,
-            headers_jsonb, created_at, updated_at
+            headers_jsonb, first_opened_at, last_opened_at, open_count,
+            created_at, updated_at
         FROM email_messages
         WHERE is_draft = true
           AND provider_id IS NULL

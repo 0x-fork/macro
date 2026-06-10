@@ -222,6 +222,9 @@ pub struct DbMessageRow {
     pub body_html_sanitized: Option<String>,
     pub body_macro: Option<String>,
     pub headers_jsonb: Option<serde_json::Value>,
+    pub first_opened_at: Option<DateTime<Utc>>,
+    pub last_opened_at: Option<DateTime<Utc>>,
+    pub open_count: i32,
     pub created_at: chrono::DateTime<Utc>,
     pub updated_at: chrono::DateTime<Utc>,
 }
@@ -251,6 +254,9 @@ impl From<DbMessageRow> for MessageRow {
             body_html_sanitized: row.body_html_sanitized,
             body_macro: row.body_macro,
             headers_json: row.headers_jsonb,
+            first_opened_at: row.first_opened_at,
+            last_opened_at: row.last_opened_at,
+            open_count: row.open_count,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }

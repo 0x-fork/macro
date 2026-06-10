@@ -3272,6 +3272,7 @@
           "attachments",
           "attachments_draft",
           "attachments_forwarded",
+          "open_count",
           "created_at",
           "updated_at"
         ],
@@ -3326,6 +3327,11 @@
             "type": "string",
             "format": "uuid"
           },
+          "first_opened_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When a sent message was first opened by a recipient (read receipt)."
+          },
           "from": {
             "oneOf": [
               {
@@ -3365,9 +3371,19 @@
               "$ref": "#/components/schemas/ApiMessageLabel"
             }
           },
+          "last_opened_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When a sent message was last opened by a recipient (read receipt)."
+          },
           "link_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "open_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many opens have been recorded for a sent message (read receipt)."
           },
           "provider_history_id": {
             "type": ["string", "null"]
@@ -4844,6 +4860,9 @@
       "Settings": {
         "type": "object",
         "properties": {
+          "read_receipts_enabled": {
+            "type": ["boolean", "null"]
+          },
           "signature_on_replies_forwards": {
             "type": ["boolean", "null"]
           }

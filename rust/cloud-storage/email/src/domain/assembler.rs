@@ -66,6 +66,9 @@ pub fn message_from_row(
         attachments_draft,
         attachments_forwarded,
         headers_json: row.headers_json,
+        first_opened_at: row.first_opened_at,
+        last_opened_at: row.last_opened_at,
+        open_count: row.open_count,
         created_at: row.created_at,
         updated_at: row.updated_at,
     }

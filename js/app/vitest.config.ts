@@ -90,7 +90,10 @@ export default defineConfig({
         },
       },
       {
+        plugins: [tsconfigPaths()],
         test: {
+          environment: 'jsdom',
+          globals: true,
           include: ['packages/block-email/**/*.{test,spec}.{ts,tsx}'],
           name: 'block-email',
         },

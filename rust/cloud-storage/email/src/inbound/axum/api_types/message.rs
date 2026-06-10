@@ -200,6 +200,12 @@ pub struct ApiMessage {
     pub attachments_draft: Vec<ApiAttachmentDraft>,
     pub attachments_forwarded: Vec<ApiAttachmentForwarded>,
     pub headers_json: Option<serde_json::Value>,
+    /// When a sent message was first opened by a recipient (read receipt).
+    pub first_opened_at: Option<DateTime<Utc>>,
+    /// When a sent message was last opened by a recipient (read receipt).
+    pub last_opened_at: Option<DateTime<Utc>>,
+    /// How many opens have been recorded for a sent message (read receipt).
+    pub open_count: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -251,6 +257,9 @@ impl From<Message> for ApiMessage {
                 .map(ApiAttachmentForwarded::from)
                 .collect(),
             headers_json: m.headers_json,
+            first_opened_at: m.first_opened_at,
+            last_opened_at: m.last_opened_at,
+            open_count: m.open_count,
             created_at: m.created_at,
             updated_at: m.updated_at,
         }

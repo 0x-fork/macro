@@ -81,6 +81,92 @@ export function invalidateEmailLinks() {
   });
 }
 
+type UpdateReadReceiptsContext = {
+  previousLinks: ListLinksResponse | undefined;
+};
+type UpdateReadReceiptsCallbacks = MutationCallbacks<
+  void,
+  Error,
+  boolean,
+  UpdateReadReceiptsContext
+>;
+
+/**
+ * Toggles read receipts (open tracking on sent mail) across all of the user's
+ * inboxes. The cached links are updated optimistically so the settings switch
+ * responds immediately, and rolled back if any inbox fails to update.
+ */
+export function useUpdateReadReceiptsMutation(
+  callbacks?: UpdateReadReceiptsCallbacks
+) {
+  const linkIdHeader = useNonPrimaryEmailLinkIdHeader();
+
+  return useMutation(() => ({
+    mutationFn: async (enabled: boolean) => {
+      const links =
+        queryClient.getQueryData<ListLinksResponse>(emailKeys.links.queryKey)
+          ?.links ?? [];
+      await Promise.all(
+        links.map((link) =>
+          throwOnErr(() =>
+            emailClient.patchSettings(
+              { settings: { read_receipts_enabled: enabled } },
+              linkIdHeader(link.id)
+            )
+          )
+        )
+      );
+    },
+
+    ...withCallbacks<void, Error, boolean, UpdateReadReceiptsContext>(
+      {
+        onMutate: async (enabled) => {
+          await queryClient.cancelQueries({
+            queryKey: emailKeys.links.queryKey,
+          });
+
+          const previousLinks = queryClient.getQueryData<ListLinksResponse>(
+            emailKeys.links.queryKey
+          );
+
+          queryClient.setQueryData<ListLinksResponse>(
+            emailKeys.links.queryKey,
+            (old) =>
+              old
+                ? {
+                    ...old,
+                    links: old.links.map((link) => ({
+                      ...link,
+                      settings: {
+                        ...link.settings,
+                        read_receipts_enabled: enabled,
+                      },
+                    })),
+                  }
+                : undefined
+          );
+
+          return { previousLinks };
+        },
+
+        onError: (_error, _enabled, context) => {
+          if (context?.previousLinks) {
+            queryClient.setQueryData(
+              emailKeys.links.queryKey,
+              context.previousLinks
+            );
+          }
+        },
+
+        onSettled: () => {
+          invalidateEmailLinks();
+        },
+      },
+      callbacks
+    ),
+  }));
+}
+
 type RemoveInboxContext = { previousLinks: ListLinksResponse | undefined };
 type RemoveInboxCallbacks = MutationCallbacks<
   void,

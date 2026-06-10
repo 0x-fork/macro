@@ -56,10 +56,10 @@ pub async fn patch_settings_handler(
     link: Extension<Link>,
     Json(api_settings): Json<PatchSettingsRequest>,
 ) -> Result<Json<PatchSettingsResponse>, PatchSettingsError> {
-    let service_settings = service::settings::Settings::new(api_settings.settings, link.id);
+    let settings_patch = service::settings::SettingsPatch::new(api_settings.settings, link.id);
 
     let updated_settings =
-        email_db_client::settings::patch_settings(&ctx.db, service_settings).await?;
+        email_db_client::settings::patch_settings(&ctx.db, settings_patch).await?;
 
     let response_settings = api::settings::Settings::from(updated_settings);
 

@@ -13,10 +13,12 @@ import type { ApiMessageBodyHtmlSanitized } from './apiMessageBodyHtmlSanitized'
 import type { ApiMessageBodyMacro } from './apiMessageBodyMacro';
 import type { ApiMessageBodyReplyless } from './apiMessageBodyReplyless';
 import type { ApiMessageBodyText } from './apiMessageBodyText';
+import type { ApiMessageFirstOpenedAt } from './apiMessageFirstOpenedAt';
 import type { ApiMessageFrom } from './apiMessageFrom';
 import type { ApiMessageGlobalId } from './apiMessageGlobalId';
 import type { ApiMessageInternalDateTs } from './apiMessageInternalDateTs';
 import type { ApiMessageLabel } from './apiMessageLabel';
+import type { ApiMessageLastOpenedAt } from './apiMessageLastOpenedAt';
 import type { ApiMessageProviderHistoryId } from './apiMessageProviderHistoryId';
 import type { ApiMessageProviderId } from './apiMessageProviderId';
 import type { ApiMessageProviderThreadId } from './apiMessageProviderThreadId';
@@ -42,6 +44,8 @@ export interface ApiMessage {
   cc: ApiContactInfo[];
   created_at: string;
   db_id: string;
+  /** When a sent message was first opened by a recipient (read receipt). */
+  first_opened_at?: ApiMessageFirstOpenedAt;
   from?: ApiMessageFrom;
   global_id?: ApiMessageGlobalId;
   has_attachments: boolean;
@@ -52,7 +56,11 @@ export interface ApiMessage {
   is_sent: boolean;
   is_starred: boolean;
   labels: ApiMessageLabel[];
+  /** When a sent message was last opened by a recipient (read receipt). */
+  last_opened_at?: ApiMessageLastOpenedAt;
   link_id: string;
+  /** How many opens have been recorded for a sent message (read receipt). */
+  open_count: number;
   provider_history_id?: ApiMessageProviderHistoryId;
   provider_id?: ApiMessageProviderId;
   provider_thread_id?: ApiMessageProviderThreadId;
