@@ -2031,6 +2031,7 @@ dependencies = [
  "futures",
  "macro_user_id",
  "models_pagination",
+ "prompt",
  "tokio",
  "tracing",
  "uuid",
