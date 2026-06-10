@@ -1,6 +1,8 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { makeMarkDoneAction } from '@app/component/next-soup/actions';
 import { useMaybeSoup } from '@app/component/next-soup/soup-context';
+import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
+import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { URL_PARAMS } from '@block-email/constants';
 import { convertContactInfoToEmailRecipient } from '@block-email/util/recipientConversion';
 import {
@@ -317,6 +319,7 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
   };
 
   const soup = useMaybeSoup();
+  const splitPanel = useSplitPanel();
 
   const userId = useUserId();
 
@@ -350,7 +353,25 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
 
     if (selectedRow) {
       if (soup) {
-        markAsDoneAction.executeWithSoup([selectedRow.original], soup);
+        markAsDoneAction.executeWithSoup(
+          [selectedRow.original],
+          soup,
+          (nextEntity) => {
+            const splitHandle = splitPanel?.handle;
+            if (!splitHandle) return;
+            // Only advance the split when it shows this email full screen.
+            // In preview mode the split still holds the list and the soup
+            // selection moves on its own.
+            const contentType = splitHandle.content().type;
+            if (contentType === 'component' || contentType === 'project')
+              return;
+            void openEntityInSplitFromUnifiedList(nextEntity, {
+              splitHandle,
+              mergeHistory: true,
+              referredFrom: splitHandle.referredFrom(),
+            });
+          }
+        );
       } else {
         markAsDoneAction.execute([selectedRow.original]);
       }
