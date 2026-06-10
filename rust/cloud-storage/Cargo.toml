@@ -57,6 +57,7 @@ members = [
   "worker_trigger",
   "macro_config",
   "workspace-hack",
+  "xtask",
 ]
 
 [workspace.dependencies]

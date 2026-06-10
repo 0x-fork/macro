@@ -30,3 +30,10 @@ platforms = [
 
 # Write out exact versions rather than a semver range. (Defaults to false.)
 # exact-versions = true
+
+# The xtask is a dev-only automation tool (it *runs* hakari); folding its
+# dependencies (guppy, hakari, ...) into workspace-hack would drag them into
+# the deploy dependency layers that every service build warms. Excluding it
+# also means manage-deps does not add the workspace-hack dep to it.
+[traversal-excludes]
+workspace-members = ["xtask"]
