@@ -46,6 +46,7 @@ members = [
   "search_upload_handler",
   "seed_cli",
   "sha_cleanup_worker",
+  "shared_env_vars",
   "static_file_service",
   "task_dedup",
   "tools/native_app_server",

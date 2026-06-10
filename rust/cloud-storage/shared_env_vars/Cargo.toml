@@ -1,0 +1,9 @@
+[package]
+edition = "2024"
+name = "shared_env_vars"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+macro_env_var = { path = "../macro_env_var" }
+tracing = { workspace = true }

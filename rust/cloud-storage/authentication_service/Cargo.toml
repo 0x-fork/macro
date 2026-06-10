@@ -108,6 +108,7 @@ serde_json = { workspace = true }
 serde_utils = { path = "../serde_utils", features = ["urlencode"] }
 ses_client = { path = "../ses_client" }
 sha1 = "0.10.6"
+shared_env_vars = { path = "../shared_env_vars" }
 sqlx = { workspace = true }
 sqs_client = { path = "../sqs_client", default-features = false, features = [
   "email",

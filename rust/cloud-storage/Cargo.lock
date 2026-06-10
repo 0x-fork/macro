@@ -704,6 +704,7 @@ dependencies = [
  "serde_utils",
  "ses_client",
  "sha1 0.10.6",
+ "shared_env_vars",
  "sqlx",
  "sqs_client",
  "strum",
@@ -10785,6 +10786,14 @@ dependencies = [
  "macro_uuid",
  "models_permissions",
  "sqlx",
+]
+
+[[package]]
+name = "shared_env_vars"
+version = "0.1.0"
+dependencies = [
+ "macro_env_var",
+ "tracing",
 ]
 
 [[package]]

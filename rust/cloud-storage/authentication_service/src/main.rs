@@ -107,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     let fusionauth_api_key = match config.environment {
-        Environment::Local => config.fusionauth_api_key_secret_key.clone(),
+        Environment::Local => config.fusionauth_api_key_secret_key.to_string(),
         _ => secretsmanager_client
             .get_secret_value(&config.fusionauth_api_key_secret_key)
             .await
@@ -116,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let fusionauth_client_secret = match config.environment {
-        Environment::Local => config.fusionauth_client_secret_key.clone(),
+        Environment::Local => config.fusionauth_client_secret_key.to_string(),
         _ => secretsmanager_client
             .get_secret_value(&config.fusionauth_client_secret_key)
             .await
@@ -125,7 +125,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let stripe_client_secret = match config.environment {
-        Environment::Local => config.stripe_secret_key.clone(),
+        Environment::Local => config.stripe_secret_key.to_string(),
         _ => secretsmanager_client
             .get_secret_value(&config.stripe_secret_key)
             .await
@@ -134,7 +134,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let google_client_secret = match config.environment {
-        Environment::Local => config.google_client_secret_key.clone(),
+        Environment::Local => config.google_client_secret_key.to_string(),
         _ => secretsmanager_client
             .get_secret_value(&config.google_client_secret_key)
             .await
@@ -143,24 +143,24 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let auth_client = fusionauth::FusionAuthClient::new(
-        config.fusionauth_tenant_id,
+        config.fusionauth_tenant_id.to_string(),
         fusionauth_api_key,
-        config.fusionauth_client_id.clone(),
+        config.fusionauth_client_id.to_string(),
         fusionauth_client_secret,
-        config.fusionauth_base_url.clone(),
-        config.fusionauth_oauth_redirect_uri.clone(),
-        config.google_client_id.clone(),
+        config.fusionauth_base_url.to_string(),
+        config.fusionauth_oauth_redirect_uri.to_string(),
+        config.google_client_id.to_string(),
         google_client_secret,
     );
     tracing::trace!("initialized auth client");
 
     let document_storage_service_client = DocumentStorageServiceClient::new(
-        config.service_internal_auth_key.clone(),
+        config.service_internal_auth_key.to_string(),
         DocumentStorageServiceUrl::new()?.to_string(),
     );
     tracing::trace!("initialized document storage service client");
 
-    let macro_cache_client = macro_cache_client::MacroCache::new(config.redis_uri.as_str());
+    let macro_cache_client = macro_cache_client::MacroCache::new(&config.redis_uri);
 
     tracing::trace!("initialized redis client");
 
@@ -177,7 +177,7 @@ async fn main() -> anyhow::Result<()> {
             .await?;
 
     let redis_client =
-        redis::Client::open(config.redis_uri.as_str()).context("failed to create redis client")?;
+        redis::Client::open(&*config.redis_uri).context("failed to create redis client")?;
     let redis_multiplexed_conn = redis_client
         .get_multiplexed_async_connection()
         .await
@@ -185,7 +185,7 @@ async fn main() -> anyhow::Result<()> {
 
     let ingress_queue = SqsQueue::new(
         aws_sdk_sqs::Client::new(&macro_aws_config::get_macro_aws_config().await),
-        config.notification_queue.clone(),
+        config.notification_queue.to_string(),
     );
     let notification_ingress_service = SqsNotificationIngress {
         queue: ingress_queue,
@@ -209,8 +209,8 @@ async fn main() -> anyhow::Result<()> {
             .map(|(measurement_id, api_secret)| {
                 tracing::info!("configuring Google Analytics");
                 GoogleAnalyticsConfig {
-                    measurement_id: measurement_id.clone(),
-                    api_secret: api_secret.clone(),
+                    measurement_id: measurement_id.to_string(),
+                    api_secret: api_secret.to_string(),
                 }
             }),
         meta: config
@@ -220,18 +220,22 @@ async fn main() -> anyhow::Result<()> {
             .map(|(pixel_id, access_token)| {
                 tracing::info!("configuring Meta Conversions API");
                 MetaConfig {
-                    pixel_id: pixel_id.clone(),
-                    access_token: access_token.clone(),
-                    test_event_code: config.meta_test_event_code.clone(),
+                    pixel_id: pixel_id.to_string(),
+                    access_token: access_token.to_string(),
+                    test_event_code: config
+                        .meta_test_event_code
+                        .as_ref()
+                        .map(|code| code.to_string()),
                 }
             }),
         posthog: config.posthog_api_key.as_ref().map(|api_key| {
             tracing::info!("configuring PostHog");
             PostHogConfig {
-                api_key: api_key.clone(),
+                api_key: api_key.to_string(),
                 host: config
                     .posthog_host
-                    .clone()
+                    .as_ref()
+                    .map(|host| host.to_string())
                     .unwrap_or_else(|| "https://us.i.posthog.com".to_string()),
             }
         }),
@@ -247,7 +251,7 @@ async fn main() -> anyhow::Result<()> {
 
     let teams_repo_impl = TeamRepositoryImpl::new(db.clone());
     let customer_repo_impl =
-        CustomerRepositoryImpl::new(stripe_client.clone(), config.stripe_price_id.clone());
+        CustomerRepositoryImpl::new(stripe_client.clone(), config.stripe_price_id.to_string());
     let team_channels_repo_impl = TeamChannelsRepositoryImpl::new(db.clone());
     let team_crm_settings_repo_impl =
         teams::outbound::team_crm_settings_repo::TeamCrmSettingsRepositoryImpl::new(db.clone());
@@ -275,9 +279,9 @@ async fn main() -> anyhow::Result<()> {
         GithubAuthImpl::new(auth_client.clone(), redis_multiplexed_conn),
         foreign_entity_service,
         GithubLinkConfig {
-            client_id: config.github_client_id,
-            client_secret: config.github_client_secret,
-            idp_id: config.github_idp_id,
+            client_id: config.github_client_id.to_string(),
+            client_secret: config.github_client_secret.to_string(),
+            idp_id: config.github_idp_id.to_string(),
         },
     );
 
@@ -343,7 +347,7 @@ async fn main() -> anyhow::Result<()> {
                 },
             }),
             analytics_client: Arc::new(analytics_client),
-            stripe_price_id: config.stripe_price_id,
+            stripe_price_id: config.stripe_price_id.to_string(),
         },
         config.port,
     )
