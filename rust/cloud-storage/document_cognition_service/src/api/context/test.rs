@@ -342,6 +342,14 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         all_tools,
     ));
 
+    let team_memory_repo = memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo::new(pool.clone());
+    let team_memory_service = Arc::new(memory::domain::team_service::TeamMemoryServiceImpl::new(
+        pool.clone(),
+        team_memory_repo,
+        tool_service_context.clone(),
+        ai_tools::all_tools(),
+    ));
+
     let api_context = ApiContext {
         db: pool.clone(),
         sqs_client: Arc::new(sqs_client),
@@ -364,6 +372,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         stream_repo: MockStreamRepo::new(),
         document_tool_context: document_tool_context.clone(),
         memory_service,
+        team_memory_service,
         properties_tool_context,
         email_tool_context,
         call_tool_context,

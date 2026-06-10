@@ -1,4 +1,4 @@
-use crate::domain::MemoryService;
+use crate::domain::{MemoryService, TeamMemoryService};
 use axum::{
     Json, Router,
     extract::State,
@@ -63,6 +63,53 @@ pub async fn get_memory_handler<T: MemoryService>(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(MemoryErrorBody {
                     error: "failed to get memory".to_string(),
+                }),
+            )
+                .into_response()
+        }
+    }
+}
+
+pub fn team_memory_router<T, S>(service: Arc<T>) -> Router<S>
+where
+    T: TeamMemoryService + Send + Sync + 'static,
+    S: Send + Sync + Clone + 'static,
+{
+    Router::new()
+        .route("/memory/team", get(get_team_memory_handler::<T>))
+        .with_state(service)
+}
+
+/// Get the latest memory for the authenticated user's team.
+///
+/// Returns the current team memory if one exists. If the memory is stale or
+/// missing, a background generation is triggered and the endpoint returns the
+/// stale memory (200) or 404 if none exists yet. Also returns 404 when the
+/// user does not belong to a team.
+#[utoipa::path(
+    get,
+    path = "/memory/team",
+    responses(
+        (status = 200, description = "Latest memory for the user's team", body = MemoryResponse),
+        (status = 404, description = "User has no team, or no team memory exists yet (generation triggered)"),
+        (status = 500, description = "Internal server error", body = MemoryErrorBody),
+    ),
+    tag = "memory"
+)]
+#[tracing::instrument(skip(service, user), fields(user_id = %user.macro_user_id))]
+pub async fn get_team_memory_handler<T: TeamMemoryService>(
+    State(service): State<Arc<T>>,
+    user: MacroUserExtractor,
+) -> Response {
+    match service.get_or_generate_team_memory(user.macro_user_id).await {
+        Ok(Some(memory)) => Json(MemoryResponse { memory }).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            tracing::error!(error = ?e, "failed to get team memory");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MemoryErrorBody {
+                    error: "failed to get team memory".to_string(),
                 }),
             )
                 .into_response()

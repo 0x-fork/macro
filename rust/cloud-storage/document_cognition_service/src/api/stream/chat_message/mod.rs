@@ -28,7 +28,7 @@ use macro_auth::headers::AccessTokenExtractor;
 use macro_db_client::dcs::create_chat;
 use macro_user_id::user_id::MacroUserIdStr;
 use mcp_client::domain::ports::McpServerStore;
-use memory::domain::MemoryService;
+use memory::domain::{MemoryService, TeamMemoryService};
 use model::user::UserContext;
 use model_entity::{Entity, EntityType};
 use models_permissions::share_permission::SharePermissionV2;
@@ -289,6 +289,15 @@ async fn send_chat_message_inner(
         .ok()
         .flatten();
 
+    // Fetch the memory of the user's team, if any (triggers background generation if stale/missing)
+    let team_memory = ctx
+        .team_memory_service
+        .get_or_generate_team_memory((*user_id).clone())
+        .await
+        .inspect_err(|e| tracing::error!(error = ?e, "failed to fetch team memory"))
+        .ok()
+        .flatten();
+
     // Build the chat messages
     let tools_prompt = choose_tools_prompt(&payload, &*ctx.all_tools_prompt);
     let ai_request = build_chat_messages(&chat, &payload, all_resolved_parts).map_err(|err| {
@@ -325,6 +334,11 @@ async fn send_chat_message_inner(
             prompt.push_str("\n\n<user_memory>\n");
             prompt.push_str(memory);
             prompt.push_str("\n</user_memory>");
+        }
+        if let Some(memory) = team_memory.as_deref() {
+            prompt.push_str("\n\n<team_memory>\n");
+            prompt.push_str(memory);
+            prompt.push_str("\n</team_memory>");
         }
         prompt
     };

@@ -80,6 +80,7 @@ use utoipa::OpenApi;
             stream_stop::stop_chat_stream,
             structured_completion::structured_completion,
             memory_api::get_memory_handler,
+            memory_api::get_team_memory_handler,
             mcp_api::list_servers,
             mcp_api::add_server,
             mcp_api::update_server,

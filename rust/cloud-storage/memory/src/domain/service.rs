@@ -193,7 +193,7 @@ where
         }
 
         // 2nd pass: judge the memory quality
-        judge_memory(&memory).await?;
+        judge_memory(JUDGE_PROMPT, &memory).await?;
 
         self.memory_repo.save_memory(&memory, user).await?;
         Ok(memory)
@@ -218,8 +218,8 @@ fn build_generation_system_prompt(
     prompt
 }
 
-#[tracing::instrument(skip(memory), err)]
-async fn judge_memory(memory: &str) -> super::Result<()> {
+#[tracing::instrument(skip(judge_prompt, memory), err)]
+pub(crate) async fn judge_memory(judge_prompt: &str, memory: &str) -> super::Result<()> {
     let user_message = format!(
         "Evaluate this memory and respond with ONLY a JSON object \
          (no markdown, no code fences):\n\
@@ -227,7 +227,7 @@ async fn judge_memory(memory: &str) -> super::Result<()> {
          ---\n\n{memory}"
     );
 
-    let response = agent::complete(JUDGE_MODEL, JUDGE_PROMPT, &user_message)
+    let response = agent::complete(JUDGE_MODEL, judge_prompt, &user_message)
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
 

@@ -54,6 +54,10 @@ pub(crate) type NotificationIngressType = SqsNotificationIngress<SqsQueue>;
 pub type DcsMemoryService =
     memory::domain::service::MemoryServiceImpl<memory::outbound::pg_memory_repo::PgMemoryRepo>;
 
+pub type DcsTeamMemoryService = memory::domain::team_service::TeamMemoryServiceImpl<
+    memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo,
+>;
+
 /// Concrete MCP router state for DCS.
 pub type DcsMcpRouterState = mcp_client::inbound::McpRouterState<
     mcp_client::outbound::pg_server_repo::PgServerRepo,
@@ -81,6 +85,7 @@ pub struct ApiContext {
     pub stream_repo: Arc<dyn StreamRepo>,
     pub document_tool_context: ToolDocumentToolContext,
     pub memory_service: Arc<DcsMemoryService>,
+    pub team_memory_service: Arc<DcsTeamMemoryService>,
     pub properties_tool_context: ToolPropertiesToolContext,
     pub email_tool_context: ToolEmailToolContext,
     pub call_tool_context: ToolCallToolContext,

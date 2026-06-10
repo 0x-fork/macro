@@ -400,6 +400,15 @@ async fn main() -> anyhow::Result<()> {
         all_tools,
     ));
 
+    // Build team memory service
+    let team_memory_repo = memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo::new(db.clone());
+    let team_memory_service = Arc::new(memory::domain::team_service::TeamMemoryServiceImpl::new(
+        db.clone(),
+        team_memory_repo,
+        tool_service_context.clone(),
+        ai_tools::all_tools(),
+    ));
+
     tracing::info!("initialized memory service");
 
     let mcp_credentials_key_b64 = match config.environment {
@@ -448,6 +457,7 @@ async fn main() -> anyhow::Result<()> {
         stream_repo,
         document_tool_context,
         memory_service,
+        team_memory_service,
         properties_tool_context,
         email_tool_context: email_tool_context.clone(),
         call_tool_context,

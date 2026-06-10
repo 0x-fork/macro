@@ -54,3 +54,47 @@ pub trait MemoryService: Send + Sync + 'static {
         user: MacroUserIdStr<'static>,
     ) -> impl Future<Output = Result<Option<Memory>>> + Send;
 }
+
+/// A snapshot of team data used to ground team memory generation.
+#[derive(Debug)]
+pub struct TeamOverview {
+    /// The team's display name.
+    pub name: String,
+    /// Macro user ids of the team's members.
+    pub member_ids: Vec<String>,
+}
+
+pub trait TeamMemoryRepo: Send + Sync + 'static {
+    fn save_team_memory(
+        &self,
+        memory: &Memory,
+        team_id: Uuid,
+    ) -> impl Future<Output = Result<Uuid>> + Send;
+    fn get_latest_team_memory(
+        &self,
+        team_id: Uuid,
+    ) -> impl Future<Output = Result<Option<MemoryRecord>>> + Send;
+    fn get_team_memory_by_id(
+        &self,
+        team_id: Uuid,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Memory>> + Send;
+    /// Resolve the team the user belongs to, if any.
+    fn get_user_team_id(
+        &self,
+        user: MacroUserIdStr,
+    ) -> impl Future<Output = Result<Option<Uuid>>> + Send;
+    /// Fetch the team's name and member list, or `None` if the team does not exist.
+    fn get_team_overview(
+        &self,
+        team_id: Uuid,
+    ) -> impl Future<Output = Result<Option<TeamOverview>>> + Send;
+}
+
+pub trait TeamMemoryService: Send + Sync + 'static {
+    /// Get the latest memory for the user's team, if the user belongs to one.
+    fn get_or_generate_team_memory(
+        &self,
+        user: MacroUserIdStr<'static>,
+    ) -> impl Future<Output = Result<Option<Memory>>> + Send;
+}

@@ -11,9 +11,11 @@ use chat::domain::ports::ChatRepo;
 use chat::outbound::postgres::PgChatRepo;
 use futures::StreamExt;
 use macro_db_client::dcs::create_chat_message::create_chat_message;
-use memory::domain::MemoryService;
 use memory::domain::service::MemoryServiceImpl;
+use memory::domain::team_service::TeamMemoryServiceImpl;
+use memory::domain::{MemoryService, TeamMemoryService};
 use memory::outbound::pg_memory_repo::PgMemoryRepo;
+use memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo;
 use model::chat::NewChatMessage;
 use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
@@ -81,6 +83,34 @@ async fn fetch_user_memory(
     }
 }
 
+async fn fetch_team_memory(
+    db: &PgPool,
+    tool_context: &ToolServiceContext,
+    owner: &macro_user_id::user_id::MacroUserIdStr<'static>,
+) -> Option<String> {
+    let tools = all_tools();
+    let tools = ToolSetWithPrompt {
+        toolset: tools.toolset,
+        prompt: tools.prompt,
+    };
+    let team_memory_service = TeamMemoryServiceImpl::new(
+        db.clone(),
+        PgTeamMemoryRepo::new(db.clone()),
+        tool_context.clone(),
+        tools,
+    );
+    match team_memory_service
+        .get_or_generate_team_memory(owner.clone())
+        .await
+    {
+        Ok(memory) => memory,
+        Err(e) => {
+            tracing::warn!(error=?e, %owner, "failed to fetch team memory; running without it");
+            None
+        }
+    }
+}
+
 async fn create_chat(db: &PgPool, action: &ScheduledAction) -> Result<String> {
     let chat_repo = PgChatRepo::new(db.clone());
     chat_repo
@@ -120,13 +150,18 @@ async fn run_tool_loop(
 ) -> Result<Vec<AssistantMessagePart>> {
     let tools = all_tools();
     let user_memory = fetch_user_memory(db, tool_context, &action.owner).await;
-    let system_prompt = match user_memory {
+    let team_memory = fetch_team_memory(db, tool_context, &action.owner).await;
+    let mut system_prompt = match user_memory {
         Some(memory) => format!(
-            "{}\n{}\n<user_memory>\n{}\n</user_memory>\n{}",
-            tools.prompt, SCHEDULED_AGENT_PROMPT, memory, agent_task.prompt
+            "{}\n{}\n<user_memory>\n{}\n</user_memory>",
+            tools.prompt, SCHEDULED_AGENT_PROMPT, memory
         ),
-        None => format!("{}\n{}", tools.prompt, agent_task.prompt),
+        None => tools.prompt.to_string(),
     };
+    if let Some(memory) = team_memory {
+        system_prompt.push_str(&format!("\n<team_memory>\n{memory}\n</team_memory>"));
+    }
+    system_prompt.push_str(&format!("\n{}", agent_task.prompt));
 
     let toolset: Arc<dyn AiToolSet<_> + Send + Sync> = tools.toolset;
     let agent_loop = AgentLoop::new().with_model(agent_task.model);
