@@ -86,6 +86,7 @@ export const TOKENS = {
   sidebar: {
     goToLeader: 'sidebar.goToLeader',
     goTo: {
+      home: 'sidebar.goTo.home',
       notifications: 'sidebar.goTo.notifications',
       inbox: 'sidebar.goTo.inbox',
       search: 'sidebar.goTo.search',
@@ -95,6 +96,7 @@ export const TOKENS = {
       tasks: 'sidebar.goTo.tasks',
       channels: 'sidebar.goTo.channels',
       calls: 'sidebar.goTo.calls',
+      companies: 'sidebar.goTo.companies',
       folders: 'sidebar.goTo.folders',
     },
   },

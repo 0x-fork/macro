@@ -12,11 +12,14 @@ import type {
   EmailEntity,
   EntityData,
 } from '@entity';
+import GithubIcon from '@icon/mcp-github.svg';
 import WideBook from '@icon/wide-book.svg';
 import WideCalendar from '@icon/wide-calendar.svg';
 import PhoneCall from '@icon/wide-call.svg';
 import WideChannel from '@icon/wide-channel.svg';
 import WideChat from '@icon/wide-chat.svg';
+import { AnimatedCompanyIcon } from '@icon/wide-company';
+import { AnimatedContactIcon } from '@icon/wide-contact';
 import WideCsv from '@icon/wide-csv.svg';
 import WideDiagram from '@icon/wide-diagram.svg';
 import WideDocx from '@icon/wide-docx.svg';
@@ -24,12 +27,12 @@ import WideEmail from '@icon/wide-email.svg';
 import WideFileCode from '@icon/wide-file-code.svg';
 import WideFileImage from '@icon/wide-file-image.svg';
 import WideFileMd from '@icon/wide-file-md.svg';
+import WideFiles from '@icon/wide-files.svg';
 import WideFolder from '@icon/wide-folder.svg';
 import WideGlobe from '@icon/wide-globe.svg';
 import WideStar from '@icon/wide-star.svg';
 import WideTask from '@icon/wide-task.svg';
 import WideUnknown from '@icon/wide-unknown.svg';
-import WideUser from '@icon/wide-user.svg';
 import WideVideo from '@icon/wide-video.svg';
 import Building from '@phosphor/building.svg';
 import Chat from '@phosphor/chat.svg';
@@ -44,13 +47,13 @@ import FileHtml from '@phosphor/file-html.svg';
 import FileMd from '@phosphor/file-md.svg';
 import FilePdf from '@phosphor/file-pdf.svg';
 import FileVideo from '@phosphor/file-video.svg';
+import Files from '@phosphor/files.svg';
 import Folder from '@phosphor/folder-simple.svg';
 import FolderUser from '@phosphor/folder-user.svg';
 import GlobeIcon from '@phosphor/globe.svg';
 import FileImage from '@phosphor/image.svg';
 import Canvas from '@phosphor/pencil-circle.svg';
 import Robot from '@phosphor/robot.svg';
-import User from '@phosphor/user.svg';
 import Users from '@phosphor/users.svg';
 import type { PreviewItem } from '@queries/preview';
 import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
@@ -77,7 +80,10 @@ export type EntityWithValidIcon =
   | 'sharedProject'
   | 'emailRead'
   | 'emailInvite'
+  | 'githubPullRequest'
   | 'archive'
+  | 'files'
+  | 'crm_company'
   | 'html';
 
 const ARCHIVE_EXTENSIONS = new Set(
@@ -207,6 +213,12 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-default/20',
     prettyName: 'File',
   },
+  files: {
+    icon: Files,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Files',
+  },
   archive: {
     icon: FileArchive,
     foreground: 'text-default',
@@ -220,7 +232,7 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     prettyName: 'Video',
   },
   contact: {
-    icon: User,
+    icon: AnimatedContactIcon,
     foreground: 'text-default',
     background: 'bg-default/20',
     prettyName: 'Contact',
@@ -243,6 +255,12 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-calendar/20',
     prettyName: 'Calendar Invite',
   },
+  githubPullRequest: {
+    icon: GithubIcon,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'GitHub Pull Request',
+  },
   task: {
     icon: Check,
     foreground: 'text-task',
@@ -254,6 +272,18 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     foreground: 'text-default',
     background: 'bg-default/20',
     prettyName: 'Automation',
+  },
+  crm_company: {
+    icon: AnimatedCompanyIcon,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Company',
+  },
+  company: {
+    icon: AnimatedCompanyIcon,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Company',
   },
 };
 
@@ -282,7 +312,10 @@ function validateEntity(entity: string): EntityWithValidIcon {
   }
 }
 
-const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
+const WIDE_ICONS: Record<
+  EntityWithValidIcon,
+  Component<JSX.SvgSVGAttributes<SVGSVGElement>>
+> = {
   call: PhoneCall,
   canvas: WideDiagram,
   html: WideFileCode,
@@ -303,14 +336,18 @@ const WIDE_ICONS: Record<EntityWithValidIcon, Component> = {
   project: WideFolder,
   sharedProject: WideFolder,
   unknown: WideUnknown,
+  files: WideFiles,
   archive: WideUnknown,
   video: WideVideo,
-  contact: WideUser,
+  contact: AnimatedContactIcon,
   default: WideUnknown,
   emailRead: WideEmail,
   emailInvite: WideCalendar,
+  githubPullRequest: GithubIcon,
   task: WideTask,
   automation: Robot,
+  crm_company: AnimatedCompanyIcon,
+  company: AnimatedCompanyIcon,
 };
 
 const ICON_SIZES = {
@@ -394,7 +431,8 @@ export function EntityIcon(props: EntityIconProps) {
         props.class
       )}
     >
-      <Dynamic component={icon()} />
+      {/* size-full: Safari needs a CSS size, not the SVG's % attributes. */}
+      <Dynamic component={icon()} class="size-full" />
     </div>
   );
 }
@@ -419,7 +457,8 @@ export function CustomEntityIcon(
         'p-[20%]': props.useBackground,
       }}
     >
-      <Dynamic component={props.icon || config().icon} />
+      {/* size-full: see EntityIcon (Safari). */}
+      <Dynamic component={props.icon || config().icon} class="size-full" />
     </div>
   );
 }

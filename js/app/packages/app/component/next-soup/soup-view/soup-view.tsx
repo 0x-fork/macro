@@ -744,9 +744,10 @@ export const SoupViewList = (props: SoupViewListProps) => {
     isLocalSearchSettling,
     activeTab,
     setActiveTab,
+    fetchNextGroupPage,
+    isFetchingGroupPage,
   } = useSoupView();
-  const { hasActiveRefinements, hasHiddenItems, resetToTabDefaults } =
-    useFilterRefinements();
+  const { hasActiveRefinements, resetToTabDefaults } = useFilterRefinements();
 
   const { isKeypressActive } = useIsKeyPressActive();
 
@@ -860,6 +861,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     currentView,
     activeTab,
     applyTabPreset,
+    fetchNextGroupPage,
   });
 
   // Create markDone action for swipe/click handlers
@@ -1224,7 +1226,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                       listView={currentView()}
                       search={!!searchText()}
                       hasRefinementsFromBase={hasActiveRefinements()}
-                      hasHiddenItems={hasHiddenItems()}
+                      hasHiddenItems={false}
                       onClearFilters={resetToTabDefaults}
                     />
                   </Match>
@@ -1376,7 +1378,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                           )}
                                         >
                                           <Show
-                                            when={!group().isLoading()}
+                                            when={!isFetchingGroupPage(group().key)}
                                             fallback={
                                               <Button
                                                 variant="base"
@@ -1403,7 +1405,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                                 'border-transparent':
                                                   highlighted(),
                                               })}
-                                              onClick={() => group().loadMore()}
+                                              onClick={() => void fetchNextGroupPage(group().key)}
                                             >
                                               <CaretDownIcon class="size-2.5" />
                                               Load More

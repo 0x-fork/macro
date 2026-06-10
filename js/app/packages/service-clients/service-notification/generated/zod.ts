@@ -121,6 +121,7 @@ export const listTypedNotificationsResponse = zod
                 'foreign_entity',
                 'static_file',
                 'crm_company',
+                'crm_contact',
               ])
               .describe('The type of an entity in Macro'),
           })
@@ -170,6 +171,12 @@ export const listTypedNotificationsResponse = zod
                             messageId: zod
                               .string()
                               .describe('The message you were mentioned in'),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                             threadId: zod
                               .string()
@@ -203,6 +210,12 @@ export const listTypedNotificationsResponse = zod
                             messageId: zod
                               .string()
                               .describe('The message you were mentioned in'),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                             threadId: zod
                               .string()
@@ -414,7 +427,16 @@ export const listTypedNotificationsResponse = zod
                             messageId: zod.string().describe('The message id'),
                             sender: zod
                               .string()
-                              .describe('The user who sent the message'),
+                              .nullish()
+                              .describe(
+                                'The user who sent the message, when sent by a user'
+                              ),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                           })
                         ),
@@ -444,6 +466,12 @@ export const listTypedNotificationsResponse = zod
                             messageId: zod
                               .string()
                               .describe('The id of the new message'),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                             threadId: zod
                               .string()
@@ -458,7 +486,10 @@ export const listTypedNotificationsResponse = zod
                               ),
                             userId: zod
                               .string()
-                              .describe('The sender id of the reply'),
+                              .nullish()
+                              .describe(
+                                'The sender id of the reply, when sent by a user'
+                              ),
                           })
                         ),
                       tag: zod.enum(['channel_message_reply']),
@@ -743,6 +774,7 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                 'foreign_entity',
                 'static_file',
                 'crm_company',
+                'crm_contact',
               ])
               .describe('The type of an entity in Macro'),
           })
@@ -792,6 +824,12 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                             messageId: zod
                               .string()
                               .describe('The message you were mentioned in'),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                             threadId: zod
                               .string()
@@ -825,6 +863,12 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                             messageId: zod
                               .string()
                               .describe('The message you were mentioned in'),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                             threadId: zod
                               .string()
@@ -1036,7 +1080,16 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                             messageId: zod.string().describe('The message id'),
                             sender: zod
                               .string()
-                              .describe('The user who sent the message'),
+                              .nullish()
+                              .describe(
+                                'The user who sent the message, when sent by a user'
+                              ),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                           })
                         ),
@@ -1066,6 +1119,12 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                             messageId: zod
                               .string()
                               .describe('The id of the new message'),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                             threadId: zod
                               .string()
@@ -1080,7 +1139,10 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                               ),
                             userId: zod
                               .string()
-                              .describe('The sender id of the reply'),
+                              .nullish()
+                              .describe(
+                                'The sender id of the reply, when sent by a user'
+                              ),
                           })
                         ),
                       tag: zod.enum(['channel_message_reply']),
@@ -1359,6 +1421,7 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                 'foreign_entity',
                 'static_file',
                 'crm_company',
+                'crm_contact',
               ])
               .describe('The type of an entity in Macro'),
           })
@@ -1408,6 +1471,12 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                             messageId: zod
                               .string()
                               .describe('The message you were mentioned in'),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                             threadId: zod
                               .string()
@@ -1441,6 +1510,12 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                             messageId: zod
                               .string()
                               .describe('The message you were mentioned in'),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                             threadId: zod
                               .string()
@@ -1652,7 +1727,16 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                             messageId: zod.string().describe('The message id'),
                             sender: zod
                               .string()
-                              .describe('The user who sent the message'),
+                              .nullish()
+                              .describe(
+                                'The user who sent the message, when sent by a user'
+                              ),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                           })
                         ),
@@ -1682,6 +1766,12 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                             messageId: zod
                               .string()
                               .describe('The id of the new message'),
+                            senderDisplayName: zod
+                              .string()
+                              .nullish()
+                              .describe(
+                                'Display name for non-user senders such as bots'
+                              ),
                             senderProfilePictureUrl: zod.string().nullish(),
                             threadId: zod
                               .string()
@@ -1696,7 +1786,10 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                               ),
                             userId: zod
                               .string()
-                              .describe('The sender id of the reply'),
+                              .nullish()
+                              .describe(
+                                'The sender id of the reply, when sent by a user'
+                              ),
                           })
                         ),
                       tag: zod.enum(['channel_message_reply']),
@@ -1986,6 +2079,7 @@ export const getTypedNotificationByIdResponse = zod
         'foreign_entity',
         'static_file',
         'crm_company',
+        'crm_contact',
       ])
       .describe('The type of an entity in Macro'),
   })
@@ -2033,6 +2127,12 @@ export const getTypedNotificationByIdResponse = zod
                     messageId: zod
                       .string()
                       .describe('The message you were mentioned in'),
+                    senderDisplayName: zod
+                      .string()
+                      .nullish()
+                      .describe(
+                        'Display name for non-user senders such as bots'
+                      ),
                     senderProfilePictureUrl: zod.string().nullish(),
                     threadId: zod
                       .string()
@@ -2064,6 +2164,12 @@ export const getTypedNotificationByIdResponse = zod
                     messageId: zod
                       .string()
                       .describe('The message you were mentioned in'),
+                    senderDisplayName: zod
+                      .string()
+                      .nullish()
+                      .describe(
+                        'Display name for non-user senders such as bots'
+                      ),
                     senderProfilePictureUrl: zod.string().nullish(),
                     threadId: zod
                       .string()
@@ -2257,7 +2363,16 @@ export const getTypedNotificationByIdResponse = zod
                     messageId: zod.string().describe('The message id'),
                     sender: zod
                       .string()
-                      .describe('The user who sent the message'),
+                      .nullish()
+                      .describe(
+                        'The user who sent the message, when sent by a user'
+                      ),
+                    senderDisplayName: zod
+                      .string()
+                      .nullish()
+                      .describe(
+                        'Display name for non-user senders such as bots'
+                      ),
                     senderProfilePictureUrl: zod.string().nullish(),
                   })
                 ),
@@ -2285,6 +2400,12 @@ export const getTypedNotificationByIdResponse = zod
                     messageId: zod
                       .string()
                       .describe('The id of the new message'),
+                    senderDisplayName: zod
+                      .string()
+                      .nullish()
+                      .describe(
+                        'Display name for non-user senders such as bots'
+                      ),
                     senderProfilePictureUrl: zod.string().nullish(),
                     threadId: zod
                       .string()
@@ -2295,7 +2416,12 @@ export const getTypedNotificationByIdResponse = zod
                       .describe(
                         'The user who sent the root message of the thread'
                       ),
-                    userId: zod.string().describe('The sender id of the reply'),
+                    userId: zod
+                      .string()
+                      .nullish()
+                      .describe(
+                        'The sender id of the reply, when sent by a user'
+                      ),
                   })
                 ),
               tag: zod.enum(['channel_message_reply']),

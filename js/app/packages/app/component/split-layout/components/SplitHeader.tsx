@@ -1,19 +1,19 @@
+import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import {
-  ENABLE_PREVIEW,
-  ENABLE_PROJECT_VIEW_PREVIEW,
-} from '@core/constant/featureFlags';
+import type { BlockName } from '@core/block';
+import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
+import type { EntityDragEvent } from '@entity';
 import { AnimatedNewSplitIcon } from '@icon/wide-newSplit';
 import CollapseIcon from '@phosphor/arrows-in.svg';
 import ExpandIcon from '@phosphor/arrows-out.svg';
 import CaretLeft from '@phosphor/caret-left.svg';
 import CaretRight from '@phosphor/caret-right.svg';
-import EyeIcon from '@phosphor/eye.svg';
-import EyeSlashIcon from '@phosphor/eye-slash.svg';
 import CloseIcon from '@phosphor/x.svg';
+import { mergeRefs } from '@solid-primitives/refs';
+import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
 import { Button, cn } from '@ui';
 import {
   createMemo,
@@ -24,6 +24,7 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { SplitLayoutContext, SplitPanelContext } from '../context';
+import type { SplitContent } from '../layoutManager';
 import { canSpotlight } from '../utils/canSpotlight';
 
 function SplitNewSplitButton() {
@@ -55,6 +56,33 @@ function SplitNewSplitButton() {
       </Button>
     </Show>
   );
+}
+
+function getEntitySplitContent(data: EntityDragEvent['draggable']['data']):
+  | {
+      type: SplitContent['type'];
+      id: string;
+    }
+  | undefined {
+  if (data.type === 'document') {
+    return {
+      type: fileTypeToBlockName(data.subType?.type ?? data.fileType) as
+        | BlockName
+        | 'unknown',
+      id: data.id,
+    };
+  }
+
+  if (data.type === 'channel_message') {
+    return { type: 'channel', id: data.channelId };
+  }
+
+  if (data.type === 'foreign') return undefined;
+
+  if (data.type === 'crm_company') return { type: 'company', id: data.id };
+  if (data.type === 'crm_contact') return { type: 'contact', id: data.id };
+
+  return { type: data.type, id: data.id };
 }
 
 function SplitBackButton() {
@@ -141,51 +169,6 @@ function SplitCloseButton() {
   );
 }
 
-function _SplitPreviewToggle() {
-  const context = useContext(SplitPanelContext);
-  if (!ENABLE_PREVIEW || !context || !context.previewState) return null;
-
-  // Only show toggle for unified-list component and project block
-  const isUnifiedList = createMemo(() => {
-    const content = context.handle.content();
-    if (ENABLE_PROJECT_VIEW_PREVIEW && content.type === 'project') return true;
-    return content.type === 'component' && content.id === 'unified-list';
-  });
-
-  const [preview, setPreview] = context.previewState;
-
-  return (
-    <Show when={isUnifiedList()}>
-      <div class="max-sm:rotate-90">
-        <Button
-          class="p-1 rounded-lg"
-          classList={{
-            'bg-accent/20 text-accent': preview(),
-          }}
-          label={!preview() ? 'Split View (Preview)' : 'Full View (List)'}
-          hotkey={TOKENS.unifiedList.togglePreview}
-          tabIndex={-1}
-          onClick={() => setPreview((prev) => !prev)}
-        >
-          {preview() ? <EyeSlashIcon /> : <EyeIcon />}
-        </Button>
-      </div>
-    </Show>
-  );
-}
-
-function _SplitControlButtons() {
-  return (
-    <div class="flex flex-row items-center px-2 h-full shrink-0">
-      <div class="mobile:hidden">
-        <SplitCloseButton />
-      </div>
-      <SplitBackButton />
-      <SplitForwardButton />
-    </div>
-  );
-}
-
 export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
   const panel = useContext(SplitPanelContext);
   if (!panel) {
@@ -200,22 +183,72 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
     (globalSplitManager()?.splits?.()?.length ?? 0) > 1 &&
     !panel.handle.isSpotLight();
 
+  const droppableId = `split-header-${panel.handle.id}`;
+  const droppable = createDroppable(droppableId, {
+    type: 'split-header',
+  });
+  const [dragDropState, { onDragEnd }] = useDragDropContext() ?? [
+    undefined,
+    { onDragEnd: () => {} },
+  ];
+
+  const isEntityDraggingOver = createMemo(() => {
+    const data = dragDropState?.active.draggable?.data;
+    return (
+      data?.dragType === 'entity' &&
+      dragDropState?.active.droppable?.id === droppableId
+    );
+  });
+
+  onDragEnd((event: EntityDragEvent) => {
+    if (event.droppable?.id !== droppableId) return;
+
+    const data = event.draggable?.data;
+    if (!data || data.dragType !== 'entity') return;
+
+    const current = panel.handle.content();
+    const next = getEntitySplitContent(data);
+    if (!next) return;
+    if (current.type === next.type && current.id === next.id) return;
+
+    void openEntityInSplitFromUnifiedList(data, {
+      splitHandle: panel.handle,
+      allowDuplicate: true,
+    });
+  });
+
   return (
     <div
       class={cn(
-        'isolate w-full py-2 overflow-clip text-ink shrink-0 bg-surface',
+        'isolate relative w-full h-full overflow-clip text-ink shrink-0 bg-surface',
         showActiveGradient() && 'bg-linear-to-b from-accent/5 to-transparent',
-        isMobile() && isListViewID(panel.handle.content().id) && 'hidden'
+        isMobile() && isListViewID(panel.handle.content().id) && 'hidden',
+        isEntityDraggingOver() && 'bg-active/50'
       )}
       data-split-header
-      ref={props.ref}
+      ref={mergeRefs(droppable, props.ref)}
     >
-      <div class="flex justify-start items-center">
-        <div
-          class="z-annotation-layer flex items-center pl-2 mobile:pl-4 empty:hidden"
-          data-split-portal-target
-        >
-          <div class="mobile:hidden empty:hidden">
+      <Show when={panel.panelRef()}>
+        {(panelRef) => (
+          <Portal mount={panelRef()}>
+            <Show when={isEntityDraggingOver()}>
+              <div
+                class="pointer-events-none absolute inset-0 rounded-xl z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted flex items-center justify-center"
+                data-split-header-drop-overlay
+              >
+                <div class="max-w-[min(28rem,calc(100%-3rem))] min-w-0 bg-surface border border-edge rounded-lg shadow-lg shadow-drop-shadow px-4 py-3 flex items-center gap-2 text-sm text-ink">
+                  <span class="shrink-0 text-ink-muted">
+                    Open in this split
+                  </span>
+                </div>
+              </div>
+            </Show>
+          </Portal>
+        )}
+      </Show>
+      <div class="absolute inset-0 flex justify-start items-center">
+        <div class="relative flex items-center pl-2 mobile:pl-0 h-full">
+          <div class="mobile:hidden">
             <SplitCloseButton />
           </div>
           <Show when={!(isMobile() && isListViewID(panel.handle.content().id))}>

@@ -4,11 +4,15 @@ import { useDrawerControl } from '@app/component/split-layout/components/SplitDr
 import { SplitHeaderRight } from '@app/component/split-layout/components/SplitHeader';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { URL_PARAMS } from '@block-channel/constants';
+import { ChannelAttachmentsTab } from '@channel/Attachments/ChannelAttachmentsTab';
 import {
   CallEventSync,
   ChannelCallAutoJoin,
   ChannelCallButton,
   ChannelCallTab,
+  getCallJoinTab,
+  isNativeIosCallKitEnabled,
+  useCall,
   useCallContextOptional,
 } from '@channel/Call';
 import {
@@ -20,9 +24,13 @@ import {
   CHANNEL_DETAILS_DRAWER_ID,
   ChannelDetailsDrawer,
 } from '@channel/Channel/ChannelDetailsDrawer';
-import { ChannelTabProvider } from '@channel/Channel/ChannelTabContext';
+import {
+  ChannelTabProvider,
+  useChannelTab,
+} from '@channel/Channel/ChannelTabContext';
 import { ChannelTopBarLiveIndicators } from '@channel/Channel/ChannelTopBarLiveIndicators';
 import {
+  CHANNEL_TABS,
   type ChannelTabId,
   DEFAULT_CHANNEL_TAB,
 } from '@channel/Channel/channel-tabs';
@@ -31,13 +39,16 @@ import {
   isJoinCallRequested,
   isOpenCallTabRequested,
 } from '@channel/Channel/link';
+import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
 import { useBlockId } from '@core/block';
 import { EntityPermissionsGate } from '@core/component/EntityPermissionsGate';
 import { ENABLE_CALLS } from '@core/constant/featureFlags';
 import { useChannelName, useChannelType } from '@core/context/channels';
 import { createMethodRegistration } from '@core/orchestrator';
 import { blockHandleSignal } from '@core/signal/load';
+import { useActiveCallQuery } from '@queries/call/call';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
+import { ChannelTypeEnum } from '@service-storage/client';
 import { useSearchParams } from '@solidjs/router';
 import SidebarIcon from '@phosphor/sidebar-simple.svg';
 import { Button, cn } from '@ui';
@@ -46,7 +57,6 @@ import {
   createSignal,
   Match,
   onCleanup,
-  onMount,
   Show,
   Suspense,
   Switch,
@@ -67,13 +77,61 @@ type ChannelPropsTargetMessage = Pick<
   'targetMessageId' | 'targetMessageReplyId'
 >;
 
-function ChannelHeader(props: { channelId: string }) {
+function CallTabLabel() {
+  return (
+    <span class="flex items-center gap-1.5">
+      <span class="size-1.5 rounded-full bg-success animate-pulse" />
+      Call
+    </span>
+  );
+}
+
+const canUseInlineCallTab = () => {
+  return !isNativeIosCallKitEnabled();
+};
+
+const normalizeChannelTab = (tab: ChannelTabId) => {
+  return tab === 'call' && !canUseInlineCallTab() ? DEFAULT_CHANNEL_TAB : tab;
+};
+
+const initialChannelTab = (options: {
+  wantsJoinCall: boolean;
+  hasActiveCallHere: boolean;
+}) => {
+  return normalizeChannelTab(
+    options.wantsJoinCall || options.hasActiveCallHere
+      ? 'call'
+      : DEFAULT_CHANNEL_TAB
+  );
+};
+
+function NewTop(props: { channelId: string }) {
+  const { activeTab, setActiveTab } = useChannelTab();
   const channelName = useChannelName(props.channelId);
   const channelType = useChannelType(props.channelId);
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
+  const call = useCall(() => props.channelId);
+  const activeCallQuery = useActiveCallQuery(() => props.channelId);
   const participants = () =>
     participantsQuery.isLoading ? [] : participantsQuery.data;
   const detailsDrawer = useDrawerControl(CHANNEL_DETAILS_DRAWER_ID);
+  const showCallTab = () =>
+    ENABLE_CALLS() &&
+    canUseInlineCallTab() &&
+    (call.isInThisChannel() ||
+      call.isJoining() ||
+      activeTab() === 'call' ||
+      !!activeCallQuery.data);
+  const tabs = () => {
+    let filtered = [...CHANNEL_TABS];
+    if (channelType() === ChannelTypeEnum.DirectMessage)
+      filtered = filtered.filter((tab) => tab.value !== 'participants');
+    if (!showCallTab())
+      filtered = filtered.filter((tab) => tab.value !== 'call');
+    return filtered.map((tab) =>
+      tab.value === 'call' ? { ...tab, label: <CallTabLabel /> } : tab
+    );
+  };
 
   return (
     <Suspense>
@@ -82,6 +140,9 @@ function ChannelHeader(props: { channelId: string }) {
         channelType={channelType()!}
         participants={participants() ?? []}
         channelName={channelName() ?? 'New Channel'}
+        tabs={tabs()}
+        activeTab={activeTab()}
+        onTabChange={(tab) => setActiveTab(tab)}
         trackingIndicator={<ChannelTopBarLiveIndicators />}
       />
       <SplitHeaderRight>
@@ -121,11 +182,12 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
       isJoinCallRequested(searchParams[CHANNEL_URL_PARAMS.joinCall]));
 
   const callCtx = useCallContextOptional();
-  const hasActiveCallHere =
-    callCtx?.isInCall() && callCtx.activeChannelId() === channelId;
+  const hasActiveCallHere = !!(
+    callCtx?.isInCall() && callCtx.activeChannelId() === channelId
+  );
 
   const [activeTab, setActiveTabInternal] = createSignal<ChannelTabId>(
-    wantsJoinCall || hasActiveCallHere ? 'call' : DEFAULT_CHANNEL_TAB
+    initialChannelTab({ wantsJoinCall, hasActiveCallHere })
   );
   const [pendingJoinCall, setPendingJoinCall] = createSignal(wantsJoinCall);
 
@@ -133,6 +195,7 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
   const messagesChannelHandle: { current?: ChannelHandle } = {};
 
   const setActiveTab = (tab: ChannelTabId) => {
+    tab = normalizeChannelTab(tab);
     if (tab !== 'messages') {
       messagesChannelHandle.current = undefined;
     }
@@ -191,7 +254,7 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
   createMethodRegistration(blockHandle, {
     goToLocationFromParams: async (params: ChannelTargetMessageParams) => {
       if (isOpenCallTabRequested(params[CHANNEL_URL_PARAMS.openCallTab])) {
-        setActiveTab('call');
+        setActiveTab(getCallJoinTab());
         return;
       }
 
@@ -207,7 +270,7 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
       }
 
       if (isJoinCallRequested(params[CHANNEL_URL_PARAMS.joinCall])) {
-        setActiveTab('call');
+        setActiveTab(getCallJoinTab());
         setPendingJoinCall(true);
       }
     },
@@ -249,7 +312,7 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
           onHandled={() => setPendingJoinCall(false)}
         />
         <div class="h-full flex flex-col px-2 mobile:px-0">
-          <ChannelHeader channelId={channelId} />
+          <NewTop channelId={channelId} />
           {(() => {
             let containerRef!: HTMLDivElement;
             return (
@@ -264,7 +327,13 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
                         {...convertTargetMessage(initialTargetMessageParams())}
                       />
                     </Match>
-                    <Match when={activeTab() === 'call'}>
+                    <Match when={activeTab() === 'attachments'}>
+                      <ChannelAttachmentsTab channelId={channelId} />
+                    </Match>
+                    <Match when={activeTab() === 'participants'}>
+                      <ChannelParticipantsTab channelId={channelId} />
+                    </Match>
+                    <Match when={activeTab() === 'call' && canUseInlineCallTab()}>
                       <ChannelCallTab
                         channelId={channelId}
                         pendingJoin={pendingJoinCall}

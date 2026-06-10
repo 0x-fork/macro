@@ -1,6 +1,7 @@
 import { renameItem } from '@core/component/FileList/itemOperations';
 import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@entity';
+import { callKeys } from '@queries/call/keys';
 import { channelKeys } from '@queries/channel/keys';
 import { queryClient } from '@queries/client';
 import { setHistoryItemName } from '@queries/history/history';
@@ -62,6 +63,10 @@ const getEntityRenameData = (
   operation: EntityRenameOperation
 ): EntityRenameData | null => {
   const { entity, newName } = operation;
+  // crm companies/contacts aren't renamable and have no storage item type.
+  if (entity.type === 'crm_company' || entity.type === 'crm_contact') {
+    return null;
+  }
   return {
     id: entity.id,
     itemType: entity.type,
@@ -90,6 +95,8 @@ const validateEntityRename = (entity: EntityData): void => {
     case 'project':
     case 'call':
       return;
+    case 'foreign':
+      throw new Error('Foreign entities do not support renaming');
     default:
       throw new Error(`Unsupported entity type: ${entity.type}`);
   }
@@ -123,7 +130,13 @@ const renameDssSetData = (
     } else if (
       itemType !== 'email' &&
       itemType !== 'channel_message' &&
-      itemType !== 'automation'
+      itemType !== 'automation' &&
+      itemType !== 'foreign' &&
+      // CRM companies/contacts aren't renamed via the FileList path (their
+      // names derive from the directory/email, and their soup tags are
+      // camelCase 'crmCompany'/'crmContact', not these snake-case itemTypes).
+      itemType !== 'crm_company' &&
+      itemType !== 'crm_contact'
     ) {
       txns.set(
         id,
@@ -162,10 +175,13 @@ const renameCallRecordSetData = (
 ): void => {
   entities.forEach(({ id, newName, itemType }) => {
     if (itemType !== 'call') return;
-    queryClient.setQueryData<CallRecord>(['call', 'record', id], (prev) => {
-      if (!prev) return prev;
-      return { ...prev, customName: newName };
-    });
+    queryClient.setQueryData<CallRecord>(
+      callKeys.record(id).queryKey,
+      (prev) => {
+        if (!prev) return prev;
+        return { ...prev, customName: newName };
+      }
+    );
   });
 };
 

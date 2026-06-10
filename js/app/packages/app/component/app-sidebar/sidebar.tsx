@@ -1,4 +1,5 @@
 import { useAnalytics } from '@app/component/analytics-context';
+import { SidebarActiveCallWidget } from '@app/component/app-sidebar/active-call-widget';
 import { ChannelsUnreadWidget } from '@app/component/app-sidebar/channels-unread-widget';
 import {
   InviteModal,
@@ -29,6 +30,8 @@ import {
   ENABLE_ANIMATED_ICONS,
   ENABLE_APP_STORE_QR_CODE,
   ENABLE_CALLS,
+  ENABLE_CRM,
+  ENABLE_HOME_OVERRIDE,
   ENABLE_NEW_PRICING_OVERRIDE,
   ENABLE_TEAMS_OVERRIDE,
 } from '@core/constant/featureFlags';
@@ -52,10 +55,10 @@ import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
 import { AnimatedCallIcon } from '@icon/wide-call';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
+import { AnimatedCompanyIcon } from '@icon/wide-company';
 import CommandIcon from '@phosphor/command.svg';
 import { AnimatedEmailIcon } from '@icon/wide-email';
 import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
-import { AnimatedFolderIcon } from '@icon/wide-folder';
 import { AnimatedInboxIcon } from '@icon/wide-inbox';
 import { AnimatedSearchIcon } from '@icon/wide-search';
 import { AnimatedStarIcon } from '@icon/wide-star';
@@ -65,6 +68,7 @@ import { useNotificationSettings } from '@notifications';
 import BellIcon from '@phosphor/bell.svg';
 import CaretUpIcon from '@phosphor/caret-up.svg';
 import DeviceMobileIcon from '@phosphor/device-mobile-speaker.svg';
+import HomeIcon from '@phosphor/house.svg';
 import KeyboardIcon from '@phosphor/keyboard.svg';
 import PaintBucketIcon from '@phosphor/paint-bucket.svg';
 import PlugIcon from '@phosphor/plug.svg';
@@ -84,6 +88,7 @@ import SignOutIcon from '@phosphor/sign-out.svg';
 import AppStoreQr from '@design/app-store-qr.svg';
 import {
   type Component,
+  createEffect,
   createMemo,
   createSignal,
   For,
@@ -95,7 +100,7 @@ import {
 import { Dynamic } from 'solid-js/web';
 
 interface SidebarItem {
-  id: ListView;
+  id: ListView | (string & {});
   label: string;
   href: string;
   icon?: Component<
@@ -150,10 +155,10 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'documents',
-    label: 'Documents',
+    label: 'Files',
     href: LIST_VIEW_PATHS.documents,
     icon: AnimatedFileMdIcon,
-    hotkey: 'd',
+    hotkey: 'f',
     hotkeyToken: TOKENS.sidebar.goTo.documents,
   },
   {
@@ -172,14 +177,18 @@ const SIDEBAR_LINKS = [
     hotkey: 'c',
     hotkeyToken: TOKENS.sidebar.goTo.channels,
   },
-  {
-    id: 'folders',
-    label: 'Folders',
-    href: LIST_VIEW_PATHS.folders,
-    icon: AnimatedFolderIcon,
-    hotkey: 'f',
-    hotkeyToken: TOKENS.sidebar.goTo.folders,
-  },
+  ...(ENABLE_CRM
+    ? ([
+        {
+          id: 'companies',
+          label: 'Companies',
+          href: LIST_VIEW_PATHS.companies,
+          icon: AnimatedCompanyIcon,
+          hotkey: 'o',
+          hotkeyToken: TOKENS.sidebar.goTo.companies,
+        },
+      ] satisfies SidebarItem[])
+    : []),
 ] satisfies SidebarItem[];
 
 export type SidebarState = 'hidden' | 'expanded' | 'slim';
@@ -268,7 +277,7 @@ type AppSidebarProps = {
 };
 
 type SidebarHotkeyDeps = {
-  links: SidebarItem[];
+  links: () => SidebarItem[];
   hotkeyVisible: () => boolean;
   setHotkeyVisible: (visible: boolean) => void;
   resetHotkeysState: VoidFunction;
@@ -280,7 +289,7 @@ type SidebarHotkeyDeps = {
 type OpenWithSplitFn = ReturnType<typeof useSplitLayout>['openWithSplit'];
 
 const isComponentEntry =
-  (id: ListView) =>
+  (id: string) =>
   (entry: SplitContent): boolean =>
     entry.type === 'component' && entry.id === id;
 
@@ -293,7 +302,7 @@ const isComponentEntry =
  * and forces a new entry / new split.
  */
 function navigateToSidebarView(args: {
-  viewId: ListView;
+  viewId: SidebarItem['id'];
   shiftKey: boolean;
   activeSplit: SplitHandle | undefined;
   openWithSplit: OpenWithSplitFn;
@@ -346,9 +355,8 @@ const registerSidebarHotkeys = ({
     registrationType: 'add',
   });
 
-  const registeredGoToKeys = new Set<ValidHotkey>([
-    ...links.map((link) => link.hotkey),
-  ]);
+  const registeredGoToKeys = () =>
+    new Set<ValidHotkey>(links().map((link) => link.hotkey));
 
   // When the go to command scope is active, we want to prevent
   // other default hotkeys from running. So doing "g" + some key
@@ -367,7 +375,7 @@ const registerSidebarHotkeys = ({
 
     if (
       context.activeScopeId !== GO_TO_COMMAND_SCOPE ||
-      registeredGoToKeys.has(context.pressedKeysString)
+      registeredGoToKeys().has(context.pressedKeysString)
     ) {
       return false;
     }
@@ -402,49 +410,59 @@ const registerSidebarHotkeys = ({
     },
   });
 
-  // Register navigation shortcuts in the global GO_TO command scope
-  for (const link of links) {
-    const openSidebarView = (e?: KeyboardEvent) => {
-      e?.preventDefault();
-      if (hotkeyVisible()) {
-        resetHotkeysState();
-        debounceResetHotkeysState.clear();
-      }
-
-      if (link.id === 'search' && !e?.shiftKey) {
-        const activeSplit = globalSplitManager()?.activeSplit();
-        const content = activeSplit?.content();
-        if (
-          activeSplit &&
-          content?.type === 'component' &&
-          content.id === 'search'
-        ) {
-          requestSearchFocus(activeSplit.id);
-          return true;
+  // Register navigation shortcuts in the global GO_TO command scope.
+  // This must be reactive because prod feature flags can add links after the
+  // initial render (e.g. Home), and Hotkey UI resolves tokens from the registry.
+  createEffect(() => {
+    const disposers = links().map((link) => {
+      const openSidebarView = (e?: KeyboardEvent) => {
+        e?.preventDefault();
+        if (hotkeyVisible()) {
+          resetHotkeysState();
+          debounceResetHotkeysState.clear();
         }
-      }
 
-      const handle = navigateToSidebarView({
-        viewId: link.id,
-        shiftKey: !!e?.shiftKey,
-        activeSplit: globalSplitManager()?.activeSplit(),
-        openWithSplit,
+        if (link.id === 'search' && !e?.shiftKey) {
+          const activeSplit = globalSplitManager()?.activeSplit();
+          const content = activeSplit?.content();
+          if (
+            activeSplit &&
+            content?.type === 'component' &&
+            content.id === 'search'
+          ) {
+            requestSearchFocus(activeSplit.id);
+            return true;
+          }
+        }
+
+        const handle = navigateToSidebarView({
+          viewId: link.id,
+          shiftKey: !!e?.shiftKey,
+          activeSplit: globalSplitManager()?.activeSplit(),
+          openWithSplit,
+        });
+        if (link.id === 'search' && handle) {
+          requestSearchFocus(handle.id);
+        }
+        return true;
+      };
+
+      return registerHotkey({
+        hotkey: link.hotkey,
+        scopeId: link.standaloneHotkey ? 'global' : GO_TO_COMMAND_SCOPE,
+        hotkeyToken: link.hotkeyToken,
+        description: `Go to ${link.label}`,
+        keyDownHandler: openSidebarView,
+        icon: link.icon,
       });
-      if (link.id === 'search' && handle) {
-        requestSearchFocus(handle.id);
-      }
-      return true;
-    };
-
-    registerHotkey({
-      hotkey: link.hotkey,
-      scopeId: link.standaloneHotkey ? 'global' : GO_TO_COMMAND_SCOPE,
-      hotkeyToken: link.hotkeyToken,
-      description: `Go to ${link.label}`,
-      keyDownHandler: openSidebarView,
-      icon: link.icon,
     });
-  }
+
+    onCleanup(() => {
+      for (const disposer of disposers) {
+        disposer.dispose();
+      }
+    });
+  });
 };
 
 /** Persisted dismissals for the bottom-of-sidebar promo cards. */
@@ -876,7 +894,7 @@ const SidebarCreateMenuItem = (props: {
       </span>
       <span class="flex-1 truncate font-medium">{props.item.label}</span>
       <Hotkey
-        shortcut={props.item.hotkey}
+        shortcut={Array.isArray(props.item.hotkey) ? props.item.hotkey[0] : props.item.hotkey}
         theme="subtle"
         class="shrink-0"
       />
@@ -1147,6 +1165,15 @@ const CALLS_LINK: SidebarItem = {
   hotkeyToken: TOKENS.sidebar.goTo.calls,
 };
 
+const DASHBOARD_LINK: SidebarItem = {
+  id: 'home',
+  label: 'Home',
+  href: '/home',
+  icon: HomeIcon,
+  hotkey: 'h',
+  hotkeyToken: TOKENS.sidebar.goTo.home,
+};
+
 export const AppSidebar = (props: AppSidebarProps) => {
   const analytics = useAnalytics();
   const layout = useSplitLayout();
@@ -1154,6 +1181,10 @@ export const AppSidebar = (props: AppSidebarProps) => {
   const isTabAvailable = useIsSettingsTabAvailable();
   const notificationSettings = useNotificationSettings();
   const callCtx = useCallContextOptional();
+
+  const homeViewEnabled = useFeatureFlag('enable-home-view', {
+    enabledOverride: ENABLE_HOME_OVERRIDE,
+  });
 
   const hasPaidAccess = useHasPaidAccess();
 
@@ -1181,14 +1212,19 @@ export const AppSidebar = (props: AppSidebarProps) => {
 
   const [hotkeyVisible, setHotkeyVisible] = createSignal(false);
 
-  const visibleLinks = createMemo(() => {
-    if (!ENABLE_CALLS()) return SIDEBAR_LINKS;
-    const idx = SIDEBAR_LINKS.findIndex((l) => l.id === 'channels');
-    return [
-      ...SIDEBAR_LINKS.slice(0, idx + 1),
-      CALLS_LINK,
-      ...SIDEBAR_LINKS.slice(idx + 1),
-    ];
+  const visibleLinks = createMemo((): SidebarItem[] => {
+    let links: SidebarItem[] = [...SIDEBAR_LINKS];
+
+    if (homeViewEnabled().enabled) {
+      links = [DASHBOARD_LINK, ...links];
+    }
+
+    if (ENABLE_CALLS()) {
+      const idx = links.findIndex((l) => l.id === 'channels');
+      links = [...links.slice(0, idx + 1), CALLS_LINK, ...links.slice(idx + 1)];
+    }
+
+    return links;
   });
 
   const resetHotkeysState = () => {
@@ -1234,7 +1270,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
   });
 
   registerSidebarHotkeys({
-    links: visibleLinks(),
+    links: visibleLinks,
     hotkeyVisible,
     setHotkeyVisible,
     resetHotkeysState,
@@ -1327,17 +1363,16 @@ export const AppSidebar = (props: AppSidebarProps) => {
         <ChannelsUnreadWidget sidebarState={props.sidebarState ?? 'expanded'} />
       </div>
 
-      <Show when={callCtx?.isInCall()}>
-        <div class="px-2 mb-2 mt-auto" data-ui="in-call-panel">
-          <InCallPanel isSlim={panelIsSlim} />
-        </div>
-      </Show>
+      <div class="mt-auto">
+        <Show when={ENABLE_CALLS()}>
+          <div class="block max-h-[clamp(10%,60%,20rem)]">
+            <SidebarActiveCallWidget
+              sidebarState={props.sidebarState ?? 'expanded'}
+            />
+          </div>
+        </Show>
+      </div>
 
-      {/* MERGE NOTE: kept HEAD's redesigned footer (notifications/invite/mobile
-          cards using the local SidebarPromoCard API with isSlim+icon). Dropped
-          main's Premium-upgrade card + shortcut-link block, which relied on the
-          extracted sidebar-promo.tsx API that lacks isSlim/icon. premiumHintVisible
-          / setPremiumCardDismissed remain defined if that card is reintroduced. */}
       <div
         class={cn(
           'w-full px-2 flex flex-col gap-2',

@@ -17,17 +17,23 @@ export type DialogProps = {
 
 export function Dialog(props: DialogProps) {
   return (
-    <KobalteDialog
-      onOpenChange={props.onOpenChange}
-      open={props.open}
-      modal
-    >
+    <KobalteDialog onOpenChange={props.onOpenChange} open={props.open} modal>
       <KobalteDialog.Portal>
         <KobalteDialog.Overlay class={cn('fixed inset-0 z-modal bg-modal-overlay pattern-edge-muted pattern-diagonal-4', props.overlayClass)} />
-        <div class={cn('fixed inset-0 z-modal flex justify-center px-2', props.position === 'center' ? 'items-center' : 'items-start pt-[10vh]')}>
+        <div
+          class={cn(
+            'fixed top-0 bottom-(--virtual-keyboard-height,0) inset-x-0 z-modal flex justify-center px-2',
+            props.position === 'center'
+              ? 'items-center'
+              : 'items-start pt-[10vh]'
+          )}
+        >
           <KobalteDialog.Content
             ref={props.contentRef}
-            class={cn('w-200 max-w-[calc(100vw-16px)] overflow-hidden portal-scope isolate', props.class)}
+            class={cn(
+              'w-200 max-w-[calc(100vw-16px)] overflow-hidden portal-scope isolate',
+              props.class
+            )}
             onCloseAutoFocus={props.onCloseAutoFocus}
             onEscapeKeyDown={props.onEscapeKeyDown}
             onOpenAutoFocus={props.onOpenAutoFocus}
@@ -42,4 +48,4 @@ export function Dialog(props: DialogProps) {
 
 Dialog.CloseButton = KobalteDialog.CloseButton; /* Forwarded to Kobalte */
 Dialog.Description = KobalteDialog.Description; /* Forwarded to Kobalte */
-Dialog.Title = KobalteDialog.Title;             /* Forwarded to Kobalte */
+Dialog.Title = KobalteDialog.Title; /* Forwarded to Kobalte */

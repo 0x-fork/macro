@@ -1,8 +1,11 @@
 import type { DateValue } from '@core/util/date';
 import type { ApiLabel } from '@service-email/generated/schemas';
 import type {
+  GithubPullRequestCheckRun,
+  GithubPullRequestComment,
   SoupLabel,
   SoupProperty,
+  CallStatus as StorageCallStatus,
 } from '@service-storage/generated/schemas';
 
 export type EntityBase = {
@@ -16,12 +19,49 @@ export type EntityBase = {
   sortTs?: DateValue | null;
 };
 
+type ForeignEntityBase = EntityBase & {
+  type: 'foreign';
+  foreignId: string;
+  storedForId: string;
+  storedForAuthEntity: 'team' | (string & {});
+};
+
+export type UnknownForeignEntity = ForeignEntityBase & {
+  foreignSource: 'unknown';
+  rawForeignSource: string;
+  metadata: {
+    [key: string]: unknown;
+  };
+};
+
+// Consider making this a generic pull request entity so we can display
+// pull requests from other sources besides github
+export type GithubPullRequestEntity = ForeignEntityBase & {
+  foreignSource: 'github_pull_request';
+  metadata: {
+    number: number;
+    name: string;
+    owner: string;
+    repo: string;
+    url: string;
+    status: 'open' | 'merged' | 'closed';
+    additions: number;
+    deletions: number;
+    comments: GithubPullRequestComment[];
+    checks: GithubPullRequestCheckRun[];
+  };
+};
+
+export type ForeignEntity = UnknownForeignEntity | GithubPullRequestEntity;
+
 export type ChannelEntity = EntityBase & {
   type: 'channel';
   channelType: 'direct_message' | 'private' | 'public' | 'team';
   interactedAt?: DateValue | null;
   participantIds?: string[];
   latestMessage?: {
+    messageId: string;
+    threadId?: string | null;
     content: string;
     senderId: string;
     createdAt: DateValue;
@@ -102,6 +142,8 @@ export type EmailEntity = EntityBase & {
   participants?: EmailThreadParticipants;
   senderEmail?: string;
   senderName?: string;
+  /** The linked inbox (email_links row) this thread belongs to. */
+  linkId?: string;
   labels?: SoupLabel[] | ApiLabel[];
   hasIcsAttachment?: boolean;
   attachments?: EmailAttachment[];
@@ -112,11 +154,15 @@ export type ProjectEntity = EntityBase & {
   projectId?: string;
 };
 
+export type CallStatus = StorageCallStatus;
+
 export type CallEntity = EntityBase & {
   type: 'call';
   channelId: string;
   channelName?: string;
   isActive: boolean;
+  status: CallStatus;
+  /** Compatibility flag derived from status. */
   attended: boolean;
   durationMs?: number;
   participantIds: string[];
@@ -139,6 +185,39 @@ export type AutomationEntity = EntityBase & {
   isRunning?: boolean;
 };
 
+export type CrmCompanyDomain = {
+  id: string;
+  companyId: string;
+  domain: string;
+  createdAt?: DateValue | null;
+};
+
+export type CrmCompanyEntity = EntityBase & {
+  type: 'crm_company';
+  teamId: string;
+  description?: string;
+  /** Whether team-wide email visibility is enabled for this company.
+   * `undefined` means not loaded — search results don't carry it; the
+   * full value arrives with the soup row or the company detail query. */
+  emailSync?: boolean;
+  /** Whether the company has been hidden from the CRM listings. Only
+   * admin/owner team members can see `hidden: true` rows from the soup
+   * endpoint. */
+  hidden: boolean;
+  domains: CrmCompanyDomain[];
+};
+
+export type CrmContactEntity = EntityBase & {
+  type: 'crm_contact';
+  /** The company the contact belongs to. */
+  companyId: string;
+  /** The contact's email address. */
+  email: string;
+  /** Whether the contact has been hidden from the CRM listings. Only
+   * admin/owner team members can see `hidden: true` rows. */
+  hidden: boolean;
+};
+
 export type EntityData =
   | ChannelEntity
   | ChannelMessageEntity
@@ -148,7 +227,10 @@ export type EntityData =
   | EmailEntity
   | ProjectEntity
   | CallEntity
-  | AutomationEntity;
+  | CrmCompanyEntity
+  | CrmContactEntity
+  | AutomationEntity
+  | ForeignEntity;
 
 const ENTITY_TYPE_VALUES = new Set<EntityData['type']>([
   'channel',
@@ -158,7 +240,10 @@ const ENTITY_TYPE_VALUES = new Set<EntityData['type']>([
   'email',
   'project',
   'call',
+  'crm_company',
+  'crm_contact',
   'automation',
+  'foreign',
 ]);
 
 const _isEntityData = (item: unknown): item is EntityData => {
@@ -179,6 +264,20 @@ export const isTaskEntity = (entity: EntityData): entity is TaskEntity => {
     entity.fileType === 'md' &&
     entity.subType?.type === 'task'
   );
+};
+
+export const isGithubPrEntity = (
+  entity: EntityData
+): entity is GithubPullRequestEntity => {
+  return (
+    entity.type === 'foreign' && entity.foreignSource === 'github_pull_request'
+  );
+};
+
+export const isUnknownForeignEntity = (
+  entity: EntityData
+): entity is UnknownForeignEntity => {
+  return entity.type === 'foreign' && entity.foreignSource === 'unknown';
 };
 
 export const isChannelEntity = (
@@ -213,6 +312,18 @@ export const isAutomationEntity = (
   entity: EntityData
 ): entity is AutomationEntity => {
   return entity.type === 'automation';
+};
+
+export const isCrmCompanyEntity = (
+  entity: EntityData
+): entity is CrmCompanyEntity => {
+  return entity.type === 'crm_company';
+};
+
+export const isCrmContactEntity = (
+  entity: EntityData
+): entity is CrmContactEntity => {
+  return entity.type === 'crm_contact';
 };
 
 export const isDocumentEntity = (

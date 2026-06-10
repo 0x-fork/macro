@@ -43,6 +43,7 @@ import type {
   ResyncResponse,
   SendMessageRequest,
   SendMessageResponse,
+  SharedInboxConflictResponse,
   UnblockSenderRequest,
   UpdateLabelBatchRequest,
   UpdateLabelBatchResponse,
@@ -397,11 +398,6 @@ export type listContactsResponse401 = {
   status: 401;
 };
 
-export type listContactsResponse404 = {
-  data: ErrorResponse;
-  status: 404;
-};
-
 export type listContactsResponse500 = {
   data: ErrorResponse;
   status: 500;
@@ -412,7 +408,6 @@ export type listContactsResponseSuccess = listContactsResponse200 & {
 };
 export type listContactsResponseError = (
   | listContactsResponse401
-  | listContactsResponse404
   | listContactsResponse500
 ) & {
   headers: Headers;
@@ -1442,6 +1437,11 @@ export type initUserResponse401 = {
   status: 401;
 };
 
+export type initUserResponse409 = {
+  data: SharedInboxConflictResponse;
+  status: 409;
+};
+
 export type initUserResponse500 = {
   data: ErrorResponse;
   status: 500;
@@ -1453,6 +1453,7 @@ export type initUserResponseSuccess = initUserResponse200 & {
 export type initUserResponseError = (
   | initUserResponse400
   | initUserResponse401
+  | initUserResponse409
   | initUserResponse500
 ) & {
   headers: Headers;

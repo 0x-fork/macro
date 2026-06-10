@@ -1,16 +1,20 @@
 import { ENABLE_PROFILE_PICTURES } from '@core/constant/featureFlags';
+import { isMacroAgentId } from '@core/constant/macroAgent';
 import { staticFileSizedUrl } from '@core/constant/servers';
 import { internalDrag } from '@core/directive/internalDragState';
 import { useProfilePictureUrl } from '@core/signal/profilePicture';
 import {
+  getInitials,
   macroIdToEmail,
   tryMacroId,
   useDisplayName,
   useDisplayNameParts,
+  useIsConnectedSecondaryInbox,
 } from '@core/user';
+import MacroLogo from '@icon/macro-logo.svg';
 import Trash from '@phosphor-icons/core/regular/trash.svg?component-solid';
 import { useGetOrCreateDirectMessageMutation } from '@queries/channel/get-or-create-dm';
-import { Avatar, type AvatarSize } from '@ui';
+import { Avatar, type AvatarSize, cn } from '@ui';
 import {
   createMemo,
   createSignal,
@@ -31,29 +35,18 @@ export type UserIconProps = {
   suppressClick?: boolean;
   showTooltip?: boolean;
   class?: string;
+  /** Fallback image (e.g. an email contact photo) shown when the user has no Macro profile picture. */
+  photoUrl?: string;
 } & ({ id: string; email?: never } | { email: string; id?: never });
-
-function getInitials(
-  firstName: string,
-  lastName: string,
-  email: string
-): string {
-  const first = firstName.trim();
-  const last = lastName.trim();
-
-  if (first && last) {
-    return (first[0] + last[0]).toUpperCase();
-  }
-  if (first) {
-    return first[0].toUpperCase();
-  }
-  return email.substring(0, 1).toUpperCase();
-}
 
 /**
  * Internal render. Image or fallback.
  */
-function ProfileImage(props: { id?: string; email?: string }) {
+function ProfileImage(props: {
+  id?: string;
+  email?: string;
+  photoUrl?: string;
+}) {
   const macroId = createMemo(() =>
     props.id ? tryMacroId(props.id) : undefined
   );
@@ -78,9 +71,12 @@ function ProfileImage(props: { id?: string; email?: string }) {
 
   const [profilePicUrl] = useProfilePictureUrl(props.id);
 
+  // Macro profile picture wins; fall back to a contact photo before initials.
+  const imageUrl = () => profilePicUrl() || props.photoUrl;
+
   return (
     <Show
-      when={profilePicUrl()}
+      when={imageUrl()}
       fallback={
         <Avatar.Fallback class="font-semibold">{initials()}</Avatar.Fallback>
       }
@@ -88,6 +84,9 @@ function ProfileImage(props: { id?: string; email?: string }) {
     >
       {(url) => (
         <Avatar.Image
+          // Solid surface circle behind the picture so a transparent profile
+          // picture shows surface color rather than what's rendered behind the avatar.
+          class="bg-surface"
           src={staticFileSizedUrl(url, 'small')}
           onError={(e) => {
             if (e.currentTarget.src !== url) {
@@ -108,6 +107,7 @@ function UserIconContent(props: {
   id?: string;
   email?: string;
   isDeleted?: boolean;
+  photoUrl?: string;
 }) {
   return (
     <Switch>
@@ -115,10 +115,10 @@ function UserIconContent(props: {
         <Trash />
       </Match>
       <Match when={props.id} keyed>
-        {(id) => <ProfileImage id={id} />}
+        {(id) => <ProfileImage id={id} photoUrl={props.photoUrl} />}
       </Match>
       <Match when={!props.id && props.email} keyed>
-        {(email) => <ProfileImage email={email} />}
+        {(email) => <ProfileImage email={email} photoUrl={props.photoUrl} />}
       </Match>
       <Match when={!props.id && !props.email}>
         <Avatar.Fallback class="font-semibold">?</Avatar.Fallback>
@@ -148,9 +148,10 @@ export function UserIcon(props: UserIconProps) {
 
   const { replaceOrInsertSplit } = useSplitLayout();
   const getOrCreateDmMutation = useGetOrCreateDirectMessageMutation();
+  const isConnectedSecondaryInbox = useIsConnectedSecondaryInbox();
 
   const getOrCreateDm = () => {
-    if (!props.id) return;
+    if (!props.id || isConnectedSecondaryInbox(props.id)) return;
     getOrCreateDmMutation.mutate(
       { recipient_id: props.id },
       {
@@ -169,6 +170,20 @@ export function UserIcon(props: UserIconProps) {
 
   return (
     <Switch>
+      <Match when={isMacroAgentId(props.id)}>
+        <Avatar
+          size={size()}
+          class={cn(
+            'bg-surface text-accent ring-1 ring-edge-muted',
+            props.class
+          )}
+        >
+          <Avatar.Fallback>
+            <MacroLogo class="size-[62%]" />
+          </Avatar.Fallback>
+        </Avatar>
+      </Match>
+
       <Match when={!showTooltip() || !hasTooltipContent()}>
         <Avatar
           size={size()}
@@ -179,6 +194,7 @@ export function UserIcon(props: UserIconProps) {
             id={props.id}
             email={props.email}
             isDeleted={props.isDeleted}
+            photoUrl={props.photoUrl}
           />
         </Avatar>
       </Match>
@@ -197,6 +213,7 @@ export function UserIcon(props: UserIconProps) {
                   id={id}
                   email={props.email}
                   isDeleted={props.isDeleted}
+                  photoUrl={props.photoUrl}
                 />
               </Avatar>
             }
@@ -206,6 +223,7 @@ export function UserIcon(props: UserIconProps) {
                 email={email()}
                 id={id}
                 isDeleted={props.isDeleted}
+                photoUrl={props.photoUrl}
                 onClose={close}
               />
             )}
@@ -226,6 +244,7 @@ export function UserIcon(props: UserIconProps) {
                 id={props.id}
                 email={props.email}
                 isDeleted={props.isDeleted}
+                photoUrl={props.photoUrl}
               />
             </Avatar>
           }
@@ -234,6 +253,7 @@ export function UserIcon(props: UserIconProps) {
               displayName={email() || ''}
               email={email()}
               isDeleted={props.isDeleted}
+              photoUrl={props.photoUrl}
               onClose={close}
             />
           )}

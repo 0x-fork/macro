@@ -3,10 +3,10 @@ mod test;
 
 use crate::domain::models::{
     Activity, ActivityType, AttachmentChannelReference, AttachmentEntityReference,
-    AttachmentGenericReference, ChannelAttachment, ChannelAttachmentType, ChannelContextMessage,
-    ChannelMessage, ChannelMessageKind, ChannelParticipant, ChannelType, CountedReaction,
-    CreateEntityMentionOptions, MessageAttachment, MessagePageDirection, ParticipantRole,
-    ResolvedChannelMessage, Sender, ThreadInfo, ThreadReply,
+    AttachmentGenericReference, BotSenderProfile, ChannelAttachment, ChannelAttachmentType,
+    ChannelContextMessage, ChannelMessage, ChannelMessageKind, ChannelParticipant, ChannelType,
+    CountedReaction, CreateEntityMentionOptions, MessageAttachment, MessagePageDirection,
+    ParticipantRole, ResolvedChannelMessage, Sender, ThreadInfo, ThreadReply,
 };
 pub use crate::domain::models::{
     AddParticipantsRequest, ChannelPreview, ChannelPreviewData, CreateChannelRequest,
@@ -72,6 +72,17 @@ impl<S: ChannelService, Svc: EntityAccessService> ChannelsRouterState<S, Svc> {
     pub fn new(service: S, access_service: Svc) -> Self {
         Self {
             service: Arc::new(service),
+            access_service: Arc::new(access_service),
+        }
+    }
+
+    /// Create a router state from an already-shared channel service.
+    ///
+    /// Used when the channel service must also be shared with other components
+    /// (such as the bot trigger dispatcher) that post messages through it.
+    pub fn from_arc(service: Arc<S>, access_service: Svc) -> Self {
+        Self {
+            service,
             access_service: Arc::new(access_service),
         }
     }
@@ -1592,6 +1603,12 @@ pub struct ApiMessageSender {
     sender_type: ApiMessageSenderType,
     /// Sender id without the storage namespace prefix.
     id: String,
+    /// Display name for bot senders.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    /// Avatar URL for bot senders.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    avatar_url: Option<String>,
 }
 
 /// Public sender type.
@@ -1610,16 +1627,34 @@ impl ApiMessageSender {
             Ok(Sender::Bot(bot_id)) => Self {
                 sender_type: ApiMessageSenderType::Bot,
                 id: bot_id.as_uuid().to_string(),
+                name: None,
+                avatar_url: None,
             },
             Ok(Sender::User(user_id)) => Self {
                 sender_type: ApiMessageSenderType::User,
                 id: user_id.to_string(),
+                name: None,
+                avatar_url: None,
             },
             Err(_) => Self {
                 sender_type: ApiMessageSenderType::User,
                 id: sender_id.to_string(),
+                name: None,
+                avatar_url: None,
             },
         }
+    }
+
+    /// Build a sender identity, attaching the bot profile for bot senders.
+    fn from_message_sender(sender_id: &str, bot_profile: Option<BotSenderProfile>) -> Self {
+        let mut sender = Self::from_storage_string(sender_id);
+        if matches!(sender.sender_type, ApiMessageSenderType::Bot)
+            && let Some(profile) = bot_profile
+        {
+            sender.name = Some(profile.name);
+            sender.avatar_url = profile.avatar_url;
+        }
+        sender
     }
 }
 
@@ -1657,7 +1692,7 @@ impl From<ChannelMessage> for ApiChannelMessage {
         Self {
             id: m.id,
             channel_id: m.channel_id,
-            sender: ApiMessageSender::from_storage_string(&m.sender_id),
+            sender: ApiMessageSender::from_message_sender(&m.sender_id, m.bot_profile),
             sender_id: m.sender_id,
             content: m.content,
             created_at: m.created_at,
@@ -1717,7 +1752,7 @@ impl From<ChannelContextMessage> for ApiChannelContextMessage {
             id: message.id,
             channel_id: message.channel_id,
             thread_id: message.thread_id,
-            sender: ApiMessageSender::from_storage_string(&message.sender_id),
+            sender: ApiMessageSender::from_message_sender(&message.sender_id, message.bot_profile),
             sender_id: message.sender_id,
             content: message.content,
             created_at: message.created_at,
@@ -1872,7 +1907,7 @@ impl From<ThreadReply> for ApiThreadReply {
     fn from(r: ThreadReply) -> Self {
         Self {
             id: r.id,
-            sender: ApiMessageSender::from_storage_string(&r.sender_id),
+            sender: ApiMessageSender::from_message_sender(&r.sender_id, r.bot_profile),
             sender_id: r.sender_id,
             content: r.content,
             created_at: r.created_at,

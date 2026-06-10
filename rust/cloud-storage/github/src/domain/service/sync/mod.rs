@@ -10,10 +10,10 @@ mod notify_pr;
 
 use crate::domain::{
     models::{
-        EnrichedGithubPullRequest, GithubAppInstallationSource, GithubError,
-        GithubInstallationAccessToken, GithubKey, GithubPullRequestDetails,
-        GithubPullRequestStatus, GithubWebhookEventType, MacroTaskId, TeamTaskReference,
-        ValidatedGithubWebhookEvent,
+        EnrichedGithubPullRequest, GITHUB_PULL_REQUEST_FOREIGN_ENTITY_SOURCE,
+        GithubAppInstallationSource, GithubError, GithubInstallationAccessToken, GithubKey,
+        GithubPullRequestDetails, GithubPullRequestStatus, GithubWebhookEventType, MacroTaskId,
+        TeamTaskReference, ValidatedGithubWebhookEvent,
     },
     ports::{GithubSyncClient, GithubSyncRepo, GithubSyncService},
 };
@@ -30,8 +30,6 @@ use std::{collections::HashSet, sync::Arc};
 use subtle::ConstantTimeEq;
 
 type HmacSha256 = Hmac<Sha256>;
-
-const GITHUB_PULL_REQUEST_FOREIGN_ENTITY_SOURCE: &str = "github_pull_request";
 
 /// Github sync config
 #[derive(Debug)]
@@ -224,7 +222,36 @@ impl<
                 .and_then(|value| value.as_u64()),
             comments: None,
             checks: None,
+            participant_github_user_ids: Self::participant_ids_from_payload(pull_request),
         })
+    }
+
+    /// Collect the stable numeric ids of the author, requested reviewers, and assignees from a
+    /// webhook `pull_request` payload. Commenters are not present in the payload; they are
+    /// unioned in from existing metadata or a live fetch.
+    fn participant_ids_from_payload(
+        pull_request: Option<&serde_json::Value>,
+    ) -> Option<Vec<String>> {
+        let pull_request = pull_request?;
+        let mut ids = std::collections::BTreeSet::new();
+
+        ids.extend(
+            pull_request
+                .get("user")
+                .and_then(|user| user.get("id"))
+                .and_then(|value| value.as_u64()),
+        );
+        for field in ["requested_reviewers", "assignees"] {
+            if let Some(users) = pull_request.get(field).and_then(|value| value.as_array()) {
+                ids.extend(
+                    users
+                        .iter()
+                        .filter_map(|user| user.get("id").and_then(|value| value.as_u64())),
+                );
+            }
+        }
+
+        (!ids.is_empty()).then(|| ids.iter().map(u64::to_string).collect())
     }
 
     /// Build pull request metadata from live GitHub details when possible,
@@ -293,34 +320,10 @@ impl<
             deletions: Some(details.deletions),
             comments: details.comments,
             checks: details.checks,
+            participant_github_user_ids: details
+                .participant_github_user_ids
+                .or(fallback.participant_github_user_ids),
         }
-    }
-
-    /// Preserve existing metadata arrays when a partial refresh omits them.
-    fn metadata_with_preserved_partial_arrays(
-        mut metadata: serde_json::Value,
-        existing_metadata: Option<&serde_json::Value>,
-    ) -> serde_json::Value {
-        let Some(existing_object) = existing_metadata.and_then(|value| value.as_object()) else {
-            return metadata;
-        };
-        let Some(metadata_object) = metadata.as_object_mut() else {
-            return metadata;
-        };
-
-        for field in ["comments", "checks"] {
-            if metadata_object.contains_key(field) {
-                continue;
-            }
-
-            if let Some(existing_value) = existing_object.get(field)
-                && existing_value.is_array()
-            {
-                metadata_object.insert(field.to_string(), existing_value.clone());
-            }
-        }
-
-        metadata
     }
 
     /// Derive a normalized pull request status from the webhook payload.
@@ -441,14 +444,6 @@ impl<
         pull_request: EnrichedGithubPullRequest,
         stored_for_sources: &[GithubAppInstallationSource],
     ) -> Vec<PullRequestForeignEntityUpsert> {
-        let base_metadata = match serde_json::to_value(&pull_request) {
-            Ok(metadata) => metadata,
-            Err(error) => {
-                tracing::error!(error=?error, "failed to serialize PR foreign entity metadata");
-                return Vec::new();
-            }
-        };
-
         let existing = match self
             .foreign_entity_service
             .get_foreign_entities_by_foreign_entity_id(
@@ -482,10 +477,13 @@ impl<
             let existing_metadata = existing_entity
                 .map(|entity| &entity.metadata)
                 .or_else(|| existing.first().map(|entity| &entity.metadata));
-            let metadata = Self::metadata_with_preserved_partial_arrays(
-                base_metadata.clone(),
-                existing_metadata,
-            );
+            let metadata = match pull_request.foreign_entity_metadata(existing_metadata) {
+                Ok(metadata) => metadata,
+                Err(error) => {
+                    tracing::error!(error=?error, "failed to serialize PR foreign entity metadata");
+                    return Vec::new();
+                }
+            };
 
             let foreign_entity = if let Some(entity) = existing_entity {
                 self.patch_pull_request_foreign_entity(

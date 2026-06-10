@@ -7,60 +7,57 @@ export const AnimatedChannelIcon = (props: {
       width="100%"
       height="100%"
       viewBox="0 -4 24 24"
-      fill="currentColor"
-      stroke="none"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
       xmlns="http://www.w3.org/2000/svg"
       overflow="visible"
       class={`animated-channel-icon ${props.triggerAnimation ? 'animating' : ''} ${props.class ?? ''}`}
     >
-      {/*<title>Animated channel icon</title>*/}
+      {/*<title>Channel icon</title>*/}
       <style>{`
-        @keyframes head-bounce {
-          0% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-2px);
-          }
-          80% {
-            transform: translateY(1px);
-          }
-          100% {
-            transform: translateY(0);
-          }
+        /* The .animating class is toggled by the triggerAnimation prop; callers
+           drive it differently — held for the duration of hover in the desktop
+           sidebar (SidebarActionButton etc.), and pulsed for a fixed duration on
+           onPointerDown/tap in the mobile dock (MobileDockButton). While
+           .animating is set, the offset/leaning hash resolves into a regular hash
+           and stays there: horizontals slide to horizontally-centered
+           (translateX), verticals straighten to fully vertical by morphing their
+           path 'd'. It eases back when .animating clears. Morphing 'd' (rather
+           than skewX) avoids shearing the round caps and keeps the stroke scaling
+           normally with icon size. */
+        .animated-channel-icon .channel-h {
+          transition: transform 0.35s ease-in-out;
         }
-        .animated-channel-icon {
-          .head-left, .head-center, .head-right {
-            transition: transform 0.4s ease;
-          }
+        /* Browser support for the .channel-v / .channel-v-* path morph below
+           (via 'transition: d'): Chrome/Edge >=52/79 and Firefox >=97, but NOT
+           Safari/WebKit — including the macOS Tauri WKWebView — where the 'd'
+           property parses but has no effect, so the verticals won't straighten
+           there (the translateX horizontals still animate). A WebKit fallback
+           (SMIL or JS morph) is TODO in a separate PR covering the other
+           animating icons too. */
+        .animated-channel-icon .channel-v {
+          transition: d 0.35s ease-in-out;
         }
-        .animated-channel-icon.animating {
-          .head-left {
-            animation: head-bounce .2s;
-          }
-          .head-center {
-            animation: head-bounce .2s 0.2s;
-          }
-          .head-right {
-            animation: head-bounce .2s 0.4s;
-          }
+        .animated-channel-icon.animating .channel-h-top {
+          transform: translateX(-1px);
+        }
+        .animated-channel-icon.animating .channel-h-bottom {
+          transform: translateX(1px);
+        }
+        .animated-channel-icon.animating .channel-v-left {
+          d: path("M9 15.5L9 0.5");
+        }
+        .animated-channel-icon.animating .channel-v-right {
+          d: path("M15 15.5L15 0.5");
         }
       `}</style>
-      <path
-        class="head-center"
-        d="M12 11.6667C9.97333 11.6667 8.33333 10.0267 8.33333 8C8.33333 5.97333 9.97333 4.33333 12 4.33333C14.0267 4.33333 15.6667 5.97333 15.6667 8C15.6667 10.0267 14.0267 11.6667 12 11.6667ZM12 6.33333C11.08 6.33333 10.3333 7.08 10.3333 8C10.3333 8.92 11.08 9.66667 12 9.66667C12.92 9.66667 13.6667 8.92 13.6667 8C13.6667 7.08 12.92 6.33333 12 6.33333Z"
-      />
-      <path
-        class="head-right"
-        d="M20.3333 7.33333C18.3067 7.33333 16.6667 5.69333 16.6667 3.66667C16.6667 1.64 18.3067 0 20.3333 0C22.36 0 24 1.64 24 3.66667C24 5.69333 22.36 7.33333 20.3333 7.33333ZM20.3333 2C19.4133 2 18.6667 2.74667 18.6667 3.66667C18.6667 4.58667 19.4133 5.33333 20.3333 5.33333C21.2533 5.33333 22 4.58667 22 3.66667C22 2.74667 21.2533 2 20.3333 2Z"
-      />
-      <path
-        class="head-left"
-        d="M3.66667 7.33333C1.64 7.33333 0 5.69333 0 3.66667C0 1.64 1.64 0 3.66667 0C5.69333 0 7.33333 1.64 7.33333 3.66667C7.33333 5.69333 5.69333 7.33333 3.66667 7.33333ZM3.66667 2C2.74667 2 2 2.74667 2 3.66667C2 4.58667 2.74667 5.33333 3.66667 5.33333C4.58667 5.33333 5.33333 4.58667 5.33333 3.66667C5.33333 2.74667 4.58667 2 3.66667 2Z"
-      />
-      <path d="M7.33333 8.50667C6.30667 7.77333 5.05333 7.33333 3.69333 7.33333C2.33333 7.33333 1.04 7.78667 0 8.53333V11.44C0.76 10.1867 2.12 9.32 3.69333 9.32C5.26667 9.32 6.57333 10.1467 7.33333 11.3733V8.50667Z" />
-      <path d="M24 8.50667C22.9733 7.77333 21.72 7.33333 20.36 7.33333C19 7.33333 17.7067 7.78667 16.6667 8.53333V11.44C17.4267 10.1867 18.7867 9.32 20.36 9.32C21.9333 9.32 23.24 10.1467 24 11.3733V8.50667Z" />
-      <path d="M8.17333 16C8.89333 14.6267 10.3333 13.6667 12 13.6667C13.6667 13.6667 15.0933 14.6267 15.8267 16H17.9867C17.1467 13.4933 14.8 11.6667 12.0133 11.6667C9.22667 11.6667 6.88 13.4933 6.04 16H8.2H8.17333Z" />
+      <path class="channel-h channel-h-top" d="M2 5H24" />
+      <path class="channel-h channel-h-bottom" d="M0 11H22" />
+      <path class="channel-v channel-v-left" d="M6.5 15.5L11.5 0.5" />
+      <path class="channel-v channel-v-right" d="M12.5 15.5L17.5 0.5" />
     </svg>
   );
 };

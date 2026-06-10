@@ -189,6 +189,18 @@ const contactsQueueArn: pulumi.Output<string> = contactsServiceStack
   .getOutput('contactsQueueArn')
   .apply((arn) => arn as string);
 
+const emailServiceStack = new pulumi.StackReference('email-service-stack', {
+  name: `macro-inc/email-service/${stack}`,
+});
+
+const emailScheduledQueueName: pulumi.Output<string> = emailServiceStack
+  .getOutput('scheduledQueueName')
+  .apply((name) => name as string);
+
+const emailScheduledQueueArn: pulumi.Output<string> = emailServiceStack
+  .getOutput('scheduledQueueArn')
+  .apply((arn) => arn as string);
+
 const {
   notificationIngressQueueName,
   notificationIngressQueueArn,
@@ -376,6 +388,7 @@ const cloudStorageService = new CloudStorageService(
       deleteDocumentHandler.queue.arn,
       notificationIngressQueueArn,
       contactsQueueArn,
+      emailScheduledQueueArn,
     ],
     vpc: coparse_api_vpc,
     platform: {
@@ -457,28 +470,6 @@ const cloudStorageService = new CloudStorageService(
       {
         name: 'OPENSEARCH_PASSWORD',
         value: OPENSEARCH_PASSWORD,
-      },
-      {
-        // Flips the documents alias dispatch in opensearch_client between
-        // the flat-chunk shape (`documents_v1`) and the parent/child join
-        // shape (`documents_v2`). Set via Pulumi config and flipped at
-        // cutover; defaults to `false` so the existing flat-shape paths
-        // stay active until the alias is swapped.
-        name: 'DOCUMENTS_INDEX_USES_JOIN',
-        value: config.get('documents_index_uses_join') ?? 'false',
-      },
-      {
-        // Same as DOCUMENTS_INDEX_USES_JOIN, but for the chats alias
-        // (`chats_v1` flat -> `chats_v2` parent/child).
-        name: 'CHATS_INDEX_USES_JOIN',
-        value: config.get('chats_index_uses_join') ?? 'false',
-      },
-      {
-        // Same as DOCUMENTS_INDEX_USES_JOIN, but for the call_records
-        // alias (`call_records_v1` flat -> `call_records_v2`
-        // parent/child).
-        name: 'CALL_RECORDS_INDEX_USES_JOIN',
-        value: config.get('call_records_index_uses_join') ?? 'false',
       },
       {
         name: 'DATABASE_URL',
@@ -570,6 +561,18 @@ const cloudStorageService = new CloudStorageService(
         value: getServiceUrl(ServiceUrl.CONNECTION_GATEWAY_URL),
       },
       {
+        name: ServiceUrl.DOCUMENT_STORAGE_SERVICE_URL,
+        value: getServiceUrl(ServiceUrl.DOCUMENT_STORAGE_SERVICE_URL),
+      },
+      {
+        name: ServiceUrl.EMAIL_SERVICE_URL,
+        value: getServiceUrl(ServiceUrl.EMAIL_SERVICE_URL),
+      },
+      {
+        name: ServiceUrl.STATIC_FILE_SERVICE_URL,
+        value: getServiceUrl(ServiceUrl.STATIC_FILE_SERVICE_URL),
+      },
+      {
         name: 'BULK_UPLOAD_REQUESTS_TABLE',
         // TODO: this should be interpolated from the bulk upload resource
         value: `bulk-upload-${stack}`,
@@ -582,6 +585,10 @@ const cloudStorageService = new CloudStorageService(
       {
         name: 'SYNC_SERVICE_AUTH_KEY',
         value: pulumi.interpolate`${SYNC_SERVICE_AUTH_KEY}`,
+      },
+      {
+        name: 'EMAIL_SCHEDULED_QUEUE',
+        value: pulumi.interpolate`${emailScheduledQueueName}`,
       },
       {
         name: ServiceUrl.SYNC_SERVICE_URL,

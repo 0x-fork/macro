@@ -1,4 +1,5 @@
-import type { BlockAlias, BlockName } from '@core/block';
+import type { SoupApiItem } from '@service-storage/generated/schemas';
+import { match } from 'ts-pattern';
 
 export const LIST_VIEWS = [
   'home',
@@ -10,6 +11,7 @@ export const LIST_VIEWS = [
   'tasks',
   'channels',
   'calls',
+  'companies',
   'folders',
   'search',
 ] as const;
@@ -26,13 +28,10 @@ export const LIST_VIEW_PATHS = {
   tasks: '/tasks',
   channels: '/channels',
   calls: '/calls',
+  companies: '/companies',
   folders: '/folders',
   search: '/search',
 } as const satisfies Record<ListView, string>;
-
-const _isListViewPath = (path: string) => {
-  return LIST_VIEW_PATHS[path as ListView] !== undefined;
-};
 
 export const LIST_VIEW_ID = {
   home: 'home',
@@ -44,6 +43,7 @@ export const LIST_VIEW_ID = {
   tasks: 'tasks',
   channels: 'channels',
   calls: 'calls',
+  companies: 'companies',
   folders: 'folders',
   search: 'search',
 } as const satisfies Record<ListView, string>;
@@ -54,26 +54,24 @@ export const isListViewID = (id: string | null | undefined): id is ListView => {
   return LIST_VIEWS.includes(id as 'inbox');
 };
 
-const BLOCK_LIST_VIEW_MAP = {
-  channel: 'channels',
-  canvas: 'documents',
-  chat: 'agents',
-  code: 'documents',
-  contact: 'channels',
-  csv: 'documents',
-  call: 'calls',
-  email: 'mail',
-  image: 'documents',
-  md: 'documents',
-  pdf: 'documents',
-  project: 'folders',
-  task: 'tasks',
-  unknown: 'inbox',
-  video: 'documents',
-  write: 'documents',
-  automation: 'agents',
-} as const satisfies Record<BlockName | BlockAlias, ListView>;
-
-const _getBlockListView = (block: BlockName | BlockAlias): ListView => {
-  return BLOCK_LIST_VIEW_MAP[block];
-};
+export const soupItemMatchesListView = (
+  item: SoupApiItem,
+  view: ListView | undefined
+): boolean =>
+  match(view)
+    .with('agents', () => item.tag === 'chat')
+    .with('mail', () => item.tag === 'emailThread')
+    .with(
+      'documents',
+      () => item.tag === 'document' && item.data.subType?.type !== 'task'
+    )
+    .with(
+      'tasks',
+      () => item.tag === 'document' && item.data.subType?.type === 'task'
+    )
+    .with('channels', () => item.tag === 'channel')
+    .with('calls', () => item.tag === 'call')
+    .with('folders', () => item.tag === 'project')
+    .with('home', 'notifications', 'inbox', 'search', undefined, () => true)
+    .with('companies', () => item.tag === 'crmCompany')
+    .exhaustive();

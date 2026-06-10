@@ -17,6 +17,7 @@ import { useUserContext, useUserId } from '@core/context/user';
 import { deepEqual } from '@core/util/compareUtils';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useContacts } from '@queries/contacts/contacts';
+import { useIsTeamAdmin } from '@queries/team/teams';
 import { type Accessor, batch, createMemo, createSignal } from 'solid-js';
 import type { ActiveFilter } from './active-filter-chips';
 import {
@@ -63,10 +64,12 @@ export function useFilterRefinements() {
   const { channelOptions, channelLabelMap, senderOptions, senderLabelMap } =
     useSearchFilterOptions();
   const { changeIndex } = useSearchIndexController();
+  const isTeamAdmin = useIsTeamAdmin();
 
   const getPresetContext = (): PresetContext => ({
     userId: user.userId(),
     email: user.email(),
+    isTeamAdmin: isTeamAdmin(),
   });
 
   const currentView = createMemo(() => {

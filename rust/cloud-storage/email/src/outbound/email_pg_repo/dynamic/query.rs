@@ -25,6 +25,9 @@ struct QueryParams {
     /// When `Some(team_id)`, the "Owned" candidate source expands from
     /// `t.link_id = ANY($link_ids)` to `t.link_id IN (links of every member
     /// of $team_id)`. Set only after CRM scope has been validated upstream.
+    /// Also switches the candidate select into dedupe mode: team-member
+    /// copies of the same conversation collapse to one row (see
+    /// [`build_query`]).
     team_id: Option<Uuid>,
 }
 
@@ -105,13 +108,42 @@ fn push_thread_candidate_select(
                         WHEN 'viewed_at' THEN COALESCE(uh."updated_at", '1970-01-01 00:00:00+00')
                         WHEN 'viewed_updated' THEN COALESCE(uh.updated_at, {})
                         ELSE {}
-                    END AS effective_ts
+                    END AS effective_ts"#,
+        sort_ts_field, sort_ts_field
+    ));
+
+    // Team-scoped queries return one thread copy per team member on the
+    // same conversation. Dedupe on the root message's RFC-822 Message-ID
+    // (email_messages.global_id) — stable across mailboxes, unlike
+    // provider thread ids. Drafts are excluded (their Message-IDs are
+    // mailbox-local), and threads with no usable global_id fall back to
+    // their own id and never dedupe. is_own_link feeds the DISTINCT ON
+    // preference in build_query so the caller's copy wins.
+    if params.team_id.is_some() {
+        builder.push(
+            r#",
+                    COALESCE(
+                        (SELECT m_root.global_id FROM email_messages m_root
+                         WHERE m_root.thread_id = t.id
+                           AND m_root.global_id IS NOT NULL
+                           AND m_root.is_draft = FALSE
+                         ORDER BY m_root.internal_date_ts ASC NULLS LAST, m_root.id ASC
+                         LIMIT 1),
+                        t.id::text
+                    ) AS dedupe_key,
+                    t.link_id = ANY("#,
+        );
+        builder.push_bind(params.link_ids.clone());
+        builder.push(") AS is_own_link");
+    }
+
+    builder.push(
+        r#"
                 FROM email_threads t
                 LEFT JOIN email_user_history uh ON uh.thread_id = t.id AND uh.link_id = t.link_id
                 WHERE
                     "#,
-        sort_ts_field, sort_ts_field
-    ));
+    );
 
     match source {
         ThreadCandidateSource::Owned => match params.team_id {
@@ -166,13 +198,25 @@ fn push_thread_candidate_select(
         build_thread_email_filter(email_filter, sort_ts_field).push_into(builder);
     }
 
-    // Push address (Sender/Cc/Bcc/Recipient) constraints into the candidate
-    // WHERE so pagination's LIMIT counts threads that actually contain a
-    // matching message. The actual matching set is materialized once in the
-    // top-level `matching_threads` CTE; the candidate WHERE just references
-    // it via `t.id IN (SELECT thread_id FROM matching_threads)`.
-    if has_address_literals(email_filter) {
+    // Ensure the candidate LIMIT only counts threads that will survive the
+    // CROSS JOIN LATERAL's message match. When a per-message filter is in
+    // play (importance, or a view-level message filter) mirror the full
+    // lateral predicate as a correlated EXISTS; otherwise push address-only
+    // constraints through the index-driven `matching_threads` CTE referenced
+    // via `t.id IN (SELECT thread_id FROM matching_threads)`.
+    if wants_message_exists_pushdown(email_filter, view) {
+        build_thread_message_exists_filter(email_filter, view, &params.resolved).push_into(builder);
+    } else if has_address_literals(email_filter) {
         build_thread_address_filter(email_filter).push_into(builder);
+    }
+
+    // Team-scoped: the cursor moves outside the dedupe wrapper (see
+    // build_query) so the representative choice is cursor-independent.
+    // Filtering before DISTINCT ON would let a copy excluded by the
+    // cursor on page N hand its conversation back to a duplicate copy
+    // on page N+1.
+    if params.team_id.is_some() {
+        return;
     }
 
     builder.push(
@@ -217,7 +261,15 @@ fn build_query(
     let view_message_filter = build_view_message_filter(view);
 
     let needs_shared_cte = !matches!(params.shared, SharedEmailFilter::Exclude);
-    let matching_threads_body = build_matching_threads_cte_body(email_filter, &params.resolved);
+    // When the candidate stage pushes a full per-message EXISTS (importance,
+    // or a view-level message filter), it already enforces "thread has a
+    // message the lateral will surface", so the address-only
+    // `matching_threads` CTE is redundant.
+    let matching_threads_body = if wants_message_exists_pushdown(email_filter, view) {
+        None
+    } else {
+        build_matching_threads_cte_body(email_filter, &params.resolved)
+    };
 
     let mut builder = sqlx::QueryBuilder::new("");
     if needs_shared_cte || matching_threads_body.is_some() {
@@ -276,13 +328,26 @@ fn build_query(
             c.email_address AS sender_email,
             c.name AS sender_name,
             c.sfs_photo_url as sender_photo_url,
-            el.macro_id AS owner_id
+            el.macro_id AS owner_id,
+            el.id AS link_id
         FROM (
             -- Step 1: Efficiently find and sort candidate threads
             SELECT *
             FROM (
         "#,
     );
+
+    // Team-scoped: dedupe team-member copies of a conversation before the
+    // cursor is applied, so the chosen representative is stable across
+    // pages. The caller's own copy wins; ties break by recency then id.
+    if params.team_id.is_some() {
+        builder.push(
+            r#"
+                SELECT DISTINCT ON (dedupe_key) *
+                FROM (
+        "#,
+        );
+    }
 
     match params.shared {
         SharedEmailFilter::Exclude => push_thread_candidate_select(
@@ -326,12 +391,33 @@ fn build_query(
         ),
     }
 
-    builder.push(
-        r#"
+    if params.team_id.is_some() {
+        builder.push(
+            r#"
+                ) AS candidate_threads
+                ORDER BY dedupe_key, is_own_link DESC, effective_ts DESC, id DESC
+            ) AS deduped_threads
+            -- Cursor logic (post-dedupe, on the representative row)
+            WHERE (("#,
+        );
+        builder.push_bind(params.cursor_timestamp);
+        builder.push("::timestamptz IS NULL) OR ((effective_ts, id) < (");
+        builder.push_bind(params.cursor_timestamp);
+        builder.push("::timestamptz, ");
+        builder.push_bind(params.cursor_id_str.clone());
+        builder.push(
+            r#"::uuid)))
+            ORDER BY effective_ts DESC, id DESC
+            LIMIT "#,
+        );
+    } else {
+        builder.push(
+            r#"
             ) AS candidate_threads
             ORDER BY effective_ts DESC, id DESC
             LIMIT "#,
-    );
+        );
+    }
 
     builder.push_bind(params.query_limit);
 
@@ -390,6 +476,29 @@ pub(super) fn debug_build_query_sql_with_resolved(
     email_filter: &Expr<EmailLiteral>,
     resolved: ResolvedFilters,
 ) -> String {
+    debug_build_query_sql_inner(view, email_filter, resolved, None)
+}
+
+#[cfg(test)]
+pub(super) fn debug_build_query_sql_team_scoped(
+    view: &PreviewView,
+    email_filter: &Expr<EmailLiteral>,
+) -> String {
+    debug_build_query_sql_inner(
+        view,
+        email_filter,
+        ResolvedFilters::empty(),
+        Some(Uuid::nil()),
+    )
+}
+
+#[cfg(test)]
+fn debug_build_query_sql_inner(
+    view: &PreviewView,
+    email_filter: &Expr<EmailLiteral>,
+    resolved: ResolvedFilters,
+    team_id: Option<Uuid>,
+) -> String {
     use sqlx::Execute;
 
     let shared = extract_shared_filter(email_filter);
@@ -411,7 +520,7 @@ pub(super) fn debug_build_query_sql_with_resolved(
             shared,
             user_id: "test-user".to_string(),
             resolved,
-            team_id: None,
+            team_id,
         },
     )
     .build()
@@ -530,6 +639,7 @@ pub(crate) async fn dynamic_email_thread_cursor(
                 updated_at: row.try_get("updated_at")?,
                 project_id: row.try_get("project_id")?,
                 owner_id: row.try_get("owner_id")?,
+                link_id: row.try_get("link_id")?,
             })
         })
         .fetch_all(pool)

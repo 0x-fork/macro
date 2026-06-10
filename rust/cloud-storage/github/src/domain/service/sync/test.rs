@@ -741,6 +741,7 @@ impl ForeignEntityService for StubForeignEntityService {
 
     async fn get_foreign_entities_for_user(
         &self,
+        _requesting_user: Option<String>,
         source_ids: Vec<SourceId>,
         limit: u32,
         _query: ForeignEntityListQuery,
@@ -967,6 +968,7 @@ fn expected_pull_request_metadata(
         deletions,
         comments: None,
         checks: None,
+        participant_github_user_ids: None,
     })
     .unwrap()
 }
@@ -995,7 +997,7 @@ fn notification_request_recipients(request: &serde_json::Value) -> Vec<String> {
     recipient_ids
 }
 
-fn assert_github_pr_notification_delivery_enabled(request: &serde_json::Value) {
+fn assert_github_pr_notification_realtime_enabled_apns_disabled(request: &serde_json::Value) {
     assert_eq!(
         request
             .pointer("/req/notification/tag")
@@ -1009,11 +1011,10 @@ fn assert_github_pr_notification_delivery_enabled(request: &serde_json::Value) {
         Some(true)
     );
     assert!(
-        !request
+        request
             .pointer("/build_apns")
-            .expect("build_apns field")
-            .is_null(),
-        "GitHub PR notifications should include APNS payloads"
+            .is_none_or(serde_json::Value::is_null),
+        "GitHub PR notifications should not include APNS payloads"
     );
 }
 
@@ -1070,6 +1071,7 @@ fn backfilled_pull_request(title: &str) -> EnrichedGithubPullRequest {
         deletions: None,
         comments: None,
         checks: None,
+        participant_github_user_ids: None,
     }
 }
 
@@ -1089,6 +1091,7 @@ fn expected_pull_request_metadata_from_details(
         deletions: Some(details.deletions),
         comments: details.comments.clone(),
         checks: details.checks.clone(),
+        participant_github_user_ids: details.participant_github_user_ids.clone(),
     })
     .unwrap()
 }
@@ -1097,6 +1100,7 @@ fn pull_request_comment(id: u64, body: &str, source: &str) -> GithubPullRequestC
     GithubPullRequestComment {
         id,
         body: body.to_string(),
+        author_id: None,
         author_login: Some("octocat".to_string()),
         author_association: Some("MEMBER".to_string()),
         url: Some(format!(
@@ -1135,6 +1139,7 @@ fn pull_request_details(
         deletions,
         comments,
         checks,
+        participant_github_user_ids: None,
     }
 }
 
@@ -1960,7 +1965,7 @@ async fn github_pr_event_opened_team_source_notifies_team_members() {
     assert_eq!(requests.len(), 1);
 
     let request = &requests[0];
-    assert_github_pr_notification_delivery_enabled(request);
+    assert_github_pr_notification_realtime_enabled_apns_disabled(request);
     assert_eq!(
         request
             .pointer("/req/notification_entity/entity_type")
@@ -2099,7 +2104,7 @@ async fn github_pr_event_merged_user_source_notifies_user() {
     assert_eq!(requests.len(), 1);
 
     let request = &requests[0];
-    assert_github_pr_notification_delivery_enabled(request);
+    assert_github_pr_notification_realtime_enabled_apns_disabled(request);
     assert_eq!(
         notification_request_recipients(request),
         vec!["macro|reviewer@user.com".to_string()]
@@ -2239,7 +2244,10 @@ async fn github_pr_event_send_failure_does_not_fail_webhook_processing() {
 
     assert!(result.is_ok());
     assert_eq!(service.foreign_entity_service.foreign_entities().len(), 1);
-    assert_eq!(service.notification_ingress.requests().len(), 1);
+
+    let requests = service.notification_ingress.requests();
+    assert_eq!(requests.len(), 1);
+    assert_github_pr_notification_realtime_enabled_apns_disabled(&requests[0]);
 }
 
 #[tokio::test]
@@ -2345,6 +2353,47 @@ async fn pr_closed_upserts_merged_pull_request_metadata() {
             Some(10),
             Some(2),
         )
+    );
+}
+
+#[tokio::test]
+async fn pr_event_extracts_participants_from_webhook_payload() {
+    let (service, foreign_entity_service) = make_sync_service_with_foreign_entity_service();
+    let event = ValidatedGithubWebhookEvent::new(
+        "pull_request".to_string(),
+        serde_json::json!({
+            "action": "opened",
+            "pull_request": {
+                "number": 42,
+                "title": "fixes MACRO-2BuyvtY3aeEvHx4uG8iD51",
+                "body": null,
+                "head": { "ref": "feature/some-branch" },
+                "state": "open",
+                "merged": false,
+                "additions": 10,
+                "deletions": 2,
+                "user": { "login": "author", "id": 7 },
+                "requested_reviewers": [
+                    { "login": "reviewer", "id": 42 },
+                    { "login": "author", "id": 7 }
+                ],
+                "assignees": [{ "login": "assignee", "id": 99 }]
+            },
+            "repository": {
+                "name": "my-repo",
+                "owner": { "login": "my-org" }
+            },
+            "installation": { "id": 12345 }
+        }),
+    );
+
+    service.process_webhook_event(&event).await.unwrap();
+
+    let foreign_entities = foreign_entity_service.foreign_entities();
+    assert_eq!(foreign_entities.len(), 1);
+    assert_eq!(
+        foreign_entities[0].metadata.get("participantGithubUserIds"),
+        Some(&serde_json::json!(["7", "42", "99"]))
     );
 }
 

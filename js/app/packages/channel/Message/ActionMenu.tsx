@@ -1,12 +1,12 @@
-import AddEmojiIcon from '@icon/square-add-emoji.svg';
-import EditIcon from '@icon/square-edit.svg';
-import LinkIcon from '@icon/square-link.svg';
-import ReplyIcon from '@icon/square-reply.svg';
-import TrashIcon from '@icon/square-trash.svg';
 import StarIcon from '@icon/wide-star.svg';
 import TaskIcon from '@icon/wide-task.svg';
-import DotsThree from '@phosphor/dots-three.svg';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
+import ReplyIcon from '@phosphor/arrow-bend-up-left.svg';
+import DotsThree from '@phosphor/dots-three.svg';
+import LinkIcon from '@phosphor/link.svg';
+import EditIcon from '@phosphor/pencil-simple.svg';
+import AddEmojiIcon from '@phosphor/smiley.svg';
+import TrashIcon from '@phosphor/trash.svg';
 import { Layer } from '@ui';
 import { type Component, createSignal, For, type JSX, Show } from 'solid-js';
 import { useMessage, useMessageActions } from './context';
@@ -22,12 +22,14 @@ type MoreActionItem = {
   label: string;
   icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>> | string;
   onClick?: MessageActionHandler;
+  destructive?: boolean;
+  class?: string;
+  iconClass?: string;
 };
 
 type ActionMenuProps = {
   class?: string;
 };
-
 export function ActionMenu(props: ActionMenuProps) {
   const message = useMessage();
   const actions = useMessageActions();
@@ -65,6 +67,7 @@ export function ActionMenu(props: ActionMenuProps) {
       label: 'Copy link',
       icon: LinkIcon,
       onClick: actions?.onCopyLink,
+      iconClass: 'size-3.5',
     },
   ];
 
@@ -107,7 +110,7 @@ export function ActionMenu(props: ActionMenuProps) {
                 onEmojiSelect={(emoji) => {
                   handleReaction(emoji);
                 }}
-                trigger={renderIcon(AddEmojiIcon)}
+                trigger={renderIcon(AddEmojiIcon, 'size-3.5')}
                 triggerProps={{
                   title: 'More reactions',
                   'aria-label': 'More reactions',

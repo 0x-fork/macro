@@ -1,4 +1,4 @@
-import { splitProps, type JSX } from 'solid-js';
+import { type JSX, splitProps } from 'solid-js';
 import { cn } from '../utils/classname';
 import { Layer } from './Layer';
 
@@ -38,7 +38,7 @@ export function Surface(props: SurfaceProps) {
           'background-image': `linear-gradient(var(--b0), var(--b0)), ${border()}`,
           'background-origin': 'padding-box, border-box',
           'background-clip': 'padding-box, border-box',
-          'border': '1px solid #0000',
+          border: '1px solid #0000',
           ...local.style,
         }}
         class={cn(

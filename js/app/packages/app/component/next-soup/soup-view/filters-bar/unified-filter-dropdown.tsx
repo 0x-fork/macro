@@ -227,7 +227,7 @@ const TASKS_FILTER_CATEGORIES: FilterCategory[] = [
     label: 'Priority',
     options: [
       {
-        id: 'task-critical',
+        id: 'task-urgent',
         label: 'Critical',
         icon: () => (
           <PropertyValueIcon
@@ -342,6 +342,7 @@ export const VIEW_FILTER_CATEGORIES: Record<ListView, FilterCategory[]> = {
   tasks: TASKS_FILTER_CATEGORIES,
   channels: [],
   calls: [],
+  companies: [],
   folders: [],
   search: [],
 };

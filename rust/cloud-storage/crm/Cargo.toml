@@ -9,6 +9,7 @@ axum = [
   "dep:axum",
   "dep:macro_uuid",
   "dep:model-error-response",
+  "dep:model_user",
   "dep:utoipa",
   "entity_access/axum",
   "entity_access/inbound",
@@ -18,6 +19,9 @@ default = ["inbound", "outbound", "ports"]
 inbound = ["axum", "ports"]
 outbound = ["dep:reqwest", "dep:sqlx", "dep:unfurl", "ports"]
 ports = []
+# Read-only CRM search (name/domain). Pulls only sqlx + ports — no
+# reqwest/unfurl/axum — so search consumers stay lightweight.
+search = ["dep:sqlx", "ports"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -34,6 +38,7 @@ entity_access = { path = "../entity_access", default-features = false }
 axum = { workspace = true, optional = true }
 macro_uuid = { path = "../macro_uuid", optional = true }
 model-error-response = { path = "../model-error-response", optional = true }
+model_user = { path = "../model_user", optional = true, features = ["axum"] }
 utoipa = { workspace = true, optional = true }
 
 # Outbound dependencies

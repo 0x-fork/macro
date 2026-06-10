@@ -1,6 +1,10 @@
 //! Postgres context adapter for channel side-effect policy.
 
+#[cfg(test)]
+mod tests;
+
 use crate::domain::{
+    models::{BotId, BotSenderProfile},
     ports::ChannelSideEffectContext,
     side_effects::{ChannelDocumentMention, ThreadNotificationContext},
 };
@@ -133,6 +137,29 @@ impl ChannelSideEffectContext for PgChannelSideEffectContext {
     ) -> Option<String> {
         get_sender_profile_picture_url(&self.pool, &sender_id).await
     }
+
+    async fn get_bot_sender_profile(&self, bot_id: BotId) -> Option<BotSenderProfile> {
+        get_bot_sender_profile(&self.pool, bot_id).await
+    }
+}
+
+async fn get_bot_sender_profile(db: &PgPool, bot_id: BotId) -> Option<BotSenderProfile> {
+    sqlx::query!(
+        r#"
+        SELECT name, avatar_url
+        FROM bots
+        WHERE id = $1
+        "#,
+        bot_id.as_uuid(),
+    )
+    .fetch_optional(db)
+    .await
+    .ok()
+    .flatten()
+    .map(|row| BotSenderProfile {
+        name: row.name,
+        avatar_url: row.avatar_url,
+    })
 }
 
 async fn get_sender_profile_picture_url(
@@ -197,9 +224,9 @@ async fn get_channel_participants_for_thread_id(
         r#"
         SELECT DISTINCT id AS "user_id!" FROM (
             SELECT m.sender_id AS id
-            FROM comms_channel_participants cp
-            JOIN comms_channels c ON c.id = cp.channel_id
-            JOIN comms_messages m ON m.channel_id = c.id
+            FROM comms_messages m
+            JOIN comms_channel_participants cp
+              ON cp.channel_id = m.channel_id AND cp.user_id = m.sender_id
             WHERE (m.id = $1 OR m.thread_id = $1) AND cp.left_at IS NULL
             UNION
             SELECT em.entity_id AS id
