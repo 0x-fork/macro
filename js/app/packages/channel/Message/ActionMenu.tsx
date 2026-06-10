@@ -110,13 +110,19 @@ export function ActionMenu(props: ActionMenuProps) {
                 onEmojiSelect={(emoji) => {
                   handleReaction(emoji);
                 }}
-                trigger={renderIcon(AddEmojiIcon, 'size-3.5')}
+                trigger={
+                  <span class="block size-4">
+                    {renderIcon(AddEmojiIcon, 'w-full h-full')}
+                  </span>
+                }
                 triggerProps={{
                   title: 'More reactions',
                   'aria-label': 'More reactions',
                   'data-message-action': 'react-open-menu',
+                  size: 'icon-sm',
+                  noTouchResize: true,
                   class:
-                    'size-6 flex items-center justify-center text-ink-muted hover:text-ink hover:bg-ink/10 transition-colors rounded-sm',
+                    'size-6! p-0! flex items-center justify-center text-ink-muted hover:text-ink hover:bg-ink/10 transition-colors rounded-sm',
                 }}
               />
               <Show when={hasReplyAction() || hasEditAction() || hasDeleteAction() || visibleMoreActions().length > 0}>
@@ -189,11 +195,11 @@ export function ActionMenu(props: ActionMenuProps) {
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <Layer depth={3}>
-                    <DropdownMenu.Content class="z-50 min-w-40 bg-surface border border-edge-muted rounded-lg shadow-lg p-1">
+                    <DropdownMenu.Content class="z-50 min-w-40 bg-surface rounded-xl border-0 p-1 shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]">
                       <For each={visibleMoreActions()}>
                         {(action) => (
                           <DropdownMenu.Item
-                            class="flex items-center gap-2 px-2 py-1.5 text-sm text-ink rounded-md cursor-pointer outline-none hover:bg-ink/10"
+                            class="flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-sm font-medium text-ink/65 hover:text-ink data-highlighted:text-ink rounded-lg cursor-pointer outline-none hover:bg-ink/3 data-highlighted:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-highlighted:shadow-[inset_0_0_0_1px_var(--color-edge-muted)]"
                             onSelect={() => {
                               void action.onClick?.({ message: message() });
                             }}

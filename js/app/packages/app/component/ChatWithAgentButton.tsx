@@ -90,16 +90,14 @@ export function ChatWithAgentButton(props: { entity: ChatWithAgentEntity }) {
   return (
     <Button
       tooltip="Chat with Agent"
-      variant="base"
-      size="sm"
+      variant="ghost"
+      size="icon-sm"
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       onClick={() => openChatWithAgent(props.entity)}
-      depth={2}
-      class="bg-surface"
+      label="Chat with Agent"
     >
       <AnimatedStarIcon triggerAnimation={hovering()} />
-      <span class="text-xs">Chat</span>
     </Button>
   );
 }
