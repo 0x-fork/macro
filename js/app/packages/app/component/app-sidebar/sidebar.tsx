@@ -6,6 +6,13 @@ import {
   setInviteModalOpen,
 } from '@app/component/app-sidebar/invite-modal';
 import {
+  channelsListExpanded,
+  channelsUnreadOnly,
+  SidebarChannelsList,
+  setChannelsListExpanded,
+  setChannelsUnreadOnly,
+} from '@app/component/app-sidebar/sidebar-channels';
+import {
   SidebarPromoCard,
   SidebarPromoHint,
 } from '@app/component/app-sidebar/sidebar-promo';
@@ -91,7 +98,7 @@ import { useEmailLinksQuery } from '@queries/email/link';
 import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
 import { useLocation } from '@solidjs/router';
-import { Button, cn, Dropdown, Hotkey } from '@ui';
+import { Button, cn, Dropdown, Hotkey, ToggleSwitch, Tooltip } from '@ui';
 import {
   type Component,
   createEffect,
@@ -1024,7 +1031,13 @@ export const AppSidebar = (props: AppSidebarProps) => {
             {(link) => (
               <li class="flex flex-col items-center justify-center">
                 <Dynamic
-                  component={link.id === 'mail' ? SidebarMailLink : SidebarLink}
+                  component={
+                    link.id === 'mail'
+                      ? SidebarMailLink
+                      : link.id === 'channels'
+                        ? SidebarChannelsLink
+                        : SidebarLink
+                  }
                   {...link}
                   sidebarState={props.sidebarState ?? 'expanded'}
                   hotkeyVisible={hotkeyVisible()}
@@ -1039,9 +1052,11 @@ export const AppSidebar = (props: AppSidebarProps) => {
         <hr class="border-transparent my-2" />
       </div>
 
-      <div class="block max-h-[clamp(10%,60%,20rem)]">
-        <ChannelsUnreadWidget sidebarState={props.sidebarState ?? 'expanded'} />
-      </div>
+      <Show when={isSlim()}>
+        <div class="block max-h-[clamp(10%,60%,20rem)]">
+          <ChannelsUnreadWidget />
+        </div>
+      </Show>
 
       <div class="mt-auto">
         <Show when={ENABLE_CALLS()}>
@@ -1170,6 +1185,11 @@ interface SidebarLinkProps extends SidebarItem {
    * Email link's expand chevron.
    */
   trailingWhenActive?: JSX.Element;
+  /**
+   * Never show the hover hotkey hints — used when a sibling overlays its own
+   * controls (e.g. the Channels row's toggle + chevron) on the right edge.
+   */
+  suppressHoverHints?: boolean;
 }
 
 const SidebarLink = (props: SidebarLinkProps) => {
@@ -1316,6 +1336,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
             when={
               isHovering() &&
               !props.hotkeyVisible &&
+              !props.suppressHoverHints &&
               !(isActive() && props.trailingWhenActive !== undefined)
             }
           >
@@ -1528,6 +1549,72 @@ const SidebarMailLink = (props: SidebarLinkProps) => {
             </For>
           </ul>
         </div>
+      </Show>
+    </>
+  );
+};
+
+/**
+ * The Channels sidebar link with its nested channel list (see
+ * `SidebarChannelsList` for the list itself and the unread-only/recent
+ * modes). The row overlays two controls at its right edge — a Google
+ * Chat-style unread/all toggle and a collapse chevron — rendered as siblings
+ * of the link's button rather than inside it, so interactive elements don't
+ * nest in a <button> and their clicks never navigate. Clicking the
+ * already-active Channels row also toggles the list open/closed.
+ */
+const SidebarChannelsLink = (props: SidebarLinkProps) => {
+  const showControls = () =>
+    props.sidebarState === 'expanded' && !props.hotkeyVisible;
+
+  const toggleExpanded = () => setChannelsListExpanded((p) => !p);
+
+  return (
+    <>
+      <div class="relative w-full">
+        <SidebarLink
+          {...props}
+          suppressHoverHints={showControls()}
+          onActiveClick={toggleExpanded}
+        />
+        <Show when={showControls()}>
+          <div class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            <Show when={channelsListExpanded()}>
+              <Tooltip
+                label={
+                  channelsUnreadOnly()
+                    ? 'Showing unread only — switch to recent channels'
+                    : 'Showing recent channels — switch to unread only'
+                }
+                placement="top"
+              >
+                <ToggleSwitch
+                  checked={channelsUnreadOnly()}
+                  onChange={(checked) => setChannelsUnreadOnly(checked)}
+                />
+              </Tooltip>
+            </Show>
+            <Button
+              variant="ghost"
+              class="p-0.5 rounded-sm text-ink-muted hover:bg-ink/6"
+              onMouseDown={(e) => {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                toggleExpanded();
+              }}
+            >
+              <CaretDownIcon
+                class={cn(
+                  'size-3 transition-transform duration-200',
+                  channelsListExpanded() && 'rotate-180'
+                )}
+              />
+            </Button>
+          </div>
+        </Show>
+      </div>
+      <Show when={props.sidebarState === 'expanded'}>
+        <SidebarChannelsList />
       </Show>
     </>
   );
