@@ -31,7 +31,9 @@ fn team_generation_system_prompt_includes_team_context() {
     assert!(prompt.contains("<user_id>macro|memory-test@example.com</user_id>"));
     assert!(prompt.contains(&format!("<team_id>{team_id}</team_id>")));
     assert!(prompt.contains("<team_name>Acme Engineering</team_name>"));
-    assert!(prompt.contains("<team_members>macro|alice@acme.com, macro|bob@acme.com</team_members>"));
+    assert!(
+        prompt.contains("<team_members>macro|alice@acme.com, macro|bob@acme.com</team_members>")
+    );
     assert!(prompt.contains("<datetime>Mon, 08 Jun 2026 12:00:00 +0000</datetime>"));
 }
 
@@ -48,7 +50,9 @@ fn team_generation_system_prompt_includes_previous_memory_when_present() {
     );
 
     assert!(
-        prompt.contains("<previous_team_memory>\nprevious durable team facts\n</previous_team_memory>")
+        prompt.contains(
+            "<previous_team_memory>\nprevious durable team facts\n</previous_team_memory>"
+        )
     );
 }
 

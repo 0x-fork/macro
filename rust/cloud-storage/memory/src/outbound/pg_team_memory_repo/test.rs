@@ -5,7 +5,35 @@ use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 use sqlx::{Pool, Postgres};
 
+/// Insert the `macro_user` + `"User"` rows a `macro|<email>` user id depends on.
+async fn create_user(pool: &Pool<Postgres>, user_id: &str) {
+    let macro_user_id = macro_uuid::generate_uuid_v7();
+    let email = user_id.strip_prefix("macro|").unwrap_or(user_id);
+    sqlx::query!(
+        "INSERT INTO macro_user (id, username, email, stripe_customer_id) VALUES ($1, $2, $3, $4)
+         ON CONFLICT DO NOTHING",
+        macro_user_id,
+        email,
+        email,
+        format!("cus_{email}"),
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query!(
+        r#"INSERT INTO "User" (id, email, macro_user_id) VALUES ($1, $2, $3)
+           ON CONFLICT DO NOTHING"#,
+        user_id,
+        email,
+        macro_user_id,
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
 async fn create_team(pool: &Pool<Postgres>, name: &str, owner_id: &str) -> Uuid {
+    create_user(pool, owner_id).await;
     let team_id = macro_uuid::generate_uuid_v7();
     sqlx::query!(
         "INSERT INTO team (id, name, owner_id) VALUES ($1, $2, $3)",
@@ -20,6 +48,7 @@ async fn create_team(pool: &Pool<Postgres>, name: &str, owner_id: &str) -> Uuid 
 }
 
 async fn add_member(pool: &Pool<Postgres>, team_id: Uuid, user_id: &str, role: &str) {
+    create_user(pool, user_id).await;
     sqlx::query!(
         "INSERT INTO team_user (user_id, team_id, team_role) VALUES ($1, $2, ($3::text)::team_role)",
         user_id,

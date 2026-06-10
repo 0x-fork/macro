@@ -101,7 +101,10 @@ pub async fn get_team_memory_handler<T: TeamMemoryService>(
     State(service): State<Arc<T>>,
     user: MacroUserExtractor,
 ) -> Response {
-    match service.get_or_generate_team_memory(user.macro_user_id).await {
+    match service
+        .get_or_generate_team_memory(user.macro_user_id)
+        .await
+    {
         Ok(Some(memory)) => Json(MemoryResponse { memory }).into_response(),
         Ok(None) => StatusCode::NOT_FOUND.into_response(),
         Err(e) => {

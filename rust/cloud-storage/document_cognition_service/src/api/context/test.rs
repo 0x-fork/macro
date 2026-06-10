@@ -342,7 +342,8 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         all_tools,
     ));
 
-    let team_memory_repo = memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo::new(pool.clone());
+    let team_memory_repo =
+        memory::outbound::pg_team_memory_repo::PgTeamMemoryRepo::new(pool.clone());
     let team_memory_service = Arc::new(memory::domain::team_service::TeamMemoryServiceImpl::new(
         pool.clone(),
         team_memory_repo,
