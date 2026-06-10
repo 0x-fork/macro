@@ -58,10 +58,11 @@ fn main() -> Result<()> {
 
 fn build_graph(locked: bool) -> Result<PackageGraph> {
     // Anchor on the manifest dir, not the invocation cwd, so the task works
-    // from anywhere in the repo.
+    // from anywhere in the repo. The crate lives at <workspace>/tools/xtask.
     let workspace_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .context("xtask manifest dir has no parent")?
+        .ancestors()
+        .nth(2)
+        .context("xtask manifest dir has no workspace root two levels up")?
         .to_owned();
     let mut cmd = MetadataCommand::new();
     cmd.current_dir(&workspace_dir);
