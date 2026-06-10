@@ -190,3 +190,17 @@ pub struct Message {
     /// When the message was last updated.
     pub updated_at: DateTime<Utc>,
 }
+
+/// The outcome of recording an open (read receipt) against a sent message via
+/// its tracking pixel.
+#[derive(Debug, Clone)]
+pub struct RecordedOpen {
+    /// Database ID of the message that was opened.
+    pub message_id: uuid::Uuid,
+    /// Link (inbox) that owns the message.
+    pub link_id: uuid::Uuid,
+    /// Thread the message belongs to.
+    pub thread_db_id: uuid::Uuid,
+    /// Total opens recorded for the message after this one.
+    pub open_count: i32,
+}

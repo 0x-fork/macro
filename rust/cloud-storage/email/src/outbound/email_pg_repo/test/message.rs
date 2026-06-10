@@ -709,3 +709,73 @@ async fn test_upsert_recipients_empty_deletes_all(pool: Pool<Postgres>) -> anyho
 
     Ok(())
 }
+
+// ── record_message_open ─────────────────────────────────────────────
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../../fixtures", scripts("email_message"))
+)]
+async fn test_record_message_open_tracks_first_last_and_count(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    // msg2 is a sent message; assign it a tracking token the way the send path would.
+    let sent_msg = Uuid::parse_str("ee000002-0000-0000-0000-000000000002")?;
+    let token = Uuid::new_v4();
+    sqlx::query("UPDATE email_messages SET open_tracking_token = $1 WHERE id = $2")
+        .bind(token)
+        .bind(sent_msg)
+        .execute(&pool)
+        .await?;
+
+    let repo = EmailPgRepo::new(pool);
+
+    let first = repo
+        .record_message_open(token)
+        .await?
+        .expect("first open should match the sent message");
+    assert_eq!(first.message_id, sent_msg);
+    assert_eq!(first.open_count, 1);
+
+    let second = repo
+        .record_message_open(token)
+        .await?
+        .expect("second open should match the sent message");
+    assert_eq!(second.open_count, 2);
+
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../../fixtures", scripts("email_message"))
+)]
+async fn test_record_message_open_unknown_token_returns_none(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let repo = EmailPgRepo::new(pool);
+    assert!(repo.record_message_open(Uuid::new_v4()).await?.is_none());
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../../fixtures", scripts("email_message"))
+)]
+async fn test_record_message_open_ignores_unsent_messages(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    // msg3 is a draft (is_sent = false); a token on it must never record an open.
+    let draft_msg = Uuid::parse_str("ee000003-0000-0000-0000-000000000003")?;
+    let token = Uuid::new_v4();
+    sqlx::query("UPDATE email_messages SET open_tracking_token = $1 WHERE id = $2")
+        .bind(token)
+        .bind(draft_msg)
+        .execute(&pool)
+        .await?;
+
+    let repo = EmailPgRepo::new(pool);
+    assert!(repo.record_message_open(token).await?.is_none());
+
+    Ok(())
+}

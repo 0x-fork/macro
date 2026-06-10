@@ -296,4 +296,14 @@ where
             .await
             .map_err(|e| EmailErr::RepoErr(e.into()))
     }
+
+    async fn record_message_open(
+        &self,
+        token: Uuid,
+    ) -> Result<Option<crate::domain::models::RecordedOpen>, EmailErr> {
+        self.email_repo
+            .record_message_open(token)
+            .await
+            .map_err(|e| EmailErr::RepoErr(e.into()))
+    }
 }

@@ -2,20 +2,25 @@
 //!
 //! Outgoing messages with read receipts enabled embed a 1x1 transparent image
 //! pointing at `/t/o/{token}`. Recipient mail clients (or their image proxies)
-//! fetch it when the message is opened, and we record the open against the
+//! fetch it when the message is opened, and the open is recorded against the
 //! sender's copy of the message.
 //!
 //! The route is unauthenticated by design — it is fetched by arbitrary mail
 //! clients — and always returns the pixel, so callers learn nothing about
 //! whether a token was valid.
 
-use crate::api::context::ApiContext;
-use axum::Router;
-use axum::extract::{Path, State};
-use axum::http::header;
-use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::{
+    Router,
+    extract::{Path, State},
+    http::header,
+    response::{IntoResponse, Response},
+    routing::get,
+};
 use uuid::Uuid;
+
+use crate::domain::ports::EmailService;
+
+use super::previews_router::EmailRouterState;
 
 /// A 1x1 transparent GIF (GIF89a with the transparent color flag set).
 const TRANSPARENT_PIXEL_GIF: &[u8] = &[
@@ -30,14 +35,25 @@ const TRANSPARENT_PIXEL_GIF: &[u8] = &[
     0x3B, // trailer
 ];
 
-pub fn router() -> Router<ApiContext> {
-    Router::new().route("/o/{token}", get(open_pixel_handler))
+pub fn router<S, T>(state: EmailRouterState<T>) -> Router<S>
+where
+    S: Send + Sync + 'static,
+    T: EmailService,
+{
+    Router::new()
+        .route("/o/{token}", get(open_pixel_handler::<T>))
+        .with_state(state)
 }
 
-#[tracing::instrument(skip(ctx))]
-async fn open_pixel_handler(State(ctx): State<ApiContext>, Path(token): Path<String>) -> Response {
+// `token` is intentionally excluded from the span: it is a per-message secret
+// and would be high-cardinality telemetry.
+#[tracing::instrument(skip_all)]
+async fn open_pixel_handler<T: EmailService>(
+    State(service): State<EmailRouterState<T>>,
+    Path(token): Path<String>,
+) -> Response {
     if let Ok(token) = Uuid::parse_str(token.trim()) {
-        match email_db_client::messages::open_tracking::record_message_open(&ctx.db, token).await {
+        match service.service().record_message_open(token).await {
             Ok(Some(open)) => {
                 tracing::debug!(
                     message_id = %open.message_id,

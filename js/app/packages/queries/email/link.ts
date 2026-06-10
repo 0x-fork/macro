@@ -103,9 +103,14 @@ export function useUpdateReadReceiptsMutation(
 
   return useMutation(() => ({
     mutationFn: async (enabled: boolean) => {
+      // The toggle can be hit before the links list has been cached (or after
+      // eviction); fall back to the authoritative list so the change is never
+      // silently dropped.
+      const cachedLinks = queryClient.getQueryData<ListLinksResponse>(
+        emailKeys.links.queryKey
+      )?.links;
       const links =
-        queryClient.getQueryData<ListLinksResponse>(emailKeys.links.queryKey)
-          ?.links ?? [];
+        cachedLinks ?? (await throwOnErr(() => emailClient.getLinks())).links;
       await Promise.all(
         links.map((link) =>
           throwOnErr(() =>

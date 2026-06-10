@@ -2,9 +2,9 @@ use crate::domain::models::{
     Attachment, AttachmentDraft, AttachmentForwarded, Contact, ContactInfo, CreateDraftInput,
     CreatedDraft, EmailErr, EmailFilter, EmailThreadPreview, EnrichedEmailThreadPreview,
     GetEmailsRequest, Label, Link, LinkLabel, MessageAttachment, MessageLabel, MessageRow,
-    ParsedAddresses, ParsedThread, PreviewCursorQuery, RecipientType, ResolvedDraftInput,
-    SimpleMessage, SimpleMessageInfo, Thread, ThreadRow, UpdateThreadLabelsResult,
-    UpsertEmailFilterInput, UpsertedContacts, UserProvider,
+    ParsedAddresses, ParsedThread, PreviewCursorQuery, RecipientType, RecordedOpen,
+    ResolvedDraftInput, SimpleMessage, SimpleMessageInfo, Thread, ThreadRow,
+    UpdateThreadLabelsResult, UpsertEmailFilterInput, UpsertedContacts, UserProvider,
 };
 use chrono::{DateTime, Utc};
 use entity_access::domain::models::{EditAccessLevel, EntityAccessReceipt, ViewAccessLevel};
@@ -290,6 +290,13 @@ pub trait EmailRepo: Send + Sync + 'static {
         &self,
         link_id: Uuid,
     ) -> impl Future<Output = Result<Vec<EmailFilter>, Self::Err>> + Send;
+
+    /// Record an open (read receipt) for the sent message whose tracking pixel
+    /// carries `token`. Returns `None` when no sent message matches the token.
+    fn record_message_open(
+        &self,
+        token: Uuid,
+    ) -> impl Future<Output = Result<Option<RecordedOpen>, Self::Err>> + Send;
 }
 
 /// Read-only trait for fetching email thread previews.
@@ -446,6 +453,13 @@ pub trait EmailService: Send + Sync + 'static {
         &self,
         link: &Link,
     ) -> impl Future<Output = Result<Vec<EmailFilter>, EmailErr>> + Send;
+
+    /// Record an open (read receipt) for the sent message whose tracking pixel
+    /// carries `token`. Returns `None` when no sent message matches the token.
+    fn record_message_open(
+        &self,
+        token: Uuid,
+    ) -> impl Future<Output = Result<Option<RecordedOpen>, EmailErr>> + Send;
 }
 
 /// Port for fetching a Gmail access token for a given email link.

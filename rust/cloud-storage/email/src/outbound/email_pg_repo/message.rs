@@ -1,7 +1,7 @@
 use crate::domain::{
     models::{
         AttachmentDraft, AttachmentForwarded, ContactInfo, MessageAttachment, MessageLabel,
-        RecipientType, SimpleMessageInfo, UpsertedContacts,
+        RecipientType, RecordedOpen, SimpleMessageInfo, UpsertedContacts,
     },
     ports::RecipientsByMessageId,
 };
@@ -499,4 +499,32 @@ pub(super) async fn upsert_recipients(
     .await?;
 
     Ok(())
+}
+
+/// Record an open (read receipt) for the sent message matching `token`. Bumps
+/// the open counter and timestamps, returning the updated state, or `None` when
+/// the token doesn't match a sent message.
+#[tracing::instrument(err, skip(pool, token))]
+pub(super) async fn record_message_open(
+    pool: &PgPool,
+    token: Uuid,
+) -> Result<Option<RecordedOpen>, sqlx::Error> {
+    sqlx::query_as!(
+        RecordedOpen,
+        r#"
+        UPDATE email_messages
+        SET first_opened_at = COALESCE(first_opened_at, NOW()),
+            last_opened_at = NOW(),
+            open_count = open_count + 1
+        WHERE open_tracking_token = $1 AND is_sent = true
+        RETURNING
+            id as message_id,
+            link_id,
+            thread_id as thread_db_id,
+            open_count
+        "#,
+        token,
+    )
+    .fetch_optional(pool)
+    .await
 }

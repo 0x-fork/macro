@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE email_messages\n        SET first_opened_at = COALESCE(first_opened_at, NOW()),\n            last_opened_at = NOW(),\n            open_count = open_count + 1\n        WHERE open_tracking_token = $1 AND is_sent = true\n        RETURNING\n            id as message_id,\n            link_id,\n            thread_id as thread_db_id,\n            open_count\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "link_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "thread_db_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "open_count",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "38839e32c070448464f49f8f62e58406b9d676b5810939ccb61a8229ce914a8f"
+}

@@ -2,8 +2,8 @@ use crate::domain::{
     models::{
         Attachment, AttachmentDraft, AttachmentForwarded, Contact, ContactInfo, EmailFilter,
         EmailThreadPreview, Label, Link, LinkLabel, MessageAttachment, MessageLabel, MessageRow,
-        ParsedAddresses, PreviewCursorQuery, ResolvedDraftInput, SimpleMessage, SimpleMessageInfo,
-        ThreadRow, UpsertEmailFilterInput, UpsertedContacts, UserProvider,
+        ParsedAddresses, PreviewCursorQuery, RecordedOpen, ResolvedDraftInput, SimpleMessage,
+        SimpleMessageInfo, ThreadRow, UpsertEmailFilterInput, UpsertedContacts, UserProvider,
     },
     ports::{EmailRepo, RecipientsByMessageId},
 };
@@ -340,5 +340,9 @@ impl EmailRepo for EmailPgRepo {
 
     async fn list_email_filters(&self, link_id: Uuid) -> Result<Vec<EmailFilter>, Self::Err> {
         email_filter::list_email_filters(&self.pool, link_id).await
+    }
+
+    async fn record_message_open(&self, token: Uuid) -> Result<Option<RecordedOpen>, Self::Err> {
+        message::record_message_open(&self.pool, token).await
     }
 }

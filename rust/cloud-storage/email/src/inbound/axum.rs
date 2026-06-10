@@ -4,6 +4,7 @@ pub mod draft_router;
 pub mod email_filter_router;
 pub mod get_thread_router;
 pub mod list_labels_router;
+pub mod open_tracking_router;
 pub mod previews_router;
 pub mod send_router;
 pub mod thread_labels_router;

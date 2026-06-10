@@ -1,7 +1,9 @@
 use super::*;
 
 const BASE_URL: &str = "https://email-service.macro.com";
-const TOKEN: &str = "0c4f12cd-9b46-4e4e-bd6c-7a30efb02e4f";
+// Not a real UUID — strip/inject key off host + path, not token shape — and a
+// non-UUID literal keeps secret scanners quiet.
+const TOKEN: &str = "open-tracking-token-test";
 
 #[test]
 fn pixel_url_joins_base_and_token() {

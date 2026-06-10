@@ -17,7 +17,6 @@ pub(crate) mod gmail;
 mod internal;
 mod middleware;
 pub(crate) mod swagger;
-mod tracking;
 
 pub async fn setup_and_serve(state: ApiContext) -> anyhow::Result<()> {
     let env = state.config.environment;
@@ -58,7 +57,10 @@ fn api_router(state: ApiContext) -> Router<ApiContext> {
         )
         .nest("/gmail", gmail::router())
         // Read-receipt tracking pixels; fetched by recipient mail clients, so no auth.
-        .nest("/t", tracking::router())
+        .nest(
+            "/t",
+            ::email::inbound::axum::open_tracking_router::router(state.email_service.clone()),
+        )
         .nest(
             "/internal",
             internal::router().layer(

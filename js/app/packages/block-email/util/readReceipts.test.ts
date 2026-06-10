@@ -6,7 +6,9 @@ import {
   removeOwnTrackingPixels,
 } from './readReceipts';
 
-const TOKEN = '0c4f12cd-9b46-4e4e-bd6c-7a30efb02e4f';
+// Not a real UUID — the pixel URL matcher keys off host + path, not token
+// shape — and a non-UUID literal keeps secret scanners quiet.
+const TOKEN = 'open-tracking-token-test';
 
 function parse(html: string): Document {
   return new DOMParser().parseFromString(html, 'text/html');
