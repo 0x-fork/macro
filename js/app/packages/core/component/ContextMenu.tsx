@@ -274,16 +274,14 @@ export function MenuGroup(props: { children: JSX.Element; class?: string }) {
 
 export function GroupLabel(props: { children: JSX.Element }) {
   return (
-    <ContextMenu.GroupLabel
-      class={cn(MENU_ITEM_CLASS, 'text-xs! text-ink-extra-muted')}
-    >
+    <ContextMenu.GroupLabel class="px-2 pt-1.5 pb-1 text-xs font-medium text-ink-extra-muted">
       {props.children}
     </ContextMenu.GroupLabel>
   );
 }
 
 export function MenuSeparator() {
-  return <ContextMenu.Separator class="my-1 border-edge border-t w-full" />;
+  return <ContextMenu.Separator class="my-0.5 border-edge border-t w-full" />;
 }
 
 function MobileConditionalOverlay(

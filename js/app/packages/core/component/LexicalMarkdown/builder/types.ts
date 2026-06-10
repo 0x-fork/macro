@@ -1,6 +1,10 @@
 import type { PortalScope } from '@core/component/ScopedPortal';
 import type { EditorType } from '@lexical-core';
-import type { LexicalEditor, SerializedEditorState } from 'lexical';
+import type {
+  EditorThemeClasses,
+  LexicalEditor,
+  SerializedEditorState,
+} from 'lexical';
 import type { Store } from 'solid-js/store';
 import type { MentionBucketId } from '../component/menu/MentionsMenu/MentionsMenuController';
 import type { createLexicalWrapper } from '../context/LexicalWrapperContext';
@@ -135,6 +139,8 @@ export interface EditorConfig {
   actions: ActionsOptions | false;
   /** When true, decorator components skip backend fetches (e.g. preview API). */
   skipPreviewFetch: boolean;
+  /** Optional Lexical theme override. */
+  theme?: EditorThemeClasses;
   /** Enable drag-to-rearrange handles on top-level blocks. */
   draggableBlocks?: boolean;
 }

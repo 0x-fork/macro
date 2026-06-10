@@ -52,11 +52,13 @@ export function buildHandleFromConfig(config: EditorConfig): EditorHandle {
         namespace: config.namespace,
         isInteractable,
         withIds: true,
+        theme: config.theme,
       })
     : createLexicalWrapper({
         type: config.type as EditorType,
         namespace: config.namespace,
         isInteractable,
+        theme: config.theme,
       });
 
   if (config.skipPreviewFetch) {

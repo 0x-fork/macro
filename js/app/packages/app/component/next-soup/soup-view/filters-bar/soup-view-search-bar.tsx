@@ -4,6 +4,7 @@ import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-contex
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
+import { singleLineMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import SearchIcon from '@icon/macro-magnifying-glass.svg';
 import { markdownToPlainText } from '@lexical-core/utils/parsers';
@@ -58,6 +59,7 @@ export const SoupSearchbar = (props: SoupSearchbarProps) => {
 
   const editor = buildConfig('chat')
     .namespace('soup-search-bar')
+    .withTheme(singleLineMarkdownTheme)
     .singleLine()
     .withMentions({
       sources: ['users'],
