@@ -98,7 +98,6 @@ where
 
         let env = Environment::new_or_prod();
         if needs_generation && !matches!(env, Environment::Local) {
-            let previous_memory = record.as_ref().map(|r| r.memory.clone());
             let pool = self.db.clone();
             let tool_context = self.tool_context.clone();
             let toolset = self.tools.toolset.clone();
@@ -123,6 +122,31 @@ where
                 let repo = crate::outbound::pg_memory_repo::PgMemoryRepo::new(pool.clone());
                 let team_repo =
                     crate::outbound::pg_team_memory_repo::PgTeamMemoryRepo::new(pool.clone());
+
+                // Re-check under the lock: another instance may have refreshed
+                // the row between our staleness check and acquiring the lock, so
+                // the lock deduplicates rather than merely serializing. Also read
+                // `previous_memory` here so we diff against the freshest baseline.
+                let latest = match team_repo.get_latest_team_memory(team_id).await {
+                    Ok(latest) => latest,
+                    Err(e) => {
+                        tracing::error!(error = ?e, %team_id, "failed to reload latest team memory");
+                        return;
+                    }
+                };
+                let still_needs_generation = match &latest {
+                    Some(r) => {
+                        let age = Utc::now() - r.updated_at;
+                        age > chrono::Duration::from_std(MAX_AGE).unwrap_or(chrono::TimeDelta::MAX)
+                    }
+                    None => true,
+                };
+                if !still_needs_generation {
+                    tracing::debug!(%team_id, "team memory already refreshed; skipping");
+                    return;
+                }
+                let previous_memory = latest.map(|r| r.memory);
+
                 let tools = ToolSetWithPrompt { toolset, prompt };
                 let svc = MemoryServiceImpl::new(pool, repo, team_repo, tool_context, tools);
                 match svc

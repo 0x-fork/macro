@@ -9,11 +9,13 @@ use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 use sqlx::PgPool;
 
+/// Postgres-backed [`TeamMemoryRepo`] over the shared `memory` table.
 pub struct PgTeamMemoryRepo {
     inner: PgPool,
 }
 
 impl PgTeamMemoryRepo {
+    /// Create a new repository backed by the given pool.
     pub fn new(inner: PgPool) -> Self {
         PgTeamMemoryRepo { inner }
     }

@@ -122,13 +122,11 @@ async fn run_tool_loop(
 ) -> Result<Vec<AssistantMessagePart>> {
     let tools = all_tools();
     let memories = fetch_memories(db, tool_context, &action.owner).await;
-    let mut system_prompt = match memories.user {
-        Some(memory) => format!(
-            "{}\n{}\n<user_memory>\n{}\n</user_memory>",
-            tools.prompt, SCHEDULED_AGENT_PROMPT, memory
-        ),
-        None => tools.prompt.to_string(),
-    };
+    // The guardrail prompt must always be present, regardless of which memories exist.
+    let mut system_prompt = format!("{}\n{}", tools.prompt, SCHEDULED_AGENT_PROMPT);
+    if let Some(memory) = memories.user {
+        system_prompt.push_str(&format!("\n<user_memory>\n{memory}\n</user_memory>"));
+    }
     if let Some(memory) = memories.team {
         system_prompt.push_str(&format!("\n<team_memory>\n{memory}\n</team_memory>"));
     }

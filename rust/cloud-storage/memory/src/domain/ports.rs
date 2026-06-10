@@ -75,16 +75,23 @@ pub struct TeamOverview {
     pub member_ids: Vec<String>,
 }
 
+/// Persistence for team-scoped memory.
+///
+/// Team memory lives in the same `memory` table as personal memory but is
+/// keyed by `team_id` rather than `user_id`.
 pub trait TeamMemoryRepo: Send + Sync + 'static {
+    /// Upsert the team's memory, returning the row id.
     fn save_team_memory(
         &self,
         memory: &Memory,
         team_id: Uuid,
     ) -> impl Future<Output = Result<Uuid>> + Send;
+    /// Fetch the team's latest memory, or `None` if it has none yet.
     fn get_latest_team_memory(
         &self,
         team_id: Uuid,
     ) -> impl Future<Output = Result<Option<MemoryRecord>>> + Send;
+    /// Fetch a specific team memory row by id, scoped to the team.
     fn get_team_memory_by_id(
         &self,
         team_id: Uuid,

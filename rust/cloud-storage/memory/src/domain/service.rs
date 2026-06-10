@@ -113,10 +113,23 @@ where
             self.get_or_generate_team_memory(user)
         );
 
-        Ok(Memories {
-            user: user_memory?,
-            team: team_memory?,
-        })
+        // Return whichever scope(s) resolved: a transient failure in one must
+        // not discard the other's result. Only surface an error if both failed.
+        match (user_memory, team_memory) {
+            (Ok(user), Ok(team)) => Ok(Memories { user, team }),
+            (Ok(user), Err(e)) => {
+                tracing::error!(error = ?e, "failed to load team memory");
+                Ok(Memories { user, team: None })
+            }
+            (Err(e), Ok(team)) => {
+                tracing::error!(error = ?e, "failed to load user memory");
+                Ok(Memories { user: None, team })
+            }
+            (Err(user_err), Err(team_err)) => {
+                tracing::error!(error = ?team_err, "failed to load team memory");
+                Err(user_err)
+            }
+        }
     }
 }
 
