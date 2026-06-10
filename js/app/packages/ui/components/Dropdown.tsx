@@ -25,8 +25,8 @@ import { Surface, type SurfaceProps } from './Surface';
 // trigger and the shared signal closes the sibling.
 */
 
-// const DROPDOWN_CONTENT_CLASS = 'z-action-menu bg-surface rounded-xl ring-1 ring-edge shadow-[0_8px_24px_-16px_rgba(0,0,0,0.24),0_2px_8px_-6px_rgba(0,0,0,0.18)] p-1.5';
-// const DROPDOWN_ITEM_CLASS = 'rounded-md hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3';
+// const DROPDOWN_CONTENT_CLASS = 'z-action-menu bg-surface rounded-lg ring-1 ring-edge shadow-[0_8px_24px_-16px_rgba(0,0,0,0.24),0_2px_8px_-6px_rgba(0,0,0,0.18)] p-1.5';
+// const DROPDOWN_ITEM_CLASS = 'rounded-lg hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3';
 
 type PortalMount = ComponentProps<typeof KobalteDropdownMenu.Portal>['mount'];
 type DropdownPortalScope = 'local';
@@ -70,7 +70,7 @@ export type DropdownGroupProps = ComponentProps<
 export type DropdownItemProps = ComponentProps<typeof KobalteDropdownMenu.Item>;
 export type DropdownSubProps = ComponentProps<typeof KobalteDropdownMenu.Sub>;
 
-const ROW_CLASS = 'group rounded-lg w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left font-medium text-sm cursor-default outline-none text-ink/65 hover:text-ink data-highlighted:text-ink hover:bg-ink/3 data-highlighted:bg-ink/3 hover:shadow-sm data-highlighted:shadow-sm data-disabled:opacity-50 data-disabled:cursor-not-allowed';
+const ROW_CLASS = 'group rounded-lg w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left font-medium text-sm cursor-default outline-none text-ink/65 hover:text-ink data-highlighted:text-ink hover:bg-ink/3 data-highlighted:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-highlighted:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-disabled:opacity-50 data-disabled:cursor-not-allowed';
 const CONTENT_SHADOW_CLASS = 'shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]';
 
 function resolvePortalMount(

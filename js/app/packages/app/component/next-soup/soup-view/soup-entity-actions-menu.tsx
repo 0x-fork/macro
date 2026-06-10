@@ -80,7 +80,7 @@ export const SoupEntityActionsMenu = (props: SoupEntityActionsMenuProps) => {
                 onClick={() => handleAction(action.onClick)}
                 class={
                   action.destructive
-                    ? 'rounded-lg text-failure-ink/65 hover:text-failure-ink focus:text-failure-ink data-[highlighted]:text-failure-ink hover:bg-failure/10 focus:bg-failure/10 data-[highlighted]:bg-failure/10'
+                    ? 'rounded-lg text-failure-ink/65 hover:text-failure-ink focus:text-failure-ink data-[highlighted]:text-failure-ink hover:bg-failure/10 focus:bg-failure/10 data-[highlighted]:bg-failure/10 hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)] focus:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)] data-[highlighted]:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)]'
                     : 'rounded-lg'
                 }
               />

@@ -52,7 +52,7 @@ const SearchableMultiSelectItem = (itemProps: {
 }) => (
   <Combobox.Item
     item={itemProps.item}
-    class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-left text-xs data-highlighted:bg-ink/5 group cursor-default"
+    class="w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 rounded-lg text-left text-sm font-medium text-ink/65 data-highlighted:text-ink data-highlighted:bg-ink/3 data-highlighted:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] group cursor-default outline-none"
   >
     <span class="size-4 flex items-center justify-center shrink-0 rounded-xs border border-edge group-data-selected:bg-accent group-data-selected:border-accent">
       <Combobox.ItemIndicator>
@@ -66,7 +66,7 @@ const SearchableMultiSelectItem = (itemProps: {
         </span>
       )}
     </Show>
-    <Combobox.ItemLabel class="flex-1 truncate text-ink-muted group-data-selected:text-ink">
+    <Combobox.ItemLabel class="flex-1 truncate group-data-selected:text-ink">
       {itemProps.item.rawValue.label}
     </Combobox.ItemLabel>
     <Show when={itemProps.onOnly}>
@@ -213,7 +213,7 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
       <Combobox.Portal>
         <Combobox.Content
           class={cn(
-            'z-action-menu bg-surface ring-1 ring-edge-muted rounded-sm shadow-md w-65 max-w-[90vw] overflow-hidden',
+            'z-action-menu bg-surface rounded-xl border-0 shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)] w-65 max-w-[90vw] overflow-hidden',
             props.contentClass
           )}
         >

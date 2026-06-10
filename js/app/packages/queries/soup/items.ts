@@ -212,13 +212,14 @@ export const useSoupAstItemsQuery = (
 
               let displayable = false;
 
-              if (item.tag === 'foreignEntity') {
+              if (!item) {
+                displayable = false;
+              } else if (item.tag === 'foreignEntity') {
                 displayable =
                   options?.().showSupportedForeignEntities === true &&
                   item.data.foreignEntitySource === 'github_pull_request';
               } else {
-                displayable =
-                  item && !isInstructionsMdDoc(item, instructionsIdQuery);
+                displayable = !isInstructionsMdDoc(item, instructionsIdQuery);
               }
               if (displayable && isDisplayableSoupItem(item)) {
                 const mapped = mapApiSoupItemToEntity(item);
@@ -235,7 +236,11 @@ export const useSoupAstItemsQuery = (
 
           return mapSoupPageToEntityList(
             { items: page.items, next_cursor: null },
-            { instructionsIdQuery }
+            {
+              instructionsIdQuery,
+              showSupportedForeignEntities:
+                options?.().showSupportedForeignEntities,
+            }
           );
         });
 

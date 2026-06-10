@@ -1034,7 +1034,6 @@ const SidebarUserMenu = (props: {
           </div>
           <div class="mx-2 my-1 h-px bg-edge-muted" />
           <Dropdown.Item
-            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
             onSelect={props.onCommandMenu}
           >
             <CommandIcon class="size-3.5 shrink-0" />
@@ -1042,14 +1041,13 @@ const SidebarUserMenu = (props: {
             <Hotkey token={TOKENS.global.commandMenu} class="flex gap-0.5 text-ink-extra-muted" />
           </Dropdown.Item>
           <Dropdown.Item
-            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-ink-muted hover:text-ink hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
             onSelect={props.onSettings}
           >
             <GearIcon class="size-3.5 shrink-0" />
             <span class="flex-1 truncate">Settings</span>
           </Dropdown.Item>
           <Dropdown.Item
-            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-failure hover:bg-failure-bg focus:bg-failure-bg outline-none cursor-default rounded-sm"
+            class="text-failure hover:text-failure data-highlighted:text-failure hover:bg-failure-bg data-highlighted:bg-failure-bg hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)] data-highlighted:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)]"
             onSelect={logout}
           >
             <SignOutIcon class="size-3.5 shrink-0" />

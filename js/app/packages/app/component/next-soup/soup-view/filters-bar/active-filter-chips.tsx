@@ -110,7 +110,7 @@ const ChipContent = (props: {
 };
 
 const CHIP_WRAPPER_CLASS = cn(
-  'flex text-xs rounded-md shadow-sm',
+  'flex text-xs rounded-lg shadow-sm',
   'bg-ink/10 text-ink-muted border border-edge-muted',
   'group transition-colors'
 );
@@ -207,13 +207,13 @@ const GroupedFilterChip = (props: {
 
           <DropdownMenu.Portal>
             <Layer depth={2}>
-              <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-xl min-w-[160px] p-1">
+              <DropdownMenu.Content class="z-action-menu bg-surface rounded-xl border-0 min-w-[160px] p-1 shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]">
                 <For each={props.group.categoryOptions}>
                   {(option) => {
                     const active = () => props.isOptionActive(option.id);
                     return (
                       <DropdownMenu.Item
-                        class="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left text-xs transition-colors hover:bg-ink/5 outline-none data-highlighted:bg-ink/5 cursor-default"
+                        class="w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 rounded-lg text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink data-highlighted:text-ink hover:bg-ink/3 data-highlighted:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-highlighted:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] outline-none cursor-default"
                         onSelect={() => {
                           const currentFilter = props.group.filters.find(
                             (f) => f.optionId() === option.id
@@ -575,7 +575,7 @@ export const ActiveFilterChips = (props: ActiveFilterChipsProps) => {
               <span class="inline-flex items-center gap-1.5">
                 {renderItem(item)}
                 <Button
-                  class="rounded-md whitespace-nowrap"
+                  class="rounded-lg whitespace-nowrap"
                   size="sm"
                   variant="ghost"
                   onClick={() => props.onClearAll()}

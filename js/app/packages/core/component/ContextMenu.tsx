@@ -127,7 +127,7 @@ type MenuItemProps =
   | CheckboxMenuItemProps
   | RadioMenuItemProps;
 
-export const MENU_ITEM_CLASS = `group flex flex-row w-full gap-2.5 tracking-tight ${isMobile() ? 'py-2 pl-1.5 pr-4 text-base' : 'py-1.5 pl-2 pr-4 text-sm'} font-medium justify-between items-center rounded-lg outline-none text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:shadow-sm focus:shadow-sm data-[highlighted]:shadow-sm focus:bg-ink/3 data-[highlighted]:bg-ink/3`;
+export const MENU_ITEM_CLASS = `group flex flex-row w-full gap-2.5 tracking-tight ${isMobile() ? 'py-2 pl-1.5 pr-4 text-base' : 'py-1.5 pl-2 pr-4 text-sm'} font-medium justify-between items-center rounded-lg outline-none text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:bg-ink/3 data-[highlighted]:bg-ink/3`;
 
 /**
  * A context-menu item with consistent styling.

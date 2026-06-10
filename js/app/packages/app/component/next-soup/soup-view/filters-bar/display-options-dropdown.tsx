@@ -108,11 +108,11 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <Layer depth={3}>
-                    <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-md shadow-drop-shadow min-w-[140px] p-1">
+                    <DropdownMenu.Content class="z-action-menu bg-surface rounded-xl border-0 min-w-[140px] p-1 shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]">
                       <For each={props.sortOptions}>
                         {(option) => (
                           <DropdownMenu.Item
-                            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+                            class="w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] outline-none cursor-default rounded-lg"
                             onSelect={() => props.onSortChange(option.value)}
                           >
                             <span
@@ -148,11 +148,11 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <Layer depth={3}>
-                      <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-md shadow-drop-shadow min-w-[140px] p-1">
+                      <DropdownMenu.Content class="z-action-menu bg-surface rounded-xl border-0 min-w-[140px] p-1 shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]">
                         <For each={props.groupOptions}>
                           {(option) => (
                             <DropdownMenu.Item
-                              class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+                              class="w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] outline-none cursor-default rounded-lg"
                               onSelect={() => props.onGroupChange?.(option.value)}
                             >
                               <span

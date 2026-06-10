@@ -14,7 +14,7 @@ import ThreeDots from '@phosphor/list.svg';
 import Rename from '@phosphor/pencil-line.svg';
 import Trash from '@phosphor/trash-simple.svg';
 import { blockNameToItemType, type ItemType } from '@service-storage/client';
-import { Button, Dropdown } from '@ui';
+import { Button, cn, Dropdown } from '@ui';
 import {
   type Component,
   createMemo,
@@ -81,6 +81,10 @@ function DesktopRender(props: SplitFileMenuRenderProps) {
 
   const item = (action: SplitMenuAction) => (
     <Dropdown.Item
+      class={cn(
+        action.group === 'delete' &&
+          'text-failure hover:text-failure data-highlighted:text-failure hover:bg-failure-bg data-highlighted:bg-failure-bg hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)] data-highlighted:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)]'
+      )}
       onSelect={() => {
         action.action();
         props.onOpenChange(false);

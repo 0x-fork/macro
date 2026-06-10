@@ -206,11 +206,11 @@ export const OverflowTabGroup = (props: OverflowTabGroupProps) => {
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <Layer depth={2}>
-                <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-sm shadow-sm p-1 min-w-[100px]">
+                <DropdownMenu.Content class="z-action-menu bg-surface rounded-xl border-0 p-1 min-w-[100px] shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]">
                   <For each={overflowTabs()}>
                     {(item) => (
                       <DropdownMenu.Item
-                        class="w-full px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+                        class="w-full py-1.5 pl-2 pr-4 text-left text-sm font-medium transition-colors hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] outline-none cursor-default rounded-lg"
                         classList={{
                           'font-medium text-ink': props.value === item.value,
                           'text-ink-muted': props.value !== item.value,

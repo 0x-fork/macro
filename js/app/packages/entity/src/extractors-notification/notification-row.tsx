@@ -11,6 +11,8 @@ import {
   type UnifiedNotification,
 } from '@notifications';
 import CheckIcon from '@phosphor/check.svg';
+import EnvelopeOpenIcon from '@phosphor/envelope-open.svg';
+import LinkIcon from '@phosphor/link.svg';
 import { Button, cn } from '@ui';
 import { type JSX, Match, Show, Switch } from 'solid-js';
 import { Layout } from '../core/Layout';
@@ -384,10 +386,18 @@ export function NotificationRow(props: NotificationRowProps) {
         <div onClick={(e) => e.stopPropagation()}>
           <ContextMenuContent class="text-xs text-ink-muted">
             <Show when={canMarkDone()}>
-              <MenuItem text="Mark Done" onClick={() => handleMarkAsDone()} />
+              <MenuItem
+                text="Mark Done"
+                icon={CheckIcon}
+                onClick={() => handleMarkAsDone()}
+              />
             </Show>
-            <MenuItem text="Mark Read" onClick={handleMarkAsRead} />
-            <MenuItem text="Copy Link" onClick={handleCopyLink} />
+            <MenuItem
+              text="Mark Read"
+              icon={EnvelopeOpenIcon}
+              onClick={handleMarkAsRead}
+            />
+            <MenuItem text="Copy Link" icon={LinkIcon} onClick={handleCopyLink} />
           </ContextMenuContent>
         </div>
       </ContextMenu.Portal>

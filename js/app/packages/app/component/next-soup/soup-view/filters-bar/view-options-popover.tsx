@@ -54,11 +54,11 @@ const VIEW_GROUP_OPTIONS: Partial<Record<ListView, GroupOption[]>> = {
 const MENU_SHADOW_CLASS =
   'shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]';
 const SELECT_CONTENT_CLASS = cn(
-  'z-action-menu bg-surface rounded-xl min-w-[160px] p-1.5 border-0',
+  'z-action-menu bg-surface rounded-xl min-w-[160px] p-1 border-0',
   MENU_SHADOW_CLASS
 );
 const SELECT_ITEM_CLASS =
-  'w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink data-[highlighted]:text-ink hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3 outline-none cursor-default rounded-lg';
+  'w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] outline-none cursor-default rounded-lg';
 
 export const ViewOptionsPopover: Component = () => {
   const [open, setOpen] = createSignal(false);

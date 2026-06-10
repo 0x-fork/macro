@@ -77,6 +77,9 @@ import {
   isProjectContainedEntity,
   isAutomationEntity,
   isTaskEntity,
+  isGithubPrEntity,
+  isCrmCompanyEntity,
+  type GithubPullRequestEntity,
   type ProjectEntity,
 } from '../types/entity';
 import {
@@ -95,6 +98,10 @@ import { useIsShared } from '../utils/shared';
 import { formatDateAndTime } from '../utils/timestamp';
 import { formatCallDuration } from '@block-call/utils';
 import { useListLayout } from './ListEntity';
+import {
+  GithubPullRequestChecksIndicator,
+  GithubPullRequestPills,
+} from './list-entity/foreign';
 
 interface StackedListEntityProps {
   entity: WithNotification<EntityData>;
@@ -879,6 +886,38 @@ function AutomationLayout(
             </Match>
           </Switch>
         </span>
+      </div>
+    </LayoutShell>
+  );
+}
+
+function GithubPullRequestLayout(
+  props: BaseLayoutProps & { pullRequest: GithubPullRequestEntity }
+) {
+  return (
+    <LayoutShell
+      checked={props.checked}
+      onChecked={props.onChecked}
+      unread={props.unread}
+      dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
+    >
+      <div class="flex items-center gap-2 min-w-0 w-full">
+        <div class="[&_svg]:size-4 shrink-0">
+          <Entity.Icon entity={props.pullRequest} streamState={props.streamState} />
+        </div>
+        <span class="ph-no-capture flex min-w-0 flex-1 items-center gap-1 font-semibold">
+          <span class="min-w-0 truncate">
+            <Entity.Title entity={props.pullRequest} />
+          </span>
+          <GithubPullRequestChecksIndicator entity={props.pullRequest} />
+        </span>
+        <div class="flex items-center gap-2 shrink-0">
+          <GithubPullRequestPills entity={props.pullRequest} />
+          <span class="text-xs text-ink-extra-muted font-light text-right whitespace-nowrap shrink-0">
+            <Entity.Timestamp entity={props.pullRequest} />
+          </span>
+        </div>
       </div>
     </LayoutShell>
   );
@@ -2038,6 +2077,41 @@ function NarrowCallLayout(props: BaseLayoutProps & { call: CallEntity }) {
   );
 }
 
+function NarrowGithubPullRequestLayout(
+  props: BaseLayoutProps & { pullRequest: GithubPullRequestEntity }
+) {
+  return (
+    <NarrowIconShell
+      checked={props.checked}
+      onChecked={props.onChecked}
+      unread={props.unread}
+      dimWhenRead={props.dimWhenRead ?? true}
+      hasNotifications={props.hasNotifications}
+      icon={
+        <Entity.Icon entity={props.pullRequest} streamState={props.streamState} />
+      }
+      trailing={
+        <span class="flex items-center gap-1.5 text-xs text-ink-extra-muted font-light whitespace-nowrap">
+          <Entity.Timestamp entity={props.pullRequest} />
+        </span>
+      }
+    >
+      <div class="flex min-w-0 items-center gap-1.5">
+        <span class="shrink-0 [&_svg]:size-4">
+          <Entity.Icon entity={props.pullRequest} streamState={props.streamState} />
+        </span>
+        <span class="ph-no-capture min-w-0 truncate text-sm font-semibold">
+          <Entity.Title entity={props.pullRequest} />
+        </span>
+        <GithubPullRequestChecksIndicator entity={props.pullRequest} />
+      </div>
+      <div class="mt-1 flex min-w-0 items-center gap-1.5">
+        <GithubPullRequestPills entity={props.pullRequest} />
+      </div>
+    </NarrowIconShell>
+  );
+}
+
 function NarrowDefaultLayout(props: BaseLayoutProps) {
   return (
     <NarrowIconShell
@@ -2197,6 +2271,17 @@ export function StackedListEntity(props: StackedListEntityProps) {
             <Match when={isCallEntity(props.entity) && props.entity}>
               {(call) => <NarrowCallLayout {...baseProps()} call={call()} />}
             </Match>
+            <Match when={isGithubPrEntity(props.entity) && props.entity}>
+              {(pullRequest) => (
+                <NarrowGithubPullRequestLayout
+                  {...baseProps()}
+                  pullRequest={pullRequest()}
+                />
+              )}
+            </Match>
+            <Match when={isCrmCompanyEntity(props.entity) && props.entity}>
+              {(_company) => <NarrowDefaultLayout {...baseProps()} />}
+            </Match>
           </Switch>
         }
       >
@@ -2224,6 +2309,17 @@ export function StackedListEntity(props: StackedListEntityProps) {
             {(automation) => (
               <AutomationLayout {...baseProps()} automation={automation()} />
             )}
+          </Match>
+          <Match when={isGithubPrEntity(props.entity) && props.entity}>
+            {(pullRequest) => (
+              <GithubPullRequestLayout
+                {...baseProps()}
+                pullRequest={pullRequest()}
+              />
+            )}
+          </Match>
+          <Match when={isCrmCompanyEntity(props.entity) && props.entity}>
+            {(_company) => <DefaultLayout {...baseProps()} />}
           </Match>
         </Switch>
       </Show>
