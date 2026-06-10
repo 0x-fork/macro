@@ -4,7 +4,6 @@ import {
   type ButtonRootProps,
   Button as KobalteButton,
 } from '@kobalte/core/button';
-import { themeReactive } from '@theme/signals/themeReactive';
 import { type ComponentProps, type JSX, Show, splitProps } from 'solid-js';
 import { cn } from '../utils/classname';
 import { useButtonGroupContext } from './ButtonGroup';
@@ -96,12 +95,11 @@ export const Button = (props: ButtonProps) => {
   const variantStyle = (): JSX.CSSProperties | string | undefined => {
     const variant = local.variant ?? group?.variant;
     if (variant === 'cta') {
-      // TODO (seamus): this is scuffed but better than what we had.
-      const textL = themeReactive.a0.l[0]() < 0.72 ? 0.97 : 0.2;
       return {
-        color: `oklch(${textL} var(--c0c) var(--c0h))`,
-        '--color-edge': `oklch(${textL} var(--c0c) var(--c0h) / 0.7)`,
-        '--color-edge-muted': `oklch(${textL} var(--c0c) var(--c0h) / 0.7)`,
+        color: 'var(--color-surface)',
+        '--color-edge': 'color-mix(in oklch, var(--color-surface) 70%, transparent)',
+        '--color-edge-muted': 'color-mix(in oklch, var(--color-surface) 70%, transparent)',
+        ...(typeof others.style === 'object' ? others.style : {}),
       };
     }
     return others.style;
