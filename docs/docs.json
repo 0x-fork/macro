@@ -67,6 +67,7 @@
               "AI/mcp/overview",
               {
                 "group": "Tool Reference",
+                "icon": "wrench",
                 "pages": [
                   "AI/mcp/tools/index",
                   "AI/mcp/tools/bash-code-execution",
