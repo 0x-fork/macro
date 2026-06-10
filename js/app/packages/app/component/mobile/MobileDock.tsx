@@ -14,7 +14,7 @@ import { type Component, createSignal, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { useSplitLayout } from '../split-layout/layout';
 
-const ICON_ANIMATION_DURATION_MS = 500;
+const ICON_ANIMATION_DURATION_MS = 625;
 
 type MobileDockButtonProps = {
   icon: Component<
