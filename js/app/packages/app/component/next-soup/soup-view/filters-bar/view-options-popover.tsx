@@ -51,6 +51,15 @@ const VIEW_GROUP_OPTIONS: Partial<Record<ListView, GroupOption[]>> = {
   inbox: INBOX_GROUP_OPTIONS,
 };
 
+const MENU_SHADOW_CLASS =
+  'shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]';
+const SELECT_CONTENT_CLASS = cn(
+  'z-action-menu bg-surface rounded-xl min-w-[160px] p-1.5 border-0',
+  MENU_SHADOW_CLASS
+);
+const SELECT_ITEM_CLASS =
+  'w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink data-[highlighted]:text-ink hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3 outline-none cursor-default rounded-lg';
+
 export const ViewOptionsPopover: Component = () => {
   const [open, setOpen] = createSignal(false);
   const soup = useSoup();
@@ -192,7 +201,12 @@ export const ViewOptionsPopover: Component = () => {
       </Tooltip>
       <Popover.Portal>
         <Layer depth={2}>
-          <Popover.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-lg min-w-[220px] p-2 flex flex-col gap-2">
+          <Popover.Content
+            class={cn(
+              'z-action-menu bg-surface rounded-xl min-w-[220px] p-2 flex flex-col gap-2 border-0',
+              MENU_SHADOW_CLASS
+            )}
+          >
             {/* Filters Section */}
             <Show when={currentView() === 'search'}>
               <SearchFilterDropdown />
@@ -217,11 +231,11 @@ export const ViewOptionsPopover: Component = () => {
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <Layer depth={3}>
-                    <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-lg min-w-[140px] p-1">
+                    <DropdownMenu.Content class={SELECT_CONTENT_CLASS}>
                       <For each={sortOptions()}>
                         {(option) => (
                           <DropdownMenu.Item
-                            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+                            class={SELECT_ITEM_CLASS}
                             onSelect={() => onSortChange(option.value)}
                           >
                             <span
@@ -258,11 +272,11 @@ export const ViewOptionsPopover: Component = () => {
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <Layer depth={3}>
-                    <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-lg min-w-[140px] p-1">
+                    <DropdownMenu.Content class={SELECT_CONTENT_CLASS}>
                       <For each={groupOptions()}>
                         {(option) => (
                           <DropdownMenu.Item
-                            class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+                            class={SELECT_ITEM_CLASS}
                             onSelect={() => onGroupChange(option.value)}
                           >
                             <span
@@ -350,13 +364,13 @@ const FilterCategoryDropdown: Component<{
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <Layer depth={3}>
-            <DropdownMenu.Content class="z-action-menu bg-surface border border-edge-muted rounded-md shadow-lg min-w-[160px] p-1">
+            <DropdownMenu.Content class={SELECT_CONTENT_CLASS}>
               <For each={props.category.options}>
                 {(option) => {
                   const active = () => props.isOptionActive(option.id);
                   return (
                     <DropdownMenu.Item
-                      class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs transition-colors hover:bg-ink/5 focus:bg-ink/5 outline-none cursor-default rounded-sm"
+                      class={SELECT_ITEM_CLASS}
                       onSelect={() => props.toggleFilter(option.id)}
                       closeOnSelect={!props.category.multiple}
                     >
