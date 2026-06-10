@@ -4,6 +4,10 @@ import {
   openChatWithAgent,
 } from '@app/component/ChatWithAgentButton';
 import {
+  type FoldersViewMode,
+  FolderViewModeToggle,
+} from '@app/component/next-soup/soup-view/folder-view-mode';
+import {
   type BlockTool,
   ResponsivePermissionsBadge,
   ToolButton,
@@ -48,7 +52,13 @@ import { ProjectCreateMenu, useProjectCreateTools } from './ProjectCreateMenu';
 // TODO (SEAMUS) : Revisit this file when we figure out what we wanna do
 //     with folder block.
 
-export function TopBar() {
+export function TopBar(props: {
+  /** When set, shows the List/Tree toggle for this folder's contents. */
+  folderViewToggle?: {
+    mode: FoldersViewMode;
+    onChange: (mode: FoldersViewMode) => void;
+  };
+}) {
   const splitPanelContext = useSplitPanelOrThrow();
   const [preview] = splitPanelContext.previewState;
   const id = useBlockId();
@@ -149,6 +159,14 @@ export function TopBar() {
             </SplitToolbarLeft>
             <Show when={showToolbarRight()}>
               <SplitToolbarRight>
+                <Show when={props.folderViewToggle}>
+                  {(toggle) => (
+                    <FolderViewModeToggle
+                      value={toggle().mode}
+                      onChange={toggle().onChange}
+                    />
+                  )}
+                </Show>
                 <For each={tools}>
                   {(tool) => (
                     <Show when={!tool.condition || tool.condition()}>

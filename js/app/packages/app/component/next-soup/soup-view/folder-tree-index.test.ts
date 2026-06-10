@@ -84,6 +84,23 @@ describe('buildFolderTreeIndex', () => {
     expect(index.paths).toEqual(['Team/', 'Team/Mine/', 'Top/']);
   });
 
+  it('scopes paths to a subtree when rootId is given', () => {
+    const index = buildFolderTreeIndex(
+      [
+        project('a', 'Alpha'),
+        project('b', 'Beta', 'a'),
+        project('c', 'Gamma', 'b'),
+        project('d', 'Delta'),
+        // Orphans belong at the top level, never inside the subtree.
+        project('o', 'Orphan', 'gone'),
+      ],
+      { rootId: 'a' }
+    );
+
+    expect(index.paths).toEqual(['Beta/', 'Beta/Gamma/']);
+    expect(index.idByPath.get('Beta/Gamma/')).toBe('c');
+  });
+
   it('drops folders trapped in parentId cycles without looping', () => {
     const index = buildFolderTreeIndex([
       project('a', 'A', 'b'),

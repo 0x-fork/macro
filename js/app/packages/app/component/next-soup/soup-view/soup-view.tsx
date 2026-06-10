@@ -21,6 +21,7 @@ import { InboxSelector } from '@app/component/next-soup/soup-view/filters-bar/in
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
+import { FolderViewModeToggle } from '@app/component/next-soup/soup-view/folder-view-mode';
 import { MaybeSoupEntityActionDrawerManager } from '@app/component/next-soup/soup-view/SoupEntityActionDrawerManager';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
@@ -478,6 +479,7 @@ export const SoupView = (props: SoupViewProps) => {
                     !narrowSearchExpanded() && !isComponentListView('search')
                   }
                 >
+                  <SoupHeaderFolderViewToggle />
                   <SoupViewCreateButton />
                 </Show>
                 <Show when={narrowSearchExpanded()}>
@@ -546,7 +548,6 @@ export const SoupView = (props: SoupViewProps) => {
           <div class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full">
             <Suspense>
               <SoupViewListOrFolderTree
-                activeListView={activeListView}
                 initialClientFilters={props.initialClientFilters}
                 initialGroupBy={props.initialGroupBy}
                 onScrollOffsetBaseline={resetFloatingButtonScrollTracking}
@@ -594,20 +595,31 @@ interface SoupViewListProps {
 }
 
 /**
- * Renders the folders view as a hierarchy tree when that mode is toggled
- * on (desktop only), and the regular soup list otherwise. The tree is not
+ * List/Tree toggle in the split header, shown on folder-hierarchy surfaces
+ * (the folders view, or the Files view with the Folders tab selected).
+ */
+const SoupHeaderFolderViewToggle = () => {
+  const { folderTreeAvailable, foldersViewMode, setFoldersViewMode } =
+    useSoupView();
+
+  return (
+    <Show when={folderTreeAvailable()}>
+      <FolderViewModeToggle
+        value={foldersViewMode()}
+        onChange={setFoldersViewMode}
+      />
+    </Show>
+  );
+};
+
+/**
+ * Renders folder-hierarchy surfaces as a tree when that mode is toggled on
+ * (desktop only), and the regular soup list otherwise. The tree is not
  * wrapped in the file dropzone: tree rows use native HTML5 drag for
  * re-parenting, which the dropzone would intercept as an invalid file drag.
  */
-const SoupViewListOrFolderTree = (
-  props: SoupViewListProps & { activeListView: Accessor<ListView | undefined> }
-) => {
-  const { foldersViewMode } = useSoupView();
-
-  const folderTreeActive = () =>
-    props.activeListView() === 'folders' &&
-    foldersViewMode() === 'tree' &&
-    !isMobile();
+const SoupViewListOrFolderTree = (props: SoupViewListProps) => {
+  const { folderTreeActive } = useSoupView();
 
   return (
     <Show

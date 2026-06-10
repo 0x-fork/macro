@@ -6,6 +6,8 @@ import {
 } from '@app/component/next-soup/create-soup-state';
 import { defineQueryFilters } from '@app/component/next-soup/filters/filter-store';
 import { SoupContextProvider } from '@app/component/next-soup/soup-context';
+import { useFolderViewModePreference } from '@app/component/next-soup/soup-view/folder-view-mode';
+import { SoupFolderTreeView } from '@app/component/next-soup/soup-view/soup-folder-tree-view';
 import { SoupViewList } from '@app/component/next-soup/soup-view/soup-view';
 import { SoupViewContextProvider } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useMaybePreviewPanel } from '@app/component/PreviewPanel';
@@ -20,6 +22,7 @@ import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { fileSelector } from '@core/directive/fileSelector';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
+import { isMobile } from '@core/mobile/isMobile';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import {
   handleFileFolderDrop,
@@ -97,6 +100,13 @@ const Block: Component = () => {
   const splitPanelContext = useSplitPanelOrThrow();
   const analytics = useAnalytics();
 
+  // List/Tree toggle for this folder's subfolder hierarchy. Shares the
+  // sticky preference with the soup folder views. Desktop only, and not
+  // offered on the special root/trash projects.
+  const [folderViewMode, setFolderViewMode] = useFolderViewModePreference();
+  const folderTreeActive = () =>
+    !isSpecialProject && !isMobile() && folderViewMode() === 'tree';
+
   const projectSoup = createSoupState({
     initialPredicates: { and: ['project-content'] },
     predicateConfigs: [
@@ -141,20 +151,30 @@ const Block: Component = () => {
           onDrop: (fileEntries, folderEntries) => {
             handleFileFolderDrop(fileEntries, folderEntries, handleFileUpload);
           },
-          disabled: isSpecialProject,
+          // Tree rows re-parent via native text/plain drags, which this
+          // dropzone would otherwise treat as a drag-in and cover with the
+          // upload overlay.
+          disabled: isSpecialProject || folderTreeActive(),
         }}
       >
         <ModalsProvider>
           <Show when={isDragging() && !isSpecialProject}>
             <FileDropOverlay>Upload to this folder</FileDropOverlay>
           </Show>
-          <TopBar />
+          <TopBar
+            folderViewToggle={
+              !isSpecialProject
+                ? { mode: folderViewMode(), onChange: setFolderViewMode }
+                : undefined
+            }
+          />
           <Show
             when={ENABLE_PROJECT_VIEW_PREVIEW}
             fallback={
               <ProjectEntityList
                 projectId={projectId}
                 soup={projectSoup}
+                folderTreeActive={folderTreeActive}
                 // Scope is already attached by the block container so we can use that
                 // Change this when we remove blocks
                 scopeId={blockHotkeyScopeSignal.get()}
@@ -174,6 +194,7 @@ const Block: Component = () => {
                 <ProjectEntityList
                   projectId={projectId}
                   soup={projectSoup}
+                  folderTreeActive={folderTreeActive}
                   // Scope is already attached by the block container so we can use that
                   // Change this when we remove blocks
                   scopeId={blockHotkeyScopeSignal.get()}
@@ -191,6 +212,7 @@ const ProjectEntityList = (props: {
   scopeId: string;
   projectId: string;
   soup: SoupState;
+  folderTreeActive: () => boolean;
 }) => {
   return (
     <SoupContextProvider soup={props.soup}>
@@ -209,7 +231,17 @@ const ProjectEntityList = (props: {
           },
         })}
       >
-        <SoupViewList customScrollbarHidden={true} scopeId={props.scopeId} />
+        <Show
+          when={props.folderTreeActive()}
+          fallback={
+            <SoupViewList
+              customScrollbarHidden={true}
+              scopeId={props.scopeId}
+            />
+          }
+        >
+          <SoupFolderTreeView rootProjectId={props.projectId} />
+        </Show>
       </SoupViewContextProvider>
     </SoupContextProvider>
   );

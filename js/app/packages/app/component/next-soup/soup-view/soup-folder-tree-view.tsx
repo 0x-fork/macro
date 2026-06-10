@@ -9,6 +9,7 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
+import EmptyStateFolderIcon from '@design/empty-state-folder.svg';
 import {
   FileTree,
   type FileTreeDirectoryHandle,
@@ -25,6 +26,7 @@ import {
 import { storageServiceClient } from '@service-storage/client';
 import type { Project } from '@service-storage/generated/schemas/project';
 import { refetchResources } from '@service-storage/util/refetchResources';
+import { EmptyStatePanel } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -32,17 +34,22 @@ import {
   on,
   onCleanup,
   onMount,
+  Show,
   Switch,
 } from 'solid-js';
 
 /**
- * Hierarchical rendering of the folders view, built on `@pierre/trees`.
+ * Hierarchical rendering of a folder surface, built on `@pierre/trees`.
  * Folders come from the projects query (the soup query is paginated, so it
  * can't guarantee the ancestors a tree needs); the Owned/All tabs still
  * apply. Folders can be re-parented by dragging — including dropping onto
  * empty space to move a subfolder up to the top level.
+ *
+ * With `rootProjectId` the tree is scoped to that folder's subtree (used
+ * inside an open folder); dropping onto empty space then moves the dragged
+ * folder directly under the root folder.
  */
-export const SoupFolderTreeView = () => {
+export const SoupFolderTreeView = (props: { rootProjectId?: string }) => {
   const { activeTab } = useSoupView();
   const userId = useUserId();
   const projects = useProjectsQuery();
@@ -52,6 +59,7 @@ export const SoupFolderTreeView = () => {
     if (!data) return undefined;
     return buildFolderTreeIndex(data, {
       ownerId: activeTab() === 'owned' ? userId() : undefined,
+      rootId: props.rootProjectId,
     });
   });
 
@@ -59,10 +67,23 @@ export const SoupFolderTreeView = () => {
     <div class="size-full min-h-0 bg-surface">
       <Switch>
         <Match when={treeIndex()?.paths.length}>
-          <FolderTreeCanvas index={treeIndex} />
+          <FolderTreeCanvas
+            index={treeIndex}
+            rootProjectId={props.rootProjectId}
+          />
         </Match>
         <Match when={treeIndex() || projects.isError}>
-          <EmptyState listView="folders" />
+          <Show
+            when={props.rootProjectId}
+            fallback={<EmptyState listView="folders" />}
+          >
+            <EmptyStatePanel
+              align="center"
+              graphic={EmptyStateFolderIcon}
+              title="No subfolders"
+              description="Folders created inside this folder will appear here."
+            />
+          </Show>
         </Match>
         <Match when={true}>
           <LoadingBlock />
@@ -91,6 +112,7 @@ const isDirectoryHandle = (
 
 const FolderTreeCanvas = (props: {
   index: () => FolderTreeIndex | undefined;
+  rootProjectId?: string;
 }) => {
   const panel = useSplitPanelOrThrow();
   const { searchText } = useSoupView();
@@ -98,9 +120,17 @@ const FolderTreeCanvas = (props: {
   let container!: HTMLDivElement;
   let tree: FileTree | undefined;
 
+  // A drop at the tree root means "top level" for the full hierarchy and
+  // "directly inside this folder" for a rooted subtree.
   const dropTargetParentId = (target: FileTreeDropContext['target']) => {
-    if (target.kind === 'root' || !target.directoryPath) return null;
-    return props.index()?.idByPath.get(target.directoryPath) ?? null;
+    if (target.kind === 'root' || !target.directoryPath) {
+      return props.rootProjectId ?? null;
+    }
+    return (
+      props.index()?.idByPath.get(target.directoryPath) ??
+      props.rootProjectId ??
+      null
+    );
   };
 
   // The tree applies drops to its own model before calling onDropComplete,

@@ -28,6 +28,8 @@ const toPathSegment = (name: string) => {
 /**
  * Builds the path index for the folder hierarchy.
  *
+ * - `rootId` scopes the tree to the descendants of that folder, with paths
+ *   relative to it (the root folder itself is not included).
  * - `ownerId` keeps only folders owned by that user, plus any ancestors
  *   needed to render them in their real position in the hierarchy.
  * - A folder whose `parentId` is missing from the input (e.g. deleted or
@@ -41,7 +43,7 @@ const toPathSegment = (name: string) => {
  */
 export function buildFolderTreeIndex(
   projects: Project[],
-  options: { ownerId?: string } = {}
+  options: { ownerId?: string; rootId?: string } = {}
 ): FolderTreeIndex {
   const byId = new Map(projects.map((project) => [project.id, project]));
 
@@ -58,6 +60,9 @@ export function buildFolderTreeIndex(
     }
   }
 
+  // Synthetic key folders attach to when they have no resolvable parent.
+  // Distinct from `rootId`: orphans belong at the top level of the full
+  // hierarchy, not inside whatever subtree is being rendered.
   const ROOT = '';
   const childrenOf = new Map<string, Project[]>();
   for (const project of projects) {
@@ -105,7 +110,7 @@ export function buildFolderTreeIndex(
       visit(child.id, path);
     }
   };
-  visit(ROOT, '');
+  visit(options.rootId ?? ROOT, '');
 
   return { paths, idByPath, pathById, projectById };
 }

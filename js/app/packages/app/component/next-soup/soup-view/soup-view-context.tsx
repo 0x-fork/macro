@@ -20,6 +20,10 @@ import {
 } from '@app/component/next-soup/filters/filter-store/query-store';
 import { createGroupedSoupQueries } from '@app/component/next-soup/soup-view/create-grouped-soup-queries';
 import { createSearchState } from '@app/component/next-soup/soup-view/create-search-state';
+import {
+  type FoldersViewMode,
+  useFolderViewModePreference,
+} from '@app/component/next-soup/soup-view/folder-view-mode';
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import { useEntryState } from '@app/component/split-layout/entry-state';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
@@ -29,13 +33,13 @@ import {
   soupItemMatchesListView,
 } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { usePreference } from '@app/preferences/use-preference';
 import {
   ENABLE_FEATURED_SEARCH_RESULTS,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
 } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
+import { isMobile } from '@core/mobile/isMobile';
 import {
   type EntityData,
   getPropertyOptionLabel,
@@ -84,9 +88,6 @@ type DataSource<T> = {
   fetchNextPage: VoidFunction;
 };
 
-/** How the folders list view renders its results. */
-export type FoldersViewMode = 'list' | 'tree';
-
 interface SoupViewContextValues {
   soup: SoupState;
   source: DataSource<EntityData>;
@@ -108,6 +109,14 @@ interface SoupViewContextValues {
   setActiveTab: Setter<string | undefined>;
   foldersViewMode: Accessor<FoldersViewMode>;
   setFoldersViewMode: Setter<FoldersViewMode>;
+  /**
+   * True when the current view is a folder-hierarchy surface that offers
+   * the List/Tree toggle: the folders list view, or the documents (Files)
+   * view with its Folders tab selected. Desktop only.
+   */
+  folderTreeAvailable: Accessor<boolean>;
+  /** True when the toggle is available and tree mode is selected. */
+  folderTreeActive: Accessor<boolean>;
   groupByField: Accessor<GroupByField | undefined>;
   fetchNextGroupPage: (groupKey: string) => Promise<void>;
   isFetchingGroupPage: (groupKey: string) => boolean;
@@ -257,13 +266,10 @@ export const SoupViewContextProvider: FlowComponent<
     { default: undefined }
   );
 
-  // Sticky choice between the flat list and the hierarchy tree on the
-  // folders view. A cross-session preference (not entry state) so the
-  // chosen mode applies every time the user lands on folders.
-  const [foldersViewMode, setFoldersViewMode] = usePreference<FoldersViewMode>(
-    'macro:pref:soup:folders:view-mode',
-    { default: 'list' }
-  );
+  // Sticky choice between the flat list and the hierarchy tree on folder
+  // surfaces. A cross-session preference (not entry state) so the chosen
+  // mode applies every time the user lands on a folder view.
+  const [foldersViewMode, setFoldersViewMode] = useFolderViewModePreference();
 
   const groupByField = createMemo((): GroupByField | undefined => {
     const id = soup.grouping.activeGroupId();
@@ -348,6 +354,18 @@ export const SoupViewContextProvider: FlowComponent<
     if (content.type !== 'component') return;
     return isListViewID(content.id) ? content.id : undefined;
   });
+
+  const folderTreeAvailable = createMemo(() => {
+    if (isMobile()) return false;
+    const view = activeListView();
+    return (
+      view === 'folders' || (view === 'documents' && activeTab() === 'folders')
+    );
+  });
+
+  const folderTreeActive = createMemo(
+    () => folderTreeAvailable() && foldersViewMode() === 'tree'
+  );
 
   const itemsQuery = useSoupAstItemsQuery(
     () => ({
@@ -622,6 +640,8 @@ export const SoupViewContextProvider: FlowComponent<
     setActiveTab,
     foldersViewMode,
     setFoldersViewMode,
+    folderTreeAvailable,
+    folderTreeActive,
     groupByField,
     fetchNextGroupPage,
     isFetchingGroupPage,

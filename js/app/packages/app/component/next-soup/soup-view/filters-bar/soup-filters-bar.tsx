@@ -5,21 +5,15 @@ import { SoupViewContextGroup } from '@app/component/next-soup/soup-view/filters
 import { SoupViewContextSort } from '@app/component/next-soup/soup-view/filters-bar/soup-view-context-sort';
 import { UnifiedFilterDropdown } from '@app/component/next-soup/soup-view/filters-bar/unified-filter-dropdown';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
-import {
-  type FoldersViewMode,
-  useSoupView,
-} from '@app/component/next-soup/soup-view/soup-view-context';
+import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import {
   SplitToolbarLeft,
   SplitToolbarRight,
 } from '@app/component/split-layout/components/SplitToolbar';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { TabsInset } from '@core/component/TabsInset';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
-import RowsIcon from '@phosphor/rows.svg';
-import TreeViewIcon from '@phosphor/tree-view.svg';
 import EyeIcon from '@phosphor-icons/core/regular/eye.svg?component-solid';
 import EyeSlashIcon from '@phosphor-icons/core/regular/eye-slash.svg?component-solid';
 import { Button, Tooltip } from '@ui';
@@ -65,18 +59,9 @@ export function SoupFiltersBar() {
     return content.type === 'component' && content.id === 'search';
   });
 
-  const isFoldersView = createMemo(() => {
-    const content = panel.handle.content();
-    return content.type === 'component' && content.id === 'folders';
-  });
-
-  const { foldersViewMode, setFoldersViewMode } = useSoupView();
-
   // Sort/group/filter/preview act on the soup list, which isn't shown while
-  // the folders hierarchy tree is active, so hide them in that mode.
-  const folderTreeActive = createMemo(
-    () => isFoldersView() && foldersViewMode() === 'tree'
-  );
+  // the folder hierarchy tree is active, so hide them in that mode.
+  const { folderTreeActive } = useSoupView();
 
   return (
     <Show when={!isMobile()}>
@@ -95,33 +80,6 @@ export function SoupFiltersBar() {
         </div>
       </SplitToolbarLeft>
       <SplitToolbarRight>
-        <Show when={isFoldersView()}>
-          <TabsInset
-            depth={2}
-            list={[
-              {
-                value: 'list',
-                label: (
-                  <span class="flex items-center gap-1">
-                    <RowsIcon class="size-3.5" />
-                    List
-                  </span>
-                ),
-              },
-              {
-                value: 'tree',
-                label: (
-                  <span class="flex items-center gap-1">
-                    <TreeViewIcon class="size-3.5" />
-                    Tree
-                  </span>
-                ),
-              },
-            ]}
-            value={foldersViewMode()}
-            onChange={(value) => setFoldersViewMode(value as FoldersViewMode)}
-          />
-        </Show>
         <Show when={!folderTreeActive()}>
           <Tooltip hotkey={TOKENS.unifiedList.togglePreview} label="Preview">
             <Button
