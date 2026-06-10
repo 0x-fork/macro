@@ -2,7 +2,6 @@ import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownS
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
 import type { IUser } from '@core/user/types';
-import { isPlatform } from '@core/util/platform';
 import {
   chatRuleset,
   handleFileFolderDrop,
@@ -10,14 +9,7 @@ import {
 } from '@core/util/upload';
 import { isIOS } from '@solid-primitives/platform';
 import { Surface } from '@ui';
-import {
-  type Accessor,
-  createSignal,
-  type JSX,
-  Match,
-  Show,
-  Switch,
-} from 'solid-js';
+import { type Accessor, createSignal, type JSX, Show } from 'solid-js';
 import { createInputAttachmentTracker } from './attachment-tracker';
 import { createConfiguredChannelMarkdownEditor } from './configured-markdown-editor';
 import { createInputState } from './create-input-state';
@@ -53,51 +45,6 @@ export type ChannelInputProps = InputCallbacks & {
    */
   children?: JSX.Element;
 };
-
-function WebDefaultActions(props: { input: InputData }) {
-  return (
-    <Input.Actions>
-      <Input.Actions.Left>
-        <Input.AttachFilesAction />
-        <Input.ToggleFormatAction />
-        <Show when={isReplyInput(props.input)}>
-          <Input.CloseReplyAction />
-        </Show>
-      </Input.Actions.Left>
-      <Input.Actions.Right>
-        <Input.SendAction />
-      </Input.Actions.Right>
-    </Input.Actions>
-  );
-}
-
-function IosDefaultActions(props: { input: InputData }) {
-  return (
-    <Input.Actions>
-      <Input.Actions.Left>
-        <Input.AttachNativeMediaAction />
-        <Input.ToggleFormatAction />
-        <Show when={isReplyInput(props.input)}>
-          <Input.CloseReplyAction />
-        </Show>
-      </Input.Actions.Left>
-      <Input.Actions.Right>
-        <Input.SendAction />
-      </Input.Actions.Right>
-    </Input.Actions>
-  );
-}
-
-function DefaultActions(props: { input: InputData }) {
-  return (
-    <Show
-      when={isPlatform('ios')}
-      fallback={<WebDefaultActions input={props.input} />}
-    >
-      <IosDefaultActions input={props.input} />
-    </Show>
-  );
-}
 
 export function ChannelInput(props: ChannelInputProps) {
   const [scrollContainer, setScrollContainer] = createSignal<HTMLElement>();
@@ -256,7 +203,7 @@ export function ChannelInput(props: ChannelInputProps) {
           onDragStart={(valid) => inputState.setIsDraggedOver(valid)}
           onDragEnd={() => inputState.setIsDraggedOver(false)}
         >
-          <div class="flex flex-col w-full">
+          <Input.Layout>
             <Input.DropOverlay />
             <Show when={isReplyInput(inputState.view())}>
               <div class="flex items-center justify-between px-3 py-0.5 bg-ink/5 border-b border-edge-muted">
@@ -286,33 +233,53 @@ export function ChannelInput(props: ChannelInputProps) {
                 }
               />
             </Input.FormatRibbon>
-            <Input.EditorShell
-              ref={setScrollContainer}
-              onClick={(event) => {
-                if (!isMobile()) {
-                  event.stopPropagation();
-                  markdownEditor.controls.focus();
-                }
-              }}
-            >
-              <Input.Editor>
-                <MarkdownShell
-                  config={markdownEditor}
-                  placeholder={inputState.view().placeholder}
-                  initialValue={inputState.view().value}
-                  autofocus={!isMobile() && (props.autofocus ?? true)}
-                  class="text-sm"
-                  refFn={attach}
-                  onConnect={() => {
-                    isEditorConnected = true;
-                    flushPendingRestore();
-                  }}
-                />
-              </Input.Editor>
-            </Input.EditorShell>
+            <div class="flex flex-row items-end gap-1 px-2 py-1.5">
+              <Show when={!props.children}>
+                <div class="shrink-0 mobile:hidden">
+                  <Input.AttachFilesAction />
+                </div>
+              </Show>
+              <div
+                ref={setScrollContainer}
+                class="flex-1 min-w-0 max-h-32 overflow-y-auto self-center"
+                onClick={(event) => {
+                  if (!isMobile()) {
+                    event.stopPropagation();
+                    markdownEditor.controls.focus();
+                  }
+                }}
+              >
+                <Input.Editor>
+                  <MarkdownShell
+                    config={markdownEditor}
+                    placeholder={inputState.view().placeholder}
+                    initialValue={inputState.view().value}
+                    autofocus={!isMobile() && (props.autofocus ?? true)}
+                    class="text-sm mobile:text-xs"
+                    refFn={attach}
+                    onConnect={() => {
+                      isEditorConnected = true;
+                      flushPendingRestore();
+                    }}
+                  />
+                </Input.Editor>
+              </div>
+              <Show when={!props.children}>
+                <div class="shrink-0 hidden mobile:block">
+                  <MobileActionsMenu />
+                </div>
+                <div class="shrink-0 mobile:hidden">
+                  <Input.ToggleFormatAction />
+                </div>
+                <div class="shrink-0">
+                  <Input.SendAction />
+                </div>
+              </Show>
+            </div>
+            <Show when={props.children}>{props.children}</Show>
             <Input.Attachments kind="media" />
             <Input.Attachments kind="document" />
-          </div>
+          </Input.Layout>
         </Input.DropZone>
       </Surface>
     </Input.Root>

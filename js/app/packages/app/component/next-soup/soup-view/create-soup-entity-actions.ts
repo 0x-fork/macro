@@ -208,12 +208,6 @@ export function createSoupEntityActions(): {
     }
 
     if (entities.length === 1) {
-      middleItems.push({
-        id: 'copy-link',
-        label: 'Copy Link',
-        onClick: handle(copyLinkAction.executeWithSoup),
-      });
-
       if (copyBranchNameAction.canExecute(entities[0])) {
         middleItems.push({
           id: 'copy-branch-name',
@@ -221,12 +215,6 @@ export function createSoupEntityActions(): {
           onClick: handle(copyBranchNameAction.executeWithSoup),
         });
       }
-
-      middleItems.push({
-        id: 'copy-entity-id',
-        label: 'Copy ID',
-        onClick: handle(copyEntityIdAction.executeWithSoup),
-      });
 
       if (shareAction.canExecute(entities[0])) {
         middleItems.push({
@@ -272,6 +260,20 @@ export function createSoupEntityActions(): {
 
     // Delete group
     const deleteItems: SoupEntityActionItem[] = [];
+
+    if (entities.length === 1) {
+      deleteItems.push({
+        id: 'copy-link',
+        label: 'Copy Link',
+        onClick: handle(copyLinkAction.executeWithSoup),
+      });
+
+      deleteItems.push({
+        id: 'copy-entity-id',
+        label: 'Copy ID',
+        onClick: handle(copyEntityIdAction.executeWithSoup),
+      });
+    }
 
     if (canExecuteAll(deleteAction.canExecute)) {
       deleteItems.push({

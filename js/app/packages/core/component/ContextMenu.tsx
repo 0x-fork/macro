@@ -127,7 +127,7 @@ type MenuItemProps =
   | CheckboxMenuItemProps
   | RadioMenuItemProps;
 
-export const MENU_ITEM_CLASS = `flex flex-row w-full gap-1.5 tracking-tight ${isMobile() ? 'py-2 px-1.5 text-base' : 'py-1 pl-2.5 pr-2 text-sm'} font-medium justify-between items-center rounded-md outline-none focus:bg-ink/3 data-[highlighted]:bg-ink/3`;
+export const MENU_ITEM_CLASS = `group flex flex-row w-full gap-2.5 tracking-tight ${isMobile() ? 'py-2 pl-1.5 pr-4 text-base' : 'py-1.5 pl-2 pr-4 text-sm'} font-medium justify-between items-center rounded-lg outline-none text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:shadow-sm focus:shadow-sm data-[highlighted]:shadow-sm focus:bg-ink/3 data-[highlighted]:bg-ink/3`;
 
 /**
  * A context-menu item with consistent styling.
@@ -197,14 +197,16 @@ export function MenuItem(props: MenuItemProps) {
               props.icon as Component<JSX.SvgSVGAttributes<SVGSVGElement>>
             }
             class={cn(
-              'shrink-0',
-              isMobile() ? 'size-5' : 'size-4',
+              'shrink-0 text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink',
+              isMobile() ? 'size-5' : 'size-3.5',
               props.iconClass
             )}
           />
         </Show>
         <Show when={typeof props.icon === 'object'}>
-          {props.icon as JSX.Element}
+          <span class="text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink">
+            {props.icon as JSX.Element}
+          </span>
         </Show>
       </Show>
       <Show when={props.text}>
@@ -233,7 +235,7 @@ export function SubTrigger(props: {
         MENU_ITEM_CLASS,
         props.disabled
           ? 'opacity-50 cursor-not-allowed text-ink'
-          : 'hover:bg-hover hover-transition-bg text-ink'
+          : 'hover:bg-ink/3 hover-transition-bg text-ink'
       )}
       disabled={props.disabled}
     >
@@ -244,14 +246,16 @@ export function SubTrigger(props: {
               props.icon as Component<JSX.SvgSVGAttributes<SVGSVGElement>>
             }
             class={cn(
-              'shrink-0',
-              isMobile() ? 'size-5' : 'size-4',
+              'shrink-0 text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink',
+              isMobile() ? 'size-5' : 'size-3.5',
               props.iconClass
             )}
           />
         </Show>
         <Show when={typeof props.icon === 'object'}>
-          {props.icon as JSX.Element}
+          <span class="text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink">
+            {props.icon as JSX.Element}
+          </span>
         </Show>
       </Show>
       <div class="flex-1 truncate">{props.text}</div>
@@ -302,7 +306,7 @@ const menuWidths: Record<MenuWidth, string> = {
   screen: 'w-screen',
 };
 
-export const MENU_CONTENT_CLASS = `flex flex-col justify-start items-start bg-surface shadow-[0_8px_24px_-16px_rgba(0,0,0,0.24),0_2px_8px_-6px_rgba(0,0,0,0.18)] ring-1 ring-edge rounded-xl p-1.5 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal`;
+export const MENU_CONTENT_CLASS = `flex flex-col justify-start items-start bg-surface shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)] rounded-xl p-1 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal`;
 
 type MenuContentProps = ParentProps<{
   class?: string;

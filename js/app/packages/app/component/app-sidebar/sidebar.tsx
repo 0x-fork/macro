@@ -5,7 +5,7 @@ import {
   setInviteModalOpen,
 } from '@app/component/app-sidebar/invite-modal';
 import { CommandState } from '@app/component/command';
-import { createMenuOpen, setCreateMenuOpen } from '@app/component/Launcher';
+import { CREATABLE_BLOCKS } from '@app/component/Launcher';
 import { requestSearchFocus } from '@app/component/next-soup/soup-view/search-controllers';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import type {
@@ -22,9 +22,11 @@ import { InCallPanel } from '@channel/Call';
 import { useCallContextOptional } from '@channel/Call/CallContext';
 import { useHasPaidAccess } from '@core/auth';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
+import { getIconConfig } from '@core/component/EntityIcon';
 import { UserIcon } from '@core/component/UserIcon';
 import {
   DEV_MODE_ENV,
+  ENABLE_ANIMATED_ICONS,
   ENABLE_APP_STORE_QR_CODE,
   ENABLE_CALLS,
   ENABLE_NEW_PRICING_OVERRIDE,
@@ -843,32 +845,79 @@ type SidebarCreateButtonProps = {
   label: string;
   hotkeyToken?: HotkeyToken;
   isSlim: () => boolean;
-  onClick: () => void;
+  onOpenChange: (open: boolean) => void;
   icon: () => JSX.Element;
+};
+
+const SidebarCreateMenuItem = (props: {
+  item: (typeof CREATABLE_BLOCKS)[number];
+}) => {
+  const [hovering, setHovering] = createSignal(false);
+  const iconColor = () => getIconConfig(props.item.blockName).foreground;
+  const Icon = () =>
+    ENABLE_ANIMATED_ICONS && props.item.animatedIcon
+      ? props.item.animatedIcon
+      : props.item.icon;
+
+  return (
+    <Dropdown.Item
+      class="rounded-lg"
+      onSelect={() => props.item.keyDownHandler()}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+    >
+      <span
+        class={cn(
+          'size-3.5 flex items-center justify-center shrink-0 transition-transform duration-200 group-data-highlighted:scale-110 [&_svg]:size-3.5',
+          iconColor()
+        )}
+      >
+        <Dynamic component={Icon()} triggerAnimation={hovering()} />
+      </span>
+      <span class="flex-1 truncate font-medium">{props.item.label}</span>
+      <Hotkey
+        shortcut={props.item.hotkey}
+        theme="subtle"
+        class="shrink-0"
+      />
+    </Dropdown.Item>
+  );
 };
 
 const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
   return (
-    <Button
-      class="flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-1.5 cursor-default w-full rounded-md py-2 bg-ink/5 hover:bg-ink/10 group-data-[slim=true]/sidebar:py-0 group-data-[slim=true]/sidebar:aspect-square [&_svg]:size-4"
-      variant="ghost"
-      tooltipPlacement="right"
-      label={props.isSlim() ? props.label : undefined}
-      hotkey={props.isSlim() ? props.hotkeyToken : undefined}
-      onClick={props.onClick}
+    <Dropdown
+      placement={props.isSlim() ? 'right-start' : 'bottom-start'}
+      gutter={6}
+      onOpenChange={props.onOpenChange}
     >
-      <div class="shrink-0">{props.icon()}</div>
-      <span class="whitespace-nowrap group-data-[slim=true]/sidebar:hidden">
-        {props.label}
-      </span>
-      <Show when={props.hotkeyToken}>
-        {(token) => (
-          <div class="text-xxs text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:hidden">
-            <Hotkey token={token()} class="flex gap-1" />
-          </div>
-        )}
-      </Show>
-    </Button>
+      <Dropdown.Trigger
+        class="flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-1.5 cursor-default w-full rounded-md py-2 bg-ink/5 hover:bg-ink/10 group-data-[slim=true]/sidebar:py-0 group-data-[slim=true]/sidebar:aspect-square [&_svg]:size-4"
+        variant="ghost"
+        tooltipPlacement="right"
+        label={props.isSlim() ? props.label : undefined}
+        hotkey={props.isSlim() ? props.hotkeyToken : undefined}
+      >
+        <div class="shrink-0">{props.icon()}</div>
+        <span class="whitespace-nowrap group-data-[slim=true]/sidebar:hidden">
+          {props.label}
+        </span>
+        <Show when={props.hotkeyToken}>
+          {(token) => (
+            <div class="text-xxs text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:hidden">
+              <Hotkey token={token()} class="flex gap-1" />
+            </div>
+          )}
+        </Show>
+      </Dropdown.Trigger>
+      <Dropdown.Content depth={1} class="shadow-lg">
+        <Dropdown.Group class="p-1 gap-0.5">
+          <For each={CREATABLE_BLOCKS}>
+            {(item) => <SidebarCreateMenuItem item={item} />}
+          </For>
+        </Dropdown.Group>
+      </Dropdown.Content>
+    </Dropdown>
   );
 };
 
@@ -930,11 +979,16 @@ const SidebarUserMenu = (props: {
         as="button"
         type="button"
         class={cn(
-          'flex items-center gap-2.5 w-full min-w-0 px-2 py-1.5 rounded-md ring-1 ring-edge-muted hover:bg-ink/5 data-expanded:bg-ink/5 transition-colors text-left',
+          'flex items-center gap-2.5 w-full min-w-0 px-2 py-2.5 rounded-md ring-1 ring-edge-muted hover:bg-ink/5 data-expanded:bg-ink/5 transition-colors text-left',
           'group-data-[slim=true]/sidebar:px-0 group-data-[slim=true]/sidebar:py-1 group-data-[slim=true]/sidebar:ring-0'
         )}
       >
-        <LogoIcon class="size-4 shrink-0 text-accent" />
+        <UserIcon
+          id={userId() ?? ''}
+          size="sm"
+          suppressClick
+          showTooltip={false}
+        />
         <span class="flex-1 min-w-0 text-xs font-medium text-ink truncate group-data-[slim=true]/sidebar:hidden">
           {label()}
         </span>
@@ -1153,12 +1207,10 @@ export const AppSidebar = (props: AppSidebarProps) => {
     CommandState.toggle();
   };
 
-  const handleCreateClick = () => {
-    const willOpen = !createMenuOpen();
-    if (willOpen) {
+  const handleCreateOpenChange = (open: boolean) => {
+    if (open) {
       analytics.track('create_menu_open', { from: 'sidebar' });
     }
-    setCreateMenuOpen((p) => !p);
   };
 
   const openSettingsTab = (tab: SettingsTab) => {
@@ -1209,24 +1261,24 @@ export const AppSidebar = (props: AppSidebarProps) => {
       data-slim={isSlim()}
       style={{ transition: SIDEBAR_MAX_WIDTH_TRANSITION_STYLE }}
     >
-      <div class="flex items-center justify-between gap-1.5 group-data-[slim=true]/sidebar:gap-0 p-2 relative group-data-[slim=true]/sidebar:pr-2.25">
-        <div class="min-w-0 group-data-[slim=true]/sidebar:max-w-0 group-data-[slim=true]/sidebar:overflow-hidden">
-          <SidebarUserMenu
-            onSettings={() => openSettingsTab('Account')}
-            onCommandMenu={handleCommandPaletteClick}
-          />
-        </div>
-        <div class="flex items-center gap-0.5 shrink-0 ml-auto">
-          <div class="flex items-center gap-0.5 group-data-[slim=true]/sidebar:hidden">
-            <Show when={showEnableNotifications()}>
-              <SidebarIconButton
+      <div class="flex items-center justify-between p-2 relative group-data-[slim=true]/sidebar:pr-2.25">
+        <div class="flex items-center group/logo-area w-full group-data-[slim=true]/sidebar:justify-end">
+          <div class="text-accent group-data-[slim=true]/sidebar:opacity-0 group-data-[slim=true]/sidebar:max-w-0 min-w-0 pl-1 group-data-[slim=true]/sidebar:pl-0">
+            <LogoIcon class="size-6" />
+          </div>
+          <div class="grow shrink-10 min-w-0 group-data-[slim=true]/sidebar:hidden" />
+          <Show when={isExpanded() && showEnableNotifications()}>
+            <div class="flex items-center gap-1 mr-1">
+              <Button
+                class="rounded-md p-1 text-ink-extra-muted"
+                size="icon-sm"
                 label="Enable Notifications"
                 onClick={handleEnableNotifications}
-                icon={(p) => <BellIcon class={p.class} />}
-                isSlim={isSlim}
-              />
-            </Show>
-          </div>
+              >
+                <BellIcon />
+              </Button>
+            </div>
+          </Show>
           <Button
             class="size-7 rounded-md p-1 [&_svg]:size-4"
             onMouseDown={(e) => {
@@ -1250,7 +1302,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
           label="Create"
           hotkeyToken={TOKENS.global.createCommand}
           isSlim={isSlim}
-          onClick={handleCreateClick}
+          onOpenChange={handleCreateOpenChange}
           icon={() => <PlusIcon />}
         />
       </div>
@@ -1362,6 +1414,12 @@ export const AppSidebar = (props: AppSidebarProps) => {
             onDismiss={() => setMobileAppCardDismissed(true)}
           />
         </Show>
+        <div class="min-w-0 group-data-[slim=true]/sidebar:max-w-0 group-data-[slim=true]/sidebar:overflow-hidden">
+          <SidebarUserMenu
+            onSettings={() => openSettingsTab('Account')}
+            onCommandMenu={handleCommandPaletteClick}
+          />
+        </div>
       </div>
       <InviteModal />
     </div>

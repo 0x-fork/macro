@@ -30,7 +30,12 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
 
   return (
     <Show when={!isMobile()}>
-      <div class="@container/filters flex flex-col w-full gap-2 py-2">
+      <div
+        class={cn(
+          '@container/filters flex flex-col w-full gap-2',
+          props.searchView ? 'py-1' : 'py-2'
+        )}
+      >
         <Show when={props.searchView}>
           <div class="mx-2 flex items-center gap-2">
             <div class="flex-1 min-w-0">
@@ -38,7 +43,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
                 variant="filled"
                 placeholder="Search, @mention contacts"
                 initialValue={props.initialSearchText}
-                class="py-3 shadow-sm"
+                class="py-1 shadow-sm"
               />
             </div>
             <ViewOptionsPopover />

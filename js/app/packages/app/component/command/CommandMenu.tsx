@@ -458,7 +458,12 @@ export function CommandMenuInner(props: {
       class={cn('max-h-[75vh] rounded-xl after:shadow-none', props.class)}
       ref={setCommandMenuRef}
       depth={props.depth}
+      style={{
+        'background-image': 'linear-gradient(var(--b0), var(--b0))',
+        border: '0',
+      }}
     >
+      <div class="pointer-events-none absolute inset-0 z-60 rounded-[inherit] ring-1 ring-inset ring-edge" />
       <Panel.Header class="gap-2 px-2 bg-surface border-0">
         <Show
           when={isInCommandScope()}

@@ -43,7 +43,8 @@ export type DropdownGroupProps = ComponentProps<typeof KobalteDropdownMenu.Group
 export type DropdownItemProps = ComponentProps<typeof KobalteDropdownMenu.Item>;
 export type DropdownSubProps = ComponentProps<typeof KobalteDropdownMenu.Sub>;
 
-const ROW_CLASS = 'group rounded-lg w-full flex items-center gap-2 px-2 h-8 text-left font-medium text-xs cursor-default outline-none hover:bg-ink/5 data-highlighted:bg-ink/5 data-disabled:opacity-50 data-disabled:cursor-not-allowed';
+const ROW_CLASS = 'group rounded-lg w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left font-medium text-sm cursor-default outline-none text-ink/65 hover:text-ink data-highlighted:text-ink hover:bg-ink/3 data-highlighted:bg-ink/3 hover:shadow-sm data-highlighted:shadow-sm data-disabled:opacity-50 data-disabled:cursor-not-allowed';
+const CONTENT_SHADOW_CLASS = 'shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]';
 
 function resolvePortalMount(
   searchRef: HTMLElement | undefined,
@@ -56,7 +57,7 @@ function resolvePortalMount(
 
 function DropdownContent(props: DropdownContentProps) {
   let searchRef: HTMLDivElement | undefined;
-  const [local, rest] = splitProps(props, ['depth', 'class', 'mount', 'portalScope', 'children']);
+  const [local, rest] = splitProps(props, ['depth', 'class', 'mount', 'portalScope', 'children', 'style']);
   return (
     <>
       <div class="hidden" ref={searchRef} />
@@ -67,9 +68,20 @@ function DropdownContent(props: DropdownContentProps) {
           class={cn('rounded-xl size-auto z-action-menu', local.class)}
           depth={local.depth ?? 2}
           as={Surface}
+          style={{
+            'background-image': 'linear-gradient(var(--b0), var(--b0))',
+            border: '0',
+            ...local.style,
+          }}
           {...rest}
         >
           <div class="flex flex-col gap-px bg-edge-muted size-full">{local.children}</div>
+          <div
+            class={cn(
+              'pointer-events-none absolute inset-0 rounded-[inherit]',
+              CONTENT_SHADOW_CLASS
+            )}
+          />
         </KobalteDropdownMenu.Content>
       </KobalteDropdownMenu.Portal>
     </>
@@ -78,7 +90,7 @@ function DropdownContent(props: DropdownContentProps) {
 
 function DropdownSubContent(props: DropdownSubContentProps) {
   let searchRef: HTMLDivElement | undefined;
-  const [local, rest] = splitProps(props, ['depth', 'class', 'mount', 'portalScope', 'children']);
+  const [local, rest] = splitProps(props, ['depth', 'class', 'mount', 'portalScope', 'children', 'style']);
   return (
     <>
       <div class="hidden" ref={searchRef} />
@@ -89,9 +101,20 @@ function DropdownSubContent(props: DropdownSubContentProps) {
           class={cn('rounded-xl size-auto z-action-menu', local.class)}
           depth={local.depth ?? 2}
           as={Surface}
+          style={{
+            'background-image': 'linear-gradient(var(--b0), var(--b0))',
+            border: '0',
+            ...local.style,
+          }}
           {...rest}
         >
           <div class="flex flex-col gap-px bg-edge-muted size-full">{local.children}</div>
+          <div
+            class={cn(
+              'pointer-events-none absolute inset-0 rounded-[inherit]',
+              CONTENT_SHADOW_CLASS
+            )}
+          />
         </KobalteDropdownMenu.SubContent>
       </KobalteDropdownMenu.Portal>
     </>
@@ -102,7 +125,7 @@ function DropdownGroup(props: DropdownGroupProps) {
   const [local, rest] = splitProps(props, ['class']);
   return (
     <KobalteDropdownMenu.Group
-      class={cn('flex flex-col p-1.5 gap-0.5 bg-surface', local.class)}
+      class={cn('flex flex-col p-1 gap-0.5 bg-surface', local.class)}
       {...rest}
     />
   );

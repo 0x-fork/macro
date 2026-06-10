@@ -150,7 +150,7 @@ export function SplitPanel(props: SplitPanelProps) {
                 border: '0',
               }}
             >
-              <div class="pointer-events-none absolute inset-0 z-60 rounded-[inherit] ring-1 ring-inset ring-edge mobile:hidden" />
+              <div class="pointer-events-none absolute inset-0 z-60 rounded-[inherit] shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)] mobile:hidden" />
               <div
                 class="pointer-events-none absolute inset-x-px top-px z-50 h-8 rounded-t-[inherit]"
                 style={{
