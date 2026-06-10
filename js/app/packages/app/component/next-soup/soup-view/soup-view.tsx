@@ -24,6 +24,7 @@ import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters
 import { MaybeSoupEntityActionDrawerManager } from '@app/component/next-soup/soup-view/SoupEntityActionDrawerManager';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
+import { SoupFolderTreeView } from '@app/component/next-soup/soup-view/soup-folder-tree-view';
 import {
   persistSoupNavigationTouchHighlight,
   soupNavigationTouchHighlight,
@@ -544,14 +545,13 @@ export const SoupView = (props: SoupViewProps) => {
           </div>
           <div class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full">
             <Suspense>
-              <SoupViewFileDropzone>
-                <SoupViewList
-                  initialClientFilters={props.initialClientFilters}
-                  initialGroupBy={props.initialGroupBy}
-                  onScrollOffsetBaseline={resetFloatingButtonScrollTracking}
-                  onScrollOffsetChange={handleSoupScrollOffsetChange}
-                />
-              </SoupViewFileDropzone>
+              <SoupViewListOrFolderTree
+                activeListView={activeListView}
+                initialClientFilters={props.initialClientFilters}
+                initialGroupBy={props.initialGroupBy}
+                onScrollOffsetBaseline={resetFloatingButtonScrollTracking}
+                onScrollOffsetChange={handleSoupScrollOffsetChange}
+              />
             </Suspense>
             <Show when={isMobile()}>
               <SoupViewMobileSettingsButton visible={floatingButtonsVisible} />
@@ -592,6 +592,41 @@ interface SoupViewListProps {
   onScrollOffsetBaseline?: (offset: number) => void;
   onScrollOffsetChange?: (offset: number) => void;
 }
+
+/**
+ * Renders the folders view as a hierarchy tree when that mode is toggled
+ * on (desktop only), and the regular soup list otherwise. The tree is not
+ * wrapped in the file dropzone: tree rows use native HTML5 drag for
+ * re-parenting, which the dropzone would intercept as an invalid file drag.
+ */
+const SoupViewListOrFolderTree = (
+  props: SoupViewListProps & { activeListView: Accessor<ListView | undefined> }
+) => {
+  const { foldersViewMode } = useSoupView();
+
+  const folderTreeActive = () =>
+    props.activeListView() === 'folders' &&
+    foldersViewMode() === 'tree' &&
+    !isMobile();
+
+  return (
+    <Show
+      when={folderTreeActive()}
+      fallback={
+        <SoupViewFileDropzone>
+          <SoupViewList
+            initialClientFilters={props.initialClientFilters}
+            initialGroupBy={props.initialGroupBy}
+            onScrollOffsetBaseline={props.onScrollOffsetBaseline}
+            onScrollOffsetChange={props.onScrollOffsetChange}
+          />
+        </SoupViewFileDropzone>
+      }
+    >
+      <SoupFolderTreeView />
+    </Show>
+  );
+};
 
 export const SoupViewList = (props: SoupViewListProps) => {
   const panel = useSplitPanelOrThrow();

@@ -29,6 +29,7 @@ import {
   soupItemMatchesListView,
 } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { usePreference } from '@app/preferences/use-preference';
 import {
   ENABLE_FEATURED_SEARCH_RESULTS,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
@@ -83,6 +84,9 @@ type DataSource<T> = {
   fetchNextPage: VoidFunction;
 };
 
+/** How the folders list view renders its results. */
+export type FoldersViewMode = 'list' | 'tree';
+
 interface SoupViewContextValues {
   soup: SoupState;
   source: DataSource<EntityData>;
@@ -102,6 +106,8 @@ interface SoupViewContextValues {
   setInboxFilter: Setter<string[] | undefined>;
   activeTab: Accessor<string | undefined>;
   setActiveTab: Setter<string | undefined>;
+  foldersViewMode: Accessor<FoldersViewMode>;
+  setFoldersViewMode: Setter<FoldersViewMode>;
   groupByField: Accessor<GroupByField | undefined>;
   fetchNextGroupPage: (groupKey: string) => Promise<void>;
   isFetchingGroupPage: (groupKey: string) => boolean;
@@ -249,6 +255,14 @@ export const SoupViewContextProvider: FlowComponent<
   const [activeTab, setActiveTab] = useEntryState<string | undefined>(
     'soup.tab',
     { default: undefined }
+  );
+
+  // Sticky choice between the flat list and the hierarchy tree on the
+  // folders view. A cross-session preference (not entry state) so the
+  // chosen mode applies every time the user lands on folders.
+  const [foldersViewMode, setFoldersViewMode] = usePreference<FoldersViewMode>(
+    'macro:pref:soup:folders:view-mode',
+    { default: 'list' }
   );
 
   const groupByField = createMemo((): GroupByField | undefined => {
@@ -606,6 +620,8 @@ export const SoupViewContextProvider: FlowComponent<
     setInboxFilter,
     activeTab,
     setActiveTab,
+    foldersViewMode,
+    setFoldersViewMode,
     groupByField,
     fetchNextGroupPage,
     isFetchingGroupPage,
