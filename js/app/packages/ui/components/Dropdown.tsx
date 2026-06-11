@@ -92,7 +92,7 @@ function DropdownContent(props: DropdownContentProps) {
         mount={resolvePortalMount(searchRef, local.mount, local.portalScope)}
       >
         <KobalteDropdownMenu.Content
-          class={cn('rounded-xl size-auto z-action-menu', local.class)}
+          class={cn('rounded-xl size-auto z-action-menu menu-open-animation', local.class)}
           depth={local.depth ?? 2}
           as={Surface}
           style={{
@@ -125,7 +125,7 @@ function DropdownSubContent(props: DropdownSubContentProps) {
         mount={resolvePortalMount(searchRef, local.mount, local.portalScope)}
       >
         <KobalteDropdownMenu.SubContent
-          class={cn('rounded-xl size-auto z-action-menu', local.class)}
+          class={cn('rounded-xl size-auto z-action-menu menu-open-animation', local.class)}
           depth={local.depth ?? 2}
           as={Surface}
           style={{

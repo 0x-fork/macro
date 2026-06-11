@@ -304,7 +304,7 @@ const menuWidths: Record<MenuWidth, string> = {
   screen: 'w-screen',
 };
 
-export const MENU_CONTENT_CLASS = `flex flex-col justify-start items-start bg-surface shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)] rounded-xl p-1 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal`;
+export const MENU_CONTENT_CLASS = `flex flex-col justify-start items-start bg-surface shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)] rounded-xl p-1 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal menu-open-animation`;
 
 type MenuContentProps = ParentProps<{
   class?: string;
@@ -402,6 +402,7 @@ export function ContextMenuContent(props: ParentProps<MenuContentProps>) {
             <ContextMenu.Content
               class={cn(
                 !props.overrideStyling && MENU_CONTENT_CLASS,
+                'menu-open-animation',
                 props.class,
                 props.width && menuWidths[props.width],
                 props.mobileFullScreen &&
