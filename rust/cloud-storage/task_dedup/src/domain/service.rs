@@ -198,6 +198,9 @@ where
             limit: self.config.vector_candidate_limit,
             exclude_document_id: None,
             exclude_dismissed: false,
+            // The composer shows these as actionable duplicates, so tasks that
+            // are already completed or canceled are not useful matches.
+            only_incomplete: true,
         };
         let results = self
             .vector_db
@@ -263,6 +266,9 @@ where
             limit: self.config.vector_candidate_limit,
             exclude_document_id: Some(task.document_id.clone()),
             exclude_dismissed: true,
+            // A persisted match against a completed task is still informative
+            // on the task surface (the work may already be done).
+            only_incomplete: false,
         };
         let results = self
             .vector_db

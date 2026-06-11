@@ -100,6 +100,7 @@ async function searchSimilarTasks(
 export function useTaskSimilaritySearchQuery(
   input: Accessor<TaskSimilaritySearchInput>
 ) {
+  console.log('USER TAKS DEDUP');
   return useQuery(() => ({
     queryKey: taskSimilaritySearchKeys.forInput(input()).queryKey,
     queryFn: () => searchSimilarTasks(input()),

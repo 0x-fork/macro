@@ -509,6 +509,7 @@ async fn detect_creates_match_reranks_and_notifies() {
         .unwrap();
     assert_eq!(params.exclude_document_id.as_deref(), Some("NEW"));
     assert!(params.exclude_dismissed);
+    assert!(!params.only_incomplete);
 
     // A single ordered match was written, tagged with the judge's model.
     let upserts = h.matches.upserted_matches.lock().unwrap();
@@ -706,7 +707,8 @@ async fn similarity_search_filters_ranks_and_persists_nothing() {
     assert_eq!(calls.len(), 1);
     assert_eq!(calls[0].1, vec!["cx".to_string(), "cz".to_string()]);
 
-    // The similarity path does not scope-exclude self or dismissed pairs.
+    // The similarity path does not scope-exclude self or dismissed pairs, but
+    // it does restrict candidates to incomplete tasks.
     let params = h
         .vector_db
         .inner
@@ -717,6 +719,7 @@ async fn similarity_search_filters_ranks_and_persists_nothing() {
         .unwrap();
     assert!(params.exclude_document_id.is_none());
     assert!(!params.exclude_dismissed);
+    assert!(params.only_incomplete);
 
     // Nothing was judged or persisted.
     assert!(h.judge.calls.lock().unwrap().is_empty());

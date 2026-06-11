@@ -17,6 +17,12 @@ const TEAM_ID: Uuid = uuid::uuid!("a0000000-0000-0000-0000-000000000001");
 const TASK_ONE: &str = "d1000000-0000-0000-0000-000000000001";
 const TASK_TWO: &str = "d1000000-0000-0000-0000-000000000002";
 const TASK_THREE: &str = "d1000000-0000-0000-0000-000000000003";
+const TASK_FOUR: &str = "d1000000-0000-0000-0000-000000000004";
+
+// Status system property options (see `system_properties::StatusOption`).
+const STATUS_IN_PROGRESS: Uuid = uuid::uuid!("00000001-0000-0000-0002-000000000002");
+const STATUS_COMPLETED: Uuid = uuid::uuid!("00000001-0000-0000-0002-000000000004");
+const STATUS_CANCELED: Uuid = uuid::uuid!("00000001-0000-0000-0002-000000000005");
 
 type TestService = TaskDedupService<DIMS, LocalEmbedder, PgTaskVectorDb, NoOpReranker>;
 
@@ -155,6 +161,31 @@ async fn insert_task_embedding(pool: &PgPool, document_id: &str, title: &str, bo
         .await
         .unwrap();
     }
+}
+
+/// Sets a task's Status system property to the given option uuid (e.g.
+/// `system_properties` Completed `…0002-000000000004`).
+async fn set_task_status(pool: &PgPool, document_id: &str, status_option: Uuid) {
+    sqlx::query!(
+        r#"
+        INSERT INTO entity_properties (id, entity_id, entity_type, property_definition_id, values)
+        VALUES (
+            $1,
+            $2,
+            'TASK',
+            '00000001-0000-0000-0000-000000000002',
+            jsonb_build_object('type', 'SelectOption', 'value', jsonb_build_array($3::text))
+        )
+        ON CONFLICT (entity_id, entity_type, property_definition_id) DO UPDATE
+        SET values = EXCLUDED.values
+        "#,
+        Uuid::new_v4(),
+        document_id,
+        status_option.to_string(),
+    )
+    .execute(pool)
+    .await
+    .unwrap();
 }
 
 async fn insert_match(pool: &PgPool, task_id: &str, duplicate_task_id: &str) -> Uuid {
@@ -448,6 +479,64 @@ async fn detection_closes_existing_duplicate_component(pool: PgPool) {
     duplicate_ids.sort();
 
     assert_eq!(duplicate_ids, vec![TASK_TWO, TASK_THREE]);
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../documents/fixtures",
+        scripts("documents_test_data")
+    )
+)]
+async fn similarity_search_only_returns_incomplete_tasks(pool: PgPool) {
+    setup_tasks(&pool).await;
+    insert_task(&pool, TASK_FOUR, "Detect duplicated tasks", OWNER).await;
+    for task in [TASK_ONE, TASK_TWO, TASK_THREE, TASK_FOUR] {
+        insert_task_embedding(&pool, task, DETECTION_TITLE, DETECTION_BODY).await;
+    }
+    set_task_status(&pool, TASK_ONE, STATUS_COMPLETED).await;
+    set_task_status(&pool, TASK_TWO, STATUS_CANCELED).await;
+    set_task_status(&pool, TASK_THREE, STATUS_IN_PROGRESS).await;
+    // TASK_FOUR has no status row and counts as incomplete.
+
+    let service = service(pool.clone());
+    let results = service
+        .similarity_search(OWNER, Some(TEAM_ID), DETECTION_TITLE, DETECTION_BODY)
+        .await
+        .unwrap();
+
+    let mut ids: Vec<&str> = results.iter().map(|r| r.task_id.as_str()).collect();
+    ids.sort();
+    assert_eq!(
+        ids,
+        vec![TASK_THREE, TASK_FOUR],
+        "completed and canceled tasks should be dropped; in-progress and status-less kept"
+    );
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(
+        path = "../../../../documents/fixtures",
+        scripts("documents_test_data")
+    )
+)]
+async fn detection_still_matches_completed_tasks(pool: PgPool) {
+    setup_tasks(&pool).await;
+    insert_task_embedding(&pool, TASK_TWO, DETECTION_TITLE, DETECTION_BODY).await;
+    set_task_status(&pool, TASK_TWO, STATUS_COMPLETED).await;
+
+    let service = service(pool.clone());
+    service
+        .detect_new_task(detection_task(TASK_ONE))
+        .await
+        .unwrap();
+
+    // The new-task path keeps completed candidates: a match against finished
+    // work is still worth surfacing on the task page.
+    let duplicates = service.active_duplicates(TASK_ONE).await.unwrap();
+    assert_eq!(duplicates.len(), 1);
+    assert_eq!(duplicates[0].task_id, TASK_TWO);
 }
 
 #[sqlx::test(

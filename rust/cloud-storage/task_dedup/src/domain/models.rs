@@ -53,6 +53,10 @@ pub struct TaskSearchParameters {
     /// When true, drop candidates already dismissed against
     /// [`exclude_document_id`](Self::exclude_document_id).
     pub exclude_dismissed: bool,
+    /// When true, only return incomplete tasks: candidates whose Status
+    /// property is Completed or Canceled are dropped (tasks without a status
+    /// are kept).
+    pub only_incomplete: bool,
 }
 
 /// A duplicate task candidate shown on the task surface.

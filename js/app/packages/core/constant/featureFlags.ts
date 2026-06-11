@@ -1,4 +1,5 @@
 import { analytics } from '@app/lib/analytics';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 
 /**
  * This constant reflects whether the app is running locally with hot reload enabled
@@ -362,8 +363,13 @@ export const ENABLE_TEAM_INVITE_TIERS_OVERRIDE = DEV_MODE_ENV
 
 export const ENABLE_SOUP_GROUP_BY_OVERRIDE = DEV_MODE_ENV ? true : undefined;
 
-export const ENABLE_TASK_DUPLICATES_FLAG = 'enable-task-duplicates';
-export const ENABLE_TASK_DUPLICATES_OVERRIDE = DEV_MODE_ENV ? true : undefined;
+const ENABLE_TASK_DUPLICATES_FLAG = 'enable-task-duplicates';
+const ENABLE_TASK_DUPLICATES_OVERRIDE = DEV_MODE_ENV ? true : undefined;
+
+export const useTaskDedupFlag = () =>
+  useFeatureFlag(ENABLE_TASK_DUPLICATES_FLAG, {
+    enabledOverride: ENABLE_TASK_DUPLICATES_OVERRIDE,
+  });
 
 // Snippets: reusable markdown documents, the `c` launcher entry, and the `;`
 // insert menu. PostHog-gated (currently targeted at the Macro team) with a

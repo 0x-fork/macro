@@ -150,6 +150,24 @@ impl VectorStore<DIMS> for PgTaskVectorDb {
                           AND m.status = 'dismissed'
                     )
                   )
+                  -- only_incomplete: drop tasks whose Status system property
+                  -- (system_properties::SystemPropertyKey::Status) is set to
+                  -- the Completed or Canceled option. Tasks without a status
+                  -- row are kept.
+                  AND (
+                    NOT $8
+                    OR NOT EXISTS (
+                        SELECT 1
+                        FROM entity_properties ep
+                        WHERE ep.entity_id = e.document_id
+                          AND ep.entity_type = 'TASK'
+                          AND ep.property_definition_id = '00000001-0000-0000-0000-000000000002'
+                          AND ep.values->'value' ?| ARRAY[
+                            '00000001-0000-0000-0002-000000000004',
+                            '00000001-0000-0000-0002-000000000005'
+                          ]
+                    )
+                  )
                 GROUP BY e.document_id, e.search_key, e.content, e.embedding
             ),
             ranked AS (
@@ -176,6 +194,7 @@ impl VectorStore<DIMS> for PgTaskVectorDb {
             params.exclude_document_id,
             params.exclude_dismissed,
             params.limit,
+            params.only_incomplete,
         )
         .fetch_all(&mut *tx)
         .await?;
