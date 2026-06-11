@@ -4,6 +4,10 @@ import { Button, cn } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { ActiveFilterChips } from './active-filter-chips';
 import { SoupSearchbar } from './soup-view-search-bar';
+import {
+  SuggestedFilterChips,
+  useSoupViewSuggestedFilters,
+} from './soup-view-suggested-filters';
 import { useFilterRefinements } from './use-filter-refinements';
 import { ViewOptionsPopover } from './view-options-popover';
 import { SoupViewTabs } from '../soup-view-tabs';
@@ -22,11 +26,14 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
     resetToTabDefaults,
     activeFiltersList,
     isOptionActive,
+    addFilter,
     replaceFilter,
     removeFilter,
   } = useFilterRefinements();
 
+  const suggestedFilters = useSoupViewSuggestedFilters({ isOptionActive });
   const hasActiveFilters = () => activeFiltersList().length > 0;
+  const hasSuggestedFilters = () => suggestedFilters().length > 0;
 
   return (
     <Show when={!isMobile()}>
@@ -49,7 +56,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
             <ViewOptionsPopover />
           </div>
         </Show>
-        <Show when={!props.searchView || hasActiveFilters()}>
+        <Show when={!props.searchView || hasActiveFilters() || hasSuggestedFilters()}>
           <div class="mx-2 rounded-lg">
             <Show when={!props.searchView}>
               <div
@@ -92,7 +99,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
                 </div>
               </div>
             </Show>
-            <Show when={hasActiveFilters()}>
+            <Show when={hasActiveFilters() || hasSuggestedFilters()}>
               <div
                 class={cn(
                   'px-2 py-1.5',
@@ -101,13 +108,21 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
                     : 'border-t border-edge-muted/30 rounded-b-lg'
                 )}
               >
-                <ActiveFilterChips
-                  filters={activeFiltersList()}
-                  onRemove={removeFilter}
-                  onReplace={replaceFilter}
-                  onClearAll={resetToTabDefaults}
-                  isOptionActive={isOptionActive}
-                />
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <ActiveFilterChips
+                    filters={activeFiltersList()}
+                    onAdd={addFilter}
+                    onRemove={removeFilter}
+                    onReplace={replaceFilter}
+                    onClearAll={resetToTabDefaults}
+                    isOptionActive={isOptionActive}
+                  />
+                  <SuggestedFilterChips
+                    suggestions={suggestedFilters()}
+                    onAdd={addFilter}
+                    isOptionActive={isOptionActive}
+                  />
+                </div>
               </div>
             </Show>
           </div>

@@ -75,6 +75,7 @@ export type ActiveFilter = {
 
 interface ActiveFilterChipsProps {
   filters: ActiveFilter[];
+  onAdd?: (optionId: string) => void;
   onRemove: (optionId: string) => void;
   onReplace: (oldOptionId: string, newOptionId: string) => void;
   onClearAll: () => void;
@@ -96,7 +97,7 @@ const ChipContent = (props: {
     <>
       <Show when={props.filter.icon}>
         {(icon) => (
-          <span class="size-2.5 flex items-center justify-center shrink-0">
+          <span class="size-3.5 flex items-center justify-center shrink-0 [&>*]:size-3 [&_svg]:size-3">
             {icon()()}
           </span>
         )}
@@ -116,7 +117,7 @@ const CHIP_WRAPPER_CLASS = cn(
 );
 
 const CHIP_TRIGGER_CLASS = cn(
-  'inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5 rounded-l-md',
+  'inline-flex items-center gap-1.5 pl-1.5 pr-0.5 py-0.5 rounded-l-md',
   'hover:text-ink hover:bg-ink/15 transition-colors'
 );
 
@@ -144,6 +145,7 @@ type FilterGroup = {
 
 const GroupedFilterChip = (props: {
   group: FilterGroup;
+  onAdd?: (optionId: string) => void;
   onRemove: (optionId: string) => void;
   onReplace: (oldOptionId: string, newOptionId: string) => void;
   isOptionActive: (optionId: string) => boolean;
@@ -169,7 +171,7 @@ const GroupedFilterChip = (props: {
       <Show
         when={hasOptions()}
         fallback={
-          <span class="inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5 rounded-l-md hover:bg-ink/15 hover:text-ink transition-colors">
+          <span class="inline-flex items-center gap-1.5 pl-1.5 pr-0.5 py-0.5 rounded-l-md hover:bg-ink/15 hover:text-ink transition-colors">
             <div class="flex items-center -space-x-1.5">
               <For each={props.group.filters}>
                 {(filter) => (
@@ -215,6 +217,7 @@ const GroupedFilterChip = (props: {
                       <DropdownMenu.Item
                         class="w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 rounded-lg text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink data-highlighted:text-ink hover:bg-ink/3 data-highlighted:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-highlighted:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] outline-none cursor-default"
                         onSelect={() => {
+                          queueMicrotask(() => setOpen(true));
                           const currentFilter = props.group.filters.find(
                             (f) => f.optionId() === option.id
                           );
@@ -226,7 +229,9 @@ const GroupedFilterChip = (props: {
                             }
                           } else if (!active()) {
                             const firstFilter = props.group.filters[0];
-                            if (firstFilter?.onReplace) {
+                            if (firstFilter?.multiple !== false && props.onAdd) {
+                              props.onAdd(option.id);
+                            } else if (firstFilter?.onReplace) {
                               firstFilter.onReplace(option.id);
                             } else {
                               props.onReplace(
@@ -250,7 +255,7 @@ const GroupedFilterChip = (props: {
 
                         <Show when={option.icon}>
                           {(icon) => (
-                            <span class="size-4 flex items-center justify-center shrink-0">
+                            <span class="size-3.5 flex items-center justify-center shrink-0 [&>*]:size-3 [&_svg]:size-3">
                               {icon()()}
                             </span>
                           )}
@@ -332,6 +337,7 @@ const SearchableFilterChip = (props: {
 
 const FilterChip = (props: {
   filter: ActiveFilter;
+  onAdd?: (optionId: string) => void;
   onRemove: () => void;
   onReplace: (newOptionId: string) => void;
   isOptionActive: (optionId: string) => boolean;
@@ -386,8 +392,20 @@ const FilterChip = (props: {
                     return (
                       <Dropdown.Item
                         onSelect={() => {
-                          if (active()) return;
-                          if (props.filter.onReplace) {
+                          if (!isSingleSelect()) queueMicrotask(() => setOpen(true));
+                          if (active()) {
+                            if (!isSingleSelect()) {
+                              if (props.filter.onRemove) {
+                                props.filter.onRemove();
+                              } else {
+                                props.onRemove();
+                              }
+                            }
+                            return;
+                          }
+                          if (!isSingleSelect() && props.onAdd) {
+                            props.onAdd(option.id);
+                          } else if (props.filter.onReplace) {
                             props.filter.onReplace(option.id);
                           } else {
                             props.onReplace(option.id);
@@ -427,7 +445,7 @@ const FilterChip = (props: {
 
                         <Show when={option.icon}>
                           {(icon) => (
-                            <span class="size-4 flex items-center justify-center shrink-0">
+                            <span class="size-3.5 flex items-center justify-center shrink-0 [&>*]:size-3 [&_svg]:size-3">
                               {icon()()}
                             </span>
                           )}
@@ -532,6 +550,7 @@ export const ActiveFilterChips = (props: ActiveFilterChipsProps) => {
       return (
         <FilterChip
           filter={filter}
+          onAdd={props.onAdd}
           onRemove={onRemove}
           onReplace={(newOptionId) =>
             props.onReplace(filter.optionId(), newOptionId)
@@ -547,6 +566,7 @@ export const ActiveFilterChips = (props: ActiveFilterChipsProps) => {
     return (
       <GroupedFilterChip
         group={group}
+        onAdd={props.onAdd}
         onRemove={props.onRemove}
         onReplace={props.onReplace}
         isOptionActive={props.isOptionActive}

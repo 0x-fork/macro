@@ -213,6 +213,7 @@ export function useFilterRefinements() {
             optionLabel: () => option.label,
             icon: option.icon,
             categoryOptions: category.options,
+            multiple: category.multiple,
           }))
         );
       }
@@ -488,6 +489,15 @@ export function useFilterRefinements() {
       : filter.query;
   };
 
+  const addFilter = (optionId: string) => {
+    if (soup.predicates.isActive(optionId)) return;
+    const query = getFilterQuery(optionId);
+    batch(() => {
+      soup.predicates.toggle({ or: [optionId as FilterID] });
+      if (query) queryFilters.add(query);
+    });
+  };
+
   const removeFilter = (optionId: string) => {
     const query = getFilterQuery(optionId);
     batch(() => {
@@ -536,6 +546,7 @@ export function useFilterRefinements() {
     resetToTabDefaults,
     currentView,
     activeFiltersList,
+    addFilter,
     removeFilter,
     replaceFilter,
     isOptionActive,
