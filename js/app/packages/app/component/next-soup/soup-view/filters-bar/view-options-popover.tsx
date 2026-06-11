@@ -1,8 +1,24 @@
-import { type Component, createMemo, createSignal, For, Show } from 'solid-js';
+import {
+  type Accessor,
+  batch,
+  type Component,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  Show,
+} from 'solid-js';
 import { Popover } from '@kobalte/core/popover';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
+import StatusInProgress from '@icon/task-in-progress-circle-pie.svg';
+import PriorityHigh from '@icon/wide-priority-high.svg';
+import CalendarIcon from '@phosphor/calendar-blank.svg';
 import CheckIcon from '@phosphor/check.svg';
+import CircleDashedIcon from '@phosphor/circle-dashed.svg';
+import FolderIcon from '@phosphor/folder-simple.svg';
 import SlidersIcon from '@phosphor/sliders-horizontal.svg';
+import TagIcon from '@phosphor/tag.svg';
+import UsersIcon from '@phosphor/users.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import type {
   SortOption,
@@ -23,6 +39,10 @@ import {
   INBOX_GROUP_OPTIONS,
   TASK_GROUP_OPTIONS,
 } from '@app/component/next-soup/soup-view/group-options';
+import { UserIcon } from '@core/component/UserIcon';
+import { useUserId } from '@core/context/user';
+import { SYSTEM_PROPERTY_IDS } from '@property/constants';
+import { useContacts } from '@queries/contacts/contacts';
 import { Button, cn, Layer, Tooltip } from '@ui';
 import { useSoup } from '../../soup-context';
 import { useSoupView } from '../soup-view-context';
@@ -34,8 +54,10 @@ import { isListViewID } from '@app/constants/list-views';
 import {
   SearchFilterDropdown,
   VIEW_FILTER_CATEGORIES,
+  buildContactLabel,
   type FilterCategory,
 } from './unified-filter-dropdown';
+import { NO_ASSIGNEE } from '@app/component/next-soup/filters';
 import { INDEX_OPTIONS } from './search-filter-controls';
 
 const VIEW_SORT_OPTIONS: Partial<Record<ListView, SortOption[]>> = {
@@ -58,13 +80,53 @@ const SELECT_CONTENT_CLASS = cn(
   MENU_SHADOW_CLASS
 );
 const SELECT_ITEM_CLASS =
-  'w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] outline-none cursor-default rounded-lg';
+  'group w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] outline-none cursor-default rounded-lg';
+const OPTION_ICON_CLASS =
+  'size-4 flex items-center justify-center shrink-0 text-ink/65 opacity-70 group-hover:opacity-100 group-hover:text-ink group-focus:opacity-100 group-focus:text-ink group-data-[highlighted]:opacity-100 group-data-[highlighted]:text-ink [&>*]:size-3.5 [&_svg]:size-3.5';
+
+const GroupOptionIcon = (props: { option: GroupOption }) => {
+  const iconClass = 'size-3.5';
+  const value = () => props.option.value;
+
+  return (
+    <span class={OPTION_ICON_CLASS}>
+      <Show when={value() === 'none'}>
+        <CircleDashedIcon class={iconClass} />
+      </Show>
+      <Show when={value() === 'date'}>
+        <CalendarIcon class={iconClass} />
+      </Show>
+      <Show when={value() === 'entity_type'}>
+        <TagIcon class={iconClass} />
+      </Show>
+      <Show when={value() === 'project'}>
+        <FolderIcon class={iconClass} />
+      </Show>
+      <Show when={value() === `property:${SYSTEM_PROPERTY_IDS.STATUS}`}>
+        <StatusInProgress class={iconClass} />
+      </Show>
+      <Show when={value() === `property:${SYSTEM_PROPERTY_IDS.PRIORITY}`}>
+        <PriorityHigh class={iconClass} />
+      </Show>
+      <Show when={value() === `property:${SYSTEM_PROPERTY_IDS.ASSIGNEES}`}>
+        <UsersIcon class={iconClass} />
+      </Show>
+    </span>
+  );
+};
 
 export const ViewOptionsPopover: Component = () => {
   const [open, setOpen] = createSignal(false);
   const soup = useSoup();
-  const { soup: soupView } = useSoupView();
+  const {
+    soup: soupView,
+    queryFilters,
+    assigneeFilter,
+    setAssigneeFilter,
+  } = useSoupView();
   const panel = useSplitPanelOrThrow();
+  const contacts = useContacts();
+  const userId = useUserId();
   const analytics = useAnalytics();
 
   const isPreviewActive = () => !!soup.previewEntity();
@@ -159,8 +221,69 @@ export const ViewOptionsPopover: Component = () => {
     return INDEX_OPTIONS.some((opt) => isOptionActive(opt.value));
   });
 
+  const assigneeOptions = createMemo(() => {
+    const currentUserId = userId();
+    return [
+      {
+        id: NO_ASSIGNEE,
+        label: 'Unassigned',
+        icon: () => <CircleDashedIcon class="size-3.5 text-ink-muted" />,
+      },
+      ...contacts().map((contact) => ({
+        id: contact.id,
+        label: buildContactLabel(contact, currentUserId),
+        icon: () => (
+          <UserIcon
+            id={contact.id}
+            size="sm"
+            suppressClick
+            showTooltip={false}
+          />
+        ),
+      })),
+    ];
+  });
+
+  const toggleAssignee = (id: string) => {
+    const current = assigneeFilter();
+    const next = current.includes(id)
+      ? current.filter((assigneeId) => assigneeId !== id)
+      : [...current, id];
+
+    batch(() => {
+      setAssigneeFilter(next);
+
+      const shouldBeActive = next.length > 0;
+      if (shouldBeActive !== soupView.predicates.isActive('assignee')) {
+        soupView.predicates.toggle({ and: ['assignee'] });
+      }
+
+      if (id === NO_ASSIGNEE) return;
+
+      const query = {
+        include: {
+          properties: [
+            {
+              propertyId: SYSTEM_PROPERTY_IDS.ASSIGNEES,
+              type: 'entity' as const,
+              value: id,
+            },
+          ],
+        },
+      };
+
+      if (current.includes(id)) queryFilters.remove(query);
+      else queryFilters.add(query);
+    });
+  };
+
   const hasActiveOptions = createMemo(() => {
-    return activeFilterCount() > 0 || hasActiveSearchIndex() || isPreviewActive();
+    return (
+      activeFilterCount() > 0 ||
+      assigneeFilter().length > 0 ||
+      hasActiveSearchIndex() ||
+      isPreviewActive()
+    );
   });
 
   registerHotkey({
@@ -220,6 +343,13 @@ export const ViewOptionsPopover: Component = () => {
                 />
               )}
             </For>
+            <Show when={currentView() === 'tasks'}>
+              <AssigneeFilterDropdown
+                options={assigneeOptions()}
+                activeIds={assigneeFilter}
+                toggleAssignee={toggleAssignee}
+              />
+            </Show>
 
             {/* Sort Section */}
             <div class="flex items-center justify-between gap-3">
@@ -239,11 +369,10 @@ export const ViewOptionsPopover: Component = () => {
                             onSelect={() => onSortChange(option.value)}
                           >
                             <span
-                              class="flex-1 truncate"
-                              classList={{
-                                'text-ink font-medium': sortValue() === option.value,
-                                'text-ink-muted': sortValue() !== option.value,
-                              }}
+                              class={cn(
+                                'flex-1 truncate',
+                                sortValue() === option.value && 'text-ink font-medium'
+                              )}
                             >
                               {option.label}
                             </span>
@@ -279,14 +408,13 @@ export const ViewOptionsPopover: Component = () => {
                             class={SELECT_ITEM_CLASS}
                             onSelect={() => onGroupChange(option.value)}
                           >
+                            <GroupOptionIcon option={option} />
                             <span
-                              class="flex-1 truncate"
-                              classList={{
-                                'text-ink font-medium':
-                                  groupValue() === option.value,
-                                'text-ink-muted':
-                                  groupValue() !== option.value,
-                              }}
+                              class={cn(
+                                'flex-1 truncate',
+                                groupValue() === option.value &&
+                                  'text-ink font-medium'
+                              )}
                             >
                               {option.label}
                             </span>
@@ -328,6 +456,84 @@ export const ViewOptionsPopover: Component = () => {
         </Layer>
       </Popover.Portal>
     </Popover>
+  );
+};
+
+const AssigneeFilterDropdown: Component<{
+  options: Array<{
+    id: string;
+    label: string;
+    icon?: () => JSX.Element;
+  }>;
+  activeIds: Accessor<string[]>;
+  toggleAssignee: (id: string) => void;
+}> = (props) => {
+  const activeCount = createMemo(() => props.activeIds().length);
+  const activeLabel = createMemo(() => {
+    const active = props.options.filter((option) =>
+      props.activeIds().includes(option.id)
+    );
+    if (active.length === 0) return 'All';
+    if (active.length === 1) return active[0].label;
+    return `${active.length} selected`;
+  });
+
+  return (
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs text-ink-muted">Assignee</span>
+        <Show when={activeCount() > 0}>
+          <span class="size-1.5 rounded-full bg-accent" />
+        </Show>
+      </div>
+      <DropdownMenu placement="bottom-end" gutter={4}>
+        <DropdownMenu.Trigger class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors" tabIndex={0}>
+          <span class={activeCount() > 0 ? 'text-ink' : 'text-ink-muted'}>
+            {activeLabel()}
+          </span>
+          <CaretDownIcon class="size-3 text-ink-muted" />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <Layer depth={3}>
+            <DropdownMenu.Content class={SELECT_CONTENT_CLASS}>
+              <For each={props.options}>
+                {(option) => {
+                  const active = () => props.activeIds().includes(option.id);
+                  return (
+                    <DropdownMenu.Item
+                      class={SELECT_ITEM_CLASS}
+                      onSelect={() => props.toggleAssignee(option.id)}
+                      closeOnSelect={false}
+                    >
+                      <span
+                        class={cn(
+                          'size-4 flex items-center justify-center shrink-0 rounded border transition-colors opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-data-[highlighted]:opacity-100',
+                          active()
+                            ? 'opacity-100 bg-accent border-accent'
+                            : 'border-edge-muted'
+                        )}
+                      >
+                        <Show when={active()}>
+                          <CheckIcon class="size-2.5 text-surface" />
+                        </Show>
+                      </span>
+                      <Show when={option.icon}>
+                        {(icon) => <span class={OPTION_ICON_CLASS}>{icon()()}</span>}
+                      </Show>
+                      <span
+                        class={cn('flex-1 truncate', active() && 'text-ink')}
+                      >
+                        {option.label}
+                      </span>
+                    </DropdownMenu.Item>
+                  );
+                }}
+              </For>
+            </DropdownMenu.Content>
+          </Layer>
+        </DropdownMenu.Portal>
+      </DropdownMenu>
+    </div>
   );
 };
 
@@ -376,8 +582,10 @@ const FilterCategoryDropdown: Component<{
                     >
                       <span
                         class={cn(
-                          'size-4 flex items-center justify-center shrink-0 rounded border transition-colors',
-                          active() ? 'bg-accent border-accent' : 'border-edge-muted'
+                          'size-4 flex items-center justify-center shrink-0 rounded border transition-colors opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-data-[highlighted]:opacity-100',
+                          active()
+                            ? 'opacity-100 bg-accent border-accent'
+                            : 'border-edge-muted'
                         )}
                       >
                         <Show when={active()}>
@@ -386,16 +594,11 @@ const FilterCategoryDropdown: Component<{
                       </span>
                       <Show when={option.icon}>
                         {(icon) => (
-                          <span class="size-4 flex items-center justify-center shrink-0">
-                            {icon()()}
-                          </span>
+                          <span class={OPTION_ICON_CLASS}>{icon()()}</span>
                         )}
                       </Show>
                       <span
-                        class={cn(
-                          'flex-1 truncate',
-                          active() ? 'text-ink' : 'text-ink-muted'
-                        )}
+                        class={cn('flex-1 truncate', active() && 'text-ink')}
                       >
                         {option.label}
                       </span>

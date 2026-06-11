@@ -266,7 +266,11 @@ const TASKS_FILTER_CATEGORIES: FilterCategory[] = [
           />
         ),
       },
-      { id: 'task-no-priority', label: 'No Priority' },
+      {
+        id: 'task-no-priority',
+        label: 'No Priority',
+        icon: () => <CircleDashedIcon class="size-3.5 text-ink-muted" />,
+      },
     ],
     multiple: true,
   },
