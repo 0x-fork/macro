@@ -224,16 +224,15 @@ jobs:
           # Receipt: the deploy job logs the same hash on read.
           echo "handoff receipt: $(sha256sum prebuilt-binaries.tar.gz | cut -d' ' -f1) ($(stat -c%s prebuilt-binaries.tar.gz) bytes)"
 
-      # Handoff to the matching deploy job via a run-scoped GitHub artifact:
-      # strongly consistent across jobs (no snapshot-visibility races) and
-      # provider-portable. Run-scoped name; deploy-services downloads it.
+      # Handoff to the matching deploy job via Namespace artifact storage:
+      # strongly consistent object storage (no snapshot-visibility races),
+      # rides Namespace's network rather than the GitHub artifacts API.
+      # Attempt-scoped path so re-runs never collide with stale uploads.
       - name: Upload handoff artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: handoff-binaries-${{ matrix.service }}
-          path: prebuilt-binaries.tar.gz
-          retention-days: 1
-          overwrite: true
+        shell: bash
+        env:
+          DEST: handoff/${{ github.run_id }}-${{ github.run_attempt }}/${{ matrix.service }}/prebuilt-binaries.tar.gz
+        run: nsc artifact upload prebuilt-binaries.tar.gz "$DEST" --expires_in=24h
 
       - name: Teardown Nix (free cache volume for commit)
         if: always()
@@ -290,14 +289,12 @@ jobs:
           # root; the deploy job logs the same hash on read.
           echo "handoff receipt: $(sha256sum lambda-artifacts.tar.gz | cut -d' ' -f1) ($(stat -c%s lambda-artifacts.tar.gz) bytes)"
 
-      # Handoff via run-scoped GitHub artifact (see build-service-binaries).
+      # Handoff via Namespace artifact storage (see build-service-binaries).
       - name: Upload handoff artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: handoff-lambdas-${{ matrix.service }}
-          path: lambda-artifacts.tar.gz
-          retention-days: 1
-          overwrite: true
+        shell: bash
+        env:
+          DEST: handoff/${{ github.run_id }}-${{ github.run_attempt }}/${{ matrix.service }}/lambda-artifacts.tar.gz
+        run: nsc artifact upload lambda-artifacts.tar.gz "$DEST" --expires_in=24h
 
       - name: Teardown Nix (free cache volume for commit)
         if: always()
@@ -352,6 +349,30 @@ jobs:
           echo "has_binaries=$has_binaries" >> "$GITHUB_OUTPUT"
           echo "has_lambdas=$has_lambdas" >> "$GITHUB_OUTPUT"
 
+      # Pull the handoff tars from Namespace artifact storage into runner.temp
+      # (outside the workspace, which the composite action's checkout cleans).
+      # The composite's tar-path branch handles receipts + the extract guard.
+      - name: Download handoff artifacts
+        if: ${{ steps.check-artifacts.outputs.has_binaries == 'true' || steps.check-artifacts.outputs.has_lambdas == 'true' }}
+        shell: bash
+        env:
+          HAS_BINARIES: ${{ steps.check-artifacts.outputs.has_binaries }}
+          HAS_LAMBDAS: ${{ steps.check-artifacts.outputs.has_lambdas }}
+          BASE: handoff/${{ github.run_id }}-${{ github.run_attempt }}/${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          if ! command -v nsc >/dev/null 2>&1; then
+            echo "::error::nsc CLI not found — this job expects a Namespace runner (or add namespacelabs/nscloud-setup)"
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/handoff"
+          if [[ "$HAS_BINARIES" == "true" ]]; then
+            nsc artifact download "$BASE/prebuilt-binaries.tar.gz" "$RUNNER_TEMP/handoff/prebuilt-binaries.tar.gz"
+          fi
+          if [[ "$HAS_LAMBDAS" == "true" ]]; then
+            nsc artifact download "$BASE/lambda-artifacts.tar.gz" "$RUNNER_TEMP/handoff/lambda-artifacts.tar.gz"
+          fi
+
       # Cache Pulumi's provider plugins ($PULUMI_HOME/plugins) on a Namespace
       # cache volume. Plugins are version-pinned by infra/ and identical across
       # services. Optimization-only: a cold volume just re-downloads (~45s).
@@ -378,8 +399,9 @@ jobs:
           aws-secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           pulumi-access-token: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           pulumi-service-name: ${{ steps.project-name.outputs.project-name }}
-          prebuilt-binaries-artifact: ${{ steps.check-artifacts.outputs.has_binaries == 'true' && format('handoff-binaries-{0}', matrix.service) || '' }}
-          lambda-artifacts: ${{ steps.check-artifacts.outputs.has_lambdas == 'true' && format('handoff-lambdas-{0}', matrix.service) || '' }}
+          use-namespace-builder: 'true'
+          prebuilt-binaries-tar: ${{ steps.check-artifacts.outputs.has_binaries == 'true' && format('{0}/handoff/prebuilt-binaries.tar.gz', runner.temp) || '' }}
+          lambda-artifacts-tar: ${{ steps.check-artifacts.outputs.has_lambdas == 'true' && format('{0}/handoff/lambda-artifacts.tar.gz', runner.temp) || '' }}
           dd-app-key: ${{ secrets.DD_APP_KEY }}
           dd-api-key: ${{ secrets.DD_API_KEY }}
 
