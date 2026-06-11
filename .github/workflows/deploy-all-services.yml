@@ -75,7 +75,7 @@ jobs:
     name: Warm shared binary deps onto sticky disk
     needs: setup
     if: ${{ needs.setup.outputs.binaries != '[]' }}
-    runs-on: namespace-profile-linux-small
+    runs-on: namespace-profile-linux-mid
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
@@ -118,7 +118,7 @@ jobs:
     name: Warm shared lambda deps onto sticky disk
     needs: setup
     if: ${{ needs.setup.outputs.lambdas != '[]' }}
-    runs-on: namespace-profile-linux-small
+    runs-on: namespace-profile-linux-mid
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
@@ -163,7 +163,7 @@ jobs:
     if: ${{ needs.setup.outputs.binaries != '[]' }}
     # Clones the warm /nix cache volume populated by warm-binaries so only
     # each service's own crate compiles (cold volume -> Cachix substitution).
-    runs-on: namespace-profile-linux-small
+    runs-on: namespace-profile-linux-mid
     strategy:
       fail-fast: false
       # No max-parallel: all binary services build concurrently (they only clone
@@ -246,7 +246,7 @@ jobs:
     # of a service's handlers via `nix build .#deploy-lambda-<name>`, cloning the
     # warm lambda /nix disk committed by warm-lambdas. Unchanged handlers are
     # pure cache hits (substituted from the disk/Cachix, no recompile).
-    runs-on: namespace-profile-linux-small
+    runs-on: namespace-profile-linux-mid
     strategy:
       fail-fast: false
       # No max-parallel: runners autoscale, so all lambda services
