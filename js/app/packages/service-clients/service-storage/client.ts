@@ -12,6 +12,7 @@ import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
 import {
   SERVER_HOSTS,
   SYNC_PERMISSION_TOKEN_DSS_HOST,
+  SYNC_SERVICE_HOSTS,
 } from '@core/constant/servers';
 import type { FetchError } from '@core/service';
 import { cache } from '@core/util/cache';
@@ -20,11 +21,13 @@ import {
   fetchWithToken,
 } from '@core/util/fetchWithToken';
 import { registerClient } from '@core/util/mockClient';
+import { isTauri } from '@core/util/platform';
 import type { ResultError } from '@core/util/result';
 
 import type { SafeFetchInit } from '@core/util/safeFetch';
 import type { IDocumentStorageServiceFile } from '@filesystem/file';
 import { platformFetch } from 'core/util/platformFetch';
+import type { SerializedEditorState } from 'lexical';
 import { err, ok, type Result } from 'neverthrow';
 import type { ApiChannelWithLatest } from './channel-list-types';
 import type {
@@ -69,6 +72,8 @@ import type { CreateInstructionsDocumentResponse } from './generated/schemas/cre
 import type { CreateMarkdownDocumentRequest } from './generated/schemas/createMarkdownDocumentRequest';
 import type { CreateMarkdownHandler200 } from './generated/schemas/createMarkdownHandler200';
 import type { CreateProjectResponse } from './generated/schemas/createProjectResponse';
+import type { CreateSnippetHandler200 } from './generated/schemas/createSnippetHandler200';
+import type { CreateSnippetRequest } from './generated/schemas/createSnippetRequest';
 import type { CreateTaskHandler200 } from './generated/schemas/createTaskHandler200';
 import type { CreateTaskRequest } from './generated/schemas/createTaskRequest';
 import type { CreateUnthreadedAnchorResponse } from './generated/schemas/createUnthreadedAnchorResponse';
@@ -84,6 +89,7 @@ import type { DeleteUnthreadedAnchorResponse } from './generated/schemas/deleteU
 import type { DocumentMetadata } from './generated/schemas/documentMetadata';
 import type { DocumentPreview } from './generated/schemas/documentPreview';
 import type { DocumentResponseMetadataWithContent } from './generated/schemas/documentResponseMetadataWithContent';
+import type { DocumentTeamShareResponse } from './generated/schemas/documentTeamShareResponse';
 import type { EditAnchorResponse } from './generated/schemas/editAnchorResponse';
 import type { EditCommentResponse } from './generated/schemas/editCommentResponse';
 import type { EditCrmCommentRequest } from './generated/schemas/editCrmCommentRequest';
@@ -146,6 +152,11 @@ function normalizeLocationResponseV3(response: LocationResponseV3) {
 const MINUTES_BEFORE_PRESIGNED_EXPIRES = 14;
 
 const dssHost = SERVER_HOSTS['document-storage-service'];
+const syncServiceWorkerHost = SYNC_SERVICE_HOSTS.worker;
+const syncOrigin =
+  import.meta.env.MODE === 'development'
+    ? 'https://dev.macro.com'
+    : 'https://macro.com';
 
 export function dssFetch(
   url: string,
@@ -162,6 +173,22 @@ export function dssFetch<T extends Record<string, any> = never>(
   | Promise<Result<T, ResultError<FetchWithTokenErrorCode>[]>>
   | Promise<Result<void, ResultError<FetchWithTokenErrorCode>[]>> {
   return fetchWithToken<T>(`${dssHost}${url}`, init);
+}
+
+async function getDocumentPermissionToken(documentId: string): Promise<string> {
+  const token = await fetchWithToken<GetDocumentPermissionsTokenResponse>(
+    `${SYNC_PERMISSION_TOKEN_DSS_HOST}/documents/permissions_token/${documentId}`,
+    {
+      method: 'POST',
+    }
+  );
+
+  if (token.isErr()) {
+    console.error('Failed to create permission token:', token.error);
+    throw new Error('Failed to create permission token');
+  }
+
+  return token.value.token;
 }
 
 type Success = {
@@ -279,7 +306,8 @@ export function blockNameToItemType(
 export function stringToItemType(str: string): ItemType | undefined {
   switch (str) {
     case 'email':
-    case 'thread': {
+    case 'thread':
+    case 'email_thread': {
       return 'email';
     }
     case 'call':
@@ -287,6 +315,7 @@ export function stringToItemType(str: string): ItemType | undefined {
     case 'document':
     case 'project':
     case 'channel':
+    case 'crm_company':
       return str;
     default:
       return undefined;
@@ -1032,6 +1061,86 @@ export const storageServiceClient = {
     return ok(response);
   },
 
+  /**
+   * Creates a snippet and initializes its sync-service content on the backend.
+   * Snippets are created personal; team sharing is toggled separately via
+   * setDocumentTeamShare.
+   */
+  async createSnippet(request: CreateSnippetRequest) {
+    const result = await dssFetch<CreateSnippetHandler200>(
+      `/documents/create_snippet`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }
+    );
+
+    if (!result.isOk()) {
+      const errors = result.error;
+      if (errors[0].message.includes('403')) {
+        showPaywall(PaywallKey.FILE_LIMIT);
+      }
+      return err(result.error);
+    }
+
+    const response = result.value;
+    return ok(response);
+  },
+
+  async getSnippetRaw(args: {
+    documentId: string;
+  }): Promise<SerializedEditorState> {
+    const token = await getDocumentPermissionToken(args.documentId);
+    const response = await platformFetch(
+      `${syncServiceWorkerHost}/document/${args.documentId}/raw`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...(isTauri() && { Origin: syncOrigin }),
+        },
+        method: 'GET',
+      }
+    );
+
+    if (!response.ok) {
+      try {
+        console.error('Failed to fetch raw snippet', await response.text());
+      } catch (_e) {
+        console.error('Failed to fetch raw snippet');
+      }
+      throw new Error('Failed to fetch raw snippet');
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Gets the team-share state of a document (resolved against the owner's team).
+   */
+  async getDocumentTeamShare(args: { documentId: string }) {
+    return await dssFetch<DocumentTeamShareResponse>(
+      `/documents/${args.documentId}/team_share`
+    );
+  },
+
+  /**
+   * Shares or unshares a document with the owner's team. Sharing grants the
+   * team Edit access.
+   */
+  async setDocumentTeamShare(args: {
+    documentId: string;
+    shareWithTeam: boolean;
+  }) {
+    return await dssFetch<DocumentTeamShareResponse>(
+      `/documents/${args.documentId}/team_share`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ shareWithTeam: args.shareWithTeam }),
+      }
+    );
+  },
+
   async getTaskDuplicates(params: { documentId: string }) {
     return (
       await dssFetch<TaskDuplicatesResponse>(
@@ -1143,6 +1252,12 @@ export const storageServiceClient = {
         }
       )
     ).map((result) => result.data);
+  },
+
+  async fetchCachedSnapshot(
+    documentId: string
+  ): Promise<Result<Uint8Array, ResultError<FetchWithTokenErrorCode>[]>> {
+    return dssFetch<Uint8Array>(`/documents/${documentId}/cached_snapshot_url`);
   },
 
   async getDocumentShortId({

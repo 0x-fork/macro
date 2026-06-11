@@ -20,6 +20,10 @@ import {
 } from '@app/component/next-soup/filters/filter-store/query-store';
 import { createGroupedSoupQueries } from '@app/component/next-soup/soup-view/create-grouped-soup-queries';
 import { createSearchState } from '@app/component/next-soup/soup-view/create-search-state';
+import {
+  INBOX_FILTER_ENTRY_KEY,
+  registerInboxFilterSplit,
+} from '@app/component/next-soup/soup-view/inbox-filter-controllers';
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import { useEntryState } from '@app/component/split-layout/entry-state';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
@@ -54,6 +58,7 @@ import type { SoupPage } from '@service-storage/generated/schemas';
 import type { InfiniteData } from '@tanstack/solid-query';
 import {
   type Accessor,
+  batch,
   createContext,
   createEffect,
   createMemo,
@@ -84,8 +89,17 @@ type DataSource<T> = {
   dataUpdatedAt: Accessor<number | undefined>;
 };
 
+type SoupViewInitializeOptions = {
+  initialQuery?: Query;
+  initialClientFilters?: SetPredicatesInput<string>;
+  initialSearchText?: string;
+  disableLocalSearch?: boolean;
+  additionalEntities?: Accessor<EntityData[]>;
+};
+
 interface SoupViewContextValues {
   soup: SoupState;
+  initialize: (options?: SoupViewInitializeOptions) => void;
   source: DataSource<EntityData>;
   searchText: Accessor<string>;
   setSearchText: (value: string) => void;
@@ -125,16 +139,9 @@ export const useSoupView = () => {
 
 export const useMaybeSoupView = () => useContext(SoupViewContext);
 
-interface SoupViewContextProviderProps {
+interface SoupViewContextProviderProps extends SoupViewInitializeOptions {
   soup?: SoupState;
-  initialQuery?: Query;
-  initialSearchText?: string;
-  disableLocalSearch?: boolean;
-  /**
-   * Additional client-side entities to merge into the soup item stream.
-   * Visibility is still controlled by the active client filters.
-   */
-  additionalEntities?: Accessor<EntityData[]>;
+  initialEnabled?: boolean;
 }
 
 type ApiSortMethod = NonNullable<SoupParams['sort_method']>;
@@ -149,6 +156,14 @@ export const SoupViewContextProvider: FlowComponent<
   SoupViewContextProviderProps
 > = (props) => {
   const soup = props.soup ?? createSoupState();
+  const [enabled, setEnabled] = createSignal(props.initialEnabled ?? false);
+  const [config, setConfig] = createSignal<SoupViewInitializeOptions>({
+    initialQuery: props.initialQuery,
+    initialClientFilters: props.initialClientFilters,
+    initialSearchText: props.initialSearchText,
+    disableLocalSearch: props.disableLocalSearch,
+    additionalEntities: props.additionalEntities,
+  });
 
   const queryClient = useQueryClient();
 
@@ -168,13 +183,8 @@ export const SoupViewContextProvider: FlowComponent<
 
   const panel = useSplitPanelOrThrow();
 
-  // Restore filter state from this history entry if it was captured during a
-  // previous nav-away; otherwise fall back to the caller-provided initial.
-  const persistedFilters = panel.handle.currentEntryState()?.[
-    'search.filters'
-  ] as Query | undefined;
   const store = createQueryStore({
-    initial: persistedFilters ?? props.initialQuery,
+    initial: props.initialQuery,
   });
 
   const filterCaptorTeardown = panel.handle.registerEntryStateCaptor(
@@ -186,12 +196,6 @@ export const SoupViewContextProvider: FlowComponent<
   // Client-side predicate state (drives the "Type: X" chips and other
   // toggleable filters) also needs to round-trip per entry, since the chip UI
   // reads predicates directly and would otherwise show empty after back-nav.
-  const persistedPredicates = panel.handle.currentEntryState()?.[
-    'search.predicates'
-  ] as SetPredicatesInput<string> | undefined;
-  if (persistedPredicates) {
-    soup.predicates.set(persistedPredicates);
-  }
   const predicatesCaptorTeardown = panel.handle.registerEntryStateCaptor(
     'search.predicates',
     (): SetPredicatesInput<string> => ({
@@ -239,14 +243,28 @@ export const SoupViewContextProvider: FlowComponent<
   };
 
   const [searchPaused, setSearchPaused] = createSignal(false);
+  const sourceSearchPaused = createMemo(() => searchPaused() || !enabled());
   const [assigneeFilter, setAssigneeFilter] = useEntryState<string[]>(
     'soup.assigneeFilter',
     { default: [] }
   );
   const [inboxFilter, setInboxFilter] = useEntryState<string[] | undefined>(
-    'soup.inboxFilter',
+    INBOX_FILTER_ENTRY_KEY,
     { default: undefined }
   );
+
+  // Expose the mail view's inbox filter to consumers outside the split tree
+  // (the sidebar's nested account rows read and set it by split id).
+  {
+    const content = panel.handle.content();
+    if (content.type === 'component' && content.id === 'mail') {
+      const dispose = registerInboxFilterSplit(panel.handle.id, {
+        inboxFilter,
+        setInboxFilter,
+      });
+      onCleanup(dispose);
+    }
+  }
   const [activeTab, setActiveTab] = useEntryState<string | undefined>(
     'soup.tab',
     { default: undefined }
@@ -298,11 +316,21 @@ export const SoupViewContextProvider: FlowComponent<
     soup,
     filters: () => applyInboxFilter(queryFilters.state),
     assignees: assigneeFilter,
-    disableLocalSearch: props.disableLocalSearch,
-    searchPaused,
+    disableLocalSearch: () => config().disableLocalSearch ?? false,
+    searchPaused: sourceSearchPaused,
     searchText,
     setSearchText,
   });
+
+  const initialize = (options: SoupViewInitializeOptions = {}) => {
+    batch(() => {
+      setConfig(options);
+      queryFilters.replace(options.initialQuery ?? null);
+      soup.predicates.set(options.initialClientFilters ?? {});
+      setSearchText(options.initialSearchText ?? '');
+      setEnabled(true);
+    });
+  };
 
   const notificationSource = useGlobalNotificationSource();
   const userId = useUserId();
@@ -367,7 +395,7 @@ export const SoupViewContextProvider: FlowComponent<
           isWithNotification(e) ? e : attachNotifications(e)
         ) as SoupEntity[];
 
-        const extras = props.additionalEntities?.() ?? [];
+        const extras = config().additionalEntities?.() ?? [];
 
         if (extras.length === 0) return base;
 
@@ -503,7 +531,7 @@ export const SoupViewContextProvider: FlowComponent<
     const field = groupByField();
     const groups = itemsQuery.data?.groups;
 
-    if (!field || !groups || search.isSearching()) {
+    if (!enabled() || !field || !groups || search.isSearching()) {
       return entities().map((entity, index) =>
         soup.buildRow({ id: entity.id, index, original: entity })
       );
@@ -516,7 +544,7 @@ export const SoupViewContextProvider: FlowComponent<
       const groupMeta = buildGroupMeta(apiGroup);
       const groupData = groupQueryFor(apiGroup.key)?.data();
       const groupEntities =
-        groupData?.entities.map(
+        groupData?.map(
           (entity) =>
             (isWithNotification(entity)
               ? entity
@@ -568,6 +596,7 @@ export const SoupViewContextProvider: FlowComponent<
 
   const context = {
     soup,
+    initialize,
     source: {
       data: entities,
       isLoading: () => itemsQuery.isLoading,
@@ -577,12 +606,16 @@ export const SoupViewContextProvider: FlowComponent<
       isFetchingNextPage: () =>
         itemsQuery.isFetchingNextPage || searchQuery.isFetchingNextPage,
       hasNextPage: () => {
+        if (!enabled()) return false;
+
         return (
           (itemsQuery.isEnabled && itemsQuery.hasNextPage) ||
           (searchQuery.isEnabled && searchQuery.hasNextPage)
         );
       },
       fetchNextPage: () => {
+        if (!enabled()) return;
+
         if (itemsQuery.isEnabled) {
           itemsQuery.fetchNextPage();
         }
@@ -601,7 +634,7 @@ export const SoupViewContextProvider: FlowComponent<
     rows,
     searchText: search.searchText,
     setSearchText: search.setSearchText,
-    searchPaused,
+    searchPaused: sourceSearchPaused,
     setSearchPaused,
     featuredIds: search.featuredIds,
     isSearchServiceLoading: search.isSearchServiceLoading,

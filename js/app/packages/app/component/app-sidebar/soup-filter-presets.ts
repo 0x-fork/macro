@@ -6,7 +6,7 @@ import {
 } from '@app/component/next-soup/filters/filter-store';
 import type { ListView } from '@app/constants/list-views';
 import {
-  ENABLE_CRM,
+  ENABLE_SNIPPETS,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
 } from '@core/constant/featureFlags';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
@@ -43,6 +43,12 @@ type ViewTabConfig = {
   tabs: TabConfig;
 };
 
+const getExcludedDocumentSubTypes = (...subTypes: string[]) =>
+  ENABLE_SNIPPETS() ? subTypes : [...subTypes, 'snippet'];
+
+const getDisabledSnippetSubtypeExclude = (): Query['exclude'] =>
+  ENABLE_SNIPPETS() ? {} : { subType: ['snippet'] };
+
 /** Filters for inbox/signal: not done, importance=true for emails, 2-week window */
 const getInboxSignalFilters = () => {
   const twoWeeksAgo = subWeeks(startOfDay(new Date()), 2).toISOString();
@@ -60,23 +66,26 @@ const getInboxSignalFilters = () => {
       folderUpdatedAt: { gte: twoWeeksAgo },
       emailShared: 'exclude',
     },
+    exclude: getDisabledSnippetSubtypeExclude(),
     emailView: 'inbox',
   });
 };
 
 /** Filters for inbox/noise: not done, importance=false for emails */
-const INBOX_NOISE_FILTERS = defineQueryFilters({
-  include: {
-    documentDone: false,
-    emailDone: false,
-    emailImportance: false,
-    channelDone: false,
-    chatDone: false,
-    folderDone: false,
-    emailShared: 'exclude',
-  },
-  emailView: 'inbox',
-});
+const getInboxNoiseFilters = () =>
+  defineQueryFilters({
+    include: {
+      documentDone: false,
+      emailDone: false,
+      emailImportance: false,
+      channelDone: false,
+      chatDone: false,
+      folderDone: false,
+      emailShared: 'exclude',
+    },
+    exclude: getDisabledSnippetSubtypeExclude(),
+    emailView: 'inbox',
+  });
 
 export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
   home: {
@@ -105,7 +114,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
         clientFilters: { and: ['inbox'] },
       }),
       noise: () => ({
-        filters: INBOX_NOISE_FILTERS,
+        filters: getInboxNoiseFilters(),
         clientFilters: { and: ['noise'] },
       }),
       all: () => ({
@@ -120,6 +129,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             folderId: [NIL_UUID],
             foreignEntityRecordId:
               ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE ? [NIL_UUID] : [],
+            ...getDisabledSnippetSubtypeExclude(),
           },
           emailView: 'all',
         },
@@ -245,7 +255,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
               documentOwnerId: [ctx.userId],
               isEmailAttachment: false,
             },
-            exclude: { subType: ['task'] },
+            exclude: { subType: getExcludedDocumentSubTypes('task') },
           }),
           clientFilters: { and: ['document-or-file', 'owned-entity'] },
         };
@@ -257,7 +267,10 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             include: {
               isEmailAttachment: false,
             },
-            exclude: { subType: ['task'], documentOwnerId: [ctx.userId] },
+            exclude: {
+              subType: getExcludedDocumentSubTypes('task'),
+              documentOwnerId: [ctx.userId],
+            },
           }),
           clientFilters: { and: ['document-or-file', 'shared-entity'] },
         };
@@ -276,7 +289,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
       }),
       all: () => ({
         filters: defineQueryFilters({
-          exclude: { subType: ['task'] },
+          exclude: { subType: getExcludedDocumentSubTypes('task') },
         }),
         clientFilters: { and: ['document-or-file'] },
       }),
@@ -438,17 +451,18 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
       all: () => ({
         // Temporary: search has no full-text index over foreign entities yet,
         // so always exclude them (matching no record id) until search supports
-        // them. CRM companies are included only when the CRM feature is enabled
-        // (the nil-uuid sentinel excludes them otherwise).
-        filters: ENABLE_CRM
-          ? { include: { foreignEntityRecordId: [NIL_UUID] } }
-          : {
-              include: {
-                foreignEntityRecordId: [NIL_UUID],
-                crmCompanyId: [NIL_UUID],
-              },
-            },
-        clientFilters: {},
+        // them. CRM rows are NIL-excluded the same way. `search-supported`
+        // mirrors these exclusions client-side so entities that enter the
+        // soup cache outside this query (e.g. websocket-driven inserts)
+        // don't surface in the search feed.
+        filters: {
+          include: {
+            foreignEntityRecordId: [NIL_UUID],
+            crmCompanyId: [NIL_UUID],
+          },
+          exclude: getDisabledSnippetSubtypeExclude(),
+        },
+        clientFilters: { and: ['search-supported'] },
       }),
     },
   },

@@ -30,6 +30,7 @@ import {
 } from '../../context/LexicalWrapperContext';
 import {
   autoRegister,
+  awaitPlugin,
   codePlugin,
   createAccessoryStore,
   customSelectionDataPlugin,
@@ -42,6 +43,7 @@ import {
   mentionsPlugin,
   type SelectionData,
   selectionDataPlugin,
+  snippetsPlugin,
   tabIndentationPlugin,
   textPastePlugin,
 } from '../../plugins';
@@ -58,6 +60,7 @@ import type { UserMentionRecord } from '../../utils/mentionsUtils';
 import { EmojiMenu } from '../menu/EmojiMenu';
 import { FloatingLinkMenu } from '../menu/FloatingLinkMenu';
 import { MentionsMenu } from '../menu/MentionsMenu';
+import { SnippetsMenu } from '../menu/SnippetsMenu';
 import { DecoratorRenderer } from './DecoratorRenderer';
 import { NodeAccessoryRenderer } from './NodeAccessoryRenderer';
 
@@ -179,6 +182,7 @@ export function MarkdownTextarea(props: MarkdownTextareaProps) {
 
   const mentionsMenuOperations = createMenuOperations();
   const emojisMenuOperations = createMenuOperations();
+  const snippetsMenuOperations = createMenuOperations();
 
   plugins
     .richText()
@@ -207,7 +211,9 @@ export function MarkdownTextarea(props: MarkdownTextareaProps) {
         onRemoveMention: props.onRemoveMention,
       })
     )
-    .use(emojisPlugin({ menu: emojisMenuOperations }));
+    .use(emojisPlugin({ menu: emojisMenuOperations }))
+    .use(awaitPlugin())
+    .use(snippetsPlugin({ menu: snippetsMenuOperations }));
 
   if (props.onPasteFilesAndDirs) {
     plugins.use(
@@ -241,7 +247,9 @@ export function MarkdownTextarea(props: MarkdownTextareaProps) {
           onFocusLeaveStart: props.onFocusLeaveStart,
           onFocusLeaveEnd: props.onFocusLeaveEnd,
           ignoreKeys: () =>
-            mentionsMenuOperations.isOpen() || emojisMenuOperations.isOpen(),
+            mentionsMenuOperations.isOpen() ||
+            emojisMenuOperations.isOpen() ||
+            snippetsMenuOperations.isOpen(),
         });
       }
     }
@@ -359,6 +367,12 @@ export function MarkdownTextarea(props: MarkdownTextareaProps) {
         <EmojiMenu
           editor={editor}
           menu={emojisMenuOperations}
+          portalScope={props.portalScope}
+          useBlockBoundary={props.useBlockBoundary}
+        />
+        <SnippetsMenu
+          editor={editor}
+          menu={snippetsMenuOperations}
           portalScope={props.portalScope}
           useBlockBoundary={props.useBlockBoundary}
         />

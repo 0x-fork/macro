@@ -60,7 +60,7 @@ export function AttachNativeMediaAction() {
       label="Attach photos or videos"
       onClick={() => void onAttachMedia()}
     >
-      <ImageIcon />
+      <PaperclipIcon />
     </InputActionButton>
   );
 }

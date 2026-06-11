@@ -221,6 +221,21 @@ impl DocumentService for StubDocumentService {
         Ok(())
     }
 
+    async fn get_team_share(
+        &self,
+        _receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<documents::domain::models::DocumentTeamShareResponse, DocumentError> {
+        unimplemented!()
+    }
+
+    async fn set_team_share(
+        &self,
+        _receipt: EntityAccessReceipt<EditAccessLevel>,
+        _share: bool,
+    ) -> Result<documents::domain::models::DocumentTeamShareResponse, DocumentError> {
+        unimplemented!()
+    }
+
     async fn edit_document(
         &self,
         _entity_access_receipt: EntityAccessReceipt<EditAccessLevel>,
@@ -255,6 +270,14 @@ impl DocumentService for StubDocumentService {
         _document_id: &str,
         _request: &documents::domain::models::CreateTaskRequest,
     ) -> Result<(), DocumentError> {
+        unimplemented!()
+    }
+
+    async fn get_snapshot(&self, _document_id: &str) -> anyhow::Result<Option<Vec<u8>>> {
+        unimplemented!()
+    }
+
+    async fn upload_snapshot(&self, _document_id: &str, _bytes: Vec<u8>) -> anyhow::Result<()> {
         unimplemented!()
     }
 }

@@ -13,7 +13,10 @@ import type {
   GroupHeaderProps,
   SoupRow,
 } from '@app/component/next-soup/create-soup-state';
-import type { QueryState } from '@app/component/next-soup/filters/filter-store';
+import type {
+  Query,
+  QueryState,
+} from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
@@ -30,10 +33,7 @@ import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-o
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
 import { persistSoupNavigationTouchHighlight } from '@app/component/next-soup/soup-view/soup-navigation-touch-highlight';
 import { activeSoupViewCounts } from '@app/component/next-soup/soup-view/soup-view-cache-key';
-import {
-  SoupViewContextProvider,
-  useSoupView,
-} from '@app/component/next-soup/soup-view/soup-view-context';
+import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
 import { SoupViewMobileCreateButton } from '@app/component/next-soup/soup-view/soup-view-mobile-create-button';
@@ -534,6 +534,23 @@ interface SoupViewProps {
 export const SoupView = (props: SoupViewProps) => {
   const soup = useSoup();
   const panel = useSplitPanelOrThrow();
+  const soupView = useSoupView();
+
+  const entryState = panel.handle.currentEntryState();
+  const persistedFilters = entryState?.['search.filters'] as Query | undefined;
+  const persistedPredicates = entryState?.['search.predicates'] as
+    | SetPredicatesInput<string>
+    | undefined;
+
+  onMount(() => {
+    soupView.initialize({
+      initialQuery: persistedFilters ?? props.initialFilters,
+      initialClientFilters: persistedPredicates ?? props.initialClientFilters,
+      initialSearchText: props.initialSearchText,
+      disableLocalSearch: props.disableLocalSearch,
+      additionalEntities: props.additionalEntities,
+    });
+  });
 
   createEffect(() => {
     panel.handle.setDisplayName(props.viewName);
@@ -632,17 +649,10 @@ export const SoupView = (props: SoupViewProps) => {
       }}
     >
       <Suspense fallback={<SoupViewSkeleton />}>
-        <SoupViewContextProvider
-          soup={soup}
-          initialQuery={props.initialFilters}
-          initialSearchText={props.initialSearchText}
-          disableLocalSearch={props.disableLocalSearch}
-          additionalEntities={props.additionalEntities}
+        <div
+          class="size-full flex flex-col"
+          data-list-view={activeListView()}
         >
-          <div
-            class="size-full flex flex-col"
-            data-list-view={activeListView()}
-          >
             <Show when={isMobile()}>
               <MobileSoupHeader
                 viewName={props.viewName}
@@ -713,8 +723,7 @@ export const SoupView = (props: SoupViewProps) => {
             <Show when={isMobile()}>
               <MobileSoupFooter />
             </Show>
-          </div>
-        </SoupViewContextProvider>
+        </div>
       </Suspense>
     </SplitPanelContext.Provider>
   );

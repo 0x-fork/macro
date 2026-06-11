@@ -14,7 +14,8 @@ export type SettingsTab =
   | 'Shortcuts'
   | 'Mobile App'
   | 'Agent'
-  | 'Team';
+  | 'Team'
+  | 'Admin';
 
 /** Top-level tabs surfaced in the new SettingsModal. */
 export type SettingsModalTab =

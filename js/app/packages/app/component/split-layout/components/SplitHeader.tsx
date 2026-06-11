@@ -1,3 +1,4 @@
+import { useSoup } from '@app/component/next-soup/soup-context';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
@@ -9,8 +10,10 @@ import type { EntityDragEvent } from '@entity';
 import { AnimatedNewSplitIcon } from '@icon/wide-newSplit';
 import CollapseIcon from '@phosphor/arrows-in.svg';
 import ExpandIcon from '@phosphor/arrows-out.svg';
+import CaretDown from '@phosphor/caret-down.svg';
 import CaretLeft from '@phosphor/caret-left.svg';
 import CaretRight from '@phosphor/caret-right.svg';
+import CaretUp from '@phosphor/caret-up.svg';
 import CloseIcon from '@phosphor/x.svg';
 import { mergeRefs } from '@solid-primitives/refs';
 import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
@@ -167,6 +170,76 @@ function SplitCloseButton() {
       >
         <CloseIcon />
       </Button>
+    </Show>
+  );
+}
+
+function SoupNavigationButtons() {
+  const context = useContext(SplitPanelContext);
+  const soup = useSoup();
+  if (!context) return null;
+
+  const rows = createMemo(() => soup.rows());
+  const currentIndex = () => soup.focus.index();
+
+  const navigationReferredFrom = createMemo(() => {
+    const referredFrom = context.handle.referredFrom();
+    if (referredFrom !== 'inbox' && referredFrom !== 'mail') {
+      return;
+    }
+
+    return referredFrom;
+  });
+
+  const shouldShow = createMemo(() => {
+    const referredFrom = navigationReferredFrom();
+    const isNavigableListView =
+      referredFrom === 'inbox' || referredFrom === 'mail';
+
+    return isNavigableListView && rows().length > 0;
+  });
+
+  const canNavigateUp = createMemo(() => {
+    return rows().length > 0 && currentIndex() !== 0;
+  });
+
+  const canNavigateDown = createMemo(() => {
+    return rows().length > 0 && currentIndex() !== rows().length - 1;
+  });
+
+  const navigate = (offset: number) => {
+    const next = soup.navigate.by(offset);
+    if (!next) return;
+
+    void openEntityInSplitFromUnifiedList(next.row.original, {
+      splitHandle: context.handle,
+      mergeHistory: true,
+      referredFrom: navigationReferredFrom(),
+    });
+  };
+
+  return (
+    <Show when={shouldShow()}>
+      <div class="flex items-center gap-0.5 pl-1">
+        <Button
+          class="p-1 rounded-lg"
+          label="Previous item"
+          hotkey={TOKENS.entity.step.start}
+          disabled={!canNavigateUp()}
+          onClick={() => navigate(-1)}
+        >
+          <CaretUp class="size-4" />
+        </Button>
+        <Button
+          class="p-1 rounded-lg"
+          label="Next item"
+          hotkey={TOKENS.entity.step.end}
+          disabled={!canNavigateDown()}
+          onClick={() => navigate(1)}
+        >
+          <CaretDown class="size-4" />
+        </Button>
+      </div>
     </Show>
   );
 }

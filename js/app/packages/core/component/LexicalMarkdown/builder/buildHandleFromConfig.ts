@@ -21,6 +21,7 @@ import {
   mentionsPlugin,
   selectionDataPlugin,
   singleLinePlugin,
+  snippetsPlugin,
   tabIndentationPlugin,
   textPastePlugin,
 } from '../plugins';
@@ -75,6 +76,14 @@ export function buildHandleFromConfig(config: EditorConfig): EditorHandle {
       : undefined;
   const mentionsMenuOps = config.mentions ? createMenuOperations() : undefined;
   const emojisMenuOps = config.emojis ? createMenuOperations() : undefined;
+  // Snippets (`;` menu) follow mentions: any markdown area that can @-mention
+  // can also insert snippets, unless explicitly opted out. Editors with a
+  // custom mention entity source (sandbox/onboarding) are excluded — the
+  // snippets menu reads from quickAccess, which those editors bypass.
+  const snippetsMenuOps =
+    config.mentions && !config.mentions.entities && config.snippets !== false
+      ? createMenuOperations()
+      : undefined;
 
   const accessoryStoreResult = config.code ? createAccessoryStore() : undefined;
   const accessoryStore = accessoryStoreResult?.[0];
@@ -158,6 +167,15 @@ export function buildHandleFromConfig(config: EditorConfig): EditorHandle {
 
     if (emojisMenuOps) {
       plugins.use(emojisPlugin({ menu: emojisMenuOps }));
+    }
+
+    if (snippetsMenuOps) {
+      plugins.use(
+        snippetsPlugin({
+          menu: snippetsMenuOps,
+          sourceDocumentId: config.mentions?.sourceDocumentId,
+        })
+      );
     }
   }
 
@@ -254,7 +272,8 @@ export function buildHandleFromConfig(config: EditorConfig): EditorHandle {
         ignoreKeys: () =>
           (actionsMenuOps?.isOpen() ?? false) ||
           (mentionsMenuOps?.isOpen() ?? false) ||
-          (emojisMenuOps?.isOpen() ?? false),
+          (emojisMenuOps?.isOpen() ?? false) ||
+          (snippetsMenuOps?.isOpen() ?? false),
       })
     );
   }
@@ -277,7 +296,8 @@ export function buildHandleFromConfig(config: EditorConfig): EditorHandle {
       const mentions = mentionsMenuOps?.isOpen() ?? false;
       const emojis = emojisMenuOps?.isOpen() ?? false;
       const actions = actionsMenuOps?.isOpen() ?? false;
-      return mentions || emojis || actions;
+      const snippets = snippetsMenuOps?.isOpen() ?? false;
+      return mentions || emojis || actions || snippets;
     },
   };
 
@@ -297,6 +317,7 @@ export function buildHandleFromConfig(config: EditorConfig): EditorHandle {
       actionsMenuOps,
       mentionsMenuOps,
       emojisMenuOps,
+      snippetsMenuOps,
       accessoryStore,
       dragInsertStore,
       draggableBlockStore,

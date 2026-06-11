@@ -1,289 +1,66 @@
 import type { ListView } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { focusInput } from '@core/directive/focusInput';
 import { hapticImpact } from '@core/mobile/haptics';
-import DotsThreeIcon from '@phosphor/dots-three.svg';
-import HouseIcon from '@phosphor/house.svg';
-import PlusIcon from '@phosphor/plus.svg';
+import { ICON_ANIMATION_DURATION_MS } from '@icon/animation';
 import { AnimatedCallIcon } from '@icon/wide-call';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
 import { AnimatedEmailIcon } from '@icon/wide-email';
 import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
 import { AnimatedInboxIcon } from '@icon/wide-inbox';
-import { AnimatedSearchIcon } from '@icon/wide-search';
 import { AnimatedStarIcon } from '@icon/wide-star';
 import { AnimatedTaskIcon } from '@icon/wide-task';
-import { useUserNotificationsQuery } from '@queries/notification/user-notifications';
 import { useLocation } from '@solidjs/router';
-import { cn } from '@ui';
-import {
-  type Component,
-  createMemo,
-  createSignal,
-  For,
-  type JSX,
-  Show,
-} from 'solid-js';
+import { cn, Layer } from '@ui';
+import { type Component, createSignal, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { useSplitLayout } from '../split-layout/layout';
-import { MobileCreateDrawer } from './MobileCreateDrawer';
-import { MobileDrawer } from './MobileDrawer';
 
-false && focusInput;
-
-const ICON_ANIMATION_DURATION_MS = 500;
-
-type DockItemProps = {
+type MobileDockButtonProps = {
   icon: Component<
-    JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }
+    JSX.SvgSVGAttributes<SVGSVGElement> | { triggerAnimation?: boolean }
   >;
-  label: string;
+  label?: string;
   onClick: () => void;
   active?: boolean;
-  badge?: number;
+  ref?: HTMLButtonElement | ((el: HTMLButtonElement) => void);
+  onTouchMove?: (e: TouchEvent) => void;
+  onTouchEnd?: (e: TouchEvent) => void;
+  iconClass?: string;
 };
 
-function DockItem(props: DockItemProps) {
+function MobileDockButton(props: MobileDockButtonProps) {
   const [animating, setAnimating] = createSignal(false);
 
   return (
     <button
       type="button"
+      ref={props.ref}
       onPointerDown={() => {
         hapticImpact('light');
         setAnimating(true);
         setTimeout(() => setAnimating(false), ICON_ANIMATION_DURATION_MS);
         props.onClick();
       }}
-      class="relative flex items-center justify-center px-2 py-1.5 min-w-0"
+      onTouchMove={props.onTouchMove}
+      onTouchEnd={props.onTouchEnd}
+      class={cn(
+        'flex flex-col items-center justify-center flex-1 pt-3 pb-2 bg-surface border-t border-edge-muted',
+        props.active && 'text-accent'
+      )}
     >
-      <div
-        class={cn(
-          'relative flex items-center justify-center h-10 rounded-full transition-all',
-          props.active ? 'bg-accent/25 px-4' : 'px-2'
-        )}
-      >
-        <div
-          class={cn(
-            'size-5 [&_svg]:size-5 transition-colors',
-            props.active ? 'text-accent' : 'text-ink-muted'
-          )}
-        >
-          <Dynamic
-            component={props.icon}
-            triggerAnimation={animating() || props.active}
-          />
-        </div>
-        <Show when={(props.badge ?? 0) > 0}>
-          <div
-            class={cn(
-              'absolute top-0.5 size-2 rounded-full bg-accent',
-              props.active ? 'right-1.5' : 'right-0'
-            )}
-          />
-        </Show>
+      <div class={cn('size-6 [&_svg]:size-6', props.iconClass)}>
+        <Dynamic component={props.icon} triggerAnimation={animating()} />
       </div>
+      <Show when={props.label}>
+        <span class="text-xs">{props.label}</span>
+      </Show>
     </button>
-  );
-}
-
-function _SearchDockItem(props: { active: boolean; onClick: () => void }) {
-  const [animating, setAnimating] = createSignal(false);
-
-  return (
-    <button
-      type="button"
-      use:focusInput={{
-        getTarget: () => document.getElementById('mobile-search-input'),
-      }}
-      onClick={() => {
-        hapticImpact('light');
-        setAnimating(true);
-        setTimeout(() => setAnimating(false), ICON_ANIMATION_DURATION_MS);
-        props.onClick();
-      }}
-      class="relative flex items-center justify-center px-2 py-1.5 min-w-0"
-    >
-      <div
-        class={cn(
-          'relative flex items-center justify-center h-10 rounded-full transition-all',
-          props.active ? 'bg-accent/25 px-4' : 'px-2'
-        )}
-      >
-        <div
-          class={cn(
-            'size-5 [&_svg]:size-5 transition-colors',
-            props.active ? 'text-accent' : 'text-ink-muted'
-          )}
-        >
-          <Dynamic
-            component={AnimatedSearchIcon}
-            triggerAnimation={animating() || props.active}
-          />
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function CreateButton() {
-  const [open, setOpen] = createSignal(false);
-
-  return (
-    <MobileCreateDrawer open={open()} onOpenChange={setOpen}>
-      <button
-        type="button"
-        class="relative flex items-center justify-center p-2 min-w-0"
-        onClick={() => {
-          hapticImpact('medium');
-          setOpen(true);
-        }}
-      >
-        <div class="flex items-center justify-center size-9 rounded-full bg-accent active:bg-accent/80 transition-colors">
-          <PlusIcon class="size-5 text-surface" />
-        </div>
-      </button>
-    </MobileCreateDrawer>
-  );
-}
-
-interface MoreMenuItem {
-  id: ListView;
-  icon: Component<
-    JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }
-  >;
-  label: string;
-  color: string;
-  bgColor: string;
-}
-
-function MoreMenu(props: {
-  isActive: (id: ListView) => boolean;
-  navigate: (id: ListView) => void;
-}) {
-  const [open, setOpen] = createSignal(false);
-
-  const menuItems: MoreMenuItem[] = [
-    {
-      id: 'documents',
-      icon: AnimatedFileMdIcon,
-      label: 'Documents',
-      color: 'text-note',
-      bgColor: 'bg-note/10',
-    },
-    {
-      id: 'agents',
-      icon: AnimatedStarIcon,
-      label: 'Agents',
-      color: 'text-chat',
-      bgColor: 'bg-chat/10',
-    },
-    {
-      id: 'calls',
-      icon: AnimatedCallIcon,
-      label: 'Calls',
-      color: 'text-accent',
-      bgColor: 'bg-accent/10',
-    },
-  ];
-
-  const isAnyActive = createMemo(() =>
-    menuItems.some((item) => props.isActive(item.id))
-  );
-
-  const handleSelect = (id: ListView) => {
-    hapticImpact('light');
-    setOpen(false);
-    props.navigate(id);
-  };
-
-  return (
-    <MobileDrawer
-      open={open()}
-      onOpenChange={setOpen}
-      side="bottom"
-      breakPoints={[0.5]}
-    >
-      <MobileDrawer.Trigger
-        class="relative flex items-center justify-center px-2 py-1.5 min-w-0"
-        onClick={() => hapticImpact('light')}
-      >
-        <div
-          class={cn(
-            'relative flex items-center justify-center h-10 rounded-full transition-all',
-            isAnyActive() ? 'bg-accent/25 px-4' : 'px-2'
-          )}
-        >
-          <div
-            class={cn(
-              'size-5 [&_svg]:size-5 transition-colors',
-              isAnyActive() ? 'text-accent' : 'text-ink-muted'
-            )}
-          >
-            <DotsThreeIcon />
-          </div>
-        </div>
-      </MobileDrawer.Trigger>
-      <MobileDrawer.Portal>
-        <MobileDrawer.Overlay class="fixed inset-0 z-modal-overlay bg-modal-overlay" />
-        <MobileDrawer.Content class="scrollbar-hide">
-          <MobileDrawer.Handle />
-          <div class="pb-6 pt-2 px-4">
-            <h2 class="text-lg font-semibold text-ink mb-4">More</h2>
-            <div class="grid grid-cols-4 gap-3">
-              <For each={menuItems}>
-                {(item) => (
-                  <button
-                    type="button"
-                    onClick={() => handleSelect(item.id)}
-                    class={cn(
-                      'flex flex-col items-center gap-2 p-3 rounded-2xl transition-colors',
-                      props.isActive(item.id)
-                        ? 'bg-accent/10'
-                        : 'bg-ink/5 active:bg-ink/10'
-                    )}
-                  >
-                    <div
-                      class={cn(
-                        'size-10 rounded-xl flex items-center justify-center',
-                        item.bgColor
-                      )}
-                    >
-                      <div class={cn('size-5 [&_svg]:size-5', item.color)}>
-                        <item.icon />
-                      </div>
-                    </div>
-                    <span
-                      class={cn(
-                        'text-xs',
-                        props.isActive(item.id)
-                          ? 'text-accent font-medium'
-                          : 'text-ink'
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                  </button>
-                )}
-              </For>
-            </div>
-          </div>
-        </MobileDrawer.Content>
-      </MobileDrawer.Portal>
-    </MobileDrawer>
   );
 }
 
 export function MobileDock() {
   const { openWithSplit } = useSplitLayout();
   const location = useLocation();
-
-  const notificationsQuery = useUserNotificationsQuery({ limit: 100 });
-  const unreadCount = createMemo(() => {
-    const notifications = notificationsQuery.data;
-    if (!notifications) return 0;
-    return notifications.filter((n) => !n.viewed_at).length;
-  });
 
   const isActive = (id: ListView) => {
     const activeContent = globalSplitManager()?.activeSplit()?.content();
@@ -295,52 +72,59 @@ export function MobileDock() {
   };
 
   const navigate = (id: ListView) => {
+    // If we're already on a soup/component view, replace in-place (mergeHistory)
+    // so the tab switch doesn't push a new entry into the swipe-back BG slot.
+    // From any other view (document, task, etc.) treat it as forward navigation
+    // so the user can swipe back to where they were.
     const fgContent = globalSplitManager()?.activeSplit()?.content();
     const isOnSoupView = fgContent?.type === 'component';
     openWithSplit({ type: 'component', id }, { mergeHistory: isOnSoupView });
   };
 
   return (
-    <div class="fixed bottom-0 inset-x-0 z-mobile-nav-bar px-4 pb-3 pointer-events-none">
-      <div class="flex flex-row items-center gap-2 pointer-events-auto">
-        <div class="flex flex-row items-center bg-surface/50 backdrop-blur-2xl backdrop-saturate-150 rounded-full py-1 px-1 border border-edge">
-          <DockItem
-            icon={HouseIcon}
-            label="Home"
-            active={isActive('home')}
-            onClick={() => navigate('home')}
-          />
-          <DockItem
-            icon={AnimatedInboxIcon}
-            label="Inbox"
-            active={isActive('inbox')}
-            badge={unreadCount()}
-            onClick={() => navigate('inbox')}
-          />
-          <DockItem
-            icon={AnimatedEmailIcon}
-            label="Mail"
-            active={isActive('mail')}
-            onClick={() => navigate('mail')}
-          />
-          <DockItem
-            icon={AnimatedChannelIcon}
-            label="Chat"
-            active={isActive('channels')}
-            onClick={() => navigate('channels')}
-          />
-          <DockItem
-            icon={AnimatedTaskIcon}
-            label="Tasks"
-            active={isActive('tasks')}
-            onClick={() => navigate('tasks')}
-          />
-          <MoreMenu isActive={isActive} navigate={navigate} />
-        </div>
-        <div class="bg-surface/50 backdrop-blur-2xl backdrop-saturate-150 rounded-full border border-edge">
-          <CreateButton />
-        </div>
+    <Layer depth={1}>
+      <div class="relative z-mobile-nav-bar flex flex-row justify-between">
+        <div class="-z-1 absolute inset-x-0 top-0 w-screen h-40 bg-surface" />
+        <MobileDockButton
+          icon={AnimatedInboxIcon}
+          active={isActive('inbox')}
+          onClick={() => {
+            navigate('inbox');
+          }}
+        />
+        <MobileDockButton
+          icon={AnimatedEmailIcon}
+          active={isActive('mail')}
+          onClick={() => navigate('mail')}
+        />
+        <MobileDockButton
+          icon={AnimatedChannelIcon}
+          active={isActive('channels')}
+          onClick={() => {
+            navigate('channels');
+          }}
+        />
+        <MobileDockButton
+          icon={AnimatedTaskIcon}
+          active={isActive('tasks')}
+          onClick={() => navigate('tasks')}
+        />
+        <MobileDockButton
+          icon={AnimatedFileMdIcon}
+          active={isActive('documents')}
+          onClick={() => navigate('documents')}
+        />
+        <MobileDockButton
+          icon={AnimatedStarIcon}
+          active={isActive('agents')}
+          onClick={() => navigate('agents')}
+        />
+        <MobileDockButton
+          icon={AnimatedCallIcon}
+          active={isActive('calls')}
+          onClick={() => navigate('calls')}
+        />
       </div>
-    </div>
+    </Layer>
   );
 }

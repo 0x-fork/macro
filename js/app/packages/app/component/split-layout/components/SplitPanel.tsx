@@ -1,5 +1,6 @@
 import { createSoupState } from '@app/component/next-soup/create-soup-state';
 import { SoupContextProvider } from '@app/component/next-soup/soup-context';
+import { SoupViewContextProvider } from '@app/component/next-soup/soup-view/soup-view-context';
 import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
 import { splitContainerAttribute } from '@core/dom-selectors';
 import { isMobile } from '@core/mobile/isMobile';
@@ -116,72 +117,74 @@ export function SplitPanel(props: SplitPanelProps) {
           panelRef,
         }}
       >
-        <SplitDrawerGroup contentOffsetTop={offsetTop} panelSize={panelSize}>
-          <Show when={props.handle.isSpotLight()}>
-            <div
-              class="fixed inset-0 w-screen h-screen z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted"
-              onClick={() => props.handle.toggleSpotlight(false)}
-            />
-            <div class="fixed inset-16 bg-surface shadow-xl" />
-          </Show>
-
-          <div
-            class="relative"
-            classList={{
-              'fixed inset-16 z-modal-overlay isolate opacity-50':
-                props.handle.isSpotLight(),
-              'opacity-100': props.active || props.handle.isSpotLight(),
-              'size-full': !props.handle.isSpotLight(),
-            }}
-            ref={(ref) => {
-              setPanelRef(ref);
-              props.setPanelRef(ref);
-              attachHotKeys(ref);
-            }}
-            data-split-id={props.split.id}
-            {...splitContainerAttribute}
-            data-modal={props.handle.isSpotLight()}
-            tabindex={-1}
-          >
-            <Panel
-              class="rounded-xl mobile:rounded-none mobile:after:hidden"
-              depth={1}
-              style={{
-                'background-image': 'linear-gradient(var(--b0), var(--b0))',
-                border: '0',
-              }}
-            >
+        <SoupViewContextProvider soup={nextSoup}>
+          <SplitDrawerGroup contentOffsetTop={offsetTop} panelSize={panelSize}>
+            <Show when={props.handle.isSpotLight()}>
               <div
-                class="split-panel-shadow pointer-events-none absolute inset-0 z-60 rounded-[inherit] mobile:hidden"
-                style={{
-                  'box-shadow': props.active
-                    ? 'inset 0 0 0 1px var(--color-edge-muted), inset 0 2px 0 0 var(--split-panel-active-top-shadow), inset 0 -2px 0 0 var(--split-panel-bottom-shadow), 0 10px 28px -18px var(--split-panel-drop-shadow-strong), 0 2px 8px -6px var(--split-panel-drop-shadow-soft)'
-                    : 'inset 0 0 0 1px var(--color-edge-muted), inset 0 -2px 0 0 var(--split-panel-bottom-shadow), 0 10px 28px -18px var(--split-panel-drop-shadow-strong), 0 2px 8px -6px var(--split-panel-drop-shadow-soft)',
-                }}
+                class="fixed inset-0 w-screen h-screen z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted"
+                onClick={() => props.handle.toggleSpotlight(false)}
               />
-              <Panel.Header
-                class={cn(
-                  'block h-10 min-h-10 touch:min-h-10 p-0 overflow-visible border-b-0',
-                  shouldHideSplitHeader() && 'hidden'
-                )}
+              <div class="fixed inset-16 bg-surface shadow-xl" />
+            </Show>
+
+            <div
+              class="relative"
+              classList={{
+                'fixed inset-16 z-modal-overlay isolate opacity-50':
+                  props.handle.isSpotLight(),
+                'opacity-100': props.active || props.handle.isSpotLight(),
+                'size-full': !props.handle.isSpotLight(),
+              }}
+              ref={(ref) => {
+                setPanelRef(ref);
+                props.setPanelRef(ref);
+                attachHotKeys(ref);
+              }}
+              data-split-id={props.split.id}
+              {...splitContainerAttribute}
+              data-modal={props.handle.isSpotLight()}
+              tabindex={-1}
+            >
+              <Panel
+                class="rounded-xl mobile:rounded-none mobile:after:hidden"
+                depth={1}
+                style={{
+                  'background-image': 'linear-gradient(var(--b0), var(--b0))',
+                  border: '0',
+                }}
               >
-                <SplitHeader ref={setHeaderRef} />
-              </Panel.Header>
+                <div
+                  class="split-panel-shadow pointer-events-none absolute inset-0 z-60 rounded-[inherit] mobile:hidden"
+                  style={{
+                    'box-shadow': props.active
+                      ? 'inset 0 0 0 1px var(--color-edge-muted), inset 0 2px 0 0 var(--split-panel-active-top-shadow), inset 0 -2px 0 0 var(--split-panel-bottom-shadow), 0 10px 28px -18px var(--split-panel-drop-shadow-strong), 0 2px 8px -6px var(--split-panel-drop-shadow-soft)'
+                      : 'inset 0 0 0 1px var(--color-edge-muted), inset 0 -2px 0 0 var(--split-panel-bottom-shadow), 0 10px 28px -18px var(--split-panel-drop-shadow-strong), 0 2px 8px -6px var(--split-panel-drop-shadow-soft)',
+                  }}
+                />
+                <Panel.Header
+                  class={cn(
+                    'block h-10 min-h-10 touch:min-h-10 p-0 overflow-visible border-b-0',
+                    shouldHideSplitHeader() && 'hidden'
+                  )}
+                >
+                  <SplitHeader ref={setHeaderRef} />
+                </Panel.Header>
 
-              <Panel.Toolbar class="items-start py-0 overflow-visible border-b-0 not-has-[[data-split-portal-target]:not(:empty)]:hidden has-[[data-split-portal-target]:not(:empty)]:py-2">
-                <SplitToolbar ref={setToolbarRef} />
-              </Panel.Toolbar>
+                <Panel.Toolbar class="items-start py-0 overflow-visible border-b-0 not-has-[[data-split-portal-target]:not(:empty)]:hidden has-[[data-split-portal-target]:not(:empty)]:py-2">
+                  <SplitToolbar ref={setToolbarRef} />
+                </Panel.Toolbar>
 
-              <Panel.Body>
-                <div class="@container/split size-full overflow-hidden relative">
-                  <Suspense>
-                    <Dynamic component={props.split.mount.element} />
-                  </Suspense>
-                </div>
-              </Panel.Body>
-            </Panel>
-          </div>
-        </SplitDrawerGroup>
+                <Panel.Body>
+                  <div class="@container/split size-full overflow-hidden relative">
+                    <Suspense>
+                      <Dynamic component={props.split.mount.element} />
+                    </Suspense>
+                  </div>
+                </Panel.Body>
+              </Panel>
+            </div>
+          </SplitDrawerGroup>
+        </SoupViewContextProvider>
       </SplitPanelContext.Provider>
     </SoupContextProvider>
   );
