@@ -1,12 +1,14 @@
 import { DebugSuspense } from '@channel/DebugSuspense';
 import { useUserId } from '@core/context/user';
 import { tryMacroId, useDisplayName } from '@core/user';
+import { markdownToPlainText } from '@lexical-core/utils/parsers';
 import { MarkMessageNotifications } from '@notifications/components/MarkMessageNotifications';
 import { useThreadRepliesQuery } from '@queries/channel/thread-replies';
 import type { ApiThreadReply } from '@service-storage/generated/schemas/apiThreadReply';
 import { createEffect, createSignal, on, Show, untrack } from 'solid-js';
 import { createMessageSelection } from '../Channel/create-message-selection';
 import { ChannelMessage } from '../Message';
+import { scrollMessageIntoView } from '../scroll-utils';
 import { createThreadHotkeys } from './create-thread-hotkeys';
 import { Thread } from './Thread';
 import type { ThreadReplyListHandle } from './ThreadReplyList';
@@ -24,6 +26,29 @@ export function ChannelThread(props: ThreadProps) {
   const replyUserId = () => userId() ?? props.data().sender_id;
   const macroId = () => tryMacroId(replyUserId());
   const [displayName] = useDisplayName(macroId());
+  const rootSenderMacroId = () => tryMacroId(props.data().sender_id);
+  const [rootSenderDisplayName] = useDisplayName(rootSenderMacroId());
+  const rootReplyTo = () => ({
+    messageId: props.data().id,
+    threadId: null,
+    displayName:
+      props.data().sender?.type === 'bot'
+        ? (props.data().sender?.name ?? 'Bot')
+        : rootSenderDisplayName(),
+    text: markdownToPlainText(props.data().content).trim(),
+  });
+  const replyTo = () => props.replyTo() ?? rootReplyTo();
+  const goToReplyToMessage = () => {
+    const target = replyTo();
+    const targetMessageId = target.messageId ?? props.data().id;
+    props.onSelectMessage?.(props.data().id);
+    if (target.threadId) {
+      replySelection.select(targetMessageId);
+    } else {
+      replySelection.clear();
+    }
+    scrollMessageIntoView(targetMessageId);
+  };
   const thread = () => props.data().thread;
   const hasReplies = () => thread().reply_count > 0;
   const fetchRepliesEnabled = () =>
@@ -223,19 +248,6 @@ export function ChannelThread(props: ThreadProps) {
       >
         <div class="flex flex-col w-full">
           <div class="relative">
-            <Show when={hasReplies() || props.isReplying()}>
-              {/* Small rail next to the root message: starts below its avatar
-               * and runs to the bottom, where the curve branches to replies. */}
-              <div
-                class="pointer-events-none absolute border-l border-rail -z-1"
-                classList={{ 'border-accent': firstReplyIsNewMessage() }}
-                style={{
-                  left: 'var(--left-of-user-icon)',
-                  top: 'calc(var(--regular-message-padding-t) + var(--user-icon-width))',
-                  bottom: '0',
-                }}
-              />
-            </Show>
             <MarkMessageNotifications
               messageId={props.data().id}
               channelId={props.channelId()}
@@ -289,12 +301,6 @@ export function ChannelThread(props: ThreadProps) {
                       }}
                       class="ph-no-capture"
                     >
-                      <Show when={!hasReplies()}>
-                        <Thread.ReplyAuthor
-                          userId={replyUserId()}
-                          displayName={displayName()}
-                        />
-                      </Show>
                       <Thread.ReplyInput
                         channelId={props.channelId()}
                         messageId={props.data().id}
@@ -303,6 +309,11 @@ export function ChannelThread(props: ThreadProps) {
                         setIsReplying={props.setIsReplying}
                         setReplyInputEl={props.setReplyInputEl}
                         setReplyInputHandle={props.setReplyInputHandle}
+                        replyTo={{
+                          ...replyTo(),
+                          onClick: goToReplyToMessage,
+                        }}
+                        setReplyTo={props.setReplyTo}
                       />
                     </div>
                   </Show>
@@ -329,7 +340,10 @@ export function ChannelThread(props: ThreadProps) {
                               '[contenteditable]'
                             ) ?? null
                           }
-                          onClick={() => props.setIsReplying(true)}
+                          onClick={() => {
+                            props.setReplyTo(rootReplyTo());
+                            props.setIsReplying(true);
+                          }}
                           aria-label="Reply"
                         />
                       </Show>

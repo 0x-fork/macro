@@ -38,16 +38,10 @@ function ThreadTypingIndicatorContent(
 ) {
   return (
     <div class="flex items-center text-ink-extra-muted">
-      <ThreadTypingIndicatorConnector />
-      <div class="size-0 bg-rail rounded-sm" />
-      <span class="text-xs ml-2">{props.text}</span>
+      <span class="text-xs">{props.text}</span>
       <ThreadTypingIndicatorDots />
     </div>
   );
-}
-
-function ThreadTypingIndicatorConnector() {
-  return <div class="w-7 border-b border-rail" />;
 }
 
 function ThreadTypingIndicatorDots() {

@@ -16,12 +16,14 @@ import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component
 import { toast } from '@core/component/Toast/Toast';
 import { useChannelActivity, useChannelName } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
+import { idToDisplayName } from '@core/user';
 import type { DateValue } from '@core/util/date';
 import {
   extractUserMentions,
   trimEdgeUserMentions,
 } from '@core/util/taskExtraction';
 import { buildMentionMarkdownString, markdownToPlainText } from '@lexical-core';
+import type { ApiMessageSender } from '@service-storage/generated/schemas/apiMessageSender';
 import {
   invalidateChannelsActivity,
   useUpdateChannelsActivityMutation,
@@ -38,6 +40,7 @@ import {
   usePatchMessageMutation,
   useSendMessageMutation,
 } from '@queries/channel/message';
+import { senderFromStorageId } from '@queries/channel/message-sender';
 import {
   useAddReactionMutation,
   useRemoveReactionMutation,
@@ -64,7 +67,6 @@ import {
 import { ChannelInputContainer } from '../Input/ChannelInputContainer';
 import { hasSendableInputContent } from '../Input/utils/sendable-content';
 import { ChannelThread } from '../Thread';
-import { buildQuoteReplyValue } from '../Thread/utils/message-actions';
 import { ActiveCallMessage } from './ActiveCallMessage';
 import { ChannelDropZone } from './ChannelDropZone';
 import { createChannelDragState } from './create-channel-drag-state';
@@ -256,38 +258,37 @@ export function Channel(props: ChannelProps) {
       },
     });
 
-  const openReplyInput = (message: {
-    id: string;
-    thread_id?: string | null;
-  }) => {
-    const threadId = message.thread_id ?? message.id;
-    const state = threadManager.getOrCreateThreadState(threadId);
-    state.setIsReplying(true);
-    return state;
-  };
-
-  const openQuoteReplyInput = (message: {
+  const buildReplyTo = (message: {
     id: string;
     content: string;
+    sender_id: string;
+    sender?: ApiMessageSender;
+    thread_id?: string | null;
+  }) => {
+    const sender = message.sender ?? senderFromStorageId(message.sender_id);
+    return {
+      messageId: message.id,
+      threadId: message.thread_id,
+      displayName:
+        sender.type === 'bot'
+          ? (sender.name ?? 'Bot')
+          : idToDisplayName(message.sender_id),
+      text: markdownToPlainText(message.content).trim(),
+    };
+  };
+
+  const openReplyInput = (message: {
+    id: string;
+    content: string;
+    sender_id: string;
+    sender?: ApiMessageSender;
     thread_id?: string | null;
   }) => {
     const threadId = message.thread_id ?? message.id;
     const state = threadManager.getOrCreateThreadState(threadId);
-    const beforeSnapshot = state.replyInputState();
-    const nextSnapshot: InputSnapshot = {
-      value: buildQuoteReplyValue({
-        quotedContent: message.content,
-        existingValue: beforeSnapshot?.value,
-      }),
-      mentions: beforeSnapshot?.mentions ?? [],
-      attachments: beforeSnapshot?.attachments ?? [],
-    };
-
-    state.setReplyInputState(nextSnapshot);
+    state.setReplyTo(buildReplyTo(message));
     state.setIsReplying(true);
-    requestAnimationFrame(() => {
-      state.replyInputHandle?.()?.restoreSnapshot(nextSnapshot);
-    });
+    return state;
   };
 
   const getMessageActions = createChannelMessageActions({
@@ -297,10 +298,6 @@ export function Channel(props: ChannelProps) {
     addReaction: addReactionMutation.mutate,
     removeReaction: removeReactionMutation.mutate,
     onReply: (ctx) => {
-      if (ctx.message.thread_id) {
-        openQuoteReplyInput(ctx.message);
-        return;
-      }
       openReplyInput(ctx.message);
     },
     onEdit: ({ message }) => {
@@ -524,6 +521,8 @@ export function Channel(props: ChannelProps) {
                                 setIsReplying={state.setIsReplying}
                                 replyInputState={state.replyInputState}
                                 setReplyInputState={state.setReplyInputState}
+                                replyTo={state.replyTo}
+                                setReplyTo={state.setReplyTo}
                                 setReplyInputEl={state.setReplyInputEl}
                                 setReplyInputHandle={state.setReplyInputHandle}
                                 listMeta={listMetaByMessageId()[item.id]}

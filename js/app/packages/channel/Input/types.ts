@@ -35,7 +35,16 @@ type InputDataBase = {
 };
 
 export type ChannelInputMode = InputDataBase & { mode: 'channel' };
-export type ReplyInputMode = InputDataBase & { mode: 'reply' };
+export type ReplyInputMode = InputDataBase & {
+  mode: 'reply';
+  replyTo?: {
+    messageId?: string;
+    threadId?: string | null;
+    displayName: string;
+    text: string;
+    onClick?: (event: MouseEvent) => void;
+  };
+};
 export type InputData = ChannelInputMode | ReplyInputMode;
 
 export const isReplyInput = (input: InputData): input is ReplyInputMode =>

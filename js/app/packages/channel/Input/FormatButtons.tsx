@@ -11,7 +11,7 @@ import TextQuoteIcon from '@phosphor/quotes.svg';
 import TextBoldIcon from '@phosphor/text-b.svg';
 import TextItalicIcon from '@phosphor/text-italic.svg';
 import TextStrikethroughIcon from '@phosphor/text-strikethrough.svg';
-import { Button } from '@ui';
+import { Button, cn } from '@ui';
 import type { TextFormatType } from 'lexical';
 import type { Accessor, JSX } from 'solid-js';
 
@@ -110,7 +110,11 @@ function FormatButton(props: FormatButtonProps) {
       hotkey={props.hotkeyToken}
       variant="ghost"
       size="icon-sm"
-      class={props.active ? 'bg-active text-ink' : ''}
+      noTouchResize
+      class={cn(
+        'size-6! p-0! rounded-sm text-ink-muted hover:text-ink',
+        props.active && 'text-ink'
+      )}
       onPointerDown={(event: PointerEvent) => event.preventDefault()}
       onClick={() => props.onClick()}
     >

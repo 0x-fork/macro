@@ -273,6 +273,10 @@ export function ChannelInput(props: ChannelInputProps) {
   });
 
   const [isFocused, setIsFocused] = createSignal(false);
+  const replyInputView = () => {
+    const input = inputState.view();
+    return isReplyInput(input) ? input : undefined;
+  };
 
   return (
     <Input.Root input={inputState.view()} commands={inputState.commands}>
@@ -294,22 +298,38 @@ export function ChannelInput(props: ChannelInputProps) {
         >
           <Input.Layout>
             <Input.DropOverlay />
-            <Show when={isReplyInput(inputState.view())}>
-              <div class="flex items-center justify-between px-3 py-0.5 bg-ink/5 border-b border-edge-muted">
-                <div class="flex items-center gap-1 text-ink-muted">
-                  <ReplyIcon class="size-3" />
-                  <span class="text-xxs">Replying to thread</span>
+            <Show when={replyInputView()}>
+              {(input) => (
+                <div class="flex items-center justify-between gap-2 px-3 py-1.5 bg-ink/5 border-b border-edge-muted min-w-0">
+                  <button
+                    type="button"
+                    class="group flex items-start gap-1.5 min-w-0 text-left rounded-sm hover:underline underline-offset-2 hover:decoration-accent"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={(event) => input().replyTo?.onClick?.(event)}
+                  >
+                    <ReplyIcon class="size-3 shrink-0 text-ink-muted group-hover:text-accent mt-0.5" />
+                    <span class="text-xxs text-ink-muted group-hover:text-accent truncate min-w-0">
+                      Replying to{' '}
+                      <span class="font-medium text-ink/75 group-hover:text-accent">
+                        {input().replyTo?.displayName}
+                      </span>
+                      <span class="text-ink-extra-muted group-hover:text-accent">
+                        {' '}
+                        · {input().replyTo?.text}
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    class="size-5 flex items-center justify-center rounded-sm text-ink-muted hover:text-ink hover:bg-ink/10 shrink-0"
+                    onClick={() => inputState.commands.close()}
+                  >
+                    <svg class="size-3" viewBox="0 0 256 256" fill="currentColor">
+                      <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" />
+                    </svg>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  class="size-5 flex items-center justify-center rounded-sm text-ink-muted hover:text-ink hover:bg-ink/10"
-                  onClick={() => inputState.commands.close()}
-                >
-                  <svg class="size-3" viewBox="0 0 256 256" fill="currentColor">
-                    <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" />
-                  </svg>
-                </button>
-              </div>
+              )}
             </Show>
             <Input.FormatRibbon>
               <FormatButtons

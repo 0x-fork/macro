@@ -8,7 +8,7 @@ import { useSendMessageMutation } from '@queries/channel/message';
 import { usePostTypingUpdateMutation } from '@queries/channel/typing';
 import { type Accessor, createSignal, onCleanup, type Setter } from 'solid-js';
 import { createEntityDropZone } from '../Channel/create-entity-drop-zone';
-import type { InputHandle, InputSnapshot } from '../Input';
+import type { InputHandle, InputSnapshot, ReplyInputMode } from '../Input';
 import { ChannelInput, createInputAttachmentTracker } from '../Input';
 import { buildPostMessageSendPayload } from '../Input/message-payload';
 import { hasSendableInputContent } from '../Input/utils/sendable-content';
@@ -18,6 +18,8 @@ import { replyInputOffsetX } from './utils/thread-rail-geometry';
 type ThreadReplyInputProps = {
   channelId: string;
   messageId: string;
+  replyTo?: ReplyInputMode['replyTo'];
+  setReplyTo?: Setter<ReplyInputMode['replyTo'] | undefined>;
   replyInputState: Accessor<InputSnapshot | undefined>;
   setReplyInputState: Setter<InputSnapshot | undefined>;
   setIsReplying: Setter<boolean>;
@@ -89,6 +91,7 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                 attachments: props.replyInputState()?.attachments,
                 isDraggingOverChannel: entityDropZone.isDraggingOver(),
                 mode: 'reply',
+                replyTo: props.replyTo,
               }}
               participants={participants.users}
               attachmentTracker={tracker}
@@ -115,13 +118,21 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
               }
               onClose={() => {
                 props.setReplyInputState(undefined);
+                props.setReplyTo?.(undefined);
                 props.setIsReplying(false);
               }}
               onSend={(snapshot) => {
                 const senderId = userId();
                 if (!senderId) return;
+                const quotedText = props.replyTo?.text.trim();
+                const sendSnapshot = quotedText
+                  ? {
+                      ...snapshot,
+                      value: `> ${quotedText}\n\n${snapshot.value}`,
+                    }
+                  : snapshot;
                 const payload = buildPostMessageSendPayload({
-                  snapshot,
+                  snapshot: sendSnapshot,
                   threadId: props.messageId,
                   participantIds: participants.ids(),
                 });
@@ -136,6 +147,7 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                   {
                     onSuccess: () => {
                       props.setReplyInputState(undefined);
+                      props.setReplyTo?.(undefined);
                       props.setIsReplying(false);
                     },
                     onError: () => {
