@@ -105,7 +105,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
                   'px-2 py-1.5',
                   props.searchView
                     ? 'rounded-lg'
-                    : 'border-t border-edge-muted/30 rounded-b-lg'
+                    : 'rounded-b-lg'
                 )}
               >
                 <div class="flex items-center gap-1.5 flex-wrap">
