@@ -177,14 +177,6 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
     throw new Error('<SplitHeader> must be used within a <SplitLayout>');
   }
 
-  // Active-split indicator: an accent gradient tint on the header (only when
-  // more than one split is open, on non-mobile, outside spotlight).
-  const showActiveGradient = () =>
-    !isMobile() &&
-    panel.isPanelActive() &&
-    (globalSplitManager()?.splits?.()?.length ?? 0) > 1 &&
-    !panel.handle.isSpotLight();
-
   const droppableId = `split-header-${panel.handle.id}`;
   const droppable = createDroppable(droppableId, {
     type: 'split-header',
@@ -223,7 +215,6 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
     <div
       class={cn(
         'isolate relative w-full h-full overflow-clip text-ink shrink-0 bg-surface',
-        showActiveGradient() && 'bg-linear-to-b from-accent/5 to-transparent',
         isMobile() && isListViewID(panel.handle.content().id) && 'hidden',
         isEntityDraggingOver() && 'bg-active/50'
       )}

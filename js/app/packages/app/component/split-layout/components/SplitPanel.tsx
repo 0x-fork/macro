@@ -151,12 +151,12 @@ export function SplitPanel(props: SplitPanelProps) {
                 border: '0',
               }}
             >
-              <div class="pointer-events-none absolute inset-0 z-60 rounded-[inherit] shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),inset_0_-2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_70%,black),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)] mobile:hidden" />
               <div
-                class="pointer-events-none absolute inset-x-px top-px z-50 h-8 rounded-t-[inherit]"
+                class="split-panel-shadow pointer-events-none absolute inset-0 z-60 rounded-[inherit] mobile:hidden"
                 style={{
-                  background:
-                    'linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0))',
+                  'box-shadow': props.active
+                    ? 'inset 0 0 0 1px var(--color-edge-muted), inset 0 2px 0 0 var(--split-panel-active-top-shadow), inset 0 -2px 0 0 var(--split-panel-bottom-shadow), 0 10px 28px -18px var(--split-panel-drop-shadow-strong), 0 2px 8px -6px var(--split-panel-drop-shadow-soft)'
+                    : 'inset 0 0 0 1px var(--color-edge-muted), inset 0 -2px 0 0 var(--split-panel-bottom-shadow), 0 10px 28px -18px var(--split-panel-drop-shadow-strong), 0 2px 8px -6px var(--split-panel-drop-shadow-soft)',
                 }}
               />
               <Panel.Header

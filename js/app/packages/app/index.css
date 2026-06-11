@@ -341,6 +341,21 @@ html[data-theme-mode="light"] .ui-surface:not(.ui-surface-active) {
   box-shadow: 0 2px 8px -8px oklch(0 0 0 / 0.06);
 }
 
+/* Split panel border/shadow bevel. Dark themes use a light top inset; light
+ * themes invert that bevel and increase shadow opacity for separation. */
+.split-panel-shadow {
+  --split-panel-active-top-shadow: color-mix(in oklch, var(--color-edge-muted) 85%, white);
+  --split-panel-bottom-shadow: color-mix(in oklch, var(--color-edge-muted) 70%, black);
+  --split-panel-drop-shadow-strong: rgba(0, 0, 0, 0.28);
+  --split-panel-drop-shadow-soft: rgba(0, 0, 0, 0.18);
+}
+html[data-theme-mode="light"] .split-panel-shadow {
+  --split-panel-active-top-shadow: color-mix(in oklch, var(--color-edge-muted) 88%, black);
+  --split-panel-bottom-shadow: color-mix(in oklch, var(--color-edge-muted) 94%, white);
+  --split-panel-drop-shadow-strong: rgba(0, 0, 0, 0.26);
+  --split-panel-drop-shadow-soft: rgba(0, 0, 0, 0.16);
+}
+
 /* Big hammer fix for cursor pointer. */
 @utility cursor-pointer {
   cursor: default;
