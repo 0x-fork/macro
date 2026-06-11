@@ -1530,7 +1530,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
           data-sidebar-link={props.id}
           data-active={isActive() ? '' : undefined}
           class={cn(
-            'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-2 cursor-default w-full rounded-md py-1.5 text-ink-muted not-disabled:hover:text-ink [&_svg]:size-4',
+            'flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-2 cursor-default w-full rounded-lg py-1.5 text-ink/65 not-disabled:hover:text-ink not-disabled:hover:bg-ink/3 not-disabled:hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_8%,transparent)] [&_svg]:size-4',
             isActive() &&
               'bg-ink/10 not-disabled:hover:bg-ink/15 text-ink not-disabled:hover:text-ink shadow-sm'
           )}
