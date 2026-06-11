@@ -998,7 +998,7 @@ const SidebarUserMenu = (props: {
         type="button"
         class={cn(
           'flex items-center gap-2.5 w-full min-w-0 px-2 py-2.5 rounded-md ring-1 ring-edge-muted hover:bg-ink/5 data-expanded:bg-ink/5 transition-colors text-left',
-          'group-data-[slim=true]/sidebar:px-0 group-data-[slim=true]/sidebar:py-1 group-data-[slim=true]/sidebar:ring-0'
+          'group-data-[slim=true]/sidebar:size-8 group-data-[slim=true]/sidebar:min-w-8 group-data-[slim=true]/sidebar:justify-center group-data-[slim=true]/sidebar:p-0 group-data-[slim=true]/sidebar:ring-0'
         )}
       >
         <UserIcon
@@ -1447,7 +1447,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
             onDismiss={() => setMobileAppCardDismissed(true)}
           />
         </Show>
-        <div class="min-w-0 group-data-[slim=true]/sidebar:max-w-0 group-data-[slim=true]/sidebar:overflow-hidden">
+        <div class="min-w-0 group-data-[slim=true]/sidebar:flex group-data-[slim=true]/sidebar:justify-center">
           <SidebarUserMenu
             onSettings={() => openSettingsTab('Account')}
             onCommandMenu={handleCommandPaletteClick}
