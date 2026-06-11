@@ -20,6 +20,7 @@ import type {
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
+import { ConnectAccountsBanner } from '@app/component/next-soup/soup-view/filters-bar/connect-accounts-banner';
 import { InboxSelector } from '@app/component/next-soup/soup-view/filters-bar/inbox-selector';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
@@ -506,6 +507,7 @@ export const SoupView = (props: SoupViewProps) => {
                 }
               >
                 <InboxSelector />
+                <ConnectAccountsBanner />
               </Show>
             </div>
           </SplitHeaderLeft>

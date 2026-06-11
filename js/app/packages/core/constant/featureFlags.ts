@@ -241,8 +241,11 @@ const _ENABLE_DOCK_NOTITIFCATIONS = resolveFeatureFlag(
 );
 export const ENABLE_TTFT = resolveFeatureFlag('ENABLE_TTFT', DEV_MODE_ENV);
 
+// Multi-inbox is on in production for everyone; connecting additional
+// accounts is paywalled as a team feature (see AddInboxDialog). Set
+// VITE_ENABLE_MULTI_INBOX=false to fall back to the posthog flag.
 export const ENABLE_MULTI_INBOX_OVERRIDE =
-  resolveFeatureFlag('ENABLE_MULTI_INBOX', DEV_MODE_ENV) || undefined;
+  resolveFeatureFlag('ENABLE_MULTI_INBOX', true) || undefined;
 
 export const ENABLE_INBOX_RESYNC = resolveFeatureFlag(
   'ENABLE_INBOX_RESYNC',

@@ -1,6 +1,9 @@
+import { useHasPaidAccess } from '@core/auth';
+import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
+import { useUserContext } from '@core/context/user';
 import { useAddInboxFlow } from '@core/email-link';
 import { Button, Dialog, Panel } from '@ui';
-import { createSignal, onCleanup } from 'solid-js';
+import { createEffect, createSignal, onCleanup } from 'solid-js';
 
 const [isOpen, setIsOpen] = createSignal(false);
 
@@ -14,12 +17,25 @@ export const openAddInboxDialog = () => setIsOpen(true);
 /**
  * Confirmation step before the add-inbox OAuth redirect. Confirming kicks off
  * `useAddInboxFlow`, which navigates the page to Google's consent screen.
+ *
+ * Connecting multiple accounts is a team (paid) feature: this dialog is the
+ * funnel for every add-inbox entry point, so the paywall is enforced here.
  */
 export function AddInboxDialog() {
   const addInbox = useAddInboxFlow();
   const [pending, setPending] = createSignal(false);
+  const hasPaidAccess = useHasPaidAccess();
+  const { isLoading } = useUserContext();
+  const paywall = usePaywallState();
 
   onCleanup(() => setIsOpen(false));
+
+  createEffect(() => {
+    if (isOpen() && !isLoading() && !hasPaidAccess()) {
+      setIsOpen(false);
+      paywall.showPaywall(PaywallKey.MULTI_INBOX);
+    }
+  });
 
   const handleConfirm = async () => {
     if (pending()) return;
