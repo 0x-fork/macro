@@ -4,7 +4,7 @@ use anyhow::Context;
 pub use macro_env::Environment;
 use macro_env_var::{env_var, maybe_env_var};
 use shared_env_vars::{
-    DatabaseUrl, NotificationQueue, RedisUri, SearchEventQueue, ServiceInternalAuthKey,
+    NotificationQueue, RedisUri, SearchEventQueue, ServiceInternalAuthKey, macro_db,
 };
 
 // BASE_URL config value. This is validated when creating the config in main.rs
@@ -163,8 +163,8 @@ maybe_env_var! {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct Config {
     pub base_url: BaseUrl,
-    /// The connection URL for the Postgres database this application should use.
-    pub database_url: DatabaseUrl,
+    /// The connection URL for MacroDB, the Postgres database this application should use.
+    pub database_url: macro_db::DatabaseUrl,
     /// The Redis URI for the Redis this application should use.
     pub redis_uri: RedisUri,
 
