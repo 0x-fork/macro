@@ -291,13 +291,39 @@ async fn handle_delete(
     // ordinary inboxes; best-effort, since the link and its data are already gone.
     match ctx.db.acquire().await {
         Ok(mut conn) => {
-            if let Err(e) = macro_db_client::shared_inbox::delete_promoted_mailbox_user(
+            match macro_db_client::shared_inbox::delete_promoted_mailbox_user(
                 &mut conn,
                 link.macro_id.as_ref(),
             )
             .await
             {
-                tracing::error!(error=?e, "Failed to delete minted user for promoted shared mailbox");
+                Ok(Some(minted_id)) => {
+                    // The minted id is the authoritative stub id: grant relocation creates the
+                    // mailbox's FusionAuth user with it, so it can never be a human connector's
+                    // account. Deleting by it (rather than the link's fusionauth_user_id, which
+                    // is stale when the post-relocation re-home failed) cleans the stub even in
+                    // partial states; the endpoint no-ops when relocation never created the user
+                    // and refuses active users as a second guard.
+                    let minted_id = minted_id.to_string();
+                    if link.fusionauth_user_id != minted_id {
+                        tracing::warn!(
+                            link_fusionauth_user_id = %link.fusionauth_user_id,
+                            %minted_id,
+                            "Promoted mailbox link did not point at its minted stub; deleting stub by minted id"
+                        );
+                    }
+                    if let Err(e) = ctx
+                        .auth_service_client
+                        .delete_inbox_grant_user(&minted_id)
+                        .await
+                    {
+                        tracing::error!(error=?e, "Failed to delete FusionAuth stub for promoted shared mailbox");
+                    }
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::error!(error=?e, "Failed to delete minted user for promoted shared mailbox");
+                }
             }
         }
         Err(e) => {
