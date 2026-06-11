@@ -113,14 +113,6 @@ interface SidebarItem {
 
 const SIDEBAR_LINKS = [
   {
-    id: 'notifications',
-    label: 'Notifications',
-    href: LIST_VIEW_PATHS.notifications,
-    icon: AnimatedSignalIcon,
-    hotkey: 'n',
-    hotkeyToken: TOKENS.sidebar.goTo.notifications,
-  },
-  {
     id: 'inbox',
     label: 'Inbox',
     href: LIST_VIEW_PATHS.inbox,
