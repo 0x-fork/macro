@@ -871,7 +871,7 @@ const SidebarCreateMenuItem = (props: {
 
   return (
     <Dropdown.Item
-      class="rounded-lg"
+      class="rounded-lg pr-2"
       onSelect={() => props.item.keyDownHandler()}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
@@ -888,7 +888,7 @@ const SidebarCreateMenuItem = (props: {
       <Hotkey
         shortcut={Array.isArray(props.item.hotkey) ? props.item.hotkey[0] : props.item.hotkey}
         theme="subtle"
-        class="shrink-0"
+        class="ml-3 shrink-0"
       />
     </Dropdown.Item>
   );
@@ -897,7 +897,7 @@ const SidebarCreateMenuItem = (props: {
 const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
   return (
     <Dropdown
-      placement={props.isSlim() ? 'right-start' : 'bottom-start'}
+      placement="right-start"
       gutter={6}
       onOpenChange={props.onOpenChange}
     >
@@ -1293,18 +1293,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
             <LogoIcon class="size-6" />
           </div>
           <div class="grow shrink-10 min-w-0 group-data-[slim=true]/sidebar:hidden" />
-          <Show when={isExpanded() && showEnableNotifications()}>
-            <div class="flex items-center gap-1 mr-1">
-              <Button
-                class="rounded-md p-1 text-ink-extra-muted"
-                size="icon-sm"
-                label="Enable Notifications"
-                onClick={handleEnableNotifications}
-              >
-                <BellIcon />
-              </Button>
-            </div>
-          </Show>
           <Button
             class="size-7 rounded-md p-1 [&_svg]:size-4"
             onMouseDown={(e) => {

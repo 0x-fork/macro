@@ -117,8 +117,7 @@ export function SplitPanel(props: SplitPanelProps) {
           panelRef,
         }}
       >
-        <SoupViewContextProvider soup={nextSoup}>
-          <SplitDrawerGroup contentOffsetTop={offsetTop} panelSize={panelSize}>
+        <SplitDrawerGroup contentOffsetTop={offsetTop} panelSize={panelSize}>
             <Show when={props.handle.isSpotLight()}>
               <div
                 class="fixed inset-0 w-screen h-screen z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted"
@@ -177,14 +176,15 @@ export function SplitPanel(props: SplitPanelProps) {
                 <Panel.Body>
                   <div class="@container/split size-full overflow-hidden relative">
                     <Suspense>
-                      <Dynamic component={props.split.mount.element} />
+                      <SoupViewContextProvider soup={nextSoup}>
+                        <Dynamic component={props.split.mount.element} />
+                      </SoupViewContextProvider>
                     </Suspense>
                   </div>
                 </Panel.Body>
               </Panel>
             </div>
           </SplitDrawerGroup>
-        </SoupViewContextProvider>
       </SplitPanelContext.Provider>
     </SoupContextProvider>
   );
