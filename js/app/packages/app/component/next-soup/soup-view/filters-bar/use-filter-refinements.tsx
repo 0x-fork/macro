@@ -219,37 +219,43 @@ export function useFilterRefinements() {
       }
     }
 
-    // Search operator filters: index: (entity type toggles)
-    const coveredByView = new Set<string>(
-      viewCategories().flatMap((c) => c.options.map((o) => o.id))
-    );
-    for (const option of INDEX_OPTIONS) {
-      const optionId = option.value as FilterID;
-      if (
-        !soup.predicates.isActive(optionId) ||
-        coveredByView.has(optionId) ||
-        presetFilterIds.has(optionId)
-      ) {
-        continue;
-      }
-      const key = `Type|${option.value}`;
-      seenKeys.add(key);
-      filters.push(
-        getOrCreateChip(key, () => ({
-          categoryLabel: 'Type',
-          optionId: () => option.value,
-          optionLabel: () => option.label,
-          icon: option.icon,
-          categoryOptions: INDEX_OPTIONS.map((o) => ({
-            id: o.value,
-            label: o.label,
-            icon: o.icon,
-          })) as ActiveFilter['categoryOptions'],
-          multiple: false,
-          onRemove: () => changeIndex('all'),
-          onReplace: (newOptionId) => changeIndex(newOptionId),
-        }))
+    // Search operator filters: index/entity-type toggles. These chips belong
+    // to the global Search view only; list views use their tab presets and
+    // view-specific filter categories instead. Showing them elsewhere makes
+    // default list-view predicates (Email, Tasks, Documents, etc.) look like
+    // user-applied refinements.
+    if (currentView() === 'search') {
+      const coveredByView = new Set<string>(
+        viewCategories().flatMap((c) => c.options.map((o) => o.id))
       );
+      for (const option of INDEX_OPTIONS) {
+        const optionId = option.value as FilterID;
+        if (
+          !soup.predicates.isActive(optionId) ||
+          coveredByView.has(optionId) ||
+          presetFilterIds.has(optionId)
+        ) {
+          continue;
+        }
+        const key = `Type|${option.value}`;
+        seenKeys.add(key);
+        filters.push(
+          getOrCreateChip(key, () => ({
+            categoryLabel: 'Type',
+            optionId: () => option.value,
+            optionLabel: () => option.label,
+            icon: option.icon,
+            categoryOptions: INDEX_OPTIONS.map((o) => ({
+              id: o.value,
+              label: o.label,
+              icon: o.icon,
+            })) as ActiveFilter['categoryOptions'],
+            multiple: false,
+            onRemove: () => changeIndex('all'),
+            onReplace: (newOptionId) => changeIndex(newOptionId),
+          }))
+        );
+      }
     }
 
     // Keep a chip alive while its popup is still open, even if the user

@@ -27,6 +27,7 @@ import {
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-bar/active-filter-chips';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
+import { INBOX_FILTER_ENTRY_KEY } from '@app/component/next-soup/soup-view/inbox-filter-controllers';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import { MaybeSoupEntityActionDrawerManager } from '@app/component/next-soup/soup-view/SoupEntityActionDrawerManager';
 import type { SystemSortOption } from '@app/component/next-soup/soup-view/sort-options';
@@ -536,21 +537,49 @@ export const SoupView = (props: SoupViewProps) => {
   const panel = useSplitPanelOrThrow();
   const soupView = useSoupView();
 
-  const entryState = panel.handle.currentEntryState();
-  const persistedFilters = entryState?.['search.filters'] as Query | undefined;
-  const persistedPredicates = entryState?.['search.predicates'] as
-    | SetPredicatesInput<string>
-    | undefined;
-
-  onMount(() => {
-    soupView.initialize({
-      initialQuery: persistedFilters ?? props.initialFilters,
-      initialClientFilters: persistedPredicates ?? props.initialClientFilters,
-      initialSearchText: props.initialSearchText,
-      disableLocalSearch: props.disableLocalSearch,
-      additionalEntities: props.additionalEntities,
-    });
+  const contentKey = createMemo(() => {
+    const content = panel.handle.content();
+    return `${content.type}:${content.id}`;
   });
+
+  createEffect(
+    on(contentKey, () => {
+      const entryState = props.skipPersistedState
+        ? undefined
+        : panel.handle.currentEntryState();
+      const persistedFilters = entryState?.['search.filters'] as
+        | Query
+        | undefined;
+      const persistedPredicates = entryState?.['search.predicates'] as
+        | SetPredicatesInput<string>
+        | undefined;
+      const persistedAssigneeFilter = entryState?.['soup.assigneeFilter'] as
+        | string[]
+        | undefined;
+      const persistedInboxFilter = entryState?.[INBOX_FILTER_ENTRY_KEY] as
+        | string[]
+        | undefined;
+      const persistedActiveTab = entryState?.['soup.tab'] as
+        | string
+        | undefined;
+      const content = panel.handle.content();
+      const defaultActiveTab =
+        content.type === 'component' && isListViewID(content.id)
+          ? VIEW_TAB_PRESETS[content.id].default
+          : undefined;
+
+      soupView.initialize({
+        initialQuery: persistedFilters ?? props.initialFilters,
+        initialClientFilters: persistedPredicates ?? props.initialClientFilters,
+        initialSearchText: props.initialSearchText,
+        initialAssigneeFilter: persistedAssigneeFilter,
+        initialInboxFilter: persistedInboxFilter,
+        initialActiveTab: persistedActiveTab ?? defaultActiveTab,
+        disableLocalSearch: props.disableLocalSearch,
+        additionalEntities: props.additionalEntities,
+      });
+    })
+  );
 
   createEffect(() => {
     panel.handle.setDisplayName(props.viewName);

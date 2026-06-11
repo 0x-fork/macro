@@ -93,6 +93,9 @@ type SoupViewInitializeOptions = {
   initialQuery?: Query;
   initialClientFilters?: SetPredicatesInput<string>;
   initialSearchText?: string;
+  initialAssigneeFilter?: string[];
+  initialInboxFilter?: string[];
+  initialActiveTab?: string;
   disableLocalSearch?: boolean;
   additionalEntities?: Accessor<EntityData[]>;
 };
@@ -328,6 +331,9 @@ export const SoupViewContextProvider: FlowComponent<
       queryFilters.replace(options.initialQuery ?? null);
       soup.predicates.set(options.initialClientFilters ?? {});
       setSearchText(options.initialSearchText ?? '');
+      setAssigneeFilter(options.initialAssigneeFilter ?? []);
+      setInboxFilter(options.initialInboxFilter);
+      setActiveTab(options.initialActiveTab);
       setEnabled(true);
     });
   };
