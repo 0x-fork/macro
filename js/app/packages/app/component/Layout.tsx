@@ -40,6 +40,7 @@ import { GlobalShareModal } from './global-share-modal/GlobalShareModal';
 import { ItemDndProvider } from './ItemDragAndDrop';
 import { IosShareSheet } from './ios-share-sheet/IosShareSheet';
 import { createMenuOpen, Launcher, setCreateMenuOpen } from './Launcher';
+import { MacroAgentLurker } from './MacroAgentLurker';
 import { MacroMcpSetupModal } from './macro-mcp-setup-modal/MacroMcpSetupModal';
 import { MobileDock } from './mobile/MobileDock';
 import { MobileSearchOuter } from './mobile/MobileSearch';
@@ -192,8 +193,11 @@ function LayoutInner(props: RouteSectionProps) {
         </Show>
 
         <ItemDndProvider>
-          <div class="flex-1 w-full min-h-0 font-sans text-ink caret-accent">
+          <div class="relative flex-1 w-full min-h-0 font-sans text-ink caret-accent">
             {props.children}
+            <Show when={!isMobile() && isAuthenticated() && !AUTH_URLS.includes(location.pathname)}>
+              <MacroAgentLurker />
+            </Show>
           </div>
         </ItemDndProvider>
       </div>

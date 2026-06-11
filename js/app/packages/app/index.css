@@ -299,6 +299,55 @@
   }
 }
 
+@keyframes macro-agent-container-grow {
+  0% {
+    opacity: 1;
+    border-radius: 9999px;
+    transform: translateY(0.4rem) scaleX(0.18) scaleY(0.24);
+  }
+  24% {
+    opacity: 1;
+    border-radius: 2rem;
+    transform: translateY(0.15rem) scaleX(0.55) scaleY(0.55);
+  }
+  55% {
+    opacity: 1;
+    border-radius: 1.25rem;
+    transform: translateY(-0.125rem) scaleX(1.01) scaleY(1.02);
+  }
+  100% {
+    opacity: 1;
+    border-radius: 1rem;
+    transform: translateY(0) scaleX(1) scaleY(1);
+  }
+}
+
+@keyframes macro-agent-title-to-corner {
+  0% {
+    opacity: 1;
+    transform: translate(15rem, 2.35rem) scale(1.02);
+  }
+  58% {
+    opacity: 1;
+    transform: translate(0.125rem, 0.125rem) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes macro-agent-input-content-in {
+  0%, 30% {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes long-press-message-highlight {
   from {
     background-color: oklch(from var(--color-accent) l c h / 0%);
@@ -430,6 +479,31 @@ html[data-theme-mode="dark"] .shadow-inset-bevel {
 @utility menu-open-animation {
   transform-origin: var(--kb-popper-content-transform-origin, top center);
   animation: var(--animate-menu-open);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility macro-agent-container-grow {
+  transform-origin: bottom center;
+  animation: macro-agent-container-grow 320ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility macro-agent-title-to-corner {
+  animation: macro-agent-title-to-corner 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility macro-agent-input-content-in {
+  animation: macro-agent-input-content-in 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;

@@ -59,7 +59,6 @@ import {
   PreviewPanel,
   useMaybePreviewPanel,
 } from '@app/component/PreviewPanel';
-import { SoupChatInput } from '@app/component/SoupChatInput';
 import { CollapsibleHeaderItem } from '@app/component/split-layout/components/CollapsibleHeaderItem';
 import {
   SplitHeaderLeft,
@@ -679,7 +678,7 @@ export const SoupView = (props: SoupViewProps) => {
     >
       <Suspense fallback={<SoupViewSkeleton />}>
         <div
-          class="size-full flex flex-col"
+          class="relative size-full flex flex-col"
           data-list-view={activeListView()}
         >
             <Show when={isMobile()}>
