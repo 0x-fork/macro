@@ -88,7 +88,7 @@ export function QuerySyncProvider(props: SyncProviderProps) {
         applyNotificationStatusUpdate(result.data);
       })
       .with({ type: 'refresh_email' }, () => {
-        handleRefreshEmail(data.data);
+        withParsedWebsocketPayload(data.type, data.data, handleRefreshEmail);
       })
       .with({ type: 'task_duplicate_matches_updated' }, () => {
         withParsedWebsocketPayload(
