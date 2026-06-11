@@ -24,13 +24,12 @@ on:
       - 'flake.nix'
       - 'flake.lock'
 
-# Same repo-global group as dev dispatches of deploy-all-services, so a push
-# deploy and a manual dev deploy queue instead of racing the same Pulumi
-# stacks. cancel-in-progress stays false: a running deploy finishes, and
-# GitHub coalesces queued pushes down to the newest one.
-concurrency:
-  group: deploy-all-services-dev
-  cancel-in-progress: false
+# NOTE: deliberately no concurrency block here. The called workflow's own
+# top-level group (deploy-all-services-${{ inputs.environment }}) IS honored
+# for workflow_call runs and is what serializes push deploys against manual
+# dev dispatches (running deploys finish; queued pushes coalesce to the
+# newest). Declaring the same group in this wrapper makes GitHub detect a
+# self-deadlock ("between a top level workflow and ...") and cancel the run.
 
 jobs:
   deploy-all:
