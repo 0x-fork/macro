@@ -135,7 +135,7 @@ import { createStore, reconcile } from 'solid-js/store';
 import { Dynamic } from 'solid-js/web';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
-import { ListHeader } from './list-header';
+import { SoupViewListHeader } from './soup-view-list-header';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
@@ -1273,28 +1273,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                       <Show
                         when={currentView() === 'tasks' && !isMobile()}
                         fallback={
-                          <ListHeader
-                            type={
-                              currentView() === 'tasks'
-                                ? 'task'
-                                : currentView() === 'mail'
-                                  ? 'email'
-                                  : currentView() === 'documents'
-                                    ? 'document'
-                                    : currentView() === 'channels'
-                                      ? 'channel'
-                                      : currentView() === 'inbox'
-                                        ? 'inbox'
-                                        : 'default'
-                            }
-                            timestampLabel={
-                              soup.sort.active()[0]?.id === 'created_at'
-                                ? 'Created'
-                                : soup.sort.active()[0]?.id === 'viewed_at'
-                                  ? 'Viewed'
-                                  : 'Updated'
-                            }
-                          />
+                          <SoupViewListHeader />
                         }
                       >
                         <ResponsiveTaskListHeader class="shrink-0" />
