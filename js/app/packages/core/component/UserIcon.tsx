@@ -28,6 +28,7 @@ import { HoverCard } from './HoverCard';
 import { UserTooltip } from './UserTooltip';
 
 export type UserIconSize = AvatarSize;
+export type SizeClass = { size: string; text: string; container: string };
 
 export type UserIconProps = {
   isDeleted?: boolean;
@@ -37,6 +38,7 @@ export type UserIconProps = {
   class?: string;
   /** Fallback image (e.g. an email contact photo) shown when the user has no Macro profile picture. */
   photoUrl?: string;
+  rounded?: string;
 } & ({ id: string; email?: never } | { email: string; id?: never });
 
 /**

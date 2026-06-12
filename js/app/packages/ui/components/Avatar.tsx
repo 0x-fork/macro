@@ -1,7 +1,7 @@
 import { type JSX, type ParentProps, splitProps } from 'solid-js';
 import { cn } from '../utils/classname';
 
-export type AvatarSize = 'sm' | 'md' | 'lg' | 'fill';
+export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'fill';
 
 export type AvatarProps = ParentProps<
   JSX.HTMLAttributes<HTMLDivElement> & {
@@ -12,6 +12,7 @@ export type AvatarProps = ParentProps<
 
 const AVATAR_SIZE_CLASSES = cn(
   'size-4',
+  'data-[size=xs]:size-3.5',
   'data-[size=md]:size-6',
   'data-[size=lg]:size-10',
   'data-[size=fill]:size-full'
@@ -19,6 +20,7 @@ const AVATAR_SIZE_CLASSES = cn(
 
 const AVATAR_SVG_CLASSES = cn(
   '[&>svg]:size-2',
+  'data-[size=xs]:[&>svg]:size-2',
   'data-[size=md]:[&>svg]:size-3',
   'data-[size=lg]:[&>svg]:size-5',
   'data-[size=fill]:[&>svg]:size-1/2'
@@ -108,7 +110,7 @@ Avatar.Fallback = AvatarFallback;
 
 // ---------- AvatarGroup ----------
 
-export type AvatarGroupSize = 'sm' | 'md' | 'lg';
+export type AvatarGroupSize = 'xs' | 'sm' | 'md' | 'lg';
 
 export type AvatarGroupProps = ParentProps<
   JSX.HTMLAttributes<HTMLDivElement> & {
@@ -121,6 +123,7 @@ export type AvatarGroupProps = ParentProps<
  * Overlap spacing for avatar groups by size.
  */
 const GROUP_OVERLAP_CLASSES: Record<AvatarGroupSize, string> = {
+  xs: '-space-x-1',
   sm: '-space-x-1.5',
   md: '-space-x-2',
   lg: '-space-x-3',
@@ -130,6 +133,7 @@ const GROUP_OVERLAP_CLASSES: Record<AvatarGroupSize, string> = {
  * Ring classes applied to child avatars for separation.
  */
 const GROUP_RING_CLASSES: Record<AvatarGroupSize, string> = {
+  xs: '**:data-[slot=avatar]:ring-1',
   sm: '**:data-[slot=avatar]:ring-1',
   md: '**:data-[slot=avatar]:ring-2',
   lg: '**:data-[slot=avatar]:ring-2',
@@ -184,6 +188,7 @@ type AvatarGroupCountProps = ParentProps<{
  * Count sizing classes for overflow indicator.
  */
 const GROUP_COUNT_CLASSES: Record<AvatarGroupSize, string> = {
+  xs: 'size-3.5 text-[8px] ring-1',
   sm: 'size-4 text-[9px] ring-1',
   md: 'size-6 text-xs ring-2',
   lg: 'size-10 text-base ring-2',

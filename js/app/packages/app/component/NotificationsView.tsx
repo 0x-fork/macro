@@ -6,6 +6,7 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
 import { SplitPanelContext } from '@app/component/split-layout/context';
 import type { BlockName } from '@core/block';
+import type { Entity as CoreEntity } from '@core/types';
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import {
   CHANNEL_EVENT_TYPES,
@@ -432,7 +433,7 @@ function MessageNotificationRow(props: {
                   <UserIcon class="size-3.5 shrink-0 text-ink-muted" />
                   <NotificationSenderIcon
                     notification={props.notification}
-                    size="xs"
+                    size="sm"
                   />
                   <span
                     class={cn('text-sm truncate', unread() && 'font-medium')}
@@ -460,7 +461,7 @@ function MessageNotificationRow(props: {
               <div class="shrink-0">
                 <NotificationSenderIcon
                   notification={props.notification}
-                  size="xs"
+                  size="sm"
                 />
               </div>
             </Show>
@@ -551,7 +552,7 @@ function DocumentNotificationRow(props: {
             <div class="shrink-0">
               <NotificationSenderIcon
                 notification={props.notification}
-                size="xs"
+                size="sm"
               />
             </div>
             <span
@@ -569,7 +570,7 @@ function DocumentNotificationRow(props: {
           <div class="flex items-center gap-1.5 text-sm text-ink-muted">
             <Show
               when={isTask()}
-              fallback={<EntityIcon targetType={targetType()} size="xs" />}
+              fallback={<EntityIcon targetType={targetType()} size="sm" />}
             >
               <ListChecksIcon class="size-3.5 shrink-0" />
             </Show>
@@ -650,7 +651,7 @@ function TaskNotificationRow(props: {
             <div class="shrink-0">
               <NotificationSenderIcon
                 notification={props.notification}
-                size="xs"
+                size="sm"
               />
             </div>
             <span
@@ -691,7 +692,7 @@ function StackedAvatars(props: { senderIds: string[]; maxDisplay?: number }) {
             >
               <NotificationSenderIcon
                 notification={{ sender_id: senderId } as UnifiedNotification}
-                size="xs"
+                size="sm"
               />
             </div>
           )}
@@ -850,7 +851,7 @@ function MessageNotificationGroup(props: {
                 <div class="shrink-0">
                   <NotificationSenderIcon
                     notification={notification}
-                    size="xs"
+                    size="sm"
                   />
                 </div>
                 <div class="flex-1 min-w-0">
@@ -976,7 +977,7 @@ export function NotificationsView() {
     entity: EntityData
   ): WithNotification<EntityData> => ({
     ...entity,
-    notifications: useNotificationsForEntity(notificationSource, entity),
+    notifications: useNotificationsForEntity(notificationSource, entity as CoreEntity),
   });
 
   // Get message notifications separately

@@ -59,7 +59,6 @@ function AttachmentImageTile(props: { item: MediaItem; onOpen?: () => void }) {
     <div class="aspect-square overflow-hidden rounded-lg border border-edge">
       <img
         src={props.item.src}
-        previewSrc={props.item.previewSrc}
         class={cn(
           'w-full h-full select-none object-cover',
           props.onOpen && 'hover:opacity-80 cursor-pointer'

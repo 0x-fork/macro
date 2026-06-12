@@ -45,6 +45,7 @@ import {
   isTaskEntity,
   type TaskEntity,
   unreadFilterFn,
+  type WithNotification,
 } from '@entity';
 import { TaskPropertyGroup } from '@entity/composed/StackedListEntity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
@@ -56,7 +57,6 @@ import { useUserNotificationsQuery } from '@queries/notification/user-notificati
 import { itemToBlockName } from '@core/constant/allBlocks';
 import type { ListView } from '@app/constants/list-views';
 import type { Component, JSX } from 'solid-js';
-import { PROPERTY_OPTION_IDS } from '@property/constants';
 import { queryClient } from '@queries/client';
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
@@ -344,14 +344,18 @@ function EntityItemRow(props: { entity: EntityData; onClick: () => void }) {
 
 function TaskItemRow(props: { entity: TaskEntity; onClick: () => void }) {
   const hasStatus = createMemo(() => {
-    const properties = props.entity.properties ?? [];
+    const properties =
+      (props.entity as { properties?: { property_definition_id: string }[] })
+        .properties ?? [];
     return properties.some(
       (p) => p.property_definition_id === SYSTEM_PROPERTY_IDS.STATUS
     );
   });
 
   const hasPriority = createMemo(() => {
-    const properties = props.entity.properties ?? [];
+    const properties =
+      (props.entity as { properties?: { property_definition_id: string }[] })
+        .properties ?? [];
     return properties.some(
       (p) => p.property_definition_id === SYSTEM_PROPERTY_IDS.PRIORITY
     );
@@ -415,7 +419,7 @@ function AICardStack() {
   const unreadCount = createMemo(() => {
     const notifications = notificationsQuery.data;
     if (!notifications) return 0;
-    return notifications.filter((n) => !n.viewed_at && !n.done_at).length;
+    return notifications.filter((n) => !n.viewed_at && !n.done).length;
   });
 
   const tasksArgs = createMemo(
@@ -426,29 +430,16 @@ function AICardStack() {
       },
       body: {
         document_filters: {
-          sub_type: ['task'],
-          properties: user.userId()
-            ? [
-                {
-                  property_id: SYSTEM_PROPERTY_IDS.ASSIGNEES,
-                  type: 'entity',
-                  value: user.userId()!,
-                },
-              ]
-            : undefined,
-          properties_exclude: [
-            {
-              property_id: SYSTEM_PROPERTY_IDS.STATUS,
-              type: 'select',
-              value: PROPERTY_OPTION_IDS.STATUS.COMPLETED,
-            },
-            {
-              property_id: SYSTEM_PROPERTY_IDS.STATUS,
-              type: 'select',
-              value: PROPERTY_OPTION_IDS.STATUS.CANCELED,
-            },
-          ],
+          sub_types: ['task'],
         },
+        property_filters: user.userId()
+          ? [
+              {
+                property_definition_id: SYSTEM_PROPERTY_IDS.ASSIGNEES,
+                entity_ids: [user.userId()!],
+              },
+            ]
+          : undefined,
       },
     })
   );
@@ -925,29 +916,16 @@ function TasksSection() {
       },
       body: {
         document_filters: {
-          sub_type: ['task'],
-          properties: user.userId()
-            ? [
-                {
-                  property_id: SYSTEM_PROPERTY_IDS.ASSIGNEES,
-                  type: 'entity',
-                  value: user.userId()!,
-                },
-              ]
-            : undefined,
-          properties_exclude: [
-            {
-              property_id: SYSTEM_PROPERTY_IDS.STATUS,
-              type: 'select',
-              value: PROPERTY_OPTION_IDS.STATUS.COMPLETED,
-            },
-            {
-              property_id: SYSTEM_PROPERTY_IDS.STATUS,
-              type: 'select',
-              value: PROPERTY_OPTION_IDS.STATUS.CANCELED,
-            },
-          ],
+          sub_types: ['task'],
         },
+        property_filters: user.userId()
+          ? [
+              {
+                property_definition_id: SYSTEM_PROPERTY_IDS.ASSIGNEES,
+                entity_ids: [user.userId()!],
+              },
+            ]
+          : undefined,
       },
     })
   );
@@ -1009,7 +987,7 @@ function ConversationSquare(props: {
 }) {
   const isUnread = createMemo(() => {
     try {
-      return unreadFilterFn(props.entity as any);
+      return unreadFilterFn(props.entity as WithNotification<EntityData>);
     } catch {
       return false;
     }
@@ -1051,13 +1029,13 @@ function ConversationsSection() {
         document_ids: [NIL_UUID],
       },
       email_filters: {
-        thread_ids: [NIL_UUID],
+        email_thread_ids: [NIL_UUID],
       },
       chat_filters: {
         chat_ids: [NIL_UUID],
       },
-      folder_filters: {
-        folder_ids: [NIL_UUID],
+      project_filters: {
+        project_ids: [NIL_UUID],
       },
       call_filters: {
         call_ids: [NIL_UUID],
@@ -1247,7 +1225,7 @@ function CallBanner() {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              callContext?.disconnect?.();
+              void callContext?.disconnectSession?.();
             }}
             class="size-8 rounded-full bg-failure flex items-center justify-center ml-1"
           >

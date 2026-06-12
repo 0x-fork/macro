@@ -716,13 +716,18 @@ export function TaskPropertyPill(props: {
   dim?: boolean;
   children: JSX.Element;
 }) {
-  const { openPropertyEditor } = usePropertiesContext();
+  const propertiesContext = usePropertiesContext();
 
   const handleClick = (e: MouseEvent) => {
     if (!props.property) return;
     e.preventDefault();
     e.stopPropagation();
-    openPropertyEditor(props.property, e.currentTarget as HTMLElement);
+    const openPropertyEditor = (
+      propertiesContext as typeof propertiesContext & {
+        openPropertyEditor?: (property: Property, anchor: HTMLElement) => void;
+      }
+    ).openPropertyEditor;
+    openPropertyEditor?.(props.property, e.currentTarget as HTMLElement);
   };
 
   return (

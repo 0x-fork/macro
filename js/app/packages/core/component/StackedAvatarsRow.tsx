@@ -18,6 +18,7 @@ export type StackedAvatarsSize = NonNullable<UserIconProps['size']>;
 
 /** `distribute="fill"`: face + chip footprint in px (matches Tailwind `size-*` at default rem). */
 const AVATAR_DIAMETER_PX: Record<StackedAvatarsSize, number> = {
+  xs: 14,
   sm: 16,
   md: 24,
   lg: 40,
@@ -48,6 +49,16 @@ const STACK_STYLE: Record<
     defaultEmptyIcon: string;
   }
 > = {
+  xs: {
+    overlap: '-mr-1',
+    overflowChip:
+      'size-3.5 shrink-0 rounded-full border-2 border-surface bg-surface flex flex-col items-center justify-center',
+    overflowChipText:
+      'text-[7px] font-semibold tabular-nums leading-none text-ink',
+    inner:
+      'bg-surface size-3.5 rounded-full p-[1px] border-2 border-surface box-border',
+    defaultEmptyIcon: 'w-2 h-2',
+  },
   sm: {
     overlap: '-mr-1.5',
     overflowChip:

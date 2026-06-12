@@ -2,7 +2,7 @@ import { createMemo, Show, Suspense } from 'solid-js';
 import { VList } from 'virtua/solid';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import type { EntityData } from '@entity';
-import type { ApiChannelAttachment } from '@service-comms/client';
+import type { ApiChannelAttachment } from '@service-storage/client';
 import { useSoupItemsQuery } from '@queries/soup/items';
 import {
   flattenAttachments,
