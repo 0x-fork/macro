@@ -224,6 +224,16 @@ function DropdownSub(props: DropdownSubProps) {
   return <KobalteDropdownMenu.Sub gutter={2} shift={-7} {...props} />;
 }
 
+function DropdownSeparator(props: DropdownSeparatorProps) {
+  const [local, rest] = splitProps(props, ['class']);
+  return (
+    <KobalteDropdownMenu.Separator
+      class={cn('menu-separator my-1 border-edge border-t w-full', local.class)}
+      {...rest}
+    />
+  );
+}
+
 function DropdownItem(props: DropdownItemProps) {
   const [local, rest] = splitProps(props, ['class']);
   return (
@@ -253,8 +263,7 @@ export const Dropdown = Object.assign(
   {
     RadioGroup:
       KobalteDropdownMenu.RadioGroup /* passthrough — pure logical wrapper */,
-    Separator:
-      KobalteDropdownMenu.Separator /* passthrough — styled via class at use sites */,
+    Separator: DropdownSeparator,
     ItemIndicator: DropdownItemIndicator,
     CheckboxItem: DropdownCheckboxItem,
     SubContent: DropdownSubContent,

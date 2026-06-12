@@ -4,8 +4,14 @@ import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
 import type { BlockName } from '@core/block';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { DEV_MODE_ENV } from '@core/constant/featureFlags';
-import { TOKENS } from '@core/hotkey/tokens';
+import {
+  ContextMenuContent,
+  MenuGroup,
+  MenuItem,
+  MenuSeparator,
+} from '@core/component/ContextMenu';
 import { toast } from '@core/component/Toast/Toast';
+import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import type { EntityDragEvent } from '@entity';
 import { AnimatedNewSplitIcon } from '@icon/wide-newSplit';
@@ -21,9 +27,10 @@ import ClockCounterClockwiseIcon from '@phosphor/clock-counter-clockwise.svg';
 import CopyIcon from '@phosphor/copy.svg';
 import DotsThreeIcon from '@phosphor/dots-three-vertical.svg';
 import CloseIcon from '@phosphor/x.svg';
+import { ContextMenu as KobalteContextMenu } from '@kobalte/core/context-menu';
 import { mergeRefs } from '@solid-primitives/refs';
 import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
-import { Button, cn, Dropdown } from '@ui';
+import { Button, cn, Dropdown, Layer } from '@ui';
 import {
   createMemo,
   type ParentProps,
@@ -38,13 +45,14 @@ import { canSpotlight } from '../utils/canSpotlight';
 
 export { SplitHeaderBadge } from './SplitLabel';
 
-function SplitMoreMenuButton() {
+function useSplitMenuActions() {
   const panel = useContext(SplitPanelContext);
   const layout = useContext(SplitLayoutContext);
   if (!panel || !layout) return null;
 
   const splits = () => layout.manager.splits();
-  const currentIndex = () => splits().findIndex((split) => split.id === panel.handle.id);
+  const currentIndex = () =>
+    splits().findIndex((split) => split.id === panel.handle.id);
   const currentContent = () => panel.handle.content();
   const canCreateNewSplit = () => layout.manager.canAppendSplit();
   const canMoveLeft = () => currentIndex() > 0;
@@ -122,80 +130,141 @@ function SplitMoreMenuButton() {
     toast.success('Copied split debug info');
   };
 
+  return {
+    panel,
+    layout,
+    canCreateNewSplit,
+    canMoveLeft,
+    canMoveRight,
+    canCloseOtherSplits,
+    handleNewSplitClick,
+    handleDuplicateSplit,
+    moveSplit,
+    closeOtherSplits,
+    resetSplitLayout,
+    copyDebugInfo,
+  };
+}
+
+function SplitMenuDropdownContent(props: { actions: NonNullable<ReturnType<typeof useSplitMenuActions>> }) {
+  const actions = props.actions;
+  return (
+    <Dropdown.Content class="min-w-44">
+      <Dropdown.Group>
+        <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={actions.handleNewSplitClick}>
+          <AnimatedNewSplitIcon class="size-4 shrink-0" />
+          <span class="flex-1 truncate">New split</span>
+        </Dropdown.Item>
+        <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={actions.handleDuplicateSplit}>
+          <CopyIcon class="size-4 shrink-0" />
+          <span class="flex-1 truncate">Duplicate split</span>
+        </Dropdown.Item>
+        <Show when={canSpotlight(actions.layout.manager)}>
+          <Dropdown.Item onSelect={() => actions.panel.handle.toggleSpotlight()}>
+            <Show when={actions.panel.handle.isSpotLight()} fallback={<ExpandIcon class="size-4 shrink-0" />}>
+              <CollapseIcon class="size-4 shrink-0" />
+            </Show>
+            <span class="flex-1 truncate">
+              {actions.panel.handle.isSpotLight() ? 'Minimize split' : 'Spotlight split'}
+            </span>
+          </Dropdown.Item>
+        </Show>
+      </Dropdown.Group>
+      <Dropdown.Separator />
+      <Dropdown.Group>
+        <Dropdown.Item disabled={!actions.canMoveLeft()} onSelect={() => actions.moveSplit(-1)}>
+          <ArrowLineLeftIcon class="size-4 shrink-0" />
+          <span class="flex-1 truncate">Move split left</span>
+        </Dropdown.Item>
+        <Dropdown.Item disabled={!actions.canMoveRight()} onSelect={() => actions.moveSplit(1)}>
+          <ArrowLineRightIcon class="size-4 shrink-0" />
+          <span class="flex-1 truncate">Move split right</span>
+        </Dropdown.Item>
+      </Dropdown.Group>
+      <Dropdown.Separator />
+      <Dropdown.Group>
+        <Dropdown.Item disabled={!actions.canCloseOtherSplits()} onSelect={actions.closeOtherSplits}>
+          <CloseIcon class="size-4 shrink-0" />
+          <span class="flex-1 truncate">Close other splits</span>
+        </Dropdown.Item>
+        <Dropdown.Item onSelect={actions.resetSplitLayout}>
+          <ClockCounterClockwiseIcon class="size-4 shrink-0" />
+          <span class="flex-1 truncate">Reset split layout</span>
+        </Dropdown.Item>
+      </Dropdown.Group>
+      <Show when={DEV_MODE_ENV}>
+        <Dropdown.Separator />
+        <Dropdown.Group>
+          <Dropdown.Item onSelect={() => void actions.copyDebugInfo()}>
+            <CopyIcon class="size-4 shrink-0" />
+            <span class="flex-1 truncate">Copy debug info</span>
+          </Dropdown.Item>
+        </Dropdown.Group>
+      </Show>
+    </Dropdown.Content>
+  );
+}
+
+function SplitMenuContextContent() {
+  const actions = useSplitMenuActions();
+  if (!actions) return null;
+
+  return (
+    <KobalteContextMenu.Portal>
+      <ContextMenuContent width="md">
+        <MenuGroup>
+          <MenuItem icon={AnimatedNewSplitIcon} text="New split" disabled={!actions.canCreateNewSplit()} onClick={actions.handleNewSplitClick} />
+          <MenuItem icon={CopyIcon} text="Duplicate split" disabled={!actions.canCreateNewSplit()} onClick={actions.handleDuplicateSplit} />
+          <Show when={canSpotlight(actions.layout.manager)}>
+            <MenuItem
+              icon={actions.panel.handle.isSpotLight() ? CollapseIcon : ExpandIcon}
+              text={actions.panel.handle.isSpotLight() ? 'Minimize split' : 'Spotlight split'}
+              onClick={() => actions.panel.handle.toggleSpotlight()}
+            />
+          </Show>
+        </MenuGroup>
+        <MenuSeparator />
+        <MenuGroup>
+          <MenuItem icon={ArrowLineLeftIcon} text="Move split left" disabled={!actions.canMoveLeft()} onClick={() => actions.moveSplit(-1)} />
+          <MenuItem icon={ArrowLineRightIcon} text="Move split right" disabled={!actions.canMoveRight()} onClick={() => actions.moveSplit(1)} />
+        </MenuGroup>
+        <MenuSeparator />
+        <MenuGroup>
+          <MenuItem icon={CloseIcon} text="Close other splits" disabled={!actions.canCloseOtherSplits()} onClick={actions.closeOtherSplits} />
+          <MenuItem icon={ClockCounterClockwiseIcon} text="Reset split layout" onClick={actions.resetSplitLayout} />
+        </MenuGroup>
+        <Show when={DEV_MODE_ENV}>
+          <MenuSeparator />
+          <MenuGroup>
+            <MenuItem icon={CopyIcon} text="Copy debug info" onClick={() => void actions.copyDebugInfo()} />
+          </MenuGroup>
+        </Show>
+      </ContextMenuContent>
+    </KobalteContextMenu.Portal>
+  );
+}
+
+export function SplitMoreMenuButton() {
+  const actions = useSplitMenuActions();
+  if (!actions) return null;
+
   return (
     <Show when={!isMobile()}>
-      <Dropdown placement="bottom-start">
+      <Layer depth={3}>
+        <Dropdown placement="bottom-end">
         <Dropdown.Trigger
-          size="sm"
+          size="icon-sm"
           variant="ghost"
-          class="p-1 [&_svg]:size-4"
+          noTouchResize
+          class="size-7 rounded-lg bg-surface/80 p-0 text-ink/65 shadow-[inset_0_0_0_1px_var(--color-edge-muted),0_2px_8px_-6px_rgba(0,0,0,0.18)] not-disabled:hover:bg-surface not-disabled:hover:text-ink data-expanded:bg-surface data-expanded:text-ink [&_svg]:size-3.5"
           label="Split options"
+          data-split-more-menu
         >
-          <DotsThreeIcon class="text-ink-extra-muted" />
+          <DotsThreeIcon />
         </Dropdown.Trigger>
-        <Dropdown.Content class="min-w-44">
-          <Dropdown.Group>
-            <Dropdown.Item
-              disabled={!canCreateNewSplit()}
-              onSelect={handleNewSplitClick}
-            >
-              <AnimatedNewSplitIcon class="size-4 shrink-0" />
-              <span class="flex-1 truncate">New split</span>
-            </Dropdown.Item>
-            <Dropdown.Item
-              disabled={!canCreateNewSplit()}
-              onSelect={handleDuplicateSplit}
-            >
-              <CopyIcon class="size-4 shrink-0" />
-              <span class="flex-1 truncate">Duplicate split</span>
-            </Dropdown.Item>
-            <Show when={canSpotlight(layout.manager)}>
-              <Dropdown.Item onSelect={() => panel.handle.toggleSpotlight()}>
-                <Show
-                  when={panel.handle.isSpotLight()}
-                  fallback={<ExpandIcon class="size-4 shrink-0" />}
-                >
-                  <CollapseIcon class="size-4 shrink-0" />
-                </Show>
-                <span class="flex-1 truncate">
-                  {panel.handle.isSpotLight() ? 'Minimize split' : 'Spotlight split'}
-                </span>
-              </Dropdown.Item>
-            </Show>
-          </Dropdown.Group>
-          <Dropdown.Group>
-            <Dropdown.Item disabled={!canMoveLeft()} onSelect={() => moveSplit(-1)}>
-              <ArrowLineLeftIcon class="size-4 shrink-0" />
-              <span class="flex-1 truncate">Move split left</span>
-            </Dropdown.Item>
-            <Dropdown.Item disabled={!canMoveRight()} onSelect={() => moveSplit(1)}>
-              <ArrowLineRightIcon class="size-4 shrink-0" />
-              <span class="flex-1 truncate">Move split right</span>
-            </Dropdown.Item>
-          </Dropdown.Group>
-          <Dropdown.Group>
-            <Dropdown.Item
-              disabled={!canCloseOtherSplits()}
-              onSelect={closeOtherSplits}
-            >
-              <CloseIcon class="size-4 shrink-0" />
-              <span class="flex-1 truncate">Close other splits</span>
-            </Dropdown.Item>
-            <Dropdown.Item onSelect={resetSplitLayout}>
-              <ClockCounterClockwiseIcon class="size-4 shrink-0" />
-              <span class="flex-1 truncate">Reset split layout</span>
-            </Dropdown.Item>
-          </Dropdown.Group>
-          <Show when={DEV_MODE_ENV}>
-            <Dropdown.Group>
-              <Dropdown.Item onSelect={() => void copyDebugInfo()}>
-                <CopyIcon class="size-4 shrink-0" />
-                <span class="flex-1 truncate">Copy debug info</span>
-              </Dropdown.Item>
-            </Dropdown.Group>
-          </Show>
-        </Dropdown.Content>
-      </Dropdown>
+          <SplitMenuDropdownContent actions={actions} />
+        </Dropdown>
+      </Layer>
     </Show>
   );
 }
@@ -232,8 +301,9 @@ function SplitBackButton() {
   if (!context) return null;
   return (
     <Button
-      size="sm"
-      class="p-1"
+      size="icon-sm"
+      noTouchResize
+      class="size-6 p-0 rounded-lg text-ink/65 not-disabled:hover:text-ink not-disabled:hover:bg-ink/3 not-disabled:hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_8%,transparent)] [&_svg]:size-3.5"
       label="Go Back"
       hotkey={TOKENS.split.go.back}
       disabled={!context.handle.canGoBack()}
@@ -249,13 +319,14 @@ function SplitForwardButton() {
   if (!context) return '';
   return (
     <Button
-      size="sm"
+      size="icon-sm"
+      noTouchResize
       label="Go Forward"
       hotkey={TOKENS.split.go.forward}
       disabled={!context.handle.canGoForward()}
       onClick={context.handle.goForward}
       class={cn(
-        'p-1 rounded-lg',
+        'size-6 p-0 rounded-lg text-ink/65 not-disabled:hover:text-ink not-disabled:hover:bg-ink/3 not-disabled:hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_8%,transparent)] [&_svg]:size-3.5',
         isMobile() && !context.handle.canGoForward() && 'hidden'
       )}
     >
@@ -299,8 +370,9 @@ function SplitCloseButton() {
   return (
     <Show when={layout.manager.splits().length > 1}>
       <Button
-        size="sm"
-        class="p-1"
+        size="icon-sm"
+        noTouchResize
+        class="size-6 p-0 rounded-lg text-ink/65 not-disabled:hover:bg-failure-bg not-disabled:hover:text-failure not-disabled:hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)] [&_svg]:size-3.5"
         label={label()}
         hotkey={TOKENS.split.close}
         onClick={context.handle.close}
@@ -449,16 +521,21 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
           </Portal>
         )}
       </Show>
-      <div class="absolute inset-0">
-        <div class="absolute inset-y-0 left-0 z-10 flex items-center pl-2 mobile:pl-0">
-          <div class="mobile:hidden">
-            <SplitCloseButton />
+      <KobalteContextMenu>
+        <KobalteContextMenu.Trigger class="relative flex h-full w-full items-center">
+        <div class="z-10 flex items-center self-center pl-1">
+          <div
+            class="flex h-7 items-center gap-0 rounded-lg bg-transparent p-1"
+            data-split-controls
+          >
+            <div class="mobile:hidden flex h-6 items-center">
+              <SplitCloseButton />
+            </div>
+            <Show when={!(isMobile() && isListViewID(panel.handle.content().id))}>
+              <SplitBackButton />
+              <SplitForwardButton />
+            </Show>
           </div>
-          <Show when={!(isMobile() && isListViewID(panel.handle.content().id))}>
-            <SplitBackButton />
-            <SplitForwardButton />
-          </Show>
-          <SplitMoreMenuButton />
         </div>
 
         <div class="pointer-events-none absolute inset-y-0 left-28 right-20 flex min-w-0 items-center justify-center">
@@ -472,13 +549,14 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         </div>
 
         <div
-          class="absolute inset-y-0 right-0 z-10 min-w-4 h-full flex items-center justify-end gap-0.5 px-2 empty:hidden"
-          data-split-portal-target
+          class="absolute inset-y-0 right-0 z-10 min-w-4 h-full flex items-center justify-end gap-0.5 px-2 empty:hidden"          data-split-portal-target
           ref={(ref) => {
             panel.layoutRefs.headerRight = ref;
           }}
         />
-      </div>
+        </KobalteContextMenu.Trigger>
+        <SplitMenuContextContent />
+      </KobalteContextMenu>
     </div>
   );
 }

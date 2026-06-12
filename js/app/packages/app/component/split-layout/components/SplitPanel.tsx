@@ -24,7 +24,7 @@ import type { SplitHandle, SplitState } from '../layoutManager';
 import { registerSplitHotkeys } from '../registerSplitHotkeys';
 import { createHeaderCollapser } from '../utils/createHeaderCollapser';
 import { SplitDrawerGroup } from './SplitDrawerContext';
-import { SplitHeader } from './SplitHeader';
+import { SplitHeader, SplitMoreMenuButton } from './SplitHeader';
 import { SplitToolbar } from './SplitToolbar';
 
 type SplitPanelProps = {
@@ -128,8 +128,8 @@ export function SplitPanel(props: SplitPanelProps) {
             <div
               class={cn(
                 props.handle.isSpotLight()
-                  ? 'fixed inset-16 z-modal-content isolate'
-                  : 'relative size-full'
+                  ? 'group fixed inset-16 z-modal-content isolate'
+                  : 'group relative size-full'
               )}
               ref={(ref) => {
                 setPanelRef(ref);
@@ -141,6 +141,9 @@ export function SplitPanel(props: SplitPanelProps) {
               data-modal={props.handle.isSpotLight()}
               tabindex={-1}
             >
+              <div class="absolute -right-2 -top-2 z-70 opacity-0 transition-opacity hover:opacity-100 focus-within:opacity-100 group-has-[[data-split-header]:hover]:opacity-100 group-has-[[data-split-more-menu][data-expanded]]:opacity-100">
+                <SplitMoreMenuButton />
+              </div>
               <Panel
                 class="rounded-xl mobile:rounded-none mobile:after:hidden"
                 depth={1}
