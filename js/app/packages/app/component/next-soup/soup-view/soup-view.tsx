@@ -99,9 +99,10 @@ import ChevronRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import ClockIcon from '@phosphor/clock.svg';
 import RowsIcon from '@phosphor/rows.svg';
+import CircleDashed from '@phosphor/circle-dashed.svg';
 import Spinner from '@phosphor/spinner.svg';
 import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
-import { SYSTEM_PROPERTY_IDS } from '@property/constants';
+import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useQueryClient } from '@queries/client';
 import { emailKeys } from '@queries/email/keys';
 import { useEmailLinksQuery } from '@queries/email/link';
@@ -143,6 +144,7 @@ export const SoupSectionHeader = (props: {
   children: JSX.Element;
   onClick?: () => void;
   highlighted?: boolean;
+  class?: string;
 }) => {
   return (
     <Layer depth={2}>
@@ -150,10 +152,12 @@ export const SoupSectionHeader = (props: {
         component={props.onClick ? 'button' : 'div'}
         type={props.onClick ? 'button' : undefined}
         onClick={props.onClick}
+        data-highlighted={props.highlighted ? '' : undefined}
         class={cn(
-          'group/header w-[calc(100%-0.5rem)] mx-1 mb-1 rounded px-2 py-2 flex items-center gap-2.5 text-xs font-semibold tracking-tight',
+          'group/header w-[calc(100%-0.5rem)] mx-1 mb-1 rounded px-2 py-2 flex items-center gap-1.5 text-xs font-semibold tracking-tight',
           'text-ink-muted bg-surface border border-edge-muted relative',
           props.onClick && 'hover:bg-active',
+          props.class,
           props.highlighted && 'ring ring-edge bg-active ring-inset'
         )}
       >
@@ -183,6 +187,19 @@ const AssigneeGroupContent = (props: {
   );
 };
 
+const STATUS_GROUP_HEADER_TINTS: Record<string, string> = {
+  [PROPERTY_OPTION_IDS.STATUS.NOT_STARTED]:
+    'bg-accent/5 border-accent/10 data-highlighted:ring-accent/10 data-highlighted:bg-accent/10 hover:bg-accent/10',
+  [PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS]:
+    'bg-alert/5 border-alert/10 data-highlighted:ring-alert/10 data-highlighted:bg-alert/10 hover:bg-alert/10',
+  [PROPERTY_OPTION_IDS.STATUS.IN_REVIEW]:
+    'bg-note/5 border-note/10 data-highlighted:ring-note/10 data-highlighted:bg-note/10 hover:bg-note/10',
+  [PROPERTY_OPTION_IDS.STATUS.COMPLETED]:
+    'bg-task/5 border-task/10 data-highlighted:ring-task/10 data-highlighted:bg-task/10 hover:bg-task/10',
+  [PROPERTY_OPTION_IDS.STATUS.CANCELED]:
+    'bg-ink/5 border-ink/10 data-highlighted:ring-ink/10 data-highlighted:bg-ink/10 hover:bg-ink/10',
+};
+
 const DefaultGroupHeader = (
   props: GroupHeaderProps & { highlighted?: boolean }
 ) => {
@@ -199,13 +216,29 @@ const DefaultGroupHeader = (
     return tryMacroId(props.group.key);
   });
 
+  const statusTint = createMemo(() => {
+    const field = groupByField();
+    if (
+      field?.type !== 'property' ||
+      field.propertyDefinitionId !== SYSTEM_PROPERTY_IDS.STATUS
+    ) {
+      return;
+    }
+
+    const optionId = props.group.value ?? props.group.key;
+    if (typeof optionId !== 'string') return;
+
+    return STATUS_GROUP_HEADER_TINTS[optionId];
+  });
+
   return (
     <SoupSectionHeader
       onClick={() => props.group.toggle()}
       highlighted={props.highlighted}
+      class={statusTint()}
     >
       <Layer depth={3}>
-        <div class="flex items-center justify-center size-4.5 rounded-xs bg-surface group-hover/header:bg-active">
+        <div class="flex items-center justify-center size-4.5 rounded-xs group-hover/header:bg-ink/5">
           <ChevronRightIcon
             class={cn('size-2.5', {
               'rotate-90': props.group.isExpanded(),
@@ -213,25 +246,32 @@ const DefaultGroupHeader = (
           />
         </div>
       </Layer>
-      <Show
-        when={assigneeId()}
-        fallback={
-          <>
-            <PropertyValueIcon
-              optionId={props.group.value as string}
-              class="size-3.5"
+      <Switch>
+        <Match when={assigneeId()}>
+          {(id) => (
+            <AssigneeGroupContent
+              assigneeId={id()}
+              fallbackLabel={props.group.label}
             />
-            <span class="truncate">{props.group.label}</span>
-          </>
-        }
-      >
-        {(id) => (
-          <AssigneeGroupContent
-            assigneeId={id()}
-            fallbackLabel={props.group.label}
-          />
-        )}
-      </Show>
+          )}
+        </Match>
+        <Match
+          when={typeof props.group.value !== 'string' || !props.group.value}
+        >
+          <CircleDashed class="size-3.5 text-ink-extra-muted" />
+          <span class="truncate">{props.group.label}</span>
+        </Match>
+        <Match
+          when={typeof props.group.value === 'string' && props.group.value}
+        >
+          {(value) => (
+            <>
+              <PropertyValueIcon optionId={value()} class="size-3.5" />
+              <span class="truncate">{props.group.label}</span>
+            </>
+          )}
+        </Match>
+      </Switch>
       <span
         class={cn(
           'shrink-0 tabular-nums text-xs font-medium',

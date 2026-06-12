@@ -15,6 +15,8 @@ export type SettingsTab =
   | 'Mobile App'
   | 'Agent'
   | 'Team'
+  | 'Email'
+  | 'GitHub'
   | 'Admin';
 
 /** Top-level tabs surfaced in the new SettingsModal. */
@@ -57,6 +59,9 @@ function legacyTabToModalTab(tab: SettingsTab | undefined): SettingsModalTab {
     case 'Team':
     case 'Organization':
       return 'team';
+    case 'Email':
+    case 'GitHub':
+      return 'account';
     default:
       return 'account';
   }
