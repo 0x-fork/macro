@@ -9,7 +9,7 @@ import {
   $setSelection,
 } from 'lexical';
 import { createSignal, useContext } from 'solid-js';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
 
 export function HorizontalRule(props: HorizontalRuleDecoratorProps) {
   const lexicalWrapper = useContext(LexicalWrapperContext);

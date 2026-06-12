@@ -1,7 +1,7 @@
 import type { UnknownMentionDecoratorProps } from '@lexical-core';
 import Fallback from '@phosphor/placeholder.svg';
 import { useContext } from 'solid-js';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
 
 export function UnknownMention(props: UnknownMentionDecoratorProps) {
   const lexicalWrapper = useContext(LexicalWrapperContext);

@@ -1,5 +1,4 @@
-import { datadogLogs } from '@datadog/browser-logs';
-import { isInitialized } from './shared';
+import { getImpl, isInitialized } from './shared';
 
 interface Context {
   error?: Error;
@@ -13,7 +12,8 @@ interface Context {
  * @param context - The context of the log such as error, level, etc.
  */
 export function log(messsage: string, context?: Context) {
-  if (import.meta.hot || !isInitialized())
+  const impl = getImpl();
+  if (import.meta.hot || !isInitialized() || !impl)
     return console.log(messsage, context);
 
   const { error, level, ...messageContext } = {
@@ -22,7 +22,7 @@ export function log(messsage: string, context?: Context) {
     ...context,
   } as const;
 
-  datadogLogs.logger.log(messsage, messageContext, level, error);
+  impl.logMessage(messsage, messageContext, level, error);
 }
 
 interface ErrorContext extends Context {
@@ -35,7 +35,8 @@ interface ErrorContext extends Context {
  * @param context - The context of the log such as error, level, etc.
  */
 function warn(message: string, context?: Context) {
-  if (import.meta.hot || !isInitialized())
+  const impl = getImpl();
+  if (import.meta.hot || !isInitialized() || !impl)
     return console.warn(message, context);
 
   const { error, level, ...messageContext } = {
@@ -44,7 +45,7 @@ function warn(message: string, context?: Context) {
     ...context,
   } as const;
 
-  datadogLogs.logger.log(message, messageContext, level, error);
+  impl.logMessage(message, messageContext, level, error);
 }
 
 /**
@@ -55,7 +56,8 @@ function warn(message: string, context?: Context) {
  * If used in a catch block, set the context.cause to the error thrown.
  */
 export function error(errorMessage: Error | string, context?: ErrorContext) {
-  if (import.meta.hot || !isInitialized())
+  const impl = getImpl();
+  if (import.meta.hot || !isInitialized() || !impl)
     return console.error(errorMessage, context);
 
   const { error, ...errorContext } = {
@@ -69,7 +71,7 @@ export function error(errorMessage: Error | string, context?: ErrorContext) {
     error.cause = context.cause;
   }
 
-  datadogLogs.logger.error(error.message || error.name, errorContext, error);
+  impl.logError(error, errorContext);
 }
 
 export const logger = {

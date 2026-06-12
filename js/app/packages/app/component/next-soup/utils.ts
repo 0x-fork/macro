@@ -9,7 +9,7 @@ import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import { getChannelParams } from '@block-channel/utils/link';
 import { URL_PARAMS as EMAIL_PARAMS } from '@block-email/constants';
 import { URL_PARAMS as MD_PARAMS } from '@block-md/constants';
-import { URL_PARAMS as PDF_PARAMS } from '@block-pdf/signal/location';
+import { URL_PARAMS as PDF_PARAMS } from '@block-pdf/constants';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import {
   ENTITY_ID_DATA_ATTRIBUTE,

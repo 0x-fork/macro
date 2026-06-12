@@ -11,17 +11,17 @@ import { ENABLE_BLOCK_IN_BLOCK } from '@core/constant/featureFlags';
 import { canNestBlock, createBlockInstance } from '@core/orchestrator';
 import { blockElementSignal } from '@core/signal/blockElement';
 import { matches } from '@core/util/match';
+import { HISTORY_MERGE_TAG } from '@lexical-core/constants';
 import {
   $convertCardToMention,
-  $getId,
   $isDocumentCardNode,
   DEFAULT_PREVIEW_BOX,
   type DocumentCardDecoratorProps,
-  HISTORY_MERGE_TAG,
   type PreviewBox,
   setDocumentCardPreviewComponent,
   unsetDocumentCardPreviewCache,
-} from '@lexical-core';
+} from '@lexical-core/nodes/DocumentCardNode';
+import { $getId } from '@lexical-core/plugins/nodeIdPlugin';
 import Minimize from '@phosphor/arrows-in.svg';
 import Clipboard from '@phosphor/clipboard.svg';
 import ClockIcon from '@phosphor/clock.svg';
@@ -48,6 +48,7 @@ import {
   createMemo,
   createRoot,
   createSignal,
+  lazy,
   Match,
   onCleanup,
   runWithOwner,
@@ -59,12 +60,20 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { formatDate } from '../../../../util/date';
 import { TaskPropertiesPreview } from '../../../DocumentPreview';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
 import { floatWithElement } from '../../directive/floatWithElement';
-import { UPDATE_DOCUMENT_NAME_COMMAND } from '../../plugins';
+import { UPDATE_DOCUMENT_NAME_COMMAND } from '../../plugins/commands';
 import { dispatchInternalLayoutShift } from '../../plugins/shared/utils';
 import { BlockLink } from '../core/BlockLink';
-import { ChannelMessageThreadCard } from './ChannelMessageThreadCard';
+
+// Lazy: the thread card pulls the channel Message UI tree (reactions, emoji
+// search, ...); decorators load with the initial bundle via
+// initializeLexical(), so the card chunk is fetched on first render instead.
+const ChannelMessageThreadCard = lazy(() =>
+  import('./ChannelMessageThreadCard').then((m) => ({
+    default: m.ChannelMessageThreadCard,
+  }))
+);
 
 false && floatWithElement;
 
@@ -240,10 +249,12 @@ function DocumentCardInner(props: DocumentCardDecoratorProps) {
     } else {
       getElement = () => (
         <div class="p-2">
-          <ChannelMessageThreadCard
-            channelId={props.documentId}
-            messageId={msgId!}
-          />
+          <Suspense>
+            <ChannelMessageThreadCard
+              channelId={props.documentId}
+              messageId={msgId!}
+            />
+          </Suspense>
         </div>
       );
     }

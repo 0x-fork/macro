@@ -8,9 +8,9 @@ import { COMMAND_PRIORITY_NORMAL, KEY_ENTER_COMMAND } from 'lexical';
 import { createSignal, Show, useContext } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { useSplitLayout } from '../../../../../app/component/split-layout/layout';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
 import { floatWithElement } from '../../directive/floatWithElement';
-import { autoRegister } from '../../plugins';
+import { autoRegister } from '../../plugins/shared/utils';
 import { MentionTooltip } from './MentionTooltip';
 
 false && floatWithElement;

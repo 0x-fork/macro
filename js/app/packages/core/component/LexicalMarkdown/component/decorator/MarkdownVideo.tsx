@@ -3,7 +3,10 @@ import { debouncedDependent } from '@core/util/debounce';
 
 import { Dialog } from '@kobalte/core/dialog';
 import { mergeRegister } from '@lexical/utils';
-import { $isVideoNode, type VideoDecoratorProps } from '@lexical-core';
+import {
+  $isVideoNode,
+  type VideoDecoratorProps,
+} from '@lexical-core/nodes/VideoNode';
 import VideoIcon from '@phosphor/file-video.svg';
 import LoadingSpinner from '@phosphor/spinner.svg';
 import XIcon from '@phosphor/x.svg';
@@ -25,7 +28,7 @@ import {
   Show,
   useContext,
 } from 'solid-js';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
 import {
   $upgradeDSSMediaUrl,
   getMediaUrl,
@@ -34,7 +37,7 @@ import {
   UPLOAD_MEDIA_FAILURE_COMMAND,
   UPLOAD_MEDIA_START_COMMAND,
   UPLOAD_MEDIA_SUCCESS_COMMAND,
-} from '../../plugins';
+} from '../../plugins/commands';
 import { MediaButtons } from './MediaButtons';
 import { ResizeHandle } from './ResizeHandle';
 

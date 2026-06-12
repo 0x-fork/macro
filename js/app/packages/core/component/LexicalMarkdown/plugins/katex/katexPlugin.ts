@@ -11,6 +11,7 @@ import {
   type LexicalCommand,
   type LexicalEditor,
 } from 'lexical';
+import { TRY_UPDATE_EQUATION_COMMAND } from '../commands';
 
 // Type definitions
 type InsertCommandPayload = {
@@ -28,8 +29,10 @@ type KatexPluginProps = {
   onCreateEquation?: () => void;
 };
 
-export const TRY_UPDATE_EQUATION_COMMAND: LexicalCommand<string> =
-  createCommand('TRY_UPDATE_EQUATION_COMMAND');
+// Defined in ../commands so decorator components can import it without
+// pulling this plugin module into the boot bundle; re-exported for existing
+// consumers.
+export { TRY_UPDATE_EQUATION_COMMAND };
 
 export const UPDATE_EQUATION_COMMAND: LexicalCommand<UpdateCommandPayload> =
   createCommand('UPDATE_EQUATION_COMMAND');

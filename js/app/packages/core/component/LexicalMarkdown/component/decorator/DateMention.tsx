@@ -1,7 +1,7 @@
 import { DatePicker } from '@core/component/DatePicker';
 import { formatDate } from '@core/util/dateParser';
 import type { DateMentionDecoratorProps } from '@lexical-core';
-import { $isDateMentionNode } from '@lexical-core';
+import { $isDateMentionNode } from '@lexical-core/nodes/DateMentionNode';
 import ClockIcon from '@phosphor/clock.svg';
 import { differenceInCalendarDays } from 'date-fns';
 import {
@@ -11,9 +11,9 @@ import {
 } from 'lexical';
 import { createMemo, createSignal, Show, useContext } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
 import { floatWithElement } from '../../directive/floatWithElement';
-import { autoRegister } from '../../plugins';
+import { autoRegister } from '../../plugins/shared/utils';
 import { MentionTooltip } from './MentionTooltip';
 
 false && floatWithElement;

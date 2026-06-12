@@ -2,7 +2,6 @@ import { ENABLE_CALLKIT } from '@core/constant/featureFlags';
 import { isPlatform, isTauri } from '@core/util/platform';
 import { invoke } from '@tauri-apps/api/core';
 import { themeReactive } from '@theme/signals/themeReactive';
-import Color from 'colorjs.io';
 import { type Accessor, createMemo } from 'solid-js';
 
 export type RgbaColor = {
@@ -144,12 +143,14 @@ function oklchToRgba(
   alpha?: number
 ): RgbaColor {
   try {
-    const srgb = new Color('oklch', [token.l, token.c, token.h]).to('srgb');
+    const [red, green, blue] = oklchToLinearSrgb(token).map((channel) =>
+      clampColorChannel(srgbGamma(channel))
+    );
     return {
-      red: clampColorChannel(srgb.coords[0]),
-      green: clampColorChannel(srgb.coords[1]),
-      blue: clampColorChannel(srgb.coords[2]),
-      alpha: clampColorChannel(alpha ?? srgb.alpha ?? 1),
+      red,
+      green,
+      blue,
+      alpha: clampColorChannel(alpha ?? 1),
     };
   } catch (err) {
     console.error('[callkit] failed to resolve theme color', {
@@ -158,6 +159,39 @@ function oklchToRgba(
     });
     return fallback;
   }
+}
+
+// OKLCH -> linear sRGB via OKLab (Björn Ottosson's reference matrices — the
+// same math colorjs.io applies; inlined here to keep colorjs.io out of the
+// initial bundle). Out-of-gamut channels are clamped, matching the previous
+// clampColorChannel behavior.
+function oklchToLinearSrgb(token: {
+  l: number;
+  c: number;
+  h: number;
+}): [number, number, number] {
+  const hRad = (token.h * Math.PI) / 180;
+  const labL = token.l;
+  const labA = token.c * Math.cos(hRad);
+  const labB = token.c * Math.sin(hRad);
+
+  const l = (labL + 0.3963377774 * labA + 0.2158037573 * labB) ** 3;
+  const m = (labL - 0.1055613458 * labA - 0.0638541728 * labB) ** 3;
+  const s = (labL - 0.0894841775 * labA - 1.291485548 * labB) ** 3;
+
+  return [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.7034186147 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ];
+}
+
+function srgbGamma(channel: number): number {
+  const sign = channel < 0 ? -1 : 1;
+  const abs = Math.abs(channel);
+  return abs > 0.0031308
+    ? sign * (1.055 * abs ** (1 / 2.4) - 0.055)
+    : 12.92 * channel;
 }
 
 function callKitDrawerThemeKey(theme: CallKitDrawerTheme): string {

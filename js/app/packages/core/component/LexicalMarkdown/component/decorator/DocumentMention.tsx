@@ -27,10 +27,12 @@ import { openInNewSplitForMention } from '@core/util/openInNewSplit';
 import { useSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
 import {
   $convertMentionToCard,
-  $isDocumentMentionNode,
   DocumentCardNode,
+} from '@lexical-core/nodes/DocumentCardNode';
+import {
+  $isDocumentMentionNode,
   type DocumentMentionDecoratorProps,
-} from '@lexical-core';
+} from '@lexical-core/nodes/DocumentMentionNode';
 import EyeSlashDuo from '@phosphor/eye-slash.svg';
 import TrashSimple from '@phosphor/trash-simple.svg';
 import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
@@ -61,8 +63,9 @@ import {
   Switch,
   useContext,
 } from 'solid-js';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
-import { autoRegister, UPDATE_DOCUMENT_NAME_COMMAND } from '../../plugins';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
+import { UPDATE_DOCUMENT_NAME_COMMAND } from '../../plugins/commands';
+import { autoRegister } from '../../plugins/shared/utils';
 import { openDocument } from '../core/BlockLink';
 import { MentionTooltip } from './MentionTooltip';
 

@@ -1,8 +1,15 @@
-import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+// Lazy: StaticMarkdown pulls the markdown parsing stack; until it loads the
+// raw text renders as the Suspense fallback.
+const StaticMarkdown = lazy(() =>
+  import('@core/component/LexicalMarkdown/component/core/StaticMarkdown').then(
+    (m) => ({ default: m.StaticMarkdown })
+  )
+);
+
 import { unifiedListMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
 import { blockNameToDefaultFile } from '@core/constant/allBlocks';
 import { formatDocumentName } from '@service-storage/util/filename';
-import { type JSX, Show } from 'solid-js';
+import { type JSX, lazy, Show, Suspense } from 'solid-js';
 import { match } from 'ts-pattern';
 import { type EntityData, isGithubPrEntity } from '../types/entity';
 import { isSearchEntity } from '../types/search';
@@ -67,11 +74,13 @@ export function EntityTitle(props: { entity: EntityData }) {
       when={titleData().isMarkdown}
       fallback={<span class="truncate">{titleData().text}</span>}
     >
-      <StaticMarkdown
-        markdown={titleData().text as string}
-        theme={unifiedListMarkdownTheme}
-        singleLine={true}
-      />
+      <Suspense fallback={<span class="truncate">{titleData().text}</span>}>
+        <StaticMarkdown
+          markdown={titleData().text as string}
+          theme={unifiedListMarkdownTheme}
+          singleLine={true}
+        />
+      </Suspense>
     </Show>
   );
 }

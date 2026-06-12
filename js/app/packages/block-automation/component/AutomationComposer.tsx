@@ -1,6 +1,5 @@
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { toast } from '@core/component/Toast/Toast';
-import { createControlledOpenSignal } from '@core/util/createControlledOpenSignal';
 import { useCreateScheduleMutation } from '@queries/agent-schedule/schedules';
 import { debounce } from '@solid-primitives/scheduled';
 import { Button, cn, Dialog, Surface } from '@ui';
@@ -20,6 +19,10 @@ import {
 import { AutomationPromptEditor } from './AutomationPromptEditor';
 import { AutomationTimePicker } from './AutomationTimePicker';
 import {
+  automationComposerOpen,
+  setAutomationComposerOpen,
+} from './automationComposerState';
+import {
   createEmptyDraft,
   describeSchedule,
   draftToCreateBody,
@@ -32,12 +35,10 @@ import {
 } from './automationUtils';
 import type { ScheduleDraft } from './types';
 
-/**
- * Open/close signal for the automation composer modal. Flip to `true` from
- * anywhere (e.g. launcher / unified-list create button) to pop the dialog.
- */
-export const [automationComposerOpen, setAutomationComposerOpen] =
-  createControlledOpenSignal(false, { id: 'automation-composer' });
+export {
+  automationComposerOpen,
+  setAutomationComposerOpen,
+} from './automationComposerState';
 
 /**
  * Create-only automation composer modal. Mount once (see Layout.tsx) — the

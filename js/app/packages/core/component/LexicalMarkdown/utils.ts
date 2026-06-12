@@ -78,7 +78,7 @@ import { MarkdownEditorErrors } from './constants';
 import {
   $applyDocumentMetadataFromSerialized,
   $getDocumentMetadata,
-} from './plugins';
+} from './plugins/document-metadata/documentMetadataPlugin';
 import { MARKDOWN_VERSION_COUNTER } from './version';
 
 /**

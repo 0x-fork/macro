@@ -1,7 +1,6 @@
-import { datadogRum } from '@datadog/browser-rum';
 import { useLocation } from '@solidjs/router';
 import { createEffect, createMemo, on } from 'solid-js';
-import { isInitialized } from './shared';
+import { getImpl, isInitialized } from './shared';
 
 export function useObserveRouting() {
   const location = useLocation();
@@ -16,10 +15,11 @@ export function useObserveRouting() {
       : pathSegments().at(0);
   createEffect(
     on(viewName, (name, prevName) => {
-      if (!isInitialized() || !name) return;
+      const impl = getImpl();
+      if (!isInitialized() || !impl || !name) return;
 
       if (name !== prevName) {
-        datadogRum.startView({
+        impl.startView({
           name,
           context: {
             pathname: location.pathname,
@@ -37,9 +37,10 @@ export function useObserveRouting() {
   createEffect((prevSplits) => {
     const splits = joinedPath();
 
-    if (!isInitialized()) return;
+    const impl = getImpl();
+    if (!isInitialized() || !impl) return;
     if (splits !== prevSplits) {
-      datadogRum.addAction('split changed', {
+      impl.addAction('split changed', {
         from: prevSplits,
         to: splits,
       });

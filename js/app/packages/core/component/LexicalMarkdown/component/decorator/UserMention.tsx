@@ -4,7 +4,7 @@ import { macroIdToEmail, tryMacroId, useDisplayName } from '@core/user';
 import type { UserMentionDecoratorProps } from '@lexical-core';
 import { cn } from '@ui';
 import { createMemo, createSignal, useContext } from 'solid-js';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
 
 export function UserMention(props: UserMentionDecoratorProps) {
   const lexicalWrapper = useContext(LexicalWrapperContext);

@@ -2,7 +2,7 @@ import { URL_PARAMS as URL_PARAMS_CANVAS } from '@block-canvas/constants';
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import { useOpenChatForAttachment } from '@block-chat/client';
 import { URL_PARAMS as URL_PARAMS_MD } from '@block-md/constants';
-import { URL_PARAMS as URL_PARAMS_PDF } from '@block-pdf/signal/location';
+import { URL_PARAMS as URL_PARAMS_PDF } from '@block-pdf/constants';
 import {
   type BlockAlias,
   type BlockName,
@@ -11,7 +11,16 @@ import {
 } from '@core/block';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { isBlockNameWithLocation } from '@core/component/LexicalMarkdown/component/core/BlockLink';
-import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+
+// Lazy: StaticMarkdown pulls the markdown parsing stack (@lexical/markdown,
+// transformers, prism); DocumentPreview loads with the initial bundle via the
+// DocumentCard decorator.
+const StaticMarkdown = lazy(() =>
+  import('@core/component/LexicalMarkdown/component/core/StaticMarkdown').then(
+    (m) => ({ default: m.StaticMarkdown })
+  )
+);
+
 import { channelTheme } from '@core/component/LexicalMarkdown/theme';
 import { toast } from '@core/component/Toast/Toast';
 import { UserIcon as UserIconComponent } from '@core/component/UserIcon';
@@ -56,6 +65,7 @@ import {
   createMemo,
   createSignal,
   For,
+  lazy,
   Match,
   onCleanup,
   Show,
@@ -837,11 +847,13 @@ export function PopupPreview(props: {
                         {(context) => (
                           <div class="mb-2 text-sm text-ink-muted border-l-2 border-edge pl-3 py-1">
                             <div class="line-clamp-3 wrap-break-word">
-                              <StaticMarkdown
-                                markdown={context().content}
-                                theme={channelTheme}
-                                target="internal"
-                              />
+                              <Suspense>
+                                <StaticMarkdown
+                                  markdown={context().content}
+                                  theme={channelTheme}
+                                  target="internal"
+                                />
+                              </Suspense>
                             </div>
                           </div>
                         )}

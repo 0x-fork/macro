@@ -4,8 +4,6 @@ import { Home } from '@app/component/home';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import type { Query } from '@app/component/next-soup/filters/filter-store/types';
 import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
-import { ChannelCompose } from '@block-channel/component/Compose';
-import { ComposeTask } from '@block-md/component/ComposeTask';
 import { useIsAuthenticated } from '@core/auth';
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import {
@@ -17,8 +15,6 @@ import { useUserContext } from '@core/context/user';
 import type { ViewId } from '@core/types/view';
 import { useAutomationEntities } from '@queries/agent-schedule/entities';
 import { type Component, type JSXElement, lazy, onMount, Show } from 'solid-js';
-import { EmailCompose } from '../../../block-email/component/compose/Compose';
-import { SettingsPanelComponentWrapper } from '../settings/Settings';
 import type { SplitContent } from './layoutManager';
 import { useSplitPanelOrThrow } from './layoutUtils';
 
@@ -311,6 +307,24 @@ registerComponent(
 );
 /** END - APP ROUTES */
 
+// Lazy: the compose surfaces pull in the markdown/channel editor stacks,
+// which would otherwise load with the initial bundle.
+const ChannelCompose = lazy(() =>
+  import('@block-channel/component/Compose').then((m) => ({
+    default: m.ChannelCompose,
+  }))
+);
+const EmailCompose = lazy(() =>
+  import('../../../block-email/component/compose/Compose').then((m) => ({
+    default: m.EmailCompose,
+  }))
+);
+const ComposeTask = lazy(() =>
+  import('@block-md/component/ComposeTask').then((m) => ({
+    default: m.ComposeTask,
+  }))
+);
+
 registerComponent('loading', () => <LoadingBlock />);
 registerComponent('channel-compose', () => {
   usePageViewTracking('channel-compose');
@@ -328,7 +342,14 @@ registerComponent(
   'import-linear',
   lazy(() => import('@app/component/import-linear/ImportLinear'))
 );
-registerComponent('settings', () => <SettingsPanelComponentWrapper />);
+registerComponent(
+  'settings',
+  lazy(() =>
+    import('../settings/Settings').then((m) => ({
+      default: m.SettingsPanelComponentWrapper,
+    }))
+  )
+);
 
 if (LOCAL_ONLY) {
   registerComponent(

@@ -1,4 +1,3 @@
-import { $convertFromMarkdownString } from '@lexical/markdown';
 import { $unwrapNode } from '@lexical/utils';
 import {
   $getSelection,
@@ -14,7 +13,6 @@ import {
 } from 'lexical';
 import { createDOMWithFactory } from '../domFactoryRegistry';
 import { $applyIdFromSerialized } from '../plugins/nodeIdPlugin';
-import { ALL_TRANSFORMERS } from '../transformers';
 import { $findDiffDeleteNodeAncestor } from './DiffDeleteNode';
 import { $isDiffInsertNode } from './DiffInsertNode';
 
@@ -113,24 +111,34 @@ export class DiffNode extends ElementNode {
   }
 
   handleAccept(editor: LexicalEditor) {
-    editor.update(() => {
-      const diffInsertNode = this.getChildren().find((child) =>
-        $isDiffInsertNode(child)
-      );
-      if (!diffInsertNode) return;
+    // The markdown conversion stack loads lazily: this node class is
+    // registered at app boot, and importing @lexical/markdown + the
+    // transformer list eagerly would pull them into the initial bundle.
+    // handleAccept is a user action (accepting a diff), so deferring the
+    // update until the one-time chunk load resolves is fine.
+    void Promise.all([
+      import('@lexical/markdown'),
+      import('../transformers'),
+    ]).then(([{ $convertFromMarkdownString }, { ALL_TRANSFORMERS }]) => {
+      editor.update(() => {
+        const diffInsertNode = this.getChildren().find((child) =>
+          $isDiffInsertNode(child)
+        );
+        if (!diffInsertNode) return;
 
-      const insertMarkdown = diffInsertNode.getMarkdown();
-      if (insertMarkdown === undefined) return;
+        const insertMarkdown = diffInsertNode.getMarkdown();
+        if (insertMarkdown === undefined) return;
 
-      this.clear();
+        this.clear();
 
-      $convertFromMarkdownString(insertMarkdown, ALL_TRANSFORMERS, this, false);
+        $convertFromMarkdownString(insertMarkdown, ALL_TRANSFORMERS, this, false);
 
-      const lastChild = this.getLastChild();
-      $unwrapNode(this);
-      if (lastChild) {
-        lastChild.selectEnd();
-      }
+        const lastChild = this.getLastChild();
+        $unwrapNode(this);
+        if (lastChild) {
+          lastChild.selectEnd();
+        }
+      });
     });
   }
 

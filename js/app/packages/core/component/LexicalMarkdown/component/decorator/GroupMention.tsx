@@ -1,7 +1,7 @@
 import type { GroupMentionDecoratorProps } from '@lexical-core';
 import { cn } from '@ui';
 import { useContext } from 'solid-js';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
 
 export function GroupMention(props: GroupMentionDecoratorProps) {
   const lexicalWrapper = useContext(LexicalWrapperContext);

@@ -6,12 +6,24 @@ import ArrowRightIcon from '@phosphor/arrow-right.svg';
 import CloseIcon from '@phosphor/x.svg';
 import { useCompleteTutorialMutation } from '@queries/auth/tutorial';
 import { Button, Dialog, Hotkey } from '@ui';
-import { type Component, createSignal, Match, Show, Switch } from 'solid-js';
+import {
+  type Component,
+  createSignal,
+  lazy,
+  Match,
+  Show,
+  Suspense,
+  Switch,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import InteractiveOnboarding from './InteractiveOnboarding';
 import { OnboardingProgress } from './OnboardingProgress';
 import { useOnboarding } from './onboarding-context';
 import type { LessonContentProps, LessonState } from './types';
+
+// Lazy: the onboarding lessons pull in the markdown editor stack (mentions,
+// emoji search, etc.), which would otherwise load with the initial bundle.
+// The chunk is fetched the first time the modal actually opens.
+const InteractiveOnboarding = lazy(() => import('./InteractiveOnboarding'));
 
 interface InteractiveOnboardingModalProps {
   open?: boolean;
@@ -318,16 +330,19 @@ export function InteractiveOnboardingModal(
     >
       <div class="relative size-full overflow-hidden rounded-xl flex flex-col">
         <Show when={open()}>
-          <InteractiveOnboarding
-            onDismiss={() => setOpen(false)}
-            ignoreTutorialCompleted
-            isFirstTimeOnboarding={props.isFirstTimeOnboarding}
-          >
-            <InteractiveOnboardingModalLayout
-              isFirstTimeOnboarding={props.isFirstTimeOnboarding === true}
-              onClose={() => setOpen(false)}
-            />
-          </InteractiveOnboarding>
+          {/* Local boundary so the lazy chunk load can't re-trigger an outer Suspense. */}
+          <Suspense>
+            <InteractiveOnboarding
+              onDismiss={() => setOpen(false)}
+              ignoreTutorialCompleted
+              isFirstTimeOnboarding={props.isFirstTimeOnboarding}
+            >
+              <InteractiveOnboardingModalLayout
+                isFirstTimeOnboarding={props.isFirstTimeOnboarding === true}
+                onClose={() => setOpen(false)}
+              />
+            </InteractiveOnboarding>
+          </Suspense>
         </Show>
       </div>
     </Dialog>

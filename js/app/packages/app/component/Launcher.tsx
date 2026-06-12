@@ -1,6 +1,6 @@
 import { analytics } from '@app/lib/analytics';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { setAutomationComposerOpen } from '@block-automation/component';
+import { setAutomationComposerOpen } from '@block-automation/component/automationComposerState';
 import type { BlockAlias, BlockName } from '@core/block';
 import { getIconConfig } from '@core/component/EntityIcon';
 import {

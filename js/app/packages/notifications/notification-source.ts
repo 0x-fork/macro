@@ -31,9 +31,10 @@ import { createMutedEntitiesQuery } from './queries/muted-entities-query';
 import {
   type CompositeEntity,
   compositeEntity,
+  getUnifiedNotificationSchema,
+  loadUnifiedNotificationSchema,
   notificationEntity,
   type UnifiedNotification,
-  unifiedNotificationSchema,
 } from './types';
 
 export const CHANNEL_EVENT_TYPES = [
@@ -211,6 +212,10 @@ export function createNotificationSource(
     };
   };
 
+  // Kick off the lazy schema load so it is ready before the first
+  // notification arrives over the websocket.
+  void loadUnifiedNotificationSchema();
+
   createSocketEffect(ws, (wsData) => {
     if (wsData.type !== NOTIFICATION_EVENT_TYPE) {
       return;
@@ -219,16 +224,23 @@ export function createNotificationSource(
     try {
       const raw = JSON.parse(wsData.data) as ConnGatewayInnerNotifValue;
       const unsafeMapped = mapWebsocketNotification(raw);
-      const parseResult = unifiedNotificationSchema.safeParse(unsafeMapped);
-      if (!parseResult.success) {
-        console.warn(
-          'Failed to parse notification',
-          wsData.data,
-          fromZodError(parseResult.error)
-        );
+      // Schema may still be loading right after boot; use the unvalidated
+      // value, exactly like the parse-failure path below.
+      const schema = getUnifiedNotificationSchema();
+      if (!schema) {
         parsedNotification = unsafeMapped;
       } else {
-        parsedNotification = parseResult.data;
+        const parseResult = schema.safeParse(unsafeMapped);
+        if (!parseResult.success) {
+          console.warn(
+            'Failed to parse notification',
+            wsData.data,
+            fromZodError(parseResult.error)
+          );
+          parsedNotification = unsafeMapped;
+        } else {
+          parsedNotification = parseResult.data;
+        }
       }
     } catch (e) {
       console.error('Failed to parse notification', wsData.data, e);

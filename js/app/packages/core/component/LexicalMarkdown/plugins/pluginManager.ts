@@ -15,7 +15,6 @@ import {
   on,
   type Setter,
 } from 'solid-js';
-import { registerLoroHistory } from '../collaboration/undo';
 import { bindStateAs } from '../utils';
 import { checklistPlugin } from './checklist/';
 import { customDeletePlugin } from './custom-delete';
@@ -33,9 +32,20 @@ export function createPluginManager(editor: LexicalEditor, type: EditorType) {
   const pluginManager = {
     history(timeGap = 400, loroManager?: LoroManager) {
       if (type === 'markdown-sync' && loroManager) {
-        cleanupFunctions.push(
-          registerLoroHistory(editor, loroManager.getDoc(), timeGap)
-        );
+        // Loaded lazily so editors without collaboration (chat inputs, task
+        // compose, ...) don't pull loro-crdt. Callers that pass a LoroManager
+        // have the collab stack loaded already, so this resolves in a
+        // microtask in practice.
+        let cleanup: (() => void) | null = null;
+        let cancelled = false;
+        void import('../collaboration/undo').then(({ registerLoroHistory }) => {
+          if (cancelled) return;
+          cleanup = registerLoroHistory(editor, loroManager.getDoc(), timeGap);
+        });
+        cleanupFunctions.push(() => {
+          cancelled = true;
+          cleanup?.();
+        });
       } else {
         cleanupFunctions.push(
           registerHistory(editor, createEmptyHistoryState(), timeGap)

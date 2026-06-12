@@ -10,7 +10,7 @@ import {
 import { DEV_MODE_ENV, PROD_MODE_ENV } from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { getPlatform } from '@core/util/platform';
-import { PostHog } from 'posthog-js';
+import type { PostHog } from 'posthog-js';
 import { match } from 'ts-pattern';
 
 /**
@@ -136,8 +136,68 @@ const tryInitialize = (callback: VoidFunction) => {
   }
 };
 
+/**
+ * Synchronous stand-in for the PostHog instance while posthog-js loads.
+ * posthog-js is the only reason this module would pull a large SDK into the
+ * initial bundle, so it is imported lazily; until it resolves, fire-and-forget
+ * calls (capture/identify/reset/onFeatureFlags) are queued and replayed in
+ * order, and flag reads report "not loaded yet" — the same answers PostHog
+ * itself gives before its feature-flag fetch completes.
+ *
+ * Only the methods actually used in this codebase are implemented; the cast
+ * to PostHog keeps the public AnalyticsInterface type unchanged. If you need
+ * another PostHog method, add it here.
+ */
+const createDeferredPosthog = () => {
+  let real: PostHog | null = null;
+  const queue: Array<(ph: PostHog) => void> = [];
+  const run = (op: (ph: PostHog) => void) => {
+    if (real) op(real);
+    else queue.push(op);
+  };
+
+  const facade = {
+    capture: (...args: Parameters<PostHog['capture']>) => {
+      run((ph) => ph.capture(...args));
+      return undefined;
+    },
+    identify: (...args: Parameters<PostHog['identify']>) => {
+      run((ph) => ph.identify(...args));
+    },
+    reset: (...args: Parameters<PostHog['reset']>) => {
+      run((ph) => ph.reset(...args));
+    },
+    onFeatureFlags: (...args: Parameters<PostHog['onFeatureFlags']>) => {
+      let unsub: (() => void) | null = null;
+      let cancelled = false;
+      run((ph) => {
+        if (cancelled) return;
+        unsub = ph.onFeatureFlags(...args);
+      });
+      return () => {
+        cancelled = true;
+        unsub?.();
+      };
+    },
+    isFeatureEnabled: (...args: Parameters<PostHog['isFeatureEnabled']>) =>
+      real?.isFeatureEnabled(...args),
+    getFeatureFlagResult: (
+      ...args: Parameters<PostHog['getFeatureFlagResult']>
+    ) => real?.getFeatureFlagResult(...args),
+    _isIdentified: () => real?._isIdentified() ?? false,
+  } as unknown as PostHog;
+
+  const attach = (ph: PostHog) => {
+    real = ph;
+    for (const op of queue) op(ph);
+    queue.length = 0;
+  };
+
+  return { facade, attach };
+};
+
 const createAnalytics = () => {
-  const posthog = new PostHog();
+  const { facade: posthog, attach: attachPosthog } = createDeferredPosthog();
 
   const disabled = import.meta.env.DEV === true;
 
@@ -146,10 +206,19 @@ const createAnalytics = () => {
 
     tryInitialize(initializeGoogleAnalytics);
     tryInitialize(initializeMetaPixel);
-    tryInitialize(() => initializePosthog(posthog));
   };
 
   initializeProviders();
+
+  // posthog-js loads lazily to keep it out of the initial bundle; queued
+  // events are replayed once it attaches.
+  void import('posthog-js').then(({ PostHog }) => {
+    const instance = new PostHog();
+    if (!disabled) {
+      tryInitialize(() => initializePosthog(instance));
+    }
+    attachPosthog(instance);
+  });
 
   const sendEvent = (
     provider: AnalyticsProvider,

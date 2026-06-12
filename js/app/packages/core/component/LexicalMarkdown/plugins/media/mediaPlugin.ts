@@ -1,8 +1,6 @@
 import { blockNameToFileExtensionSet } from '@core/constant/allBlocks';
 import { staticFileIdEndpoint } from '@core/constant/servers';
 import { heicConversionService } from '@core/heic/service';
-import type { FetchError } from '@core/service';
-import type { ResultError } from '@core/util/result';
 import {
   createStaticUploadFile,
   createUploadFile,
@@ -14,14 +12,15 @@ import {
 import { mergeRegister } from '@lexical/utils';
 import {
   $createImageNode,
-  $createVideoNode,
   $isImageNode,
-  $isVideoNode,
   type ImageNode,
-  type MediaType,
+} from '@lexical-core/nodes/ImageNode';
+import type { MediaType } from '@lexical-core/nodes/MediaNode';
+import {
+  $createVideoNode,
+  $isVideoNode,
   type VideoNode,
-} from '@lexical-core';
-import { fetchBinaryDocumentData } from '@queries/storage/binary-document';
+} from '@lexical-core/nodes/VideoNode';
 import { fileExtension } from '@service-storage/util/filename';
 import {
   $createNodeSelection,
@@ -40,8 +39,16 @@ import {
   type LexicalEditor,
   type NodeKey,
 } from 'lexical';
-import { ok, type Result } from 'neverthrow';
 import { $insertNodesAndSplitList } from '../../utils';
+import {
+  $upgradeDSSMediaUrl,
+  getMediaUrl,
+  ON_MEDIA_COMPONENT_MOUNT_COMMAND,
+  UPDATE_MEDIA_SIZE_COMMAND,
+  UPLOAD_MEDIA_FAILURE_COMMAND,
+  UPLOAD_MEDIA_START_COMMAND,
+  UPLOAD_MEDIA_SUCCESS_COMMAND,
+} from '../commands';
 import { mapRegisterDelete } from '../shared';
 
 type DSSMedia = {
@@ -76,24 +83,18 @@ type MediaCreationPayload = Exclude<MediaSource, 'file'> & {
 export const INSERT_MEDIA_COMMAND: LexicalCommand<MediaCreationPayload> =
   createCommand('INSERT_MEDIA_COMMAND');
 
-export const UPLOAD_MEDIA_SUCCESS_COMMAND: LexicalCommand<
-  [NodeKey, string, MediaType]
-> = createCommand('UPLOAD_MEDIA_SUCCESS_COMMAND');
-
-export const UPLOAD_MEDIA_FAILURE_COMMAND: LexicalCommand<
-  [NodeKey, MediaType]
-> = createCommand('UPLOAD_MEDIA_FAILURE_COMMAND');
-
-export const UPLOAD_MEDIA_START_COMMAND: LexicalCommand<[NodeKey, MediaType]> =
-  createCommand('UPLOAD_MEDIA_START_COMMAND');
-
-export const ON_MEDIA_COMPONENT_MOUNT_COMMAND: LexicalCommand<
-  [NodeKey, MediaType]
-> = createCommand('ON_MEDIA_COMPONENT_MOUNT_COMMAND');
-
-export const UPDATE_MEDIA_SIZE_COMMAND: LexicalCommand<
-  [NodeKey, { width: number; height: number }, MediaType]
-> = createCommand('UPDATE_MEDIA_SIZE_COMMAND');
+// Defined in ../commands so decorator components (MarkdownImage/Video) can
+// import them without pulling this plugin module into the boot bundle;
+// re-exported for existing consumers.
+export {
+  $upgradeDSSMediaUrl,
+  getMediaUrl,
+  ON_MEDIA_COMPONENT_MOUNT_COMMAND,
+  UPDATE_MEDIA_SIZE_COMMAND,
+  UPLOAD_MEDIA_FAILURE_COMMAND,
+  UPLOAD_MEDIA_START_COMMAND,
+  UPLOAD_MEDIA_SUCCESS_COMMAND,
+};
 
 export const TRY_INSERT_MEDIA_UPLOAD_COMMAND: LexicalCommand<
   MediaType | 'all'
@@ -120,26 +121,6 @@ export async function addMediaFromFile(
     constrainedMediaDimensions,
   });
   return { success: true };
-}
-
-/**
- * Get the URL for media based on its source type.
- */
-export async function getMediaUrl(src: {
-  type: string;
-  id: string;
-  url: string;
-}): Promise<Result<string, ResultError<FetchError | 'INVALID_DOCUMENT'>[]>> {
-  if (src.type === 'local' || src.type === 'url') return ok(src.url);
-  if (src.type === 'sfs') {
-    const url = staticFileIdEndpoint(src.id);
-    return ok(url);
-  }
-  if (src.type === 'dss') {
-    return (await fetchBinaryDocumentData(src.id)).map((res) => res.blobUrl);
-  }
-  console.warn('Get media url failed for src:', src);
-  return ok('');
 }
 
 /**
@@ -261,24 +242,6 @@ function $safeInsertMediaNode(node: ImageNode | VideoNode) {
     }
   }
   $insertNodesAndSplitList([node]);
-}
-
-/**
- * Upgrade DSS media URL after document checks.
- */
-export function $upgradeDSSMediaUrl(
-  key: NodeKey,
-  url: string,
-  mediaType: MediaType
-) {
-  const node = $getNodeByKey(key);
-  if (!node) return;
-
-  if (mediaType === 'image' && $isImageNode(node)) {
-    node.setUrl(url, false);
-  } else if (mediaType === 'video' && $isVideoNode(node)) {
-    node.setUrl(url, false);
-  }
 }
 
 function registerMediaPlugin(editor: LexicalEditor) {

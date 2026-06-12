@@ -1,8 +1,8 @@
-import { datadogRum } from '@datadog/browser-rum';
-import { isInitialized } from './shared';
+import { getImpl, isInitialized } from './shared';
 
 export function startAction(name: string, context?: object) {
-  if (!isInitialized()) return;
+  const impl = getImpl();
+  if (!isInitialized() || !impl) return;
 
-  datadogRum.addAction(name, context);
+  impl.addAction(name, context);
 }

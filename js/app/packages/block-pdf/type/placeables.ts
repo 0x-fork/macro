@@ -202,3 +202,7 @@ export const IPlaceableSchema = PlaceableBaseSchema.and(IPayloadSchema).and(
   z.object({ internalId: z.string() })
 );
 export const IPlaceableServerSchema = PlaceableBaseSchema.and(IPayloadSchema);
+
+export function isThreadPlaceable(x: IPlaceable): x is IThreadPlaceable {
+  return x.payloadType === 'thread';
+}

@@ -124,6 +124,10 @@ export const createAppViteConfig = (): UserConfigFn => {
           input: {
             app: resolve(__dirname, 'index.html'),
           },
+          // No manualChunks: katex and pdfjs-dist are only reachable via
+          // dynamic import, so rollup already splits them. Forcing them into
+          // manual chunks made rollup hoist shared commonjs helpers there,
+          // which dragged pdfjs into the entry's static import graph.
           output: NO_MINIFY
             ? {
                 // remove hashes from output paths
@@ -131,19 +135,11 @@ export const createAppViteConfig = (): UserConfigFn => {
                 entryFileNames: `assets/[name].js`,
                 chunkFileNames: `assets/[name].js`,
                 assetFileNames: `assets/[name].[ext]`,
-                manualChunks: {
-                  katex: ['katex'],
-                  pdfjs: ['pdfjs-dist'],
-                },
               }
             : {
                 format: 'es',
                 chunkFileNames: '[name]-[hash].js',
                 entryFileNames: '[name]-[hash].js',
-                manualChunks: {
-                  katex: ['katex'],
-                  pdfjs: ['pdfjs-dist'],
-                },
               },
         },
         assetsInlineLimit: (filePath) => {

@@ -132,7 +132,6 @@ import type { TypedSuccessResponse } from './generated/schemas/typedSuccessRespo
 import type { UploadExtractFolderHandler200 } from './generated/schemas/uploadExtractFolderHandler200';
 import type { UserPinsResponse } from './generated/schemas/userPinsResponse';
 import type { UserViewsResponse } from './generated/schemas/userViewsResponse';
-import { saveDocumentHandlerResponse } from './generated/zod';
 import type {
   GetDocumentPermissionsTokenResponse,
   StorageServiceClient,
@@ -143,6 +142,24 @@ import {
   type GetDocxFileResponse,
   getDocxExpandedParts,
 } from './util/getDocxFile';
+
+// Loaded lazily: generated/zod.ts is ~700KB of source and zod schema
+// construction isn't tree-shakeable, so statically importing this one schema
+// would retain the whole file in the initial bundle. Every call site runs
+// after an awaited fetch, so the async accessor costs nothing extra.
+type StorageZodModule = typeof import('./generated/zod');
+type SavedDocumentMetadataSchema =
+  StorageZodModule['saveDocumentHandlerResponse']['shape']['data']['shape']['documentMetadata'];
+
+let savedDocumentMetadataSchemaPromise: Promise<SavedDocumentMetadataSchema> | null =
+  null;
+
+function getSavedDocumentMetadataSchema(): Promise<SavedDocumentMetadataSchema> {
+  savedDocumentMetadataSchemaPromise ??= import('./generated/zod').then(
+    (m) => m.saveDocumentHandlerResponse.shape.data.shape.documentMetadata
+  );
+  return savedDocumentMetadataSchemaPromise;
+}
 
 function normalizeLocationResponseV3(response: LocationResponseV3) {
   return response;
@@ -1462,10 +1479,9 @@ export const storageServiceClient = {
 
     const { data } = result.value;
 
-    const metadata =
-      saveDocumentHandlerResponse.shape.data.shape.documentMetadata.safeParse(
-        data.documentMetadata
-      );
+    const metadata = (await getSavedDocumentMetadataSchema()).safeParse(
+      data.documentMetadata
+    );
     if (!metadata.success) {
       return err([
         {
@@ -1492,10 +1508,9 @@ export const storageServiceClient = {
 
     const { data } = result.value;
 
-    const metadata =
-      saveDocumentHandlerResponse.shape.data.shape.documentMetadata.safeParse(
-        data.documentMetadata
-      );
+    const metadata = (await getSavedDocumentMetadataSchema()).safeParse(
+      data.documentMetadata
+    );
     if (!metadata.success) {
       return err([
         {
@@ -1774,10 +1789,9 @@ export const storageServiceClient = {
 
     const { data } = result.value;
 
-    const metadata =
-      saveDocumentHandlerResponse.shape.data.shape.documentMetadata.safeParse(
-        data.documentMetadata
-      );
+    const metadata = (await getSavedDocumentMetadataSchema()).safeParse(
+      data.documentMetadata
+    );
     if (!metadata.success) {
       return err([
         {

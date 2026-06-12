@@ -65,6 +65,7 @@ import type { Setter } from 'solid-js';
 import { match } from 'ts-pattern';
 import type { MenuOperations } from '../../shared/inlineMenu';
 import { $collapseSelection, $traverseNodes, nodeByKey } from '../../utils';
+import { UPDATE_DOCUMENT_NAME_COMMAND } from '../commands';
 import { mapRegisterDelete } from '../shared';
 
 export const INSERT_DOCUMENT_MENTION_COMMAND: LexicalCommand<DocumentMentionInfo> =
@@ -95,9 +96,10 @@ export const REMOVE_INLINE_SEARCH_COMMAND: LexicalCommand<void> = createCommand(
   'REMOVE_INLINE_SEARCH_COMMAND'
 );
 
-export const UPDATE_DOCUMENT_NAME_COMMAND: LexicalCommand<
-  Record<string, string>
-> = createCommand('UPDATE_DOCUMENT_NAME_COMMAND');
+// Defined in ../commands so decorator components can import it without
+// pulling this plugin module into the boot bundle; re-exported for existing
+// consumers.
+export { UPDATE_DOCUMENT_NAME_COMMAND };
 
 export const INSERT_USER_MENTION_COMMAND: LexicalCommand<UserMentionInfo> =
   createCommand('INSERT_USER_MENTION_COMMAND');

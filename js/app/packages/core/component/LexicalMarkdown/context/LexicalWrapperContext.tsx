@@ -10,21 +10,18 @@ import {
   SupportedNodeTypes,
 } from '@lexical-core';
 import type { NodeKey } from 'lexical';
-import {
-  createEditor,
-  type EditorThemeClasses,
-  type LexicalEditor,
-} from 'lexical';
-import { createContext } from 'solid-js';
-import type { Store } from 'solid-js/store';
+import { createEditor, type EditorThemeClasses } from 'lexical';
 import {
   createPluginManager,
   insertTextPlugin,
   nodeTransformPlugin,
-  type PluginManager,
-  type SelectionData,
 } from '../plugins';
 import { theme as baseTheme } from '../theme';
+import type {
+  LexicalWrapper,
+  LexicalWrapperBase,
+  LexicalWrapperWithMapping,
+} from './wrapperContext';
 
 type LexicalWrapperProps = {
   type: EditorType;
@@ -34,24 +31,16 @@ type LexicalWrapperProps = {
   theme?: EditorThemeClasses;
 };
 
-export type LexicalWrapperBase = {
-  type: EditorType;
-  plugins: PluginManager;
-  editor: LexicalEditor;
-  cleanup: () => void;
-  isInteractable: () => boolean;
-  selection?: Store<SelectionData>;
-  /** When true, decorator components should skip backend fetches (e.g. preview API). */
-  skipPreviewFetch?: boolean;
-};
-
-export type LexicalWrapperWithMapping = LexicalWrapperBase & {
-  mapping: NodeIdMappings;
-};
-
-export type LexicalWrapper = LexicalWrapperBase | LexicalWrapperWithMapping;
-
-export const LexicalWrapperContext = createContext<LexicalWrapper>();
+// The context and its types live in ./wrapperContext so light consumers
+// (decorator components) don't pull in the plugin machinery; re-exported here
+// for existing imports.
+export {
+  isWrapperWithIds,
+  type LexicalWrapper,
+  type LexicalWrapperBase,
+  LexicalWrapperContext,
+  type LexicalWrapperWithMapping,
+} from './wrapperContext';
 
 // Simple increasing id to differentiate multiple editors on page.
 let _id = 0;
@@ -132,14 +121,6 @@ export function createLexicalWrapper({
     isInteractable,
     mapping,
   };
-}
-
-export function isWrapperWithIds(
-  wrapper: LexicalWrapper | undefined
-): wrapper is LexicalWrapperWithMapping {
-  return Boolean(
-    wrapper && 'mapping' in wrapper && wrapper['mapping'] !== undefined
-  );
 }
 
 function createMapping(): NodeIdMappings {

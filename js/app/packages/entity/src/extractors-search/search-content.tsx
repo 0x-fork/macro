@@ -1,10 +1,17 @@
-import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+// Lazy: StaticMarkdown pulls the markdown parsing stack (@lexical/markdown,
+// transformers, prism), which would otherwise load with the initial bundle.
+const StaticMarkdown = lazy(() =>
+  import('@core/component/LexicalMarkdown/component/core/StaticMarkdown').then(
+    (m) => ({ default: m.StaticMarkdown })
+  )
+);
+
 import {
   searchContentHitMarkdownTheme,
   singleLineMarkdownTheme,
   twoLineClampMarkdownTheme,
 } from '@core/component/LexicalMarkdown/theme';
-import { Show } from 'solid-js';
+import { lazy, Show, Suspense } from 'solid-js';
 import type { ContentHitData } from '../types/search';
 
 interface SearchContentProps {
@@ -36,7 +43,9 @@ export function SearchContent(props: SearchContentProps) {
           fallback={<span class="italic text-ink-disabled">No content</span>}
         >
           {(trimmedContent) => (
-            <StaticMarkdown markdown={trimmedContent()} theme={theme()} />
+            <Suspense>
+              <StaticMarkdown markdown={trimmedContent()} theme={theme()} />
+            </Suspense>
           )}
         </Show>
       )}

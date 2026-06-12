@@ -1,11 +1,18 @@
 import type { BlockAlias, BlockName } from '@core/block';
 import { Permissions } from '@core/component/SharePermissions';
-import { ShareModal } from '@core/component/TopBar/ShareButton';
 import { itemToBlockName } from '@core/constant/allBlocks';
 import { createControlledOpenSignal } from '@core/util/createControlledOpenSignal';
 import type { EntityData } from '@entity';
 import type { ItemType } from '@service-storage/client';
-import { createSignal, Show } from 'solid-js';
+import { createSignal, lazy, Show, Suspense } from 'solid-js';
+
+// Lazy + open-gated: ShareModal pulls in ForwardToChannel and the markdown
+// editor stack, which would otherwise load with the initial bundle.
+const ShareModal = lazy(() =>
+  import('@core/component/TopBar/ShareButton').then((m) => ({
+    default: m.ShareModal,
+  }))
+);
 
 type ShareableEntityType = 'document' | 'chat' | 'project';
 
@@ -76,16 +83,18 @@ export const GlobalShareModal = () => {
         const entity = () => propsAccessor().entity;
 
         return (
-          <ShareModal
-            isSharePermOpen={modalOpen()}
-            setIsSharePermOpen={handleSetIsOpen}
-            id={entity().id}
-            blockAlias={getEntityBlockAlias(entity())}
-            itemType={getEntityItemType(entity())}
-            name={entity().name}
-            userPermissions={Permissions.OWNER}
-            owner={entity().ownerId}
-          />
+          <Suspense>
+            <ShareModal
+              isSharePermOpen={modalOpen()}
+              setIsSharePermOpen={handleSetIsOpen}
+              id={entity().id}
+              blockAlias={getEntityBlockAlias(entity())}
+              itemType={getEntityItemType(entity())}
+              name={entity().name}
+              userPermissions={Permissions.OWNER}
+              owner={entity().ownerId}
+            />
+          </Suspense>
         );
       }}
     </Show>

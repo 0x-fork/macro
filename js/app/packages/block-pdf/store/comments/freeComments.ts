@@ -12,18 +12,20 @@ import type {
   PdfRoot,
   ViewerCommentType,
 } from '@block-pdf/type/comments';
-import type { IPlaceable, IThreadPlaceable } from '@block-pdf/type/placeables';
+import type { IThreadPlaceable } from '@block-pdf/type/placeables';
 import { createBlockMemo } from '@core/block';
 import { useUserId } from '@core/context/user';
+// Moved to ../../type/placeables so schema-only consumers (coParse via the
+// storage client) don't pull the viewer stores; re-exported for existing
+// imports.
+import { isThreadPlaceable } from '../../type/placeables';
 import {
   anchorsResource,
   commentThreadsResource,
   sortComments,
 } from '../commentsResource';
 
-export function isThreadPlaceable(x: IPlaceable): x is IThreadPlaceable {
-  return x.payloadType === 'thread';
-}
+export { isThreadPlaceable };
 
 const getThreadPlaceablePos = (
   placeable: IThreadPlaceable,

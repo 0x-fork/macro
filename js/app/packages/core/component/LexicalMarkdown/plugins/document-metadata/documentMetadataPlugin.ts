@@ -1,5 +1,5 @@
 import { mergeRegister } from '@lexical/utils';
-import { HISTORY_MERGE_TAG } from '@lexical-core';
+import { HISTORY_MERGE_TAG } from '@lexical-core/constants';
 import {
   $getRoot,
   $getState,

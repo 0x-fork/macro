@@ -6,7 +6,7 @@ import { applyTheme } from '@theme/utils/themeUtils';
 import { isThemeV2 } from '@theme/utils/themeValidation';
 import { cn } from '@ui';
 import { useContext } from 'solid-js';
-import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalWrapperContext } from '../../context/wrapperContext';
 
 export function ThemeMention(props: ThemeMentionDecoratorProps) {
   const { openSettings } = useSettingsState();

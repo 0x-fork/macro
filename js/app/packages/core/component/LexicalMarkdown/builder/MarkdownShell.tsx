@@ -14,14 +14,24 @@ import {
   type Component,
   createEffect,
   createSignal,
+  lazy,
   on,
   onCleanup,
   Show,
+  Suspense,
 } from 'solid-js';
 import { DecoratorRenderer } from '../component/core/DecoratorRenderer';
 import { NodeAccessoryRenderer } from '../component/core/NodeAccessoryRenderer';
 import { ActionMenu } from '../component/menu/ActionsMenu';
-import { EmojiMenu } from '../component/menu/EmojiMenu';
+
+// Lazy: the emoji menu pulls fuse.js plus the emoji datasets; it only mounts
+// when the ':' menu is actually opened.
+const EmojiMenu = lazy(() =>
+  import('../component/menu/EmojiMenu').then((m) => ({
+    default: m.EmojiMenu,
+  }))
+);
+
 import { FloatingLinkMenu } from '../component/menu/FloatingLinkMenu';
 import { MentionsMenu } from '../component/menu/MentionsMenu';
 import { SnippetsMenu } from '../component/menu/SnippetsMenu';
@@ -287,12 +297,14 @@ export const MarkdownShell: Component<
         {/* Emoji Menu */}
         <Show when={state.emojisMenuOps}>
           {(menu) => (
-            <EmojiMenu
-              editor={editor}
-              menu={menu()}
-              useBlockBoundary={false}
-              portalScope={props.portalScope}
-            />
+            <Suspense>
+              <EmojiMenu
+                editor={editor}
+                menu={menu()}
+                useBlockBoundary={false}
+                portalScope={props.portalScope}
+              />
+            </Suspense>
           )}
         </Show>
 

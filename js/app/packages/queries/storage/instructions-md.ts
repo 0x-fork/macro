@@ -1,9 +1,3 @@
-import { createLexicalWrapper } from '@core/component/LexicalMarkdown/context/LexicalWrapperContext';
-import {
-  getTextContent,
-  initializeEditorWithState,
-} from '@core/component/LexicalMarkdown/utils';
-
 import { storageServiceClient } from '@service-storage/client';
 import { syncServiceClient } from '@service-sync/client';
 import { useQuery } from '@tanstack/solid-query';
@@ -61,6 +55,16 @@ const getInstructionsMdText = async (id: string | null | undefined) => {
   const rawState = await syncServiceClient.getRaw({
     documentId: id,
   });
+
+  // Loaded lazily: this is the only boot-path consumer of the editor
+  // machinery, which would otherwise land in the initial bundle.
+  const [
+    { createLexicalWrapper },
+    { getTextContent, initializeEditorWithState },
+  ] = await Promise.all([
+    import('@core/component/LexicalMarkdown/context/LexicalWrapperContext'),
+    import('@core/component/LexicalMarkdown/utils'),
+  ]);
 
   const { editor } = createLexicalWrapper({
     type: 'markdown',

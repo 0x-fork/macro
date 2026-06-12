@@ -1,23 +1,24 @@
-import {
-  AwaitNode,
-  ContactMentionNode,
-  DateMentionNode,
-  DiffInsertNode,
-  DocumentCardNode,
-  DocumentMentionNode,
-  EquationNode,
-  GroupMentionNode,
-  HorizontalRuleNode,
-  HtmlRenderNode,
-  ImageNode,
-  SnapshotNode,
-  ThemeMentionNode,
-  UnknownMentionNode,
-  UserMentionNode,
-  VideoNode,
-  WatermarkNode,
-} from '@lexical-core';
+// Import node classes from their individual modules (not the @lexical-core
+// barrel) so this boot-path module doesn't drag node-list/@lexical/table,
+// CustomCodeNode/prismjs and the transformers into the initial bundle.
 import { clearDecorators, setDecorator } from '@lexical-core/decoratorRegistry';
+import { AwaitNode } from '@lexical-core/nodes/AwaitNode';
+import { ContactMentionNode } from '@lexical-core/nodes/ContactMentionNode';
+import { DateMentionNode } from '@lexical-core/nodes/DateMentionNode';
+import { DiffInsertNode } from '@lexical-core/nodes/DiffInsertNode';
+import { DocumentCardNode } from '@lexical-core/nodes/DocumentCardNode';
+import { DocumentMentionNode } from '@lexical-core/nodes/DocumentMentionNode';
+import { EquationNode } from '@lexical-core/nodes/EquationNode';
+import { GroupMentionNode } from '@lexical-core/nodes/GroupMentionNode';
+import { HorizontalRuleNode } from '@lexical-core/nodes/HorizontalRuleNode';
+import { HtmlRenderNode } from '@lexical-core/nodes/HtmlRenderNode';
+import { ImageNode } from '@lexical-core/nodes/ImageNode';
+import { SnapshotNode } from '@lexical-core/nodes/SnapshotNode';
+import { ThemeMentionNode } from '@lexical-core/nodes/ThemeMentionNode';
+import { UnknownMentionNode } from '@lexical-core/nodes/UnknownMentionNode';
+import { UserMentionNode } from '@lexical-core/nodes/UserMentionNode';
+import { VideoNode } from '@lexical-core/nodes/VideoNode';
+import { WatermarkNode } from '@lexical-core/nodes/WatermarkNode';
 import { Await } from './component/decorator/Await';
 import { ContactMention } from './component/decorator/ContactMention';
 import { DateMention } from './component/decorator/DateMention';
