@@ -691,7 +691,7 @@ export const SoupView = (props: SoupViewProps) => {
               <div class="flex flex-col w-full">
                 <SplitHeaderLeft>
                   <div class="h-full flex gap-3 items-center shrink-0">
-                    <h1 class="font-semibold text-ink select-none text-sm leading-none">
+                    <h1 class="font-medium text-ink-extra-muted select-none text-sm leading-none">
                       {props.viewName}
                     </h1>
                   </div>

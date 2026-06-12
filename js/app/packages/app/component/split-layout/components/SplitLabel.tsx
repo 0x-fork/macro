@@ -40,17 +40,17 @@ export function StaticSplitLabel(props: {
     >
       <Show when={props.iconType}>
         <EntityIcon
-          class="shrink-0"
+          class="shrink-0 text-ink-extra-muted"
           targetType={props.iconType}
           size="xs"
           theme={props.colorIcon ? undefined : 'monochrome'}
         />
       </Show>
       <Show when={props.icon}>
-        <div class="shrink-0">{props.icon}</div>
+        <div class="shrink-0 text-ink-extra-muted">{props.icon}</div>
       </Show>
       <Show when={props.badges}>{props.badges}</Show>
-      <span class="inline-block text-base truncate">{props.label}</span>
+      <span class="inline-block text-sm font-medium text-ink-extra-muted truncate">{props.label}</span>
     </div>
   );
 }
@@ -99,7 +99,7 @@ export function SplitLabel(props: {
 
   return (
     <span
-      class="inline-block text-base truncate"
+      class="inline-block text-sm font-medium text-ink-extra-muted truncate"
       onContextMenu={startEditing}
       onDblClick={startEditing}
     >
@@ -175,7 +175,12 @@ export function BlockItemSplitLabel(props: {
 
   return (
     <div class="ph-no-capture z-page-overlay relative flex items-center gap-2 min-w-0 max-w-full h-full shrink">
-      <EntityIcon class="shrink-0" targetType={targetType()} size="xs" />
+      <EntityIcon
+        class="shrink-0 text-ink-extra-muted"
+        targetType={targetType()}
+        size="xs"
+        theme="monochrome"
+      />
       <Show when={props.badges}>{props.badges}</Show>
       <SplitLabel
         label={displayName() ?? ''}

@@ -1,10 +1,11 @@
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
-import { globalSplitManager } from '@app/signal/splitLayout';
 import type { BlockName } from '@core/block';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
+import { DEV_MODE_ENV } from '@core/constant/featureFlags';
 import { TOKENS } from '@core/hotkey/tokens';
+import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import type { EntityDragEvent } from '@entity';
 import { AnimatedNewSplitIcon } from '@icon/wide-newSplit';
@@ -14,10 +15,15 @@ import CaretDown from '@phosphor/caret-down.svg';
 import CaretLeft from '@phosphor/caret-left.svg';
 import CaretRight from '@phosphor/caret-right.svg';
 import CaretUp from '@phosphor/caret-up.svg';
+import ArrowLineLeftIcon from '@phosphor/arrow-line-left.svg';
+import ArrowLineRightIcon from '@phosphor/arrow-line-right.svg';
+import ClockCounterClockwiseIcon from '@phosphor/clock-counter-clockwise.svg';
+import CopyIcon from '@phosphor/copy.svg';
+import DotsThreeIcon from '@phosphor/dots-three.svg';
 import CloseIcon from '@phosphor/x.svg';
 import { mergeRefs } from '@solid-primitives/refs';
 import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
-import { Button, cn } from '@ui';
+import { Button, cn, Dropdown } from '@ui';
 import {
   createMemo,
   type ParentProps,
@@ -32,14 +38,25 @@ import { canSpotlight } from '../utils/canSpotlight';
 
 export { SplitHeaderBadge } from './SplitLabel';
 
-function SplitNewSplitButton() {
-  const canCreateNewSplit = () =>
-    globalSplitManager()?.canAppendSplit() ?? true;
+function SplitMoreMenuButton() {
+  const panel = useContext(SplitPanelContext);
+  const layout = useContext(SplitLayoutContext);
+  if (!panel || !layout) return null;
+
+  const splits = () => layout.manager.splits();
+  const currentIndex = () => splits().findIndex((split) => split.id === panel.handle.id);
+  const currentContent = () => panel.handle.content();
+  const canCreateNewSplit = () => layout.manager.canAppendSplit();
+  const canMoveLeft = () => currentIndex() > 0;
+  const canMoveRight = () => {
+    const index = currentIndex();
+    return index >= 0 && index < splits().length - 1;
+  };
+  const canCloseOtherSplits = () => splits().length > 1;
 
   const handleNewSplitClick = () => {
-    const manager = globalSplitManager();
-    if (!manager || !manager.canAppendSplit()) return;
-    manager.createNewSplit({
+    if (!layout.manager.canAppendSplit()) return;
+    layout.manager.createNewSplit({
       content: { type: 'component', id: LIST_VIEW_ID.inbox },
       activate: true,
       allowDuplicate: true,
@@ -47,18 +64,138 @@ function SplitNewSplitButton() {
     });
   };
 
+  const handleDuplicateSplit = () => {
+    if (!layout.manager.canAppendSplit()) return;
+    layout.manager.createNewSplit({
+      content: currentContent(),
+      activate: true,
+      allowDuplicate: true,
+      referredFrom: panel.handle.referredFrom(),
+    });
+  };
+
+  const moveSplit = (offset: -1 | 1) => {
+    const index = currentIndex();
+    const nextIndex = index + offset;
+    if (index < 0 || nextIndex < 0 || nextIndex >= splits().length) return;
+
+    const content = currentContent();
+    const next = [...splits()].map((split) => split.content);
+    [next[index], next[nextIndex]] = [next[nextIndex]!, next[index]!];
+    layout.manager.reconcile(next);
+    layout.manager.getSplitByContent(content.type, content.id)?.activate();
+  };
+
+  const closeOtherSplits = () => {
+    layout.manager.replaceAllSplits(currentContent(), {
+      referredFrom: panel.handle.referredFrom(),
+    });
+  };
+
+  const resetSplitLayout = () => {
+    layout.manager.replaceAllSplits(
+      { type: 'component', id: LIST_VIEW_ID.inbox },
+      { referredFrom: null }
+    );
+  };
+
+  const copyDebugInfo = async () => {
+    const debugInfo = {
+      splitId: panel.handle.id,
+      index: currentIndex(),
+      displayName: panel.handle.displayName(),
+      content: panel.handle.content(),
+      history: panel.handle.history(),
+      referredFrom: panel.handle.referredFrom(),
+      isActive: panel.handle.isActive(),
+      isFirst: panel.handle.isFirst(),
+      isLast: panel.handle.isLast(),
+      isSpotlight: panel.handle.isSpotLight(),
+      canGoBack: panel.handle.canGoBack(),
+      canGoForward: panel.handle.canGoForward(),
+      splitCount: splits().length,
+      activeSplitId: layout.manager.activeSplitId(),
+    };
+
+    await navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2));
+    console.info('Split debug info', debugInfo);
+    toast.success('Copied split debug info');
+  };
+
   return (
     <Show when={!isMobile()}>
-      <Button
-        size="sm"
-        class="p-1 [&_svg]:size-4"
-        label="New Split"
-        hotkey={TOKENS.global.createNewSplit}
-        disabled={!canCreateNewSplit()}
-        onClick={handleNewSplitClick}
-      >
-        <AnimatedNewSplitIcon class="text-ink-extra-muted" />
-      </Button>
+      <Dropdown placement="bottom-start">
+        <Dropdown.Trigger
+          size="sm"
+          variant="ghost"
+          class="p-1 [&_svg]:size-4"
+          label="Split options"
+        >
+          <DotsThreeIcon class="text-ink-extra-muted" />
+        </Dropdown.Trigger>
+        <Dropdown.Content class="min-w-44">
+          <Dropdown.Group>
+            <Dropdown.Item
+              disabled={!canCreateNewSplit()}
+              onSelect={handleNewSplitClick}
+            >
+              <AnimatedNewSplitIcon class="size-4 shrink-0" />
+              <span class="flex-1 truncate">New split</span>
+            </Dropdown.Item>
+            <Dropdown.Item
+              disabled={!canCreateNewSplit()}
+              onSelect={handleDuplicateSplit}
+            >
+              <CopyIcon class="size-4 shrink-0" />
+              <span class="flex-1 truncate">Duplicate split</span>
+            </Dropdown.Item>
+            <Show when={canSpotlight(layout.manager)}>
+              <Dropdown.Item onSelect={() => panel.handle.toggleSpotlight()}>
+                <Show
+                  when={panel.handle.isSpotLight()}
+                  fallback={<ExpandIcon class="size-4 shrink-0" />}
+                >
+                  <CollapseIcon class="size-4 shrink-0" />
+                </Show>
+                <span class="flex-1 truncate">
+                  {panel.handle.isSpotLight() ? 'Minimize split' : 'Spotlight split'}
+                </span>
+              </Dropdown.Item>
+            </Show>
+          </Dropdown.Group>
+          <Dropdown.Group>
+            <Dropdown.Item disabled={!canMoveLeft()} onSelect={() => moveSplit(-1)}>
+              <ArrowLineLeftIcon class="size-4 shrink-0" />
+              <span class="flex-1 truncate">Move split left</span>
+            </Dropdown.Item>
+            <Dropdown.Item disabled={!canMoveRight()} onSelect={() => moveSplit(1)}>
+              <ArrowLineRightIcon class="size-4 shrink-0" />
+              <span class="flex-1 truncate">Move split right</span>
+            </Dropdown.Item>
+          </Dropdown.Group>
+          <Dropdown.Group>
+            <Dropdown.Item
+              disabled={!canCloseOtherSplits()}
+              onSelect={closeOtherSplits}
+            >
+              <CloseIcon class="size-4 shrink-0" />
+              <span class="flex-1 truncate">Close other splits</span>
+            </Dropdown.Item>
+            <Dropdown.Item onSelect={resetSplitLayout}>
+              <ClockCounterClockwiseIcon class="size-4 shrink-0" />
+              <span class="flex-1 truncate">Reset split layout</span>
+            </Dropdown.Item>
+          </Dropdown.Group>
+          <Show when={DEV_MODE_ENV}>
+            <Dropdown.Group>
+              <Dropdown.Item onSelect={() => void copyDebugInfo()}>
+                <CopyIcon class="size-4 shrink-0" />
+                <span class="flex-1 truncate">Copy debug info</span>
+              </Dropdown.Item>
+            </Dropdown.Group>
+          </Show>
+        </Dropdown.Content>
+      </Dropdown>
     </Show>
   );
 }
@@ -312,8 +449,8 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
           </Portal>
         )}
       </Show>
-      <div class="absolute inset-0 flex justify-start items-center">
-        <div class="relative flex items-center pl-2 mobile:pl-0 h-full">
+      <div class="absolute inset-0">
+        <div class="absolute inset-y-0 left-0 z-10 flex items-center pl-2 mobile:pl-0">
           <div class="mobile:hidden">
             <SplitCloseButton />
           </div>
@@ -321,27 +458,26 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
             <SplitBackButton />
             <SplitForwardButton />
           </Show>
+          <SplitMoreMenuButton />
+        </div>
+
+        <div class="pointer-events-none absolute inset-y-0 left-28 right-20 flex min-w-0 items-center justify-center">
+          <div
+            class="pointer-events-auto min-w-0 max-w-full flex items-center justify-center gap-0.5 empty:hidden"
+            data-split-portal-target
+            ref={(ref) => {
+              panel.layoutRefs.headerLeft = ref;
+            }}
+          />
         </div>
 
         <div
-          class="min-w-0 grow shrink pl-2 flex items-center gap-0.5 empty:hidden"
-          data-split-portal-target
-          ref={(ref) => {
-            panel.layoutRefs.headerLeft = ref;
-          }}
-        />
-
-        <div
-          class="min-w-4 h-full grow shrink flex items-center justify-end gap-0.5 px-2 empty:hidden ml-auto"
+          class="absolute inset-y-0 right-0 z-10 min-w-4 h-full flex items-center justify-end gap-0.5 px-2 empty:hidden"
           data-split-portal-target
           ref={(ref) => {
             panel.layoutRefs.headerRight = ref;
           }}
         />
-
-        <div class="shrink-0 flex items-center pr-2">
-          <SplitNewSplitButton />
-        </div>
       </div>
     </div>
   );

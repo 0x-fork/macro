@@ -24,7 +24,7 @@ function TopIcon(props: TopIconProps) {
   return (
     <Show
       when={props.channelType === ChannelTypeEnum.DirectMessage && recipient()}
-      fallback={<HashIcon class="size-4 shrink-0" />}
+      fallback={<HashIcon class="size-4 shrink-0 text-ink-extra-muted" />}
     >
       {(recipient) => {
         return (
@@ -34,6 +34,7 @@ function TopIcon(props: TopIconProps) {
     </Show>
   );
 }
+
 
 type TopProps = {
   channelType: ChannelType;
@@ -57,8 +58,6 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
 
   return (
     <SplitHeaderLeft>
-      {/* Hidden tracking component for channel presence */}
-      <div class="hidden">{props.trackingIndicator}</div>
       <div class="ph-no-capture z-page-overlay relative flex items-center gap-1 max-w-full h-full shrink min-w-15">
         <TopIcon
           channelType={props.channelType}
@@ -70,6 +69,9 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
           renameOverrides={{ channelType: props.channelType }}
           maxDisplayLength={48}
         />
+        <Show when={props.trackingIndicator}>
+          <div class="text-ink">{props.trackingIndicator}</div>
+        </Show>
         <Show when={props.callButton}>{props.callButton}</Show>
       </div>
     </SplitHeaderLeft>

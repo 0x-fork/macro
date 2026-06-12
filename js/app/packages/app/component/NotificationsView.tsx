@@ -1251,7 +1251,7 @@ export function NotificationsView() {
   return (
     <div class="h-full flex flex-col">
       <SplitHeaderLeft>
-        <h1 class="font-semibold text-ink select-none text-sm shrink-0">
+        <h1 class="font-medium text-ink-extra-muted select-none text-sm shrink-0">
           Notifications
         </h1>
       </SplitHeaderLeft>
