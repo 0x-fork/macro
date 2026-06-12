@@ -141,7 +141,7 @@ export function SplitPanel(props: SplitPanelProps) {
               data-modal={props.handle.isSpotLight()}
               tabindex={-1}
             >
-              <div class="absolute -right-2 -top-2 z-70 opacity-0 transition-opacity hover:opacity-100 focus-within:opacity-100 group-has-[[data-split-header]:hover]:opacity-100 group-has-[[data-split-more-menu][data-expanded]]:opacity-100">
+              <div class="absolute -right-2 -top-2 z-70 opacity-0 transition-opacity hover:opacity-100 group-has-[[data-split-header]:hover]:opacity-100 group-has-[[data-split-more-menu][data-expanded]]:opacity-100">
                 <SplitMoreMenuButton />
               </div>
               <Panel

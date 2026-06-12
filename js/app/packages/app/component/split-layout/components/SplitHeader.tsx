@@ -66,21 +66,13 @@ function useSplitMenuActions() {
     if (!layout.manager.canAppendSplit()) return;
 
     const index = currentIndex();
-    const split = layout.manager.createNewSplit({
+    layout.manager.createNewSplit({
       content: { type: 'component', id: LIST_VIEW_ID.inbox },
       activate: true,
       allowDuplicate: true,
       referredFrom: 'sidebar',
+      insertIndex: index < 0 ? undefined : side === 'left' ? index : index + 1,
     });
-
-    if (index < 0) return;
-
-    const next = splits().map((existingSplit) => existingSplit.content);
-    const [created] = next.splice(next.length - 1, 1);
-    if (!created) return;
-    next.splice(side === 'left' ? index : index + 1, 0, created);
-    layout.manager.reconcile(next);
-    layout.manager.getSplitByContent(split.content().type, split.content().id)?.activate();
   };
 
   const handleDuplicateSplit = () => {
@@ -160,7 +152,10 @@ function useSplitMenuActions() {
 function SplitMenuDropdownContent(props: { actions: NonNullable<ReturnType<typeof useSplitMenuActions>> }) {
   const actions = props.actions;
   return (
-    <Dropdown.Content class="min-w-44">
+    <Dropdown.Content
+      class="min-w-44"
+      onCloseAutoFocus={(event) => event.preventDefault()}
+    >
       <Dropdown.Group>
         <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={() => actions.handleNewSplitClick('left')}>
           <AnimatedNewSplitIcon class="size-4 shrink-0" />

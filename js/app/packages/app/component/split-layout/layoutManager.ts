@@ -144,6 +144,8 @@ export type CreateNewSplitOptions = {
   activate?: boolean;
   allowDuplicate?: boolean;
   referredFrom: ReferredFrom;
+  /** Insert the split at a specific layout index. Defaults to appending. */
+  insertIndex?: number;
   /**
    * Optional prior navigation entries to pre-populate this split's history stack.
    * The `content` field is appended as the final (current) entry.
@@ -1016,8 +1018,14 @@ export function createSplitLayout(
   };
 
   function createNewSplit(options: CreateNewSplitOptions): SplitHandle {
-    const { content, activate, referredFrom, allowDuplicate, initialHistory } =
-      options;
+    const {
+      content,
+      activate,
+      referredFrom,
+      allowDuplicate,
+      initialHistory,
+      insertIndex,
+    } = options;
     const initialContent = content ?? DEFAULT_SPLIT_CONTENT;
     const isDefault = sameContent(initialContent, DEFAULT_SPLIT_CONTENT);
 
@@ -1041,7 +1049,13 @@ export function createSplitLayout(
       initialHistory,
     });
 
-    setState('splits', (previousSplits) => [...previousSplits, split]);
+    setState('splits', (previousSplits) => {
+      if (insertIndex === undefined) return [...previousSplits, split];
+
+      const next = [...previousSplits];
+      next.splice(Math.max(0, Math.min(insertIndex, next.length)), 0, split);
+      return next;
+    });
 
     const handle = getSplit(split.id)!;
 
