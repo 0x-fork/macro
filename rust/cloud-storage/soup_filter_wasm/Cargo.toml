@@ -8,13 +8,21 @@ version = "0.1.0"
 # cdylib for the wasm artifact, rlib so native `cargo test` still works.
 crate-type = ["cdylib", "rlib"]
 
+# wasm-opt is deliberately disabled: stale binaryen versions (<116) silently
+# corrupt the wasm-bindgen externref table (WebAssembly.Table.grow fails at
+# module start), and version drift makes the committed artifact
+# non-reproducible. The unoptimized binary is ~5% larger gzipped. If
+# re-enabling, pin binaryen >= 116 and verify the soup-filter-wasm vitest
+# contract suite passes against the rebuilt artifact.
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz"]
+wasm-opt = false
 
 [dependencies]
 item_filters = { path = "../item_filters" }
+serde = { workspace = true }
 serde_json = { workspace = true }
 soup_filter_eval = { path = "../soup_filter_eval" }
+uuid = { workspace = true }
 wasm-bindgen = "0.2"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

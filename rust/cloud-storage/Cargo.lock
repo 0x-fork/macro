@@ -11046,6 +11046,7 @@ version = "0.1.0"
 dependencies = [
  "getrandom 0.4.2",
  "item_filters",
+ "serde",
  "serde_json",
  "soup_filter_eval",
  "uuid",

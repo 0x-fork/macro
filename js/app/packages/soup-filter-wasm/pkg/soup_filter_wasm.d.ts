@@ -20,11 +20,11 @@ export class SoupFilter {
      * Build a filter from a raw AST JSON string — the body shape of
      * `POST /items/soup/ast` (`{"df": ..., "ef": ..., ...}`).
      *
-     * `current_user_id` enables requester-dependent predicates (e.g. the
-     * task created-by-me filter); pass `undefined` to leave them
-     * undecidable.
+     * `options_json` carries requester context (see the package README):
+     * `{"currentUserId": ..., "assigneesPropertyId": ...}`. Omitted fields
+     * leave the corresponding predicates undecidable.
      */
-    static fromAst(ast_json: string, current_user_id?: string | null): SoupFilter;
+    static fromAst(ast_json: string, options_json?: string | null): SoupFilter;
     /**
      * Build a filter from typed filters JSON — the body shape of
      * `POST /items/soup` (`{"document_filters": ..., ...}`).
@@ -33,16 +33,21 @@ export class SoupFilter {
      * the soup router uses, so malformed filters fail here with the same
      * errors the endpoint would produce.
      */
-    static fromTypedFilters(filters_json: string, current_user_id?: string | null): SoupFilter;
+    static fromTypedFilters(filters_json: string, options_json?: string | null): SoupFilter;
     /**
-     * Evaluate one `SoupApiItem` JSON string. Returns a [`Verdict`].
+     * Evaluate one `SoupApiItem` JSON string. `state_json` optionally
+     * asserts per-item notification existence (camelCase `ItemState`
+     * fields, e.g. `{"hasUndoneNotification": true}`). Returns a
+     * [`Verdict`].
      */
-    matches(soup_item_json: string): Verdict;
+    matches(soup_item_json: string, state_json?: string | null): Verdict;
     /**
      * Evaluate a JSON array of `SoupApiItem`s in one boundary crossing.
-     * Returns one [`Verdict`] code per item, in order.
+     * `states_json` is an optional JSON array (same length, `null` entries
+     * allowed) of per-item `ItemState` objects. Returns one [`Verdict`]
+     * code per item, in order.
      */
-    matchesMany(soup_items_json: string): Uint8Array;
+    matchesMany(soup_items_json: string, states_json?: string | null): Uint8Array;
 }
 
 /**

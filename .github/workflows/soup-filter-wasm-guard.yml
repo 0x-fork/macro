@@ -1,0 +1,47 @@
+name: soup filter wasm artifact guard
+on:
+  pull_request:
+    branches: ['main']
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: soup-filter-wasm-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The wasm artifact at js/app/packages/soup-filter-wasm/pkg is committed
+  # (so app builds don't need a Rust toolchain) and generated from the crates
+  # below. Any change to those crates changes the artifact (panic locations
+  # embed line numbers), so a PR touching them without rebuilding the pkg is
+  # shipping a stale binary. Behavioral drift between artifact and wrapper is
+  # additionally caught by the soup-filter-wasm vitest contract suite, which
+  # runs the committed binary in the web app check workflow.
+  artifact-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          clean: false
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust_changed:
+              - 'rust/cloud-storage/soup_filter_eval/**'
+              - 'rust/cloud-storage/soup_filter_wasm/**'
+              - 'rust/cloud-storage/item_filters/**'
+              - 'rust/cloud-storage/filter_ast/**'
+              - 'rust/cloud-storage/document_sub_type/**'
+            pkg_changed:
+              - 'js/app/packages/soup-filter-wasm/pkg/**'
+      - name: require pkg rebuild alongside filter crate changes
+        if: steps.filter.outputs.rust_changed == 'true' && steps.filter.outputs.pkg_changed != 'true'
+        run: |
+          echo "::error::This PR changes the soup filter Rust crates but not the committed wasm artifact."
+          echo "Rebuild it and commit the result:"
+          echo "  cargo install wasm-pack   # once"
+          echo "  cd rust/cloud-storage && just build_soup_filter_wasm"
+          exit 1
+      - name: ok
+        if: steps.filter.outputs.rust_changed != 'true' || steps.filter.outputs.pkg_changed == 'true'
+        run: echo "artifact freshness check passed"

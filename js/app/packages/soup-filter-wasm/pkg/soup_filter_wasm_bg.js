@@ -48,17 +48,17 @@ export class SoupFilter {
      * Build a filter from a raw AST JSON string — the body shape of
      * `POST /items/soup/ast` (`{"df": ..., "ef": ..., ...}`).
      *
-     * `current_user_id` enables requester-dependent predicates (e.g. the
-     * task created-by-me filter); pass `undefined` to leave them
-     * undecidable.
+     * `options_json` carries requester context (see the package README):
+     * `{"currentUserId": ..., "assigneesPropertyId": ...}`. Omitted fields
+     * leave the corresponding predicates undecidable.
      * @param {string} ast_json
-     * @param {string | null} [current_user_id]
+     * @param {string | null} [options_json]
      * @returns {SoupFilter}
      */
-    static fromAst(ast_json, current_user_id) {
+    static fromAst(ast_json, options_json) {
         const ptr0 = passStringToWasm0(ast_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        var ptr1 = isLikeNone(current_user_id) ? 0 : passStringToWasm0(current_user_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var ptr1 = isLikeNone(options_json) ? 0 : passStringToWasm0(options_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len1 = WASM_VECTOR_LEN;
         const ret = wasm.soupfilter_fromAst(ptr0, len0, ptr1, len1);
         if (ret[2]) {
@@ -74,13 +74,13 @@ export class SoupFilter {
      * the soup router uses, so malformed filters fail here with the same
      * errors the endpoint would produce.
      * @param {string} filters_json
-     * @param {string | null} [current_user_id]
+     * @param {string | null} [options_json]
      * @returns {SoupFilter}
      */
-    static fromTypedFilters(filters_json, current_user_id) {
+    static fromTypedFilters(filters_json, options_json) {
         const ptr0 = passStringToWasm0(filters_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        var ptr1 = isLikeNone(current_user_id) ? 0 : passStringToWasm0(current_user_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var ptr1 = isLikeNone(options_json) ? 0 : passStringToWasm0(options_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len1 = WASM_VECTOR_LEN;
         const ret = wasm.soupfilter_fromTypedFilters(ptr0, len0, ptr1, len1);
         if (ret[2]) {
@@ -89,14 +89,20 @@ export class SoupFilter {
         return SoupFilter.__wrap(ret[0]);
     }
     /**
-     * Evaluate one `SoupApiItem` JSON string. Returns a [`Verdict`].
+     * Evaluate one `SoupApiItem` JSON string. `state_json` optionally
+     * asserts per-item notification existence (camelCase `ItemState`
+     * fields, e.g. `{"hasUndoneNotification": true}`). Returns a
+     * [`Verdict`].
      * @param {string} soup_item_json
+     * @param {string | null} [state_json]
      * @returns {Verdict}
      */
-    matches(soup_item_json) {
+    matches(soup_item_json, state_json) {
         const ptr0 = passStringToWasm0(soup_item_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.soupfilter_matches(this.__wbg_ptr, ptr0, len0);
+        var ptr1 = isLikeNone(state_json) ? 0 : passStringToWasm0(state_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        const ret = wasm.soupfilter_matches(this.__wbg_ptr, ptr0, len0, ptr1, len1);
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
@@ -104,20 +110,25 @@ export class SoupFilter {
     }
     /**
      * Evaluate a JSON array of `SoupApiItem`s in one boundary crossing.
-     * Returns one [`Verdict`] code per item, in order.
+     * `states_json` is an optional JSON array (same length, `null` entries
+     * allowed) of per-item `ItemState` objects. Returns one [`Verdict`]
+     * code per item, in order.
      * @param {string} soup_items_json
+     * @param {string | null} [states_json]
      * @returns {Uint8Array}
      */
-    matchesMany(soup_items_json) {
+    matchesMany(soup_items_json, states_json) {
         const ptr0 = passStringToWasm0(soup_items_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.soupfilter_matchesMany(this.__wbg_ptr, ptr0, len0);
+        var ptr1 = isLikeNone(states_json) ? 0 : passStringToWasm0(states_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        const ret = wasm.soupfilter_matchesMany(this.__wbg_ptr, ptr0, len0, ptr1, len1);
         if (ret[3]) {
             throw takeFromExternrefTable0(ret[2]);
         }
-        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-        return v2;
+        return v3;
     }
 }
 if (Symbol.dispose) SoupFilter.prototype[Symbol.dispose] = SoupFilter.prototype.free;

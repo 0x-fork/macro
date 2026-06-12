@@ -9,7 +9,7 @@
 use item_filters::ast::email::{Email, EmailLiteral};
 
 use crate::item::{array_field, date_cmp, str_field, uuid_eq};
-use crate::{Data, Truth};
+use crate::{Ctx, Data, Truth};
 
 /// Case-insensitive string equality, as the SQL compares lowercased
 /// addresses.
@@ -17,7 +17,7 @@ fn eq_ci(a: &str, b: &str) -> bool {
     a.eq_ignore_ascii_case(b)
 }
 
-pub(crate) fn eval(literal: &EmailLiteral, data: &Data) -> Truth {
+pub(crate) fn eval(literal: &EmailLiteral, data: &Data, _ctx: &Ctx<'_>) -> Truth {
     match literal {
         // Candidate-stage SQL: email_threads.id = '{t}'.
         EmailLiteral::ThreadId(t) => uuid_eq(data, "id", t),
@@ -61,6 +61,12 @@ pub(crate) fn eval(literal: &EmailLiteral, data: &Data) -> Truth {
             Some(actual) => (actual == *want).into(),
             None => Truth::Unknown,
         },
+        // Deliberately NOT decided via ItemState: the email branch compiles
+        // notification literals at a different SQL stage than the other
+        // entities (the per-message stage emits TRUE for them), so asserting
+        // notification existence here could diverge from what the endpoint
+        // returns. Stays Unknown until the email candidate-stage semantics
+        // are pinned down.
         EmailLiteral::NotificationDone(_) | EmailLiteral::NotificationSeen(_) => Truth::Unknown,
         // Share provenance is not on the payload.
         EmailLiteral::Shared(_) => Truth::Unknown,

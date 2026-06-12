@@ -4,9 +4,9 @@
 use item_filters::ast::chat::ChatLiteral;
 
 use crate::item::{date_cmp, str_eq, uuid_eq};
-use crate::{Data, Truth};
+use crate::{Ctx, Data, Truth};
 
-pub(crate) fn eval(literal: &ChatLiteral, data: &Data) -> Truth {
+pub(crate) fn eval(literal: &ChatLiteral, data: &Data, ctx: &Ctx<'_>) -> Truth {
     match literal {
         // SQL: c."projectId" = '{p}'
         ChatLiteral::ProjectId(p) => uuid_eq(data, "projectId", p),
@@ -19,7 +19,10 @@ pub(crate) fn eval(literal: &ChatLiteral, data: &Data) -> Truth {
         // SQL: no-op for true; 1=0 for false ("all chats are important").
         ChatLiteral::Importance(true) => Truth::Match,
         ChatLiteral::Importance(false) => Truth::NoMatch,
-        ChatLiteral::NotificationDone(_) | ChatLiteral::NotificationSeen(_) => Truth::Unknown,
+        // EXISTS probes against the user's notifications; decidable only
+        // through caller-asserted state (see [`crate::ItemState`]).
+        ChatLiteral::NotificationDone(want) => ctx.state.notification_done(*want),
+        ChatLiteral::NotificationSeen(want) => ctx.state.notification_seen(*want),
         ChatLiteral::CreatedAt(lit) => date_cmp(data, "createdAt", lit),
         ChatLiteral::UpdatedAt(lit) => date_cmp(data, "updatedAt", lit),
     }

@@ -7,9 +7,9 @@
 use item_filters::ast::channel::ChannelLiteral;
 
 use crate::item::{i64_field, object_field, str_eq, uuid_eq};
-use crate::{Data, Truth};
+use crate::{Ctx, Data, Truth};
 
-pub(crate) fn eval(literal: &ChannelLiteral, data: &Data) -> Truth {
+pub(crate) fn eval(literal: &ChannelLiteral, data: &Data, ctx: &Ctx<'_>) -> Truth {
     let Some(channel) = object_field(data, "channel") else {
         return Truth::Unknown;
     };
@@ -29,6 +29,9 @@ pub(crate) fn eval(literal: &ChannelLiteral, data: &Data) -> Truth {
         // SQL: no-op for true; 1=0 for false.
         ChannelLiteral::Importance(true) => Truth::Match,
         ChannelLiteral::Importance(false) => Truth::NoMatch,
-        ChannelLiteral::NotificationDone(_) | ChannelLiteral::NotificationSeen(_) => Truth::Unknown,
+        // EXISTS probes against the user's notifications; decidable only
+        // through caller-asserted state (see [`crate::ItemState`]).
+        ChannelLiteral::NotificationDone(want) => ctx.state.notification_done(*want),
+        ChannelLiteral::NotificationSeen(want) => ctx.state.notification_seen(*want),
     }
 }

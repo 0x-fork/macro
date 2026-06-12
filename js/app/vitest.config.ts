@@ -1,4 +1,5 @@
 import solidPlugin from 'vite-plugin-solid';
+import wasm from 'vite-plugin-wasm';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { configDefaults, defineConfig } from 'vitest/config';
 
@@ -86,6 +87,14 @@ export default defineConfig({
         test: {
           include: ['packages/block-email/**/*.{test,spec}.{ts,tsx}'],
           name: 'block-email',
+        },
+      },
+      {
+        // Contract tests against the committed soup filter wasm artifact.
+        plugins: [tsconfigPaths(), wasm()],
+        test: {
+          include: ['packages/soup-filter-wasm/**/*.{test,spec}.{ts,tsx}'],
+          name: 'soup-filter-wasm',
         },
       },
     ],

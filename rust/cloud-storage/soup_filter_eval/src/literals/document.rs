@@ -4,7 +4,8 @@
 use item_filters::ast::document::DocumentLiteral;
 
 use crate::item::{bool_field, date_cmp, object_field, str_eq, str_field, uuid_eq};
-use crate::{Data, EvalOptions, Truth};
+use crate::literals::properties::entity_ref_property_contains;
+use crate::{Ctx, Data, Truth};
 
 /// The document's task sub-type state, read from `data.subType`.
 enum SubType {
@@ -28,7 +29,21 @@ fn sub_type(data: &Data) -> SubType {
     }
 }
 
-pub(crate) fn eval(literal: &DocumentLiteral, data: &Data, opts: &EvalOptions) -> Truth {
+/// SQL: `ep_assignees.values->'value' @> [{"entity_id": $user}]` — is the
+/// requesting user an assignee of this (task) document? Decidable only when
+/// the caller supplied both the user id and the Assignees property
+/// definition id.
+fn assigned_to_requester(data: &Data, ctx: &Ctx<'_>) -> Truth {
+    let (Some(user), Some(assignees_id)) = (
+        ctx.opts.current_user_id.as_deref(),
+        ctx.opts.assignees_property_definition_id.as_ref(),
+    ) else {
+        return Truth::Unknown;
+    };
+    entity_ref_property_contains(data, assignees_id, user)
+}
+
+pub(crate) fn eval(literal: &DocumentLiteral, data: &Data, ctx: &Ctx<'_>) -> Truth {
     match literal {
         // SQL: d."fileType" = '{f}'
         DocumentLiteral::FileType(f) => str_eq(data, "fileType", &f.to_string()),
@@ -40,30 +55,29 @@ pub(crate) fn eval(literal: &DocumentLiteral, data: &Data, opts: &EvalOptions) -
         // SQL: d.owner = '{o}'
         DocumentLiteral::Owner(o) => str_eq(data, "ownerId", &o.to_string()),
         // SQL (true): non-task OR task assigned to the requesting user.
-        // The assignee check reads the Assignees system property join, which
-        // the evaluator cannot identify locally yet, so tasks are Unknown.
         DocumentLiteral::Importance(true) => match sub_type(data) {
             SubType::None => Truth::Match,
-            SubType::Task { .. } | SubType::Other => Truth::Unknown,
+            SubType::Task { .. } => assigned_to_requester(data, ctx),
+            SubType::Other => Truth::Unknown,
         },
         // SQL (false): task AND not assigned to the requesting user.
         DocumentLiteral::Importance(false) => match sub_type(data) {
             SubType::None => Truth::NoMatch,
-            SubType::Task { .. } | SubType::Other => Truth::Unknown,
+            SubType::Task { .. } => !assigned_to_requester(data, ctx),
+            SubType::Other => Truth::Unknown,
         },
-        // Notification state lives in NotificationItems, not on the payload.
-        DocumentLiteral::NotificationDone(_) | DocumentLiteral::NotificationSeen(_) => {
-            Truth::Unknown
-        }
+        // EXISTS probes against the user's notifications; decidable only
+        // through caller-asserted state (see [`crate::ItemState`]).
+        DocumentLiteral::NotificationDone(want) => ctx.state.notification_done(*want),
+        DocumentLiteral::NotificationSeen(want) => ctx.state.notification_seen(*want),
         // SQL (true): sub_type = 'task' AND owner = $user AND assignees
-        // contains $user AND NOT completed. The assignee conjunct is Unknown
-        // locally; every other conjunct can still force NoMatch.
+        // contains $user AND NOT completed.
         DocumentLiteral::IncludeCbmAtmNc(true) => {
             let task = match sub_type(data) {
                 SubType::Task { is_completed } => is_completed,
                 SubType::None | SubType::Other => return Truth::NoMatch,
             };
-            let owner = match &opts.current_user_id {
+            let owner = match &ctx.opts.current_user_id {
                 Some(user) => str_eq(data, "ownerId", user),
                 None => Truth::Unknown,
             };
@@ -71,7 +85,9 @@ pub(crate) fn eval(literal: &DocumentLiteral, data: &Data, opts: &EvalOptions) -
                 Some(done) => (!done).into(),
                 None => Truth::Unknown,
             };
-            owner.and(not_completed).and(Truth::Unknown)
+            owner
+                .and(not_completed)
+                .and(assigned_to_requester(data, ctx))
         }
         // SQL compiles `false` to a no-op clause.
         DocumentLiteral::IncludeCbmAtmNc(false) => Truth::Match,

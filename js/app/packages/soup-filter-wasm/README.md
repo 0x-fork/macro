@@ -21,7 +21,17 @@ building) with the real Rust implementation, compiled to wasm:
   `item_filters` AST, with per-literal semantics documented against the SQL
   builders and tests that serialize genuine `models_soup` values.
 - `rust/cloud-storage/soup_filter_wasm` — wasm-bindgen bindings
-  (~190KB gzipped, built with wasm-pack).
+  (~210KB gzipped, built with wasm-pack).
+
+Two context inputs shrink the undecidable set:
+
+- **Filter options** (`{currentUserId, assigneesPropertyId}`) enable the
+  requester-dependent task predicates (document importance =
+  assigned-to-me for tasks, created-by-me filters).
+- **Per-item state** (`SoupItemState`) asserts notification *existence*
+  mirroring the backend's EXISTS probes (`hasUndoneNotification` etc.),
+  enabling done/seen filters. The soup facade reads these from the
+  notification query cache, asserting positives only.
 
 ## Three-valued results
 
@@ -66,6 +76,18 @@ just build_soup_filter_wasm
 
 The app's Vite config already includes `vite-plugin-wasm`, which handles the
 wasm-pack `bundler`-target output emitted here.
+
+Two CI checks keep the committed artifact honest:
+
+- `tests/contract.test.ts` (vitest project `soup-filter-wasm`) loads the
+  committed binary through the real wrapper on every web-app CI run.
+- `.github/workflows/soup-filter-wasm-guard.yml` fails PRs that change the
+  filter Rust crates without rebuilding `pkg/`.
+
+Note: `wasm-opt` is disabled in the wasm-pack metadata — binaryen versions
+below 116 silently corrupt the wasm-bindgen externref table (module start
+throws `WebAssembly.Table.grow` errors). See
+`rust/cloud-storage/soup_filter_wasm/Cargo.toml`.
 
 ## How it's wired in
 

@@ -35,6 +35,44 @@ fn derived_entity_type(tag: &str, data: &Data) -> Option<PropertyEntityType> {
     }
 }
 
+/// Does the item carry a property with `definition.id == definition_id`
+/// whose `EntityReference` value contains `entity_id`?
+///
+/// Mirrors the SQL `values->'value' @> [{"entity_id": ...}]` probe used by
+/// both the properties literal and the document task predicates
+/// (`ep_assignees` join). [`Truth::Unknown`] when the payload has no
+/// properties list at all; a present-but-non-matching list is a definite
+/// [`Truth::NoMatch`] (matching the SQL's null handling for the missing-row
+/// case).
+pub(crate) fn entity_ref_property_contains(
+    data: &Data,
+    definition_id: &uuid::Uuid,
+    entity_id: &str,
+) -> Truth {
+    let Some(properties) = array_field(data, "properties") else {
+        return Truth::Unknown;
+    };
+    properties
+        .iter()
+        .filter_map(Value::as_object)
+        .any(|property| {
+            let definition_matches = object_field(property, "definition")
+                .and_then(|d| str_field(d, "id"))
+                .and_then(|id| uuid::Uuid::parse_str(id).ok())
+                .is_some_and(|id| id == *definition_id);
+            definition_matches
+                && object_field(property, "value").is_some_and(|value| {
+                    str_field(value, "type") == Some("EntityReference")
+                        && array_field(value, "value").is_some_and(|refs| {
+                            refs.iter()
+                                .filter_map(Value::as_object)
+                                .any(|r| str_field(r, "entity_id") == Some(entity_id))
+                        })
+                })
+        })
+        .into()
+}
+
 /// Does one `SoupProperty` JSON entry satisfy the literal's value predicate?
 fn property_matches(property: &Value, literal: &PropertiesLiteral) -> bool {
     let Some(property) = property.as_object() else {

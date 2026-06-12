@@ -4,9 +4,9 @@
 use item_filters::ast::project::ProjectLiteral;
 
 use crate::item::{date_cmp, str_eq, uuid_eq};
-use crate::{Data, Truth};
+use crate::{Ctx, Data, Truth};
 
-pub(crate) fn eval(literal: &ProjectLiteral, data: &Data) -> Truth {
+pub(crate) fn eval(literal: &ProjectLiteral, data: &Data, ctx: &Ctx<'_>) -> Truth {
     match literal {
         // SQL: p."parentId" = '{p}' (direct children).
         ProjectLiteral::ProjectId(p) => uuid_eq(data, "parentId", p),
@@ -17,7 +17,10 @@ pub(crate) fn eval(literal: &ProjectLiteral, data: &Data) -> Truth {
         // SQL: no-op for true; 1=0 for false ("all projects are important").
         ProjectLiteral::Importance(true) => Truth::Match,
         ProjectLiteral::Importance(false) => Truth::NoMatch,
-        ProjectLiteral::NotificationDone(_) | ProjectLiteral::NotificationSeen(_) => Truth::Unknown,
+        // EXISTS probes against the user's notifications; decidable only
+        // through caller-asserted state (see [`crate::ItemState`]).
+        ProjectLiteral::NotificationDone(want) => ctx.state.notification_done(*want),
+        ProjectLiteral::NotificationSeen(want) => ctx.state.notification_seen(*want),
         ProjectLiteral::CreatedAt(lit) => date_cmp(data, "createdAt", lit),
         ProjectLiteral::UpdatedAt(lit) => date_cmp(data, "updatedAt", lit),
     }

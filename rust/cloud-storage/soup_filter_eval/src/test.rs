@@ -213,6 +213,168 @@ fn unknown_combines_with_decidable_filters() {
 }
 
 #[test]
+fn notification_state_overlay_decides_done_and_seen() {
+    let ast = ast_from(EntityFilters {
+        document_filters: item_filters::DocumentFilters {
+            notification_filters: item_filters::NotificationFilters {
+                done: Some(false),
+                seen: None,
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let item = document(Uuid::new_v4(), None, None);
+    let opts = EvalOptions::default();
+
+    // SQL: EXISTS(un.done = false). Caller-asserted existence decides it.
+    let has_undone = ItemState {
+        has_undone_notification: Some(true),
+        ..Default::default()
+    };
+    assert_eq!(
+        eval_soup_item_with_state(&ast, &item, &has_undone, &opts).unwrap(),
+        Truth::Match
+    );
+    let no_undone = ItemState {
+        has_undone_notification: Some(false),
+        ..Default::default()
+    };
+    assert_eq!(
+        eval_soup_item_with_state(&ast, &item, &no_undone, &opts).unwrap(),
+        Truth::NoMatch
+    );
+    // The done=true probe is independent of the undone assertion: an entity
+    // with mixed notifications matches both polarities.
+    let done_ast = ast_from(EntityFilters {
+        document_filters: item_filters::DocumentFilters {
+            notification_filters: item_filters::NotificationFilters {
+                done: Some(true),
+                seen: None,
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    assert_eq!(
+        eval_soup_item_with_state(&done_ast, &item, &has_undone, &opts).unwrap(),
+        Truth::Unknown
+    );
+}
+
+#[test]
+fn assignees_property_decides_document_importance() {
+    let assignees_id = Uuid::new_v4();
+    let opts = EvalOptions {
+        current_user_id: Some(USER.into()),
+        assignees_property_definition_id: Some(assignees_id),
+    };
+    let make_task = |assignee: &str| {
+        let mut item = document(
+            Uuid::new_v4(),
+            None,
+            Some(SoupDocumentSubType::Task {
+                is_completed: false,
+            }),
+        );
+        let props = serde_json::json!([{
+            "definition": { "id": assignees_id.to_string() },
+            "value": { "type": "EntityReference", "value": [{ "entity_id": assignee }] }
+        }]);
+        item.get_mut("data")
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert("properties".into(), props);
+        item
+    };
+
+    let important = ast_from(EntityFilters {
+        document_filters: item_filters::DocumentFilters {
+            importance: Some(true),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    // Task assigned to the requester: important.
+    assert_eq!(
+        eval_soup_item_with_state(&important, &make_task(USER), &ItemState::default(), &opts)
+            .unwrap(),
+        Truth::Match
+    );
+    // Task assigned to someone else: not important.
+    assert_eq!(
+        eval_soup_item_with_state(
+            &important,
+            &make_task(OTHER_USER),
+            &ItemState::default(),
+            &opts
+        )
+        .unwrap(),
+        Truth::NoMatch
+    );
+    // Without the assignees property id, tasks stay undecidable.
+    assert_eq!(
+        eval_soup_item_with_state(
+            &important,
+            &make_task(USER),
+            &ItemState::default(),
+            &EvalOptions {
+                current_user_id: Some(USER.into()),
+                assignees_property_definition_id: None,
+            }
+        )
+        .unwrap(),
+        Truth::Unknown
+    );
+    // Non-tasks are always important regardless of context.
+    assert_eq!(
+        eval(&important, &document(Uuid::new_v4(), None, None)),
+        Truth::Match
+    );
+}
+
+#[test]
+fn cbm_atm_nc_fully_decidable_with_assignees_context() {
+    let assignees_id = Uuid::new_v4();
+    let opts = EvalOptions {
+        current_user_id: Some(USER.into()),
+        assignees_property_definition_id: Some(assignees_id),
+    };
+    let ast = ast_from(EntityFilters {
+        document_filters: item_filters::DocumentFilters {
+            task_filters: item_filters::TaskFilters {
+                include_cbm_atm_nc: Some(true),
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let mut task = document(
+        Uuid::new_v4(),
+        None,
+        Some(SoupDocumentSubType::Task {
+            is_completed: false,
+        }),
+    );
+    task.get_mut("data")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .insert(
+            "properties".into(),
+            serde_json::json!([{
+                "definition": { "id": assignees_id.to_string() },
+                "value": { "type": "EntityReference", "value": [{ "entity_id": USER }] }
+            }]),
+        );
+    assert_eq!(
+        eval_soup_item_with_state(&ast, &task, &ItemState::default(), &opts).unwrap(),
+        Truth::Match
+    );
+}
+
+#[test]
 fn cbm_atm_nc_uses_decidable_conjuncts() {
     let ast = ast_from(EntityFilters {
         document_filters: item_filters::DocumentFilters {
@@ -225,6 +387,7 @@ fn cbm_atm_nc_uses_decidable_conjuncts() {
     });
     let opts = EvalOptions {
         current_user_id: Some(USER.into()),
+        ..Default::default()
     };
     // Plain documents can never satisfy the task-only branch.
     let plain = document(Uuid::new_v4(), None, None);

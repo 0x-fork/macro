@@ -63,6 +63,78 @@ pub struct EvalOptions {
     /// completed") document literal. When absent, those predicates evaluate
     /// to [`Truth::Unknown`] instead of deciding.
     pub current_user_id: Option<String>,
+    /// The property definition id of the system "Assignees" property.
+    ///
+    /// The SQL for document `Importance` and `IncludeCbmAtmNc` joins
+    /// `entity_properties` on this definition to test whether the requesting
+    /// user is an assignee. When both this and `current_user_id` are
+    /// provided, the evaluator runs the same test against the item's loaded
+    /// `properties`; otherwise the assignee half of those predicates is
+    /// [`Truth::Unknown`].
+    pub assignees_property_definition_id: Option<uuid::Uuid>,
+}
+
+/// Caller-asserted per-item state for predicates whose data lives outside the
+/// soup payload.
+///
+/// The backend's notification literals are **existence** probes against the
+/// user's notifications (see `build_notification_done_clause` /
+/// `build_notification_seen_clause` in soup's `pg_soup_repo`):
+/// `NotificationDone(true)` matches when *at least one* non-deleted
+/// notification for the entity has `done = true` — an entity with mixed
+/// notifications matches both polarities, and an entity with none matches
+/// neither. These fields mirror those probes exactly.
+///
+/// `Some(true)` asserts the probe succeeds, `Some(false)` asserts it cannot
+/// (the caller has proven no such notification exists), and `None` means the
+/// caller doesn't know — the literal stays [`Truth::Unknown`]. Callers
+/// reading a paginated cache should only assert positives.
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemState {
+    /// Does a non-deleted notification with `done = true` exist for this
+    /// entity?
+    #[serde(default)]
+    pub has_done_notification: Option<bool>,
+    /// Does a non-deleted notification with `done = false` exist?
+    #[serde(default)]
+    pub has_undone_notification: Option<bool>,
+    /// Does a non-deleted notification that has been seen exist?
+    #[serde(default)]
+    pub has_seen_notification: Option<bool>,
+    /// Does a non-deleted notification that has not been seen exist?
+    #[serde(default)]
+    pub has_unseen_notification: Option<bool>,
+}
+
+impl ItemState {
+    /// Evaluate a `NotificationDone(want)` literal against the asserted
+    /// state.
+    pub(crate) fn notification_done(&self, want: bool) -> Truth {
+        let assertion = if want {
+            self.has_done_notification
+        } else {
+            self.has_undone_notification
+        };
+        assertion.map_or(Truth::Unknown, Truth::from)
+    }
+
+    /// Evaluate a `NotificationSeen(want)` literal against the asserted
+    /// state.
+    pub(crate) fn notification_seen(&self, want: bool) -> Truth {
+        let assertion = if want {
+            self.has_seen_notification
+        } else {
+            self.has_unseen_notification
+        };
+        assertion.map_or(Truth::Unknown, Truth::from)
+    }
+}
+
+/// Bundled evaluation context threaded through literal evaluation.
+pub(crate) struct Ctx<'a> {
+    pub(crate) opts: &'a EvalOptions,
+    pub(crate) state: &'a ItemState,
 }
 
 /// The soup item payload was not shaped like a `SoupApiItem`.
@@ -90,6 +162,18 @@ pub fn eval_soup_item(
     soup_item: &Value,
     opts: &EvalOptions,
 ) -> Result<Truth, ItemError> {
+    eval_soup_item_with_state(ast, soup_item, &ItemState::default(), opts)
+}
+
+/// Like [`eval_soup_item`], with caller-asserted per-item [`ItemState`]
+/// (e.g. notification done/seen from the frontend's notification cache) to
+/// decide literals the payload alone cannot.
+pub fn eval_soup_item_with_state(
+    ast: &EntityFilterAst,
+    soup_item: &Value,
+    state: &ItemState,
+    opts: &EvalOptions,
+) -> Result<Truth, ItemError> {
     let tag = soup_item
         .get("tag")
         .and_then(Value::as_str)
@@ -98,15 +182,22 @@ pub fn eval_soup_item(
         .get("data")
         .and_then(Value::as_object)
         .ok_or(ItemError::MissingData)?;
+    let ctx = Ctx { opts, state };
 
     let branch = match tag {
         "document" => eval_tree(&ast.document_filter, |l| {
-            literals::document::eval(l, data, opts)
+            literals::document::eval(l, data, &ctx)
         }),
-        "chat" => eval_tree(&ast.chat_filter, |l| literals::chat::eval(l, data)),
-        "project" => eval_tree(&ast.project_filter, |l| literals::project::eval(l, data)),
-        "emailThread" => eval_tree(&ast.email_filter.tree, |l| literals::email::eval(l, data)),
-        "channel" => eval_tree(&ast.channel_filter, |l| literals::channel::eval(l, data)),
+        "chat" => eval_tree(&ast.chat_filter, |l| literals::chat::eval(l, data, &ctx)),
+        "project" => eval_tree(&ast.project_filter, |l| {
+            literals::project::eval(l, data, &ctx)
+        }),
+        "emailThread" => eval_tree(&ast.email_filter.tree, |l| {
+            literals::email::eval(l, data, &ctx)
+        }),
+        "channel" => eval_tree(&ast.channel_filter, |l| {
+            literals::channel::eval(l, data, &ctx)
+        }),
         "call" => eval_tree(&ast.call_filter, |l| literals::call::eval(l, data)),
         "crmCompany" => eval_tree(&ast.crm_company_filter, |l| {
             literals::crm_company::eval(l, data)
