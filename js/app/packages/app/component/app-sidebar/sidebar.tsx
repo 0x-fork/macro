@@ -902,13 +902,13 @@ const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
       onOpenChange={props.onOpenChange}
     >
       <Dropdown.Trigger
-        class="flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-1.5 cursor-default w-full rounded-md py-2 bg-ink/5 hover:bg-ink/10 group-data-[slim=true]/sidebar:py-0 group-data-[slim=true]/sidebar:aspect-square [&_svg]:size-4"
+        class="flex items-center justify-start group-data-[slim=true]/sidebar:justify-center text-xs gap-1.5 cursor-default w-full rounded-md py-2 bg-ink/5 hover:bg-ink/10 group-data-[slim=true]/sidebar:mx-auto group-data-[slim=true]/sidebar:size-8 group-data-[slim=true]/sidebar:w-8 group-data-[slim=true]/sidebar:p-0 [&_svg]:size-4"
         variant="ghost"
         tooltipPlacement="right"
         label={props.isSlim() ? props.label : undefined}
         hotkey={props.isSlim() ? props.hotkeyToken : undefined}
       >
-        <div class="shrink-0">{props.icon()}</div>
+        <div class="shrink-0 flex items-center justify-center">{props.icon()}</div>
         <span class="whitespace-nowrap group-data-[slim=true]/sidebar:hidden">
           {props.label}
         </span>
