@@ -1,15 +1,7 @@
-/* Bold weights for the custom docs fonts.
-   The Regular (400) faces are registered via the `fonts` config in
-   docs.json; these @font-face rules add real 700s so bold text isn't
+/* Bold weight for the custom docs font.
+   The Regular (400) face is registered via the `fonts` config in
+   docs.json; this @font-face rule adds a real 700 so bold text isn't
    browser-synthesized. */
-
-@font-face {
-  font-family: "Semislab";
-  src: url("/fonts/Semislab-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 @font-face {
   font-family: "Cyberreader";

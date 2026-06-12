@@ -3,18 +3,10 @@
   "theme": "maple",
   "name": "Macro",
   "fonts": {
-    "heading": {
-      "family": "Semislab",
-      "weight": 400,
-      "source": "/fonts/Semislab-Regular.woff2",
-      "format": "woff2"
-    },
-    "body": {
-      "family": "Cyberreader",
-      "weight": 400,
-      "source": "/fonts/Cyberreader-Regular.woff2",
-      "format": "woff2"
-    }
+    "family": "Cyberreader",
+    "weight": 400,
+    "source": "/fonts/Cyberreader-Regular.woff2",
+    "format": "woff2"
   },
   "appearance": {
     "default": "dark",
