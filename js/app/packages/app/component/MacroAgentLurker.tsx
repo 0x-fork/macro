@@ -216,30 +216,31 @@ export const MacroAgentLurker = () => {
     });
   });
 
-  const anchor = createMemo(() => {
+  const distance = createMemo(() => {
+    const c = cursor();
     const wrapper = wrapperRef();
     const container = wrapper?.offsetParent ?? wrapper?.parentElement;
-    if (container instanceof HTMLElement) {
-      const rect = container.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2,
-        // Don't measure from the translated/offscreen pill. Measure from the
-        // content container's bottom edge, then subtract the configured bottom
-        // offset (bottom-2 = 8px) and half of the pill visual height (h-14).
-        y: rect.bottom - 8 - 28,
-      };
-    }
 
-    return {
-      x: viewport().width / 2,
-      y: viewport().height - 36,
-    };
-  });
+    const rect =
+      container instanceof HTMLElement
+        ? container.getBoundingClientRect()
+        : {
+            left: 0,
+            width: viewport().width,
+            bottom: viewport().height,
+          };
 
-  const distance = createMemo(() => {
-    const a = anchor();
-    const c = cursor();
-    return Math.hypot(c.x - a.x, c.y - a.y);
+    // Measure proximity to the pill's intended resting hit area, not to the
+    // currently translated/offscreen DOM box. Treat it as a small rectangle so
+    // approaching any part of the launcher feels consistent.
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.bottom - 8 - 28;
+    const halfWidth = 88;
+    const halfHeight = 28;
+    const dx = Math.max(Math.abs(c.x - centerX) - halfWidth, 0);
+    const dy = Math.max(Math.abs(c.y - centerY) - halfHeight, 0);
+
+    return Math.hypot(dx, dy);
   });
 
   const reveal = createMemo(() =>

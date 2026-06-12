@@ -93,4 +93,3 @@ export const SoupEntityActionsMenu = (props: SoupEntityActionsMenuProps) => {
 };
 
 const Divider = () => <div class="my-0.5 h-px w-full bg-edge-muted" />;
-
