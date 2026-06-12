@@ -4,8 +4,8 @@
    browser-synthesized. */
 
 @font-face {
-  font-family: "Cybernormalreader";
-  src: url("/fonts/Cybernormalreader-Bold.woff2") format("woff2");
+  font-family: "Cyberreader";
+  src: url("/fonts/Cyberreader-Bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
