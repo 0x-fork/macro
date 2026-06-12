@@ -46,6 +46,8 @@ members = [
   "search_upload_handler",
   "seed_cli",
   "sha_cleanup_worker",
+  "soup_filter_eval",
+  "soup_filter_wasm",
   "static_file_service",
   "task_dedup",
   "tools/native_app_server",

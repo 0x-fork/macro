@@ -10,7 +10,10 @@ schema = ["dep:schemars", "dep:utoipa"]
 
 [dependencies]
 chrono = { workspace = true }
-document_sub_type = { path = "../document_sub_type" }
+# default-features off so this crate (and the soup filter AST it defines)
+# stays buildable for wasm32; server binaries re-enable document_sub_type's
+# sqlx feature through their own dependency edges.
+document_sub_type = { path = "../document_sub_type", default-features = false }
 either = { workspace = true }
 filter_ast = { path = "../filter_ast" }
 macro_user_id = { path = "../macro_user_id" }

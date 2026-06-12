@@ -1,0 +1,6 @@
+# Wasm builds (soup_filter_wasm): getrandom resolves its randomness backend
+# at compile time on wasm32-unknown-unknown; uuid's v4 feature (enabled
+# workspace-wide) requires the JS backend in browsers/workers. This flag is
+# target-scoped and has no effect on native builds.
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']

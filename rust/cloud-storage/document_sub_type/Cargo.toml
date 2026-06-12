@@ -4,9 +4,16 @@ name = "document_sub_type"
 publish = false
 version = "0.1.0"
 
+[features]
+# sqlx is enabled by default so existing server consumers keep the
+# `sqlx::Type` derive without changes. Disable default features to use
+# this crate on targets where sqlx cannot build (e.g. wasm32).
+default = ["sqlx"]
+sqlx = ["dep:sqlx"]
+
 [dependencies]
 serde = { workspace = true }
-sqlx = { workspace = true }
+sqlx = { workspace = true, optional = true }
 strum = { workspace = true }
 thiserror = { workspace = true }
 utoipa = { workspace = true }

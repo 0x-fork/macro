@@ -1,0 +1,25 @@
+[package]
+edition = "2024"
+name = "soup_filter_eval"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+chrono = { workspace = true }
+document_sub_type = { path = "../document_sub_type", default-features = false }
+filter_ast = { path = "../filter_ast" }
+item_filters = { path = "../item_filters" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+# Native-only test dependencies. These pin the evaluator's JSON field access
+# to the real wire types: tests serialize genuine `models_soup` values and
+# assert the evaluator reads them correctly. Dev-dependencies never enter the
+# wasm build graph of this crate's library target.
+macro_user_id = { path = "../macro_user_id" }
+models_comms = { path = "../models_comms" }
+models_properties = { path = "../models_properties" }
+models_soup = { path = "../models_soup" }

@@ -4812,11 +4812,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0de51e6874e94e7bf76d726fc5d13ba782deca734ff60d5bb2fb2607c7406555"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi 6.0.0",
  "rand_core 0.10.1",
  "wasip2",
  "wasip3",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -11018,6 +11020,36 @@ dependencies = [
  "tracing",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "soup_filter_eval"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "document_sub_type",
+ "filter_ast",
+ "item_filters",
+ "macro_user_id",
+ "models_comms",
+ "models_properties",
+ "models_soup",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "soup_filter_wasm"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.4.2",
+ "item_filters",
+ "serde_json",
+ "soup_filter_eval",
+ "uuid",
+ "wasm-bindgen",
 ]
 
 [[package]]

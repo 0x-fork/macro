@@ -23,6 +23,11 @@ clean:
 build:
     SQLX_OFFLINE=true cargo build
 
+# Build the soup filter wasm package consumed by js/app (requires wasm-pack;
+# `cargo install wasm-pack`). Output lands in js/app/packages/soup-filter-wasm/pkg.
+build_soup_filter_wasm:
+    wasm-pack build soup_filter_wasm --release --target bundler --out-dir ../../../js/app/packages/soup-filter-wasm/pkg --out-name soup_filter_wasm
+
 # Build dev service Docker images to pre-warm the cache used by root `run_local`.
 build_dev_service_images:
   docker build -f Dockerfile.dev --target services_bundle -t macro-local-rust-services:dev .

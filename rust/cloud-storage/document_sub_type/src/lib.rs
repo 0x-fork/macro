@@ -12,14 +12,17 @@ use schemars::JsonSchema;
     utoipa::ToSchema,
     Clone,
     Copy,
-    sqlx::Type,
     strum::EnumString,
     strum::Display,
     JsonSchema,
 )]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "snake_case")]
-#[sqlx(type_name = "\"document_sub_type_value\"", rename_all = "lowercase")]
+#[cfg_attr(
+    feature = "sqlx",
+    sqlx(type_name = "\"document_sub_type_value\"", rename_all = "lowercase")
+)]
 pub enum DocumentSubType {
     /// A task document
     Task,

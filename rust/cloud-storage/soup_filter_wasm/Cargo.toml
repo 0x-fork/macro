@@ -1,0 +1,25 @@
+[package]
+edition = "2024"
+name = "soup_filter_wasm"
+publish = false
+version = "0.1.0"
+
+[lib]
+# cdylib for the wasm artifact, rlib so native `cargo test` still works.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz"]
+
+[dependencies]
+item_filters = { path = "../item_filters" }
+serde_json = { workspace = true }
+soup_filter_eval = { path = "../soup_filter_eval" }
+wasm-bindgen = "0.2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# uuid's v4 generation (enabled workspace-wide) needs a JS randomness backend
+# on wasm32; pair with the `getrandom_backend="wasm_js"` rustflag in
+# .cargo/config.toml.
+getrandom = { version = "0.4", features = ["wasm_js"] }
+uuid = { workspace = true, features = ["js"] }
