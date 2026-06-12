@@ -61,6 +61,7 @@ export const TaskCircleIcon = (props: TaskCircleIconProps) => {
         stroke="currentColor"
         stroke-width="1"
         stroke-linejoin="round"
+        transform="rotate(30 6 6)"
         fill={isDone() || isCancelled() ? 'currentColor' : 'none'}
         opacity={isCancelled() ? 0.7 : 1}
         class="transition-all duration-200"

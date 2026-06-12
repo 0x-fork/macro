@@ -17,6 +17,7 @@ export const HexDashedIcon = (props: HexDashedIconProps) => {
         stroke="currentColor"
         stroke-width="1"
         stroke-linejoin="round"
+        transform="rotate(30 6 6)"
         stroke-dasharray="2 2"
       />
     </svg>

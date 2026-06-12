@@ -54,6 +54,7 @@ export const TaskHexIcon = (props: TaskHexIconProps) => {
         stroke="currentColor"
         stroke-width="1"
         stroke-linejoin="round"
+        transform="rotate(30 6 6)"
         fill={isDone() ? 'currentColor' : 'none'}
         class="transition-all duration-300"
       />
