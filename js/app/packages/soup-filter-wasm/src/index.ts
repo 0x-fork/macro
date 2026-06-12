@@ -11,18 +11,19 @@
  * cases where today's TS matcher silently guesses.
  */
 
-import type { SoupFilter, VerdictCode } from '../pkg/soup_filter_wasm';
+import type { SoupFilter } from '../pkg/soup_filter_wasm';
 
 export type SoupFilterVerdict = 'match' | 'noMatch' | 'unknown';
 
-const VERDICT_BY_CODE: Record<VerdictCode, SoupFilterVerdict> = {
+// Mirrors the Rust `Verdict` enum (0 = NoMatch, 1 = Match, 2 = Unknown).
+const VERDICT_BY_CODE: Record<number, SoupFilterVerdict | undefined> = {
   0: 'noMatch',
   1: 'match',
   2: 'unknown',
 };
 
 function toVerdict(code: number): SoupFilterVerdict {
-  return VERDICT_BY_CODE[code as VerdictCode] ?? 'unknown';
+  return VERDICT_BY_CODE[code] ?? 'unknown';
 }
 
 /** A compiled soup filter, reusable across many item checks. */

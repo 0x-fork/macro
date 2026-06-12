@@ -231,6 +231,9 @@
       "@queries/*": [
         "./packages/queries/*"
       ],
+      "@soup-filter-wasm": [
+        "./packages/soup-filter-wasm/src/index.ts"
+      ],
       "@ui": [
         "./packages/ui/index.ts"
       ],

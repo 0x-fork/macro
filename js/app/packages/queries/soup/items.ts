@@ -1,4 +1,3 @@
-import { filterSoupItemByRequestBody } from '@app/component/next-soup/filters/query-filters';
 import { throwOnErr } from '@core/util/result';
 import type { EntityData } from '@entity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
@@ -9,6 +8,7 @@ import {
 import type { GroupByField, GroupMeta } from '@queries/soup/grouped/types';
 import { soupKeys } from '@queries/soup/keys';
 import { mapSoupPageToEntityList } from '@queries/soup/transform-utils';
+import { makeSoupItemFilter } from '@queries/soup/wasm-filter';
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
 import { storageServiceClient } from '@service-storage/client';
 import type { SoupApiItem } from '@service-storage/generated/schemas';
@@ -68,11 +68,10 @@ export const useSoupItemsQuery = (
 ) => {
   const instructionsIdQuery = useInstructionsMdIdQuery();
 
-  const itemFilter: SoupApiItemFilter = (item: SoupApiItem) => {
-    const body = args().body;
-    if (!body) return true;
-    return filterSoupItemByRequestBody(item, body);
-  };
+  const itemFilter: SoupApiItemFilter = makeSoupItemFilter(
+    'typed',
+    () => args().body
+  );
 
   return useInfiniteQuery(() => ({
     queryKey: soupKeys.items(args()).queryKey,
@@ -115,6 +114,11 @@ export const useSoupAstItemsQuery = (
   options?: Accessor<SoupItemsQueryOptions>
 ) => {
   const instructionsIdQuery = useInstructionsMdIdQuery();
+
+  const itemFilter: SoupApiItemFilter = makeSoupItemFilter(
+    'ast',
+    () => args().body
+  );
 
   return useInfiniteQuery(() => {
     const { params, body, groupBy, groupKey } = args();
@@ -192,7 +196,7 @@ export const useSoupAstItemsQuery = (
       enabled: options?.().enabled,
       staleTime: options?.().staleTime,
       placeholderData: (p) => p,
-      meta: { normalize: true },
+      meta: { itemFilter, normalize: true },
     };
   });
 };

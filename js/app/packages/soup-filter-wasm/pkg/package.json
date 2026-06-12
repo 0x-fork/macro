@@ -1,0 +1,17 @@
+{
+  "name": "soup_filter_wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "soup_filter_wasm_bg.wasm",
+    "soup_filter_wasm.js",
+    "soup_filter_wasm_bg.js",
+    "soup_filter_wasm.d.ts"
+  ],
+  "main": "soup_filter_wasm.js",
+  "types": "soup_filter_wasm.d.ts",
+  "sideEffects": [
+    "./soup_filter_wasm.js",
+    "./snippets/*"
+  ]
+}
