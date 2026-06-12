@@ -3,9 +3,9 @@
   "theme": "maple",
   "name": "Macro",
   "fonts": {
-    "family": "Cyberreader",
+    "family": "Cybernormalreader",
     "weight": 400,
-    "source": "/fonts/Cyberreader-Regular.woff2",
+    "source": "/fonts/Cybernormalreader-Regular.woff2",
     "format": "woff2"
   },
   "appearance": {
