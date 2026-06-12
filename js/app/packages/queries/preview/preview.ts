@@ -8,7 +8,12 @@ import { queryClient } from '../client';
 import { previewDataLoader } from './dataloader';
 import { defaultNameTransform, fetchMessageContext } from './fetchers';
 import { previewKeys } from './keys';
-import type { AccessiblePreviewItem, ItemEntity, PreviewItem } from './types';
+import {
+  type AccessiblePreviewItem,
+  type ItemEntity,
+  isAccessiblePreviewItem,
+  type PreviewItem,
+} from './types';
 
 // DEBUG VARS
 const SIMULATE_BACKEND_DELAY_MS = 0;
@@ -93,6 +98,37 @@ export function useItemPreview(item: Accessor<ItemEntity>) {
   return [preview] as const;
 }
 
+/** Stale time for live display names (e.g. open-document titles), which
+ * should pick up external renames on remount rather than waiting out the
+ * 24h preview default. */
+const RAW_NAME_STALE_TIME = 5 * 60 * 1000;
+
+/**
+ * Subscribe to an item's raw (untransformed) display name.
+ * Returns undefined while loading or when the item is inaccessible, so
+ * callers can fall through to their own defaults. Optimistic rename and
+ * file-type mutations write to this cache via `setPreviewName` /
+ * `setPreviewFileType`.
+ */
+export function useItemRawName(
+  item: Accessor<{ id: string; type?: ItemType }>
+): Accessor<string | undefined> {
+  const query = useQuery(() => {
+    const { id, type } = item();
+    const entity: ItemEntity = type === 'channel' ? { id, type } : { id, type };
+    return {
+      ...itemPreviewQueryOptions(entity),
+      staleTime: RAW_NAME_STALE_TIME,
+    };
+  });
+
+  return () => {
+    const data = queryReadyGate(query) ? query.data : undefined;
+    if (!data || !isAccessiblePreviewItem(data)) return undefined;
+    return data.rawName;
+  };
+}
+
 /** Invalidate preview for the given item id. if no id is provided, invalidates all previews */
 export function invalidatePreview(itemId?: string) {
   if (!itemId)
@@ -139,14 +175,17 @@ export function setPreviewName({
   itemType?: ItemType;
 }) {
   const prev = getPreviewData(itemId);
-  if (prev)
+  // only merge into accessible entries: a cached no_access/does_not_exist
+  // (e.g. a fetch that raced backend propagation of a new item) would
+  // otherwise swallow the optimistic name, so fall through and overwrite
+  if (prev && isAccessiblePreviewItem(prev))
     return setPreviewData(itemId, (prev) => ({
       ...prev,
       rawName: name,
       name,
     }));
 
-  if (!itemType) {
+  if (!itemType && !prev) {
     console.warn('no preview item type provided for cache miss, using default');
   }
 
@@ -156,7 +195,7 @@ export function setPreviewName({
     name,
     loading: false,
     access: 'access',
-    type: itemType ?? DEFAULT_ITEM_TYPE,
+    type: itemType ?? prev?.type ?? DEFAULT_ITEM_TYPE,
   };
 
   // if the item isn't in the cache, we can optimistically create a new item
