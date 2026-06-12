@@ -19,7 +19,7 @@ import ArrowLineLeftIcon from '@phosphor/arrow-line-left.svg';
 import ArrowLineRightIcon from '@phosphor/arrow-line-right.svg';
 import ClockCounterClockwiseIcon from '@phosphor/clock-counter-clockwise.svg';
 import CopyIcon from '@phosphor/copy.svg';
-import DotsThreeIcon from '@phosphor/dots-three.svg';
+import DotsThreeIcon from '@phosphor/dots-three-vertical.svg';
 import CloseIcon from '@phosphor/x.svg';
 import { mergeRefs } from '@solid-primitives/refs';
 import { createDroppable, useDragDropContext } from '@thisbeyond/solid-dnd';
