@@ -630,15 +630,13 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
             </div>
           </div>
 
-          <div class="pointer-events-none absolute inset-y-0 left-28 right-20 flex min-w-0 items-center justify-center">
-            <div
-              class="pointer-events-auto min-w-0 max-w-full flex items-center justify-center gap-0.5 empty:hidden"
-              data-split-portal-target
-              ref={(ref) => {
-                panel.layoutRefs.headerLeft = ref;
-              }}
-            />
-          </div>
+          <div
+            class="min-w-0 flex-1 h-full flex items-center gap-0.5 empty:hidden"
+            data-split-portal-target
+            ref={(ref) => {
+              panel.layoutRefs.headerLeft = ref;
+            }}
+          />
 
           <div
             class="absolute inset-y-0 right-0 z-10 min-w-4 h-full flex items-center justify-end gap-0.5 px-2 empty:hidden"
