@@ -9,9 +9,9 @@ interface TaskCircleIconProps {
 
 // Degrees of rotation for each status (counter-clockwise from top)
 const STATUS_DEGREES: Record<TaskStatus, number> = {
-  created: 60,
-  'in-progress': 120,
-  'in-review': 240,
+  created: 0,
+  'in-progress': 240,
+  'in-review': 300,
   done: 360,
   cancelled: 0,
 };
@@ -55,34 +55,35 @@ export const TaskCircleIcon = (props: TaskCircleIconProps) => {
     >
       <style>{anglePropertyCSS}</style>
 
-      {/* Hex outline */}
-      <path
-        d={HEX_OUTLINE}
-        stroke="currentColor"
-        stroke-width="1"
-        stroke-linejoin="round"
-        transform="rotate(30 6 6)"
-        fill={isDone() || isCancelled() ? 'currentColor' : 'none'}
-        opacity={isCancelled() ? 0.7 : 1}
-        class="transition-all duration-200"
-      />
-
-      {/* Progress fill using foreignObject for CSS mask support - counter-clockwise from top-left */}
-      <foreignObject x="2" y="2.5" width="8" height="7" opacity={isCancelled() || isDone() ? 0 : 1}>
-        <div
-          xmlns="http://www.w3.org/1999/xhtml"
-          style={{
-            'width': '100%',
-            'height': '100%',
-            'background': 'var(--icon-color, currentColor)',
-            'clip-path': 'polygon(28% 12%, 72% 12%, 88% 50%, 72% 88%, 28% 88%, 12% 50%)',
-            '--progress-angle': `${degrees()}deg`,
-            'mask-image': `conic-gradient(from -30deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
-            '-webkit-mask-image': `conic-gradient(from -30deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
-            'transition': '--progress-angle 200ms ease-out',
-          }}
+      <g transform="rotate(30 6 6)">
+        {/* Hex outline */}
+        <path
+          d={HEX_OUTLINE}
+          stroke="currentColor"
+          stroke-width="1"
+          stroke-linejoin="round"
+          fill={isDone() || isCancelled() ? 'currentColor' : 'none'}
+          opacity={isCancelled() ? 0.7 : 1}
+          class="transition-all duration-200"
         />
-      </foreignObject>
+
+        {/* Progress fill using foreignObject for CSS mask support - counter-clockwise from top-left */}
+        <foreignObject x="2" y="2.5" width="8" height="7" opacity={isCancelled() || isDone() ? 0 : 1}>
+          <div
+            xmlns="http://www.w3.org/1999/xhtml"
+            style={{
+              'width': '100%',
+              'height': '100%',
+              'background': 'var(--icon-color, currentColor)',
+              'clip-path': 'polygon(28% 12%, 72% 12%, 88% 50%, 72% 88%, 28% 88%, 12% 50%)',
+              '--progress-angle': `${degrees()}deg`,
+              'mask-image': `conic-gradient(from -30deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
+              '-webkit-mask-image': `conic-gradient(from -30deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
+              'transition': '--progress-angle 200ms ease-out',
+            }}
+          />
+        </foreignObject>
+      </g>
 
       {/* Checkmark for done state */}
       <path

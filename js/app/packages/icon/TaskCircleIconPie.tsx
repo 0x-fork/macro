@@ -9,9 +9,9 @@ interface TaskCircleIconProps {
 
 // Degrees of rotation for each status (counter-clockwise from top)
 const STATUS_DEGREES: Record<TaskStatus, number> = {
-  created: 90,
-  'in-progress': 180,
-  'in-review': 270,
+  created: 0,
+  'in-progress': 240,
+  'in-review': 300,
   done: 360,
   cancelled: 0,
 };

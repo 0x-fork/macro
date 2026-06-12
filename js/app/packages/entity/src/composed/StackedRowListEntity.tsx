@@ -130,10 +130,10 @@ interface BaseLayoutProps {
 }
 
 const STATUS_TO_COLOR: Record<string, string> = {
-  [PROPERTY_OPTION_IDS.STATUS.NOT_STARTED]: 'text-task',
+  [PROPERTY_OPTION_IDS.STATUS.NOT_STARTED]: 'text-accent',
   [PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS]: 'text-alert-ink',
   [PROPERTY_OPTION_IDS.STATUS.IN_REVIEW]: 'text-note',
-  [PROPERTY_OPTION_IDS.STATUS.COMPLETED]: 'text-accent',
+  [PROPERTY_OPTION_IDS.STATUS.COMPLETED]: 'text-task',
   [PROPERTY_OPTION_IDS.STATUS.CANCELED]: 'text-ink-muted',
 };
 

@@ -2,36 +2,43 @@ import { createMemo, For, Show } from 'solid-js';
 
 export type TaskStatus = 'created' | 'in-progress' | 'in-review' | 'done' | 'cancelled';
 
-const segmentAnimation = `
-@keyframes segment-pop {
-  0% { transform: scale(0); }
-  70% { transform: scale(1.15); }
-  100% { transform: scale(1); }
-}
-`;
-
 interface TaskHexIconProps {
   status: TaskStatus;
   class?: string;
 }
 
 const STATUS_SEGMENTS: Record<TaskStatus, number> = {
-  created: 1,
+  created: 0,
   'in-progress': 3,
   'in-review': 5,
   done: 6,
   cancelled: 0,
 };
 
-// Hexagon triangle segments (flat-top, centered at 6,6, radius ~4.5)
-// Order: bottom → bottom-left → top-left → top → bottom-right → top-right
+const CENTER = '6,6';
+
+// Point-up hexagon. This is the final geometry, not a transformed flat hex.
+// Keeping the outline and segment points in the same coordinate space prevents
+// the inner fills from drifting out of alignment with the ring.
+const HEX_POINTS = [
+  '6,1.5',
+  '9.897,3.75',
+  '9.897,8.25',
+  '6,10.5',
+  '2.103,8.25',
+  '2.103,3.75',
+];
+
+const HEX_OUTLINE = HEX_POINTS.join(' ');
+
+// Clockwise from the upper-right wedge.
 const SEGMENTS = [
-  'M6 6L3.75 9.9L8.25 9.9Z',    // 0: bottom
-  'M6 6L1.5 6L3.75 9.9Z',       // 1: bottom-left
-  'M6 6L3.75 2.1L1.5 6Z',       // 2: top-left
-  'M6 6L8.25 2.1L3.75 2.1Z',    // 3: top
-  'M6 6L8.25 9.9L10.5 6Z',      // 4: bottom-right
-  'M6 6L10.5 6L8.25 2.1Z',      // 5: top-right
+  `${CENTER} ${HEX_POINTS[0]} ${HEX_POINTS[1]}`,
+  `${CENTER} ${HEX_POINTS[1]} ${HEX_POINTS[2]}`,
+  `${CENTER} ${HEX_POINTS[2]} ${HEX_POINTS[3]}`,
+  `${CENTER} ${HEX_POINTS[3]} ${HEX_POINTS[4]}`,
+  `${CENTER} ${HEX_POINTS[4]} ${HEX_POINTS[5]}`,
+  `${CENTER} ${HEX_POINTS[5]} ${HEX_POINTS[0]}`,
 ];
 
 export const TaskHexIcon = (props: TaskHexIconProps) => {
@@ -48,38 +55,26 @@ export const TaskHexIcon = (props: TaskHexIconProps) => {
       xmlns="http://www.w3.org/2000/svg"
       class={props.class}
     >
-      {/* Hexagon outline */}
-      <path
-        d="M10.5 6L8.25 2.1H3.75L1.5 6L3.75 9.9H8.25L10.5 6Z"
-        stroke="currentColor"
-        stroke-width="1"
-        stroke-linejoin="round"
-        transform="rotate(30 6 6)"
-        fill={isDone() ? 'currentColor' : 'none'}
-        class="transition-all duration-300"
-      />
+      <g transform="rotate(30 6 6)">
+        <Show when={!isDone()}>
+          <For each={SEGMENTS}>
+            {(points, i) => (
+              <Show when={!isCancelled() && i() < activeSegments()}>
+                <polygon points={points} fill="currentColor" />
+              </Show>
+            )}
+          </For>
+        </Show>
 
-      {/* Inject keyframe animation */}
-      <style>{segmentAnimation}</style>
-
-      {/* Triangle segments with staggered pop animation */}
-      <For each={SEGMENTS}>
-        {(d, i) => {
-          const isActive = () => !isDone() && i() < activeSegments();
-          return (
-            <Show when={isActive()}>
-              <path
-                d={d}
-                fill="currentColor"
-                style={{
-                  'transform-origin': '6px 6px',
-                  'animation': `segment-pop 200ms ease-out ${i() * 50}ms both`,
-                }}
-              />
-            </Show>
-          );
-        }}
-      </For>
+        <polygon
+          points={HEX_OUTLINE}
+          stroke="currentColor"
+          stroke-width="1"
+          stroke-linejoin="round"
+          fill={isDone() ? 'currentColor' : 'none'}
+          class="transition-all duration-300"
+        />
+      </g>
 
       {/* Checkmark for done state */}
       <path
