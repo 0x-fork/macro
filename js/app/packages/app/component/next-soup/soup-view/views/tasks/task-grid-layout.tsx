@@ -42,7 +42,6 @@ import {
   TASK_GRID_TEMPLATE_AREAS_WIDE_NO_INDICATOR,
   TASK_GRID_TEMPLATE_COLUMNS_WIDE,
   TASK_GRID_TEMPLATE_COLUMNS_WIDE_NO_INDICATOR,
-  type TaskGridColumn,
 } from './task-grid-template';
 
 function SharedIndicator(props: { ownerId: string }) {

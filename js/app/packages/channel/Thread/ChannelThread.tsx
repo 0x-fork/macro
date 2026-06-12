@@ -25,7 +25,7 @@ export function ChannelThread(props: ThreadProps) {
   const userId = useUserId();
   const replyUserId = () => userId() ?? props.data().sender_id;
   const macroId = () => tryMacroId(replyUserId());
-  const [displayName] = useDisplayName(macroId());
+  const [_displayName] = useDisplayName(macroId());
   const rootSenderMacroId = () => tryMacroId(props.data().sender_id);
   const [rootSenderDisplayName] = useDisplayName(rootSenderMacroId());
   const rootReplyTo = () => ({

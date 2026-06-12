@@ -107,7 +107,14 @@ function resolvePortalMount(
 
 function DropdownContent(props: DropdownContentProps) {
   let searchRef: HTMLDivElement | undefined;
-  const [local, rest] = splitProps(props, ['depth', 'class', 'mount', 'portalScope', 'children', 'style']);
+  const [local, rest] = splitProps(props, [
+    'depth',
+    'class',
+    'mount',
+    'portalScope',
+    'children',
+    'style',
+  ]);
   return (
     <>
       <div class="hidden" ref={searchRef} />
@@ -134,7 +141,14 @@ function DropdownContent(props: DropdownContentProps) {
 
 function DropdownSubContent(props: DropdownSubContentProps) {
   let searchRef: HTMLDivElement | undefined;
-  const [local, rest] = splitProps(props, ['depth', 'class', 'mount', 'portalScope', 'children', 'style']);
+  const [local, rest] = splitProps(props, [
+    'depth',
+    'class',
+    'mount',
+    'portalScope',
+    'children',
+    'style',
+  ]);
   return (
     <>
       <div class="hidden" ref={searchRef} />
@@ -163,10 +177,7 @@ function DropdownGroup(props: DropdownGroupProps) {
   const [local, rest] = splitProps(props, ['class']);
   return (
     <KobalteDropdownMenu.Group
-      class={cn(
-        'menu-group flex w-full flex-col',
-        local.class
-      )}
+      class={cn('menu-group flex w-full flex-col', local.class)}
       {...rest}
     />
   );

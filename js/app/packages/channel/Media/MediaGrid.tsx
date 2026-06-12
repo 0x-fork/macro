@@ -80,7 +80,6 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
 
   return (
     <div class="group relative flex min-h-20 max-h-75 max-w-100 min-w-0 overflow-hidden rounded-2xl border border-edge bg-surface">
-
       <Show
         when={isInlinePlaying()}
         fallback={
@@ -179,9 +178,13 @@ export function MediaGrid(props: {
           : 'flex flex-row flex-wrap gap-2',
         props.class
       )}
-      style={props.variant === 'attachments' ? {
-        'grid-template-columns': `repeat(auto-fill, minmax(${tileSize()}px, 1fr))`,
-      } : undefined}
+      style={
+        props.variant === 'attachments'
+          ? {
+              'grid-template-columns': `repeat(auto-fill, minmax(${tileSize()}px, 1fr))`,
+            }
+          : undefined
+      }
     >
       <For each={props.items}>
         {(item, index) => (

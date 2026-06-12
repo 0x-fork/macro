@@ -1,5 +1,5 @@
 import { cn } from '../utils/classname';
-import {  createSignal, For, type JSX, Show } from 'solid-js';
+import { createSignal, For, type JSX, Show } from 'solid-js';
 import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import DotsThreeIcon from '@phosphor/dots-three.svg';
 import { Layer } from './Layer';
@@ -80,7 +80,9 @@ export const OverflowTabGroup = (props: OverflowTabGroupProps) => {
   let tabWidths: number[] = [];
 
   const [visibleCount, setVisibleCount] = createSignal(props.items.length);
-  const [containerRef, setContainerRef] = createSignal<HTMLDivElement | null>(null);
+  const [containerRef, setContainerRef] = createSignal<HTMLDivElement | null>(
+    null
+  );
 
   const measureTabWidths = () => {
     if (!measureRef) return;
@@ -102,7 +104,10 @@ export const OverflowTabGroup = (props: OverflowTabGroupProps) => {
     const overflowButtonWidth = props.overflowButtonWidth ?? 28;
     const gap = 4;
 
-    const totalAllTabs = tabWidths.reduce((sum, w, i) => sum + w + (i > 0 ? gap : 0), 0);
+    const totalAllTabs = tabWidths.reduce(
+      (sum, w, i) => sum + w + (i > 0 ? gap : 0),
+      0
+    );
     if (totalAllTabs <= containerWidth) {
       setVisibleCount(props.items.length);
       return;
@@ -143,7 +148,10 @@ export const OverflowTabGroup = (props: OverflowTabGroupProps) => {
   const hasOverflow = () => overflowTabs().length > 0;
 
   return (
-    <div ref={setupResizeObserver} class={cn('relative flex-1 min-w-0', props.class)}>
+    <div
+      ref={setupResizeObserver}
+      class={cn('relative flex-1 min-w-0', props.class)}
+    >
       <div
         ref={measureRef}
         class="fixed invisible pointer-events-none flex items-center gap-1"

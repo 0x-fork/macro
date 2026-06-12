@@ -23,6 +23,7 @@ import { useFullTextSearch } from '@queries/soup/useFullTextSearch';
 import { cn, Layer } from '@ui';
 import {
   createSignal,
+  For,
   Match,
   onCleanup,
   onMount,
@@ -400,20 +401,22 @@ function CategoryFilterTabs() {
   return (
     <div class="bg-surface border-t border-edge-muted px-3 py-2 overflow-x-auto scrollbar-hidden">
       <div class="flex items-center gap-1">
-        {CATEGORIES.map((category) => (
-          <button
-            type="button"
-            class={cn(
-              'px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap',
-              SearchState.categoryFilter() === category.id
-                ? 'bg-ink/10 text-ink'
-                : 'text-ink/50 active:text-ink active:bg-ink/5'
-            )}
-            onClick={() => SearchState.setCategoryFilter(category.id)}
-          >
-            {category.label}
-          </button>
-        ))}
+        <For each={CATEGORIES}>
+          {(category) => (
+            <button
+              type="button"
+              class={cn(
+                'px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap',
+                SearchState.categoryFilter() === category.id
+                  ? 'bg-ink/10 text-ink'
+                  : 'text-ink/50 active:text-ink active:bg-ink/5'
+              )}
+              onClick={() => SearchState.setCategoryFilter(category.id)}
+            >
+              {category.label}
+            </button>
+          )}
+        </For>
       </div>
     </div>
   );

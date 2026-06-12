@@ -56,7 +56,11 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
             <ViewOptionsPopover />
           </div>
         </Show>
-        <Show when={!props.searchView || hasActiveFilters() || hasSuggestedFilters()}>
+        <Show
+          when={
+            !props.searchView || hasActiveFilters() || hasSuggestedFilters()
+          }
+        >
           <div class="mx-2 rounded-lg">
             <Show when={!props.searchView}>
               <div
@@ -103,9 +107,7 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
               <div
                 class={cn(
                   'px-2 py-1.5',
-                  props.searchView
-                    ? 'rounded-lg'
-                    : 'rounded-b-lg'
+                  props.searchView ? 'rounded-lg' : 'rounded-b-lg'
                 )}
               >
                 <div class="flex items-center gap-1.5 flex-wrap">
@@ -130,4 +132,4 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
       </div>
     </Show>
   );
-}
+};

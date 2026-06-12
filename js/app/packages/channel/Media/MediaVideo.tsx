@@ -2,9 +2,14 @@ import PlayIcon from '@phosphor/play.svg';
 import { cn } from '@ui';
 import type { JSX, ParentProps } from 'solid-js';
 
-function Root(props: ParentProps<{ class?: string; style?: JSX.CSSProperties }>) {
+function Root(
+  props: ParentProps<{ class?: string; style?: JSX.CSSProperties }>
+) {
   return (
-    <div class={cn('relative flex rounded-2xl', props.class)} style={props.style}>
+    <div
+      class={cn('relative flex rounded-2xl', props.class)}
+      style={props.style}
+    >
       {props.children}
     </div>
   );

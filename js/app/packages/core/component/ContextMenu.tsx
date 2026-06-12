@@ -158,7 +158,9 @@ export function MenuItem(props: MenuItemProps) {
     <MenuItemWrapper
       class={cn(
         MENU_ITEM_CLASS,
-        props.disabled ? DISABLED_MENU_ITEM_CLASS : 'hover:bg-ink/3 hover-transition-bg',
+        props.disabled
+          ? DISABLED_MENU_ITEM_CLASS
+          : 'hover:bg-ink/3 hover-transition-bg',
         props.class
       )}
       onClick={props.onClick}
@@ -303,12 +305,7 @@ export function SubTrigger(props: {
 
 export function MenuGroup(props: { children: JSX.Element; class?: string }) {
   return (
-    <ContextMenu.Group
-      class={cn(
-        'menu-group w-full',
-        props.class
-      )}
-    >
+    <ContextMenu.Group class={cn('menu-group w-full', props.class)}>
       {props.children}
     </ContextMenu.Group>
   );
@@ -323,7 +320,9 @@ export function GroupLabel(props: { children: JSX.Element }) {
 }
 
 export function MenuSeparator() {
-  return <ContextMenu.Separator class="menu-separator my-1 border-edge border-t w-full" />;
+  return (
+    <ContextMenu.Separator class="menu-separator my-1 border-edge border-t w-full" />
+  );
 }
 
 function MobileConditionalOverlay(

@@ -50,7 +50,9 @@ export function StaticSplitLabel(props: {
         <div class="shrink-0 text-ink-extra-muted">{props.icon}</div>
       </Show>
       <Show when={props.badges}>{props.badges}</Show>
-      <span class="inline-block text-sm font-medium text-ink-extra-muted truncate">{props.label}</span>
+      <span class="inline-block text-sm font-medium text-ink-extra-muted truncate">
+        {props.label}
+      </span>
     </div>
   );
 }

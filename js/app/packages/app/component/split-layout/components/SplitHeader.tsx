@@ -150,7 +150,9 @@ function useSplitMenuActions() {
   };
 }
 
-function SplitMenuDropdownContent(props: { actions: NonNullable<ReturnType<typeof useSplitMenuActions>> }) {
+function SplitMenuDropdownContent(props: {
+  actions: NonNullable<ReturnType<typeof useSplitMenuActions>>;
+}) {
   const actions = props.actions;
   return (
     <Dropdown.Content
@@ -158,43 +160,68 @@ function SplitMenuDropdownContent(props: { actions: NonNullable<ReturnType<typeo
       onCloseAutoFocus={(event) => event.preventDefault()}
     >
       <Dropdown.Group>
-        <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={() => actions.handleNewSplitClick('left')}>
+        <Dropdown.Item
+          disabled={!actions.canCreateNewSplit()}
+          onSelect={() => actions.handleNewSplitClick('left')}
+        >
           <AnimatedNewSplitIcon class="size-4 shrink-0" />
           <span class="flex-1 truncate">New split left</span>
         </Dropdown.Item>
-        <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={() => actions.handleNewSplitClick('right')}>
+        <Dropdown.Item
+          disabled={!actions.canCreateNewSplit()}
+          onSelect={() => actions.handleNewSplitClick('right')}
+        >
           <AnimatedNewSplitIcon class="size-4 shrink-0" />
           <span class="flex-1 truncate">New split right</span>
         </Dropdown.Item>
-        <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={actions.handleDuplicateSplit}>
+        <Dropdown.Item
+          disabled={!actions.canCreateNewSplit()}
+          onSelect={actions.handleDuplicateSplit}
+        >
           <CopyIcon class="size-4 shrink-0" />
           <span class="flex-1 truncate">Duplicate split</span>
         </Dropdown.Item>
         <Show when={canSpotlight(actions.layout.manager)}>
-          <Dropdown.Item onSelect={() => actions.panel.handle.toggleSpotlight()}>
-            <Show when={actions.panel.handle.isSpotLight()} fallback={<ExpandIcon class="size-4 shrink-0" />}>
+          <Dropdown.Item
+            onSelect={() => actions.panel.handle.toggleSpotlight()}
+          >
+            <Show
+              when={actions.panel.handle.isSpotLight()}
+              fallback={<ExpandIcon class="size-4 shrink-0" />}
+            >
               <CollapseIcon class="size-4 shrink-0" />
             </Show>
             <span class="flex-1 truncate">
-              {actions.panel.handle.isSpotLight() ? 'Minimize split' : 'Spotlight split'}
+              {actions.panel.handle.isSpotLight()
+                ? 'Minimize split'
+                : 'Spotlight split'}
             </span>
           </Dropdown.Item>
         </Show>
       </Dropdown.Group>
       <Dropdown.Separator />
       <Dropdown.Group>
-        <Dropdown.Item disabled={!actions.canMoveLeft()} onSelect={() => actions.moveSplit(-1)}>
+        <Dropdown.Item
+          disabled={!actions.canMoveLeft()}
+          onSelect={() => actions.moveSplit(-1)}
+        >
           <ArrowLineLeftIcon class="size-4 shrink-0" />
           <span class="flex-1 truncate">Move split left</span>
         </Dropdown.Item>
-        <Dropdown.Item disabled={!actions.canMoveRight()} onSelect={() => actions.moveSplit(1)}>
+        <Dropdown.Item
+          disabled={!actions.canMoveRight()}
+          onSelect={() => actions.moveSplit(1)}
+        >
           <ArrowLineRightIcon class="size-4 shrink-0" />
           <span class="flex-1 truncate">Move split right</span>
         </Dropdown.Item>
       </Dropdown.Group>
       <Dropdown.Separator />
       <Dropdown.Group>
-        <Dropdown.Item disabled={!actions.canCloseOtherSplits()} onSelect={actions.closeOtherSplits}>
+        <Dropdown.Item
+          disabled={!actions.canCloseOtherSplits()}
+          onSelect={actions.closeOtherSplits}
+        >
           <CloseIcon class="size-4 shrink-0" />
           <span class="flex-1 truncate">Close other splits</span>
         </Dropdown.Item>
@@ -224,31 +251,75 @@ function SplitMenuContextContent() {
     <KobalteContextMenu.Portal>
       <ContextMenuContent width="md">
         <MenuGroup>
-          <MenuItem icon={AnimatedNewSplitIcon} text="New split left" disabled={!actions.canCreateNewSplit()} onClick={() => actions.handleNewSplitClick('left')} />
-          <MenuItem icon={AnimatedNewSplitIcon} text="New split right" disabled={!actions.canCreateNewSplit()} onClick={() => actions.handleNewSplitClick('right')} />
-          <MenuItem icon={CopyIcon} text="Duplicate split" disabled={!actions.canCreateNewSplit()} onClick={actions.handleDuplicateSplit} />
+          <MenuItem
+            icon={AnimatedNewSplitIcon}
+            text="New split left"
+            disabled={!actions.canCreateNewSplit()}
+            onClick={() => actions.handleNewSplitClick('left')}
+          />
+          <MenuItem
+            icon={AnimatedNewSplitIcon}
+            text="New split right"
+            disabled={!actions.canCreateNewSplit()}
+            onClick={() => actions.handleNewSplitClick('right')}
+          />
+          <MenuItem
+            icon={CopyIcon}
+            text="Duplicate split"
+            disabled={!actions.canCreateNewSplit()}
+            onClick={actions.handleDuplicateSplit}
+          />
           <Show when={canSpotlight(actions.layout.manager)}>
             <MenuItem
-              icon={actions.panel.handle.isSpotLight() ? CollapseIcon : ExpandIcon}
-              text={actions.panel.handle.isSpotLight() ? 'Minimize split' : 'Spotlight split'}
+              icon={
+                actions.panel.handle.isSpotLight() ? CollapseIcon : ExpandIcon
+              }
+              text={
+                actions.panel.handle.isSpotLight()
+                  ? 'Minimize split'
+                  : 'Spotlight split'
+              }
               onClick={() => actions.panel.handle.toggleSpotlight()}
             />
           </Show>
         </MenuGroup>
         <MenuSeparator />
         <MenuGroup>
-          <MenuItem icon={ArrowLineLeftIcon} text="Move split left" disabled={!actions.canMoveLeft()} onClick={() => actions.moveSplit(-1)} />
-          <MenuItem icon={ArrowLineRightIcon} text="Move split right" disabled={!actions.canMoveRight()} onClick={() => actions.moveSplit(1)} />
+          <MenuItem
+            icon={ArrowLineLeftIcon}
+            text="Move split left"
+            disabled={!actions.canMoveLeft()}
+            onClick={() => actions.moveSplit(-1)}
+          />
+          <MenuItem
+            icon={ArrowLineRightIcon}
+            text="Move split right"
+            disabled={!actions.canMoveRight()}
+            onClick={() => actions.moveSplit(1)}
+          />
         </MenuGroup>
         <MenuSeparator />
         <MenuGroup>
-          <MenuItem icon={CloseIcon} text="Close other splits" disabled={!actions.canCloseOtherSplits()} onClick={actions.closeOtherSplits} />
-          <MenuItem icon={ClockCounterClockwiseIcon} text="Reset split layout" onClick={actions.resetSplitLayout} />
+          <MenuItem
+            icon={CloseIcon}
+            text="Close other splits"
+            disabled={!actions.canCloseOtherSplits()}
+            onClick={actions.closeOtherSplits}
+          />
+          <MenuItem
+            icon={ClockCounterClockwiseIcon}
+            text="Reset split layout"
+            onClick={actions.resetSplitLayout}
+          />
         </MenuGroup>
         <Show when={DEV_MODE_ENV}>
           <MenuSeparator />
           <MenuGroup>
-            <MenuItem icon={CopyIcon} text="Copy debug info" onClick={() => void actions.copyDebugInfo()} />
+            <MenuItem
+              icon={CopyIcon}
+              text="Copy debug info"
+              onClick={() => void actions.copyDebugInfo()}
+            />
           </MenuGroup>
         </Show>
       </ContextMenuContent>
@@ -264,16 +335,16 @@ export function SplitMoreMenuButton() {
     <Show when={!isMobile()}>
       <Layer depth={3}>
         <Dropdown placement="bottom-end">
-        <Dropdown.Trigger
-          size="icon-sm"
-          variant="ghost"
-          noTouchResize
-          class="size-7 rounded-lg bg-surface/80 p-0 text-ink/65 shadow-[inset_0_0_0_1px_var(--color-edge-muted),0_2px_8px_-6px_rgba(0,0,0,0.18)] not-disabled:hover:bg-surface not-disabled:hover:text-ink data-expanded:bg-surface data-expanded:text-ink [&_svg]:size-3.5"
-          label="Split options"
-          data-split-more-menu
-        >
-          <DotsThreeIcon />
-        </Dropdown.Trigger>
+          <Dropdown.Trigger
+            size="icon-sm"
+            variant="ghost"
+            noTouchResize
+            class="size-7 rounded-lg bg-surface/80 p-0 text-ink/65 shadow-[inset_0_0_0_1px_var(--color-edge-muted),0_2px_8px_-6px_rgba(0,0,0,0.18)] not-disabled:hover:bg-surface not-disabled:hover:text-ink data-expanded:bg-surface data-expanded:text-ink [&_svg]:size-3.5"
+            label="Split options"
+            data-split-more-menu
+          >
+            <DotsThreeIcon />
+          </Dropdown.Trigger>
           <SplitMenuDropdownContent actions={actions} />
         </Dropdown>
       </Layer>
@@ -398,7 +469,7 @@ function SplitCloseButton() {
   );
 }
 
-function SoupNavigationButtons() {
+function _SoupNavigationButtons() {
   const context = useContext(SplitPanelContext);
   const soup = useSoup();
   if (!context) return null;
@@ -542,37 +613,40 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
       </Show>
       <KobalteContextMenu>
         <KobalteContextMenu.Trigger class="relative flex h-full w-full items-center">
-        <div class="z-10 flex items-center self-center pl-1">
-          <div
-            class="flex h-7 items-center gap-0 rounded-lg bg-transparent p-1"
-            data-split-controls
-          >
-            <div class="mobile:hidden flex h-6 items-center">
-              <SplitCloseButton />
+          <div class="z-10 flex items-center self-center pl-1">
+            <div
+              class="flex h-7 items-center gap-0 rounded-lg bg-transparent p-1"
+              data-split-controls
+            >
+              <div class="mobile:hidden flex h-6 items-center">
+                <SplitCloseButton />
+              </div>
+              <Show
+                when={!(isMobile() && isListViewID(panel.handle.content().id))}
+              >
+                <SplitBackButton />
+                <SplitForwardButton />
+              </Show>
             </div>
-            <Show when={!(isMobile() && isListViewID(panel.handle.content().id))}>
-              <SplitBackButton />
-              <SplitForwardButton />
-            </Show>
           </div>
-        </div>
 
-        <div class="pointer-events-none absolute inset-y-0 left-28 right-20 flex min-w-0 items-center justify-center">
+          <div class="pointer-events-none absolute inset-y-0 left-28 right-20 flex min-w-0 items-center justify-center">
+            <div
+              class="pointer-events-auto min-w-0 max-w-full flex items-center justify-center gap-0.5 empty:hidden"
+              data-split-portal-target
+              ref={(ref) => {
+                panel.layoutRefs.headerLeft = ref;
+              }}
+            />
+          </div>
+
           <div
-            class="pointer-events-auto min-w-0 max-w-full flex items-center justify-center gap-0.5 empty:hidden"
+            class="absolute inset-y-0 right-0 z-10 min-w-4 h-full flex items-center justify-end gap-0.5 px-2 empty:hidden"
             data-split-portal-target
             ref={(ref) => {
-              panel.layoutRefs.headerLeft = ref;
+              panel.layoutRefs.headerRight = ref;
             }}
           />
-        </div>
-
-        <div
-          class="absolute inset-y-0 right-0 z-10 min-w-4 h-full flex items-center justify-end gap-0.5 px-2 empty:hidden"          data-split-portal-target
-          ref={(ref) => {
-            panel.layoutRefs.headerRight = ref;
-          }}
-        />
         </KobalteContextMenu.Trigger>
         <SplitMenuContextContent />
       </KobalteContextMenu>

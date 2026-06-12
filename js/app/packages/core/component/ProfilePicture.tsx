@@ -54,12 +54,16 @@ export function ProfilePicture(props: ProfilePictureProps) {
     return idToEmail(id);
   });
 
-  const roundedClass = () => {
+  const _roundedClass = () => {
     switch (props.rounded ?? 'full') {
-      case 'full': return 'rounded-full';
-      case 'md': return 'rounded-md';
-      case 'sm': return 'rounded-sm';
-      case 'none': return '';
+      case 'full':
+        return 'rounded-full';
+      case 'md':
+        return 'rounded-md';
+      case 'sm':
+        return 'rounded-sm';
+      case 'none':
+        return '';
     }
   };
 

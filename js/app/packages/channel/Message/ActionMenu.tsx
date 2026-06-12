@@ -74,11 +74,18 @@ export function ActionMenu(props: ActionMenuProps) {
   const visibleMoreActions = () => moreActions.filter((item) => item.onClick);
 
   const hasAnyAction = () =>
-    hasReactAction() || hasReplyAction() || hasEditAction() || hasDeleteAction() || visibleMoreActions().length > 0;
+    hasReactAction() ||
+    hasReplyAction() ||
+    hasEditAction() ||
+    hasDeleteAction() ||
+    visibleMoreActions().length > 0;
 
   return (
     <Show when={hasAnyAction()}>
-      <HoverActions class={props.class} persistentVisible={emojiMenuOpen() || moreMenuOpen()}>
+      <HoverActions
+        class={props.class}
+        persistentVisible={emojiMenuOpen() || moreMenuOpen()}
+      >
         <Layer depth={3}>
           <div
             class="flex flex-row bg-surface border border-edge-muted shadow-md rounded-md items-center p-1 gap-0.5"
@@ -125,7 +132,14 @@ export function ActionMenu(props: ActionMenuProps) {
                     'size-6! p-0! flex items-center justify-center text-ink-muted hover:text-ink hover:bg-ink/10 transition-colors rounded-sm',
                 }}
               />
-              <Show when={hasReplyAction() || hasEditAction() || hasDeleteAction() || visibleMoreActions().length > 0}>
+              <Show
+                when={
+                  hasReplyAction() ||
+                  hasEditAction() ||
+                  hasDeleteAction() ||
+                  visibleMoreActions().length > 0
+                }
+              >
                 <div class="w-px self-stretch bg-edge-muted mx-1" />
               </Show>
             </Show>
@@ -182,7 +196,10 @@ export function ActionMenu(props: ActionMenuProps) {
             </Show>
 
             <Show when={visibleMoreActions().length > 0}>
-              <DropdownMenu open={moreMenuOpen()} onOpenChange={setMoreMenuOpen}>
+              <DropdownMenu
+                open={moreMenuOpen()}
+                onOpenChange={setMoreMenuOpen}
+              >
                 <DropdownMenu.Trigger
                   class="size-6 flex items-center justify-center text-ink-muted hover:text-ink hover:bg-ink/10 transition-colors rounded-sm"
                   title="More actions"

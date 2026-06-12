@@ -230,7 +230,7 @@ export const SearchableMultiSelect = (props: SearchableMultiSelectProps) => {
     props.onChange(selected.map((o) => o.id));
   };
 
-  const isSoleActive = (id: string) => {
+  const _isSoleActive = (id: string) => {
     const ids = props.activeIds();
     return ids.length === 1 && ids[0] === id;
   };

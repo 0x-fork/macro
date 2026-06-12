@@ -10,16 +10,20 @@ import TextIcon from '@phosphor/text-aa.svg';
 import { Match, Show, Switch } from 'solid-js';
 import { SelectAllCheckbox } from './views/tasks/TaskListHeader';
 
-type ListHeaderType = 'task' | 'email' | 'channel' | 'document' | 'inbox' | 'default';
+type ListHeaderType =
+  | 'task'
+  | 'email'
+  | 'channel'
+  | 'document'
+  | 'inbox'
+  | 'default';
 
 interface ListHeaderProps {
   type?: ListHeaderType;
   timestampLabel?: string;
 }
 
-const HeaderDivider = () => (
-  <span class="w-px h-3 bg-ink/20" />
-);
+const HeaderDivider = () => <span class="w-px h-3 bg-ink/20" />;
 
 export function ListHeader(props: ListHeaderProps) {
   const isWide = useListLayout()?.isWide ?? (() => true);
@@ -32,61 +36,153 @@ export function ListHeader(props: ListHeaderProps) {
         <Match when={type() === 'task'}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-[calc(100%-1.5rem)] mx-3 px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': '1.5rem minmax(0, 1fr) minmax(0, 8rem) 5.5rem 7.5rem 4.5rem' }}
+            style={{
+              'grid-template-columns':
+                '1.5rem minmax(0, 1fr) minmax(0, 8rem) 5.5rem 7.5rem 4.5rem',
+            }}
           >
-            <span class="flex items-center justify-center"><SelectAllCheckbox /></span>
-            <span class="flex items-center gap-1"><TextIcon class="size-3" />Title</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><FolderSimpleIcon class="size-3" />Folder</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><FlagIcon class="size-3" />Priority</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><UserIcon class="size-3" />Assignee</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
+            <span class="flex items-center justify-center">
+              <SelectAllCheckbox />
+            </span>
+            <span class="flex items-center gap-1">
+              <TextIcon class="size-3" />
+              Title
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <FolderSimpleIcon class="size-3" />
+              Folder
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <FlagIcon class="size-3" />
+              Priority
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <UserIcon class="size-3" />
+              Assignee
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <ClockIcon class="size-3" />
+              {timestampLabel()}
+            </span>
           </div>
         </Match>
         <Match when={type() === 'email'}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-[calc(100%-1.5rem)] mx-3 px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': '1.5rem minmax(0, 1fr) 21rem 4.5rem' }}
+            style={{
+              'grid-template-columns': '1.5rem minmax(0, 1fr) 21rem 4.5rem',
+            }}
           >
-            <span class="flex items-center justify-center"><SelectAllCheckbox /></span>
-            <span class="flex items-center gap-1"><UserIcon class="size-3" />From<span class="mx-1">—</span><EnvelopeIcon class="size-3" />Subject</span>
+            <span class="flex items-center justify-center">
+              <SelectAllCheckbox />
+            </span>
+            <span class="flex items-center gap-1">
+              <UserIcon class="size-3" />
+              From<span class="mx-1">—</span>
+              <EnvelopeIcon class="size-3" />
+              Subject
+            </span>
             <span />
-            <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <ClockIcon class="size-3" />
+              {timestampLabel()}
+            </span>
           </div>
         </Match>
         <Match when={type() === 'channel'}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-[calc(100%-1.5rem)] mx-3 px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': '1.5rem 12rem minmax(0, 1fr) 21rem 4.5rem' }}
+            style={{
+              'grid-template-columns':
+                '1.5rem 12rem minmax(0, 1fr) 21rem 4.5rem',
+            }}
           >
-            <span class="flex items-center justify-center"><SelectAllCheckbox /></span>
-            <span class="flex items-center gap-1"><HashIcon class="size-3" />Channel</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><ChatIcon class="size-3" />Message</span>
+            <span class="flex items-center justify-center">
+              <SelectAllCheckbox />
+            </span>
+            <span class="flex items-center gap-1">
+              <HashIcon class="size-3" />
+              Channel
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <ChatIcon class="size-3" />
+              Message
+            </span>
             <span />
-            <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <ClockIcon class="size-3" />
+              {timestampLabel()}
+            </span>
           </div>
         </Match>
         <Match when={type() === 'document'}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-[calc(100%-1.5rem)] mx-3 px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': '1.5rem minmax(0, 1fr) auto auto' }}
+            style={{
+              'grid-template-columns': '1.5rem minmax(0, 1fr) auto auto',
+            }}
           >
-            <span class="flex items-center justify-center"><SelectAllCheckbox /></span>
-            <span class="flex items-center gap-1"><TextIcon class="size-3" />Title</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><FolderSimpleIcon class="size-3" />Folder</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
+            <span class="flex items-center justify-center">
+              <SelectAllCheckbox />
+            </span>
+            <span class="flex items-center gap-1">
+              <TextIcon class="size-3" />
+              Title
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <FolderSimpleIcon class="size-3" />
+              Folder
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <ClockIcon class="size-3" />
+              {timestampLabel()}
+            </span>
           </div>
         </Match>
         <Match when={type() === 'inbox'}>
           <div
             class="grid items-center gap-x-2 min-w-0 w-[calc(100%-1.5rem)] mx-3 px-2 py-1.5 text-xs text-ink-extra-muted/50"
-            style={{ 'grid-template-columns': '1.5rem minmax(0, 1fr) minmax(0, 8rem) 5.5rem 7.5rem 4.5rem' }}
+            style={{
+              'grid-template-columns':
+                '1.5rem minmax(0, 1fr) minmax(0, 8rem) 5.5rem 7.5rem 4.5rem',
+            }}
           >
-            <span class="flex items-center justify-center"><SelectAllCheckbox /></span>
-            <span class="flex items-center gap-1"><TextIcon class="size-3" />Title</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><FolderSimpleIcon class="size-3" />Folder</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><FlagIcon class="size-3" />Priority</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><UserIcon class="size-3" />Assignee</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
+            <span class="flex items-center justify-center">
+              <SelectAllCheckbox />
+            </span>
+            <span class="flex items-center gap-1">
+              <TextIcon class="size-3" />
+              Title
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <FolderSimpleIcon class="size-3" />
+              Folder
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <FlagIcon class="size-3" />
+              Priority
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <UserIcon class="size-3" />
+              Assignee
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <ClockIcon class="size-3" />
+              {timestampLabel()}
+            </span>
           </div>
         </Match>
         <Match when={true}>
@@ -94,9 +190,18 @@ export function ListHeader(props: ListHeaderProps) {
             class="grid items-center gap-x-2 min-w-0 w-[calc(100%-1.5rem)] mx-3 px-2 py-1.5 text-xs text-ink-extra-muted/50"
             style={{ 'grid-template-columns': '1.5rem minmax(0, 1fr) auto' }}
           >
-            <span class="flex items-center justify-center"><SelectAllCheckbox /></span>
-            <span class="flex items-center gap-1"><TextIcon class="size-3" />Title</span>
-            <span class="flex items-center gap-1"><HeaderDivider /><ClockIcon class="size-3" />{timestampLabel()}</span>
+            <span class="flex items-center justify-center">
+              <SelectAllCheckbox />
+            </span>
+            <span class="flex items-center gap-1">
+              <TextIcon class="size-3" />
+              Title
+            </span>
+            <span class="flex items-center gap-1">
+              <HeaderDivider />
+              <ClockIcon class="size-3" />
+              {timestampLabel()}
+            </span>
           </div>
         </Match>
       </Switch>

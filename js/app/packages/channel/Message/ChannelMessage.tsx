@@ -125,7 +125,10 @@ function RegularMessageLayout(props: {
       <Message.Slot placement="icon">
         <Message.SenderIcon />
       </Message.Slot>
-      <Message.Slot placement="header" class="flex items-center gap-1.5 min-w-0 leading-tight">
+      <Message.Slot
+        placement="header"
+        class="flex items-center gap-1.5 min-w-0 leading-tight"
+      >
         <Message.SenderName />
         <Message.AgentBadge />
         <Message.Timestamp class="shrink-0" format="dateAndTime" />

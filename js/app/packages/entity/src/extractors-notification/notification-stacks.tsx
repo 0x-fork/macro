@@ -184,7 +184,11 @@ export function NotificationStackRow(props: {
               icon={EnvelopeOpenIcon}
               onClick={handleMarkAsRead}
             />
-            <MenuItem text="Copy Link" icon={LinkIcon} onClick={handleCopyLink} />
+            <MenuItem
+              text="Copy Link"
+              icon={LinkIcon}
+              onClick={handleCopyLink}
+            />
           </ContextMenuContent>
         </div>
       </ContextMenu.Portal>

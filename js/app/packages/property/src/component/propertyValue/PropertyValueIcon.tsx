@@ -37,7 +37,7 @@ type PropertyValueIconProps = {
   class?: string;
 };
 
-const knownPropertyIds = new Set<string>(
+const _knownPropertyIds = new Set<string>(
   Object.values(PROPERTY_OPTION_IDS).flatMap((group) => Object.values(group))
 );
 
@@ -57,7 +57,9 @@ export const PropertyValueIcon: Component<PropertyValueIconProps> = (props) => {
   const isPriority = createMemo(() => PRIORITY_IDS.has(props.optionId));
 
   const status = createMemo(() => STATUS_MAP[props.optionId] ?? 'created');
-  const statusColor = createMemo(() => STATUS_COLORS[props.optionId] ?? 'text-task');
+  const statusColor = createMemo(
+    () => STATUS_COLORS[props.optionId] ?? 'text-task'
+  );
 
   return (
     <>
@@ -86,7 +88,9 @@ export const PropertyValueIcon: Component<PropertyValueIconProps> = (props) => {
             />
           </Match>
           <Match when={props.optionId === PROPERTY_OPTION_IDS.PRIORITY.URGENT}>
-            <PriorityUrgent class={twMerge('size-3', props.class, 'text-accent')} />
+            <PriorityUrgent
+              class={twMerge('size-3', props.class, 'text-accent')}
+            />
           </Match>
         </Switch>
       </Show>

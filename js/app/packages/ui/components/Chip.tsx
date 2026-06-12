@@ -106,7 +106,9 @@ export const ChipGroup = (props: ChipGroupProps) => {
   const gap = () => props.gap ?? 'md';
 
   return (
-    <div class={cn('flex items-center flex-wrap', gapStyles[gap()], props.class)}>
+    <div
+      class={cn('flex items-center flex-wrap', gapStyles[gap()], props.class)}
+    >
       {props.children}
     </div>
   );

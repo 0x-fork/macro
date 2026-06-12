@@ -79,13 +79,16 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
   const currentGroupLabel = () => {
     const value = props.groupValue?.();
     if (!value) return 'None';
-    return (
-      props.groupOptions?.find((o) => o.value === value)?.label ?? 'None'
-    );
+    return props.groupOptions?.find((o) => o.value === value)?.label ?? 'None';
   };
 
   return (
-    <Popover open={open()} onOpenChange={setOpen} placement="bottom-end" gutter={4}>
+    <Popover
+      open={open()}
+      onOpenChange={setOpen}
+      placement="bottom-end"
+      gutter={4}
+    >
       <Tooltip label="Display options" shortcut="S">
         <Popover.Trigger
           as={Button}
@@ -138,7 +141,11 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
               </DropdownMenu>
             </div>
 
-            <Show when={props.groupOptions && props.onGroupChange && props.groupValue}>
+            <Show
+              when={
+                props.groupOptions && props.onGroupChange && props.groupValue
+              }
+            >
               <div class="flex items-center justify-between gap-2">
                 <span class="text-xs text-ink-muted">Group by</span>
                 <DropdownMenu placement="bottom-end" gutter={4}>
@@ -153,7 +160,9 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
                           {(option) => (
                             <DropdownMenu.Item
                               class="w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left text-sm font-medium transition-colors text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] outline-none cursor-default rounded-lg"
-                              onSelect={() => props.onGroupChange?.(option.value)}
+                              onSelect={() =>
+                                props.onGroupChange?.(option.value)
+                              }
                             >
                               <span
                                 class="flex-1 truncate"
@@ -166,7 +175,9 @@ export const DisplayOptionsDropdown: Component<DisplayOptionsDropdownProps> = (
                               >
                                 {option.label}
                               </span>
-                              <Show when={props.groupValue?.() === option.value}>
+                              <Show
+                                when={props.groupValue?.() === option.value}
+                              >
                                 <CheckIcon class="size-3 text-accent shrink-0" />
                               </Show>
                             </DropdownMenu.Item>

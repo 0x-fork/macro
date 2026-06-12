@@ -31,7 +31,7 @@ export function MediaGallery(props: {
   const hasMedia = () => props.items.length > 0;
   const collapsedRowCount = 2;
   const gap = 6;
-  const thumbSize = () => expanded() ? THUMB_SIZE_EXPANDED : THUMB_SIZE;
+  const thumbSize = () => (expanded() ? THUMB_SIZE_EXPANDED : THUMB_SIZE);
 
   const columnsCount = () => {
     const width = containerWidth();
@@ -46,8 +46,10 @@ export function MediaGallery(props: {
   };
 
   const collapsedItemCount = () => columnsCount() * collapsedRowCount;
-  const hiddenCount = () => Math.max(0, props.items.length - collapsedItemCount());
-  const collapsedMaxHeight = () => actualTileSize() * collapsedRowCount + gap * (collapsedRowCount - 1);
+  const hiddenCount = () =>
+    Math.max(0, props.items.length - collapsedItemCount());
+  const collapsedMaxHeight = () =>
+    actualTileSize() * collapsedRowCount + gap * (collapsedRowCount - 1);
 
   return (
     <AttachmentSection

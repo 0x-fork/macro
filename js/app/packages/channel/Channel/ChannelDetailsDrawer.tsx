@@ -1,7 +1,17 @@
 import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
 import { ChannelMediaTab } from '@channel/Attachments/ChannelMediaTab';
 import { ChannelDocumentsTab } from '@channel/Attachments/ChannelDocumentsTab';
-import { createSignal, createEffect, createMemo, type Accessor, For, Match, Show, Suspense, Switch } from 'solid-js';
+import {
+  createSignal,
+  createEffect,
+  createMemo,
+  type Accessor,
+  For,
+  Match,
+  Show,
+  Suspense,
+  Switch,
+} from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { createResizeObserver } from '@solid-primitives/resize-observer';
 import { Button, Layer } from '@ui';
@@ -230,7 +240,10 @@ export function ChannelDetailsDrawer(props: {
                 isOpen() ? 'translate-x-0' : 'translate-x-full'
               )}
             >
-              <DrawerContent channelId={props.channelId} onClose={drawerControl.close} />
+              <DrawerContent
+                channelId={props.channelId}
+                onClose={drawerControl.close}
+              />
             </div>
           </Layer>
         </div>
@@ -256,7 +269,10 @@ export function ChannelDetailsDrawer(props: {
                   isOpen() ? 'translate-x-0' : 'translate-x-full'
                 )}
               >
-                <DrawerContent channelId={props.channelId} onClose={drawerControl.close} />
+                <DrawerContent
+                  channelId={props.channelId}
+                  onClose={drawerControl.close}
+                />
               </div>
             </Layer>
           </div>

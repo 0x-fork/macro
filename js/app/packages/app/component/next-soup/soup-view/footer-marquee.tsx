@@ -14,7 +14,10 @@ const MARQUEE_TOKENS = [
   { token: TOKENS.entity.action.assignee, fallbackLabel: 'Assign' },
 ] as const;
 
-const TipItem = (props: { token: (typeof MARQUEE_TOKENS)[number]['token']; label: string }) => (
+const TipItem = (props: {
+  token: (typeof MARQUEE_TOKENS)[number]['token'];
+  label: string;
+}) => (
   <span class="inline-flex items-center gap-1.5 mx-4">
     <span>{props.label}</span>
     <Hotkey token={props.token} theme="subtle" />
@@ -28,7 +31,8 @@ export const FooterMarquee = () => {
       const command = tokenMap.get(token)?.[0];
       const shortcut = getPrettyHotkeyStringByToken(token);
       const description = command?.description;
-      const label = typeof description === 'function' ? description() : description;
+      const label =
+        typeof description === 'function' ? description() : description;
       return {
         token,
         shortcut: shortcut ?? '?',
@@ -47,10 +51,14 @@ export const FooterMarquee = () => {
       {/* Marquee content */}
       <div class="relative z-10 flex whitespace-nowrap animate-[marquee_45s_linear_infinite] text-ink-extra-muted/60 text-xs">
         <span class="flex items-center">
-          <For each={tips()}>{(tip) => <TipItem token={tip.token} label={tip.label} />}</For>
+          <For each={tips()}>
+            {(tip) => <TipItem token={tip.token} label={tip.label} />}
+          </For>
         </span>
         <span class="flex items-center">
-          <For each={tips()}>{(tip) => <TipItem token={tip.token} label={tip.label} />}</For>
+          <For each={tips()}>
+            {(tip) => <TipItem token={tip.token} label={tip.label} />}
+          </For>
         </span>
       </div>
 

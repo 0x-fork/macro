@@ -229,7 +229,10 @@ const GroupedFilterChip = (props: {
                             }
                           } else if (!active()) {
                             const firstFilter = props.group.filters[0];
-                            if (firstFilter?.multiple !== false && props.onAdd) {
+                            if (
+                              firstFilter?.multiple !== false &&
+                              props.onAdd
+                            ) {
                               props.onAdd(option.id);
                             } else if (firstFilter?.onReplace) {
                               firstFilter.onReplace(option.id);
@@ -392,7 +395,8 @@ const FilterChip = (props: {
                     return (
                       <Dropdown.Item
                         onSelect={() => {
-                          if (!isSingleSelect()) queueMicrotask(() => setOpen(true));
+                          if (!isSingleSelect())
+                            queueMicrotask(() => setOpen(true));
                           if (active()) {
                             if (!isSingleSelect()) {
                               if (props.filter.onRemove) {

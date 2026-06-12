@@ -6,7 +6,6 @@ import { useBlockEntityCommands } from '@app/component/next-soup/actions';
 import { useMaybePreviewPanel } from '@app/component/PreviewPanel';
 import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
 import { SplitHeaderRight } from '@app/component/split-layout/components/SplitHeader';
-import { useNavigatedFromJK } from '@app/component/useNavigatedFromJK';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { URL_PARAMS } from '@block-channel/constants';
 import {
@@ -128,7 +127,10 @@ function NewTop(props: { channelId: string }) {
             )}
           </Show>
           <Button
-            class={cn('rounded-md touch:[&_svg]:size-4', detailsDrawer.isOpen() && 'bg-ink/10')}
+            class={cn(
+              'rounded-md touch:[&_svg]:size-4',
+              detailsDrawer.isOpen() && 'bg-ink/10'
+            )}
             size="icon-sm"
             tooltip="Details"
             onClick={detailsDrawer.toggle}
@@ -145,7 +147,6 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
   useBlockEntityCommands();
 
   const isPreview = !!useMaybePreviewPanel();
-  const { navigatedFromJK } = useNavigatedFromJK();
   const channelId = useBlockId();
   const blockHandle = blockHandleSignal.get;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -294,7 +295,10 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
           {(() => {
             let containerRef!: HTMLDivElement;
             return (
-              <div ref={containerRef} class="flex-1 flex flex-row min-h-0 relative">
+              <div
+                ref={containerRef}
+                class="flex-1 flex flex-row min-h-0 relative"
+              >
                 <div class="flex-1 min-w-0 flex flex-col">
                   <Switch>
                     <Match when={activeTab() === 'messages'}>
@@ -305,7 +309,9 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
                         {...convertTargetMessage(initialTargetMessageParams())}
                       />
                     </Match>
-                    <Match when={activeTab() === 'call' && canUseInlineCallTab()}>
+                    <Match
+                      when={activeTab() === 'call' && canUseInlineCallTab()}
+                    >
                       <ChannelCallTab
                         channelId={channelId}
                         pendingJoin={pendingJoinCall}
@@ -313,7 +319,10 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
                     </Match>
                   </Switch>
                 </div>
-                <ChannelDetailsDrawer channelId={channelId} containerRef={() => containerRef} />
+                <ChannelDetailsDrawer
+                  channelId={channelId}
+                  containerRef={() => containerRef}
+                />
               </div>
             );
           })()}

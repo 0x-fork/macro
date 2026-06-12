@@ -14,7 +14,6 @@ import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg
 import EnvelopeOpenIcon from '@phosphor/envelope-open.svg';
 import FileDashedIcon from '@phosphor/file-dashed.svg';
 import PhoneXIcon from '@phosphor-icons/core/bold/phone-x-bold.svg';
-import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg';
 import type { StreamEvent } from '@service-connection/generated/schemas';
 import {
   getStreamState,
@@ -87,7 +86,6 @@ import {
 import { useIsShared } from '../utils/shared';
 import { formatDateAndTime } from '../utils/timestamp';
 import { formatCallDuration } from '@block-call/utils';
-import { useListLayout } from './ListEntity';
 import { TaskPropertyGroup, TaskPropertyPill } from './StackedListEntity';
 
 interface StackedRowListEntityProps {

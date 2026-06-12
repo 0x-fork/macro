@@ -41,7 +41,8 @@ export const [settingsModalTab, setSettingsModalTab] =
  * full UI. Toggled on while the user is actively dragging a theme editor slider/
  * swatch so they can see the live effect on the app behind the modal.
  */
-export const [themePickerFloating, setThemePickerFloating] = createSignal(false);
+export const [themePickerFloating, setThemePickerFloating] =
+  createSignal(false);
 
 /** Map legacy split tab id → new modal tab id, so call sites that pass the old name still land on the right tab. */
 function legacyTabToModalTab(tab: SettingsTab | undefined): SettingsModalTab {
@@ -87,7 +88,7 @@ export const useSettingsState = () => {
 
   const isOpen = createMemo(() => settingsModalOpen());
 
-  const focusSettingsPanel = () => {
+  const _focusSettingsPanel = () => {
     if (isTouchDevice()) return;
     setTimeout(() => {
       const settingsSplit = getSettingsSplit();

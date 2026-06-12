@@ -169,7 +169,9 @@ const SuggestedOptionIcon = (props: { option: SuggestedFilterOption }) => (
 
 const SUGGESTED_CATEGORY_ICON_CLASS = 'size-3 text-ink/35 shrink-0';
 
-const SuggestedCategoryIcon = (props: { category: SuggestedFilterCategory }) => {
+const SuggestedCategoryIcon = (props: {
+  category: SuggestedFilterCategory;
+}) => {
   const icon = () => {
     switch (props.category.id) {
       case 'status':
@@ -183,7 +185,10 @@ const SuggestedCategoryIcon = (props: { category: SuggestedFilterCategory }) => 
       case 'calendar':
         return <CalendarIcon class={SUGGESTED_CATEGORY_ICON_CLASS} />;
       case 'type':
-        return props.category.options.some((option) => option.id.startsWith('doc-') || option.id.startsWith('file-')) ? (
+        return props.category.options.some(
+          (option) =>
+            option.id.startsWith('doc-') || option.id.startsWith('file-')
+        ) ? (
           <EntityIcon targetType="md" size="xs" />
         ) : (
           <TagIcon class={SUGGESTED_CATEGORY_ICON_CLASS} />
@@ -193,7 +198,11 @@ const SuggestedCategoryIcon = (props: { category: SuggestedFilterCategory }) => 
     }
   };
 
-  return <span class="size-3.5 flex items-center justify-center shrink-0 [&>*]:size-3 [&_svg]:size-3">{icon()}</span>;
+  return (
+    <span class="size-3.5 flex items-center justify-center shrink-0 [&>*]:size-3 [&_svg]:size-3">
+      {icon()}
+    </span>
+  );
 };
 
 const SuggestedFilterPill = (props: {

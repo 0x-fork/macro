@@ -56,7 +56,12 @@ export function ThreadCollapsedIndicator(props: ThreadCollapsedIndicatorProps) {
       </Show>
       <div class="flex flex-col items-start">
         <div class="flex items-center gap-1">
-          <p class={cn('font-medium whitespace-nowrap', local.hasNewMessages ? 'text-accent-ink' : 'text-ink-muted')}>
+          <p
+            class={cn(
+              'font-medium whitespace-nowrap',
+              local.hasNewMessages ? 'text-accent-ink' : 'text-ink-muted'
+            )}
+          >
             {getThreadReplyCountLabel(local.collapsedRepliesCount)}
           </p>
           <CaretRight class="size-3.5 text-ink-muted" />

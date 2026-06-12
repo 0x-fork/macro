@@ -12,10 +12,17 @@ import VideoCameraIcon from '@phosphor/video-camera.svg';
 import VideoCameraSlashIcon from '@phosphor/video-camera-slash.svg';
 import PhoneDisconnectIcon from '@phosphor/phone-disconnect.svg';
 import CheckCircleIcon from '@phosphor/check-circle.svg';
-import { Layer } from '@ui';
 import { focusInput } from '@core/directive/focusInput';
 import { cn } from '@ui/utils/classname';
-import { For, Show, createMemo, createSignal, Suspense, createEffect, onCleanup } from 'solid-js';
+import {
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  Suspense,
+  createEffect,
+  onCleanup,
+} from 'solid-js';
 import { useUserContext } from '@core/context/user';
 import LogoIcon from '@icon/macro-logo.svg';
 import SearchIcon from '@icon/macro-magnifying-glass.svg';
@@ -32,10 +39,19 @@ import { AnimatedChannelIcon } from '@icon/wide-channel';
 import { AnimatedTaskIcon } from '@icon/wide-task';
 import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
 import { AnimatedStarIcon } from '@icon/wide-star';
-import { Entity, type EntityData, isTaskEntity, type TaskEntity, unreadFilterFn } from '@entity';
+import {
+  Entity,
+  type EntityData,
+  isTaskEntity,
+  type TaskEntity,
+  unreadFilterFn,
+} from '@entity';
 import { TaskPropertyGroup } from '@entity/composed/StackedListEntity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
-import { useSoupItemsQuery, type SoupItemsQueryArgs } from '@queries/soup/items';
+import {
+  useSoupItemsQuery,
+  type SoupItemsQueryArgs,
+} from '@queries/soup/items';
 import { useUserNotificationsQuery } from '@queries/notification/user-notifications';
 import { itemToBlockName } from '@core/constant/allBlocks';
 import type { ListView } from '@app/constants/list-views';
@@ -107,8 +123,12 @@ function AvatarMenu() {
                 <UserIcon id={user.userId() ?? ''} size="fill" />
               </div>
               <div class="flex-1 min-w-0">
-                <div class="text-base font-medium text-ink truncate">{user.author()}</div>
-                <div class="text-sm text-ink-muted truncate">{user.email()}</div>
+                <div class="text-base font-medium text-ink truncate">
+                  {user.author()}
+                </div>
+                <div class="text-sm text-ink-muted truncate">
+                  {user.email()}
+                </div>
               </div>
             </div>
 
@@ -182,7 +202,9 @@ function HomeSearchBar(props: { compact?: boolean; class?: string }) {
 interface QuickAccessItem {
   id: ListView;
   label: string;
-  icon: Component<JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }>;
+  icon: Component<
+    JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }
+  >;
   bgColor: string;
   iconColor: string;
 }
@@ -323,12 +345,16 @@ function EntityItemRow(props: { entity: EntityData; onClick: () => void }) {
 function TaskItemRow(props: { entity: TaskEntity; onClick: () => void }) {
   const hasStatus = createMemo(() => {
     const properties = props.entity.properties ?? [];
-    return properties.some((p) => p.property_definition_id === SYSTEM_PROPERTY_IDS.STATUS);
+    return properties.some(
+      (p) => p.property_definition_id === SYSTEM_PROPERTY_IDS.STATUS
+    );
   });
 
   const hasPriority = createMemo(() => {
     const properties = props.entity.properties ?? [];
-    return properties.some((p) => p.property_definition_id === SYSTEM_PROPERTY_IDS.PRIORITY);
+    return properties.some(
+      (p) => p.property_definition_id === SYSTEM_PROPERTY_IDS.PRIORITY
+    );
   });
 
   return (
@@ -392,38 +418,40 @@ function AICardStack() {
     return notifications.filter((n) => !n.viewed_at && !n.done_at).length;
   });
 
-  const tasksArgs = createMemo((): SoupItemsQueryArgs => ({
-    params: {
-      sort_method: 'updated_at',
-      limit: 20,
-    },
-    body: {
-      document_filters: {
-        sub_type: ['task'],
-        properties: user.userId()
-          ? [
-              {
-                property_id: SYSTEM_PROPERTY_IDS.ASSIGNEES,
-                type: 'entity',
-                value: user.userId()!,
-              },
-            ]
-          : undefined,
-        properties_exclude: [
-          {
-            property_id: SYSTEM_PROPERTY_IDS.STATUS,
-            type: 'select',
-            value: PROPERTY_OPTION_IDS.STATUS.COMPLETED,
-          },
-          {
-            property_id: SYSTEM_PROPERTY_IDS.STATUS,
-            type: 'select',
-            value: PROPERTY_OPTION_IDS.STATUS.CANCELED,
-          },
-        ],
+  const tasksArgs = createMemo(
+    (): SoupItemsQueryArgs => ({
+      params: {
+        sort_method: 'updated_at',
+        limit: 20,
       },
-    },
-  }));
+      body: {
+        document_filters: {
+          sub_type: ['task'],
+          properties: user.userId()
+            ? [
+                {
+                  property_id: SYSTEM_PROPERTY_IDS.ASSIGNEES,
+                  type: 'entity',
+                  value: user.userId()!,
+                },
+              ]
+            : undefined,
+          properties_exclude: [
+            {
+              property_id: SYSTEM_PROPERTY_IDS.STATUS,
+              type: 'select',
+              value: PROPERTY_OPTION_IDS.STATUS.COMPLETED,
+            },
+            {
+              property_id: SYSTEM_PROPERTY_IDS.STATUS,
+              type: 'select',
+              value: PROPERTY_OPTION_IDS.STATUS.CANCELED,
+            },
+          ],
+        },
+      },
+    })
+  );
 
   const tasksQuery = useSoupItemsQuery(tasksArgs, () => ({
     enabled: !!user.userId(),
@@ -440,8 +468,12 @@ function AICardStack() {
     const unread = unreadCount();
     if (tasks === 0 && unread === 0) return "You're all caught up!";
     const parts = [];
-    if (tasks > 0) parts.push(`${tasks} active ${tasks === 1 ? 'task' : 'tasks'}`);
-    if (unread > 0) parts.push(`${unread} unread ${unread === 1 ? 'notification' : 'notifications'}`);
+    if (tasks > 0)
+      parts.push(`${tasks} active ${tasks === 1 ? 'task' : 'tasks'}`);
+    if (unread > 0)
+      parts.push(
+        `${unread} unread ${unread === 1 ? 'notification' : 'notifications'}`
+      );
     return `You have ${parts.join(' and ')}.`;
   });
 
@@ -493,11 +525,11 @@ function AICardStack() {
   let touchStartY = 0;
 
   const visibleCards = createMemo(() =>
-    allCards().filter(card => !dismissedIds().has(card.id))
+    allCards().filter((card) => !dismissedIds().has(card.id))
   );
 
   const dismissAll = () => {
-    setDismissedIds(new Set(allCards().map(c => c.id)));
+    setDismissedIds(new Set(allCards().map((c) => c.id)));
   };
 
   const dismissCurrent = () => {
@@ -505,7 +537,7 @@ function AICardStack() {
     if (cards.length === 0) return;
     const currentCard = cards[currentIndex()];
     if (currentCard) {
-      setDismissedIds(prev => new Set([...prev, currentCard.id]));
+      setDismissedIds((prev) => new Set([...prev, currentCard.id]));
       if (currentIndex() >= cards.length - 1) {
         setCurrentIndex(Math.max(0, cards.length - 2));
       }
@@ -568,9 +600,10 @@ function AICardStack() {
             {(card, index) => {
               const offset = () => index() - currentIndex();
               const isActive = () => index() === currentIndex();
-              const isBehind = () => offset() > 0;
+              const _isBehind = () => offset() > 0;
               const isDoneCard = () => card.type === 'done';
-              const isHidden = () => offset() < 0 || offset() > 2 || (isDoneCard() && !isActive());
+              const isHidden = () =>
+                offset() < 0 || offset() > 2 || (isDoneCard() && !isActive());
 
               return (
                 <div
@@ -586,7 +619,9 @@ function AICardStack() {
                     'transform-origin': 'center bottom',
                     'z-index': 10 - offset(),
                     visibility: isHidden() ? 'hidden' : 'visible',
-                    transition: isSwiping() ? 'none' : 'transform 0.3s ease-out',
+                    transition: isSwiping()
+                      ? 'none'
+                      : 'transform 0.3s ease-out',
                   }}
                 >
                   <Show
@@ -596,14 +631,23 @@ function AICardStack() {
                         <div class="size-8 rounded-full bg-success/15 flex items-center justify-center mb-2">
                           <CheckCircleIcon class="size-4 text-success" />
                         </div>
-                        <div class="text-sm font-semibold text-ink">{card.title}</div>
-                        <div class="text-xs text-ink-muted mt-0.5">{card.content}</div>
+                        <div class="text-sm font-semibold text-ink">
+                          {card.title}
+                        </div>
+                        <div class="text-xs text-ink-muted mt-0.5">
+                          {card.content}
+                        </div>
                       </div>
                     }
                   >
                     <div class="h-full flex flex-col">
                       <div class="flex items-center gap-1.5 mb-1.5">
-                        <div class={cn('size-5 rounded flex items-center justify-center shrink-0', card.iconBg)}>
+                        <div
+                          class={cn(
+                            'size-5 rounded flex items-center justify-center shrink-0',
+                            card.iconBg
+                          )}
+                        >
                           <card.icon class={cn('size-3', card.iconColor)} />
                         </div>
                         <span class="text-[10px] font-medium text-ink-muted uppercase tracking-wide">
@@ -611,8 +655,12 @@ function AICardStack() {
                         </span>
                       </div>
                       <div class="flex-1 flex flex-col justify-center">
-                        <div class="text-sm font-semibold text-ink leading-snug">{card.title}</div>
-                        <div class="text-xs text-ink-muted mt-1 leading-relaxed">{card.content}</div>
+                        <div class="text-sm font-semibold text-ink leading-snug">
+                          {card.title}
+                        </div>
+                        <div class="text-xs text-ink-muted mt-1 leading-relaxed">
+                          {card.content}
+                        </div>
                       </div>
                     </div>
                   </Show>
@@ -645,36 +693,59 @@ function AICardStack() {
 }
 
 function SuggestedActionsSection() {
-  const { openWithSplit } = useSplitLayout();
   const [hidden, setHidden] = createSignal(false);
 
   const actions = [
-    { type: 'email' as const, title: "Reply to Alex", subtitle: 'Waiting 2 days', id: 'mock-1' },
-    { type: 'task' as const, title: 'Review Q4 doc', subtitle: 'Due tomorrow', id: 'mock-2' },
-    { type: 'channel' as const, title: 'Catch up #design', subtitle: '15 messages', id: 'mock-3' },
+    {
+      type: 'email' as const,
+      title: 'Reply to Alex',
+      subtitle: 'Waiting 2 days',
+      id: 'mock-1',
+    },
+    {
+      type: 'task' as const,
+      title: 'Review Q4 doc',
+      subtitle: 'Due tomorrow',
+      id: 'mock-2',
+    },
+    {
+      type: 'channel' as const,
+      title: 'Catch up #design',
+      subtitle: '15 messages',
+      id: 'mock-3',
+    },
   ];
 
   const getIcon = (type: 'email' | 'task' | 'channel') => {
     switch (type) {
-      case 'email': return AnimatedEmailIcon;
-      case 'task': return AnimatedTaskIcon;
-      case 'channel': return AnimatedChannelIcon;
+      case 'email':
+        return AnimatedEmailIcon;
+      case 'task':
+        return AnimatedTaskIcon;
+      case 'channel':
+        return AnimatedChannelIcon;
     }
   };
 
   const getBgColor = (type: 'email' | 'task' | 'channel') => {
     switch (type) {
-      case 'email': return 'bg-email/10';
-      case 'task': return 'bg-task/10';
-      case 'channel': return 'bg-channel/10';
+      case 'email':
+        return 'bg-email/10';
+      case 'task':
+        return 'bg-task/10';
+      case 'channel':
+        return 'bg-channel/10';
     }
   };
 
   const getColor = (type: 'email' | 'task' | 'channel') => {
     switch (type) {
-      case 'email': return 'text-email';
-      case 'task': return 'text-task';
-      case 'channel': return 'text-channel';
+      case 'email':
+        return 'text-email';
+      case 'task':
+        return 'text-task';
+      case 'channel':
+        return 'text-channel';
     }
   };
 
@@ -704,13 +775,20 @@ function SuggestedActionsSection() {
                   class="flex-none flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-ink/5 active:bg-ink/10 transition-colors"
                   onClick={() => {}}
                 >
-                  <div class={cn('size-7 rounded-lg flex items-center justify-center shrink-0', getBgColor(action.type))}>
+                  <div
+                    class={cn(
+                      'size-7 rounded-lg flex items-center justify-center shrink-0',
+                      getBgColor(action.type)
+                    )}
+                  >
                     <div class={cn('size-3.5', getColor(action.type))}>
                       <Icon />
                     </div>
                   </div>
                   <div class="text-left">
-                    <div class="text-sm font-medium text-ink">{action.title}</div>
+                    <div class="text-sm font-medium text-ink">
+                      {action.title}
+                    </div>
                     <div class="text-xs text-ink-muted">{action.subtitle}</div>
                   </div>
                 </button>
@@ -777,7 +855,11 @@ function ConversationsSkeleton() {
   );
 }
 
-function EmptyState(props: { icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>>; message: string; color?: string }) {
+function EmptyState(props: {
+  icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
+  message: string;
+  color?: string;
+}) {
   return (
     <div class={cn('px-4 py-8 text-center rounded-xl bg-ink/5', props.color)}>
       <div class="size-12 mx-auto mb-3 rounded-full bg-ink/5 flex items-center justify-center">
@@ -811,7 +893,9 @@ function RecentsSection() {
       <Show when={!recentItemsQuery.isLoading} fallback={<RecentsSkeleton />}>
         <Show
           when={recentItems().length > 0}
-          fallback={<EmptyState icon={ClockIcon} message="No recent items yet" />}
+          fallback={
+            <EmptyState icon={ClockIcon} message="No recent items yet" />
+          }
         >
           <div class="rounded-xl bg-ink/5 overflow-hidden divide-y divide-edge-muted">
             <For each={recentItems()}>
@@ -833,38 +917,40 @@ function TasksSection() {
   const { openWithSplit } = useSplitLayout();
   const user = useUserContext();
 
-  const tasksArgs = createMemo((): SoupItemsQueryArgs => ({
-    params: {
-      sort_method: 'updated_at',
-      limit: TASKS_LIMIT,
-    },
-    body: {
-      document_filters: {
-        sub_type: ['task'],
-        properties: user.userId()
-          ? [
-              {
-                property_id: SYSTEM_PROPERTY_IDS.ASSIGNEES,
-                type: 'entity',
-                value: user.userId()!,
-              },
-            ]
-          : undefined,
-        properties_exclude: [
-          {
-            property_id: SYSTEM_PROPERTY_IDS.STATUS,
-            type: 'select',
-            value: PROPERTY_OPTION_IDS.STATUS.COMPLETED,
-          },
-          {
-            property_id: SYSTEM_PROPERTY_IDS.STATUS,
-            type: 'select',
-            value: PROPERTY_OPTION_IDS.STATUS.CANCELED,
-          },
-        ],
+  const tasksArgs = createMemo(
+    (): SoupItemsQueryArgs => ({
+      params: {
+        sort_method: 'updated_at',
+        limit: TASKS_LIMIT,
       },
-    },
-  }));
+      body: {
+        document_filters: {
+          sub_type: ['task'],
+          properties: user.userId()
+            ? [
+                {
+                  property_id: SYSTEM_PROPERTY_IDS.ASSIGNEES,
+                  type: 'entity',
+                  value: user.userId()!,
+                },
+              ]
+            : undefined,
+          properties_exclude: [
+            {
+              property_id: SYSTEM_PROPERTY_IDS.STATUS,
+              type: 'select',
+              value: PROPERTY_OPTION_IDS.STATUS.COMPLETED,
+            },
+            {
+              property_id: SYSTEM_PROPERTY_IDS.STATUS,
+              type: 'select',
+              value: PROPERTY_OPTION_IDS.STATUS.CANCELED,
+            },
+          ],
+        },
+      },
+    })
+  );
 
   const tasksQuery = useSoupItemsQuery(tasksArgs, () => ({
     enabled: !!user.userId(),
@@ -894,7 +980,12 @@ function TasksSection() {
       <Show when={!tasksQuery.isLoading} fallback={<TasksSkeleton />}>
         <Show
           when={tasks().length > 0}
-          fallback={<EmptyState icon={AnimatedTaskIcon} message="No active tasks assigned to you" />}
+          fallback={
+            <EmptyState
+              icon={AnimatedTaskIcon}
+              message="No active tasks assigned to you"
+            />
+          }
         >
           <div class="rounded-xl bg-ink/5 overflow-hidden divide-y divide-edge-muted">
             <For each={tasks()}>
@@ -912,7 +1003,10 @@ function TasksSection() {
   );
 }
 
-function ConversationSquare(props: { entity: EntityData; onClick: () => void }) {
+function ConversationSquare(props: {
+  entity: EntityData;
+  onClick: () => void;
+}) {
   const isUnread = createMemo(() => {
     try {
       return unreadFilterFn(props.entity as any);
@@ -994,10 +1088,18 @@ function ConversationsSection() {
         title="Conversations"
         onSeeAll={handleSeeAll}
       />
-      <Show when={!conversationsQuery.isLoading} fallback={<ConversationsSkeleton />}>
+      <Show
+        when={!conversationsQuery.isLoading}
+        fallback={<ConversationsSkeleton />}
+      >
         <Show
           when={conversations().length > 0}
-          fallback={<EmptyState icon={AnimatedChannelIcon} message="No recent conversations" />}
+          fallback={
+            <EmptyState
+              icon={AnimatedChannelIcon}
+              message="No recent conversations"
+            />
+          }
         >
           <div class="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
             <For each={conversations()}>
@@ -1015,7 +1117,10 @@ function ConversationsSection() {
   );
 }
 
-function PullToRefreshIndicator(props: { visible: boolean; refreshing: boolean }) {
+function PullToRefreshIndicator(props: {
+  visible: boolean;
+  refreshing: boolean;
+}) {
   return (
     <div
       class={cn(
@@ -1023,10 +1128,12 @@ function PullToRefreshIndicator(props: { visible: boolean; refreshing: boolean }
         props.visible ? 'top-2 opacity-100' : '-top-8 opacity-0'
       )}
     >
-      <div class={cn(
-        'size-8 rounded-full bg-surface border border-edge-muted shadow-lg flex items-center justify-center',
-        props.refreshing && 'animate-spin'
-      )}>
+      <div
+        class={cn(
+          'size-8 rounded-full bg-surface border border-edge-muted shadow-lg flex items-center justify-center',
+          props.refreshing && 'animate-spin'
+        )}
+      >
         <ArrowClockwiseIcon class="size-4 text-ink-muted" />
       </div>
     </div>
@@ -1092,13 +1199,18 @@ function CallBanner() {
         <div class="flex items-center gap-2">
           <div class="size-2 rounded-full bg-white animate-pulse" />
           <span class="text-sm font-medium">In Call</span>
-          <span class="text-sm opacity-80">{formatCallDuration(duration())}</span>
+          <span class="text-sm opacity-80">
+            {formatCallDuration(duration())}
+          </span>
         </div>
 
         <div class="flex items-center gap-1">
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); callContext?.toggleAudio?.(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              callContext?.toggleAudio?.();
+            }}
             class={cn(
               'size-8 rounded-full flex items-center justify-center transition-colors',
               callContext?.isAudioMuted?.() ? 'bg-white/20' : 'bg-transparent'
@@ -1114,7 +1226,10 @@ function CallBanner() {
 
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); callContext?.toggleVideo?.(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              callContext?.toggleVideo?.();
+            }}
             class={cn(
               'size-8 rounded-full flex items-center justify-center transition-colors',
               callContext?.isVideoMuted?.() ? 'bg-white/20' : 'bg-transparent'
@@ -1130,7 +1245,10 @@ function CallBanner() {
 
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); callContext?.disconnect?.(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              callContext?.disconnect?.();
+            }}
             class="size-8 rounded-full bg-failure flex items-center justify-center ml-1"
           >
             <PhoneDisconnectIcon class="size-4" />
@@ -1187,7 +1305,8 @@ export function MobileHome() {
     <div
       class="flex flex-col h-full relative overflow-hidden"
       style={{
-        background: 'linear-gradient(to bottom, color-mix(in oklch, var(--color-accent) 5%, var(--color-page)) 0%, var(--color-page) 30%)',
+        background:
+          'linear-gradient(to bottom, color-mix(in oklch, var(--color-accent) 5%, var(--color-page)) 0%, var(--color-page) 30%)',
         'background-attachment': 'fixed',
       }}
     >
@@ -1197,7 +1316,8 @@ export function MobileHome() {
         <div
           class={cn(
             'flex items-center gap-3 px-4 py-4 transition-all duration-200 relative z-10 shrink-0',
-            isScrolled() && 'backdrop-saturate-150 backdrop-blur-lg bg-gradient-to-b from-page/80 via-page/60 to-transparent'
+            isScrolled() &&
+              'backdrop-saturate-150 backdrop-blur-lg bg-gradient-to-b from-page/80 via-page/60 to-transparent'
           )}
         >
           <Show when={!isScrolled()}>
@@ -1237,7 +1357,9 @@ export function MobileHome() {
 
           <div
             class="px-4 pt-2 pb-6 space-y-8 transition-transform duration-200"
-            style={{ transform: `translateY(${isRefreshing() ? 40 : pullDistance() * 0.3}px)` }}
+            style={{
+              transform: `translateY(${isRefreshing() ? 40 : pullDistance() * 0.3}px)`,
+            }}
           >
             <div
               class="transition-all duration-200"
@@ -1274,7 +1396,6 @@ export function MobileHome() {
             </Suspense>
           </div>
         </div>
-
       </div>
     </div>
   );

@@ -19,7 +19,11 @@ type SlotProps = ParentProps<{ class?: string }>;
 type PanelProps = SurfaceProps;
 
 function PanelRoot(props: PanelProps) {
-  const [local, surfaceProps] = splitProps(props, ['children', 'class', 'style']);
+  const [local, surfaceProps] = splitProps(props, [
+    'children',
+    'class',
+    'style',
+  ]);
 
   return (
     <Surface

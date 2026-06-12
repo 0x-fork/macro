@@ -1,4 +1,8 @@
-import type { InputHandle, InputSnapshot, ReplyInputMode } from '@channel/Input';
+import type {
+  InputHandle,
+  InputSnapshot,
+  ReplyInputMode,
+} from '@channel/Input';
 import { batch, createSignal, type Setter } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { ThreadState } from '../Thread';

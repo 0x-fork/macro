@@ -52,9 +52,12 @@ export function ProjectBreadCrumb(props: {
   return (
     <a
       onClick={handleClick}
-      class={cn('flex gap-1 items-center min-w-0 cursor-default px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded transition-colors', {
-        'hover:bg-hover/50': projectQuery.isSuccess,
-      })}
+      class={cn(
+        'flex gap-1 items-center min-w-0 cursor-default px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded transition-colors',
+        {
+          'hover:bg-hover/50': projectQuery.isSuccess,
+        }
+      )}
     >
       <FolderIcon class="size-[1em]" />
       <Suspense

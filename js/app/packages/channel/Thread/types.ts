@@ -1,6 +1,10 @@
 import type { MessageEditor } from '@channel/Channel/create-message-editor';
 import type { NewMessageCheckable } from '@channel/Channel/util';
-import type { InputHandle, InputSnapshot, ReplyInputMode } from '@channel/Input';
+import type {
+  InputHandle,
+  InputSnapshot,
+  ReplyInputMode,
+} from '@channel/Input';
 import type { ApiChannelMessage } from '@service-storage/generated/schemas/apiChannelMessage';
 import type { Accessor, Setter } from 'solid-js';
 import type {

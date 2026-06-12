@@ -35,7 +35,6 @@ function TopIcon(props: TopIconProps) {
   );
 }
 
-
 type TopProps = {
   channelType: ChannelType;
   participants: ChannelParticipant[];

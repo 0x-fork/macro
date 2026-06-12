@@ -1,6 +1,11 @@
 import { createMemo } from 'solid-js';
 
-export type TaskStatus = 'created' | 'in-progress' | 'in-review' | 'done' | 'cancelled';
+export type TaskStatus =
+  | 'created'
+  | 'in-progress'
+  | 'in-review'
+  | 'done'
+  | 'cancelled';
 
 interface TaskCircleIconProps {
   status: TaskStatus;
@@ -61,18 +66,24 @@ export const TaskCircleIconPie = (props: TaskCircleIconProps) => {
       />
 
       {/* Progress pie using foreignObject for CSS mask support - counter-clockwise from top-left */}
-      <foreignObject x="3" y="3" width="6" height="6" opacity={isCancelled() ? 0 : 1}>
+      <foreignObject
+        x="3"
+        y="3"
+        width="6"
+        height="6"
+        opacity={isCancelled() ? 0 : 1}
+      >
         <div
           xmlns="http://www.w3.org/1999/xhtml"
           style={{
-            'width': '100%',
-            'height': '100%',
+            width: '100%',
+            height: '100%',
             'border-radius': '50%',
-            'background': 'var(--icon-color, currentColor)',
+            background: 'var(--icon-color, currentColor)',
             '--progress-angle': `${degrees()}deg`,
             'mask-image': `conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
             '-webkit-mask-image': `conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent calc(360deg - var(--progress-angle)), black calc(360deg - var(--progress-angle)))`,
-            'transition': '--progress-angle 200ms ease-out',
+            transition: '--progress-angle 200ms ease-out',
           }}
         />
       </foreignObject>
@@ -87,7 +98,9 @@ export const TaskCircleIconPie = (props: TaskCircleIconProps) => {
         stroke-dasharray="6"
         stroke-dashoffset={isDone() ? 0 : 6}
         style={{
-          animation: isDone() ? 'checkmark-draw 300ms ease-out forwards' : 'none',
+          animation: isDone()
+            ? 'checkmark-draw 300ms ease-out forwards'
+            : 'none',
         }}
         opacity={isDone() ? 1 : 0}
       />

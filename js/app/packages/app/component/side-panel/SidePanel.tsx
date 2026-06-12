@@ -4,7 +4,7 @@ import { isMobile } from '@core/mobile/isMobile';
 import { Accordion } from '@kobalte/core/accordion';
 import CaretRight from '@phosphor/caret-right.svg';
 import CircleDashedEmpty from '@phosphor/circle-dashed.svg';
-import { Layer, Panel, Scroll } from '@ui';
+import { Layer, Scroll } from '@ui';
 import { cn } from '@ui/utils/classname';
 import {
   type Accessor,

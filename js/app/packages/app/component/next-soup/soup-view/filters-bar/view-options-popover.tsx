@@ -307,7 +307,12 @@ export const ViewOptionsPopover: Component = () => {
   });
 
   return (
-    <Popover open={open()} onOpenChange={setOpen} placement="bottom-end" gutter={4}>
+    <Popover
+      open={open()}
+      onOpenChange={setOpen}
+      placement="bottom-end"
+      gutter={4}
+    >
       <Tooltip label="View options" shortcut="V">
         <Popover.Trigger
           as={Button}
@@ -355,7 +360,10 @@ export const ViewOptionsPopover: Component = () => {
             <div class="flex items-center justify-between gap-3">
               <span class="text-xs text-ink-muted">Sort</span>
               <DropdownMenu placement="bottom-end" gutter={4}>
-                <DropdownMenu.Trigger class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors" tabIndex={0}>
+                <DropdownMenu.Trigger
+                  class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors"
+                  tabIndex={0}
+                >
                   <span class="text-ink">{currentSortLabel()}</span>
                   <CaretDownIcon class="size-3 text-ink-muted" />
                 </DropdownMenu.Trigger>
@@ -371,7 +379,8 @@ export const ViewOptionsPopover: Component = () => {
                             <span
                               class={cn(
                                 'flex-1 truncate',
-                                sortValue() === option.value && 'text-ink font-medium'
+                                sortValue() === option.value &&
+                                  'text-ink font-medium'
                               )}
                             >
                               {option.label}
@@ -447,7 +456,9 @@ export const ViewOptionsPopover: Component = () => {
                 <span
                   class={cn(
                     'block size-3 rounded-full transition-transform',
-                    isPreviewActive() ? 'translate-x-3 bg-accent' : 'translate-x-0 bg-ink-muted'
+                    isPreviewActive()
+                      ? 'translate-x-3 bg-accent'
+                      : 'translate-x-0 bg-ink-muted'
                   )}
                 />
               </button>
@@ -487,7 +498,10 @@ const AssigneeFilterDropdown: Component<{
         </Show>
       </div>
       <DropdownMenu placement="bottom-end" gutter={4}>
-        <DropdownMenu.Trigger class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors" tabIndex={0}>
+        <DropdownMenu.Trigger
+          class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors"
+          tabIndex={0}
+        >
           <span class={activeCount() > 0 ? 'text-ink' : 'text-ink-muted'}>
             {activeLabel()}
           </span>
@@ -518,7 +532,9 @@ const AssigneeFilterDropdown: Component<{
                         </Show>
                       </span>
                       <Show when={option.icon}>
-                        {(icon) => <span class={OPTION_ICON_CLASS}>{icon()()}</span>}
+                        {(icon) => (
+                          <span class={OPTION_ICON_CLASS}>{icon()()}</span>
+                        )}
                       </Show>
                       <span
                         class={cn('flex-1 truncate', active() && 'text-ink')}
@@ -543,11 +559,14 @@ const FilterCategoryDropdown: Component<{
   toggleFilter: (id: string) => void;
 }> = (props) => {
   const activeCount = createMemo(() => {
-    return props.category.options.filter((o) => props.isOptionActive(o.id)).length;
+    return props.category.options.filter((o) => props.isOptionActive(o.id))
+      .length;
   });
 
   const activeLabel = createMemo(() => {
-    const active = props.category.options.filter((o) => props.isOptionActive(o.id));
+    const active = props.category.options.filter((o) =>
+      props.isOptionActive(o.id)
+    );
     if (active.length === 0) return 'All';
     if (active.length === 1) return active[0].label;
     return `${active.length} selected`;
@@ -562,7 +581,10 @@ const FilterCategoryDropdown: Component<{
         </Show>
       </div>
       <DropdownMenu placement="bottom-end" gutter={4}>
-        <DropdownMenu.Trigger class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors" tabIndex={0}>
+        <DropdownMenu.Trigger
+          class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10 focus:bg-ink/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-colors"
+          tabIndex={0}
+        >
           <span class={activeCount() > 0 ? 'text-ink' : 'text-ink-muted'}>
             {activeLabel()}
           </span>

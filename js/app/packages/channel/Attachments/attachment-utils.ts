@@ -13,7 +13,10 @@ const THUMB_GAP = 6;
 
 const NIL_ID = '00000000-0000-0000-0000-000000000000';
 
-export function itemsPerRow(containerWidth: number, thumbSize = THUMB_SIZE): number {
+export function itemsPerRow(
+  containerWidth: number,
+  thumbSize = THUMB_SIZE
+): number {
   if (containerWidth <= 0) return 1;
   return Math.max(
     1,

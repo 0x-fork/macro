@@ -1,4 +1,4 @@
-import { createMemo, createSignal, onCleanup, Show, Suspense } from 'solid-js';
+import { createMemo, createSignal, For, onCleanup, Show, Suspense } from 'solid-js';
 import { VList } from 'virtua/solid';
 import { MediaViewerDialog } from '@channel/Media/MediaViewerDialog';
 import {
@@ -44,7 +44,9 @@ function MediaTile(props: { item: MediaItem; onClick: () => void }) {
       >
         <img
           src={props.item.src}
-          class={cn('w-full h-full select-none object-cover hover:opacity-80 cursor-pointer')}
+          class={cn(
+            'w-full h-full select-none object-cover hover:opacity-80 cursor-pointer'
+          )}
           onClick={props.onClick}
           loading="lazy"
           alt=""
@@ -106,7 +108,9 @@ export function ChannelMediaTab(props: { channelId: string }) {
   };
 
   return (
-    <Suspense fallback={<div class="py-3 text-sm text-ink-muted">Loading...</div>}>
+    <Suspense
+      fallback={<div class="py-3 text-sm text-ink-muted">Loading...</div>}
+    >
       <div class="h-full flex flex-col" ref={observeContainer}>
         <Show when={!hasMedia() && !attachmentsQuery.isLoading}>
           <div class="py-3 text-sm text-ink-faint">
@@ -116,11 +120,7 @@ export function ChannelMediaTab(props: { channelId: string }) {
 
         <Show when={hasMedia()}>
           <div class="flex-1">
-            <VList
-              data={rows()}
-              onScrollEnd={handleScrollEnd}
-              class="h-full"
-            >
+            <VList data={rows()} onScrollEnd={handleScrollEnd} class="h-full">
               {(row) => (
                 <div
                   class="grid gap-1.5 pb-1.5"
@@ -128,21 +128,25 @@ export function ChannelMediaTab(props: { channelId: string }) {
                     'grid-template-columns': `repeat(${columnsCount()}, minmax(0, 1fr))`,
                   }}
                 >
-                  {row.items.map((item, colIndex) => (
-                    <MediaTile
-                      item={item}
-                      onClick={() => {
-                        setLightboxIndex(row.startIndex + colIndex);
-                        setViewerOpen(true);
-                      }}
-                    />
-                  ))}
+                  <For each={row.items}>
+                    {(item, colIndex) => (
+                      <MediaTile
+                        item={item}
+                        onClick={() => {
+                          setLightboxIndex(row.startIndex + colIndex());
+                          setViewerOpen(true);
+                        }}
+                      />
+                    )}
+                  </For>
                 </div>
               )}
             </VList>
           </div>
           <Show when={attachmentsQuery.isFetchingNextPage}>
-            <div class="py-2 text-center text-sm text-ink-muted">Loading...</div>
+            <div class="py-2 text-center text-sm text-ink-muted">
+              Loading...
+            </div>
           </Show>
           <MediaViewerDialog
             items={() => items()}

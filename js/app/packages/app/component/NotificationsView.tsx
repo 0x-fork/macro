@@ -499,7 +499,8 @@ function DocumentNotificationRow(props: {
   const documentName = () => getDocumentName(props.notification) ?? 'Untitled';
   const fileType = () => getDocumentFileType(props.notification);
   const isTask = () => isDocumentMentionTask(props.notification);
-  const targetType = () => (isTask() ? 'task' : fileTypeToBlockName(fileType()) ?? 'default');
+  const targetType = () =>
+    isTask() ? 'task' : (fileTypeToBlockName(fileType()) ?? 'default');
 
   return (
     <div

@@ -11,7 +11,9 @@ import type { Component, JSX } from 'solid-js';
 
 interface CreateOption {
   id: string;
-  icon: Component<JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }>;
+  icon: Component<
+    JSX.SvgSVGAttributes<SVGSVGElement> & { triggerAnimation?: boolean }
+  >;
   label: string;
   description: string;
   color: string;
@@ -102,17 +104,23 @@ export function MobileCreateDrawer(props: MobileCreateDrawerProps) {
                     onClick={() => handleSelect(option)}
                     class="flex flex-col items-center gap-3 p-4 rounded-2xl bg-ink/5 active:bg-ink/10 transition-colors"
                   >
-                    <div class={cn(
-                      'size-12 rounded-xl flex items-center justify-center',
-                      option.bgColor
-                    )}>
+                    <div
+                      class={cn(
+                        'size-12 rounded-xl flex items-center justify-center',
+                        option.bgColor
+                      )}
+                    >
                       <div class={cn('size-6 [&_svg]:size-6', option.color)}>
                         <option.icon />
                       </div>
                     </div>
                     <div class="text-center">
-                      <div class="text-sm font-medium text-ink">{option.label}</div>
-                      <div class="text-xs text-ink-muted mt-0.5">{option.description}</div>
+                      <div class="text-sm font-medium text-ink">
+                        {option.label}
+                      </div>
+                      <div class="text-xs text-ink-muted mt-0.5">
+                        {option.description}
+                      </div>
                     </div>
                   </button>
                 )}

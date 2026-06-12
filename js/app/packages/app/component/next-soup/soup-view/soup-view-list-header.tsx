@@ -56,7 +56,12 @@ const ListHeaderShell = (props: HeaderConfig) => {
         >
           <For each={props.cells}>
             {(cell, index) => (
-              <span class={cn('min-w-0 flex items-center gap-1 truncate', cell.class)}>
+              <span
+                class={cn(
+                  'min-w-0 flex items-center gap-1 truncate',
+                  cell.class
+                )}
+              >
                 <Show when={index() > 0}>
                   <HeaderDivider />
                 </Show>
@@ -99,7 +104,12 @@ const InboxHeader = () => {
     <ListHeaderShell
       columns="1.5rem minmax(0,1fr) minmax(0,9rem) 4.5rem"
       cells={[
-        { label: 'Type', icon: () => <TagIcon class={HEADER_ICON_CLASS} />, iconOnly: true, class: 'justify-center' },
+        {
+          label: 'Type',
+          icon: () => <TagIcon class={HEADER_ICON_CLASS} />,
+          iconOnly: true,
+          class: 'justify-center',
+        },
         { label: 'Item', icon: () => <TextIcon class={HEADER_ICON_CLASS} /> },
         { label: 'Source', icon: () => <TagIcon class={HEADER_ICON_CLASS} /> },
         time,
@@ -114,8 +124,16 @@ const MailHeader = () => {
     <ListHeaderShell
       columns="auto minmax(0,1fr) 21rem 4.5rem"
       cells={[
-        { label: 'Type', icon: () => <EnvelopeIcon class={HEADER_ICON_CLASS} />, iconOnly: true, class: 'justify-center' },
-        { label: 'From / Subject', icon: () => <UserIcon class={HEADER_ICON_CLASS} /> },
+        {
+          label: 'Type',
+          icon: () => <EnvelopeIcon class={HEADER_ICON_CLASS} />,
+          iconOnly: true,
+          class: 'justify-center',
+        },
+        {
+          label: 'From / Subject',
+          icon: () => <UserIcon class={HEADER_ICON_CLASS} />,
+        },
         { label: 'Mailbox', icon: () => <TagIcon class={HEADER_ICON_CLASS} /> },
         time,
       ]}
@@ -129,8 +147,16 @@ const DocumentsHeader = () => {
     <ListHeaderShell
       columns="1.5rem 1fr auto"
       cells={[
-        { label: 'Type', icon: () => <TagIcon class={HEADER_ICON_CLASS} />, iconOnly: true, class: 'justify-center' },
-        { label: 'Name / Location', icon: () => <TextIcon class={HEADER_ICON_CLASS} /> },
+        {
+          label: 'Type',
+          icon: () => <TagIcon class={HEADER_ICON_CLASS} />,
+          iconOnly: true,
+          class: 'justify-center',
+        },
+        {
+          label: 'Name / Location',
+          icon: () => <TextIcon class={HEADER_ICON_CLASS} />,
+        },
         time,
       ]}
     />
@@ -143,10 +169,24 @@ const ChannelsHeader = () => {
     <ListHeaderShell
       columns="auto 12rem minmax(0,1fr) 21rem 4.5rem"
       cells={[
-        { label: 'Type', icon: () => <TagIcon class={HEADER_ICON_CLASS} />, iconOnly: true, class: 'justify-center' },
-        { label: 'Channel', icon: () => <HashIcon class={HEADER_ICON_CLASS} /> },
-        { label: 'Last message', icon: () => <ChatIcon class={HEADER_ICON_CLASS} /> },
-        { label: 'Participants', icon: () => <UserIcon class={HEADER_ICON_CLASS} /> },
+        {
+          label: 'Type',
+          icon: () => <TagIcon class={HEADER_ICON_CLASS} />,
+          iconOnly: true,
+          class: 'justify-center',
+        },
+        {
+          label: 'Channel',
+          icon: () => <HashIcon class={HEADER_ICON_CLASS} />,
+        },
+        {
+          label: 'Last message',
+          icon: () => <ChatIcon class={HEADER_ICON_CLASS} />,
+        },
+        {
+          label: 'Participants',
+          icon: () => <UserIcon class={HEADER_ICON_CLASS} />,
+        },
         time,
       ]}
     />
@@ -159,8 +199,16 @@ const AgentsHeader = () => {
     <ListHeaderShell
       columns="1.5rem 1fr auto"
       cells={[
-        { label: 'Type', icon: () => <RobotIcon class={HEADER_ICON_CLASS} />, iconOnly: true, class: 'justify-center' },
-        { label: 'Agent / Owner', icon: () => <UserIcon class={HEADER_ICON_CLASS} /> },
+        {
+          label: 'Type',
+          icon: () => <RobotIcon class={HEADER_ICON_CLASS} />,
+          iconOnly: true,
+          class: 'justify-center',
+        },
+        {
+          label: 'Agent / Owner',
+          icon: () => <UserIcon class={HEADER_ICON_CLASS} />,
+        },
         time,
       ]}
     />
@@ -173,8 +221,16 @@ const FoldersHeader = () => {
     <ListHeaderShell
       columns="1.5rem 1fr auto"
       cells={[
-        { label: 'Type', icon: () => <FolderSimpleIcon class={HEADER_ICON_CLASS} />, iconOnly: true, class: 'justify-center' },
-        { label: 'Folder / Owner', icon: () => <UserIcon class={HEADER_ICON_CLASS} /> },
+        {
+          label: 'Type',
+          icon: () => <FolderSimpleIcon class={HEADER_ICON_CLASS} />,
+          iconOnly: true,
+          class: 'justify-center',
+        },
+        {
+          label: 'Folder / Owner',
+          icon: () => <UserIcon class={HEADER_ICON_CLASS} />,
+        },
         time,
       ]}
     />
@@ -185,9 +241,21 @@ const NotificationsHeader = () => (
   <ListHeaderShell
     columns="1.5rem 1fr auto"
     cells={[
-      { label: 'Type', icon: () => <BellIcon class={HEADER_ICON_CLASS} />, iconOnly: true, class: 'justify-center' },
-      { label: 'Notification / Source', icon: () => <TagIcon class={HEADER_ICON_CLASS} /> },
-      { label: 'Date', icon: () => <ClockIcon class={HEADER_ICON_CLASS} />, class: 'justify-end' },
+      {
+        label: 'Type',
+        icon: () => <BellIcon class={HEADER_ICON_CLASS} />,
+        iconOnly: true,
+        class: 'justify-center',
+      },
+      {
+        label: 'Notification / Source',
+        icon: () => <TagIcon class={HEADER_ICON_CLASS} />,
+      },
+      {
+        label: 'Date',
+        icon: () => <ClockIcon class={HEADER_ICON_CLASS} />,
+        class: 'justify-end',
+      },
     ]}
   />
 );
@@ -198,8 +266,16 @@ const SearchHeader = () => {
     <ListHeaderShell
       columns="1.5rem 1fr auto"
       cells={[
-        { label: 'Type', icon: () => <TagIcon class={HEADER_ICON_CLASS} />, iconOnly: true, class: 'justify-center' },
-        { label: 'Result', icon: () => <MagnifyingGlassIcon class={HEADER_ICON_CLASS} /> },
+        {
+          label: 'Type',
+          icon: () => <TagIcon class={HEADER_ICON_CLASS} />,
+          iconOnly: true,
+          class: 'justify-center',
+        },
+        {
+          label: 'Result',
+          icon: () => <MagnifyingGlassIcon class={HEADER_ICON_CLASS} />,
+        },
         time,
       ]}
     />
@@ -212,7 +288,12 @@ const DefaultHeader = () => {
     <ListHeaderShell
       columns="1.5rem 1fr auto"
       cells={[
-        { label: 'Type', icon: () => <TagIcon class={HEADER_ICON_CLASS} />, iconOnly: true, class: 'justify-center' },
+        {
+          label: 'Type',
+          icon: () => <TagIcon class={HEADER_ICON_CLASS} />,
+          iconOnly: true,
+          class: 'justify-center',
+        },
         { label: 'Item', icon: () => <TextIcon class={HEADER_ICON_CLASS} /> },
         time,
       ]}

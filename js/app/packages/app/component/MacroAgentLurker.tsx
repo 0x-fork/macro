@@ -15,7 +15,6 @@ import { MACRO_AGENT_NAME } from '@core/constant/macroAgent';
 import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
 import { isPaymentError } from '@core/util/handlePaymentError';
 import LogoIcon from '@icon/macro-logo.svg';
-import { AnimatedStarIcon } from '@icon/wide-star';
 import { createRenameDssEntityMutation } from '@macro-entity';
 import XIcon from '@phosphor/x.svg';
 import { invalidateAllSoup } from '@queries/soup/cache';
@@ -152,11 +151,10 @@ const MacroAgentInputOverlay = (props: { onClose: () => void }) => (
   </div>
 );
 
-const MacroAgentCharacter = (props: {
-  reveal: number;
-  onOpen: () => void;
-}) => {
-  const underlineOpacity = createMemo(() => clamp01((props.reveal - 0.2) / 0.45));
+const MacroAgentCharacter = (props: { reveal: number; onOpen: () => void }) => {
+  const underlineOpacity = createMemo(() =>
+    clamp01((props.reveal - 0.2) / 0.45)
+  );
 
   return (
     <button
@@ -179,9 +177,7 @@ const MacroAgentCharacter = (props: {
           style={{ opacity: underlineOpacity() }}
         />
 
-        <div
-          class="absolute left-1/2 top-3 z-20 flex h-10 w-fit min-w-0 -translate-x-1/2 items-center justify-center overflow-hidden rounded-full border border-edge-muted bg-surface/72 px-3.5 shadow-[inset_0_1px_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),inset_0_-8px_18px_color-mix(in_oklch,var(--color-edge-muted)_20%,transparent),0_16px_32px_-22px_rgba(0,0,0,0.5)] backdrop-blur-xl backdrop-saturate-150 transition-transform duration-100 ease-out"
-        >
+        <div class="absolute left-1/2 top-3 z-20 flex h-10 w-fit min-w-0 -translate-x-1/2 items-center justify-center overflow-hidden rounded-full border border-edge-muted bg-surface/72 px-3.5 shadow-[inset_0_1px_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),inset_0_-8px_18px_color-mix(in_oklch,var(--color-edge-muted)_20%,transparent),0_16px_32px_-22px_rgba(0,0,0,0.5)] backdrop-blur-xl backdrop-saturate-150 transition-transform duration-100 ease-out">
           <div class="relative z-10 flex items-center gap-2.5 px-1">
             <LogoIcon class="size-4 text-accent" />
             <span class="whitespace-nowrap text-xs font-semibold tracking-tight text-ink/75">

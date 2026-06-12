@@ -24,7 +24,6 @@ import {
   MobileSoupFooter,
   MobileSoupHeader,
 } from '@app/component/next-soup/soup-view/filters-bar/mobile-soup-header';
-import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { ActiveFilterChips } from '@app/component/next-soup/soup-view/filters-bar/active-filter-chips';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import { INBOX_FILTER_ENTRY_KEY } from '@app/component/next-soup/soup-view/inbox-filter-controllers';
@@ -44,9 +43,6 @@ import {
 } from '@app/component/next-soup/soup-view/soup-view-mobile-search';
 import { SoupViewMobileSettingsButton } from '@app/component/next-soup/soup-view/soup-view-mobile-settings-button';
 import {
-  CollapsedSoupViewTabs,
-  MobileSoupViewTabs,
-  SoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
 import { TaskListEntity } from '@app/component/next-soup/soup-view/views/tasks/TaskListEntity';
@@ -59,7 +55,6 @@ import {
   PreviewPanel,
   useMaybePreviewPanel,
 } from '@app/component/PreviewPanel';
-import { CollapsibleHeaderItem } from '@app/component/split-layout/components/CollapsibleHeaderItem';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -73,7 +68,6 @@ import { EmailPermissionsBanner } from '@core/component/EmailPermissionsBanner';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { Resize } from '@core/component/Resize';
 import { UserIcon } from '@core/component/UserIcon';
-import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import {
   soupListContainerAttribute,
@@ -92,7 +86,6 @@ import {
   type SearchLocation,
   StackedListEntity,
 } from '@entity';
-import SearchIcon from '@icon/macro-magnifying-glass.svg';
 import { createEffectOnEntityTypeNotification } from '@notifications';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import ChevronRightIcon from '@phosphor/caret-right.svg';
@@ -112,8 +105,7 @@ import {
   refetchSoupEntity,
 } from '@queries/soup/normalized-cache';
 import { debounce } from '@solid-primitives/scheduled';
-import { makePersisted } from '@solid-primitives/storage';
-import { Button, cn, Hotkey, Layer, Tooltip } from '@ui';
+import { Button, cn, Hotkey, Layer, } from '@ui';
 import {
   type Accessor,
   batch,
@@ -524,19 +516,7 @@ const SoupViewFooter = () => {
   );
 };
 
-type PersistedSoupViewState = {
-  version?: number;
-  activeTab: string | undefined;
-  filters: SetPredicatesInput<string>;
-  queryFilters: Partial<QueryState>;
-  sort: SystemSortOption[];
-  previewEntity: string | undefined;
-  assigneeFilter: string[];
-  groupBy: string | undefined;
-  collapsedGroups: string[];
-};
-
-const PERSISTED_STATE_VERSION = 8;
+const _PERSISTED_STATE_VERSION = 8;
 
 const listStateCache = new Map<
   string,
@@ -598,9 +578,7 @@ export const SoupView = (props: SoupViewProps) => {
       const persistedInboxFilter = entryState?.[INBOX_FILTER_ENTRY_KEY] as
         | string[]
         | undefined;
-      const persistedActiveTab = entryState?.['soup.tab'] as
-        | string
-        | undefined;
+      const persistedActiveTab = entryState?.['soup.tab'] as string | undefined;
       const content = panel.handle.content();
       const defaultActiveTab =
         content.type === 'component' && isListViewID(content.id)
@@ -721,76 +699,74 @@ export const SoupView = (props: SoupViewProps) => {
           class="relative size-full flex flex-col"
           data-list-view={activeListView()}
         >
+          <Show when={isMobile()}>
+            <MobileSoupHeader
+              viewName={props.viewName}
+              scrollY={mobileScrollY}
+            />
+          </Show>
+          <Show when={!isMobile()}>
+            <div class="flex flex-col w-full">
+              <SplitHeaderLeft>
+                <div class="h-full flex gap-3 items-center shrink-0">
+                  <h1 class="font-medium text-ink-extra-muted select-none text-sm leading-none">
+                    {props.viewName}
+                  </h1>
+                </div>
+              </SplitHeaderLeft>
+              <SplitHeaderRight>
+                <Show when={!isComponentListView('search')}>
+                  <SoupViewCreateButton />
+                </Show>
+              </SplitHeaderRight>
+              <SoupFiltersBar
+                searchView={isComponentListView('search')}
+                initialSearchText={props.initialSearchText}
+              />
+            </div>
+          </Show>
+          <Show when={hasLinkError()}>
+            <EmailPermissionsBanner />
+          </Show>
+          <div
+            class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full"
+            classList={{
+              'pointer-events-none opacity-10': hasLinkError(),
+            }}
+          >
+            <Suspense fallback={<SoupListSkeleton />}>
+              <SoupViewFileDropzone>
+                <SoupViewList
+                  initialClientFilters={props.initialClientFilters}
+                  initialGroupBy={props.initialGroupBy}
+                  skipPersistedState={props.skipPersistedState}
+                  onMobileScroll={setMobileScrollY}
+                  onScrollOffsetBaseline={resetFloatingButtonScrollTracking}
+                  onScrollOffsetChange={handleSoupScrollOffsetChange}
+                />
+              </SoupViewFileDropzone>
+            </Suspense>
             <Show when={isMobile()}>
-              <MobileSoupHeader
-                viewName={props.viewName}
-                scrollY={mobileScrollY}
+              <SoupViewMobileSettingsButton visible={floatingButtonsVisible} />
+              <SoupViewMobileSearchButton
+                open={mobileSearchOpen}
+                visible={floatingButtonsVisible}
+                onOpen={() => setMobileSearchOpen(true)}
+              />
+              <SoupViewMobileCreateButton
+                activeView={activeListView}
+                visible={floatingButtonsVisible}
+              />
+              <SoupViewMobileSearchBar
+                open={mobileSearchOpen}
+                onClose={() => setMobileSearchOpen(false)}
               />
             </Show>
-            <Show when={!isMobile()}>
-              <div class="flex flex-col w-full">
-                <SplitHeaderLeft>
-                  <div class="h-full flex gap-3 items-center shrink-0">
-                    <h1 class="font-medium text-ink-extra-muted select-none text-sm leading-none">
-                      {props.viewName}
-                    </h1>
-                  </div>
-                </SplitHeaderLeft>
-                <SplitHeaderRight>
-                  <Show when={!isComponentListView('search')}>
-                    <SoupViewCreateButton />
-                  </Show>
-                </SplitHeaderRight>
-                <SoupFiltersBar
-                  searchView={isComponentListView('search')}
-                  initialSearchText={props.initialSearchText}
-                />
-              </div>
-            </Show>
-            <Show when={hasLinkError()}>
-              <EmailPermissionsBanner />
-            </Show>
-            <div
-              class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full"
-              classList={{
-                'pointer-events-none opacity-10': hasLinkError(),
-              }}
-            >
-              <Suspense fallback={<SoupListSkeleton />}>
-                <SoupViewFileDropzone>
-                  <SoupViewList
-                    initialClientFilters={props.initialClientFilters}
-                    initialGroupBy={props.initialGroupBy}
-                    skipPersistedState={props.skipPersistedState}
-                    onMobileScroll={setMobileScrollY}
-                    onScrollOffsetBaseline={resetFloatingButtonScrollTracking}
-                    onScrollOffsetChange={handleSoupScrollOffsetChange}
-                  />
-                </SoupViewFileDropzone>
-              </Suspense>
-              <Show when={isMobile()}>
-                <SoupViewMobileSettingsButton
-                  visible={floatingButtonsVisible}
-                />
-                <SoupViewMobileSearchButton
-                  open={mobileSearchOpen}
-                  visible={floatingButtonsVisible}
-                  onOpen={() => setMobileSearchOpen(true)}
-                />
-                <SoupViewMobileCreateButton
-                  activeView={activeListView}
-                  visible={floatingButtonsVisible}
-                />
-                <SoupViewMobileSearchBar
-                  open={mobileSearchOpen}
-                  onClose={() => setMobileSearchOpen(false)}
-                />
-              </Show>
-            </div>
-            <SoupViewFooter />
-            <Show when={isMobile()}>
-              <MobileSoupFooter />
-            </Show>
+          </div>
+          <SoupViewFooter />
+          <Show when={isMobile()}>
+            <MobileSoupFooter />
+          </Show>
         </div>
       </Suspense>
     </SplitPanelContext.Provider>
@@ -1311,9 +1287,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                     <ListLayoutProvider ref={localEntityListRef}>
                       <Show
                         when={currentView() === 'tasks' && !isMobile()}
-                        fallback={
-                          <SoupViewListHeader />
-                        }
+                        fallback={<SoupViewListHeader />}
                       >
                         <ResponsiveTaskListHeader class="shrink-0" />
                       </Show>
@@ -1434,7 +1408,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                           )}
                                         >
                                           <Show
-                                            when={!isFetchingGroupPage(group().key)}
+                                            when={
+                                              !isFetchingGroupPage(group().key)
+                                            }
                                             fallback={
                                               <Button
                                                 variant="base"
@@ -1461,7 +1437,11 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                                 'border-transparent':
                                                   highlighted(),
                                               })}
-                                              onClick={() => void fetchNextGroupPage(group().key)}
+                                              onClick={() =>
+                                                void fetchNextGroupPage(
+                                                  group().key
+                                                )
+                                              }
                                             >
                                               <CaretDownIcon class="size-2.5" />
                                               Load More

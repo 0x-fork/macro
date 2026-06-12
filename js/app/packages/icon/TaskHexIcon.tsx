@@ -1,6 +1,11 @@
 import { createMemo, For, Show } from 'solid-js';
 
-export type TaskStatus = 'created' | 'in-progress' | 'in-review' | 'done' | 'cancelled';
+export type TaskStatus =
+  | 'created'
+  | 'in-progress'
+  | 'in-review'
+  | 'done'
+  | 'cancelled';
 
 interface TaskHexIconProps {
   status: TaskStatus;

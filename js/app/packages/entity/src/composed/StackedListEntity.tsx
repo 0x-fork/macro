@@ -8,7 +8,6 @@ import { isMobile } from '@core/mobile/isMobile';
 import { tryMacroId, useDisplayName, useDisplayNameParts } from '@core/user';
 import type { DateValue } from '@core/util/date';
 import { DisplayName } from '@entity/components/DisplayName';
-import ArrowDownLeftIcon from '@phosphor/arrow-down-left.svg';
 import UsersIcon from '@phosphor-icons/core/fill/users-fill.svg?component-solid';
 import UserFillIcon from '@phosphor-icons/core/fill/user-fill.svg?component-solid';
 import CalendarBlankIcon from '@phosphor-icons/core/bold/calendar-blank-bold.svg';
@@ -17,7 +16,6 @@ import FileDashedIcon from '@phosphor/file-dashed.svg';
 import PhoneXIcon from '@phosphor-icons/core/bold/phone-x-bold.svg';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg';
 import CircleDashedIcon from '@phosphor-icons/core/regular/circle-dashed.svg';
-import ListChecksIcon from '@phosphor-icons/core/regular/list-checks.svg';
 import type { StreamEvent } from '@service-connection/generated/schemas';
 import {
   getStreamState,
@@ -51,7 +49,7 @@ import { Modals } from '@property/component/modal';
 import type { Property, PropertyApiValues } from '@property/types';
 import { SYSTEM_PROPERTY_IDS, PROPERTY_OPTION_IDS } from '@property/constants';
 import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
-import { TaskCircleIcon, type TaskStatus } from '@icon/TaskCircleIcon';
+import type { TaskStatus } from '@icon/TaskCircleIcon';
 import { HexDashedIcon } from '@icon/HexDashedIcon';
 import { formatPropertyValue } from '@property/utils/formatting';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
@@ -904,7 +902,10 @@ function GithubPullRequestLayout(
     >
       <div class="flex items-center gap-2 min-w-0 w-full">
         <div class="[&_svg]:size-4 shrink-0">
-          <Entity.Icon entity={props.pullRequest} streamState={props.streamState} />
+          <Entity.Icon
+            entity={props.pullRequest}
+            streamState={props.streamState}
+          />
         </div>
         <span class="ph-no-capture flex min-w-0 flex-1 items-center gap-1 font-semibold">
           <span class="min-w-0 truncate">
@@ -1397,7 +1398,7 @@ function NarrowChannelMessageLayout(
   );
 }
 
-function StatusPillContent(props: {
+function _StatusPillContent(props: {
   entity: EntityWithProperties<EntityData>;
 }) {
   const statusData = createMemo(() => {
@@ -1432,7 +1433,7 @@ function StatusPillContent(props: {
   );
 }
 
-function PriorityPillContent(props: {
+function _PriorityPillContent(props: {
   entity: EntityWithProperties<EntityData>;
 }) {
   const priorityData = createMemo(() => {
@@ -1467,7 +1468,7 @@ function PriorityPillContent(props: {
   );
 }
 
-function AssigneesPillContent(props: {
+function _AssigneesPillContent(props: {
   entity: EntityWithProperties<EntityData>;
 }) {
   const assigneesProperty = createMemo(() => {
@@ -1634,10 +1635,10 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
   const taskStatus = useTaskStatus(
     props.entity as EntityWithProperties<EntityData>
   );
-  const taskPriority = useTaskPriority(
+  const _taskPriority = useTaskPriority(
     props.entity as EntityWithProperties<EntityData>
   );
-  const taskAssignees = useTaskAssignees(
+  const _taskAssignees = useTaskAssignees(
     props.entity as EntityWithProperties<EntityData>
   );
 
@@ -1836,7 +1837,7 @@ function NarrowTaskLayout(props: BaseLayoutProps & { task: TaskEntity }) {
 function NarrowDocumentLayout(
   props: BaseLayoutProps & { document: DocumentEntity }
 ) {
-  const mobile = isMobile();
+  const _mobile = isMobile();
 
   return (
     <NarrowIconShell
@@ -2088,7 +2089,10 @@ function NarrowGithubPullRequestLayout(
       dimWhenRead={props.dimWhenRead ?? true}
       hasNotifications={props.hasNotifications}
       icon={
-        <Entity.Icon entity={props.pullRequest} streamState={props.streamState} />
+        <Entity.Icon
+          entity={props.pullRequest}
+          streamState={props.streamState}
+        />
       }
       trailing={
         <span class="flex items-center gap-1.5 text-xs text-ink-extra-muted font-light whitespace-nowrap">
@@ -2098,7 +2102,10 @@ function NarrowGithubPullRequestLayout(
     >
       <div class="flex min-w-0 items-center gap-1.5">
         <span class="shrink-0 [&_svg]:size-4">
-          <Entity.Icon entity={props.pullRequest} streamState={props.streamState} />
+          <Entity.Icon
+            entity={props.pullRequest}
+            streamState={props.streamState}
+          />
         </span>
         <span class="ph-no-capture min-w-0 truncate text-sm font-semibold">
           <Entity.Title entity={props.pullRequest} />

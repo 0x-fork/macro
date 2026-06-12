@@ -76,7 +76,9 @@ export function ChannelDocumentsTab(props: { channelId: string }) {
   };
 
   return (
-    <Suspense fallback={<div class="py-3 text-sm text-ink-muted">Loading...</div>}>
+    <Suspense
+      fallback={<div class="py-3 text-sm text-ink-muted">Loading...</div>}
+    >
       <div class="h-full flex flex-col">
         <Show when={!hasDocuments() && !attachmentsQuery.isLoading}>
           <div class="py-3 text-sm text-ink-faint">
@@ -86,11 +88,7 @@ export function ChannelDocumentsTab(props: { channelId: string }) {
 
         <Show when={hasDocuments()}>
           <div class="flex-1">
-            <VList
-              data={rows()}
-              onScrollEnd={handleScrollEnd}
-              class="h-full"
-            >
+            <VList data={rows()} onScrollEnd={handleScrollEnd} class="h-full">
               {(row) => (
                 <div class="pb-1">
                   <AttachmentEntityRow
@@ -104,7 +102,9 @@ export function ChannelDocumentsTab(props: { channelId: string }) {
             </VList>
           </div>
           <Show when={attachmentsQuery.isFetchingNextPage}>
-            <div class="py-2 text-center text-sm text-ink-muted">Loading...</div>
+            <div class="py-2 text-center text-sm text-ink-muted">
+              Loading...
+            </div>
           </Show>
         </Show>
       </div>

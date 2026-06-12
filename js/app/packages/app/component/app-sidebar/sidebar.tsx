@@ -19,7 +19,6 @@ import { LIST_VIEW_PATHS, type ListView } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { InCallPanel } from '@channel/Call';
 import { useCallContextOptional } from '@channel/Call/CallContext';
 import { useHasPaidAccess } from '@core/auth';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
@@ -50,7 +49,6 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import LogoIcon from '@icon/macro-logo.svg';
 import SquareSidebarIcon from '@icon/square-sidebar.svg';
-import { AnimatedSignalIcon } from '@icon/wide-signal';
 import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
 import { AnimatedCallIcon } from '@icon/wide-call';
@@ -77,7 +75,7 @@ import UsersThreeIcon from '@phosphor/users-three.svg';
 import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
 import { useLocation } from '@solidjs/router';
-import { Button, cn, Dropdown, Hotkey, Layer } from '@ui';
+import { Button, cn, Dropdown, Hotkey, } from '@ui';
 import { useLogout } from '@core/auth/logout';
 import { useEmail } from '@core/context/user';
 import { useDisplayName, tryMacroId } from '@core/user';
@@ -521,7 +519,8 @@ const SidebarMobileAppCard = (props: {
 
 /** Session-only signals so a hint shows after dismissal until the user acknowledges or the timer expires. */
 const [inviteHintVisible, setInviteHintVisible] = createSignal(false);
-const [notificationsHintVisible, setNotificationsHintVisible] = createSignal(false);
+const [notificationsHintVisible, setNotificationsHintVisible] =
+  createSignal(false);
 
 const PROMO_HINT_DURATION_MS = 8000;
 
@@ -537,7 +536,10 @@ const SidebarPromoHint = (props: SidebarPromoHintProps) => {
   const [fading, setFading] = createSignal(false);
 
   onMount(() => {
-    const fadeTimer = setTimeout(() => setFading(true), PROMO_HINT_DURATION_MS - 400);
+    const fadeTimer = setTimeout(
+      () => setFading(true),
+      PROMO_HINT_DURATION_MS - 400
+    );
     const doneTimer = setTimeout(props.onDone, PROMO_HINT_DURATION_MS);
     onCleanup(() => {
       clearTimeout(fadeTimer);
@@ -680,7 +682,7 @@ const SidebarPromoCard = (props: SidebarPromoCardProps) => {
   );
 };
 /** Session-only signal so a hint shows after dismissal until the user acknowledges or the timer expires. */
-const [premiumHintVisible, setPremiumHintVisible] = createSignal(false);
+const [_premiumHintVisible, _setPremiumHintVisible] = createSignal(false);
 
 type SidebarActionButtonProps = {
   icon: Component<{ triggerAnimation?: boolean; class?: string }>;
@@ -698,7 +700,7 @@ type SidebarShortcutLinkProps = {
   isSlim: () => boolean;
 };
 
-const SidebarShortcutLink = (props: SidebarShortcutLinkProps) => {
+const _SidebarShortcutLink = (props: SidebarShortcutLinkProps) => {
   const [isHovering, setIsHovering] = createSignal(false);
 
   return (
@@ -809,7 +811,7 @@ const useIsSettingsTabAvailable = () => {
  * - slim  → show tooltip (label + hotkey)
  * - expanded → no tooltip (label and hotkey badge are visible inline)
  */
-const SidebarActionButton = (props: SidebarActionButtonProps) => {
+const _SidebarActionButton = (props: SidebarActionButtonProps) => {
   const [hovering, setHovering] = createSignal(false);
 
   const isDisabled = () =>
@@ -886,7 +888,11 @@ const SidebarCreateMenuItem = (props: {
       </span>
       <span class="flex-1 truncate font-medium">{props.item.label}</span>
       <Hotkey
-        shortcut={Array.isArray(props.item.hotkey) ? props.item.hotkey[0] : props.item.hotkey}
+        shortcut={
+          Array.isArray(props.item.hotkey)
+            ? props.item.hotkey[0]
+            : props.item.hotkey
+        }
         theme="subtle"
         class="ml-3 shrink-0"
       />
@@ -908,7 +914,9 @@ const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
         label={props.isSlim() ? props.label : undefined}
         hotkey={props.isSlim() ? props.hotkeyToken : undefined}
       >
-        <div class="shrink-0 flex items-center justify-center">{props.icon()}</div>
+        <div class="shrink-0 flex items-center justify-center">
+          {props.icon()}
+        </div>
         <span class="whitespace-nowrap group-data-[slim=true]/sidebar:hidden">
           {props.label}
         </span>
@@ -940,7 +948,7 @@ type SidebarIconButtonProps = {
   isSlim: () => boolean;
 };
 
-const SidebarIconButton = (props: SidebarIconButtonProps) => {
+const _SidebarIconButton = (props: SidebarIconButtonProps) => {
   const [hovering, setHovering] = createSignal(false);
 
   const isDisabled = () =>
@@ -1025,16 +1033,15 @@ const SidebarUserMenu = (props: {
             </div>
           </div>
           <div class="mx-2 my-1 h-px bg-edge-muted" />
-          <Dropdown.Item
-            onSelect={props.onCommandMenu}
-          >
+          <Dropdown.Item onSelect={props.onCommandMenu}>
             <CommandIcon class="size-3.5 shrink-0" />
             <span class="flex-1 truncate">Command menu</span>
-            <Hotkey token={TOKENS.global.commandMenu} class="flex gap-0.5 text-ink-extra-muted" />
+            <Hotkey
+              token={TOKENS.global.commandMenu}
+              class="flex gap-0.5 text-ink-extra-muted"
+            />
           </Dropdown.Item>
-          <Dropdown.Item
-            onSelect={props.onSettings}
-          >
+          <Dropdown.Item onSelect={props.onSettings}>
             <GearIcon class="size-3.5 shrink-0" />
             <span class="flex-1 truncate">Settings</span>
           </Dropdown.Item>
@@ -1057,7 +1064,7 @@ type SidebarSettingsWidgetProps = {
   isTabAvailable: (tab: SettingsTab) => boolean;
 };
 
-const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
+const _SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
   const userId = useUserId();
 
   const topItems = createMemo(() =>
@@ -1176,15 +1183,15 @@ export const AppSidebar = (props: AppSidebarProps) => {
     enabledOverride: ENABLE_HOME_OVERRIDE,
   });
 
-  const hasPaidAccess = useHasPaidAccess();
+  const _hasPaidAccess = useHasPaidAccess();
 
   /** Persisted dismissal for the Premium upgrade promo card. */
-  const [premiumCardDismissed, setPremiumCardDismissed] = makePersisted(
+  const [_premiumCardDismissed, _setPremiumCardDismissed] = makePersisted(
     createSignal<boolean>(false),
     { name: 'sidebar-premium-card-dismissed' }
   );
 
-  const newPricingFF = useFeatureFlag('enable-new-pricing', {
+  const _newPricingFF = useFeatureFlag('enable-new-pricing', {
     enabledOverride: ENABLE_NEW_PRICING_OVERRIDE,
   });
 
@@ -1253,7 +1260,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
   const isSlim = () => props.sidebarState === 'slim';
 
   let sidebarShell: HTMLDivElement | undefined;
-  const { panelIsSlim, handleSidebarOpenChange } = createInCallPanelSlimToggle({
+  const { handleSidebarOpenChange } = createInCallPanelSlimToggle({
     initialSlim: isSlim(),
     parentOnOpenChange: props.onOpenChange,
     getShell: () => sidebarShell,
@@ -1357,9 +1364,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
           !callCtx?.isInCall() && 'mt-auto'
         )}
       >
-        <Show
-          when={showEnableNotifications() && !notificationsCardDismissed()}
-        >
+        <Show when={showEnableNotifications() && !notificationsCardDismissed()}>
           <SidebarPromoCard
             label="Enable notifications"
             description="Stay in the loop when you're away"

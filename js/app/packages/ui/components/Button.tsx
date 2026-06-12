@@ -97,8 +97,10 @@ export const Button = (props: ButtonProps) => {
     if (variant === 'cta') {
       return {
         color: 'var(--color-surface)',
-        '--color-edge': 'color-mix(in oklch, var(--color-surface) 70%, transparent)',
-        '--color-edge-muted': 'color-mix(in oklch, var(--color-surface) 70%, transparent)',
+        '--color-edge':
+          'color-mix(in oklch, var(--color-surface) 70%, transparent)',
+        '--color-edge-muted':
+          'color-mix(in oklch, var(--color-surface) 70%, transparent)',
         ...(typeof others.style === 'object' ? others.style : {}),
       };
     }
