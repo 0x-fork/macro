@@ -59,7 +59,7 @@ function MenuItemWrapper(props: MenuItemWrapperProps) {
           onChange={(props as CheckboxMenuItemWrapperProps).onChange}
           disabled={props.disabled}
           onSelect={props.onClick}
-          closeOnSelect={props.closeOnSelect}
+          closeOnSelect={props.closeOnSelect ?? true}
         >
           {props.children}
         </ContextMenu.CheckboxItem>
@@ -70,7 +70,7 @@ function MenuItemWrapper(props: MenuItemWrapperProps) {
           value={(props as RadioMenuItemWrapperProps).value}
           disabled={props.disabled}
           onSelect={props.onClick}
-          closeOnSelect={props.closeOnSelect}
+          closeOnSelect={props.closeOnSelect ?? true}
         >
           {props.children}
         </ContextMenu.RadioItem>
@@ -80,7 +80,7 @@ function MenuItemWrapper(props: MenuItemWrapperProps) {
           class={props.class}
           disabled={props.disabled}
           onSelect={props.onClick}
-          closeOnSelect={props.closeOnSelect}
+          closeOnSelect={props.closeOnSelect ?? true}
         >
           {props.children}
         </ContextMenu.Item>
@@ -163,7 +163,7 @@ export function MenuItem(props: MenuItemProps) {
       )}
       onClick={props.onClick}
       disabled={props.disabled}
-      closeOnSelect={props.closeOnSelect}
+      closeOnSelect={props.closeOnSelect ?? true}
       selectorType={props.selectorType}
       value={props.value}
       checked={props.checked}

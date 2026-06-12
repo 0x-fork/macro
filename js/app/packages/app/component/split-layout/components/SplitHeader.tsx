@@ -62,14 +62,25 @@ function useSplitMenuActions() {
   };
   const canCloseOtherSplits = () => splits().length > 1;
 
-  const handleNewSplitClick = () => {
+  const handleNewSplitClick = (side: 'left' | 'right') => {
     if (!layout.manager.canAppendSplit()) return;
-    layout.manager.createNewSplit({
+
+    const index = currentIndex();
+    const split = layout.manager.createNewSplit({
       content: { type: 'component', id: LIST_VIEW_ID.inbox },
       activate: true,
       allowDuplicate: true,
       referredFrom: 'sidebar',
     });
+
+    if (index < 0) return;
+
+    const next = splits().map((existingSplit) => existingSplit.content);
+    const [created] = next.splice(next.length - 1, 1);
+    if (!created) return;
+    next.splice(side === 'left' ? index : index + 1, 0, created);
+    layout.manager.reconcile(next);
+    layout.manager.getSplitByContent(split.content().type, split.content().id)?.activate();
   };
 
   const handleDuplicateSplit = () => {
@@ -151,9 +162,13 @@ function SplitMenuDropdownContent(props: { actions: NonNullable<ReturnType<typeo
   return (
     <Dropdown.Content class="min-w-44">
       <Dropdown.Group>
-        <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={actions.handleNewSplitClick}>
+        <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={() => actions.handleNewSplitClick('left')}>
           <AnimatedNewSplitIcon class="size-4 shrink-0" />
-          <span class="flex-1 truncate">New split</span>
+          <span class="flex-1 truncate">New split left</span>
+        </Dropdown.Item>
+        <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={() => actions.handleNewSplitClick('right')}>
+          <AnimatedNewSplitIcon class="size-4 shrink-0" />
+          <span class="flex-1 truncate">New split right</span>
         </Dropdown.Item>
         <Dropdown.Item disabled={!actions.canCreateNewSplit()} onSelect={actions.handleDuplicateSplit}>
           <CopyIcon class="size-4 shrink-0" />
@@ -213,7 +228,8 @@ function SplitMenuContextContent() {
     <KobalteContextMenu.Portal>
       <ContextMenuContent width="md">
         <MenuGroup>
-          <MenuItem icon={AnimatedNewSplitIcon} text="New split" disabled={!actions.canCreateNewSplit()} onClick={actions.handleNewSplitClick} />
+          <MenuItem icon={AnimatedNewSplitIcon} text="New split left" disabled={!actions.canCreateNewSplit()} onClick={() => actions.handleNewSplitClick('left')} />
+          <MenuItem icon={AnimatedNewSplitIcon} text="New split right" disabled={!actions.canCreateNewSplit()} onClick={() => actions.handleNewSplitClick('right')} />
           <MenuItem icon={CopyIcon} text="Duplicate split" disabled={!actions.canCreateNewSplit()} onClick={actions.handleDuplicateSplit} />
           <Show when={canSpotlight(actions.layout.manager)}>
             <MenuItem
@@ -372,7 +388,7 @@ function SplitCloseButton() {
       <Button
         size="icon-sm"
         noTouchResize
-        class="size-6 p-0 rounded-lg text-ink/65 not-disabled:hover:bg-failure-bg not-disabled:hover:text-failure not-disabled:hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)] [&_svg]:size-3.5"
+        class="size-6 p-0 rounded-lg text-ink/65 not-disabled:hover:text-ink not-disabled:hover:bg-ink/3 not-disabled:hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_8%,transparent)] [&_svg]:size-3.5"
         label={label()}
         hotkey={TOKENS.split.close}
         onClick={context.handle.close}
