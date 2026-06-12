@@ -51,8 +51,9 @@ type FilterKind = 'typed' | 'ast';
 
 /**
  * Compiled filters cached by their serialized body + requester context. Soup
- * view bodies are few and stable within a session; a small LRU keeps wasm
- * memory bounded while letting every insert reuse the compiled AST.
+ * view bodies are few and stable within a session; a small LRU (insertion
+ * order refreshed on every hit) keeps wasm memory bounded while letting
+ * every insert reuse the compiled AST.
  */
 const compiledCache = new Map<string, CompiledSoupFilter>();
 const COMPILED_CACHE_MAX = 64;
@@ -67,6 +68,16 @@ function rememberCompiled(key: string, filter: CompiledSoupFilter) {
     compiledCache.delete(oldestKey);
     oldest.dispose();
   }
+}
+
+function recallCompiled(key: string): CompiledSoupFilter | undefined {
+  const cached = compiledCache.get(key);
+  if (!cached) return undefined;
+  // Refresh recency: Map iteration is insertion-ordered, so re-inserting
+  // makes eviction least-recently-used rather than first-in-first-out.
+  compiledCache.delete(key);
+  compiledCache.set(key, cached);
+  return cached;
 }
 
 /** Requester context, read synchronously from the auth query cache. */
@@ -97,7 +108,7 @@ function getCompiled(
 ): CompiledSoupFilter | undefined {
   const options = filterOptions();
   const key = `${kind}:${options.currentUserId ?? ''}:${bodyJson}`;
-  const cached = compiledCache.get(key);
+  const cached = recallCompiled(key);
   if (cached) return cached;
   if (!wasmReady) return undefined;
   // The module is loaded, so compile() resolves on the microtask queue; the
@@ -209,6 +220,17 @@ export function makeSoupItemFilter(
     if (!body) return true;
     const compiled = getCompiled(kind, JSON.stringify(body));
     if (!compiled) return true;
-    return compiled.matches(item, notificationState(item)) !== 'noMatch';
+    try {
+      return compiled.matches(item, notificationState(item)) !== 'noMatch';
+    } catch (err) {
+      // The wrapper throws on items the evaluator can't even parse (no
+      // tag/data). The predicate contract is "never throw, default
+      // permissive" — a throw here would abort the whole optimistic cache
+      // operation mid-write.
+      if (import.meta.env.DEV) {
+        console.error('[soup] wasm filter evaluation failed', { item, err });
+      }
+      return true;
+    }
   };
 }

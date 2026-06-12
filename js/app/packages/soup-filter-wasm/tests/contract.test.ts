@@ -127,4 +127,15 @@ describe('soup-filter-wasm contract (committed artifact)', () => {
     expect(filter.matches({ tag: 'hologram', data: {} })).toBe('unknown');
     filter.dispose();
   });
+
+  it('throws on items without tag/data — callers with a no-throw contract must catch', async () => {
+    // The soup facade (queries/soup/wasm-filter.ts) wraps matches() in a
+    // try/catch and stays permissive; this pins the wrapper behavior that
+    // catch defends against.
+    const filter = await compileSoupFilters({
+      document_filters: { document_ids: [DOC_ID] },
+    });
+    expect(() => filter.matches({ nonsense: true })).toThrow();
+    filter.dispose();
+  });
 });

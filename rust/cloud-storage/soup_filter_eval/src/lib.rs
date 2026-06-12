@@ -40,8 +40,7 @@
 //! does, even where that differs from what the literal's name suggests.
 
 use filter_ast::Expr;
-use item_filters::EntityFilters;
-use item_filters::ast::{EntityFilterAst, ExpandErr, LiteralTree};
+use item_filters::ast::{EntityFilterAst, LiteralTree};
 use serde_json::{Map, Value};
 
 mod item;
@@ -213,25 +212,6 @@ pub fn eval_soup_item_with_state(
     });
 
     Ok(branch.and(properties))
-}
-
-/// Evaluate typed [`EntityFilters`] (the `POST /items/soup` body shape)
-/// against one soup item.
-///
-/// The filters are expanded through the same [`EntityFilterAst::new_from_filters`]
-/// the soup router uses, so typed-filter and raw-AST callers share identical
-/// semantics. Returns the expansion error when the filters are malformed
-/// (invalid uuids, unknown file types, …), exactly as the endpoint would.
-pub fn eval_entity_filters(
-    filters: EntityFilters,
-    soup_item: &Value,
-    opts: &EvalOptions,
-) -> Result<Result<Truth, ItemError>, ExpandErr> {
-    let ast = EntityFilterAst::new_from_filters(filters)?;
-    Ok(match ast {
-        None => Ok(Truth::Match),
-        Some(ast) => eval_soup_item(&ast, soup_item, opts),
-    })
 }
 
 /// Evaluate an optional literal tree; an absent tree applies no constraint.

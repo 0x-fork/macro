@@ -911,19 +911,19 @@ fn nil_uuid_exclusion_pattern_excludes_entity_type() {
 }
 
 #[test]
-fn typed_filters_entry_point_round_trips() {
+fn typed_filters_round_trip_through_router_expansion() {
+    // Typed bodies are expanded with the same `new_from_filters` the soup
+    // router uses (the wasm layer does this at construction), then evaluated
+    // as an AST.
     let id = Uuid::new_v4();
-    let filters = EntityFilters {
+    let ast = ast_from(EntityFilters {
         document_filters: item_filters::DocumentFilters {
             document_ids: vec![id.to_string()],
             ..Default::default()
         },
         ..Default::default()
-    };
-    let verdict = eval_entity_filters(filters, &document(id, None, None), &EvalOptions::default())
-        .unwrap()
-        .unwrap();
-    assert_eq!(verdict, Truth::Match);
+    });
+    assert_eq!(eval(&ast, &document(id, None, None)), Truth::Match);
 }
 
 #[test]
