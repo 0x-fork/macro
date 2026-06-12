@@ -3,6 +3,7 @@ import { hasLoginCookie } from '@core/util/cookies';
 import { partialMatchKey, type QueryKey } from '@tanstack/query-core';
 import { authKeys } from './auth/keys';
 import { channelKeys } from './channel/keys';
+import { historyKeys } from './history/keys';
 import {
   createPersistenceKey,
   dehydrateFirstPage,
@@ -11,6 +12,7 @@ import {
 } from './persistence';
 import { createPerQueryIDBStore } from './persistence/per-query-idb';
 import { soupKeys } from './soup/keys';
+import { isPersistedSoupViewQuery } from './soup/persisted-views';
 
 const persistedChannelQueryPrefixes = [
   channelKeys.mentions._def,
@@ -93,6 +95,37 @@ export function createQueryPersistenceScopes(
       // Channel views unmount on navigation and the target-message controller
       // removes the default query to clear load-around residue; the persisted
       // latest page must survive both to be there on the next open.
+      retainOnRemoval: true,
+    },
+    {
+      store: createPerQueryIDBStore({
+        dbName: createPersistenceKey('soup-default-tabs', 1),
+      }),
+      maxAge: { value: 7, unit: 'd' },
+      buster,
+      // Sidebar views register their default-tab items query at mount; the
+      // key embeds compiled filter ASTs, so membership comes from the view
+      // layer rather than a static prefix. Must stay ahead of the broader
+      // mobile soup scope below — the first matching scope wins.
+      shouldPersist: isPersistedSoupViewQuery,
+      shouldRestore: hasLoginCookie,
+      dehydrateData: dehydrateFirstPage,
+      // List views unmount whenever the user switches sidebar views; the
+      // persisted first page must survive cache gc to be there next launch.
+      retainOnRemoval: true,
+    },
+    {
+      store: createPerQueryIDBStore({
+        dbName: createPersistenceKey('history', 1),
+      }),
+      maxAge: { value: 7, unit: 'd' },
+      buster,
+      shouldPersist: (queryKey) =>
+        partialMatchKey(queryKey, historyKeys.list.queryKey),
+      shouldRestore: hasLoginCookie,
+      // The history list is unpaginated, so it persists whole: restored on
+      // the first mount and replaced by that mount's fetch. It must survive
+      // cache gc (10 min) to be there on the next launch.
       retainOnRemoval: true,
     },
     ...(isNativeMobilePlatform()

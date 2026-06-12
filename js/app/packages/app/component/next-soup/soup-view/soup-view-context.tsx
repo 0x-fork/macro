@@ -1,3 +1,4 @@
+import { VIEW_TAB_PRESETS } from '@app/component/app-sidebar/soup-filter-presets';
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import {
   createSoupState,
@@ -23,6 +24,7 @@ import { createSearchState } from '@app/component/next-soup/soup-view/create-sea
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import { useEntryState } from '@app/component/split-layout/entry-state';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
+import { isListViewID, type ListView } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   ENABLE_FEATURED_SEARCH_RESULTS,
@@ -50,6 +52,7 @@ import type {
 } from '@queries/soup/grouped/types';
 import { type SoupParams, useSoupAstItemsQuery } from '@queries/soup/items';
 import { soupKeys } from '@queries/soup/keys';
+import { registerPersistedSoupViewQuery } from '@queries/soup/persisted-views';
 import { mapSoupPageToEntityList } from '@queries/soup/transform-utils';
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
 import { storageServiceClient } from '@service-storage/client';
@@ -57,6 +60,7 @@ import type { SoupPage } from '@service-storage/generated/schemas';
 import type { InfiniteData } from '@tanstack/solid-query';
 import {
   type Accessor,
+  createComputed,
   createContext,
   createEffect,
   createMemo,
@@ -329,17 +333,37 @@ export const SoupViewContextProvider: FlowComponent<
     };
   };
 
-  const itemsQuery = useSoupAstItemsQuery(
-    () => ({
-      params: soupParams(),
-      body: soupBody(),
-      groupBy: groupByField(),
-    }),
-    () => ({
-      enabled: !search.isSearching(),
-      showSupportedForeignEntities: showSupportedForeignEntitiesFF().enabled,
-    })
-  );
+  const itemsQueryArgs = createMemo(() => ({
+    params: soupParams(),
+    body: soupBody(),
+    groupBy: groupByField(),
+  }));
+
+  const currentListView = createMemo<ListView | undefined>(() => {
+    const content = panel.handle.content();
+    if (content.type !== 'component') return undefined;
+    return isListViewID(content.id) ? content.id : undefined;
+  });
+
+  // While the view shows its default tab, register the items query for IDB
+  // persistence (first-page cache: persisted page renders on mount, then
+  // the fresh fetch replaces it). createComputed so the key is registered
+  // before the query below is created — the persistence layer matches it
+  // on the cache 'added' event to restore.
+  createComputed(() => {
+    const view = currentListView();
+    if (!view) return;
+    const defaultTab = VIEW_TAB_PRESETS[view].default;
+    if ((activeTab() ?? defaultTab) !== defaultTab) return;
+    registerPersistedSoupViewQuery(
+      soupKeys.astItems(itemsQueryArgs()).queryKey
+    );
+  });
+
+  const itemsQuery = useSoupAstItemsQuery(itemsQueryArgs, () => ({
+    enabled: !search.isSearching(),
+    showSupportedForeignEntities: showSupportedForeignEntitiesFF().enabled,
+  }));
 
   const items = createMemo<SoupEntity[]>(
     (prev) => {

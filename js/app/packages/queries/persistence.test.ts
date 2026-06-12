@@ -16,6 +16,12 @@ import {
   shouldPersistChannelMessagesQuery,
   shouldPersistChannelQuery,
 } from './persistence-scopes';
+import type { SoupAstItemsQueryArgs } from './soup/items';
+import { soupKeys } from './soup/keys';
+import {
+  isPersistedSoupViewQuery,
+  registerPersistedSoupViewQuery,
+} from './soup/persisted-views';
 
 function createMockStore(): PerQueryPersistence & {
   entries: Map<string, PersistedQueryEntry>;
@@ -508,6 +514,72 @@ describe('channel messages persistence', () => {
     queryClient.removeQueries({ queryKey });
     expect(store.remove).not.toHaveBeenCalled();
     expect(store.entries.size).toBe(1);
+  });
+});
+
+describe('soup default-tab persistence', () => {
+  const makeArgs = (
+    sortMethod: 'updated_at' | 'created_at'
+  ): SoupAstItemsQueryArgs => ({
+    params: { limit: 100, sort_method: sortMethod },
+    body: { entity_types: ['document'] } as SoupAstItemsQueryArgs['body'],
+  });
+
+  it('matches registered keys regardless of object property order', () => {
+    registerPersistedSoupViewQuery(
+      soupKeys.astItems(makeArgs('updated_at')).queryKey
+    );
+
+    const reordered: SoupAstItemsQueryArgs = {
+      ...makeArgs('updated_at'),
+      params: { sort_method: 'updated_at', limit: 100 },
+    };
+    expect(isPersistedSoupViewQuery(soupKeys.astItems(reordered).queryKey)).toBe(
+      true
+    );
+    expect(
+      isPersistedSoupViewQuery(
+        soupKeys.astItems(makeArgs('created_at')).queryKey
+      )
+    ).toBe(false);
+  });
+
+  it('persists only registered soup queries, sliced and retained', () => {
+    const queryClient = new QueryClient();
+    const store = createMockStore();
+    const scope = createScope([], store, {
+      shouldPersist: isPersistedSoupViewQuery,
+      dehydrateData: dehydrateFirstPage,
+      retainOnRemoval: true,
+    });
+
+    setupQueryPersistence({ queryClient, scopes: [scope] });
+
+    const registeredKey = soupKeys.astItems(makeArgs('updated_at')).queryKey;
+    registerPersistedSoupViewQuery(registeredKey);
+
+    queryClient.setQueryData(registeredKey, {
+      pages: [
+        { items: ['a'], next_cursor: 'c-1' },
+        { items: ['b'], next_cursor: null },
+      ],
+      pageParams: [null, 'c-1'],
+    });
+    queryClient.setQueryData(
+      soupKeys.astItems(makeArgs('created_at')).queryKey,
+      { pages: [{ items: ['x'], next_cursor: null }], pageParams: [null] }
+    );
+
+    expect(store.set).toHaveBeenCalledTimes(1);
+    const entry = store.set.mock.calls[0]![0] as PersistedQueryEntry;
+    expect(entry.queryKey).toEqual(registeredKey);
+    expect(entry.data).toEqual({
+      pages: [{ items: ['a'], next_cursor: 'c-1' }],
+      pageParams: [null],
+    });
+
+    queryClient.removeQueries({ queryKey: registeredKey });
+    expect(store.remove).not.toHaveBeenCalled();
   });
 });
 
