@@ -920,8 +920,8 @@ const SidebarCreateButton = (props: SidebarCreateButtonProps) => {
           )}
         </Show>
       </Dropdown.Trigger>
-      <Dropdown.Content depth={1} class="shadow-lg">
-        <Dropdown.Group class="p-1 gap-0.5">
+      <Dropdown.Content depth={1} class="min-w-44">
+        <Dropdown.Group>
           <For each={CREATABLE_BLOCKS}>
             {(item) => <SidebarCreateMenuItem item={item} />}
           </For>
