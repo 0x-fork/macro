@@ -123,17 +123,14 @@ export function SplitPanel(props: SplitPanelProps) {
                 class="fixed inset-0 w-screen h-screen z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted"
                 onClick={() => props.handle.toggleSpotlight(false)}
               />
-              <div class="fixed inset-16 bg-surface shadow-xl" />
             </Show>
 
             <div
-              class="relative"
-              classList={{
-                'fixed inset-16 z-modal-overlay isolate opacity-50':
-                  props.handle.isSpotLight(),
-                'opacity-100': props.active || props.handle.isSpotLight(),
-                'size-full': !props.handle.isSpotLight(),
-              }}
+              class={cn(
+                props.handle.isSpotLight()
+                  ? 'fixed inset-16 z-modal-content isolate'
+                  : 'relative size-full'
+              )}
               ref={(ref) => {
                 setPanelRef(ref);
                 props.setPanelRef(ref);
