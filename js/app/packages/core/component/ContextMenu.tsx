@@ -127,7 +127,23 @@ type MenuItemProps =
   | CheckboxMenuItemProps
   | RadioMenuItemProps;
 
-export const MENU_ITEM_CLASS = `group flex flex-row w-full gap-2.5 tracking-tight ${isMobile() ? 'py-2 pl-1.5 pr-4 text-base' : 'py-1.5 pl-2 pr-4 text-sm'} font-medium justify-between items-center rounded-lg outline-none text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] focus:bg-ink/3 data-[highlighted]:bg-ink/3`;
+export const MENU_ITEM_CLASS = cn(
+  'menu-item group flex w-full flex-row items-center justify-between gap-2.5 rounded-lg',
+  'font-medium tracking-tight outline-none',
+  isMobile() ? 'py-2 pl-1.5 pr-4 text-base' : 'py-1.5 pl-2 pr-4 text-sm',
+  'text-ink/65 hover:text-ink focus:text-ink data-[highlighted]:text-ink',
+  'focus:bg-ink/3 data-[highlighted]:bg-ink/3',
+  'hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)]',
+  'focus:shadow-[inset_0_0_0_1px_var(--color-edge-muted)]',
+  'data-[highlighted]:shadow-[inset_0_0_0_1px_var(--color-edge-muted)]'
+);
+
+const DISABLED_MENU_ITEM_CLASS = cn(
+  'cursor-not-allowed text-ink-disabled/55',
+  'hover:text-ink-disabled/55 data-[highlighted]:text-ink-disabled/55',
+  'bg-transparent hover:bg-transparent data-[highlighted]:bg-transparent',
+  'shadow-none hover:shadow-none data-[highlighted]:shadow-none'
+);
 
 /**
  * A context-menu item with consistent styling.
@@ -142,9 +158,7 @@ export function MenuItem(props: MenuItemProps) {
     <MenuItemWrapper
       class={cn(
         MENU_ITEM_CLASS,
-        props.disabled
-          ? 'opacity-50 cursor-not-allowed'
-          : 'hover:bg-ink/3 hover-transition-bg',
+        props.disabled ? DISABLED_MENU_ITEM_CLASS : 'hover:bg-ink/3 hover-transition-bg',
         props.class
       )}
       onClick={props.onClick}
@@ -197,14 +211,23 @@ export function MenuItem(props: MenuItemProps) {
               props.icon as Component<JSX.SvgSVGAttributes<SVGSVGElement>>
             }
             class={cn(
-              'shrink-0 text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink',
+              'shrink-0',
+              props.disabled
+                ? 'text-ink-disabled/55'
+                : 'text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink',
               isMobile() ? 'size-5' : 'size-3.5',
               props.iconClass
             )}
           />
         </Show>
         <Show when={typeof props.icon === 'object'}>
-          <span class="text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink">
+          <span
+            class={cn(
+              props.disabled
+                ? 'text-ink-disabled/55'
+                : 'text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink'
+            )}
+          >
             {props.icon as JSX.Element}
           </span>
         </Show>
@@ -234,7 +257,7 @@ export function SubTrigger(props: {
       class={cn(
         MENU_ITEM_CLASS,
         props.disabled
-          ? 'opacity-50 cursor-not-allowed text-ink'
+          ? DISABLED_MENU_ITEM_CLASS
           : 'hover:bg-ink/3 hover-transition-bg text-ink'
       )}
       disabled={props.disabled}
@@ -246,27 +269,46 @@ export function SubTrigger(props: {
               props.icon as Component<JSX.SvgSVGAttributes<SVGSVGElement>>
             }
             class={cn(
-              'shrink-0 text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink',
+              'shrink-0',
+              props.disabled
+                ? 'text-ink-disabled/55'
+                : 'text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink',
               isMobile() ? 'size-5' : 'size-3.5',
               props.iconClass
             )}
           />
         </Show>
         <Show when={typeof props.icon === 'object'}>
-          <span class="text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink">
+          <span
+            class={cn(
+              props.disabled
+                ? 'text-ink-disabled/55'
+                : 'text-ink/65 group-hover:text-ink group-focus:text-ink group-data-[highlighted]:text-ink'
+            )}
+          >
             {props.icon as JSX.Element}
           </span>
         </Show>
       </Show>
       <div class="flex-1 truncate">{props.text}</div>
-      <CaretRight class="size-4 shrink-0" />
+      <CaretRight
+        class={cn(
+          'size-4 shrink-0',
+          props.disabled ? 'text-ink-disabled/55' : 'text-ink/65'
+        )}
+      />
     </ContextMenu.SubTrigger>
   );
 }
 
 export function MenuGroup(props: { children: JSX.Element; class?: string }) {
   return (
-    <ContextMenu.Group class={cn('w-full', props.class)}>
+    <ContextMenu.Group
+      class={cn(
+        'menu-group w-full',
+        props.class
+      )}
+    >
       {props.children}
     </ContextMenu.Group>
   );
@@ -281,7 +323,7 @@ export function GroupLabel(props: { children: JSX.Element }) {
 }
 
 export function MenuSeparator() {
-  return <ContextMenu.Separator class="my-0.5 border-edge border-t w-full" />;
+  return <ContextMenu.Separator class="menu-separator my-1 border-edge border-t w-full" />;
 }
 
 function MobileConditionalOverlay(
@@ -304,7 +346,7 @@ const menuWidths: Record<MenuWidth, string> = {
   screen: 'w-screen',
 };
 
-export const MENU_CONTENT_CLASS = `flex flex-col justify-start items-start bg-surface shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)] rounded-xl px-1 py-1.25 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal menu-open-animation`;
+export const MENU_CONTENT_CLASS = `menu-content flex flex-col justify-start items-start bg-surface shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)] rounded-xl px-1 py-1.25 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal menu-open-animation`;
 
 type MenuContentProps = ParentProps<{
   class?: string;

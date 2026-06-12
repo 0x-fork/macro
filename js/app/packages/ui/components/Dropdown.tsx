@@ -69,9 +69,32 @@ export type DropdownGroupProps = ComponentProps<
 >;
 export type DropdownItemProps = ComponentProps<typeof KobalteDropdownMenu.Item>;
 export type DropdownSubProps = ComponentProps<typeof KobalteDropdownMenu.Sub>;
+export type DropdownSeparatorProps = ComponentProps<
+  typeof KobalteDropdownMenu.Separator
+>;
 
-const ROW_CLASS = 'group rounded-lg w-full flex items-center gap-2.5 py-1.5 pl-2 pr-4 text-left font-medium text-sm cursor-default outline-none text-ink/65 hover:text-ink data-highlighted:text-ink hover:bg-ink/3 data-highlighted:bg-ink/3 hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-highlighted:shadow-[inset_0_0_0_1px_var(--color-edge-muted)] data-disabled:opacity-50 data-disabled:cursor-not-allowed';
-const CONTENT_SHADOW_CLASS = 'shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]';
+const ROW_CLASS = cn(
+  'menu-item group flex w-full items-center gap-2.5 rounded-lg py-1.5 pl-2 pr-4',
+  'cursor-default text-left text-sm font-medium outline-none',
+  'text-ink/65 hover:text-ink data-highlighted:text-ink',
+  'hover:bg-ink/3 data-highlighted:bg-ink/3',
+  'hover:shadow-[inset_0_0_0_1px_var(--color-edge-muted)]',
+  'data-highlighted:shadow-[inset_0_0_0_1px_var(--color-edge-muted)]',
+  'data-disabled:cursor-not-allowed',
+  'data-disabled:text-ink-disabled/55 data-disabled:hover:text-ink-disabled/55',
+  'data-disabled:data-[highlighted]:text-ink-disabled/55',
+  'data-disabled:bg-transparent data-disabled:hover:bg-transparent',
+  'data-disabled:data-[highlighted]:bg-transparent',
+  'data-disabled:shadow-none data-disabled:hover:shadow-none',
+  'data-disabled:data-[highlighted]:shadow-none'
+);
+const CONTENT_CLASS = cn(
+  'menu-content flex flex-col justify-start items-start bg-surface rounded-xl',
+  'px-1 py-1.25 cursor-default select-none',
+  'max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto',
+  'z-action-menu menu-open-animation',
+  'shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]'
+);
 
 function resolvePortalMount(
   searchRef: HTMLElement | undefined,
@@ -92,7 +115,7 @@ function DropdownContent(props: DropdownContentProps) {
         mount={resolvePortalMount(searchRef, local.mount, local.portalScope)}
       >
         <KobalteDropdownMenu.Content
-          class={cn('rounded-xl size-auto z-action-menu menu-open-animation', local.class)}
+          class={cn(CONTENT_CLASS, local.class)}
           depth={local.depth ?? 2}
           as={Surface}
           style={{
@@ -102,13 +125,7 @@ function DropdownContent(props: DropdownContentProps) {
           }}
           {...rest}
         >
-          <div class="flex flex-col gap-px bg-edge-muted size-full">{local.children}</div>
-          <div
-            class={cn(
-              'pointer-events-none absolute inset-0 rounded-[inherit]',
-              CONTENT_SHADOW_CLASS
-            )}
-          />
+          {local.children}
         </KobalteDropdownMenu.Content>
       </KobalteDropdownMenu.Portal>
     </>
@@ -125,7 +142,7 @@ function DropdownSubContent(props: DropdownSubContentProps) {
         mount={resolvePortalMount(searchRef, local.mount, local.portalScope)}
       >
         <KobalteDropdownMenu.SubContent
-          class={cn('rounded-xl size-auto z-action-menu menu-open-animation', local.class)}
+          class={cn(CONTENT_CLASS, local.class)}
           depth={local.depth ?? 2}
           as={Surface}
           style={{
@@ -135,13 +152,7 @@ function DropdownSubContent(props: DropdownSubContentProps) {
           }}
           {...rest}
         >
-          <div class="flex flex-col gap-px bg-edge-muted size-full">{local.children}</div>
-          <div
-            class={cn(
-              'pointer-events-none absolute inset-0 rounded-[inherit]',
-              CONTENT_SHADOW_CLASS
-            )}
-          />
+          {local.children}
         </KobalteDropdownMenu.SubContent>
       </KobalteDropdownMenu.Portal>
     </>
@@ -152,7 +163,10 @@ function DropdownGroup(props: DropdownGroupProps) {
   const [local, rest] = splitProps(props, ['class']);
   return (
     <KobalteDropdownMenu.Group
-      class={cn('flex flex-col p-1 gap-0.5 bg-surface', local.class)}
+      class={cn(
+        'menu-group flex w-full flex-col',
+        local.class
+      )}
       {...rest}
     />
   );
