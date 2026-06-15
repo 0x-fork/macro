@@ -2,7 +2,6 @@ import { runCreateAction } from '@app/component/Launcher';
 import { DOCS_BASE } from '@app/constants/docs-links';
 import type { ListView } from '@app/constants/list-views';
 import type { BlockAlias, BlockName } from '@core/block';
-import { McpSetupCards } from '@core/component/AI/component/McpSetupCards';
 import { toast } from '@core/component/Toast/Toast';
 import { useEmailLinks, useEmailLinksStatus } from '@core/email-link';
 import EmptyStateAiIcon from '@design/empty-state-ai.svg';
@@ -287,22 +286,20 @@ export function EmptyState(props: {
 
 function AgentsEmptyState() {
   // Shares the left-aligned EmptyStatePanel layout with the folders / connect-email
-  // empty states; the MCP setup cards render below the actions as panel children.
+  // empty states.
   return (
     <div class="size-full" data-soup-empty-state>
       <EmptyStatePanel
         graphic={EmptyStateAiIcon}
         title="Get started with agents"
-        description="Create an agent, or use Macro with your favorite AI chat client or code editor via MCP."
+        description="Agents have access to your entire workspace — anything you can access agents can read. Agents can take action like drafting emails. Create one to get started."
         primaryAction={{
           label: 'New agent',
           icon: PlusIcon,
           onClick: () => runCreateAction('chat'),
         }}
         documentationUrl={`${DOCS_BASE}/product/agents`}
-      >
-        <McpSetupCards />
-      </EmptyStatePanel>
+      />
     </div>
   );
 }
