@@ -37,26 +37,26 @@ export function buildAttachmentEntityFilters(
 
   for (const a of attachments) {
     const itemType = stringToItemType(a.entity_type);
-    switch (itemType) {
-      case 'document':
+    match(itemType)
+      .with('document', () => {
         documentIds.push(a.entity_id);
-        break;
-      case 'email':
+      })
+      .with('email', () => {
         emailIds.push(a.entity_id);
-        break;
-      case 'chat':
+      })
+      .with('chat', () => {
         chatIds.push(a.entity_id);
-        break;
-      case 'channel':
+      })
+      .with('channel', () => {
         channelIds.push(a.entity_id);
-        break;
-      case 'project':
+      })
+      .with('project', () => {
         projectIds.push(a.entity_id);
-        break;
-      case 'call':
+      })
+      .with('call', () => {
         callIds.push(a.entity_id);
-        break;
-    }
+      })
+      .otherwise(() => {});
   }
 
   return {

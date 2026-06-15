@@ -13,6 +13,7 @@ import {
   type PDFThumbnailViewer,
   TextLayerBuilder,
 } from 'pdfjs-dist/web/pdf_viewer';
+import { match } from 'ts-pattern';
 import { PageModel } from '../model/Page';
 import { PDF_TO_CSS_UNITS } from '../util/pixelsPerInch';
 import { destHrefToDest } from './DestArray';
@@ -1300,33 +1301,32 @@ export class InternalPDFViewer {
       name: string,
       args: any
     ) {
-      switch (name) {
-        case 'alert': {
-          return showMessageBoxSync({
-            type: 'warning',
-            title: 'Macro',
-            message: args[0],
-            buttons: ['OK'],
-            defaultId: 0,
-          });
-        }
-        case 'confirm': {
-          return (
+      return (
+        match(name)
+          .with('alert', () =>
             showMessageBoxSync({
-              type: 'question',
+              type: 'warning',
               title: 'Macro',
               message: args[0],
-              buttons: ['OK', 'Cancel'],
+              buttons: ['OK'],
               defaultId: 0,
-              cancelId: 1,
-            }) === 0
-          );
-        }
-        // TODO: Nothing we can do about prompt, but hopefully that's not going to get used?
-        default: {
-          return externalCallHandler(name, args);
-        }
-      }
+            })
+          )
+          .with(
+            'confirm',
+            () =>
+              showMessageBoxSync({
+                type: 'question',
+                title: 'Macro',
+                message: args[0],
+                buttons: ['OK', 'Cancel'],
+                defaultId: 0,
+                cancelId: 1,
+              }) === 0
+          )
+          // TODO: Nothing we can do about prompt, but hopefully that's not going to get used?
+          .otherwise(() => externalCallHandler(name, args))
+      );
     };
   };
 

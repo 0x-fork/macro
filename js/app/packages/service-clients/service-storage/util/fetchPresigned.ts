@@ -2,6 +2,7 @@ import type { FetchError } from '@core/service';
 import type { ObjectLike, ResultError } from '@core/util/result';
 import { platformFetch } from 'core/util/platformFetch';
 import { err, ok, type Result } from 'neverthrow';
+import { match } from 'ts-pattern';
 
 type ResultMap = {
   arraybuffer: ArrayBuffer;
@@ -13,24 +14,27 @@ type ResultMap = {
 function httpStatusToError(
   status: number
 ): Result<never, ResultError<FetchError>[]> {
-  switch (status) {
-    case 404:
-      return err<never, ResultError<FetchError>[]>([
+  return match(status)
+    .with(404, () =>
+      err<never, ResultError<FetchError>[]>([
         { code: 'NOT_FOUND', message: 'Resource not found' },
-      ]);
-    case 401:
-      return err<never, ResultError<FetchError>[]>([
+      ])
+    )
+    .with(401, () =>
+      err<never, ResultError<FetchError>[]>([
         { code: 'UNAUTHORIZED', message: 'Unauthorized access' },
-      ]);
-    case 500:
-      return err<never, ResultError<FetchError>[]>([
+      ])
+    )
+    .with(500, () =>
+      err<never, ResultError<FetchError>[]>([
         { code: 'SERVER_ERROR', message: 'Internal server error' },
-      ]);
-    default:
-      return err<never, ResultError<FetchError>[]>([
+      ])
+    )
+    .otherwise(() =>
+      err<never, ResultError<FetchError>[]>([
         { code: 'HTTP_ERROR', message: `HTTP error! status: ${status}` },
-      ]);
-  }
+      ])
+    );
 }
 
 function fetchExceptionToError(

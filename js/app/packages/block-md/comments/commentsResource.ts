@@ -5,7 +5,6 @@ import {
   useBlockName,
 } from '@core/block';
 import { compareDateAsc } from '@core/util/date';
-
 import { createConnectionBlockWebsocketEffect } from '@service-connection/websocket';
 import { storageServiceClient } from '@service-storage/client';
 import type { AnnotationIncrementalUpdate } from '@service-storage/generated/schemas/annotationIncrementalUpdate';
@@ -19,6 +18,7 @@ import type { DeleteCommentResponse } from '@service-storage/generated/schemas/d
 import type { EditCommentRequest } from '@service-storage/generated/schemas/editCommentRequest';
 import type { EditCommentResponse } from '@service-storage/generated/schemas/editCommentResponse';
 import { batch } from 'solid-js';
+import { match } from 'ts-pattern';
 import type { MarkId, ThreadMetadata } from './commentType';
 
 const isMdBlock = createBlockMemo(() => useBlockName() === 'md');
@@ -262,25 +262,21 @@ createConnectionBlockWebsocketEffect((msg) => {
       return;
     }
 
-    switch (incrementalUpdate.updateType) {
-      case 'create-comment':
-        handleCommentUpdate(incrementalUpdate.payload.response);
-        break;
-      case 'create-anchor':
-        break;
-      case 'edit-comment':
-        handleEditComment(incrementalUpdate.payload.response);
-        break;
-      case 'edit-anchor':
-        break;
-      case 'delete-comment':
-        handleDeleteComment(incrementalUpdate.payload.response);
-        break;
-      case 'delete-anchor':
-        break;
-      default:
+    match(incrementalUpdate)
+      .with({ updateType: 'create-comment' }, (u) => {
+        handleCommentUpdate(u.payload.response);
+      })
+      .with({ updateType: 'create-anchor' }, () => {})
+      .with({ updateType: 'edit-comment' }, (u) => {
+        handleEditComment(u.payload.response);
+      })
+      .with({ updateType: 'edit-anchor' }, () => {})
+      .with({ updateType: 'delete-comment' }, (u) => {
+        handleDeleteComment(u.payload.response);
+      })
+      .with({ updateType: 'delete-anchor' }, () => {})
+      .otherwise(() => {
         console.error('unknown comment update type', msg);
-        break;
-    }
+      });
   }
 });

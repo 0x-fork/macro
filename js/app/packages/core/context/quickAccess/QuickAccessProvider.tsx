@@ -20,6 +20,7 @@ import { createLazyMemo } from '@solid-primitives/memo';
 import { toDate } from 'date-fns';
 import type { Accessor } from 'solid-js';
 import { createEffect, createSignal } from 'solid-js';
+import { match } from 'ts-pattern';
 import { createAssertedContextProvider } from '../createContext';
 import type {
   Bucket,
@@ -57,20 +58,20 @@ function historyItemToEntity(item: HistoryItem): QuickAccessEntity {
     ownerId: item.ownerId,
   };
 
-  switch (item.type) {
-    case 'chat':
-      return {
-        ...base,
-        type: 'chat',
-      } as QuickAccessEntity;
-
-    case 'project':
-      return {
-        ...base,
-        type: 'project',
-      } as QuickAccessEntity;
-
-    case 'document': {
+  return match(item)
+    .with(
+      { type: 'chat' },
+      () => ({ ...base, type: 'chat' }) as QuickAccessEntity
+    )
+    .with(
+      { type: 'project' },
+      () =>
+        ({
+          ...base,
+          type: 'project',
+        }) as QuickAccessEntity
+    )
+    .with({ type: 'document' }, (item) => {
       const fileType = item.fileType ?? undefined;
       const subType = item.subType ?? undefined;
       const name = formatDocumentName(
@@ -92,14 +93,8 @@ function historyItemToEntity(item: HistoryItem): QuickAccessEntity {
         fileType,
         subType: item.subType,
       } as QuickAccessEntity;
-    }
-
-    default:
-      return {
-        ...base,
-        type: 'document',
-      } as QuickAccessEntity;
-  }
+    })
+    .otherwise(() => ({ ...base, type: 'document' }) as QuickAccessEntity);
 }
 
 function channelToEntity(channel: ApiChannelWithLatest): ChannelEntity {
@@ -121,20 +116,16 @@ function channelToEntity(channel: ApiChannelWithLatest): ChannelEntity {
  * Determines the bucket for a history item.
  */
 function getBucketForHistoryItem(item: HistoryItem): EntityBucket {
-  switch (item.type) {
-    case 'chat':
-      return 'chat';
-    case 'project':
-      return 'project';
-    case 'document': {
-      if (item.subType?.type === 'task') return 'task';
-      if (item.subType?.type === 'snippet') return 'snippet';
-      if (item.fileType === 'md') return 'note';
-      return 'document';
-    }
-    default:
-      return 'document';
-  }
+  return match(item)
+    .with({ type: 'chat' }, () => 'chat' as EntityBucket)
+    .with({ type: 'project' }, () => 'project' as EntityBucket)
+    .with({ type: 'document' }, (item) => {
+      if (item.subType?.type === 'task') return 'task' as EntityBucket;
+      if (item.subType?.type === 'snippet') return 'snippet' as EntityBucket;
+      if (item.fileType === 'md') return 'note' as EntityBucket;
+      return 'document' as EntityBucket;
+    })
+    .otherwise(() => 'document' as EntityBucket);
 }
 
 function getUserSearchText(user: IUser): string {

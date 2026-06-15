@@ -196,61 +196,51 @@ export const openEntityInNewTab = ({
       entityUrl.searchParams.set(CHANNEL_PARAMS.thread, entity.threadId);
     }
   } else if (location) {
-    switch (location.type) {
-      case 'channel':
-        if (location.messageId) {
-          entityUrl.searchParams.set(
-            CHANNEL_PARAMS.message,
-            location.messageId
-          );
+    match(location)
+      .with({ type: 'channel' }, (loc) => {
+        if (loc.messageId) {
+          entityUrl.searchParams.set(CHANNEL_PARAMS.message, loc.messageId);
         }
-        if (location.threadId) {
-          entityUrl.searchParams.set(CHANNEL_PARAMS.thread, location.threadId);
+        if (loc.threadId) {
+          entityUrl.searchParams.set(CHANNEL_PARAMS.thread, loc.threadId);
         }
-        break;
-      case 'email':
-        if (location.messageId) {
-          entityUrl.searchParams.set('email_message_id', location.messageId);
+      })
+      .with({ type: 'email' }, (loc) => {
+        if (loc.messageId) {
+          entityUrl.searchParams.set('email_message_id', loc.messageId);
         }
-
-        break;
-      case 'md':
-        if (location.nodeId) {
-          entityUrl.searchParams.set('node_id', location.nodeId);
+      })
+      .with({ type: 'md' }, (loc) => {
+        if (loc.nodeId) {
+          entityUrl.searchParams.set('node_id', loc.nodeId);
         }
-        break;
-      case 'pdf':
-        if (location.searchPage !== undefined) {
-          entityUrl.searchParams.set(
-            'search_page',
-            location.searchPage.toString()
-          );
+      })
+      .with({ type: 'pdf' }, (loc) => {
+        if (loc.searchPage !== undefined) {
+          entityUrl.searchParams.set('search_page', loc.searchPage.toString());
         }
-        if (location.searchRawQuery) {
-          entityUrl.searchParams.set(
-            'search_raw_query',
-            location.searchRawQuery
-          );
+        if (loc.searchRawQuery) {
+          entityUrl.searchParams.set('search_raw_query', loc.searchRawQuery);
         }
-        if (location.highlightTerms) {
+        if (loc.highlightTerms) {
           entityUrl.searchParams.set(
             'search_highlight_terms',
-            JSON.stringify(location.highlightTerms)
+            JSON.stringify(loc.highlightTerms)
           );
         }
-        if (location.searchSnippet) {
-          entityUrl.searchParams.set('search_snippet', location.searchSnippet);
+        if (loc.searchSnippet) {
+          entityUrl.searchParams.set('search_snippet', loc.searchSnippet);
         }
-        break;
-      case 'call_record':
-        if (location.transcriptId) {
+      })
+      .with({ type: 'call_record' }, (loc) => {
+        if (loc.transcriptId) {
           entityUrl.searchParams.set(
             CALL_PARAMS.transcriptId,
-            location.transcriptId
+            loc.transcriptId
           );
         }
-        break;
-    }
+      })
+      .exhaustive();
   }
 
   window.open(entityUrl.toString(), '_blank', 'noopener');
@@ -435,44 +425,37 @@ async function navigateToLocation(
   const blockHandle = await blockOrchestrator.getBlockHandle(entityId);
   if (!blockHandle) return;
 
-  switch (location.type) {
-    case 'channel': {
+  await match(location)
+    .with({ type: 'channel' }, async (loc) => {
       // NOTE: this is handled by the channel block params but this can be used to re-flash an open channel
       await blockHandle.goToLocationFromParams(
-        getChannelParams(location.messageId, location.threadId)
+        getChannelParams(loc.messageId, loc.threadId)
       );
-      break;
-    }
-    case 'email': {
+    })
+    .with({ type: 'email' }, async (loc) => {
       await blockHandle.goToLocationFromParams({
-        [EMAIL_PARAMS.messageId]: location.messageId,
+        [EMAIL_PARAMS.messageId]: loc.messageId,
       });
-      break;
-    }
-    case 'md': {
+    })
+    .with({ type: 'md' }, async (loc) => {
       await blockHandle.goToLocationFromParams({
-        [MD_PARAMS.nodeId]: location.nodeId,
+        [MD_PARAMS.nodeId]: loc.nodeId,
       });
-      break;
-    }
-    case 'pdf': {
+    })
+    .with({ type: 'pdf' }, async (loc) => {
       await blockHandle.goToLocationFromParams({
-        [PDF_PARAMS.searchPage]: location.searchPage.toString(),
-        [PDF_PARAMS.searchRawQuery]: location.searchRawQuery,
-        [PDF_PARAMS.searchHighlightTerms]: JSON.stringify(
-          location.highlightTerms
-        ),
-        [PDF_PARAMS.searchSnippet]: location.searchSnippet,
+        [PDF_PARAMS.searchPage]: loc.searchPage.toString(),
+        [PDF_PARAMS.searchRawQuery]: loc.searchRawQuery,
+        [PDF_PARAMS.searchHighlightTerms]: JSON.stringify(loc.highlightTerms),
+        [PDF_PARAMS.searchSnippet]: loc.searchSnippet,
       });
-      break;
-    }
-    case 'call_record': {
+    })
+    .with({ type: 'call_record' }, async (loc) => {
       await blockHandle.goToLocationFromParams({
-        [CALL_PARAMS.transcriptId]: location.transcriptId,
+        [CALL_PARAMS.transcriptId]: loc.transcriptId,
       });
-      break;
-    }
-  }
+    })
+    .exhaustive();
 }
 
 async function _archiveEmail(

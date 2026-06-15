@@ -17,6 +17,7 @@ import {
   Show,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { match } from 'ts-pattern';
 import type { GithubPullRequestEntity } from '../../types/entity';
 
 type PillProps = {
@@ -104,16 +105,11 @@ function checkOverviewTitle(counts: CheckCounts) {
 }
 
 function checkOverviewTitleClass(state: CheckVisualState): string {
-  switch (state) {
-    case 'success':
-      return 'text-success';
-    case 'failure':
-      return 'text-failure';
-    case 'pending':
-      return 'text-alert-ink';
-    default:
-      return 'text-ink';
-  }
+  return match(state)
+    .with('success', () => 'text-success')
+    .with('failure', () => 'text-failure')
+    .with('pending', () => 'text-alert-ink')
+    .otherwise(() => 'text-ink');
 }
 
 function showCheckCountSummary(counts: CheckCounts) {

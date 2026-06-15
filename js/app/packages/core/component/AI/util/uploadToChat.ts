@@ -16,6 +16,7 @@ import {
   filenameWithoutExtension,
 } from '@service-storage/util/filename';
 import { createSignal, untrack } from 'solid-js';
+import { match } from 'ts-pattern';
 import { asFileType } from './attachment';
 
 async function uploadFileForChat(
@@ -36,23 +37,23 @@ async function uploadFileForChat(
       };
     }
 
-    let entityId: string;
-    let entityType: 'static_file' | 'document';
-    switch (result.destination) {
-      case 'static':
-        entityId = result.id;
-        entityType = 'static_file';
-        break;
-      case 'dss':
-        if (result.type !== 'document') {
+    const { entityId, entityType } = match(result)
+      .with({ destination: 'static' }, (r) => ({
+        entityId: r.id,
+        entityType: 'static_file' as const,
+      }))
+      .with({ destination: 'dss' }, (r) => {
+        if (r.type !== 'document') {
           throw new Error('Unexpected upload result');
         }
-        entityId = result.documentId;
-        entityType = 'document';
-        break;
-      default:
+        return {
+          entityId: r.documentId,
+          entityType: 'document' as const,
+        };
+      })
+      .otherwise(() => {
         throw new Error('Unexpected upload result');
-    }
+      });
 
     return {
       type: 'ok',

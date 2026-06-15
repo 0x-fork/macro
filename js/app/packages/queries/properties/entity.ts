@@ -12,6 +12,7 @@ import type {
 import { isInstantiatedProperty } from '@property/utils';
 import { useMutation, useQuery } from '@tanstack/solid-query';
 import { type Accessor, batch } from 'solid-js';
+import { match } from 'ts-pattern';
 import { propertiesServiceClient } from '../../service-clients/service-properties/client';
 import type { EntityType } from '../../service-clients/service-properties/generated/schemas/entityType';
 import type { SoupProperty } from '../../service-clients/service-storage/generated/schemas/soupProperty';
@@ -169,39 +170,42 @@ function buildSoupProperty(
 function apiValuesToSoupPropertyValue(
   apiValues: PropertyApiValues
 ): SoupPropertyValue {
-  switch (apiValues.valueType) {
-    case 'STRING':
-      return apiValues.value != null
-        ? { type: 'String', value: apiValues.value }
-        : null;
-    case 'NUMBER':
-      return apiValues.value != null
-        ? { type: 'Number', value: apiValues.value }
-        : null;
-    case 'BOOLEAN':
-      return apiValues.value != null
-        ? { type: 'Boolean', value: apiValues.value }
-        : null;
-    case 'DATE':
-      return apiValues.value != null
-        ? { type: 'Date', value: apiValues.value.toISOString() }
-        : null;
-    case 'SELECT_STRING':
-    case 'SELECT_NUMBER':
-      return apiValues.values != null && apiValues.values.length > 0
-        ? { type: 'SelectOption', value: apiValues.values }
-        : null;
-    case 'ENTITY':
-      return apiValues.refs != null && apiValues.refs.length > 0
-        ? { type: 'EntityReference', value: apiValues.refs }
-        : null;
-    case 'LINK':
-      return apiValues.values != null && apiValues.values.length > 0
-        ? { type: 'Link', value: apiValues.values }
-        : null;
-    default:
-      return null;
-  }
+  return match(apiValues)
+    .with({ valueType: 'STRING' }, (v) =>
+      v.value != null ? { type: 'String' as const, value: v.value } : null
+    )
+    .with({ valueType: 'NUMBER' }, (v) =>
+      v.value != null ? { type: 'Number' as const, value: v.value } : null
+    )
+    .with({ valueType: 'BOOLEAN' }, (v) =>
+      v.value != null ? { type: 'Boolean' as const, value: v.value } : null
+    )
+    .with({ valueType: 'DATE' }, (v) =>
+      v.value != null
+        ? { type: 'Date' as const, value: v.value.toISOString() }
+        : null
+    )
+    .with({ valueType: 'SELECT_STRING' }, (v) =>
+      v.values != null && v.values.length > 0
+        ? { type: 'SelectOption' as const, value: v.values }
+        : null
+    )
+    .with({ valueType: 'SELECT_NUMBER' }, (v) =>
+      v.values != null && v.values.length > 0
+        ? { type: 'SelectOption' as const, value: v.values }
+        : null
+    )
+    .with({ valueType: 'ENTITY' }, (v) =>
+      v.refs != null && v.refs.length > 0
+        ? { type: 'EntityReference' as const, value: v.refs }
+        : null
+    )
+    .with({ valueType: 'LINK' }, (v) =>
+      v.values != null && v.values.length > 0
+        ? { type: 'Link' as const, value: v.values }
+        : null
+    )
+    .otherwise(() => null);
 }
 
 type DeleteEntityPropertyParams = {

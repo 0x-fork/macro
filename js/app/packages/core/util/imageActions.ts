@@ -1,33 +1,21 @@
 import { toast } from '@core/component/Toast/Toast';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { match } from 'ts-pattern';
 
 function extensionForImageBlob(blob: Blob): string {
   const t = (blob.type || '').toLowerCase().split(';')[0].trim();
-  switch (t) {
-    case 'image/svg+xml':
-      return 'svg';
-    case 'image/jpeg':
-      return 'jpg';
-    case 'image/gif':
-      return 'gif';
-    case 'image/webp':
-      return 'webp';
-    case 'image/avif':
-      return 'avif';
-    case 'image/bmp':
-      return 'bmp';
-    case 'image/x-icon':
-    case 'image/vnd.microsoft.icon':
-      return 'ico';
-    case 'image/tiff':
-      return 'tiff';
-    case 'image/heic':
-      return 'heic';
-    case 'image/heif':
-      return 'heif';
-    default:
-      return 'png';
-  }
+  return match(t)
+    .with('image/svg+xml', () => 'svg')
+    .with('image/jpeg', () => 'jpg')
+    .with('image/gif', () => 'gif')
+    .with('image/webp', () => 'webp')
+    .with('image/avif', () => 'avif')
+    .with('image/bmp', () => 'bmp')
+    .with('image/x-icon', 'image/vnd.microsoft.icon', () => 'ico')
+    .with('image/tiff', () => 'tiff')
+    .with('image/heic', () => 'heic')
+    .with('image/heif', () => 'heif')
+    .otherwise(() => 'png');
 }
 
 async function toPng(blob: Blob): Promise<Blob> {

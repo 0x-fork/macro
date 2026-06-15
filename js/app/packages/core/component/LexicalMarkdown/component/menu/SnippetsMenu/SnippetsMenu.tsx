@@ -16,6 +16,7 @@ import {
   Suspense,
   untrack,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { floatWithSelection } from '../../../directive/floatWithSelection';
 import {
   CLOSE_SNIPPET_SEARCH_COMMAND,
@@ -147,16 +148,16 @@ function SnippetsMenuInner(props: SnippetsMenuProps) {
     },
     onClose: closeMenu,
     onSpace: () => {
-      switch (escapeSpaceState()) {
-        case 'single':
-        case 'start':
+      return match(escapeSpaceState())
+        .with('single', 'start', () => {
           closeMenu();
           return true;
-        case null:
+        })
+        .with(null, () => {
           setEscapeSpaceState('single');
           return false;
-      }
-      return false;
+        })
+        .exhaustive();
     },
     onOtherKey: () => {
       setEscapeSpaceState(null);

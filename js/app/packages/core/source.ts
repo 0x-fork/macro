@@ -88,17 +88,14 @@ function _sourceUpload(source: Source | SourcePreload<any>): File | undefined {
   return (source as SourceDSSWithUpload).upload;
 }
 
+import { match } from 'ts-pattern';
+
 async function _sourceToArrayBufferLike(
   source: Source
 ): Promise<ArrayBufferLike | undefined> {
-  switch (source.type) {
-    case 'blob':
-      return source.blob.arrayBuffer();
-    case 'buffer':
-      return source.buffer;
-    case 'gen': {
-      return _sourceToArrayBufferLike(source.origin);
-    }
-  }
-  return undefined;
+  return await match(source)
+    .with({ type: 'blob' }, (s) => s.blob.arrayBuffer())
+    .with({ type: 'buffer' }, (s) => Promise.resolve(s.buffer))
+    .with({ type: 'gen' }, (s) => _sourceToArrayBufferLike(s.origin))
+    .otherwise(() => Promise.resolve<ArrayBufferLike | undefined>(undefined));
 }

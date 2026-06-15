@@ -1,6 +1,7 @@
 import { itemToSafeName } from '@core/constant/allBlocks';
 import type { Item } from '@service-storage/generated/schemas/item';
 import { formatDocumentName } from '@service-storage/util/filename';
+import { match } from 'ts-pattern';
 import type { HistoryItem, HistoryQueryResponse } from './types';
 
 export function transformHistoryItem(item: Item): HistoryItem {
@@ -20,31 +21,26 @@ export function transformHistoryItem(item: Item): HistoryItem {
     rawName: item.name,
   };
 
-  switch (item.type) {
-    case 'document':
-      return {
-        ...base,
-        type: 'document',
-        fileType: item.fileType,
-        subType: item.subType,
-        ownerId: item.owner,
-      };
-
-    case 'chat':
-      return {
-        ...base,
-        type: 'chat',
-        isPersistent: item.isPersistent,
-        ownerId: item.userId,
-      };
-
-    case 'project':
-      return {
-        ...base,
-        type: 'project',
-        ownerId: item.userId,
-      };
-  }
+  return match(item)
+    .with({ type: 'document' }, (i) => ({
+      ...base,
+      type: 'document' as const,
+      fileType: i.fileType,
+      subType: i.subType,
+      ownerId: i.owner,
+    }))
+    .with({ type: 'chat' }, (i) => ({
+      ...base,
+      type: 'chat' as const,
+      isPersistent: i.isPersistent,
+      ownerId: i.userId,
+    }))
+    .with({ type: 'project' }, (i) => ({
+      ...base,
+      type: 'project' as const,
+      ownerId: i.userId,
+    }))
+    .exhaustive();
 }
 
 export function transformHistoryResponse(

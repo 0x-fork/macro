@@ -31,6 +31,7 @@ import {
   onCleanup,
   Show,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 
 // NOTE: solid directives
@@ -99,8 +100,8 @@ export function ChatAttachMenu(props: ChatAttachMenuProps) {
   const handleKeyDown = (e: KeyboardEvent) => {
     const items = rankedHistory();
 
-    switch (e.key) {
-      case 'ArrowDown':
+    match(e.key)
+      .with('ArrowDown', () => {
         e.preventDefault();
         if (items.length === 0) return;
         setIsKeyboardMode(true);
@@ -112,8 +113,8 @@ export function ChatAttachMenu(props: ChatAttachMenuProps) {
         if (vlist && vlist.scrollToIndex) {
           vlist.scrollToIndex(nextIndex, { align: 'nearest' });
         }
-        break;
-      case 'ArrowUp':
+      })
+      .with('ArrowUp', () => {
         e.preventDefault();
         if (items.length === 0) return;
         setIsKeyboardMode(true);
@@ -130,20 +131,20 @@ export function ChatAttachMenu(props: ChatAttachMenuProps) {
             vlist.scrollToIndex(prevIndex, { align: 'nearest' });
           }
         }
-        break;
-      case 'Enter':
+      })
+      .with('Enter', () => {
         e.preventDefault();
         if (items.length === 0) return;
         const selectedItem = items[selectedIndex()];
         if (selectedItem) {
           selectItem(selectedItem);
         }
-        break;
-      case 'Escape':
+      })
+      .with('Escape', () => {
         e.preventDefault();
         props.close();
-        break;
-      case 'Backspace':
+      })
+      .with('Backspace', () => {
         e.preventDefault();
         const currentInput = input();
         if (currentInput.length > 0) {
@@ -157,8 +158,8 @@ export function ChatAttachMenu(props: ChatAttachMenuProps) {
             inputRef.setSelectionRange(newInput.length, newInput.length);
           }
         }
-        break;
-      default:
+      })
+      .otherwise(() => {
         // Handle regular typing - add to search input
         if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
@@ -173,8 +174,7 @@ export function ChatAttachMenu(props: ChatAttachMenuProps) {
             inputRef.setSelectionRange(newInput.length, newInput.length);
           }
         }
-        break;
-    }
+      });
   };
 
   const handleMouseMove = () => {

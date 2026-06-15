@@ -4,6 +4,7 @@ import { createBulkRenameDssEntityMutation } from '@macro-entity';
 import CloseIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
 import { Button, cn, SegmentedControl } from '@ui';
 import { createMemo, createSignal, For, onMount, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 
 type RenameMode = 'total' | 'prepend' | 'append' | 'replace';
 
@@ -50,42 +51,29 @@ export const BulkRenameEntitiesView = (props: {
     const base = primaryEntity()?.name ?? '';
     const v = editValue().trim();
 
-    switch (mode()) {
-      case 'total':
-        return v;
-
-      case 'prepend':
-        return v + base;
-
-      case 'append':
-        return base + v;
-
-      case 'replace':
+    return match(mode())
+      .with('total', () => v)
+      .with('prepend', () => v + base)
+      .with('append', () => base + v)
+      .with('replace', () => {
         if (!replaceFind()) return base;
         return base.replaceAll(replaceFind(), replaceWith());
-
-      default:
-        return base;
-    }
+      })
+      .otherwise(() => base);
   });
 
   const finishEditing = async () => {
     const newValue = editValue();
 
     let renameFn: (old?: string) => string = () => newValue;
-    switch (mode()) {
-      case 'prepend':
-        renameFn = (old: string) => newValue + old;
-        break;
-      case 'append':
-        renameFn = (old: string) => old + newValue;
-        break;
-      case 'replace':
-        renameFn = (old: string) =>
-          old.replaceAll(replaceFind(), replaceWith());
-        break;
-      default:
-    }
+    renameFn = match(mode())
+      .with('prepend', () => (old: string) => newValue + old)
+      .with('append', () => (old: string) => old + newValue)
+      .with(
+        'replace',
+        () => (old: string) => old.replaceAll(replaceFind(), replaceWith())
+      )
+      .otherwise(() => () => newValue);
 
     try {
       await renameMutation.mutateAsync(

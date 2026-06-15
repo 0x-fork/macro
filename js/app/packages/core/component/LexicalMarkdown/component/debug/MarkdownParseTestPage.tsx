@@ -10,6 +10,7 @@ import {
   onCleanup,
   Show,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import {
   createLexicalWrapper,
   LexicalWrapperContext,
@@ -122,20 +123,14 @@ const getSavedSingleLine = (): boolean => {
 };
 
 const getThemeByType = (themeType: ThemeType) => {
-  switch (themeType) {
-    case 'aiChat':
-      return aiChatTheme;
-    case 'channel':
-      return channelTheme;
-    case 'channelSender':
-      return channelThemeSender;
-    case 'embeddedCode':
-      return embeddedCodeBlock;
-    case 'unifiedList':
-      return unifiedListMarkdownTheme;
-    default:
-      return theme;
-  }
+  return match(themeType)
+    .with('aiChat', () => aiChatTheme)
+    .with('channel', () => channelTheme)
+    .with('channelSender', () => channelThemeSender)
+    .with('embeddedCode', () => embeddedCodeBlock)
+    .with('unifiedList', () => unifiedListMarkdownTheme)
+    .with('default', () => theme)
+    .exhaustive();
 };
 
 export function TestEditor(props: {

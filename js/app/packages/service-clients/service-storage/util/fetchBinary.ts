@@ -2,6 +2,7 @@ import type { ResultError } from '@core/util/result';
 
 import { platformFetch } from 'core/util/platformFetch';
 import { err, ok, type Result } from 'neverthrow';
+import { match } from 'ts-pattern';
 import type { StorageError } from './storageError';
 
 export async function fetchBinary(
@@ -23,25 +24,26 @@ export async function fetchBinary<T extends ArrayBuffer | Blob>(
     const response = await platformFetch(url, init);
 
     if (!response.ok) {
-      switch (response.status) {
-        case 404:
-          return err([{ code: 'NOT_FOUND', message: 'Resource not found' }]);
-        case 401:
-          return err([
-            { code: 'UNAUTHORIZED', message: 'Unauthorized access' },
-          ]);
-        case 500:
-          return err([
-            { code: 'SERVER_ERROR', message: 'Internal server error' },
-          ]);
-        default:
-          return err([
+      return match<number, Result<T, ResultError<StorageError>[]>>(
+        response.status
+      )
+        .with(404, () =>
+          err([{ code: 'NOT_FOUND', message: 'Resource not found' }])
+        )
+        .with(401, () =>
+          err([{ code: 'UNAUTHORIZED', message: 'Unauthorized access' }])
+        )
+        .with(500, () =>
+          err([{ code: 'SERVER_ERROR', message: 'Internal server error' }])
+        )
+        .otherwise(() =>
+          err([
             {
               code: 'HTTP_ERROR',
               message: `HTTP error! status: ${response.status}`,
             },
-          ]);
-      }
+          ])
+        );
     }
 
     const data = await (responseType === 'arraybuffer'

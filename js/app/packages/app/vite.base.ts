@@ -3,6 +3,7 @@ import { unwatchFile, watchFile } from 'node:fs';
 import { resolve } from 'node:path';
 import tailwind from '@tailwindcss/vite';
 import { Features } from 'lightningcss';
+import { match } from 'ts-pattern';
 import type { Plugin, UserConfigFn } from 'vite';
 import solid from 'vite-plugin-solid';
 import solidSvg from 'vite-plugin-solid-svg';
@@ -209,14 +210,10 @@ export const createAppViteConfig = (): UserConfigFn => {
 };
 
 function getAssetsPath(mode: string, command: string): string {
-  switch (mode) {
-    case 'development':
-      return command === 'serve' ? '/local' : '/dev';
-    case 'staging':
-      return '/staging';
-    default:
-      return '/';
-  }
+  return match(mode)
+    .with('development', () => (command === 'serve' ? '/local' : '/dev'))
+    .with('staging', () => '/staging')
+    .otherwise(() => '/');
 }
 
 function defineEnv(mode: string, command: string) {

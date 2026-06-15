@@ -39,6 +39,7 @@ import {
   Show,
   untrack,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { sendEmailCode, useResetEmailCode } from './EmailForm';
 import { Stage } from './Shared';
 import { useSsoLogin } from './useSsoLogin';
@@ -471,16 +472,12 @@ export function LoginNew() {
     }
   };
 
-  const headerTitle = createMemo(() => {
-    switch (stage()) {
-      case Stage.Email:
-        return 'Enter your email';
-      case Stage.Verify:
-        return 'Check your inbox';
-      default:
-        return 'Log in to Macro';
-    }
-  });
+  const headerTitle = createMemo(() =>
+    match(stage())
+      .with(Stage.Email, () => 'Enter your email')
+      .with(Stage.Verify, () => 'Check your inbox')
+      .otherwise(() => 'Log in to Macro')
+  );
 
   return (
     <Show when={!userInfo()?.authenticated} fallback={<PostLoginRedirect />}>

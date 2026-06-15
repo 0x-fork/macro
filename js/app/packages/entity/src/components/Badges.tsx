@@ -3,6 +3,7 @@ import { tryMacroId, useDisplayName } from '@core/user';
 import UserPlus from '@phosphor/user-plus.svg';
 import { cn, HoverCard } from '@ui';
 import type { ParentProps } from 'solid-js';
+import { match } from 'ts-pattern';
 import type { CallStatus } from '../types/entity';
 
 function Badge(props: ParentProps<{ class?: string }>) {
@@ -110,23 +111,20 @@ type CallStatusBadgeConfig = {
 };
 
 function getCallStatusBadgeConfig(status: CallStatus): CallStatusBadgeConfig {
-  switch (status) {
-    case 'ATTENDED':
-      return {
-        class: 'text-ink-extra-muted border-edge-muted px-2',
-        label: 'attended',
-      };
-    case 'MISSED':
-      return {
-        class: 'text-accent-30 border-edge-muted px-2',
-        label: 'missed',
-      };
-    case 'UNATTENDED':
-      return {
-        class: 'text-ink-extra-muted/70 border-edge-muted px-2',
-        label: 'unattended',
-      };
-  }
+  return match(status)
+    .with('ATTENDED', () => ({
+      class: 'text-ink-extra-muted border-edge-muted px-2',
+      label: 'attended',
+    }))
+    .with('MISSED', () => ({
+      class: 'text-accent-30 border-edge-muted px-2',
+      label: 'missed',
+    }))
+    .with('UNATTENDED', () => ({
+      class: 'text-ink-extra-muted/70 border-edge-muted px-2',
+      label: 'unattended',
+    }))
+    .exhaustive();
 }
 
 export function CallStatusBadge(props: { status: CallStatus }) {

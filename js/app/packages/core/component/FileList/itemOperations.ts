@@ -1,7 +1,6 @@
 import { analytics } from '@app/lib/analytics';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { isPaymentError } from '@core/util/handlePaymentError';
-
 import { removeHistoryItem } from '@queries/history/history';
 import {
   getDeletedTree,
@@ -14,6 +13,7 @@ import { type ItemType, storageServiceClient } from '@service-storage/client';
 import type { FileType } from '@service-storage/generated/schemas/fileType';
 import type { Item } from '@service-storage/generated/schemas/item';
 import { refetchResources } from '@service-storage/util/refetchResources';
+import { match } from 'ts-pattern';
 import {
   getPermissions,
   hasPermissions,
@@ -29,8 +29,8 @@ export async function getItemAccessLevel({
   itemType: ItemType;
   id: string;
 }) {
-  switch (itemType) {
-    case 'project':
+  return match(itemType)
+    .with('project', async () => {
       const maybeProjectMetadata =
         await storageServiceClient.projects.getProject({
           id,
@@ -38,9 +38,8 @@ export async function getItemAccessLevel({
       if (maybeProjectMetadata.isOk()) {
         return maybeProjectMetadata.value.userAccessLevel;
       }
-      break;
-
-    case 'document':
+    })
+    .with('document', async () => {
       const maybeDocumentMetadata =
         await storageServiceClient.getDocumentMetadata({
           documentId: id,
@@ -48,17 +47,16 @@ export async function getItemAccessLevel({
       if (maybeDocumentMetadata.isOk()) {
         return maybeDocumentMetadata.value.userAccessLevel;
       }
-      break;
-
-    case 'chat':
+    })
+    .with('chat', async () => {
       const maybeChatMetadata = await cognitionApiServiceClient.getChat({
         chat_id: id,
       });
       if (maybeChatMetadata.isOk()) {
         return maybeChatMetadata.value.userAccessLevel;
       }
-      break;
-    case 'email':
+    })
+    .with('email', async () => {
       const maybeThread = await emailClient.getThread({
         thread_id: id,
         limit: 1,
@@ -66,10 +64,8 @@ export async function getItemAccessLevel({
       if (maybeThread.isOk()) {
         return maybeThread.value.thread.access_level;
       }
-      break;
-    default:
-      return;
-  }
+    })
+    .otherwise(() => undefined);
 }
 
 /** @internal use rename mutation wrappers instead of this */
@@ -80,47 +76,41 @@ export async function renameItem(args: {
 }): Promise<boolean> {
   const { itemType, id, newName } = args;
 
-  let result;
-
-  switch (itemType) {
-    case 'document': {
-      result = await storageServiceClient.editDocument({
+  const result = await match(itemType)
+    .with('document', () =>
+      storageServiceClient.editDocument({
         documentId: id,
         documentName: newName,
-      });
-      break;
-    }
-    case 'project': {
-      result = await storageServiceClient.projects.edit({
+      })
+    )
+    .with('project', () =>
+      storageServiceClient.projects.edit({
         id,
         name: newName,
-      });
-      break;
-    }
-    case 'chat': {
-      result = await cognitionApiServiceClient.renameChat({
+      })
+    )
+    .with('chat', () =>
+      cognitionApiServiceClient.renameChat({
         chat_id: id,
         new_name: newName,
-      });
-      break;
-    }
-    case 'channel': {
-      result = await storageServiceClient.patchChannel({
+      })
+    )
+    .with('channel', () =>
+      storageServiceClient.patchChannel({
         channel_id: id,
         channel_name: newName,
-      });
-      break;
-    }
-    case 'call': {
-      result = await callServiceClient.editCallRecord({
+      })
+    )
+    .with('call', () =>
+      callServiceClient.editCallRecord({
         callId: id,
         customName: newName,
-      });
-      break;
-    }
-    default: {
-      return false;
-    }
+      })
+    )
+    .otherwise(() => null);
+
+  if (!result) {
+    return false;
   }
 
   if (result.isErr()) {
@@ -158,29 +148,25 @@ export async function deleteItem(args: {
   const accessLevel = await getItemAccessLevel({ itemType, id });
 
   if (accessLevel === 'owner') {
-    let result;
-    switch (itemType) {
-      case 'document': {
-        result = await storageServiceClient.deleteDocument({
+    const result = await match(itemType)
+      .with('document', () =>
+        storageServiceClient.deleteDocument({
           documentId: id,
-        });
-        break;
-      }
-      case 'project': {
-        result = await storageServiceClient.projects.delete({
+        })
+      )
+      .with('project', () =>
+        storageServiceClient.projects.delete({
           id,
-        });
-        break;
-      }
-      case 'chat': {
-        result = await cognitionApiServiceClient.deleteChat({
+        })
+      )
+      .with('chat', () =>
+        cognitionApiServiceClient.deleteChat({
           chat_id: id,
-        });
-        break;
-      }
-      default: {
-        return false;
-      }
+        })
+      )
+      .otherwise(() => null);
+    if (!result) {
+      return false;
     }
     if (result.isErr()) {
       return false;
@@ -249,41 +235,36 @@ export async function moveToFolder(args: {
   if (!hasPermissions(getPermissions(accessLevel), Permissions.CAN_EDIT))
     return false;
 
-  let result;
-  switch (itemType) {
-    case 'document': {
-      result = await storageServiceClient.editDocument({
+  const result = await match(itemType)
+    .with('document', () =>
+      storageServiceClient.editDocument({
         documentId: id,
         projectId: folderId,
-      });
-      break;
-    }
-    case 'project': {
-      result = await storageServiceClient.projects.edit({
+      })
+    )
+    .with('project', () =>
+      storageServiceClient.projects.edit({
         id,
         projectParentId: folderId,
-      });
-      break;
-    }
-    case 'chat': {
-      result = await cognitionApiServiceClient.editChatProject({
+      })
+    )
+    .with('chat', () =>
+      cognitionApiServiceClient.editChatProject({
         chat_id: id,
         project_id: folderId,
-      });
-      break;
-    }
-    case 'email': {
-      result = await emailClient.updateThreadProject({
+      })
+    )
+    .with('email', () =>
+      emailClient.updateThreadProject({
         thread_id: id,
         projectId: folderId,
-      });
-      break;
-    }
-    default: {
-      return false;
-    }
-  }
+      })
+    )
+    .otherwise(() => null);
 
+  if (!result) {
+    return false;
+  }
   if (result.isErr()) {
     return false;
   }
@@ -341,18 +322,16 @@ export async function copyItem(args: {
     return `${originalName} copy`;
   };
 
-  let newId = '';
-  switch (itemType) {
-    case 'document': {
+  const newId = await match(itemType)
+    .with('document', async () => {
       const result = await storageServiceClient.copyDocument({
         documentId: id,
         documentName: createCopyName(name),
       });
       if (result.isErr()) return null;
-      newId = result.value.documentId;
-      break;
-    }
-    case 'chat': {
+      return result.value.documentId;
+    })
+    .with('chat', async () => {
       const result = await cognitionApiServiceClient.copyChat({
         chat_id: id,
         name: createCopyName(name),
@@ -363,12 +342,11 @@ export async function copyItem(args: {
       if (result.isErr()) {
         return null;
       }
-      newId = result.value.id;
-      break;
-    }
-    default:
-      return null;
-  }
+      return result.value.id;
+    })
+    .otherwise(() => null);
+
+  if (newId === null) return null;
 
   refetchResources();
   return newId;
@@ -417,30 +395,26 @@ export async function revertDelete(args: {
 }): Promise<boolean> {
   const { itemType, id } = args;
 
-  let result;
-
-  switch (itemType) {
-    case 'document': {
-      result = await storageServiceClient.revertDocumentDelete({
+  const result = await match(itemType)
+    .with('document', () =>
+      storageServiceClient.revertDocumentDelete({
         documentId: id,
-      });
-      break;
-    }
-    case 'project': {
-      result = await storageServiceClient.projects.revertDelete({
+      })
+    )
+    .with('project', () =>
+      storageServiceClient.projects.revertDelete({
         id,
-      });
-      break;
-    }
-    case 'chat': {
-      result = await cognitionApiServiceClient.revertDeleteChat({
+      })
+    )
+    .with('chat', () =>
+      cognitionApiServiceClient.revertDeleteChat({
         chat_id: id,
-      });
-      break;
-    }
-    default: {
-      return false;
-    }
+      })
+    )
+    .otherwise(() => null);
+
+  if (!result) {
+    return false;
   }
 
   if (result.isErr()) {
@@ -457,16 +431,14 @@ export async function permanentlyDelete(args: {
 }): Promise<boolean> {
   const { itemType, id } = args;
 
-  let result;
-  switch (itemType) {
-    case 'document': {
+  const result = await match(itemType)
+    .with('document', async () => {
       optimisticallyRemoveDeletedItem(id);
-      result = await storageServiceClient.permanentlyDeleteDocument({
+      return storageServiceClient.permanentlyDeleteDocument({
         documentId: id,
       });
-      break;
-    }
-    case 'project': {
+    })
+    .with('project', async () => {
       const deleteTree = getDeletedTree();
       const findAllDescendants = (projectId: string): string[] => {
         const descendantIds: string[] = [];
@@ -486,21 +458,20 @@ export async function permanentlyDelete(args: {
       });
       optimisticallyRemoveDeletedItem(id);
 
-      result = await storageServiceClient.projects.permanentlyDelete({
+      return storageServiceClient.projects.permanentlyDelete({
         id,
       });
-      break;
-    }
-    case 'chat': {
+    })
+    .with('chat', async () => {
       optimisticallyRemoveDeletedItem(id);
-      result = await cognitionApiServiceClient.permanentlyDeleteChat({
+      return cognitionApiServiceClient.permanentlyDeleteChat({
         chat_id: id,
       });
-      break;
-    }
-    default: {
-      return false;
-    }
+    })
+    .otherwise(() => null);
+
+  if (!result) {
+    return false;
   }
 
   if (result.isErr()) {

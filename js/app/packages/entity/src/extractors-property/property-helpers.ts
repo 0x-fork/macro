@@ -6,6 +6,7 @@ import {
 import type { Property, PropertyOption, ValueType } from '@property/types';
 import type { SoupProperty } from '@service-storage/generated/schemas/soupProperty';
 import { nanoid } from 'nanoid';
+import { match } from 'ts-pattern';
 import { TASK_STATUS_OPTIONS } from '../utils/task-properties';
 
 const EPOCH_ZERO = new Date(0);
@@ -156,18 +157,17 @@ export function soupPropertyToProperty(soupProperty: SoupProperty): Property {
   const valueType = definition.data_type as ValueType;
 
   // Handle each value type with proper type checking
-  switch (valueType) {
-    case 'STRING': {
+  return match(valueType)
+    .with('STRING', (vt) => {
       if (hasPropertyValueType(propertyValue, 'String')) {
         const stringVal = propertyValue.value;
         if (typeof stringVal === 'string' && stringVal) {
-          return { ...baseProperty, valueType: 'STRING', value: stringVal };
+          return { ...baseProperty, valueType: vt, value: stringVal };
         }
       }
-      return { ...baseProperty, valueType: 'STRING', value: null };
-    }
-
-    case 'NUMBER': {
+      return { ...baseProperty, valueType: vt, value: null };
+    })
+    .with('NUMBER', (vt) => {
       if (hasPropertyValueType(propertyValue, 'Number')) {
         const numVal = propertyValue.value;
         if (
@@ -177,25 +177,23 @@ export function soupPropertyToProperty(soupProperty: SoupProperty): Property {
         ) {
           return {
             ...baseProperty,
-            valueType: 'NUMBER',
+            valueType: vt,
             value: parseFloat(numVal.toFixed(NUMBER_DECIMAL_PLACES)),
           };
         }
       }
-      return { ...baseProperty, valueType: 'NUMBER', value: null };
-    }
-
-    case 'BOOLEAN': {
+      return { ...baseProperty, valueType: vt, value: null };
+    })
+    .with('BOOLEAN', (vt) => {
       if (hasPropertyValueType(propertyValue, 'Boolean')) {
         const boolVal = propertyValue.value;
         if (typeof boolVal === 'boolean') {
-          return { ...baseProperty, valueType: 'BOOLEAN', value: boolVal };
+          return { ...baseProperty, valueType: vt, value: boolVal };
         }
       }
-      return { ...baseProperty, valueType: 'BOOLEAN', value: null };
-    }
-
-    case 'DATE': {
+      return { ...baseProperty, valueType: vt, value: null };
+    })
+    .with('DATE', (vt) => {
       if (hasPropertyValueType(propertyValue, 'Date')) {
         const dateVal = propertyValue.value;
         if (
@@ -204,58 +202,52 @@ export function soupPropertyToProperty(soupProperty: SoupProperty): Property {
         ) {
           return {
             ...baseProperty,
-            valueType: 'DATE',
+            valueType: vt,
             value: new Date(dateVal),
           };
         }
       }
-      return { ...baseProperty, valueType: 'DATE', value: null };
-    }
-
-    case 'SELECT_STRING':
-    case 'SELECT_NUMBER': {
+      return { ...baseProperty, valueType: vt, value: null };
+    })
+    .with('SELECT_STRING', 'SELECT_NUMBER', (vt) => {
       if (hasPropertyValueType(propertyValue, 'SelectOption')) {
         const selectVal = propertyValue.value;
         if (isStringArray(selectVal)) {
           return {
             ...baseProperty,
-            valueType,
+            valueType: vt,
             value: selectVal,
           };
         }
       }
-      return { ...baseProperty, valueType, value: null };
-    }
-
-    case 'ENTITY': {
+      return { ...baseProperty, valueType: vt, value: null };
+    })
+    .with('ENTITY', (vt) => {
       if (hasPropertyValueType(propertyValue, 'EntityReference')) {
         const entityVal = propertyValue.value;
         if (isEntityReferenceArray(entityVal)) {
-          return { ...baseProperty, valueType: 'ENTITY', value: entityVal };
+          return { ...baseProperty, valueType: vt, value: entityVal };
         }
       }
-      return { ...baseProperty, valueType: 'ENTITY', value: null };
-    }
-
-    case 'LINK': {
+      return { ...baseProperty, valueType: vt, value: null };
+    })
+    .with('LINK', (vt) => {
       if (hasPropertyValueType(propertyValue, 'Link')) {
         const linkVal = propertyValue.value;
         if (isStringArray(linkVal)) {
           return {
             ...baseProperty,
-            valueType: 'LINK',
+            valueType: vt,
             value: linkVal,
           };
         }
       }
-      return { ...baseProperty, valueType: 'LINK', value: null };
-    }
-
-    default: {
+      return { ...baseProperty, valueType: vt, value: null };
+    })
+    .otherwise(() => {
       // Fallback for unknown types - treat as string with null value
-      return { ...baseProperty, valueType: 'STRING', value: null };
-    }
-  }
+      return { ...baseProperty, valueType: 'STRING' as const, value: null };
+    });
 }
 
 /**

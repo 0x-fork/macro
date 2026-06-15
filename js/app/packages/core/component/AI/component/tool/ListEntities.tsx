@@ -5,6 +5,7 @@ import List from '@phosphor-icons/core/regular/list.svg';
 import type { NamedTool } from '@service-cognition/generated/tools/tool';
 import { useSplitLayout } from 'app/component/split-layout/layout';
 import { createMemo, createSignal } from 'solid-js';
+import { match } from 'ts-pattern';
 import { VList } from 'virtua/solid';
 import { BaseTool } from './BaseTool';
 import { Tool } from './Tool';
@@ -28,68 +29,50 @@ const ListEntitiesToolResponse = (props: {
     });
   });
 
-  const getItemTitle = (item: ListEntitiesItem): string => {
-    switch (item.type) {
-      case 'document':
-        return item.name || 'Document';
-      case 'aiChat':
-        return item.name || 'Chat';
-      case 'project':
-        return item.name || 'Project';
-      case 'email':
-        return item.subject || 'Email';
-      case 'channel':
-        return item.name || 'Channel';
-      default:
-        return 'Item';
-    }
-  };
+  const getItemTitle = (item: ListEntitiesItem): string =>
+    match(item)
+      .with({ type: 'document' }, (i) => i.name || 'Document')
+      .with({ type: 'aiChat' }, (i) => i.name || 'Chat')
+      .with({ type: 'project' }, (i) => i.name || 'Project')
+      .with({ type: 'email' }, (i) => i.subject || 'Email')
+      .with({ type: 'channel' }, (i) => i.name || 'Channel')
+      .otherwise(() => 'Item');
 
-  const getItemIcon = (item: ListEntitiesItem) => {
-    switch (item.type) {
-      case 'channel':
-        return <WideChannel class="size-4" />;
-      case 'document':
-        return <WideFileMd class="size-4" />;
-      case 'aiChat':
-        return <EntityIcon targetType="chat" size="xs" theme="monochrome" />;
-      case 'project':
-        return <EntityIcon targetType="project" size="xs" theme="monochrome" />;
-      case 'email':
-        return <EntityIcon targetType="email" size="xs" theme="monochrome" />;
-      default:
-        return undefined;
-    }
-  };
+  const getItemIcon = (item: ListEntitiesItem) =>
+    match(item)
+      .with({ type: 'channel' }, () => <WideChannel class="size-4" />)
+      .with({ type: 'document' }, () => <WideFileMd class="size-4" />)
+      .with({ type: 'aiChat' }, () => (
+        <EntityIcon targetType="chat" size="xs" theme="monochrome" />
+      ))
+      .with({ type: 'project' }, () => (
+        <EntityIcon targetType="project" size="xs" theme="monochrome" />
+      ))
+      .with({ type: 'email' }, () => (
+        <EntityIcon targetType="email" size="xs" theme="monochrome" />
+      ))
+      .otherwise(() => undefined);
 
   const { replaceOrInsertSplit } = useSplitLayout();
 
-  const getClickHandler = (item: ListEntitiesItem) => {
-    switch (item.type) {
-      case 'document':
-        return () => {
-          replaceOrInsertSplit({ type: 'unknown', id: item.id });
-        };
-      case 'aiChat':
-        return () => {
-          replaceOrInsertSplit({ type: 'chat', id: item.id });
-        };
-      case 'project':
-        return () => {
-          replaceOrInsertSplit({ type: 'project', id: item.id });
-        };
-      case 'email':
-        return () => {
-          replaceOrInsertSplit({ type: 'email', id: item.id });
-        };
-      case 'channel':
-        return () => {
-          replaceOrInsertSplit({ type: 'channel', id: item.id });
-        };
-      default:
-        return undefined;
-    }
-  };
+  const getClickHandler = (item: ListEntitiesItem) =>
+    match(item)
+      .with({ type: 'document' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'unknown', id: i.id });
+      })
+      .with({ type: 'aiChat' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'chat', id: i.id });
+      })
+      .with({ type: 'project' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'project', id: i.id });
+      })
+      .with({ type: 'email' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'email', id: i.id });
+      })
+      .with({ type: 'channel' }, (i) => () => {
+        replaceOrInsertSplit({ type: 'channel', id: i.id });
+      })
+      .otherwise(() => undefined);
 
   const itemHeight = 32;
   const maxHeight = 240;

@@ -288,24 +288,23 @@ export class SyncEngine<S extends GenericRootSchema, D> {
   }
 
   private handleSourceEvent(event: SyncSourceEvent) {
-    switch (event.type) {
-      case 'update':
-        this.handleRemoteUpdate(event.update);
-        break;
-      case 'awareness':
-        this.awareness.importRemoteAwareness(event.awareness);
-        break;
-      case 'incremental_snapshot':
-        this.handleRemoteUpdate(event.snapshot);
-        break;
-      case 'reconnect': {
+    match(event)
+      .with({ type: 'update' }, (e) => {
+        this.handleRemoteUpdate(e.update);
+      })
+      .with({ type: 'awareness' }, (e) => {
+        this.awareness.importRemoteAwareness(e.awareness);
+      })
+      .with({ type: 'incremental_snapshot' }, (e) => {
+        this.handleRemoteUpdate(e.snapshot);
+      })
+      .with({ type: 'reconnect' }, () => {
         logger.log('reconnecting, requesting updates since current version', {
           documentId: this.syncs.live.documentId,
         });
         this.requestAndHandleUpdatesSince(this.loroManager.getDoc().version());
-        break;
-      }
-    }
+      })
+      .otherwise(() => {});
   }
 
   private async requestAndHandleUpdatesSince(

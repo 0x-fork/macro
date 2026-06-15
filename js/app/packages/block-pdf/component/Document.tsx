@@ -46,6 +46,7 @@ import {
   untrack,
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { match } from 'ts-pattern';
 import { PageModel } from '../model/Page';
 import {
   pdfDocumentProxy,
@@ -436,28 +437,24 @@ export function Document() {
       const viewer = getRootViewer();
       if (!viewer) return;
 
-      switch (e.key) {
-        case '+':
-        case '=':
+      match(e.key)
+        .with('+', '=', () => {
           e.preventDefault();
           if (canZoomIn()) viewer.zoomIn();
-          break;
-        case '_':
-        case '-':
+        })
+        .with('_', '-', () => {
           e.preventDefault();
           if (canZoomOut()) viewer.zoomOut();
-          break;
-        case 'PageUp':
-        case 'ArrowLeft':
+        })
+        .with('PageUp', 'ArrowLeft', () => {
           e.preventDefault();
           viewer.previousPage();
-          break;
-        case 'PageDown':
-        case 'ArrowRight':
+        })
+        .with('PageDown', 'ArrowRight', () => {
           e.preventDefault();
           viewer.nextPage();
-          break;
-      }
+        })
+        .otherwise(() => {});
     }
   );
 

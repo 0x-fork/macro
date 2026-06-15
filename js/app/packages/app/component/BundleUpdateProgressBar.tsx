@@ -1,5 +1,6 @@
 import { useTauri } from '@macro/tauri';
 import { createMemo, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 
 export function BundleUpdateProgressBar() {
   const tauri = useTauri();
@@ -7,14 +8,10 @@ export function BundleUpdateProgressBar() {
   const progress = createMemo(() => {
     const s = tauri?.bundleUpdateStatus();
     if (!s) return null;
-    switch (s.status) {
-      case 'Downloading':
-        return s.data.progress * 0.95;
-      case 'Unzipping':
-        return 95 + s.data.progress * 0.05;
-      default:
-        return null;
-    }
+    return match(s)
+      .with({ status: 'Downloading' }, (s) => s.data.progress * 0.95)
+      .with({ status: 'Unzipping' }, (s) => 95 + s.data.progress * 0.05)
+      .otherwise(() => null);
   });
 
   return (

@@ -118,6 +118,7 @@ import {
   untrack,
 } from 'solid-js';
 import { createStore } from 'solid-js/store';
+import { match } from 'ts-pattern';
 import { makeAttachmentPublic } from '../util/makeAttachmentPublic';
 import { getFirstName } from '../util/name';
 import {
@@ -143,13 +144,11 @@ false && fileSelector;
 false && observedSize;
 
 const getRecipientDisplayName = (item: EmailRecipient): string => {
-  switch (item.kind) {
-    case 'user':
-    case 'contact':
-      return getFirstName(item.data.name) || item.data.email;
-    case 'custom':
-      return item.data.email;
-  }
+  return match(item)
+    .with({ kind: 'user' }, (o) => getFirstName(o.data.name) || o.data.email)
+    .with({ kind: 'contact' }, (o) => getFirstName(o.data.name) || o.data.email)
+    .with({ kind: 'custom' }, (o) => o.data.email)
+    .exhaustive();
 };
 
 // Shared constants for recipient display - used in both measurement and rendering

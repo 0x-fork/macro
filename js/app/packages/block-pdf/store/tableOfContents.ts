@@ -1,5 +1,6 @@
 import { createBlockStore } from '@core/block';
 import { produce } from 'solid-js/store';
+import { match } from 'ts-pattern';
 import Section from '../model/Section';
 import TocItem from '../model/TocItem';
 import type { IBookmark } from '../type/Bookmark';
@@ -918,8 +919,8 @@ const producer = (
   draft: ITableOfContentsContext,
   action: ITableOfContentsAction
 ) => {
-  switch (action.type) {
-    case 'LOAD_AI_TOC': {
+  match(action)
+    .with({ type: 'LOAD_AI_TOC' }, (action) => {
       const firstChild = XMLUtils.parse(action.coparse.toc || '').firstChild as
         | Element
         | undefined;
@@ -946,9 +947,8 @@ const producer = (
         .computeIDToNearestTitleMap(); // TODO call this in more places
 
       draft.isLoaded = !!draft.original.aiToc && !!draft.original.pdfBookmarks;
-      break;
-    }
-    case 'LOAD_PDF_BOOKMARKS': {
+    })
+    .with({ type: 'LOAD_PDF_BOOKMARKS' }, (action) => {
       draft.original.pdfBookmarks = action.bookmarks;
       draft.items = Helpers.cloneTocTree(action.bookmarks);
       draft.isLoaded = !!draft.original.aiToc && !!draft.original.pdfBookmarks;
@@ -964,16 +964,14 @@ const producer = (
         .addLinksBetweenSections()
         .computeIDToNearestTitleMap()
         .setDefaultOpenState();
-
-      break;
-    }
-    case 'SWITCH_CURRENT_MODE': {
+    })
+    .with({ type: 'SWITCH_CURRENT_MODE' }, () => {
       const { currentMode, original } = draft;
       const originalBookmarks = original.pdfBookmarks;
       const originalToc = original.aiToc;
 
       if (originalBookmarks === null || originalToc === null) {
-        break;
+        return;
       }
 
       if (currentMode === 'ai-toc') {
@@ -1002,10 +1000,8 @@ const producer = (
         .computeIDToPathMap()
         .addLinksBetweenSections()
         .computeIDToNearestTitleMap();
-
-      break;
-    }
-    case 'SET_TABLE_OF_CONTENTS_WIDTH': {
+    })
+    .with({ type: 'SET_TABLE_OF_CONTENTS_WIDTH' }, (action) => {
       if (action.width <= 0) {
         console.error('Table of contents width must be positive');
         return;
@@ -1017,14 +1013,12 @@ const producer = (
       }
 
       draft.width = action.width;
-      break;
-    }
-    case 'TOGGLE_BOOKMARK': {
+    })
+    .with({ type: 'TOGGLE_BOOKMARK' }, (action) => {
       const { secID } = action;
       draft.openItems[secID] = !draft.openItems[secID];
-      break;
-    }
-    case 'DELETE_BOOKMARK': {
+    })
+    .with({ type: 'DELETE_BOOKMARK' }, (action) => {
       const { secID } = action;
 
       if (secID === null) {
@@ -1038,9 +1032,8 @@ const producer = (
 
       // draft.items = newItems;
       draft.sectionToDeleteID = null;
-      break;
-    }
-    case 'LEFT_INDENT_SECTION': {
+    })
+    .with({ type: 'LEFT_INDENT_SECTION' }, (action) => {
       const { secID } = action;
       const path = draft.idToPathMap[secID];
       if (!path) {
@@ -1116,10 +1109,8 @@ const producer = (
         coparse: draft.coparse,
       });
       draft.unsavedBookmarks = true;
-
-      break;
-    }
-    case 'RIGHT_INDENT_SECTION': {
+    })
+    .with({ type: 'RIGHT_INDENT_SECTION' }, (action) => {
       const { secID } = action;
       const path = draft.idToPathMap[secID];
 
@@ -1171,10 +1162,8 @@ const producer = (
       draft.unsavedBookmarks = true;
 
       new Builder(draft).computeIDToPathMap().computeIDToNearestTitleMap();
-
-      break;
-    }
-    case 'RENAME_BOOKMARK': {
+    })
+    .with({ type: 'RENAME_BOOKMARK' }, (action) => {
       const { secID, value } = action;
 
       if (!value) {
@@ -1188,9 +1177,8 @@ const producer = (
 
       draft.renameFormValue = '';
       draft.sectionToRenameID = null;
-      break;
-    }
-    case 'ADD_BOOKMARK': {
+    })
+    .with({ type: 'ADD_BOOKMARK' }, (action) => {
       const { yPos, pageNum, initialEmpty, titleForPlaceable, uuid } = action;
       const selection = window.getSelection();
       const text =
@@ -1288,16 +1276,13 @@ const producer = (
         .computePageToSectionMap()
         .computeIDToSectionMap()
         .computeIDToPathMap();
-
-      break;
-    }
-    case 'RESET_OPEN_ITEMS': {
+    })
+    .with({ type: 'RESET_OPEN_ITEMS' }, () => {
       draft.openItems = {};
-      break;
-    }
-    default:
+    })
+    .otherwise(() => {
       throw new InvalidActionError(action);
-  }
+    });
 };
 
 function recursiveFindByUuid(uuid: string, tocItem: TocItem): Section | null {

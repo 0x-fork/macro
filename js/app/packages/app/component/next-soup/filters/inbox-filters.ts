@@ -1,5 +1,6 @@
 import { ENABLE_CLIENT_EMAIL_SIGNAL_FILTER } from '@core/constant/featureFlags';
 import type { EntityData } from '@entity';
+import { match } from 'ts-pattern';
 
 const PRIORITY_LABELS = [
   {
@@ -102,34 +103,37 @@ function isNoiseEmail(entity: EmailEntity): boolean {
  * still classified client-side from labels.
  */
 export function signalFilter(entity: EntityData): boolean {
-  switch (entity.type) {
-    case 'channel':
-      return true;
-    case 'chat':
-      return true;
-    case 'document':
-      return true;
-    case 'email':
+  return match(entity)
+    .with({ type: 'channel' }, () => true)
+    .with({ type: 'chat' }, () => true)
+    .with({ type: 'document' }, () => true)
+    .with({ type: 'email' }, (e) => {
       if (!ENABLE_CLIENT_EMAIL_SIGNAL_FILTER) return true;
-      return isSignalEmail(entity) || entity.isDraft;
-    case 'project':
-      return true;
-    case 'channel_message':
-      return true;
-    case 'call':
-      return true;
-    case 'crm_company':
-      // CRM companies only show in the Companies view, not Inbox.
-      return false;
-    case 'crm_contact':
-      // CRM contacts only show in CRM views, not Inbox.
-      return false;
-    case 'automation':
-      // Automations only show in the Agents > Scheduled tab, not Inbox.
-      return false;
-    case 'foreign':
-      return false;
-  }
+      return isSignalEmail(e) || e.isDraft;
+    })
+    .with({ type: 'project' }, () => true)
+    .with({ type: 'channel_message' }, () => true)
+    .with({ type: 'call' }, () => true)
+    .with(
+      { type: 'crm_company' },
+      () =>
+        // CRM companies only show in the Companies view, not Inbox.
+        false
+    )
+    .with(
+      { type: 'crm_contact' },
+      () =>
+        // CRM contacts only show in CRM views, not Inbox.
+        false
+    )
+    .with(
+      { type: 'automation' },
+      () =>
+        // Automations only show in the Agents > Scheduled tab, not Inbox.
+        false
+    )
+    .with({ type: 'foreign' }, () => false)
+    .exhaustive();
 }
 
 /**

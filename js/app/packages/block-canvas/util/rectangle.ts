@@ -1,4 +1,5 @@
 import type { JSX } from 'solid-js';
+import { match } from 'ts-pattern';
 import { type Anchor, Corners, type Edge, Edges } from '../constants';
 import type { CanvasNode, PencilNode } from '../model/CanvasModel';
 import { lineSegmentIntersection } from './intersect';
@@ -150,28 +151,28 @@ const rectangleMethods = {
     let x = this.x;
     let y = this.y;
 
-    switch (opts.x) {
-      case 'left':
+    match(opts.x)
+      .with('left', () => {
         x = target.x;
-        break;
-      case 'center':
+      })
+      .with('center', () => {
         x = target.x + target.w / 2 - this.w / 2;
-        break;
-      case 'right':
+      })
+      .with('right', () => {
         x = target.x + (target.w - this.w);
-        break;
-    }
-    switch (opts.y) {
-      case 'top':
+      })
+      .otherwise(() => {});
+    match(opts.y)
+      .with('top', () => {
         y = target.y;
-        break;
-      case 'center':
+      })
+      .with('center', () => {
         y = target.y + target.h / 2 - this.h / 2;
-        break;
-      case 'bottom':
+      })
+      .with('bottom', () => {
         y = target.y + (target.h - this.h);
-        break;
-    }
+      })
+      .exhaustive();
     return Rect.fromParams({ x, y, w: this.w, h: this.h });
   },
 };
@@ -286,36 +287,36 @@ export const Rect = {
   ): Rectangle {
     let { x, y, w, h } = rect;
 
-    switch (anchor) {
-      case Edges.Top:
+    match(anchor)
+      .with(Edges.Top, () => {
         h = rect.h + rect.y - point.y;
-        break;
-      case Edges.Right:
+      })
+      .with(Edges.Right, () => {
         w = point.x - rect.x;
-        break;
-      case Edges.Bottom:
+      })
+      .with(Edges.Bottom, () => {
         h = point.y - rect.y;
-        break;
-      case Edges.Left:
+      })
+      .with(Edges.Left, () => {
         w = rect.w + rect.x - point.x;
-        break;
-      case Corners.TopLeft:
+      })
+      .with(Corners.TopLeft, () => {
         w = rect.w + rect.x - point.x;
         h = rect.h + rect.y - point.y;
-        break;
-      case Corners.TopRight:
+      })
+      .with(Corners.TopRight, () => {
         h = rect.h + rect.y - point.y;
         w = point.x - rect.x;
-        break;
-      case Corners.BottomRight:
+      })
+      .with(Corners.BottomRight, () => {
         w = point.x - rect.x;
         h = point.y - rect.y;
-        break;
-      case Corners.BottomLeft:
+      })
+      .with(Corners.BottomLeft, () => {
         w = rect.w + rect.x - point.x;
         h = point.y - rect.y;
-        break;
-    }
+      })
+      .exhaustive();
 
     let wRatio = w / rect.w;
     let hRatio = h / rect.h;
@@ -346,56 +347,56 @@ export const Rect = {
         y: 'center',
       });
     } else {
-      switch (anchor) {
-        case Edges.Top:
+      match(anchor)
+        .with(Edges.Top, () => {
           transformedRect = transformedRect.alignToTarget(rect, {
             x: 'center',
             y: 'bottom',
           });
-          break;
-        case Edges.Right:
+        })
+        .with(Edges.Right, () => {
           transformedRect = transformedRect.alignToTarget(rect, {
             x: 'left',
             y: 'center',
           });
-          break;
-        case Edges.Bottom:
+        })
+        .with(Edges.Bottom, () => {
           transformedRect = transformedRect.alignToTarget(rect, {
             x: 'center',
             y: 'top',
           });
-          break;
-        case Edges.Left:
+        })
+        .with(Edges.Left, () => {
           transformedRect = transformedRect.alignToTarget(rect, {
             x: 'right',
             y: 'center',
           });
-          break;
-        case Corners.TopLeft:
+        })
+        .with(Corners.TopLeft, () => {
           transformedRect = transformedRect.alignToTarget(rect, {
             x: 'right',
             y: 'bottom',
           });
-          break;
-        case Corners.TopRight:
+        })
+        .with(Corners.TopRight, () => {
           transformedRect = transformedRect.alignToTarget(rect, {
             x: 'left',
             y: 'bottom',
           });
-          break;
-        case Corners.BottomRight:
+        })
+        .with(Corners.BottomRight, () => {
           transformedRect = transformedRect.alignToTarget(rect, {
             x: 'left',
             y: 'top',
           });
-          break;
-        case Corners.BottomLeft:
+        })
+        .with(Corners.BottomLeft, () => {
           transformedRect = transformedRect.alignToTarget(rect, {
             x: 'right',
             y: 'top',
           });
-          break;
-      }
+        })
+        .exhaustive();
     }
 
     return transformedRect;

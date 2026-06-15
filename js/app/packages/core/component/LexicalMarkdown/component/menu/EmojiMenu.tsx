@@ -14,6 +14,7 @@ import {
   Show,
   untrack,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { floatWithSelection } from '../../directive/floatWithSelection';
 import {
@@ -201,16 +202,16 @@ export function EmojiMenu(props: EmojiMenuProps) {
     },
     onClose: closeMenu,
     onSpace: () => {
-      switch (escapeSpaceState()) {
-        case 'single':
-        case 'start':
+      return match(escapeSpaceState())
+        .with('single', 'start', () => {
           closeMenu();
           return true;
-        case null:
+        })
+        .with(null, () => {
           setEscapeSpaceState('single');
           return false;
-      }
-      return false;
+        })
+        .exhaustive();
     },
     onOtherKey: () => {
       setEscapeSpaceState(null);

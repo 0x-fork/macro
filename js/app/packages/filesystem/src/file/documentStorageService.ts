@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern';
 import { contentHash } from '@core/util/hash';
 import {
   DocumentMetadata,
@@ -177,33 +178,32 @@ export class IDocumentStorageServiceFile
     modificationHash?: string;
     annotationStorageHash?: string;
   }) {
-    let newOperation: OperationHistoryItem;
-    switch (type) {
-      case 'SAVE':
+    const newOperation: OperationHistoryItem = match(type)
+      .with('SAVE', () => {
         if (!modificationHash) {
           throw new Error('modification hash must be provided');
         }
-        newOperation = {
+        return {
           documentKey,
-          type,
+          type: 'SAVE' as const,
           sha,
           modificationHash,
         };
-        break;
-      case 'ANNOTATE':
+      })
+      .with('ANNOTATE', () => {
         if (!annotationStorageHash) {
           throw new Error('annotation hash must be provided');
         }
-        newOperation = {
+        return {
           documentKey,
-          type,
+          type: 'ANNOTATE' as const,
           sha,
           annotationStorageHash,
         };
-        break;
-      default:
+      })
+      .otherwise(() => {
         throw new Error('not supported');
-    }
+      });
 
     return new IDocumentStorageServiceFile({
       fileBits: [buffer],

@@ -9,7 +9,6 @@ import {
 } from '@core/collab/source';
 import { SYNC_SERVICE_HOSTS } from '@core/constant/servers';
 import { arrayEquals } from '@core/util/compareUtils';
-
 import { storageServiceClient } from '@service-storage/client';
 import { createEventBus } from '@solid-primitives/event-bus';
 import { raceTimeout } from '@solid-primitives/promise';
@@ -29,6 +28,7 @@ import {
 import { createWebsocketStateSignal } from '@websocket/solid/state-signal';
 import type { VersionVector } from 'loro-crdt';
 import { type Result, ResultAsync } from 'neverthrow';
+import { match } from 'ts-pattern';
 import {
   FromPeer,
   FromRemote,
@@ -39,16 +39,19 @@ import {
 const SYNC_SERVICE_WS_URL = `${SYNC_SERVICE_HOSTS['ws']}/document`;
 
 function mapToSyncStatus(status: WebsocketConnectionState): SyncSourceStatus {
-  switch (status) {
-    case WebsocketConnectionState.Connecting:
-      return SyncSourceStatus.Connecting;
-    case WebsocketConnectionState.Open:
-      return SyncSourceStatus.Connected;
-    case WebsocketConnectionState.Closed:
-    case WebsocketConnectionState.Closing:
-    case WebsocketConnectionState.Reconnecting:
-      return SyncSourceStatus.Disconnected;
-  }
+  return match(status)
+    .with(
+      WebsocketConnectionState.Connecting,
+      () => SyncSourceStatus.Connecting
+    )
+    .with(WebsocketConnectionState.Open, () => SyncSourceStatus.Connected)
+    .with(
+      WebsocketConnectionState.Closed,
+      WebsocketConnectionState.Closing,
+      WebsocketConnectionState.Reconnecting,
+      () => SyncSourceStatus.Disconnected
+    )
+    .otherwise(() => SyncSourceStatus.Disconnected);
 }
 
 function createSyncServiceSocket(documentId: string, initialToken: string) {

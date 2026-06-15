@@ -128,14 +128,10 @@ export function hasSoupEntity(entityId: string): boolean {
 
 /** Channels nest the id under `data.channel.id`; call records under `data.callId`. */
 export function getSoupItemId(item: SoupApiItem): string {
-  switch (item.tag) {
-    case 'channel':
-      return item.data.channel.id;
-    case 'call':
-      return item.data.callId;
-    default:
-      return item.data.id;
-  }
+  return match(item)
+    .with({ tag: 'channel' }, (i) => i.data.channel.id)
+    .with({ tag: 'call' }, (i) => i.data.callId)
+    .otherwise((i) => i.data.id);
 }
 
 /**

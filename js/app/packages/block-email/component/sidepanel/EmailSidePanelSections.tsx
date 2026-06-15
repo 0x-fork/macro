@@ -2,6 +2,7 @@ import { SidePanel } from '@app/component/side-panel';
 import { EntityPropertiesSection } from '@app/component/side-panel/properties';
 import type { Property } from '@property/types';
 import { Suspense } from 'solid-js';
+import { match } from 'ts-pattern';
 import { useEmailContext } from '../EmailContext';
 
 interface EmailSidePanelSectionsProps {
@@ -52,16 +53,10 @@ export function EmailSidePanelSections(props: EmailSidePanelSectionsProps) {
 function getEmailMetadataEmptyLabel(property: Property) {
   if (!property.isMetadata) return undefined;
 
-  switch (property.displayName) {
-    case 'Last Sent':
-      return 'No sent messages';
-    case 'Last Received':
-      return 'No received messages';
-    case 'Thread Started':
-      return 'No messages';
-    case 'Subject':
-      return 'No subject';
-    default:
-      return undefined;
-  }
+  return match(property.displayName)
+    .with('Last Sent', () => 'No sent messages')
+    .with('Last Received', () => 'No received messages')
+    .with('Thread Started', () => 'No messages')
+    .with('Subject', () => 'No subject')
+    .otherwise(() => undefined);
 }

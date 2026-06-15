@@ -11,6 +11,7 @@ import {
 } from 'lexical';
 import { createMemo, createSignal, Show, useContext } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { match } from 'ts-pattern';
 import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
 import { floatWithElement } from '../../directive/floatWithElement';
 import { autoRegister } from '../../plugins';
@@ -20,20 +21,13 @@ false && floatWithElement;
 
 function formatRelativeDate(date: Date): string {
   const diff = differenceInCalendarDays(date, new Date());
-  switch (diff) {
-    case -2:
-      return '2 days ago';
-    case -1:
-      return 'Yesterday';
-    case 0:
-      return 'Today';
-    case 1:
-      return 'Tomorrow';
-    case 2:
-      return 'In 2 days';
-    default:
-      return formatDate(date);
-  }
+  return match(diff)
+    .with(-2, () => '2 days ago')
+    .with(-1, () => 'Yesterday')
+    .with(0, () => 'Today')
+    .with(1, () => 'Tomorrow')
+    .with(2, () => 'In 2 days')
+    .otherwise(() => formatDate(date));
 }
 
 function formatTooltipDate(date: Date): string {

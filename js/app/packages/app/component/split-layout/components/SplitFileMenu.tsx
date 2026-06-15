@@ -25,6 +25,7 @@ import {
   useContext,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { match } from 'ts-pattern';
 import { SplitPanelContext } from '../context';
 import { useSplitLayout } from '../layout';
 
@@ -201,8 +202,8 @@ export function SplitFileMenu(props: {
     return props.ops
       .map((op) => {
         if (isDefaultFileOperation(op)) {
-          switch (op.op) {
-            case 'delete':
+          return match(op.op)
+            .with('delete', () => {
               if (!isOwner()) return null;
               return {
                 label: 'Delete',
@@ -219,8 +220,8 @@ export function SplitFileMenu(props: {
                 icon: Trash,
                 group: 'delete',
               };
-
-            case 'rename':
+            })
+            .with('rename', () => {
               if (!isOwner()) return null;
               return {
                 label: 'Rename',
@@ -241,36 +242,34 @@ export function SplitFileMenu(props: {
                 },
                 icon: Rename,
               };
-
-            case 'copy':
-              return {
-                label: 'Duplicate',
-                action: async () => {
-                  if (props.itemType === 'project') {
-                    console.warn(
-                      'Attempting to copy project!. This should not happen'
-                    );
-                    return;
-                  }
-                  const res = await itemOperations.copyItem({
-                    itemType: props.itemType,
-                    id: props.id,
-                    name: props.name,
-                  });
-                  if (res) {
-                    replaceOrInsertSplit(
-                      {
-                        id: res,
-                        type: blockName,
-                      },
-                      'entity-actions-menu'
-                    );
-                  }
-                },
-                icon: Copy,
-              };
-
-            case 'moveToProject':
+            })
+            .with('copy', () => ({
+              label: 'Duplicate',
+              action: async () => {
+                if (props.itemType === 'project') {
+                  console.warn(
+                    'Attempting to copy project!. This should not happen'
+                  );
+                  return;
+                }
+                const res = await itemOperations.copyItem({
+                  itemType: props.itemType,
+                  id: props.id,
+                  name: props.name,
+                });
+                if (res) {
+                  replaceOrInsertSplit(
+                    {
+                      id: res,
+                      type: blockName,
+                    },
+                    'entity-actions-menu'
+                  );
+                }
+              },
+              icon: Copy,
+            }))
+            .with('moveToProject', () => {
               if (!isOwner()) return null;
               return {
                 label: 'Move to Folder',
@@ -291,7 +290,8 @@ export function SplitFileMenu(props: {
                 },
                 icon: ArrowRight,
               };
-          }
+            })
+            .exhaustive();
         } else {
           return op;
         }

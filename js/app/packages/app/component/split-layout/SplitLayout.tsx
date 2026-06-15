@@ -19,6 +19,7 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { PopoverSplitRenderer } from './components/PopoverSplitRenderer';
 import { SplitPanel } from './components/SplitPanel';
 import { SplitLayoutContext } from './context';
@@ -184,21 +185,18 @@ function createSplitFocusTracker(props: {
   };
 
   const focusFromEvent = (event: SplitEventWithType) => {
-    switch (event.type) {
-      case SplitEvent.Insert: {
-        if (event.activate === false) break;
-        const splitId = event.splitId;
-        focusSplitById(splitId);
-        break;
-      }
-      case SplitEvent.Remove: {
+    match(event)
+      .with({ type: SplitEvent.Insert }, (event) => {
+        if (event.activate === false) return;
+        focusSplitById(event.splitId);
+      })
+      .with({ type: SplitEvent.Remove }, (event) => {
         const splitId = findNextSplitToActivate(event.splitIndex);
         if (splitId) {
           focusSplitById(splitId);
         }
-        break;
-      }
-    }
+      })
+      .otherwise(() => {});
   };
 
   // Both of these effects need to be debounced to prevent race conditions.

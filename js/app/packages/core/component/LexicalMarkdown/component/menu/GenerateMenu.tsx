@@ -22,6 +22,7 @@ import {
   Show,
   Switch,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { floatWithElement } from '../../directive/floatWithElement';
 import { registerEditorWidthObserver } from '../../plugins';
 import {
@@ -68,29 +69,29 @@ function GenerateActionMenu(props: GenerateMenuProps) {
 
   const keyHandler = createCallback((event: KeyboardEvent) => {
     event.preventDefault();
-    switch (event.key) {
-      case 'ArrowUp':
+    match(event.key)
+      .with('ArrowUp', () => {
         setSelected((p) => Math.min(p - 1, 0));
-        break;
-      case 'ArrowDown':
+      })
+      .with('ArrowDown', () => {
         setSelected((p) => Math.min(p + 1, 1));
-        break;
-      case 'Enter':
+      })
+      .with('Enter', () => {
         if (selectedIndex() === 0) {
           props.editor.dispatchCommand(ACCEPT_COMPLETION, undefined);
         } else {
           props.editor.dispatchCommand(REJECT_COMPLETION, undefined);
         }
-        break;
-      case 'Tab':
+      })
+      .with('Tab', () => {
         props.editor.dispatchCommand(ACCEPT_COMPLETION, undefined);
-        break;
-      case 'Escape':
+      })
+      .with('Escape', () => {
         if (!isGeneratingSignal()) {
           props.editor.dispatchCommand(REJECT_COMPLETION, undefined);
         }
-        break;
-    }
+      })
+      .otherwise(() => {});
   });
 
   onMount(() => {

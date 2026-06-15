@@ -5,6 +5,7 @@ import { useQuickAccess } from '@core/context/quickAccess';
 import { useUserId } from '@core/context/user';
 import { EntityIcon as EntityIconWithAvatar } from '@entity/extractors/entity-icon';
 import { type Accessor, createMemo, type JSX } from 'solid-js';
+import { match } from 'ts-pattern';
 import { useInboxPicker } from '../inbox-picker';
 import type { SearchableOption } from '../searchable-multi-select';
 import type {
@@ -340,18 +341,15 @@ export function useSearchFacets(
       controller.setCallStatus(id === 'all' ? undefined : (id as CallStatus)),
   });
 
-  return createMemo(() => {
-    switch (controller.type()) {
-      case 'email':
-        return inboxPicker.hasMultiple()
+  return createMemo(() =>
+    match(controller.type())
+      .with('email', () =>
+        inboxPicker.hasMultiple()
           ? [type, importance, inbox]
-          : [type, importance];
-      case 'channels':
-        return [type, channelIn, channelFrom];
-      case 'calls':
-        return [type, callIn, callFrom, callStatus];
-      default:
-        return [type];
-    }
-  });
+          : [type, importance]
+      )
+      .with('channels', () => [type, channelIn, channelFrom])
+      .with('calls', () => [type, callIn, callFrom, callStatus])
+      .otherwise(() => [type])
+  );
 }

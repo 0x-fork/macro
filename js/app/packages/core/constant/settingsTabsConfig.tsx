@@ -9,6 +9,7 @@ import PlugIcon from '@phosphor/plug.svg';
 import UserIconPhosphor from '@phosphor/user.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
 import { type Component, createMemo } from 'solid-js';
+import { match } from 'ts-pattern';
 import { useHasPermission } from '../context/user';
 import { isNativeMobilePlatform } from '../mobile/isNativeMobilePlatform';
 import { isTouchDevice } from '../mobile/isTouchDevice';
@@ -90,31 +91,21 @@ export const useSettingsTabAvailable = () => {
   });
   const hasAdminPanel = useHasPermission(PERMISSION_IDS.WRITE_ADMIN_PANEL);
 
-  return (tab: SettingsTab): boolean => {
-    switch (tab) {
-      case 'Appearance':
-      case 'Account':
-        return true;
-      case 'Team':
-        return teamsFlag().enabled;
-      case 'Email':
-        return ENABLE_EMAIL;
-      case 'GitHub':
-        return true;
-      case 'Shortcuts':
-        return !isTouchDevice();
-      case 'Mobile App':
-        return ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform();
-      case 'Agent':
-        return !isNativeMobilePlatform();
-      case 'Mobile':
-        return isNativeMobilePlatform() && DEV_MODE_ENV;
-      case 'Admin':
-        return hasAdminPanel();
-      default:
-        return false;
-    }
-  };
+  return (tab: SettingsTab): boolean =>
+    match(tab)
+      .with('Appearance', 'Account', () => true)
+      .with('Team', () => teamsFlag().enabled)
+      .with('Email', () => ENABLE_EMAIL)
+      .with('GitHub', () => true)
+      .with('Shortcuts', () => !isTouchDevice())
+      .with(
+        'Mobile App',
+        () => ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform()
+      )
+      .with('Agent', () => !isNativeMobilePlatform())
+      .with('Mobile', () => isNativeMobilePlatform() && DEV_MODE_ENV)
+      .with('Admin', () => hasAdminPanel())
+      .otherwise(() => false);
 };
 
 /**

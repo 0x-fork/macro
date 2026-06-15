@@ -12,6 +12,7 @@ import type {
 } from '@service-storage/generated/schemas';
 import type { CreateCommentResponse } from '@service-storage/generated/schemas/createCommentResponse';
 import { createCallback } from '@solid-primitives/rootless';
+import { match } from 'ts-pattern';
 import {
   useAttachHighlightCommentResource,
   useCreateFreeCommentResource,
@@ -46,49 +47,50 @@ export function useCreateComment() {
           return null;
         }
 
-        let response: CreateCommentResponse | null = null;
-        switch (comment.type) {
-          case 'highlight':
-            const highlight = highlightsUuidMap()?.[comment.anchorId];
-            if (!highlight) {
-              console.error('Unable to find highlight');
-              return response;
-            }
+        const response: CreateCommentResponse | null = await match(comment)
+          .with(
+            { type: 'highlight' },
+            async (c): Promise<CreateCommentResponse | null> => {
+              const highlight = highlightsUuidMap()?.[c.anchorId];
+              if (!highlight) {
+                console.error('Unable to find highlight');
+                return null;
+              }
 
-            if (highlight.existsOnServer) {
-              response = await attachHighlightComment(
+              if (highlight.existsOnServer) {
+                return await attachHighlightComment(
+                  text,
+                  highlight.uuid,
+                  mentions
+                );
+              } else {
+                return await createHighlightComment(text, highlight, mentions);
+              }
+            }
+          )
+          .with(
+            { type: 'free' },
+            async (c): Promise<CreateCommentResponse | null> => {
+              const newThreadPlaceable_ = newThreadPlaceable();
+              if (
+                !newThreadPlaceable_ ||
+                newThreadPlaceable_.internalId !== c.anchorId
+              ) {
+                console.error('Unable to find new thread placeable');
+                return null;
+              }
+
+              return await createFreeComment(
                 text,
-                highlight.uuid,
+                newThreadPlaceable_,
                 mentions
               );
-            } else {
-              response = await createHighlightComment(
-                text,
-                highlight,
-                mentions
-              );
             }
-            break;
-          case 'free':
-            const newThreadPlaceable_ = newThreadPlaceable();
-            if (
-              !newThreadPlaceable_ ||
-              newThreadPlaceable_.internalId !== comment.anchorId
-            ) {
-              console.error('Unable to find new thread placeable');
-              return response;
-            }
-
-            response = await createFreeComment(
-              text,
-              newThreadPlaceable_,
-              mentions
-            );
-            break;
-          default:
+          )
+          .otherwise((): null => {
             console.error('invalid comment type', comment.type);
-            return response;
-        }
+            return null;
+          });
 
         if (response) {
           deleteNewComments();

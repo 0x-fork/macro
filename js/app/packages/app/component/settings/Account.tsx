@@ -30,6 +30,7 @@ import SignOutIcon from '@phosphor-icons/core/regular/sign-out.svg?component-sol
 import XIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
 import { authServiceClient } from '@service-auth/client';
 import { useEmail, useLicenseStatus, useUserId } from '@core/context/user';
+import { match } from 'ts-pattern';
 import {
   createEffect,
   createMemo,
@@ -95,19 +96,19 @@ async function removeProfilePicture(): Promise<boolean> {
 }
 
 function formatBundleUpdateStatus(status: BundleUpdateStatus): string {
-  switch (status.status) {
-    case 'Idle': return 'Idle';
-    case 'CheckingForUpdate': return 'Checking for update...';
-    case 'UpdateFound': return `Update available: v${status.data.version}`;
-    case 'NoUpdateNeeded': return 'Up to date';
-    case 'WaitingForWifi': return 'Waiting for Wi-Fi to download';
-    case 'Downloading': return `Downloading: ${Math.round(status.data.progress)}%`;
-    case 'Unzipping': return `Installing: ${Math.round(status.data.progress)}%`;
-    case 'ClearRequired': return 'Cached update revoked';
-    case 'NativeUpdateRequired': return 'App update required';
-    case 'Completed': return 'Update ready';
-    case 'Error': return 'An error occurred when checking for updates';
-  }
+  return match(status)
+    .with({ status: 'Idle' }, () => 'Idle')
+    .with({ status: 'CheckingForUpdate' }, () => 'Checking for update...')
+    .with({ status: 'UpdateFound' }, (s) => `Update available: v${s.data.version}`)
+    .with({ status: 'NoUpdateNeeded' }, () => 'Up to date')
+    .with({ status: 'WaitingForWifi' }, () => 'Waiting for Wi-Fi to download')
+    .with({ status: 'Downloading' }, (s) => `Downloading: ${Math.round(s.data.progress)}%`)
+    .with({ status: 'Unzipping' }, (s) => `Installing: ${Math.round(s.data.progress)}%`)
+    .with({ status: 'ClearRequired' }, () => 'Cached update revoked')
+    .with({ status: 'NativeUpdateRequired' }, () => 'App update required')
+    .with({ status: 'Completed' }, () => 'Update ready')
+    .with({ status: 'Error' }, () => 'An error occurred when checking for updates')
+    .exhaustive();
 }
 
 function useUserName() {
@@ -619,22 +620,14 @@ function bundleUpdateAction(
   const grantBundleUpdate = () =>
     invoke('grant_bundle_update', { approved: true }).catch(console.error);
 
-  switch (status.status) {
-    case 'Idle':
-      return { label: 'Check for Update', action: () => invoke('check_for_update') };
-    case 'Error':
-      return { label: 'Retry', action: () => invoke('check_for_update') };
-    case 'UpdateFound':
-      return { label: 'Download', action: grantBundleUpdate };
-    case 'WaitingForWifi':
-      return { label: 'Download anyway', action: grantBundleUpdate };
-    case 'ClearRequired':
-      return { label: 'Reload', action: () => invoke('perform_update') };
-    case 'Completed':
-      return { label: 'Update', action: () => invoke('perform_update') };
-    default:
-      return null;
-  }
+  return match(status)
+    .with({ status: 'Idle' }, () => ({ label: 'Check for Update', action: () => invoke('check_for_update') }))
+    .with({ status: 'Error' }, () => ({ label: 'Retry', action: () => invoke('check_for_update') }))
+    .with({ status: 'UpdateFound' }, () => ({ label: 'Download', action: grantBundleUpdate }))
+    .with({ status: 'WaitingForWifi' }, () => ({ label: 'Download anyway', action: grantBundleUpdate }))
+    .with({ status: 'ClearRequired' }, () => ({ label: 'Reload', action: () => invoke('perform_update') }))
+    .with({ status: 'Completed' }, () => ({ label: 'Update', action: () => invoke('perform_update') }))
+    .otherwise(() => null);
 }
 
 type BundleDebugInfo = {

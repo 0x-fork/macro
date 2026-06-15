@@ -29,6 +29,7 @@ import type { IDocumentStorageServiceFile } from '@filesystem/file';
 import { platformFetch } from 'core/util/platformFetch';
 import type { SerializedEditorState } from 'lexical';
 import { err, ok, type Result } from 'neverthrow';
+import { match } from 'ts-pattern';
 import type { ApiChannelWithLatest } from './channel-list-types';
 import type {
   AccessLevel,
@@ -281,45 +282,31 @@ function _isItemType(str: string): str is ItemType {
 export function blockNameToItemType(
   blockName: BlockName | BlockAlias
 ): ItemType {
-  switch (blockName) {
-    case 'chat':
-      return 'chat';
-    case 'call':
-      return 'call';
-    case 'channel':
-      return 'channel';
-    case 'project':
-      return 'project';
-    case 'email':
-      return 'email';
-    case 'automation':
-      return 'automation';
-    case 'company':
-      return 'crm_company';
-    case 'contact':
-      return 'crm_contact';
-    default:
-      return DEFAULT_ITEM_TYPE;
-  }
+  return match(blockName)
+    .with('chat', () => 'chat' as ItemType)
+    .with('call', () => 'call' as ItemType)
+    .with('channel', () => 'channel' as ItemType)
+    .with('project', () => 'project' as ItemType)
+    .with('email', () => 'email' as ItemType)
+    .with('automation', () => 'automation' as ItemType)
+    .with('company', () => 'crm_company' as ItemType)
+    .with('contact', () => 'crm_contact' as ItemType)
+    .otherwise(() => DEFAULT_ITEM_TYPE);
 }
 
 export function stringToItemType(str: string): ItemType | undefined {
-  switch (str) {
-    case 'email':
-    case 'thread':
-    case 'email_thread': {
-      return 'email';
-    }
-    case 'call':
-    case 'chat':
-    case 'document':
-    case 'project':
-    case 'channel':
-    case 'crm_company':
-      return str;
-    default:
-      return undefined;
-  }
+  return match(str)
+    .with('email', 'thread', 'email_thread', () => 'email' as ItemType)
+    .with(
+      'call',
+      'chat',
+      'document',
+      'project',
+      'channel',
+      'crm_company',
+      (s) => s as ItemType
+    )
+    .otherwise(() => undefined);
 }
 
 export function isCloudStorageItem(
@@ -1367,8 +1354,8 @@ export const storageServiceClient = {
         { code: 'INVALID_RESPONSE', message: 'Processing result is missing' },
       ]);
     }
-    switch (params.type) {
-      case 'PREPROCESS': {
+    return match(params.type as ProcessingResultType)
+      .with('PREPROCESS', () => {
         const parseResult = CoParseSchema.safeParse(JSON.parse(data.result));
         return parseResult.success
           ? ok({
@@ -1376,16 +1363,19 @@ export const storageServiceClient = {
             })
           : err([
               {
-                code: 'INVALID_RESPONSE',
+                code: 'INVALID_RESPONSE' as const,
                 message: 'Invalid PREPROCESS result',
               },
             ]);
-      }
-      default:
-        return err([
-          { code: 'INVALID_RESPONSE', message: `Invalid type ${params.type}` },
-        ]);
-    }
+      })
+      .otherwise(() =>
+        err([
+          {
+            code: 'INVALID_RESPONSE' as const,
+            message: `Invalid type ${params.type}`,
+          },
+        ])
+      );
   },
   async getJobProcessingResult<T extends ProcessingResultType>(params: {
     jobId: string;
@@ -1404,8 +1394,8 @@ export const storageServiceClient = {
         { code: 'INVALID_RESPONSE', message: 'Processing result is missing' },
       ]);
     }
-    switch (params.type) {
-      case 'PREPROCESS': {
+    return match(params.type as ProcessingResultType)
+      .with('PREPROCESS', () => {
         const parseResult = CoParseSchema.safeParse(JSON.parse(data.result));
         return parseResult.success
           ? ok({
@@ -1413,16 +1403,19 @@ export const storageServiceClient = {
             })
           : err([
               {
-                code: 'INVALID_RESPONSE',
+                code: 'INVALID_RESPONSE' as const,
                 message: 'Invalid PREPROCESS result',
               },
             ]);
-      }
-      default:
-        return err([
-          { code: 'INVALID_RESPONSE', message: `Invalid type ${params.type}` },
-        ]);
-    }
+      })
+      .otherwise(() =>
+        err([
+          {
+            code: 'INVALID_RESPONSE' as const,
+            message: `Invalid type ${params.type}`,
+          },
+        ])
+      );
   },
 
   async listDocuments() {

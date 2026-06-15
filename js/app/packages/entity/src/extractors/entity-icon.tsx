@@ -79,23 +79,20 @@ function GithubPullRequestIcon(props: {
   function config() {
     const status = props.entity.metadata.status;
 
-    switch (status) {
-      case 'open':
-        return {
-          icon: GitPullRequest,
-          iconClass: 'text-success',
-        };
-      case 'merged':
-        return {
-          icon: GitMerge,
-          iconClass: 'text-note',
-        };
-      case 'closed':
-        return {
-          icon: GitPullRequest,
-          iconClass: 'text-failure',
-        };
-    }
+    return match(status)
+      .with('open', () => ({
+        icon: GitPullRequest,
+        iconClass: 'text-success',
+      }))
+      .with('merged', () => ({
+        icon: GitMerge,
+        iconClass: 'text-note',
+      }))
+      .with('closed', () => ({
+        icon: GitPullRequest,
+        iconClass: 'text-failure',
+      }))
+      .exhaustive();
   }
 
   return (

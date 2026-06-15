@@ -17,6 +17,7 @@ import {
   Index,
   Show,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 import { usePropertiesContext } from '../../context/PropertiesContext';
 import {
   getPropertyDataTypeDropdownOptions,
@@ -267,18 +268,16 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
   const buildDataType = (): PropertyDataType => {
     const { type, specificType } = parseDataTypeValue(selectedDataType());
 
-    switch (type) {
-      case 'string':
-        return { type: 'string' };
-      case 'number':
-        return { type: 'number' };
-      case 'boolean':
-        return { type: 'boolean' };
-      case 'date':
-        return { type: 'date' };
-      case 'link':
-        return { type: 'link', multi: isMultiSelect() };
-      case 'select_string':
+    return match(type)
+      .with('string', () => ({ type: 'string' }) as PropertyDataType)
+      .with('number', () => ({ type: 'number' }) as PropertyDataType)
+      .with('boolean', () => ({ type: 'boolean' }) as PropertyDataType)
+      .with('date', () => ({ type: 'date' }) as PropertyDataType)
+      .with(
+        'link',
+        () => ({ type: 'link', multi: isMultiSelect() }) as PropertyDataType
+      )
+      .with('select_string', () => {
         // Filter out empty options and deduplicate
         const stringOptions = newStringOptions()
           .filter((opt) => opt.value.trim() !== '')
@@ -296,8 +295,9 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
           type: 'select_string',
           multi: isMultiSelect(),
           options: uniqueStringOptions,
-        };
-      case 'select_number':
+        } as PropertyDataType;
+      })
+      .with('select_number', () => {
         // Filter out empty options and deduplicate
         const numberOptions = newNumberOptions()
           .filter((opt) => !isNaN(opt.value))
@@ -315,16 +315,18 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
           type: 'select_number',
           multi: isMultiSelect(),
           options: uniqueNumberOptions,
-        };
-      case 'entity':
-        return {
-          type: 'entity',
-          multi: isMultiSelect(),
-          specific_type: specificType,
-        };
-      default:
-        throw new Error(`Unknown data type: ${type}`);
-    }
+        } as PropertyDataType;
+      })
+      .with(
+        'entity',
+        () =>
+          ({
+            type: 'entity',
+            multi: isMultiSelect(),
+            specific_type: specificType,
+          }) as PropertyDataType
+      )
+      .exhaustive();
   };
 
   const handleCreateProperty = () => {

@@ -16,6 +16,7 @@ import {
   untrack,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { match } from 'ts-pattern';
 import { floatWithElement } from '../../directive/floatWithElement';
 import { floatWithSelection } from '../../directive/floatWithSelection';
 import {
@@ -229,16 +230,16 @@ export function ActionMenu(props: {
     onSelect: selectCurrentItem,
     onClose: closeMenu,
     onSpace: () => {
-      switch (escapeSpaceState()) {
-        case 'single':
-        case 'start':
+      return match(escapeSpaceState())
+        .with('single', 'start', () => {
           closeMenu();
           return true;
-        case null:
+        })
+        .with(null, () => {
           setEscapeSpaceState('single');
           return false;
-      }
-      return false;
+        })
+        .exhaustive();
     },
     onOtherKey: () => {
       setEscapeSpaceState(null);

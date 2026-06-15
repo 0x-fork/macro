@@ -45,21 +45,17 @@ function hasProjectId<T extends SoupApiItem>(
 export function serializeGroupByField(
   field: GroupByField
 ): ApiGroupedSoupField {
-  switch (field.type) {
-    case 'date':
-      return 'date';
-    case 'entity_type':
-      return 'entity_type';
-    case 'project':
-      return 'project';
-    case 'property':
-      return {
-        property: {
-          property_definition_id: field.propertyDefinitionId,
-          ...(field.entityType && { entity_type: field.entityType }),
-        },
-      };
-  }
+  return match(field)
+    .with({ type: 'date' }, () => 'date' as const)
+    .with({ type: 'entity_type' }, () => 'entity_type' as const)
+    .with({ type: 'project' }, () => 'project' as const)
+    .with({ type: 'property' }, (f) => ({
+      property: {
+        property_definition_id: f.propertyDefinitionId,
+        ...(f.entityType && { entity_type: f.entityType }),
+      },
+    }))
+    .exhaustive();
 }
 
 export function parseGroupMeta(raw: ApiGroupMeta): GroupMeta {

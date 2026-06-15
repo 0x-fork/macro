@@ -1,6 +1,7 @@
 import type { IUser } from '@core/user/types';
 import type { EntityData } from '@entity';
 import { createSignal } from 'solid-js';
+import { match } from 'ts-pattern';
 import {
   MOCK_DOCUMENT_BASIC,
   MOCK_PROJECT_1,
@@ -233,24 +234,21 @@ function matchesFilter(
   filter: SandboxSidebarFilter
 ): boolean {
   if (!filter) return true;
-  switch (filter) {
-    case 'empty':
-      return false;
-    case 'agents':
-      return entity.type === 'chat';
-    case 'mail':
-      return entity.type === 'email';
-    case 'documents':
-      return entity.type === 'document' && entity.subType?.type !== 'task';
-    case 'tasks':
-      return entity.type === 'document' && entity.subType?.type === 'task';
-    case 'channels':
-      return entity.type === 'channel';
-    case 'folders':
-      return entity.type === 'project';
-    default:
-      return true;
-  }
+  return match(filter)
+    .with('empty', () => false)
+    .with('agents', () => entity.type === 'chat')
+    .with('mail', () => entity.type === 'email')
+    .with(
+      'documents',
+      () => entity.type === 'document' && entity.subType?.type !== 'task'
+    )
+    .with(
+      'tasks',
+      () => entity.type === 'document' && entity.subType?.type === 'task'
+    )
+    .with('channels', () => entity.type === 'channel')
+    .with('folders', () => entity.type === 'project')
+    .otherwise(() => true);
 }
 
 function sandboxEntities() {
@@ -304,40 +302,44 @@ export function createSandboxEntity(type: SandboxEntityType): EntityData {
     frecencyScore: 1,
   };
 
-  switch (type) {
-    case 'md':
-      return { ...base, type: 'document', fileType: 'md' };
-    case 'canvas':
-      return { ...base, type: 'document', fileType: 'canvas' };
-    case 'code':
-      return { ...base, type: 'document', fileType: 'py' };
-    case 'task':
-      return {
-        ...base,
-        type: 'document',
-        fileType: 'md',
-        subType: { type: 'task', is_completed: false },
-      };
-    case 'email':
-      return {
-        ...base,
-        type: 'email',
-        isRead: false,
-        isDraft: true,
-        isImportant: false,
-        done: false,
-        senderEmail: 'you@example.com',
-        senderName: 'You',
-        snippet: '',
-        participants: [],
-      };
-    case 'channel':
-      return { ...base, type: 'channel', channelType: 'private' };
-    case 'chat':
-      return { ...base, type: 'chat' };
-    case 'project':
-      return { ...base, type: 'project' };
-  }
+  return match(type)
+    .with('md', () => ({ ...base, type: 'document' as const, fileType: 'md' }))
+    .with('canvas', () => ({
+      ...base,
+      type: 'document' as const,
+      fileType: 'canvas',
+    }))
+    .with('code', () => ({
+      ...base,
+      type: 'document' as const,
+      fileType: 'py',
+    }))
+    .with('task', () => ({
+      ...base,
+      type: 'document' as const,
+      fileType: 'md',
+      subType: { type: 'task' as const, is_completed: false },
+    }))
+    .with('email', () => ({
+      ...base,
+      type: 'email' as const,
+      isRead: false,
+      isDraft: true,
+      isImportant: false,
+      done: false,
+      senderEmail: 'you@example.com',
+      senderName: 'You',
+      snippet: '',
+      participants: [],
+    }))
+    .with('channel', () => ({
+      ...base,
+      type: 'channel' as const,
+      channelType: 'private' as const,
+    }))
+    .with('chat', () => ({ ...base, type: 'chat' as const }))
+    .with('project', () => ({ ...base, type: 'project' as const }))
+    .exhaustive();
 }
 
 export function resetSandbox() {
@@ -359,20 +361,22 @@ type EntityBucketType =
   | 'document';
 
 function entityToBucket(entity: EntityData): EntityBucketType {
-  switch (entity.type) {
-    case 'document':
-      return entity.subType?.type === 'task' ? 'task' : 'note';
-    case 'email':
-      return 'email';
-    case 'channel':
-      return entity.channelType === 'direct_message' ? 'dm' : 'channel';
-    case 'chat':
-      return 'chat';
-    case 'project':
-      return 'project';
-    default:
-      return 'note';
-  }
+  return match(entity)
+    .with(
+      { type: 'document' },
+      (e) => (e.subType?.type === 'task' ? 'task' : 'note') as EntityBucketType
+    )
+    .with({ type: 'email' }, () => 'email' as EntityBucketType)
+    .with(
+      { type: 'channel' },
+      (e) =>
+        (e.channelType === 'direct_message'
+          ? 'dm'
+          : 'channel') as EntityBucketType
+    )
+    .with({ type: 'chat' }, () => 'chat' as EntityBucketType)
+    .with({ type: 'project' }, () => 'project' as EntityBucketType)
+    .otherwise(() => 'note' as EntityBucketType);
 }
 
 // -- Sandbox contacts --

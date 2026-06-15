@@ -8,6 +8,7 @@ import type {
   ScheduledAction,
   UpdateScheduledAction,
 } from '@service-scheduled-action/generated/schemas';
+import { match } from 'ts-pattern';
 import type { ScheduleDraft, ScheduleFrequency } from './types';
 
 export const INPUT_CLASS =
@@ -111,16 +112,11 @@ function formatDayList(daysOfWeek: string[]): string {
 function nthSuffix(n: number): string {
   const tens = n % 100;
   if (tens >= 11 && tens <= 13) return 'th';
-  switch (n % 10) {
-    case 1:
-      return 'st';
-    case 2:
-      return 'nd';
-    case 3:
-      return 'rd';
-    default:
-      return 'th';
-  }
+  return match(n % 10)
+    .with(1, () => 'st')
+    .with(2, () => 'nd')
+    .with(3, () => 'rd')
+    .otherwise(() => 'th');
 }
 
 export function describeSchedule(draft: ScheduleDraft, timezone: string) {

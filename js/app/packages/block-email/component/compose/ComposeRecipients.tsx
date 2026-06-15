@@ -3,6 +3,7 @@ import { RecipientSelector } from '@core/component/RecipientSelector';
 import { isMobile } from '@core/mobile/isMobile';
 import { cn } from '@ui';
 import { createSignal, type JSX, onCleanup, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 import { FromInboxSelector } from '../FromInboxSelector';
 import { type RecipientFieldId, useCompose } from './ComposeContext';
 
@@ -77,13 +78,11 @@ function ComposeFieldRow(props: {
 }
 
 function recipientName(recipient: EmailRecipient) {
-  switch (recipient.kind) {
-    case 'user':
-    case 'contact':
-      return recipient.data.name || recipient.data.email;
-    case 'custom':
-      return recipient.data.email;
-  }
+  return match(recipient)
+    .with({ kind: 'user' }, (r) => r.data.name || r.data.email)
+    .with({ kind: 'contact' }, (r) => r.data.name || r.data.email)
+    .with({ kind: 'custom' }, (r) => r.data.email)
+    .exhaustive();
 }
 
 export function ComposeRecipients(props: {

@@ -8,6 +8,7 @@ import {
 import { PageModel } from '@block-pdf/model/Page';
 import type { PDFViewer } from '@block-pdf/PdfViewer';
 import type { ThreadPayload } from '@block-pdf/type/comments';
+import { match } from 'ts-pattern';
 import { v7 as uuid7 } from 'uuid';
 
 // Normalize rectangle rect=[x1, y1, x2, y2] so that (x1,y1) < (x2,y2)
@@ -118,17 +119,16 @@ function highlightRectFromDOM(
 function htmlCollectionToString(collection: HTMLCollection): string {
   const result: string[] = [];
   for (let node of collection) {
-    switch (node.nodeName) {
-      case 'BR':
+    match(node.nodeName)
+      .with('BR', () => {
         result.push(' ');
-        break;
-      case 'SPAN':
+      })
+      .with('SPAN', () => {
         if (node.textContent != null) result.push(node.textContent);
-        break;
-      default:
+      })
+      .otherwise(() => {
         result.push(htmlCollectionToString(node.children));
-        break;
-    }
+      });
   }
 
   return result.join(' ');

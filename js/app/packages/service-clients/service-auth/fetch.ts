@@ -8,6 +8,7 @@ import {
   type TextResponse,
 } from '@core/util/safeFetch';
 import { err, ok, type Result } from 'neverthrow';
+import { match } from 'ts-pattern';
 import { authServiceClient } from './client';
 
 function isExpired(token: string) {
@@ -95,38 +96,31 @@ export async function fetchWithAuth<
       return await init.errorResponseHandler(response);
     }
 
-    switch (response.status) {
-      case 404:
-        return {
-          code: 'NOT_FOUND',
-          message: 'Resource not found',
-        };
-      case 401:
-        return {
-          code: 'UNAUTHORIZED',
-          message: 'Unauthorized access',
-        };
-      case 409:
-        return {
-          code: 'CONFLICT',
-          message: 'Resource conflict',
-        };
-      case 410:
-        return {
-          code: 'GONE',
-          message: 'Resource deleted',
-        };
-      case 500:
-        return {
-          code: 'SERVER_ERROR',
-          message: 'Internal server error',
-        };
-      default:
-        return {
-          code: 'HTTP_ERROR',
-          message: `HTTP error! status: ${response.status}`,
-        };
-    }
+    return match(response.status)
+      .with(404, () => ({
+        code: 'NOT_FOUND' as const,
+        message: 'Resource not found',
+      }))
+      .with(401, () => ({
+        code: 'UNAUTHORIZED' as const,
+        message: 'Unauthorized access',
+      }))
+      .with(409, () => ({
+        code: 'CONFLICT' as const,
+        message: 'Resource conflict',
+      }))
+      .with(410, () => ({
+        code: 'GONE' as const,
+        message: 'Resource deleted',
+      }))
+      .with(500, () => ({
+        code: 'SERVER_ERROR' as const,
+        message: 'Internal server error',
+      }))
+      .otherwise(() => ({
+        code: 'HTTP_ERROR' as const,
+        message: `HTTP error! status: ${response.status}`,
+      }));
   };
 
   // TODO: move safeFetch code to here

@@ -1,4 +1,5 @@
 import { onCleanup, onMount } from 'solid-js';
+import { match } from 'ts-pattern';
 
 type MenuKeyboardHandlers = {
   /** Called when the user navigates up (ArrowUp, Ctrl+K, Ctrl+P, Shift+Tab) */
@@ -92,71 +93,30 @@ function createMenuKeyboardNavigation(handlers: MenuKeyboardHandlers): {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (isActive && !isActive()) return;
 
-    let handler: ((e: KeyboardEvent) => void) | undefined;
-
-    switch (e.key) {
-      case 'ArrowUp':
-        handler = onUp;
-        break;
-
-      case 'ArrowDown':
-        handler = onDown;
-        break;
-
-      case 'ArrowLeft':
-        handler = onLeft;
-        break;
-
-      case 'ArrowRight':
-        handler = onRight;
-        break;
-
-      case 'Tab':
-        handler = e.shiftKey ? onUp : onDown;
-        break;
-
-      case 'j':
-        if (e.ctrlKey || e.metaKey) {
-          handler = onDown;
+    if (e.key === ' ') {
+      if (onSpace) {
+        const shouldPrevent = onSpace(e);
+        if (shouldPrevent) {
+          e.preventDefault();
+          e.stopPropagation();
         }
-        break;
-
-      case 'k':
-        if (e.ctrlKey || e.metaKey) {
-          handler = onUp;
-        }
-        break;
-
-      case 'n':
-        if (e.ctrlKey) {
-          handler = onDown;
-        }
-        break;
-
-      case 'p':
-        if (e.ctrlKey) {
-          handler = onUp;
-        }
-        break;
-
-      case 'Enter':
-        handler = onSelect;
-        break;
-
-      case 'Escape':
-        handler = onClose;
-        break;
-
-      case ' ':
-        if (onSpace) {
-          const shouldPrevent = onSpace(e);
-          if (shouldPrevent) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-        }
-        return;
+      }
+      return;
     }
+
+    const handler: ((e: KeyboardEvent) => void) | undefined = match(e.key)
+      .with('ArrowUp', () => onUp)
+      .with('ArrowDown', () => onDown)
+      .with('ArrowLeft', () => onLeft)
+      .with('ArrowRight', () => onRight)
+      .with('Tab', () => (e.shiftKey ? onUp : onDown))
+      .with('j', () => (e.ctrlKey || e.metaKey ? onDown : undefined))
+      .with('k', () => (e.ctrlKey || e.metaKey ? onUp : undefined))
+      .with('n', () => (e.ctrlKey ? onDown : undefined))
+      .with('p', () => (e.ctrlKey ? onUp : undefined))
+      .with('Enter', () => onSelect)
+      .with('Escape', () => onClose)
+      .otherwise(() => undefined);
 
     if (handler) {
       if (preventDefault) {

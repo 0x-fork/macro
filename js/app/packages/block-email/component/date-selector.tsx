@@ -18,6 +18,7 @@ import {
   on,
   Show,
 } from 'solid-js';
+import { match } from 'ts-pattern';
 
 type DateSelectorMode = 'search' | 'calendar';
 
@@ -119,32 +120,27 @@ export const DateSelector = (props: DateSelectorProps) => {
     const isNonComboboxInput =
       target instanceof HTMLInputElement && target !== searchInputRef();
 
-    switch (e.key) {
-      case 'Delete':
-      case 'Backspace': {
+    match(e.key)
+      .with('Delete', 'Backspace', () => {
         if (isNonComboboxInput || searchQuery().trim()) {
           return;
         }
         e.preventDefault();
         onChange(null);
-
-        break;
-      }
-      case 'j': {
+      })
+      .with('j', () => {
         if (!e.ctrlKey) return;
 
         e.preventDefault();
         dispatchKeyToListbox('ArrowDown');
-        break;
-      }
-      case 'k': {
+      })
+      .with('k', () => {
         if (!e.ctrlKey) return;
 
         e.preventDefault();
         dispatchKeyToListbox('ArrowUp');
-        break;
-      }
-    }
+      })
+      .otherwise(() => {});
   };
 
   useSearchInputFocus(
