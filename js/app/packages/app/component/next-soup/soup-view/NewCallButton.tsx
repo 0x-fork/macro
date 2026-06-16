@@ -5,7 +5,7 @@ import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import type { WithCustomUserInput } from '@core/user';
 import { getDestinationFromOptions } from '@core/util/destination';
 import PhoneCallIcon from '@icon/wide-call.svg';
-import PlusCircleIcon from '@phosphor/plus-circle.svg';
+import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
 import {
   useGetOrCreateDirectMessageMutation,
@@ -86,14 +86,15 @@ export function NewCallButton() {
   return (
     <>
       <Button
-        variant="active"
-        class="border-0 rounded-full py-1 pl-1 pr-2 gap-1 font-semibold"
+        variant="base"
+        depth={1}
+        class="h-6 rounded-md border-transparent bg-ink/6 px-2 py-0 text-xs font-medium text-ink gap-1.5 shadow-none hover:bg-ink/10 hover:text-ink [&_svg]:size-3.5"
         size="sm"
         noTouchResize
         onClick={() => setIsOpen(true)}
       >
-        <PlusCircleIcon class="size-3.5 text-accent" />
-        <span>Call</span>
+        <PlusIcon class="text-ink-muted" />
+        <span class="capitalize">New call</span>
       </Button>
       <Dialog
         open={isOpen()}
