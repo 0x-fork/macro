@@ -208,6 +208,172 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: sccache --show-stats || true
 
+  # --- Experimental A/B: check/test on a Namespace 8-core runner ---
+  # Mirrors `check`/`test` exactly, but runs on a Namespace 8 vCPU profile with
+  # the Nix store backed by a Namespace /nix cache volume (Cachix demoted to a
+  # cold-start fallback). sccache and rust-cache use dedicated keys so this
+  # experiment neither pollutes nor benefits from the production jobs' caches —
+  # the first run measures a true cold build, later runs measure warm steady
+  # state. These jobs are intentionally NOT part of `status-check`, so they can
+  # never block a PR. Delete this block once the A/B decision is made.
+  #
+  # Dormant by default. To run the experiment:
+  #   1. Create the `namespace-profile-rust-ci-8core` profile in the Namespace
+  #      dashboard (8 vCPU Linux, cache volumes enabled).
+  #   2. Set repo variable ENABLE_NS_RUST_CI=true.
+  check-namespace:
+    needs: path-check
+    if: vars.ENABLE_NS_RUST_CI == 'true' && needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false
+    runs-on: namespace-profile-rust-ci-8core
+    env:
+      RUSTFLAGS: "-Dwarnings -Dclippy::disallowed_methods -C link-arg=-fuse-ld=mold"
+      RUSTDOCFLAGS: "-Dwarnings"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          clean: false
+      # Namespace cache volume backing /nix. Optimization only: on a cold
+      # volume setup-nix + Cachix substitute the dev shell — slower, never
+      # wrong. Hence continue-on-error.
+      - name: Mount /nix cache volume
+        continue-on-error: true
+        uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
+        with:
+          path: /nix
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+      - name: Setup Nix dev shell
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          dev-shell: 'true'
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+          sccache-s3-key-prefix: sccache-ns/
+      - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
+        with:
+          workspaces: rust/cloud-storage
+          shared-key: cloud-storage-check-ns
+          cache-on-failure: true
+          cache-targets: false
+      - name: fmt
+        run: cd rust/cloud-storage && cargo fmt --check
+      - name: clippy
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: cd rust/cloud-storage && cargo clippy --workspace --all-features
+      - name: show sccache stats
+        if: always()
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: sccache --show-stats || true
+      - name: Teardown Nix (free cache volume for commit)
+        if: always()
+        uses: ./.github/actions/teardown-nix
+
+  test-namespace:
+    needs: path-check
+    if: vars.ENABLE_NS_RUST_CI == 'true' && needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false
+    runs-on: namespace-profile-rust-ci-8core
+    env:
+      NEXTEST_FILTER: ${{ needs.path-check.outputs.nextest_filter }}
+      NEXTEST_TEST_THREADS: '32'
+      RUSTFLAGS: "-Dwarnings -C link-arg=-fuse-ld=mold"
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: macrodb # Start with macrodb, we initialize all others in the cloud-storage/justfile
+        ports:
+          - 5432:5432
+        # needed because the postgres container does not provide a healthcheck
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --shm-size 1g
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          clean: false
+      # Namespace cache volume backing /nix. Optimization only: on a cold
+      # volume setup-nix + Cachix substitute the dev shell — slower, never
+      # wrong. Hence continue-on-error.
+      - name: Mount /nix cache volume
+        continue-on-error: true
+        uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
+        with:
+          path: /nix
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+      - name: Setup Nix dev shell
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          dev-shell: 'true'
+          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
+          sccache-s3-key-prefix: sccache-ns/
+      - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
+        with:
+          workspaces: rust/cloud-storage
+          shared-key: cloud-storage-test-ns
+          cache-on-failure: true
+          cache-targets: false
+      - name: configure postgres for concurrent tests
+        run: |
+          postgres_container="$(docker ps --format '{{.ID}} {{.Image}}' | awk '$2 == "pgvector/pgvector:pg16" { print $1; exit }')"
+          if [ -z "$postgres_container" ]; then
+            echo "pgvector/pgvector:pg16 service container not found" >&2
+            docker ps
+            exit 1
+          fi
+
+          docker exec -i "$postgres_container" psql -U user -d macrodb <<'SQL'
+          ALTER SYSTEM SET fsync = off;
+          ALTER SYSTEM SET synchronous_commit = off;
+          ALTER SYSTEM SET full_page_writes = off;
+          ALTER SYSTEM SET max_wal_size = '4GB';
+          ALTER SYSTEM SET checkpoint_timeout = '30min';
+          ALTER SYSTEM SET max_locks_per_transaction = 8192;
+          SQL
+          docker restart "$postgres_container"
+          until docker exec "$postgres_container" pg_isready -U user -d macrodb; do
+            sleep 1
+          done
+          docker exec "$postgres_container" psql -U user -d macrodb -c "SHOW max_locks_per_transaction;"
+      - name: prepare tests
+        run: just rust/cloud-storage/setup_test_envs && just rust/cloud-storage/initialize_dbs
+      - name: run tests
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          cd rust/cloud-storage
+
+          args=(--all-features --lib --bins --tests --test-threads "$NEXTEST_TEST_THREADS")
+          if [ -n "$NEXTEST_FILTER" ]; then
+            args+=(-E "$NEXTEST_FILTER")
+          fi
+          cargo nextest run "${args[@]}"
+      - name: show sccache stats
+        if: always()
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: sccache --show-stats || true
+      - name: Teardown Nix (free cache volume for commit)
+        if: always()
+        uses: ./.github/actions/teardown-nix
+
 
   # Collector job that always runs - use this as the required status check
   status-check:
