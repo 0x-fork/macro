@@ -5,8 +5,9 @@ import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { splitContainerAttribute } from '@core/dom-selectors';
 import { isMobile } from '@core/mobile/isMobile';
+import CloseIcon from '@phosphor/x.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
-import { cn, Panel } from '@ui';
+import { Button, cn, Panel } from '@ui';
 import { useHotkeyDOMScope } from 'core/hotkey/hotkeys';
 import {
   createEffect,
@@ -19,7 +20,11 @@ import {
   Suspense,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { SplitPanelContext, type SplitPanelContextType } from '../context';
+import {
+  type SplitBottomPanelRegistration,
+  SplitPanelContext,
+  type SplitPanelContextType,
+} from '../context';
 import { useSplitLayout } from '../layout';
 import type { SplitHandle, SplitState } from '../layoutManager';
 import { registerSplitHotkeys } from '../registerSplitHotkeys';
@@ -43,6 +48,8 @@ export function SplitPanel(props: SplitPanelProps) {
   const [panelRef, setPanelRef] = createSignal<HTMLDivElement | null>(null);
   const [contentOffsetTop, setContentOffsetTop] = createSignal(0);
   const [previewState, setPreviewState] = createSignal(false);
+  const [bottomPanel, setBottomPanel] =
+    createSignal<SplitBottomPanelRegistration>();
   const panelSize = createElementSize(panelRef);
 
   const layoutRefs: SplitPanelContextType['layoutRefs'] = {};
@@ -137,81 +144,119 @@ export function SplitPanel(props: SplitPanelProps) {
           setContentOffsetTop,
           contentOffsetTop,
           splitHotkeyScope,
+          bottomPanel,
+          registerBottomPanel: (panel) => {
+            setBottomPanel(panel);
+            return () => {
+              setBottomPanel((current) =>
+                current?.id === panel.id ? undefined : current
+              );
+            };
+          },
           headerCollapser,
           layoutRefs,
           panelSize,
           panelRef,
         }}
       >
-        <SoupViewContextProvider soup={nextSoup}>
-          <SplitDrawerGroup contentOffsetTop={offsetTop} panelSize={panelSize}>
-            <Show when={props.handle.isSpotLight()}>
-              <div
-                class="fixed inset-0 w-screen h-screen z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted"
-                onClick={() => props.handle.toggleSpotlight(false)}
-              />
-              <div class="fixed inset-16 bg-surface shadow-xl" />
-            </Show>
-
+        <SplitDrawerGroup contentOffsetTop={offsetTop} panelSize={panelSize}>
+          <Show when={props.handle.isSpotLight()}>
             <div
-              class="relative"
-              classList={{
-                'fixed inset-16 z-modal-overlay isolate opacity-50':
-                  props.handle.isSpotLight(),
-                'opacity-100': props.active || props.handle.isSpotLight(),
-                'size-full': !props.handle.isSpotLight(),
-              }}
-              ref={(ref) => {
-                setPanelRef(ref);
-                props.setPanelRef(ref);
-                attachHotKeys(ref);
-              }}
-              data-split-id={props.split.id}
-              {...splitContainerAttribute}
-              data-modal={props.handle.isSpotLight()}
-              tabindex={-1}
+              class="fixed inset-0 w-screen h-screen z-modal-overlay bg-modal-overlay pattern-diagonal-4 pattern-edge-muted"
+              onClick={() => props.handle.toggleSpotlight(false)}
+            />
+            <div class="fixed inset-16 bg-surface shadow-xl" />
+          </Show>
+
+          <div
+            classList={{
+              'fixed inset-16 z-modal-overlay isolate opacity-50':
+                props.handle.isSpotLight(),
+              'opacity-100': props.active || props.handle.isSpotLight(),
+              'relative size-full': !props.handle.isSpotLight(),
+            }}
+            ref={(ref) => {
+              setPanelRef(ref);
+              props.setPanelRef(ref);
+              attachHotKeys(ref);
+            }}
+            data-split-id={props.split.id}
+            {...splitContainerAttribute}
+            data-modal={props.handle.isSpotLight()}
+            tabindex={-1}
+          >
+            <Panel
+              active={
+                !isMobile() &&
+                props.active &&
+                multipleSplits() &&
+                !props.handle.isSpotLight()
+              }
+              class="rounded-xl mobile:rounded-none mobile:after:hidden mobile:!border-0"
+              depth={1}
             >
-              <Panel
-                active={
-                  !isMobile() &&
-                  props.active &&
-                  multipleSplits() &&
-                  !props.handle.isSpotLight()
-                }
-                class="rounded-xl mobile:rounded-none mobile:after:hidden mobile:!border-0"
-                depth={1}
+              <Panel.Header
+                class={cn(
+                  'block min-h-10.25 touch:min-h-11.25 p-0 overflow-visible',
+                  shouldHideSplitHeader() && 'hidden'
+                )}
               >
-                <Panel.Header
-                  class={cn(
-                    'block min-h-10.25 touch:min-h-11.25 p-0 overflow-visible',
-                    shouldHideSplitHeader() && 'hidden'
-                  )}
-                >
-                  <SplitHeader ref={setHeaderRef} />
-                </Panel.Header>
+                <SplitHeader ref={setHeaderRef} />
+              </Panel.Header>
 
-                <Panel.Toolbar
-                  class={cn(
-                    'items-start py-2 overflow-visible',
-                    !hasToolbarContent() && 'hidden',
-                    !previewState() &&
-                      'border-b-0' /* scuffed: this is shit, but we are blinded by linear */
-                  )}
-                >
-                  <SplitToolbar ref={setToolbarRef} />
-                </Panel.Toolbar>
+              <Panel.Toolbar
+                class={cn(
+                  'items-start py-2 overflow-visible',
+                  !hasToolbarContent() && 'hidden',
+                  (!previewState() ||
+                    isListViewID(props.handle.content().id)) &&
+                    'border-b-0' /* List views draw the preview border below their filter bar instead (see SoupView). */
+                )}
+              >
+                <SplitToolbar ref={setToolbarRef} />
+              </Panel.Toolbar>
 
-                <Panel.Body>
-                  <div class="@container/split size-full overflow-hidden relative">
+              <Panel.Body>
+                <div class="@container/split size-full min-h-0 overflow-hidden relative flex flex-col">
+                  <div
+                    class={cn(
+                      'min-h-0 min-w-0 overflow-hidden relative',
+                      bottomPanel() ? 'h-1/2' : 'h-full'
+                    )}
+                  >
                     <Suspense>
-                      <Dynamic component={props.split.mount.element} />
+                      <SoupViewContextProvider soup={nextSoup}>
+                        <Dynamic component={props.split.mount.element} />
+                      </SoupViewContextProvider>
                     </Suspense>
                   </div>
-                </Panel.Body>
-              </Panel>
-            </div>
-          </SplitDrawerGroup>
-        </SoupViewContextProvider>
+                  <Show when={bottomPanel()}>
+                    {(panel) => (
+                      <div class="h-1/2 min-h-0 min-w-0 border-t border-edge-muted bg-surface flex flex-col">
+                        <div class="flex h-10 shrink-0 items-center gap-2 border-b border-edge-muted px-2">
+                          <h3 class="min-w-0 flex-1 truncate text-sm font-medium text-content-secondary">
+                            {panel().title}
+                          </h3>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            label="Close"
+                            onClick={() => panel().onClose?.()}
+                          >
+                            <CloseIcon />
+                          </Button>
+                        </div>
+                        <div class="min-h-0 flex-1 overflow-hidden">
+                          {panel().content()}
+                        </div>
+                      </div>
+                    )}
+                  </Show>
+                </div>
+              </Panel.Body>
+            </Panel>
+          </div>
+        </SplitDrawerGroup>
       </SplitPanelContext.Provider>
     </SoupContextProvider>
   );

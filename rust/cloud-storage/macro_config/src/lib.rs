@@ -13,6 +13,10 @@ use serde_json::Value;
 use std::fmt::Display;
 
 #[doc(hidden)]
+pub use macro_env as __macro_env;
+#[doc(hidden)]
+pub use remote_env_var as __remote_env_var;
+#[doc(hidden)]
 pub use serde as __serde;
 use std::str::FromStr;
 
@@ -115,12 +119,12 @@ fn read_config_value(key: &'static str) -> Option<String> {
 }
 
 /// Get a required value
-pub fn required_config_value(key: &'static str) -> MacroConfigResult<String> {
+fn required_config_value(key: &'static str) -> MacroConfigResult<String> {
     read_config_value(key).ok_or(MacroConfigError::MissingRequiredValue(key))
 }
 
 /// Get an optional value
-pub fn optional_config_value(key: &'static str) -> Option<String> {
+fn optional_config_value(key: &'static str) -> Option<String> {
     read_config_value(key)
 }
 
