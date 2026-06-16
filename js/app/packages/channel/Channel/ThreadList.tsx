@@ -74,6 +74,13 @@ type ThreadListProps = {
 const NEAR_TOP_THRESHOLD = 800;
 const EXPLICIT_SCROLL_DOWN_TRIGGER_DISTANCE = 64;
 
+// The initial scroll can land short of its target because item heights are
+// estimated until measured: the list reflows taller after the first scroll,
+// leaving the target (and the newest messages) below the viewport. Re-scroll
+// across a few frames until the position settles instead of giving up on the
+// first miss.
+const MAX_INITIAL_SCROLL_RETRIES = 5;
+
 export const DEFAULT_INITIAL_SCROLL_TARGET: ThreadListScrollTarget = {
   tag: 'bottom',
   align: 'end',
@@ -112,13 +119,13 @@ export function ThreadList(props: ThreadListProps) {
   const scrollIntent = createScrollIntentTracker();
 
   let initialScrollStarted = false;
-  let initialScrollRetried = false;
+  let initialScrollAttempts = 0;
   let initialScrollTarget: ThreadListScrollTarget =
     DEFAULT_INITIAL_SCROLL_TARGET;
 
   const resetInitialScroll = () => {
     initialScrollStarted = false;
-    initialScrollRetried = false;
+    initialScrollAttempts = 0;
     initialScrollTarget = DEFAULT_INITIAL_SCROLL_TARGET;
   };
 
@@ -167,10 +174,17 @@ export function ThreadList(props: ThreadListProps) {
       case 'index': {
         const targetIndex = resolveTargetIndex(target);
         if (targetIndex < 0) return true; // target gone, nothing to verify
-        const currentIndex = handle.findItemIndex(handle.scrollOffset);
-        // Consider correct if the target is within a reasonable range of
-        // the current viewport (within ±5 items accounts for alignment).
-        return Math.abs(currentIndex - targetIndex) <= 5;
+        // Correct once the target is actually within the visible range. This is
+        // robust to alignment and to clamping at the list edges: a target near
+        // the bottom that cannot be centered is only "reached" once the scroll
+        // settles at the true bottom, which is also when the newest messages
+        // render. Comparing against the top-of-viewport index instead reports a
+        // miss for any off-center target and aborts the retry early.
+        const firstVisible = handle.findItemIndex(handle.scrollOffset);
+        const lastVisible = handle.findItemIndex(
+          handle.scrollOffset + handle.viewportSize
+        );
+        return targetIndex >= firstVisible && targetIndex <= lastVisible;
       }
     }
   };
@@ -303,9 +317,13 @@ export function ThreadList(props: ThreadListProps) {
       return;
     }
 
-    if (!initialScrollRetried) {
-      initialScrollRetried = true;
+    // Re-scroll and let the next onScrollEnd re-check, up to a bounded number
+    // of attempts, so the target ends up on screen instead of stranded just
+    // below the viewport when the list reflows after the first scroll.
+    if (initialScrollAttempts < MAX_INITIAL_SCROLL_RETRIES) {
+      initialScrollAttempts++;
       console.debug('ThreadList: initial scroll missed target, retrying', {
+        attempt: initialScrollAttempts,
         target: initialScrollTarget,
         scrollOffset: handle.scrollOffset,
         scrollSize: handle.scrollSize,
@@ -313,6 +331,7 @@ export function ThreadList(props: ThreadListProps) {
         distanceFromBottom: getDistanceFromBottom(handle),
       });
       requestAnimationFrame(() => {
+        if (didInitialScroll()) return;
         const retryScrolled = scrollToTarget(handle, initialScrollTarget);
         if (!retryScrolled) {
           // Target disappeared between mount and retry — finalize now since
@@ -323,7 +342,7 @@ export function ThreadList(props: ThreadListProps) {
       return;
     }
     console.warn(
-      'ThreadList: initial scroll did not reach target after retry',
+      'ThreadList: initial scroll did not reach target after retries',
       {
         target: initialScrollTarget,
         scrollOffset: handle.scrollOffset,
