@@ -119,6 +119,7 @@ function BlockMarkdownContent({ optimisticSnapshot }: BlockMarkdownProps) {
   const loroManager = createLoroManager(MARKDOWN_LORO_SCHEMA, {
     liveSyncSource: () => getSyncSource()!,
     wasDirty,
+    documentId: blockId,
   });
 
   const snapshotStore = new IDBSnapshotStore<RawUpdate>(
