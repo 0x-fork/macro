@@ -1,7 +1,56 @@
+import { isMobile } from '@core/mobile/isMobile';
 import type { ThemeV2 } from './types/themeTypes';
 
 export const DEFAULT_LIGHT_THEME: DefaultTheme = 'Macro Light';
 export const DEFAULT_DARK_THEME: DefaultTheme = 'Macro Dark';
+
+// The Macro brand dark theme adapts to platform:
+// - Desktop keeps the neutral charcoal ramp. The edge (b4) and edge-muted (b3)
+//   surfaces are turned down so borders read more softly.
+// - Mobile follows the platform convention of a pure-black background, paired
+//   with a punchy orange "Sleepless"-style accent ramp (high chroma) anchored at
+//   pure black.
+const MACRO_DARK = isMobile()
+  ? {
+      depth: 0.1,
+      tokens: {
+        a0: { l: 0.71, c: 0.34, h:  59 },
+        a1: { l: 0.71, c: 0.34, h:  99 },
+        a2: { l: 0.71, c: 0.34, h: 139 },
+        a3: { l: 0.71, c: 0.34, h: 179 },
+        a4: { l: 0.71, c: 0.34, h: 219 },
+        b0: { l: 0.00, c: 0.00, h:  59 },
+        b1: { l: 0.05, c: 0.00, h:  59 },
+        b2: { l: 0.09, c: 0.00, h:  59 },
+        b3: { l: 0.13, c: 0.00, h:  59 },
+        b4: { l: 0.17, c: 0.00, h:  59 },
+        c0: { l: 0.95, c: 0.00, h:  59 },
+        c1: { l: 0.83, c: 0.00, h:  59 },
+        c2: { l: 0.75, c: 0.00, h:  59 },
+        c3: { l: 0.63, c: 0.00, h:  59 },
+        c4: { l: 0.55, c: 0.00, h:  59 },
+      },
+    }
+  : {
+      depth: 0.15,
+      tokens: {
+        a0: { l: 0.75, c: 0.20, h:  59 },
+        a1: { l: 0.75, c: 0.20, h:  99 },
+        a2: { l: 0.75, c: 0.20, h: 139 },
+        a3: { l: 0.75, c: 0.20, h: 179 },
+        a4: { l: 0.75, c: 0.20, h: 219 },
+        b0: { l: 0.14, c: 0.00, h:  59 },
+        b1: { l: 0.20, c: 0.00, h:  59 },
+        b2: { l: 0.23, c: 0.00, h:  59 },
+        b3: { l: 0.21, c: 0.00, h:  59 },
+        b4: { l: 0.24, c: 0.00, h:  59 },
+        c0: { l: 0.95, c: 0.00, h:  59 },
+        c1: { l: 0.83, c: 0.00, h:  59 },
+        c2: { l: 0.75, c: 0.00, h:  59 },
+        c3: { l: 0.63, c: 0.00, h:  59 },
+        c4: { l: 0.55, c: 0.00, h:  59 },
+      },
+    };
 
 // Ordered for the theme picker: dark themes first (led by the Macro brand theme),
 // then light themes (led by the Macro brand theme). ThemeList renders in array order.
@@ -10,24 +59,8 @@ export const DEFAULT_THEMES = [
     id: 'Macro Dark',
     name: 'Macro Dark',
     version: 2,
-    depth: 0.15,
-    tokens: {
-      a0: { l: 0.75, c: 0.20, h:  59 },
-      a1: { l: 0.75, c: 0.20, h:  99 },
-      a2: { l: 0.75, c: 0.20, h: 139 },
-      a3: { l: 0.75, c: 0.20, h: 179 },
-      a4: { l: 0.75, c: 0.20, h: 219 },
-      b0: { l: 0.14, c: 0.00, h:  59 },
-      b1: { l: 0.20, c: 0.00, h:  59 },
-      b2: { l: 0.23, c: 0.00, h:  59 },
-      b3: { l: 0.25, c: 0.00, h:  59 },
-      b4: { l: 0.28, c: 0.00, h:  59 },
-      c0: { l: 0.95, c: 0.00, h:  59 },
-      c1: { l: 0.83, c: 0.00, h:  59 },
-      c2: { l: 0.75, c: 0.00, h:  59 },
-      c3: { l: 0.63, c: 0.00, h:  59 },
-      c4: { l: 0.55, c: 0.00, h:  59 },
-    },
+    depth: MACRO_DARK.depth,
+    tokens: MACRO_DARK.tokens,
   },
   {
     id: "Void",

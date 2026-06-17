@@ -94,7 +94,7 @@ export function EditInput(props: {
   return (
     <div class="relative">
       <div
-        class="px-2 pt-1 pb-8 bg-surface rounded-sm relative border border-edge focus-within:ring-accent focus-within:ring"
+        class="px-2 pt-1 pb-8 bg-surface rounded-sm relative border border-edge focus-within:border-ink-disabled"
         on:click={(e) => {
           e.stopPropagation();
           focusEditor();

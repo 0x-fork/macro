@@ -1381,6 +1381,9 @@ export function BaseInput(props: {
         composeContainerRef = el;
       }}
       active={isFocused()}
+      // Focus reads as a brighter neutral edge rather than the accent color,
+      // which is too strong/contrasty for a text input.
+      highlightColor="var(--c3)"
       depth={2}
       solid
     >

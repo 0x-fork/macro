@@ -266,7 +266,15 @@ export function ChatInput(props: ChatInputComponentProps) {
 
   return (
     <div class="relative">
-      <Surface active={isFocused()} class="rounded-xl" depth={2} solid>
+      <Surface
+        active={isFocused()}
+        // Focus reads as a brighter neutral edge rather than the accent color,
+        // which is too strong/contrasty for a text input.
+        highlightColor="var(--c3)"
+        class="rounded-xl"
+        depth={2}
+        solid
+      >
         <div
           onFocusOut={(e) => {
             const next = e.relatedTarget as Node | null;
