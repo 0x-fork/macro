@@ -101,8 +101,14 @@ pub async fn init_gmail_link_handler(
 ) -> Result<Json<InitGmailLinkResponse>, InitGmailLinkError> {
     let Query(InitGmailLinkQueryParams { original_url }) = query;
 
+    // First inbox is free; additional inboxes require a professional subscription.
     if !permissions.contains(&PermissionId::ReadProfessionalFeatures.to_string()) {
-        return Err(InitGmailLinkError::PaymentRequired);
+        let has_own_inbox =
+            macro_db_client::email::check_user_email_link(&ctx.db, &user_context.macro_user_id)
+                .await?;
+        if has_own_inbox {
+            return Err(InitGmailLinkError::PaymentRequired);
+        }
     }
 
     let count =
