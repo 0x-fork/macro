@@ -387,9 +387,9 @@ export function ChannelInput(props: ChannelInputProps) {
         }}
         onFocusIn={() => setIsFocused(true)}
         active={isFocused()}
-        // Focus reads as a brighter neutral edge rather than the accent color,
-        // which is too strong/contrasty for a text input.
-        highlightColor="var(--c3)"
+        // Focus is a subtle neutral lift of the edge (à la Claude's input),
+        // not the accent color, which is too strong/contrasty for a text input.
+        highlightColor="var(--color-edge-focus)"
         class={cn('rounded-xl', isCollapsed() && 'hidden')}
         depth={2}
         solid

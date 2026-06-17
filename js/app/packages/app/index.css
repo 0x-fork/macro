@@ -117,6 +117,9 @@
   --color-overlay:         oklch(var(--b1l) var(--b1c) var(--b1h) / 0.8);
   --color-edge-muted:      var(--b3);
   --color-edge:            var(--b4);
+  /* Focus border for inputs: a subtle neutral lift of the edge, à la Claude's
+     input — just barely brighter than the resting edge, never the accent. */
+  --color-edge-focus:      color-mix(in oklch, var(--color-edge), var(--color-ink) 12%);
   --color-rail:            color-mix(in oklch, var(--b0) 75%, var(--c0));
 
   --color-ink:             var(--c0);
