@@ -10,7 +10,7 @@ import { useIsDocumentOwner } from '@core/signal/permissions';
 import { buildEntityData } from '@entity';
 import ArrowRight from '@phosphor/arrow-right.svg';
 import Copy from '@phosphor/copy.svg';
-import ThreeDots from '@phosphor/list.svg';
+import ThreeDots from '@phosphor/dots-three.svg';
 import Rename from '@phosphor/pencil-line.svg';
 import Trash from '@phosphor/trash-simple.svg';
 import { blockNameToItemType, type ItemType } from '@service-storage/client';
@@ -34,10 +34,13 @@ export type DefaultFileOperation = {
   op: FileOperationName;
 };
 
+type SplitMenuGroup = 'copy' | 'file' | 'share' | 'delete';
+
 export type CustomFileOperation = {
   label: string;
   icon: Component;
   action: () => void;
+  group?: SplitMenuGroup;
 };
 
 const isDefaultFileOperation = (
@@ -52,7 +55,7 @@ type SplitMenuAction = {
   label: string | JSX.Element;
   icon: Component;
   action: (e?: MouseEvent) => void;
-  group?: 'delete';
+  group?: SplitMenuGroup;
 };
 
 function SplitMenuItemContent(props: Pick<SplitMenuAction, 'icon' | 'label'>) {
@@ -76,8 +79,24 @@ type SplitFileMenuRenderProps = {
 };
 
 function DesktopRender(props: SplitFileMenuRenderProps) {
-  const primaryOps = () => props.ops.filter((op) => op.group !== 'delete');
+  const copyOps = () => [
+    ...props.tools.filter((op) => op.group === 'copy'),
+    ...props.ops.filter((op) => op.group === 'copy'),
+  ];
+  const fileOps = () =>
+    props.ops.filter((op) => op.group === 'file' || op.group === undefined);
+  const shareOps = () => props.tools.filter((op) => op.group === 'share');
+  const otherTools = () =>
+    props.tools.filter((op) => op.group !== 'share' && op.group !== 'copy');
   const deleteOps = () => props.ops.filter((op) => op.group === 'delete');
+  const hasFileOrLater = () =>
+    fileOps().length > 0 ||
+    shareOps().length > 0 ||
+    otherTools().length > 0 ||
+    deleteOps().length > 0;
+  const hasShareOrLater = () =>
+    shareOps().length > 0 || otherTools().length > 0 || deleteOps().length > 0;
+  const hasOtherOrDelete = () => otherTools().length > 0 || deleteOps().length > 0;
 
   const item = (action: SplitMenuAction) => (
     <Dropdown.Item
@@ -104,15 +123,37 @@ function DesktopRender(props: SplitFileMenuRenderProps) {
         <ThreeDots />
       </Dropdown.Trigger>
       <Dropdown.Content class="w-fit">
-        <Show when={primaryOps().length > 0}>
+        <Show when={copyOps().length > 0}>
           <Dropdown.Group>
-            <For each={primaryOps()}>{item}</For>
+            <For each={copyOps()}>{item}</For>
           </Dropdown.Group>
+          <Show when={hasFileOrLater()}>
+            <Dropdown.Separator />
+          </Show>
         </Show>
-        <Show when={props.tools.length > 0}>
+        <Show when={fileOps().length > 0}>
           <Dropdown.Group>
-            <For each={props.tools}>{item}</For>
+            <For each={fileOps()}>{item}</For>
           </Dropdown.Group>
+          <Show when={hasShareOrLater()}>
+            <Dropdown.Separator />
+          </Show>
+        </Show>
+        <Show when={shareOps().length > 0}>
+          <Dropdown.Group>
+            <For each={shareOps()}>{item}</For>
+          </Dropdown.Group>
+          <Show when={hasOtherOrDelete()}>
+            <Dropdown.Separator />
+          </Show>
+        </Show>
+        <Show when={otherTools().length > 0}>
+          <Dropdown.Group>
+            <For each={otherTools()}>{item}</For>
+          </Dropdown.Group>
+          <Show when={deleteOps().length > 0}>
+            <Dropdown.Separator />
+          </Show>
         </Show>
         <Show when={deleteOps().length > 0}>
           <Dropdown.Group>
@@ -221,7 +262,7 @@ export function SplitFileMenu(props: {
                   }
                 },
                 icon: Trash,
-                group: 'delete',
+                group: 'delete' as const,
               };
 
             case 'rename':
@@ -272,6 +313,7 @@ export function SplitFileMenu(props: {
                   }
                 },
                 icon: Copy,
+                group: 'file' as const,
               };
 
             case 'moveToProject':
@@ -311,6 +353,7 @@ export function SplitFileMenu(props: {
     filteredTools().map((tool) => ({
       label: typeof tool.label === 'function' ? tool.label() : tool.label,
       icon: tool.icon,
+      group: tool.menuGroup,
       action: (e?: MouseEvent) => {
         tool.action();
         if (tool.focusTarget) {

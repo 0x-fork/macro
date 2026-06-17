@@ -1,17 +1,14 @@
 import {
-  ChatWithAgentButton,
-  ChatWithAgentIcon,
-  openChatWithAgent,
-} from '@app/component/ChatWithAgentButton';
-import {
   type BlockTool,
   ResponsiveBlockToolbar,
-  ResponsivePermissionsBadge,
   ToolButton,
 } from '@app/component/ResponsiveBlockToolbar';
-import { SidePanel, useSidePanel } from '@app/component/side-panel';
+import { useSidePanel } from '@app/component/side-panel';
 import { useDrawerControl } from '@app/component/split-layout/components/SplitDrawerContext';
-import type { FileOperation } from '@app/component/split-layout/components/SplitFileMenu';
+import {
+  type FileOperation,
+  SplitFileMenu,
+} from '@app/component/split-layout/components/SplitFileMenu';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -20,7 +17,6 @@ import {
   BlockItemSplitLabel,
   StaticSplitLabel,
 } from '@app/component/split-layout/components/SplitLabel';
-import { SplitToolbarLeft } from '@app/component/split-layout/components/SplitToolbar';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { useDownloadDocumentAsMarkdownText } from '@block-md/signal/save';
 import { useBlockAliasedName, useBlockId, useBlockName } from '@core/block';
@@ -48,9 +44,9 @@ import IconShared from '@icon/wide-share.svg';
 import ClockIcon from '@phosphor/clock-counter-clockwise.svg';
 import Download from '@phosphor/download.svg';
 import GitBranch from '@phosphor/git-branch.svg';
+import InfoIcon from '@phosphor/info.svg';
 import IconLink from '@phosphor/link.svg';
 import SidePanelIcon from '@phosphor/square-half.svg';
-import TerminalWindowIcon from '@phosphor/terminal-window.svg';
 import { blockNameToItemType } from '@service-storage/client';
 import { Button, cn } from '@ui';
 import {
@@ -61,7 +57,6 @@ import {
   onCleanup,
   Show,
 } from 'solid-js';
-import { DispatchAgentButton } from './DispatchAgentMenu';
 import { HISTORY_DRAWER_ID } from './History';
 
 export function TopBar(props: { name?: Accessor<string | undefined> } = {}) {
@@ -124,6 +119,7 @@ export function TopBar(props: { name?: Accessor<string | undefined> } = {}) {
             label: 'Copy Branch Name',
             icon: GitBranch,
             action: copyBranchName,
+            group: 'copy',
           },
         ] satisfies FileOperation[])
       : []),
@@ -131,12 +127,14 @@ export function TopBar(props: { name?: Accessor<string | undefined> } = {}) {
       label: 'Download',
       icon: Download,
       action: downloadAsMarkdownText,
+      group: 'file',
     },
     { op: 'delete' },
   ];
 
   const sidePanel = useSidePanel();
   const splitPanel = useSplitPanel();
+  const compactHeader = () => (splitPanel?.panelSize.width ?? Infinity) < 440;
 
   // Register at the split scope so `]` works from anywhere in the split
   // (header, toolbar, drawer), but tie disposal to this TopBar so the
@@ -157,6 +155,35 @@ export function TopBar(props: { name?: Accessor<string | undefined> } = {}) {
     onCleanup(() => reg.dispose());
   }
 
+  const headerMenuTools: BlockTool[] = [
+    {
+      label: 'Share',
+      icon: IconShared,
+      action: () => shareCtx.open(),
+      condition: () => !isMobile() && compactHeader(),
+      focusTarget: getShareDrawerRecipientInput,
+      menuGroup: 'share',
+    },
+    {
+      label: 'Copy Link',
+      icon: IconLink,
+      action: copyLink,
+      condition: () => !isMobile() && compactHeader(),
+      menuGroup: 'share',
+    },
+    {
+      label: 'View details',
+      icon: SidePanelIcon,
+      action: () => sidePanel?.setIsOpen(true),
+      condition: () =>
+        !isMobile() &&
+        compactHeader() &&
+        ENABLE_MARKDOWN_SIDE_PANEL &&
+        (sidePanel?.hasSections() ?? false),
+      menuGroup: 'copy',
+    },
+  ];
+
   const tools: BlockTool[] = [
     {
       label: 'History',
@@ -176,37 +203,10 @@ export function TopBar(props: { name?: Accessor<string | undefined> } = {}) {
     //   hotkeyToken: TOKENS.entity.action.copyBranchName,
     // },
     {
-      label: 'Dispatch to Agent',
-      icon: TerminalWindowIcon,
-      action: () => {},
-      condition: () => isTask && !isMobile(),
-      buttonComponent: () => <DispatchAgentButton />,
-    },
-    {
-      label: 'Chat',
-      icon: ChatWithAgentIcon,
-      action: () =>
-        openChatWithAgent({
-          type: 'document',
-          id: blockId,
-          name: name(),
-          fileType: 'md',
-        }),
-      buttonComponent: () => (
-        <ChatWithAgentButton
-          entity={{
-            type: 'document',
-            id: blockId,
-            name: name(),
-            fileType: 'md',
-          }}
-        />
-      ),
-    },
-    {
       label: 'Share',
       icon: IconShared,
       action: () => shareCtx.open(),
+      condition: isMobile,
       buttonComponent: () => <ShareTrigger />,
       focusTarget: getShareDrawerRecipientInput,
     },
@@ -216,64 +216,79 @@ export function TopBar(props: { name?: Accessor<string | undefined> } = {}) {
       action: copyLink,
       condition: isMobile,
     },
-    {
-      label: () =>
-        sidePanel?.isOpen() ? 'Hide Side Panel' : 'Show Side Panel',
-      icon: SidePanelIcon,
-      action: () => sidePanel?.toggle(),
-      isActive: () => sidePanel?.isOpen() ?? false,
-      condition: () =>
-        ENABLE_MARKDOWN_SIDE_PANEL && !(sidePanel?.isNarrow() ?? isMobile()),
-      buttonComponent: () => (
-        <Show when={sidePanel}>
+  ];
+
+  return (
+    <>
+      <SplitHeaderLeft>
+        <div class="flex min-w-0 flex-1 flex-col justify-center">
+          <div class="flex min-w-0 flex-1 items-center">
+            <div class="min-w-0 overflow-hidden">
+              <BlockItemSplitLabel name={name} />
+            </div>
+            <Show when={!isMobile() && ops.length > 0}>
+              <SplitFileMenu
+                id={blockId}
+                itemType={itemType}
+                name={name()}
+                ops={ops}
+                tools={headerMenuTools}
+                buttonClass="ml-1 size-6 p-1 shrink-0 text-ink-extra-muted hover:text-ink [&_svg]:size-3.5"
+              />
+            </Show>
+          </div>
+        </div>
+      </SplitHeaderLeft>
+
+      <SplitHeaderRight>
+        <Show when={!isMobile() && !compactHeader()}>
+          <ShareTrigger />
+        </Show>
+        <Show
+          when={
+            sidePanel && ENABLE_MARKDOWN_SIDE_PANEL && !compactHeader()
+              ? sidePanel
+              : undefined
+          }
+        >
           {(panel) => (
             <Button
               depth={2}
               variant="base"
               size="icon-sm"
-              class={cn('bg-surface order-20', {
-                'bg-active': sidePanel?.isOpen(),
+              class={cn('ml-1.5 size-6 p-1 bg-surface [&_svg]:size-3.5', {
+                'bg-active text-ink': panel().isOpen(),
               })}
               tooltip={
-                sidePanel?.isOpen() ? 'Hide Side Panel' : 'Show Side Panel'
+                panel().isNarrow()
+                  ? 'View details'
+                  : panel().isOpen()
+                    ? 'Hide Side Panel'
+                    : 'Show Side Panel'
               }
               hotkey={TOKENS.block.toggleSidePanel}
               onClick={() => {
                 panel().toggle();
               }}
             >
-              <SidePanelIcon />
+              <Show when={panel().isNarrow()} fallback={<SidePanelIcon />}>
+                <InfoIcon />
+              </Show>
             </Button>
           )}
         </Show>
-      ),
-    },
-  ];
-
-  return (
-    <>
-      <SplitHeaderLeft>
-        <BlockItemSplitLabel name={name} />
-      </SplitHeaderLeft>
-
-      <SplitHeaderRight>
         <div class="-order-1">
           <BlockLiveIndicators />
         </div>
       </SplitHeaderRight>
 
-      <ResponsivePermissionsBadge />
-
       <ResponsiveBlockToolbar
         tools={tools}
-        ops={ops}
+        ops={isMobile() ? ops : []}
         id={blockId}
         itemType={itemType}
         name={name()}
       />
-      <SplitToolbarLeft>
-        <SidePanel.NarrowTabs />
-      </SplitToolbarLeft>
     </>
   );
 }

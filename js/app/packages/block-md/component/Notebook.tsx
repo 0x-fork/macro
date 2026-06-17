@@ -21,7 +21,13 @@ import {
   blockHotkeyScopeSignal,
 } from '@core/signal/blockElement';
 import { tempRedirectLocation } from '@core/signal/location';
+import {
+  useCanComment,
+  useCanEdit,
+  useCanView,
+} from '@core/signal/permissions';
 import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
+import EyeIcon from '@phosphor/eye.svg';
 import { makeResizeObserver } from '@solid-primitives/resize-observer';
 import {
   type Accessor,
@@ -33,6 +39,7 @@ import {
   Show,
   untrack,
 } from 'solid-js';
+import { DispatchAgentButton } from './DispatchAgentMenu';
 import { InlineTaskGithubPullRequests } from './InlineTaskGithubPullRequests';
 import { InlineTaskProperties } from './InlineTaskProperties';
 import { InstructionsEditor } from './InstructionsEditor';
@@ -52,6 +59,28 @@ enum CommentLayoutMode {
   sm = 'sm',
   xs = 'xs',
   none = 'none',
+}
+
+function PermissionPill() {
+  const canEdit = useCanEdit();
+  const canComment = useCanComment();
+  const canView = useCanView();
+
+  const show = () => !canEdit();
+  const text = () => {
+    if (!canView()) return 'No access';
+    if (canComment()) return 'Comment only';
+    return 'Viewer';
+  };
+
+  return (
+    <Show when={show()}>
+      <span class="inline-flex h-6 items-center gap-1.5 rounded-full bg-ink/3 px-2 text-xs font-medium text-ink/65">
+        <EyeIcon class="size-3.5 shrink-0" />
+        <span>{text()}</span>
+      </span>
+    </Show>
+  );
 }
 
 const BreaksPoints: Record<CommentLayoutMode, number> = {
@@ -81,6 +110,7 @@ export function Notebook(props: {
   const documentName = useBlockDocumentName();
   const scopeId = blockHotkeyScopeSignal.get;
   const isTask = useBlockAliasedName() === 'task';
+  const canEdit = useCanEdit();
   const md = mdStore.get;
   const { navigatedFromJK } = useNavigatedFromJK();
 
@@ -270,6 +300,14 @@ export function Notebook(props: {
   return (
     <div class={containerClasses()} ref={notebookRef}>
       <div class={contentDivClasses()} ref={contentRef}>
+        <Show when={isTask || !canEdit()}>
+          <div class="mb-2 flex items-center gap-1.5">
+            <Show when={isTask}>
+              <DispatchAgentButton />
+            </Show>
+            <PermissionPill />
+          </div>
+        </Show>
         <TitleEditor
           autoFocusOnMount={!navigatedFromJK()}
           mustBeConnected={props.mustBeConnected}

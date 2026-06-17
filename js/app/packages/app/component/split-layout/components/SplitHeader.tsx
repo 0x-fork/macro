@@ -612,8 +612,8 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
         )}
       </Show>
       <KobalteContextMenu>
-        <KobalteContextMenu.Trigger class="relative flex h-full w-full items-center">
-          <div class="z-10 flex items-center self-center pl-1">
+        <KobalteContextMenu.Trigger class="relative flex h-full w-full min-w-0 items-center">
+          <div class="z-10 flex shrink-0 items-center self-center pl-1">
             <div
               class="flex h-7 items-center gap-0 rounded-lg bg-transparent p-1"
               data-split-controls
@@ -639,7 +639,7 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
           />
 
           <div
-            class="absolute inset-y-0 right-0 z-10 min-w-4 h-full flex items-center justify-end gap-0.5 px-2 empty:hidden"
+            class="z-10 min-w-4 h-full shrink-0 flex items-center justify-end gap-0.5 px-2 empty:hidden"
             data-split-portal-target
             ref={(ref) => {
               panel.layoutRefs.headerRight = ref;

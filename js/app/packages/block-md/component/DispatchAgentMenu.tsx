@@ -1,23 +1,21 @@
+import { openChatWithAgent } from '@app/component/ChatWithAgentButton';
 import { openMacroMcpSetupModal } from '@app/component/macro-mcp-setup-modal/MacroMcpSetupModal';
 import { useBlockId } from '@core/block';
 import { editorStateAsMarkdown } from '@core/component/LexicalMarkdown/utils';
 import { toast } from '@core/component/Toast/Toast';
 import { macroIdToEmail, tryMacroId } from '@core/user';
-import { copyBranchNameToClipboard } from '@core/util/branchName';
 import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
+import MacroLogo from '@icon/macro-logo.svg';
 import ClaudeIcon from '@icon/wide-claude.svg';
 import CodexIcon from '@icon/wide-codex-ide.svg';
 import CursorIcon from '@icon/wide-cursor-ide.svg';
 import ZedIcon from '@icon/wide-zed-ide.svg';
-import CaretDown from '@phosphor/caret-down.svg';
+import CaretDownIcon from '@phosphor/caret-down.svg';
 import CopyIcon from '@phosphor/copy.svg';
-import GitBranch from '@phosphor/git-branch.svg';
 import PlugIcon from '@phosphor/plug.svg';
-import TerminalWindowIcon from '@phosphor/terminal-window.svg';
 import { storageServiceClient } from '@service-storage/client';
 import type { CommentThread } from '@service-storage/generated/schemas/commentThread';
 import { createCallback } from '@solid-primitives/rootless';
-import { makePersisted } from '@solid-primitives/storage';
 import { Button, ButtonGroup, Dropdown } from '@ui';
 import { type Component, createSignal, For, type JSX } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
@@ -26,8 +24,6 @@ import {
   sortComments,
 } from '../comments/discussionResource';
 import { mdStore } from '../signal/markdownBlockData';
-
-const LAST_USED_KEY = 'dispatch-agent-last-used';
 
 async function generateTaskPrompt(
   documentId: string,
@@ -103,7 +99,6 @@ type AgentAction = {
   key: string;
   name: string;
   icon: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
-  buttonIcon?: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
   execute: (prompt: string) => void;
 };
 
@@ -111,7 +106,6 @@ const COPY_ACTION: AgentAction = {
   key: 'copy',
   name: 'Copy as prompt',
   icon: CopyIcon,
-  buttonIcon: TerminalWindowIcon,
   execute: (prompt) => {
     navigator.clipboard.writeText(prompt);
     toast.success('Task prompt copied to clipboard');
@@ -155,21 +149,11 @@ const PLATFORM_ACTIONS: AgentAction[] = [
   },
 ];
 
-const ALL_ACTIONS = [COPY_ACTION, ...PLATFORM_ACTIONS];
-
-const [lastUsedKey, setLastUsedKey] = makePersisted(
-  createSignal(COPY_ACTION.key),
-  { name: LAST_USED_KEY }
-);
-
 export function DispatchAgentButton() {
   const blockId = useBlockId();
   const name = useBlockDocumentName();
   const [store] = mdStore;
   const [open, setOpen] = createSignal(false);
-
-  const lastUsed = () =>
-    ALL_ACTIONS.find((a) => a.key === lastUsedKey()) ?? COPY_ACTION;
 
   const buildPrompt = createCallback(() => {
     const docName = name();
@@ -184,7 +168,6 @@ export function DispatchAgentButton() {
     try {
       const prompt = await buildPrompt();
       action.execute(prompt);
-      setLastUsedKey(action.key);
     } catch (e) {
       console.error('Failed to generate task prompt', e);
       toast.failure('Failed to generate task prompt');
@@ -192,22 +175,37 @@ export function DispatchAgentButton() {
     setOpen(false);
   };
 
-  const handlePrimaryClick = () => {
-    executeAction(lastUsed());
+  const openMacroChat = () => {
+    void openChatWithAgent({
+      type: 'document',
+      id: blockId,
+      name: name(),
+      fileType: 'md',
+    });
+    setOpen(false);
   };
 
   return (
     <Dropdown open={open()} onOpenChange={setOpen}>
-      <ButtonGroup variant="base" size="icon-sm" depth={2} class="bg-surface">
-        <Button onClick={handlePrimaryClick} tooltip={lastUsed().name}>
-          <Dynamic
-            component={lastUsed().buttonIcon ?? lastUsed().icon}
-            class="size-3!"
-          />
+      <ButtonGroup variant="base" size="sm" depth={1} class="rounded-full border-transparent bg-ink/3">
+        <Button
+          class="h-6 rounded-l-full px-2 py-0 text-xs font-medium gap-1.5 text-ink/65 hover:bg-ink/6 hover:text-ink"
+          label="Ask Macro"
+          aria-label="Ask Macro"
+          noTouchResize
+          onClick={openMacroChat}
+        >
+          <MacroLogo class="size-3.5!" />
+          <span>Ask Macro</span>
         </Button>
-        <ButtonGroup.Divider />
-        <Dropdown.Trigger class="p-1">
-          <CaretDown class="size-3.5!" />
+        <ButtonGroup.Divider class="bg-ink/8" />
+        <Dropdown.Trigger
+          class="h-6 rounded-r-full px-1.5 py-0 text-ink/65 hover:bg-ink/6 hover:text-ink"
+          label="More AI tools"
+          aria-label="More AI tools"
+          noTouchResize
+        >
+          <CaretDownIcon class="size-3.5!" />
         </Dropdown.Trigger>
       </ButtonGroup>
       <Dropdown.Content>
@@ -215,15 +213,6 @@ export function DispatchAgentButton() {
           <Dropdown.Item onSelect={() => executeAction(COPY_ACTION)}>
             <Dynamic component={COPY_ACTION.icon} class="size-4 shrink-0" />
             <span class="flex-1 truncate">{COPY_ACTION.name}</span>
-          </Dropdown.Item>
-          <Dropdown.Item
-            onSelect={() => {
-              copyBranchNameToClipboard(blockId);
-              setOpen(false);
-            }}
-          >
-            <GitBranch class="size-4 shrink-0" />
-            <span class="flex-1 truncate">Copy branch name</span>
           </Dropdown.Item>
           <Dropdown.Item
             onSelect={() => {

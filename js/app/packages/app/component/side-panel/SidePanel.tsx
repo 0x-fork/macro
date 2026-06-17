@@ -2,9 +2,10 @@ import { Resize, ResizeZoneContext } from '@core/component/Resize/Resize';
 import { TabsInset } from '@core/component/TabsInset';
 import { isMobile } from '@core/mobile/isMobile';
 import { Accordion } from '@kobalte/core/accordion';
+import ArrowLeft from '@phosphor/arrow-left.svg';
 import CaretRight from '@phosphor/caret-right.svg';
 import CircleDashedEmpty from '@phosphor/circle-dashed.svg';
-import { Layer, Scroll } from '@ui';
+import { Button, Layer, Scroll } from '@ui';
 import { cn } from '@ui/utils/classname';
 import {
   type Accessor,
@@ -108,6 +109,7 @@ function Layout(props: ParentProps) {
           setOpenIds={setOpenIds}
           isOpen={isOpen}
           setIsNarrow={setIsNarrow}
+          setIsOpen={setIsOpen}
         >
           {props.children}
         </SidePanelLayoutInner>
@@ -123,6 +125,7 @@ function SidePanelLayoutInner(
     setOpenIds: (ids: string[]) => void;
     isOpen: Accessor<boolean>;
     setIsNarrow: Setter<boolean>;
+    setIsOpen: (next: boolean | ((prev: boolean) => boolean)) => void;
   }>
 ) {
   const resolved = children(() => props.children);
@@ -169,6 +172,17 @@ function SidePanelLayoutInner(
         <div class="absolute inset-0 z-10 flex flex-col bg-surface">
           <Scroll>
             <div class="w-full max-w-2xl mx-auto min-w-0">
+              <div class="px-2 pt-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="text-ink-muted hover:text-ink"
+                  onClick={() => props.setIsOpen(false)}
+                >
+                  <ArrowLeft class="size-4" />
+                  Back to content
+                </Button>
+              </div>
               <SidePanelOutlet
                 sections={props.sections}
                 openIds={props.openIds}
@@ -204,7 +218,7 @@ function SidePanelOutlet(props: {
         collapsible
         value={props.openIds()}
         onChange={(value) => props.setOpenIds(value as string[])}
-        class="p-2 flex flex-col gap-2 min-h-0"
+        class="px-2 pb-2 pt-12 flex flex-col gap-2 min-h-0"
       >
         <For each={sortedSections()}>{(section) => section.component()}</For>
       </Accordion>

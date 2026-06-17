@@ -2,7 +2,7 @@ import type { HotkeyToken } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import type { ItemType } from '@service-storage/client';
 import { Button, cn } from '@ui';
-import { type Component, For, type JSX, Show } from 'solid-js';
+import { type Component, createMemo, For, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import {
   type FileOperation,
@@ -27,6 +27,7 @@ export type BlockTool = {
   buttonComponent?: () => JSX.Element;
   focusTarget?: () => HTMLElement | null;
   hotkeyToken?: HotkeyToken;
+  menuGroup?: 'copy' | 'file' | 'share';
 };
 
 export function ToolButton(props: { tool: BlockTool }) {
@@ -85,6 +86,10 @@ interface BlockToolbarProps {
  * Handles the standard arrangement of file ops and block tools on desktop and mobile. On mobile, they are condensed together into a dropdown menu in the SplitHeader.
  */
 export function ResponsiveBlockToolbar(props: BlockToolbarProps) {
+  const visibleTools = createMemo(() =>
+    props.tools.filter((tool) => !tool.condition || tool.condition())
+  );
+
   return (
     <Show
       when={isMobile()}
@@ -102,19 +107,19 @@ export function ResponsiveBlockToolbar(props: BlockToolbarProps) {
               />
             </SplitToolbarLeft>
           </Show>
-          <SplitToolbarRight>
-            <For each={props.tools}>
-              {(tool) => (
-                <Show when={!tool.condition || tool.condition()}>
-                  {tool.buttonComponent ? (
+          <Show when={visibleTools().length > 0}>
+            <SplitToolbarRight>
+              <For each={visibleTools()}>
+                {(tool) =>
+                  tool.buttonComponent ? (
                     <tool.buttonComponent />
                   ) : (
                     <ToolButton tool={tool} />
-                  )}
-                </Show>
-              )}
-            </For>
-          </SplitToolbarRight>
+                  )
+                }
+              </For>
+            </SplitToolbarRight>
+          </Show>
         </>
       }
     >

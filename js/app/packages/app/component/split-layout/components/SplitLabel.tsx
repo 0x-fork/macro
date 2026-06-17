@@ -101,7 +101,7 @@ export function SplitLabel(props: {
 
   return (
     <span
-      class="inline-block text-sm font-medium text-ink-extra-muted truncate"
+      class="block min-w-0 max-w-full flex-1 text-sm font-medium text-ink-extra-muted truncate"
       onContextMenu={startEditing}
       onDblClick={startEditing}
     >
@@ -176,7 +176,7 @@ export function BlockItemSplitLabel(props: {
   });
 
   return (
-    <div class="ph-no-capture z-page-overlay relative flex items-center gap-2 min-w-0 max-w-full h-full shrink">
+    <div class="ph-no-capture z-page-overlay relative flex flex-1 items-center gap-2 min-w-0 max-w-full h-full shrink overflow-hidden">
       <EntityIcon
         class="shrink-0 text-ink-extra-muted"
         targetType={targetType()}
