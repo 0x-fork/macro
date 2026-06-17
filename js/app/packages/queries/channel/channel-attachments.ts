@@ -19,9 +19,20 @@ type ChannelAttachmentsQueryKey = ReturnType<
   typeof channelKeys.attachments
 >['queryKey'];
 
+/**
+ * Page size for the media (static image/video) grid. Kept small: the grid is
+ * virtualized and pulls more pages on scroll, so there is no need to fetch and
+ * render dozens of off-screen thumbnails up front.
+ */
+const MEDIA_PAGE_SIZE = 30;
+
+/** Page size for the documents list. */
+const DOCUMENT_PAGE_SIZE = 50;
+
 export function channelAttachmentsQueryOptions(
   channelId: string,
-  attachmentType?: ChannelAttachmentType
+  attachmentType?: ChannelAttachmentType,
+  limit = 100
 ) {
   return {
     queryKey: channelKeys.attachments(channelId, attachmentType).queryKey,
@@ -36,7 +47,7 @@ export function channelAttachmentsQueryOptions(
         async () =>
           await storageServiceClient.getChannelAttachments({
             channel_id: channelId,
-            limit: 100,
+            limit,
             cursor: pageParam,
             attachment_type: attachmentType,
             signal,
@@ -52,21 +63,22 @@ export function channelAttachmentsQueryOptions(
 
 function useChannelAttachmentsQuery(
   channelId: Accessor<string>,
-  attachmentType?: Accessor<ChannelAttachmentType | undefined>
+  attachmentType?: Accessor<ChannelAttachmentType | undefined>,
+  limit?: number
 ) {
   return useInfiniteQuery(() =>
-    channelAttachmentsQueryOptions(channelId(), attachmentType?.())
+    channelAttachmentsQueryOptions(channelId(), attachmentType?.(), limit)
   );
 }
 
 export function useChannelMediaAttachmentsQuery(channelId: Accessor<string>) {
-  return useChannelAttachmentsQuery(channelId, () => 'static');
+  return useChannelAttachmentsQuery(channelId, () => 'static', MEDIA_PAGE_SIZE);
 }
 
 export function useChannelDocumentAttachmentsQuery(
   channelId: Accessor<string>
 ) {
-  return useChannelAttachmentsQuery(channelId, () => 'dss');
+  return useChannelAttachmentsQuery(channelId, () => 'dss', DOCUMENT_PAGE_SIZE);
 }
 
 function _useChannelAttachmentsWithIndex(channelId: Accessor<string>) {
