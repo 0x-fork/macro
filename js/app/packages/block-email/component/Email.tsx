@@ -709,7 +709,7 @@ function EmailContent(props: EmailViewProps) {
                             depth={1}
                             size="sm"
                             noTouchResize
-                            class="h-6 rounded-full border-transparent bg-ink/3 px-2 py-0 text-xs font-medium gap-1.5 text-ink/65 hover:bg-ink/6 hover:text-ink"
+                            class="ask-macro-button group h-6 rounded-full border-transparent bg-ink/3 px-2 py-0 text-xs font-medium gap-1.5 text-ink/65 hover:bg-ink/6 hover:text-ink"
                             onClick={() =>
                               openChatWithAgent({
                                 type: 'email',
@@ -718,7 +718,7 @@ function EmailContent(props: EmailViewProps) {
                               })
                             }
                           >
-                            <MacroLogo class="size-3.5" />
+                            <MacroLogo class="ask-macro-logo-shimmer size-3.5 shrink-0" />
                             <span>Ask Macro</span>
                           </Button>
                         </div>

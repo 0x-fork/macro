@@ -189,13 +189,13 @@ export function DispatchAgentButton() {
     <Dropdown open={open()} onOpenChange={setOpen}>
       <ButtonGroup variant="base" size="sm" depth={1} class="rounded-full border-transparent bg-ink/3">
         <Button
-          class="h-6 rounded-l-full px-2 py-0 text-xs font-medium gap-1.5 text-ink/65 hover:bg-ink/6 hover:text-ink"
+          class="ask-macro-button group h-6 rounded-l-full px-2 py-0 text-xs font-medium gap-1.5 text-ink/65 hover:bg-ink/6 hover:text-ink"
           label="Ask Macro"
           aria-label="Ask Macro"
           noTouchResize
           onClick={openMacroChat}
         >
-          <MacroLogo class="size-3.5!" />
+          <MacroLogo class="ask-macro-logo-shimmer size-3.5! shrink-0" />
           <span>Ask Macro</span>
         </Button>
         <ButtonGroup.Divider class="bg-ink/8" />

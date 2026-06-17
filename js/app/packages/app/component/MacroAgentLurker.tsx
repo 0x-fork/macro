@@ -160,7 +160,7 @@ const MacroAgentCharacter = (props: { reveal: number; onOpen: () => void }) => {
     <button
       type="button"
       class={cn(
-        'pointer-events-auto relative flex flex-col items-center outline-none transition-[transform,opacity,filter] duration-150 ease-out',
+        'ask-macro-button group pointer-events-auto relative flex flex-col items-center outline-none transition-[transform,opacity,filter] duration-150 ease-out',
         props.reveal <= 0.02 && 'pointer-events-none'
       )}
       style={{
@@ -179,7 +179,7 @@ const MacroAgentCharacter = (props: { reveal: number; onOpen: () => void }) => {
 
         <div class="absolute left-1/2 top-3 z-20 flex h-10 w-fit min-w-0 -translate-x-1/2 items-center justify-center overflow-hidden rounded-full border border-edge-muted bg-surface/72 px-3.5 shadow-[inset_0_1px_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),inset_0_-8px_18px_color-mix(in_oklch,var(--color-edge-muted)_20%,transparent),0_16px_32px_-22px_rgba(0,0,0,0.5)] backdrop-blur-xl backdrop-saturate-150 transition-transform duration-100 ease-out">
           <div class="relative z-10 flex items-center gap-2.5 px-1">
-            <LogoIcon class="size-4 text-accent" />
+            <LogoIcon class="ask-macro-logo-shimmer size-4 shrink-0 text-accent" />
             <span class="whitespace-nowrap text-xs font-semibold tracking-tight text-ink/75">
               Ask Macro
             </span>
