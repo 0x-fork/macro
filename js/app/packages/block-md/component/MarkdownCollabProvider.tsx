@@ -2,6 +2,7 @@ import { markdownBlockErrorSignal } from '@block-md/signal/error';
 import { createAwareness } from '@core/collab/awareness';
 import { createSyncEngine } from '@core/collab/engine';
 import type { LoroManager } from '@core/collab/manager';
+import { logSyncService } from '@core/collab/logger';
 import {
   IDBSnapshotStore,
   LORO_SNAPSHOT_DB_NAME,
@@ -418,7 +419,13 @@ export function MarkdownCollabProvider(props: MarkdownCollabProviderProps) {
   }
 
   function startSync() {
-    syncEngine.start();
+    const started = syncEngine.start();
+    logSyncService({
+      documentId: syncSource()!.documentId,
+      level: 'debug',
+      context: {},
+      message: `engine.start() → ${started}`,
+    });
     props.pluginManager.use(lexicalStateSyncPlugin);
   }
 
@@ -428,7 +435,12 @@ export function MarkdownCollabProvider(props: MarkdownCollabProviderProps) {
       () => loroManager.isInitialized() ?? false,
       (isInitialized) => {
         if (!isInitialized) {
-          console.warn('loro manager not initialized');
+          logSyncService({
+            documentId: syncSource()?.documentId ?? 'unknown',
+            level: 'debug',
+            context: {},
+            message: 'MarkdownCollabProvider: manager not yet initialized',
+          });
           return;
         }
 
@@ -439,6 +451,17 @@ export function MarkdownCollabProvider(props: MarkdownCollabProviderProps) {
           // At this point, the loroManager should be initialized and should
           // have the initial state from the sync service
           const state = untrack(loroManager.state);
+          const empty = state
+            ? isStateEmpty(state.state as unknown as SerializedEditorState)
+            : null;
+
+          logSyncService({
+            documentId: syncSource()!.documentId,
+            level: 'info',
+            context: { misc: { hasState: !!state, isEmpty: empty } },
+            message:
+              'MarkdownCollabProvider: manager initialized, initializing editor',
+          });
 
           //TODO: some more descriptive user facing error should be displayed here
           if (!state) {
@@ -450,15 +473,34 @@ export function MarkdownCollabProvider(props: MarkdownCollabProviderProps) {
           setDidFirstSync(true);
 
           // Initialize the editor with the initial state from the sync service
-          if (isStateEmpty(state.state as unknown as SerializedEditorState)) {
+          if (empty) {
+            logSyncService({
+              documentId: syncSource()!.documentId,
+              level: 'debug',
+              context: {},
+              message: 'editor init: empty',
+            });
             initializeEditorEmpty(props.editor);
           } else {
+            logSyncService({
+              documentId: syncSource()!.documentId,
+              level: 'debug',
+              context: {},
+              message: 'editor init: versioned state',
+            });
             const initError = initializeEditorWithVersionedState(
               props.editor,
               state.state as unknown as SerializedEditorState,
               loroManager.getPeerIdStr
             );
             if (initError !== null) {
+              logSyncService({
+                documentId: syncSource()!.documentId,
+                level: 'error',
+                context: { misc: { initError } },
+                message:
+                  'editor init: initializeEditorWithVersionedState failed',
+              });
               props.setEditorError(initError);
               return;
             }

@@ -252,11 +252,25 @@ export class WALSyncer<T> {
   public async append(item: T): Promise<void> {
     await this.ready();
     await this.store.append(item);
+    if (this.label)
+      logSyncService({
+        documentId: this.label,
+        level: 'debug',
+        context: { wal: await this.summary() },
+        message: 'WAL: wrote to IDB',
+      });
     this.hasNewPending = true;
     void this.flush(); // unawaited
   }
 
   public flush(): Promise<void> {
+    if (this.label)
+      logSyncService({
+        documentId: this.label,
+        level: 'debug',
+        context: {},
+        message: `WAL flush: triggered (isFlushing=${this.isFlushing})`,
+      });
     if (this.isFlushing) return this.pendingFlush;
     this.pendingFlush = this.doFlush();
     return this.pendingFlush;

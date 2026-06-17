@@ -268,6 +268,12 @@ export function createLoroManager<S extends GenericRootSchema>(
 
   const initMachine = DocInitMachine.create(options.wasDirty);
   const { documentId } = options;
+  logSyncService({
+    documentId,
+    level: 'debug',
+    context: { misc: { wasDirty: options.wasDirty } },
+    message: `manager: created (wasDirty=${options.wasDirty})`,
+  });
 
   /** Util for awaiting the sync of the mirror to finish */
   const awaitMirrorSync = async () => {
@@ -713,7 +719,15 @@ export function createLoroManager<S extends GenericRootSchema>(
       context: { initMachineState: initMachine.currentPhase() },
       message: `init machine: ${input.kind} → ${instruction}`,
     });
-    if (instruction === 'ignore') return;
+    if (instruction === 'ignore') {
+      logSyncService({
+        documentId,
+        level: 'debug',
+        context: { initMachineState: initMachine.currentPhase() },
+        message: `init machine: ${input.kind} ignored (rank too low or already applied)`,
+      });
+      return;
+    }
 
     const applied = await applySnapshot(input.snapshot, input.kind);
     if (!applied) return;
