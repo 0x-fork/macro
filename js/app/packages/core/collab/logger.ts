@@ -19,10 +19,11 @@ export function logSyncService({
   message,
 }: {
   documentId: string;
-  level: 'info' | 'warn' | 'error';
+  level: 'debug' | 'info' | 'warn' | 'error';
   context: SyncLogContext;
   message: string;
 }): void {
+  if (level === 'debug') return;
   console[level === 'info' ? 'log' : level](
     { documentId, t: Date.now(), ...context },
     message

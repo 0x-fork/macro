@@ -526,7 +526,7 @@ export function createLoroManager<S extends GenericRootSchema>(
 
     logSyncService({
       documentId: documentId,
-      level: 'info',
+      level: 'debug',
       context: {},
       message: 'syncToLoro: ok',
     });

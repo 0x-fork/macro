@@ -300,7 +300,7 @@ export class WALSyncer<T> {
       if (this.label)
         logSyncService({
           documentId: this.label,
-          level: 'info',
+          level: 'debug',
           context: { wal: await this.summary() },
           message: `WAL flush: pushing ${undelivered.length} entries`,
         });
@@ -314,7 +314,7 @@ export class WALSyncer<T> {
         if (this.label)
           logSyncService({
             documentId: this.label,
-            level: 'info',
+            level: 'debug',
             context: { wal: await this.summary() },
             message: `WAL flush: delivered ${undelivered.length} entries`,
           });
