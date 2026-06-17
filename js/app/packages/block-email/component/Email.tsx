@@ -1,4 +1,11 @@
+import { openChatWithAgent } from '@app/component/ChatWithAgentButton';
+import { useMaybeSoup } from '@app/component/next-soup/soup-context';
+import {
+  openEntityInSplitFromUnifiedList,
+  trashEmails,
+} from '@app/component/next-soup/utils';
 import { SidePanel } from '@app/component/side-panel';
+import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { EmailCompose } from '@block-email/component/compose/Compose';
 import {
@@ -8,17 +15,31 @@ import {
 import { EmailInput } from '@block-email/component/EmailInput';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { FloatingInputLoader } from '@core/component/FloatingInputLoader';
+import { toast } from '@core/component/Toast/Toast';
 import { useUserContext } from '@core/context/user';
 import { TOKENS } from '@core/hotkey/tokens';
-import { registerScopeSignalHotkey } from '@core/hotkey/utils';
+import {
+  getActiveCommandByToken,
+  registerScopeSignalHotkey,
+  runCommand,
+} from '@core/hotkey/utils';
 import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import MacroLogo from '@icon/macro-logo.svg';
+import { AnimatedTaskIcon } from '@icon/wide-task';
+import { buildMentionMarkdownString } from '@lexical-core';
+import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
+import CheckIcon from '@phosphor/check.svg';
+import ProhibitIcon from '@phosphor/prohibit.svg';
+import TrashIcon from '@phosphor/trash.svg';
 import {
   blockElementSignal,
   blockHotkeyScopeSignal,
 } from '@core/signal/blockElement';
+import { useEmailLinksQuery } from '@queries/email/link';
 import type { ApiMessage } from '@service-email/generated/schemas';
 import { createCallback } from '@solid-primitives/rootless';
+import { Button } from '@ui';
 import {
   type Accessor,
   createEffect,
@@ -71,10 +92,89 @@ function EmailContent(props: EmailViewProps) {
   const blockElement = blockElementSignal.get;
 
   const context = useEmailContext();
+  const { popoverSplit } = useSplitLayout();
   const splitPanel = useSplitPanel();
+  const soup = useMaybeSoup();
+  const linksQuery = useEmailLinksQuery();
   const { isLoading: isUserLoading } = useUserContext();
 
   const [isScrolled, setIsScrolled] = createSignal(false);
+
+  const isOwnThread = () => {
+    const thread = context.thread();
+    const links = linksQuery.data?.links;
+    if (!thread || !links) return false;
+    return links.some((link) => link.id === thread.link_id);
+  };
+
+  const markDone = () => {
+    const command = getActiveCommandByToken(TOKENS.entity.action.markDone);
+    if (command) {
+      runCommand(command);
+    } else {
+      context.archiveThread();
+    }
+  };
+
+  const openTaskCompose = () => {
+    const threadId = context.thread()?.db_id ?? props.threadId();
+    if (!threadId) return;
+    const title =
+      props.title.length > 70 ? `${props.title.slice(0, 70)}...` : props.title;
+    popoverSplit({
+      type: 'component',
+      id: 'task-compose',
+      params: {
+        initialTitle: title,
+        initialContent: buildMentionMarkdownString({
+          type: 'document',
+          documentId: threadId,
+          documentName: props.title,
+          blockName: 'email',
+        }),
+      },
+    });
+  };
+
+  const trashThread = () => {
+    const thread = context.thread();
+    if (!thread?.db_id) return;
+
+    const nextRow = (() => {
+      if (!soup) return undefined;
+      const currentIndex = soup.focus.index();
+      return soup.items.at(currentIndex + 1) ?? soup.items.at(currentIndex - 1);
+    })();
+
+    const handle = trashEmails([thread.db_id]);
+
+    if (soup && nextRow) {
+      soup.selection.clear();
+      soup.focus.set(nextRow.id);
+      openEntityInSplitFromUnifiedList(nextRow.original, {});
+    }
+
+    const toastId = toast.success('Moved to Trash', {
+      actions: [
+        {
+          label: 'Undo',
+          icon: ArrowCounterClockwise,
+          onClick: () => {
+            if (toastId != null) toast.dismiss(toastId);
+            handle.undo().then(
+              () => toast.success('Restored from Trash'),
+              () => toast.failure('Failed to restore from Trash')
+            );
+          },
+        },
+      ],
+      duration: 10_000,
+    });
+
+    handle.done.catch(() => {
+      toast.failure('Failed to move to Trash');
+    });
+  };
 
   const handleScrollPositionChange = (scrollFromTop: number) => {
     setIsScrolled(scrollFromTop > 1);
@@ -544,6 +644,57 @@ function EmailContent(props: EmailViewProps) {
                   ref={context.registerMessagesContainer}
                 >
                   <Show when={!isMobile()}>
+                    <div
+                      class="shrink-0 w-full border-b px-3 py-2 flex items-center justify-end gap-1.5"
+                      classList={{
+                        'border-edge-muted/50': isScrolled(),
+                        'border-transparent': !isScrolled(),
+                      }}
+                    >
+                      <Show when={isOwnThread()}>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          noTouchResize
+                          class="size-6 rounded-md p-1 text-ink/65 hover:text-ink [&_svg]:size-3.5"
+                          tooltip="Done"
+                          hotkey={TOKENS.entity.action.markDone}
+                          onClick={markDone}
+                        >
+                          <CheckIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          noTouchResize
+                          class="size-6 rounded-md p-1 text-ink/65 hover:text-ink [&_svg]:size-3.5"
+                          tooltip="Trash"
+                          onClick={trashThread}
+                        >
+                          <TrashIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          noTouchResize
+                          class="size-6 rounded-md p-1 text-ink/65 hover:text-ink [&_svg]:size-3.5"
+                          tooltip="Create Task"
+                          onClick={openTaskCompose}
+                        >
+                          <AnimatedTaskIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          noTouchResize
+                          class="size-6 rounded-md p-1 text-ink/65 hover:text-ink [&_svg]:size-3.5"
+                          tooltip="Block sender"
+                          onClick={() => context.blockSender()}
+                        >
+                          <ProhibitIcon />
+                        </Button>
+                      </Show>
+                    </div>
                     <div class="shrink-0 w-full flex justify-center">
                       <div
                         class="macro-message-width macro-message-padding w-full border-b px-4"
@@ -552,7 +703,26 @@ function EmailContent(props: EmailViewProps) {
                           'border-transparent': !isScrolled(),
                         }}
                       >
-                        <h1 class="ph-no-capture text-base font-semibold text-ink pt-3 pb-1.5 tracking-tight text-balance">
+                        <div class="pt-3 pb-2 flex items-center gap-1.5">
+                          <Button
+                            variant="base"
+                            depth={1}
+                            size="sm"
+                            noTouchResize
+                            class="h-6 rounded-full border-transparent bg-ink/3 px-2 py-0 text-xs font-medium gap-1.5 text-ink/65 hover:bg-ink/6 hover:text-ink"
+                            onClick={() =>
+                              openChatWithAgent({
+                                type: 'email',
+                                id: props.threadId(),
+                                name: props.title,
+                              })
+                            }
+                          >
+                            <MacroLogo class="size-3.5" />
+                            <span>Ask Macro</span>
+                          </Button>
+                        </div>
+                        <h1 class="ph-no-capture text-xl font-semibold text-ink pb-1.5 tracking-tight text-balance">
                           {props.title}
                         </h1>
                         <div class="pb-2.5">

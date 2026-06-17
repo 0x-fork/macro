@@ -1,46 +1,45 @@
-import {
-  ChatWithAgentButton,
-  ChatWithAgentIcon,
-  openChatWithAgent,
-} from '@app/component/ChatWithAgentButton';
 import { useMaybeSoup } from '@app/component/next-soup/soup-context';
-import {
-  openEntityInSplitFromUnifiedList,
-  trashEmails,
-} from '@app/component/next-soup/utils';
+import { trashEmails } from '@app/component/next-soup/utils';
 import type { BlockTool } from '@app/component/ResponsiveBlockToolbar';
+import {
+  type FileOperation,
+  SplitFileMenu,
+} from '@app/component/split-layout/components/SplitFileMenu';
 import { ResponsiveBlockToolbar } from '@app/component/ResponsiveBlockToolbar';
-import { SidePanel, useSidePanel } from '@app/component/side-panel';
-import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
+import { useSidePanel } from '@app/component/side-panel';
+import {
+  SplitHeaderLeft,
+  SplitHeaderRight,
+} from '@app/component/split-layout/components/SplitHeader';
 import {
   SplitHeaderBadge,
   StaticSplitLabel,
 } from '@app/component/split-layout/components/SplitLabel';
-import { SplitToolbarLeft } from '@app/component/split-layout/components/SplitToolbar';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
-import { toast } from '@core/component/Toast/Toast';
 import {
   getShareDrawerRecipientInput,
   ShareTrigger,
   useShareDialogContext,
 } from '@core/component/TopBar/ShareButton';
+import { toast } from '@core/component/Toast/Toast';
 import { ENABLE_EMAIL_SHARING } from '@core/constant/featureFlags';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
-import { getActiveCommandByToken, runCommand } from '@core/hotkey/utils';
 import { isMobile } from '@core/mobile/isMobile';
+import { buildSimpleEntityUrl } from '@core/util/url';
 import IconShared from '@icon/wide-share.svg';
 import { AnimatedTaskIcon } from '@icon/wide-task';
-import { buildMentionMarkdownString } from '@lexical-core';
+import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
 import CheckIcon from '@phosphor/check.svg';
+import { buildMentionMarkdownString } from '@lexical-core';
+import LinkIcon from '@phosphor/link.svg';
 import ProhibitIcon from '@phosphor/prohibit.svg';
 import SidePanelIcon from '@phosphor/square-half.svg';
 import TrashIcon from '@phosphor/trash.svg';
-import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
 import { useEmailLinksQuery } from '@queries/email/link';
 import { Button, cn } from '@ui';
-import { createSignal, onCleanup, Show } from 'solid-js';
+import { createMemo, onCleanup, Show } from 'solid-js';
 import { useEmailContext } from './EmailContext';
 
 export function TopBar(props: {
@@ -55,6 +54,7 @@ export function TopBar(props: {
   const soup = useMaybeSoup();
   const linksQuery = useEmailLinksQuery();
   const sidePanel = useSidePanel();
+  const compactHeader = () => (splitPanel?.panelSize.width ?? Infinity) < 440;
 
   if (splitPanel?.splitHotkeyScope) {
     const reg = registerHotkey({
@@ -85,25 +85,15 @@ export function TopBar(props: {
     return links.some((link) => link.id === thread.link_id);
   };
 
-  const trashThread = () => {
-    const thread = emailCtx.thread();
-    if (!thread?.db_id) return;
+  const markDone = () => {
+    emailCtx.archiveThread();
+  };
 
-    // Calculate next row before trashing so we can navigate to it
-    const nextRow = (() => {
-      if (!soup) return undefined;
-      const currentIndex = soup.focus.index();
-      return soup.items.at(currentIndex + 1) ?? soup.items.at(currentIndex - 1);
-    })();
+  const moveToTrash = () => {
+    const threadId = emailCtx.thread()?.db_id;
+    if (!threadId) return;
 
-    const handle = trashEmails([thread.db_id]);
-
-    if (soup && nextRow) {
-      soup.selection.clear();
-      soup.focus.set(nextRow.id);
-      openEntityInSplitFromUnifiedList(nextRow.original, {});
-    }
-
+    const handle = trashEmails([threadId]);
     const toastId = toast.success('Moved to Trash', {
       actions: [
         {
@@ -126,6 +116,13 @@ export function TopBar(props: {
     });
   };
 
+  const copyLink = () => {
+    navigator.clipboard.writeText(
+      buildSimpleEntityUrl({ type: 'email', id: props.id })
+    );
+    toast.success('Link copied to clipboard.');
+  };
+
   const openTaskCompose = () => {
     const threadId = emailCtx.thread()?.db_id;
     if (!threadId) return;
@@ -146,101 +143,122 @@ export function TopBar(props: {
     });
   };
 
-  const tools: BlockTool[] = [
-    {
-      label: 'Done',
-      icon: CheckIcon,
-      action: () => {
-        const command = getActiveCommandByToken(TOKENS.entity.action.markDone);
-        if (command) {
-          runCommand(command);
-        } else {
-          emailCtx.archiveThread();
-        }
-      },
-      condition: isOwnThread,
-    },
-    {
-      label: 'Trash',
-      icon: TrashIcon,
-      action: trashThread,
-      condition: isOwnThread,
-    },
-    {
-      label: 'Block Sender',
-      icon: ProhibitIcon,
-      action: () => emailCtx.blockSender(),
-      condition: isOwnThread,
-    },
+  const moreMenuOps = createMemo<FileOperation[]>(() => [
     {
       label: 'Create Task',
       icon: AnimatedTaskIcon,
       action: openTaskCompose,
-      buttonComponent: () => {
-        const [hovering, setHovering] = createSignal(false);
-        return (
-          <Button
-            tooltip="Create Task"
-            variant="base"
-            size="sm"
-            onMouseEnter={() => setHovering(true)}
-            onMouseLeave={() => setHovering(false)}
-            onClick={openTaskCompose}
-            depth={2}
-            class="bg-surface text-ink-muted"
-          >
-            <AnimatedTaskIcon triggerAnimation={hovering()} />
-            <span class="text-xs text-ink-extra-muted">Task</span>
-          </Button>
-        );
-      },
+      group: 'file',
     },
-    {
-      label: 'Chat',
-      icon: ChatWithAgentIcon,
-      action: () => {
-        const threadId = emailCtx.thread()?.db_id;
-        if (!threadId) return;
-        openChatWithAgent({ type: 'email', id: threadId, name: props.title });
-      },
-      condition: () => !!emailCtx.thread()?.db_id,
-      buttonComponent: () => {
-        const id = emailCtx.thread()?.db_id;
-        return id ? (
-          <ChatWithAgentButton
-            entity={{ type: 'email', id, name: props.title }}
-          />
-        ) : null;
-      },
-    },
+    ...(isOwnThread()
+      ? ([
+          {
+            label: 'Mark done',
+            icon: CheckIcon,
+            action: markDone,
+            group: 'delete' as const,
+            destructive: false,
+          },
+          {
+            label: 'Block Sender',
+            icon: ProhibitIcon,
+            action: () => emailCtx.blockSender(),
+            group: 'delete' as const,
+          },
+          {
+            label: 'Move to Trash',
+            icon: TrashIcon,
+            action: moveToTrash,
+            group: 'delete' as const,
+          },
+        ] satisfies FileOperation[])
+      : []),
+  ]);
+
+  const moreMenuTools = createMemo<BlockTool[]>(() => [
     {
       label: 'Share',
       icon: IconShared,
       action: () => shareCtx.open(),
-      condition: () => ENABLE_EMAIL_SHARING,
-      buttonComponent: () => <ShareTrigger />,
+      condition: () => ENABLE_EMAIL_SHARING && compactHeader(),
       focusTarget: getShareDrawerRecipientInput,
+      menuGroup: 'share',
     },
     {
-      label: () =>
-        sidePanel?.isOpen() ? 'Hide Side Panel' : 'Show Side Panel',
+      label: 'Copy link',
+      icon: LinkIcon,
+      action: copyLink,
+      menuGroup: 'share',
+    },
+    {
+      label: 'View details',
       icon: SidePanelIcon,
-      action: () => sidePanel?.toggle(),
-      isActive: () => sidePanel?.isOpen() ?? false,
-      condition: () => !(sidePanel?.isNarrow() ?? isMobile()),
-      buttonComponent: () => (
-        <Show when={sidePanel}>
+      action: () => sidePanel?.setIsOpen(true),
+      condition: () =>
+        compactHeader() &&
+        (sidePanel?.hasSections() ?? false) &&
+        !(sidePanel?.isOpen() ?? false),
+      menuGroup: 'copy',
+    },
+  ]);
+
+  const tools: BlockTool[] = [];
+
+  return (
+    <>
+      <SplitHeaderLeft>
+        <div class="flex min-w-0 flex-1 items-center">
+          <div class="min-w-0 overflow-hidden">
+            <StaticSplitLabel
+              class="ph-no-capture"
+              iconType={isInvite() ? 'emailInvite' : 'email'}
+              colorIcon={isInvite()}
+              label={isMobile() ? '' : props.title}
+              badges={
+                props.isDraft
+                  ? [
+                      <SplitHeaderBadge
+                        text="draft"
+                        tooltip="This is a Draft Email"
+                      />,
+                    ]
+                  : undefined
+              }
+            />
+          </div>
+          <Show when={!isMobile()}>
+            <SplitFileMenu
+              id={props.id}
+              itemType="email"
+              name={props.title}
+              ops={moreMenuOps()}
+              tools={moreMenuTools()}
+              buttonClass="ml-1 size-6 p-1 shrink-0 text-ink-extra-muted hover:text-ink [&_svg]:size-3.5"
+            />
+          </Show>
+        </div>
+      </SplitHeaderLeft>
+
+      <SplitHeaderRight>
+        <Show when={!isMobile() && !compactHeader() && ENABLE_EMAIL_SHARING}>
+          <ShareTrigger />
+        </Show>
+        <Show
+          when={
+            sidePanel && !compactHeader() && (sidePanel.hasSections() ?? false)
+              ? sidePanel
+              : undefined
+          }
+        >
           {(panel) => (
             <Button
               depth={2}
               variant="base"
               size="icon-sm"
-              class={cn('bg-surface order-20', {
-                'bg-active': sidePanel?.isOpen(),
+              class={cn('ml-1.5 size-6 p-1 bg-surface [&_svg]:size-3.5', {
+                'bg-active text-ink': panel().isOpen(),
               })}
-              tooltip={
-                sidePanel?.isOpen() ? 'Hide Side Panel' : 'Show Side Panel'
-              }
+              tooltip="View details"
               hotkey={TOKENS.block.toggleSidePanel}
               onClick={() => {
                 panel().toggle();
@@ -250,30 +268,7 @@ export function TopBar(props: {
             </Button>
           )}
         </Show>
-      ),
-    },
-  ];
-
-  return (
-    <>
-      <SplitHeaderLeft>
-        <StaticSplitLabel
-          class="ph-no-capture"
-          iconType={isInvite() ? 'emailInvite' : 'email'}
-          colorIcon={isInvite()}
-          label={isMobile() ? '' : props.title}
-          badges={
-            props.isDraft
-              ? [
-                  <SplitHeaderBadge
-                    text="draft"
-                    tooltip="This is a Draft Email"
-                  />,
-                ]
-              : undefined
-          }
-        />
-      </SplitHeaderLeft>
+      </SplitHeaderRight>
 
       <ResponsiveBlockToolbar
         tools={tools}
@@ -282,9 +277,6 @@ export function TopBar(props: {
         itemType="email"
         name={props.title}
       />
-      <SplitToolbarLeft>
-        <SidePanel.NarrowTabs />
-      </SplitToolbarLeft>
     </>
   );
 }

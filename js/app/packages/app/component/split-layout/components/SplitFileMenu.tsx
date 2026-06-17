@@ -41,6 +41,7 @@ export type CustomFileOperation = {
   icon: Component;
   action: () => void;
   group?: SplitMenuGroup;
+  destructive?: boolean;
 };
 
 const isDefaultFileOperation = (
@@ -56,6 +57,7 @@ type SplitMenuAction = {
   icon: Component;
   action: (e?: MouseEvent) => void;
   group?: SplitMenuGroup;
+  destructive?: boolean;
 };
 
 function SplitMenuItemContent(props: Pick<SplitMenuAction, 'icon' | 'label'>) {
@@ -101,7 +103,7 @@ function DesktopRender(props: SplitFileMenuRenderProps) {
   const item = (action: SplitMenuAction) => (
     <Dropdown.Item
       class={cn(
-        action.group === 'delete' &&
+        (action.destructive ?? action.group === 'delete') &&
           'text-failure hover:text-failure data-highlighted:text-failure hover:bg-failure-bg data-highlighted:bg-failure-bg hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)] data-highlighted:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-failure)_12%,transparent)]'
       )}
       onSelect={() => {

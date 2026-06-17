@@ -54,10 +54,10 @@ export function CollapsedMessage(props: CollapsedMessageProps) {
       <div class="macro-message-width macro-message-padding w-full px-4">
         <div
           class={cn(
-            'relative flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer min-w-0 ring-1 ring-inset',
+            'relative flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer min-w-0',
             props.isFocused
-              ? 'bg-active/60 ring-edge'
-              : 'bg-ink-muted/[0.025] ring-ink-muted/8 hover:bg-active/40 hover:ring-edge'
+              ? 'bg-active/60 ring-1 ring-inset ring-edge'
+              : 'bg-ink-muted/[0.025] hover:bg-active/40'
           )}
           data-message-body-id={props.message.db_id}
           tabIndex={0}
@@ -80,7 +80,7 @@ export function CollapsedMessage(props: CollapsedMessageProps) {
           </div>
           <div class="shrink-0 min-w-0 max-w-28">
             <EmailUserTooltip recipient={props.message.from}>
-              <div class="text-sm font-medium text-ink truncate cursor-default">
+              <div class="text-sm font-medium text-ink/65 truncate cursor-default">
                 {senderDisplay()}
               </div>
             </EmailUserTooltip>
@@ -88,7 +88,7 @@ export function CollapsedMessage(props: CollapsedMessageProps) {
           <div class="flex-1 min-w-0 text-sm text-ink-muted/60 truncate">
             {snippet()}
           </div>
-          <div class="shrink-0 text-xs text-ink-extra-muted tabular-nums">
+          <div class="shrink-0 text-xs text-ink/45 tabular-nums">
             {props.message.internal_date_ts &&
               formatShortDate(props.message.internal_date_ts)}
           </div>

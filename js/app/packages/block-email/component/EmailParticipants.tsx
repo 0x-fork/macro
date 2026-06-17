@@ -11,7 +11,6 @@ interface Participant {
   photoUrl?: string;
 }
 
-const DEFAULT_VISIBLE_COUNT = 5;
 
 export function EmailParticipants() {
   const context = useEmailContext();
@@ -49,14 +48,19 @@ export function EmailParticipants() {
     return Array.from(seen.values());
   });
 
+  const visibleCount = createMemo(() => {
+    const all = participants();
+    if (expanded()) return all.length;
+    return Math.min(2, all.length);
+  });
+
   const visibleParticipants = createMemo(() => {
     const all = participants();
-    if (expanded() || all.length <= DEFAULT_VISIBLE_COUNT) return all;
-    return all.slice(0, DEFAULT_VISIBLE_COUNT);
+    return all.slice(0, visibleCount());
   });
 
   const hiddenCount = createMemo(() =>
-    Math.max(0, participants().length - DEFAULT_VISIBLE_COUNT)
+    Math.max(0, participants().length - visibleCount())
   );
 
   const getDisplayName = (p: Participant) => {
@@ -81,7 +85,7 @@ export function EmailParticipants() {
           >
             <div
               role="listitem"
-              class="inline-flex items-center gap-1.5 rounded-full border border-ink-muted/8 bg-ink-muted/[0.025] py-1 pr-2.5 pl-1.5 text-sm text-ink hover:bg-ink-muted/[0.06] cursor-default"
+              class="inline-flex items-center gap-1.5 rounded-full border border-ink-muted/8 bg-ink-muted/[0.025] py-1 pr-2.5 pl-1.5 text-sm text-ink/65 hover:text-ink hover:bg-ink-muted/[0.06] cursor-default"
             >
               <UserIcon
                 {...getIconProps(participant)}
@@ -101,9 +105,9 @@ export function EmailParticipants() {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          class="inline-flex items-center rounded-full border border-ink-muted/8 bg-ink-muted/[0.025] px-3 py-1 text-sm text-ink-muted hover:text-ink hover:bg-ink-muted/[0.06] tabular-nums"
+          class="inline-flex items-center rounded-full border border-ink-muted/8 bg-ink-muted/[0.025] px-3 py-1 text-sm text-ink/65 hover:text-ink hover:bg-ink-muted/[0.06] tabular-nums"
         >
-          {expanded() ? 'Show less' : `+${hiddenCount()} more`}
+          {expanded() ? 'Show less' : `+${hiddenCount()} others`}
         </button>
       </Show>
     </div>
