@@ -1,6 +1,13 @@
 import { toast } from '@core/component/Toast/Toast';
 import { authServiceClient } from '@service-auth/client';
-import { onMount } from 'solid-js';
+import { makePersisted } from '@solid-primitives/storage';
+import { createSignal, onMount } from 'solid-js';
+
+export const createDismissedGithubReauthSignal = () => {
+  return makePersisted(createSignal(false), {
+    name: 'dismissed-github-reauth-toast',
+  });
+};
 
 let githubReauthenticationToastId: number | undefined;
 
@@ -14,10 +21,12 @@ async function handleGithubReauthenticationToastAction(): Promise<void> {
   }
   clearGithubReauthenticationToastState();
 
-  const result = await authServiceClient.reauthenticateGithub(
-    window.location.href
-  );
+  const redirectUrl = new URL(window.location.href);
+  redirectUrl.searchParams.append('github', 'reconnected');
 
+  const result = await authServiceClient.reauthenticateGithub(
+    redirectUrl.toString()
+  );
   if (result.isErr()) {
     toast.failure('Failed to start GitHub reconnect flow');
     return;
@@ -28,6 +37,8 @@ async function handleGithubReauthenticationToastAction(): Promise<void> {
 
 function showGithubReauthenticationToast(): void {
   if (githubReauthenticationToastId !== undefined) return;
+
+  const [, setDismissedToast] = createDismissedGithubReauthSignal();
 
   githubReauthenticationToastId = toast.custom(
     {
@@ -44,12 +55,27 @@ function showGithubReauthenticationToast(): void {
     },
     {
       persistent: true,
-      onDismiss: clearGithubReauthenticationToastState,
+      onDismiss: () => {
+        clearGithubReauthenticationToastState();
+        setDismissedToast(true);
+      },
     }
   );
 }
 
 async function checkGithubReauthenticationStatus(): Promise<void> {
+  const [dismissedToast, setDismissedToast] =
+    createDismissedGithubReauthSignal();
+
+  const nextURL = new URL(window.location.href);
+  const searchParams = nextURL.searchParams;
+
+  if (searchParams.has('github', 'reconnected')) {
+    searchParams.delete('github');
+    setDismissedToast(false);
+    window.location.href = nextURL.toString();
+  }
+
   const response = await authServiceClient.checkGithubLinkStatus();
 
   const needsReauthentication = response.isOk()
@@ -58,7 +84,7 @@ async function checkGithubReauthenticationStatus(): Promise<void> {
         (error) => error.code === 'REAUTHENTICATION_REQUIRED'
       );
 
-  if (needsReauthentication) {
+  if (needsReauthentication && !dismissedToast()) {
     showGithubReauthenticationToast();
   }
 }

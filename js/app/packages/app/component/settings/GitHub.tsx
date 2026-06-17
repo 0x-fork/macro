@@ -67,8 +67,10 @@ export function GitHub() {
   };
 
   const handleGithubReconnect = async () => {
+    const redirectUrl = new URL(window.location.href)
+    redirectUrl.searchParams.append("github", "reconnected")
     const url = await authServiceClient.reauthenticateGithub(
-      window.location.href
+      redirectUrl.toString()
     );
     if (url.isOk()) {
       window.location.href = url.value;
