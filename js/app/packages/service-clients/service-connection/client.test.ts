@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrackEntityMessage } from './generated/schemas/trackEntityMessage';
 
-// `client.ts` registers a reconnect handler and sends over a module-level websocket
-// singleton at import time. Capture both via hoisted mocks so we can drive a reconnect
-// and assert on what gets re-sent.
+// `useReopenTrackedEntitiesOnReconnect` registers a reconnect handler and sends over a
+// module-level websocket singleton. Capture both via hoisted mocks so we can drive a
+// reconnect and assert on what gets re-sent.
 const { sendSpy, reconnectHolder, clearStreamSpy } = vi.hoisted(() => ({
   sendSpy: vi.fn(),
   reconnectHolder: { cb: undefined as undefined | (() => void) },
@@ -34,6 +34,9 @@ function track(
 
 async function loadClient() {
   const mod = await import('./client');
+  // Register the reconnect handler the way the app does (via the owner-scoped hook),
+  // capturing its callback through the mocked createReconnectEffect.
+  mod.useReopenTrackedEntitiesOnReconnect();
   return mod.connectionGatewayClient;
 }
 
@@ -46,8 +49,10 @@ describe('connectionGatewayClient reconnect replay', () => {
     reconnectHolder.cb = undefined;
   });
 
-  it('registers a reconnect handler at import time', async () => {
-    await loadClient();
+  it('registers a reconnect handler when the hook is invoked', async () => {
+    const mod = await import('./client');
+    expect(reconnectHolder.cb).toBeUndefined();
+    mod.useReopenTrackedEntitiesOnReconnect();
     expect(reconnectHolder.cb).toBeTypeOf('function');
   });
 
