@@ -250,11 +250,11 @@ export class SyncEngine<S extends GenericRootSchema, D> {
   private async persistSnapshot() {
     if (!this.snapshotStore) return;
 
-    this.log('debug', 'engine: persisting snapshot');
     void this.syncs.wal.flush(); // unawaited
 
     try {
       const doc = this.loroManager.getDoc();
+      this.log('debug', 'engine: persisting snapshot', { doc: doc.toJSON() });
       const snapshot = doc.export({
         mode: 'shallow-snapshot',
         frontiers: doc.oplogFrontiers(),

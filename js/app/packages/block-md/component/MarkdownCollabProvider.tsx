@@ -445,7 +445,15 @@ export function MarkdownCollabProvider(props: MarkdownCollabProviderProps) {
         }
 
         const source = docSource();
-        if (!source) return;
+        if (!source) {
+          logSyncService({
+            documentId: syncSource()?.documentId ?? 'unknown',
+            level: 'debug',
+            context: {},
+            message: 'editor init: no docSource yet, waiting (skeleton stays)',
+          });
+          return;
+        }
         if (isSourceSyncService(source)) {
           // Get the current state from the loroManager
           // At this point, the loroManager should be initialized and should
@@ -465,7 +473,13 @@ export function MarkdownCollabProvider(props: MarkdownCollabProviderProps) {
 
           //TODO: some more descriptive user facing error should be displayed here
           if (!state) {
-            console.error('could not initialize editor from sync service');
+            logSyncService({
+              documentId: syncSource()!.documentId,
+              level: 'error',
+              context: {},
+              message:
+                'editor init: no state from loroManager — editor will NOT become ready (skeleton stays)',
+            });
             return;
           }
 
@@ -509,6 +523,20 @@ export function MarkdownCollabProvider(props: MarkdownCollabProviderProps) {
           // Start the sync engine
           startSync();
           props.setEditorReady(true);
+          logSyncService({
+            documentId: syncSource()!.documentId,
+            level: 'info',
+            context: {},
+            message: 'editor ready (skeleton cleared)',
+          });
+        } else {
+          logSyncService({
+            documentId: syncSource()?.documentId ?? 'unknown',
+            level: 'debug',
+            context: {},
+            message:
+              'editor init: source is not sync-service, skipping editor init (skeleton stays)',
+          });
         }
       }
     )

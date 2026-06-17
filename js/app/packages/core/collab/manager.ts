@@ -268,6 +268,14 @@ export function createLoroManager<S extends GenericRootSchema>(
 
   const initMachine = DocInitMachine.create(options.wasDirty);
   const { documentId } = options;
+  /** Snapshot the current loro doc as JSON for debug logging. */
+  const docJson = (): unknown => {
+    try {
+      return loroDoc().toJSON();
+    } catch (e) {
+      return `<toJSON failed: ${e}>`;
+    }
+  };
   logSyncService({
     documentId,
     level: 'debug',
@@ -327,7 +335,7 @@ export function createLoroManager<S extends GenericRootSchema>(
     logSyncService({
       documentId: documentId,
       level: 'info',
-      context: { misc: { loroSuccess: importStatus.success } },
+      context: { misc: { loroSuccess: importStatus.success, doc: docJson() } },
       message: `importUpdate: ok (didChange=${didChange})`,
     });
     return ok(didChange);
@@ -424,7 +432,7 @@ export function createLoroManager<S extends GenericRootSchema>(
     logSyncService({
       documentId: documentId,
       level: 'info',
-      context: { initMachineState: initMachine.currentPhase() },
+      context: { initMachineState: initMachine.currentPhase(), misc: { doc: docJson() } },
       message: 'initializeFromSnapshot: ok, manager initialized',
     });
     return ok(undefined);
@@ -730,6 +738,12 @@ export function createLoroManager<S extends GenericRootSchema>(
     }
 
     const applied = await applySnapshot(input.snapshot, input.kind);
+    logSyncService({
+      documentId,
+      level: 'debug',
+      context: { initMachineState: initMachine.currentPhase(), misc: { doc: docJson() } },
+      message: `ingest(${input.kind}): applied=${applied}, doc after apply`,
+    });
     if (!applied) return;
 
     if (input.kind === 'local' && input.walUpdates?.length) {
