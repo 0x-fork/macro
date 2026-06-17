@@ -108,6 +108,33 @@ pub trait ScheduledActionExecutor {
     ) -> impl Future<Output = Result<InProgressExecution>> + Send;
 }
 
+/// Runs the actual work behind a scheduled action, decoupled from the
+/// scheduling/lifecycle machinery (claiming, execution records, live updates)
+/// that [`crate::outbound::inprocess_executor::InProcessExecutor`] owns.
+///
+/// The in-process executor is kind-agnostic: it calls [`ActionRunner::create_resource`]
+/// up front so the caller gets a resource id synchronously, then spawns
+/// [`ActionRunner::run`] for the rest. Concrete runners (e.g. the agent runner in
+/// the `automations` crate) interpret `action.kind`/`action.task` and own the
+/// heavy dependencies (AI tools, chat, notifications); keeping that out of here
+/// is what lets the scheduling core stay a pure library.
+pub trait ActionRunner: Send + Sync + 'static {
+    /// Create the primary resource for this run (e.g. a chat thread) and return
+    /// its id. Called synchronously before the run is spawned.
+    fn create_resource(
+        &self,
+        action: &ScheduledAction,
+    ) -> impl Future<Output = Result<String>> + Send;
+
+    /// Execute the action against the resource created by [`Self::create_resource`].
+    /// Runs inside the spawned background task.
+    fn run(
+        &self,
+        action: &ScheduledAction,
+        resource_id: &str,
+    ) -> impl Future<Output = Result<()>> + Send;
+}
+
 pub trait ScheduledActionLiveUpdate: Send + Sync + 'static {
     fn publish_update(&self, update: ScheduledActionUpdate) -> impl Future<Output = ()> + Send;
 }

@@ -2,6 +2,7 @@
   "services": {
     "agent-schedule-service": {
       "source_paths": [
+        "rust/cloud-storage/automations/**",
         "rust/cloud-storage/scheduled_action/**"
       ],
       "stack_path": "infra/stacks/agent-schedule-service/**",

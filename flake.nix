@@ -270,7 +270,7 @@
         deployServiceBinaryDefinitions = [
           {
             serviceName = "agent-schedule-service";
-            packageName = "scheduled_action";
+            packageName = "automations";
             binaries = [ "service" ];
           }
           {

@@ -1,4 +1,4 @@
-use super::notify::notify_completion;
+use crate::notify::notify_completion;
 use std::sync::Arc;
 
 use agent::types::{AssistantMessagePart, ChatMessage, ChatMessageContent, Role};
@@ -19,7 +19,7 @@ use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
 use sqlx::PgPool;
 
-use crate::domain::models::{AgentTask, ScheduledAction};
+use scheduled_action::domain::models::{AgentTask, ScheduledAction};
 
 pub async fn create_run_chat(db: &PgPool, action: &ScheduledAction) -> Result<String> {
     create_chat(db, action).await

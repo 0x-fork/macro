@@ -1,9 +1,9 @@
-use crate::domain::models::ScheduledAction;
 use model_entity::EntityType;
 use model_notifications::AiResponseMetadata;
 use notification::domain::models::SendNotificationRequestBuilder;
 use notification::domain::service::{NotificationIngress, SqsNotificationIngress};
 use notification::outbound::queue::SqsQueue;
+use scheduled_action::domain::models::ScheduledAction;
 use std::collections::HashSet;
 use std::sync::Arc;
 /// Spawn a best-effort notification to the action owner announcing the run has

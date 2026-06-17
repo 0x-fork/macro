@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use ai_tools::build_tool_service_context_from_env;
 use anyhow::{Context, Result};
+use automations::runner::AgentActionRunner;
 use axum::Router;
 use connection_gateway_client::client::ConnectionGatewayClient;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
@@ -77,22 +78,26 @@ async fn main() -> Result<()> {
 
     let repo = Arc::new(PgScheduledActionRepo::new(db.clone()));
 
-    // The dispatcher consumes its executor, so build a second executor for the
-    // service to use when handling execute-now requests. Both executors share
-    // the underlying repo/pool/tool-context via cheap Arc/PgPool clones.
-    let dispatcher_executor = InProcessExecutor::new(
-        Arc::clone(&repo),
-        db.clone(),
-        tool_context.clone(),
-        Arc::clone(&notification_ingress),
-        Arc::clone(&live_updates),
-    );
-    let service_executor = Arc::new(InProcessExecutor::new(
-        Arc::clone(&repo),
+    // The agent runner owns the heavy AI/chat/notification dependencies; the
+    // in-process executor (from the scheduling library) just orchestrates it.
+    let runner = Arc::new(AgentActionRunner::new(
         db.clone(),
         tool_context,
         notification_ingress,
-        live_updates,
+    ));
+
+    // The dispatcher consumes its executor, so build a second executor for the
+    // service to use when handling execute-now requests. Both executors share
+    // the underlying repo/runner/live-updates via cheap Arc clones.
+    let dispatcher_executor = InProcessExecutor::new(
+        Arc::clone(&repo),
+        Arc::clone(&live_updates),
+        Arc::clone(&runner),
+    );
+    let service_executor = Arc::new(InProcessExecutor::new(
+        Arc::clone(&repo),
+        Arc::clone(&live_updates),
+        Arc::clone(&runner),
     ));
 
     let dispatcher = PgPollingDispatcher::new(Arc::clone(&repo), dispatcher_executor);

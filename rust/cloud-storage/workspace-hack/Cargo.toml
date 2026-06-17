@@ -82,6 +82,7 @@ once_cell = { version = "1" }
 percent-encoding = { version = "2" }
 phf_shared-594e8ee84c453af0 = { package = "phf_shared", version = "0.13" }
 phf_shared-93f6ce9d446188ac = { package = "phf_shared", version = "0.10" }
+phf_shared-a6292c17cd707f01 = { package = "phf_shared", version = "0.11" }
 prost = { version = "0.12", features = ["prost-derive"] }
 rand-274715c4dabd11b0 = { package = "rand", version = "0.9" }
 rand-c38e5c1d305a1b54 = { package = "rand", version = "0.8", features = ["small_rng"] }
@@ -198,6 +199,7 @@ once_cell = { version = "1" }
 percent-encoding = { version = "2" }
 phf_shared-594e8ee84c453af0 = { package = "phf_shared", version = "0.13" }
 phf_shared-93f6ce9d446188ac = { package = "phf_shared", version = "0.10" }
+phf_shared-a6292c17cd707f01 = { package = "phf_shared", version = "0.11" }
 prettyplease = { version = "0.2", default-features = false, features = ["verbatim"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 prost = { version = "0.12", features = ["prost-derive"] }

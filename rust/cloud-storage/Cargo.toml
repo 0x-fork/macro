@@ -5,6 +5,7 @@ members = [
   "agent",
   "ai_usage",
   "authentication_service",
+  "automations",
   "backfill_entity_access",
   "bot_id",
   "bots",

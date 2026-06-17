@@ -118,7 +118,8 @@ const service = new AgentScheduleService(`agent-schedule-service-${stack}`, {
     },
     {
       name: 'RUST_LOG',
-      value: 'scheduled_action=info,ai=info,ai_tools=info,tower_http=info',
+      value:
+        'automations=info,scheduled_action=info,ai=info,ai_tools=info,tower_http=info',
     },
     // Auth
     {
