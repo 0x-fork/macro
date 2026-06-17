@@ -23,7 +23,7 @@ export function logSyncService({
   context: SyncLogContext;
   message: string;
 }): void {
-  // if (level === 'debug' && !(window as any).debugSyncServiceLog) return;
+  if (level === 'debug' && !(window as any).debugSyncServiceLog) return;
   console[level === 'info' ? 'log' : level](
     { documentId, t: Date.now(), ...context },
     message
