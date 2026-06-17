@@ -88,6 +88,15 @@ export default defineConfig({
           name: 'block-email',
         },
       },
+      {
+        plugins: [tsconfigPaths()],
+        test: {
+          environment: 'node',
+          globals: true,
+          include: ['packages/service-clients/**/*.{test,spec}.{ts,tsx}'],
+          name: 'service-clients',
+        },
+      },
     ],
   },
 });
