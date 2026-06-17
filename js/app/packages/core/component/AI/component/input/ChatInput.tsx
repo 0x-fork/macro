@@ -375,12 +375,20 @@ export function ChatInput(props: ChatInputComponentProps) {
                 'flex justify-between items-center': isTallVariant(),
               })}
             >
-              <div class={cn(!isTallVariant() && 'absolute left-2 bottom-1.5')}>
+              <div
+                class={cn(
+                  !isTallVariant() &&
+                    'absolute left-2 bottom-1.5 flex h-7.5 items-center'
+                )}
+              >
                 <LeftButton />
               </div>
 
               <div
-                class={cn(!isTallVariant() && 'absolute right-1.5 bottom-1.5')}
+                class={cn(
+                  !isTallVariant() &&
+                    'absolute right-1.5 bottom-1.5 flex h-7.5 items-center'
+                )}
               >
                 <RightControls />
               </div>
