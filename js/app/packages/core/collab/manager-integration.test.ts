@@ -54,6 +54,7 @@ describe('LoroManager + DocInitMachine — two-client merge', () => {
       const clientA = createLoroManager(TEST_SCHEMA, {
         liveSyncSource: () => server.asLiveSyncSource(),
         wasDirty: false,
+        documentId: 'test-doc-a',
       });
       await clientA.ingest({ kind: 'dss', snapshot: initialSnapshotX });
 
@@ -61,6 +62,7 @@ describe('LoroManager + DocInitMachine — two-client merge', () => {
       const clientB = createLoroManager(TEST_SCHEMA, {
         liveSyncSource: () => server.asLiveSyncSource(),
         wasDirty: false,
+        documentId: 'test-doc-b',
       });
       await clientB.ingest({ kind: 'dss', snapshot: initialSnapshotX });
 
@@ -92,6 +94,7 @@ describe('LoroManager + DocInitMachine — two-client merge', () => {
       const reconnectedB = createLoroManager(TEST_SCHEMA, {
         liveSyncSource: () => reconnectSource,
         wasDirty: true,
+        documentId: 'test-doc-b-reconnect',
       });
 
       await reconnectedB.ingest({
