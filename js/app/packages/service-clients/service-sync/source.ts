@@ -1,3 +1,4 @@
+import { logSyncService } from '@core/collab/logger';
 import type { RawUpdate } from '@core/collab/shared';
 import {
   type InitialSync,
@@ -7,7 +8,6 @@ import {
   SyncSourceStatus,
   type TimeoutError,
 } from '@core/collab/source';
-import { logSyncService } from '@core/collab/logger';
 import { SYNC_SERVICE_HOSTS } from '@core/constant/servers';
 import { arrayEquals } from '@core/util/compareUtils';
 

@@ -1,11 +1,11 @@
 import { type InferType, SyncDirection } from '@loro-mirror/packages/core/src';
-import { logSyncService } from './logger';
 import { Mutex } from 'async-mutex';
 import type { VersionVector } from 'loro-crdt';
 import type { ResultAsync } from 'neverthrow';
 import { type Accessor, createEffect, createSignal, on } from 'solid-js';
 import { match } from 'ts-pattern';
 import type { Awareness } from './awareness';
+import { logSyncService } from './logger';
 import { type LoroManager, LoroStateTag, type StateUpdate } from './manager';
 import type { GenericRootSchema, LoroRawUpdate, RawUpdate } from './shared';
 import type { SnapshotStore } from './snapshot-store';
