@@ -20,6 +20,11 @@ import {
 
 type DateSelectorMode = 'search' | 'calendar';
 
+const menuItemClass =
+  'group flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-lg transition-colors cursor-pointer text-ink-muted hover:text-ink hover:bg-ink/3 hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_6%,transparent)]';
+const menuItemActiveClass =
+  'bg-ink/3 text-ink shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_6%,transparent)]';
+
 type DateSelectorProps = {
   property: DateProperty;
   selectedDate?: Date | null;
@@ -198,8 +203,8 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                     <div
                       data-date-index={index()}
                       class={cn(
-                        'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors',
-                        index() === selectedIndex() && 'bg-accent/20'
+                        menuItemClass,
+                        index() === selectedIndex() && menuItemActiveClass
                       )}
                       onClick={() => handleSelectDate(option.date)}
                       onMouseEnter={() => {
@@ -209,12 +214,12 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                       }}
                     >
                       <div class="flex items-center gap-2 flex-1 min-w-0">
-                        <p class="text-xs font-normal truncate">
+                        <p class="text-xs font-normal truncate text-current">
                           {option.displayText}
                         </p>
                       </div>
 
-                      <span class="text-xs text-ink-muted">
+                      <span class="text-xs text-ink-extra-muted group-hover:text-ink-muted">
                         {option.secondaryText}
                       </span>
                     </div>
@@ -226,8 +231,9 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                 <div
                   data-date-index={calendarOptionIndex()}
                   class={cn(
-                    'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors',
-                    selectedIndex() === calendarOptionIndex() && 'bg-accent/20'
+                    menuItemClass,
+                    selectedIndex() === calendarOptionIndex() &&
+                      menuItemActiveClass
                   )}
                   onClick={() => setMode('calendar')}
                   onMouseEnter={() => {
@@ -238,11 +244,11 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                 >
                   <div class="flex items-center gap-2 flex-1 min-w-0">
                     <div class="flex-1 min-w-0">
-                      <p class="text-xs font-normal truncate">Custom date...</p>
+                      <p class="text-xs font-normal truncate text-current">Custom date...</p>
                     </div>
                   </div>
                   <div class="flex items-center gap-2 shrink-0">
-                    <span class="text-xs text-ink-muted">
+                    <span class="text-xs text-ink-extra-muted group-hover:text-ink-muted">
                       Pick from calendar
                     </span>
                   </div>
@@ -251,8 +257,9 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                   <div
                     data-date-index={clearOptionIndex()}
                     class={cn(
-                      'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors',
-                      selectedIndex() === clearOptionIndex() && 'bg-accent/20'
+                      menuItemClass,
+                      selectedIndex() === clearOptionIndex() &&
+                        menuItemActiveClass
                     )}
                     onClick={() => handleClearDate()}
                     onMouseEnter={() => {
@@ -262,7 +269,7 @@ export const PropertyDateSelector = (props: DateSelectorProps) => {
                     }}
                   >
                     <div class="flex items-center gap-2 flex-1 min-w-0">
-                      <p class="truncate text-ink-muted">Clear date</p>
+                      <p class="truncate text-current">Clear date</p>
                     </div>
                   </div>
                 </Show>

@@ -124,22 +124,25 @@ type DropdownSelectableRowProps = {
   onMouseEnter?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
 };
 
+const menuItemActiveClass =
+  'bg-ink/3 text-ink shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_6%,transparent)]';
+
 const DropdownSelectableRow: ParentComponent<DropdownSelectableRowProps> = (
   props
 ) => {
   return (
     <div
-      class="group flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-md"
-      classList={{
-        'bg-accent/20': props.isSelected,
-      }}
+      class={cn(
+        'group flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-lg cursor-pointer text-ink-muted hover:text-ink hover:bg-ink/3 hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_6%,transparent)] transition-colors',
+        props.isSelected && menuItemActiveClass
+      )}
       onClick={props.onClick}
       onMouseEnter={props.onMouseEnter}
     >
       <div class="flex items-center gap-2 flex-1 min-w-0">{props.children}</div>
       <div class="flex items-center gap-2 shrink-0">
         <Show when={props.showHotkey && props.hotkeyShortcut}>
-          <div class="text-xxs px-1.5 py-0.5 border border-ink/20 text-ink-muted font-mono rounded-xs">
+          <div class="text-xxs text-ink-extra-muted font-mono tabular-nums">
             <Hotkey shortcut={props.hotkeyShortcut!} />
           </div>
         </Show>
@@ -313,12 +316,12 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
     <div
       onClick={handleAddOption}
       class={cn(
-        'flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-sm transition-colors cursor-pointer',
-        props.isSelected && 'bg-accent/20'
+        'group flex flex-row w-full justify-between items-center gap-2 py-1.5 px-2 rounded-lg transition-colors cursor-pointer text-ink-muted hover:text-ink hover:bg-ink/3 hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_6%,transparent)]',
+        props.isSelected && menuItemActiveClass
       )}
     >
       <div class="flex items-center gap-2 flex-1 text-left">
-        <div class="size-3 shrink-0 text-accent">
+        <div class="size-3 shrink-0 text-accent opacity-80 group-hover:opacity-100">
           <Show
             when={!isAddingOption()}
             fallback={
@@ -330,7 +333,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
             <PlusIcon class="size-3" />
           </Show>
         </div>
-        <p class="text-xs font-normal">Add "{dropdown.searchQuery().trim()}"</p>
+        <p class="text-xs font-normal text-current">Add "{dropdown.searchQuery().trim()}"</p>
       </div>
     </div>
   );
@@ -440,7 +443,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
                                   optionId={optionItem().option.id}
                                 />
                                 <div class="flex-1 min-w-0 text-left">
-                                  <p class="truncate">
+                                  <p class="truncate text-current">
                                     {optionItem().option.label}
                                   </p>
                                 </div>
@@ -468,7 +471,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
                               >
                                 <CircleDashedEmpty class="size-3 shrink-0 text-ink-extra-muted" />
                                 <div class="flex-1 min-w-0 text-left">
-                                  <p class="text-ink-muted truncate">
+                                  <p class="text-current truncate">
                                     {clear().label}
                                   </p>
                                 </div>

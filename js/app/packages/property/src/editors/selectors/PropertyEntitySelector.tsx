@@ -10,6 +10,7 @@ import { createEmailsInfiniteQuery } from '@macro-entity';
 import CheckIcon from '@phosphor/check.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import { useSearchInputFocus } from '@property/utils';
+import { cn } from '@ui';
 import { useSearchSoupQuery } from '@queries/soup/search';
 import type { EntityType } from '@service-properties/generated/schemas/entityType';
 import { debounce } from '@solid-primitives/scheduled';
@@ -90,6 +91,10 @@ function getEntityName(entity: CombinedEntity): string {
 }
 
 const MAX_LIST_HEIGHT = 192;
+const menuItemClass =
+  'group flex items-center justify-between gap-2 py-1.5 px-2 min-w-0 h-8 rounded-lg cursor-pointer text-ink-muted hover:text-ink hover:bg-ink/3 hover:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_6%,transparent)] transition-colors';
+const menuItemActiveClass =
+  'bg-ink/3 text-ink shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--color-ink)_6%,transparent)]';
 
 export function PropertyEntitySelector(props: EntityInputProps) {
   const [inputValue, setInputValue] = createSignal('');
@@ -434,10 +439,10 @@ export function PropertyEntitySelector(props: EntityInputProps) {
 
               return (
                 <div
-                  class="group flex items-center justify-between gap-2 py-1.5 px-2 min-w-0 h-8 rounded-md"
-                  classList={{
-                    'bg-hover': isKeyboardSelected(),
-                  }}
+                  class={cn(
+                    menuItemClass,
+                    isKeyboardSelected() && menuItemActiveClass
+                  )}
                   onClick={() => togglePinnedOption(option)}
                   onMouseEnter={() => {
                     if (!keyboardMode()) {
@@ -451,8 +456,8 @@ export function PropertyEntitySelector(props: EntityInputProps) {
                     </div>
                   </Show>
                   <div class="flex items-center gap-2 flex-1 min-w-0">
-                    <div class="size-4 shrink-0">{option.icon}</div>
-                    <span class="truncate min-w-0">{option.label}</span>
+                    <div class="size-4 shrink-0 opacity-80 group-hover:opacity-100">{option.icon}</div>
+                    <span class="truncate min-w-0 text-current">{option.label}</span>
                   </div>
                   <Show when={!props.config.isMultiSelect && isSelected()}>
                     <CheckIcon class="size-3.5 shrink-0 text-accent" />
@@ -484,10 +489,10 @@ export function PropertyEntitySelector(props: EntityInputProps) {
                       </Show>
                       <div
                         data-entity-index={index()}
-                        class="group flex items-center justify-between gap-2 py-1.5 px-2 min-w-0 h-8 rounded-md"
-                        classList={{
-                          'bg-hover': isKeyboardSelected(),
-                        }}
+                        class={cn(
+                          menuItemClass,
+                          isKeyboardSelected() && menuItemActiveClass
+                        )}
                         onClick={() => toggleEntity(entity)}
                         onKeyDown={(e) =>
                           e.key === 'Enter' && toggleEntity(entity)
@@ -522,7 +527,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
                               <Entity.Icon entity={entity.data as EntityData} />
                             </Show>
                           </div>
-                          <span class="truncate min-w-0">
+                          <span class="truncate min-w-0 text-current">
                             <Show
                               when={entity.kind === 'entity'}
                               fallback={getEntityName(entity)}
