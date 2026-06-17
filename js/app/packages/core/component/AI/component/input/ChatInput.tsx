@@ -207,7 +207,7 @@ export function ChatInput(props: ChatInputComponentProps) {
       hotkey={TOKENS.chat.stop}
       onClick={() => props.onStop?.()}
       class={cn(
-        'rounded-[11px] size-7.5 text-ink-extra-muted [&_svg]:stroke-[4px]',
+        'rounded-md size-7.5 text-ink-extra-muted [&_svg]:stroke-[4px]',
         'not-disabled:bg-ink/5 not-disabled:hover:bg-ink/10',
         'data-disabled:opacity-100 data-disabled:text-ink-extra-muted data-disabled:bg-ink-muted/5'
       )}
