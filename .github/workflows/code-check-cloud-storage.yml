@@ -171,13 +171,16 @@ jobs:
           path: /nix
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
-      # dev-shell gives us just/sqlx/cargo-nextest for DB setup and for running
-      # the prebuilt archive. No sccache-bucket: nothing compiles at run time.
-      - name: Setup Nix dev shell
+      # Configure Cachix substituters WITHOUT entering the dev shell. The archive
+      # build below is a pure `nix build` and MUST run before the dev shell is
+      # entered: `nix print-dev-env` exports the dev shell's LD_LIBRARY_PATH (Nix
+      # glibc) via BASH_ENV into every later step, which poisons the *system* git
+      # that Nix's fetcher uses to vendor the jsonwebtoken git dep
+      # (`GLIBC_ABI_DT_X86_64_PLT not found`).
+      - name: Configure Cachix fallback
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          dev-shell: 'true'
       - name: Build nextest archive (nix/crane)
         run: |
           set -euo pipefail
@@ -192,6 +195,15 @@ jobs:
           nix build --print-build-logs --accept-flake-config \
             --out-link "$RUNNER_TEMP/nextest-archive" \
             ".#nextestArchive"
+      # Enter the dev shell (just/sqlx/cargo-nextest) for DB setup and for running
+      # the prebuilt archive. Comes *after* the nix build above so the leaked
+      # LD_LIBRARY_PATH never reaches a `nix build`. No sccache-bucket: nothing
+      # compiles at run time.
+      - name: Setup Nix dev shell
+        uses: ./.github/actions/setup-cachix
+        with:
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          dev-shell: 'true'
       - name: configure postgres for concurrent tests
         run: |
           postgres_container="$(docker ps --format '{{.ID}} {{.Image}}' | awk '$2 == "pgvector/pgvector:pg16" { print $1; exit }')"
