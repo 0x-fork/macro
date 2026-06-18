@@ -146,9 +146,13 @@ jobs:
           set -euo pipefail
           cd rust/cloud-storage
           cargo fmt --all -- --check
-          # -D clippy::disallowed_methods matches the deny level the crane job set;
-          # clippy.toml supplies the method list.
-          cargo clippy --locked --all-features --all-targets -- -D warnings -D clippy::disallowed_methods
+          # Match the crane checks.clippy scope exactly: default targets (lib +
+          # bins), NOT --all-targets. --all-targets would also lint tests /
+          # integration-tests / examples, surfacing pre-existing test-code lints
+          # the previous job never checked. Linting tests is worth doing, but as a
+          # deliberate separate change. -D clippy::disallowed_methods matches the
+          # deny level the crane job set; clippy.toml supplies the method list.
+          cargo clippy --locked --all-features -- -D warnings -D clippy::disallowed_methods
           sccache --show-stats || true
       - name: Teardown Nix (free cache volume for commit)
         if: always()
