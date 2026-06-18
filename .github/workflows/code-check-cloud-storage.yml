@@ -26,7 +26,15 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           clean: false
+          # fetch-depth: 0 pulls the full commit graph (all branches + tags) so
+          # the nextest-filter step's `git merge-base origin/main HEAD` resolves.
+          # On this monorepo that fetch was ~6 min because it also downloads every
+          # file blob across all history. blob:none makes it a partial clone:
+          # commits + trees only (blobs fetched lazily if ever needed). merge-base
+          # and `git diff --name-only` need no blob contents, so this is a pure
+          # speedup.
           fetch-depth: 0
+          filter: blob:none
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
         with:
