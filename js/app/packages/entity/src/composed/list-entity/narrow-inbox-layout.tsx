@@ -63,9 +63,9 @@ export function NarrowInboxLayout(props: LayoutProps) {
           class="mx-(--soup-inbox-unread-indicator-padding-x) size-(--soup-inbox-unread-indicator-diameter)"
           active={props.unread}
         />
-        <div class="relative size-(--soup-inbox-icon-diameter) shrink-0 group">
+        <div class="relative size-(--soup-inbox-icon-diameter) shrink-0 group/select">
           <Show when={!props.checked}>
-            <div class="absolute inset-0 grid place-items-center group-hover:opacity-0 transition-opacity">
+            <div class="absolute inset-0 grid place-items-center group-hover/select:opacity-0 transition-opacity">
               <Show
                 when={isDirectMessage()}
                 fallback={
@@ -92,7 +92,7 @@ export function NarrowInboxLayout(props: LayoutProps) {
           {/* TODO: make multiselect work on mobile */}
           <div
             class={cn(
-              'absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity',
+              'absolute inset-0 grid place-items-center opacity-0 group-hover/select:opacity-100 transition-opacity',
               { 'opacity-100': props.checked }
             )}
           >

@@ -1,7 +1,9 @@
 import { isMobile } from '@core/mobile/isMobile';
-import { cn } from '@ui';
-import { Show } from 'solid-js';
+import SearchIcon from '@icon/macro-magnifying-glass.svg';
+import { Button, cn } from '@ui';
+import { createSignal, Show } from 'solid-js';
 import { ActiveFilterChips } from './active-filter-chips';
+import { SoupSearchbar } from './soup-view-search-bar';
 import {
   SuggestedFilterChips,
   useSoupViewSuggestedFilters,
@@ -18,6 +20,8 @@ interface SoupFiltersBarProps {
 }
 
 export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
+  const [searchExpanded, setSearchExpanded] = createSignal(false);
+
   const {
     resetToTabDefaults,
     activeFiltersList,
@@ -40,7 +44,15 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
         )}
       >
         <Show when={props.searchView}>
-          <div class="mx-2 flex items-center justify-end gap-2">
+          <div class="mx-2 flex items-center gap-2">
+            <div class="flex-1 min-w-0">
+              <SoupSearchbar
+                variant="filled"
+                placeholder="Search, @mention contacts"
+                initialValue={props.initialSearchText}
+                class="py-1 shadow-sm"
+              />
+            </div>
             <ViewOptionsPopover />
           </div>
         </Show>
@@ -59,6 +71,34 @@ export const SoupFiltersBar = (props: SoupFiltersBarProps = {}) => {
               >
                 <div class="flex items-center gap-2">
                   <SoupViewTabs />
+                  <Show when={!props.hideSearch}>
+                    <Show
+                      when={!searchExpanded()}
+                      fallback={
+                        <div class="w-52">
+                          <SoupSearchbar
+                            variant="filled"
+                            autoFocus
+                            onDismiss={() => setSearchExpanded(false)}
+                          />
+                        </div>
+                      }
+                    >
+                      <div class="flex items-center gap-1">
+                        <div class="hidden @xl/filters:block w-52">
+                          <SoupSearchbar variant="filled" />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          class="@xl/filters:hidden"
+                          onClick={() => setSearchExpanded(true)}
+                        >
+                          <SearchIcon />
+                        </Button>
+                      </div>
+                    </Show>
+                  </Show>
                   <ViewOptionsPopover />
                 </div>
               </div>

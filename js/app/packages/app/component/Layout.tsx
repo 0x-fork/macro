@@ -194,17 +194,19 @@ function LayoutInner(props: RouteSectionProps) {
         </Show>
 
         <ItemDndProvider>
-          <div class="relative flex-1 w-full min-h-0 font-sans text-ink caret-accent">
-            {props.children}
-            <Show
-              when={
-                !isMobile() &&
-                isAuthenticated() &&
-                !AUTH_URLS.includes(location.pathname)
-              }
-            >
-              <MacroAgentLurker />
-            </Show>
+          <div class="relative flex flex-col flex-1 w-full min-h-0 font-sans text-ink caret-accent">
+            <div class="relative min-h-0 flex-1">
+              {props.children}
+              <Show
+                when={
+                  !isMobile() &&
+                  isAuthenticated() &&
+                  !AUTH_URLS.includes(location.pathname)
+                }
+              >
+                <MacroAgentLurker />
+              </Show>
+            </div>
           </div>
         </ItemDndProvider>
       </div>

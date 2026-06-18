@@ -21,7 +21,6 @@ import { registerDocumentsFilterSplit } from '@app/component/next-soup/soup-view
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
 import { InboxSelector } from '@app/component/next-soup/soup-view/filters-bar/inbox-selector';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
-import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import { MaybeSoupEntityActionDrawerManager } from '@app/component/next-soup/soup-view/SoupEntityActionDrawerManager';
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
@@ -91,7 +90,6 @@ import {
   type ProjectEntity,
   type SearchLocation,
 } from '@entity';
-import SearchIcon from '@icon/macro-magnifying-glass.svg';
 import { createEffectOnEntityTypeNotification } from '@notifications';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import ChevronRightIcon from '@phosphor/caret-right.svg';
@@ -109,7 +107,7 @@ import {
   refetchSoupEntity,
 } from '@queries/soup/normalized-cache';
 import { debounce } from '@solid-primitives/scheduled';
-import { Button, cn, Layer, Tooltip } from '@ui';
+import { Button, cn, Layer } from '@ui';
 import {
   type Accessor,
   batch,
@@ -527,9 +525,7 @@ export const SoupView = (props: SoupViewProps) => {
     return view ? LIST_VIEW_DOCS_URL[view] : undefined;
   });
 
-  const [narrowSearchExpanded, setNarrowSearchExpanded] = createSignal(false);
   const [mobileSearchOpen, setMobileSearchOpen] = createSignal(false);
-  const [searchIsCollapsed, setSearchIsCollapsed] = createSignal(false);
   const [floatingButtonsVisible, setFloatingButtonsVisible] =
     createSignal(true);
   let lastSoupScrollOffset = 0;
@@ -572,9 +568,7 @@ export const SoupView = (props: SoupViewProps) => {
         setMobileSearchOpen(true);
         return true;
       }
-      if (narrowSearchExpanded() || !searchIsCollapsed()) return false;
-      setNarrowSearchExpanded(true);
-      return true;
+      return false;
     },
   });
 
@@ -598,13 +592,8 @@ export const SoupView = (props: SoupViewProps) => {
           })}
         >
           <SplitHeaderLeft>
-            <div
-              class={cn('h-full flex gap-3 items-center', {
-                'shrink-0': !narrowSearchExpanded(),
-                'flex-1 min-w-0': narrowSearchExpanded(),
-              })}
-            >
-              <Show when={!isMobile() && !narrowSearchExpanded()}>
+            <div class="h-full flex gap-3 items-center shrink-0">
+              <Show when={!isMobile()}>
                 <div class="flex items-center gap-1">
                   <span class="text-base font-bold">{props.viewName}</span>
                   <Show when={docsUrl()}>
@@ -621,9 +610,7 @@ export const SoupView = (props: SoupViewProps) => {
                   </Show>
                 </div>
               </Show>
-              <Show
-                when={!narrowSearchExpanded() && !isComponentListView('search')}
-              >
+              <Show when={!isComponentListView('search')}>
                 <Show when={!isMobile()}>
                   <CollapsibleHeaderItem
                     id="tabs"
@@ -634,83 +621,14 @@ export const SoupView = (props: SoupViewProps) => {
                   />
                 </Show>
               </Show>
-              <Show
-                when={
-                  !isMobile() &&
-                  !narrowSearchExpanded() &&
-                  isComponentListView('mail')
-                }
-              >
+              <Show when={!isMobile() && isComponentListView('mail')}>
                 <InboxSelector />
               </Show>
             </div>
           </SplitHeaderLeft>
-          <Show when={!isMobile()}>
+          <Show when={!isMobile() && !isComponentListView('search')}>
             <SplitHeaderRight>
-              <Show
-                when={!narrowSearchExpanded() && !isComponentListView('search')}
-              >
-                <SoupViewCreateButton />
-              </Show>
-              <Show when={narrowSearchExpanded()}>
-                <Layer depth={2}>
-                  <div class="flex-1 min-w-0">
-                    <SoupSearchbar
-                      variant="secondary"
-                      autoFocus
-                      initialValue={props.initialSearchText}
-                      onDismiss={() => setNarrowSearchExpanded(false)}
-                    />
-                  </div>
-                </Layer>
-              </Show>
-              <Show
-                when={!isComponentListView('search')}
-                fallback={
-                  <Layer depth={2}>
-                    <div class="grow ml-2 min-w-0 [contain:inline-size]">
-                      <SoupSearchbar
-                        variant="secondary"
-                        placeholder="Search, @mention contacts"
-                        initialValue={props.initialSearchText}
-                      />
-                    </div>
-                  </Layer>
-                }
-              >
-                <Show when={!narrowSearchExpanded()}>
-                  <CollapsibleHeaderItem
-                    id="search"
-                    priority={0}
-                    onCollapsedChange={(isCollapsed) => {
-                      setSearchIsCollapsed(isCollapsed);
-                      if (!isCollapsed) setNarrowSearchExpanded(false);
-                    }}
-                    expanded={() => (
-                      <Layer depth={2}>
-                        <div class="w-60 ml-2">
-                          <SoupSearchbar
-                            variant="secondary"
-                            initialValue={props.initialSearchText}
-                          />
-                        </div>
-                      </Layer>
-                    )}
-                    collapsed={() => (
-                      <Tooltip label="Search" hotkey={TOKENS.soup.openSearch}>
-                        <Button
-                          variant="base"
-                          class="p-1 size-7 rounded-lg ml-2 bg-surface"
-                          onClick={() => setNarrowSearchExpanded(true)}
-                          depth={2}
-                        >
-                          <SearchIcon class="size-4 touch:size-6" />
-                        </Button>
-                      </Tooltip>
-                    )}
-                  />
-                </Show>
-              </Show>
+              <SoupViewCreateButton />
             </SplitHeaderRight>
           </Show>
           <SoupFiltersBar />

@@ -52,7 +52,7 @@ export function DocumentMentionPill(props: {
 
   return (
     <div
-      class="group relative flex items-center gap-1.5 px-2 py-1 rounded border border-ink/10 bg-ink/[0.03] hover:bg-ink/5 text-xs text-ink-muted min-w-0 max-w-48 shrink-0"
+      class="group/document-pill relative flex items-center gap-1.5 px-2 py-1 rounded border border-ink/10 bg-ink/[0.03] hover:bg-ink/5 text-xs text-ink-muted min-w-0 max-w-48 shrink-0"
       onClick={handleClick}
       role="button"
       tabIndex={0}
@@ -60,7 +60,7 @@ export function DocumentMentionPill(props: {
       <EntityIcon targetType={targetType()} size="xs" />
       <span class="truncate min-w-0">{documentName()}</span>
       <Button
-        class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-surface border border-edge-muted/50 p-0 place-items-center hidden group-hover:grid hover:bg-accent! hover:text-surface!"
+        class="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-surface border border-edge-muted/50 p-0 place-items-center hidden group-hover/document-pill:grid hover:bg-accent! hover:text-surface!"
         tooltip="Mark as done"
         onClick={(e) => {
           e.stopPropagation();

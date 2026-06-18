@@ -46,13 +46,13 @@ export function WideLayout(props: LayoutProps) {
         'grid-template-areas': '"indicator content meta timestamp"',
       }}
     >
-      <Entity.Slot placement="indicator" class="relative size-full group">
-        <div class="absolute inset-0 grid place-items-center group-hover:opacity-0">
+      <Entity.Slot placement="indicator" class="relative size-full group/select">
+        <div class="absolute inset-0 grid place-items-center group-hover/select:opacity-0">
           <UnreadIndicator active={props.unread} />
         </div>
         <div
           class={cn(
-            'absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100',
+            'absolute inset-0 grid place-items-center opacity-0 group-hover/select:opacity-100',
             {
               'opacity-100': props.checked,
             }

@@ -124,13 +124,13 @@ export function TaskGridLayout(props: LayoutProps) {
         }}
       >
         <Show when={!props.hideCheckbox}>
-          <Entity.Slot placement="indicator" class="relative size-full group">
-            <div class="absolute inset-0 grid place-items-center group-hover:opacity-0">
+          <Entity.Slot placement="indicator" class="relative size-full group/select">
+            <div class="absolute inset-0 grid place-items-center group-hover/select:opacity-0">
               <UnreadIndicator active={props.unread} />
             </div>
             <div
               class={cn(
-                'absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100',
+                'absolute inset-0 grid place-items-center opacity-0 group-hover/select:opacity-100',
                 {
                   'opacity-100': props.checked,
                 }
@@ -335,14 +335,14 @@ export function TaskNarrowLayout(props: LayoutProps) {
           when={mobile}
           fallback={
             <div
-              class="row-span-full flex justify-center relative group pt-1.5"
+              class="row-span-full flex justify-center relative group/select pt-1.5"
               style={{ 'grid-column': '1' }}
             >
               <UnreadIndicator
                 active={props.unread}
                 class={cn(
                   props.checked && 'opacity-0',
-                  'group-hover:opacity-0'
+                  'group-hover/select:opacity-0'
                 )}
               />
               <div
@@ -350,7 +350,7 @@ export function TaskNarrowLayout(props: LayoutProps) {
                   'absolute inset-0 flex justify-center pt-1.5',
                   props.checked
                     ? 'opacity-100'
-                    : 'opacity-0 group-hover:opacity-100'
+                    : 'opacity-0 group-hover/select:opacity-100'
                 )}
               >
                 <MultiSelectCheckbox

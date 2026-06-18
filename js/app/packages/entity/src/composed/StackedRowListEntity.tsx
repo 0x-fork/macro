@@ -151,15 +151,17 @@ function RowShell(props: {
         gap: '0 0.5rem',
       }}
     >
-      <div class="self-start size-4 flex items-center justify-center relative group mt-0.5">
+      <div class="self-start size-4 flex items-center justify-center relative group/select mt-0.5">
         <UnreadIndicator
           active={props.unread}
-          class={cn(props.checked && 'opacity-0', 'group-hover:opacity-0')}
+          class={cn(props.checked && 'opacity-0', 'group-hover/select:opacity-0')}
         />
         <div
           class={cn(
             'absolute inset-0 flex items-center justify-center',
-            props.checked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            props.checked
+              ? 'opacity-100'
+              : 'opacity-0 group-hover/select:opacity-100'
           )}
         >
           <MultiSelectCheckbox
