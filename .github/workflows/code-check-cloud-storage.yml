@@ -83,51 +83,62 @@ jobs:
           fi
           echo "nextest_filter=$filterset" >> "$GITHUB_OUTPUT"
 
+  # fmt + clippy run as crane derivations (flake `checks.fmt` / `checks.clippy`).
+  # The dependency and workspace-lib artifacts are built once and cached in the
+  # Nix store, which is backed by a Namespace /nix cache volume (Cachix is only a
+  # cold-start fallback). No sccache, no Swatinem/rust-cache: the Nix store is
+  # the build cache.
   check:
     needs: path-check
     if: needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false
-    runs-on: linux-extra-beefy
-    env:
-      RUSTFLAGS: "-Dwarnings -Dclippy::disallowed_methods -C link-arg=-fuse-ld=mold"
-      RUSTDOCFLAGS: "-Dwarnings"
+    runs-on: namespace-profile-rust-ci-8core
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           clean: false
-      - name: Setup Nix dev shell
+      # Namespace cache volume backing /nix. Optimization only: on a cold volume
+      # setup-nix + Cachix substitute the store — slower, never wrong. Hence
+      # continue-on-error.
+      - name: Mount /nix cache volume
+        continue-on-error: true
+        uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
+        with:
+          path: /nix
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+      - name: Configure Cachix fallback
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          dev-shell: 'true'
-          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
-      - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
-        with:
-          workspaces: rust/cloud-storage
-          shared-key: cloud-storage-check
-          cache-on-failure: true
-          cache-targets: false
-      - name: fmt
-        run: cd rust/cloud-storage && cargo fmt --check
-      - name: clippy
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: cd rust/cloud-storage && cargo clippy --workspace --all-features
-      - name: show sccache stats
+      - name: fmt + clippy (nix/crane)
+        run: |
+          set -euo pipefail
+          # Push freshly built store paths to Cachix so cold volumes and the
+          # web-app-check workflow (same SHA) can substitute them.
+          cachix_pid=
+          if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
+            cachix watch-store "$CACHIX_CACHE_NAME" >/tmp/cachix-watch-store.log 2>&1 &
+            cachix_pid=$!
+            trap 'if [ -n "${cachix_pid:-}" ]; then kill "$cachix_pid" 2>/dev/null || true; wait "$cachix_pid" 2>/dev/null || true; fi' EXIT
+          fi
+          nix build --print-build-logs --accept-flake-config \
+            ".#checks.x86_64-linux.fmt" \
+            ".#checks.x86_64-linux.clippy"
+      - name: Teardown Nix (free cache volume for commit)
         if: always()
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: sccache --show-stats || true
+        uses: ./.github/actions/teardown-nix
 
+  # Test binaries are compiled in Nix via crane (`nextestArchive`) and cached in
+  # the Nix store; the archive is then run *outside* the sandbox so tests can
+  # reach the postgres/redis service containers. No compilation happens at run
+  # time, so there is no sccache here either.
   test:
     needs: path-check
     if: needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false
-    runs-on: linux-extra-beefy
+    runs-on: namespace-profile-rust-ci-8core
     env:
       NEXTEST_FILTER: ${{ needs.path-check.outputs.nextest_filter }}
       NEXTEST_TEST_THREADS: '32'
-      RUSTFLAGS: "-Dwarnings -C link-arg=-fuse-ld=mold"
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -153,18 +164,34 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           clean: false
+      - name: Mount /nix cache volume
+        continue-on-error: true
+        uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
+        with:
+          path: /nix
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+      # dev-shell gives us just/sqlx/cargo-nextest for DB setup and for running
+      # the prebuilt archive. No sccache-bucket: nothing compiles at run time.
       - name: Setup Nix dev shell
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           dev-shell: 'true'
-          sccache-bucket: ${{ vars.SCCACHE_BUCKET || secrets.SCCACHE_BUCKET }}
-      - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6
-        with:
-          workspaces: rust/cloud-storage
-          shared-key: cloud-storage-test
-          cache-on-failure: true
-          cache-targets: false
+      - name: Build nextest archive (nix/crane)
+        run: |
+          set -euo pipefail
+          cachix_pid=
+          if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
+            cachix watch-store "$CACHIX_CACHE_NAME" >/tmp/cachix-watch-store.log 2>&1 &
+            cachix_pid=$!
+            trap 'if [ -n "${cachix_pid:-}" ]; then kill "$cachix_pid" 2>/dev/null || true; wait "$cachix_pid" 2>/dev/null || true; fi' EXIT
+          fi
+          # Out-link lives outside the workspace so it does not perturb the
+          # cargo metadata / workspace scan that nextest does at run time.
+          nix build --print-build-logs --accept-flake-config \
+            --out-link "$RUNNER_TEMP/nextest-archive" \
+            ".#nextestArchive"
       - name: configure postgres for concurrent tests
         run: |
           postgres_container="$(docker ps --format '{{.ID}} {{.Image}}' | awk '$2 == "pgvector/pgvector:pg16" { print $1; exit }')"
@@ -196,17 +223,16 @@ jobs:
         run: |
           cd rust/cloud-storage
 
-          args=(--all-features --lib --bins --tests --test-threads "$NEXTEST_TEST_THREADS")
+          # Run the prebuilt archive against the live services; --workspace-remap
+          # points nextest at the checked-out workspace root for fixtures/.env.
+          args=(run --archive-file "$RUNNER_TEMP/nextest-archive/nextest-archive.tar.zst" --workspace-remap . --test-threads "$NEXTEST_TEST_THREADS")
           if [ -n "$NEXTEST_FILTER" ]; then
             args+=(-E "$NEXTEST_FILTER")
           fi
-          cargo nextest run "${args[@]}"
-      - name: show sccache stats
+          cargo nextest "${args[@]}"
+      - name: Teardown Nix (free cache volume for commit)
         if: always()
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: sccache --show-stats || true
+        uses: ./.github/actions/teardown-nix
 
 
   # Collector job that always runs - use this as the required status check

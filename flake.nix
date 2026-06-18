@@ -736,7 +736,11 @@
             commonArgs
             // {
               cargoArtifacts = workspaceArtifacts;
-              cargoClippyExtraArgs = "--all-features -- -D warnings";
+              # -D clippy::disallowed_methods matches the deny level the old
+              # cargo-based check job set via RUSTFLAGS; clippy.toml supplies the
+              # method list. Kept explicit so coverage does not depend on the
+              # lint's default level.
+              cargoClippyExtraArgs = "--all-features -- -D warnings -D clippy::disallowed_methods";
               RUSTDOCFLAGS = "-Dwarnings";
             }
           );
