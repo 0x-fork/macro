@@ -14,6 +14,7 @@ use crate::labels::delete_gmail_label;
 use regex::Regex;
 use std::sync::LazyLock;
 
+// Cap Gmail API error bodies before logging so we don't dump large responses.
 const MAX_ERROR_BODY_LEN: usize = 1024;
 
 static EMAIL_REGEX: LazyLock<Regex> =
