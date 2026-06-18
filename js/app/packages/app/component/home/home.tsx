@@ -23,6 +23,7 @@ import { invalidateAllSoup } from '@queries/soup/normalized-cache';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { Navigate } from '@solidjs/router';
 import { createMemo } from 'solid-js';
+import { HomePrompts } from './home-prompts';
 import { HomeSectionBoundary } from './home-section-boundary';
 
 const MACRO_LOGO_PATH =
@@ -173,6 +174,11 @@ const HomeChatInput = () => {
 
   const renameMutation = createRenameDssEntityMutation();
 
+  const askMemory = (text: string) => {
+    editor.controls.setMarkdown(text);
+    editor.controls.focus();
+  };
+
   const handleSend = async (request: ChatSendInput) => {
     const backgroundSend = request.metaKey;
 
@@ -223,7 +229,7 @@ const HomeChatInput = () => {
   };
 
   return (
-    <div class="w-full max-w-3xl">
+    <div class="flex w-full max-w-3xl flex-col gap-4">
       <div class="pointer-events-auto">
         <ChatInput
           variant="tall"
@@ -237,6 +243,7 @@ const HomeChatInput = () => {
           autoFocusOnMount={true}
         />
       </div>
+      <HomePrompts onAskMemory={askMemory} />
     </div>
   );
 };
