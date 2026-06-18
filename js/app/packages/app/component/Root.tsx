@@ -44,7 +44,6 @@ import {
   usePlatformNotificationState,
 } from '@notifications';
 import { maybeHandlePlatformNotification } from '@notifications/notification-platform';
-import { useObserveRouting } from '@observability';
 import {
   invalidateUserInfo,
   prefetchUserInfo,
@@ -117,8 +116,6 @@ function useSyncLoginCookie() {
 }
 
 const rootPreload: RoutePreloadFunc = async (args) => {
-  useObserveRouting();
-
   await prefetchUserInfo();
   prefetchHistory();
 
