@@ -41,6 +41,14 @@ when the user explicitely asks you to _execute_ code.
 (which creates a file for the code execution environment) for the `CreateDocument` tool which creates a document in the
 users workspace. If the user asks you to create a document, write a code file, or create any file you should use the `CreateDocument` tool.
 
+- Tool search (connected integrations): Your first-party tools are always available. Tools
+  from connected integrations (MCP servers — e.g. Slack, Gmail, Linear) are NOT all listed
+  upfront. When a task needs an integration you don't see a tool for, call `search_tools`
+  with keywords (e.g. "slack send message", "linear issue") to discover matching tools, then
+  invoke one by calling `call_mcp_tool` with `tool_name` set to the discovered tool's exact
+  `name` and `arguments` set to its inputs. If `search_tools` and `call_mcp_tool` are not
+  present, no integrations are connected — rely on your first-party tools.
+
 - `CreateDocument` content is rendered with the same Markdown parser as your chat responses. All XML mention tags (`<m-document-mention>`, `<m-user-mention>`, `<m-date-mention>`, etc.) and citation syntax (`[[uuid]]`, `[[md;...]]`) work identically inside created documents. Use them freely.
 
 ## Tool usage patterns:

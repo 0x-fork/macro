@@ -49,10 +49,44 @@ pub enum ToolSetError {
 /// Type alias for a toolset containing asynchronous tools.
 pub type AsyncToolCollection<ToolSetContext> = ToolCollection<AsyncToolObject<ToolSetContext>>;
 
+/// How a tool should be surfaced to the AI provider on a request.
+///
+/// This is the single concept that distinguishes first-party ("native") tools,
+/// which are cheap and broadly useful and so are always sent, from tools that
+/// scale without bound (currently MCP tools) and so are loaded on demand via
+/// tool search. Keeping the distinction here — rather than scattering name
+/// prefix checks across the agent layer — keeps the native-vs-searchable split a
+/// single, explicit concept.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ToolLoading {
+    /// Always include this tool's full schema in every request. Native /
+    /// first-party tools use this.
+    #[default]
+    AlwaysInclude,
+    /// Do not send this tool's schema upfront; surface it to the model on demand
+    /// through tool search. MCP tools use this so that a large (and growing)
+    /// catalog does not bloat every request.
+    Searchable,
+}
+
 /// Schema for a tool's input, used when building provider requests.
 pub struct RequestSchema {
     /// The name of the tool.
     pub name: String,
+    /// The JSON schema for the tool's input parameters.
+    pub schema: Schema,
+    /// Whether the tool is always sent or loaded on demand via tool search.
+    pub loading: ToolLoading,
+}
+
+/// A tool that is loaded on demand via tool search rather than sent on every
+/// request. Returned by [`crate::ToolSet::searchable_tools`].
+#[derive(Debug, Clone)]
+pub struct SearchableTool {
+    /// The (already-namespaced) tool name, as it must be called.
+    pub name: String,
+    /// A human-readable description used to match search queries.
+    pub description: String,
     /// The JSON schema for the tool's input parameters.
     pub schema: Schema,
 }

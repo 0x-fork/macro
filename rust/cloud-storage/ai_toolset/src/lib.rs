@@ -137,6 +137,6 @@ mod toolset;
 pub use context::{RequestContext, ServiceContext};
 pub use tool::{AsyncTool, NoContext, ToolCallError, ToolResult};
 pub use toolset::{
-    AsyncToolCollection, RequestSchema, ToolCollection, ToolInfo, ToolSchema, ToolSet,
-    ToolSetCreationError, ToolSetError, tool_object,
+    AsyncToolCollection, RequestSchema, SearchableTool, ToolCollection, ToolInfo, ToolLoading,
+    ToolSchema, ToolSet, ToolSetCreationError, ToolSetError, tool_object,
 };

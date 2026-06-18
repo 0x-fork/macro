@@ -6,6 +6,6 @@ mod types;
 
 pub use traits::ToolSet;
 pub use types::{
-    AsyncToolCollection, RequestSchema, ToolCollection, ToolInfo, ToolSchema, ToolSetCreationError,
-    ToolSetError,
+    AsyncToolCollection, RequestSchema, SearchableTool, ToolCollection, ToolInfo, ToolLoading,
+    ToolSchema, ToolSetCreationError, ToolSetError,
 };

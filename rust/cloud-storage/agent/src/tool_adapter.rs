@@ -3,7 +3,9 @@
 mod test;
 
 use ai_toolset::tool_object::ToolSetCallable;
-use ai_toolset::{AsyncToolCollection, RequestContext, RequestSchema, ToolSet as AiToolSet};
+use ai_toolset::{
+    AsyncToolCollection, RequestContext, RequestSchema, ToolLoading, ToolSet as AiToolSet,
+};
 use rig_core::completion::ToolDefinition;
 use rig_core::tool::{ToolDyn, ToolError};
 use rig_core::wasm_compat::WasmBoxedFuture;
@@ -175,20 +177,27 @@ impl<Context> DynToolSetAdapter<Context>
 where
     Context: Clone + Send + Sync + 'static,
 {
-    /// Create one [`DynToolSetAdapter`] per tool in `toolset`.
+    /// Create one [`DynToolSetAdapter`] per **always-included** tool in
+    /// `toolset`.
     ///
-    /// Tool names and schemas are read from
-    /// [`AiToolSet::request_schemas`]. Calls are dispatched through the
-    /// shared `toolset`.
+    /// Only tools flagged [`ToolLoading::AlwaysInclude`] are registered with
+    /// rig's tool server, so only they (native tools plus the `search_tools` /
+    /// `call_mcp_tool` meta-tools) are sent to the provider on every request.
+    /// Tools flagged [`ToolLoading::Searchable`] (MCP tools) are deliberately
+    /// excluded: they are discovered on demand via `search_tools` and invoked
+    /// through the `call_mcp_tool` proxy, which keeps the large MCP catalog out
+    /// of every request. Calls are dispatched through the shared `toolset`.
     pub fn from_toolset(
         toolset: Arc<dyn AiToolSet<Context> + Send + Sync>,
         context: Arc<Context>,
         request_context: Arc<RwLock<RequestContext>>,
     ) -> Vec<Self> {
         let schemas = toolset.request_schemas().unwrap_or_default();
-        schemas
+        let total = schemas.len();
+        let adapters: Vec<Self> = schemas
             .into_iter()
-            .map(|RequestSchema { name, schema }| {
+            .filter(|s| s.loading == ToolLoading::AlwaysInclude)
+            .map(|RequestSchema { name, schema, .. }| {
                 let mut schema_json = serde_json::to_value(&schema)
                     .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
                 normalize_request_schema(&mut schema_json);
@@ -200,7 +209,13 @@ where
                     request_context: request_context.clone(),
                 }
             })
-            .collect()
+            .collect();
+        tracing::info!(
+            always_included = adapters.len(),
+            searchable = total - adapters.len(),
+            "assembled provider tool list (searchable tools loaded on demand)"
+        );
+        adapters
     }
 }
 
