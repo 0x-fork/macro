@@ -432,7 +432,10 @@ export function createLoroManager<S extends GenericRootSchema>(
     logSyncService({
       documentId: documentId,
       level: 'info',
-      context: { initMachineState: initMachine.currentPhase(), misc: { doc: docJson() } },
+      context: {
+        initMachineState: initMachine.currentPhase(),
+        misc: { doc: docJson() },
+      },
       message: 'initializeFromSnapshot: ok, manager initialized',
     });
     return ok(undefined);
@@ -741,7 +744,10 @@ export function createLoroManager<S extends GenericRootSchema>(
     logSyncService({
       documentId,
       level: 'debug',
-      context: { initMachineState: initMachine.currentPhase(), misc: { doc: docJson() } },
+      context: {
+        initMachineState: initMachine.currentPhase(),
+        misc: { doc: docJson() },
+      },
       message: `ingest(${input.kind}): applied=${applied}, doc after apply`,
     });
     if (!applied) return;
