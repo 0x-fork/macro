@@ -91,60 +91,80 @@ jobs:
           fi
           echo "nextest_filter=$filterset" >> "$GITHUB_OUTPUT"
 
-  # fmt + clippy run as crane derivations (flake `checks.fmt` / `checks.clippy`).
-  # The dependency and workspace-lib artifacts are built once and cached in the
-  # Nix store, which is backed by a Namespace /nix cache volume (Cachix is only a
-  # cold-start fallback). No sccache, no Swatinem/rust-cache: the Nix store is
-  # the build cache.
+  # fmt + clippy run as plain cargo with sccache for the build cache. check/test
+  # recompile only the few crates a PR touches, which fits sccache's
+  # per-rustc-invocation object cache far better than crane's whole-workspace
+  # artifact tarball (which re-keys on every merge-commit input change). The
+  # toolchain + clippy/rustfmt come from the Nix dev shell — pinned identically to
+  # the deploy pipeline (same rust-toolchain.toml), restored from the /nix volume.
+  # Crane is intentionally NOT used here; the deploy/lambda jobs still build via
+  # crane, where content-addressed reproducible artifacts are what you want.
   check:
     needs: path-check
     if: needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false
     runs-on: namespace-profile-linux-small
+    env:
+      # mold ships in the dev shell; override the workflow-level lld default so the
+      # link step does not depend on lld being on the runner.
+      RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
+      SCCACHE_CACHE_SIZE: "20G"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           clean: false
-      # Namespace cache volume backing /nix. Optimization only: on a cold volume
-      # setup-nix + Cachix substitute the store — slower, never wrong. Hence
-      # continue-on-error.
+      # /nix volume holds only the pinned toolchain + dev-shell closure (no
+      # workspace build), so it stays small and warms fast. continue-on-error: a
+      # cold volume just means setup-nix/Cachix re-materialise the toolchain.
       - name: Mount /nix cache volume
         continue-on-error: true
         uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
         with:
           path: /nix
+      # The caches that actually make check fast on warm runs: sccache's object
+      # cache (unchanged crates are served straight from it) and cargo's
+      # registry/git checkouts (deps are not re-downloaded).
+      - name: Mount Rust build caches
+        continue-on-error: true
+        uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
+        with:
+          path: |
+            ~/.cache/sccache
+            ~/.cargo/registry
+            ~/.cargo/git
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
-      - name: Configure Cachix fallback
+      # dev-shell: true gives cargo/clippy/rustfmt + sccache (RUSTC_WRAPPER is set
+      # by the shell) and, on a cold /nix volume, substitutes the toolchain via
+      # Cachix.
+      - name: Setup Nix dev shell
         uses: ./.github/actions/setup-cachix
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - name: fmt + clippy (nix/crane)
+          dev-shell: 'true'
+      - name: fmt + clippy
         run: |
           set -euo pipefail
-          # Push freshly built store paths to Cachix so cold volumes and the
-          # web-app-check workflow (same SHA) can substitute them.
-          cachix_pid=
-          if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
-            cachix watch-store "$CACHIX_CACHE_NAME" >/tmp/cachix-watch-store.log 2>&1 &
-            cachix_pid=$!
-            trap 'if [ -n "${cachix_pid:-}" ]; then kill "$cachix_pid" 2>/dev/null || true; wait "$cachix_pid" 2>/dev/null || true; fi' EXIT
-          fi
-          nix build --print-build-logs --accept-flake-config \
-            ".#checks.x86_64-linux.fmt" \
-            ".#checks.x86_64-linux.clippy"
+          cd rust/cloud-storage
+          cargo fmt --all -- --check
+          # -D clippy::disallowed_methods matches the deny level the crane job set;
+          # clippy.toml supplies the method list.
+          cargo clippy --locked --all-features --all-targets -- -D warnings -D clippy::disallowed_methods
+          sccache --show-stats || true
       - name: Teardown Nix (free cache volume for commit)
         if: always()
         uses: ./.github/actions/teardown-nix
 
-  # Test binaries are compiled in Nix via crane (`nextestArchive`) and cached in
-  # the Nix store; the archive is then run *outside* the sandbox so tests can
-  # reach the postgres/redis service containers. No compilation happens at run
-  # time, so there is no sccache here either.
+  # Tests compile via cargo + sccache (same caching rationale as check) and run
+  # against the postgres/redis service containers. cargo-nextest, just and sqlx
+  # come from the Nix dev shell. The path-check nextest filter is applied directly
+  # to the run, so a package-scoped PR only runs the affected packages' tests.
   test:
     needs: path-check
     if: needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false
     runs-on: namespace-profile-linux-small
     env:
+      RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
+      SCCACHE_CACHE_SIZE: "20G"
       NEXTEST_FILTER: ${{ needs.path-check.outputs.nextest_filter }}
       NEXTEST_TEST_THREADS: '32'
     services:
@@ -177,36 +197,20 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
         with:
           path: /nix
+      - name: Mount Rust build caches
+        continue-on-error: true
+        uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
+        with:
+          path: |
+            ~/.cache/sccache
+            ~/.cargo/registry
+            ~/.cargo/git
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
-      # Configure Cachix substituters WITHOUT entering the dev shell. The archive
-      # build below is a pure `nix build` and MUST run before the dev shell is
-      # entered: `nix print-dev-env` exports the dev shell's LD_LIBRARY_PATH (Nix
-      # glibc) via BASH_ENV into every later step, which poisons the *system* git
-      # that Nix's fetcher uses to vendor the jsonwebtoken git dep
-      # (`GLIBC_ABI_DT_X86_64_PLT not found`).
-      - name: Configure Cachix fallback
-        uses: ./.github/actions/setup-cachix
-        with:
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - name: Build nextest archive (nix/crane)
-        run: |
-          set -euo pipefail
-          cachix_pid=
-          if command -v cachix >/dev/null 2>&1 && [ -n "${CACHIX_CACHE_NAME:-}" ]; then
-            cachix watch-store "$CACHIX_CACHE_NAME" >/tmp/cachix-watch-store.log 2>&1 &
-            cachix_pid=$!
-            trap 'if [ -n "${cachix_pid:-}" ]; then kill "$cachix_pid" 2>/dev/null || true; wait "$cachix_pid" 2>/dev/null || true; fi' EXIT
-          fi
-          # Out-link lives outside the workspace so it does not perturb the
-          # cargo metadata / workspace scan that nextest does at run time.
-          nix build --print-build-logs --accept-flake-config \
-            --out-link "$RUNNER_TEMP/nextest-archive" \
-            ".#nextestArchive"
-      # Enter the dev shell (just/sqlx/cargo-nextest) for DB setup and for running
-      # the prebuilt archive. Comes *after* the nix build above so the leaked
-      # LD_LIBRARY_PATH never reaches a `nix build`. No sccache-bucket: nothing
-      # compiles at run time.
+      # dev-shell provides cargo-nextest/just/sqlx + sccache (RUSTC_WRAPPER). No
+      # `nix build` runs in this job, so the dev shell's LD_LIBRARY_PATH can be
+      # exported up front without poisoning a Nix git-fetch (cargo fetches git
+      # deps via its own gitoxide, not the system git).
       - name: Setup Nix dev shell
         uses: ./.github/actions/setup-cachix
         with:
@@ -241,15 +245,17 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
+          set -euo pipefail
           cd rust/cloud-storage
-
-          # Run the prebuilt archive against the live services; --workspace-remap
-          # points nextest at the checked-out workspace root for fixtures/.env.
-          args=(run --archive-file "$RUNNER_TEMP/nextest-archive/nextest-archive.tar.zst" --workspace-remap . --test-threads "$NEXTEST_TEST_THREADS")
+          # Compile (cached by sccache) and run against the live services.
+          # NEXTEST_FILTER (from path-check) scopes the run to the affected
+          # packages when the PR is package-local; empty = whole workspace.
+          args=(run --locked --all-features --workspace --test-threads "$NEXTEST_TEST_THREADS")
           if [ -n "$NEXTEST_FILTER" ]; then
             args+=(-E "$NEXTEST_FILTER")
           fi
           cargo nextest "${args[@]}"
+          sccache --show-stats || true
       - name: Teardown Nix (free cache volume for commit)
         if: always()
         uses: ./.github/actions/teardown-nix
