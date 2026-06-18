@@ -1,7 +1,8 @@
 import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
 import CheckIcon from '@phosphor/check.svg';
-import { type ComponentProps, splitProps } from 'solid-js';
+import { type ComponentProps, onCleanup, splitProps } from 'solid-js';
 import { cn } from '../utils/classname';
+import { addCtrlJKMenuNavigation } from '../utils/menuKeyboardNavigation';
 import { Button, type ButtonProps } from './Button';
 import { Surface, type SurfaceProps } from './Surface';
 
@@ -105,6 +106,15 @@ function resolvePortalMount(
   return searchRef?.closest<HTMLElement>('.portal-scope') ?? undefined;
 }
 
+function installKeyboardNavigation(el: HTMLElement) {
+  const cleanup = addCtrlJKMenuNavigation(el);
+  onCleanup(cleanup);
+}
+
+function callRef<T>(ref: ((el: T) => void) | undefined, el: T) {
+  ref?.(el);
+}
+
 function DropdownContent(props: DropdownContentProps) {
   let searchRef: HTMLDivElement | undefined;
   const [local, rest] = splitProps(props, [
@@ -114,7 +124,13 @@ function DropdownContent(props: DropdownContentProps) {
     'portalScope',
     'children',
     'style',
+    'ref',
   ]);
+  const setContentRef = (el: HTMLElement) => {
+    installKeyboardNavigation(el);
+    callRef(local.ref, el);
+  };
+
   return (
     <>
       <div class="hidden" ref={searchRef} />
@@ -131,6 +147,7 @@ function DropdownContent(props: DropdownContentProps) {
             ...(typeof local.style === 'object' ? local.style : {}),
           }}
           {...rest}
+          ref={setContentRef}
         >
           {local.children}
         </KobalteDropdownMenu.Content>
@@ -148,7 +165,13 @@ function DropdownSubContent(props: DropdownSubContentProps) {
     'portalScope',
     'children',
     'style',
+    'ref',
   ]);
+  const setContentRef = (el: HTMLElement) => {
+    installKeyboardNavigation(el);
+    callRef(local.ref, el);
+  };
+
   return (
     <>
       <div class="hidden" ref={searchRef} />
@@ -165,6 +188,7 @@ function DropdownSubContent(props: DropdownSubContentProps) {
             ...(typeof local.style === 'object' ? local.style : {}),
           }}
           {...rest}
+          ref={setContentRef}
         >
           {local.children}
         </KobalteDropdownMenu.SubContent>

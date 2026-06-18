@@ -1,110 +1,65 @@
-import { currentThemeId, isThemeSaved, themes } from '../signals/themeSignals';
+import { currentThemeId, isThemeSaved, showDarkThemes, showLightThemes, themes } from '../signals/themeSignals';
 import { useAnalytics } from 'app/component/analytics-context';
-import { applyTheme } from '../utils/themeUtils';
-import { ColorSwatch } from './ColorSwatch';
+import { applyTheme, isTokensDark } from '../utils/themeUtils';
+import { ThemeChips } from './ThemeChips';
 import { ThemeCrud } from './ThemeCrud';
+import { cn } from '@ui';
 
-import { For } from 'solid-js';
+import { createMemo, For } from 'solid-js';
 
 function ThemeList() {
   const analytics = useAnalytics()
 
-  return (
-      <>
-        <style>{`
-          .theme-row {
-            transition: background-color var(--transition), color var(--transition);
-          }
-          .theme-row:has(.theme-row-clickable:hover) {
-            background-color: var(--color-hover);
-          }
-          .theme-row.current-theme {
-            color: var(--a0);
-          }
-          .theme-row-clickable:hover {
-            color: var(--a0);
-          }
-          .theme-row .theme-row-crud {
-            opacity: 0;
-            transition: opacity var(--transition);
-          }
-          .theme-row:hover .theme-row-crud,
-          .theme-row:focus-within .theme-row-crud {
-            opacity: 1;
-          }
-        `}</style>
+  const visibleThemes = createMemo(() =>
+    themes().filter((theme) =>
+      isTokensDark(theme.tokens) ? showDarkThemes() : showLightThemes()
+    )
+  );
 
-        <div
-          style="
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            column-gap: 0.5rem;
-            font-size: 14px;
-          "
-        >
-          <For each={themes()}>
-            {(theme) => (
-              <div
-                class={`theme-row ${theme.id === currentThemeId() && isThemeSaved() ? 'current-theme' : ''}`}
-                style="
-                  box-sizing: border-box;
-                  align-items: center;
-                  padding: 0.375rem 0.5rem;
-                  display: flex;
-                  gap: 0.75rem;
-                  border-radius: 0.375rem;
-                "
-              >
+  return (
+      <div class="@container p-2">
+        <div class="grid grid-cols-1 gap-2 @md:grid-cols-2 @2xl:grid-cols-3">
+          <For each={visibleThemes()}>
+            {(theme) => {
+              const selected = () => theme.id === currentThemeId() && isThemeSaved();
+              const select = () => {
+                analytics.track('theme_changed', { themeId: theme.id })
+                applyTheme(theme.id)
+              };
+              return (
+                // role="button" (not <button>) because the card contains ThemeCrud's
+                // own buttons, and nesting native buttons is invalid HTML.
                 <div
-                  onClick={() => {
-                    analytics.track('theme_changed', { themeId: theme.id });
-                    applyTheme(theme.id);
+                  role="button"
+                  tabIndex={0}
+                  class={cn(
+                    'flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border bg-surface p-2 transition-colors duration-[var(--transition)]',
+                    selected() ? 'border-accent' : 'border-edge-muted hover:border-ink-muted'
+                  )}
+                  onClick={select}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      select()
+                    }
                   }}
-                  class="theme-row-clickable"
-                  style="
-                    align-items: center;
-                    display: flex;
-                    gap: 0.75rem;
-                    cursor: pointer;
-                    flex: 1;
-                    min-width: 0;
-                  "
                 >
-                  <div style="display: flex; gap: 3px; flex-shrink: 0;">
-                    <ColorSwatch
-                      color={`oklch(${theme.tokens.a0.l} ${theme.tokens.a0.c} ${theme.tokens.a0.h}deg)`}
-                      width={'14px'}
-                      height={'14px'}
-                    />
-                    <ColorSwatch
-                      color={`oklch(${theme.tokens.b0.l} ${theme.tokens.b0.c} ${theme.tokens.b0.h}deg)`}
-                      width={'14px'}
-                      height={'14px'}
-                    />
-                    <ColorSwatch
-                      color={`oklch(${theme.tokens.c0.l} ${theme.tokens.c0.c} ${theme.tokens.c0.h}deg)`}
-                      width={'14px'}
-                      height={'14px'}
-                    />
-                  </div>
+                  <ThemeChips theme={theme} />
                   <span
-                    style="
-                      white-space: nowrap;
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                    "
+                    class={cn(
+                      'min-w-0 flex-1 truncate text-sm',
+                      selected() ? 'text-accent' : 'text-ink'
+                    )}
                   >
                     {theme.name}
                   </span>
-                </div>
-                <div class="theme-row-crud">
                   <ThemeCrud themeId={theme.id} />
                 </div>
-              </div>
-            )}
+              )
+            }}
           </For>
         </div>
-      </>
+      </div>
   );
 }
 

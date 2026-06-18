@@ -54,8 +54,14 @@ const TAB_ONLY_FILTERS = new Set([
  * and a function to reset filters to the current tab's default state.
  */
 export function useFilterRefinements() {
-  const { soup, queryFilters, assigneeFilter, setAssigneeFilter, activeTab } =
-    useSoupView();
+  const {
+    soup,
+    items,
+    queryFilters,
+    assigneeFilter,
+    setAssigneeFilter,
+    activeTab,
+  } = useSoupView();
   const filterData = () => queryFilters.state;
   const panel = useSplitPanelOrThrow();
   const user = useUserContext();
@@ -186,12 +192,6 @@ export function useFilterRefinements() {
    * Excludes filters that are set by tabs (like signal/noise).
    */
   const activeFiltersList = createMemo((): ActiveFilter[] => {
-    const preset = currentPreset();
-    const presetFilterIds = new Set([
-      ...(preset?.clientFilters.and ?? []),
-      ...(preset?.clientFilters.or ?? []),
-    ]);
-
     const filters: ActiveFilter[] = [];
     const seenKeys = new Set<string>();
 
@@ -199,8 +199,7 @@ export function useFilterRefinements() {
       for (const option of category.options) {
         if (
           !soup.predicates.isActive(option.id) ||
-          TAB_ONLY_FILTERS.has(option.id) ||
-          presetFilterIds.has(option.id as FilterID)
+          TAB_ONLY_FILTERS.has(option.id)
         ) {
           continue;
         }
@@ -230,11 +229,7 @@ export function useFilterRefinements() {
       );
       for (const option of INDEX_OPTIONS) {
         const optionId = option.value as FilterID;
-        if (
-          !soup.predicates.isActive(optionId) ||
-          coveredByView.has(optionId) ||
-          presetFilterIds.has(optionId)
-        ) {
+        if (!soup.predicates.isActive(optionId) || coveredByView.has(optionId)) {
           continue;
         }
         const key = `Type|${option.value}`;
@@ -531,6 +526,57 @@ export function useFilterRefinements() {
     });
   };
 
+  /**
+   * Does at least one item pass the base preset's client predicates? Used to
+   * decide whether the empty-state banner should claim items are hidden.
+   */
+  const baseHasItems = createMemo(() => {
+    const preset = currentPreset();
+    if (!preset) return false;
+    const baseAnd = preset.clientFilters.and ?? [];
+    const baseOr = preset.clientFilters.or ?? [];
+    if (baseAnd.length === 0 && baseOr.length === 0) return items().length > 0;
+
+    const ctx = getFilterContext();
+    for (const entity of items()) {
+      let andOk = true;
+      for (const id of baseAnd) {
+        const cfg = soup.predicates.getConfig(id);
+        if (cfg && !cfg.predicate(entity, ctx)) {
+          andOk = false;
+          break;
+        }
+      }
+      if (!andOk) continue;
+      if (baseOr.length > 0) {
+        let orOk = false;
+        for (const id of baseOr) {
+          const cfg = soup.predicates.getConfig(id);
+          if (cfg?.predicate(entity, ctx)) {
+            orOk = true;
+            break;
+          }
+        }
+        if (!orOk) continue;
+      }
+      return true;
+    }
+    return false;
+  });
+
+  const hasHiddenItems = createMemo<{ key: string; value: boolean }>((prev) => {
+    const key = `${currentView() ?? ''}|${activeTab() ?? ''}`;
+    const refinementsActive = hasActiveRefinements();
+    const itemsExist = baseHasItems();
+
+    if (prev?.key !== key || !refinementsActive) {
+      return { key, value: itemsExist };
+    }
+    return { key, value: prev.value || itemsExist };
+  });
+
+  const hasHiddenItemsValue = () => hasHiddenItems().value;
+
   const resetToTabDefaults = () => {
     const preset = currentPreset();
     if (!preset) return;
@@ -549,6 +595,7 @@ export function useFilterRefinements() {
 
   return {
     hasActiveRefinements,
+    hasHiddenItems: hasHiddenItemsValue,
     resetToTabDefaults,
     currentView,
     activeFiltersList,

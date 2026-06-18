@@ -1,9 +1,19 @@
-import type { FilterID } from '@app/component/next-soup/filters';
+import { getViewPreset } from '@app/component/app-sidebar/soup-filter-presets';
 import {
   type FilterContext,
   NO_ASSIGNEE,
 } from '@app/component/next-soup/filters/configs/';
-import type { PropertyFilter } from '@app/component/next-soup/filters/filter-store';
+import {
+  buildDocumentTypeQuery,
+  getActiveDocumentTypeFilterIds,
+  isDocumentTypeFilterId,
+} from '@app/component/next-soup/filters/configs/document-type-query';
+import {
+  defineQueryFilters,
+  type PropertyFilter,
+  queryStateFrom,
+} from '@app/component/next-soup/filters/filter-store';
+import { mergeQuery } from '@app/component/next-soup/filters/filter-store/query-store';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
@@ -13,13 +23,13 @@ import { UserIcon } from '@core/component/UserIcon';
 import { useUserId } from '@core/context/user';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
-import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import CircleDashedIcon from '@phosphor/circle-dashed.svg';
-import SlidersIcon from '@phosphor/sliders-horizontal.svg';
+import FilterIcon from '@phosphor/funnel-simple.svg';
 import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
+import { useGithubLinkStatusQuery } from '@queries/auth';
 import { useContacts } from '@queries/contacts/contacts';
 import { cn, Dropdown, Tooltip } from '@ui';
 import {
@@ -36,25 +46,27 @@ import {
   Switch,
 } from 'solid-js';
 import {
-  INDEX_OPTIONS,
+  type FilterCategory,
+  filterInboxGithubPrOption,
+} from './filter-categories';
+import {
+  SearchableMultiSelectInline,
   type SearchableOption,
-  useCallSearchFilter,
-  useChannelSearchFilter,
-  useEmailSearchFilter,
-  useSearchFilterOptions,
-  useSearchIndexController,
-} from './search-filter-controls';
-import { SearchableMultiSelectInline } from './searchable-multi-select';
+} from './searchable-multi-select';
 
-const TypeIndicator = (props: { active: boolean }) => (
+export type { FilterCategory, FilterOption } from './filter-categories';
+
+export const TypeIndicator = (props: { active: boolean }) => (
   <span
     class={cn(
-      'size-4 flex items-center justify-center shrink-0 rounded-full border',
-      props.active ? 'bg-accent border-accent' : 'border-edge'
+      'size-3.5 flex items-center justify-center shrink-0 rounded-sm border text-surface',
+      props.active
+        ? 'bg-accent border-accent'
+        : 'border-transparent group-hover:not-hover:border-edge-muted group-data-highlighted:not-hover:border-edge-muted hover:border-accent'
     )}
   >
     <Show when={props.active}>
-      <CheckIcon class="size-2.5 text-surface" />
+      <CheckIcon class="size-2.5" />
     </Show>
   </span>
 );
@@ -63,24 +75,12 @@ const TypeIndicator = (props: { active: boolean }) => (
 // distributing label + caret to the row ends.
 // const FILTER_MENU_SUBTRIGGER_CLASS = 'justify-between gap-2';
 
-export type FilterOption = {
-  id: FilterID;
-  label: string;
-  icon?: () => JSX.Element;
-};
-
-export type FilterCategory = {
-  id: string;
-  label: string;
-  options: FilterOption[];
-  multiple?: boolean;
-};
-
 // Filter categories by view
 const INBOX_FILTER_CATEGORIES: FilterCategory[] = [
   {
     id: 'type',
     label: 'Type',
+    labelPlural: 'Types',
     options: [
       {
         id: 'document',
@@ -115,17 +115,31 @@ const INBOX_FILTER_CATEGORIES: FilterCategory[] = [
       {
         id: 'file',
         label: 'Files',
-        icon: () => <EntityIcon targetType="unknown" size="xs" />,
+        icon: () => <EntityIcon targetType="files" size="xs" />,
+      },
+      {
+        id: 'github-pr',
+        label: 'GitHub PRs',
+        icon: () => <EntityIcon targetType="githubPullRequest" size="xs" />,
       },
     ],
     multiple: true,
   },
 ];
 
+const isInboxTypeFilterId = (id: string) => {
+  for (const category of INBOX_FILTER_CATEGORIES) {
+    if (category.options.find((o) => o.id === id)) return true;
+  }
+
+  return false;
+};
+
 const MAIL_FILTER_CATEGORIES: FilterCategory[] = [
   {
     id: 'status',
     label: 'Status',
+    labelPlural: 'Statuses',
     options: [
       { id: 'unread', label: 'Unread' },
       { id: 'read', label: 'Read' },
@@ -137,6 +151,7 @@ const MAIL_FILTER_CATEGORIES: FilterCategory[] = [
   {
     id: 'attachment',
     label: 'Attachments',
+    labelPlural: 'Attachments',
     options: [
       {
         id: 'attachment-pdf',
@@ -151,7 +166,7 @@ const MAIL_FILTER_CATEGORIES: FilterCategory[] = [
       {
         id: 'attachment-document',
         label: 'Documents',
-        icon: () => <EntityIcon targetType="unknown" size="xs" />,
+        icon: () => <EntityIcon targetType="files" size="xs" />,
       },
     ],
     multiple: true,
@@ -159,6 +174,7 @@ const MAIL_FILTER_CATEGORIES: FilterCategory[] = [
   {
     id: 'calendar',
     label: 'Calendar',
+    labelPlural: 'Calendar',
     options: [{ id: 'has-calendar-invite', label: 'Has Calendar Invite' }],
     multiple: false,
   },
@@ -168,6 +184,7 @@ const TASKS_FILTER_CATEGORIES: FilterCategory[] = [
   {
     id: 'status',
     label: 'Status',
+    labelPlural: 'Statuses',
     options: [
       {
         id: 'task-not-started',
@@ -225,10 +242,11 @@ const TASKS_FILTER_CATEGORIES: FilterCategory[] = [
   {
     id: 'priority',
     label: 'Priority',
+    labelPlural: 'Priorities',
     options: [
       {
         id: 'task-urgent',
-        label: 'Critical',
+        label: 'Urgent',
         icon: () => (
           <PropertyValueIcon
             optionId={PROPERTY_OPTION_IDS.PRIORITY.URGENT}
@@ -266,11 +284,7 @@ const TASKS_FILTER_CATEGORIES: FilterCategory[] = [
           />
         ),
       },
-      {
-        id: 'task-no-priority',
-        label: 'No Priority',
-        icon: () => <CircleDashedIcon class="size-3.5 text-ink-muted" />,
-      },
+      { id: 'task-no-priority', label: 'No Priority' },
     ],
     multiple: true,
   },
@@ -280,6 +294,7 @@ const DOCUMENTS_FILTER_CATEGORIES: FilterCategory[] = [
   {
     id: 'type',
     label: 'Type',
+    labelPlural: 'Types',
     options: [
       {
         id: 'doc-markdown',
@@ -317,9 +332,14 @@ const DOCUMENTS_FILTER_CATEGORIES: FilterCategory[] = [
         icon: () => <EntityIcon targetType="video" size="xs" />,
       },
       {
+        id: 'doc-snippet',
+        label: 'Snippets',
+        icon: () => <EntityIcon targetType="snippet" size="xs" />,
+      },
+      {
         id: 'file-other',
         label: 'Other',
-        icon: () => <EntityIcon targetType="unknown" size="xs" />,
+        icon: () => <EntityIcon targetType="files" size="xs" />,
       },
     ],
     multiple: true,
@@ -344,9 +364,9 @@ export const VIEW_FILTER_CATEGORIES: Record<ListView, FilterCategory[]> = {
   mail: MAIL_FILTER_CATEGORIES,
   documents: DOCUMENTS_FILTER_CATEGORIES,
   tasks: TASKS_FILTER_CATEGORIES,
+  companies: [],
   channels: [],
   calls: [],
-  companies: [],
   folders: [],
   search: [],
 };
@@ -418,16 +438,11 @@ const SearchableFilterSubmenu = (props: {
           if (!isOpen()) setIsOpen(true);
         }}
       >
-        <div class="flex items-center gap-1.5 min-w-0 flex-1">
-          <span class="text-ink truncate">{props.label}</span>
-          <Show when={props.activeIds().length > 0}>
-            <span class="size-1.5 rounded-full bg-accent shrink-0" />
-          </Show>
-        </div>
+        <span class="text-ink">{props.label}</span>
         <CaretRightIcon class="size-3 text-ink-muted" />
       </Dropdown.SubTrigger>
 
-      <Dropdown.SubContent depth={4} class="w-65 max-w-[90vw]">
+      <Dropdown.SubContent class="w-65 max-w-[90vw]">
         <Dropdown.Group class="p-0 gap-0">
           <SearchableMultiSelectInline
             onRequestClose={() => setIsOpen(false)}
@@ -443,237 +458,30 @@ const SearchableFilterSubmenu = (props: {
   );
 };
 
-/** Single-value sub-menu (e.g. Importance, Attended). */
-function SingleValueSubmenu<T>(props: {
-  label: string;
-  options: { label: string; value: T }[];
-  current: Accessor<T>;
-  onSelect: (value: T) => void;
-}) {
-  return (
-    <Dropdown.Sub>
-      <Dropdown.SubTrigger>
-        <span class="text-ink">{props.label}</span>
-        <CaretRightIcon class="size-3 text-ink-muted" />
-      </Dropdown.SubTrigger>
-      <Dropdown.SubContent depth={4} class="min-w-[180px]">
-        <Dropdown.Group>
-          <For each={props.options}>
-            {(option) => {
-              const active = () => props.current() === option.value;
-              return (
-                <Dropdown.Item
-                  onSelect={() => props.onSelect(option.value)}
-                  closeOnSelect
-                >
-                  <span
-                    class={cn(
-                      'flex-1 truncate',
-                      active() ? 'text-ink' : 'text-ink-muted'
-                    )}
-                  >
-                    {option.label}
-                  </span>
-                  <Show when={active()}>
-                    <CheckIcon class="size-3 text-accent shrink-0" />
-                  </Show>
-                </Dropdown.Item>
-              );
-            }}
-          </For>
-        </Dropdown.Group>
-      </Dropdown.SubContent>
-    </Dropdown.Sub>
-  );
+interface UnifiedFilterDropdownProps {
+  /** Optional controlled open state */
+  open?: Accessor<boolean>;
+  onOpenChange?: (open: boolean) => void;
+  /** Optional custom trigger element. If not provided, uses default Filter button. */
+  customTrigger?: JSX.Element;
+  /** Hide the default trigger entirely (useful when controlling open state externally) */
+  hideTrigger?: boolean;
 }
 
-type InFromOpen = 'in' | 'from' | null;
-
-/** In + From (channel messages). */
-const ChannelSearchSubContent = (props: {
-  channel: ReturnType<typeof useChannelSearchFilter>;
-  channelOptions: Accessor<SearchableOption[]>;
-  senderOptions: Accessor<SearchableOption[]>;
-}) => {
-  const [openSub, setOpenSub] = createSignal<InFromOpen>(null);
-  return (
-    <>
-      <SearchableFilterSubmenu
-        label="In"
-        options={props.channelOptions}
-        activeIds={props.channel.channelIds}
-        onChange={props.channel.setChannelIds}
-        placeholder="Search channels..."
-        open={() => openSub() === 'in'}
-        onOpenChange={(v) => setOpenSub(v ? 'in' : null)}
-      />
-      <SearchableFilterSubmenu
-        label="From"
-        options={props.senderOptions}
-        activeIds={props.channel.senderIds}
-        onChange={props.channel.setSenderIds}
-        placeholder="Search senders..."
-        open={() => openSub() === 'from'}
-        onOpenChange={(v) => setOpenSub(v ? 'from' : null)}
-      />
-    </>
-  );
-};
-
-const IMPORTANCE_OPTIONS: {
-  label: string;
-  value: boolean | undefined;
-}[] = [
-  { label: 'Signal', value: true },
-  { label: 'Noise', value: false },
-  { label: 'All', value: undefined },
-];
-
-/** Importance (emails). */
-const EmailSearchSubContent = (props: {
-  email: ReturnType<typeof useEmailSearchFilter>;
-}) => (
-  <SingleValueSubmenu
-    label="Importance"
-    options={IMPORTANCE_OPTIONS}
-    current={props.email.importance}
-    onSelect={props.email.setImportance}
-  />
-);
-
-const ATTENDED_OPTIONS: {
-  label: string;
-  value: boolean | undefined;
-}[] = [
-  { label: 'Attended', value: true },
-  { label: 'Unattended', value: false },
-  { label: 'All', value: undefined },
-];
-
-/** In + From + Attended (calls). */
-const CallSearchSubContent = (props: {
-  call: ReturnType<typeof useCallSearchFilter>;
-  channelOptions: Accessor<SearchableOption[]>;
-  senderOptions: Accessor<SearchableOption[]>;
-}) => {
-  const [openSub, setOpenSub] = createSignal<InFromOpen>(null);
-  return (
-    <>
-      <SearchableFilterSubmenu
-        label="In"
-        options={props.channelOptions}
-        activeIds={props.call.channelIds}
-        onChange={props.call.setChannelIds}
-        placeholder="Search channels..."
-        open={() => openSub() === 'in'}
-        onOpenChange={(v) => setOpenSub(v ? 'in' : null)}
-      />
-      <SearchableFilterSubmenu
-        label="From"
-        options={props.senderOptions}
-        activeIds={props.call.speakerIds}
-        onChange={props.call.setSpeakerIds}
-        placeholder="Search speakers..."
-        open={() => openSub() === 'from'}
-        onOpenChange={(v) => setOpenSub(v ? 'from' : null)}
-      />
-      <SingleValueSubmenu
-        label="Attended"
-        options={ATTENDED_OPTIONS}
-        current={() => props.call.attended() ?? undefined}
-        onSelect={props.call.setAttended}
-      />
-    </>
-  );
-};
-
-const SearchIndexRowLabel = (props: {
-  option: (typeof INDEX_OPTIONS)[number];
-  active: Accessor<boolean>;
-  dot?: Accessor<boolean>;
-}) => (
-  <div class="flex items-center gap-1.5 min-w-0 flex-1">
-    <Show when={props.option.icon}>
-      {(icon) => (
-        <span class="size-4 flex items-center justify-center shrink-0">
-          {icon()()}
-        </span>
-      )}
-    </Show>
-    <span
-      class={cn('truncate', props.active() ? 'text-ink' : 'text-ink-muted')}
-    >
-      {props.option.label}
-    </span>
-    <Show when={props.dot?.()}>
-      <span class="size-1.5 rounded-full bg-accent shrink-0" />
-    </Show>
-  </div>
-);
-
-/** Flat row — selecting it just switches the active index. */
-const SearchIndexItem = (props: {
-  option: (typeof INDEX_OPTIONS)[number];
-  active: Accessor<boolean>;
-  onSelect: () => void;
-}) => (
-  <Dropdown.Item onSelect={props.onSelect} closeOnSelect>
-    <SearchIndexRowLabel option={props.option} active={props.active} />
-    <Show when={props.active()}>
-      <CheckIcon class="size-3 text-accent shrink-0" />
-    </Show>
-  </Dropdown.Item>
-);
-
-/** Row with a nested submenu.
- *
- * `children` must be lazy (via `<Match>`) so the nested submenus
- * instantiate *inside* this row's `Dropdown.SubContent`. Eager JSX
- * would evaluate in the outer content's context, which makes Kobalte
- * register nested `Dropdown.Sub`s against the wrong parent —
- * positioning falls back to the viewport and keyboard nav treats them as
- * siblings of the row. */
-const SearchIndexSubRow = (props: {
-  option: (typeof INDEX_OPTIONS)[number];
-  active: Accessor<boolean>;
-  subFilterActive?: Accessor<boolean>;
-  onSelect: () => void;
-  closeRoot: () => void;
-  children: JSX.Element;
-}) => (
-  <Dropdown.Sub>
-    <Dropdown.SubTrigger
-      onPointerDown={props.onSelect}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          e.stopPropagation();
-          props.onSelect();
-          props.closeRoot();
-        }
-      }}
-    >
-      <SearchIndexRowLabel
-        option={props.option}
-        active={props.active}
-        dot={props.subFilterActive}
-      />
-      <CaretRightIcon class="size-3 text-ink-muted" />
-    </Dropdown.SubTrigger>
-    <Dropdown.SubContent depth={4} class="min-w-[180px]">
-      <Dropdown.Group>{props.children}</Dropdown.Group>
-    </Dropdown.SubContent>
-  </Dropdown.Sub>
-);
-
-export const UnifiedFilterDropdown = () => {
-  const [open, setOpen] = createSignal(false);
+export const UnifiedFilterDropdown = (
+  props: UnifiedFilterDropdownProps = {}
+) => {
+  const [internalOpen, setInternalOpen] = createSignal(false);
+  const open = () => props.open?.() ?? internalOpen();
+  const setOpen = (v: boolean) => {
+    setInternalOpen(v);
+    props.onOpenChange?.(v);
+  };
   const panel = useSplitPanelOrThrow();
-  const { soup, queryFilters, assigneeFilter, setAssigneeFilter } =
+  const { soup, queryFilters, assigneeFilter, setAssigneeFilter, activeTab } =
     useSoupView();
   const contacts = useContacts();
   const userId = useUserId();
-  const contentId = panel.handle.content().id;
 
   const currentView = createMemo((): ListView | undefined => {
     const content = panel.handle.content();
@@ -681,11 +489,21 @@ export const UnifiedFilterDropdown = () => {
       return undefined;
     return content.id;
   });
+  const githubLinkStatus = useGithubLinkStatusQuery({
+    enabled: () => currentView() === 'inbox',
+  });
 
   const categories = createMemo(() => {
     const view = currentView();
     if (!view) return [];
-    return VIEW_FILTER_CATEGORIES[view] ?? [];
+    const viewCategories = VIEW_FILTER_CATEGORIES[view] ?? [];
+
+    if (view !== 'inbox') return viewCategories;
+
+    return filterInboxGithubPrOption(
+      viewCategories,
+      githubLinkStatus.data?.status === 'linked'
+    );
   });
 
   const isOptionActive = (optionId: string) => {
@@ -694,7 +512,22 @@ export const UnifiedFilterDropdown = () => {
 
   const toggleFilter = (optionId: string) => {
     const wasActive = soup.predicates.isActive(optionId);
+    const previousDocumentTypeIds =
+      currentView() === 'documents' && isDocumentTypeFilterId(optionId)
+        ? getActiveDocumentTypeFilterIds(soup.predicates.isActive)
+        : undefined;
+
     soup.predicates.toggle({ or: [optionId] });
+
+    if (previousDocumentTypeIds) {
+      const previousQuery = buildDocumentTypeQuery(previousDocumentTypeIds);
+      const nextQuery = buildDocumentTypeQuery(
+        getActiveDocumentTypeFilterIds(soup.predicates.isActive)
+      );
+      if (previousQuery) queryFilters.remove(previousQuery);
+      if (nextQuery) queryFilters.add(nextQuery);
+      return;
+    }
 
     const filter = soup.predicates.getConfig(optionId);
     if (!filter?.query) return;
@@ -705,6 +538,27 @@ export const UnifiedFilterDropdown = () => {
     };
     const query =
       typeof filter.query === 'function' ? filter.query(ctx) : filter.query;
+
+    if (currentView() === 'inbox' && isInboxTypeFilterId(optionId)) {
+      const baseQuery = getViewPreset('inbox', activeTab())?.filters;
+
+      if (!baseQuery) {
+        return;
+      }
+
+      let nextQueryState = baseQuery;
+
+      if (!wasActive) {
+        nextQueryState = mergeQuery(
+          queryStateFrom(baseQuery),
+          defineQueryFilters({}, { skipTargetsFrom: query })
+        );
+      }
+
+      queryFilters.replace(nextQueryState);
+
+      return;
+    }
 
     if (wasActive) {
       queryFilters.remove(query);
@@ -783,18 +637,6 @@ export const UnifiedFilterDropdown = () => {
   };
 
   const isTasksView = () => currentView() === 'tasks';
-  const isSearchView = () => currentView() === 'search';
-  const hasActiveIndex = () =>
-    INDEX_OPTIONS.some((opt) => soup.predicates.isActive(opt.value));
-
-  const { changeIndex: handleIndexChange } = useSearchIndexController();
-
-  const channel = useChannelSearchFilter({ contentId, isSearchView });
-  const email = useEmailSearchFilter({ contentId, isSearchView });
-  const call = useCallSearchFilter({ contentId, isSearchView });
-
-  const { channelOptions: inChannelOptions, senderOptions: fromSenderOptions } =
-    useSearchFilterOptions();
 
   registerHotkey({
     hotkey: 'f',
@@ -807,24 +649,56 @@ export const UnifiedFilterDropdown = () => {
     },
   });
 
+  // Capture anchor position when menu opens to prevent jumping when chips are added
+  const [anchorRect, setAnchorRect] = createSignal<DOMRect | null>(null);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      // Clear any stale anchor rect so it gets recaptured from trigger
+      setAnchorRect(null);
+    }
+    setOpen(isOpen);
+  };
+
+  const getAnchorRect = (anchor?: HTMLElement) => {
+    // If we have a captured rect, use it (prevents jumping)
+    const captured = anchorRect();
+    if (captured) return captured;
+
+    // Otherwise capture the current position
+    if (anchor) {
+      const rect = anchor.getBoundingClientRect();
+      setAnchorRect(rect);
+      return rect;
+    }
+    return undefined;
+  };
+
   return (
-    <Show when={categories().length > 0 || isTasksView() || isSearchView()}>
-      <Dropdown open={open()} onOpenChange={setOpen}>
-        <Tooltip label="Filter" hotkey={TOKENS.soup.filter}>
-          <Dropdown.Trigger
-            depth={2}
-            class="rounded-xs [&_svg]:size-4 py-1.5 bg-surface"
-          >
-            <SlidersIcon />
-          </Dropdown.Trigger>
-        </Tooltip>
+    <Show when={categories().length > 0 || isTasksView()}>
+      <Dropdown
+        open={open()}
+        onOpenChange={handleOpenChange}
+        getAnchorRect={getAnchorRect}
+      >
+        <Show when={!props.hideTrigger}>
+          <Switch>
+            <Match when={props.customTrigger}>{props.customTrigger}</Match>
+            <Match when={true}>
+              <Tooltip label="Filter" hotkey={TOKENS.soup.filter}>
+                <Dropdown.Trigger depth={2} class="bg-surface">
+                  <FilterIcon />
+                  <span>Filter</span>
+                </Dropdown.Trigger>
+              </Tooltip>
+            </Match>
+          </Switch>
+        </Show>
 
         <Dropdown.Content>
           <Dropdown.Group>
             <Show
-              when={
-                categories().length === 1 && !isTasksView() && !isSearchView()
-              }
+              when={categories().length === 1 && !isTasksView()}
               fallback={
                 <>
                   <For each={categories()}>
@@ -845,18 +719,7 @@ export const UnifiedFilterDropdown = () => {
                                     onSelect={() => toggleFilter(option.id)}
                                     closeOnSelect={!category.multiple}
                                   >
-                                    <span
-                                      class={cn(
-                                        'size-4 flex items-center justify-center shrink-0 rounded border',
-                                        active()
-                                          ? 'bg-accent border-accent'
-                                          : 'border-edge'
-                                      )}
-                                    >
-                                      <Show when={active()}>
-                                        <CheckIcon class="size-2.5 text-surface" />
-                                      </Show>
-                                    </span>
+                                    <TypeIndicator active={active()} />
 
                                     <Show when={option.icon}>
                                       {(icon) => (
@@ -894,63 +757,6 @@ export const UnifiedFilterDropdown = () => {
                       placeholder="Search assignees..."
                     />
                   </Show>
-
-                  {/* Search view: 7 type rows (Channels/Email have nested submenus) */}
-                  <Show when={isSearchView()}>
-                    <For each={INDEX_OPTIONS}>
-                      {(option) => {
-                        const rowProps = {
-                          option,
-                          active: () => soup.predicates.isActive(option.value),
-                          onSelect: () => handleIndexChange(option.value),
-                          closeRoot: () => setOpen(false),
-                        };
-                        return (
-                          <Switch fallback={<SearchIndexItem {...rowProps} />}>
-                            <Match when={option.value === 'channels'}>
-                              <SearchIndexSubRow {...rowProps}>
-                                <ChannelSearchSubContent
-                                  channel={channel}
-                                  channelOptions={inChannelOptions}
-                                  senderOptions={fromSenderOptions}
-                                />
-                              </SearchIndexSubRow>
-                            </Match>
-                            <Match when={option.value === 'email'}>
-                              <SearchIndexSubRow {...rowProps}>
-                                <EmailSearchSubContent email={email} />
-                              </SearchIndexSubRow>
-                            </Match>
-                            <Match when={option.value === 'calls'}>
-                              <SearchIndexSubRow {...rowProps}>
-                                <CallSearchSubContent
-                                  call={call}
-                                  channelOptions={inChannelOptions}
-                                  senderOptions={fromSenderOptions}
-                                />
-                              </SearchIndexSubRow>
-                            </Match>
-                          </Switch>
-                        );
-                      }}
-                    </For>
-
-                    {/* All row */}
-                    <Dropdown.Item
-                      onSelect={() => handleIndexChange('all')}
-                      closeOnSelect
-                    >
-                      <TypeIndicator active={!hasActiveIndex()} />
-                      <span
-                        class={cn(
-                          'flex-1 truncate',
-                          !hasActiveIndex() ? 'text-ink' : 'text-ink-muted'
-                        )}
-                      >
-                        All
-                      </span>
-                    </Dropdown.Item>
-                  </Show>
                 </>
               }
             >
@@ -963,16 +769,7 @@ export const UnifiedFilterDropdown = () => {
                       onSelect={() => toggleFilter(option.id)}
                       closeOnSelect={!categories()[0]!.multiple}
                     >
-                      <span
-                        class={cn(
-                          'size-4 flex items-center justify-center shrink-0 rounded border',
-                          active() ? 'bg-accent border-accent' : 'border-edge'
-                        )}
-                      >
-                        <Show when={active()}>
-                          <CheckIcon class="size-2.5 text-surface" />
-                        </Show>
-                      </span>
+                      <TypeIndicator active={active()} />
 
                       <Show when={option.icon}>
                         {(icon) => (
@@ -1002,135 +799,4 @@ export const UnifiedFilterDropdown = () => {
   );
 };
 
-/** Search-index filters (type + channel/email/call refinements) packaged as a
- * single popover row, so they can live inside the ViewOptionsPopover the same
- * way other views' filter categories do. */
-export const SearchFilterDropdown = () => {
-  const [open, setOpen] = createSignal(false);
-  const panel = useSplitPanelOrThrow();
-  const { soup } = useSoupView();
-  const contentId = panel.handle.content().id;
-  const isSearchView = () => {
-    const content = panel.handle.content();
-    return content.type === 'component' && content.id === 'search';
-  };
-
-  const { changeIndex: handleIndexChange } = useSearchIndexController();
-  const channel = useChannelSearchFilter({ contentId, isSearchView });
-  const email = useEmailSearchFilter({ contentId, isSearchView });
-  const call = useCallSearchFilter({ contentId, isSearchView });
-  const { channelOptions: inChannelOptions, senderOptions: fromSenderOptions } =
-    useSearchFilterOptions();
-
-  const hasActiveIndex = () =>
-    INDEX_OPTIONS.some((opt) => soup.predicates.isActive(opt.value));
-
-  const activeLabel = () =>
-    INDEX_OPTIONS.find((opt) => soup.predicates.isActive(opt.value))?.label ??
-    'All';
-
-  const channelSubActive = () =>
-    channel.isActive() &&
-    (channel.channelIds().length > 0 || channel.senderIds().length > 0);
-  const emailSubActive = () =>
-    email.isActive() && email.importance() !== undefined;
-  const callSubActive = () =>
-    call.isActive() &&
-    (call.channelIds().length > 0 ||
-      call.speakerIds().length > 0 ||
-      (call.attended() !== undefined && call.attended() !== null));
-
-  return (
-    <div class="flex items-center justify-between gap-3">
-      <div class="flex items-center gap-1.5">
-        <span class="text-xs text-ink-muted">Type</span>
-        <Show when={hasActiveIndex()}>
-          <span class="size-1.5 rounded-full bg-accent" />
-        </Show>
-      </div>
-      <Dropdown
-        open={open()}
-        onOpenChange={setOpen}
-        placement="bottom-end"
-        gutter={4}
-      >
-        <Dropdown.Trigger
-          variant="ghost"
-          class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-sm bg-ink/5 hover:bg-ink/10"
-        >
-          <span class={hasActiveIndex() ? 'text-ink' : 'text-ink-muted'}>
-            {activeLabel()}
-          </span>
-          <CaretDownIcon class="size-3 text-ink-muted" />
-        </Dropdown.Trigger>
-        <Dropdown.Content depth={3}>
-          <Dropdown.Group>
-            <Dropdown.Item
-              onSelect={() => handleIndexChange('all')}
-              closeOnSelect
-            >
-              <span
-                class={cn(
-                  'flex-1 truncate',
-                  !hasActiveIndex() ? 'text-ink' : 'text-ink-muted'
-                )}
-              >
-                All
-              </span>
-              <Show when={!hasActiveIndex()}>
-                <CheckIcon class="size-3 text-accent shrink-0" />
-              </Show>
-            </Dropdown.Item>
-
-            <For each={INDEX_OPTIONS}>
-              {(option) => {
-                const rowProps = {
-                  option,
-                  active: () => soup.predicates.isActive(option.value),
-                  onSelect: () => handleIndexChange(option.value),
-                  closeRoot: () => setOpen(false),
-                };
-                return (
-                  <Switch fallback={<SearchIndexItem {...rowProps} />}>
-                    <Match when={option.value === 'channels'}>
-                      <SearchIndexSubRow
-                        {...rowProps}
-                        subFilterActive={channelSubActive}
-                      >
-                        <ChannelSearchSubContent
-                          channel={channel}
-                          channelOptions={inChannelOptions}
-                          senderOptions={fromSenderOptions}
-                        />
-                      </SearchIndexSubRow>
-                    </Match>
-                    <Match when={option.value === 'email'}>
-                      <SearchIndexSubRow
-                        {...rowProps}
-                        subFilterActive={emailSubActive}
-                      >
-                        <EmailSearchSubContent email={email} />
-                      </SearchIndexSubRow>
-                    </Match>
-                    <Match when={option.value === 'calls'}>
-                      <SearchIndexSubRow
-                        {...rowProps}
-                        subFilterActive={callSubActive}
-                      >
-                        <CallSearchSubContent
-                          call={call}
-                          channelOptions={inChannelOptions}
-                          senderOptions={fromSenderOptions}
-                        />
-                      </SearchIndexSubRow>
-                    </Match>
-                  </Switch>
-                );
-              }}
-            </For>
-          </Dropdown.Group>
-        </Dropdown.Content>
-      </Dropdown>
-    </div>
-  );
-};
+export const SearchFilterDropdown = UnifiedFilterDropdown;

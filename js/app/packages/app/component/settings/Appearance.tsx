@@ -1,176 +1,258 @@
-import {
-  monochromeIcons,
-  setMonochromeIcons,
-  setTooltipsEnabled,
-  tooltipsEnabled,
-} from '@ui/signals/signals';
+import { monochromeIcons, setMonochromeIcons, setTooltipsEnabled, tooltipsEnabled } from '@ui/signals/signals';
 import { ThemeEditorAdvanced } from '@theme/components/ThemeEditorAdvanced';
-import { ThemeEditorBasic } from '@theme/components/ThemeEditorBasic';
+import { ThemeEditorBasic, randomizeTheme } from '@theme/components/ThemeEditorBasic';
 import ThemeTools from '@theme/components/ThemeTools';
 import ThemeList from '@theme/components/ThemeList';
-import { createSignal, type JSX, onCleanup, Show } from 'solid-js';
-import { Panel, ToggleSwitch } from '@ui';
-import CaretRight from '@phosphor/caret-right.svg';
-import {
-  settingsModalOpen,
-  setThemePickerFloating,
-} from '@core/constant/SettingsState';
+import { isMobile } from '@core/mobile/isMobile';
+import { createSignal, For, Show } from 'solid-js';
+import { TabsInset } from '@core/component/TabsInset';
+import IconDice from '@phosphor-icons/core/regular/dice-five.svg?component-solid';
+import IconFunnel from '@phosphor-icons/core/regular/funnel-simple.svg?component-solid';
+import { darkModeTheme, lightModeTheme, setDarkModeTheme, setLightModeTheme, setShowDarkThemes, setShowLightThemes, setThemeShouldMatchSystem, showDarkThemes, showLightThemes, themes, themeShouldMatchSystem } from '@theme/signals/themeSignals';
+import { isTokensDark } from '@theme/utils/themeUtils';
+import { ThemeChips } from '@theme/components/ThemeChips';
+import { ThemeChipPill } from '@theme/components/ThemeChipPill';
+import type { ThemeV2 } from '@theme/types/themeTypes';
+import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
+import { Button, cn, Dropdown, InlineCheckbox, Panel, ToggleSwitch } from '@ui';
 
-/**
- * Listens for pointerdown on the theme editor area to enter the "floating preview"
- * mode where the settings modal becomes transparent and a mini picker mirrors
- * the user's input from the bottom-right. The mode releases on the next pointerup
- * anywhere on the document.
- */
-function useThemePickerDragHandlers() {
-  let endListener: (() => void) | undefined;
+type PanelA = 'basic' | 'advanced';
+type PanelB ='themes' | 'ui'
 
-  const onPointerDown = (e: PointerEvent) => {
-    if (!settingsModalOpen()) return;
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
-    const isThemeControl =
-      target.closest(
-        'input[type="range"], canvas, [data-theme-color-control], .theme-editor-basic-slider'
-      ) !== null;
-    if (!isThemeControl) return;
-    setThemePickerFloating(true);
-    if (endListener) return;
-    const end = () => {
-      setThemePickerFloating(false);
-      if (endListener) {
-        document.removeEventListener('pointerup', endListener, true);
-        document.removeEventListener('pointercancel', endListener, true);
-        endListener = undefined;
-      }
-    };
-    endListener = end;
-    document.addEventListener('pointerup', end, true);
-    document.addEventListener('pointercancel', end, true);
-  };
-
-  onCleanup(() => {
-    if (endListener) {
-      document.removeEventListener('pointerup', endListener, true);
-      document.removeEventListener('pointercancel', endListener, true);
-      endListener = undefined;
-    }
-    setThemePickerFloating(false);
-  });
-
-  return { onPointerDown };
-}
-
-function Section(props: {
-  title: string;
-  right?: JSX.Element;
-  children: JSX.Element;
-}) {
-  return (
-    <div class="flex flex-col gap-3">
-      <div class="flex min-h-7 items-center justify-between gap-3">
-        <h3 class="text-sm font-semibold text-ink">{props.title}</h3>
-        <Show when={props.right}>{props.right}</Show>
-      </div>
-      <div>{props.children}</div>
-    </div>
-  );
-}
-
-function ToggleRow(props: {
+function ThemePreferenceRow(props: {
   label: string;
-  description?: string;
-  checked: boolean;
-  onChange: (next: boolean) => void;
+  value: () => string;
+  options: () => ThemeV2[];
+  onSelect: (id: string) => void;
+  // Default themes only take effect while auto-detect is on, so the control is
+  // dimmed and non-interactive otherwise.
+  disabled?: () => boolean;
 }) {
+  const selectedTheme = () =>
+    themes().find((theme) => theme.id === props.value());
+
   return (
-    <div class="flex min-h-10 items-center justify-between gap-4 py-1.5">
-      <div class="flex min-w-0 flex-col gap-0.5">
-        <div class="text-sm">{props.label}</div>
-        <Show when={props.description}>
-          <div class="text-xs text-ink-extra-muted">{props.description}</div>
-        </Show>
-      </div>
-      <ToggleSwitch onChange={props.onChange} checked={props.checked} />
+    <div
+      class={cn(
+        // Nested under the auto-detect toggle: the indent marks these as
+        // sub-settings that only apply while auto-detect is on. Shorter than the
+        // top-level rows so they cluster tightly beneath the toggle.
+        'bg-surface flex items-center justify-between h-11 px-6 pl-10 transition-opacity',
+        props.disabled?.() && 'opacity-50 pointer-events-none'
+      )}
+      aria-disabled={props.disabled?.()}
+    >
+      <div class="text-sm">{props.label}</div>
+      <Dropdown>
+        {/* Same pill as the theme mention chip; `as` makes it the dropdown trigger. */}
+        <KobalteDropdownMenu.Trigger
+          as={ThemeChipPill}
+          class="h-auto"
+          disabled={props.disabled?.()}
+          theme={selectedTheme()}
+          name={selectedTheme()?.name ?? props.value()}
+        />
+        <Dropdown.Content>
+          <Dropdown.Group>
+            <For each={props.options()}>
+              {(theme) => (
+                <Dropdown.Item
+                  class="touch:min-h-10"
+                  onSelect={() => props.onSelect(theme.id)}
+                >
+                  <span class="flex items-center gap-2">
+                    <ThemeChips theme={theme} size="sm" />
+                    {theme.name}
+                  </span>
+                </Dropdown.Item>
+              )}
+            </For>
+          </Dropdown.Group>
+        </Dropdown.Content>
+      </Dropdown>
     </div>
   );
 }
 
 function UserInterface() {
+  const lightThemes = () =>
+    themes().filter((theme) => !isTokensDark(theme.tokens));
+  const darkThemes = () => themes().filter((theme) => isTokensDark(theme.tokens));
+
   return (
-    <div class="flex flex-col gap-3">
-      <ToggleRow
-        label="Monochrome icons"
-        description="Render entity icons in a single tone"
-        checked={monochromeIcons()}
-        onChange={setMonochromeIcons}
+    <div class="flex flex-col">
+      <div class="bg-surface flex items-center justify-between h-15.25 px-6">
+        <div class="text-sm">Monochrome Icons</div>
+        <ToggleSwitch
+          onChange={setMonochromeIcons}
+          checked={monochromeIcons()}
+        />
+      </div>
+
+      <div class="bg-surface flex items-center justify-between h-15.25 px-6">
+        <div class="text-sm">Show Tooltips</div>
+        <ToggleSwitch
+          onChange={setTooltipsEnabled}
+          checked={tooltipsEnabled()}
+        />
+      </div>
+
+      <div class="bg-surface flex items-center justify-between h-15.25 px-6">
+        <div class="flex flex-col gap-0.5">
+          <div class="text-sm">Auto-detect color scheme</div>
+          <div class="text-xs text-ink-muted">
+            Switch theme with your system's light/dark mode
+          </div>
+        </div>
+        <ToggleSwitch
+          onChange={setThemeShouldMatchSystem}
+          checked={themeShouldMatchSystem()}
+        />
+      </div>
+
+      <ThemePreferenceRow
+        label="Default light theme"
+        value={lightModeTheme}
+        options={lightThemes}
+        onSelect={setLightModeTheme}
+        disabled={() => !themeShouldMatchSystem()}
       />
-      <ToggleRow
-        label="Show tooltips"
-        description="Show hover tooltips throughout the app"
-        checked={tooltipsEnabled()}
-        onChange={setTooltipsEnabled}
+
+      <ThemePreferenceRow
+        label="Default dark theme"
+        value={darkModeTheme}
+        options={darkThemes}
+        onSelect={setDarkModeTheme}
+        disabled={() => !themeShouldMatchSystem()}
       />
+
     </div>
   );
 }
 
-export function Appearance(props: { mini?: boolean } = {}) {
-  const dragHandlers = useThemePickerDragHandlers();
-  const [showAdvanced, setShowAdvanced] = createSignal(false);
+export function Appearance() {
+  const [activeTabA, setActiveTabA] = createSignal<PanelA>('basic');
+  const [activeTabB, setActiveTabB] = createSignal<PanelB>('themes');
+  const [showFilters, setShowFilters] = createSignal(false);
 
-  if (props.mini) {
-    return (
-      <div class="size-full overflow-hidden p-2">
-        <Panel depth={2} class="size-full">
-          <Panel.Body scroll>
-            <ThemeEditorBasic />
-          </Panel.Body>
-        </Panel>
-      </div>
-    );
-  }
+  // The top panel sizes to the active editor; Advanced needs a fixed, scrollable
+  // height since its per-token list is taller than the panel.
+  const rowA = () =>
+    activeTabA() === 'advanced'
+      ? isMobile()
+        ? '322.5px'
+        : '432.5px'
+      : 'min-content';
+  // On mobile the whole panel scrolls as one column, so the bottom panel sizes to
+  // its content rather than filling (and being clipped by) a fixed viewport row.
+  const rowB = () => (isMobile() ? 'min-content' : '1fr');
 
   return (
     <div
-      class="flex w-full flex-col divide-y divide-edge-muted text-ink"
-      onPointerDown={dragHandlers.onPointerDown}
+      class={cn(
+        'h-full flex justify-center p-2',
+        // Mobile: scroll the whole settings column. Desktop: fixed two-pane layout.
+        isMobile() ? 'overflow-y-auto items-start' : 'overflow-hidden'
+      )}
     >
-      <div class="pb-6">
-        <Section title="Interface">
-          <UserInterface />
-        </Section>
-      </div>
+      <div
+        class={cn('max-w-200 w-full', !isMobile() && 'h-full')}
+        style={{
+          // Basic editor shrinks to fit its content; Advanced needs a fixed,
+          // scrollable height since its per-token list is taller than the panel.
+          'grid-template-rows': `${rowA()} ${rowB()}`,
+          'grid-template-columns': '1fr',
+          'overflow': isMobile() ? 'visible' : 'hidden',
+          'display': 'grid',
+          'gap': '8px',
+        }}
+      >
+        <Panel depth={2}>
+          <Panel.Header>
+            <TabsInset
+              onChange={(value) => setActiveTabA(value as PanelA)}
+              list={[
+                { value: 'basic', label: 'Basic' },
+                { value: 'advanced', label: 'Advanced' },
+              ]}
+              value={activeTabA()}
+              defaultValue="basic"
+            />
+            <ThemeTools class="flex-1 min-w-0" />
+          </Panel.Header>
 
-      <div class="py-6">
-        <Section title="Colors" right={<ThemeTools />}>
-          <div class="flex flex-col gap-4">
-            <ThemeEditorBasic />
-            <div class="flex flex-col gap-3">
+          <Panel.Body scroll={activeTabA() === 'advanced'}>
+            <Show when={activeTabA() === 'basic'}>
+              <ThemeEditorBasic />
+            </Show>
+            <Show when={activeTabA() === 'advanced'}>
+              <ThemeEditorAdvanced />
+            </Show>
+          </Panel.Body>
+        </Panel>
+
+        <Panel depth={2}>
+          <Panel.Header>
+            <TabsInset
+              onChange={(value) => setActiveTabB(value as PanelB)}
+              list={[
+                { value: 'themes', label: 'Themes' },
+                { value: 'ui', label: 'UI' },
+              ]}
+              value={activeTabB()}
+              defaultValue="list"
+            />
+            <div class="flex-1" />
+            <Show when={activeTabB() === 'themes'}>
+              <Button
+                label="Filter Themes"
+                onPointerDown={() => setShowFilters((v) => !v)}
+                variant={showFilters() ? 'cta' : 'ghost'}
+                size="icon-sm"
+              >
+                <IconFunnel />
+              </Button>
+            </Show>
+            <Button
+              label="Randomize Theme"
+              onPointerDown={randomizeTheme}
+              variant="ghost"
+              size="icon-sm"
+              class="ml-1.5"
+            >
+              <IconDice />
+            </Button>
+          </Panel.Header>
+          <Show when={activeTabB() === 'themes' && showFilters()}>
+            <Panel.Toolbar class="gap-4 pl-5">
+              <span class="text-xs text-ink-extra-muted">Filter themes</span>
               <button
                 type="button"
-                class="flex items-center gap-1 self-start text-xs text-ink-muted hover:text-ink"
-                onClick={() => setShowAdvanced((v) => !v)}
+                class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink touch:min-h-9 touch:pr-2"
+                onClick={() => setShowLightThemes((v) => !v)}
               >
-                <CaretRight
-                  class={`size-3 transition-transform ${
-                    showAdvanced() ? 'rotate-90' : ''
-                  }`}
-                />
-                Advanced colors
+                <InlineCheckbox checked={showLightThemes()} />
+                Light
               </button>
-              <Show when={showAdvanced()}>
-                <ThemeEditorAdvanced />
-              </Show>
-            </div>
-          </div>
-        </Section>
-      </div>
-
-      <div class="py-6">
-        <Section title="Theme presets">
-          <ThemeList />
-        </Section>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink touch:min-h-9 touch:pr-2"
+                onClick={() => setShowDarkThemes((v) => !v)}
+              >
+                <InlineCheckbox checked={showDarkThemes()} />
+                Dark
+              </button>
+            </Panel.Toolbar>
+          </Show>
+          <Panel.Body scroll>
+            <Show when={activeTabB() === 'themes'}>
+              <ThemeList />
+            </Show>
+            <Show when={activeTabB() === 'ui'}>
+              <UserInterface />
+            </Show>
+          </Panel.Body>
+        </Panel>
       </div>
     </div>
   );

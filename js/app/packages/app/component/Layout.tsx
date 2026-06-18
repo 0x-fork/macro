@@ -160,6 +160,7 @@ function LayoutInner(props: RouteSectionProps) {
           <GlobalShareModal />
           <IosShareSheet />
           <MacroMcpSetupModal />
+          <SettingsModal />
         </Show>
         <Show
           when={
