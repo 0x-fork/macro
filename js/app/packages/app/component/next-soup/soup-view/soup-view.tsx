@@ -38,9 +38,7 @@ import {
 } from '@app/component/next-soup/soup-view/soup-view-mobile-search';
 import { SoupViewMobileSettingsButton } from '@app/component/next-soup/soup-view/soup-view-mobile-settings-button';
 import {
-  CollapsedSoupViewTabs,
   MobileSoupViewTabs,
-  SoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
 import { TaskListEntity } from '@app/component/next-soup/soup-view/views/tasks/TaskListEntity';
@@ -54,7 +52,6 @@ import {
   useMaybePreviewPanel,
 } from '@app/component/PreviewPanel';
 import { SoupChatInput } from '@app/component/SoupChatInput';
-import { CollapsibleHeaderItem } from '@app/component/split-layout/components/CollapsibleHeaderItem';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -609,17 +606,6 @@ export const SoupView = (props: SoupViewProps) => {
                     )}
                   </Show>
                 </div>
-              </Show>
-              <Show when={!isComponentListView('search')}>
-                <Show when={!isMobile()}>
-                  <CollapsibleHeaderItem
-                    id="tabs"
-                    priority={1}
-                    expanded={() => <SoupViewTabs />}
-                    collapsed={() => <CollapsedSoupViewTabs />}
-                    containerClass="h-full"
-                  />
-                </Show>
               </Show>
               <Show when={!isMobile() && isComponentListView('mail')}>
                 <InboxSelector />
