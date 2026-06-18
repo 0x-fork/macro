@@ -44,6 +44,8 @@ pub mod status_codes {
 }
 
 const DOCUMENT_ID_KEY: &str = "DOCUMENT_ID";
+const GOLDEN_SNAPSHOT: &[u8] = include_bytes!("../markdown-golden.1.bin");
+const AUTO_INIT_AFTER: std::time::Duration = std::time::Duration::from_secs(15);
 
 mod path {
     pub const CONNECT: &str = "connect";
@@ -117,6 +119,8 @@ pub struct DocumentSyncSession {
     /// a map from websocket's ID's to websocket metadata
     ws_meta_map: Arc<Mutex<WsMetaMap>>,
     msg_buffer: Arc<Mutex<Vec<u8>>>,
+    /// When the first connection arrived while the document was uninitialized.
+    first_uninitialized_connection_at: Mutex<Option<web_time::Instant>>,
 }
 
 mod u64_serde_strings {
@@ -357,33 +361,41 @@ impl DocumentSyncSession {
     }
 
     async fn initialize_handler(&self, mut req: Request, document_id: &str) -> Result<Response> {
-        // NB: we expect DocumentSyncSession to not be initialized. If it is initialized, it's an error.
+        let body_raw = req.bytes().await?;
+        let body = InitializeFromSnapshotRequest::deserialize(&body_raw).with_context(|| {
+            format!(
+                "Failed to deserialize InitializeFromSnapshotRequest with document_id: [{document_id}]"
+            )
+        })?;
+        self.initialize_from_bytes(document_id, &body.snapshot).await?;
+        Response::empty()
+    }
+
+    async fn initialize_from_bytes(&self, document_id: &str, snapshot: &[u8]) -> Result<()> {
         let storage = get_snapshot_storage(&self.env, &self.state, document_id.to_string())?;
 
         if storage.has_snapshot().await? {
             return Err(Error::from("snapshot already exists"));
-        } else {
-            debug!(document_id = document_id, "Initializing snapshot");
-            let body_raw = req.bytes().await?;
-            let body = InitializeFromSnapshotRequest::deserialize(&body_raw).with_context(|| format!("Failed to deserialize InitializeFromSnapshotRequest with document_id: [{document_id}]"))?;
-            storage.store_snapshot(&body.snapshot).await?;
-            *self
-                .document_id
-                .lock("DocumentSyncSession::document_id set within initialize_handler") =
-                Some(Arc::new(document_id.to_string()));
-            self.state
-                .storage()
-                .put(DOCUMENT_ID_KEY, document_id.to_string())
-                .await?;
-            let dkv_storage = DurableKVStorage::new(self.state.storage());
-            let session_storage = Rc::new(SessionStorage::new(storage, dkv_storage));
-            *self
-                .session_storage
-                .lock("DocumentSyncSession::session_storage set within initialize_handler") =
-                Some(session_storage);
         }
 
-        // Broadcast initial sync to any sockets that connected before init landed.
+        debug!(document_id, "initializing from snapshot");
+        storage.store_snapshot(snapshot).await?;
+        *self
+            .document_id
+            .lock("initialize_from_bytes: set document_id") =
+            Some(Arc::new(document_id.to_string()));
+        self.state
+            .storage()
+            .put(DOCUMENT_ID_KEY, document_id.to_string())
+            .await?;
+        let dkv_storage = DurableKVStorage::new(self.state.storage());
+        let session_storage = Rc::new(SessionStorage::new(storage, dkv_storage));
+        *self
+            .session_storage
+            .lock("initialize_from_bytes: set session_storage") =
+            Some(session_storage);
+
+        // Broadcast to any sockets that connected before init landed.
         if let Ok(state) = self.document_state().await
             && let Ok(snapshot) = state.export_shallow_snapshot()
         {
@@ -395,15 +407,12 @@ impl DocumentSyncSession {
                     awareness.as_slice(),
                     self.msg_buffer.clone(),
                 ) {
-                    warn!(
-                        error =? e,
-                        "failed to send delayed initial sync to a waiting peer"
-                    );
+                    warn!(error=?e, "failed to send delayed initial sync to a waiting peer");
                 }
             }
         }
 
-        Response::empty()
+        Ok(())
     }
 
     async fn active_peer_ids_handler(&self) -> Result<Response> {
@@ -595,6 +604,7 @@ impl DocumentSyncSession {
                     document_id = document_id,
                     "snapshot not yet available; deferring initial sync until /initialize"
                 );
+                self.record_first_uninitialized_connection();
             }
 
             Response::from_websocket(pair.client).context("failed to create websocket response")?
@@ -713,6 +723,20 @@ impl DocumentSyncSession {
     }
 
     /// Gets DocumentState, loading it if needed
+    fn record_first_uninitialized_connection(&self) {
+        let mut first_uninitialized_connection_at = self
+            .first_uninitialized_connection_at
+            .lock("record_first_uninitialized_connection");
+        if first_uninitialized_connection_at.is_none() {
+            *first_uninitialized_connection_at = Some(web_time::Instant::now());
+        }
+    }
+
+    async fn auto_initialize_golden(&self, document_id: &str) -> Result<()> {
+        info!(document_id, "auto-init: seeding golden snapshot");
+        self.initialize_from_bytes(document_id, GOLDEN_SNAPSHOT).await
+    }
+
     async fn document_state(&self) -> Result<Arc<DocumentState>> {
         let Some(x) = self
             .document_state
@@ -795,6 +819,7 @@ impl DurableObject for DocumentSyncSession {
             awareness: EphemeralStore::new(5_000),
             ws_meta_map: Arc::new(Mutex::new(Default::default())),
             msg_buffer: Arc::new(Mutex::new(vec![])),
+            first_uninitialized_connection_at: Mutex::new(None),
         }
     }
 
@@ -874,8 +899,18 @@ impl DurableObject for DocumentSyncSession {
         {
             Ok(x) => x,
             Err(_e) => {
-                // This is likely due to a programming issue. We don't return `Err`
-                // because it wuld cause this alarm to retry, then fail again.
+                let should_auto_init = self
+                    .first_uninitialized_connection_at
+                    .lock("alarm: check auto-init")
+                    .is_some_and(|t| t.elapsed() >= AUTO_INIT_AFTER);
+
+                if should_auto_init {
+                    if let Ok(doc_id) = self.document_id().await {
+                        if let Err(e) = self.auto_initialize_golden(&doc_id).await {
+                            error!(error=?e, document_id=%doc_id, "alarm: auto-init golden failed");
+                        }
+                    }
+                }
                 return Response::empty();
             }
         };
