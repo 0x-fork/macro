@@ -1,6 +1,7 @@
 #![deny(missing_docs)]
 //! This crate aims to provide composable and resusable serde utilities
 
+// temp(ci): trigger namespace/nix check+test pipeline - revert before merge
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
