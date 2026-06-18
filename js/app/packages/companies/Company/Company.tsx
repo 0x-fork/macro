@@ -1,12 +1,65 @@
-import { SidePanel } from '@app/component/side-panel';
-import { SplitToolbarLeft } from '@app/component/split-layout/components/SplitToolbar';
+import { openChatWithInput } from '@app/component/ChatWithAgentButton';
+import { SidePanel, useSidePanel } from '@app/component/side-panel';
+import {
+  SplitHeaderLeft,
+  SplitHeaderRight,
+} from '@app/component/split-layout/components/SplitHeader';
+import { StaticSplitLabel } from '@app/component/split-layout/components/SplitLabel';
+import MacroLogo from '@icon/macro-logo.svg';
+import SidePanelIcon from '@phosphor/square-half.svg';
 import { useCompanyQuery } from '@queries/crm/companies';
+import { Button, cn } from '@ui';
+import { Show } from 'solid-js';
 import { CompanyContactsSection } from './CompanyContactsSection';
 import { CompanyDiscussionSection } from './CompanyDiscussionSection';
 import { CompanyEmailsSection } from './CompanyEmailsSection';
 import { CompanyHeader } from './CompanyHeader';
 import { CompanyMetadataSection } from './CompanyMetadataSection';
 import { CompanySharingSection } from './CompanySharingSection';
+
+function CompanyActionsBar(props: { companyName: string }) {
+  return (
+    <div class="mb-2 flex items-center gap-1.5">
+      <Button
+        variant="base"
+        depth={1}
+        size="sm"
+        noTouchResize
+        class="ask-macro-button group h-6 rounded-full border-transparent bg-ink/3 px-2 py-0 text-xs font-medium gap-1.5 text-ink/65 hover:bg-ink/6 hover:text-ink"
+        onClick={() =>
+          void openChatWithInput(`Tell me about ${props.companyName}`)
+        }
+      >
+        <MacroLogo class="ask-macro-logo-shimmer size-3.5 shrink-0" />
+        <span>Ask Macro</span>
+      </Button>
+    </div>
+  );
+}
+
+function CompanyHeaderDetailsButton() {
+  const sidePanel = useSidePanel();
+  return (
+    <SplitHeaderRight>
+      <Show when={sidePanel && sidePanel.hasSections() ? sidePanel : undefined}>
+        {(panel) => (
+          <Button
+            depth={2}
+            variant="base"
+            size="icon-sm"
+            class={cn('ml-1.5 size-6 p-1 bg-surface [&_svg]:size-3.5', {
+              'bg-active text-ink': panel().isOpen(),
+            })}
+            tooltip="View details"
+            onClick={() => panel().toggle()}
+          >
+            <SidePanelIcon />
+          </Button>
+        )}
+      </Show>
+    </SplitHeaderRight>
+  );
+}
 
 /**
  * Root of the company detail view. Owns the company query and pushes the
@@ -16,18 +69,17 @@ import { CompanySharingSection } from './CompanySharingSection';
  */
 export function Company(props: { companyId: string }) {
   const { company, contacts } = useCompanyQuery(() => props.companyId);
+  const companyName = () => company()?.name || 'Company';
 
   return (
     <SidePanel.Layout>
-      {/* Narrow-mode Content/Info tabs. Portaled into the split's toolbar
-          slot so they sit above the content (and outside the scroll area)
-          without restructuring the block's layout. Self-hides in wide
-          mode. Mirrors how block-call / block-md mount it. */}
-      <SplitToolbarLeft>
-        <SidePanel.NarrowTabs />
-      </SplitToolbarLeft>
+      <SplitHeaderLeft>
+        <StaticSplitLabel label={companyName()} iconType="crm_company" />
+      </SplitHeaderLeft>
+      <CompanyHeaderDetailsButton />
       <div class="flex h-full flex-col overflow-y-auto scrollbar-hidden">
         <div class="mx-auto flex w-full max-w-3xl min-w-0 grow flex-col gap-6 px-6 pt-12 pb-12">
+          <CompanyActionsBar companyName={companyName()} />
           <CompanyHeader company={company()} />
           <CompanyDiscussionSection companyId={props.companyId} />
           <CompanyEmailsSection company={company()} />

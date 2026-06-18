@@ -1,6 +1,9 @@
+import { useCall } from '@channel/Call/use-call';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import type { CallRecord } from '@service-storage/generated/schemas/callRecord';
 import { format } from 'date-fns';
+import PhoneCallIcon from '@icon/wide-call.svg';
+import { Button } from '@ui';
 import type { Accessor } from 'solid-js';
 import { createEffect, createMemo, createSignal, on, Show } from 'solid-js';
 import { formatCallDuration } from '../../utils';
@@ -12,7 +15,10 @@ import {
   sortTranscriptSegments,
 } from '../transcript-playback';
 import { CallRecordingParticipantsSection } from './CallRecordingParticipants';
-import { CallRecordingSplitHeader } from './CallRecordingSplitHeader';
+import {
+  CallRecordingActionsBar,
+  CallRecordingSplitHeader,
+} from './CallRecordingSplitHeader';
 import { CallRecordingSummarySection } from './CallRecordingSummary';
 import { CallRecordingVideo } from './CallRecordingVideo';
 import {
@@ -117,6 +123,7 @@ export function CallRecordingBody(props: {
   const callTitle = createMemo(
     () => record().customName ?? record().channelName ?? 'Call Recording'
   );
+  const call = useCall(() => record().channelId);
 
   const formattedDate = createMemo(() => {
     const ended = record().endedAt;
@@ -141,6 +148,7 @@ export function CallRecordingBody(props: {
           <div class="mx-auto max-w-3xl min-w-0 px-6 pt-10 pb-16">
             <div class="flex flex-col gap-10">
               <header>
+                <CallRecordingActionsBar record={record} />
                 <h1 class="text-2xl font-semibold text-ink text-balance">
                   {callTitle()}
                 </h1>
@@ -160,6 +168,21 @@ export function CallRecordingBody(props: {
                     <span class="text-success font-medium">In progress</span>
                   </Show>
                 </div>
+                <Show when={!record().isActive}>
+                  <div class="mt-3">
+                    <Button
+                      variant="base"
+                      depth={2}
+                      size="sm"
+                      noTouchResize
+                      class="h-6 rounded-md bg-surface px-2 py-0 text-xs font-medium gap-1.5 text-ink/65 hover:text-ink [&_svg]:size-3.5"
+                      onClick={() => call.joinCall()}
+                    >
+                      <PhoneCallIcon class="size-3.5" />
+                      <span>Call again</span>
+                    </Button>
+                  </div>
+                </Show>
               </header>
 
               <CallRecordingParticipantsSection record={record} />
