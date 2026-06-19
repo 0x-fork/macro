@@ -17,6 +17,7 @@ type CreateInputStateOptions = {
   attachmentTracker: InputAttachmentTracker;
   clearComposer?: () => void;
   attachFiles?: (files: File[]) => Promise<void> | void;
+  insertText?: (text: string) => void;
   clearInput?: () => void;
   callbacks?: InputCallbacks;
   persistenceKey?: InputPersistenceKey;
@@ -53,6 +54,7 @@ export function createInputState(options: CreateInputStateOptions): InputState {
     removeTrackedAttachment: (id) =>
       options.attachmentTracker.removeAttachment(id),
     attachFiles: options.attachFiles,
+    insertText: options.insertText,
     callbacks: options.callbacks,
   });
 

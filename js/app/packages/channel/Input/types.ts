@@ -71,6 +71,8 @@ export type InputCommands = {
   send: () => Promise<boolean>;
   attachFiles: (files: File[]) => Promise<void>;
   toggleFormatRibbon: () => void;
+  /** Inserts text (e.g. an emoji) into the editor at the current caret. */
+  insertText: (text: string) => void;
   close: () => void;
   removeAttachment: (attachment: InputAttachmentData) => void;
 };

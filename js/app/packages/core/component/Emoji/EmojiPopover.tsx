@@ -1,20 +1,25 @@
-import { EmojiSelector } from '@core/component/Emoji/EmojiSelector';
 import { Popover } from '@kobalte/core/popover';
 import { Button, type ButtonProps, Layer } from '@ui';
 import { createSignal, type JSX, splitProps } from 'solid-js';
+import { EmojiSelector } from './EmojiSelector';
 
-type EmojiReactionPopoverPlacement = 'top' | 'right' | 'bottom' | 'left';
+type EmojiPopoverPlacement = 'top' | 'right' | 'bottom' | 'left';
 
-type EmojiReactionPopoverProps = {
+/**
+ * Popover wrapping the emoji picker with a search box. Generic over how the
+ * picked emoji is used — message reactions and editor text insertion both
+ * consume it via `onEmojiSelect`.
+ */
+type EmojiPopoverProps = {
   open: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onEmojiSelect: (emoji: string) => void;
   trigger: JSX.Element;
   triggerProps?: ButtonProps;
-  placement?: EmojiReactionPopoverPlacement;
+  placement?: EmojiPopoverPlacement;
 };
 
-export function EmojiReactionPopover(props: EmojiReactionPopoverProps) {
+export function EmojiPopover(props: EmojiPopoverProps) {
   const [local] = splitProps(props, [
     'open',
     'onOpenChange',

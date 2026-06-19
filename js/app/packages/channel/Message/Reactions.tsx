@@ -1,10 +1,10 @@
+import { EmojiPopover } from '@core/component/Emoji/EmojiPopover';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import SmileyIcon from '@phosphor/smiley.svg';
 import { cn } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import { useMessage, useMessageActions } from './context';
-import { EmojiReactionPopover } from './EmojiReactionPopover';
 import { ReactionChip } from './ReactionChip';
 import { renderIcon } from './render-icon';
 
@@ -55,7 +55,7 @@ export function Reactions(props: ReactionsProps) {
         </For>
 
         <Show when={canReact() && !isTouchDevice()}>
-          <EmojiReactionPopover
+          <EmojiPopover
             placement="top"
             open={emojiMenuOpen()}
             onOpenChange={setEmojiMenuOpen}

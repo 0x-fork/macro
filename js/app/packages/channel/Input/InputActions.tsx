@@ -1,8 +1,10 @@
+import { EmojiPopover } from '@core/component/Emoji/EmojiPopover';
 import { pickNativePhotoLibraryMedia } from '@core/mobile/nativePhotoLibrary';
+import SmileyIcon from '@phosphor/smiley.svg';
 import FormatIcon from '@phosphor/text-aa.svg';
 import TrashIcon from '@phosphor/trash.svg';
 import PaperclipIcon from '@phosphor-icons/core/regular/paperclip.svg?component-solid';
-import type { JSX } from 'solid-js';
+import { createSignal, type JSX } from 'solid-js';
 import { InputActionButton } from './ActionButton';
 import { CHANNEL_FILE_PICKER_ACCEPT } from './accepted-file-types';
 import { useInput, useInputCommands } from './context';
@@ -103,6 +105,28 @@ export function ToggleFormatAction() {
     >
       <FormatIcon />
     </InputActionButton>
+  );
+}
+
+export function EmojiAction() {
+  const commands = useInputCommands();
+  const [open, setOpen] = createSignal(false);
+
+  return (
+    <EmojiPopover
+      placement="top"
+      open={open()}
+      onOpenChange={setOpen}
+      onEmojiSelect={(emoji) => commands.insertText(emoji)}
+      trigger={<SmileyIcon />}
+      triggerProps={{
+        title: 'Emoji',
+        'aria-label': 'Emoji',
+        tooltip: 'Emoji',
+        variant: open() ? 'active' : 'ghost',
+        size: 'icon-sm',
+      }}
+    />
   );
 }
 

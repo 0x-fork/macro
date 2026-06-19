@@ -1,3 +1,4 @@
+import { EmojiPopover } from '@core/component/Emoji/EmojiPopover';
 import StarIcon from '@icon/wide-star.svg';
 import TaskIcon from '@icon/wide-task.svg';
 import ReplyIcon from '@phosphor/arrow-bend-up-left.svg';
@@ -8,7 +9,6 @@ import TrashIcon from '@phosphor/trash.svg';
 import { Button, cn, Layer } from '@ui';
 import { type Component, createSignal, For, type JSX, Show } from 'solid-js';
 import { useMessage, useMessageActions } from './context';
-import { EmojiReactionPopover } from './EmojiReactionPopover';
 import { HoverActions } from './HoverActions';
 import { renderIcon } from './render-icon';
 import type { MessageActionEvent, MessageActionHandler } from './types';
@@ -152,7 +152,7 @@ export function ActionMenu(props: ActionMenuProps) {
                 )}
               </For>
 
-              <EmojiReactionPopover
+              <EmojiPopover
                 placement="left"
                 open={emojiMenuOpen()}
                 onOpenChange={setEmojiMenuOpen}

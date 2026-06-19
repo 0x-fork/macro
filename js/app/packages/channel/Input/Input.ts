@@ -11,6 +11,7 @@ import {
   AttachNativeMediaAction,
   CloseReplyAction,
   DiscardDraftAction,
+  EmojiAction,
   ToggleFormatAction,
 } from './InputActions';
 import { Layout } from './Layout';
@@ -31,6 +32,7 @@ export const Input = {
   AttachFilesAction,
   AttachNativeMediaAction,
   ToggleFormatAction,
+  EmojiAction,
   CloseReplyAction,
   DiscardDraftAction,
   SendAction,

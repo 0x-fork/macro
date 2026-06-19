@@ -4,6 +4,7 @@ import { DragInsertIndicator } from '@core/component/LexicalMarkdown/component/m
 import {
   createDragInsertStore,
   INSERT_DOCUMENT_MENTION_COMMAND,
+  INSERT_TEXT_COMMAND,
 } from '@core/component/LexicalMarkdown/plugins';
 import { singleLineMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
 import {
@@ -79,6 +80,7 @@ function WebDefaultActions(props: { input: InputData }) {
       <Input.Actions.Left>
         <Input.AttachFilesAction />
         <Input.ToggleFormatAction />
+        <Input.EmojiAction />
         <Show when={isReplyInput(props.input)}>
           <Input.CloseReplyAction />
         </Show>
@@ -96,6 +98,7 @@ function IosDefaultActions(props: { input: InputData }) {
       <Input.Actions.Left>
         <Input.AttachNativeMediaAction />
         <Input.ToggleFormatAction />
+        <Input.EmojiAction />
         <Show when={isReplyInput(props.input)}>
           <Input.CloseReplyAction />
         </Show>
@@ -153,6 +156,13 @@ export function ChannelInput(props: ChannelInputProps) {
       });
     },
     clearInput: () => markdownEditor.controls.clear(),
+    // Insert an emoji (or any text) at the caret. Restore focus on the next
+    // frame: the emoji popover restores focus to its trigger as it closes, so
+    // focusing synchronously here would get stolen back from the editor.
+    insertText: (text) => {
+      lexicalEditor().dispatchCommand(INSERT_TEXT_COMMAND, text);
+      requestAnimationFrame(() => markdownEditor.controls.focus());
+    },
     callbacks: {
       onChange: props.onChange,
       onSend: (snapshot) => {

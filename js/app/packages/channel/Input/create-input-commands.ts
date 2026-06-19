@@ -17,6 +17,7 @@ type CreateInputCommandsDeps = {
   clearComposer?: () => void;
   removeTrackedAttachment: (id: string) => void;
   attachFiles?: (files: File[]) => Promise<void> | void;
+  insertText?: (text: string) => void;
   callbacks?: InputCallbacks;
 };
 
@@ -56,6 +57,9 @@ export function createInputCommands(
         deps.callbacks?.onToggleFormatRibbon?.(next);
         return next;
       });
+    },
+    insertText: (text: string) => {
+      deps.insertText?.(text);
     },
     close: () => {
       const current = deps.snapshot();

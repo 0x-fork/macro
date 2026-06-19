@@ -14,7 +14,10 @@ import {
   applyNodeFormat,
 } from '@channel/Input/utils/formatting';
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
-import type { ItemMention } from '@core/component/LexicalMarkdown/plugins';
+import {
+  INSERT_TEXT_COMMAND,
+  type ItemMention,
+} from '@core/component/LexicalMarkdown/plugins';
 import { addMediaFromFile } from '@core/component/LexicalMarkdown/plugins/media';
 import { isMobile } from '@core/mobile/isMobile';
 import type { IUser } from '@core/user/types';
@@ -170,6 +173,12 @@ export function DiscussionInput(props: DiscussionInputProps) {
       for (const file of files) {
         await addMediaFromFile(markdownEditor.lexical, file, 'image');
       }
+    },
+    insertText: (text: string) => {
+      markdownEditor.lexical.dispatchCommand(INSERT_TEXT_COMMAND, text);
+      // Focus next frame; the emoji popover restores focus to its trigger as
+      // it closes, which would otherwise steal it back from the editor.
+      requestAnimationFrame(() => markdownEditor.controls.focus());
     },
     removeAttachment: () => {
       // No-op for discussion input - no attachments to remove
