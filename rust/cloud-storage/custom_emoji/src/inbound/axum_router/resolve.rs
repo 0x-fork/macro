@@ -2,6 +2,9 @@
 //!
 //! Authenticated but NOT team-gated: anyone who receives a message containing a
 //! custom emoji must be able to render it (render-on-encounter).
+//!
+//! The response is unordered and de-duplicated; clients map results by `id`.
+//! Unknown ids are simply omitted. Batches are capped (see the service).
 
 use axum::{Json, extract::State};
 use model_user::axum_extractor::MacroUserExtractor;

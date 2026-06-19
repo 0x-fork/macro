@@ -8,8 +8,16 @@ use crate::domain::model::{
 };
 use crate::domain::ports::{CustomEmojiRepository, CustomEmojiService};
 
+#[cfg(test)]
+mod test;
+
 /// Max slug length (kept in sync with the `team_custom_emoji.slug` column).
 const MAX_SLUG_LEN: usize = 32;
+
+/// Max ids accepted by a single `resolve` call. `resolve` is batch-called from
+/// message rendering, so the input is bounded to keep the `id = ANY($1)` query
+/// and response from blowing up.
+const MAX_RESOLVE_IDS: usize = 500;
 
 /// Concrete [`CustomEmojiService`] backed by a [`CustomEmojiRepository`].
 #[derive(Debug, Clone)]
@@ -51,6 +59,10 @@ impl<R: CustomEmojiRepository> CustomEmojiService for CustomEmojiServiceImpl<R> 
         sfs_file_id: &str,
     ) -> Result<CustomEmoji, CreateCustomEmojiError> {
         validate_slug(slug)?;
+        // TODO(custom-emoji PoC): validate `sfs_file_id` — that the file exists,
+        // is an image within the size/dimension limits, and belongs to the
+        // caller's team. Deferred for the PoC (client-side checks only); the
+        // backend currently trusts whatever file id it is handed.
         if !self.repo.is_team_member(user_id, team_id).await? {
             return Err(CreateCustomEmojiError::NotTeamMember(*team_id));
         }
@@ -74,6 +86,13 @@ impl<R: CustomEmojiRepository> CustomEmojiService for CustomEmojiServiceImpl<R> 
         if ids.is_empty() {
             return Ok(Vec::new());
         }
+        if ids.len() > MAX_RESOLVE_IDS {
+            return Err(CustomEmojiError::TooManyIds {
+                max: MAX_RESOLVE_IDS,
+                got: ids.len(),
+            });
+        }
+        // Result is unordered and de-duplicated by the DB; callers map by id.
         self.repo.resolve_by_ids(ids).await
     }
 

@@ -40,8 +40,7 @@ impl<S> Clone for CustomEmojiRouterState<S> {
     }
 }
 
-/// API representation of a custom emoji. The frontend derives the image URL
-/// from `sfs_file_id` (the same way it does for other static files).
+/// API representation of a custom emoji; the frontend derives the image URL from `sfs_file_id`.
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub struct CustomEmojiDto {
     /// Immutable id referenced by messages.
@@ -91,7 +90,16 @@ fn server_error() -> Response {
 
 impl IntoResponse for CustomEmojiError {
     fn into_response(self) -> Response {
-        server_error()
+        match self {
+            CustomEmojiError::TooManyIds { .. } => (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    message: self.to_string().into(),
+                }),
+            )
+                .into_response(),
+            CustomEmojiError::StorageLayerError(_) => server_error(),
+        }
     }
 }
 

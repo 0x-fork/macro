@@ -24,6 +24,14 @@ pub struct CustomEmoji {
 /// Generic custom-emoji errors (reads / storage failures).
 #[derive(Debug, thiserror::Error)]
 pub enum CustomEmojiError {
+    /// Too many ids requested in a single resolve call.
+    #[error("too many ids: {got} (max {max})")]
+    TooManyIds {
+        /// The maximum number of ids allowed per request.
+        max: usize,
+        /// The number of ids that were requested.
+        got: usize,
+    },
     /// Underlying storage failure.
     #[error("storage layer error: {0}")]
     StorageLayerError(#[from] anyhow::Error),
