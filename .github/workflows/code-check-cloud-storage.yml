@@ -107,7 +107,6 @@ jobs:
       # mold ships in the dev shell; override the workflow-level lld default so the
       # link step does not depend on lld being on the runner.
       RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
-      SCCACHE_CACHE_SIZE: "20G"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -120,17 +119,19 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
         with:
           path: /nix
-      # The caches that actually make check fast on warm runs: sccache's object
-      # cache (unchanged crates are served straight from it) and cargo's
-      # registry/git checkouts (deps are not re-downloaded).
+      # sccache object cache + cargo registry/git, scoped to THIS job. check and
+      # test run concurrently on separate runners; if both wrote the same cache
+      # paths they would race on the shared Namespace volume and neither would
+      # persist (observed: a green run committed the cache, yet the next run mounted
+      # it empty). Distinct -check/-test paths give each cache a single writer.
       - name: Mount Rust build caches
         continue-on-error: true
         uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
         with:
           path: |
-            ~/.cache/sccache
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cache/sccache-check
+            ~/.cargo-check/registry
+            ~/.cargo-check/git
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
       # dev-shell: true gives cargo/clippy/rustfmt + sccache (RUSTC_WRAPPER is set
@@ -144,6 +145,13 @@ jobs:
       - name: fmt + clippy
         run: |
           set -euo pipefail
+          # Point sccache + cargo at this job's private cache dirs (see the cache
+          # mount above). Exported here, not in env:, because setup-cachix writes
+          # SCCACHE_DIR / SCCACHE_CACHE_SIZE to GITHUB_ENV, which overrides job env:.
+          export SCCACHE_DIR="$HOME/.cache/sccache-check"
+          export SCCACHE_CACHE_SIZE="10G"
+          export CARGO_HOME="$HOME/.cargo-check"
+          sccache --stop-server >/dev/null 2>&1 || true  # restart server on the dir above
           cd rust/cloud-storage
           cargo fmt --all -- --check
           # Match the crane checks.clippy scope exactly: default targets (lib +
@@ -168,7 +176,6 @@ jobs:
     runs-on: namespace-profile-linux-small
     env:
       RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
-      SCCACHE_CACHE_SIZE: "20G"
       NEXTEST_FILTER: ${{ needs.path-check.outputs.nextest_filter }}
       NEXTEST_TEST_THREADS: '32'
     services:
@@ -201,14 +208,16 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
         with:
           path: /nix
+      # Per-job cache scope (see the check job for why): distinct paths so check
+      # and test do not race writing the same Namespace cache.
       - name: Mount Rust build caches
         continue-on-error: true
         uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0 # v1.4.3
         with:
           path: |
-            ~/.cache/sccache
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cache/sccache-test
+            ~/.cargo-test/registry
+            ~/.cargo-test/git
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
       # dev-shell provides cargo-nextest/just/sqlx + sccache (RUSTC_WRAPPER). No
@@ -250,6 +259,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
+          # This job's private sccache + cargo caches (see cache mount). Exported
+          # here to beat setup-cachix's GITHUB_ENV SCCACHE_DIR/SCCACHE_CACHE_SIZE.
+          export SCCACHE_DIR="$HOME/.cache/sccache-test"
+          export SCCACHE_CACHE_SIZE="10G"
+          export CARGO_HOME="$HOME/.cargo-test"
+          sccache --stop-server >/dev/null 2>&1 || true  # restart server on the dir above
           cd rust/cloud-storage
           # Compile (cached by sccache) and run against the live services.
           # NEXTEST_FILTER (from path-check) scopes the run to the affected
