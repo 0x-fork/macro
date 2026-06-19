@@ -96,6 +96,7 @@ insert_local_fusionauth_variables:
   API_KEY="bf69486b-4733-4954-a44e-2e1b5f2c8a91"
   APPLICATION_ID=$(pulumi stack output macroApplicationClientId -s local)
   TENANT_ID=$(pulumi stack output defaultTenantId -s local)
+  GITHUB_IDP_ID=$(pulumi stack output githubIdpId -s local)
 
   CURL_RESPONSE=$(curl -s "http://localhost:9011/api/application/${APPLICATION_ID}" \
     -H "Authorization: ${API_KEY}")
@@ -135,5 +136,10 @@ insert_local_fusionauth_variables:
   patch_var FUSIONAUTH_BASE_URL "http://fusionauth:9011"
   patch_var FUSIONAUTH_API_KEY_SECRET_KEY "$API_KEY"
   patch_var FUSIONAUTH_OAUTH_REDIRECT_URI "http://localhost:8080/oauth/redirect"
+
+  # GitHub IdP (local only). Macro does the GitHub OAuth itself, so this only
+  # wires the IdP id; GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET (a real GitHub
+  # OAuth app) must be set manually to actually link an account.
+  patch_var GITHUB_IDP_ID "$GITHUB_IDP_ID"
 
   echo "Patched .env with local FusionAuth values"
