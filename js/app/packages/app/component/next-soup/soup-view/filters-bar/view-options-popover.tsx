@@ -76,7 +76,7 @@ const VIEW_GROUP_OPTIONS: Partial<Record<ListView, GroupOption[]>> = {
 const MENU_SHADOW_CLASS =
   'shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]';
 const SELECT_CONTENT_CLASS = cn(
-  'z-action-menu bg-surface rounded-xl min-w-[160px] p-1 border-0',
+  'z-action-menu bg-surface rounded-xl min-w-[160px] px-1 pt-1.25 pb-1 border-0',
   MENU_SHADOW_CLASS
 );
 const SELECT_ITEM_CLASS =

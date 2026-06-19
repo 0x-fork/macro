@@ -88,6 +88,8 @@ import {
   type SearchLocation,
 } from '@entity';
 import { createEffectOnEntityTypeNotification } from '@notifications';
+import { Tooltip as KobalteTooltip } from '@kobalte/core/tooltip';
+import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import ChevronRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
@@ -104,7 +106,7 @@ import {
   refetchSoupEntity,
 } from '@queries/soup/normalized-cache';
 import { debounce } from '@solid-primitives/scheduled';
-import { Button, cn, Layer } from '@ui';
+import { Button, cn, Layer, Surface } from '@ui';
 import {
   type Accessor,
   batch,
@@ -357,6 +359,110 @@ const listStateCache = new Map<
   }
 >();
 
+const LIST_VIEW_INFO: Partial<
+  Record<ListView, { title: string; description: string }>
+> = {
+  inbox: {
+    title: 'Inbox',
+    description: 'A prioritized feed of work that needs your attention across Macro.',
+  },
+  agents: {
+    title: 'Agents',
+    description: 'Review AI conversations, automations, and agent activity in one place.',
+  },
+  mail: {
+    title: 'Email',
+    description: 'Triage connected inboxes, drafts, and email threads from Macro.',
+  },
+  documents: {
+    title: 'Docs',
+    description: 'Browse documents, notes, snippets, and other knowledge in your workspace.',
+  },
+  tasks: {
+    title: 'Tasks',
+    description: 'Track work items, statuses, assignees, priorities, and task activity.',
+  },
+  channels: {
+    title: 'Channels',
+    description: 'Find team channels, direct messages, and conversations.',
+  },
+  calls: {
+    title: 'Calls',
+    description: 'Review call recordings, summaries, and related follow-ups.',
+  },
+  companies: {
+    title: 'Companies',
+    description: 'Browse CRM company records and their related activity.',
+  },
+  folders: {
+    title: 'Folders',
+    description: 'Organize and open shared project folders across Macro.',
+  },
+  search: {
+    title: 'Search',
+    description: 'Search across Macro and refine results by type, owner, and context.',
+  },
+};
+
+function ListViewInfoTooltip(props: { view: ListView; docsUrl: string }) {
+  const info = () =>
+    LIST_VIEW_INFO[props.view] ?? {
+      title: props.view,
+      description: 'Learn more about this view in the Macro documentation.',
+    };
+
+  return (
+    <KobalteTooltip
+      placement="bottom-start"
+      ignoreSafeArea
+      overflowPadding={16}
+      fitViewport
+      openDelay={250}
+      closeDelay={80}
+      flip
+      gutter={6}
+    >
+      <KobalteTooltip.Trigger
+        as="button"
+        type="button"
+        class="inline-flex size-4 items-center justify-center rounded-sm text-ink-extra-muted hover:bg-ink/3 hover:text-ink-muted"
+        aria-label={`About ${info().title}`}
+      >
+        <InfoIcon class="size-3.5" />
+      </KobalteTooltip.Trigger>
+      <KobalteTooltip.Portal>
+        <KobalteTooltip.Content class="z-tool-tip max-w-[calc(100vw-32px)]">
+          <Surface
+            depth={3}
+            class="w-72 rounded-xl p-3 text-left shadow-[0_12px_32px_-20px_rgba(0,0,0,0.35)]"
+          >
+            <div class="space-y-2">
+              <div>
+                <div class="text-sm font-semibold text-ink">{info().title}</div>
+                <p class="mt-1 text-xs leading-relaxed text-ink-muted">
+                  {info().description}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent/80"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openExternalUrl(props.docsUrl);
+                }}
+              >
+                <span>Read more in the docs</span>
+                <ArrowSquareOutIcon class="size-3.5" />
+              </button>
+            </div>
+          </Surface>
+        </KobalteTooltip.Content>
+      </KobalteTooltip.Portal>
+    </KobalteTooltip>
+  );
+}
+
 interface SoupViewProps {
   viewName: string;
   initialClientFilters?: SetPredicatesInput<string>;
@@ -595,14 +701,10 @@ export const SoupView = (props: SoupViewProps) => {
                   <span class="text-base font-bold">{props.viewName}</span>
                   <Show when={docsUrl()}>
                     {(url) => (
-                      <Button
-                        variant="ghost"
-                        class="p-0.5 rounded-sm text-ink-extra-muted hover:text-ink-muted"
-                        label="View documentation"
-                        onClick={() => openExternalUrl(url())}
-                      >
-                        <InfoIcon class="size-3.5" />
-                      </Button>
+                      <ListViewInfoTooltip
+                        view={activeListView()!}
+                        docsUrl={url()}
+                      />
                     )}
                   </Show>
                 </div>

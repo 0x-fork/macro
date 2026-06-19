@@ -91,7 +91,7 @@ const ROW_CLASS = cn(
 );
 const CONTENT_CLASS = cn(
   'menu-content flex flex-col justify-start items-start bg-surface rounded-xl',
-  'px-1 py-1.25 cursor-default select-none',
+  'px-1 pt-1.25 pb-1 cursor-default select-none',
   'max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto',
   'z-action-menu menu-open-animation',
   'shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]'

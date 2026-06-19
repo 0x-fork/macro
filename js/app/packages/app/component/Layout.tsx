@@ -196,18 +196,18 @@ function LayoutInner(props: RouteSectionProps) {
         <ItemDndProvider>
           <div class="relative flex flex-col flex-1 w-full min-h-0 font-sans text-ink caret-accent">
             <div class="relative min-h-0 flex-1">{props.children}</div>
-            <Show
-              when={
-                !isMobile() &&
-                isAuthenticated() &&
-                !AUTH_URLS.includes(location.pathname)
-              }
-            >
-              <AppBottomBar />
-            </Show>
           </div>
         </ItemDndProvider>
       </div>
+      <Show
+        when={
+          !isMobile() &&
+          isAuthenticated() &&
+          !AUTH_URLS.includes(location.pathname)
+        }
+      >
+        <AppBottomBar />
+      </Show>
       <Show
         when={
           isMobile() &&

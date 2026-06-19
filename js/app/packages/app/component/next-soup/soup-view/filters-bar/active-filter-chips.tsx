@@ -209,7 +209,7 @@ const GroupedFilterChip = (props: {
 
           <DropdownMenu.Portal>
             <Layer depth={2}>
-              <DropdownMenu.Content class="z-action-menu bg-surface rounded-xl border-0 min-w-[160px] p-1 shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]">
+              <DropdownMenu.Content class="z-action-menu bg-surface rounded-xl border-0 min-w-[160px] px-1 pt-1.25 pb-1 shadow-[inset_0_0_0_1px_var(--color-edge-muted),inset_0_2px_0_0_color-mix(in_oklch,var(--color-edge-muted)_85%,white),0_10px_28px_-18px_rgba(0,0,0,0.28),0_2px_8px_-6px_rgba(0,0,0,0.18)]">
                 <For each={props.group.categoryOptions}>
                   {(option) => {
                     const active = () => props.isOptionActive(option.id);
