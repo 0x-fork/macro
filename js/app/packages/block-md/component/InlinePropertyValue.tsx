@@ -11,6 +11,7 @@ type InlinePropertyValueProps = {
   property: PropertyT;
   /** Label rendered when the property is empty. Defaults to "None". */
   emptyLabel?: JSX.Element;
+  class?: string;
 };
 
 /**
@@ -53,7 +54,8 @@ export const InlinePropertyValue: Component<InlinePropertyValueProps> = (
               {
                 'hover:bg-hover': !isReadOnly(),
                 'text-ink-extra-muted': isEmpty(),
-              }
+              },
+              props.class
             )}
           >
             <Switch

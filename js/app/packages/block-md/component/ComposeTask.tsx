@@ -24,17 +24,21 @@ import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { createTask } from '@core/util/create';
 import { filterMap } from '@core/util/list';
 import { buildSimpleEntityUrl } from '@core/util/url';
+import { HexDashedIcon } from '@icon/HexDashedIcon';
+import { AnimatedTaskIcon } from '@icon/wide-task';
 import { mergeRegister } from '@lexical/utils';
 import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import ArrowsOutIcon from '@phosphor/arrows-out.svg';
 import PaperclipIcon from '@phosphor/paperclip.svg';
 import SplitIcon from '@phosphor/square-half.svg';
 import XIcon from '@phosphor/x.svg';
+import { Property as PropertyPrimitive } from '@property';
 import {
   propertyApiValuesToNormalized,
   propertyValueToApi,
 } from '@property/api/converters';
 import { Modals } from '@property/component/modal';
+import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import {
   PropertiesProvider,
@@ -45,6 +49,7 @@ import type {
   PropertyApiValues,
   PropertyOption,
 } from '@property/types';
+import { getSelectValues } from '@property/utils';
 import { useUpsertToHistoryMutation } from '@queries/history/history';
 import { refetchSoupEntity } from '@queries/soup/cache';
 import { propertiesServiceClient } from '@service-properties/client';
@@ -52,7 +57,7 @@ import type { PropertyDefinition } from '@service-properties/generated/schemas/p
 import { onElementConnect } from '@solid-primitives/lifecycle';
 import { debounce } from '@solid-primitives/scheduled';
 import { useQuery } from '@tanstack/solid-query';
-import { Button, Hotkey, Scroll, ToggleSwitch } from '@ui';
+import { Button, Layer, Scroll, ToggleSwitch } from '@ui';
 import {
   $getRoot,
   $getSelection,
@@ -244,7 +249,7 @@ function ComposeTaskTitleEditor(props: {
   };
 
   return (
-    <div class="relative w-full mb-4">
+    <div class="relative w-full">
       <div
         contentEditable={!props.disabled()}
         class="ph-no-capture w-full text-xl font-medium outline-none whitespace-pre-wrap wrap-break-words"
@@ -343,6 +348,34 @@ function extractPropertyValue(
   } else {
     return value;
   }
+}
+
+function StatusPropertyIcon(props: {
+  property: Property;
+  saveHandler: PropertySaveHandler;
+}) {
+  return (
+    <PropertyPrimitive.Root
+      property={props.property}
+      canEdit={true}
+      onSave={props.saveHandler.saveProperty}
+      onRefresh={() => {}}
+    >
+      <PropertyPrimitive.Tooltip property={props.property}>
+        <Layer depth={2}>
+          <PropertyPrimitive.EditTrigger class="mt-1.5 inline-flex shrink-0 items-center justify-center text-ink-muted hover:text-ink focus-visible:text-ink [&_svg]:size-6">
+            <Show
+              when={getSelectValues(props.property)[0]}
+              fallback={<HexDashedIcon class="size-6 text-ink-extra-muted" />}
+            >
+              {(optionId) => <PropertyValueIcon optionId={optionId()} />}
+            </Show>
+          </PropertyPrimitive.EditTrigger>
+        </Layer>
+      </PropertyPrimitive.Tooltip>
+      <PropertyPrimitive.PopoverEditor />
+    </PropertyPrimitive.Root>
+  );
 }
 
 /**
@@ -562,6 +595,18 @@ export function ComposeTask(props: ComposeTaskProps) {
       } as Property;
     });
   };
+
+  const statusProperty = () =>
+    properties().find(
+      (property) =>
+        property.propertyDefinitionId === SYSTEM_PROPERTY_IDS.STATUS
+    );
+
+  const secondaryProperties = () =>
+    properties().filter(
+      (property) =>
+        property.propertyDefinitionId !== SYSTEM_PROPERTY_IDS.STATUS
+    );
 
   const saveHandler: PropertySaveHandler = {
     saveProperty: async (property: Property, value: PropertyApiValues) => {
@@ -868,130 +913,154 @@ export function ComposeTask(props: ComposeTaskProps) {
       tabIndex={-1}
       ref={setContainerRef}
     >
-      <div class="flex items-center gap-1">
-        <div class="flex-1 flex items-center">
-          <Show when={splitPanel?.handle.isPopover()}>
-            <Button
-              onMouseDown={handleContinueInSplit}
-              disabled={isCreating()}
-              tabIndex={-1}
-              tooltip="Continue editing in split"
-              size="icon-sm"
-            >
-              <ArrowsOutIcon />
-            </Button>
-          </Show>
-        </div>
-        <Show when={content().trim() || title()}>
-          <Button
-            onMouseDown={handleClearDraft}
-            tabIndex={-1}
-            tooltip="Clear Draft"
-            size="sm"
-            variant="base"
-            depth={3}
-            class="bg-surface px-3"
-          >
-            Clear Draft
-          </Button>
-        </Show>
-        <Show when={splitPanel?.handle.isPopover()}>
-          <Button
-            onMouseDown={handleClose}
-            tabIndex={-1}
-            tooltip="Close"
-            size="icon-sm"
-          >
-            <XIcon />
-          </Button>
-        </Show>
-      </div>
       <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div class="shrink-0 flex gap-2 items-start px-2">
-          <ComposeTaskTitleEditor
-            value={title}
-            onChange={setTitle}
-            disabled={isCreating}
-            bodyEditor={bodyEditor}
-            containerRef={containerRef}
-            onUserInput={() => {
-              if (errorMessage()) {
-                setErrorMessage('');
-              }
-            }}
-          />
-        </div>
-
-        <div class="overflow-auto scrollbar-hidden mb-6 min-h-24 grow px-2">
-          <Scroll>
-            <MarkdownShell
-              config={editorConfig}
-              initialState={initialState.editorState}
-              initialValue={
-                initialState.editorState
-                  ? undefined
-                  : initialState.content || undefined
-              }
-              placeholder={props.placeholder ?? 'Add description...'}
-              portalScope={splitPanel.handle.isPopover() ? 'local' : 'block'}
-            />
-          </Scroll>
-        </div>
-
         <Suspense fallback={<div class="h-7" />}>
-          <PropertiesProvider
-            entityType="TASK"
-            canEdit={true}
-            properties={properties}
-            onRefresh={() => {}}
-            onPropertyAdded={() => {}}
-            onPropertyDeleted={() => {}}
-            saveHandler={saveHandler}
-          >
-            <div
-              class="flex min-h-7 flex-row flex-wrap items-center gap-2 text-sm m-px"
-              on:keydown={(e) => {
-                const target = e.target as HTMLElement;
-                const container = e.currentTarget;
-                const tabbables = tabbable(container);
-                const isFirst = tabbables.indexOf(target) === 0;
-                const isLast =
-                  tabbables.indexOf(target) === tabbables.length - 1;
-
-                // Shift+Tab or ArrowUp on first property -> focus editor
-                if (
-                  isFirst &&
-                  ((e.key === 'Tab' && e.shiftKey) || e.key === 'ArrowUp')
-                ) {
-                  const editor = bodyEditor();
-                  if (editor) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    editor.focus(undefined, { defaultSelection: 'rootEnd' });
-                  }
-                }
-
-                // Tab or ArrowDown on last property -> let tabbable handle or wrap
-                if (
-                  isLast &&
-                  ((e.key === 'Tab' && !e.shiftKey) || e.key === 'ArrowDown')
-                ) {
-                  // Allow default Tab behavior to continue to next focusable
-                  // element outside this container
-                }
-              }}
+            <PropertiesProvider
+              entityType="TASK"
+              canEdit={true}
+              properties={properties}
+              onRefresh={() => {}}
+              onPropertyAdded={() => {}}
+              onPropertyDeleted={() => {}}
+              saveHandler={saveHandler}
             >
-              <For each={properties()}>
-                {(property) => (
-                  <InlinePropertyValue
-                    property={property}
-                    emptyLabel={property.displayName}
+              <div class="shrink-0 flex items-center justify-between gap-2 pb-4">
+                <div class="inline-flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted ring ring-edge-muted">
+                  <AnimatedTaskIcon class="size-3.5 text-ink-muted" />
+                  Tasks
+                </div>
+                <Show when={splitPanel?.handle.isPopover()}>
+                  <div class="shrink-0 flex items-center gap-1">
+                    <Button
+                      onMouseDown={handleClearDraft}
+                      tabIndex={-1}
+                      tooltip="Clear Draft"
+                      variant="base"
+                      size="sm"
+                      depth={3}
+                      disabled={!(content().trim() || title())}
+                      class={
+                        content().trim() || title()
+                          ? 'rounded-full bg-surface px-2.5'
+                          : 'pointer-events-none invisible rounded-full bg-surface px-2.5'
+                      }
+                    >
+                      Clear draft
+                    </Button>
+                    <Button
+                      onMouseDown={handleContinueInSplit}
+                      disabled={isCreating()}
+                      tabIndex={-1}
+                      tooltip="Continue editing in split"
+                      size="icon-sm"
+                    >
+                      <ArrowsOutIcon />
+                    </Button>
+                    <Button
+                      onMouseDown={handleClose}
+                      tabIndex={-1}
+                      tooltip="Close"
+                      size="icon-sm"
+                    >
+                      <XIcon />
+                    </Button>
+                  </div>
+                </Show>
+              </div>
+
+              <div class="shrink-0 flex min-w-0 gap-3 items-start">
+                <Show when={statusProperty()}>
+                  {(property) => (
+                    <StatusPropertyIcon
+                      property={property()}
+                      saveHandler={saveHandler}
+                    />
+                  )}
+                </Show>
+                <ComposeTaskTitleEditor
+                  value={title}
+                  onChange={setTitle}
+                  disabled={isCreating}
+                  bodyEditor={bodyEditor}
+                  containerRef={containerRef}
+                  onUserInput={() => {
+                    if (errorMessage()) {
+                      setErrorMessage('');
+                    }
+                  }}
+                />
+              </div>
+
+              <div class="flex min-h-7 flex-row flex-wrap items-center gap-2 pt-2 text-sm">
+                <div
+                  class="flex flex-row flex-wrap items-center gap-2"
+                  on:keydown={(e) => {
+                    const target = e.target as HTMLElement;
+                    const container = e.currentTarget;
+                    const tabbables = tabbable(container);
+                    const isFirst = tabbables.indexOf(target) === 0;
+                    const isLast =
+                      tabbables.indexOf(target) === tabbables.length - 1;
+
+                    // Shift+Tab or ArrowUp on first property -> focus editor
+                    if (
+                      isFirst &&
+                      ((e.key === 'Tab' && e.shiftKey) ||
+                        e.key === 'ArrowUp')
+                    ) {
+                      const editor = bodyEditor();
+                      if (editor) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        editor.focus(undefined, {
+                          defaultSelection: 'rootEnd',
+                        });
+                      }
+                    }
+
+                    // Tab or ArrowDown on last property -> let tabbable handle or wrap
+                    if (
+                      isLast &&
+                      ((e.key === 'Tab' && !e.shiftKey) ||
+                        e.key === 'ArrowDown')
+                    ) {
+                      // Allow default Tab behavior to continue to next focusable
+                      // element outside this container
+                    }
+                  }}
+                >
+                  <For each={secondaryProperties()}>
+                    {(property) => (
+                      <InlinePropertyValue
+                        property={property}
+                        emptyLabel={property.displayName}
+                        class="ring-0 bg-transparent px-1.5 hover:bg-hover"
+                      />
+                    )}
+                  </For>
+                </div>
+              </div>
+
+              <div class="overflow-auto scrollbar-hidden mb-6 min-h-16 grow pt-4">
+                <Scroll>
+                  <MarkdownShell
+                    config={editorConfig}
+                    initialState={initialState.editorState}
+                    initialValue={
+                      initialState.editorState
+                        ? undefined
+                        : initialState.content || undefined
+                    }
+                    placeholder={props.placeholder ?? 'Add description...'}
+                    portalScope={
+                      splitPanel.handle.isPopover() ? 'local' : 'block'
+                    }
                   />
-                )}
-              </For>
-            </div>
-            <Modals />
-          </PropertiesProvider>
+                </Scroll>
+              </div>
+
+              <Modals />
+            </PropertiesProvider>
         </Suspense>
       </div>
 
@@ -1002,17 +1071,23 @@ export function ComposeTask(props: ComposeTaskProps) {
         </div>
       </Show>
 
+      <SimilarTasksSection
+        title={title}
+        content={content}
+        onOpenTask={handleOpenSimilarTask}
+      />
+
+      <input
+        ref={(el) => {
+          attachInputRef = el;
+        }}
+        type="file"
+        class="hidden"
+        multiple
+        accept="image/*,video/*"
+        onChange={handleAttachFiles}
+      />
       <div class="shrink-0 flex justify-between items-end gap-2">
-        <input
-          ref={(el) => {
-            attachInputRef = el;
-          }}
-          type="file"
-          class="hidden"
-          multiple
-          accept="image/*,video/*"
-          onChange={handleAttachFiles}
-        />
         <Button
           onMouseDown={() => attachInputRef?.click()}
           tabIndex={-1}
@@ -1021,7 +1096,7 @@ export function ComposeTask(props: ComposeTaskProps) {
         >
           <PaperclipIcon />
         </Button>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
           <ToggleSwitch
             labelClass="text-xs text-ink-muted font-normal whitespace-nowrap"
             onChange={setCreateMore}
@@ -1031,21 +1106,19 @@ export function ComposeTask(props: ComposeTaskProps) {
           <Button
             onClick={handleCreateTask}
             disabled={title().trim().length === 0 || isCreating()}
-            variant={title().trim().length === 0 ? 'ghost' : 'active'}
+            variant={title().trim().length === 0 ? 'ghost' : 'base'}
             depth={3}
-            class="gap-3 rounded-lg border-0"
+            size="sm"
+            class={
+              title().trim().length > 0
+                ? 'rounded-full border-0 bg-accent px-2 text-surface not-disabled:hover:bg-accent not-disabled:hover:text-surface'
+                : 'rounded-full border-0 px-2'
+            }
           >
-            Create Task
-            <Hotkey shortcut="cmd+enter" theme="current" />
+            Create task
           </Button>
         </div>
       </div>
-
-      <SimilarTasksSection
-        title={title}
-        content={content}
-        onOpenTask={handleOpenSimilarTask}
-      />
     </div>
   );
 }

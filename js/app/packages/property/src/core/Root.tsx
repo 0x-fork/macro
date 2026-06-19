@@ -105,7 +105,7 @@ export function Root(props: PropertyRootProps) {
       >
         <div
           ref={rootEl}
-          class={cn('property-root', local.class)}
+          class={cn('property-root flex', local.class)}
           data-property
           data-property-id={local.property.propertyId}
           data-property-type={local.property.valueType}
