@@ -96,7 +96,8 @@ insert_local_fusionauth_variables:
   API_KEY="bf69486b-4733-4954-a44e-2e1b5f2c8a91"
   APPLICATION_ID=$(pulumi stack output macroApplicationClientId -s local)
   TENANT_ID=$(pulumi stack output defaultTenantId -s local)
-  GITHUB_IDP_ID=$(pulumi stack output githubIdpId -s local)
+  # Fixed local GitHub IdP id. Must match `LOCAL_GITHUB_IDP_ID` in index.ts.
+  GITHUB_IDP_ID="8f3b9d2c-1a47-4e6b-bc59-0d7e2f4a9c10"
 
   CURL_RESPONSE=$(curl -s "http://localhost:9011/api/application/${APPLICATION_ID}" \
     -H "Authorization: ${API_KEY}")

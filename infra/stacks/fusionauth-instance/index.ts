@@ -430,6 +430,8 @@ new FusionAuthIdpOpenIdConnect(
 // id as a secret (`github-idp-id-{dev,prod}`), so we don't manage it here.
 //
 // The id is fixed so the local `.env` (`GITHUB_IDP_ID`) is stable across runs.
+// Keep this in sync with `GITHUB_IDP_ID` in this stack's justfile
+// (`insert_local_fusionauth_variables`).
 const LOCAL_GITHUB_IDP_ID = '8f3b9d2c-1a47-4e6b-bc59-0d7e2f4a9c10';
 
 if (stack === 'local') {
@@ -468,7 +470,3 @@ if (stack === 'local') {
     }
   );
 }
-
-// Exported so the local setup justfile can patch `GITHUB_IDP_ID` into `.env`.
-export const githubIdpId =
-  stack === 'local' ? LOCAL_GITHUB_IDP_ID : undefined;
