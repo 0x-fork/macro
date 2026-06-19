@@ -1,6 +1,9 @@
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 
-import { channelTheme } from '@core/component/LexicalMarkdown/theme';
+import {
+  channelMessageTheme,
+  channelTheme,
+} from '@core/component/LexicalMarkdown/theme';
 import { isEmojiOnly } from '@core/util/string';
 import { cn } from '@ui';
 import { createMemo, createSignal, Show } from 'solid-js';
@@ -34,7 +37,7 @@ export function Content(props: ContentProps) {
       >
         <StaticMarkdown
           markdown={content()}
-          theme={channelTheme}
+          theme={bigEmoji() ? channelTheme : channelMessageTheme}
           target="internal"
           rootRef={setMarkdownRoot}
         />

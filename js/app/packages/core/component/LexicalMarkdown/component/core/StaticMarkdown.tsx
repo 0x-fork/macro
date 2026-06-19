@@ -3,6 +3,7 @@
  * the markdown features that are supported by our LexicalEngine.
  */
 
+import { splitEmojiRuns } from '@core/util/string';
 import type { CodeNode } from '@lexical/code';
 import { PrismTokenizer } from '@lexical/code';
 import type { LinkNode } from '@lexical/link';
@@ -271,9 +272,27 @@ type RenderableElement<T extends ElementNode = ElementNode> = {
 const Text: RenderableEntity<TextNode> = {
   guard: (node: LexicalNode): node is TextNode => node.__type === 'text',
   render: (props) => {
+    const className = getTextClassName(props.node, props.theme);
+    const text = props.node.__text;
+    // Themes opt in (e.g. channel messages) to enlarging inline emoji relative
+    // to the surrounding text; others render the text node unchanged.
+    const emojiClass = props.theme['inline-emoji'] as string | undefined;
+    if (!emojiClass) {
+      return <span class={className}>{text}</span>;
+    }
+    const segments = splitEmojiRuns(text);
+    if (!segments.some((segment) => segment.isEmoji)) {
+      return <span class={className}>{text}</span>;
+    }
     return (
-      <span class={getTextClassName(props.node, props.theme)}>
-        {props.node.__text}
+      <span class={className}>
+        {segments.map((segment) =>
+          segment.isEmoji ? (
+            <span class={emojiClass}>{segment.text}</span>
+          ) : (
+            segment.text
+          )
+        )}
       </span>
     );
   },

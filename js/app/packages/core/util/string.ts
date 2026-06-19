@@ -76,7 +76,7 @@ const EMOJI_ONLY_REGEX =
  *
  * @example
  * isEmojiOnly('🎉'); // true
- * isEmojiOnly('👨‍👩‍👧‍👦'); // true (family emoji)
+ * isEmojiOnly('👨\u200D👩\u200D👧\u200D👦'); // true (family emoji)
  * isEmojiOnly('Hello 👋'); // false
  * isEmojiOnly(''); // false
  */
@@ -84,4 +84,58 @@ export function isEmojiOnly(text: string): boolean {
   const trimmed = text.trim();
   if (trimmed.length === 0) return false;
   return EMOJI_ONLY_REGEX.test(trimmed);
+}
+
+/**
+ * Matches runs of consecutive emoji sequences. A run must start with an emoji
+ * base character; variation selectors, skin-tone modifiers, and ZWJs only
+ * attach to a base rather than matching on their own. Adjacent sequences (e.g.
+ * "👍👍", flags, ZWJ families) stay within a single run.
+ */
+const EMOJI_BASE_PATTERN =
+  '(?:\\p{Extended_Pictographic}|\\p{Emoji_Presentation})';
+const EMOJI_SEQUENCE_PATTERN = `${EMOJI_BASE_PATTERN}(?:\\uFE0F|\\p{Emoji_Modifier}|\\u200D${EMOJI_BASE_PATTERN}(?:\\uFE0F|\\p{Emoji_Modifier})*)*`;
+const EMOJI_RUN_PATTERN = `${EMOJI_SEQUENCE_PATTERN}(?:${EMOJI_SEQUENCE_PATTERN})*`;
+const EMOJI_RUN_REGEX = new RegExp(EMOJI_RUN_PATTERN, 'gu');
+const FIRST_EMOJI_RUN_REGEX = new RegExp(EMOJI_RUN_PATTERN, 'u');
+
+/** A run of text tagged as either emoji or non-emoji. */
+export type TextSegment = { text: string; isEmoji: boolean };
+
+/**
+ * Splits a string into alternating non-emoji and emoji runs, preserving order
+ * and content (concatenating every `text` reproduces the input). Useful for
+ * styling inline emoji differently from the surrounding text.
+ *
+ * @example
+ * splitEmojiRuns('Hi 👋 there');
+ * // [{text:'Hi ',isEmoji:false},{text:'👋',isEmoji:true},{text:' there',isEmoji:false}]
+ */
+export function splitEmojiRuns(text: string): TextSegment[] {
+  const segments: TextSegment[] = [];
+  let lastIndex = 0;
+  for (const match of text.matchAll(EMOJI_RUN_REGEX)) {
+    const start = match.index ?? lastIndex;
+    if (start > lastIndex) {
+      segments.push({ text: text.slice(lastIndex, start), isEmoji: false });
+    }
+    segments.push({ text: match[0], isEmoji: true });
+    lastIndex = start + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    segments.push({ text: text.slice(lastIndex), isEmoji: false });
+  }
+  return segments;
+}
+
+/**
+ * Returns the start/end offsets of the first emoji run in `text`, or null if
+ * there is none. Shaped for Lexical's `registerLexicalTextEntity` `getMatch`.
+ */
+export function firstEmojiRun(
+  text: string
+): { start: number; end: number } | null {
+  const match = FIRST_EMOJI_RUN_REGEX.exec(text);
+  if (!match) return null;
+  return { start: match.index, end: match.index + match[0].length };
 }

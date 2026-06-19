@@ -176,6 +176,42 @@ export const channelTheme = createTheme(
   { join: true }
 );
 
+// Class applied to inline emoji so they read slightly larger than body text.
+// `align-middle` centers the enlarged glyph on the line (vs baseline-aligned,
+// which reads as bottom-heavy); the small relative `-top` nudge raises it just
+// above the midline to sit optically centered. Shared by the read-only renderer
+// (channelMessageTheme) and the live composer (channelInputTheme) so both
+// surfaces stay in sync.
+const INLINE_EMOJI_CLASS =
+  'text-[1.3em] leading-none align-middle relative -top-[0.075em]';
+
+/**
+ * Channel message body theme. Same as {@link channelTheme} but enlarges inline
+ * emoji (in mixed text + emoji messages) relative to the surrounding text. The
+ * `inline-emoji` class is read by the StaticMarkdown text renderer. Emoji-only
+ * messages are enlarged by their wrapper instead, so they render with
+ * {@link channelTheme} directly to avoid compounding the scale.
+ */
+export const channelMessageTheme = createTheme(
+  {
+    'inline-emoji': INLINE_EMOJI_CLASS,
+  },
+  channelTheme
+);
+
+/**
+ * Theme for the live channel composer. Base editor theme plus the `inline-emoji`
+ * class so {@link EmojiTextNode}s render emoji at the same size as sent
+ * messages. Kept separate from {@link channelMessageTheme} so the composer keeps
+ * its existing structural styling.
+ */
+export const channelInputTheme = createTheme(
+  {
+    'inline-emoji': INLINE_EMOJI_CLASS,
+  },
+  theme
+);
+
 export const channelThemeSender = createTheme(
   {
     text: {
