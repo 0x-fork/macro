@@ -1,7 +1,7 @@
 use super::*;
 
-fn route() -> RouteTarget {
-    RouteTarget {
+fn route() -> AgentCorrelation {
+    AgentCorrelation {
         user_id: "macro|alice@macro.com".to_owned(),
         chat_id: Some("01234567-89ab-cdef-0123-456789abcdef".to_owned()),
     }
@@ -28,7 +28,7 @@ fn rejects_tampered_payload() {
     let (_payload, sig) = token.split_once('.').unwrap();
     // Swap in a different payload while keeping the original signature.
     let forged_payload = hex::encode(
-        serde_json::to_vec(&RouteTarget {
+        serde_json::to_vec(&AgentCorrelation {
             user_id: "macro|attacker@evil.com".to_owned(),
             chat_id: None,
         })
@@ -48,7 +48,7 @@ fn rejects_malformed_token() {
 #[test]
 fn omits_chat_id_when_absent() {
     let secret = "0123456789012345678901234567890123";
-    let route = RouteTarget {
+    let route = AgentCorrelation {
         user_id: "macro|alice@macro.com".to_owned(),
         chat_id: None,
     };

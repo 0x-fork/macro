@@ -3,15 +3,24 @@ use super::*;
 use std::collections::HashMap;
 
 use crate::domain::models::{
-    AgentPrompt, AgentSource, AgentTarget, CodingAgentId, CodingAgentStatus, LaunchAgentRequest,
-    WebhookConfig,
+    AgentCorrelation, AgentPrompt, AgentSource, AgentTarget, CodingAgentId, CodingAgentStatus,
+    LaunchAgentRequest, WebhookConfig,
 };
 use crate::domain::ports::CodingAgentProvider;
+
+const SECRET: &str = "0123456789012345678901234567890123";
 
 fn sign(secret: &str, body: &[u8]) -> String {
     let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
     mac.update(body);
     format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
+}
+
+fn provider_with_webhook() -> CursorAgentProvider {
+    CursorAgentProvider::new("test-key").with_webhook(WebhookConfig {
+        url: "https://macro.example/webhooks/coding-agent/cursor".to_owned(),
+        secret: SECRET.to_owned(),
+    })
 }
 
 #[test]
@@ -27,6 +36,7 @@ fn status_mapping_is_normalized() {
     ));
     assert!(CodingAgentStatus::Finished.is_terminal());
     assert!(!CodingAgentStatus::Running.is_terminal());
+    assert!(!CodingAgentStatus::AwaitingInput.is_terminal());
 }
 
 #[test]
@@ -42,13 +52,15 @@ fn launch_request_serializes_to_cursor_shape() {
             branch_name: Some("fix/login".to_owned()),
             auto_create_pr: true,
         },
-        webhook: Some(WebhookConfig {
-            url: "https://macro.example/webhooks/coding-agent".to_owned(),
-            secret: "0123456789012345678901234567890123".to_owned(),
-        }),
+        correlation: None,
+        provider_options: Default::default(),
+    };
+    let webhook = CursorWebhook {
+        url: "https://macro.example/webhooks/coding-agent/cursor/token".to_owned(),
+        secret: Some(SECRET.to_owned()),
     };
 
-    let body = CursorLaunchRequest::from_request(&request);
+    let body = CursorLaunchRequest::build(&request, Some(webhook));
     let json = serde_json::to_value(&body).unwrap();
 
     assert_eq!(json["prompt"]["text"], "fix the flaky login test");
@@ -63,12 +75,9 @@ fn launch_request_serializes_to_cursor_shape() {
     assert_eq!(json["target"]["autoCreatePr"], true);
     assert_eq!(
         json["webhook"]["url"],
-        "https://macro.example/webhooks/coding-agent"
+        "https://macro.example/webhooks/coding-agent/cursor/token"
     );
-    assert_eq!(
-        json["webhook"]["secret"],
-        "0123456789012345678901234567890123"
-    );
+    assert_eq!(json["webhook"]["secret"], SECRET);
 }
 
 #[test]
@@ -114,21 +123,15 @@ fn signature_verification_accepts_valid_and_rejects_tampered() {
 
     assert!(verify_signature(secret, body, &signature).is_ok());
 
-    // Tampered body.
     let tampered = br#"{"event":"statusChange","id":"bc_1","status":"ERROR"}"#;
     assert!(verify_signature(secret, tampered, &signature).is_err());
-
-    // Wrong secret.
     assert!(verify_signature("not-the-secret", body, &signature).is_err());
-
-    // Garbage signature.
     assert!(verify_signature(secret, body, "sha256=deadbeef").is_err());
 }
 
 #[test]
-fn verify_and_parse_webhook_round_trips() {
-    let provider = CursorAgentProvider::new("test-key");
-    let secret = "0123456789012345678901234567890123";
+fn verify_and_parse_webhook_recovers_correlation() {
+    let provider = provider_with_webhook();
     let body = br#"{
         "event": "statusChange",
         "id": "bc_xyz",
@@ -137,11 +140,19 @@ fn verify_and_parse_webhook_round_trips() {
         "target": { "prUrl": "https://github.com/macro-inc/macro/pull/7", "branchName": "fix/x" }
     }"#;
 
+    let url_token = sign_route_token(
+        SECRET,
+        &AgentCorrelation {
+            user_id: "macro|teo@macro.com".to_owned(),
+            chat_id: Some("chat-9".to_owned()),
+        },
+    );
+
     let mut headers = HashMap::new();
-    headers.insert("x-webhook-signature".to_owned(), sign(secret, body));
+    headers.insert("x-webhook-signature".to_owned(), sign(SECRET, body));
 
     let event = provider
-        .verify_and_parse_webhook(&headers, body, secret)
+        .verify_and_parse_webhook(&headers, body, Some(&url_token))
         .expect("valid webhook should verify");
 
     assert_eq!(event.id, CodingAgentId("bc_xyz".to_owned()));
@@ -152,13 +163,16 @@ fn verify_and_parse_webhook_round_trips() {
         Some("https://github.com/macro-inc/macro/pull/7")
     );
     assert_eq!(event.branch_name.as_deref(), Some("fix/x"));
+    let correlation = event.correlation.expect("correlation recovered from token");
+    assert_eq!(correlation.user_id, "macro|teo@macro.com");
+    assert_eq!(correlation.chat_id.as_deref(), Some("chat-9"));
 }
 
 #[test]
 fn verify_and_parse_webhook_rejects_missing_signature() {
-    let provider = CursorAgentProvider::new("test-key");
+    let provider = provider_with_webhook();
     let headers: HashMap<String, String> = HashMap::new();
-    let result = provider.verify_and_parse_webhook(&headers, b"{}", "secret");
+    let result = provider.verify_and_parse_webhook(&headers, b"{}", None);
     assert!(matches!(
         result,
         Err(CodingAgentError::WebhookVerification(_))
@@ -166,11 +180,24 @@ fn verify_and_parse_webhook_rejects_missing_signature() {
 }
 
 #[test]
-fn capabilities_reflect_cursor_support() {
+fn verify_and_parse_webhook_requires_configured_webhook() {
     let provider = CursorAgentProvider::new("test-key");
-    let caps = provider.capabilities();
-    assert!(caps.follow_up);
-    assert!(caps.stop);
-    assert!(caps.webhooks);
-    assert!(caps.requires_status_polling);
+    let headers: HashMap<String, String> = HashMap::new();
+    let result = provider.verify_and_parse_webhook(&headers, b"{}", None);
+    assert!(matches!(
+        result,
+        Err(CodingAgentError::WebhookVerification(_))
+    ));
+}
+
+#[test]
+fn capabilities_reflect_webhook_configuration() {
+    assert!(!CursorAgentProvider::new("k").capabilities().webhooks);
+    assert!(provider_with_webhook().capabilities().webhooks);
+    assert!(provider_with_webhook().capabilities().follow_up);
+    assert!(
+        provider_with_webhook()
+            .capabilities()
+            .requires_status_polling
+    );
 }

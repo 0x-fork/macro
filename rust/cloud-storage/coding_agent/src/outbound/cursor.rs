@@ -20,11 +20,12 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
 use crate::domain::models::{
-    AgentMessage, AgentMessageRole, AgentPrompt, AgentSource, CodingAgent, CodingAgentError,
-    CodingAgentEvent, CodingAgentId, CodingAgentProviderKind, CodingAgentStatus,
-    LaunchAgentRequest, ProviderCapabilities,
+    AgentCorrelation, AgentMessage, AgentMessageRole, AgentPrompt, AgentSource, CodingAgent,
+    CodingAgentError, CodingAgentEvent, CodingAgentId, CodingAgentProviderKind, CodingAgentStatus,
+    LaunchAgentRequest, ProviderCapabilities, WebhookConfig,
 };
 use crate::domain::ports::{CodingAgentProvider, WebhookHeaders};
+use crate::inbound::routing::{sign_route_token, verify_route_token};
 
 /// Default base URL for the Cursor Cloud Agents API.
 pub const CURSOR_API_BASE_URL: &str = "https://api.cursor.com";
@@ -42,6 +43,9 @@ pub struct CursorAgentProvider {
     client: reqwest::Client,
     api_key: Arc<str>,
     base_url: Arc<str>,
+    /// Status webhook base + secret. When set, launches attach a webhook whose
+    /// URL carries a signed routing token (the agent's correlation).
+    webhook: Option<WebhookConfig>,
 }
 
 impl CursorAgentProvider {
@@ -60,7 +64,15 @@ impl CursorAgentProvider {
             client,
             api_key: api_key.into(),
             base_url: base_url.into(),
+            webhook: None,
         }
+    }
+
+    /// Configure the status webhook (base URL + shared secret). The launch path
+    /// appends a per-agent signed routing token to `webhook.url`.
+    pub fn with_webhook(mut self, webhook: WebhookConfig) -> Self {
+        self.webhook = Some(webhook);
+        self
     }
 
     fn url(&self, path: &str) -> String {
@@ -132,7 +144,8 @@ impl CodingAgentProvider for CursorAgentProvider {
             stop: true,
             delete: true,
             conversation: true,
-            webhooks: true,
+            // Only advertise webhooks when actually configured.
+            webhooks: self.webhook.is_some(),
             // Cursor only fires webhooks on terminal (FINISHED/ERROR) states, so
             // intermediate progress must be polled.
             requires_status_polling: true,
@@ -142,7 +155,20 @@ impl CodingAgentProvider for CursorAgentProvider {
     #[tracing::instrument(skip_all, fields(repository = %request.source.repository), err)]
     async fn launch(&self, request: LaunchAgentRequest) -> Result<CodingAgent, CodingAgentError> {
         self.require_api_key()?;
-        let body = CursorLaunchRequest::from_request(&request);
+        // Attach a webhook only when configured; embed the correlation as a
+        // signed routing token in the URL so the receiver can route completion
+        // back without any server-side mapping.
+        let webhook = match (&self.webhook, &request.correlation) {
+            (Some(cfg), Some(correlation)) => {
+                let token = sign_route_token(&cfg.secret, correlation);
+                Some(CursorWebhook {
+                    url: format!("{}/{}", cfg.url.trim_end_matches('/'), token),
+                    secret: Some(cfg.secret.clone()),
+                })
+            }
+            _ => None,
+        };
+        let body = CursorLaunchRequest::build(&request, webhook);
         let agent: CursorAgent = self
             .send_json(
                 self.request(reqwest::Method::POST, "/v0/agents")
@@ -210,19 +236,33 @@ impl CodingAgentProvider for CursorAgentProvider {
         &self,
         headers: &dyn WebhookHeaders,
         raw_body: &[u8],
-        secret: &str,
+        url_token: Option<&str>,
     ) -> Result<CodingAgentEvent, CodingAgentError> {
+        let secret = self
+            .webhook
+            .as_ref()
+            .map(|w| w.secret.as_str())
+            .ok_or_else(|| {
+                CodingAgentError::WebhookVerification(
+                    "Cursor webhook secret is not configured".to_owned(),
+                )
+            })?;
+
         let signature = headers.get_header(SIGNATURE_HEADER).ok_or_else(|| {
             CodingAgentError::WebhookVerification(format!("missing {SIGNATURE_HEADER} header"))
         })?;
-
         verify_signature(secret, raw_body, signature)?;
+
+        // Recover the correlation from the signed URL token, when present.
+        let correlation = url_token
+            .map(|token| verify_route_token(secret, token))
+            .transpose()?;
 
         let payload: CursorWebhookPayload = serde_json::from_slice(raw_body).map_err(|e| {
             CodingAgentError::WebhookVerification(format!("malformed webhook payload: {e}"))
         })?;
 
-        Ok(payload.into_event())
+        Ok(payload.into_event(correlation))
     }
 }
 
@@ -305,7 +345,7 @@ struct CursorLaunchRequest {
 }
 
 impl CursorLaunchRequest {
-    fn from_request(request: &LaunchAgentRequest) -> Self {
+    fn build(request: &LaunchAgentRequest, webhook: Option<CursorWebhook>) -> Self {
         Self {
             prompt: CursorPrompt::from(&request.prompt),
             source: CursorSource {
@@ -317,10 +357,7 @@ impl CursorLaunchRequest {
                 branch_name: request.target.branch_name.clone(),
                 auto_create_pr: request.target.auto_create_pr,
             }),
-            webhook: request.webhook.as_ref().map(|w| CursorWebhook {
-                url: w.url.clone(),
-                secret: Some(w.secret.clone()),
-            }),
+            webhook,
         }
     }
 }
@@ -481,7 +518,7 @@ struct CursorWebhookPayload {
 }
 
 impl CursorWebhookPayload {
-    fn into_event(self) -> CodingAgentEvent {
+    fn into_event(self, correlation: Option<AgentCorrelation>) -> CodingAgentEvent {
         let raw = serde_json::json!({
             "id": self.id,
             "status": self.status,
@@ -496,6 +533,7 @@ impl CursorWebhookPayload {
             pr_url: target.as_ref().and_then(|t| t.pr_url.clone()),
             web_url: target.as_ref().and_then(|t| t.url.clone()),
             branch_name: target.as_ref().and_then(|t| t.branch_name.clone()),
+            correlation,
             raw,
         }
     }

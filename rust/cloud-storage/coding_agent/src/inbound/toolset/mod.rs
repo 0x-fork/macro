@@ -1,12 +1,15 @@
 //! AI toolset for orchestrating coding agents from the Macro agent.
 //!
-//! These tools are provider-agnostic: they operate on an
-//! `Arc<dyn CodingAgentProvider>` carried by [`CodingAgentToolContext`], so the
-//! same tools drive Cursor today and any future backend without change.
+//! These tools are provider-agnostic: they resolve a backend from the
+//! [`CodingAgentToolContext`] registry (Cursor, Claude, ...) and drive it
+//! through the [`CodingAgentProvider`] trait, so the same tools work for every
+//! backend. The AI can pick a backend per call via the optional `provider`
+//! field; otherwise the deployment default is used.
 
 #[cfg(test)]
 mod test;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ai_toolset::{
@@ -17,48 +20,74 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::models::{
-    AgentPrompt, AgentSource, AgentTarget, CodingAgent, CodingAgentError, CodingAgentId,
-    LaunchAgentRequest, RouteTarget, WebhookConfig,
+    AgentCorrelation, AgentPrompt, AgentSource, AgentTarget, CodingAgent, CodingAgentError,
+    CodingAgentId, CodingAgentProviderKind, LaunchAgentRequest,
 };
 use crate::domain::ports::CodingAgentProvider;
-use crate::inbound::routing::sign_route_token;
 
-/// Status-change subscription settings shared by the deployment.
-///
-/// When present on the [`CodingAgentToolContext`], spawned agents are launched
-/// with a webhook so the provider notifies Macro on terminal status changes.
-#[derive(Clone)]
-pub struct WebhookSettings {
-    /// Absolute URL the provider posts status-change events to.
-    pub url: Arc<str>,
-    /// Shared secret used to sign and verify deliveries.
-    pub secret: Arc<str>,
-}
-
-/// Context for the coding-agent tools: the provider plus optional webhook
-/// settings for status subscriptions.
+/// Registry of configured backends plus the default to use when a tool call
+/// doesn't specify one.
 #[derive(Clone)]
 pub struct CodingAgentToolContext {
-    /// The backend that runs coding agents.
-    pub provider: Arc<dyn CodingAgentProvider>,
-    /// Optional status-change subscription settings.
-    pub webhook: Option<WebhookSettings>,
+    /// Configured providers, keyed by kind.
+    pub providers: Arc<HashMap<CodingAgentProviderKind, Arc<dyn CodingAgentProvider>>>,
+    /// The provider used when a tool call doesn't specify one.
+    pub default: CodingAgentProviderKind,
 }
 
 impl CodingAgentToolContext {
-    /// Build a context with no status subscription (status is polled).
-    pub fn new(provider: Arc<dyn CodingAgentProvider>) -> Self {
+    /// Build a context from a registry of providers and a default kind.
+    pub fn new(
+        providers: HashMap<CodingAgentProviderKind, Arc<dyn CodingAgentProvider>>,
+        default: CodingAgentProviderKind,
+    ) -> Self {
         Self {
-            provider,
-            webhook: None,
+            providers: Arc::new(providers),
+            default,
         }
     }
 
-    /// Build a context that subscribes spawned agents to status webhooks.
-    pub fn with_webhook(provider: Arc<dyn CodingAgentProvider>, webhook: WebhookSettings) -> Self {
-        Self {
-            provider,
-            webhook: Some(webhook),
+    /// Convenience: a single-provider registry (that provider becomes default).
+    pub fn single(provider: Arc<dyn CodingAgentProvider>) -> Self {
+        let default = provider.kind();
+        let mut providers = HashMap::new();
+        providers.insert(default, provider);
+        Self::new(providers, default)
+    }
+
+    /// Resolve the provider for a tool call, honoring an explicit selection.
+    fn resolve(
+        &self,
+        selector: Option<ProviderSelector>,
+    ) -> Result<&Arc<dyn CodingAgentProvider>, ToolCallError> {
+        let kind = selector
+            .map(ProviderSelector::into_kind)
+            .unwrap_or(self.default);
+        self.providers.get(&kind).ok_or_else(|| ToolCallError {
+            description: format!(
+                "coding agent provider \"{}\" is not configured",
+                kind.as_str()
+            ),
+            internal_error: anyhow::anyhow!("provider {kind} not in registry"),
+        })
+    }
+}
+
+/// AI-facing selector for which backend to use.
+#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderSelector {
+    /// Cursor Cloud agents.
+    Cursor,
+    /// Claude Managed Agents.
+    Claude,
+}
+
+impl ProviderSelector {
+    fn into_kind(self) -> CodingAgentProviderKind {
+        match self {
+            Self::Cursor => CodingAgentProviderKind::Cursor,
+            Self::Claude => CodingAgentProviderKind::Claude,
         }
     }
 }
@@ -86,9 +115,9 @@ fn tool_error(action: &str, error: CodingAgentError) -> ToolCallError {
 pub struct CodingAgentView {
     /// Provider-assigned agent id; pass this to status / follow-up tools.
     pub id: String,
-    /// Which backend runs the agent (e.g. "cursor").
+    /// Which backend runs the agent (e.g. "cursor", "claude").
     pub provider: String,
-    /// Normalized status: pending, running, finished, failed, stopped, expired.
+    /// Normalized status: pending, running, awaiting_input, finished, failed, stopped, expired.
     pub status: String,
     /// Whether the agent has reached a terminal state.
     pub is_terminal: bool,
@@ -120,6 +149,14 @@ impl From<CodingAgent> for CodingAgentView {
     }
 }
 
+/// Build the routing correlation for a launched agent from the request context.
+fn correlation_for(request_context: &RequestContext) -> AgentCorrelation {
+    AgentCorrelation {
+        user_id: request_context.user_id.to_string(),
+        chat_id: None,
+    }
+}
+
 /// Spawn a new cloud coding agent on a repository.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -138,6 +175,12 @@ pub struct SpawnCodingAgent {
         description = "The GitHub repository URL the agent should work on, e.g. \"https://github.com/macro-inc/macro\"."
     )]
     pub repository: String,
+    /// Which backend to use.
+    #[schemars(
+        description = "Which coding-agent backend to use: \"cursor\" or \"claude\". Omit to use the default."
+    )]
+    #[serde(default)]
+    pub provider: Option<ProviderSelector>,
     /// Optional starting ref.
     #[schemars(
         description = "Optional branch, tag, or commit to start from. Defaults to the repository's default branch."
@@ -185,23 +228,7 @@ impl AsyncTool<CodingAgentToolContext> for SpawnCodingAgent {
         service_context: ServiceContext<CodingAgentToolContext>,
         request_context: RequestContext,
     ) -> ToolResult<Self::Output> {
-        // When webhooks are configured, point the provider at a URL carrying a
-        // signed routing token so the receiver can deliver completion back to
-        // this user without any server-side agent→owner mapping.
-        let webhook = service_context.webhook.as_ref().map(|settings| {
-            let token = sign_route_token(
-                &settings.secret,
-                &RouteTarget {
-                    user_id: request_context.user_id.to_string(),
-                    chat_id: None,
-                },
-            );
-            WebhookConfig {
-                url: format!("{}/{}", settings.url.trim_end_matches('/'), token),
-                secret: settings.secret.to_string(),
-            }
-        });
-        let watching = webhook.is_some();
+        let provider = service_context.resolve(self.provider)?;
 
         let request = LaunchAgentRequest {
             prompt: AgentPrompt::text(self.task.clone()),
@@ -214,16 +241,21 @@ impl AsyncTool<CodingAgentToolContext> for SpawnCodingAgent {
                 branch_name: self.branch_name.clone(),
                 auto_create_pr: self.auto_create_pr.unwrap_or(true),
             },
-            webhook,
+            // The provider round-trips this so completion routes back to the
+            // user; it's a no-op for providers without a webhook configured.
+            correlation: Some(correlation_for(&request_context)),
+            provider_options: serde_json::Map::new(),
         };
 
-        let agent = service_context
-            .provider
+        // Whether the chosen provider will push status changes.
+        let watching = provider.capabilities().webhooks;
+
+        let agent = provider
             .launch(request)
             .await
             .map_err(|e| tool_error("spawn the coding agent", e))?;
 
-        tracing::info!(agent_id = %agent.id, "spawned coding agent");
+        tracing::info!(agent_id = %agent.id, provider = %agent.provider, "spawned coding agent");
 
         Ok(SpawnCodingAgentResponse {
             agent: agent.into(),
@@ -243,6 +275,12 @@ pub struct GetCodingAgentStatus {
     /// The agent id returned by SpawnCodingAgent.
     #[schemars(description = "The id of the coding agent, as returned by SpawnCodingAgent.")]
     pub agent_id: String,
+    /// Which backend the agent belongs to.
+    #[schemars(
+        description = "Which backend the agent belongs to (\"cursor\" or \"claude\"); use the same value you spawned it with. Omit to use the default."
+    )]
+    #[serde(default)]
+    pub provider: Option<ProviderSelector>,
 }
 
 #[async_trait]
@@ -255,8 +293,8 @@ impl AsyncTool<CodingAgentToolContext> for GetCodingAgentStatus {
         service_context: ServiceContext<CodingAgentToolContext>,
         _request_context: RequestContext,
     ) -> ToolResult<Self::Output> {
-        let agent = service_context
-            .provider
+        let provider = service_context.resolve(self.provider)?;
+        let agent = provider
             .get(&CodingAgentId(self.agent_id.clone()))
             .await
             .map_err(|e| tool_error("get the coding agent status", e))?;
@@ -278,6 +316,12 @@ pub struct FollowUpCodingAgent {
     /// The follow-up instruction.
     #[schemars(description = "The additional instruction for the agent.")]
     pub message: String,
+    /// Which backend the agent belongs to.
+    #[schemars(
+        description = "Which backend the agent belongs to (\"cursor\" or \"claude\"). Omit to use the default."
+    )]
+    #[serde(default)]
+    pub provider: Option<ProviderSelector>,
 }
 
 /// Response from an action that succeeds without returning data.
@@ -298,8 +342,8 @@ impl AsyncTool<CodingAgentToolContext> for FollowUpCodingAgent {
         service_context: ServiceContext<CodingAgentToolContext>,
         _request_context: RequestContext,
     ) -> ToolResult<Self::Output> {
-        service_context
-            .provider
+        let provider = service_context.resolve(self.provider)?;
+        provider
             .follow_up(
                 &CodingAgentId(self.agent_id.clone()),
                 AgentPrompt::text(self.message.clone()),
@@ -321,6 +365,12 @@ pub struct StopCodingAgent {
     /// The agent id returned by SpawnCodingAgent.
     #[schemars(description = "The id of the coding agent to stop.")]
     pub agent_id: String,
+    /// Which backend the agent belongs to.
+    #[schemars(
+        description = "Which backend the agent belongs to (\"cursor\" or \"claude\"). Omit to use the default."
+    )]
+    #[serde(default)]
+    pub provider: Option<ProviderSelector>,
 }
 
 #[async_trait]
@@ -333,8 +383,8 @@ impl AsyncTool<CodingAgentToolContext> for StopCodingAgent {
         service_context: ServiceContext<CodingAgentToolContext>,
         _request_context: RequestContext,
     ) -> ToolResult<Self::Output> {
-        service_context
-            .provider
+        let provider = service_context.resolve(self.provider)?;
+        provider
             .stop(&CodingAgentId(self.agent_id.clone()))
             .await
             .map_err(|e| tool_error("stop the coding agent", e))?;

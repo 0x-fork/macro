@@ -1,5 +1,7 @@
 //! Outbound adapters implementing [`CodingAgentProvider`](crate::domain::ports::CodingAgentProvider).
 //!
-//! The first (and currently only) backend is [`cursor`].
+//! - [`cursor`] — Cursor Cloud Agents.
+//! - [`claude`] — Anthropic Claude Managed Agents.
 
+pub mod claude;
 pub mod cursor;

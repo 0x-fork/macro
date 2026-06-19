@@ -12,8 +12,10 @@ use anthropic::toolset::AnthropicToolContext;
 use anyhow::Context;
 use channels::domain::list_service::ChannelListServiceImpl;
 use channels::outbound::pg_channels_repo::PgChannelsRepo;
+use coding_agent::domain::models::{CodingAgentProviderKind, WebhookConfig};
 use coding_agent::domain::ports::CodingAgentProvider;
-use coding_agent::inbound::toolset::{CodingAgentToolContext, WebhookSettings};
+use coding_agent::inbound::toolset::CodingAgentToolContext;
+use coding_agent::outbound::claude::ClaudeAgentProvider;
 use coding_agent::outbound::cursor::CursorAgentProvider;
 use documents::domain::models::CloudFrontConfig;
 use documents::inbound::toolset::DocumentToolContext;
@@ -45,6 +47,7 @@ use search_service_client::SearchServiceClient;
 use secretsmanager_client::{SecretManager, SecretsManager};
 use soup::domain::service::SoupImpl;
 use soup::outbound::pg_soup_repo::PgSoupRepo;
+use std::collections::HashMap;
 use std::sync::Arc;
 use sync_service_client::SyncServiceClient;
 
@@ -72,6 +75,10 @@ maybe_env_var! {
         CursorApiKey,
         CodingAgentWebhookUrl,
         CodingAgentWebhookSecret,
+        AnthropicApiKey,
+        ClaudeManagedAgentId,
+        ClaudeManagedEnvironmentId,
+        ClaudeManagedWebhookSecret,
     }
 }
 
@@ -332,30 +339,59 @@ pub async fn build_tool_service_context_from_env(
 /// notified when they reach a terminal state; otherwise status is polled.
 pub fn build_coding_agent_tool_context() -> CodingAgentToolContext {
     let vars = CodingAgentEnvVars::new();
-    let api_key = vars
-        .cursor_api_key
+    let webhook_base = vars
+        .coding_agent_webhook_url
         .as_ref()
-        .and_then(|v| v.value())
-        .unwrap_or_default();
-    let provider: Arc<dyn CodingAgentProvider> = Arc::new(CursorAgentProvider::new(api_key));
+        .and_then(|v| v.value());
+    let webhook_secret = vars
+        .coding_agent_webhook_secret
+        .as_ref()
+        .and_then(|v| v.value());
 
-    match (
-        vars.coding_agent_webhook_url
+    let mut providers: HashMap<CodingAgentProviderKind, Arc<dyn CodingAgentProvider>> =
+        HashMap::new();
+
+    // Cursor Cloud Agents.
+    let cursor_key = vars.cursor_api_key.as_ref().and_then(|v| v.value());
+    let mut cursor = CursorAgentProvider::new(cursor_key.unwrap_or_default());
+    if let (Some(base), Some(secret)) = (webhook_base, webhook_secret) {
+        cursor = cursor.with_webhook(WebhookConfig {
+            url: format!("{}/cursor", base.trim_end_matches('/')),
+            secret: secret.to_owned(),
+        });
+    }
+    providers.insert(
+        CodingAgentProviderKind::Cursor,
+        Arc::new(cursor) as Arc<dyn CodingAgentProvider>,
+    );
+
+    // Claude Managed Agents. Uses the standard Anthropic API key; the agent /
+    // environment ids and the webhook signing secret come from env when set.
+    let claude_key = vars.anthropic_api_key.as_ref().and_then(|v| v.value());
+    let mut claude = ClaudeAgentProvider::new(claude_key.unwrap_or_default());
+    if let (Some(agent_id), Some(environment_id)) = (
+        vars.claude_managed_agent_id
             .as_ref()
             .and_then(|v| v.value()),
-        vars.coding_agent_webhook_secret
+        vars.claude_managed_environment_id
             .as_ref()
             .and_then(|v| v.value()),
     ) {
-        (Some(url), Some(secret)) => CodingAgentToolContext::with_webhook(
-            provider,
-            WebhookSettings {
-                url: Arc::from(url),
-                secret: Arc::from(secret),
-            },
-        ),
-        _ => CodingAgentToolContext::new(provider),
+        claude = claude.with_agent(agent_id, environment_id);
     }
+    if let Some(secret) = vars
+        .claude_managed_webhook_secret
+        .as_ref()
+        .and_then(|v| v.value())
+    {
+        claude = claude.with_webhook_secret(secret);
+    }
+    providers.insert(
+        CodingAgentProviderKind::Claude,
+        Arc::new(claude) as Arc<dyn CodingAgentProvider>,
+    );
+
+    CodingAgentToolContext::new(providers, CodingAgentProviderKind::Cursor)
 }
 
 /// Build an [`AnthropicToolContext`] from environment variables.

@@ -2,7 +2,7 @@
 //!
 //! When the Macro agent spawns a coding agent, it points the provider's status
 //! webhook at a URL containing a routing token produced by [`sign_route_token`].
-//! The token embeds the [`RouteTarget`] (who/where to deliver completion to) and
+//! The token embeds the [`AgentCorrelation`] (who/where to deliver completion to) and
 //! an HMAC over it keyed by the shared webhook secret. The receiver recovers and
 //! authenticates it with [`verify_route_token`].
 //!
@@ -16,21 +16,21 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use subtle::ConstantTimeEq;
 
-use crate::domain::models::{CodingAgentError, RouteTarget};
+use crate::domain::models::{AgentCorrelation, CodingAgentError};
 
 type HmacSha256 = Hmac<Sha256>;
 
-/// Encode a [`RouteTarget`] into a signed, URL-safe token: `<hex(payload)>.<hex(hmac)>`.
-pub fn sign_route_token(secret: &str, route: &RouteTarget) -> String {
-    let payload = serde_json::to_vec(route).expect("RouteTarget always serializes");
+/// Encode a [`AgentCorrelation`] into a signed, URL-safe token: `<hex(payload)>.<hex(hmac)>`.
+pub fn sign_route_token(secret: &str, route: &AgentCorrelation) -> String {
+    let payload = serde_json::to_vec(route).expect("AgentCorrelation always serializes");
     let payload_hex = hex::encode(&payload);
     let signature = hex::encode(hmac(secret, payload_hex.as_bytes()));
     format!("{payload_hex}.{signature}")
 }
 
-/// Recover and authenticate a [`RouteTarget`] from a token produced by
+/// Recover and authenticate a [`AgentCorrelation`] from a token produced by
 /// [`sign_route_token`], using constant-time signature comparison.
-pub fn verify_route_token(secret: &str, token: &str) -> Result<RouteTarget, CodingAgentError> {
+pub fn verify_route_token(secret: &str, token: &str) -> Result<AgentCorrelation, CodingAgentError> {
     let (payload_hex, signature) = token.split_once('.').ok_or_else(|| {
         CodingAgentError::WebhookVerification("malformed routing token".to_owned())
     })?;

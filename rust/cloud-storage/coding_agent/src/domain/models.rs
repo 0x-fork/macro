@@ -11,11 +11,13 @@ use serde::{Deserialize, Serialize};
 ///
 /// New backends add a variant here; the rest of the system switches on it for
 /// routing and persistence.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CodingAgentProviderKind {
     /// Cursor Cloud (a.k.a. background) agents.
     Cursor,
+    /// Anthropic Claude Managed Agents (hosted sessions).
+    Claude,
 }
 
 impl CodingAgentProviderKind {
@@ -23,6 +25,16 @@ impl CodingAgentProviderKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Cursor => "cursor",
+            Self::Claude => "claude",
+        }
+    }
+
+    /// Parse a provider kind from its [`as_str`](Self::as_str) identifier.
+    pub fn from_wire(value: &str) -> Option<Self> {
+        match value {
+            "cursor" => Some(Self::Cursor),
+            "claude" => Some(Self::Claude),
+            _ => None,
         }
     }
 }
@@ -72,6 +84,9 @@ pub enum CodingAgentStatus {
     Pending,
     /// Actively working on the task.
     Running,
+    /// Paused, waiting for the next instruction (e.g. a long-running session
+    /// that has idled). Not terminal — send a follow-up to continue.
+    AwaitingInput,
     /// Completed successfully (a result / PR is available).
     Finished,
     /// Ended in an error or failure.
@@ -90,6 +105,7 @@ impl CodingAgentStatus {
         match self {
             Self::Pending => "pending",
             Self::Running => "running",
+            Self::AwaitingInput => "awaiting_input",
             Self::Finished => "finished",
             Self::Failed => "failed",
             Self::Stopped => "stopped",
@@ -175,14 +191,15 @@ impl Default for AgentTarget {
     }
 }
 
-/// Subscription config: the endpoint a provider should call on status changes.
+/// Webhook base configuration a provider is constructed with: where it should
+/// deliver status events and the shared secret used to sign/verify them.
 ///
-/// Providers sign delivered payloads with [`secret`](Self::secret); the
-/// receiver verifies via
-/// [`CodingAgentProvider::verify_and_parse_webhook`](super::ports::CodingAgentProvider::verify_and_parse_webhook).
+/// Held by the provider (not the launch request) — the provider decides how to
+/// wire it up (Cursor sets it per-launch with a routing token appended; Claude's
+/// is registered out-of-band and only the secret is used for verification).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookConfig {
-    /// Absolute URL the provider posts status-change events to.
+    /// Base URL the provider posts status-change events to.
     pub url: String,
     /// Shared secret used to sign and verify deliveries.
     pub secret: String,
@@ -201,9 +218,16 @@ pub struct LaunchAgentRequest {
     /// Desired output (branch / PR behavior).
     #[serde(default)]
     pub target: AgentTarget,
-    /// Optional status-change subscription.
+    /// Opaque correlation (owner user / chat) the provider should round-trip so
+    /// status events can be routed back. Providers attach it via whatever
+    /// mechanism they support; ignored when the provider has no webhook wired.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub webhook: Option<WebhookConfig>,
+    pub correlation: Option<AgentCorrelation>,
+    /// Provider-specific launch options that don't fit the normalized fields
+    /// (e.g. a Claude `agent_id` / `environment_id`). Each provider reads only
+    /// the keys it understands.
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    pub provider_options: serde_json::Map<String, serde_json::Value>,
 }
 
 /// A snapshot of a launched (or queried) coding agent.
@@ -269,34 +293,33 @@ pub struct CodingAgentEvent {
     pub web_url: Option<String>,
     /// Branch name, when present.
     pub branch_name: Option<String>,
+    /// The correlation recovered by the provider (owner user / chat), used by
+    /// the receiver to route the event. `None` if the provider couldn't recover
+    /// it (e.g. the agent was launched without correlation).
+    #[serde(default)]
+    pub correlation: Option<AgentCorrelation>,
     /// The original, untouched payload, for downstream consumers that need
     /// provider-specific fields this model doesn't capture.
     pub raw: serde_json::Value,
 }
 
-/// Where a status event should be delivered: the user (and optionally the
-/// conversation) that spawned the agent.
+/// Opaque correlation carried from launch through to status events: who (and
+/// optionally which conversation) spawned the agent.
 ///
-/// Encoded into a signed routing token in the webhook URL by the spawn tool and
-/// recovered by the receiver, so no server-side `agent → owner` mapping is
-/// required. See [`inbound::routing`](crate::inbound::routing).
+/// The spawn tool attaches it to [`LaunchAgentRequest::correlation`]; each
+/// provider round-trips it however it can — the Cursor adapter encodes it in a
+/// signed routing token in the webhook URL, the Claude adapter attaches it as
+/// session metadata — and surfaces it back on [`CodingAgentEvent::correlation`]
+/// so the receiver can route the update without any server-side
+/// `agent → owner` mapping. See [`inbound::routing`](crate::inbound::routing).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RouteTarget {
+pub struct AgentCorrelation {
     /// The user who spawned the agent.
     #[serde(rename = "u")]
     pub user_id: String,
     /// The conversation/chat the agent was spawned from, when known.
     #[serde(rename = "c", default, skip_serializing_if = "Option::is_none")]
     pub chat_id: Option<String>,
-}
-
-/// A normalized status event paired with its delivery target.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoutedCodingAgentEvent {
-    /// The status event.
-    pub event: CodingAgentEvent,
-    /// Who/where to deliver it to.
-    pub route: RouteTarget,
 }
 
 /// Declares which optional operations a provider supports, so callers can

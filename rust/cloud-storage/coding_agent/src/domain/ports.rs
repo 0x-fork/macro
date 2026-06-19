@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use super::models::{
     AgentMessage, AgentPrompt, CodingAgent, CodingAgentError, CodingAgentEvent, CodingAgentId,
-    CodingAgentProviderKind, LaunchAgentRequest, ProviderCapabilities, RoutedCodingAgentEvent,
+    CodingAgentProviderKind, LaunchAgentRequest, ProviderCapabilities,
 };
 
 /// Read-only access to the headers of an inbound webhook request.
@@ -83,28 +83,35 @@ pub trait CodingAgentProvider: Send + Sync {
         Err(CodingAgentError::Unsupported)
     }
 
-    /// Verify an inbound webhook's signature against `secret` and parse it into
-    /// a normalized [`CodingAgentEvent`].
+    /// Verify an inbound webhook delivery and parse it into a normalized
+    /// [`CodingAgentEvent`] (including the recovered
+    /// [`correlation`](CodingAgentEvent::correlation)).
     ///
-    /// Implementations MUST verify the signature over the raw, unparsed
-    /// `raw_body` before trusting any of it, and return
-    /// [`CodingAgentError::WebhookVerification`] on mismatch.
+    /// The provider owns its webhook secret (from construction), so it isn't
+    /// passed here. `url_token` is the optional token segment from the webhook
+    /// URL — providers that encode correlation there (Cursor) use it; providers
+    /// that carry correlation in the body (Claude) ignore it.
+    ///
+    /// Implementations MUST authenticate the delivery (signature over the raw,
+    /// unparsed `raw_body`, and the `url_token` when used) before trusting any
+    /// of it, and return [`CodingAgentError::WebhookVerification`] on mismatch.
     fn verify_and_parse_webhook(
         &self,
         headers: &dyn WebhookHeaders,
         raw_body: &[u8],
-        secret: &str,
+        url_token: Option<&str>,
     ) -> Result<CodingAgentEvent, CodingAgentError>;
 }
 
 /// Destination for verified status events.
 ///
 /// The [`webhook`](crate::inbound::webhook) receiver verifies a delivery and
-/// hands the resulting [`RoutedCodingAgentEvent`] to a sink; the hosting service
-/// implements the sink to actually surface it to the user (e.g. a realtime push
+/// hands the resulting [`CodingAgentEvent`] (which carries its
+/// [`correlation`](CodingAgentEvent::correlation)) to a sink; the hosting
+/// service implements the sink to surface it to the user (e.g. a realtime push
 /// over the connection gateway, a notification, or a chat message).
 #[async_trait]
 pub trait CodingAgentEventSink: Send + Sync {
-    /// Deliver a verified, routed status event.
-    async fn deliver(&self, event: RoutedCodingAgentEvent) -> Result<(), CodingAgentError>;
+    /// Deliver a verified status event.
+    async fn deliver(&self, event: CodingAgentEvent) -> Result<(), CodingAgentError>;
 }

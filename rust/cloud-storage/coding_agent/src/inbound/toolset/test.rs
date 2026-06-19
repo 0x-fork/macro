@@ -5,12 +5,15 @@ use async_trait::async_trait;
 use macro_user_id::user_id::MacroUserIdStr;
 
 use crate::domain::models::{
-    CodingAgentEvent, CodingAgentProviderKind, CodingAgentStatus, ProviderCapabilities,
+    CodingAgent, CodingAgentEvent, CodingAgentProviderKind, CodingAgentStatus, LaunchAgentRequest,
+    ProviderCapabilities,
 };
 use crate::domain::ports::WebhookHeaders;
 
-/// A provider stub that records launches and returns canned snapshots.
-struct FakeProvider;
+/// A provider stub with a configurable `webhooks` capability.
+struct FakeProvider {
+    webhooks: bool,
+}
 
 #[async_trait]
 impl CodingAgentProvider for FakeProvider {
@@ -24,12 +27,14 @@ impl CodingAgentProvider for FakeProvider {
             stop: true,
             delete: true,
             conversation: true,
-            webhooks: true,
+            webhooks: self.webhooks,
             requires_status_polling: true,
         }
     }
 
     async fn launch(&self, request: LaunchAgentRequest) -> Result<CodingAgent, CodingAgentError> {
+        // The tool must pass correlation through for routing.
+        assert!(request.correlation.is_some(), "expected correlation");
         Ok(CodingAgent {
             id: CodingAgentId("bc_test".to_owned()),
             provider: CodingAgentProviderKind::Cursor,
@@ -63,10 +68,14 @@ impl CodingAgentProvider for FakeProvider {
         &self,
         _headers: &dyn WebhookHeaders,
         _raw_body: &[u8],
-        _secret: &str,
+        _url_token: Option<&str>,
     ) -> Result<CodingAgentEvent, CodingAgentError> {
         Err(CodingAgentError::Unsupported)
     }
+}
+
+fn context(webhooks: bool) -> CodingAgentToolContext {
+    CodingAgentToolContext::single(Arc::new(FakeProvider { webhooks }))
 }
 
 fn request_context() -> RequestContext {
@@ -90,10 +99,10 @@ fn toolset_registers_all_tools() {
 
 #[tokio::test]
 async fn spawn_tool_launches_via_provider() {
-    let context = CodingAgentToolContext::new(Arc::new(FakeProvider));
     let tool = SpawnCodingAgent {
         task: "fix the bug".to_owned(),
         repository: "https://github.com/x/y".to_owned(),
+        provider: None,
         base_ref: None,
         branch_name: Some("fix/bug".to_owned()),
         model: None,
@@ -101,7 +110,7 @@ async fn spawn_tool_launches_via_provider() {
     };
 
     let response = tool
-        .call(ServiceContext(context), request_context())
+        .call(ServiceContext(context(false)), request_context())
         .await
         .unwrap();
 
@@ -110,22 +119,16 @@ async fn spawn_tool_launches_via_provider() {
     assert_eq!(response.agent.status, "pending");
     assert_eq!(response.agent.branch_name.as_deref(), Some("fix/bug"));
     assert!(!response.agent.is_terminal);
-    // No webhook configured on the context.
+    // Provider has no webhook capability.
     assert!(!response.watching);
 }
 
 #[tokio::test]
-async fn spawn_tool_marks_watching_when_webhook_configured() {
-    let context = CodingAgentToolContext::with_webhook(
-        Arc::new(FakeProvider),
-        WebhookSettings {
-            url: Arc::from("https://macro.example/hook"),
-            secret: Arc::from("0123456789012345678901234567890123"),
-        },
-    );
+async fn spawn_tool_watches_when_provider_supports_webhooks() {
     let tool = SpawnCodingAgent {
         task: "fix the bug".to_owned(),
         repository: "https://github.com/x/y".to_owned(),
+        provider: Some(ProviderSelector::Cursor),
         base_ref: None,
         branch_name: None,
         model: None,
@@ -133,21 +136,40 @@ async fn spawn_tool_marks_watching_when_webhook_configured() {
     };
 
     let response = tool
-        .call(ServiceContext(context), request_context())
+        .call(ServiceContext(context(true)), request_context())
         .await
         .unwrap();
     assert!(response.watching);
 }
 
 #[tokio::test]
+async fn spawn_tool_errors_for_unconfigured_provider() {
+    // Registry only has Cursor; requesting Claude should error clearly.
+    let tool = SpawnCodingAgent {
+        task: "fix the bug".to_owned(),
+        repository: "https://github.com/x/y".to_owned(),
+        provider: Some(ProviderSelector::Claude),
+        base_ref: None,
+        branch_name: None,
+        model: None,
+        auto_create_pr: None,
+    };
+
+    let result = tool
+        .call(ServiceContext(context(false)), request_context())
+        .await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
 async fn status_tool_reads_provider() {
-    let context = CodingAgentToolContext::new(Arc::new(FakeProvider));
     let tool = GetCodingAgentStatus {
         agent_id: "bc_test".to_owned(),
+        provider: None,
     };
 
     let view = tool
-        .call(ServiceContext(context), request_context())
+        .call(ServiceContext(context(false)), request_context())
         .await
         .unwrap();
 

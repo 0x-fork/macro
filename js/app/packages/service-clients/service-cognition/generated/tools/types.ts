@@ -1154,6 +1154,10 @@ export interface FollowUpCodingAgent {
    * The additional instruction for the agent.
    */
   message: string;
+  /**
+   * Which backend the agent belongs to ("cursor" or "claude"). Omit to use the default.
+   */
+  provider?: ProviderSelector | null;
 }
 /**
  * Get the current status and result of a coding agent previously spawned with SpawnCodingAgent. Use this to check progress, see whether it finished, and retrieve the pull request URL once available.
@@ -1163,6 +1167,10 @@ export interface GetCodingAgentStatus {
    * The id of the coding agent, as returned by SpawnCodingAgent.
    */
   agentId: string;
+  /**
+   * Which backend the agent belongs to ("cursor" or "claude"). Omit to use the default.
+   */
+  provider?: ProviderSelector | null;
 }
 /**
  * Get all properties attached to an entity (document, task, project, etc.). Returns property definitions with their current values and available options for select-type properties. Use this to discover custom properties on an entity. For tasks, system properties (Assignees, Status, Priority, Due Date, etc.) are always present — you can update them directly with SetEntityProperty using well-known IDs without calling this first.
@@ -2543,6 +2551,10 @@ export interface SpawnCodingAgent {
    */
   model?: string | null;
   /**
+   * Which coding-agent backend to use: "cursor" or "claude". Omit to use the default.
+   */
+  provider?: ProviderSelector | null;
+  /**
    * The GitHub repository URL the agent should work on, e.g. "https://github.com/macro-inc/macro".
    */
   repository: string;
@@ -2570,6 +2582,10 @@ export interface StopCodingAgent {
    * The id of the coding agent to stop.
    */
   agentId: string;
+  /**
+   * Which backend the agent belongs to ("cursor" or "claude"). Omit to use the default.
+   */
+  provider?: ProviderSelector | null;
 }
 /**
  * Delegate a task to a subagent that can independently use tools to research and complete it. The subagent has access to search, documents, properties, calls, and channel tools. Use this for tasks that require multiple tool calls or independent research.
@@ -2777,3 +2793,5 @@ export interface WebSearchResponse {
   content: WebSearchContent;
   tool_use_id: string;
 }
+
+export type ProviderSelector = "cursor" | "claude";
