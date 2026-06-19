@@ -169,7 +169,8 @@ pub async fn init_github_link_handler(
             &ctx.db,
             &user_context.user_context.fusion_user_id,
         )
-        .await?;
+        .await
+        .inspect_err(|e| tracing::error!(error=?e, "failed to count in-progress user links"))?;
 
     if count >= 5 {
         return Err(InitGithubLinkError::TooManyInProgressLinks);
@@ -180,13 +181,15 @@ pub async fn init_github_link_handler(
         &ctx.db,
         &user_context.user_context.fusion_user_id,
     )
-    .await?;
+    .await
+    .inspect_err(|e| tracing::error!(error=?e, "failed to create in-progress user link"))?;
 
     // Get Github integration identity provider ID from context
     let github_idp_id = &ctx
         .auth_client
         .get_identity_provider_id_by_name("github")
         .await
+        .inspect_err(|e| tracing::error!(error=?e, "failed to look up github identity provider"))
         .map_err(|_| InitGithubLinkError::IdentityProviderNotFound)?;
 
     // Build OAuth state
