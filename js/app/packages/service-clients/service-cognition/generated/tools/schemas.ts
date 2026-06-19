@@ -2300,14 +2300,12 @@ export const ReadResponse = z.object({
 export const FollowUpCodingAgent = z.object({
   agentId: z.string(),
   message: z.string(),
-  provider: z.union([z.enum(["cursor", "claude"]), z.null()]).default(null),
 });
 
 export const CodingAgentActionResponse = z.object({ success: z.boolean() });
 
 export const GetCodingAgentStatus = z.object({
   agentId: z.string(),
-  provider: z.union([z.enum(["cursor", "claude"]), z.null()]).default(null),
 });
 
 export const CodingAgentView = z.object({
@@ -2327,7 +2325,6 @@ export const SpawnCodingAgent = z.object({
   baseRef: z.union([z.string(), z.null()]).default(null),
   branchName: z.union([z.string(), z.null()]).default(null),
   model: z.union([z.string(), z.null()]).default(null),
-  provider: z.union([z.enum(["cursor", "claude"]), z.null()]).default(null),
   repository: z.string(),
   task: z.string(),
 });
@@ -2349,5 +2346,4 @@ export const SpawnCodingAgentResponse = z.object({
 
 export const StopCodingAgent = z.object({
   agentId: z.string(),
-  provider: z.union([z.enum(["cursor", "claude"]), z.null()]).default(null),
 });

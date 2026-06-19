@@ -14,8 +14,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CodingAgentProviderKind {
-    /// Cursor Cloud (a.k.a. background) agents.
-    Cursor,
     /// Anthropic Claude Managed Agents (hosted sessions).
     Claude,
 }
@@ -24,17 +22,7 @@ impl CodingAgentProviderKind {
     /// Stable, lowercase identifier suitable for persistence and routing.
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Cursor => "cursor",
             Self::Claude => "claude",
-        }
-    }
-
-    /// Parse a provider kind from its [`as_str`](Self::as_str) identifier.
-    pub fn from_wire(value: &str) -> Option<Self> {
-        match value {
-            "cursor" => Some(Self::Cursor),
-            "claude" => Some(Self::Claude),
-            _ => None,
         }
     }
 }
@@ -191,20 +179,6 @@ impl Default for AgentTarget {
     }
 }
 
-/// Webhook base configuration a provider is constructed with: where it should
-/// deliver status events and the shared secret used to sign/verify them.
-///
-/// Held by the provider (not the launch request) — the provider decides how to
-/// wire it up (Cursor sets it per-launch with a routing token appended; Claude's
-/// is registered out-of-band and only the secret is used for verification).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WebhookConfig {
-    /// Base URL the provider posts status-change events to.
-    pub url: String,
-    /// Shared secret used to sign and verify deliveries.
-    pub secret: String,
-}
-
 /// A request to launch a new coding agent run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LaunchAgentRequest {
@@ -218,9 +192,13 @@ pub struct LaunchAgentRequest {
     /// Desired output (branch / PR behavior).
     #[serde(default)]
     pub target: AgentTarget,
-    /// Opaque correlation (owner user / chat) the provider should round-trip so
-    /// status events can be routed back. Providers attach it via whatever
-    /// mechanism they support; ignored when the provider has no webhook wired.
+    /// GitHub access token used to clone the repository, scoped to the spawning
+    /// user. Resolved per-request from the user's connected GitHub account; when
+    /// absent the provider attempts an unauthenticated clone (public repos only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_token: Option<String>,
+    /// Opaque correlation (owner user / chat) the provider round-trips so status
+    /// events can be routed back. Ignored when the provider has no webhook wired.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub correlation: Option<AgentCorrelation>,
     /// Provider-specific launch options that don't fit the normalized fields

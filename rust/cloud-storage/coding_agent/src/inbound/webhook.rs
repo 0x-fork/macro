@@ -1,8 +1,7 @@
 //! Framework-agnostic webhook receiver.
 //!
 //! Hosting services (which own the HTTP framework, auth layer, and delivery
-//! mechanism) mount a thin route that extracts the provider, the optional
-//! routing token from the URL, and the raw request body, then call
+//! mechanism) mount a thin route that extracts the raw request body and calls
 //! [`process_webhook`]. Keeping this logic free of any web framework makes it
 //! unit-testable and reusable.
 //!
@@ -23,19 +22,16 @@ use crate::domain::ports::{CodingAgentEventSink, CodingAgentProvider, WebhookHea
 
 /// Verify a status webhook delivery and dispatch it to `sink`.
 ///
-/// `url_token` is the optional routing token taken from the webhook URL path
-/// (used by providers that encode correlation there, e.g. Cursor). `raw_body`
-/// MUST be the unparsed request body.
+/// `raw_body` MUST be the unparsed request body.
 #[tracing::instrument(skip_all, err)]
 pub async fn process_webhook(
     provider: &dyn CodingAgentProvider,
     sink: &dyn CodingAgentEventSink,
     headers: &dyn WebhookHeaders,
-    url_token: Option<&str>,
     raw_body: &[u8],
 ) -> Result<(), CodingAgentError> {
     // Authenticate + parse + recover correlation (all inside the provider).
-    let event = provider.verify_and_parse_webhook(headers, raw_body, url_token)?;
+    let event = provider.verify_and_parse_webhook(headers, raw_body)?;
 
     tracing::info!(
         provider = %event.provider,

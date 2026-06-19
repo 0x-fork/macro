@@ -10,7 +10,8 @@ use crate::domain::models::{
 };
 use crate::domain::ports::WebhookHeaders;
 
-/// A provider stub with a configurable `webhooks` capability.
+/// A provider stub with a configurable `webhooks` capability that records the
+/// launch request it received.
 struct FakeProvider {
     webhooks: bool,
 }
@@ -18,26 +19,25 @@ struct FakeProvider {
 #[async_trait]
 impl CodingAgentProvider for FakeProvider {
     fn kind(&self) -> CodingAgentProviderKind {
-        CodingAgentProviderKind::Cursor
+        CodingAgentProviderKind::Claude
     }
 
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities {
             follow_up: true,
-            stop: true,
+            stop: false,
             delete: true,
             conversation: true,
             webhooks: self.webhooks,
-            requires_status_polling: true,
+            requires_status_polling: false,
         }
     }
 
     async fn launch(&self, request: LaunchAgentRequest) -> Result<CodingAgent, CodingAgentError> {
-        // The tool must pass correlation through for routing.
         assert!(request.correlation.is_some(), "expected correlation");
         Ok(CodingAgent {
-            id: CodingAgentId("bc_test".to_owned()),
-            provider: CodingAgentProviderKind::Cursor,
+            id: CodingAgentId("sess_test".to_owned()),
+            provider: CodingAgentProviderKind::Claude,
             status: CodingAgentStatus::Pending,
             name: Some("test agent".to_owned()),
             source: Some(request.source),
@@ -52,7 +52,7 @@ impl CodingAgentProvider for FakeProvider {
     async fn get(&self, id: &CodingAgentId) -> Result<CodingAgent, CodingAgentError> {
         Ok(CodingAgent {
             id: id.clone(),
-            provider: CodingAgentProviderKind::Cursor,
+            provider: CodingAgentProviderKind::Claude,
             status: CodingAgentStatus::Finished,
             name: None,
             source: None,
@@ -68,19 +68,40 @@ impl CodingAgentProvider for FakeProvider {
         &self,
         _headers: &dyn WebhookHeaders,
         _raw_body: &[u8],
-        _url_token: Option<&str>,
     ) -> Result<CodingAgentEvent, CodingAgentError> {
         Err(CodingAgentError::Unsupported)
     }
 }
 
+/// Token resolver that hands back a fixed token, recording the user it saw.
+struct FixedTokenResolver;
+
+#[async_trait]
+impl GitTokenResolver for FixedTokenResolver {
+    async fn github_token(&self, user_id: &str) -> Result<Option<String>, CodingAgentError> {
+        assert_eq!(user_id, "macro|test@macro.com");
+        Ok(Some("ghp_token".to_owned()))
+    }
+}
+
 fn context(webhooks: bool) -> CodingAgentToolContext {
-    CodingAgentToolContext::single(Arc::new(FakeProvider { webhooks }))
+    CodingAgentToolContext::new(Arc::new(FakeProvider { webhooks }))
 }
 
 fn request_context() -> RequestContext {
     RequestContext {
         user_id: MacroUserIdStr::try_from_email("test@macro.com").unwrap(),
+    }
+}
+
+fn spawn_tool() -> SpawnCodingAgent {
+    SpawnCodingAgent {
+        task: "fix the bug".to_owned(),
+        repository: "https://github.com/x/y".to_owned(),
+        base_ref: None,
+        branch_name: Some("fix/bug".to_owned()),
+        model: None,
+        auto_create_pr: None,
     }
 }
 
@@ -99,43 +120,22 @@ fn toolset_registers_all_tools() {
 
 #[tokio::test]
 async fn spawn_tool_launches_via_provider() {
-    let tool = SpawnCodingAgent {
-        task: "fix the bug".to_owned(),
-        repository: "https://github.com/x/y".to_owned(),
-        provider: None,
-        base_ref: None,
-        branch_name: Some("fix/bug".to_owned()),
-        model: None,
-        auto_create_pr: None,
-    };
-
-    let response = tool
+    let response = spawn_tool()
         .call(ServiceContext(context(false)), request_context())
         .await
         .unwrap();
 
-    assert_eq!(response.agent.id, "bc_test");
-    assert_eq!(response.agent.provider, "cursor");
+    assert_eq!(response.agent.id, "sess_test");
+    assert_eq!(response.agent.provider, "claude");
     assert_eq!(response.agent.status, "pending");
     assert_eq!(response.agent.branch_name.as_deref(), Some("fix/bug"));
     assert!(!response.agent.is_terminal);
-    // Provider has no webhook capability.
     assert!(!response.watching);
 }
 
 #[tokio::test]
 async fn spawn_tool_watches_when_provider_supports_webhooks() {
-    let tool = SpawnCodingAgent {
-        task: "fix the bug".to_owned(),
-        repository: "https://github.com/x/y".to_owned(),
-        provider: Some(ProviderSelector::Cursor),
-        base_ref: None,
-        branch_name: None,
-        model: None,
-        auto_create_pr: Some(false),
-    };
-
-    let response = tool
+    let response = spawn_tool()
         .call(ServiceContext(context(true)), request_context())
         .await
         .unwrap();
@@ -143,29 +143,24 @@ async fn spawn_tool_watches_when_provider_supports_webhooks() {
 }
 
 #[tokio::test]
-async fn spawn_tool_errors_for_unconfigured_provider() {
-    // Registry only has Cursor; requesting Claude should error clearly.
-    let tool = SpawnCodingAgent {
-        task: "fix the bug".to_owned(),
-        repository: "https://github.com/x/y".to_owned(),
-        provider: Some(ProviderSelector::Claude),
-        base_ref: None,
-        branch_name: None,
-        model: None,
-        auto_create_pr: None,
-    };
-
-    let result = tool
-        .call(ServiceContext(context(false)), request_context())
-        .await;
-    assert!(result.is_err());
+async fn spawn_tool_resolves_user_github_token() {
+    let context = CodingAgentToolContext::with_git_tokens(
+        Arc::new(FakeProvider { webhooks: false }),
+        Arc::new(FixedTokenResolver),
+    );
+    // FixedTokenResolver asserts the user id; a clean spawn confirms the token
+    // path runs without error.
+    let response = spawn_tool()
+        .call(ServiceContext(context), request_context())
+        .await
+        .unwrap();
+    assert_eq!(response.agent.provider, "claude");
 }
 
 #[tokio::test]
 async fn status_tool_reads_provider() {
     let tool = GetCodingAgentStatus {
-        agent_id: "bc_test".to_owned(),
-        provider: None,
+        agent_id: "sess_test".to_owned(),
     };
 
     let view = tool

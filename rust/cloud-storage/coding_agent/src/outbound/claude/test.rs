@@ -24,6 +24,7 @@ fn launch_request() -> LaunchAgentRequest {
             branch_name: None,
             auto_create_pr: true,
         },
+        git_token: Some("ghp_abc".to_owned()),
         correlation: Some(AgentCorrelation {
             user_id: "macro|teo@macro.com".to_owned(),
             chat_id: Some("chat-1".to_owned()),
@@ -82,34 +83,56 @@ fn resolves_agent_and_environment() {
 }
 
 #[test]
-fn create_session_body_carries_correlation_metadata() {
+fn create_session_body_mounts_repo_with_token_and_metadata() {
     let request = launch_request();
     let metadata = request
         .correlation
         .as_ref()
         .map(|c| serde_json::json!({ CORRELATION_METADATA_KEY: c }));
     let body = ClaudeCreateSessionRequest {
-        agent_id: "agent_1".to_owned(),
+        agent: "agent_1".to_owned(),
         environment_id: "env_1".to_owned(),
-        input: ClaudeInput::user_text(build_task_prompt(&request)),
+        resources: vec![ClaudeResource {
+            kind: "github_repository",
+            url: request.source.repository.clone(),
+            mount_path: REPO_MOUNT_PATH.to_owned(),
+            authorization_token: request.git_token.clone(),
+        }],
         metadata,
     };
     let json = serde_json::to_value(&body).unwrap();
 
-    assert_eq!(json["agent_id"], "agent_1");
+    assert_eq!(json["agent"], "agent_1");
     assert_eq!(json["environment_id"], "env_1");
-    assert_eq!(json["input"]["type"], "user_message");
-    assert!(
-        json["input"]["content"]
-            .as_str()
-            .unwrap()
-            .contains("Repository: https://github.com/macro-inc/macro")
+    assert_eq!(json["resources"][0]["type"], "github_repository");
+    assert_eq!(
+        json["resources"][0]["url"],
+        "https://github.com/macro-inc/macro"
     );
+    assert_eq!(json["resources"][0]["mount_path"], "/workspace/repo");
+    assert_eq!(json["resources"][0]["authorization_token"], "ghp_abc");
     assert_eq!(
         json["metadata"][CORRELATION_METADATA_KEY]["u"],
         "macro|teo@macro.com"
     );
-    assert_eq!(json["metadata"][CORRELATION_METADATA_KEY]["c"], "chat-1");
+}
+
+#[test]
+fn user_message_event_uses_content_blocks() {
+    let body = ClaudeSendEvents {
+        events: vec![ClaudeUserMessage::text("do the thing")],
+    };
+    let json = serde_json::to_value(&body).unwrap();
+    assert_eq!(json["events"][0]["type"], "user.message");
+    assert_eq!(json["events"][0]["content"][0]["type"], "text");
+    assert_eq!(json["events"][0]["content"][0]["text"], "do the thing");
+}
+
+#[test]
+fn task_prompt_references_mount_path() {
+    let prompt = build_task_prompt(&launch_request());
+    assert!(prompt.contains("/workspace/repo"));
+    assert!(prompt.contains("pull request"));
 }
 
 #[test]
@@ -129,7 +152,7 @@ fn verify_and_parse_webhook_recovers_correlation_from_metadata() {
     headers.insert("x-webhook-signature".to_owned(), sign(SECRET, &body));
 
     let event = provider
-        .verify_and_parse_webhook(&headers, &body, None)
+        .verify_and_parse_webhook(&headers, &body)
         .expect("valid webhook should verify");
 
     assert_eq!(event.id, CodingAgentId("sess_123".to_owned()));
@@ -146,7 +169,7 @@ fn verify_and_parse_webhook_rejects_bad_signature() {
     let mut headers = HashMap::new();
     headers.insert("x-webhook-signature".to_owned(), sign("wrong-secret", body));
     assert!(matches!(
-        provider.verify_and_parse_webhook(&headers, body, None),
+        provider.verify_and_parse_webhook(&headers, body),
         Err(CodingAgentError::WebhookVerification(_))
     ));
 }

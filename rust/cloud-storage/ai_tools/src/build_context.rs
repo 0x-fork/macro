@@ -12,11 +12,10 @@ use anthropic::toolset::AnthropicToolContext;
 use anyhow::Context;
 use channels::domain::list_service::ChannelListServiceImpl;
 use channels::outbound::pg_channels_repo::PgChannelsRepo;
-use coding_agent::domain::models::{CodingAgentProviderKind, WebhookConfig};
-use coding_agent::domain::ports::CodingAgentProvider;
+use coding_agent::domain::models::CodingAgentError;
+use coding_agent::domain::ports::{CodingAgentProvider, GitTokenResolver};
 use coding_agent::inbound::toolset::CodingAgentToolContext;
 use coding_agent::outbound::claude::ClaudeAgentProvider;
-use coding_agent::outbound::cursor::CursorAgentProvider;
 use documents::domain::models::CloudFrontConfig;
 use documents::inbound::toolset::DocumentToolContext;
 use documents::outbound::pg_document_repo::PgDocumentRepo;
@@ -47,7 +46,6 @@ use search_service_client::SearchServiceClient;
 use secretsmanager_client::{SecretManager, SecretsManager};
 use soup::domain::service::SoupImpl;
 use soup::outbound::pg_soup_repo::PgSoupRepo;
-use std::collections::HashMap;
 use std::sync::Arc;
 use sync_service_client::SyncServiceClient;
 
@@ -72,9 +70,6 @@ maybe_env_var! {
 
 maybe_env_var! {
     struct CodingAgentEnvVars {
-        CursorApiKey,
-        CodingAgentWebhookUrl,
-        CodingAgentWebhookSecret,
         AnthropicApiKey,
         ClaudeManagedAgentId,
         ClaudeManagedEnvironmentId,
@@ -339,36 +334,11 @@ pub async fn build_tool_service_context_from_env(
 /// notified when they reach a terminal state; otherwise status is polled.
 pub fn build_coding_agent_tool_context() -> CodingAgentToolContext {
     let vars = CodingAgentEnvVars::new();
-    let webhook_base = vars
-        .coding_agent_webhook_url
-        .as_ref()
-        .and_then(|v| v.value());
-    let webhook_secret = vars
-        .coding_agent_webhook_secret
-        .as_ref()
-        .and_then(|v| v.value());
-
-    let mut providers: HashMap<CodingAgentProviderKind, Arc<dyn CodingAgentProvider>> =
-        HashMap::new();
-
-    // Cursor Cloud Agents.
-    let cursor_key = vars.cursor_api_key.as_ref().and_then(|v| v.value());
-    let mut cursor = CursorAgentProvider::new(cursor_key.unwrap_or_default());
-    if let (Some(base), Some(secret)) = (webhook_base, webhook_secret) {
-        cursor = cursor.with_webhook(WebhookConfig {
-            url: format!("{}/cursor", base.trim_end_matches('/')),
-            secret: secret.to_owned(),
-        });
-    }
-    providers.insert(
-        CodingAgentProviderKind::Cursor,
-        Arc::new(cursor) as Arc<dyn CodingAgentProvider>,
-    );
 
     // Claude Managed Agents. Uses the standard Anthropic API key; the agent /
     // environment ids and the webhook signing secret come from env when set.
-    let claude_key = vars.anthropic_api_key.as_ref().and_then(|v| v.value());
-    let mut claude = ClaudeAgentProvider::new(claude_key.unwrap_or_default());
+    let api_key = vars.anthropic_api_key.as_ref().and_then(|v| v.value());
+    let mut claude = ClaudeAgentProvider::new(api_key.unwrap_or_default());
     if let (Some(agent_id), Some(environment_id)) = (
         vars.claude_managed_agent_id
             .as_ref()
@@ -386,12 +356,25 @@ pub fn build_coding_agent_tool_context() -> CodingAgentToolContext {
     {
         claude = claude.with_webhook_secret(secret);
     }
-    providers.insert(
-        CodingAgentProviderKind::Claude,
-        Arc::new(claude) as Arc<dyn CodingAgentProvider>,
-    );
 
-    CodingAgentToolContext::new(providers, CodingAgentProviderKind::Cursor)
+    let provider: Arc<dyn CodingAgentProvider> = Arc::new(claude);
+    let git_tokens: Arc<dyn GitTokenResolver> = Arc::new(NoOpGitTokenResolver);
+    CodingAgentToolContext::with_git_tokens(provider, git_tokens)
+}
+
+/// Placeholder GitHub token resolver that always returns `None`.
+///
+/// Public repositories clone without a token. To support **private** repos,
+/// replace this with a resolver backed by Macro's `github` crate that looks up
+/// the user's connected GitHub access token by `user_id` (the github crate's
+/// `retreive_access_token` path; needs FusionAuth + the GitHub IdP id wired in).
+struct NoOpGitTokenResolver;
+
+#[async_trait::async_trait]
+impl GitTokenResolver for NoOpGitTokenResolver {
+    async fn github_token(&self, _user_id: &str) -> Result<Option<String>, CodingAgentError> {
+        Ok(None)
+    }
 }
 
 /// Build an [`AnthropicToolContext`] from environment variables.

@@ -88,19 +88,29 @@ pub trait CodingAgentProvider: Send + Sync {
     /// [`correlation`](CodingAgentEvent::correlation)).
     ///
     /// The provider owns its webhook secret (from construction), so it isn't
-    /// passed here. `url_token` is the optional token segment from the webhook
-    /// URL — providers that encode correlation there (Cursor) use it; providers
-    /// that carry correlation in the body (Claude) ignore it.
-    ///
-    /// Implementations MUST authenticate the delivery (signature over the raw,
-    /// unparsed `raw_body`, and the `url_token` when used) before trusting any
-    /// of it, and return [`CodingAgentError::WebhookVerification`] on mismatch.
+    /// passed here. Implementations MUST authenticate the delivery (signature
+    /// over the raw, unparsed `raw_body`) before trusting any of it, and return
+    /// [`CodingAgentError::WebhookVerification`] on mismatch.
     fn verify_and_parse_webhook(
         &self,
         headers: &dyn WebhookHeaders,
         raw_body: &[u8],
-        url_token: Option<&str>,
     ) -> Result<CodingAgentEvent, CodingAgentError>;
+}
+
+/// Resolves the GitHub access token used to clone a repository on behalf of a
+/// user.
+///
+/// The spawn tool calls this with the spawning user's id and passes the result
+/// to the provider as
+/// [`LaunchAgentRequest::git_token`](crate::domain::models::LaunchAgentRequest::git_token).
+/// Implementations live in the hosting service, backed by Macro's GitHub
+/// integration. Returning `None` means no token is connected — the provider
+/// then attempts an unauthenticated clone (public repos only).
+#[async_trait]
+pub trait GitTokenResolver: Send + Sync {
+    /// Return the GitHub access token for `user_id`, if one is connected.
+    async fn github_token(&self, user_id: &str) -> Result<Option<String>, CodingAgentError>;
 }
 
 /// Destination for verified status events.
