@@ -2,6 +2,7 @@ import { CircleSpinner } from '@core/component/CircleSpinner';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
+import { cn } from '@ui';
 import { createSignal, type JSX, onMount, Show, Suspense } from 'solid-js';
 import { FromInboxSelector } from '../FromInboxSelector';
 import { ComposeBody } from './ComposeBody';
@@ -179,7 +180,13 @@ export function ComposeLayout(props: {
   };
 
   return (
-    <div ref={registerRef('containerRef')} class={props.class}>
+    <div
+      ref={registerRef('containerRef')}
+      class={cn(
+        'mobile:pt-[calc(var(--mobile-content-inset-top)+.5rem)]',
+        props.class
+      )}
+    >
       <div class="pb-1 w-full h-max shrink-0">
         <div
           class="mb-4 h-6 flex items-center justify-between gap-3"
