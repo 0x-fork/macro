@@ -169,6 +169,18 @@ pub trait GithubLinkService: Send + Sync + 'static {
         user_id: &MacroUserId<Lowercase<'static>>,
     ) -> impl Future<Output = Result<(), GithubError>> + Send;
 
+    /// Retrieves the user's validated GitHub access token.
+    ///
+    /// The returned token is guaranteed to be non-expired (the service checks
+    /// it against GitHub before returning). Returns [`GithubError::NoLinkFound`]
+    /// when the user has not connected a GitHub account and
+    /// [`GithubError::ReauthenticationRequired`] when the stored token has
+    /// expired or been revoked and the user must re-link.
+    fn get_access_token(
+        &self,
+        user_id: &MacroUserId<Lowercase<'static>>,
+    ) -> impl Future<Output = Result<GithubAccessToken, GithubError>> + Send;
+
     /// Enriches GitHub pull request references with details from the GitHub API.
     fn enrich_pull_requests(
         &self,

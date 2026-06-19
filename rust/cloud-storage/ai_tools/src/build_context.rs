@@ -12,11 +12,9 @@ use anthropic::toolset::AnthropicToolContext;
 use anyhow::Context;
 use channels::domain::list_service::ChannelListServiceImpl;
 use channels::outbound::pg_channels_repo::PgChannelsRepo;
-use coding_agent::domain::models::{CodingAgentProviderKind, WebhookConfig};
-use coding_agent::domain::ports::CodingAgentProvider;
+use coding_agent::domain::ports::{CodingAgentProvider, GitTokenResolver};
 use coding_agent::inbound::toolset::CodingAgentToolContext;
 use coding_agent::outbound::claude::ClaudeAgentProvider;
-use coding_agent::outbound::cursor::CursorAgentProvider;
 use documents::domain::models::CloudFrontConfig;
 use documents::inbound::toolset::DocumentToolContext;
 use documents::outbound::pg_document_repo::PgDocumentRepo;
@@ -47,7 +45,6 @@ use search_service_client::SearchServiceClient;
 use secretsmanager_client::{SecretManager, SecretsManager};
 use soup::domain::service::SoupImpl;
 use soup::outbound::pg_soup_repo::PgSoupRepo;
-use std::collections::HashMap;
 use std::sync::Arc;
 use sync_service_client::SyncServiceClient;
 
@@ -72,9 +69,6 @@ maybe_env_var! {
 
 maybe_env_var! {
     struct CodingAgentEnvVars {
-        CursorApiKey,
-        CodingAgentWebhookUrl,
-        CodingAgentWebhookSecret,
         AnthropicApiKey,
         ClaudeManagedAgentId,
         ClaudeManagedEnvironmentId,
@@ -324,7 +318,12 @@ pub async fn build_tool_service_context_from_env(
         team_tool_context: crate::tool_context::build_team_tool_context(pool.clone()),
         schedule_tool_context: crate::NoOpScheduleContext,
         anthropic_tool_context,
-        coding_agent_tool_context: build_coding_agent_tool_context(),
+        coding_agent_tool_context: build_coding_agent_tool_context_from_env(
+            pool.clone(),
+            &secretsmanager_client,
+            environment,
+        )
+        .await,
         recorder: ai_usage::pg_recorder(pool.clone()),
         usage_context: ai_usage::UsageContext::system(ai_usage::AiFeature::Chat),
     })
@@ -332,43 +331,20 @@ pub async fn build_tool_service_context_from_env(
 
 /// Build the [`CodingAgentToolContext`] from environment variables.
 ///
-/// Reads `CURSOR_API_KEY` (optional — when unset, the spawn tools return a
-/// clear "not configured" error rather than failing the whole context). When
-/// both `CODING_AGENT_WEBHOOK_URL` and `CODING_AGENT_WEBHOOK_SECRET` are set,
-/// spawned agents are launched with a status-change webhook so Macro is
-/// notified when they reach a terminal state; otherwise status is polled.
-pub fn build_coding_agent_tool_context() -> CodingAgentToolContext {
+/// Configures the Claude Managed Agents provider from env (`ANTHROPIC_API_KEY`,
+/// `CLAUDE_MANAGED_AGENT_ID`, `CLAUDE_MANAGED_ENVIRONMENT_ID`,
+/// `CLAUDE_MANAGED_WEBHOOK_SECRET`). `git_tokens` is the optional per-user
+/// GitHub token resolver (see [`build_git_token_resolver_from_env`]); when
+/// `None`, spawned agents run without a token and can only access public repos.
+pub fn build_coding_agent_tool_context(
+    git_tokens: Option<Arc<dyn GitTokenResolver>>,
+) -> CodingAgentToolContext {
     let vars = CodingAgentEnvVars::new();
-    let webhook_base = vars
-        .coding_agent_webhook_url
-        .as_ref()
-        .and_then(|v| v.value());
-    let webhook_secret = vars
-        .coding_agent_webhook_secret
-        .as_ref()
-        .and_then(|v| v.value());
-
-    let mut providers: HashMap<CodingAgentProviderKind, Arc<dyn CodingAgentProvider>> =
-        HashMap::new();
-
-    // Cursor Cloud Agents.
-    let cursor_key = vars.cursor_api_key.as_ref().and_then(|v| v.value());
-    let mut cursor = CursorAgentProvider::new(cursor_key.unwrap_or_default());
-    if let (Some(base), Some(secret)) = (webhook_base, webhook_secret) {
-        cursor = cursor.with_webhook(WebhookConfig {
-            url: format!("{}/cursor", base.trim_end_matches('/')),
-            secret: secret.to_owned(),
-        });
-    }
-    providers.insert(
-        CodingAgentProviderKind::Cursor,
-        Arc::new(cursor) as Arc<dyn CodingAgentProvider>,
-    );
 
     // Claude Managed Agents. Uses the standard Anthropic API key; the agent /
     // environment ids and the webhook signing secret come from env when set.
-    let claude_key = vars.anthropic_api_key.as_ref().and_then(|v| v.value());
-    let mut claude = ClaudeAgentProvider::new(claude_key.unwrap_or_default());
+    let api_key = vars.anthropic_api_key.as_ref().and_then(|v| v.value());
+    let mut claude = ClaudeAgentProvider::new(api_key.unwrap_or_default());
     if let (Some(agent_id), Some(environment_id)) = (
         vars.claude_managed_agent_id
             .as_ref()
@@ -386,12 +362,38 @@ pub fn build_coding_agent_tool_context() -> CodingAgentToolContext {
     {
         claude = claude.with_webhook_secret(secret);
     }
-    providers.insert(
-        CodingAgentProviderKind::Claude,
-        Arc::new(claude) as Arc<dyn CodingAgentProvider>,
-    );
 
-    CodingAgentToolContext::new(providers, CodingAgentProviderKind::Cursor)
+    let provider: Arc<dyn CodingAgentProvider> = Arc::new(claude);
+    match git_tokens {
+        Some(git_tokens) => CodingAgentToolContext::with_git_tokens(provider, git_tokens),
+        None => CodingAgentToolContext::new(provider),
+    }
+}
+
+/// Build the [`CodingAgentToolContext`], wiring a GitHub-backed token resolver
+/// from the environment so spawned agents can access private repos and open
+/// pull requests as the spawning user.
+///
+/// Equivalent to [`build_coding_agent_tool_context`] with the resolver from
+/// [`build_git_token_resolver_from_env`]. Falls back to no resolver (public
+/// repos only) when the GitHub/FusionAuth/Redis env is not configured.
+pub async fn build_coding_agent_tool_context_from_env(
+    pool: sqlx::PgPool,
+    secrets: &SecretsManager,
+    environment: Environment,
+) -> CodingAgentToolContext {
+    let git_tokens = crate::git_token_resolver::build_git_token_resolver_from_env(
+        pool,
+        secrets,
+        environment,
+    )
+    .await
+    .inspect_err(|e| {
+        tracing::error!(error=?e, "failed to build GitHub token resolver; coding agents limited to public repos");
+    })
+    .ok()
+    .flatten();
+    build_coding_agent_tool_context(git_tokens)
 }
 
 /// Build an [`AnthropicToolContext`] from environment variables.

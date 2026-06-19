@@ -1,28 +1,33 @@
 //! Anthropic **Claude Managed Agents** implementation of [`CodingAgentProvider`].
 //!
 //! Managed Agents run Claude as a hosted, long-running **session** inside an
-//! Anthropic-managed (or self-hosted) sandbox. A session references a
-//! pre-configured **agent** (model/prompt/tools) and an **environment**
-//! (where it runs, including GitHub access). You create a session, send it
-//! events (user turns), poll/stream its status, and receive lifecycle webhooks.
-//! See <https://platform.claude.com/docs/en/managed-agents/overview>.
+//! Anthropic-managed sandbox. A session references a pre-configured **agent**
+//! (model/prompt/tools, including the GitHub MCP server) and an **environment**
+//! (where it runs), and **mounts** the target repository as a session
+//! *resource* that the platform clones using a supplied GitHub token. You then
+//! send the session events (user turns), poll/stream status, and receive
+//! lifecycle webhooks.
+//! See <https://platform.claude.com/docs/en/managed-agents/overview> and
+//! <https://platform.claude.com/docs/en/managed-agents/github>.
 //!
 //! Mapping onto the generic contract:
-//! - `launch`  → create a session (referencing `agent_id` + `environment_id`),
-//!   carrying the [`AgentCorrelation`] as session metadata so it round-trips on
-//!   webhook events.
-//! - `get`     → fetch session status.
-//! - `follow_up` → post a user event to the session.
-//! - `delete`  → delete/archive the session.
+//! - `launch` → create a session (referencing `agent` + `environment_id`),
+//!   mount the repo as a `github_repository` resource (cloned with the user's
+//!   [`git_token`](crate::domain::models::LaunchAgentRequest::git_token)),
+//!   carry the [`AgentCorrelation`] as session metadata, then send the task as
+//!   the first `user.message` event.
+//! - `get` → fetch session status.
+//! - `follow_up` → send another `user.message` event.
+//! - `delete` → delete the session.
 //! - `conversation` → list session events.
 //! - `verify_and_parse_webhook` → verify the signed delivery and recover the
 //!   correlation from the session metadata in the payload.
 //!
 //! ⚠️ **BETA.** All requests require the `managed-agents-2026-04-01` beta header
-//! and `x-api-key` auth. The exact endpoint paths and payload field names below
-//! are isolated as constants/structs and reflect the documented session/event
-//! model; **verify them against the live beta docs before production** — they
-//! are deliberately kept in one place so they're trivial to correct.
+//! and `x-api-key` auth. Endpoint paths and payload field names are isolated as
+//! constants/structs here and reflect the documented session / GitHub-resource
+//! model; **verify against the live beta docs before production** — they are
+//! kept in one place so they're trivial to correct.
 
 #[cfg(test)]
 mod test;
@@ -36,7 +41,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
 use crate::domain::models::{
-    AgentCorrelation, AgentMessage, AgentMessageRole, CodingAgent, CodingAgentError,
+    AgentCorrelation, AgentMessage, AgentMessageRole, AgentPrompt, CodingAgent, CodingAgentError,
     CodingAgentEvent, CodingAgentId, CodingAgentProviderKind, CodingAgentStatus,
     LaunchAgentRequest, ProviderCapabilities,
 };
@@ -52,6 +57,8 @@ const ANTHROPIC_VERSION: &str = "2023-06-01";
 const SIGNATURE_HEADER: &str = "X-Webhook-Signature";
 /// Metadata key under which we stash the routing correlation on a session.
 const CORRELATION_METADATA_KEY: &str = "macro_correlation";
+/// Where the repository is mounted inside the session sandbox.
+const REPO_MOUNT_PATH: &str = "/workspace/repo";
 
 const SESSIONS_PATH: &str = "/v1/sessions";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
@@ -165,6 +172,20 @@ impl ClaudeAgentProvider {
         Err(map_status_error(status.as_u16(), body))
     }
 
+    /// Send a `user.message` event (the initial task or a follow-up).
+    async fn send_user_message(
+        &self,
+        session_id: &str,
+        text: &str,
+    ) -> Result<(), CodingAgentError> {
+        let path = format!("{SESSIONS_PATH}/{session_id}/events");
+        let body = ClaudeSendEvents {
+            events: vec![ClaudeUserMessage::text(text)],
+        };
+        self.send_ignore(self.request(reqwest::Method::POST, &path).json(&body))
+            .await
+    }
+
     /// Resolve the agent id for a launch: per-request override, else default.
     fn resolve_agent_id(&self, request: &LaunchAgentRequest) -> Result<String, CodingAgentError> {
         request
@@ -223,8 +244,20 @@ impl CodingAgentProvider for ClaudeAgentProvider {
     #[tracing::instrument(skip_all, fields(repository = %request.source.repository), err)]
     async fn launch(&self, request: LaunchAgentRequest) -> Result<CodingAgent, CodingAgentError> {
         self.require_api_key()?;
-        let agent_id = self.resolve_agent_id(&request)?;
+        let agent = self.resolve_agent_id(&request)?;
         let environment_id = self.resolve_environment_id(&request)?;
+
+        // Mount the repository as a session resource; the platform clones it
+        // (with the user's token, when present) into REPO_MOUNT_PATH.
+        let mut resources = Vec::new();
+        if !request.source.repository.is_empty() {
+            resources.push(ClaudeResource {
+                kind: "github_repository",
+                url: request.source.repository.clone(),
+                mount_path: REPO_MOUNT_PATH.to_owned(),
+                authorization_token: request.git_token.clone(),
+            });
+        }
 
         let metadata = request
             .correlation
@@ -232,9 +265,9 @@ impl CodingAgentProvider for ClaudeAgentProvider {
             .map(|correlation| serde_json::json!({ CORRELATION_METADATA_KEY: correlation }));
 
         let body = ClaudeCreateSessionRequest {
-            agent_id,
+            agent,
             environment_id,
-            input: ClaudeInput::user_text(build_task_prompt(&request)),
+            resources,
             metadata,
         };
 
@@ -244,6 +277,11 @@ impl CodingAgentProvider for ClaudeAgentProvider {
                     .json(&body),
             )
             .await?;
+
+        // Send the task as the first user turn.
+        self.send_user_message(&session.id, &build_task_prompt(&request))
+            .await?;
+
         Ok(session.into_domain())
     }
 
@@ -261,13 +299,10 @@ impl CodingAgentProvider for ClaudeAgentProvider {
     async fn follow_up(
         &self,
         id: &CodingAgentId,
-        prompt: crate::domain::models::AgentPrompt,
+        prompt: AgentPrompt,
     ) -> Result<(), CodingAgentError> {
         self.require_api_key()?;
-        let path = format!("{SESSIONS_PATH}/{}/events", id.as_str());
-        let body = ClaudeInput::user_text(prompt.text);
-        self.send_ignore(self.request(reqwest::Method::POST, &path).json(&body))
-            .await
+        self.send_user_message(id.as_str(), &prompt.text).await
     }
 
     #[tracing::instrument(skip_all, fields(agent_id = %id), err)]
@@ -288,14 +323,17 @@ impl CodingAgentProvider for ClaudeAgentProvider {
         let events: ClaudeEventList = self
             .send_json(self.request(reqwest::Method::GET, &path))
             .await?;
-        Ok(events.data.into_iter().filter_map(Into::into).collect())
+        Ok(events
+            .data
+            .into_iter()
+            .filter_map(|e| e.into_message())
+            .collect())
     }
 
     fn verify_and_parse_webhook(
         &self,
         headers: &dyn WebhookHeaders,
         raw_body: &[u8],
-        _url_token: Option<&str>,
     ) -> Result<CodingAgentEvent, CodingAgentError> {
         let secret = self.webhook_secret.as_deref().ok_or_else(|| {
             CodingAgentError::WebhookVerification(
@@ -315,18 +353,22 @@ impl CodingAgentProvider for ClaudeAgentProvider {
     }
 }
 
-/// Compose the task prompt; Managed Agents take a user turn, not a repo/branch
-/// pair, so the repository is included as context in the instruction.
+/// Compose the task prompt, pointing the agent at the mounted repository.
 fn build_task_prompt(request: &LaunchAgentRequest) -> String {
     let mut prompt = request.prompt.text.clone();
     let repo = &request.source.repository;
     if !repo.is_empty() {
-        prompt.push_str(&format!("\n\nRepository: {repo}"));
+        prompt.push_str(&format!(
+            "\n\nThe repository {repo} is mounted at {REPO_MOUNT_PATH}."
+        ));
         if let Some(git_ref) = &request.source.git_ref {
-            prompt.push_str(&format!(" (base ref: {git_ref})"));
+            prompt.push_str(&format!(" Start from ref `{git_ref}`."));
         }
         if request.target.auto_create_pr {
-            prompt.push_str("\nOpen a pull request with your changes when done.");
+            prompt.push_str(" When done, commit to a new branch and open a pull request.");
+            if let Some(branch) = &request.target.branch_name {
+                prompt.push_str(&format!(" Use branch `{branch}`."));
+            }
         }
     }
     prompt
@@ -413,28 +455,54 @@ fn map_status(raw: &str) -> CodingAgentStatus {
 
 #[derive(Debug, Serialize)]
 struct ClaudeCreateSessionRequest {
-    agent_id: String,
+    agent: String,
     environment_id: String,
-    input: ClaudeInput,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    resources: Vec<ClaudeResource>,
     #[serde(skip_serializing_if = "Option::is_none")]
     metadata: Option<serde_json::Value>,
 }
 
-/// A user input event/turn sent to a session.
+/// A repository mounted into the session sandbox.
 #[derive(Debug, Serialize)]
-struct ClaudeInput {
+struct ClaudeResource {
     #[serde(rename = "type")]
     kind: &'static str,
-    content: String,
+    url: String,
+    mount_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authorization_token: Option<String>,
 }
 
-impl ClaudeInput {
-    fn user_text(text: String) -> Self {
+#[derive(Debug, Serialize)]
+struct ClaudeSendEvents {
+    events: Vec<ClaudeUserMessage>,
+}
+
+#[derive(Debug, Serialize)]
+struct ClaudeUserMessage {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    content: Vec<ClaudeContentBlock>,
+}
+
+impl ClaudeUserMessage {
+    fn text(text: &str) -> Self {
         Self {
-            kind: "user_message",
-            content: text,
+            kind: "user.message",
+            content: vec![ClaudeContentBlock {
+                kind: "text",
+                text: text.to_owned(),
+            }],
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+struct ClaudeContentBlock {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    text: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -478,21 +546,35 @@ struct ClaudeEventList {
 
 #[derive(Debug, Deserialize)]
 struct ClaudeEvent {
-    #[serde(rename = "type")]
+    #[serde(rename = "type", default)]
     kind: String,
     #[serde(default)]
-    content: Option<String>,
+    content: Vec<ClaudeResponseBlock>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClaudeResponseBlock {
     #[serde(default)]
     text: Option<String>,
 }
 
-impl From<ClaudeEvent> for Option<AgentMessage> {
-    fn from(event: ClaudeEvent) -> Self {
-        let text = event.content.or(event.text)?;
-        let role = match event.kind.as_str() {
-            k if k.contains("user") => AgentMessageRole::User,
-            k if k.contains("assistant") || k.contains("agent") => AgentMessageRole::Assistant,
-            _ => AgentMessageRole::Other,
+impl ClaudeEvent {
+    fn into_message(self) -> Option<AgentMessage> {
+        let text = self
+            .content
+            .into_iter()
+            .filter_map(|block| block.text)
+            .collect::<Vec<_>>()
+            .join("");
+        if text.is_empty() {
+            return None;
+        }
+        let role = if self.kind.contains("user") {
+            AgentMessageRole::User
+        } else if self.kind.contains("assistant") || self.kind.contains("agent") {
+            AgentMessageRole::Assistant
+        } else {
+            AgentMessageRole::Other
         };
         Some(AgentMessage { role, text })
     }

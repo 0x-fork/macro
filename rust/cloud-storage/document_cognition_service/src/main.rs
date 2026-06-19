@@ -385,7 +385,12 @@ async fn main() -> anyhow::Result<()> {
         team_tool_context: ai_tools::build_team_tool_context(db.clone()),
         schedule_tool_context: ai_tools::NoOpScheduleContext,
         anthropic_tool_context: ai_tools::build_anthropic_tool_context(),
-        coding_agent_tool_context: ai_tools::build_coding_agent_tool_context(),
+        coding_agent_tool_context: ai_tools::build_coding_agent_tool_context_from_env(
+            db.clone(),
+            &secretsmanager_client,
+            config.environment,
+        )
+        .await,
         recorder: ai_usage::pg_recorder(db.clone()),
         usage_context: ai_usage::UsageContext::system(ai_usage::AiFeature::Chat),
     };

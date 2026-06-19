@@ -537,6 +537,55 @@ async fn check_user_link_token_returns_reauthentication_required_for_expired_tok
 }
 
 #[tokio::test]
+async fn get_access_token_returns_validated_token() {
+    let user_id = test_user_id();
+    let oauth = StubGithubOauth::new(false);
+    let service = service(
+        StubGithubRepo::linked(test_link(&user_id)),
+        oauth.clone(),
+        StubAuth::new("valid-token"),
+    );
+
+    let token = service
+        .get_access_token(&user_id)
+        .await
+        .expect("token should be returned");
+
+    assert_eq!(token.as_str(), "valid-token");
+    assert_eq!(oauth.validated_tokens(), vec!["valid-token".to_string()]);
+}
+
+#[tokio::test]
+async fn get_access_token_returns_reauthentication_required_for_expired_token() {
+    let user_id = test_user_id();
+    let oauth = StubGithubOauth::new(true);
+    let service = service(
+        StubGithubRepo::linked(test_link(&user_id)),
+        oauth.clone(),
+        StubAuth::new("expired-token"),
+    );
+
+    let result = service.get_access_token(&user_id).await;
+
+    assert!(matches!(result, Err(GithubError::ReauthenticationRequired)));
+}
+
+#[tokio::test]
+async fn get_access_token_returns_no_link_found_without_db_link() {
+    let user_id = test_user_id();
+    let oauth = StubGithubOauth::new(false);
+    let service = service(
+        StubGithubRepo::unlinked(),
+        oauth.clone(),
+        StubAuth::new("valid-token"),
+    );
+
+    let result = service.get_access_token(&user_id).await;
+
+    assert!(matches!(result, Err(GithubError::NoLinkFound)));
+}
+
+#[tokio::test]
 async fn check_user_link_token_returns_no_link_found_without_db_link() {
     let user_id = test_user_id();
     let oauth = StubGithubOauth::new(false);
