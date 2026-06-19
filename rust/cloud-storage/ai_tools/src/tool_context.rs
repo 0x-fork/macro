@@ -12,6 +12,7 @@ use channels::outbound::pg_channels_repo::PgChannelsRepo;
 use chat::domain::service::ChatServiceImpl;
 use chat::inbound::toolset::ChatToolContext;
 use chat::outbound::postgres::PgChatRepo;
+use coding_agent::inbound::toolset::CodingAgentToolContext;
 use connection::domain::ports::ConnectionService;
 use documents::{domain::ports::TaskPropertiesPort, inbound::toolset::DocumentToolContext};
 use email::{
@@ -589,6 +590,8 @@ pub struct ToolServiceContext {
     pub team_tool_context: ToolTeamToolContext,
     pub schedule_tool_context: NoOpScheduleContext,
     pub anthropic_tool_context: AnthropicToolContext,
+    /// Context for the coding-agent tools (spawn / status / follow-up).
+    pub coding_agent_tool_context: CodingAgentToolContext,
     /// Records token usage / cost for AI calls made with this context.
     pub recorder: std::sync::Arc<dyn ai_usage::UsageRecorder>,
     /// The usage context (feature/user/entity) of the request currently using

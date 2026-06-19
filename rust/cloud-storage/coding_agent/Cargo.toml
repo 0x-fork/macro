@@ -1,0 +1,38 @@
+[package]
+edition = "2024"
+name = "coding_agent"
+publish = false
+version = "0.1.0"
+
+[features]
+default = ["inbound", "outbound"]
+# Outbound adapters that talk to third-party coding-agent providers (Cursor, ...).
+outbound = ["dep:reqwest", "dep:hmac", "dep:sha2", "dep:hex", "dep:subtle"]
+# Inbound adapters: the AI toolset that lets the Macro agent orchestrate coding agents.
+inbound = ["dep:ai_toolset", "dep:schemars"]
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# inbound (AI toolset)
+ai_toolset = { path = "../ai_toolset", optional = true }
+schemars = { workspace = true, optional = true }
+
+# outbound (HTTP + webhook verification)
+hex = { workspace = true, optional = true }
+hmac = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+subtle = { version = "2.6.1", optional = true }
+
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[dev-dependencies]
+macro_user_id = { path = "../macro_user_id" }
+tokio = { workspace = true }

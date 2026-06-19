@@ -12,6 +12,9 @@ use anthropic::toolset::AnthropicToolContext;
 use anyhow::Context;
 use channels::domain::list_service::ChannelListServiceImpl;
 use channels::outbound::pg_channels_repo::PgChannelsRepo;
+use coding_agent::domain::ports::CodingAgentProvider;
+use coding_agent::inbound::toolset::{CodingAgentToolContext, WebhookSettings};
+use coding_agent::outbound::cursor::CursorAgentProvider;
 use documents::domain::models::CloudFrontConfig;
 use documents::inbound::toolset::DocumentToolContext;
 use documents::outbound::pg_document_repo::PgDocumentRepo;
@@ -61,6 +64,14 @@ env_var! {
 maybe_env_var! {
     struct ToolContextMaybeEnvVars {
         NotificationQueue,
+    }
+}
+
+maybe_env_var! {
+    struct CodingAgentEnvVars {
+        CursorApiKey,
+        CodingAgentWebhookUrl,
+        CodingAgentWebhookSecret,
     }
 }
 
@@ -306,9 +317,45 @@ pub async fn build_tool_service_context_from_env(
         team_tool_context: crate::tool_context::build_team_tool_context(pool.clone()),
         schedule_tool_context: crate::NoOpScheduleContext,
         anthropic_tool_context,
+        coding_agent_tool_context: build_coding_agent_tool_context(),
         recorder: ai_usage::pg_recorder(pool.clone()),
         usage_context: ai_usage::UsageContext::system(ai_usage::AiFeature::Chat),
     })
+}
+
+/// Build the [`CodingAgentToolContext`] from environment variables.
+///
+/// Reads `CURSOR_API_KEY` (optional — when unset, the spawn tools return a
+/// clear "not configured" error rather than failing the whole context). When
+/// both `CODING_AGENT_WEBHOOK_URL` and `CODING_AGENT_WEBHOOK_SECRET` are set,
+/// spawned agents are launched with a status-change webhook so Macro is
+/// notified when they reach a terminal state; otherwise status is polled.
+pub fn build_coding_agent_tool_context() -> CodingAgentToolContext {
+    let vars = CodingAgentEnvVars::new();
+    let api_key = vars
+        .cursor_api_key
+        .as_ref()
+        .and_then(|v| v.value())
+        .unwrap_or_default();
+    let provider: Arc<dyn CodingAgentProvider> = Arc::new(CursorAgentProvider::new(api_key));
+
+    match (
+        vars.coding_agent_webhook_url
+            .as_ref()
+            .and_then(|v| v.value()),
+        vars.coding_agent_webhook_secret
+            .as_ref()
+            .and_then(|v| v.value()),
+    ) {
+        (Some(url), Some(secret)) => CodingAgentToolContext::with_webhook(
+            provider,
+            WebhookSettings {
+                url: Arc::from(url),
+                secret: Arc::from(secret),
+            },
+        ),
+        _ => CodingAgentToolContext::new(provider),
+    }
 }
 
 /// Build an [`AnthropicToolContext`] from environment variables.

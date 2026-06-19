@@ -14,6 +14,7 @@ use anthropic::toolset::anthropic_toolset;
 use call::inbound::toolset::call_toolset;
 use channels::inbound::toolset::channel_toolset;
 use chat::inbound::toolset::chat_toolset;
+use coding_agent::inbound::toolset::{CodingAgentToolContext, coding_agent_toolset};
 use documents::inbound::toolset::document_toolset;
 use email::inbound::toolset::{email_toolset, mcp_toolset as email_mcp_toolset};
 use notification::inbound::ai_tool::notification_toolset;
@@ -26,7 +27,10 @@ use teams::inbound::toolset::team_toolset;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use build_context::build_anthropic_tool_context_test;
-pub use build_context::{build_anthropic_tool_context, build_tool_service_context_from_env};
+pub use build_context::{
+    build_anthropic_tool_context, build_coding_agent_tool_context,
+    build_tool_service_context_from_env,
+};
 pub use search::search_toolset;
 #[cfg(any(test, feature = "test-support"))]
 pub use tool_context::no_op_schedule_context;
@@ -80,6 +84,7 @@ pub fn all_tools() -> ToolSetWithPrompt {
     let toolset = subagent_toolset()
         .add_subtoolset::<ToolNotificationToolContext>(notification_toolset())
         .add_subtoolset::<ToolEmailToolContext>(email_toolset())
+        .add_subtoolset::<CodingAgentToolContext>(coding_agent_toolset())
         .add_tool::<Subagent, ToolServiceContext>();
     let toolset = Arc::new(toolset);
     ToolSetWithPrompt {
@@ -104,6 +109,7 @@ pub fn mcp_tools() -> ToolSetWithPrompt {
     let toolset = subagent_toolset()
         .add_subtoolset::<ToolNotificationToolContext>(notification_toolset())
         .add_subtoolset::<ToolEmailToolContext>(email_mcp_toolset())
+        .add_subtoolset::<CodingAgentToolContext>(coding_agent_toolset())
         .add_tool::<Subagent, ToolServiceContext>();
     let toolset = Arc::new(toolset);
     ToolSetWithPrompt {
