@@ -67,14 +67,18 @@ pub(crate) async fn get_idp_id_by_name(
             })
         })?;
 
-    let mut matches = body
-        .identity_providers
-        .into_iter()
-        .filter(|idp| idp.name == name);
+    let providers = body.identity_providers;
+    let mut matches = providers.iter().filter(|idp| idp.name == name);
 
-    let first = matches
-        .next()
-        .ok_or(FusionAuthClientError::NoIdentityProviderFound)?;
+    let Some(first) = matches.next() else {
+        let available = providers.iter().map(|p| p.name.as_ref()).collect::<Vec<_>>();
+        tracing::warn!(
+            requested = %name,
+            available = ?available,
+            "no identity provider matched the requested name (retrieve-all)"
+        );
+        return Err(FusionAuthClientError::NoIdentityProviderFound);
+    };
 
     if matches.next().is_some() {
         return Err(FusionAuthClientError::Generic(GenericErrorResponse {
@@ -82,5 +86,5 @@ pub(crate) async fn get_idp_id_by_name(
         }));
     }
 
-    Ok(first.id.into_owned())
+    Ok(first.id.to_string())
 }
