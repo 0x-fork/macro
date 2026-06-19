@@ -29,8 +29,8 @@ pub enum FusionAuthClientError {
     /// The refresh token was not found or has expired.
     #[error("refresh token was not found or has expired")]
     InvalidRefreshToken,
-    /// A generic error occurred.
-    #[error("an unknown error occurred")]
+    /// A generic error occurred. The message carries the FusionAuth response.
+    #[error("{}", .0.message)]
     Generic(GenericErrorResponse),
     /// The grant is invalid - user may have revoked access.
     #[error("Invalid grant - user may have revoked access")]

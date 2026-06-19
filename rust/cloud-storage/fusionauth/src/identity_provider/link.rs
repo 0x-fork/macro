@@ -109,7 +109,7 @@ pub(crate) async fn get_links(
             tracing::error!(body=%body, "unexpected response from fusionauth");
 
             Err(FusionAuthClientError::Generic(GenericErrorResponse {
-                message: "unknown error".to_string(),
+                message: body,
             }))
         }
     }
