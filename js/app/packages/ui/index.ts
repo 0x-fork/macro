@@ -37,6 +37,15 @@ export { LogoProgress } from './components/LogoProgress';
 export type { NavRowProps } from './components/NavRow';
 export { NavRow } from './components/NavRow';
 export { Panel } from './components/Panel';
+export type {
+  ArcDirection,
+  Direction,
+  RadialMenuItem,
+  RadialMenuMode,
+  RadialMenuProps,
+  Ring,
+} from './components/RadialMenu';
+export { DIRECTIONS, RadialMenu, span } from './components/RadialMenu';
 export { Scroll } from './components/Scroll';
 export { SegmentedControl } from './components/SegmentedControl';
 export type { SendButtonProps } from './components/SendButton';

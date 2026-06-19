@@ -55,6 +55,15 @@ export default defineConfig({
         },
       },
       {
+        plugins: [tsconfigPaths()],
+        test: {
+          environment: 'jsdom',
+          globals: true,
+          include: ['packages/ui/**/*.{test,spec}.{ts,tsx}'],
+          name: 'ui',
+        },
+      },
+      {
         extends: './packages/core/vitest.config.ts',
         test: {
           include: ['packages/block-channel/**/*.{test,spec}.{ts,tsx}'],
