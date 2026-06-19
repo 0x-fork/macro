@@ -85,10 +85,11 @@ fn resolves_agent_and_environment() {
 #[test]
 fn create_session_body_mounts_repo_with_token_and_metadata() {
     let request = launch_request();
-    let metadata = request
-        .correlation
-        .as_ref()
-        .map(|c| serde_json::json!({ CORRELATION_METADATA_KEY: c }));
+    // Claude requires string-valued metadata, so the correlation is encoded as
+    // a JSON string (matching `launch`).
+    let metadata = request.correlation.as_ref().map(|c| {
+        serde_json::json!({ CORRELATION_METADATA_KEY: serde_json::to_string(c).unwrap() })
+    });
     let body = ClaudeCreateSessionRequest {
         agent: "agent_1".to_owned(),
         environment_id: "env_1".to_owned(),
@@ -111,10 +112,14 @@ fn create_session_body_mounts_repo_with_token_and_metadata() {
     );
     assert_eq!(json["resources"][0]["mount_path"], "/workspace/repo");
     assert_eq!(json["resources"][0]["authorization_token"], "ghp_abc");
-    assert_eq!(
-        json["metadata"][CORRELATION_METADATA_KEY]["u"],
-        "macro|teo@macro.com"
-    );
+    // The metadata value must be a string (not a nested object), then decode
+    // back to the original correlation.
+    let encoded = json["metadata"][CORRELATION_METADATA_KEY]
+        .as_str()
+        .expect("correlation metadata must be a string");
+    let decoded: AgentCorrelation = serde_json::from_str(encoded).unwrap();
+    assert_eq!(decoded.user_id, "macro|teo@macro.com");
+    assert_eq!(decoded.chat_id.as_deref(), Some("chat-1"));
 }
 
 #[test]
@@ -138,12 +143,13 @@ fn task_prompt_references_mount_path() {
 #[test]
 fn verify_and_parse_webhook_recovers_correlation_from_metadata() {
     let provider = ClaudeAgentProvider::new("key").with_webhook_secret(SECRET);
+    // Claude echoes metadata values back as strings (the form `launch` sends).
     let body = serde_json::to_vec(&serde_json::json!({
         "type": "session.status_idled",
         "session": {
             "id": "sess_123",
             "status": "idled",
-            "metadata": { CORRELATION_METADATA_KEY: { "u": "macro|teo@macro.com", "c": "chat-7" } }
+            "metadata": { CORRELATION_METADATA_KEY: r#"{"u":"macro|teo@macro.com","c":"chat-7"}"# }
         }
     }))
     .unwrap();

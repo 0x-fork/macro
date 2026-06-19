@@ -259,10 +259,23 @@ impl CodingAgentProvider for ClaudeAgentProvider {
             });
         }
 
+        // Claude requires every `metadata` value to be a string, so the
+        // correlation is JSON-encoded into a single string here and decoded
+        // back in `verify_and_parse_webhook`.
         let metadata = request
             .correlation
             .as_ref()
-            .map(|correlation| serde_json::json!({ CORRELATION_METADATA_KEY: correlation }));
+            .map(|correlation| {
+                serde_json::to_string(correlation).map(|encoded| {
+                    serde_json::json!({ CORRELATION_METADATA_KEY: encoded })
+                })
+            })
+            .transpose()
+            .map_err(|e| {
+                CodingAgentError::InvalidRequest(format!(
+                    "failed to encode correlation metadata: {e}"
+                ))
+            })?;
 
         let body = ClaudeCreateSessionRequest {
             agent,
@@ -609,11 +622,16 @@ impl ClaudeWebhookPayload {
             .and_then(|s| s.status.as_deref())
             .map(map_status)
             .unwrap_or_else(|| map_status(&self.event_type));
+        // The correlation is stored as a JSON-encoded string (Claude metadata
+        // values must be strings); tolerate a raw object too, for safety.
         let correlation = session
             .as_ref()
             .and_then(|s| s.metadata.as_ref())
             .and_then(|m| m.get(CORRELATION_METADATA_KEY))
-            .and_then(|v| serde_json::from_value::<AgentCorrelation>(v.clone()).ok());
+            .and_then(|v| match v.as_str() {
+                Some(encoded) => serde_json::from_str::<AgentCorrelation>(encoded).ok(),
+                None => serde_json::from_value::<AgentCorrelation>(v.clone()).ok(),
+            });
 
         CodingAgentEvent {
             provider: CodingAgentProviderKind::Claude,
