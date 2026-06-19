@@ -441,11 +441,6 @@ if (LOCAL_ONLY) {
     'user-icon',
     lazy(() => import('@core/internal/UserIconDemo'))
   );
-
-  registerComponent(
-    'radial-menu-demo',
-    lazy(() => import('@app/component/RadialMenuDemo'))
-  );
 }
 
 if (DEV_MODE_ENV) {
@@ -484,4 +479,9 @@ if (DEV_MODE_ENV) {
 registerComponent(
   'icon-gallery',
   lazy(() => import('@core/internal/IconGallery'))
+);
+
+registerComponent(
+  'radial-menu-demo',
+  lazy(() => import('@app/component/RadialMenuDemo'))
 );
