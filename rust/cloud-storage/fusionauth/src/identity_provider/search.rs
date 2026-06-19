@@ -33,8 +33,10 @@ pub(crate) async fn get_idp_id_by_name(
     base_url: &str,
     name: &str,
 ) -> Result<String> {
+    // Identity providers are global (not tenant-scoped); use the client that
+    // never sends the tenant header, or the local instance returns no results.
     let res = client
-        .client()
+        .global_client()
         .get(format!("{base_url}/api/identity-provider"))
         .send()
         .await
