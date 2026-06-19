@@ -120,15 +120,6 @@ const getInboxNoiseFilters = () =>
   });
 
 export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
-  home: {
-    default: 'all',
-    tabs: {
-      all: () => ({
-        filters: {},
-        clientFilters: {},
-      }),
-    },
-  },
   notifications: {
     default: 'all',
     tabs: {

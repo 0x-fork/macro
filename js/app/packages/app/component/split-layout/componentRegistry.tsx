@@ -4,8 +4,8 @@ import { queryStateFrom } from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import { mergeQuery } from '@app/component/next-soup/filters/filter-store/query-store';
 import type { Query } from '@app/component/next-soup/filters/filter-store/types';
+import { Home } from '@app/component/home';
 import { SoupView } from '@app/component/next-soup/soup-view/soup-view';
-import { MobileHome } from '@app/component/mobile/MobileHome';
 import { ChannelCompose } from '@block-channel/component/Compose';
 import { ComposeTask } from '@block-md/component/ComposeTask';
 import { useIsAuthenticated } from '@core/auth';
@@ -131,7 +131,7 @@ registerComponent(
   'home',
   withAuth(() => {
     usePageViewTracking('home');
-    return <MobileHome />;
+    return <Home />;
   })
 );
 

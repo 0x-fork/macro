@@ -2,7 +2,6 @@ import type { SoupApiItem } from '@service-storage/generated/schemas';
 import { match } from 'ts-pattern';
 
 export const LIST_VIEWS = [
-  'home',
   'notifications',
   'inbox',
   'agents',
@@ -19,7 +18,6 @@ export const LIST_VIEWS = [
 export type ListView = (typeof LIST_VIEWS)[number];
 
 export const LIST_VIEW_PATHS = {
-  home: '/home',
   notifications: '/notifications',
   inbox: '/inbox',
   agents: '/agents',
@@ -34,7 +32,6 @@ export const LIST_VIEW_PATHS = {
 } as const satisfies Record<ListView, string>;
 
 export const LIST_VIEW_ID = {
-  home: 'home',
   notifications: 'notifications',
   inbox: 'inbox',
   agents: 'agents',
@@ -72,6 +69,6 @@ export const soupItemMatchesListView = (
     .with('channels', () => item.tag === 'channel')
     .with('calls', () => item.tag === 'call')
     .with('folders', () => item.tag === 'project')
-    .with('home', 'notifications', 'inbox', 'search', undefined, () => true)
+    .with('notifications', 'inbox', 'search', undefined, () => true)
     .with('companies', () => item.tag === 'crmCompany')
     .exhaustive();
