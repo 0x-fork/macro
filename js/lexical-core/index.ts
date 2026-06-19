@@ -15,6 +15,7 @@ export * from './nodes/DiffInsertNode';
 export * from './nodes/DiffNode';
 export * from './nodes/DocumentCardNode';
 export * from './nodes/DocumentMentionNode';
+export * from './nodes/EmojiTextNode';
 export * from './nodes/EquationNode';
 export * from './nodes/GroupMentionNode';
 export * from './nodes/HorizontalRuleNode';

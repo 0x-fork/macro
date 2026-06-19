@@ -2,6 +2,7 @@ import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownCon
 import {
   DefaultShortcuts,
   type ItemMention,
+  inlineEmojiPlugin,
   keyboardShortcutsPlugin,
 } from '@core/component/LexicalMarkdown/plugins';
 import {
@@ -11,6 +12,7 @@ import {
 import { iosCursorScrollPlugin } from '@core/component/LexicalMarkdown/plugins/ios-cursor-scroll';
 import { tableCellResizerPlugin } from '@core/component/LexicalMarkdown/plugins/tables/tableCellResizerPlugin';
 import { tablePlugin } from '@core/component/LexicalMarkdown/plugins/tables/tablePlugin';
+import { channelInputTheme } from '@core/component/LexicalMarkdown/theme';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import type { IUser } from '@core/user/types';
 import ImageIcon from '@phosphor/image.svg';
@@ -37,7 +39,9 @@ type CreateConfiguredChannelMarkdownEditorOptions = {
 export function createConfiguredChannelMarkdownEditor(
   options: CreateConfiguredChannelMarkdownEditorOptions
 ) {
-  const editor = buildConfig('chat').namespace(options.namespace);
+  const editor = buildConfig('chat')
+    .namespace(options.namespace)
+    .theme(channelInputTheme);
 
   if (options.enableMentions !== false) {
     editor.withMentions({
@@ -101,6 +105,7 @@ export function createConfiguredChannelMarkdownEditor(
         shortcuts: DefaultShortcuts,
       })
     )
+    .use(inlineEmojiPlugin())
     .onChange(options.onChange)
     .onEnter(options.onEnter);
 

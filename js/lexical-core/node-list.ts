@@ -25,6 +25,7 @@ import { DiffInsertNode } from './nodes/DiffInsertNode';
 import { DiffNode } from './nodes/DiffNode';
 import { DocumentCardNode } from './nodes/DocumentCardNode';
 import { DocumentMentionNode } from './nodes/DocumentMentionNode';
+import { EmojiTextNode } from './nodes/EmojiTextNode';
 import { EquationNode } from './nodes/EquationNode';
 import { GroupMentionNode } from './nodes/GroupMentionNode';
 import { HorizontalRuleNode } from './nodes/HorizontalRuleNode';
@@ -122,6 +123,6 @@ export const RegisteredNodesByType: { [K in EditorType]: ValidNode[] } = {
   'plain-text': [ParagraphNode, TextNode],
   markdown: [...SupportedNodeTypes],
   'markdown-sync': [...SupportedNodeTypes],
-  chat: exclude([ImageNode, VideoNode]),
+  chat: [...exclude([ImageNode, VideoNode]), EmojiTextNode],
   title: [ParagraphNode, TextNode, InlineSearchNode],
 } as const;

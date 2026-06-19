@@ -1,5 +1,5 @@
 import type { EditorType } from '@lexical-core';
-import type { LexicalEditor } from 'lexical';
+import type { EditorThemeClasses, LexicalEditor } from 'lexical';
 import type { Store } from 'solid-js/store';
 import type { PluginManager, SelectionData } from '../plugins';
 import type { Action } from '../plugins/actions/types';
@@ -44,6 +44,11 @@ export class EditorConfigBuilder implements EditorBuilder {
 
   namespace(name: string): this {
     this.state.namespace = name;
+    return this;
+  }
+
+  theme(theme: EditorThemeClasses): this {
+    this.state.theme = theme;
     return this;
   }
 

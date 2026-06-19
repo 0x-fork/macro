@@ -1,6 +1,10 @@
 import type { PortalScope } from '@core/component/ScopedPortal';
 import type { EditorType } from '@lexical-core';
-import type { LexicalEditor, SerializedEditorState } from 'lexical';
+import type {
+  EditorThemeClasses,
+  LexicalEditor,
+  SerializedEditorState,
+} from 'lexical';
 import type { Store } from 'solid-js/store';
 import type { MentionBucketId } from '../component/menu/MentionsMenu/MentionsMenuController';
 import type { createLexicalWrapper } from '../context/LexicalWrapperContext';
@@ -141,6 +145,8 @@ export interface EditorConfig {
   skipPreviewFetch: boolean;
   /** Enable drag-to-rearrange handles on top-level blocks. */
   draggableBlocks?: boolean;
+  /** Editor theme classes; defaults to the base markdown theme when unset. */
+  theme?: EditorThemeClasses;
 }
 
 /** @internal consumed by MarkdownShell; do not access directly */
