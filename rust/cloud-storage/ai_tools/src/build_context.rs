@@ -72,6 +72,7 @@ maybe_env_var! {
         AnthropicApiKey,
         ClaudeManagedAgentId,
         ClaudeManagedEnvironmentId,
+        ClaudeManagedAgentEnvironmentId,
         ClaudeManagedWebhookSecret,
     }
 }
@@ -333,9 +334,10 @@ pub async fn build_tool_service_context_from_env(
 ///
 /// Configures the Claude Managed Agents provider from env (`ANTHROPIC_API_KEY`,
 /// `CLAUDE_MANAGED_AGENT_ID`, `CLAUDE_MANAGED_ENVIRONMENT_ID`,
-/// `CLAUDE_MANAGED_WEBHOOK_SECRET`). `git_tokens` is the optional per-user
-/// GitHub token resolver (see [`build_git_token_resolver_from_env`]); when
-/// `None`, spawned agents run without a token and can only access public repos.
+/// `CLAUDE_MANAGED_AGENT_ENVIRONMENT_ID`, `CLAUDE_MANAGED_WEBHOOK_SECRET`).
+/// `git_tokens` is the optional per-user GitHub token resolver (see
+/// [`build_git_token_resolver_from_env`]); when `None`, spawned agents run
+/// without a token and can only access public repos.
 pub fn build_coding_agent_tool_context(
     git_tokens: Option<Arc<dyn GitTokenResolver>>,
 ) -> CodingAgentToolContext {
@@ -345,14 +347,20 @@ pub fn build_coding_agent_tool_context(
     // environment ids and the webhook signing secret come from env when set.
     let api_key = vars.anthropic_api_key.as_ref().and_then(|v| v.value());
     let mut claude = ClaudeAgentProvider::new(api_key.unwrap_or_default());
-    if let (Some(agent_id), Some(environment_id)) = (
-        vars.claude_managed_agent_id
-            .as_ref()
-            .and_then(|v| v.value()),
-        vars.claude_managed_environment_id
-            .as_ref()
-            .and_then(|v| v.value()),
-    ) {
+    let agent_id = vars
+        .claude_managed_agent_id
+        .as_ref()
+        .and_then(|v| v.value());
+    let environment_id = vars
+        .claude_managed_environment_id
+        .as_ref()
+        .and_then(|v| v.value())
+        .or_else(|| {
+            vars.claude_managed_agent_environment_id
+                .as_ref()
+                .and_then(|v| v.value())
+        });
+    if let (Some(agent_id), Some(environment_id)) = (agent_id, environment_id) {
         claude = claude.with_agent(agent_id, environment_id);
     }
     if let Some(secret) = vars

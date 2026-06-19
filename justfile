@@ -19,15 +19,28 @@ get_environment CONFIG="lcl":
   #!/usr/bin/env bash
   set -euo pipefail
   DOPPLER_CONFIG={{ quote(CONFIG + "_personal") }}
+  ENV_TMP="$(mktemp .env.XXXXXX)"
+  cleanup() {
+    rm -f "$ENV_TMP"
+  }
+  trap cleanup EXIT
   # Use JSON + jq so multiline secrets become single dotenv entries with escaped newlines.
   doppler secrets download --project local --config "$DOPPLER_CONFIG" --format json --no-file \
     | jq -r '
       def trim_surrounding_newlines:
         sub("^[\r\n]+"; "") | sub("[\r\n]+$"; "");
-      to_entries
+      if has("LAST_ONLINE_REDIS_URI") or (has("REDIS_URI") | not) then .
+      else . + {LAST_ONLINE_REDIS_URI: .REDIS_URI}
+      end
+      | if has("DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY") or (has("DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME") | not) then .
+      else . + {DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY: .DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME}
+      end
+      | to_entries
         | sort_by(.key)[]
         | "\(.key)=\(.value | tostring | trim_surrounding_newlines | @json)"
-    ' > .env
+    ' > "$ENV_TMP"
+  mv "$ENV_TMP" .env
+  trap - EXIT
 
 # Creates the docker networks then runs the databases
 # This is used when initializing your databases
