@@ -67,6 +67,15 @@ the spawn tool resolves it by `user_id` and sets `git_token`. This is the
 multi-tenant seam — every user runs agents on *their own* repos with *their own*
 credentials, under one Macro-owned Anthropic key.
 
+`ai_tools` wires a real resolver (`GithubLinkTokenResolver`) backed by Macro's
+`github` crate: it returns the user's connected GitHub access token, obtained
+through Macro's existing OAuth flow. That flow already requests the
+write-capable `repo` scope, so the stored token is sufficient to push branches
+and open pull requests — **no separate write-token flow is needed**. If the user
+hasn't connected GitHub (or the token expired), the spawn tool fails with an
+actionable "connect/reconnect your GitHub account" message instead of silently
+falling back to an unauthenticated clone.
+
 See <https://platform.claude.com/docs/en/managed-agents/github>.
 
 ## Wiring into Macro (done)
@@ -86,11 +95,13 @@ See <https://platform.claude.com/docs/en/managed-agents/github>.
 
 ## Remaining work
 
-1. **Real `GitTokenResolver`.** `ai_tools` currently wires a `NoOpGitTokenResolver`
-   (returns `None` → unauthenticated clone, **public repos only**). For private
-   repos, implement it against Macro's `github` crate (look up the user's
-   connected GitHub access token by `user_id` — needs FusionAuth + GitHub IdP
-   wiring), or broker tokens via a Macro GitHub App.
+1. **Resolver env provisioning.** The GitHub-backed `GitTokenResolver` is wired
+   in `ai_tools` (`build_git_token_resolver_from_env`). It activates only when
+   the host service has the FusionAuth / GitHub IdP / Redis env vars
+   (`FUSIONAUTH_TENANT_ID`, `FUSIONAUTH_API_KEY_SECRET_KEY`,
+   `FUSIONAUTH_BASE_URL`, `GITHUB_IDP_ID`, `REDIS_URL`); otherwise it falls back
+   to public-repos-only. `mcp_service` already provisions most of these — add
+   `GITHUB_IDP_ID` there and to `document_cognition_service` (see Infra below).
 2. **Agent setup.** The referenced Managed Agent must be created once with the
    GitHub MCP server + toolsets declared (out-of-band, in the Console / API).
 3. **Claude beta verification.** Confirm the session/event/resource/webhook wire
@@ -102,4 +113,8 @@ See <https://platform.claude.com/docs/en/managed-agents/github>.
    tool sets only `user_id`; thread `usage_context.entity` into the tool context
    to land completion in the exact conversation.
 6. **Infra.** Provision the Claude secret(s) and add the env vars to
-   `infra/.../ai_tools.ts`.
+   `infra/.../ai_tools.ts`. For per-user GitHub tokens, the hosting services
+   (`document_cognition_service`, `mcp_service`) need `FUSIONAUTH_TENANT_ID`,
+   `FUSIONAUTH_API_KEY_SECRET_KEY`, `FUSIONAUTH_BASE_URL`, `GITHUB_IDP_ID`, and
+   `REDIS_URL` set (the same values the `authentication_service` /
+   `mcp-server` stacks already use).

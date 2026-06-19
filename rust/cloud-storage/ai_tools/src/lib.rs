@@ -3,6 +3,7 @@
 use ai_toolset::AsyncToolCollection;
 use ai_toolset::schema::{FrontendSchemas, ToolSchemaGenerator, frontend_schemas_builder};
 mod build_context;
+mod git_token_resolver;
 mod schemas;
 pub mod search;
 pub mod serde_utils;
@@ -29,8 +30,9 @@ use teams::inbound::toolset::team_toolset;
 pub use build_context::build_anthropic_tool_context_test;
 pub use build_context::{
     build_anthropic_tool_context, build_coding_agent_tool_context,
-    build_tool_service_context_from_env,
+    build_coding_agent_tool_context_from_env, build_tool_service_context_from_env,
 };
+pub use git_token_resolver::{GithubLinkTokenResolver, build_git_token_resolver_from_env};
 pub use search::search_toolset;
 #[cfg(any(test, feature = "test-support"))]
 pub use tool_context::no_op_schedule_context;

@@ -230,7 +230,7 @@ pub async fn build_tool_service_context(
         team_tool_context: ai_tools::build_team_tool_context(pool.clone()),
         schedule_tool_context: ai_tools::NoOpScheduleContext,
         anthropic_tool_context: ai_tools::build_anthropic_tool_context(),
-        coding_agent_tool_context: ai_tools::build_coding_agent_tool_context(),
+        coding_agent_tool_context: ai_tools::build_coding_agent_tool_context(None),
         recorder: ai_usage::pg_recorder(pool.clone()),
         usage_context: ai_usage::UsageContext::system(ai_usage::AiFeature::Chat),
     })

@@ -192,6 +192,14 @@ impl<R: GithubRepo, U: GithubOauth, F: Auth, E: ForeignEntityService> GithubLink
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), err)]
+    async fn get_access_token(
+        &self,
+        macro_user_id: &MacroUserId<Lowercase<'static>>,
+    ) -> Result<GithubAccessToken, GithubError> {
+        self.validated_access_token(macro_user_id).await
+    }
+
     #[tracing::instrument(skip(self, pull_requests), err)]
     async fn enrich_pull_requests(
         &self,

@@ -35,7 +35,9 @@ entity_access = { path = "../entity_access" }
 entity_access_management = { path = "../entity_access_management" }
 foreign_entity = { path = "../foreign_entity" }
 frecency = { path = "../frecency", features = ["outbound", "postgres"] }
+fusionauth = { path = "../fusionauth" }
 futures.workspace = true
+github = { path = "../github" }
 item_filters = { path = "../item_filters" }
 lazy_static.workspace = true
 lexical_client = { path = "../lexical_client" }
@@ -56,6 +58,7 @@ models_properties = { path = "../models_properties" }
 models_search = { path = "../models_search" }
 rand.workspace = true
 readonly_pool = { path = "../readonly_pool" }
+redis = { workspace = true, features = ["aio", "tokio-comp"] }
 rootcause = { workspace = true }
 schemars.workspace = true
 search_service_client = { path = "../search_service_client" }
