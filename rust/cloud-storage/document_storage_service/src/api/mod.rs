@@ -232,6 +232,12 @@ fn api_router(state: ApiContext) -> Router {
             "/crm",
             crm::inbound::axum_router::crm_router(state.crm_state.clone()),
         )
+        .nest(
+            "/custom_emoji",
+            custom_emoji::inbound::axum_router::custom_emoji_router(
+                state.custom_emoji_state.clone(),
+            ),
+        )
         .layer(
             ServiceBuilder::new()
                 .layer(axum::middleware::from_fn(

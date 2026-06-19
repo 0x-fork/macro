@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE team_custom_emoji\n            SET deleted_at = now()\n            WHERE id = $1\n              AND deleted_at IS NULL\n              AND team_id IN (SELECT team_id FROM team_user WHERE user_id = $2)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "de7a0b751a84b6b1f369ff7477f1c2c132cc45f8f8892fbc933090142f49ecb0"
+}

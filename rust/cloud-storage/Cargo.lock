@@ -3037,6 +3037,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom_emoji"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "macro_user_id",
+ "macro_uuid",
+ "model-error-response",
+ "model_user",
+ "serde",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3591,6 +3612,7 @@ dependencies = [
  "cool_asserts",
  "cowlike",
  "crm",
+ "custom_emoji",
  "document_sub_type",
  "documents",
  "dynamodb_client",

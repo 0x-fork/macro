@@ -15,6 +15,7 @@ members = [
   "convert_service",
   "cowlike",
   "crm",
+  "custom_emoji",
   "dataloss_prevention_handler",
   "delete_chat_handler",
   "deleted_item_poller",

@@ -103,6 +103,15 @@ type DssEmailService = EmailServiceImpl<
 pub(crate) type DssCrmState =
     crm::inbound::axum_router::CrmRouterState<DssCrmService, EntityAccessService>;
 
+/// Custom emoji service for DSS.
+pub(crate) type DssCustomEmojiService = custom_emoji::domain::service::CustomEmojiServiceImpl<
+    custom_emoji::outbound::pg_repo::PgCustomEmojiRepository,
+>;
+
+/// Custom emoji router state.
+pub(crate) type DssCustomEmojiState =
+    custom_emoji::inbound::axum_router::CustomEmojiRouterState<DssCustomEmojiService>;
+
 type DssSoupState = SoupRouterState<
     SoupImpl<
         PgSoupRepo,
@@ -333,6 +342,7 @@ pub(crate) struct ApiContext {
     pub cal_webhook_state: DssCalWebhookState,
     pub entity_access_management_service: EntityAccessManagementService,
     pub crm_state: DssCrmState,
+    pub custom_emoji_state: DssCustomEmojiState,
 }
 
 env_var! {

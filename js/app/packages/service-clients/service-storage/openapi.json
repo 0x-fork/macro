@@ -4470,6 +4470,221 @@
         }
       }
     },
+    "/custom_emoji": {
+      "get": {
+        "tags": ["custom_emoji::inbound::axum_router::list_my_emoji"],
+        "summary": "Lists the caller's available custom emoji (union of their teams).",
+        "operationId": "list_custom_emoji",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomEmojiDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["custom_emoji::inbound::axum_router::create"],
+        "summary": "Creates a custom emoji.",
+        "operationId": "create_custom_emoji",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomEmojiRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomEmojiDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/custom_emoji/resolve": {
+      "post": {
+        "tags": ["custom_emoji::inbound::axum_router::resolve"],
+        "summary": "Resolves custom emoji by id.",
+        "operationId": "resolve_custom_emoji",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveCustomEmojiRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomEmojiDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/custom_emoji/{id}": {
+      "delete": {
+        "tags": ["custom_emoji::inbound::axum_router::delete"],
+        "summary": "Soft-deletes a custom emoji (must belong to one of the caller's teams).",
+        "operationId": "delete_custom_emoji",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Custom emoji id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/documents": {
       "get": {
         "tags": ["document"],
@@ -11578,6 +11793,26 @@
           }
         }
       },
+      "CreateCustomEmojiRequest": {
+        "type": "object",
+        "description": "Request body for creating a custom emoji.",
+        "required": ["team_id", "slug", "sfs_file_id"],
+        "properties": {
+          "sfs_file_id": {
+            "type": "string",
+            "description": "Static-file-service file id for the already-uploaded image."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The `:slug:` name (lowercase, `[a-z0-9_-]`, max 32 chars)."
+          },
+          "team_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Team the emoji belongs to (caller must be a member)."
+          }
+        }
+      },
       "CreateDocumentRequest": {
         "type": "object",
         "required": ["sha", "documentName"],
@@ -12272,6 +12507,31 @@
             "type": "string",
             "format": "date-time",
             "description": "When the thread was last updated."
+          }
+        }
+      },
+      "CustomEmojiDto": {
+        "type": "object",
+        "description": "API representation of a custom emoji. The frontend derives the image URL\nfrom `sfs_file_id` (the same way it does for other static files).",
+        "required": ["id", "team_id", "slug", "sfs_file_id"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Immutable id referenced by messages."
+          },
+          "sfs_file_id": {
+            "type": "string",
+            "description": "Static-file-service file id for the image."
+          },
+          "slug": {
+            "type": "string",
+            "description": "The `:slug:` name."
+          },
+          "team_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The owning team."
           }
         }
       },
@@ -16787,6 +17047,21 @@
           "pinnedItemType": {
             "type": "string",
             "description": "The type of the pin"
+          }
+        }
+      },
+      "ResolveCustomEmojiRequest": {
+        "type": "object",
+        "description": "Request body for resolving custom emoji by id.",
+        "required": ["ids"],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Custom emoji ids to resolve."
           }
         }
       },

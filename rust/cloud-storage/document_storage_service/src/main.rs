@@ -241,6 +241,9 @@ async fn main() -> anyhow::Result<()> {
         crm::outbound::companies_repo::CompaniesRepositoryImpl::new(db.clone()),
         crm::outbound::no_op_resolver::NoOpCompanyMetadataResolver,
     );
+    let custom_emoji_service = custom_emoji::domain::service::CustomEmojiServiceImpl::new(
+        custom_emoji::outbound::pg_repo::PgCustomEmojiRepository::new(db.clone()),
+    );
     let email_service = EmailServiceImpl::new(
         EmailPgRepo::new(db.clone()),
         frecency_service.clone(),
@@ -672,6 +675,9 @@ async fn main() -> anyhow::Result<()> {
         crm_state: crm::inbound::axum_router::CrmRouterState {
             service: Arc::new(crm_service),
             entity_access_service: entity_access_service.clone(),
+        },
+        custom_emoji_state: custom_emoji::inbound::axum_router::CustomEmojiRouterState {
+            service: Arc::new(custom_emoji_service),
         },
     };
 

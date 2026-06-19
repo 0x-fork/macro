@@ -3349,6 +3349,85 @@ export const setContactHiddenBody = zod
   .describe('Request body for `PUT \/contacts\/{contact_id}\/hidden`.');
 
 /**
+ * @summary Lists the caller's available custom emoji (union of their teams).
+ */
+export const listCustomEmojiResponseItem = zod
+  .object({
+    id: zod.uuid().describe('Immutable id referenced by messages.'),
+    sfs_file_id: zod
+      .string()
+      .describe('Static-file-service file id for the image.'),
+    slug: zod.string().describe('The `:slug:` name.'),
+    team_id: zod.uuid().describe('The owning team.'),
+  })
+  .describe(
+    'API representation of a custom emoji. The frontend derives the image URL\nfrom `sfs_file_id` (the same way it does for other static files).'
+  );
+export const listCustomEmojiResponse = zod.array(listCustomEmojiResponseItem);
+
+/**
+ * @summary Creates a custom emoji.
+ */
+export const createCustomEmojiBody = zod
+  .object({
+    sfs_file_id: zod
+      .string()
+      .describe('Static-file-service file id for the already-uploaded image.'),
+    slug: zod
+      .string()
+      .describe('The `:slug:` name (lowercase, `[a-z0-9_-]`, max 32 chars).'),
+    team_id: zod
+      .uuid()
+      .describe('Team the emoji belongs to (caller must be a member).'),
+  })
+  .describe('Request body for creating a custom emoji.');
+
+export const createCustomEmojiResponse = zod
+  .object({
+    id: zod.uuid().describe('Immutable id referenced by messages.'),
+    sfs_file_id: zod
+      .string()
+      .describe('Static-file-service file id for the image.'),
+    slug: zod.string().describe('The `:slug:` name.'),
+    team_id: zod.uuid().describe('The owning team.'),
+  })
+  .describe(
+    'API representation of a custom emoji. The frontend derives the image URL\nfrom `sfs_file_id` (the same way it does for other static files).'
+  );
+
+/**
+ * @summary Resolves custom emoji by id.
+ */
+export const resolveCustomEmojiBody = zod
+  .object({
+    ids: zod.array(zod.uuid()).describe('Custom emoji ids to resolve.'),
+  })
+  .describe('Request body for resolving custom emoji by id.');
+
+export const resolveCustomEmojiResponseItem = zod
+  .object({
+    id: zod.uuid().describe('Immutable id referenced by messages.'),
+    sfs_file_id: zod
+      .string()
+      .describe('Static-file-service file id for the image.'),
+    slug: zod.string().describe('The `:slug:` name.'),
+    team_id: zod.uuid().describe('The owning team.'),
+  })
+  .describe(
+    'API representation of a custom emoji. The frontend derives the image URL\nfrom `sfs_file_id` (the same way it does for other static files).'
+  );
+export const resolveCustomEmojiResponse = zod.array(
+  resolveCustomEmojiResponseItem
+);
+
+/**
+ * @summary Soft-deletes a custom emoji (must belong to one of the caller's teams).
+ */
+export const deleteCustomEmojiParams = zod.object({
+  id: zod.uuid().describe('Custom emoji id'),
+});
+
+/**
  * @summary Gets the users documents to populate their recent document list
  */
 export const getUserDocumentsHandlerQueryParams = zod.object({

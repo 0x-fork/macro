@@ -1,0 +1,40 @@
+[package]
+edition = "2024"
+name = "custom_emoji"
+publish = false
+version = "0.1.0"
+
+[features]
+default = ["axum", "inbound", "outbound", "ports"]
+ports = []
+axum = [
+  "dep:axum",
+  "dep:model-error-response",
+  "dep:model_user",
+  "dep:utoipa",
+]
+inbound = ["axum", "ports"]
+outbound = ["dep:sqlx", "ports"]
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+macro_user_id = { path = "../macro_user_id" }
+macro_uuid = { path = "../macro_uuid" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+# axum / inbound
+axum = { workspace = true, optional = true }
+model-error-response = { path = "../model-error-response", optional = true }
+model_user = { path = "../model_user", optional = true, features = ["axum"] }
+utoipa = { workspace = true, optional = true }
+
+# outbound
+sqlx = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

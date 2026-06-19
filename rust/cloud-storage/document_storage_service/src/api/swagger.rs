@@ -312,10 +312,16 @@ use utoipa::OpenApi;
         crm::inbound::axum_router::comments::create_handler,
         crm::inbound::axum_router::comments::edit_handler,
         crm::inbound::axum_router::comments::delete_handler,
+        // /custom_emoji
+        custom_emoji::inbound::axum_router::create::handler,
+        custom_emoji::inbound::axum_router::list_my_emoji::handler,
+        custom_emoji::inbound::axum_router::resolve::handler,
+        custom_emoji::inbound::axum_router::delete::handler,
     ),
     components(
         schemas(
             DocumentStorageServiceApiVersion,
+            custom_emoji::inbound::axum_router::CustomEmojiDto,
             GenericResponse,
             GenericErrorResponse,
             GenericSuccessResponse,
