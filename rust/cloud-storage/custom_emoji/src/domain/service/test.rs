@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use chrono::Utc;
 use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
@@ -14,6 +17,7 @@ struct FakeRepo {
     is_member: bool,
     create_conflict: bool,
     delete_found: bool,
+    resolve_calls: Arc<AtomicUsize>,
 }
 
 impl CustomEmojiRepository for FakeRepo {
@@ -60,6 +64,7 @@ impl CustomEmojiRepository for FakeRepo {
     }
 
     async fn resolve_by_ids(&self, _ids: &[Uuid]) -> Result<Vec<CustomEmoji>, CustomEmojiError> {
+        self.resolve_calls.fetch_add(1, Ordering::SeqCst);
         Ok(Vec::new())
     }
 
@@ -141,8 +146,10 @@ async fn create_validates_slug_before_membership() {
     assert!(matches!(res, Err(CreateCustomEmojiError::InvalidSlug(_))));
 }
 
+// The actual unique-violation -> SlugAlreadyExists mapping lives in the repo
+// (sqlx) layer; here we only assert the service propagates that error.
 #[tokio::test]
-async fn create_maps_unique_violation_to_slug_exists() {
+async fn create_propagates_slug_exists_from_repo() {
     let svc = service(FakeRepo {
         is_member: true,
         create_conflict: true,
@@ -184,6 +191,14 @@ async fn resolve_rejects_oversized_batch() {
 
 #[tokio::test]
 async fn resolve_empty_returns_empty_without_hitting_repo() {
-    let svc = service(FakeRepo::default());
+    let repo = FakeRepo::default();
+    let resolve_calls = repo.resolve_calls.clone();
+    let svc = service(repo);
+
     assert!(svc.resolve(&[]).await.unwrap().is_empty());
+    assert_eq!(
+        resolve_calls.load(Ordering::SeqCst),
+        0,
+        "empty input should short-circuit before the repo"
+    );
 }
