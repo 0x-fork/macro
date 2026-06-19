@@ -97,7 +97,7 @@ fn create_session_body_mounts_repo_with_token_and_metadata() {
             kind: "github_repository",
             url: request.source.repository.clone(),
             mount_path: REPO_MOUNT_PATH.to_owned(),
-            authorization_token: request.git_token.clone(),
+            authorization_token: request.git_token.clone().unwrap(),
         }],
         metadata,
     };

@@ -91,7 +91,12 @@ maybe_env_var! {
         GithubClientId,
         GithubClientSecret,
         GithubIdpId,
+        // Redis connection. Host services name this differently
+        // (`document_cognition_service` uses REDIS_HOST, `mcp_service` uses
+        // REDIS_URL, others REDIS_URI); accept whichever is present.
         RedisUrl,
+        RedisUri,
+        RedisHost,
     }
 }
 
@@ -101,8 +106,9 @@ maybe_env_var! {
 /// present, in which case coding agents run without a token (public repos
 /// only). Required env vars to enable per-user tokens:
 /// `FUSIONAUTH_TENANT_ID`, `FUSIONAUTH_API_KEY_SECRET_KEY`,
-/// `FUSIONAUTH_BASE_URL`, `GITHUB_IDP_ID`, and `REDIS_URL`. `GITHUB_CLIENT_ID`
-/// / `GITHUB_CLIENT_SECRET` are read when present (only needed for re-linking,
+/// `FUSIONAUTH_BASE_URL`, `GITHUB_IDP_ID`, and a redis connection
+/// (`REDIS_URL`, `REDIS_URI`, or `REDIS_HOST`). `GITHUB_CLIENT_ID` /
+/// `GITHUB_CLIENT_SECRET` are read when present (only needed for re-linking,
 /// not for retrieving an already-stored token).
 ///
 /// The FusionAuth API key env var holds a Secrets Manager secret name in
@@ -115,6 +121,13 @@ pub async fn build_git_token_resolver_from_env(
 ) -> anyhow::Result<Option<Arc<dyn GitTokenResolver>>> {
     let vars = GithubResolverEnvVars::new();
 
+    let redis_url = vars
+        .redis_url
+        .as_ref()
+        .and_then(|v| v.value())
+        .or_else(|| vars.redis_uri.as_ref().and_then(|v| v.value()))
+        .or_else(|| vars.redis_host.as_ref().and_then(|v| v.value()));
+
     let (Some(tenant_id), Some(api_key_secret), Some(base_url), Some(idp_id), Some(redis_url)) = (
         vars.fusionauth_tenant_id.as_ref().and_then(|v| v.value()),
         vars.fusionauth_api_key_secret_key
@@ -122,7 +135,7 @@ pub async fn build_git_token_resolver_from_env(
             .and_then(|v| v.value()),
         vars.fusionauth_base_url.as_ref().and_then(|v| v.value()),
         vars.github_idp_id.as_ref().and_then(|v| v.value()),
-        vars.redis_url.as_ref().and_then(|v| v.value()),
+        redis_url,
     ) else {
         tracing::info!(
             "GitHub token resolver not configured (missing FusionAuth/GitHub/Redis env); \

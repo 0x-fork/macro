@@ -248,14 +248,24 @@ impl CodingAgentProvider for ClaudeAgentProvider {
         let environment_id = self.resolve_environment_id(&request)?;
 
         // Mount the repository as a session resource; the platform clones it
-        // (with the user's token, when present) into REPO_MOUNT_PATH.
+        // with the user's token into REPO_MOUNT_PATH. Claude requires an
+        // authorization token for github_repository resources, so a missing
+        // token is a clear "connect GitHub" error rather than an opaque 422.
         let mut resources = Vec::new();
         if !request.source.repository.is_empty() {
+            let Some(authorization_token) = request.git_token.clone() else {
+                return Err(CodingAgentError::Unauthorized(
+                    "No GitHub token is available for the repository. Connect your GitHub \
+                     account in Macro settings so the coding agent can access the repository \
+                     and open pull requests."
+                        .to_owned(),
+                ));
+            };
             resources.push(ClaudeResource {
                 kind: "github_repository",
                 url: request.source.repository.clone(),
                 mount_path: REPO_MOUNT_PATH.to_owned(),
-                authorization_token: request.git_token.clone(),
+                authorization_token,
             });
         }
 
@@ -483,8 +493,9 @@ struct ClaudeResource {
     kind: &'static str,
     url: String,
     mount_path: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    authorization_token: Option<String>,
+    // Required by the Claude Managed Agents API for `github_repository`
+    // resources (even public repos), so this is non-optional.
+    authorization_token: String,
 }
 
 #[derive(Debug, Serialize)]
