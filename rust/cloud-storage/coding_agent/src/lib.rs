@@ -15,8 +15,11 @@
 //! - [`outbound`] — adapters that implement the contract against a third-party
 //!   API. The first implementation is [`outbound::cursor::CursorAgentProvider`].
 //!   Gated behind the `outbound` feature.
-//! - [`inbound`] — the AI toolset that lets the Macro agent drive a provider
-//!   (spawn / status / follow-up). Gated behind the `inbound` feature.
+//! - [`inbound`] — adapters that drive the contract: the framework-agnostic
+//!   webhook receiver ([`inbound::webhook`]) and routing tokens
+//!   ([`inbound::routing`]) for status subscriptions (always available), plus
+//!   the AI toolset ([`inbound::toolset`]) that lets the Macro agent spawn /
+//!   follow up / check status (gated behind the `toolset` feature).
 //!
 //! Adding a new backend (Devin, GitHub Copilot coding agent, an in-house
 //! runner, ...) means implementing [`CodingAgentProvider`](domain::ports::CodingAgentProvider)
@@ -27,7 +30,6 @@
 
 pub mod domain;
 
-#[cfg(feature = "inbound")]
 pub mod inbound;
 
 #[cfg(feature = "outbound")]

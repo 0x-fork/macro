@@ -274,6 +274,31 @@ pub struct CodingAgentEvent {
     pub raw: serde_json::Value,
 }
 
+/// Where a status event should be delivered: the user (and optionally the
+/// conversation) that spawned the agent.
+///
+/// Encoded into a signed routing token in the webhook URL by the spawn tool and
+/// recovered by the receiver, so no server-side `agent → owner` mapping is
+/// required. See [`inbound::routing`](crate::inbound::routing).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RouteTarget {
+    /// The user who spawned the agent.
+    #[serde(rename = "u")]
+    pub user_id: String,
+    /// The conversation/chat the agent was spawned from, when known.
+    #[serde(rename = "c", default, skip_serializing_if = "Option::is_none")]
+    pub chat_id: Option<String>,
+}
+
+/// A normalized status event paired with its delivery target.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoutedCodingAgentEvent {
+    /// The status event.
+    pub event: CodingAgentEvent,
+    /// Who/where to deliver it to.
+    pub route: RouteTarget,
+}
+
 /// Declares which optional operations a provider supports, so callers can
 /// degrade gracefully (e.g. fall back to polling when `webhooks` is false).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

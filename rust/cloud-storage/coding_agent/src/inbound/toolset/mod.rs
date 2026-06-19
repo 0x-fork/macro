@@ -18,9 +18,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::models::{
     AgentPrompt, AgentSource, AgentTarget, CodingAgent, CodingAgentError, CodingAgentId,
-    LaunchAgentRequest, WebhookConfig,
+    LaunchAgentRequest, RouteTarget, WebhookConfig,
 };
 use crate::domain::ports::CodingAgentProvider;
+use crate::inbound::routing::sign_route_token;
 
 /// Status-change subscription settings shared by the deployment.
 ///
@@ -178,15 +179,27 @@ pub struct SpawnCodingAgentResponse {
 impl AsyncTool<CodingAgentToolContext> for SpawnCodingAgent {
     type Output = SpawnCodingAgentResponse;
 
-    #[tracing::instrument(skip_all, fields(user_id = ?_request_context.user_id, repository = %self.repository), err)]
+    #[tracing::instrument(skip_all, fields(user_id = ?request_context.user_id, repository = %self.repository), err)]
     async fn call(
         &self,
         service_context: ServiceContext<CodingAgentToolContext>,
-        _request_context: RequestContext,
+        request_context: RequestContext,
     ) -> ToolResult<Self::Output> {
-        let webhook = service_context.webhook.as_ref().map(|w| WebhookConfig {
-            url: w.url.to_string(),
-            secret: w.secret.to_string(),
+        // When webhooks are configured, point the provider at a URL carrying a
+        // signed routing token so the receiver can deliver completion back to
+        // this user without any server-side agent→owner mapping.
+        let webhook = service_context.webhook.as_ref().map(|settings| {
+            let token = sign_route_token(
+                &settings.secret,
+                &RouteTarget {
+                    user_id: request_context.user_id.to_string(),
+                    chat_id: None,
+                },
+            );
+            WebhookConfig {
+                url: format!("{}/{}", settings.url.trim_end_matches('/'), token),
+                secret: settings.secret.to_string(),
+            }
         });
         let watching = webhook.is_some();
 

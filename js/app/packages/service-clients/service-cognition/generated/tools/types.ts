@@ -680,6 +680,56 @@ export interface CitationsConfig {
   enabled: boolean;
 }
 /**
+ * Response from an action that succeeds without returning data.
+ */
+export interface CodingAgentActionResponse {
+  /**
+   * Whether the action succeeded.
+   */
+  success: boolean;
+}
+/**
+ * A normalized view of a coding agent, returned by the tools.
+ */
+export interface CodingAgentView {
+  /**
+   * Branch the agent is pushing work to, if known.
+   */
+  branchName?: string | null;
+  /**
+   * Provider-assigned agent id; pass this to status / follow-up tools.
+   */
+  id: string;
+  /**
+   * Whether the agent has reached a terminal state.
+   */
+  isTerminal: boolean;
+  /**
+   * Human-friendly name, if assigned.
+   */
+  name?: string | null;
+  /**
+   * Pull request URL, once opened.
+   */
+  prUrl?: string | null;
+  /**
+   * Which backend runs the agent (e.g. "cursor").
+   */
+  provider: string;
+  /**
+   * Normalized status: pending, running, finished, failed, stopped, expired.
+   */
+  status: string;
+  /**
+   * Short progress/result summary, if available.
+   */
+  summary?: string | null;
+  /**
+   * URL to view the agent in the provider UI, if available.
+   */
+  webUrl?: string | null;
+}
+/**
  * A single comment in a thread.
  */
 export interface Comment {
@@ -1091,6 +1141,28 @@ export interface EmailSearchResult {
    * This is only present if the search result is on the message content
    */
   sent_at?: string | null;
+}
+/**
+ * Send a follow-up instruction to an existing coding agent, e.g. to refine its approach, address review feedback, or correct course. The agent continues working on the same branch.
+ */
+export interface FollowUpCodingAgent {
+  /**
+   * The id of the coding agent to follow up with.
+   */
+  agentId: string;
+  /**
+   * The additional instruction for the agent.
+   */
+  message: string;
+}
+/**
+ * Get the current status and result of a coding agent previously spawned with SpawnCodingAgent. Use this to check progress, see whether it finished, and retrieve the pull request URL once available.
+ */
+export interface GetCodingAgentStatus {
+  /**
+   * The id of the coding agent, as returned by SpawnCodingAgent.
+   */
+  agentId: string;
 }
 /**
  * Get all properties attached to an entity (document, task, project, etc.). Returns property definitions with their current values and available options for select-type properties. Use this to discover custom properties on an entity. For tasks, system properties (Assignees, Status, Priority, Due Date, etc.) are always present — you can update them directly with SetEntityProperty using well-known IDs without calling this first.
@@ -2449,6 +2521,55 @@ export interface ToolEntityRef {
 export interface SetEntityPropertyResponse {
   message: string;
   success: boolean;
+}
+/**
+ * Spawn an autonomous cloud coding agent to work on a code task in a GitHub repository. The agent runs remotely, writes code, and (by default) opens a pull request. Returns the agent's id and initial status; use GetCodingAgentStatus to check progress and FollowUpCodingAgent to give it more instructions. Use this for self-contained coding tasks like fixing a bug, adding a test, or implementing a small feature.
+ */
+export interface SpawnCodingAgent {
+  /**
+   * Whether the agent should open a pull request with its work. Defaults to true.
+   */
+  autoCreatePr?: boolean | null;
+  /**
+   * Optional branch, tag, or commit to start from. Defaults to the repository's default branch.
+   */
+  baseRef?: string | null;
+  /**
+   * Optional name for the branch the agent should push its work to. The provider generates one if omitted.
+   */
+  branchName?: string | null;
+  /**
+   * Optional model override for the coding agent (e.g. "claude-4-sonnet"). Omit to use the provider default.
+   */
+  model?: string | null;
+  /**
+   * The GitHub repository URL the agent should work on, e.g. "https://github.com/macro-inc/macro".
+   */
+  repository: string;
+  /**
+   * A clear, self-contained description of the coding task. Include the desired outcome and any constraints, as the agent works autonomously without further input unless you follow up.
+   */
+  task: string;
+}
+/**
+ * Response from spawning a coding agent.
+ */
+export interface SpawnCodingAgentResponse {
+  agent: CodingAgentView;
+  /**
+   * Whether Macro will receive status-change webhooks for this agent. When
+   * false, poll with GetCodingAgentStatus.
+   */
+  watching: boolean;
+}
+/**
+ * Stop an in-progress coding agent before it finishes. Use this to cancel work that is no longer needed or was started in error.
+ */
+export interface StopCodingAgent {
+  /**
+   * The id of the coding agent to stop.
+   */
+  agentId: string;
 }
 /**
  * Delegate a task to a subagent that can independently use tools to research and complete it. The subagent has access to search, documents, properties, calls, and channel tools. Use this for tasks that require multiple tool calls or independent research.

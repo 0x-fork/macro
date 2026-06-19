@@ -20,6 +20,14 @@ type ToolParserMap = {
     call: types.CreateDocument;
     response: types.CreateDocumentResponse;
   };
+  FollowUpCodingAgent: {
+    call: types.FollowUpCodingAgent;
+    response: types.CodingAgentActionResponse;
+  };
+  GetCodingAgentStatus: {
+    call: types.GetCodingAgentStatus;
+    response: types.CodingAgentView;
+  };
   GetEntityProperties: {
     call: types.GetEntityProperties;
     response: types.GetEntityPropertiesResponse;
@@ -79,6 +87,14 @@ type ToolParserMap = {
     call: types.SetEntityProperty;
     response: types.SetEntityPropertyResponse;
   };
+  SpawnCodingAgent: {
+    call: types.SpawnCodingAgent;
+    response: types.SpawnCodingAgentResponse;
+  };
+  StopCodingAgent: {
+    call: types.StopCodingAgent;
+    response: types.CodingAgentActionResponse;
+  };
   Subagent: { call: types.Subagent; response: types.SubagentResponse };
   TextEditorCodeExecution: {
     call: types.TextEditorCodeExecution;
@@ -104,6 +120,14 @@ const toolParserMap = {
   CreateDocument: {
     call: schemas.CreateDocument,
     response: schemas.CreateDocumentResponse,
+  },
+  FollowUpCodingAgent: {
+    call: schemas.FollowUpCodingAgent,
+    response: schemas.CodingAgentActionResponse,
+  },
+  GetCodingAgentStatus: {
+    call: schemas.GetCodingAgentStatus,
+    response: schemas.CodingAgentView,
   },
   GetEntityProperties: {
     call: schemas.GetEntityProperties,
@@ -173,6 +197,14 @@ const toolParserMap = {
     call: schemas.SetEntityProperty,
     response: schemas.SetEntityPropertyResponse,
   },
+  SpawnCodingAgent: {
+    call: schemas.SpawnCodingAgent,
+    response: schemas.SpawnCodingAgentResponse,
+  },
+  StopCodingAgent: {
+    call: schemas.StopCodingAgent,
+    response: schemas.CodingAgentActionResponse,
+  },
   Subagent: { call: schemas.Subagent, response: schemas.SubagentResponse },
   TextEditorCodeExecution: {
     call: schemas.TextEditorCodeExecution,
@@ -206,6 +238,14 @@ type ToolDataMap = {
   CreateDocument: {
     call: types.CreateDocument;
     response: types.CreateDocumentResponse;
+  };
+  FollowUpCodingAgent: {
+    call: types.FollowUpCodingAgent;
+    response: types.CodingAgentActionResponse;
+  };
+  GetCodingAgentStatus: {
+    call: types.GetCodingAgentStatus;
+    response: types.CodingAgentView;
   };
   GetEntityProperties: {
     call: types.GetEntityProperties;
@@ -265,6 +305,14 @@ type ToolDataMap = {
   SetEntityProperty: {
     call: types.SetEntityProperty;
     response: types.SetEntityPropertyResponse;
+  };
+  SpawnCodingAgent: {
+    call: types.SpawnCodingAgent;
+    response: types.SpawnCodingAgentResponse;
+  };
+  StopCodingAgent: {
+    call: types.StopCodingAgent;
+    response: types.CodingAgentActionResponse;
   };
   Subagent: { call: types.Subagent; response: types.SubagentResponse };
   TextEditorCodeExecution: {

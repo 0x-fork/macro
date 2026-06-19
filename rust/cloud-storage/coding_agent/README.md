@@ -60,21 +60,42 @@ against the trait.
     spawned agents are launched with a status-change webhook.
 
 With just `CURSOR_API_KEY`, the Macro agent can already spawn an agent and
-**subscribe by polling** `GetCodingAgentStatus` within a conversation.
+**subscribe by polling** `GetCodingAgentStatus` within a conversation. With the
+webhook env vars set as well, completion is **pushed** (see below).
 
-## Remaining: push-based subscription
+## Push-based subscription (implemented)
 
 Cursor only fires webhooks on terminal states (`FINISHED` / `ERROR`), so
-`capabilities().requires_status_polling` is `true`. To deliver push updates
-into a Macro thread, the following layer is still needed (the verification +
-event normalization it relies on already lives in `verify_and_parse_webhook`):
+`capabilities().requires_status_polling` is `true`; intermediate progress is
+polled. Terminal completion is delivered without polling:
 
-1. An Axum webhook route (e.g. in `document_cognition_service`) that adapts its
-   `HeaderMap` to `WebhookHeaders`, calls `verify_and_parse_webhook` over the
-   **raw** body, and dispatches the resulting `CodingAgentEvent`.
-2. An `agent_id → {user, thread}` mapping (a Postgres table) so an event can be
-   routed back to the conversation that spawned it.
-3. A push via the connection gateway (`ConnectionGatewayClient`) +/- a
-   notification, mirroring how other features surface updates.
-4. Optional: a poller (the `scheduled_action` service) calling `get` for
-   non-terminal agents to surface intermediate progress.
+- **Stateless routing.** When the spawn tool launches an agent it points the
+  webhook at `{CODING_AGENT_WEBHOOK_URL}/{token}`, where `token` is a
+  [`sign_route_token`](src/inbound/routing.rs) HMAC over the spawning user (and,
+  in future, chat). No `agent → owner` table is needed.
+- **Receiver.** [`inbound::webhook::process_webhook`](src/inbound/webhook.rs) is
+  framework-agnostic: it verifies the provider body signature
+  (`verify_and_parse_webhook`) and the routing token, then hands a
+  `RoutedCodingAgentEvent` to a [`CodingAgentEventSink`](src/domain/ports.rs).
+- **Hosting service.** `document_cognition_service` mounts the route at
+  `/webhooks/coding-agent/{token}` (outside the auth layer) and implements a
+  sink that pushes a `coding_agent_status` realtime message to the user (and
+  chat) over the connection gateway. See
+  `document_cognition_service/src/api/coding_agent_webhook.rs`.
+
+### Remaining polish
+
+1. **Frontend realtime listener.** The four tool *renderers* exist; surfacing
+   the async `coding_agent_status` push (e.g. a toast / inbox entry when an
+   agent finishes) needs a client handler for that message type, or routing the
+   event through the full notification system instead of a raw realtime push.
+2. **Chat-scoped routing.** `RouteTarget` already carries an optional
+   `chat_id`; the spawn tool sets only `user_id` today because the narrow tool
+   context can't yet see the originating chat. Threading
+   `usage_context.entity` (the chat UUID) into `CodingAgentToolContext` via a
+   custom `FromRef` would let completion land in the exact conversation.
+3. **Progress polling.** Optionally have the `scheduled_action` service call
+   `get` for non-terminal agents to surface mid-run progress.
+4. **Infra.** Provision a `cursor-api-key-${stack}` secret and add
+   `CURSOR_API_KEY` (+ webhook URL/secret) to `infra/.../ai_tools.ts`,
+   following the existing `GITHUB_CLIENT_SECRET` pattern.

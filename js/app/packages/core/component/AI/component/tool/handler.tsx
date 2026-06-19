@@ -6,6 +6,8 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { bashCodeExecutionHandler } from './BashCodeExecution';
 import { createDocumentHandler } from './CreateDocument';
+import { followUpCodingAgentHandler } from './FollowUpCodingAgent';
+import { getCodingAgentStatusHandler } from './GetCodingAgentStatus';
 import { getThreadHandler } from './GetThread';
 import { listCallRecordsHandler } from './ListCallRecords';
 import { listEntitiesHandler } from './ListEntities';
@@ -32,6 +34,8 @@ import { readMetadataHandler } from './ReadMetadata';
 import { readThreadHandler } from './ReadThread';
 import { contentSearchHandler, nameSearchHandler } from './Search';
 import { sendEmailHandler } from './SendEmail';
+import { spawnCodingAgentHandler } from './SpawnCodingAgent';
+import { stopCodingAgentHandler } from './StopCodingAgent';
 import { subagentHandler } from './Subagent';
 import { textEditorCodeExecutionHandler } from './TextEditorCodeExecution';
 import {
@@ -57,6 +61,10 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   BashCodeExecution: bashCodeExecutionHandler,
   ContentSearch: contentSearchHandler,
   CreateDocument: createDocumentHandler,
+  FollowUpCodingAgent: followUpCodingAgentHandler,
+  GetCodingAgentStatus: getCodingAgentStatusHandler,
+  SpawnCodingAgent: spawnCodingAgentHandler,
+  StopCodingAgent: stopCodingAgentHandler,
   GetThread: getThreadHandler,
   NameSearch: nameSearchHandler,
   ReadCallRecord: readCallRecordHandler,

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use super::models::{
     AgentMessage, AgentPrompt, CodingAgent, CodingAgentError, CodingAgentEvent, CodingAgentId,
-    CodingAgentProviderKind, LaunchAgentRequest, ProviderCapabilities,
+    CodingAgentProviderKind, LaunchAgentRequest, ProviderCapabilities, RoutedCodingAgentEvent,
 };
 
 /// Read-only access to the headers of an inbound webhook request.
@@ -12,7 +12,10 @@ use super::models::{
 /// Kept abstract so the domain stays free of any specific HTTP framework; the
 /// service mounting the receiver adapts its header map to this trait. Lookups
 /// are case-insensitive.
-pub trait WebhookHeaders {
+///
+/// `Send + Sync` so a `&dyn WebhookHeaders` can be held across the `.await` in
+/// an async webhook handler without making the handler's future non-`Send`.
+pub trait WebhookHeaders: Send + Sync {
     /// Returns the first value of the named header, if present.
     fn get_header(&self, name: &str) -> Option<&str>;
 }
@@ -92,4 +95,16 @@ pub trait CodingAgentProvider: Send + Sync {
         raw_body: &[u8],
         secret: &str,
     ) -> Result<CodingAgentEvent, CodingAgentError>;
+}
+
+/// Destination for verified status events.
+///
+/// The [`webhook`](crate::inbound::webhook) receiver verifies a delivery and
+/// hands the resulting [`RoutedCodingAgentEvent`] to a sink; the hosting service
+/// implements the sink to actually surface it to the user (e.g. a realtime push
+/// over the connection gateway, a notification, or a chat message).
+#[async_trait]
+pub trait CodingAgentEventSink: Send + Sync {
+    /// Deliver a verified, routed status event.
+    async fn deliver(&self, event: RoutedCodingAgentEvent) -> Result<(), CodingAgentError>;
 }

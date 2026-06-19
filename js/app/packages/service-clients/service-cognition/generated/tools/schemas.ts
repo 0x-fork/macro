@@ -2296,3 +2296,50 @@ export const ReadResponse = z.object({
     }
   }),
 });
+
+export const FollowUpCodingAgent = z.object({
+  agentId: z.string(),
+  message: z.string(),
+});
+
+export const CodingAgentActionResponse = z.object({ success: z.boolean() });
+
+export const GetCodingAgentStatus = z.object({ agentId: z.string() });
+
+export const CodingAgentView = z.object({
+  branchName: z.union([z.string(), z.null()]).optional(),
+  id: z.string(),
+  isTerminal: z.boolean(),
+  name: z.union([z.string(), z.null()]).optional(),
+  prUrl: z.union([z.string(), z.null()]).optional(),
+  provider: z.string(),
+  status: z.string(),
+  summary: z.union([z.string(), z.null()]).optional(),
+  webUrl: z.union([z.string(), z.null()]).optional(),
+});
+
+export const SpawnCodingAgent = z.object({
+  autoCreatePr: z.union([z.boolean(), z.null()]).default(null),
+  baseRef: z.union([z.string(), z.null()]).default(null),
+  branchName: z.union([z.string(), z.null()]).default(null),
+  model: z.union([z.string(), z.null()]).default(null),
+  repository: z.string(),
+  task: z.string(),
+});
+
+export const SpawnCodingAgentResponse = z.object({
+  agent: z.object({
+    branchName: z.union([z.string(), z.null()]).optional(),
+    id: z.string(),
+    isTerminal: z.boolean(),
+    name: z.union([z.string(), z.null()]).optional(),
+    prUrl: z.union([z.string(), z.null()]).optional(),
+    provider: z.string(),
+    status: z.string(),
+    summary: z.union([z.string(), z.null()]).optional(),
+    webUrl: z.union([z.string(), z.null()]).optional(),
+  }),
+  watching: z.boolean(),
+});
+
+export const StopCodingAgent = z.object({ agentId: z.string() });

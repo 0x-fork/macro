@@ -24,6 +24,7 @@ pub mod utils;
 
 mod attachments;
 mod chats;
+mod coding_agent_webhook;
 pub mod structured_completion;
 
 #[tracing::instrument(err, skip(state))]
@@ -53,6 +54,10 @@ pub async fn setup_and_serve(state: ApiContext) -> anyhow::Result<()> {
                     validate_api_version,
                 )),
         )
+        // Coding-agent status webhook: mounted outside the auth layer; it
+        // authenticates each delivery via the provider body signature + signed
+        // routing token (see `coding_agent_webhook`).
+        .merge(coding_agent_webhook::router(state.clone()).layer(cors.clone()))
         .merge(health::router().layer(cors))
         .merge(SwaggerUi::new("/docs").url("/api-doc/openapi.json", swagger::ApiDoc::openapi()));
 
