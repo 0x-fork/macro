@@ -71,7 +71,6 @@ export function RepositorySelector(props: { chatId?: string }) {
           'gap-1.5 rounded-lg text-xs',
           status() === 'ready' && 'text-ink'
         )}
-        title={selected() ?? 'Select a repository for the coding agent'}
       >
         <GitBranch />
         {label()}

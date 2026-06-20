@@ -118,12 +118,14 @@ impl SandboxRegistry for PgSandboxRegistry {
     }
 
     async fn set_snapshot(&self, chat_id: &str, snapshot_id: &str) -> Result<()> {
-        sqlx::query("UPDATE chat_sandboxes SET snapshot_id = $2, updated_at = now() WHERE chat_id = $1")
-            .bind(chat_id)
-            .bind(snapshot_id)
-            .execute(&self.pool)
-            .await
-            .map_err(CodingError::registry)?;
+        sqlx::query(
+            "UPDATE chat_sandboxes SET snapshot_id = $2, updated_at = now() WHERE chat_id = $1",
+        )
+        .bind(chat_id)
+        .bind(snapshot_id)
+        .execute(&self.pool)
+        .await
+        .map_err(CodingError::registry)?;
         Ok(())
     }
 

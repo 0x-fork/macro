@@ -13,9 +13,9 @@ use async_trait::async_trait;
 
 use crate::domain::error::{CodingError, Result};
 use crate::domain::models::{
-    CodingEvent, CodingOutcome, CodingTask, GitCredentials, PermissionPolicy, PlanEntry, PlanStatus,
-    PrResult, ProvisionedSandbox, RepoRef, SandboxConnection, SandboxId, SandboxOptions,
-    SandboxRecord, SandboxStatus, StopReason, ToolCallStatus, ToolKind,
+    CodingEvent, CodingOutcome, CodingTask, GitCredentials, PermissionPolicy, PlanEntry,
+    PlanStatus, PrResult, ProvisionedSandbox, RepoRef, SandboxConnection, SandboxId,
+    SandboxOptions, SandboxRecord, SandboxStatus, StopReason, ToolCallStatus, ToolKind,
 };
 use crate::domain::ports::{
     AgentRunner, CodingBackend, CodingEventSink, GitCredentialProvider, RepositoryLister,
@@ -383,7 +383,9 @@ impl CodingSessionService for NoopCodingService {
         _user_id: &str,
         _repo: RepoRef,
     ) -> Result<SandboxRecord> {
-        Err(CodingError::sandbox("coding-agent backend is not configured"))
+        Err(CodingError::sandbox(
+            "coding-agent backend is not configured",
+        ))
     }
 
     async fn clear_repository(&self, _chat_id: &str) -> Result<()> {
@@ -413,6 +415,8 @@ impl CodingSessionService for NoopCodingService {
         _prompt: &str,
         _sink: CodingEventSink,
     ) -> Result<CodingOutcome> {
-        Err(CodingError::sandbox("coding-agent backend is not configured"))
+        Err(CodingError::sandbox(
+            "coding-agent backend is not configured",
+        ))
     }
 }

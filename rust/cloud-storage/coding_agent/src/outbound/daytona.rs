@@ -165,11 +165,18 @@ impl SandboxProvider for DaytonaSandboxProvider {
             "autoStopInterval": self.config.auto_stop_minutes,
             "labels": { "macro.repo": repo.full_name() },
         });
-        if let Some(snapshot) = opts.snapshot.as_ref().or(self.config.default_snapshot.as_ref()) {
+        if let Some(snapshot) = opts
+            .snapshot
+            .as_ref()
+            .or(self.config.default_snapshot.as_ref())
+        {
             body["snapshot"] = serde_json::Value::String(snapshot.clone());
         }
         // Merge the network policy fields.
-        if let (Some(obj), Some(net)) = (body.as_object_mut(), Self::network_env(&opts.network).as_object()) {
+        if let (Some(obj), Some(net)) = (
+            body.as_object_mut(),
+            Self::network_env(&opts.network).as_object(),
+        ) {
             for (k, v) in net {
                 obj.insert(k.clone(), v.clone());
             }
@@ -257,9 +264,10 @@ impl SandboxProvider for DaytonaSandboxProvider {
         if !resp.status().is_success() {
             return Ok(None);
         }
-        let snap: SnapshotResponse = resp.json().await.unwrap_or(SnapshotResponse {
-            snapshot_id: None,
-        });
+        let snap: SnapshotResponse = resp
+            .json()
+            .await
+            .unwrap_or(SnapshotResponse { snapshot_id: None });
         Ok(snap.snapshot_id)
     }
 

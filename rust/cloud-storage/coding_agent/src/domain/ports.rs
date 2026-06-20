@@ -132,7 +132,9 @@ impl CodingBackend {
 
 impl std::fmt::Debug for CodingBackend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CodingBackend").field("id", &self.id()).finish()
+        f.debug_struct("CodingBackend")
+            .field("id", &self.id())
+            .finish()
     }
 }
 

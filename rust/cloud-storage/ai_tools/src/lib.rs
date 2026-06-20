@@ -28,22 +28,21 @@ use teams::inbound::toolset::team_toolset;
 #[cfg(any(test, feature = "test-support"))]
 pub use build_context::build_anthropic_tool_context_test;
 pub use build_context::{build_anthropic_tool_context, build_tool_service_context_from_env};
+pub use code_agent::{CodeAgent, CodeAgentResponse};
 pub use search::search_toolset;
 #[cfg(any(test, feature = "test-support"))]
 pub use tool_context::no_op_schedule_context;
-pub use code_agent::{CodeAgent, CodeAgentResponse};
 pub use tool_context::{
     CodingToolContext, NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress,
-    NoOpNotificationService,
-    NoOpScheduleContext, NoOpSnsEndpointManager, NoOpTaskProperties, RequestContext,
-    TaskPropertiesAdapter, ToolCallRecordQueryService, ToolCallService, ToolCallToolContext,
-    ToolChannelMessagesService, ToolChannelToolContext, ToolChatService, ToolChatToolContext,
-    ToolCommsService, ToolDocumentService, ToolDocumentToolContext, ToolEmailService,
-    ToolEmailToolContext, ToolEntityAccessManagementService, ToolEntityAccessService,
-    ToolForeignEntityService, ToolFrecencyService, ToolNotificationQueue, ToolNotificationService,
-    ToolNotificationToolContext, ToolPropertiesService, ToolPropertiesToolContext,
-    ToolServiceContext, ToolSoupService, ToolSystemPropertiesService, ToolTeamService,
-    ToolTeamToolContext, ToolUserEmailService, build_channel_tool_context,
+    NoOpNotificationService, NoOpScheduleContext, NoOpSnsEndpointManager, NoOpTaskProperties,
+    RequestContext, TaskPropertiesAdapter, ToolCallRecordQueryService, ToolCallService,
+    ToolCallToolContext, ToolChannelMessagesService, ToolChannelToolContext, ToolChatService,
+    ToolChatToolContext, ToolCommsService, ToolDocumentService, ToolDocumentToolContext,
+    ToolEmailService, ToolEmailToolContext, ToolEntityAccessManagementService,
+    ToolEntityAccessService, ToolForeignEntityService, ToolFrecencyService, ToolNotificationQueue,
+    ToolNotificationService, ToolNotificationToolContext, ToolPropertiesService,
+    ToolPropertiesToolContext, ToolServiceContext, ToolSoupService, ToolSystemPropertiesService,
+    ToolTeamService, ToolTeamToolContext, ToolUserEmailService, build_channel_tool_context,
     build_properties_service, build_properties_tool_context, build_task_properties_adapter,
     build_team_tool_context,
 };

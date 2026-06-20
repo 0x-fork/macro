@@ -374,18 +374,16 @@ async fn main() -> anyhow::Result<()> {
     // ACP when configured, otherwise an in-memory scripted backend (Local/dev).
     // Behind the generic CodingSessionService so the backend is swappable.
     let coding_session_service: Arc<dyn coding_agent::CodingSessionService> = {
-        let registry = Arc::new(
-            coding_agent::outbound::pg_registry::PgSandboxRegistry::new(db.clone()),
-        );
+        let registry = Arc::new(coding_agent::outbound::pg_registry::PgSandboxRegistry::new(
+            db.clone(),
+        ));
         let github_token = std::env::var("GITHUB_TOKEN").ok().filter(|t| !t.is_empty());
         // v0: a single token drives clone/push/PR and the repo dropdown. The
         // production path swaps this for the per-user token resolved through
         // macro's GitHub integration (the GitCredentialProvider/RepositoryLister
         // ports stay the same).
         let credentials: Arc<dyn coding_agent::GitCredentialProvider> = Arc::new(
-            coding_agent::StaticCredentialProvider::new(
-                github_token.clone().unwrap_or_default(),
-            ),
+            coding_agent::StaticCredentialProvider::new(github_token.clone().unwrap_or_default()),
         );
         let repos: Arc<dyn coding_agent::RepositoryLister> = match &github_token {
             Some(token) => Arc::new(coding_agent::GitHubApiRepositoryLister::new(token.clone())),

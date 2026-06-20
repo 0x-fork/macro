@@ -103,8 +103,15 @@ impl AgentRunner for AcpClaudeCodeRunner {
             }),
         )
         .await?;
-        let new_session =
-            await_response(&mut rx, session_id_req, &sink, policy, &mut tx, &mut collector).await?;
+        let new_session = await_response(
+            &mut rx,
+            session_id_req,
+            &sink,
+            policy,
+            &mut tx,
+            &mut collector,
+        )
+        .await?;
         let session_id = new_session
             .get("sessionId")
             .and_then(Value::as_str)
@@ -275,7 +282,9 @@ async fn process_message(
                 for event in map_session_update(params) {
                     match &event {
                         CodingEvent::Message { text } => collector.observe_text(text),
-                        CodingEvent::ToolUpdate { output: Some(o), .. } => collector.observe_text(o),
+                        CodingEvent::ToolUpdate {
+                            output: Some(o), ..
+                        } => collector.observe_text(o),
                         _ => {}
                     }
                     sink.emit(event);
@@ -325,16 +334,33 @@ fn map_session_update(params: &Value) -> Vec<CodingEvent> {
             .map(|text| vec![CodingEvent::Thought { text }])
             .unwrap_or_default(),
         "tool_call" => {
-            let id = update.get("toolCallId").and_then(Value::as_str).unwrap_or("").to_string();
-            let title = update.get("title").and_then(Value::as_str).unwrap_or("Tool call").to_string();
+            let id = update
+                .get("toolCallId")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let title = update
+                .get("title")
+                .and_then(Value::as_str)
+                .unwrap_or("Tool call")
+                .to_string();
             let kind = map_tool_kind(update.get("kind").and_then(Value::as_str));
             let status = map_tool_status(update.get("status").and_then(Value::as_str));
-            let mut events = vec![CodingEvent::ToolCall { id, title, kind, status }];
+            let mut events = vec![CodingEvent::ToolCall {
+                id,
+                title,
+                kind,
+                status,
+            }];
             events.extend(diffs_from_content(update));
             events
         }
         "tool_call_update" => {
-            let id = update.get("toolCallId").and_then(Value::as_str).unwrap_or("").to_string();
+            let id = update
+                .get("toolCallId")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             let status = map_tool_status(update.get("status").and_then(Value::as_str));
             let output = update
                 .get("content")
@@ -355,7 +381,11 @@ fn map_session_update(params: &Value) -> Vec<CodingEvent> {
                 .map(|arr| {
                     arr.iter()
                         .map(|e| PlanEntry {
-                            content: e.get("content").and_then(Value::as_str).unwrap_or("").to_string(),
+                            content: e
+                                .get("content")
+                                .and_then(Value::as_str)
+                                .unwrap_or("")
+                                .to_string(),
                             status: map_plan_status(e.get("status").and_then(Value::as_str)),
                         })
                         .collect()
@@ -376,9 +406,20 @@ fn diffs_from_content(update: &Value) -> Vec<CodingEvent> {
         .filter_map(|item| {
             if item.get("type").and_then(Value::as_str) == Some("diff") {
                 Some(CodingEvent::Diff {
-                    path: item.get("path").and_then(Value::as_str).unwrap_or("").to_string(),
-                    old_text: item.get("oldText").and_then(Value::as_str).map(String::from),
-                    new_text: item.get("newText").and_then(Value::as_str).unwrap_or("").to_string(),
+                    path: item
+                        .get("path")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string(),
+                    old_text: item
+                        .get("oldText")
+                        .and_then(Value::as_str)
+                        .map(String::from),
+                    new_text: item
+                        .get("newText")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string(),
                 })
             } else {
                 None
@@ -437,7 +478,10 @@ fn map_stop_reason(reason: Option<&str>) -> StopReason {
 }
 
 /// Pick the permission option to send back, per policy.
-fn choose_permission(params: &Value, policy: PermissionPolicy) -> (String, String, Vec<PermissionOption>) {
+fn choose_permission(
+    params: &Value,
+    policy: PermissionPolicy,
+) -> (String, String, Vec<PermissionOption>) {
     let title = params
         .get("toolCall")
         .and_then(|t| t.get("title"))
@@ -452,8 +496,16 @@ fn choose_permission(params: &Value, policy: PermissionPolicy) -> (String, Strin
         .map(|arr| {
             arr.iter()
                 .map(|o| {
-                    let id = o.get("optionId").and_then(Value::as_str).unwrap_or("allow").to_string();
-                    let label = o.get("name").and_then(Value::as_str).unwrap_or(&id).to_string();
+                    let id = o
+                        .get("optionId")
+                        .and_then(Value::as_str)
+                        .unwrap_or("allow")
+                        .to_string();
+                    let label = o
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&id)
+                        .to_string();
                     let allows = o
                         .get("kind")
                         .and_then(Value::as_str)
@@ -465,8 +517,16 @@ fn choose_permission(params: &Value, policy: PermissionPolicy) -> (String, Strin
         })
         .unwrap_or_else(|| {
             vec![
-                PermissionOption { id: "allow".into(), label: "Allow".into(), allows: true },
-                PermissionOption { id: "reject".into(), label: "Reject".into(), allows: false },
+                PermissionOption {
+                    id: "allow".into(),
+                    label: "Allow".into(),
+                    allows: true,
+                },
+                PermissionOption {
+                    id: "reject".into(),
+                    label: "Reject".into(),
+                    allows: false,
+                },
             ]
         });
 

@@ -29,8 +29,9 @@ pub mod outbound;
 pub use domain::error::{CodingError, Result};
 pub use domain::models::{
     CodingEvent, CodingOutcome, CodingTask, GitCredentials, PermissionDecision, PermissionOption,
-    PermissionPolicy, PlanEntry, PlanStatus, PrResult, ProvisionedSandbox, RepoRef, SandboxConnection,
-    SandboxId, SandboxOptions, SandboxRecord, SandboxStatus, StopReason, ToolCallStatus, ToolKind,
+    PermissionPolicy, PlanEntry, PlanStatus, PrResult, ProvisionedSandbox, RepoRef,
+    SandboxConnection, SandboxId, SandboxOptions, SandboxRecord, SandboxStatus, StopReason,
+    ToolCallStatus, ToolKind,
 };
 pub use domain::ports::{
     AgentRunner, CodingBackend, CodingEventSink, GitCredentialProvider, RepositoryLister,

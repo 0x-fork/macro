@@ -308,7 +308,11 @@ impl CodingSessionService for CodingSessionServiceImpl {
 
 /// Deterministic working branch name for a chat.
 fn default_work_branch(chat_id: &str) -> String {
-    let short: String = chat_id.chars().filter(|c| c.is_alphanumeric()).take(8).collect();
+    let short: String = chat_id
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .take(8)
+        .collect();
     format!("macro/chat-{short}")
 }
 
