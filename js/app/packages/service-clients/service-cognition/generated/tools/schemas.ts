@@ -1989,6 +1989,16 @@ export const SetEntityPropertyResponse = z.object({
   success: z.boolean(),
 });
 
+export const CodeAgent = z.object({ task: z.string() });
+
+export const CodeAgentResponse = z.object({
+  summary: z.string(),
+  pr_url: z.string().nullable().optional(),
+  branch: z.string().nullable().optional(),
+  changed_files: z.number().nullable().optional(),
+  stop_reason: z.string(),
+});
+
 export const Subagent = z.object({ task: z.string() });
 
 export const SubagentResponse = z.object({ result: z.string() });

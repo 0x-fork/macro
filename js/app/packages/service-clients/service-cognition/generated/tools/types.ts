@@ -2453,6 +2453,19 @@ export interface SetEntityPropertyResponse {
 /**
  * Delegate a task to a subagent that can independently use tools to research and complete it. The subagent has access to search, documents, properties, calls, and channel tools. Use this for tasks that require multiple tool calls or independent research.
  */
+export interface CodeAgent {
+  /**
+   * A detailed, self-contained description of the code change to make.
+   */
+  task: string;
+}
+export interface CodeAgentResponse {
+  summary: string;
+  pr_url?: string | null;
+  branch?: string | null;
+  changed_files?: number | null;
+  stop_reason: string;
+}
 export interface Subagent {
   /**
    * A detailed description of the task for the subagent to complete. Be specific about what information to find or what action to take.

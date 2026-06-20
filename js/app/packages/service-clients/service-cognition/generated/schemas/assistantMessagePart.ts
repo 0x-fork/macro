@@ -4,6 +4,7 @@
  * Document Cognition Service
  * OpenAPI spec version: 1.0.0
  */
+import type { AssistantMessagePartCodingAgentEvent } from './assistantMessagePartCodingAgentEvent';
 import type { AssistantMessagePartOneOf } from './assistantMessagePartOneOf';
 import type { AssistantMessagePartOneOfEight } from './assistantMessagePartOneOfEight';
 import type { AssistantMessagePartOneOfFive } from './assistantMessagePartOneOfFive';
@@ -24,4 +25,5 @@ export type AssistantMessagePart =
   | AssistantMessagePartOneOfFive
   | AssistantMessagePartOneOfEight
   | AssistantMessagePartOneOfOnezero
-  | AssistantMessagePartOneOfOnetwo;
+  | AssistantMessagePartOneOfOnetwo
+  | AssistantMessagePartCodingAgentEvent;

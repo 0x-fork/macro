@@ -1,6 +1,7 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
 import { ModelSelector } from '@core/component/AI/component/input/ModelSelector';
+import { RepositorySelector } from '@core/component/AI/component/input/RepositorySelector';
 import { useChatInputContext } from '@core/component/AI/context';
 import type { Model, ToolSet } from '@core/component/AI/types';
 import type { EditorConfigBuilder } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
@@ -236,6 +237,7 @@ export function ChatInput(props: ChatInputComponentProps) {
 
   const RightControls = () => (
     <div ref={setRightControlsEl} class="flex shrink-0 items-center gap-1">
+      <RepositorySelector chatId={props.chatId} />
       <ModelSelector
         selectedModel={model()}
         models={modelOptions()}

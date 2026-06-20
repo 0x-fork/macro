@@ -1,10 +1,12 @@
 import { ChatMessageMarkdown } from '@core/component/AI/component/message/ChatMessageMarkdown';
 import { ThinkingBlock } from '@core/component/AI/component/message/ThinkingBlock';
+import { CodingSession } from '@core/component/AI/component/tool/CodingSession';
 import { RenderTool } from '@core/component/AI/component/tool/handler';
 import { McpToolCall } from '@core/component/AI/component/tool/McpToolCall';
 import { Tool } from '@core/component/AI/component/tool/Tool';
 import { useChatContext } from '@core/component/AI/context';
 import type { AssistantMessagePart } from '@service-cognition/generated/schemas/assistantMessagePart';
+import type { CodingEvent } from '@service-cognition/generated/schemas/codingEvent';
 import type { ChatMessageWithAttachments } from '@service-cognition/generated/schemas/chatMessageWithAttachments';
 import {
   type Accessor,
@@ -44,6 +46,11 @@ type RenderItem =
       type: 'toolGroup';
       key: string;
       entries: ToolGroupEntry[];
+    }
+  | {
+      type: 'codingSession';
+      key: string;
+      events: CodingEvent[];
     }
   | {
       type: 'part';
@@ -121,6 +128,8 @@ export function AssistantMessageParts(props: {
     const orderedKeys: string[] = [];
     let pendingToolEntries: ToolGroupEntry[] = [];
 
+    let pendingCodingEvents: { key: string; event: CodingEvent }[] = [];
+
     const flushToolGroup = () => {
       if (pendingToolEntries.length === 0) return;
       const key = `toolGroup:${pendingToolEntries[0].key}`;
@@ -133,16 +142,36 @@ export function AssistantMessageParts(props: {
       pendingToolEntries = [];
     };
 
+    const flushCodingSession = () => {
+      if (pendingCodingEvents.length === 0) return;
+      const key = `codingSession:${pendingCodingEvents[0].key}`;
+      orderedKeys.push(key);
+      itemByKey.set(key, {
+        type: 'codingSession',
+        key,
+        events: pendingCodingEvents.map((p) => p.event),
+      });
+      pendingCodingEvents = [];
+    };
+
     keyedParts().orderedKeys.forEach((key, index) => {
       const part = keyedParts().partsByKey.get(key);
       if (!part) return;
 
       if (part.type === 'toolCall' || part.type === 'mcpToolCall') {
+        flushCodingSession();
         pendingToolEntries.push({ key, part, index });
         return;
       }
 
+      if (part.type === 'codingAgentEvent') {
+        flushToolGroup();
+        pendingCodingEvents.push({ key, event: part.event });
+        return;
+      }
+
       flushToolGroup();
+      flushCodingSession();
       orderedKeys.push(key);
       itemByKey.set(key, {
         type: 'part',
@@ -153,6 +182,7 @@ export function AssistantMessageParts(props: {
     });
 
     flushToolGroup();
+    flushCodingSession();
     return { orderedKeys, itemByKey };
   });
 
@@ -296,6 +326,15 @@ export function AssistantMessageParts(props: {
           <ToolGroupView
             item={
               props.item as Accessor<Extract<RenderItem, { type: 'toolGroup' }>>
+            }
+          />
+        </Match>
+        <Match when={type() === 'codingSession'}>
+          <CodingSession
+            events={
+              (
+                props.item() as Extract<RenderItem, { type: 'codingSession' }>
+              ).events
             }
           />
         </Match>

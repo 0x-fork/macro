@@ -9,6 +9,10 @@ import { platformFetch } from '@core/util/platformFetch';
 import type { ObjectLike, ResultError } from '@core/util/result';
 import type { SafeFetchInit } from '@core/util/safeFetch';
 import type { DocumentTextPart } from '@service-cognition/generated/schemas/documentTextPart';
+import type {
+  CodingRepositoriesResponse,
+  CodingSandboxStatus,
+} from './coding';
 import { err, ok, type Result } from 'neverthrow';
 import type OpenAI from 'openai';
 import type { AddServerRequest } from './generated/schemas/addServerRequest';
@@ -206,6 +210,49 @@ export const cognitionApiServiceClient = {
         method: 'GET',
       })
     ).map((result) => result);
+  },
+
+  // --- Coding agent ------------------------------------------------------
+
+  /** Repositories the user can have the coding agent work on. */
+  async getCodingRepositories() {
+    return (
+      await dcsFetch<CodingRepositoriesResponse>(`/coding/repositories`, {
+        method: 'GET',
+      })
+    ).map((result) => result);
+  },
+
+  /** The repository/sandbox status for a chat (null if none selected). */
+  async getChatRepository(args: { chat_id: string }) {
+    return (
+      await dcsFetch<CodingSandboxStatus | null>(
+        `/coding/chats/${args.chat_id}/repository`,
+        { method: 'GET' }
+      )
+    ).map((result) => result);
+  },
+
+  /** Select a repository for a chat and begin pre-warming a sandbox. */
+  async selectChatRepository(args: { chat_id: string; repository: string }) {
+    return (
+      await dcsFetch<CodingSandboxStatus>(
+        `/coding/chats/${args.chat_id}/repository`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ repository: args.repository }),
+        }
+      )
+    ).map((result) => result);
+  },
+
+  /** Clear the repository association and tear down the sandbox. */
+  async clearChatRepository(args: { chat_id: string }) {
+    return (
+      await dcsFetch<never>(`/coding/chats/${args.chat_id}/repository`, {
+        method: 'DELETE',
+      })
+    ).map(() => ({ success: true }));
   },
 
   async getChatsForAttachment(args: { attachment_id: string }) {

@@ -5,6 +5,7 @@ import {
 } from '@service-cognition/generated/tools/tool';
 import { Dynamic } from 'solid-js/web';
 import { bashCodeExecutionHandler } from './BashCodeExecution';
+import { codeAgentHandler } from './CodeAgent';
 import { createDocumentHandler } from './CreateDocument';
 import { getThreadHandler } from './GetThread';
 import { listCallRecordsHandler } from './ListCallRecords';
@@ -55,6 +56,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   MarkNotificationsDone: markNotificationsDoneHandler,
   MarkNotificationsSeen: markNotificationsSeenHandler,
   BashCodeExecution: bashCodeExecutionHandler,
+  CodeAgent: codeAgentHandler,
   ContentSearch: contentSearchHandler,
   CreateDocument: createDocumentHandler,
   GetThread: getThreadHandler,
