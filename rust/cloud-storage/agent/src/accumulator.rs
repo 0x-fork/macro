@@ -39,6 +39,18 @@ impl StreamAccumulator {
         self.parts.last()
     }
 
+    /// Accumulate an already-built [`AssistantMessagePart`] (e.g. a coding-agent
+    /// event produced outside the model stream) and return a reference to it.
+    ///
+    /// Unlike [`push`](Self::push) this performs no `StreamPart` conversion and
+    /// never drops the part, so callers can forward it as an individual chunk.
+    pub fn push_part(&mut self, part: AssistantMessagePart) -> &AssistantMessagePart {
+        self.parts.push(part);
+        self.parts
+            .last()
+            .expect("just pushed a part, so last() is Some")
+    }
+
     /// Consume the accumulator, returning the parts with consecutive text and
     /// thinking deltas merged.
     pub fn into_parts(self) -> Vec<AssistantMessagePart> {

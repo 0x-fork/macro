@@ -308,6 +308,7 @@ pub async fn build_tool_service_context_from_env(
         anthropic_tool_context,
         recorder: ai_usage::pg_recorder(pool.clone()),
         usage_context: ai_usage::UsageContext::system(ai_usage::AiFeature::Chat),
+        coding_tool_context: crate::tool_context::CodingToolContext::default(),
     })
 }
 

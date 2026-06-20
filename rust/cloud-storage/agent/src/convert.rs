@@ -174,6 +174,9 @@ fn convert_assistant(msg: &ChatMessage) -> Vec<Message> {
                 ));
             }
             AssistantMessagePart::Thinking { .. } => {}
+            // Coding-agent events are for display/persistence only; they are not
+            // model-generated content and must not be replayed to the provider.
+            AssistantMessagePart::CodingAgentEvent { .. } => {}
         }
     }
 

@@ -37,3 +37,8 @@ pub use domain::ports::{
     SandboxRegistry,
 };
 pub use domain::service::{CodingSessionService, CodingSessionServiceImpl};
+
+pub use outbound::mock::{
+    InMemoryProvider, InMemoryRegistry, NoopCodingService, ScriptedRunner,
+    StaticCredentialProvider, mock_backend,
+};

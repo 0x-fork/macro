@@ -571,6 +571,45 @@ pub fn no_op_schedule_context() -> NoOpScheduleContext {
     NoOpScheduleContext
 }
 
+/// Context for the `CodeAgent` tool: the coding-session service plus the
+/// per-request event sink and chat id.
+///
+/// The `service` is shared (set once at startup); `sink` and `chat_id` are set
+/// per chat turn by the streaming handler so the tool can stream the coding
+/// agent's progress back into the live chat. Defaults to a no-op service so
+/// hosts that wire the toolset without the coding-agent feature (MCP server,
+/// memory service) still construct cleanly.
+#[derive(Clone)]
+pub struct CodingToolContext {
+    /// The coding-session orchestration service.
+    pub service: Arc<dyn coding_agent::CodingSessionService>,
+    /// Per-request sink the tool streams [`coding_agent::CodingEvent`]s to.
+    pub sink: coding_agent::CodingEventSink,
+    /// The chat the current turn belongs to (set per request).
+    pub chat_id: Option<String>,
+}
+
+impl CodingToolContext {
+    /// Build a context around a real coding-session service.
+    pub fn new(service: Arc<dyn coding_agent::CodingSessionService>) -> Self {
+        Self {
+            service,
+            sink: coding_agent::CodingEventSink::noop(),
+            chat_id: None,
+        }
+    }
+}
+
+impl Default for CodingToolContext {
+    fn default() -> Self {
+        Self {
+            service: Arc::new(coding_agent::NoopCodingService),
+            sink: coding_agent::CodingEventSink::noop(),
+            chat_id: None,
+        }
+    }
+}
+
 /// The full service context containing all API clients.
 /// Individual tools should extract only the clients they need via `FromRef`.
 #[derive(Clone, FromRef)]
@@ -595,6 +634,9 @@ pub struct ToolServiceContext {
     /// this context. Set per-session by the caller so AI calls made by tools
     /// (e.g. subagents) are attributed to the feature that spawned them.
     pub usage_context: ai_usage::UsageContext,
+    /// Context for the `CodeAgent` tool (coding-session service + per-request
+    /// event sink). Defaults to a no-op backend.
+    pub coding_tool_context: CodingToolContext,
 }
 
 impl FromRef<ToolServiceContext> for ai_toolset::NoContext {

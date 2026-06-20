@@ -112,6 +112,7 @@ dependencies = [
  "channels",
  "chat",
  "chrono",
+ "coding_agent",
  "connection",
  "cool_asserts",
  "crm",
@@ -2352,6 +2353,29 @@ name = "cmov"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f88a43d011fc4a6876cb7344703e297c71dda42494fee094d5f7c76bf13f746"
+
+[[package]]
+name = "coding_agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "futures",
+ "futures-util",
+ "reqwest 0.13.4",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite 0.28.0",
+ "tracing",
+ "tungstenite 0.28.0",
+ "uuid",
+ "workspace-hack",
+]
 
 [[package]]
 name = "color_quant"

@@ -339,6 +339,7 @@ async fn build_tool_context(
         anthropic_tool_context: ai_tools::build_anthropic_tool_context(),
         recorder: ai_usage::pg_recorder(db.clone()),
         usage_context: ai_usage::UsageContext::system(ai_usage::AiFeature::Chat),
+        coding_tool_context: Default::default(),
     };
 
     tracing::info!("initialized tool context");

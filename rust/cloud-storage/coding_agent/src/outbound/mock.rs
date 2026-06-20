@@ -21,6 +21,7 @@ use crate::domain::ports::{
     AgentRunner, CodingBackend, CodingEventSink, GitCredentialProvider, SandboxProvider,
     SandboxRegistry,
 };
+use crate::domain::service::CodingSessionService;
 
 /// An in-memory sandbox provider that hands out fake connections.
 #[derive(Default)]
@@ -335,5 +336,50 @@ impl GitCredentialProvider for StaticCredentialProvider {
             username: self.username.clone(),
             token: self.token.clone(),
         })
+    }
+}
+
+/// A [`CodingSessionService`] that does nothing — used as the default in hosts
+/// that wire the tools but do not enable the coding-agent feature (e.g. the MCP
+/// server, memory service). Active operations return an error; queries report
+/// "no sandbox".
+#[derive(Default)]
+pub struct NoopCodingService;
+
+#[async_trait]
+impl CodingSessionService for NoopCodingService {
+    async fn select_repository(
+        &self,
+        _chat_id: &str,
+        _user_id: &str,
+        _repo: RepoRef,
+    ) -> Result<SandboxRecord> {
+        Err(CodingError::sandbox("coding-agent backend is not configured"))
+    }
+
+    async fn clear_repository(&self, _chat_id: &str) -> Result<()> {
+        Ok(())
+    }
+
+    async fn get_record(&self, _chat_id: &str) -> Result<Option<SandboxRecord>> {
+        Ok(None)
+    }
+
+    async fn warm_on_activity(&self, _chat_id: &str, _user_id: &str) -> Result<()> {
+        Ok(())
+    }
+
+    async fn can_delegate(&self, _chat_id: &str) -> Result<bool> {
+        Ok(false)
+    }
+
+    async fn delegate(
+        &self,
+        _chat_id: &str,
+        _user_id: &str,
+        _prompt: &str,
+        _sink: CodingEventSink,
+    ) -> Result<CodingOutcome> {
+        Err(CodingError::sandbox("coding-agent backend is not configured"))
     }
 }

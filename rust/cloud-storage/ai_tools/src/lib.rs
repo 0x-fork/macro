@@ -3,6 +3,7 @@
 use ai_toolset::AsyncToolCollection;
 use ai_toolset::schema::{FrontendSchemas, ToolSchemaGenerator, frontend_schemas_builder};
 mod build_context;
+mod code_agent;
 mod schemas;
 pub mod search;
 pub mod serde_utils;
@@ -30,8 +31,10 @@ pub use build_context::{build_anthropic_tool_context, build_tool_service_context
 pub use search::search_toolset;
 #[cfg(any(test, feature = "test-support"))]
 pub use tool_context::no_op_schedule_context;
+pub use code_agent::{CodeAgent, CodeAgentResponse};
 pub use tool_context::{
-    NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress, NoOpNotificationService,
+    CodingToolContext, NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress,
+    NoOpNotificationService,
     NoOpScheduleContext, NoOpSnsEndpointManager, NoOpTaskProperties, RequestContext,
     TaskPropertiesAdapter, ToolCallRecordQueryService, ToolCallService, ToolCallToolContext,
     ToolChannelMessagesService, ToolChannelToolContext, ToolChatService, ToolChatToolContext,
@@ -80,7 +83,8 @@ pub fn all_tools() -> ToolSetWithPrompt {
     let toolset = subagent_toolset()
         .add_subtoolset::<ToolNotificationToolContext>(notification_toolset())
         .add_subtoolset::<ToolEmailToolContext>(email_toolset())
-        .add_tool::<Subagent, ToolServiceContext>();
+        .add_tool::<Subagent, ToolServiceContext>()
+        .add_tool::<CodeAgent, CodingToolContext>();
     let toolset = Arc::new(toolset);
     ToolSetWithPrompt {
         toolset,

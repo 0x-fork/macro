@@ -101,6 +101,18 @@ pub enum AssistantMessagePart {
         /// The thinking text content.
         thinking: String,
     },
+    /// A streamed event from a delegated coding agent running in a sandbox.
+    ///
+    /// The payload is a serialized `coding_agent::CodingEvent` (kept as opaque
+    /// JSON here so this crate does not depend on `coding_agent`). The frontend
+    /// renders it by its inner `type` tag.
+    CodingAgentEvent {
+        /// The tool-call id of the `CodeAgent` invocation these events belong
+        /// to, so the UI can group a session's events together.
+        id: String,
+        /// The serialized coding event.
+        event: serde_json::Value,
+    },
 }
 
 impl fmt::Display for AssistantMessagePart {
@@ -118,6 +130,7 @@ impl fmt::Display for AssistantMessagePart {
                 name, description, ..
             } => write!(f, "[tool_err:{name}: {description}]"),
             Self::Thinking { .. } => Ok(()),
+            Self::CodingAgentEvent { .. } => Ok(()),
         }
     }
 }
