@@ -1,0 +1,36 @@
+[package]
+name = "coding_agent"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+# `daytona` and `acp` pull in the real outbound adapters (HTTP + WebSocket).
+# They are on by default; turn them off for a lean build that only needs the
+# domain ports + the in-memory backend (e.g. unit tests).
+default = ["daytona", "acp", "postgres"]
+daytona = ["dep:reqwest"]
+acp = ["dep:tokio-tungstenite", "dep:tungstenite", "dep:futures-util"]
+postgres = ["dep:sqlx"]
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+futures-util = { version = "0.3", optional = true }
+reqwest = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time"] }
+tokio-stream = { workspace = true }
+tokio-tungstenite = { workspace = true, optional = true }
+tracing = { workspace = true }
+tungstenite = { workspace = true, optional = true }
+uuid = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
