@@ -7,7 +7,9 @@ mod link;
 mod pull_request;
 mod sync;
 
-pub use link::{GithubAccessToken, GithubExchangeTokenResponse, GithubLink, GithubUserInfo};
+pub use link::{
+    GithubAccessToken, GithubExchangeTokenResponse, GithubLink, GithubRepository, GithubUserInfo,
+};
 pub use pull_request::{
     EnrichGithubPullRequestsProxyRequest, EnrichGithubPullRequestsResponse,
     EnrichedGithubPullRequest, GITHUB_PULL_REQUEST_FOREIGN_ENTITY_SOURCE,

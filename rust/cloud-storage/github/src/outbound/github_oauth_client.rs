@@ -5,7 +5,9 @@ use std::time::Duration;
 use super::pull_request_metadata::fetch_pull_request_metadata;
 
 use crate::domain::{
-    models::{GithubExchangeTokenResponse, GithubPullRequestDetails, GithubUserInfo},
+    models::{
+        GithubExchangeTokenResponse, GithubPullRequestDetails, GithubRepository, GithubUserInfo,
+    },
     ports::GithubOauth,
 };
 
@@ -220,5 +222,59 @@ impl GithubOauth for GithubOauthImpl {
         number: u64,
     ) -> Result<GithubPullRequestDetails, Self::Err> {
         fetch_pull_request_metadata(&self.client, access_token, owner, repo, number).await
+    }
+
+    #[tracing::instrument(skip(self, access_token), err)]
+    async fn list_repositories(
+        &self,
+        access_token: &str,
+    ) -> Result<Vec<GithubRepository>, Self::Err> {
+        #[derive(serde::Deserialize)]
+        struct RepoOwner {
+            login: String,
+        }
+        #[derive(serde::Deserialize)]
+        struct RepoItem {
+            name: String,
+            owner: RepoOwner,
+            #[serde(default)]
+            default_branch: Option<String>,
+        }
+
+        let mut out = Vec::new();
+        for page in 1..=5u32 {
+            let url = format!(
+                "https://api.github.com/user/repos?per_page=100&page={page}&sort=updated&affiliation=owner,collaborator,organization_member"
+            );
+            let response = self
+                .client
+                .get(url)
+                .header("Authorization", format!("Bearer {access_token}"))
+                .header("Accept", "application/vnd.github+json")
+                .header("User-Agent", "Macro-Auth-Service")
+                .header("X-GitHub-Api-Version", "2022-11-28")
+                .timeout(Duration::from_secs(15))
+                .send()
+                .await?;
+
+            let status = response.status();
+            if !status.is_success() {
+                let error_body = response.text().await.unwrap_or_default();
+                anyhow::bail!("failed to list repositories {}", error_body);
+            }
+
+            let items: Vec<RepoItem> = response.json().await?;
+            let count = items.len();
+            out.extend(items.into_iter().map(|r| GithubRepository {
+                owner: r.owner.login,
+                name: r.name,
+                default_branch: r.default_branch,
+            }));
+            if count < 100 {
+                break;
+            }
+        }
+
+        Ok(out)
     }
 }

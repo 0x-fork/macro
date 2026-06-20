@@ -26,6 +26,17 @@ impl AsRef<str> for GithubAccessToken {
     }
 }
 
+/// A repository the user can access (from `GET /user/repos`).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GithubRepository {
+    /// The repository owner login.
+    pub owner: String,
+    /// The repository name.
+    pub name: String,
+    /// The default branch, if known.
+    pub default_branch: Option<String>,
+}
+
 /// A GitHub link record (as stored in the database)
 #[derive(Debug, Clone)]
 pub struct GithubLink {

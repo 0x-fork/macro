@@ -10,7 +10,7 @@ use macro_user_id::{
 use crate::domain::{
     models::{
         EnrichedGithubPullRequest, GITHUB_PULL_REQUEST_FOREIGN_ENTITY_SOURCE, GithubAccessToken,
-        GithubError, GithubLink, GithubPullRequestRef,
+        GithubError, GithubLink, GithubPullRequestRef, GithubRepository,
     },
     ports::{Auth, GithubLinkService, GithubOauth, GithubRepo},
 };
@@ -190,6 +190,26 @@ impl<R: GithubRepo, U: GithubOauth, F: Auth, E: ForeignEntityService> GithubLink
     ) -> Result<(), GithubError> {
         self.validated_access_token(macro_user_id).await?;
         Ok(())
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_user_access_token(
+        &self,
+        macro_user_id: &MacroUserId<Lowercase<'static>>,
+    ) -> Result<GithubAccessToken, GithubError> {
+        self.validated_access_token(macro_user_id).await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn list_user_repositories(
+        &self,
+        macro_user_id: &MacroUserId<Lowercase<'static>>,
+    ) -> Result<Vec<GithubRepository>, GithubError> {
+        let access_token = self.validated_access_token(macro_user_id).await?;
+        self.oauth
+            .list_repositories(access_token.as_str())
+            .await
+            .map_err(|e| GithubError::Internal(e.into()))
     }
 
     #[tracing::instrument(skip(self, pull_requests), err)]

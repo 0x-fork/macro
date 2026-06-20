@@ -56,6 +56,8 @@ email_service_client = { path = "../email_service_client" }
 entity_access = { path = "../entity_access" }
 entity_access_management = { path = "../entity_access_management" }
 foreign_entity = { path = "../foreign_entity" }
+fusionauth = { path = "../fusionauth" }
+github = { path = "../github", default-features = false, features = ["link", "outbound"] }
 frecency = { path = "../frecency", features = ["outbound", "postgres"] }
 futures = { workspace = true }
 http = { workspace = true }

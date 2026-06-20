@@ -377,24 +377,51 @@ async fn main() -> anyhow::Result<()> {
         let registry = Arc::new(coding_agent::outbound::pg_registry::PgSandboxRegistry::new(
             db.clone(),
         ));
-        let github_token = std::env::var("GITHUB_TOKEN").ok().filter(|t| !t.is_empty());
-        // v0: a single token drives clone/push/PR and the repo dropdown. The
-        // production path swaps this for the per-user token resolved through
-        // macro's GitHub integration (the GitCredentialProvider/RepositoryLister
-        // ports stay the same).
-        let credentials: Arc<dyn coding_agent::GitCredentialProvider> = Arc::new(
-            coding_agent::StaticCredentialProvider::new(github_token.clone().unwrap_or_default()),
-        );
-        let repos: Arc<dyn coding_agent::RepositoryLister> = match &github_token {
-            Some(token) => Arc::new(coding_agent::GitHubApiRepositoryLister::new(token.clone())),
-            None => Arc::new(coding_agent::StaticRepositoryLister::from_full_names(
-                std::env::var("MACRO_CODING_REPOS")
-                    .unwrap_or_default()
-                    .split(',')
-                    .filter(|s| !s.trim().is_empty())
-                    .map(|s| s.trim().to_string())
-                    .collect::<Vec<_>>(),
-            )),
+        // Resolve git credentials + the repo dropdown through macro's existing
+        // GitHub integration (per-user OAuth token via FusionAuth/Redis). Falls
+        // back to a single GITHUB_TOKEN for local/dev when the integration env
+        // is not configured. The coding_agent ports are identical either way.
+        let github_link_service = service::github_credentials::build_dcs_github_link_service(
+            &db,
+            &redis_client,
+            &secretsmanager_client,
+            matches!(config.environment, Environment::Local),
+        )
+        .await
+        .unwrap_or_else(|e| {
+            tracing::warn!(error = ?e, "failed to build github link service; using fallback credentials");
+            None
+        });
+
+        let (credentials, repos): (
+            Arc<dyn coding_agent::GitCredentialProvider>,
+            Arc<dyn coding_agent::RepositoryLister>,
+        ) = match github_link_service {
+            Some(service) => {
+                let service = Arc::new(service);
+                (
+                    Arc::new(
+                        service::github_credentials::GithubLinkCredentialProvider::new(
+                            service.clone(),
+                        ),
+                    ),
+                    Arc::new(service::github_credentials::GithubLinkRepoLister::new(
+                        service,
+                    )),
+                )
+            }
+            None => {
+                let github_token = std::env::var("GITHUB_TOKEN").ok().filter(|t| !t.is_empty());
+                let credentials: Arc<dyn coding_agent::GitCredentialProvider> =
+                    Arc::new(coding_agent::StaticCredentialProvider::new(
+                        github_token.clone().unwrap_or_default(),
+                    ));
+                let repos: Arc<dyn coding_agent::RepositoryLister> = match github_token {
+                    Some(token) => Arc::new(coding_agent::GitHubApiRepositoryLister::new(token)),
+                    None => Arc::new(coding_agent::StaticRepositoryLister::default()),
+                };
+                (credentials, repos)
+            }
         };
         let backend = match (
             std::env::var("DAYTONA_API_URL"),

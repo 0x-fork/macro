@@ -4,7 +4,7 @@ use std::future::Future;
 
 use crate::domain::models::{
     EnrichedGithubPullRequest, GithubAccessToken, GithubError, GithubExchangeTokenResponse,
-    GithubLink, GithubPullRequestDetails, GithubPullRequestRef, GithubUserInfo,
+    GithubLink, GithubPullRequestDetails, GithubPullRequestRef, GithubRepository, GithubUserInfo,
 };
 use macro_user_id::{lowercased::Lowercase, user_id::MacroUserId};
 
@@ -97,6 +97,12 @@ pub trait GithubOauth: Send + Sync + 'static {
         repo: &str,
         number: u64,
     ) -> impl Future<Output = Result<GithubPullRequestDetails, Self::Err>> + Send;
+
+    /// Lists repositories the authenticated user can access (`GET /user/repos`).
+    fn list_repositories(
+        &self,
+        access_token: &str,
+    ) -> impl Future<Output = Result<Vec<GithubRepository>, Self::Err>> + Send;
 }
 
 /// Repository for handling auth related actions.
@@ -175,4 +181,17 @@ pub trait GithubLinkService: Send + Sync + 'static {
         user_id: &MacroUserId<Lowercase<'static>>,
         pull_requests: Vec<GithubPullRequestRef>,
     ) -> impl Future<Output = Result<Vec<EnrichedGithubPullRequest>, GithubError>> + Send;
+
+    /// Resolves the user's GitHub access token (validating it is not expired),
+    /// for use as a git credential (clone/push) and PR creation.
+    fn get_user_access_token(
+        &self,
+        user_id: &MacroUserId<Lowercase<'static>>,
+    ) -> impl Future<Output = Result<GithubAccessToken, GithubError>> + Send;
+
+    /// Lists the repositories the user can have the coding agent work on.
+    fn list_user_repositories(
+        &self,
+        user_id: &MacroUserId<Lowercase<'static>>,
+    ) -> impl Future<Output = Result<Vec<GithubRepository>, GithubError>> + Send;
 }
