@@ -370,6 +370,64 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("initialized chat tool context");
 
+    // Coding agent: sandbox-backed coding sessions. Daytona + Claude Code over
+    // ACP when configured, otherwise an in-memory scripted backend (Local/dev).
+    // Behind the generic CodingSessionService so the backend is swappable.
+    let coding_session_service: Arc<dyn coding_agent::CodingSessionService> = {
+        let registry = Arc::new(
+            coding_agent::outbound::pg_registry::PgSandboxRegistry::new(db.clone()),
+        );
+        let github_token = std::env::var("GITHUB_TOKEN").ok().filter(|t| !t.is_empty());
+        // v0: a single token drives clone/push/PR and the repo dropdown. The
+        // production path swaps this for the per-user token resolved through
+        // macro's GitHub integration (the GitCredentialProvider/RepositoryLister
+        // ports stay the same).
+        let credentials: Arc<dyn coding_agent::GitCredentialProvider> = Arc::new(
+            coding_agent::StaticCredentialProvider::new(
+                github_token.clone().unwrap_or_default(),
+            ),
+        );
+        let repos: Arc<dyn coding_agent::RepositoryLister> = match &github_token {
+            Some(token) => Arc::new(coding_agent::GitHubApiRepositoryLister::new(token.clone())),
+            None => Arc::new(coding_agent::StaticRepositoryLister::from_full_names(
+                std::env::var("MACRO_CODING_REPOS")
+                    .unwrap_or_default()
+                    .split(',')
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|s| s.trim().to_string())
+                    .collect::<Vec<_>>(),
+            )),
+        };
+        let backend = match (
+            std::env::var("DAYTONA_API_URL"),
+            std::env::var("DAYTONA_API_KEY"),
+        ) {
+            (Ok(base_url), Ok(api_key)) if !base_url.is_empty() && !api_key.is_empty() => {
+                let provider = Arc::new(
+                    coding_agent::outbound::daytona::DaytonaSandboxProvider::new(
+                        coding_agent::outbound::daytona::DaytonaConfig {
+                            base_url,
+                            api_key,
+                            default_snapshot: std::env::var("DAYTONA_SNAPSHOT").ok(),
+                            auto_stop_minutes: 15,
+                        },
+                    ),
+                );
+                let runner = Arc::new(coding_agent::outbound::acp::AcpClaudeCodeRunner::new());
+                coding_agent::CodingBackend::new(provider, runner)
+            }
+            _ => coding_agent::mock_backend(),
+        };
+        Arc::new(coding_agent::CodingSessionServiceImpl::new(
+            backend,
+            registry,
+            credentials,
+            repos,
+        ))
+    };
+
+    tracing::info!("initialized coding session service");
+
     let tool_service_context = ai_tools::ToolServiceContext {
         search_service_client: search_service_client.clone(),
         email_service_client: email_service_client_external.clone(),
@@ -387,6 +445,7 @@ async fn main() -> anyhow::Result<()> {
         anthropic_tool_context: ai_tools::build_anthropic_tool_context(),
         recorder: ai_usage::pg_recorder(db.clone()),
         usage_context: ai_usage::UsageContext::system(ai_usage::AiFeature::Chat),
+        coding_tool_context: ai_tools::CodingToolContext::new(coding_session_service.clone()),
     };
     let all_tools = ai_tools::all_tools();
     let all_tools_toolset = all_tools.toolset.clone();
@@ -471,6 +530,7 @@ async fn main() -> anyhow::Result<()> {
             redis_client.clone(),
         ),
         mcp_state,
+        coding_session_service,
     })
     .await
     .context("failed to setup and serve api")?;

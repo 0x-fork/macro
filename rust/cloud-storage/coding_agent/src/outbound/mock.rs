@@ -18,8 +18,8 @@ use crate::domain::models::{
     SandboxRecord, SandboxStatus, StopReason, ToolCallStatus, ToolKind,
 };
 use crate::domain::ports::{
-    AgentRunner, CodingBackend, CodingEventSink, GitCredentialProvider, SandboxProvider,
-    SandboxRegistry,
+    AgentRunner, CodingBackend, CodingEventSink, GitCredentialProvider, RepositoryLister,
+    SandboxProvider, SandboxRegistry,
 };
 use crate::domain::service::CodingSessionService;
 
@@ -339,6 +339,35 @@ impl GitCredentialProvider for StaticCredentialProvider {
     }
 }
 
+/// A [`RepositoryLister`] that returns a fixed list (e.g. from configuration).
+#[derive(Default)]
+pub struct StaticRepositoryLister {
+    repos: Vec<RepoRef>,
+}
+
+impl StaticRepositoryLister {
+    /// Build a lister from `owner/name` strings (invalid entries are skipped).
+    pub fn from_full_names<I, S>(names: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        Self {
+            repos: names
+                .into_iter()
+                .filter_map(|n| RepoRef::parse(n.as_ref()))
+                .collect(),
+        }
+    }
+}
+
+#[async_trait]
+impl RepositoryLister for StaticRepositoryLister {
+    async fn list_for_user(&self, _user_id: &str) -> Result<Vec<RepoRef>> {
+        Ok(self.repos.clone())
+    }
+}
+
 /// A [`CodingSessionService`] that does nothing — used as the default in hosts
 /// that wire the tools but do not enable the coding-agent feature (e.g. the MCP
 /// server, memory service). Active operations return an error; queries report
@@ -371,6 +400,10 @@ impl CodingSessionService for NoopCodingService {
 
     async fn can_delegate(&self, _chat_id: &str) -> Result<bool> {
         Ok(false)
+    }
+
+    async fn list_repositories(&self, _user_id: &str) -> Result<Vec<RepoRef>> {
+        Ok(Vec::new())
     }
 
     async fn delegate(

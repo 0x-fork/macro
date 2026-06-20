@@ -4,6 +4,7 @@ use super::*;
 use crate::domain::models::StopReason;
 use crate::outbound::mock::{
     InMemoryProvider, InMemoryRegistry, ScriptedRunner, StaticCredentialProvider,
+    StaticRepositoryLister,
 };
 
 fn service() -> CodingSessionServiceImpl {
@@ -15,6 +16,7 @@ fn service() -> CodingSessionServiceImpl {
         backend,
         Arc::new(InMemoryRegistry::new()),
         Arc::new(StaticCredentialProvider::new("test-token")),
+        Arc::new(StaticRepositoryLister::default()),
     )
 }
 

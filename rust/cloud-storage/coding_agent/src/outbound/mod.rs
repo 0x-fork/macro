@@ -17,3 +17,6 @@ pub mod acp;
 
 #[cfg(feature = "postgres")]
 pub mod pg_registry;
+
+#[cfg(feature = "github")]
+pub mod github;

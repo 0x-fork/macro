@@ -33,12 +33,15 @@ pub use domain::models::{
     SandboxId, SandboxOptions, SandboxRecord, SandboxStatus, StopReason, ToolCallStatus, ToolKind,
 };
 pub use domain::ports::{
-    AgentRunner, CodingBackend, CodingEventSink, GitCredentialProvider, SandboxProvider,
-    SandboxRegistry,
+    AgentRunner, CodingBackend, CodingEventSink, GitCredentialProvider, RepositoryLister,
+    SandboxProvider, SandboxRegistry,
 };
 pub use domain::service::{CodingSessionService, CodingSessionServiceImpl};
 
 pub use outbound::mock::{
     InMemoryProvider, InMemoryRegistry, NoopCodingService, ScriptedRunner,
-    StaticCredentialProvider, mock_backend,
+    StaticCredentialProvider, StaticRepositoryLister, mock_backend,
 };
+
+#[cfg(feature = "github")]
+pub use outbound::github::GitHubApiRepositoryLister;

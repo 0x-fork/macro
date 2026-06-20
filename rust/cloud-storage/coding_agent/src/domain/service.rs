@@ -15,7 +15,9 @@ use super::models::{
     CodingEvent, CodingOutcome, CodingTask, PermissionPolicy, RepoRef, SandboxConnection,
     SandboxId, SandboxOptions, SandboxRecord, SandboxStatus, StopReason,
 };
-use super::ports::{CodingBackend, CodingEventSink, GitCredentialProvider, SandboxRegistry};
+use super::ports::{
+    CodingBackend, CodingEventSink, GitCredentialProvider, RepositoryLister, SandboxRegistry,
+};
 
 /// The application-facing service for delegating coding work to a sandbox.
 #[async_trait]
@@ -43,6 +45,9 @@ pub trait CodingSessionService: Send + Sync {
     /// Whether a chat is ready to delegate coding work (a repo is selected).
     async fn can_delegate(&self, chat_id: &str) -> Result<bool>;
 
+    /// List the repositories `user_id` can select for a chat.
+    async fn list_repositories(&self, user_id: &str) -> Result<Vec<RepoRef>>;
+
     /// Delegate a coding task to the chat's sandbox, streaming progress to
     /// `sink`, and return the terminal outcome. Provisions the sandbox on the
     /// fly if pre-warming has not finished.
@@ -61,6 +66,7 @@ pub struct CodingSessionServiceImpl {
     backend: CodingBackend,
     registry: Arc<dyn SandboxRegistry>,
     credentials: Arc<dyn GitCredentialProvider>,
+    repos: Arc<dyn RepositoryLister>,
     options: SandboxOptions,
     policy: PermissionPolicy,
 }
@@ -71,11 +77,13 @@ impl CodingSessionServiceImpl {
         backend: CodingBackend,
         registry: Arc<dyn SandboxRegistry>,
         credentials: Arc<dyn GitCredentialProvider>,
+        repos: Arc<dyn RepositoryLister>,
     ) -> Self {
         Self {
             backend,
             registry,
             credentials,
+            repos,
             options: SandboxOptions::default(),
             policy: PermissionPolicy::default(),
         }
@@ -214,6 +222,10 @@ impl CodingSessionService for CodingSessionServiceImpl {
 
     async fn can_delegate(&self, chat_id: &str) -> Result<bool> {
         Ok(self.registry.get(chat_id).await?.is_some())
+    }
+
+    async fn list_repositories(&self, user_id: &str) -> Result<Vec<RepoRef>> {
+        self.repos.list_for_user(user_id).await
     }
 
     #[tracing::instrument(skip(self, prompt, sink), err)]

@@ -8,10 +8,11 @@ publish = false
 # `daytona` and `acp` pull in the real outbound adapters (HTTP + WebSocket).
 # They are on by default; turn them off for a lean build that only needs the
 # domain ports + the in-memory backend (e.g. unit tests).
-default = ["daytona", "acp", "postgres"]
+default = ["daytona", "acp", "postgres", "github"]
 daytona = ["dep:reqwest"]
 acp = ["dep:tokio-tungstenite", "dep:tungstenite", "dep:futures-util"]
 postgres = ["dep:sqlx"]
+github = ["dep:reqwest"]
 
 [dependencies]
 anyhow = { workspace = true }

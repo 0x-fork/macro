@@ -24,6 +24,7 @@ pub mod utils;
 
 mod attachments;
 mod chats;
+mod coding;
 pub mod structured_completion;
 
 #[tracing::instrument(err, skip(state))]
@@ -92,6 +93,7 @@ fn api_router(api_context: ApiContext) -> Router {
             ),
         )
         .nest("/attachments", attachments::router())
+        .nest("/coding", coding::router())
         .nest("/citations", citations::router())
         .nest("/preview", preview::router())
         .nest("/id_mapping", id_mapping::router())

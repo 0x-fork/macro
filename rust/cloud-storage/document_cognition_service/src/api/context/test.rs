@@ -425,6 +425,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
             );
             mcp_client::inbound::McpRouterState::new(mcp_repo, mcp_oauth)
         },
+        coding_session_service: Arc::new(coding_agent::NoopCodingService),
     };
     Arc::new(api_context)
 }

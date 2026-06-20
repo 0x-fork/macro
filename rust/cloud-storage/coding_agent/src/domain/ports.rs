@@ -169,3 +169,11 @@ pub trait GitCredentialProvider: Send + Sync {
     /// `user_id`.
     async fn credentials_for(&self, user_id: &str, repo: &RepoRef) -> Result<GitCredentials>;
 }
+
+/// Lists the repositories a user can have the agent work on (those reachable
+/// through their GitHub integration). Powers the chat repository dropdown.
+#[async_trait]
+pub trait RepositoryLister: Send + Sync {
+    /// Repositories available to `user_id`.
+    async fn list_for_user(&self, user_id: &str) -> Result<Vec<RepoRef>>;
+}

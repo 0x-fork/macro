@@ -482,6 +482,9 @@ fn stream_and_save_message(
     let tool_context = ctx.tool_service_context.clone();
     let static_tools = ctx.all_tools.clone();
     let mcp_store = ctx.mcp_state.store();
+    // Cloned out so the stream coroutine can warm the sandbox without moving
+    // `ctx_outer` (which is used after the coroutine to publish the stream).
+    let coding_session_service = ctx.coding_session_service.clone();
 
     let ctx_outer = ctx.clone();
     // Pull the token out so the select below can reference it without moving
@@ -508,6 +511,16 @@ fn stream_and_save_message(
             yield json;
         }
 
+        // New activity in this chat: warm its sandbox back up if a repository
+        // is selected (no-op otherwise). Returns quickly; provisioning runs in
+        // the background.
+        if let Err(e) = coding_session_service
+            .warm_on_activity(&chat_id, user_id.0.as_ref())
+            .await
+        {
+            tracing::warn!(error = ?e, chat_id = %chat_id, "failed to warm coding sandbox");
+        }
+
         let mcp_records = mcp_store.list(&user_id).await.unwrap_or_default();
         let toolset: Arc<dyn ai_toolset::ToolSet<_> + Send + Sync> = Arc::new(
             mcp_client::domain::service::CombinedToolSet::new(static_tools, &mcp_records).await,
@@ -520,6 +533,12 @@ fn stream_and_save_message(
         // Carry the feature on the context so tool-spawned subagents attribute to it.
         let mut tool_context = tool_context;
         tool_context.usage_context = usage_ctx.clone();
+        // Per-request sink so the CodeAgent tool can stream the sandboxed coding
+        // agent's ACP events into this chat's live stream (merged in the loop
+        // below). The chat id lets the tool resolve this chat's sandbox.
+        let (coding_sink, mut coding_rx) = coding_agent::CodingEventSink::channel();
+        tool_context.coding_tool_context.sink = coding_sink;
+        tool_context.coding_tool_context.chat_id = Some(chat_id.clone());
         let mut session = agent_loop
             .session(toolset, Arc::new(tool_context), &system_prompt, usage_ctx)
             .await;
@@ -545,15 +564,34 @@ fn stream_and_save_message(
         let mut accumulator = StreamAccumulator::new();
 
         loop {
-            let next_item = tokio::select! {
+            tokio::select! {
                 biased;
                 _ = cancellation_token.cancelled() => {
                     tracing::info!(chat_id = %chat_id, user_id = %user_id, stream_id = %stream_id, "AI stream cancelled by user");
                     was_cancelled = true;
-                    None
+                    break;
+                }
+                // Coding-agent events emitted by the CodeAgent tool while it runs.
+                // They are wrapped as a message part, persisted and forwarded so
+                // the chat UI renders the sandboxed agent's progress live.
+                Some(coding_event) = coding_rx.recv() => {
+                    let part = AssistantMessagePart::CodingAgentEvent {
+                        id: message_id.clone(),
+                        event: serde_json::to_value(&coding_event).unwrap_or(serde_json::Value::Null),
+                    };
+                    let stored = accumulator.push_part(part).clone();
+                    let response = ChatStream::ChatMessageResponse {
+                        stream_id: stream_id.clone(),
+                        chat_id: chat_id.clone(),
+                        message_id: message_id.clone(),
+                        content: stored,
+                    };
+                    if let Ok(json) = serde_json::to_value(&response) {
+                        yield json;
+                    }
                 }
                 timed = tokio::time::timeout(idle_timeout, ai_stream.next()) => {
-                    match timed {
+                    let item = match timed {
                         Ok(item) => item,
                         Err(_) => {
                             tracing::error!(chat_id = %chat_id, user_id = %user_id, stream_id = %stream_id, "AI stream idle timeout: no token received within {idle_timeout:?}");
@@ -563,51 +601,70 @@ fn stream_and_save_message(
                             if let Ok(json) = serde_json::to_value(ChatStream::Error(stream_error)) {
                                 yield json;
                             }
-                            None
+                            break;
+                        }
+                    };
+
+                    let Some(response) = item else { break; };
+                    tracing::trace!("{:#?}", response);
+
+                    if !is_first_token {
+                        is_first_token = true;
+                        log::log_timing(log::LatencyMetric::TimeToFirstToken, &model, now.elapsed());
+                    }
+
+                    match response {
+                        Ok(response_chunk) => {
+                            // Accumulate the part for persistence; the accumulator merges
+                            // consecutive text/thinking when accessed below. Parts with no
+                            // persistable content (usage, empty deltas) are skipped here and
+                            // are not forwarded to the client.
+                            let Some(message_part) = accumulator.push(response_chunk).cloned() else {
+                                continue;
+                            };
+
+                            let response = ChatStream::ChatMessageResponse {
+                                stream_id: stream_id.clone(),
+                                chat_id: chat_id.clone(),
+                                message_id: message_id.clone(),
+                                content: message_part,
+                            };
+
+                            if let Ok(json) = serde_json::to_value(&response) {
+                                yield json;
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!(error=?e, chat_id = %chat_id, user_id = %user_id, stream_id = %stream_id, "error in AI stream");
+                            let stream_error = StreamError::InternalError {
+                                stream_id: stream_id.clone(),
+                            };
+                            if let Ok(json) = serde_json::to_value(ChatStream::Error(stream_error)) {
+                                yield json;
+                            }
+                            break;
                         }
                     }
                 }
-            };
-
-            let Some(response) = next_item else { break; };
-            tracing::trace!("{:#?}", response);
-
-            if !is_first_token {
-                is_first_token = true;
-                log::log_timing(log::LatencyMetric::TimeToFirstToken, &model, now.elapsed());
             }
+        }
 
-            match response {
-                Ok(response_chunk) => {
-                    // Accumulate the part for persistence; the accumulator merges
-                    // consecutive text/thinking when accessed below. Parts with no
-                    // persistable content (usage, empty deltas) are skipped here and
-                    // are not forwarded to the client.
-                    let Some(message_part) = accumulator.push(response_chunk).cloned() else {
-                        continue;
-                    };
-
-                    let response = ChatStream::ChatMessageResponse {
-                        stream_id: stream_id.clone(),
-                        chat_id: chat_id.clone(),
-                        message_id: message_id.clone(),
-                        content: message_part,
-                    };
-
-                    if let Ok(json) = serde_json::to_value(&response) {
-                        yield json;
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(error=?e, chat_id = %chat_id, user_id = %user_id, stream_id = %stream_id, "error in AI stream");
-                    let stream_error = StreamError::InternalError {
-                        stream_id: stream_id.clone(),
-                    };
-                    if let Ok(json) = serde_json::to_value(ChatStream::Error(stream_error)) {
-                        yield json;
-                    }
-                    break;
-                }
+        // Drain any coding events emitted just before the agent stream ended so
+        // none are lost (the sender lives as long as the session).
+        while let Ok(coding_event) = coding_rx.try_recv() {
+            let part = AssistantMessagePart::CodingAgentEvent {
+                id: message_id.clone(),
+                event: serde_json::to_value(&coding_event).unwrap_or(serde_json::Value::Null),
+            };
+            let stored = accumulator.push_part(part).clone();
+            let response = ChatStream::ChatMessageResponse {
+                stream_id: stream_id.clone(),
+                chat_id: chat_id.clone(),
+                message_id: message_id.clone(),
+                content: stored,
+            };
+            if let Ok(json) = serde_json::to_value(&response) {
+                yield json;
             }
         }
 

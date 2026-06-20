@@ -96,6 +96,9 @@ pub struct ApiContext {
     pub message_service: Arc<DcsMessageService>,
     pub ai_stream_registry: AiStreamRegistry,
     pub mcp_state: DcsMcpRouterState,
+    /// Orchestrates sandboxed coding sessions (repo select, pre-warm, delegate).
+    /// Provider-agnostic so the sandbox + coding agent can be swapped.
+    pub coding_session_service: Arc<dyn coding_agent::CodingSessionService>,
 }
 
 pub static GLOBAL_CONTEXT: OnceLock<ApiContext> = OnceLock::new();
