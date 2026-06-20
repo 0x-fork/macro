@@ -420,3 +420,53 @@ new FusionAuthIdpOpenIdConnect(
     protect: stack !== 'local',
   }
 );
+
+// The GitHub identity provider.
+//
+// Only created locally. Macro performs the GitHub OAuth dance itself and then
+// attaches the resulting token to this IdP via the FusionAuth link API, so the
+// IdP only needs to *exist* with a stable id — it is never used as a FusionAuth
+// login provider. Dev/prod register their GitHub IdP out-of-band and store its
+// id as a secret (`github-idp-id-{dev,prod}`), so we don't manage it here.
+//
+// The id is fixed so the local `.env` (`GITHUB_IDP_ID`) is stable across runs.
+// Keep this in sync with `GITHUB_IDP_ID` in this stack's justfile
+// (`insert_local_fusionauth_variables`).
+const LOCAL_GITHUB_IDP_ID = '8f3b9d2c-1a47-4e6b-bc59-0d7e2f4a9c10';
+
+if (stack === 'local') {
+  new FusionAuthIdpOpenIdConnect(
+    'github-idp',
+    {
+      enabled: true,
+      idpId: LOCAL_GITHUB_IDP_ID,
+      name: 'github',
+      // Placeholders — the real GitHub OAuth app credentials live in the root
+      // `.env` (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`) and are used by
+      // Macro directly, not by FusionAuth.
+      oauth2ClientId: 'local-github-client-id',
+      oauth2ClientSecret: 'local-github-client-secret',
+      oauth2ClientAuthenticationMethod: 'client_secret_basic',
+      oauth2AuthorizationEndpoint: 'https://github.com/login/oauth/authorize',
+      oauth2TokenEndpoint: 'https://github.com/login/oauth/access_token',
+      oauth2UserInfoEndpoint: 'https://api.github.com/user',
+      buttonText: 'GitHub',
+      oauth2Scope: 'repo user:email',
+      oauth2UniqueIdClaim: 'id',
+      linkingStrategy: 'LinkByEmail',
+      debug: true,
+      applicationConfigurations: [
+        {
+          applicationId: pulumi.interpolate`${macroApplication.oauthConfiguration.clientId}`,
+          enabled: true,
+          createRegistration: true,
+        },
+      ],
+    },
+    {
+      dependsOn: macroApplication,
+      provider: fusionAuthProvider,
+      protect: false,
+    }
+  );
+}

@@ -13,27 +13,31 @@ struct IdentityProvider<'a> {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct IdentityProviderSearchResponse<'a> {
-    /// The identity providers returned from the search
+struct RetrieveIdentityProvidersResponse<'a> {
+    /// All configured identity providers.
     identity_providers: Vec<IdentityProvider<'a>>,
-    /// The total number of identity providers returned from the search
-    total: i32,
 }
 
-/// Searches through the list of identity providers and returns the identity provider id using the
-/// name of the provider
-/// https://fusionauth.io/docs/apis/identity-providers/#request-1
-/// Valid respones: 200, 400, 401, 500
+/// Returns the id of the identity provider whose name matches `name` exactly.
+///
+/// Uses the authoritative "retrieve all identity providers" endpoint
+/// (`GET /api/identity-provider`) and filters by name, rather than the
+/// `/api/identity-provider/search?name=` endpoint: the search endpoint does
+/// not reliably match by name in every environment (e.g. it returns no results
+/// for locally-provisioned providers), whereas retrieve-all always lists every
+/// configured provider.
+/// https://fusionauth.io/docs/apis/identity-providers/#retrieve-all-identity-providers
+/// Valid responses: 200, 401, 500
 pub(crate) async fn get_idp_id_by_name(
     client: &AuthedClient,
     base_url: &str,
     name: &str,
 ) -> Result<String> {
+    // Identity providers are global (not tenant-scoped); use the client that
+    // never sends the tenant header, or the local instance returns no results.
     let res = client
-        .client()
-        .get(format!(
-            "{base_url}/api/identity-provider/search?name={name}"
-        ))
+        .global_client()
+        .get(format!("{base_url}/api/identity-provider"))
         .send()
         .await
         .map_err(|e| {
@@ -42,54 +46,50 @@ pub(crate) async fn get_idp_id_by_name(
             })
         })?;
 
-    match res.status() {
-        reqwest::StatusCode::OK => {
-            tracing::trace!("identity providers found");
-            let body = res
-                .json::<IdentityProviderSearchResponse>()
-                .await
-                .map_err(|e| {
-                    FusionAuthClientError::Generic(GenericErrorResponse {
-                        message: e.to_string(),
-                    })
-                })?;
+    if res.status() != reqwest::StatusCode::OK {
+        let body = res.text().await.map_err(|e| {
+            FusionAuthClientError::Generic(GenericErrorResponse {
+                message: e.to_string(),
+            })
+        })?;
 
-            if body.total == 0 {
-                return Err(FusionAuthClientError::NoIdentityProviderFound);
-            }
+        tracing::error!(body=%body, "unexpected response from fusionauth");
 
-            if body.total > 1 {
-                // attempt to match by idp name exactly. if we still have multiple providers,
-                // return error
-                let filtered_idps = body
-                    .identity_providers
-                    .into_iter()
-                    .filter(|idp| idp.name == name)
-                    .collect::<Vec<_>>();
-
-                if filtered_idps.len() == 1 {
-                    return Ok(filtered_idps[0].id.to_string());
-                }
-
-                return Err(FusionAuthClientError::Generic(GenericErrorResponse {
-                    message: "multiple identity providers found".to_string(),
-                }));
-            }
-
-            Ok(body.identity_providers[0].id.to_string())
-        }
-        _ => {
-            let body = res.text().await.map_err(|e| {
-                FusionAuthClientError::Generic(GenericErrorResponse {
-                    message: e.to_string(),
-                })
-            })?;
-
-            tracing::error!(body=%body, "unexpected response from fusionauth");
-
-            Err(FusionAuthClientError::Generic(GenericErrorResponse {
-                message: body,
-            }))
-        }
+        return Err(FusionAuthClientError::Generic(GenericErrorResponse {
+            message: body,
+        }));
     }
+
+    let body = res
+        .json::<RetrieveIdentityProvidersResponse>()
+        .await
+        .map_err(|e| {
+            FusionAuthClientError::Generic(GenericErrorResponse {
+                message: e.to_string(),
+            })
+        })?;
+
+    let providers = body.identity_providers;
+    let mut matches = providers.iter().filter(|idp| idp.name == name);
+
+    let Some(first) = matches.next() else {
+        let available = providers
+            .iter()
+            .map(|p| p.name.as_ref())
+            .collect::<Vec<_>>();
+        tracing::warn!(
+            requested = %name,
+            available = ?available,
+            "no identity provider matched the requested name (retrieve-all)"
+        );
+        return Err(FusionAuthClientError::NoIdentityProviderFound);
+    };
+
+    if matches.next().is_some() {
+        return Err(FusionAuthClientError::Generic(GenericErrorResponse {
+            message: format!("multiple identity providers found with name {name}"),
+        }));
+    }
+
+    Ok(first.id.to_string())
 }

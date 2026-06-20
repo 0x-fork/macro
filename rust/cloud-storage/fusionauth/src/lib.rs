@@ -32,7 +32,13 @@ use reqwest::Url;
 /// An HTTP client with default Authorization and optional tenant headers.
 #[derive(Clone, Debug)]
 pub struct AuthedClient {
+    /// Authorization header, plus the tenant header on a local instance.
     inner: reqwest::Client,
+    /// Authorization header only — never tenant-scoped. Used for **global**
+    /// FusionAuth resources such as identity providers: those are not
+    /// tenant-scoped, and sending `X-FusionAuth-TenantId` on the local
+    /// multi-tenant instance scopes the query and returns an empty result.
+    global: reqwest::Client,
 }
 
 /// Used to specify what tenant id we want to use
@@ -44,6 +50,12 @@ impl AuthedClient {
         // Create authenticated client with default Authorization header
         let mut auth_headers = reqwest::header::HeaderMap::new();
         auth_headers.insert(reqwest::header::AUTHORIZATION, api_key.parse().unwrap());
+
+        // Authorization-only client for global (non-tenant-scoped) resources.
+        let global = reqwest::Client::builder()
+            .default_headers(auth_headers.clone())
+            .build()
+            .unwrap();
 
         // NOTE: we only want to insert this header automatically if we are
         // using a local fusionauth instance
@@ -62,12 +74,21 @@ impl AuthedClient {
             .build()
             .unwrap();
 
-        Self { inner: client }
+        Self {
+            inner: client,
+            global,
+        }
     }
 
-    /// Returns a reference to the inner reqwest client.
+    /// Returns a reference to the inner reqwest client (tenant-scoped on local).
     pub fn client(&self) -> &reqwest::Client {
         &self.inner
+    }
+
+    /// Returns a client that never sends the tenant header, for global
+    /// resources such as identity providers.
+    pub fn global_client(&self) -> &reqwest::Client {
+        &self.global
     }
 }
 
