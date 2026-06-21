@@ -38,7 +38,7 @@ For each block, we studied the best prior art and tried to make it even better. 
 
 | Block | What it does |
 | --- | --- |
-| [Email](https://docs.macro.com/product/email) | Multi-account unified inbox, keyboard shortcuts, and shared inboxes. Gmail. |
+| [Email](https://docs.macro.com/product/email) | Multi-account unified inbox, keyboard shortcuts, and shared inboxes. |
 | [Messages](https://docs.macro.com/product/channels) | Channels and direct messages designed for focused technical discussions. |
 | [Tasks](https://docs.macro.com/product/tasks) | Linear-inspired tasks, tightly integrated with channels, email, and agents. |
 | [Docs](https://docs.macro.com/product/docs) | Real-time collaborative, markdown-native docs built on CRDTs, with @mentions. |
@@ -94,7 +94,7 @@ Core contributors: [@whutchinson98](https://github.com/whutchinson98), [@gbirman
   <img width="100%" alt="Watch the Macro demo" src="https://img.youtube.com/vi/hZRin23hRKc/maxresdefault.jpg" />
 </a>
 
-Want to see it in the wild? Watch [how Desync runs their engineer-heavy company on Macro](https://www.youtube.com/watch?v=fZFIW2toHwk).
+Want to see it in the wild? Watch [how Desync runs their engineering-heavy company on Macro](https://www.youtube.com/watch?v=fZFIW2toHwk).
 
 # Security
 
