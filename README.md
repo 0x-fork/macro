@@ -24,7 +24,7 @@
 
 Macro is a unified system for teams. We built it for our startup. Email, tasks, calls, messages, agents, docs, diagrams, and CRM in one place — @linked together with team-level memory. Replaces Slack, Linear, Notion, HubSpot, and Superhuman. Or integrates with them.
 
-We built Macro because we wanted a single unified system. There are many good products, but nothing works together. So, we rebuilt everything from scratch, from first principles, in SolidJS and Rust, to work together as one. We've been dogfooding it for two years and now we've opened it up so you can use it too.
+We built Macro because we wanted a single unified system. There are many good products, but nothing works together. So, we rebuilt everything from scratch, from first principles, in SolidJS and Rust, to work together as one. We've been dogfooding it for two years and have now opened it up for you to use.
 
 [Sign up](https://macro.com/app) · [Book demo](https://cal.com/team/macro/macro-demo-call?metadata%5Bfbp%5D=fb.1.1778954074516.817396687896036613) · [Read the docs](https://docs.macro.com)
 
