@@ -765,7 +765,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
   // Focus first entity on filter/search changes
   createEffect(
     on(
-      () => [soup.predicates.activeIds(), searchText(), featuredIds()] as const,
+      () => [soup.facets.serialize(), searchText(), featuredIds()] as const,
       () => {
         if (!focusEffectsEnabled()) return;
         focusFirstEntity();
@@ -1347,8 +1347,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                         }}
                                         showUnrollNotifications={
                                           row.original.type !== 'email' &&
-                                          soup.predicates.isActive('inbox') &&
-                                          !soup.predicates.isActive('noise')
+                                          soup.facets.has('focus', 'inbox')
                                         }
                                         checked={row.isSelected()}
                                         onChecked={(

@@ -16,17 +16,6 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { EntityData, WithNotification, WithSearch } from '@entity';
 import { createMemo, createSignal, type JSX } from 'solid-js';
 
-/**
- * Active "focus" predicates that exclude done entities. When one of these is
- * active, marking an entity done removes it from the list, so its row should
- * collapse before being removed rather than disappearing instantly.
- *
- * The inbox tabs activate `inbox` / `noise` rather than the standalone
- * `not-done` predicate (see `soup-filter-presets.ts`), so all three are
- * included here.
- */
-const COLLAPSE_ON_DONE_PREDICATES: FilterID[] = ['not-done', 'inbox', 'noise'];
-
 export type SoupEntity = WithNotification<EntityData | WithSearch<EntityData>>;
 
 export type GroupHeaderProps = {
@@ -358,8 +347,10 @@ export const createSoupState = <TId extends string = FilterID>(
       callback: collapseEntityCallback,
       set: setCollapseEntityCallback,
       shouldCollapse: () => {
+        // A "focus" facet (inbox / noise) excludes done entities, so marking
+        // one done removes it from the list — collapse the row first.
         return (
-          COLLAPSE_ON_DONE_PREDICATES.some((id) => predicates.isActive(id)) &&
+          (facets.has('focus', 'inbox') || facets.has('focus', 'noise')) &&
           collapseEntityCallback() !== undefined &&
           isModality('touch')
         );

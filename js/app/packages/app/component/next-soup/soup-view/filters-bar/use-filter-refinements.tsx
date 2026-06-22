@@ -4,7 +4,6 @@ import {
   VIEW_TAB_PRESETS,
 } from '@app/component/app-sidebar/soup-filter-presets';
 import {
-  type FilterContext,
   type FilterID,
   NO_ASSIGNEE,
 } from '@app/component/next-soup/filters';
@@ -99,17 +98,6 @@ export function useFilterRefinements() {
     const preset = currentPreset();
     if (!preset) return false;
 
-    const expectedIds = new Set([
-      ...(preset.clientFilters.and ?? []),
-      ...(preset.clientFilters.or ?? []),
-    ]);
-
-    const currentIds = new Set(soup.predicates.activeIds() as FilterID[]);
-
-    const hasClientFilterDiff =
-      expectedIds.size !== currentIds.size ||
-      [...expectedIds].some((id) => !currentIds.has(id as FilterID));
-
     // Check if there are any external filters set (normalize undefined vs {} for comparison)
     const currentFilterData = filterData();
     const presetFilters = preset.filters;
@@ -127,12 +115,7 @@ export function useFilterRefinements() {
       ...new Set([...Object.keys(sel), ...Object.keys(seed)]),
     ].some((k) => !sameIds(sel[k] ?? [], seed[k] ?? []));
 
-    return (
-      hasClientFilterDiff ||
-      hasQueryFilterDiff ||
-      hasSubFilters ||
-      hasFacetRefinements
-    );
+    return hasQueryFilterDiff || hasSubFilters || hasFacetRefinements;
   });
 
   /**
@@ -453,53 +436,15 @@ export function useFilterRefinements() {
     return filters;
   });
 
-  const getFilterContext = (): FilterContext => ({
-    userId: currentUserId(),
-    assignees: assigneeFilter(),
-  });
-
   /**
-   * Does at least one item pass the BASE preset's client predicates? Used to
-   * decide whether the empty-state banner should claim items are hidden.
-   * Short-circuits at the first match.
+   * Whether any items are currently shown. Used to decide whether the
+   * empty-state banner should claim items are hidden.
    *
-   * Note: items() is already server-filtered by current query filters, so if
-   * the user has tightened the server query this may return false even when
-   * items exist. `hasHiddenItems` below compensates by being sticky.
+   * Note: items() is already server- and facet-filtered, so if the user has
+   * tightened the query this may be false even when base-preset items exist.
+   * `hasHiddenItems` below compensates by being sticky.
    */
-  const baseHasItems = createMemo(() => {
-    const preset = currentPreset();
-    if (!preset) return false;
-    const baseAnd = preset.clientFilters.and ?? [];
-    const baseOr = preset.clientFilters.or ?? [];
-    if (baseAnd.length === 0 && baseOr.length === 0) return items().length > 0;
-
-    const ctx = getFilterContext();
-    for (const entity of items()) {
-      let andOk = true;
-      for (const id of baseAnd) {
-        const cfg = soup.predicates.getConfig(id);
-        if (cfg && !cfg.predicate(entity, ctx)) {
-          andOk = false;
-          break;
-        }
-      }
-      if (!andOk) continue;
-      if (baseOr.length > 0) {
-        let orOk = false;
-        for (const id of baseOr) {
-          const cfg = soup.predicates.getConfig(id);
-          if (cfg?.predicate(entity, ctx)) {
-            orOk = true;
-            break;
-          }
-        }
-        if (!orOk) continue;
-      }
-      return true;
-    }
-    return false;
-  });
+  const baseHasItems = createMemo(() => items().length > 0);
 
   /**
    * Sticky-true while refinements are active so the banner doesn't flicker
@@ -522,14 +467,6 @@ export function useFilterRefinements() {
   });
 
   const hasHiddenItemsValue = () => hasHiddenItems().value;
-
-  const _getFilterQuery = (optionId: string) => {
-    const filter = soup.predicates.getConfig(optionId);
-    if (!filter?.query) return undefined;
-    return typeof filter.query === 'function'
-      ? filter.query(getFilterContext())
-      : filter.query;
-  };
 
   const resetToTabDefaults = () => {
     const preset = currentPreset();

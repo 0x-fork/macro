@@ -303,10 +303,10 @@ export const SoupViewContextProvider: FlowComponent<
   });
 
   // Clear the assignee sub-filter when the task filter is off by either path:
-  // the tasks-view preset (`task` predicate) or the inbox entity-type facet.
+  // the tasks-view preset (`scope` facet) or the inbox entity-type facet.
   createEffect(() => {
     const taskActive =
-      soup.predicates.isActive('task') ||
+      soup.facets.has('scope', 'task') ||
       soup.facets.has('entity-type', 'task');
     if (!taskActive) setAssigneeFilter([]);
   });
@@ -461,12 +461,7 @@ export const SoupViewContextProvider: FlowComponent<
 
     const next = [];
     for (const entity of transformed) {
-      if (
-        !soup.predicates.test(entity, ctx) ||
-        !soup.facets.test(entity, ctx)
-      ) {
-        continue;
-      }
+      if (!soup.facets.test(entity, ctx)) continue;
       next.push(entity);
     }
 
