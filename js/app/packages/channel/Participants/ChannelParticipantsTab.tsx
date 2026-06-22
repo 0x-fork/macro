@@ -1,5 +1,10 @@
 import { useSplitLayout } from '@app/component/split-layout/layout';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { toast } from '@core/component/Toast/Toast';
+import {
+  ENABLE_CHANNEL_BOTS_FLAG,
+  ENABLE_CHANNEL_BOTS_OVERRIDE,
+} from '@core/constant/featureFlags';
 import { useChannelName, useChannelType } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
 import { idToDisplayName } from '@core/user';
@@ -35,6 +40,9 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
   const userId = useUserId();
   const channelType = useChannelType(props.channelId);
   const channelName = useChannelName(props.channelId);
+  const channelBotsFlag = useFeatureFlag(ENABLE_CHANNEL_BOTS_FLAG, {
+    enabledOverride: ENABLE_CHANNEL_BOTS_OVERRIDE,
+  });
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
   const channelBotsQuery = useChannelBotsQuery(() => ({
     channelId: props.channelId,
@@ -191,7 +199,9 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
         <div
           class="macro-message-width size-full"
           style={{
-            'grid-template-rows': 'minmax(0, 1fr) minmax(12rem, 1fr)',
+            'grid-template-rows': channelBotsFlag().enabled
+              ? 'minmax(0, 1fr) minmax(12rem, 1fr)'
+              : 'minmax(0, 1fr)',
             'grid-template-columns': '1fr',
             overflow: 'hidden',
             display: 'grid',
@@ -231,28 +241,30 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
               </div>
             </Panel.Body>
           </Panel>
-          <Panel depth={2} class="min-h-48 h-auto overflow-hidden text-ink">
-            <Panel.Header class="justify-between px-6">
-              <div class="text-sm font-medium">Bots</div>
-              <Show when={isEditable() && channelBots().length > 0}>
-                <AddBotMenu
-                  channelId={props.channelId}
-                  onCreateNew={() => setAddBotOpen(true)}
+          <Show when={channelBotsFlag().enabled}>
+            <Panel depth={2} class="min-h-48 h-auto overflow-hidden text-ink">
+              <Panel.Header class="justify-between px-6">
+                <div class="text-sm font-medium">Bots</div>
+                <Show when={isEditable() && channelBots().length > 0}>
+                  <AddBotMenu
+                    channelId={props.channelId}
+                    onCreateNew={() => setAddBotOpen(true)}
+                  />
+                </Show>
+              </Panel.Header>
+              <Panel.Body>
+                <ParticipantsList
+                  items={botListItems}
+                  emptyState={botsEmptyState()}
+                  searchQuery={searchQuery}
+                  currentUserId={userId() ?? undefined}
+                  editable={isEditable()}
+                  onParticipantClick={openDirectMessage}
+                  onRemoveParticipant={removeParticipant}
                 />
-              </Show>
-            </Panel.Header>
-            <Panel.Body>
-              <ParticipantsList
-                items={botListItems}
-                emptyState={botsEmptyState()}
-                searchQuery={searchQuery}
-                currentUserId={userId() ?? undefined}
-                editable={isEditable()}
-                onParticipantClick={openDirectMessage}
-                onRemoveParticipant={removeParticipant}
-              />
-            </Panel.Body>
-          </Panel>
+              </Panel.Body>
+            </Panel>
+          </Show>
         </div>
       </div>
 

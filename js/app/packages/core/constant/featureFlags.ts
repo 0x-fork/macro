@@ -433,3 +433,10 @@ export const ENABLE_HOME_OVERRIDE = DEV_MODE_ENV ? true : undefined;
 
 export const ENABLE_NEW_PRICING_OVERRIDE =
   resolveFeatureFlag('ENABLE_NEW_PRICING', DEV_MODE_ENV) || undefined;
+
+// Bots panel in the channel participants tab: create/add bots to a channel and
+// manage their webhook tokens. PostHog-gated, off by default in prod with a
+// dev-mode default; override with VITE_ENABLE_CHANNEL_BOTS.
+export const ENABLE_CHANNEL_BOTS_FLAG = 'enable-channel-bots';
+export const ENABLE_CHANNEL_BOTS_OVERRIDE =
+  resolveFeatureFlag('ENABLE_CHANNEL_BOTS', DEV_MODE_ENV) || undefined;
