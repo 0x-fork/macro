@@ -10,11 +10,11 @@ import IconRobot from '@phosphor/robot.svg';
 import IconUpload from '@phosphor/upload-simple.svg';
 import IconX from '@phosphor/x.svg';
 import IconCheckCircle from '@phosphor-icons/core/assets/fill/check-circle-fill.svg?component-solid';
-import { useBotsQuery } from '@queries/bots/bots';
 import {
-  useAddBotToChannelMutation,
-  useCreateChannelScopedBotMutation,
-} from '@queries/channel/channel-bots';
+  useBotsQuery,
+  useCreateBotWithTokenMutation,
+} from '@queries/bots/bots';
+import { useAddBotToChannelMutation } from '@queries/channel/channel-bots';
 import type { Bot } from '@service-storage/generated/schemas/bot';
 import { Avatar, Button, cn, Dialog, Panel, Select } from '@ui';
 import { Stepper } from '@ui/components/Stepper';
@@ -120,7 +120,7 @@ export function AddBotDialog(props: {
   const botsQuery = useBotsQuery();
 
   const addBotToChannelMutation = useAddBotToChannelMutation();
-  const createChannelScopedBotMutation = useCreateChannelScopedBotMutation();
+  const createBotWithTokenMutation = useCreateBotWithTokenMutation();
 
   const [step, setStep] = createSignal(0);
 
@@ -170,10 +170,6 @@ export function AddBotDialog(props: {
 
   const isAddingExistingBot = () => !!selectedExistingBot();
 
-  const isPending = () =>
-    createChannelScopedBotMutation.isPending ||
-    addBotToChannelMutation.isPending;
-
   const reset = () => {
     setStep(0);
     setSelectedBotId(CREATE_NEW_BOT);
@@ -192,13 +188,6 @@ export function AddBotDialog(props: {
   };
 
   const close = () => {
-    if (
-      isPending() &&
-      !window.confirm('Bot setup is still in progress. Close anyway?')
-    ) {
-      return;
-    }
-
     props.onOpenChange(false);
     reset();
   };
@@ -245,10 +234,8 @@ export function AddBotDialog(props: {
       { channelId: props.channelId, botId },
       {
         onSuccess: () => {
-          window.setTimeout(() => {
-            toast.success('Bot added to channel');
-            close();
-          }, 600);
+          toast.success('Bot added to channel');
+          close();
         },
         onError: () => {
           setStep(0);
@@ -284,20 +271,19 @@ export function AddBotDialog(props: {
     setErrors({});
     setStep(1);
     setLoadingAction('create');
-    createChannelScopedBotMutation.mutate(
+    createBotWithTokenMutation.mutate(
       {
-        channelId: props.channelId,
-        avatar_url: parsed.data.avatarUrl || undefined,
+        avatarUrl: parsed.data.avatarUrl || undefined,
         description: parsed.data.description || undefined,
         handle: parsed.data.handle,
         name: parsed.data.name,
-        token_label: 'webhook',
+        tokenLabel: 'webhook',
       },
       {
         onSuccess: ({ bot, bot_token }) => {
           setToken(bot_token);
           setCreatedBot(bot);
-          window.setTimeout(() => setStep(2), 600);
+          setStep(2);
         },
         onError: () => {
           setStep(0);
@@ -319,10 +305,8 @@ export function AddBotDialog(props: {
       { channelId: props.channelId, botId: bot.id },
       {
         onSuccess: () => {
-          window.setTimeout(() => {
-            toast.success('Bot added to channel');
-            close();
-          }, 600);
+          toast.success('Bot added to channel');
+          close();
         },
         onError: () => {
           setStep(2);

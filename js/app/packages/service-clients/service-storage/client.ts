@@ -57,6 +57,7 @@ import type { ApiResolvedChannelMessage } from './generated/schemas/apiResolvedC
 import type { ApiThreadReply } from './generated/schemas/apiThreadReply';
 import type { Bot } from './generated/schemas/bot';
 import type { BotChannel } from './generated/schemas/botChannel';
+import type { BotToken } from './generated/schemas/botToken';
 import type { ChannelMessageFilters } from './generated/schemas/channelMessageFilters';
 import { ChannelType } from './generated/schemas/channelType';
 import {
@@ -254,6 +255,24 @@ export type TaskSimilaritySearchResponse = {
 
 type WithBotId = { bot_id: string };
 type WithChannelId = { channel_id: string };
+
+export type CreateBotRequest = {
+  team_id?: string;
+  name: string;
+  handle: string;
+  description?: string;
+  avatar_url?: string;
+};
+
+export type CreateBotTokenRequest = {
+  label?: string;
+  expires_at?: string;
+};
+
+export type CreateBotTokenResponse = {
+  token: BotToken;
+  bearer_token: string;
+};
 type WithMessageId = { message_id: string };
 type WithMentionId = { mention_id: string };
 type WithEntity = { entity_type: string; entity_id: string };
@@ -486,6 +505,32 @@ export const storageServiceClient = {
     return (
       await dssFetch<Bot[]>(`/bots`, {
         method: 'GET',
+      })
+    ).map((result) => result);
+  },
+
+  async createBot(args: CreateBotRequest) {
+    const { avatar_url, description, handle, name, team_id } = args;
+    return (
+      await dssFetch<Bot>(`/bots`, {
+        method: 'POST',
+        body: JSON.stringify({
+          avatar_url,
+          description,
+          handle,
+          name,
+          team_id,
+        }),
+      })
+    ).map((result) => result);
+  },
+
+  async createBotToken(args: WithBotId & CreateBotTokenRequest) {
+    const { bot_id, expires_at, label } = args;
+    return (
+      await dssFetch<CreateBotTokenResponse>(`/bots/${bot_id}/tokens`, {
+        method: 'POST',
+        body: JSON.stringify({ expires_at, label }),
       })
     ).map((result) => result);
   },
