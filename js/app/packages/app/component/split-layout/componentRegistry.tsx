@@ -168,6 +168,7 @@ registerComponent(
         viewName="Agents"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
+        initialFacets={preset?.initialFacets}
         initialGroupBy={preset?.groupBy}
         additionalEntities={automationEntities}
       />
@@ -185,6 +186,7 @@ registerComponent(
         viewName="Email"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
+        initialFacets={preset?.initialFacets}
         initialGroupBy={preset?.groupBy}
       />
     );
@@ -214,6 +216,7 @@ registerComponent(
         viewName="Files"
         initialFilters={initialFilters}
         initialClientFilters={initialClientFilters}
+        initialFacets={preset?.initialFacets}
         initialGroupBy={preset?.groupBy}
       />
     );
@@ -235,6 +238,7 @@ registerComponent(
         viewName="Tasks"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
+        initialFacets={preset?.initialFacets}
         initialGroupBy={preset?.groupBy}
       />
     );
@@ -251,6 +255,7 @@ registerComponent(
         viewName="Channels"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
+        initialFacets={preset?.initialFacets}
         initialGroupBy={preset?.groupBy}
       />
     );
@@ -267,6 +272,7 @@ registerComponent(
         viewName="Calls"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
+        initialFacets={preset?.initialFacets}
         initialGroupBy={preset?.groupBy}
       />
     );
@@ -288,6 +294,7 @@ registerComponent(
         viewName="Companies"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
+        initialFacets={preset?.initialFacets}
         initialGroupBy={preset?.groupBy}
       />
     );
@@ -309,6 +316,7 @@ registerComponent(
         viewName="Folders"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
+        initialFacets={preset?.initialFacets}
         initialGroupBy={preset?.groupBy}
       />
     );
@@ -333,6 +341,7 @@ registerComponent(
         initialClientFilters={
           params.initialClientFilters ?? preset?.clientFilters
         }
+        initialFacets={preset?.initialFacets}
         initialSearchText={params.initialQuery}
       />
     );

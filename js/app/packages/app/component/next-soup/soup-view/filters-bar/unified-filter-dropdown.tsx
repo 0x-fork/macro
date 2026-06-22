@@ -11,6 +11,7 @@ import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import CircleDashedIcon from '@phosphor/circle-dashed.svg';
 import FilterIcon from '@phosphor/funnel-simple.svg';
+import { useGithubLinkStatusQuery } from '@queries/auth';
 import { useContacts } from '@queries/contacts/contacts';
 import { cn, Dropdown, Tooltip } from '@ui';
 import {
@@ -168,10 +169,29 @@ export const UnifiedFilterDropdown = (
     return content.id;
   });
 
+  const githubLinkStatus = useGithubLinkStatusQuery({
+    enabled: () => currentView() === 'inbox',
+  });
+
   const categories = createMemo(() => {
     const view = currentView();
     if (!view) return [];
-    return VIEW_FACETS[view] ?? [];
+
+    const cats = VIEW_FACETS[view] ?? [];
+
+    // The GitHub PRs option is only meaningful once GitHub is linked.
+    if (view !== 'inbox' || githubLinkStatus.data?.status === 'linked') {
+      return cats;
+    }
+
+    return cats.map((category) =>
+      category.id === 'entity-type'
+        ? {
+            ...category,
+            options: category.options.filter((o) => o.id !== 'github-pr'),
+          }
+        : category
+    );
   });
 
   const isOptionActive = (facetId: string, optionId: string) =>

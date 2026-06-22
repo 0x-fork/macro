@@ -1,4 +1,5 @@
 import type { FilterID } from '@app/component/next-soup/filters';
+import type { FacetSelection } from '@app/component/next-soup/filters/facet-store';
 import {
   defineQueryFilters,
   NIL_UUID,
@@ -15,8 +16,10 @@ import { startOfDay, subWeeks } from 'date-fns';
 type SoupFiltersPreset = {
   /** Filter data for server query */
   filters: Query;
-  /** Client filters to apply */
+  /** Client filters to apply (legacy predicates; migrating to `initialFacets`) */
   clientFilters: { and?: FilterID[]; or?: FilterID[] };
+  /** Facet selection to seed for this tab (preset-owned facets). */
+  initialFacets?: FacetSelection;
   /**
    * Initial group-by to apply when this tab is selected. Uses the same id
    * format consumed by `soup.grouping.setActiveGroupId` (e.g. `date`,
@@ -125,11 +128,13 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
     tabs: {
       signal: () => ({
         filters: getInboxSignalFilters(),
-        clientFilters: { and: ['inbox'] },
+        clientFilters: {},
+        initialFacets: { focus: ['inbox'] },
       }),
       noise: () => ({
         filters: getInboxNoiseFilters(),
-        clientFilters: { and: ['noise'] },
+        clientFilters: {},
+        initialFacets: { focus: ['noise'] },
       }),
       all: () => ({
         filters: {
@@ -153,7 +158,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           },
           emailView: 'all',
         },
-        clientFilters: { and: ['explicit-noise'] },
+        clientFilters: {},
+        initialFacets: { focus: ['explicit-noise'] },
       }),
     },
   },
@@ -166,7 +172,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           filters: defineQueryFilters({
             include: { chatOwnerId: [ctx.userId] },
           }),
-          clientFilters: { and: ['agent'] },
+          clientFilters: {},
+          initialFacets: { scope: ['agent'] },
         };
       },
       running: (ctx) => {
@@ -175,7 +182,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           filters: defineQueryFilters({
             include: { chatOwnerId: [ctx.userId] },
           }),
-          clientFilters: { and: ['agent', 'owned-entity'] },
+          clientFilters: {},
+          initialFacets: { scope: ['agent'], ownership: ['owned-entity'] },
         };
       },
       shared: (ctx) => {
@@ -184,14 +192,16 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           filters: defineQueryFilters({
             exclude: { chatOwnerId: [ctx.userId] },
           }),
-          clientFilters: { and: ['agent', 'shared-entity'] },
+          clientFilters: {},
+          initialFacets: { scope: ['agent'], ownership: ['shared-entity'] },
         };
       },
       automations: () => ({
         // Server returns nothing useful here — automations are merged
         // into the soup client-side via `additionalEntities`.
         filters: defineQueryFilters({}),
-        clientFilters: { and: ['automation'] },
+        clientFilters: {},
+        initialFacets: { scope: ['automation'] },
       }),
     },
   },
@@ -207,7 +217,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           },
           emailView: 'inbox',
         }),
-        clientFilters: { and: ['email', 'no-drafts'] },
+        clientFilters: {},
+        initialFacets: { scope: ['email'], drafts: ['no-drafts'] },
       }),
       noise: () => ({
         filters: defineQueryFilters({
@@ -218,7 +229,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           },
           emailView: 'inbox',
         }),
-        clientFilters: { and: ['email', 'no-drafts'] },
+        clientFilters: {},
+        initialFacets: { scope: ['email'], drafts: ['no-drafts'] },
       }),
       calendar: () => ({
         filters: defineQueryFilters({
@@ -229,14 +241,16 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           emailView: 'all',
         }),
 
-        clientFilters: { and: ['email', 'no-drafts'] },
+        clientFilters: {},
+        initialFacets: { scope: ['email'], drafts: ['no-drafts'] },
       }),
       drafts: () => ({
         filters: defineQueryFilters({
           exclude: { threadId: [NIL_UUID] },
           emailView: 'drafts',
         }),
-        clientFilters: { and: ['email-drafts'] },
+        clientFilters: {},
+        initialFacets: { drafts: ['email-drafts'] },
       }),
       sent: (ctx) => {
         if (!ctx.email) return undefined;
@@ -245,7 +259,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             include: { emailSender: [ctx.email] },
             emailView: 'sent',
           }),
-          clientFilters: { and: ['email', 'no-drafts'] },
+          clientFilters: {},
+          initialFacets: { scope: ['email'], drafts: ['no-drafts'] },
         };
       },
       shared: () => ({
@@ -253,14 +268,16 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           include: { emailShared: 'only' },
           emailView: 'all',
         }),
-        clientFilters: { and: ['email', 'shared-entity'] },
+        clientFilters: {},
+        initialFacets: { scope: ['email'], ownership: ['shared-entity'] },
       }),
       all: () => ({
         filters: defineQueryFilters({
           exclude: { threadId: [NIL_UUID] },
           emailView: 'all',
         }),
-        clientFilters: { and: ['email'] },
+        clientFilters: {},
+        initialFacets: { scope: ['email'] },
       }),
     },
   },
@@ -277,7 +294,11 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             },
             exclude: { subType: getExcludedDocumentSubTypes('task') },
           }),
-          clientFilters: { and: ['document-or-file', 'owned-entity'] },
+          clientFilters: {},
+          initialFacets: {
+            scope: ['document-or-file'],
+            ownership: ['owned-entity'],
+          },
         };
       },
       shared: (ctx) => {
@@ -292,26 +313,33 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
               documentOwnerId: [ctx.userId],
             },
           }),
-          clientFilters: { and: ['document-or-file', 'shared-entity'] },
+          clientFilters: {},
+          initialFacets: {
+            scope: ['document-or-file'],
+            ownership: ['shared-entity'],
+          },
         };
       },
       attachments: () => ({
         filters: defineQueryFilters({
           include: { isEmailAttachment: true },
         }),
-        clientFilters: { and: ['document-or-file'] },
+        clientFilters: {},
+        initialFacets: { scope: ['document-or-file'] },
       }),
       folders: () => ({
         filters: defineQueryFilters({
           exclude: { folderId: [NIL_UUID] },
         }),
-        clientFilters: { and: ['folders'] },
+        clientFilters: {},
+        initialFacets: { scope: ['folders'] },
       }),
       all: () => ({
         filters: defineQueryFilters({
           exclude: { subType: getExcludedDocumentSubTypes('task') },
         }),
-        clientFilters: { and: ['document-or-file'] },
+        clientFilters: {},
+        initialFacets: { scope: ['document-or-file'] },
       }),
     },
   },
@@ -334,9 +362,11 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
               ],
             },
           }),
-          clientFilters: {
-            and: ['task', 'assigned-to'],
-            or: [...OPEN_TASK_STATUS_FILTER_IDS],
+          clientFilters: {},
+          initialFacets: {
+            scope: ['task'],
+            ownership: ['assigned-to'],
+            'task-status': [...OPEN_TASK_STATUS_FILTER_IDS],
           },
           groupBy: `property:${SYSTEM_PROPERTY_IDS.PRIORITY}`,
         };
@@ -351,9 +381,11 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
               properties: [...OPEN_TASK_STATUS_INCLUDE_PROPS],
             },
           }),
-          clientFilters: {
-            and: ['task', 'owned-entity'],
-            or: [...OPEN_TASK_STATUS_FILTER_IDS],
+          clientFilters: {},
+          initialFacets: {
+            scope: ['task'],
+            ownership: ['owned-entity'],
+            'task-status': [...OPEN_TASK_STATUS_FILTER_IDS],
           },
           groupBy: `property:${SYSTEM_PROPERTY_IDS.STATUS}`,
         };
@@ -362,7 +394,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
         filters: defineQueryFilters({
           include: { subType: ['task'] },
         }),
-        clientFilters: { and: ['task'] },
+        clientFilters: {},
+        initialFacets: { scope: ['task'] },
         groupBy: `property:${SYSTEM_PROPERTY_IDS.ASSIGNEES}`,
       }),
     },
@@ -374,19 +407,22 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
         filters: defineQueryFilters({
           include: { channelImportance: true },
         }),
-        clientFilters: { and: ['channels'] },
+        clientFilters: {},
+        initialFacets: { scope: ['channels'] },
       }),
       people: () => ({
         filters: defineQueryFilters({
           include: { channelType: ['direct_message'] },
         }),
-        clientFilters: { and: ['people'] },
+        clientFilters: {},
+        initialFacets: { scope: ['people'] },
       }),
       teams: () => ({
         filters: defineQueryFilters({
           exclude: { channelType: ['direct_message'] },
         }),
-        clientFilters: { and: ['teams'] },
+        clientFilters: {},
+        initialFacets: { scope: ['teams'] },
       }),
     },
   },
@@ -395,7 +431,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
     tabs: {
       all: () => ({
         filters: defineQueryFilters({}, { skipTargets: ['callf'] }),
-        clientFilters: { and: ['calls'] },
+        clientFilters: {},
+        initialFacets: { scope: ['calls'] },
       }),
       missed: () => ({
         filters: defineQueryFilters(
@@ -404,7 +441,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           },
           { skipTargets: ['callf'] }
         ),
-        clientFilters: { and: ['calls'] },
+        clientFilters: {},
+        initialFacets: { scope: ['calls'] },
       }),
       unattended: () => ({
         filters: defineQueryFilters(
@@ -413,7 +451,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           },
           { skipTargets: ['callf'] }
         ),
-        clientFilters: { and: ['calls'] },
+        clientFilters: {},
+        initialFacets: { scope: ['calls'] },
       }),
     },
   },
@@ -425,7 +464,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           { include: { crmCompanyHidden: false } },
           { skipTargets: ['ccf'] }
         ),
-        clientFilters: { and: ['crm-company-active'] },
+        clientFilters: {},
+        initialFacets: { scope: ['crm-company-active'] },
       }),
       // Admin/owner only — the BE rejects `hidden: true` requests from
       // non-admins with 403. Returning `undefined` hides the tab for
@@ -437,7 +477,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             { include: { crmCompanyHidden: true } },
             { skipTargets: ['ccf'] }
           ),
-          clientFilters: { and: ['crm-company-hidden'] },
+          clientFilters: {},
+          initialFacets: { scope: ['crm-company-hidden'] },
         };
       },
     },
@@ -451,14 +492,16 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           filters: defineQueryFilters({
             include: { folderOwnerId: [ctx.userId] },
           }),
-          clientFilters: { and: ['folders', 'owned-entity'] },
+          clientFilters: {},
+          initialFacets: { scope: ['folders'], ownership: ['owned-entity'] },
         };
       },
       all: () => ({
         filters: defineQueryFilters({
           exclude: { folderId: [NIL_UUID] },
         }),
-        clientFilters: { and: ['folders'] },
+        clientFilters: {},
+        initialFacets: { scope: ['folders'] },
       }),
     },
   },
@@ -479,7 +522,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           },
           exclude: getDisabledSnippetSubtypeExclude(),
         },
-        clientFilters: { and: ['search-supported'] },
+        clientFilters: {},
+        initialFacets: { scope: ['search-supported'] },
       }),
     },
   },

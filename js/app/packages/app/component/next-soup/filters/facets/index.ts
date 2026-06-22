@@ -8,7 +8,7 @@ import {
   MAIL_DRAFTS,
   MAIL_STATUS,
 } from './mail';
-import { OWNERSHIP } from './presets';
+import { OWNERSHIP, SCOPE } from './presets';
 import {
   CALL_FROM,
   CALL_IN,
@@ -29,7 +29,7 @@ export {
   MAIL_DRAFTS,
   MAIL_STATUS,
 } from './mail';
-export { OWNERSHIP } from './presets';
+export { OWNERSHIP, SCOPE } from './presets';
 export {
   CALL_FROM,
   CALL_IN,
@@ -51,6 +51,7 @@ export const ALL_FACETS = [
   MAIL_ATTACHMENT,
   MAIL_DRAFTS,
   OWNERSHIP,
+  SCOPE,
   TASK_STATUS,
   TASK_PRIORITY,
   TASK_ASSIGNEE,

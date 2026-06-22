@@ -121,8 +121,8 @@ export function useFilterRefinements() {
     const hasSubFilters = assigneeFilter().length > 0;
 
     // a facet is a refinement only if it diverges from the preset's seed
-    const seed = preset.initialFacets ?? {};
-    const sel = soup.facets.selection;
+    const seed = (preset.initialFacets ?? {}) as Record<string, string[]>;
+    const sel = soup.facets.selection as Record<string, string[]>;
     const hasFacetRefinements = [
       ...new Set([...Object.keys(sel), ...Object.keys(seed)]),
     ].some((k) => !sameIds(sel[k] ?? [], seed[k] ?? []));
