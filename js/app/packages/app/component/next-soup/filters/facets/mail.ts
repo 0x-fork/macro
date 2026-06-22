@@ -2,11 +2,24 @@
 // is predicate-only (client filtering); the mail view is already email-scoped by
 // its preset, so no backend clause is needed.
 import {
+  emailDraftsFilter,
   hasDocumentAttachmentFilter,
   hasImageAttachmentFilter,
   hasPdfAttachmentFilter,
+  noDraftsFilter,
 } from '../predicates';
 import { facet } from './base';
+
+// Drafts visibility — a single-select preset facet (seeded per mail tab).
+export const MAIL_DRAFTS = facet({
+  id: 'drafts',
+  mode: 'or',
+  multiple: false,
+  options: [
+    { id: 'no-drafts', predicate: (e) => noDraftsFilter(e) },
+    { id: 'email-drafts', predicate: (e) => emailDraftsFilter(e) },
+  ],
+});
 
 export const MAIL_STATUS = facet({
   id: 'status',

@@ -4,10 +4,7 @@ import {
   SOUP_FILTERS,
 } from '@app/component/next-soup/filters/configs/';
 import { createFacetStore } from '@app/component/next-soup/filters/facet-store';
-import {
-  ALL_FACETS,
-  type FacetCtx,
-} from '@app/component/next-soup/filters/facets';
+import { ALL_FACETS } from '@app/component/next-soup/filters/facets';
 import {
   createPredicatesStore,
   type PredicateConfig,
@@ -96,13 +93,7 @@ export const createSoupState = <TId extends string = FilterID>(
     initial: initialPredicates,
   });
 
-  // ctx is stubbed — no facet in ALL_FACETS reads it yet
-  const facets = createFacetStore(
-    ALL_FACETS,
-    (): FacetCtx => ({
-      userId: '',
-    })
-  );
+  const facets = createFacetStore(ALL_FACETS);
 
   const sort = createSortState(SORT_CONFIGS, ['updated_at']);
 

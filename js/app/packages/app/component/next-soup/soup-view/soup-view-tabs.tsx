@@ -3,6 +3,7 @@ import {
   type PresetContext,
   VIEW_TAB_PRESETS,
 } from '@app/component/app-sidebar/soup-filter-presets';
+import type { FacetSelection } from '@app/component/next-soup/filters/facet-store';
 import { useSoup } from '@app/component/next-soup/soup-context';
 import { MobileFilterDrawer } from '@app/component/next-soup/soup-view/filters-bar/mobile-filter-drawer';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
@@ -101,7 +102,7 @@ const useCurrentListView = () => {
 
 export const useApplyPreset = () => {
   const soup = useSoup();
-  const { queryFilters, setActiveTab } = useSoupView();
+  const { queryFilters, setActiveTab, activeTab } = useSoupView();
   const user = useUserContext();
   const isTeamAdmin = useIsTeamAdmin();
 
@@ -111,16 +112,39 @@ export const useApplyPreset = () => {
     isTeamAdmin: isTeamAdmin(),
   });
 
-  // User menu refinements live in the facet store (untouched by tab switches),
-  // so a tab switch just swaps the preset baseline + client filters.
+  // Swap the outgoing tab's seeded facets for the new tab's. User-added facet
+  // values (in neither seed) are untouched; user menu refinements persist.
+  const seedFacets = (oldSeed: FacetSelection, newSeed: FacetSelection) => {
+    for (const key of Object.keys(oldSeed)) {
+      const remove = new Set(oldSeed[key]);
+      soup.facets.set(
+        key,
+        soup.facets.getSelected(key).filter((id) => !remove.has(id))
+      );
+    }
+    for (const key of Object.keys(newSeed)) {
+      const current = soup.facets.getSelected(key);
+      const additions = (newSeed[key] ?? []).filter(
+        (id) => !current.includes(id)
+      );
+      soup.facets.set(key, [...current, ...additions]);
+    }
+  };
+
   const applyTabPreset = (view: ListView, tabId: string) => {
-    const preset = getViewPreset(view, tabId, getPresetContext());
+    const ctx = getPresetContext();
+    const oldSeed =
+      getViewPreset(view, activeTab() ?? VIEW_TAB_PRESETS[view]?.default, ctx)
+        ?.initialFacets ?? {};
+
+    const preset = getViewPreset(view, tabId, ctx);
     if (!preset) return false;
 
     batch(() => {
       setActiveTab(tabId);
       queryFilters.replace(preset.filters);
       soup.predicates.set(preset.clientFilters);
+      seedFacets(oldSeed, preset.initialFacets ?? {});
       soup.grouping.setActiveGroupId(preset.groupBy);
     });
     return true;

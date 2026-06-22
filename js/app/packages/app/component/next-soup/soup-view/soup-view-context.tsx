@@ -159,6 +159,8 @@ const VALID_API_SORT_METHODS: ApiSortMethod[] = [
 export const SoupViewContextProvider: FlowComponent<
   SoupViewContextProviderProps
 > = (props) => {
+  const notificationSource = useGlobalNotificationSource();
+  const userId = useUserId();
   const soup = props.soup ?? createSoupState();
   const [enabled, setEnabled] = createSignal(props.initialEnabled ?? false);
   const [config, setConfig] = createSignal<SoupViewInitializeOptions>({
@@ -354,8 +356,6 @@ export const SoupViewContextProvider: FlowComponent<
     });
   };
 
-  const notificationSource = useGlobalNotificationSource();
-  const userId = useUserId();
   const showSupportedForeignEntitiesFF = useFeatureFlag(
     ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
     {
@@ -461,7 +461,10 @@ export const SoupViewContextProvider: FlowComponent<
 
     const next = [];
     for (const entity of transformed) {
-      if (!soup.predicates.test(entity, ctx) || !soup.facets.test(entity)) {
+      if (
+        !soup.predicates.test(entity, ctx) ||
+        !soup.facets.test(entity, ctx)
+      ) {
         continue;
       }
       next.push(entity);

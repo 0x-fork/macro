@@ -311,13 +311,17 @@ describe('ctx-relative values', () => {
   it('owner resolves from ctx at compile; selection stores intent only', () => {
     createRoot((dispose) => {
       const [userId, setUserId] = createSignal('alice');
-      const s = createFacetStore([OWNERSHIP_CTX], () => ({ userId: userId() }));
+      const s = createFacetStore([OWNERSHIP_CTX]);
 
       s.toggle('ownership', 'owned');
-      expect(signedLits(s.compile().df)).toEqual([inc('{"o":"alice"}')]);
+      expect(signedLits(s.compile({ userId: userId() }).df)).toEqual([
+        inc('{"o":"alice"}'),
+      ]);
 
       setUserId('bob');
-      expect(signedLits(s.compile().df)).toEqual([inc('{"o":"bob"}')]);
+      expect(signedLits(s.compile({ userId: userId() }).df)).toEqual([
+        inc('{"o":"bob"}'),
+      ]);
 
       expect(serializeFacets(s.selection)).toEqual({ ownership: ['owned'] });
 
@@ -354,7 +358,6 @@ describe('store lifecycle', () => {
       dispose();
     });
   });
-
 });
 
 // ── persistence ───────────────────────────────────────────────────────────────

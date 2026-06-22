@@ -26,6 +26,12 @@ import { buildContactLabel, VIEW_FACETS } from './facet-views';
 import type { SearchableOption } from './searchable-multi-select';
 import { useTaskStatusFilter } from './task-status-filter';
 
+const sameIds = (a: readonly string[], b: readonly string[]): boolean => {
+  if (a.length !== b.length) return false;
+  const sb = [...b].sort();
+  return [...a].sort().every((v, i) => v === sb[i]);
+};
+
 // Filter IDs that are set by tabs and should not be shown as removable chips
 const TAB_ONLY_FILTERS = new Set([
   'inbox',
@@ -114,9 +120,12 @@ export function useFilterRefinements() {
 
     const hasSubFilters = assigneeFilter().length > 0;
 
-    const hasFacetRefinements = Object.values(soup.facets.selection).some(
-      (ids) => (ids?.length ?? 0) > 0
-    );
+    // a facet is a refinement only if it diverges from the preset's seed
+    const seed = preset.initialFacets ?? {};
+    const sel = soup.facets.selection;
+    const hasFacetRefinements = [
+      ...new Set([...Object.keys(sel), ...Object.keys(seed)]),
+    ].some((k) => !sameIds(sel[k] ?? [], seed[k] ?? []));
 
     return (
       hasClientFilterDiff ||
@@ -529,7 +538,8 @@ export function useFilterRefinements() {
     batch(() => {
       soup.predicates.set(preset.clientFilters);
       queryFilters.replace(preset.filters ?? null);
-      soup.facets.clear();
+      // restore the tab's seeded facets, dropping user refinements
+      soup.facets.hydrate(preset.initialFacets ?? {});
       setAssigneeFilter([]);
     });
   };

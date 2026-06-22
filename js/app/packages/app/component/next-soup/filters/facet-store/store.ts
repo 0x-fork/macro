@@ -12,8 +12,7 @@ export const createFacetStore = <
   Ctx = unknown,
   const F extends readonly Facet<Ctx>[] = readonly Facet<Ctx>[],
 >(
-  facets: F,
-  getCtx: () => Ctx = () => ({}) as Ctx
+  facets: F
 ) => {
   const [selection, setSelection] = createStore<FacetSelection>({});
 
@@ -48,10 +47,12 @@ export const createFacetStore = <
   const hydrate = (next: FacetSelection) =>
     setSelection(reconcile({ ...next }));
 
-  const compile = () => compileFacets(selection, facets, getCtx());
+  // ctx is supplied at call time (consumed by ctx-relative clauses/predicates)
+  const compile = (ctx: Ctx = {} as Ctx) =>
+    compileFacets(selection, facets, ctx);
 
-  const test = (entity: unknown) =>
-    testFacets(selection, facets, entity, getCtx());
+  const test = (entity: unknown, ctx: Ctx = {} as Ctx) =>
+    testFacets(selection, facets, entity, ctx);
 
   // canonical blob for entry-state persistence; restore via `hydrate`
   const serialize = () => serializeFacets(selection);

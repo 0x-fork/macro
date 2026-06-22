@@ -369,6 +369,8 @@ interface SoupViewProps {
   viewName: string;
   initialClientFilters?: SetPredicatesInput<string>;
   initialFilters?: Partial<QueryState>;
+  /** Preset facet seed for the default tab (from getViewPreset). */
+  initialFacets?: FacetSelection;
   initialSearchText?: string;
   /**
    * Initial group-by id (same format as `soup.grouping.setActiveGroupId`,
@@ -439,7 +441,7 @@ export const SoupView = (props: SoupViewProps) => {
       soupView.initialize({
         initialQuery: persistedFilters ?? props.initialFilters,
         initialClientFilters: persistedPredicates ?? props.initialClientFilters,
-        initialFacets: persistedFacets,
+        initialFacets: persistedFacets ?? props.initialFacets,
         initialSearchText: persistedSearchText ?? props.initialSearchText,
         disableLocalSearch: props.disableLocalSearch,
         additionalEntities: props.additionalEntities,

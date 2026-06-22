@@ -144,6 +144,7 @@ registerComponent(
         viewName="Inbox"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
+        initialFacets={preset?.initialFacets}
         initialGroupBy={preset?.groupBy}
         disableLocalSearch
       />

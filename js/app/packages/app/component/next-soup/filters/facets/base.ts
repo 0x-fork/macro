@@ -7,7 +7,7 @@ import { eq, type Facet, type OptionClause } from '../facet-store';
 export type { Facet, FacetOption } from '../facet-store';
 
 export type FacetCtx = {
-  userId: string;
+  userId?: string;
   assignees?: string[];
   // some preset predicates (focus/unread) test notification state
   notificationSource?: NotificationSource;
