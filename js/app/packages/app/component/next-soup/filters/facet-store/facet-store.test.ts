@@ -1,7 +1,7 @@
 import { createRoot, createSignal } from 'solid-js';
 import { describe, expect, it } from 'vitest';
-import type { Target } from '../v5/targets';
 import { and, type BackendAstMap, eq, not } from './clause';
+import { mergeAst } from './compile';
 import type { Facet } from './facets';
 import { createFacetStore, deserializeFacets, serializeFacets } from './store';
 
@@ -395,17 +395,6 @@ describe('persistence', () => {
 
 describe('presets', () => {
   // a preset is a separate BackendAstMap ANDed in at compile — NOT stored in the facet store
-  const mergeAst = (a: BackendAstMap, b: BackendAstMap): BackendAstMap => {
-    const out: BackendAstMap = { ...a };
-    for (const key of Object.keys(b) as Target[]) {
-      const incoming = b[key];
-      if (!incoming) continue;
-      const existing = out[key];
-      out[key] = existing ? { '&': [existing, incoming] } : incoming;
-    }
-    return out;
-  };
-
   const baseline = (tab: string): BackendAstMap =>
     tab === 'signal'
       ? { df: { l: { nd: false } }, ef: { l: { Importance: true } } }

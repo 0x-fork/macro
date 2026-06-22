@@ -113,3 +113,22 @@ export const compileFacets = <Ctx>(
 
   return result;
 };
+
+// AND two compiled maps per target (e.g. a preset baseline with the user's
+// facet selection at the request boundary).
+export const mergeAst = (
+  a: BackendAstMap,
+  b: BackendAstMap
+): BackendAstMap => {
+  const out: BackendAstMap = { ...a };
+
+  for (const target of Object.keys(b) as Target[]) {
+    const incoming = b[target];
+    if (!incoming) continue;
+
+    const existing = out[target];
+    out[target] = existing ? { '&': [existing, incoming] } : incoming;
+  }
+
+  return out;
+};
