@@ -64,6 +64,8 @@ import {
 } from './generated/schemas/cloudStorageItemType';
 import type { CreateChannelRequest } from './generated/schemas/createChannelRequest';
 import type { CreateChannelResponse } from './generated/schemas/createChannelResponse';
+import type { CreateChannelScopedBotRequest } from './generated/schemas/createChannelScopedBotRequest';
+import type { CreateChannelScopedBotResponse } from './generated/schemas/createChannelScopedBotResponse';
 import type { CreateCommentResponse } from './generated/schemas/createCommentResponse';
 import type { CreateCrmCommentRequest } from './generated/schemas/createCrmCommentRequest';
 import type { CreateDocument200 as CreateDocumentResponse } from './generated/schemas/createDocument200';
@@ -484,6 +486,38 @@ export const storageServiceClient = {
     return await dssFetch(`/bots/${bot_id}/channels/${channel_id}`, {
       method: 'DELETE',
     });
+  },
+
+  async createChannelScopedBot(
+    args: WithChannelId & CreateChannelScopedBotRequest
+  ) {
+    const {
+      channel_id,
+      avatar_url,
+      description,
+      handle,
+      name,
+      team_id,
+      token_expires_at,
+      token_label,
+    } = args;
+    return (
+      await dssFetch<CreateChannelScopedBotResponse>(
+        `/channels/${channel_id}/bots/scoped`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            avatar_url,
+            description,
+            handle,
+            name,
+            team_id,
+            token_expires_at,
+            token_label,
+          }),
+        }
+      )
+    ).map((result) => result);
   },
 
   async getOrCreateDirectMessage(args: GetOrCreateDmRequest) {
