@@ -7,6 +7,7 @@ import {
   type SoupState,
 } from '@app/component/next-soup/create-soup-state';
 import type { FilterContext } from '@app/component/next-soup/filters/configs/';
+import { mergeAst } from '@app/component/next-soup/filters/facet-store';
 import {
   compileToAst,
   NIL_UUID,
@@ -307,8 +308,12 @@ export const SoupViewContextProvider: FlowComponent<
     };
   };
 
+  // legacy preset/refinement query AND the facet selection (empty → no-op merge)
   const soupBody = createMemo(() =>
-    compileToAst(applyInboxFilter(queryFilters.state))
+    mergeAst(
+      compileToAst(applyInboxFilter(queryFilters.state)),
+      soup.facets.compile()
+    )
   );
 
   const [searchText, setSearchText] = useEntryState<string>('search.text', {

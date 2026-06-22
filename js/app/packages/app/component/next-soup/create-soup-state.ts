@@ -3,6 +3,11 @@ import {
   type FilterID,
   SOUP_FILTERS,
 } from '@app/component/next-soup/filters/configs/';
+import { createFacetStore } from '@app/component/next-soup/filters/facet-store';
+import {
+  ALL_FACETS,
+  type FacetCtx,
+} from '@app/component/next-soup/filters/facets';
 import {
   createPredicatesStore,
   type PredicateConfig,
@@ -90,6 +95,14 @@ export const createSoupState = <TId extends string = FilterID>(
     configs: predicateConfigs ?? SOUP_FILTERS,
     initial: initialPredicates,
   });
+
+  // ctx is stubbed — no facet in ALL_FACETS reads it yet
+  const facets = createFacetStore(
+    ALL_FACETS,
+    (): FacetCtx => ({
+      userId: '',
+    })
+  );
 
   const sort = createSortState(SORT_CONFIGS, ['updated_at']);
 
@@ -287,6 +300,7 @@ export const createSoupState = <TId extends string = FilterID>(
     setRows,
     buildRow,
     predicates,
+    facets,
     selection,
     sort,
     grouping: {
