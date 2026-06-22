@@ -42,6 +42,11 @@ export type FacetSelection = Record<string, string[]>;
 
 export type FacetId<F extends readonly Facet<any>[]> = F[number]['id'];
 
+// known facet ids autocomplete; arbitrary strings (resolver/dynamic) still allowed
+export type FacetKey<F extends readonly Facet<any>[]> =
+  | FacetId<F>
+  | (string & {});
+
 export type OptionIdOf<Fa> = Fa extends { options: readonly (infer O)[] }
   ? O extends { id: infer Id extends string }
     ? Id

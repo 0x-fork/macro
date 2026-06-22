@@ -2,10 +2,9 @@ import { createStore, produce, reconcile } from 'solid-js/store';
 import { compileFacets } from './compile';
 import type {
   Facet,
-  FacetId,
+  FacetKey,
   FacetSelection,
   FacetSelectionOf,
-  OptionIdFor,
 } from './facets';
 import { testFacets } from './facets';
 
@@ -18,21 +17,15 @@ export const createFacetStore = <
 ) => {
   const [selection, setSelection] = createStore<FacetSelection>({});
 
-  const has = <Id extends FacetId<F>>(
-    facetId: Id,
-    optionId: OptionIdFor<F, Id>
-  ) => (selection[facetId] ?? []).includes(optionId);
+  // facet ids are a closed catalog (typed); option ids are an open space
+  // (resolver facets), so they stay string. unknown ids are inert at compile.
+  const has = (facetId: FacetKey<F>, optionId: string) =>
+    (selection[facetId] ?? []).includes(optionId);
 
-  // reactive; resolver facets return string[], catalog facets their union
-  const getSelected = <Id extends FacetId<F>>(
-    facetId: Id
-  ): OptionIdFor<F, Id>[] => (selection[facetId] ?? []) as OptionIdFor<F, Id>[];
+  const getSelected = (facetId: FacetKey<F>): string[] =>
+    selection[facetId] ?? [];
 
-  // unknown ids are inert at compile, so no validation on write
-  const toggle = <Id extends FacetId<F>>(
-    facetId: Id,
-    optionId: OptionIdFor<F, Id>
-  ) => {
+  const toggle = (facetId: FacetKey<F>, optionId: string) => {
     setSelection(
       produce((draft) => {
         const active = draft[facetId] ?? [];
@@ -43,14 +36,11 @@ export const createFacetStore = <
     );
   };
 
-  const set = <Id extends FacetId<F>>(
-    facetId: Id,
-    optionIds: readonly OptionIdFor<F, Id>[]
-  ) => {
+  const set = (facetId: FacetKey<F>, optionIds: readonly string[]) => {
     setSelection(facetId, [...optionIds]);
   };
 
-  const clear = (facetId?: FacetId<F>) => {
+  const clear = (facetId?: FacetKey<F>) => {
     if (facetId) return setSelection(facetId, []);
     setSelection(reconcile({}));
   };

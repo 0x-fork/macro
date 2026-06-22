@@ -1,14 +1,8 @@
-import { getViewPreset } from '@app/component/app-sidebar/soup-filter-presets';
 import {
   type FilterContext,
   NO_ASSIGNEE,
 } from '@app/component/next-soup/filters/configs/';
-import {
-  defineQueryFilters,
-  type PropertyFilter,
-  queryStateFrom,
-} from '@app/component/next-soup/filters/filter-store';
-import { mergeQuery } from '@app/component/next-soup/filters/filter-store/query-store';
+import type { PropertyFilter } from '@app/component/next-soup/filters/filter-store';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
@@ -61,11 +55,6 @@ export const TypeIndicator = (props: { active: boolean }) => (
 // Sub-trigger rows differ from default Dropdown.Item only by
 // distributing label + caret to the row ends.
 // const FILTER_MENU_SUBTRIGGER_CLASS = 'justify-between gap-2';
-
-const isInboxTypeFilterId = (id: string) =>
-  (VIEW_FACETS.inbox ?? []).some((category) =>
-    category.options.some((o) => o.id === id)
-  );
 
 /** Searchable submenu for filters with many options like assignees */
 const SearchableFilterSubmenu = (props: {
@@ -174,7 +163,7 @@ export const UnifiedFilterDropdown = (
     props.onOpenChange?.(v);
   };
   const panel = useSplitPanelOrThrow();
-  const { soup, queryFilters, assigneeFilter, setAssigneeFilter, activeTab } =
+  const { soup, queryFilters, assigneeFilter, setAssigneeFilter } =
     useSoupView();
   const contacts = useContacts();
   const userId = useUserId();
@@ -192,11 +181,18 @@ export const UnifiedFilterDropdown = (
     return VIEW_FACETS[view] ?? [];
   });
 
-  const isOptionActive = (optionId: string) => {
-    return soup.predicates.isActive(optionId);
-  };
+  const isOptionActive = (facetId: string, optionId: string) =>
+    facetId === 'attachment'
+      ? soup.predicates.isActive(optionId)
+      : soup.facets.has(facetId, optionId);
 
-  const toggleFilter = (optionId: string) => {
+  const toggleFilter = (facetId: string, optionId: string) => {
+    if (facetId !== 'attachment') {
+      soup.facets.toggle(facetId, optionId);
+      return;
+    }
+
+    // attachment has no facet yet — client-predicate filter on the legacy store
     const wasActive = soup.predicates.isActive(optionId);
     soup.predicates.toggle({ or: [optionId] });
 
@@ -209,27 +205,6 @@ export const UnifiedFilterDropdown = (
     };
     const query =
       typeof filter.query === 'function' ? filter.query(ctx) : filter.query;
-
-    if (currentView() === 'inbox' && isInboxTypeFilterId(optionId)) {
-      const baseQuery = getViewPreset('inbox', activeTab())?.filters;
-
-      if (!baseQuery) {
-        return;
-      }
-
-      let nextQueryState = baseQuery;
-
-      if (!wasActive) {
-        nextQueryState = mergeQuery(
-          queryStateFrom(baseQuery),
-          defineQueryFilters({}, { skipTargetsFrom: query })
-        );
-      }
-
-      queryFilters.replace(nextQueryState);
-
-      return;
-    }
 
     if (wasActive) {
       queryFilters.remove(query);
@@ -384,10 +359,13 @@ export const UnifiedFilterDropdown = (
                           <Dropdown.Group>
                             <For each={category.options}>
                               {(option) => {
-                                const active = () => isOptionActive(option.id);
+                                const active = () =>
+                                  isOptionActive(category.id, option.id);
                                 return (
                                   <Dropdown.Item
-                                    onSelect={() => toggleFilter(option.id)}
+                                    onSelect={() =>
+                                      toggleFilter(category.id, option.id)
+                                    }
                                     closeOnSelect={!category.multiple}
                                   >
                                     <TypeIndicator active={active()} />
@@ -434,10 +412,13 @@ export const UnifiedFilterDropdown = (
               {/* Single category: render options directly */}
               <For each={categories()[0]!.options}>
                 {(option) => {
-                  const active = () => isOptionActive(option.id);
+                  const active = () =>
+                    isOptionActive(categories()[0]!.id, option.id);
                   return (
                     <Dropdown.Item
-                      onSelect={() => toggleFilter(option.id)}
+                      onSelect={() =>
+                        toggleFilter(categories()[0]!.id, option.id)
+                      }
                       closeOnSelect={!categories()[0]!.multiple}
                     >
                       <TypeIndicator active={active()} />

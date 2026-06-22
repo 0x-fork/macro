@@ -289,9 +289,9 @@ export const SoupViewContextProvider: FlowComponent<
     return undefined;
   });
 
-  // Clear sub-filters when task filter is deactivated
+  // Clear sub-filters when the task type filter is deactivated
   createEffect(() => {
-    if (!soup.predicates.isActive('task')) {
+    if (!soup.facets.has('entity-type', 'task')) {
       setAssigneeFilter([]);
     }
   });
@@ -447,7 +447,7 @@ export const SoupViewContextProvider: FlowComponent<
 
     const next = [];
     for (const entity of transformed) {
-      if (!soup.predicates.test(entity, ctx)) {
+      if (!soup.predicates.test(entity, ctx) || !soup.facets.test(entity)) {
         continue;
       }
       next.push(entity);

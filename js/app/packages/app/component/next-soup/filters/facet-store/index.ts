@@ -7,6 +7,7 @@ export type {
   ClauseDef,
   Facet,
   FacetId,
+  FacetKey,
   FacetOption,
   FacetSelection,
   FacetSelectionOf,
