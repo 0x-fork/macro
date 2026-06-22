@@ -22,6 +22,11 @@ export type AddBotToChannelParams = {
   botId: string;
 };
 
+export type RemoveBotFromChannelParams = {
+  channelId: string;
+  botId: string;
+};
+
 export function useChannelBotsQuery(params: () => ChannelBotsParams) {
   return useQuery(() => {
     const { channelId } = params();
@@ -65,6 +70,42 @@ export function useAddBotToChannelMutation(
         },
         onError(error) {
           console.error('failed to add bot to channel', error);
+        },
+      },
+      callbacks
+    ),
+  }));
+}
+
+export function useRemoveBotFromChannelMutation(
+  callbacks?: MutationCallbacks<
+    void,
+    Error,
+    RemoveBotFromChannelParams,
+    undefined
+  >
+) {
+  return useMutation(() => ({
+    gcTime: 0,
+    mutationFn: async (vars: RemoveBotFromChannelParams) => {
+      await throwOnErr(() =>
+        storageServiceClient.removeBotFromChannel({
+          channel_id: vars.channelId,
+          bot_id: vars.botId,
+        })
+      );
+    },
+    ...withCallbacks<void, Error, RemoveBotFromChannelParams, undefined>(
+      {
+        onSuccess: (_data, vars) => {
+          void queryClient.invalidateQueries({
+            queryKey: channelKeys.participants(vars.channelId).queryKey,
+          });
+          void invalidateBotChannels(vars.botId);
+          void invalidateChannelBots(vars.channelId);
+        },
+        onError(error) {
+          console.error('failed to remove bot from channel', error);
         },
       },
       callbacks
