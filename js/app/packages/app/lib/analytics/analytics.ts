@@ -113,6 +113,12 @@ const initializePosthog = (instance: PostHog) => {
     ui_host: 'https://us.posthog.com',
     defaults: '2026-01-30',
     before_send: (cr) => {
+      // Disable PostHog event logging on local and dev environments. PostHog
+      // stays initialized so feature flags still resolve on dev, but every
+      // captured event (autocapture, pageviews, custom, $identify, $exception)
+      // is dropped so non-prod traffic never reaches PostHog.
+      if (DEV_MODE_ENV) return null;
+
       if (cr?.event !== '$exception') return cr;
 
       const exceptionValues = cr.properties.$exception_values;
