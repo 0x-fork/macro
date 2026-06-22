@@ -2,7 +2,33 @@
 // encodes both the backend clause (built via `b`, no imports) and the client
 // predicate. "Is this type" uses the exclude pattern (idField ≠ NIL).
 // (Predicates here are illustrative; production wires the real ones from `../predicates`.)
+import {
+  explicitNoiseFilter,
+  noiseFilter,
+  signalFilter,
+} from '../inbox-filters';
+import { notDoneFilter } from '../predicates';
 import { facet, NIL } from './base';
+
+// Inbox "focus" — a single-select preset facet (predicate-only; the backend
+// baseline lives in the tab preset). Reuses the existing signal/noise predicates.
+export const INBOX_FOCUS = facet({
+  id: 'focus',
+  mode: 'or',
+  multiple: false,
+  options: [
+    {
+      id: 'inbox',
+      predicate: (e, ctx) =>
+        signalFilter(e) &&
+        (ctx.notificationSource
+          ? notDoneFilter(ctx.notificationSource)(e)
+          : false),
+    },
+    { id: 'noise', predicate: (e) => noiseFilter(e) },
+    { id: 'explicit-noise', predicate: (e) => !explicitNoiseFilter(e) },
+  ],
+});
 
 export const ENTITY_TYPE = facet({
   id: 'entity-type',
@@ -14,7 +40,10 @@ export const ENTITY_TYPE = facet({
       id: 'document',
       clause: (b) => ({
         df: b.and(
-          b.or(b.eq('fileAssoc', 'assoc:md'), b.eq('fileAssoc', 'assoc:canvas')),
+          b.or(
+            b.eq('fileAssoc', 'assoc:md'),
+            b.eq('fileAssoc', 'assoc:canvas')
+          ),
           b.not(b.eq('subType', 'task'))
         ),
       }),
@@ -28,12 +57,14 @@ export const ENTITY_TYPE = facet({
     {
       id: 'people',
       clause: (b) => ({ chanf: b.eq('channelType', 'direct_message') }),
-      predicate: (e) => e.type === 'channel' && e.channelType === 'direct_message',
+      predicate: (e) =>
+        e.type === 'channel' && e.channelType === 'direct_message',
     },
     {
       id: 'teams',
       clause: (b) => ({ chanf: b.not(b.eq('channelType', 'direct_message')) }),
-      predicate: (e) => e.type === 'channel' && e.channelType !== 'direct_message',
+      predicate: (e) =>
+        e.type === 'channel' && e.channelType !== 'direct_message',
     },
     {
       id: 'task',
