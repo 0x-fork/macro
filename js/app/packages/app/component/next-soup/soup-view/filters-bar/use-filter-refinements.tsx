@@ -29,15 +29,12 @@ import type {
   ConsolidatedFilter,
   FilterValue,
 } from './consolidated-filter-chip';
+import { buildContactLabel, VIEW_FACETS } from './facet-views';
 import type { SearchableOption } from './searchable-multi-select';
 import {
   TASK_STATUS_FILTER_IDS,
   useTaskStatusFilter,
 } from './task-status-filter';
-import {
-  buildContactLabel,
-  VIEW_FILTER_CATEGORIES,
-} from './unified-filter-dropdown';
 
 // Filter IDs that are set by tabs and should not be shown as removable chips
 const TAB_ONLY_FILTERS = new Set([
@@ -239,7 +236,7 @@ export function useFilterRefinements() {
   const viewCategories = createMemo(() => {
     const view = currentView();
     if (!view) return [];
-    return VIEW_FILTER_CATEGORIES[view as ListView] ?? [];
+    return VIEW_FACETS[view as ListView] ?? [];
   });
 
   /**
@@ -301,7 +298,7 @@ export function useFilterRefinements() {
 
     for (const category of viewCategories()) {
       // Status has a dedicated chip below.
-      if (view === 'tasks' && category.id === 'status') continue;
+      if (view === 'tasks' && category.id === 'task-status') continue;
 
       const activeValues: FilterValue[] = [];
       const allOptions: FilterValue[] = [];
@@ -417,7 +414,9 @@ export function useFilterRefinements() {
     // Dedicated chip: the generic builder would hide the preset-seeded default.
     const pushTaskStatusChip = () => {
       if (view !== 'tasks') return;
-      const statusCategory = viewCategories().find((c) => c.id === 'status');
+      const statusCategory = viewCategories().find(
+        (c) => c.id === 'task-status'
+      );
       if (!statusCategory) return;
 
       const allOptions: FilterValue[] = statusCategory.options.map((o) => ({

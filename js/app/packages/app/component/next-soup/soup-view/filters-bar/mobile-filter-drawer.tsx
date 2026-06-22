@@ -38,12 +38,12 @@ import { useContacts } from '@queries/contacts/contacts';
 import { Button, cn } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { ConsolidatedFilterChip } from './consolidated-filter-chip';
-import { useInboxPicker } from './inbox-picker';
 import {
   buildContactLabel,
   type FilterOption,
-  VIEW_FILTER_CATEGORIES,
-} from './unified-filter-dropdown';
+  VIEW_FACETS,
+} from './facet-views';
+import { useInboxPicker } from './inbox-picker';
 import { useFilterRefinements } from './use-filter-refinements';
 
 function scrollAccordionItemToTop(
@@ -94,7 +94,7 @@ export const MobileFilterDrawer = () => {
   const categories = createMemo(() => {
     const view = currentView();
     if (!view) return [];
-    return VIEW_FILTER_CATEGORIES[view] ?? [];
+    return VIEW_FACETS[view] ?? [];
   });
 
   const isTasksView = () => currentView() === 'tasks';
