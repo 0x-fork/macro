@@ -1,24 +1,21 @@
-import type { Component } from 'solid-js';
+import type { Accessor, Component } from 'solid-js';
 import type { Direction, Ring } from './geometry';
 
 /**
- * How the menu commits a selection:
- * - `'toggle'`: opens and stays open; commit on click (or slot hotkey), cancel on
- *   Escape / click in the dead zone / click in an empty direction.
- * - `'hold'`: opens while a trigger is held; commit the aimed slot on release.
- *   Releasing with nothing aimed (a tap) does NOT cancel — it switches the menu to
- *   `'toggle'` so it stays open and sticky. This lets one trigger serve both a
- *   quick tap (sticky menu) and a press-drag-release gesture (marking menu).
+ * How the menu commits a selection (controlled by the host via `mode`):
+ * - `'toggle'`: stays open; commit on click (or a slot hotkey), cancel on Escape /
+ *   click in the dead zone / click in an empty direction.
+ * - `'hold'`: commit happens on the trigger's release, which the host drives (the
+ *   menu reports the aimed item via `onActiveItemChange`; the host commits it or,
+ *   for a tap with nothing aimed, flips `mode` to `'toggle'` to stay sticky). The
+ *   menu itself never listens for the release. Clicks do not commit in hold mode.
  *
- * `mode` sets the interaction model applied each time the menu opens. The menu
- * may transition it internally (a hold tap → toggle); `onModeChange` reports the
- * effective mode after such transitions.
+ * See the `useRadialMenu` hook, which wires the hold/tap resolution to a hotkey
+ * `keyUpHandler`.
  */
 export type RadialMenuMode = 'hold' | 'toggle';
 
 export interface RadialMenuItem {
-  /** Stable identifier (used as the render key). */
-  id: string;
   /**
    * Contiguous slots this item occupies. A single direction (`['N']`) or an arc
    * built with `span('N', 'W')`. Slots may be listed in any rotational order.
@@ -54,19 +51,23 @@ export interface RadialMenuProps {
   y: number;
   /** Items to render. Add any item with `ring: 'outer'` to enable the second ring. */
   items: RadialMenuItem[];
-  /** Interaction model, applied on open. See {@link RadialMenuMode}. Defaults to `'toggle'`. */
+  /** Interaction model. Controlled by the host. See {@link RadialMenuMode}. Defaults to `'toggle'`. */
   mode?: RadialMenuMode;
-  /** Notified when the effective mode changes (e.g. a `'hold'` tap → `'toggle'`). */
-  onModeChange?: (mode: RadialMenuMode) => void;
+  /**
+   * Receives an accessor to the currently aimed (selectable) item — `undefined`
+   * when none is aimed. Called once at setup; the host reads it on demand (e.g. to
+   * resolve a hold-release commit), so there's no per-change reactive plumbing.
+   */
+  activeItemRef?: (item: Accessor<RadialMenuItem | undefined>) => void;
   /** Notified when the menu should open/close (always called with `false` here). */
   onOpenChange?: (open: boolean) => void;
   /** Notified when the menu is dismissed without a selection. */
   onClose?: () => void;
-  /** Dead-zone radius in px. Defaults to 32. */
+  /** Dead-zone radius in px. Defaults to 40. */
   deadZoneRadius?: number;
-  /** Radial thickness of each ring band in px. Defaults to 56. */
+  /** Radial thickness of each ring band in px. Defaults to 96. */
   ringThickness?: number;
-  /** Gap between the dead zone and rings in px. Defaults to 6. */
+  /** Gap between the dead zone and rings in px. Defaults to 8. */
   ringGap?: number;
   /** Minimum gap kept between the menu and the viewport edge. Defaults to 8. */
   viewportMargin?: number;

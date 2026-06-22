@@ -639,6 +639,23 @@ export function useHotKeyRoot() {
     const scopeTree = hotkeyScopeTree;
     const currentScopeId = activeScope();
     const currentPressedKeys = pressedKeys();
+
+    // Fires as soon as ANY of its keys is up (not only when all are up). For `opt+z`, releasing `z` while
+    // still holding `opt` should fire — the chord is broken. (Releasing a modifier
+    // wipes all pressedKeys, so that case is covered too.)
+    if (e.type === 'keyup') {
+      for (let i = hotkeysAwaitingKeyUp.length - 1; i >= 0; i--) {
+        const command = hotkeysAwaitingKeyUp[i];
+        const stillFullyHeld = command.hotkey
+          .split('+')
+          .every((k) => currentPressedKeys.has(k));
+        if (!stillFullyHeld) {
+          command.command?.();
+          hotkeysAwaitingKeyUp.splice(i, 1);
+        }
+      }
+    }
+
     if (currentPressedKeys.size === 0) {
       return;
     }
@@ -726,19 +743,6 @@ export function useHotKeyRoot() {
       scopeNode = scopeNode.parentScopeId
         ? hotkeyScopeTree.get(scopeNode.parentScopeId)
         : undefined;
-    }
-
-    if (e.type === 'keyup') {
-      // check if there are any keyUpHandlers that should be triggered.
-      hotkeysAwaitingKeyUp.forEach((command) => {
-        const key = command.hotkey.split('+').at(-1);
-        const keyReleased = key && !currentPressedKeys.has(key);
-
-        if (keyReleased) {
-          command.command?.();
-          hotkeysAwaitingKeyUp.splice(hotkeysAwaitingKeyUp.indexOf(command), 1);
-        }
-      });
     }
 
     // Build context object with all relevant information

@@ -1,92 +1,148 @@
-import { registerHotkey } from '@core/hotkey/hotkeys';
-import { activeScope, setActiveScope } from '@core/hotkey/state';
+import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import type { ValidHotkey } from '@core/hotkey/types';
-import {
-  activateClosestDOMScope,
-  getScopeId,
-  registerScope,
-  removeScope,
-} from '@core/hotkey/utils';
-import type { RadialMenuItem } from '@ui';
-import { createEffect, onCleanup, untrack } from 'solid-js';
+import type { RadialMenuItem, RadialMenuMode } from '@ui';
+import { type Accessor, createSignal, onCleanup, onMount } from 'solid-js';
 
 export interface UseRadialMenuConfig {
-  /** The DOM hotkey scope the trigger lives in (from `useHotkeyDOMScope`). */
-  scopeId: string;
   /** Menu items — each item's `hotkey` is registered in the command scope. */
   items: RadialMenuItem[];
-  /** Reactive open state of the menu; drives command-scope activation. */
-  isOpen: () => boolean;
-  /** Run an item's action (the host should also close the menu here). */
-  onSelect: (item: RadialMenuItem) => void;
-  /** Hotkey that opens the menu (e.g. `'c'`). */
+  /** Hotkey that opens the menu in hold mode (e.g. `'c'`). */
   triggerHotkey?: ValidHotkey;
-  /** Called when the trigger fires; the host opens the menu. */
-  onTrigger?: () => void;
   /** Command-palette description for the trigger hotkey. */
   triggerDescription?: string;
+  /**
+   * Element whose focus activates the trigger's hotkey scope. Omit to register
+   * the trigger on the global scope (always active).
+   */
+  element?: Accessor<Element | undefined>;
+}
+
+export interface RadialMenuController {
+  /** Spread onto `<RadialMenu>`: */
+  open: Accessor<boolean>;
+  x: Accessor<number>;
+  y: Accessor<number>;
+  mode: Accessor<RadialMenuMode>;
+  setOpen: (open: boolean) => void;
+  /** Wire to `<RadialMenu activeItemRef>`. */
+  activeItemRef: (item: Accessor<RadialMenuItem | undefined>) => void;
+  /** Open at a viewport point — for pointer triggers like right-click. */
+  openAt: (x: number, y: number, mode?: RadialMenuMode) => void;
+  close: () => void;
 }
 
 /**
- * Integrates a radial menu with the app hotkey system:
- * - registers an optional trigger hotkey in `scopeId` that opens the menu;
- * - creates a **command scope** and registers every item's `hotkey` inside it;
- * - activates that command scope while the menu is open (so the item hotkeys
- *   fire) and restores the surrounding DOM scope when it closes.
+ * Owns a radial menu's open/anchor/mode state and wires it to the app hotkey
+ * system, returning a controller to spread onto `<RadialMenu>`.
  *
- * Pointer aiming, click-to-commit, hold-to-release and Escape live inside
- * `<RadialMenu>`; this hook owns only the keyboard item shortcuts so they flow
- * through the same hotkey system as the rest of the app.
+ * - The trigger hotkey opens the menu in hold mode and (via `activateCommandScope`)
+ *   activates a command scope holding every item's `hotkey`.
+ * - The trigger's `keyUpHandler` resolves the gesture on release: commit the aimed
+ *   item, or — for a tap with nothing aimed — flip to `'toggle'` so it stays sticky.
+ * - Cleanup is handled by `useHotkeyDOMScope` and the trigger's disposer (which
+ *   removes the command scope and its item hotkeys), so there are no per-hotkey
+ *   `onCleanup`s.
  *
  * `items` is read once at setup — keep the array stable for the component's life.
  */
-export function useRadialMenu(config: UseRadialMenuConfig): void {
-  const commandScopeId = getScopeId('radial-menu-command');
-  registerScope({
-    parentScopeId: config.scopeId,
-    scopeId: commandScopeId,
-    type: 'command',
-    activationKeys: config.triggerHotkey ? [config.triggerHotkey] : [],
-  });
-  onCleanup(() => removeScope(commandScopeId));
+export function useRadialMenu(
+  config: UseRadialMenuConfig
+): RadialMenuController {
+  const [open, setOpen] = createSignal(false);
+  const [anchor, setAnchor] = createSignal({ x: 0, y: 0 });
+  const [mode, setMode] = createSignal<RadialMenuMode>('toggle');
 
-  // Trigger hotkey opens the menu (lives in the surrounding DOM scope).
+  // The component hands us its aimed-item accessor via `activeItemRef`; we read it
+  // on demand (in `keyUpHandler`) rather than mirroring it into a signal.
+  let aimedItem: Accessor<RadialMenuItem | undefined> = () => undefined;
+
+  // Track the cursor so the keyboard trigger can open at the pointer.
+  let cursor = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  const onPointerMove = (e: PointerEvent) => {
+    cursor = { x: e.clientX, y: e.clientY };
+  };
+  window.addEventListener('pointermove', onPointerMove);
+  onCleanup(() => window.removeEventListener('pointermove', onPointerMove));
+
+  const openAt = (x: number, y: number, m: RadialMenuMode = 'toggle') => {
+    setAnchor({ x, y });
+    setMode(m);
+    setOpen(true);
+  };
+  const close = () => setOpen(false);
+  const select = (item: RadialMenuItem) => {
+    item.onSelect();
+    setOpen(false);
+  };
+
+  // Trigger lives in a DOM scope (focus-scoped to `element`) or the global scope.
+  let scopeId = 'global';
+  if (config.element) {
+    const [attachScope, domScopeId] = useHotkeyDOMScope('radial-menu');
+    scopeId = domScopeId;
+    onMount(() => {
+      const el = config.element?.();
+      if (!el) return;
+      attachScope(el);
+      // Focus the element so its scope is active immediately.
+      if (el instanceof HTMLElement) el.focus();
+    });
+  }
+
   if (config.triggerHotkey) {
     const trigger = registerHotkey({
-      scopeId: config.scopeId,
+      scopeId,
       hotkey: config.triggerHotkey,
       description: config.triggerDescription ?? 'Open radial menu',
-      keyDownHandler: () => {
-        if (!config.isOpen()) config.onTrigger?.();
+      activateCommandScope: true,
+      keyDownHandler: (e) => {
+        // Ignore OS auto-repeat so holding the trigger doesn't toggle repeatedly.
+        if (e?.repeat) return true;
+        // Press toggles: open at the cursor (hold mode) when closed, close when
+        // already open (e.g. a second tap of the trigger).
+        if (open()) close();
+        else openAt(cursor.x, cursor.y, 'hold');
         return true;
+      },
+      // Resolve the hold gesture on release: commit the aimed item, or — on a tap
+      // with nothing aimed — flip to toggle so the menu stays open (sticky).
+      // (No-op if the press just closed the menu.)
+      keyUpHandler: () => {
+        if (!open()) return;
+        const item = aimedItem();
+        if (item) select(item);
+        else setMode('toggle');
       },
     });
     onCleanup(() => trigger.dispose());
-  }
 
-  // Item shortcuts live in the command scope (active only while the menu is open).
-  for (const item of config.items) {
-    if (!item.hotkey || item.disabled) continue;
-    const reg = registerHotkey({
-      scopeId: commandScopeId,
-      hotkey: item.hotkey as ValidHotkey,
-      description: typeof item.label === 'string' ? item.label : 'Menu item',
-      keyDownHandler: () => {
-        config.onSelect(item);
-        return true;
-      },
-    });
-    onCleanup(() => reg.dispose());
-  }
-
-  // Activate the command scope while open; restore the DOM scope on close.
-  createEffect(() => {
-    if (config.isOpen()) {
-      setActiveScope(commandScopeId);
-    } else {
-      untrack(() => {
-        if (activeScope() === commandScopeId) activateClosestDOMScope();
+    // Item shortcuts live in the trigger's command scope.
+    const { commandScopeId } = trigger;
+    for (const item of config.items) {
+      if (!item.hotkey || item.disabled) continue;
+      registerHotkey({
+        scopeId: commandScopeId,
+        hotkey: item.hotkey as ValidHotkey,
+        description: typeof item.label === 'string' ? item.label : 'Menu item',
+        keyDownHandler: () => {
+          if (!open()) return false;
+          select(item);
+          return true;
+        },
       });
     }
-  });
+  }
+
+  return {
+    open,
+    x: () => anchor().x,
+    y: () => anchor().y,
+    mode,
+    setOpen,
+    activeItemRef: (accessor) => {
+      aimedItem = accessor;
+    },
+    openAt,
+    close,
+  };
 }

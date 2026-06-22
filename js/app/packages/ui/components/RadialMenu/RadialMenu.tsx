@@ -20,7 +20,7 @@ import {
   type Ring,
   slotArc,
 } from './geometry';
-import type { RadialMenuItem, RadialMenuMode, RadialMenuProps } from './types';
+import type { RadialMenuItem, RadialMenuProps } from './types';
 
 const DEFAULT_DEAD_ZONE = 40;
 const DEFAULT_RING_THICKNESS = 96;
@@ -37,14 +37,6 @@ export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
     width: window.innerWidth,
     height: window.innerHeight,
   });
-
-  // The mode actually in effect. It starts from `props.mode` (and resets on every
-  // open) but can transition at runtime — e.g. a "hold" menu becomes "toggle" when
-  // the trigger is tapped and released without aiming a slot.
-  const [effectiveMode, setEffectiveMode] = createSignal<RadialMenuMode>(
-    props.mode ?? 'toggle'
-  );
-  createEffect(() => props.onModeChange?.(effectiveMode()));
 
   const twoRings = createMemo(() =>
     props.items.some((item) => item.ring === 'outer')
@@ -100,6 +92,11 @@ export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
     return item && !item.disabled ? item : undefined;
   });
 
+  // Hand the aimed-item accessor to the host (once). The host pulls the current
+  // value on demand — e.g. `useRadialMenu`'s `keyUpHandler` reads it to resolve a
+  // hold-release — so no per-change effect/callback round-trip is needed.
+  props.activeItemRef?.(activeItem);
+
   // Horizontal anchoring of a label box, by the bearing of its slice. West slices
   // (NW/W/SW) anchor their right edge to the radius point, east slices (NE/E/SE)
   // their left edge, and the N/S slices are centered.
@@ -153,10 +150,6 @@ export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
     else close();
   };
 
-  // Own global listeners only while open. Keyed on `open` alone (via `on`) so the
-  // listeners are attached exactly once per open and removed on close — changes to
-  // unrelated props/signals (x, y, mode) read inside the body do NOT re-run it and
-  // thrash the listeners.
   createEffect(
     on(
       () => props.open,
@@ -166,7 +159,6 @@ export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
         // Initialize for this opening (reads are untracked inside `on`).
         setPointer({ x: props.x, y: props.y });
         setViewport({ width: window.innerWidth, height: window.innerHeight });
-        setEffectiveMode(props.mode ?? 'toggle');
 
         // Ignore the click/keypress that opened the menu (may still be in flight).
         let armed = false;
@@ -189,24 +181,16 @@ export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
           }
         };
 
-        // Hold mode commits the aimed item on release. Releasing with nothing
-        // aimed (a tap) keeps the menu open and switches it to toggle/sticky.
-        // Toggle mode commits on click instead.
-        const onRelease = () => {
-          if (effectiveMode() !== 'hold') return;
-          const item = activeItem();
-          if (item) select(item);
-          else setEffectiveMode('toggle');
-        };
+        // Toggle/sticky mode commits on click. Hold mode commits on trigger
+        // release, which the host drives (e.g. `useRadialMenu`'s `keyUpHandler`),
+        // so there is no internal keyup/pointerup release listener here.
         const onClick = () => {
-          if (effectiveMode() !== 'hold' && armed) commitAim();
+          if (props.mode !== 'hold' && armed) commitAim();
         };
 
         window.addEventListener('pointermove', onMove);
         window.addEventListener('resize', onResize);
         window.addEventListener('keydown', onKeyDown);
-        window.addEventListener('keyup', onRelease);
-        window.addEventListener('pointerup', onRelease);
         window.addEventListener('click', onClick);
 
         onCleanup(() => {
@@ -214,8 +198,6 @@ export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('resize', onResize);
           window.removeEventListener('keydown', onKeyDown);
-          window.removeEventListener('keyup', onRelease);
-          window.removeEventListener('pointerup', onRelease);
           window.removeEventListener('click', onClick);
         });
       }
@@ -248,7 +230,9 @@ export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
 
           <For each={labelCells()}>
             {(cell) => {
-              const isActive = () => activeItem()?.id === cell.item.id;
+              // Reference identity — `activeItem()` and `cell.item` are the same
+              // object from `props.items`, so no per-item id is needed.
+              const isActive = () => activeItem() === cell.item;
               return (
                 <div
                   class={cn(
