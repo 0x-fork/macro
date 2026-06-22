@@ -1,4 +1,5 @@
 import { toast } from '@core/component/Toast/Toast';
+import { useChannelName } from '@core/context/channels';
 import IconCaretDown from '@phosphor/caret-down.svg';
 import IconPlus from '@phosphor/plus.svg';
 import IconRobot from '@phosphor/robot.svg';
@@ -53,13 +54,11 @@ function BotRowContent(props: { bot: Bot }) {
 
 /**
  * Single "Add bot" dropdown: lists org bots not yet in the channel for one-click
- * add, surfaces just-created bots (from {@link AddBotDialog} via `createdBots`) as
- * ghost rows with an explicit Add button, and a "Create new bot…" entry that opens
- * the create dialog via `onCreateNew`.
+ * add, plus a "Create new bot…" entry that opens the create dialog via
+ * `onCreateNew`.
  */
 export function AddBotMenu(props: {
   channelId: string;
-  createdBots: Bot[];
   onCreateNew: () => void;
   triggerClass?: string;
 }) {
@@ -67,27 +66,25 @@ export function AddBotMenu(props: {
   const channelBotsQuery = useChannelBotsQuery(() => ({
     channelId: props.channelId,
   }));
+  const channelName = useChannelName(props.channelId);
   const addBotToChannelMutation = useAddBotToChannelMutation();
 
   const channelBotIds = () =>
     new Set((channelBotsQuery.data ?? []).map((bot) => bot.id));
 
-  // Just-created bots not yet in the channel, shown as ghost rows up top.
-  const ghostBots = (): Bot[] =>
-    props.createdBots.filter((bot) => !channelBotIds().has(bot.id));
-
-  const availableBots = (): Bot[] => {
-    const ghostIds = new Set(ghostBots().map((bot) => bot.id));
-    return (botsQuery.data ?? []).filter(
-      (bot) => !channelBotIds().has(bot.id) && !ghostIds.has(bot.id)
-    );
-  };
+  const availableBots = (): Bot[] =>
+    (botsQuery.data ?? []).filter((bot) => !channelBotIds().has(bot.id));
 
   const quickAddBot = (botId: string) => {
     addBotToChannelMutation.mutate(
       { channelId: props.channelId, botId },
       {
-        onSuccess: () => toast.success('Bot added to channel'),
+        onSuccess: () => {
+          const name = channelName();
+          toast.success(
+            name ? `Bot added to ${name} channel` : 'Bot added to channel'
+          );
+        },
         onError: () => toast.failure('Failed to add bot'),
       }
     );

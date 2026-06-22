@@ -1,9 +1,8 @@
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { toast } from '@core/component/Toast/Toast';
-import { useChannelType } from '@core/context/channels';
+import { useChannelName, useChannelType } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
 import { idToDisplayName } from '@core/user';
-import IconRobot from '@phosphor/robot.svg';
 import {
   useAddBotToChannelMutation,
   useChannelBotsQuery,
@@ -19,10 +18,9 @@ import {
   useAddParticipantsMutation,
   useRemoveParticipantsMutation,
 } from '@queries/channel/participants';
-import type { Bot } from '@service-storage/generated/schemas/bot';
 import { ChannelType } from '@service-storage/generated/schemas/channelType';
-import { Avatar, Button, Panel } from '@ui';
-import { createMemo, createSignal, For, Show } from 'solid-js';
+import { Panel } from '@ui';
+import { createMemo, createSignal, Show } from 'solid-js';
 import { AddBotDialog } from './AddBotDialog';
 import { AddBotMenu } from './AddBotMenu';
 import { ParticipantsAddPanel } from './ParticipantsAddPanel';
@@ -36,6 +34,7 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
   const { replaceOrInsertSplit } = useSplitLayout();
   const userId = useUserId();
   const channelType = useChannelType(props.channelId);
+  const channelName = useChannelName(props.channelId);
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
   const channelBotsQuery = useChannelBotsQuery(() => ({
     channelId: props.channelId,
@@ -47,21 +46,20 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
   const getOrCreateDmMutation = useGetOrCreateDirectMessageMutation();
   const [searchQuery, setSearchQuery] = createSignal('');
   const [addBotOpen, setAddBotOpen] = createSignal(false);
-  const [createdBots, setCreatedBots] = createSignal<Bot[]>([]);
 
   const participants = () => participantsQuery.data ?? [];
   const channelBots = () => channelBotsQuery.data ?? [];
-  const channelBotIds = () => new Set(channelBots().map((bot) => bot.id));
-
-  // Bots created via the dialog this session but not yet added to the channel.
-  const ghostBots = (): Bot[] =>
-    createdBots().filter((bot) => !channelBotIds().has(bot.id));
 
   const addBot = (botId: string) => {
     addBotToChannelMutation.mutate(
       { channelId: props.channelId, botId },
       {
-        onSuccess: () => toast.success('Bot added to channel'),
+        onSuccess: () => {
+          const name = channelName();
+          toast.success(
+            name ? `Bot added to ${name} channel` : 'Bot added to channel'
+          );
+        },
         onError: () => toast.failure('Failed to add bot'),
       }
     );
@@ -131,8 +129,6 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
 
   const botsEmptyState = () => {
     if (channelBots().length > 0) return undefined;
-    // Ghost rows render above the list, so suppress the placeholder entirely.
-    if (ghostBots().length > 0) return <></>;
     return (
       <div class="flex flex-col items-center px-6 py-8 text-center">
         <div class="text-sm font-medium text-ink">No bots yet</div>
@@ -142,7 +138,6 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
         <Show when={isEditable()}>
           <AddBotMenu
             channelId={props.channelId}
-            createdBots={createdBots()}
             onCreateNew={() => setAddBotOpen(true)}
             triggerClass="mt-4"
           />
@@ -239,86 +234,23 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
           <Panel depth={2} class="min-h-48 h-auto overflow-hidden text-ink">
             <Panel.Header class="justify-between px-6">
               <div class="text-sm font-medium">Bots</div>
-              <Show
-                when={
-                  isEditable() &&
-                  (channelBots().length > 0 || ghostBots().length > 0)
-                }
-              >
+              <Show when={isEditable() && channelBots().length > 0}>
                 <AddBotMenu
                   channelId={props.channelId}
-                  createdBots={createdBots()}
                   onCreateNew={() => setAddBotOpen(true)}
                 />
               </Show>
             </Panel.Header>
             <Panel.Body>
-              <div class="flex h-full flex-col">
-                <Show when={ghostBots().length > 0}>
-                  <div class="shrink-0">
-                    <For each={ghostBots()}>
-                      {(bot) => (
-                        <div class="mx-3 my-2 flex items-center justify-between gap-2 rounded-lg border border-dashed border-accent/50 bg-accent-bg/50 px-3 py-2 text-sm">
-                          <div class="flex min-w-0 flex-1 items-center gap-3">
-                            <div class="shrink-0 opacity-90">
-                              <Avatar size="lg">
-                                <Show
-                                  when={bot.avatar_url}
-                                  fallback={
-                                    <Avatar.Fallback>
-                                      <IconRobot class="size-4" />
-                                    </Avatar.Fallback>
-                                  }
-                                >
-                                  {(avatarUrl) => (
-                                    <Avatar.Image
-                                      src={avatarUrl()}
-                                      alt={bot.name}
-                                    />
-                                  )}
-                                </Show>
-                              </Avatar>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                              <div class="flex min-w-0 items-center gap-2">
-                                <span class="truncate text-sm font-medium text-ink">
-                                  {bot.name}
-                                </span>
-                                <span class="shrink-0 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">
-                                  Not added
-                                </span>
-                              </div>
-                              <div class="truncate text-xs text-ink-muted">
-                                @{bot.handle}
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="cta"
-                            size="sm"
-                            class="shrink-0"
-                            onClick={() => addBot(bot.id)}
-                          >
-                            Add to channel
-                          </Button>
-                        </div>
-                      )}
-                    </For>
-                  </div>
-                </Show>
-                <div class="relative min-h-0 flex-1">
-                  <ParticipantsList
-                    items={botListItems}
-                    emptyState={botsEmptyState()}
-                    searchQuery={searchQuery}
-                    currentUserId={userId() ?? undefined}
-                    editable={isEditable()}
-                    onParticipantClick={openDirectMessage}
-                    onRemoveParticipant={removeParticipant}
-                  />
-                </div>
-              </div>
+              <ParticipantsList
+                items={botListItems}
+                emptyState={botsEmptyState()}
+                searchQuery={searchQuery}
+                currentUserId={userId() ?? undefined}
+                editable={isEditable()}
+                onParticipantClick={openDirectMessage}
+                onRemoveParticipant={removeParticipant}
+              />
             </Panel.Body>
           </Panel>
         </div>
@@ -327,12 +259,7 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
       <AddBotDialog
         open={addBotOpen()}
         onOpenChange={setAddBotOpen}
-        onCreated={(bot) =>
-          setCreatedBots((prev) => [
-            bot,
-            ...prev.filter((existing) => existing.id !== bot.id),
-          ])
-        }
+        onCreated={(bot) => addBot(bot.id)}
       />
     </>
   );
