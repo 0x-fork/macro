@@ -131,6 +131,12 @@ import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
 
+// Sentinel values for the persisted group-by preference. The storage
+// primitive can't store nullish/empty values (it deletes the key), so we use
+// distinct non-empty strings to tell "never chose" apart from "chose none".
+const GROUP_BY_UNSET = '__unset__';
+const GROUP_BY_NONE = '__none__';
+
 export const SoupSectionHeader = (props: {
   children: JSX.Element;
   onClick?: () => void;
@@ -413,6 +419,43 @@ export const SoupView = (props: SoupViewProps) => {
     { default: [] }
   );
 
+  // The localStorage preference primitive (`makePersisted`) cannot round-trip
+  // `null`/`undefined`/`''`: it removes the key for nullish values and skips
+  // applying falsy values on read. So we encode the three group-by states as
+  // distinct non-empty sentinel strings instead:
+  //   - GROUP_BY_UNSET: user never chose a grouping for this view -> fall back
+  //     to the view's default group-by.
+  //   - GROUP_BY_NONE: user explicitly chose "no grouping" -> restore that.
+  //   - any other string: an actual group-by id (e.g. `property:<id>`).
+  const [groupByPref, setGroupByPref] = usePreference<string>(
+    `macro:pref:soup:${contentId}:groupBy`,
+    { default: GROUP_BY_UNSET }
+  );
+
+  // Cross-session persistence for the active query filters (the chip-style
+  // filters). Wrapped in `{ set }` so that "user explicitly cleared all
+  // filters" (set: true, empty query) is distinguishable from "never touched
+  // the filters" (the default), which is required so we only override the
+  // view's default filters once the user has actually changed them. The
+  // wrapper object is always non-empty/truthy, so it round-trips through the
+  // storage primitive (unlike a bare `null`/`{}`/`undefined`).
+  const [filtersPref, setFiltersPref] = usePreference<{
+    set: boolean;
+    query: Query;
+  }>(`macro:pref:soup:${contentId}:filters`, {
+    default: { set: false, query: {} },
+  });
+
+  // Cross-session persistence for the client-side predicate filters (the
+  // and/or chip toggles, e.g. Status = Not Started). Same `{ set }` wrapper
+  // and rationale as the query filters above.
+  const [predicatesPref, setPredicatesPref] = usePreference<{
+    set: boolean;
+    predicates: SetPredicatesInput<string>;
+  }>(`macro:pref:soup:${contentId}:predicates`, {
+    default: { set: false, predicates: {} },
+  });
+
   // We handle the restore of the persistence here instead of within the context
   // because the context is no longer recreated for each soup view because we
   // moved it within the `SplitPanel`.
@@ -427,15 +470,48 @@ export const SoupView = (props: SoupViewProps) => {
     if (init) return;
     init = true;
     batch(() => {
+      // Precedence for all of filters / predicates / group-by:
+      //   1. per-entry state (back/forward within the split) wins
+      //   2. the cross-session localStorage preference (survives closing the
+      //      split and navigating away), but only once the user has actually
+      //      set it (`set: true` / a non-sentinel group-by value)
+      //   3. the view's default
+      const storedFilters = filtersPref();
+      const initialQuery =
+        persistedFilters ??
+        (storedFilters.set ? storedFilters.query : props.initialFilters);
+
+      const storedPredicates = predicatesPref();
+      const initialClientFilters =
+        persistedPredicates ??
+        (storedPredicates.set
+          ? storedPredicates.predicates
+          : props.initialClientFilters);
+
       soupView.initialize({
-        initialQuery: persistedFilters ?? props.initialFilters,
-        initialClientFilters: persistedPredicates ?? props.initialClientFilters,
+        initialQuery,
+        initialClientFilters,
         initialSearchText: persistedSearchText ?? props.initialSearchText,
         disableLocalSearch: props.disableLocalSearch,
         additionalEntities: props.additionalEntities,
       });
 
-      const initialGroupBy = persistedGroupBy ?? props.initialGroupBy;
+      // The persisted group-by uses sentinel strings (see GROUP_BY_* above)
+      // because the storage primitive can't round-trip nullish values.
+      const storedGroupBy = groupByPref();
+      const prefGroupBy =
+        storedGroupBy === GROUP_BY_UNSET
+          ? undefined // never chose -> fall through to the view default below
+          : storedGroupBy === GROUP_BY_NONE
+            ? null // explicit "no grouping"
+            : storedGroupBy;
+
+      const initialGroupBy =
+        persistedGroupBy !== undefined
+          ? persistedGroupBy
+          : prefGroupBy !== undefined
+            ? prefGroupBy
+            : props.initialGroupBy;
 
       let initialSortIds = sortPref();
       if (initialSortIds.length === 0) {
@@ -448,7 +524,9 @@ export const SoupView = (props: SoupViewProps) => {
         initialActiveTab = VIEW_TAB_PRESETS[contentId].default;
       }
 
-      soup.grouping.setActiveGroupId(initialGroupBy);
+      // `null` and `undefined` both mean "no grouping" at the soup-state level;
+      // the distinction only matters for the persistence layers above.
+      soup.grouping.setActiveGroupId(initialGroupBy ?? undefined);
       soup.grouping.collapseAll(persistedCollapsedGroups ?? []);
 
       soup.sort.setAll(
@@ -497,6 +575,48 @@ export const SoupView = (props: SoupViewProps) => {
     on(
       () => soup.sort.active().map((s) => s.id),
       (ids) => setSortPref(ids),
+      { defer: true }
+    )
+  );
+
+  // Bridge live group-by state back to preferences so it survives closing the
+  // split and navigating away. `defer: true` skips the initial run so we only
+  // write once the user actually changes the grouping. Encode "no grouping" as
+  // the GROUP_BY_NONE sentinel so the choice round-trips through storage (a
+  // bare `null` would just delete the key).
+  createEffect(
+    on(
+      () => soup.grouping.activeGroupId(),
+      (groupId) => setGroupByPref(groupId ?? GROUP_BY_NONE),
+      { defer: true }
+    )
+  );
+
+  // Bridge live query-filter state back to preferences. `defer: true` skips
+  // the initial run so we only persist once the user actually changes the
+  // filters; `set: true` marks that the user has chosen, so restore overrides
+  // the view default. The accessor reads the reactive store via JSON so the
+  // effect re-runs on any nested change; the handler stores the parsed clone
+  // (a plain serializable `Query`).
+  createEffect(
+    on(
+      () => JSON.stringify(soupView.queryFilters.state),
+      (serialized) =>
+        setFiltersPref({ set: true, query: JSON.parse(serialized) as Query }),
+      { defer: true }
+    )
+  );
+
+  // Bridge live predicate (and/or chip) state back to preferences, same
+  // pattern as the query filters above.
+  createEffect(
+    on(
+      () =>
+        ({
+          and: [...soup.predicates.andIds()],
+          or: [...soup.predicates.orIds()],
+        }) as SetPredicatesInput<string>,
+      (predicates) => setPredicatesPref({ set: true, predicates }),
       { defer: true }
     )
   );
