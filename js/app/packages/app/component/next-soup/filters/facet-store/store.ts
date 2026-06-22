@@ -1,5 +1,5 @@
 import { createStore, produce, reconcile } from 'solid-js/store';
-import { compileFacets, testFacets } from './compile';
+import { compileFacets } from './compile';
 import type {
   Facet,
   FacetId,
@@ -7,6 +7,7 @@ import type {
   FacetSelectionOf,
   OptionIdFor,
 } from './facets';
+import { testFacets } from './facets';
 
 export const createFacetStore = <
   Ctx = unknown,
