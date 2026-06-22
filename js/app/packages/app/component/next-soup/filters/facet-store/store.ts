@@ -31,6 +31,14 @@ export const createFacetStore = <
     optionId: OptionIdFor<F, Id>
   ) => (selection[facetId] ?? []).includes(optionId);
 
+  // Active option ids for a facet. Catalog facets narrow to their literal union;
+  // resolver facets (assignees, channel ids) are `string[]`. Reactive — reads the
+  // store, so it tracks inside a memo/JSX scope.
+  const getSelected = <Id extends FacetId<F>>(
+    facetId: Id
+  ): OptionIdFor<F, Id>[] =>
+    (selection[facetId] ?? []) as OptionIdFor<F, Id>[];
+
   // unknown ids are inert at compile (no matching option → no clause), so no
   // runtime validation is needed on write.
   const toggle = <Id extends FacetId<F>>(
@@ -73,6 +81,7 @@ export const createFacetStore = <
   return {
     selection: selection as FacetSelectionOf<F>,
     has,
+    getSelected,
     toggle,
     set,
     clear,
