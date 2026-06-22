@@ -18,6 +18,7 @@ const ENTITY_TARGETS = [
   'df',
   'ef',
   'chanf',
+  'cthf',
   'cf',
   'pf',
   'callf',
@@ -31,6 +32,7 @@ const ID_BACKEND: Record<EntityTarget, string> = {
   df: 'id',
   ef: 'ThreadId',
   chanf: 'ChannelId',
+  cthf: 'ChannelId',
   cf: 'cid',
   pf: 'pid',
   callf: 'CallId',
@@ -116,10 +118,7 @@ export const compileFacets = <Ctx>(
 
 // AND two compiled maps per target (e.g. a preset baseline with the user's
 // facet selection at the request boundary).
-export const mergeAst = (
-  a: BackendAstMap,
-  b: BackendAstMap
-): BackendAstMap => {
+export const mergeAst = (a: BackendAstMap, b: BackendAstMap): BackendAstMap => {
   const out: BackendAstMap = { ...a };
 
   for (const target of Object.keys(b) as Target[]) {
