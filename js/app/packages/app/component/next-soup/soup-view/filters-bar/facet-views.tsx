@@ -8,7 +8,6 @@ import type { JSX } from 'solid-js';
 
 // Per-view filter menus. `id` is the backing facet's id (from ALL_FACETS);
 // presentation — labels + icon JSX — lives here, keeping facet configs pure data.
-// Toggles still route through the legacy store by option id until the store swap.
 
 export type FilterOption = {
   id: FilterID;
@@ -17,7 +16,7 @@ export type FilterOption = {
 };
 
 export type FilterCategory = {
-  id: FacetId | 'attachment'; // 'attachment' has no facet yet (see facets/mail.ts)
+  id: FacetId;
   label: string;
   labelPlural?: string;
   options: FilterOption[];

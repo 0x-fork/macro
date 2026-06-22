@@ -62,9 +62,7 @@ export function useFilterRefinements() {
   const taskStatus = useTaskStatusFilter();
 
   const isOptionActive = (facetId: string, optionId: string) =>
-    facetId === 'attachment'
-      ? soup.predicates.isActive(optionId)
-      : soup.facets.has(facetId, optionId);
+    soup.facets.has(facetId, optionId);
 
   const getPresetContext = (): PresetContext => ({
     userId: user.userId(),
@@ -326,20 +324,6 @@ export function useFilterRefinements() {
         return result;
       };
 
-      // attachment has no facet yet — toggle it on the legacy store
-      const toggleLegacy = (id: string) => {
-        batch(() => {
-          soup.predicates.toggle({ or: [id as FilterID] });
-          const query = getFilterQuery(id);
-          if (!query) return;
-          if (soup.predicates.isActive(id)) {
-            queryFilters.add(query);
-          } else {
-            queryFilters.remove(query);
-          }
-        });
-      };
-
       filters.push(
         getOrCreateConsolidatedChip(key, () => ({
           key,
@@ -349,16 +333,12 @@ export function useFilterRefinements() {
           availableOptions: group.allOptions,
           multiple: group.multiple,
           isValueActive: (id) => isOptionActive(categoryId, id),
-          onToggleValue: (id) => {
-            if (categoryId === 'attachment') return toggleLegacy(id);
-            soup.facets.toggle(categoryId, id);
-          },
+          onToggleValue: (id) => soup.facets.toggle(categoryId, id),
           onRemoveAll: () => {
             const currentValues = getActiveValues();
             batch(() => {
               for (const value of currentValues) {
-                if (categoryId === 'attachment') toggleLegacy(value.id);
-                else soup.facets.toggle(categoryId, value.id);
+                soup.facets.toggle(categoryId, value.id);
               }
             });
           },
@@ -534,7 +514,7 @@ export function useFilterRefinements() {
 
   const hasHiddenItemsValue = () => hasHiddenItems().value;
 
-  const getFilterQuery = (optionId: string) => {
+  const _getFilterQuery = (optionId: string) => {
     const filter = soup.predicates.getConfig(optionId);
     if (!filter?.query) return undefined;
     return typeof filter.query === 'function'

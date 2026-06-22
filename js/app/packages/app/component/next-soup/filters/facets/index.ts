@@ -2,7 +2,7 @@
 // per-search-type lists is a consumer concern (the soup view), not config.
 import { DOCUMENT_TYPE } from './documents';
 import { ENTITY_TYPE } from './inbox';
-import { MAIL_CALENDAR, MAIL_STATUS } from './mail';
+import { MAIL_ATTACHMENT, MAIL_CALENDAR, MAIL_STATUS } from './mail';
 import {
   CALL_FROM,
   CALL_IN,
@@ -17,7 +17,7 @@ import { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from './tasks';
 export * from './base';
 export { DOCUMENT_TYPE } from './documents';
 export { ENTITY_TYPE } from './inbox';
-export { MAIL_CALENDAR, MAIL_STATUS } from './mail';
+export { MAIL_ATTACHMENT, MAIL_CALENDAR, MAIL_STATUS } from './mail';
 export {
   CALL_FROM,
   CALL_IN,
@@ -35,6 +35,7 @@ export const ALL_FACETS = [
   DOCUMENT_TYPE,
   MAIL_STATUS,
   MAIL_CALENDAR,
+  MAIL_ATTACHMENT,
   TASK_STATUS,
   TASK_PRIORITY,
   TASK_ASSIGNEE,

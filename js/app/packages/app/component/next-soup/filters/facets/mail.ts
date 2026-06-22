@@ -1,5 +1,11 @@
-// Mail facets. Attachment-by-type filtering has no ef field today (it was a
-// client predicate) — omitted until the backend exposes one (see HANDOFF).
+// Mail facets. Attachment-by-type has no `ef` backend field, so MAIL_ATTACHMENT
+// is predicate-only (client filtering); the mail view is already email-scoped by
+// its preset, so no backend clause is needed.
+import {
+  hasDocumentAttachmentFilter,
+  hasImageAttachmentFilter,
+  hasPdfAttachmentFilter,
+} from '../predicates';
 import { facet } from './base';
 
 export const MAIL_STATUS = facet({
@@ -26,6 +32,20 @@ export const MAIL_STATUS = facet({
       id: 'done',
       clause: (b) => ({ ef: b.eq('emailDone', true) }),
       predicate: (e) => e.type === 'email' && e.done,
+    },
+  ],
+});
+
+export const MAIL_ATTACHMENT = facet({
+  id: 'attachment',
+  mode: 'or',
+  multiple: true,
+  options: [
+    { id: 'attachment-pdf', predicate: (e) => hasPdfAttachmentFilter(e) },
+    { id: 'attachment-image', predicate: (e) => hasImageAttachmentFilter(e) },
+    {
+      id: 'attachment-document',
+      predicate: (e) => hasDocumentAttachmentFilter(e),
     },
   ],
 });

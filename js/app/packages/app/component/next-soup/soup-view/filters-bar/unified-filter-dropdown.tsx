@@ -1,7 +1,4 @@
-import {
-  type FilterContext,
-  NO_ASSIGNEE,
-} from '@app/component/next-soup/filters/configs/';
+import { NO_ASSIGNEE } from '@app/component/next-soup/filters/configs/';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
@@ -160,8 +157,7 @@ export const UnifiedFilterDropdown = (
     props.onOpenChange?.(v);
   };
   const panel = useSplitPanelOrThrow();
-  const { soup, queryFilters, assigneeFilter, setAssigneeFilter } =
-    useSoupView();
+  const { soup, assigneeFilter, setAssigneeFilter } = useSoupView();
   const contacts = useContacts();
   const userId = useUserId();
 
@@ -179,36 +175,10 @@ export const UnifiedFilterDropdown = (
   });
 
   const isOptionActive = (facetId: string, optionId: string) =>
-    facetId === 'attachment'
-      ? soup.predicates.isActive(optionId)
-      : soup.facets.has(facetId, optionId);
+    soup.facets.has(facetId, optionId);
 
-  const toggleFilter = (facetId: string, optionId: string) => {
-    if (facetId !== 'attachment') {
-      soup.facets.toggle(facetId, optionId);
-      return;
-    }
-
-    // attachment has no facet yet — client-predicate filter on the legacy store
-    const wasActive = soup.predicates.isActive(optionId);
-    soup.predicates.toggle({ or: [optionId] });
-
-    const filter = soup.predicates.getConfig(optionId);
-    if (!filter?.query) return;
-
-    const ctx: FilterContext = {
-      userId: userId(),
-      assignees: assigneeFilter(),
-    };
-    const query =
-      typeof filter.query === 'function' ? filter.query(ctx) : filter.query;
-
-    if (wasActive) {
-      queryFilters.remove(query);
-    } else {
-      queryFilters.add(query);
-    }
-  };
+  const toggleFilter = (facetId: string, optionId: string) =>
+    soup.facets.toggle(facetId, optionId);
 
   // Assignee options for tasks view
   const assigneeOptions = createMemo((): SearchableOption[] => {

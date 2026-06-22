@@ -3,10 +3,7 @@ import {
   MobileDrawer,
   scrollToFocusedInput,
 } from '@app/component/mobile/MobileDrawer';
-import {
-  type FilterContext,
-  NO_ASSIGNEE,
-} from '@app/component/next-soup/filters';
+import { NO_ASSIGNEE } from '@app/component/next-soup/filters';
 import {
   CHANNEL_SORT_OPTIONS,
   DEFAULT_SORT_OPTIONS,
@@ -72,7 +69,6 @@ export const MobileFilterDrawer = () => {
 
   const {
     soup,
-    queryFilters,
     assigneeFilter,
     setAssigneeFilter,
     inboxFilter,
@@ -155,36 +151,10 @@ export const MobileFilterDrawer = () => {
     showInboxSection();
 
   const isOptionActive = (facetId: string, optionId: string) =>
-    facetId === 'attachment'
-      ? soup.predicates.isActive(optionId)
-      : soup.facets.has(facetId, optionId);
+    soup.facets.has(facetId, optionId);
 
-  const toggleFilter = (facetId: string, optionId: FilterOption['id']) => {
-    if (facetId !== 'attachment') {
-      soup.facets.toggle(facetId, optionId);
-      return;
-    }
-
-    // attachment has no facet yet — client-predicate filter on the legacy store
-    const wasActive = soup.predicates.isActive(optionId);
-    soup.predicates.toggle({ or: [optionId] });
-
-    const filter = soup.predicates.getConfig(optionId);
-    if (!filter?.query) return;
-
-    const ctx: FilterContext = {
-      userId: userId(),
-      assignees: assigneeFilter(),
-    };
-    const query =
-      typeof filter.query === 'function' ? filter.query(ctx) : filter.query;
-
-    if (wasActive) {
-      queryFilters.remove(query);
-    } else {
-      queryFilters.add(query);
-    }
-  };
+  const toggleFilter = (facetId: string, optionId: FilterOption['id']) =>
+    soup.facets.toggle(facetId, optionId);
 
   const toggleAssignee = (id: string) => {
     const current = assigneeFilter();
