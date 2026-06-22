@@ -1,12 +1,20 @@
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
-import type { ChannelParticipant } from '@queries/channel/types';
-import { type Accessor, createSignal, Show } from 'solid-js';
+import { type Accessor, createSignal, type JSX, Show } from 'solid-js';
 import { VList } from 'virtua/solid';
 import { ParticipantsEmptyState } from './ParticipantsEmptyState';
 import { ParticipantsListItem } from './ParticipantsListItem';
 
+export type ParticipantsListItemData = {
+  id: string;
+  displayName: string;
+  role: string;
+  avatarUrl?: string | null;
+  secondaryText?: string | null;
+};
+
 export function ParticipantsList(props: {
-  participants: Accessor<ChannelParticipant[]>;
+  items: Accessor<ParticipantsListItemData[]>;
+  emptyState?: JSX.Element;
   searchQuery: Accessor<string>;
   currentUserId?: string;
   editable: boolean;
@@ -25,14 +33,22 @@ export function ParticipantsList(props: {
     );
   };
 
+  const isLastParticipant = (index: number) =>
+    index === props.items().length - 1;
+  const hasContent = () => props.items().length > 0;
+
   return (
     <Show
-      when={props.participants().length > 0}
-      fallback={<ParticipantsEmptyState searchQuery={props.searchQuery()} />}
+      when={hasContent()}
+      fallback={
+        props.emptyState ?? (
+          <ParticipantsEmptyState searchQuery={props.searchQuery()} />
+        )
+      }
     >
       <div ref={setListWrapperRef} class="relative h-full min-h-0">
         <VList
-          data={props.participants()}
+          data={props.items()}
           class="h-full scrollbar-hidden"
           style={{
             height: '100%',
@@ -41,14 +57,14 @@ export function ParticipantsList(props: {
           bufferSize={500}
           data-participants-list-container
         >
-          {(participant, index) => (
+          {(item, index) => (
             <ParticipantsListItem
-              participant={participant}
+              item={item}
+              isLast={isLastParticipant(index())}
               currentUserId={props.currentUserId}
               editable={props.editable}
-              isLast={index() === props.participants().length - 1}
-              onClick={() => props.onParticipantClick(participant.user_id)}
-              onRemove={() => props.onRemoveParticipant(participant.user_id)}
+              onClick={() => props.onParticipantClick(item.id)}
+              onRemove={() => props.onRemoveParticipant(item.id)}
             />
           )}
         </VList>

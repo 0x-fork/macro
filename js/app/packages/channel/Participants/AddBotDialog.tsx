@@ -6,6 +6,7 @@ import type { CollectionNode } from '@kobalte/core';
 import IconCheck from '@phosphor/check.svg';
 import IconCopy from '@phosphor/copy.svg';
 import IconPlus from '@phosphor/plus.svg';
+import IconRobot from '@phosphor/robot.svg';
 import IconUpload from '@phosphor/upload-simple.svg';
 import IconX from '@phosphor/x.svg';
 import IconCheckCircle from '@phosphor-icons/core/assets/fill/check-circle-fill.svg?component-solid';
@@ -69,7 +70,7 @@ function BotAvatarPreview(props: {
               when={props.existing}
               fallback={<IconUpload class="size-4" />}
             >
-              {props.name.slice(0, 1)}
+              <IconRobot class="size-4" />
             </Show>
           </Avatar.Fallback>
         }
@@ -87,7 +88,9 @@ function CreatedBotPreview(props: { bot: Bot }) {
         <Show
           when={props.bot.avatar_url}
           fallback={
-            <Avatar.Fallback>{props.bot.name.slice(0, 1)}</Avatar.Fallback>
+            <Avatar.Fallback>
+              <IconRobot class="size-4" />
+            </Avatar.Fallback>
           }
         >
           {(avatarUrl) => (
@@ -126,9 +129,9 @@ export function AddBotDialog(props: {
 
   const [errors, setErrors] = createSignal<CreateBotFormErrors>({});
 
-  const [token, setToken] = createSignal<string>();
+  const [token, setToken] = createSignal<string | undefined>(undefined);
   const [tokenCopied, setTokenCopied] = createSignal(false);
-  const [createdBot, setCreatedBot] = createSignal<Bot>();
+  const [createdBot, setCreatedBot] = createSignal<Bot | undefined>(undefined);
   const [loadingAction, setLoadingAction] = createSignal<'create' | 'add'>(
     'create'
   );
@@ -140,7 +143,7 @@ export function AddBotDialog(props: {
     avatarUrl: '',
   });
 
-  const bots = () => botsQuery.data ?? [];
+  const bots = (): Bot[] => botsQuery.data ?? [];
 
   const botOptions = (): BotOption[] => [
     { id: CREATE_NEW_BOT, name: 'New bot' },
@@ -162,7 +165,8 @@ export function AddBotDialog(props: {
     return selected ?? options[0]!;
   };
 
-  const selectedExistingBot = () => selectedBotOption().id !== CREATE_NEW_BOT;
+  const selectedExistingBot = (): Bot | undefined =>
+    bots().find((bot) => bot.id === selectedBotId());
 
   const isAddingExistingBot = () => !!selectedExistingBot();
 
@@ -457,7 +461,7 @@ export function AddBotDialog(props: {
                                       when={option.avatarUrl}
                                       fallback={
                                         <Avatar.Fallback>
-                                          {option.name.slice(0, 1)}
+                                          <IconRobot class="size-4" />
                                         </Avatar.Fallback>
                                       }
                                     >
