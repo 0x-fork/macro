@@ -16,6 +16,14 @@
       "non_empty",
       "workspace-hack"
     ],
+    "ai_projections": [
+      "ai_projections",
+      "cowlike",
+      "macro_user_id",
+      "model-error-response",
+      "model_user",
+      "workspace-hack"
+    ],
     "ai_tools": [
       "agent",
       "ai_tools",
@@ -1012,6 +1020,7 @@
     ],
     "document_cognition_service": [
       "agent",
+      "ai_projections",
       "ai_tools",
       "ai_toolset",
       "ai_usage",
@@ -1053,6 +1062,8 @@
       "lexical_client",
       "macro_auth",
       "macro_aws_config",
+      "macro_config",
+      "macro_config_derive",
       "macro_cors",
       "macro_db_client",
       "macro_entrypoint",
@@ -2030,6 +2041,8 @@
       "ip_extractor",
       "macro_auth",
       "macro_aws_config",
+      "macro_config",
+      "macro_config_derive",
       "macro_cors",
       "macro_db_client",
       "macro_entrypoint",
@@ -2700,6 +2713,7 @@
       "workspace-hack"
     ],
     "models_properties": [
+      "document_sub_type",
       "models_properties",
       "workspace-hack"
     ],
@@ -3135,6 +3149,7 @@
       "workspace-hack"
     ],
     "properties_db_client": [
+      "document_sub_type",
       "macro_uuid",
       "models_properties",
       "properties_db_client",
@@ -3377,6 +3392,8 @@
       "lexical_client",
       "macro_auth",
       "macro_aws_config",
+      "macro_config",
+      "macro_config_derive",
       "macro_cors",
       "macro_db_client",
       "macro_entrypoint",
@@ -3409,6 +3426,7 @@
       "notification",
       "opensearch_client",
       "opensearch_query_builder",
+      "properties_db_client",
       "rate_limit",
       "remote_env_var",
       "s3_client",
@@ -3847,6 +3865,8 @@
       "ip_extractor",
       "macro_auth",
       "macro_aws_config",
+      "macro_config",
+      "macro_config_derive",
       "macro_cors",
       "macro_db_client",
       "macro_entrypoint",
@@ -3919,6 +3939,7 @@
     ],
     "system_properties": [
       "cowlike",
+      "document_sub_type",
       "macro_user_id",
       "macro_uuid",
       "models_properties",
@@ -4051,10 +4072,13 @@
       "workspace-hack"
     ],
     "unfurl_service": [
+      "macro_config",
+      "macro_config_derive",
       "macro_cors",
       "macro_entrypoint",
       "macro_env",
       "macro_env_var",
+      "remote_env_var",
       "unfurl",
       "unfurl_service",
       "workspace-hack"

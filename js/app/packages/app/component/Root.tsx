@@ -44,7 +44,10 @@ import {
   usePlatformNotificationState,
 } from '@notifications';
 import { maybeHandlePlatformNotification } from '@notifications/notification-platform';
-import { useObserveRouting } from '@observability';
+import {
+  clearUser as clearDatadogUser,
+  setUser as setDatadogUser,
+} from '@observability';
 import {
   invalidateUserInfo,
   prefetchUserInfo,
@@ -117,8 +120,6 @@ function useSyncLoginCookie() {
 }
 
 const rootPreload: RoutePreloadFunc = async (args) => {
-  useObserveRouting();
-
   await prefetchUserInfo();
   prefetchHistory();
 
@@ -429,6 +430,17 @@ function UserInfoSideEffects() {
   let identified = false;
   createEffect(
     on(userInfo, (user) => {
+      // Keep Datadog log user context in sync with auth state: set on every
+      // authenticated load (the logs SDK doesn't persist across reloads), and
+      // clear on logout so logs aren't attributed to a signed-out user. Logout
+      // flips userInfo client-side, and on native mobile it's an SPA navigation
+      // with no page reload, so this effect is what clears it there.
+      if (user?.authenticated) {
+        setDatadogUser({ id: user.id, email: user.email });
+      } else {
+        clearDatadogUser();
+      }
+
       if (!user || !user.authenticated) return;
 
       if (posthog.instance._isIdentified() || identified) {

@@ -276,11 +276,18 @@ async fn main() -> anyhow::Result<()> {
     let notification_service = NotificationServiceImpl::new(SqsNotificationIngress {
         queue: ingress_queue,
     });
-    let properties_service = Arc::new(PropertiesServiceImpl::new(
-        PropertiesPgRepo::new(db.clone()),
-        Some(permission_checker),
-        Some(notification_service),
-    ));
+    let properties_service = Arc::new(
+        PropertiesServiceImpl::new(
+            PropertiesPgRepo::new(db.clone()),
+            Some(permission_checker),
+            Some(notification_service),
+        )
+        .with_search_indexer(Arc::new(
+            crate::service::property_search_indexer::SqsPropertySearchIndexer::new(
+                sqs_client.clone(),
+            ),
+        )),
+    );
 
     // Create the channel list service used by soup.
     let channel_service_for_soup = ChannelListServiceImpl::new(
