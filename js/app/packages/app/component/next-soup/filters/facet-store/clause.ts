@@ -5,9 +5,7 @@ import {
   type Target,
 } from '../v5/targets';
 
-// A clause is a small boolean over ONE target's fields. Options contribute these;
-// facets combine them (see facets.ts). This is the per-option building block — the
-// grouping logic lives one level up, in the facet.
+// a clause is a boolean over ONE target's fields; facets combine them
 export type Leaf = { field: string; value: unknown };
 
 export type TargetExpr =
@@ -16,7 +14,6 @@ export type TargetExpr =
   | { and: TargetExpr[] }
   | { or: TargetExpr[] };
 
-// authoring helpers
 export const eq = (field: string, value: unknown): Leaf => ({ field, value });
 export const not = (expr: TargetExpr): TargetExpr => ({ not: expr });
 export const and = (...exprs: TargetExpr[]): TargetExpr => ({ and: exprs });

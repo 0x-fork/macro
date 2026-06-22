@@ -14,7 +14,6 @@ import {
   resolveClause,
 } from './facets';
 
-// Entity targets a restrict facet can confine. propf is cross-cutting, never NIL'd.
 const ENTITY_TARGETS = [
   'df',
   'ef',
@@ -44,8 +43,8 @@ const NIL = '00000000-0000-0000-0000-000000000000';
 const isEntityTarget = (target: Target): target is EntityTarget =>
   (ENTITY_TARGETS as readonly Target[]).includes(target);
 
-// Compile: per target, combine each facet's active options by mode, then AND the
-// facets. Restrict facets additionally confine which entity targets may appear.
+// per target: combine each facet's active options by mode, then AND the facets.
+// restrict facets also confine which entity targets may appear.
 export const compileFacets = <Ctx>(
   selection: FacetSelection,
   facets: readonly Facet<Ctx>[],
@@ -56,7 +55,7 @@ export const compileFacets = <Ctx>(
   let restricting = false;
 
   for (const facet of facets) {
-    // dedupe + sort → canonical output, robust to repeated/persisted ids
+    // dedupe + sort for canonical output
     const activeIds = [...new Set(selection[facet.id] ?? [])].sort();
 
     if (!activeIds.length) continue;
