@@ -53,6 +53,9 @@ export const createFacetStore = <
   const test = (entity: unknown) =>
     testFacets(selection, facets, entity, getCtx());
 
+  // canonical blob for entry-state persistence; restore via `hydrate`
+  const serialize = () => serializeFacets(selection);
+
   return {
     selection: selection as FacetSelectionOf<F>,
     has,
@@ -61,6 +64,7 @@ export const createFacetStore = <
     set,
     clear,
     hydrate,
+    serialize,
     compile,
     test,
   };

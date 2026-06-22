@@ -7,7 +7,10 @@ import {
   type SoupState,
 } from '@app/component/next-soup/create-soup-state';
 import type { FilterContext } from '@app/component/next-soup/filters/configs/';
-import { mergeAst } from '@app/component/next-soup/filters/facet-store';
+import {
+  type FacetSelection,
+  mergeAst,
+} from '@app/component/next-soup/filters/facet-store';
 import {
   compileToAst,
   NIL_UUID,
@@ -92,6 +95,7 @@ type DataSource<T> = {
 type SoupViewInitializeOptions = {
   initialQuery?: Query;
   initialClientFilters?: SetPredicatesInput<string>;
+  initialFacets?: FacetSelection;
   initialSearchText?: string;
   disableLocalSearch?: boolean;
   additionalEntities?: Accessor<EntityData[]>;
@@ -204,6 +208,13 @@ export const SoupViewContextProvider: FlowComponent<
     })
   );
   onCleanup(predicatesCaptorTeardown);
+
+  // Menu refinements live in the facet store; round-trip them per entry too.
+  const facetsCaptorTeardown = panel.handle.registerEntryStateCaptor(
+    'search.facets',
+    (): FacetSelection => soup.facets.serialize()
+  );
+  onCleanup(facetsCaptorTeardown);
 
   const invalidateCache = () => {
     queryClient.setQueryData(
@@ -335,6 +346,7 @@ export const SoupViewContextProvider: FlowComponent<
       setConfig(options);
       queryFilters.replace(options.initialQuery ?? null);
       soup.predicates.set(options.initialClientFilters ?? {});
+      soup.facets.hydrate(options.initialFacets ?? {});
       setSearchText(options.initialSearchText ?? '');
       setEnabled(true);
     });

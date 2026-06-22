@@ -13,6 +13,7 @@ import type {
   GroupHeaderProps,
   SoupRow,
 } from '@app/component/next-soup/create-soup-state';
+import type { FacetSelection } from '@app/component/next-soup/filters/facet-store';
 import type {
   Query,
   QueryState,
@@ -399,6 +400,10 @@ export const SoupView = (props: SoupViewProps) => {
     | SetPredicatesInput<string>
     | undefined;
 
+  const persistedFacets = entryState?.['search.facets'] as
+    | FacetSelection
+    | undefined;
+
   const persistedSearchText = entryState?.['search.text'] as string | undefined;
 
   const persistedGroupBy = entryState?.['soup.groupBy'] as
@@ -434,6 +439,7 @@ export const SoupView = (props: SoupViewProps) => {
       soupView.initialize({
         initialQuery: persistedFilters ?? props.initialFilters,
         initialClientFilters: persistedPredicates ?? props.initialClientFilters,
+        initialFacets: persistedFacets,
         initialSearchText: persistedSearchText ?? props.initialSearchText,
         disableLocalSearch: props.disableLocalSearch,
         additionalEntities: props.additionalEntities,
@@ -466,24 +472,8 @@ export const SoupView = (props: SoupViewProps) => {
   onMount(() => {
     if (contentId !== 'documents') return;
 
-    const markdownQuery: Query = { include: { fileAssoc: ['assoc:md'] } };
     const dispose = registerDocumentsFilterSplit(panel.handle.id, {
-      toggleMarkdownFilter: () => {
-        if (soup.predicates.isActive('doc-markdown')) {
-          soupView.queryFilters.remove(markdownQuery);
-          soup.predicates.set(({ andIds, orIds }) => ({
-            and: andIds,
-            or: orIds.filter((id) => id !== 'doc-markdown'),
-          }));
-          return;
-        }
-
-        soupView.queryFilters.add(markdownQuery);
-        soup.predicates.set(({ andIds, orIds }) => ({
-          and: andIds,
-          or: [...new Set([...orIds, 'doc-markdown'])],
-        }));
-      },
+      toggleMarkdownFilter: () => soup.facets.toggle('type', 'doc-markdown'),
     });
 
     onCleanup(dispose);
