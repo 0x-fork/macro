@@ -55,6 +55,7 @@ import type { ApiChannelMessagesPage } from './generated/schemas/apiChannelMessa
 import type { ApiChannelParticipant } from './generated/schemas/apiChannelParticipant';
 import type { ApiResolvedChannelMessage } from './generated/schemas/apiResolvedChannelMessage';
 import type { ApiThreadReply } from './generated/schemas/apiThreadReply';
+import type { Bot } from './generated/schemas/bot';
 import type { BotChannel } from './generated/schemas/botChannel';
 import type { ChannelMessageFilters } from './generated/schemas/channelMessageFilters';
 import { ChannelType } from './generated/schemas/channelType';
@@ -479,6 +480,31 @@ export const storageServiceClient = {
         method: 'GET',
       })
     ).map((result) => result);
+  },
+
+  async getBots() {
+    return (
+      await dssFetch<Bot[]>(`/bots`, {
+        method: 'GET',
+      })
+    ).map((result) => result);
+  },
+
+  async getChannelBots(args: WithChannelId) {
+    const { channel_id } = args;
+    return (
+      await dssFetch<Bot[]>(`/channels/${channel_id}/bots`, {
+        method: 'GET',
+      })
+    ).map((result) => result);
+  },
+
+  async addBotToChannel(args: WithChannelId & WithBotId) {
+    const { channel_id, bot_id } = args;
+    return await dssFetch(`/channels/${channel_id}/bots`, {
+      method: 'POST',
+      body: JSON.stringify({ bot_id }),
+    });
   },
 
   async removeBotFromChannel(args: WithBotId & WithChannelId) {

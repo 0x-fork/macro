@@ -19,8 +19,8 @@ export const channelKeys = createQueryKeys('channel', {
   participants: (channelID: string) => ({
     queryKey: [channelID],
   }),
-  botChannels: (botID: string) => ({
-    queryKey: [botID],
+  channelBots: (channelID: string) => ({
+    queryKey: [channelID],
   }),
   threadReplies: (channelID: string, messageID: string) => ({
     queryKey: [channelID, messageID],
