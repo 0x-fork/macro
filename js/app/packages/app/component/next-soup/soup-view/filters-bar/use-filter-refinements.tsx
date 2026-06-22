@@ -8,12 +8,6 @@ import {
   type FilterID,
   NO_ASSIGNEE,
 } from '@app/component/next-soup/filters';
-import {
-  defineQueryFilters,
-  type Query,
-  queryStateFrom,
-} from '@app/component/next-soup/filters/filter-store';
-import { mergeQuery } from '@app/component/next-soup/filters/filter-store/query-store';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
@@ -31,10 +25,7 @@ import type {
 } from './consolidated-filter-chip';
 import { buildContactLabel, VIEW_FACETS } from './facet-views';
 import type { SearchableOption } from './searchable-multi-select';
-import {
-  TASK_STATUS_FILTER_IDS,
-  useTaskStatusFilter,
-} from './task-status-filter';
+import { useTaskStatusFilter } from './task-status-filter';
 
 // Filter IDs that are set by tabs and should not be shown as removable chips
 const TAB_ONLY_FILTERS = new Set([
@@ -70,6 +61,11 @@ export function useFilterRefinements() {
   const contacts = useContacts();
   const currentUserId = useUserId();
   const taskStatus = useTaskStatusFilter();
+
+  const isOptionActive = (facetId: string, optionId: string) =>
+    facetId === 'attachment'
+      ? soup.predicates.isActive(optionId)
+      : soup.facets.has(facetId, optionId);
 
   const getPresetContext = (): PresetContext => ({
     userId: user.userId(),
@@ -121,7 +117,16 @@ export function useFilterRefinements() {
 
     const hasSubFilters = assigneeFilter().length > 0;
 
-    return hasClientFilterDiff || hasQueryFilterDiff || hasSubFilters;
+    const hasFacetRefinements = Object.values(soup.facets.selection).some(
+      (ids) => (ids?.length ?? 0) > 0
+    );
+
+    return (
+      hasClientFilterDiff ||
+      hasQueryFilterDiff ||
+      hasSubFilters ||
+      hasFacetRefinements
+    );
   });
 
   /**
@@ -311,7 +316,7 @@ export function useFilterRefinements() {
         });
 
         if (
-          soup.predicates.isActive(option.id) &&
+          isOptionActive(category.id, option.id) &&
           !TAB_ONLY_FILTERS.has(option.id) &&
           !presetFilterIds.has(option.id as FilterID)
         ) {
@@ -343,7 +348,7 @@ export function useFilterRefinements() {
         const result: FilterValue[] = [];
         for (const opt of group.allOptions) {
           if (
-            soup.predicates.isActive(opt.id) &&
+            isOptionActive(categoryId, opt.id) &&
             !TAB_ONLY_FILTERS.has(opt.id) &&
             !presetFilterIds.has(opt.id as FilterID)
           ) {
@@ -351,6 +356,20 @@ export function useFilterRefinements() {
           }
         }
         return result;
+      };
+
+      // attachment has no facet yet — toggle it on the legacy store
+      const toggleLegacy = (id: string) => {
+        batch(() => {
+          soup.predicates.toggle({ or: [id as FilterID] });
+          const query = getFilterQuery(id);
+          if (!query) return;
+          if (soup.predicates.isActive(id)) {
+            queryFilters.add(query);
+          } else {
+            queryFilters.remove(query);
+          }
+        });
       };
 
       filters.push(
@@ -361,49 +380,17 @@ export function useFilterRefinements() {
           values: getActiveValues, // Accessor - computed fresh each render
           availableOptions: group.allOptions,
           multiple: group.multiple,
-          isValueActive: (id) => soup.predicates.isActive(id),
+          isValueActive: (id) => isOptionActive(categoryId, id),
           onToggleValue: (id) => {
-            const isInboxTypeFilter =
-              currentView() === 'inbox' && categoryId === 'type';
-            batch(() => {
-              soup.predicates.toggle({ or: [id as FilterID] });
-
-              if (isInboxTypeFilter) {
-                const activeTypeIds = group.allOptions
-                  .filter((option) => soup.predicates.isActive(option.id))
-                  .map((option) => option.id);
-                queryFilters.replace(getInboxTypeQuery(activeTypeIds) ?? null);
-                return;
-              }
-
-              const query = getFilterQuery(id);
-              if (!query) return;
-
-              if (soup.predicates.isActive(id)) {
-                queryFilters.add(query);
-              } else {
-                queryFilters.remove(query);
-              }
-            });
+            if (categoryId === 'attachment') return toggleLegacy(id);
+            soup.facets.toggle(categoryId, id);
           },
           onRemoveAll: () => {
-            // Compute current active values at removal time
             const currentValues = getActiveValues();
-            const isInboxTypeFilter =
-              currentView() === 'inbox' && categoryId === 'type';
             batch(() => {
               for (const value of currentValues) {
-                soup.predicates.toggle({ or: [value.id as FilterID] });
-              }
-
-              if (isInboxTypeFilter) {
-                queryFilters.replace(getInboxTypeQuery([]) ?? null);
-                return;
-              }
-
-              for (const value of currentValues) {
-                const query = getFilterQuery(value.id);
-                if (query) queryFilters.remove(query);
+                if (categoryId === 'attachment') toggleLegacy(value.id);
+                else soup.facets.toggle(categoryId, value.id);
               }
             });
           },
@@ -587,39 +574,15 @@ export function useFilterRefinements() {
       : filter.query;
   };
 
-  const getInboxTypeQuery = (activeTypeIds: string[]): Query | undefined => {
-    const preset = currentPreset();
-    if (currentView() !== 'inbox' || !preset) return undefined;
-
-    let targetQuery: Query = {};
-    for (const id of activeTypeIds) {
-      const query = getFilterQuery(id);
-      if (!query) continue;
-      targetQuery = mergeQuery(queryStateFrom(targetQuery), query);
-    }
-
-    if (!activeTypeIds.length) return preset.filters;
-
-    return mergeQuery(
-      queryStateFrom(preset.filters),
-      defineQueryFilters({}, { skipTargetsFrom: targetQuery })
-    );
-  };
-
   const resetToTabDefaults = () => {
     const preset = currentPreset();
     if (!preset) return;
 
-    // "Clear all" empties the status filter rather than restoring the default subset.
-    const presetSeedsStatusSubset = (preset.clientFilters.or ?? []).some((id) =>
-      TASK_STATUS_FILTER_IDS.includes(id as FilterID)
-    );
-
     batch(() => {
       soup.predicates.set(preset.clientFilters);
       queryFilters.replace(preset.filters ?? null);
+      soup.facets.clear();
       setAssigneeFilter([]);
-      if (presetSeedsStatusSubset) taskStatus.clear();
     });
   };
 

@@ -154,7 +154,18 @@ export const MobileFilterDrawer = () => {
     sortOptions().length > 0 ||
     showInboxSection();
 
-  const toggleFilter = (optionId: FilterOption['id']) => {
+  const isOptionActive = (facetId: string, optionId: string) =>
+    facetId === 'attachment'
+      ? soup.predicates.isActive(optionId)
+      : soup.facets.has(facetId, optionId);
+
+  const toggleFilter = (facetId: string, optionId: FilterOption['id']) => {
+    if (facetId !== 'attachment') {
+      soup.facets.toggle(facetId, optionId);
+      return;
+    }
+
+    // attachment has no facet yet — client-predicate filter on the legacy store
     const wasActive = soup.predicates.isActive(optionId);
     soup.predicates.toggle({ or: [optionId] });
 
@@ -437,7 +448,7 @@ export const MobileFilterDrawer = () => {
                         const activeCount = createMemo(
                           () =>
                             category.options.filter((o) =>
-                              soup.predicates.isActive(o.id)
+                              isOptionActive(category.id, o.id)
                             ).length
                         );
                         return (
@@ -470,14 +481,16 @@ export const MobileFilterDrawer = () => {
                               <For each={category.options}>
                                 {(option) => {
                                   const active = () =>
-                                    soup.predicates.isActive(option.id);
+                                    isOptionActive(category.id, option.id);
                                   return (
                                     <button
                                       type="button"
                                       role="checkbox"
                                       aria-checked={active()}
                                       class="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-hover transition-colors text-left bg-surface not-last:mb-px"
-                                      onClick={() => toggleFilter(option.id)}
+                                      onClick={() =>
+                                        toggleFilter(category.id, option.id)
+                                      }
                                     >
                                       <span
                                         class={cn(
