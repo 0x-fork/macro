@@ -52,6 +52,7 @@ export { Select } from './components/Select';
 export type { SendButtonProps } from './components/SendButton';
 export { SendButton } from './components/SendButton';
 export { SideNav } from './components/SideNav';
+export { Stepper } from './components/Stepper';
 export { Surface } from './components/Surface';
 export { TabbedControl } from './components/TabbedControl';
 export type { ToggleSwitchProps } from './components/ToggleSwitch';
