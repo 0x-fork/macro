@@ -2,7 +2,6 @@ import {
   type FilterContext,
   NO_ASSIGNEE,
 } from '@app/component/next-soup/filters/configs/';
-import type { PropertyFilter } from '@app/component/next-soup/filters/filter-store';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
@@ -15,12 +14,10 @@ import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import CircleDashedIcon from '@phosphor/circle-dashed.svg';
 import FilterIcon from '@phosphor/funnel-simple.svg';
-import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useContacts } from '@queries/contacts/contacts';
 import { cn, Dropdown, Tooltip } from '@ui';
 import {
   type Accessor,
-  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -249,38 +246,7 @@ export const UnifiedFilterDropdown = (
     ];
   });
 
-  const handleAssigneeChange = (ids: string[]) => {
-    const current = assigneeFilter();
-    const toAdd = ids.filter((id) => !current.includes(id));
-    const toRemove = current.filter((id) => !ids.includes(id));
-
-    // Exclude NO_ASSIGNEE from backend queries - it's handled client-side only
-    const toProps = (list: string[]): PropertyFilter[] =>
-      list
-        .filter((id) => id !== NO_ASSIGNEE)
-        .map((id) => ({
-          propertyId: SYSTEM_PROPERTY_IDS.ASSIGNEES,
-          type: 'entity',
-          value: id,
-        }));
-
-    batch(() => {
-      setAssigneeFilter(ids);
-
-      // Activate/deactivate the assignee predicate based on selection
-      const shouldBeActive = ids.length > 0;
-      if (shouldBeActive !== soup.predicates.isActive('assignee')) {
-        soup.predicates.toggle({ and: ['assignee'] });
-      }
-
-      const removeProps = toProps(toRemove);
-      const addProps = toProps(toAdd);
-      if (removeProps.length)
-        queryFilters.remove({ include: { properties: removeProps } });
-      if (addProps.length)
-        queryFilters.add({ include: { properties: addProps } });
-    });
-  };
+  const handleAssigneeChange = (ids: string[]) => setAssigneeFilter(ids);
 
   const isTasksView = () => currentView() === 'tasks';
 

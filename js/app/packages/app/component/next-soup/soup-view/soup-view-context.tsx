@@ -116,7 +116,7 @@ interface SoupViewContextValues {
   isLocalSearchSettling: Accessor<boolean>;
   queryFilters: QueryStore;
   assigneeFilter: Accessor<string[]>;
-  setAssigneeFilter: Setter<string[]>;
+  setAssigneeFilter: (ids: string[]) => void;
   inboxFilter: Accessor<string[] | undefined>;
   setInboxFilter: Setter<string[] | undefined>;
   activeTab: Accessor<string | undefined>;
@@ -255,10 +255,10 @@ export const SoupViewContextProvider: FlowComponent<
 
   const [searchPaused, setSearchPaused] = createSignal(false);
   const sourceSearchPaused = createMemo(() => searchPaused() || !enabled());
-  const [assigneeFilter, setAssigneeFilter] = useEntryState<string[]>(
-    'soup.assigneeFilter',
-    { default: [] }
-  );
+  // assignee selection lives in the facet store (TASK_ASSIGNEE); persisted via
+  // the `search.facets` captor like every other facet.
+  const assigneeFilter = () => soup.facets.getSelected('assignee');
+  const setAssigneeFilter = (ids: string[]) => soup.facets.set('assignee', ids);
   const [inboxFilter, setInboxFilter] = useEntryState<string[] | undefined>(
     INBOX_FILTER_ENTRY_KEY,
     { default: undefined }
@@ -300,11 +300,13 @@ export const SoupViewContextProvider: FlowComponent<
     return undefined;
   });
 
-  // Clear sub-filters when the task type filter is deactivated
+  // Clear the assignee sub-filter when the task filter is off by either path:
+  // the tasks-view preset (`task` predicate) or the inbox entity-type facet.
   createEffect(() => {
-    if (!soup.facets.has('entity-type', 'task')) {
-      setAssigneeFilter([]);
-    }
+    const taskActive =
+      soup.predicates.isActive('task') ||
+      soup.facets.has('entity-type', 'task');
+    if (!taskActive) setAssigneeFilter([]);
   });
 
   const applyInboxFilter = (state: QueryState): QueryState => {

@@ -16,7 +16,6 @@ import { UserIcon } from '@core/component/UserIcon';
 import { useUserContext, useUserId } from '@core/context/user';
 import { deepEqual } from '@core/util/compareUtils';
 import CircleDashedIcon from '@phosphor/circle-dashed.svg';
-import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useContacts } from '@queries/contacts/contacts';
 import { batch, createMemo, createSignal, type JSX } from 'solid-js';
 import type {
@@ -202,38 +201,7 @@ export function useFilterRefinements() {
   /**
    * Handler for assignee filter changes.
    */
-  const handleAssigneeChange = (ids: string[]) => {
-    const current = assigneeFilter();
-    const toAdd = ids.filter((id) => !current.includes(id));
-    const toRemove = current.filter((id) => !ids.includes(id));
-
-    // Exclude NO_ASSIGNEE from backend queries - it's handled client-side only
-    const toProps = (list: string[]) =>
-      list
-        .filter((id) => id !== NO_ASSIGNEE)
-        .map((id) => ({
-          propertyId: SYSTEM_PROPERTY_IDS.ASSIGNEES,
-          type: 'entity' as const,
-          value: id,
-        }));
-
-    batch(() => {
-      setAssigneeFilter(ids);
-
-      // Activate/deactivate the assignee predicate based on selection
-      const shouldBeActive = ids.length > 0;
-      if (shouldBeActive !== soup.predicates.isActive('assignee')) {
-        soup.predicates.toggle({ and: ['assignee'] });
-      }
-
-      const removeProps = toProps(toRemove);
-      const addProps = toProps(toAdd);
-      if (removeProps.length)
-        queryFilters.remove({ include: { properties: removeProps } });
-      if (addProps.length)
-        queryFilters.add({ include: { properties: addProps } });
-    });
-  };
+  const handleAssigneeChange = (ids: string[]) => setAssigneeFilter(ids);
 
   /**
    * Get filter categories for the current view
