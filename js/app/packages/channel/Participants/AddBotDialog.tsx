@@ -283,7 +283,19 @@ export function AddBotDialog(props: {
         onSuccess: ({ bot, bot_token }) => {
           setToken(bot_token);
           setCreatedBot(bot);
-          setStep(2);
+          setLoadingAction('add');
+          addBotToChannelMutation.mutate(
+            { channelId: props.channelId, botId: bot.id },
+            {
+              onSuccess: () => {
+                setStep(2);
+              },
+              onError: () => {
+                setStep(2);
+                toast.failure('Bot created, but failed to add it to channel');
+              },
+            }
+          );
         },
         onError: () => {
           setStep(0);
@@ -293,28 +305,7 @@ export function AddBotDialog(props: {
     );
   };
 
-  const submitLabel = () => (isAddingExistingBot() ? 'Add' : 'Create bot');
-
-  const addCreatedBotToChannel = () => {
-    const bot = createdBot();
-    if (!bot) return;
-
-    setStep(1);
-    setLoadingAction('add');
-    addBotToChannelMutation.mutate(
-      { channelId: props.channelId, botId: bot.id },
-      {
-        onSuccess: () => {
-          toast.success('Bot added to channel');
-          close();
-        },
-        onError: () => {
-          setStep(2);
-          toast.failure('Failed to add bot');
-        },
-      }
-    );
-  };
+  const submitLabel = () => (isAddingExistingBot() ? 'Add' : 'Create and add');
 
   const copyCreatedBotToken = async () => {
     const currentToken = token();
@@ -622,7 +613,7 @@ export function AddBotDialog(props: {
                   <div class="mt-1 text-sm text-ink-muted">
                     {loadingAction() === 'add'
                       ? 'Connecting the bot to this channel.'
-                      : 'Generating a webhook token for this channel.'}
+                      : 'Generating a webhook token.'}
                   </div>
                 </div>
               </div>
@@ -634,7 +625,7 @@ export function AddBotDialog(props: {
                     <div class="flex flex-col items-center gap-4">
                       <div class="flex items-center justify-center gap-2 text-2xl font-semibold text-ink">
                         <IconCheckCircle class="size-8 text-success" />
-                        Bot Created
+                        Bot created and added to channel
                       </div>
                       <Show when={createdBot()}>
                         {(bot) => (
@@ -674,13 +665,9 @@ export function AddBotDialog(props: {
                       </div>
                     </label>
                     <div class="flex justify-end gap-2 pt-2">
-                      <Button
-                        type="button"
-                        variant="cta"
-                        onClick={addCreatedBotToChannel}
-                      >
-                        <IconPlus class="size-4" />
-                        Add
+                      <Button type="button" variant="cta" onClick={close}>
+                        <IconCheck class="size-4" />
+                        Done
                       </Button>
                     </div>
                   </div>
