@@ -22,7 +22,7 @@ type ToolParserMap = {
   };
   DisplayResults: {
     call: types.DisplayResults;
-    response: types.DisplayResultsResponse;
+    response: types.DelegatedToolResponse;
   };
   GetEntityProperties: {
     call: types.GetEntityProperties;
@@ -118,7 +118,7 @@ const toolParserMap = {
   },
   DisplayResults: {
     call: schemas.DisplayResults,
-    response: schemas.DisplayResultsResponse,
+    response: schemas.DelegatedToolResponse,
   },
   GetEntityProperties: {
     call: schemas.GetEntityProperties,
@@ -237,7 +237,7 @@ type ToolDataMap = {
   };
   DisplayResults: {
     call: types.DisplayResults;
-    response: types.DisplayResultsResponse;
+    response: types.DelegatedToolResponse;
   };
   GetEntityProperties: {
     call: types.GetEntityProperties;

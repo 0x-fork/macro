@@ -9,6 +9,7 @@ pub mod about_macro;
 pub mod channel_mention;
 pub mod citations;
 pub mod connected_toolsets;
+pub mod display_results_delegate;
 pub mod do_not;
 pub mod email;
 pub mod math;
@@ -18,6 +19,7 @@ pub mod tone;
 pub mod tool_usage;
 mod types;
 
+pub use display_results_delegate::DISPLAY_RESULTS_DELEGATE_PROMPT;
 pub use types::{ComposedPrompt, Section, StaticPrompt};
 
 /// The base prompt: tone, math, citations, mentions, do-not rules, and Macro

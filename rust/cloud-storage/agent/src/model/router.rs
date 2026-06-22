@@ -19,7 +19,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use ai_toolset::SearchableTool;
+use ai_toolset::{AssistantContext, SearchableTool};
 use ai_usage::{UsageContext, UsageRecorder};
 use futures::StreamExt;
 use macro_env_var::env_var;
@@ -144,6 +144,7 @@ impl ProviderAgent {
         recorder: Arc<dyn UsageRecorder>,
         usage_ctx: UsageContext,
         model: String,
+        assistant_context: AssistantContext,
     ) -> ChatCompletionStream<'static> {
         match self {
             ProviderAgent::Anthropic(agent) => {
@@ -158,6 +159,7 @@ impl ProviderAgent {
                     recorder,
                     usage_ctx,
                     model,
+                    assistant_context,
                 )
                 .await
             }
@@ -173,6 +175,7 @@ impl ProviderAgent {
                     recorder,
                     usage_ctx,
                     model,
+                    assistant_context,
                 )
                 .await
             }
@@ -188,6 +191,7 @@ impl ProviderAgent {
                     recorder,
                     usage_ctx,
                     model,
+                    assistant_context,
                 )
                 .await
             }
@@ -381,12 +385,14 @@ async fn drive_stream<M>(
     recorder: Arc<dyn UsageRecorder>,
     usage_ctx: UsageContext,
     model: String,
+    assistant_context: AssistantContext,
 ) -> ChatCompletionStream<'static>
 where
     M: CompletionModel + 'static,
     M::StreamingResponse: GetTokenUsage + Send + Sync,
 {
-    let (bridge, mut rx) = StreamBridge::channel(routing, loaded_buffer, register_loaded);
+    let (bridge, mut rx) =
+        StreamBridge::channel(routing, loaded_buffer, register_loaded, assistant_context);
 
     let mut rig_stream = agent
         .stream_prompt(prompt)

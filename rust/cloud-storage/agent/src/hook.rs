@@ -5,7 +5,7 @@ mod test;
 
 use crate::AgentError;
 use crate::stream::{McpInfo, StreamPart, ToolCall, ToolResponse, Usage};
-use ai_toolset::{SearchableTool, ToolInfo};
+use ai_toolset::{AssistantContext, AssistantContextPart, SearchableTool, ToolInfo};
 use rig_core::agent::{HookAction, PromptHook, ToolCallHookAction};
 use rig_core::completion::{CompletionModel, GetTokenUsage};
 use rig_core::message::Message;
@@ -41,6 +41,9 @@ pub struct StreamBridge {
     loaded_buffer: Arc<Mutex<Vec<SearchableTool>>>,
     /// Registers drained tools with the live tool server.
     register_loaded: RegisterFn,
+    /// Accumulates the assistant's parts for the current turn so that tool
+    /// calls (e.g. delegated tools) can read the in-flight response as context.
+    assistant_context: AssistantContext,
 }
 
 impl StreamBridge {
@@ -50,11 +53,14 @@ impl StreamBridge {
     /// tagged as such (see [`ToolRouter`]). `loaded_buffer` / `register_loaded`
     /// power on-demand tool loading: `SearchTools` pushes matches into the
     /// buffer, and the bridge registers them after the tool result, before the
-    /// next turn (see [`Self::on_tool_result`]).
+    /// next turn (see [`Self::on_tool_result`]). `assistant_context` is the
+    /// shared accumulator that mirrors the in-flight assistant response into the
+    /// tool call [`ai_toolset::RequestContext`].
     pub fn channel(
         routing: ToolRouter,
         loaded_buffer: Arc<Mutex<Vec<SearchableTool>>>,
         register_loaded: RegisterFn,
+        assistant_context: AssistantContext,
     ) -> (
         Self,
         mpsc::UnboundedReceiver<Result<StreamPart, AgentError>>,
@@ -66,6 +72,7 @@ impl StreamBridge {
                 routing,
                 loaded_buffer,
                 register_loaded,
+                assistant_context,
             },
             rx,
         )
@@ -78,6 +85,8 @@ where
     M::StreamingResponse: GetTokenUsage + Send + Sync,
 {
     async fn on_text_delta(&self, text_delta: &str, _aggregated_text: &str) -> HookAction {
+        self.assistant_context
+            .push(AssistantContextPart::Text(text_delta.to_owned()));
         let _ = self.tx.send(Ok(StreamPart::Content(text_delta.to_owned())));
         HookAction::Continue
     }
@@ -90,6 +99,10 @@ where
         args: &str,
     ) -> ToolCallHookAction {
         let json = serde_json::from_str(args).unwrap_or(serde_json::Value::Null);
+        self.assistant_context.push(AssistantContextPart::ToolCall {
+            name: tool_name.to_owned(),
+            args: json.clone(),
+        });
         let id = tool_call_id.unwrap_or_else(|| internal_call_id.to_owned());
         let mcp = (self.routing)(tool_name).map(|i| match i {
             ToolInfo::ExternalTool {

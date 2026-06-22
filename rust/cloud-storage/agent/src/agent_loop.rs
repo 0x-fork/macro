@@ -103,9 +103,15 @@ impl AgentLoop {
                 buffer.lock().expect("loaded_buffer poisoned").extend(tools)
             })
         };
-        let request_context = Arc::new(RwLock::new(
-            RequestContext::new(usage_ctx.user.clone()).with_tool_search(Arc::new(catalog), loader),
-        ));
+        // Shared accumulator of the in-flight assistant response. The stream
+        // bridge appends parts as they stream; tool calls (e.g. delegated
+        // tools) read it back through their `RequestContext` to see what the
+        // assistant has produced so far in the current turn.
+        let assistant_context = ai_toolset::AssistantContext::new();
+        let mut request_context =
+            RequestContext::new(usage_ctx.user.clone()).with_tool_search(Arc::new(catalog), loader);
+        request_context.assistant_context = assistant_context.clone();
+        let request_context = Arc::new(RwLock::new(request_context));
 
         // Keep a handle to the toolset so the stream bridge can resolve MCP
         // routing info (service / display name) for tool calls. This is the
@@ -209,6 +215,7 @@ impl AgentLoop {
             recorder: self.recorder.clone(),
             usage_ctx,
             model: self.model.clone(),
+            assistant_context,
         }
     }
 }
@@ -226,6 +233,9 @@ pub struct Session {
     recorder: Arc<dyn UsageRecorder>,
     usage_ctx: UsageContext,
     model: String,
+    /// Accumulator of the in-flight assistant response, shared with the tool
+    /// call `RequestContext` so delegated tools can read the current turn.
+    assistant_context: ai_toolset::AssistantContext,
 }
 
 impl Session {
@@ -258,6 +268,7 @@ impl Session {
                 self.recorder.clone(),
                 self.usage_ctx.clone(),
                 self.model.clone(),
+                self.assistant_context.clone(),
             )
             .await;
 

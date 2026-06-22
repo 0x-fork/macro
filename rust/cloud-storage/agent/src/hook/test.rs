@@ -34,7 +34,8 @@ async fn on_tool_result_drains_buffer_and_registers_loaded_tools() {
     ]));
     let (register, registered) = recording_register();
     let routing: ToolRouter = Arc::new(|_| None);
-    let (bridge, _rx) = StreamBridge::channel(routing, buffer.clone(), register);
+    let (bridge, _rx) =
+        StreamBridge::channel(routing, buffer.clone(), register, AssistantContext::new());
 
     let action = <StreamBridge as PromptHook<AnthropicModel>>::on_tool_result(
         &bridge,
@@ -65,7 +66,7 @@ async fn on_tool_result_registers_nothing_when_buffer_empty() {
     let buffer = Arc::new(Mutex::new(Vec::new()));
     let (register, registered) = recording_register();
     let routing: ToolRouter = Arc::new(|_| None);
-    let (bridge, _rx) = StreamBridge::channel(routing, buffer, register);
+    let (bridge, _rx) = StreamBridge::channel(routing, buffer, register, AssistantContext::new());
 
     let _ = <StreamBridge as PromptHook<AnthropicModel>>::on_tool_result(
         &bridge,

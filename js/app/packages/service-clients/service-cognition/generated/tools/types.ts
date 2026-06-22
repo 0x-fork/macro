@@ -967,19 +967,28 @@ export interface CrmCompanySearchResponseItem {
   updatedAt: string;
 }
 /**
- * Present results to the user as a rich view. The `view` argument is a dynamic-UI view object (a title plus an ordered list of widgets) following the dynamic-UI schema provided to you. The view is rendered immediately in the chat; this tool returns as soon as it is dispatched.
+ * The result the primary agent (and the frontend) receive from a delegated
+ * tool: the arguments the secondary agent produced, plus the underlying tool's
+ * own output. The frontend renders from `args`; the model reads `result`.
  */
-export interface DisplayResults {
+export interface DelegatedToolResponse {
   /**
-   * The dynamic-UI view to render: an object with an optional `title` and a `widgets` array, per the provided dynamic-UI schema.
+   * The arguments the secondary agent produced for the underlying tool. The
+   * frontend renders the delegated tool from this exactly as if the primary
+   * agent had supplied them directly.
    */
-  view: {
+  args: {
     [k: string]: unknown;
   };
+  result: DisplayResultsResponse;
 }
 export interface DisplayResultsResponse {
   message: string;
 }
+/**
+ * Present results to the user as a rich view. The `view` argument is a dynamic-UI view object (a title plus an ordered list of widgets) following the dynamic-UI schema provided to you. The view is rendered immediately in the chat; this tool returns as soon as it is dispatched.
+ */
+export type DisplayResults = {};
 /**
  * API-visible content lifecycle and location metadata.
  */

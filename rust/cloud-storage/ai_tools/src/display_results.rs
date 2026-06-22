@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::ToolServiceContext;
+use crate::delegated::Delegable;
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct DisplayResultsResponse {
@@ -48,5 +49,16 @@ impl AsyncTool<ToolServiceContext> for DisplayResults {
         Ok(DisplayResultsResponse {
             message: "The results have been displayed to the user.".to_string(),
         })
+    }
+}
+
+/// `DisplayResults` is delegated: the primary agent calls it name-only, and a
+/// fast secondary agent composes the (large, slow) dynamic-UI `view` from the
+/// primary agent's response. See [`crate::delegated`].
+impl Delegable for DisplayResults {
+    fn delegate_instructions() -> &'static str {
+        prompt::DISPLAY_RESULTS_DELEGATE_PROMPT
+            .instructions
+            .as_ref()
     }
 }

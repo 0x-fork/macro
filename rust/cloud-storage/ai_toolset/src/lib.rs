@@ -135,7 +135,7 @@ mod tool;
 pub mod tool_search;
 mod toolset;
 
-pub use context::{RequestContext, ServiceContext};
+pub use context::{AssistantContext, AssistantContextPart, RequestContext, ServiceContext};
 pub use tool::{AsyncTool, NoContext, ToolCallError, ToolResult};
 pub use tool_search::{SearchableTool, ToolLoader};
 pub use toolset::{

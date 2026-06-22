@@ -7,6 +7,7 @@ use ai_toolset::schema::{FrontendSchemas, ToolSchemaGenerator, frontend_schemas_
 mod test;
 
 mod build_context;
+pub mod delegated;
 mod display_results;
 mod schemas;
 pub mod search;
@@ -20,6 +21,7 @@ use anthropic::toolset::anthropic_toolset;
 use call::inbound::toolset::call_toolset;
 use channels::inbound::toolset::channel_toolset;
 use chat::inbound::toolset::chat_toolset;
+use delegated::DelegatedTool;
 use display_results::DisplayResults;
 use documents::inbound::toolset::document_toolset;
 use email::inbound::toolset::{email_toolset, mcp_toolset as email_mcp_toolset};
@@ -91,7 +93,10 @@ pub fn all_tools() -> ToolSetWithPrompt {
         .add_tool::<Subagent, ToolServiceContext>()
         .add_tool::<SearchTools, ToolServiceContext>()
         .add_tool::<LoadTools, ToolServiceContext>()
-        .add_tool::<DisplayResults, ToolServiceContext>();
+        // `DisplayResults` is delegated: the primary agent sees a name-only
+        // tool; a fast secondary agent composes the dynamic-UI view. See the
+        // `delegated` module.
+        .add_tool::<DelegatedTool<DisplayResults>, ToolServiceContext>();
     let toolset = Arc::new(toolset);
     ToolSetWithPrompt {
         toolset,
