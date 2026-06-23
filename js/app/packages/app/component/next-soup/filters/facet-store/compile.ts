@@ -68,14 +68,6 @@ export const confine = (clause: OptionClause): OptionClause => {
   return out;
 };
 
-// Define a facet option's clause; pass `restrict` to confine it to the entity
-// types it touches. The standard way to define a clause — pair with `where(…)`
-// for the clause body.
-export const defineClause = (
-  clause: OptionClause,
-  restrict = false
-): OptionClause => (restrict ? confine(clause) : clause);
-
 const isEntityTarget = (target: Target): target is EntityTarget =>
   (ENTITY_TARGETS as readonly Target[]).includes(target);
 

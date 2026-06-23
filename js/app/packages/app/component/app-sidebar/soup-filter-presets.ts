@@ -5,9 +5,7 @@ import {
   type Facet,
   type FacetOption,
   type FacetSelection,
-  type OptionClause,
   type WhereBag,
-  where,
 } from '@app/component/next-soup/filters/facet-store';
 import {
   type FacetCtx,
@@ -95,11 +93,6 @@ const openStatusExprs = OPEN_TASK_STATUS_INCLUDE_PROPS.map((p) =>
   clause.eq('properties', p)
 );
 
-// A confined clause: the `where` bag plus NIL-fills for every entity target it
-// doesn't reference, so the option matches only its own entity types.
-const restrictWhere = (spec: WhereBag): OptionClause =>
-  defineClause(where(spec), true);
-
 type TabSpec = {
   emailView?: EmailView;
   /** Catalog facet seeds for this tab, WITHOUT the `{ [view]: [tab] }` entry. */
@@ -136,7 +129,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
       return viewFacet('inbox', [
         {
           id: 'signal',
-          clause: restrictWhere({
+          clause: defineClause({
             documentDone: false,
             documentUpdatedAt: { gte: cutoff },
             ...excludeSnippets(),
@@ -156,7 +149,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         },
         {
           id: 'noise',
-          clause: restrictWhere({
+          clause: defineClause({
             documentDone: false,
             ...excludeSnippets(),
             emailDone: false,
@@ -169,22 +162,25 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         },
         {
           id: 'all',
-          clause: where({
-            crmCompanyId: NIL_UUID,
-            documentId: { not: NIL_UUID },
-            ...excludeSnippets(),
-            threadId: { not: NIL_UUID },
-            channelId: { not: NIL_UUID },
-            chatId: { not: NIL_UUID },
-            folderId: { not: NIL_UUID },
-            foreignEntityIncludesMe: true,
-            ...(ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE
-              ? {
-                  foreignEntitySource: 'github_pull_request',
-                  foreignEntityRecordId: { not: NIL_UUID },
-                }
-              : {}),
-          }),
+          clause: defineClause(
+            {
+              crmCompanyId: NIL_UUID,
+              documentId: { not: NIL_UUID },
+              ...excludeSnippets(),
+              threadId: { not: NIL_UUID },
+              channelId: { not: NIL_UUID },
+              chatId: { not: NIL_UUID },
+              folderId: { not: NIL_UUID },
+              foreignEntityIncludesMe: true,
+              ...(ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE
+                ? {
+                    foreignEntitySource: 'github_pull_request',
+                    foreignEntityRecordId: { not: NIL_UUID },
+                  }
+                : {}),
+            },
+            { restrict: false }
+          ),
         },
       ]);
     },
@@ -198,13 +194,13 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
     default: 'owned',
     facets: (ctx) =>
       viewFacet('agents', [
-        { id: 'owned', clause: restrictWhere({ chatOwnerId: ctx.userId }) },
-        { id: 'running', clause: restrictWhere({ chatOwnerId: ctx.userId }) },
+        { id: 'owned', clause: defineClause({ chatOwnerId: ctx.userId }) },
+        { id: 'running', clause: defineClause({ chatOwnerId: ctx.userId }) },
         {
           id: 'shared',
-          clause: restrictWhere({ chatOwnerId: { not: ctx.userId as string } }),
+          clause: defineClause({ chatOwnerId: { not: ctx.userId as string } }),
         },
-        { id: 'automations', clause: restrictWhere({}) },
+        { id: 'automations', clause: defineClause({}) },
       ]),
     tabs: {
       owned: {
@@ -228,32 +224,32 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
       viewFacet('mail', [
         {
           id: 'important',
-          clause: restrictWhere({
+          clause: defineClause({
             emailImportance: true,
             emailShared: 'exclude',
           }),
         },
         {
           id: 'noise',
-          clause: restrictWhere({
+          clause: defineClause({
             emailImportance: false,
             emailShared: 'exclude',
           }),
         },
         {
           id: 'calendar',
-          clause: restrictWhere({
+          clause: defineClause({
             emailShared: 'exclude',
             emailCalendarOnly: true,
           }),
         },
         {
           id: 'drafts',
-          clause: restrictWhere({ threadId: { not: NIL_UUID } }),
+          clause: defineClause({ threadId: { not: NIL_UUID } }),
         },
-        { id: 'sent', clause: restrictWhere({ emailSender: ctx.email }) },
-        { id: 'shared', clause: restrictWhere({ emailShared: 'only' }) },
-        { id: 'all', clause: restrictWhere({ threadId: { not: NIL_UUID } }) },
+        { id: 'sent', clause: defineClause({ emailSender: ctx.email }) },
+        { id: 'shared', clause: defineClause({ emailShared: 'only' }) },
+        { id: 'all', clause: defineClause({ threadId: { not: NIL_UUID } }) },
       ]),
     tabs: {
       important: {
@@ -290,7 +286,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
       viewFacet('documents', [
         {
           id: 'owned',
-          clause: restrictWhere({
+          clause: defineClause({
             documentOwnerId: ctx.userId,
             isEmailAttachment: false,
             subType: { not: getExcludedDocumentSubTypes('task') },
@@ -298,7 +294,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         },
         {
           id: 'shared',
-          clause: restrictWhere({
+          clause: defineClause({
             isEmailAttachment: false,
             documentOwnerId: { not: ctx.userId as string },
             subType: { not: getExcludedDocumentSubTypes('task') },
@@ -306,15 +302,15 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         },
         {
           id: 'attachments',
-          clause: restrictWhere({ isEmailAttachment: true }),
+          clause: defineClause({ isEmailAttachment: true }),
         },
         {
           id: 'folders',
-          clause: restrictWhere({ folderId: { not: NIL_UUID } }),
+          clause: defineClause({ folderId: { not: NIL_UUID } }),
         },
         {
           id: 'all',
-          clause: restrictWhere({
+          clause: defineClause({
             subType: { not: getExcludedDocumentSubTypes('task') },
           }),
         },
@@ -345,7 +341,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
       viewFacet('tasks', [
         {
           id: 'assigned-to-me',
-          clause: restrictWhere({
+          clause: defineClause({
             subType: 'task',
             $clause: (b) => ({
               propf: b.and(
@@ -361,13 +357,13 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         },
         {
           id: 'created-by-me',
-          clause: restrictWhere({
+          clause: defineClause({
             subType: 'task',
             documentOwnerId: ctx.userId as string,
             $clause: (b) => ({ propf: b.or(...openStatusExprs) }),
           }),
         },
-        { id: 'all', clause: restrictWhere({ subType: 'task' }) },
+        { id: 'all', clause: defineClause({ subType: 'task' }) },
       ]),
     tabs: {
       'assigned-to-me': {
@@ -398,14 +394,14 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
     default: 'recent',
     facets: () =>
       viewFacet('channels', [
-        { id: 'recent', clause: restrictWhere({ channelImportance: true }) },
+        { id: 'recent', clause: defineClause({ channelImportance: true }) },
         {
           id: 'people',
-          clause: restrictWhere({ channelType: 'direct_message' }),
+          clause: defineClause({ channelType: 'direct_message' }),
         },
         {
           id: 'teams',
-          clause: restrictWhere({ channelType: { not: 'direct_message' } }),
+          clause: defineClause({ channelType: { not: 'direct_message' } }),
         },
       ]),
     tabs: {
@@ -418,11 +414,11 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
     default: 'all',
     facets: () =>
       viewFacet('calls', [
-        { id: 'all', clause: restrictWhere({ callId: { not: NIL_UUID } }) },
-        { id: 'missed', clause: restrictWhere({ callStatus: 'MISSED' }) },
+        { id: 'all', clause: defineClause({ callId: { not: NIL_UUID } }) },
+        { id: 'missed', clause: defineClause({ callStatus: 'MISSED' }) },
         {
           id: 'unattended',
-          clause: restrictWhere({ callStatus: 'UNATTENDED' }),
+          clause: defineClause({ callStatus: 'UNATTENDED' }),
         },
       ]),
     tabs: {
@@ -435,8 +431,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
     default: 'active',
     facets: () =>
       viewFacet('companies', [
-        { id: 'active', clause: restrictWhere({ crmCompanyHidden: false }) },
-        { id: 'hidden', clause: restrictWhere({ crmCompanyHidden: true }) },
+        { id: 'active', clause: defineClause({ crmCompanyHidden: false }) },
+        { id: 'hidden', clause: defineClause({ crmCompanyHidden: true }) },
       ]),
     tabs: {
       active: { initialFacets: { scope: ['crm-company-active'] } },
@@ -452,8 +448,8 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
     default: 'owned',
     facets: (ctx) =>
       viewFacet('folders', [
-        { id: 'owned', clause: restrictWhere({ folderOwnerId: ctx.userId }) },
-        { id: 'all', clause: restrictWhere({ folderId: { not: NIL_UUID } }) },
+        { id: 'owned', clause: defineClause({ folderOwnerId: ctx.userId }) },
+        { id: 'all', clause: defineClause({ folderId: { not: NIL_UUID } }) },
       ]),
     tabs: {
       owned: {
@@ -469,11 +465,14 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
       viewFacet('search', [
         {
           id: 'all',
-          clause: where({
-            foreignEntityRecordId: NIL_UUID,
-            crmCompanyId: NIL_UUID,
-            ...excludeSnippets(),
-          }),
+          clause: defineClause(
+            {
+              foreignEntityRecordId: NIL_UUID,
+              crmCompanyId: NIL_UUID,
+              ...excludeSnippets(),
+            },
+            { restrict: false }
+          ),
         },
       ]),
     tabs: {

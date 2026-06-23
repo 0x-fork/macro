@@ -1,4 +1,5 @@
 import { and, clause as builder, eq, not, or, type TargetExpr } from './clause';
+import { confine } from './compile';
 import type { ClauseBuilder, OptionClause } from './facets';
 import {
   FILTER_TARGETS,
@@ -53,8 +54,8 @@ export type WhereBag = Partial<{
 };
 
 // One declarative bag → an OptionClause: target inferred per field, fields on
-// the same target AND together. Wrap with `defineClause(…, true)` to confine.
-export const where = (spec: WhereBag): OptionClause => {
+// the same target AND together.
+const where = (spec: WhereBag): OptionClause => {
   const byTarget = new Map<Target, TargetExpr[]>();
 
   const push = (clause: OptionClause) => {
@@ -81,4 +82,16 @@ export const where = (spec: WhereBag): OptionClause => {
     out[target] = exprs.length === 1 ? exprs[0] : and(...exprs);
   }
   return out;
+};
+
+// Define a facet option's clause from a `where` bag. Confined by default
+// (`restrict`) — NIL-fills every entity target the clause doesn't reference, so
+// the option matches only its own entity types. Pass `{ restrict: false }` for
+// an unconfined clause (e.g. "show everything of these types").
+export const defineClause = (
+  spec: WhereBag,
+  { restrict = true }: { restrict?: boolean } = {}
+): OptionClause => {
+  const clause = where(spec);
+  return restrict ? confine(clause) : clause;
 };
