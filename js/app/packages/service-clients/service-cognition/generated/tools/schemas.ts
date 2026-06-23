@@ -795,6 +795,13 @@ export const ListTeamMembersResponse = z.object({
   members: z.array(z.object({ role: z.string(), userId: z.string() })),
 });
 
+export const LoadTools = z.object({ names: z.array(z.string()) });
+
+export const LoadToolsResponse = z.object({
+  loaded: z.array(z.object({ description: z.string(), name: z.string() })),
+  not_found: z.array(z.string()),
+});
+
 export const MarkNotificationsDone = z.object({
   done: z.boolean(),
   notificationIds: z.array(z.string().uuid()),
@@ -1885,6 +1892,23 @@ export const ReadMetadataResponse = z.object({
       .optional(),
   }),
   userAccessLevel: z.enum(['view', 'comment', 'edit', 'owner']),
+});
+
+export const RenameDocument = z.object({
+  documentId: z.string().uuid(),
+  documentName: z.string(),
+});
+
+export const RenameDocumentResponse = z.object({
+  documentId: z.string().uuid(),
+  message: z.string(),
+  success: z.boolean(),
+});
+
+export const SearchTools = z.object({ query: z.string() });
+
+export const SearchToolsResponse = z.object({
+  results: z.array(z.object({ description: z.string(), name: z.string() })),
 });
 
 export const SendEmail = z.object({

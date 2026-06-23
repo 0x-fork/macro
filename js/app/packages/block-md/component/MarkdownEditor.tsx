@@ -986,7 +986,6 @@ export function MarkdownEditor(props: {
         <FocusClickTarget
           editor={editor}
           editorFocus={editorFocus}
-          class="bg-[pink]/20"
           style={{ height: `${clickTargetHeight()}px` }}
         />
         <Show when={!editorReady()}>
@@ -1055,7 +1054,14 @@ export function MarkdownEditor(props: {
           sourceDocumentId={blockId}
         />
 
-        <ActionMenu editor={editor} menu={actionsMenuOperations} />
+        <ActionMenu
+          editor={editor}
+          menu={actionsMenuOperations}
+          actionContext={{
+            sourceDocumentId: blockId,
+            sourceBlockName: blockName,
+          }}
+        />
 
         <FloatingMenuGroup>
           <FloatingLinkMenu autoLinkMatchMode="common-tlds" />
