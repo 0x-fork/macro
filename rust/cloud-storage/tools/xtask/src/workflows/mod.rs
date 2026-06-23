@@ -9,6 +9,7 @@
 //! files — [`runners`] (runner labels), [`vars`] (env / secrets / concurrency),
 //! and [`steps`] (reusable step + job helpers).
 
+mod cargo_deny;
 mod check_generated;
 mod code_check_cloud_storage;
 mod runners;
@@ -47,6 +48,10 @@ const WORKFLOWS: &[WorkflowFile] = &[
     WorkflowFile {
         slug: "check_generated",
         build: check_generated::check_generated_workflows,
+    },
+    WorkflowFile {
+        slug: "cargo_deny",
+        build: cargo_deny::cargo_deny,
     },
 ];
 

@@ -1,0 +1,40 @@
+# DO NOT EDIT — regenerate with `cargo x workflows` (from rust/cloud-storage).
+# Source: rust/cloud-storage/tools/xtask/src/workflows/cargo_deny.rs
+name: cargo deny check
+'on':
+  pull_request:
+    types:
+    - opened
+    - synchronize
+    - reopened
+    - ready_for_review
+    branches:
+    - main
+    paths:
+    - rust/cloud-storage/Cargo.toml
+    - rust/cloud-storage/**/Cargo.toml
+    - rust/cloud-storage/Cargo.lock
+    - rust/cloud-storage/deny.toml
+    - '.github/workflows/cargo_deny.yml'
+jobs:
+  cargo-deny:
+    runs-on: namespace-profile-linux-small
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        clean: 'false'
+    - name: Setup Rust
+      uses: './.github/actions/setup-rust'
+      with:
+        sccache: 'false'
+        rust-cache: 'false'
+    - name: install cargo-deny
+      uses: taiki-e/install-action@9e1e5806d4a4822de933115878265be9aaa786d9
+      with:
+        tool: cargo-deny@0.19.9
+    - name: cargo deny check
+      run: cargo deny --manifest-path rust/cloud-storage/Cargo.toml check
+concurrency:
+  group: cargo-deny-${{ github.ref }}
+  cancel-in-progress: true
