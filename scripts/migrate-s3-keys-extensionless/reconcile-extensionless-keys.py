@@ -236,8 +236,26 @@ def cmd_purge(args):
                             "--region", args.region, "--no-cli-pager", "--delete", payload],
                            capture_output=True, text=True)
         if r.returncode != 0:
-            print(f"BATCH FAILED at offset {start}: {r.stderr[:300]}", file=sys.stderr)
-            sys.exit(1)
+            # The batch XML body was rejected (e.g. MalformedXML from one
+            # problematic key). Fall back to per-key delete-object, which sends
+            # the key as a request parameter (no XML body) and so can't hit this.
+            print(f"batch at offset {start} rejected ({r.stderr.strip()[:80]}); per-key fallback",
+                  file=sys.stderr)
+            with ThreadPoolExecutor(max_workers=args.concurrency) as ex:
+                results = list(ex.map(lambda k: (k, subprocess.run(
+                    ["aws", "s3api", "delete-object", "--bucket", args.bucket, "--key", k,
+                     "--region", args.region, "--no-cli-pager"],
+                    capture_output=True, text=True).returncode), batch))
+            for k, code in results:
+                if code == 0:
+                    done_file.write(k + "\n")
+                    deleted += 1
+                else:
+                    errors += 1
+                    print(f"ERROR (per-key) {k!r}", file=sys.stderr)
+            done_file.flush()
+            print(f"[{time.time()-t0:5.0f}s] purged={deleted:,} errors={errors} skipped={skipped}", flush=True)
+            continue
         batch_errors = json.loads(r.stdout).get("Errors", []) if r.stdout.strip() else []
         failed = {e.get("Key") for e in batch_errors}
         for k in batch:
