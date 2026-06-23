@@ -1,3 +1,13 @@
+/*
+ * WARNING: the full-bucket scan (migrateFromScan) crashes silently mid-scan
+ * under bun + @aws-sdk when issuing concurrent HeadObject calls — the process
+ * exits partway through with no error, stack, or completion line, so it is not
+ * a catchable JS failure. For any full-bucket pass PREFER the list-only Python
+ * tool `reconcile-extensionless-keys.py` (find/copy/delete), which does not
+ * crash. This script is only safe in KEYS_FILE mode (migrateFromFile), which
+ * reads a key list and skips the scan. The same caveat applies to
+ * delete-old-keys.ts.
+ */
 import {
   CopyObjectCommand,
   HeadObjectCommand,
@@ -99,8 +109,11 @@ function buildPrefix(): string | undefined {
 }
 
 function stripExtension(key: string): string {
-  // Strip everything after the version_id (handles multipart extensions like .js.map)
-  return key.replace(/(\d+)\..+$/, '$1');
+  // Strip the extension from only the final segment (the version). Operating on
+  // the whole key would match a digits-dot inside the owner email (e.g.
+  // user12.foo), mangling the target. Handles multipart extensions (.js.map).
+  const slash = key.lastIndexOf('/');
+  return key.slice(0, slash + 1) + key.slice(slash + 1).replace(/\..+$/, '');
 }
 
 function shouldProcess(key: string): boolean {

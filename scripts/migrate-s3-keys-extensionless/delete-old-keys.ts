@@ -52,7 +52,11 @@ const VERSION_WITH_EXT_REGEX = new RegExp(`${UUID_V4}/(\\d+)\\..+$`);
 const SKIP_PATTERNS = [/converted\.pdf$/, /^temp_files\//, /^ONBOARDING_DOCUMENTS\//];
 
 function stripExtension(key: string): string {
-  return key.replace(/(\d+)\..+$/, "$1");
+  // Strip the extension from only the final segment (the version). Operating on
+  // the whole key would match a digits-dot inside the owner email (e.g.
+  // user12.foo), mangling the target. Handles multipart extensions (.js.map).
+  const slash = key.lastIndexOf("/");
+  return key.slice(0, slash + 1) + key.slice(slash + 1).replace(/\..+$/, "");
 }
 
 function shouldDelete(key: string): boolean {
