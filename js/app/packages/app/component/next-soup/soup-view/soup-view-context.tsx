@@ -1,3 +1,7 @@
+import {
+  getViewPreset,
+  type PresetContext,
+} from '@app/component/app-sidebar/soup-filter-presets';
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import {
   createSoupState,
@@ -8,11 +12,13 @@ import {
 } from '@app/component/next-soup/create-soup-state';
 import type { FilterContext } from '@app/component/next-soup/filters/configs/';
 import {
+  type BackendAstMap,
+  compileFacets,
   type FacetSelection,
   mergeAst,
 } from '@app/component/next-soup/filters/facet-store';
+import { EMAIL_INBOX } from '@app/component/next-soup/filters/facets';
 import {
-  compileToAst,
   NIL_UUID,
   type QueryState,
 } from '@app/component/next-soup/filters/filter-store';
@@ -42,7 +48,7 @@ import {
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
 } from '@core/constant/featureFlags';
-import { useUserId } from '@core/context/user';
+import { useUserContext, useUserId } from '@core/context/user';
 import {
   type EntityData,
   getPropertyOptionLabel,
@@ -58,6 +64,7 @@ import type {
 import type { SoupParams } from '@queries/soup/items';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import { soupKeys } from '@queries/soup/keys';
+import { useIsTeamAdmin } from '@queries/team/teams';
 import type { SoupPage } from '@service-storage/generated/schemas';
 import type { InfiniteData } from '@tanstack/solid-query';
 import {
@@ -161,6 +168,13 @@ export const SoupViewContextProvider: FlowComponent<
 > = (props) => {
   const notificationSource = useGlobalNotificationSource();
   const userId = useUserId();
+  const user = useUserContext();
+  const isTeamAdmin = useIsTeamAdmin();
+  const presetCtx = (): PresetContext => ({
+    userId: user.userId(),
+    email: user.email(),
+    isTeamAdmin: isTeamAdmin(),
+  });
   const soup = props.soup ?? createSoupState();
   const [enabled, setEnabled] = createSignal(props.initialEnabled ?? false);
   const [config, setConfig] = createSignal<SoupViewInitializeOptions>({
@@ -323,13 +337,45 @@ export const SoupViewContextProvider: FlowComponent<
     };
   };
 
-  // legacy preset/refinement query AND the facet selection (empty → no-op merge)
-  const soupBody = createMemo(() =>
-    mergeAst(
-      compileToAst(applyInboxFilter(queryFilters.state)),
-      soup.facets.compile()
-    )
-  );
+  const activeListView = createMemo<ListView | undefined>(() => {
+    const content = panel.handle.content();
+    if (content.type !== 'component') return;
+    return isListViewID(content.id) ? content.id : undefined;
+  });
+
+  const activePreset = createMemo(() => {
+    const view = activeListView();
+    return view ? getViewPreset(view, activeTab(), presetCtx()) : undefined;
+  });
+
+  // Keep the active tab's inline baseline facets in the store so compile/test
+  // resolve them alongside the catalog. Reactive — re-runs on view/tab change.
+  createEffect(() => {
+    soup.facets.setExtraFacets(activePreset()?.facets ?? []);
+  });
+
+  // The inbox-account selector as a backend AST fragment, via the `email-inbox`
+  // facet (open id space). `undefined` ⇒ no filter; `[]` ⇒ match nothing.
+  const inboxFacetAst = (): BackendAstMap => {
+    const inboxes = inboxFilter();
+    if (inboxes === undefined) return {};
+    return compileFacets(
+      { 'email-inbox': inboxes.length ? inboxes : [NIL_UUID] },
+      [EMAIL_INBOX],
+      {}
+    );
+  };
+
+  // Soup backend query: the active tab's preset baseline + facet selection,
+  // merged with the inbox-account filter, plus the email-view mode as a
+  // top-level body field. All on the facet path — no legacy query compiler.
+  const soupBody = createMemo(() => {
+    const emailView = activePreset()?.filters?.emailView;
+    return {
+      ...mergeAst(inboxFacetAst(), soup.facets.compile()),
+      ...(emailView ? { emailView } : {}),
+    };
+  });
 
   const [searchText, setSearchText] = useEntryState<string>('search.text', {
     default: props.initialSearchText ?? '',
@@ -379,12 +425,6 @@ export const SoupViewContextProvider: FlowComponent<
       ),
     };
   };
-
-  const activeListView = createMemo<ListView | undefined>(() => {
-    const content = panel.handle.content();
-    if (content.type !== 'component') return;
-    return isListViewID(content.id) ? content.id : undefined;
-  });
 
   const itemsQuery = useSoupAstItemsQuery(
     () => ({
