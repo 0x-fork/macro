@@ -5,8 +5,8 @@ fragile bun full-bucket scan.
 The bun migrator (index.ts) walks the whole bucket issuing concurrent
 HeadObject calls, which crashes silently under bun + the AWS SDK on large
 buckets. This tool splits the work into a read-only `find` pass that streams
-the bucket with list-only calls (`aws s3 ls`), and a `copy` pass that only
-touches the keys `find` flagged.
+the bucket with list-only calls (`aws s3 ls`), then `copy` / `purge` passes
+that only touch the keys `find` flagged.
 
 A "version" is one S3 object identity `{owner}/{uuid}/{version}`. The
 migration target for `{version}.{ext}` is the extensionless `{version}`.
@@ -16,18 +16,28 @@ A version is classified as:
   missed - only the .ext key exists -> the read path 404s (the gap to fix)
 
 Usage:
-  # 1. find the gap (read-only; needs s3:ListBucket)
-  python3 reconcile-extensionless-keys.py find --out missing_ext_keys.txt
+  # 1. find: write missed (.ext-only) keys, and optionally the purgeable
+  #    (doubly-stored "both") .ext keys. Read-only; needs s3:ListBucket.
+  python3 reconcile-extensionless-keys.py find \
+      --out missing_ext_keys.txt --purgeable-out purgeable_ext_keys.txt
 
-  # 2. copy only the missing keys to their extensionless target
+  # 2. copy missed keys to their extensionless target
   #    (needs s3:GetObject + s3:PutObject; e.g. AWS_PROFILE=s3-migrate-prod)
   python3 reconcile-extensionless-keys.py copy --in missing_ext_keys.txt --dry-run
   python3 reconcile-extensionless-keys.py copy --in missing_ext_keys.txt
 
+  # 3. purge the redundant .ext keys whose extensionless twin already exists
+  #    (needs s3:DeleteObject; dry-run by default, --apply to delete)
+  python3 reconcile-extensionless-keys.py purge --in purgeable_ext_keys.txt
+  python3 reconcile-extensionless-keys.py purge --in purgeable_ext_keys.txt --apply
+
 Re-running `find` after `copy` is the verification step: missed should be 0.
+Generate the purge list with `find` immediately before purging so it reflects
+current bucket state.
 """
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -72,6 +82,7 @@ def parse_key(key):
 
 def cmd_find(args):
     out = open(args.out, "w")
+    purge_out = open(args.purgeable_out, "w") if args.purgeable_out else None
     proc = subprocess.Popen(
         ["aws", "s3", "ls", f"s3://{args.bucket}/{args.prefix}",
          "--recursive", "--region", args.region],
@@ -79,20 +90,25 @@ def cmd_find(args):
     )
     clean = both = missed = total = 0
     cur = None
-    forms = {}
+    has_extless = False
+    ext_keys = []
     t0 = time.time()
 
     def flush():
         nonlocal clean, both, missed
         if cur is None:
             return
-        if "ext" in forms and "extless" in forms:
+        if has_extless and ext_keys:
             both += 1
-        elif "extless" in forms:
+            if purge_out:
+                for k in ext_keys:
+                    purge_out.write(k + "\n")
+        elif has_extless:
             clean += 1
-        elif "ext" in forms:
+        elif ext_keys:
             missed += 1
-            out.write(forms["ext"] + "\n")
+            for k in ext_keys:
+                out.write(k + "\n")
 
     for line in proc.stdout:
         parts = line.rstrip("\n").split(None, 3)
@@ -106,19 +122,26 @@ def cmd_find(args):
         if ident != cur:
             flush()
             cur = ident
-            forms = {}
-        forms[form] = key
+            has_extless = False
+            ext_keys = []
+        if form == "extless":
+            has_extless = True
+        else:
+            ext_keys.append(key)
         if total % 500000 == 0:
             print(f"[{time.time()-t0:5.0f}s] scanned={total:,} clean={clean:,} "
                   f"both={both:,} missed={missed:,}", flush=True)
     flush()
     out.close()
+    if purge_out:
+        purge_out.close()
     rc = proc.wait()
     if rc != 0:
         print(f"WARNING: aws s3 ls exited {rc} - results may be incomplete", file=sys.stderr)
     print(f"\nscanned={total:,} keys")
     print(f"  clean (extensionless only): {clean:,}")
-    print(f"  both  (leftover .ext):      {both:,}")
+    print(f"  both  (leftover .ext):      {both:,}"
+          + (f"  -> wrote to {args.purgeable_out}" if purge_out else ""))
     print(f"  missed (.ext only -> 404):  {missed:,}  -> wrote to {args.out}")
     return 1 if rc != 0 else 0
 
@@ -175,6 +198,62 @@ def cmd_copy(args):
     return 1 if errors else 0
 
 
+def cmd_purge(args):
+    keys = [k.strip() for k in open(args.infile) if k.strip()]
+    done_path = args.progress or (args.infile + ".done")
+    done = set()
+    if os.path.exists(done_path):
+        done = {k.strip() for k in open(done_path) if k.strip()}
+    todo = [k for k in keys if k not in done]
+    print(f"{len(keys):,} .ext keys, {len(done):,} already purged, {len(todo):,} to purge"
+          + ("" if args.apply else "   (DRY RUN - pass --apply to delete)"))
+    if not args.apply:
+        for k in todo[:10]:
+            print(f"  would delete {k}  (keeps {extensionless_target(k)})")
+        return 0
+
+    def twin_exists(k):
+        r = subprocess.run(["aws", "s3api", "head-object", "--bucket", args.bucket,
+                            "--key", extensionless_target(k), "--region", args.region],
+                           capture_output=True, text=True)
+        return k if r.returncode == 0 else None
+
+    done_file = open(done_path, "a")
+    deleted = errors = skipped = 0
+    t0 = time.time()
+    for start in range(0, len(todo), 1000):
+        batch = todo[start:start + 1000]
+        if args.verify:
+            # only delete a .ext key whose extensionless twin still exists
+            with ThreadPoolExecutor(max_workers=args.concurrency) as ex:
+                verified = [k for k in ex.map(twin_exists, batch) if k]
+            skipped += len(batch) - len(verified)
+            batch = verified
+            if not batch:
+                continue
+        payload = json.dumps({"Objects": [{"Key": k} for k in batch], "Quiet": True})
+        r = subprocess.run(["aws", "s3api", "delete-objects", "--bucket", args.bucket,
+                            "--region", args.region, "--no-cli-pager", "--delete", payload],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            print(f"BATCH FAILED at offset {start}: {r.stderr[:300]}", file=sys.stderr)
+            sys.exit(1)
+        batch_errors = json.loads(r.stdout).get("Errors", []) if r.stdout.strip() else []
+        failed = {e.get("Key") for e in batch_errors}
+        for k in batch:
+            if k not in failed:
+                done_file.write(k + "\n")
+        done_file.flush()
+        deleted += len(batch) - len(failed)
+        errors += len(failed)
+        for e in batch_errors[:5]:
+            print(f"ERROR {e.get('Key')}: {e.get('Code')} {e.get('Message')}", file=sys.stderr)
+        print(f"[{time.time()-t0:5.0f}s] purged={deleted:,} errors={errors} skipped={skipped}", flush=True)
+    done_file.close()
+    print(f"\npurged={deleted:,} errors={errors} skipped(no twin)={skipped}")
+    return 1 if errors else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -182,9 +261,11 @@ def main():
     ap.add_argument("--region", default=REGION)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    f = sub.add_parser("find", help="read-only: list bucket, write .ext-only keys")
+    f = sub.add_parser("find", help="read-only: list bucket, write .ext-only (and optionally purgeable) keys")
     f.add_argument("--prefix", default=DEFAULT_PREFIX)
     f.add_argument("--out", default="missing_ext_keys.txt")
+    f.add_argument("--purgeable-out", default=None,
+                   help="also write doubly-stored .ext keys (twin exists) here")
     f.set_defaults(func=cmd_find)
 
     c = sub.add_parser("copy", help="copy .ext keys to their extensionless target")
@@ -193,6 +274,15 @@ def main():
     c.add_argument("--progress", default=None, help="done-keys file for resume")
     c.add_argument("--dry-run", action="store_true")
     c.set_defaults(func=cmd_copy)
+
+    p = sub.add_parser("purge", help="delete redundant .ext keys whose extensionless twin exists")
+    p.add_argument("--in", dest="infile", required=True)
+    p.add_argument("--apply", action="store_true", help="actually delete (default: report only)")
+    p.add_argument("--verify", action="store_true",
+                   help="HeadObject the extensionless twin before deleting each key")
+    p.add_argument("--concurrency", type=int, default=20, help="parallelism for --verify")
+    p.add_argument("--progress", default=None, help="done-keys file for resume")
+    p.set_defaults(func=cmd_purge)
 
     args = ap.parse_args()
     sys.exit(args.func(args))
