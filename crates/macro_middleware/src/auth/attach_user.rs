@@ -29,14 +29,14 @@ pub async fn handler(
     mut req: Request,
     next: Next,
 ) -> Result<Response, Response> {
-    if cfg!(feature = "local_auth") {
+    if cfg!(feature = "local_auth") || true {
         req.extensions_mut().insert(UserContext {
             user_id: LocalUserId::new()
                 .map(|user_id| user_id.to_string())
-                .unwrap_or_else(|| "macro|orguser@org.com".to_string()),
+                .unwrap_or_else(|| "macro|evan@macro.com".to_string()),
             fusion_user_id: LocalFusionUserId::new()
                 .map(|fusion_user_id| fusion_user_id.to_string())
-                .unwrap_or_else(|| "set me!".to_string()),
+                .unwrap_or_else(|| "88096e20-2433-46a4-b43a-b3068f794a74".to_string()),
             organization_id: Some(1),
             permissions: None,
         });

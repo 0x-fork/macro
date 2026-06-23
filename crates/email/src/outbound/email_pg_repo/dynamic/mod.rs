@@ -127,6 +127,37 @@ impl SqlFragment {
             }
         }
     }
+
+    /// Like [`push_into`], but also records each bound value as a SQL literal
+    /// into `binds` so the runtime debug printer can substitute `$N`
+    /// placeholders back into the query. Must mirror `push_into`'s bind order
+    /// exactly — one entry per `push_bind` call.
+    fn push_into_tracked(self, builder: &mut QueryBuilder<'_, Postgres>, binds: &mut Vec<String>) {
+        for segment in self.segments {
+            match segment {
+                SqlSegment::Raw(s) => {
+                    builder.push(s);
+                }
+                SqlSegment::BindString(s) => {
+                    binds.push(format!("'{}'", s.replace('\'', "''")));
+                    builder.push_bind(s);
+                }
+                SqlSegment::BindUuid(u) => {
+                    binds.push(format!("'{u}'"));
+                    builder.push_bind(u);
+                }
+                SqlSegment::BindUuidArray(ids) => {
+                    let joined = ids
+                        .iter()
+                        .map(|u| format!("'{u}'"))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    binds.push(format!("ARRAY[{joined}]::uuid[]"));
+                    builder.push_bind(ids);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
