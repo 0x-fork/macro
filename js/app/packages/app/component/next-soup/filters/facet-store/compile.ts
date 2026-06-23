@@ -1,18 +1,20 @@
-import { TARGETS, type Target } from '../v5/targets';
 import {
   AST,
   type BackendAstMap,
   type BackendAstNode,
   compileExpr,
+  eq,
   isBackendAstNode,
   type TargetExpr,
 } from './clause';
 import {
   type Facet,
   type FacetSelection,
+  type OptionClause,
   optionFor,
   resolveClause,
 } from './facets';
+import { TARGETS, type Target } from './targets';
 
 const ENTITY_TARGETS = [
   'df',
@@ -42,11 +44,52 @@ const ID_BACKEND: Record<EntityTarget, string> = {
 
 const NIL = '00000000-0000-0000-0000-000000000000';
 
+// The id field (facet field key) per entity target, used to NIL-fill.
+const ID_FIELD: Record<EntityTarget, string> = {
+  df: 'documentId',
+  ef: 'threadId',
+  chanf: 'channelId',
+  cthf: 'channelThreadChannelId',
+  cf: 'chatId',
+  pf: 'folderId',
+  callf: 'callId',
+  fef: 'foreignEntityRecordId',
+  ccf: 'crmCompanyId',
+};
+
+// Confine a clause to the entity types it references — NIL-fill every other
+// entity target (id ≠ NIL ⇒ matches nothing). When confined clauses compose,
+// the duplicate NIL-fills collapse to one per target during compile.
+export const confine = (clause: OptionClause): OptionClause => {
+  const out: OptionClause = { ...clause };
+  for (const target of ENTITY_TARGETS) {
+    if (!(target in out)) out[target] = eq(ID_FIELD[target], NIL);
+  }
+  return out;
+};
+
+// Define a facet option's clause; pass `restrict` to confine it to the entity
+// types it touches. The standard way to define a clause — pair with `where(…)`
+// for the clause body.
+export const defineClause = (
+  clause: OptionClause,
+  restrict = false
+): OptionClause => (restrict ? confine(clause) : clause);
+
 const isEntityTarget = (target: Target): target is EntityTarget =>
   (ENTITY_TARGETS as readonly Target[]).includes(target);
 
+// `confine` emits a bare `id = NIL` leaf at the top level of each excluded
+// target (matches nothing). Recognize it so composed restricts collapse to one
+// NIL-fill per target instead of carrying a duplicate per contributing clause.
+// Verified against the legacy `defineQueryFilters`: NIL only ever appears as a
+// top-level per-target leaf in an AND context, never nested or OR'd.
+const isNilExpr = (expr: TargetExpr): boolean =>
+  'field' in expr && (expr as { value: unknown }).value === NIL;
+
 // per target: combine each facet's active options by mode, then AND the facets.
-// restrict facets also confine which entity targets may appear.
+// `confine`d clauses exclude entity targets via a top-level NIL leaf; facets
+// with `restrict` (multi-select type filters) confine via the engine instead.
 export const compileFacets = <Ctx>(
   selection: FacetSelection,
   facets: readonly Facet<Ctx>[],
@@ -54,6 +97,7 @@ export const compileFacets = <Ctx>(
 ): BackendAstMap => {
   const byTarget = new Map<Target, BackendAstNode[]>();
   const allowed = new Set<EntityTarget>();
+  const excluded = new Set<EntityTarget>();
   let restricting = false;
 
   for (const facet of facets) {
@@ -74,6 +118,12 @@ export const compileFacets = <Ctx>(
 
         const expr = clause[target];
         if (!expr) continue;
+
+        // A top-level NIL leaf excludes its entity target (AND with ⊥).
+        if (isEntityTarget(target) && isNilExpr(expr)) {
+          excluded.add(target);
+          continue;
+        }
 
         const list = exprsByTarget.get(target) ?? [];
         list.push(expr);
@@ -99,6 +149,8 @@ export const compileFacets = <Ctx>(
   const result: BackendAstMap = {};
 
   for (const target of TARGETS) {
+    if (isEntityTarget(target) && excluded.has(target)) continue;
+
     const asts = byTarget.get(target);
     if (!asts?.length) continue;
 
@@ -111,6 +163,12 @@ export const compileFacets = <Ctx>(
       if (allowed.has(target)) continue;
       result[target] = { l: { [ID_BACKEND[target]]: NIL } };
     }
+  }
+
+  // One NIL-fill per excluded target — deduped regardless of how many clauses
+  // contributed it.
+  for (const target of excluded) {
+    result[target] = { l: { [ID_BACKEND[target]]: NIL } };
   }
 
   return result;

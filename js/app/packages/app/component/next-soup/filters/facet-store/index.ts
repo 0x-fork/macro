@@ -1,7 +1,7 @@
 export type { BackendAstMap, Leaf, TargetExpr } from './clause';
-export { and, eq, not, or } from './clause';
+export { and, clause, eq, not, or } from './clause';
 
-export { compileFacets, mergeAst } from './compile';
+export { compileFacets, defineClause, mergeAst } from './compile';
 export type {
   ClauseBuilder,
   ClauseDef,
@@ -18,9 +18,9 @@ export type {
   Predicate,
 } from './facets';
 export { testFacets } from './facets';
-
 export {
   createFacetStore,
   deserializeFacets,
   serializeFacets,
 } from './store';
+export { type WhereBag, where } from './where';

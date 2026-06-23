@@ -1,3 +1,4 @@
+import { createSignal } from 'solid-js';
 import { createStore, produce, reconcile } from 'solid-js/store';
 import { compileFacets } from './compile';
 import type {
@@ -15,6 +16,16 @@ export const createFacetStore = <
   facets: F
 ) => {
   const [selection, setSelection] = createStore<FacetSelection>({});
+
+  // Extra facets supplied by the consumer (e.g. a preset's inline baseline
+  // facets) that aren't in the static catalog. They participate in compile/test
+  // alongside the catalog; the store stays unaware of where they come from.
+  const [extraFacets, setExtraFacets] = createSignal<readonly Facet<Ctx>[]>([]);
+
+  const activeFacets = (): readonly Facet<Ctx>[] => [
+    ...(facets as readonly Facet<Ctx>[]),
+    ...extraFacets(),
+  ];
 
   // facet ids are a closed catalog (typed); option ids are an open space
   // (resolver facets), so they stay string. unknown ids are inert at compile.
@@ -49,10 +60,10 @@ export const createFacetStore = <
 
   // ctx is supplied at call time (consumed by ctx-relative clauses/predicates)
   const compile = (ctx: Ctx = {} as Ctx) =>
-    compileFacets(selection, facets, ctx);
+    compileFacets(selection, activeFacets(), ctx);
 
   const test = (entity: unknown, ctx: Ctx = {} as Ctx) =>
-    testFacets(selection, facets, entity, ctx);
+    testFacets(selection, activeFacets(), entity, ctx);
 
   // canonical blob for entry-state persistence; restore via `hydrate`
   const serialize = () => serializeFacets(selection);
@@ -68,6 +79,7 @@ export const createFacetStore = <
     serialize,
     compile,
     test,
+    setExtraFacets,
   };
 };
 

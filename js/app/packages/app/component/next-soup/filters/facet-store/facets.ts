@@ -1,4 +1,4 @@
-import type { Target } from '../v5/targets';
+import type { Target } from './targets';
 import { and, eq, not, or, type TargetExpr } from './clause';
 
 // per-option, per-target clause; restrict facets admit a type via idField ≠ NIL
