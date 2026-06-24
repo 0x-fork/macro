@@ -10,10 +10,16 @@ export const SEARCH_TYPE = facet({
   multiple: false, // single-select; 'all' = nothing selected
   restrict: true,
   options: [
-    { id: 'document-or-file', clause: (b) => ({ df: b.not(b.eq('subType', 'task')) }) },
+    {
+      id: 'document-or-file',
+      clause: (b) => ({ df: b.not(b.eq('subType', 'task')) }),
+    },
     { id: 'task', clause: (b) => ({ df: b.eq('subType', 'task') }) },
-    { id: 'email', clause: (b) => ({ ef: b.not(b.eq('threadId', NIL)) }) },
-    { id: 'channels', clause: (b) => ({ chanf: b.not(b.eq('channelId', NIL)) }) },
+    { id: 'email', clause: (b) => ({ ef: b.and() }) },
+    {
+      id: 'channels',
+      clause: (b) => ({ chanf: b.not(b.eq('channelId', NIL)) }),
+    },
     { id: 'calls', clause: (b) => ({ callf: b.not(b.eq('callId', NIL)) }) },
     { id: 'folders', clause: (b) => ({ pf: b.not(b.eq('folderId', NIL)) }) },
     { id: 'agent', clause: (b) => ({ cf: b.not(b.eq('chatId', NIL)) }) },
@@ -24,7 +30,9 @@ export const EMAIL_IMPORTANCE = facet({
   id: 'email-importance',
   mode: 'or',
   multiple: false,
-  options: [{ id: 'important', clause: (b) => ({ ef: b.eq('emailImportance', true) }) }],
+  options: [
+    { id: 'important', clause: (b) => ({ ef: b.eq('emailImportance', true) }) },
+  ],
 });
 
 // open id spaces (search boxes): each picked id resolves to its clause

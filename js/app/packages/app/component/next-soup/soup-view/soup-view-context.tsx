@@ -354,8 +354,6 @@ export const SoupViewContextProvider: FlowComponent<
     soup.facets.setExtraFacets(activePreset()?.facets ?? []);
   });
 
-  // The inbox-account selector as a backend AST fragment, via the `email-inbox`
-  // facet (open id space). `undefined` ⇒ no filter; `[]` ⇒ match nothing.
   const inboxFacetAst = (): BackendAstMap => {
     const inboxes = inboxFilter();
     if (inboxes === undefined) return {};
@@ -366,9 +364,6 @@ export const SoupViewContextProvider: FlowComponent<
     );
   };
 
-  // Soup backend query: the active tab's preset baseline + facet selection,
-  // merged with the inbox-account filter, plus the email-view mode as a
-  // top-level body field. All on the facet path — no legacy query compiler.
   const soupBody = createMemo(() => {
     const emailView = activePreset()?.filters?.emailView;
     return {

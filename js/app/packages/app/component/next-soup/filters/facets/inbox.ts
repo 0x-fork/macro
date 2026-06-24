@@ -73,7 +73,7 @@ export const ENTITY_TYPE = facet({
     },
     {
       id: 'email',
-      clause: (b) => ({ ef: b.not(b.eq('threadId', NIL)) }),
+      clause: (b) => ({ ef: b.and() }),
       predicate: (e) => e.type === 'email',
     },
     {
