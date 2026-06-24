@@ -545,7 +545,7 @@ function EmailContent(props: EmailViewProps) {
                 onRecipientsChange: context.onRecipientsChange,
               }}
             >
-              <EmailReplyHotkeys scopeId={scopeId()} />
+              <EmailReplyHotkeys />
               {/* Edge-to-edge on mobile: the message list carries its own
                   insets in-scroll and under-scrolls the floating chrome. */}
               <div class="size-full bg-surface select-none overscroll-none overflow-hidden flex flex-col">

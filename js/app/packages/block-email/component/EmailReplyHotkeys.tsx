@@ -3,20 +3,27 @@ import { getEmailFormRegistry } from '@block-email/component/EmailFormContext';
 import { isReplyAllEligible } from '@block-email/util/recipientConversion';
 import type { ReplyType } from '@block-email/util/replyType';
 import { useEmail } from '@core/context/user';
-import type { HotkeyGroup } from '@core/hotkey/types';
-import { onCleanup, onMount } from 'solid-js';
-import { registerReplyHotkeys } from '../util/emailHotkeys';
+import { TOKENS } from '@core/hotkey/tokens';
+import { registerScopeSignalHotkey } from '@core/hotkey/utils';
+import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 
 /**
- * Registers the `r` / `shift+r` / `f` reply, reply-all and forward shortcuts.
+ * Registers the Superhuman-style `r` / `shift+r` / `f` reply, reply-all and
+ * forward shortcuts for an email thread.
  *
  * Rendered inside the {@link EmailFormContextProvider} so the handlers can
  * reach the form registry (which derives recipients/subject from the message
  * being replied to). Pressing one opens the reply input for the focused
  * message, or the last message in the thread when nothing is focused, mirroring
  * the inline reply/forward buttons.
+ *
+ * Registration is bound to the block's hotkey scope signal (via
+ * {@link registerScopeSignalHotkey}) rather than a one-shot read, so the
+ * shortcuts re-register if the scope changes (e.g. navigating between threads
+ * without remounting this view).
  */
-export function EmailReplyHotkeys(props: { scopeId: string }) {
+export function EmailReplyHotkeys() {
+  const scopeId = blockHotkeyScopeSignal.get;
   const ctx = useEmailContext();
   const formRegistry = getEmailFormRegistry();
   const userEmail = useEmail();
@@ -37,8 +44,7 @@ export function EmailReplyHotkeys(props: { scopeId: string }) {
 
     // Fall back to a plain reply when there's no one else to reply-all to.
     const resolvedType: ReplyType =
-      type === 'reply-all' &&
-      !isReplyAllEligible(target, userEmail() ?? '')
+      type === 'reply-all' && !isReplyAllEligible(target, userEmail() ?? '')
         ? 'reply'
         : type;
 
@@ -62,15 +68,27 @@ export function EmailReplyHotkeys(props: { scopeId: string }) {
     return true;
   };
 
-  let group: HotkeyGroup | undefined;
-  onMount(() => {
-    group = registerReplyHotkeys(props.scopeId, {
-      reply: () => startReply('reply'),
-      replyAll: () => startReply('reply-all'),
-      forward: () => startReply('forward'),
-    });
+  registerScopeSignalHotkey(scopeId, {
+    hotkey: 'r',
+    description: 'Reply',
+    keyDownHandler: () => startReply('reply'),
+    hotkeyToken: TOKENS.email.reply,
+    displayPriority: 9,
   });
-  onCleanup(() => group?.dispose());
+  registerScopeSignalHotkey(scopeId, {
+    hotkey: 'shift+r',
+    description: 'Reply all',
+    keyDownHandler: () => startReply('reply-all'),
+    hotkeyToken: TOKENS.email.replyAll,
+    displayPriority: 8,
+  });
+  registerScopeSignalHotkey(scopeId, {
+    hotkey: 'f',
+    description: 'Forward',
+    keyDownHandler: () => startReply('forward'),
+    hotkeyToken: TOKENS.email.forward,
+    displayPriority: 7,
+  });
 
   return null;
 }
