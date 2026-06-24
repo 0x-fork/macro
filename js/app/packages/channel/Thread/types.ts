@@ -25,6 +25,8 @@ export type ThreadState = {
   setReplyInputEl?: Setter<HTMLElement | undefined>;
   replyInputHandle?: Accessor<InputHandle | undefined>;
   setReplyInputHandle?: Setter<InputHandle | undefined>;
+  /** One-shot: returns true if the next reply-input mount should autofocus. */
+  consumeReplyFocus?: () => boolean;
 };
 
 export type MessageEditState = {

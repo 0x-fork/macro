@@ -18,6 +18,7 @@ export type StandaloneThreadContextValue = {
   setIsExpanded: Setter<boolean>;
   isReplying: Accessor<boolean>;
   setIsReplying: Setter<boolean>;
+  consumeReplyFocus: () => boolean;
 };
 
 const StandaloneThreadContext = createContext<StandaloneThreadContextValue>();

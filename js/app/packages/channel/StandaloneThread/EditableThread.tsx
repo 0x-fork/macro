@@ -77,6 +77,7 @@ function EditableThreadInner() {
           setReplyInputState={setReplyInputState}
           setIsReplying={ctx.setIsReplying}
           setReplyInputHandle={setReplyInputHandle}
+          consumeReplyFocus={ctx.consumeReplyFocus}
         />
       </Show>
     </>

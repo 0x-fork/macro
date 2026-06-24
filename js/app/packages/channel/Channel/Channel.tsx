@@ -525,6 +525,7 @@ export function Channel(props: ChannelProps) {
                                 setReplyInputState={state.setReplyInputState}
                                 setReplyInputEl={state.setReplyInputEl}
                                 setReplyInputHandle={state.setReplyInputHandle}
+                                consumeReplyFocus={state.consumeReplyFocus}
                                 listMeta={listMetaByMessageId()[item.id]}
                                 messageEditor={messageEditor}
                                 participants={participants.users}

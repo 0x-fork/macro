@@ -20,11 +20,17 @@ export function createThreadManager() {
       InputHandle | undefined
     >();
 
+    // Set when replying goes false -> true (genuine user intent to reply).
+    // Read once by the reply input on mount; virtualized remounts keep
+    // `isReplying` true so they never set it and never steal focus.
+    let focusReplyOnMount = false;
+
     /** If you set replying from false -> true this means it must be expanded **/
     const setIsReplying: Setter<boolean> = (val) => {
       batch(() => {
         const next: boolean =
           typeof val === 'function' ? val(isReplying()) : val;
+        if (next && !isReplying()) focusReplyOnMount = true;
         if (next) {
           setIsExpanded(true);
           requestAnimationFrame(() =>
@@ -33,6 +39,12 @@ export function createThreadManager() {
         }
         setIsReplyingRaw(next);
       });
+    };
+
+    const consumeReplyFocus = () => {
+      const should = focusReplyOnMount;
+      focusReplyOnMount = false;
+      return should;
     };
 
     const state: ThreadState = {
@@ -46,6 +58,7 @@ export function createThreadManager() {
       setReplyInputEl,
       replyInputHandle,
       setReplyInputHandle,
+      consumeReplyFocus,
     };
 
     setThreadStore(threadId, state);

@@ -176,24 +176,28 @@ export function ChannelInput(props: ChannelInputProps) {
   const isCollapsed = () => !!props.collapsible && collapsedInput.isCollapsed();
 
   let isEditorConnected = false;
-  let pendingRestoreSnapshot:
-    | Parameters<InputHandle['restoreSnapshot']>[0]
+  let pendingRestore:
+    | {
+        snapshot: Parameters<InputHandle['restoreSnapshot']>[0];
+        options?: { focus?: boolean };
+      }
     | undefined;
 
   const applySnapshot = (
-    snapshot: Parameters<InputHandle['restoreSnapshot']>[0]
+    snapshot: Parameters<InputHandle['restoreSnapshot']>[0],
+    options?: { focus?: boolean }
   ) => {
     markdownEditor.controls.setMarkdown(snapshot.value);
     attachmentTracker.setAttachments(snapshot.attachments);
     mentionsTracker.setMentions(snapshot.mentions);
-    markdownEditor.controls.focus();
+    if (options?.focus !== false) markdownEditor.controls.focus();
   };
 
   const flushPendingRestore = () => {
-    const snapshot = pendingRestoreSnapshot;
-    pendingRestoreSnapshot = undefined;
-    if (!snapshot) return;
-    queueMicrotask(() => applySnapshot(snapshot));
+    const restore = pendingRestore;
+    pendingRestore = undefined;
+    if (!restore) return;
+    queueMicrotask(() => applySnapshot(restore.snapshot, restore.options));
   };
 
   // Macro AI is mentionable in every channel. It is surfaced through the same
@@ -321,12 +325,12 @@ export function ChannelInput(props: ChannelInputProps) {
     insertEntityMention,
     previewEntityMentionInsertion,
     clearEntityMentionInsertionPreview,
-    restoreSnapshot: (snapshot) => {
+    restoreSnapshot: (snapshot, options) => {
       if (!isEditorConnected) {
-        pendingRestoreSnapshot = snapshot;
+        pendingRestore = { snapshot, options };
         return;
       }
-      applySnapshot(snapshot);
+      applySnapshot(snapshot, options);
     },
   });
 

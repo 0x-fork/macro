@@ -23,9 +23,13 @@ type ThreadReplyInputProps = {
   setIsReplying: Setter<boolean>;
   setReplyInputEl?: Setter<HTMLElement | undefined>;
   setReplyInputHandle?: Setter<InputHandle | undefined>;
+  consumeReplyFocus?: () => boolean;
 };
 
 export function ThreadReplyInput(props: ThreadReplyInputProps) {
+  // Read once at mount: focus only when this mount was triggered by an explicit
+  // reply intent, never on virtualized remounts / history restoration.
+  const autofocus = props.consumeReplyFocus?.() ?? false;
   onCleanup(() => {
     props.setReplyInputEl?.(undefined);
     props.setReplyInputHandle?.(undefined);
@@ -64,7 +68,9 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
 
     const snapshot = props.replyInputState();
     if (!snapshot) return;
-    requestAnimationFrame(() => handle.restoreSnapshot(snapshot));
+    requestAnimationFrame(() =>
+      handle.restoreSnapshot(snapshot, { focus: false })
+    );
   };
 
   return (
@@ -97,6 +103,7 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                 threadId: props.messageId,
               })}
               markdownNamespace={`thread-reply-input-${props.messageId}-markdown`}
+              autofocus={autofocus}
               onReady={setReplyInputHandle}
               onChange={(snapshot) => void props.setReplyInputState(snapshot)}
               onStartTyping={() =>

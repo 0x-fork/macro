@@ -3,7 +3,7 @@ import { useChannelMessagesByIdsQuery } from '@queries/channel/channel-messages'
 import { useThreadRepliesQuery } from '@queries/channel/thread-replies';
 import type { ApiChannelMessage } from '@service-storage/generated/schemas/apiChannelMessage';
 import type { ApiThreadReply } from '@service-storage/generated/schemas/apiThreadReply';
-import { createSignal, type ParentProps, Show } from 'solid-js';
+import { createSignal, type ParentProps, type Setter, Show } from 'solid-js';
 import { ThreadRail } from '../Thread/ThreadRail';
 import { DEFAULT_VISIBLE_REPLY_COUNT } from '../Thread/utils/thread-reply-indicator-helpers';
 import { StandaloneThreadContext } from './context';
@@ -24,7 +24,20 @@ export function Root(props: RootProps) {
 
 function RootInner(props: RootProps) {
   const [isExpanded, setIsExpanded] = createSignal(false);
-  const [isReplying, setIsReplying] = createSignal(false);
+  const [isReplying, setIsReplyingRaw] = createSignal(false);
+  // One-shot focus intent: set on a false -> true transition, read once by the
+  // reply input on mount so remounts never steal focus.
+  let focusReplyOnMount = false;
+  const setIsReplying: Setter<boolean> = (val) => {
+    const next = typeof val === 'function' ? val(isReplying()) : val;
+    if (next && !isReplying()) focusReplyOnMount = true;
+    return setIsReplyingRaw(next);
+  };
+  const consumeReplyFocus = () => {
+    const should = focusReplyOnMount;
+    focusReplyOnMount = false;
+    return should;
+  };
 
   const parentQuery = useChannelMessagesByIdsQuery(
     () => props.channelId,
@@ -64,6 +77,7 @@ function RootInner(props: RootProps) {
         setIsExpanded,
         isReplying,
         setIsReplying,
+        consumeReplyFocus,
       }}
     >
       <div class="relative">
