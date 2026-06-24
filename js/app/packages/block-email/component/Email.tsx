@@ -37,6 +37,7 @@ import { scrollToMessage } from '../util/scrollToMessage';
 import { BottomReplyButtons } from './BottomReplyButtons';
 import { EmailFormContextProvider } from './EmailFormContext';
 import { EmailParticipants } from './EmailParticipants';
+import { EmailReplyHotkeys } from './EmailReplyHotkeys';
 import { MessageList } from './MessageList';
 import { ModalsProvider } from './ModalsProvider';
 import { EmailSidePanelSections } from './sidepanel/EmailSidePanelSections';
@@ -544,6 +545,7 @@ function EmailContent(props: EmailViewProps) {
                 onRecipientsChange: context.onRecipientsChange,
               }}
             >
+              <EmailReplyHotkeys scopeId={scopeId()} />
               {/* Edge-to-edge on mobile: the message list carries its own
                   insets in-scroll and under-scrolls the floating chrome. */}
               <div class="size-full bg-surface select-none overscroll-none overflow-hidden flex flex-col">

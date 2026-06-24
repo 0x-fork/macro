@@ -1,5 +1,5 @@
 import { TOKENS } from '@core/hotkey/tokens';
-import { registerHotkey } from 'core/hotkey/hotkeys';
+import { createHotkeyGroup, registerHotkey } from 'core/hotkey/hotkeys';
 
 interface EmailHotkeyHandlers {
   blockSender: () => boolean;
@@ -10,45 +10,63 @@ interface EmailHotkeyHandlers {
   navigateToNextMessage: () => boolean;
 }
 
+interface ReplyHotkeyHandlers {
+  reply: () => boolean;
+  replyAll: () => boolean;
+  forward: () => boolean;
+}
+
+/**
+ * Registers the Superhuman-style reply/forward shortcuts (`r`, `shift+r`, `f`)
+ * for an email thread. Returns a hotkey group so the caller can dispose the
+ * registrations when the email block unmounts.
+ *
+ * These live separately from {@link registerEmailHotkeys} because their
+ * handlers need access to the email form registry, which is only available
+ * deeper in the component tree.
+ */
+export function registerReplyHotkeys(
+  scopeId: string,
+  handlers: ReplyHotkeyHandlers
+) {
+  const group = createHotkeyGroup();
+  group.add(
+    registerHotkey({
+      hotkey: 'r',
+      scopeId,
+      description: 'Reply',
+      keyDownHandler: handlers.reply,
+      hotkeyToken: TOKENS.email.reply,
+      displayPriority: 9,
+    })
+  );
+  group.add(
+    registerHotkey({
+      hotkey: 'shift+r',
+      scopeId,
+      description: 'Reply all',
+      keyDownHandler: handlers.replyAll,
+      hotkeyToken: TOKENS.email.replyAll,
+      displayPriority: 8,
+    })
+  );
+  group.add(
+    registerHotkey({
+      hotkey: 'f',
+      scopeId,
+      description: 'Forward',
+      keyDownHandler: handlers.forward,
+      hotkeyToken: TOKENS.email.forward,
+      displayPriority: 7,
+    })
+  );
+  return group;
+}
+
 export function registerEmailHotkeys(
   scopeId: string,
   handlers: EmailHotkeyHandlers
 ) {
-  registerHotkey({
-    hotkey: 'opt+r',
-    scopeId: scopeId,
-    description: 'Reply to thread',
-    keyDownHandler: () => {
-      // handlers.setReplyMode('reply');
-      return true;
-    },
-    hotkeyToken: TOKENS.email.reply,
-    displayPriority: 9,
-  });
-  registerHotkey({
-    hotkey: 'r',
-    scopeId: scopeId,
-    description: 'Reply all to thread',
-    keyDownHandler: () => {
-      // handlers.setReplyMode('reply-all');
-      return true;
-    },
-    hotkeyToken: TOKENS.email.replyAll,
-    displayPriority: 8,
-  });
-  registerHotkey({
-    hotkey: 'f',
-    scopeId: scopeId,
-    description: 'Forward thread',
-    keyDownHandler: () => {
-      // TODO: Populate to field
-      // TODO: Attachments from last/current selected message
-      // handlers.setReplyMode('forward');
-      return true;
-    },
-    hotkeyToken: TOKENS.email.forward,
-    displayPriority: 7,
-  });
   registerHotkey({
     hotkey: 'e',
     scopeId,
