@@ -118,4 +118,107 @@ describe('layoutManager', () => {
       });
     });
   });
+
+  describe('replaceAllSplits (open full screen)', () => {
+    it('collapses several splits then restores the whole layout on back', () => {
+      createRoot((dispose) => {
+        const ORIGINAL = [
+          { type: 'md', id: 'test-md-0' },
+          { type: 'md', id: 'test-md-1' },
+          { type: 'md', id: 'test-md-2' },
+        ] satisfies SplitContent[];
+
+        const manager = createSplitLayout(createMockOrchestrator(), ORIGINAL);
+        expect(manager.splits()).toHaveLength(3);
+
+        // Make the middle split active (the one the user opened from).
+        const activeContentId = manager.splits()[1].content.id;
+        manager.activateSplit(manager.splits()[1].id);
+
+        manager.replaceAllSplits({ type: 'md', id: 'full-screen-doc' });
+
+        // Collapsed to a single full-screen split.
+        expect(manager.splits()).toHaveLength(1);
+        expect(manager.splits()[0].content).toMatchObject({
+          type: 'md',
+          id: 'full-screen-doc',
+        });
+
+        const survivor = manager.getSplit(manager.splits()[0].id)!;
+        expect(survivor.canGoBack()).toBe(true);
+
+        survivor.goBack();
+
+        // The original 3-split layout is rebuilt, with the same active split.
+        expect(manager.splits()).toHaveLength(3);
+        expect(manager.splits().map((s) => s.content)).toEqual(ORIGINAL);
+        expect(manager.activeSplitId()).toBe(manager.splits()[1].id);
+        expect(manager.splits()[1].content.id).toBe(activeContentId);
+
+        dispose();
+      });
+    });
+
+    it('discards the layout snapshot once the surviving split navigates away', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'md', id: 'test-md-0' },
+          { type: 'md', id: 'test-md-1' },
+        ]);
+
+        manager.replaceAllSplits({ type: 'md', id: 'full-screen-doc' });
+        expect(manager.splits()).toHaveLength(1);
+
+        // Navigate the surviving split elsewhere without pressing back.
+        manager
+          .getSplit(manager.splits()[0].id)!
+          .replace({ next: { type: 'md', id: 'another-doc' } });
+
+        // Back walks this split's own history, not the stale 2-split layout.
+        manager.getSplit(manager.splits()[0].id)!.goBack();
+        expect(manager.splits()).toHaveLength(1);
+        expect(manager.splits()[0].content).toMatchObject({
+          type: 'md',
+          id: 'full-screen-doc',
+        });
+
+        // A further back must not resurface the original two-split layout.
+        manager.getSplit(manager.splits()[0].id)!.goBack();
+        expect(manager.splits()).toHaveLength(1);
+
+        dispose();
+      });
+    });
+
+    it('opens in place for a single split and back returns to the prior content', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'md', id: 'origin-doc' },
+        ]);
+        const splitId = manager.splits()[0].id;
+
+        manager.replaceAllSplits({ type: 'md', id: 'full-screen-doc' });
+
+        // Same split, content pushed onto its existing history.
+        expect(manager.splits()).toHaveLength(1);
+        expect(manager.splits()[0].id).toBe(splitId);
+        expect(manager.splits()[0].content).toMatchObject({
+          type: 'md',
+          id: 'full-screen-doc',
+        });
+
+        const handle = manager.getSplit(splitId)!;
+        expect(handle.canGoBack()).toBe(true);
+        handle.goBack();
+
+        expect(manager.splits()).toHaveLength(1);
+        expect(manager.splits()[0].content).toMatchObject({
+          type: 'md',
+          id: 'origin-doc',
+        });
+
+        dispose();
+      });
+    });
+  });
 });

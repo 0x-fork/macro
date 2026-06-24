@@ -146,6 +146,19 @@ export type SplitState = {
   lastNavigationCause: NavigationCause;
 };
 
+/**
+ * A snapshot of the visible split layout — each split's current content, in
+ * order, plus which one was active. Captured when "open full screen" collapses
+ * several splits into one, so the back button can rebuild the arrangement in a
+ * single press. We snapshot `content` (the reliable mirror of the current
+ * entry) rather than walking history, whose index can diverge from the
+ * displayed content.
+ */
+type LayoutSnapshot = {
+  splits: SplitContent[];
+  activeIndex: number;
+};
+
 export type CreateNewSplitOptions = {
   content?: SplitContent;
   activate?: boolean;
@@ -505,6 +518,9 @@ export function createSplitLayout(
     lastActiveSplitId: SplitId | undefined;
     spotlightId: SplitId | undefined;
     events: SplitEventWithType[];
+    pendingLayoutRestore:
+      | { ownerSplitId: SplitId; snapshot: LayoutSnapshot }
+      | undefined;
     popovers: Map<
       string,
       {
@@ -522,6 +538,7 @@ export function createSplitLayout(
     lastActiveSplitId: undefined,
     spotlightId: undefined,
     events: [],
+    pendingLayoutRestore: undefined,
     popovers: new Map(),
   });
 
@@ -724,7 +741,12 @@ export function createSplitLayout(
     if (i < 0) return console.error(`Split with id ${id} not found`);
 
     const split = state.splits[i];
-    if (!split.history.canGoBack()) return;
+    if (!split.history.canGoBack()) {
+      // Per-split history is exhausted. If this split is the remnant of a
+      // full-screen collapse, rebuild the layout it replaced.
+      maybeRestoreLayoutFor(id);
+      return;
+    }
 
     captureCurrentEntryState(split);
 
@@ -819,6 +841,12 @@ export function createSplitLayout(
     const { next, mergeHistory, referredFrom } = options;
     const i = splitIndexById(id);
     if (i < 0) return console.error(`Split with id ${id} not found`);
+
+    // Navigating the surviving split to new content abandons the full-screen
+    // collapse, so its layout-restore snapshot no longer applies.
+    if (state.pendingLayoutRestore?.ownerSplitId === id) {
+      setState('pendingLayoutRestore', undefined);
+    }
 
     const content = attachAliasContext(next);
 
@@ -919,7 +947,9 @@ export function createSplitLayout(
       id: currentSplit.id,
       content,
       activate: () => activateSplit(currentSplit.id),
-      canGoBack: () => currentSplit.history.canGoBack(),
+      canGoBack: () =>
+        currentSplit.history.canGoBack() ||
+        canRestoreLayoutFor(currentSplit.id),
       canGoForward: () => currentSplit.history.canGoForward(),
       goBack: () => back(currentSplit.id),
       reset: () => reset(currentSplit.id),
@@ -1074,6 +1104,9 @@ export function createSplitLayout(
 
     contentChangeListeners.delete(id);
     entryStateCaptors.delete(id);
+    if (state.pendingLayoutRestore?.ownerSplitId === id) {
+      setState('pendingLayoutRestore', undefined);
+    }
     setSplitNamesById(
       produce((map) => {
         delete map[id];
@@ -1116,6 +1149,12 @@ export function createSplitLayout(
     const changed = newKeys.join(',') !== currentKeys.join(',');
 
     if (!changed) return;
+
+    // The layout is being rebuilt (e.g. URL navigation), so any pending
+    // full-screen layout restore no longer applies.
+    if (state.pendingLayoutRestore) {
+      setState('pendingLayoutRestore', undefined);
+    }
 
     // Build the result array by position, preserving excluded splits unchanged.
     const resultSplits: SplitState[] = [];
@@ -1317,21 +1356,118 @@ export function createSplitLayout(
     }
   }
 
+  function captureLayoutSnapshot(): LayoutSnapshot {
+    const visible = state.splits.filter((s) => !isExcluded(s));
+    // Flush each split's live entry state (e.g. scroll) into its content so it
+    // round-trips through the snapshot.
+    for (const s of visible) captureCurrentEntryState(s);
+    const activeIndex = visible.findIndex((s) => s.id === state.activeSplitId);
+    return {
+      activeIndex: activeIndex < 0 ? 0 : activeIndex,
+      // content() is the reliable current entry for each split.
+      splits: visible.map((s) => getSplit(s.id)!.content()),
+    };
+  }
+
+  function buildSplitFromSnapshotContent(content: SplitContent): SplitState {
+    const c = attachAliasContext(content);
+    const history = createHistory<SplitContent>();
+    history.push(c);
+    return {
+      id: newSplitId(),
+      history,
+      content: c,
+      mount: createPinnedMount(orchestrator, c),
+      referredFrom: null,
+      lastNavigationCause: 'fresh',
+    };
+  }
+
+  function restoreLayoutSnapshot(snapshot: LayoutSnapshot) {
+    const excluded = state.splits.filter((s) => isExcluded(s));
+    for (const split of state.splits) {
+      if (isExcluded(split)) continue;
+      contentChangeListeners.delete(split.id);
+      entryStateCaptors.delete(split.id);
+      setSplitNamesById(
+        produce((map) => {
+          delete map[split.id];
+        })
+      );
+    }
+    const restored = snapshot.splits.map(buildSplitFromSnapshotContent);
+    setState('splits', [...excluded, ...restored]);
+    setState('spotlightId', undefined);
+    const active = restored[snapshot.activeIndex] ?? restored[0];
+    if (active) {
+      setState('lastActiveSplitId', state.activeSplitId);
+      setState('activeSplitId', active.id);
+    }
+  }
+
+  /** True when `id` is the lone split a full-screen collapse left behind, so
+   * its back button should rebuild the prior layout rather than dead-end. */
+  function canRestoreLayoutFor(id: SplitId): boolean {
+    const pending = state.pendingLayoutRestore;
+    if (!pending || pending.ownerSplitId !== id) return false;
+    return state.splits.filter((s) => !isExcluded(s)).length === 1;
+  }
+
+  function maybeRestoreLayoutFor(id: SplitId): boolean {
+    if (!canRestoreLayoutFor(id)) return false;
+    const pending = state.pendingLayoutRestore!;
+    setState('pendingLayoutRestore', undefined);
+    restoreLayoutSnapshot(pending.snapshot);
+    return true;
+  }
+
   function replaceAllSplits(
     content: SplitContent,
     options: { referredFrom?: ReferredFrom } = {}
   ): SplitHandle {
-    reconcileSplits([content]);
-    const handle = getSplitByContent(content.type, content.id);
-    if (handle) {
-      handle.activate();
-      return handle;
+    const visible = state.splits.filter((s) => !isExcluded(s));
+
+    // Collapsing several splits into one: snapshot the layout first so the
+    // surviving split's back button can rebuild it in a single press.
+    if (visible.length > 1) {
+      const snapshot = captureLayoutSnapshot();
+      reconcileSplits([content]);
+      const handle = getSplitByContent(content.type, content.id);
+      if (handle) {
+        setState('pendingLayoutRestore', {
+          ownerSplitId: handle.id,
+          snapshot,
+        });
+        handle.activate();
+        return handle;
+      }
+      return createNewSplit({
+        content,
+        activate: true,
+        referredFrom: options.referredFrom ?? null,
+      });
     }
-    return createNewSplit({
-      content,
-      activate: true,
-      referredFrom: options.referredFrom ?? null,
-    });
+
+    // Single split: take over the active split, pushing onto its existing
+    // history so back returns to where the user came from.
+    const target =
+      visible.find((s) => s.id === state.activeSplitId) ?? visible[0];
+    if (!target) {
+      return createNewSplit({
+        content,
+        activate: true,
+        referredFrom: options.referredFrom ?? null,
+      });
+    }
+    const handle = getSplit(target.id)!;
+    if (!sameContent(target.content, content)) {
+      handle.replace({
+        next: content,
+        referredFrom: options.referredFrom ?? null,
+      });
+    }
+    handle.activate();
+    return handle;
   }
 
   const activeSplit = () => {
