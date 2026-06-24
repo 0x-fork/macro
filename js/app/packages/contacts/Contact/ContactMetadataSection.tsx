@@ -1,4 +1,4 @@
-import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
+import { NIL_UUID } from '@app/component/next-soup/filters/facet-store';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useCompanyQuery } from '@queries/crm/companies';
 import type { CrmContactResponse } from '@service-storage/generated/schemas/crmContactResponse';

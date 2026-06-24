@@ -1,4 +1,3 @@
-import { getViewPreset } from '@app/component/app-sidebar/soup-filter-presets';
 import {
   defineQueryFilters,
   NIL_UUID,
@@ -11,8 +10,18 @@ import {
   type PropertyFilter,
 } from '@app/component/next-soup/filters/filter-store/types';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
+import { ENABLE_SNIPPETS } from '@core/constant/featureFlags';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { batch, createMemo } from 'solid-js';
+
+const searchBaseline = (): Query => ({
+  include: {
+    foreignEntityRecordId: [NIL_UUID],
+    crmCompanyId: [NIL_UUID],
+    channelThreadId: [NIL_UUID],
+  },
+  exclude: ENABLE_SNIPPETS() ? {} : { subType: ['snippet'] },
+});
 
 export type SearchIndexId =
   | 'channels'
@@ -76,7 +85,7 @@ export const DEFAULT_SECTIONS: SearchFiltersSections = {
  * inactive sections never constrain results.
  */
 export function compileSearchQuery(state: SearchFiltersState): Query {
-  const baseline = getViewPreset('search')?.filters ?? {};
+  const baseline = searchBaseline();
   const include: FieldFilters = { ...baseline.include };
   const exclude: FieldFilters = { ...baseline.exclude };
 

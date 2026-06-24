@@ -1,4 +1,4 @@
-import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
+import { NIL_UUID } from '@app/component/next-soup/filters/facet-store';
 import { emailFilterForAddress } from '@companies/Company/emailFilter';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import type { Accessor } from 'solid-js';

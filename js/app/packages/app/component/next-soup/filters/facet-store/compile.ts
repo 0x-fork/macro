@@ -42,7 +42,7 @@ const ID_BACKEND: Record<EntityTarget, string> = {
   ccf: 'id',
 };
 
-const NIL = '00000000-0000-0000-0000-000000000000';
+export const NIL = '00000000-0000-0000-0000-000000000000';
 
 // The id field (facet field key) per entity target, used to NIL-fill.
 const ID_FIELD: Record<EntityTarget, string> = {

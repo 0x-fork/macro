@@ -1,4 +1,4 @@
-import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
+import { NIL_UUID } from '@app/component/next-soup/filters/facet-store';
 import { throwOnErr } from '@core/util/result';
 import type { CrmCompanyEntity } from '@entity';
 import { storageServiceClient } from '@service-storage/client';

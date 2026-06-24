@@ -167,7 +167,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
               crmCompanyId: NIL_UUID,
               documentId: { not: NIL_UUID },
               ...excludeSnippets(),
-              threadId: { not: NIL_UUID },
+              $clause: (b) => ({ ef: b.and() }),
               channelId: { not: NIL_UUID },
               chatId: { not: NIL_UUID },
               folderId: { not: NIL_UUID },
@@ -245,11 +245,14 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         },
         {
           id: 'drafts',
-          clause: defineClause({ threadId: { not: NIL_UUID } }),
+          clause: defineClause({ $clause: (b) => ({ ef: b.and() }) }),
         },
         { id: 'sent', clause: defineClause({ emailSender: ctx.email }) },
         { id: 'shared', clause: defineClause({ emailShared: 'only' }) },
-        { id: 'all', clause: defineClause({ threadId: { not: NIL_UUID } }) },
+        {
+          id: 'all',
+          clause: defineClause({ $clause: (b) => ({ ef: b.and() }) }),
+        },
       ]),
     tabs: {
       important: {

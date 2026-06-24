@@ -1,7 +1,7 @@
 export type { BackendAstMap, Leaf, TargetExpr } from './clause';
 export { and, clause, eq, not, or } from './clause';
 
-export { compileFacets, mergeAst } from './compile';
+export { compileFacets, mergeAst, NIL as NIL_UUID } from './compile';
 export type {
   ClauseBuilder,
   ClauseDef,
