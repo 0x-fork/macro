@@ -271,7 +271,7 @@ function multiFacet(args: {
 /**
  * Materializes the facet registry against the controller. Each facet is
  * defined once; which ones render follows the active type. Adding a facet =
- * one definition here + its compile line in `compileSearchQuery`.
+ * one definition here + its mapping in `buildSearchEntityFilters`.
  */
 export function useSearchFacets(
   controller: SearchFiltersController
