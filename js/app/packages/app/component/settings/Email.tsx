@@ -1,6 +1,6 @@
 import { toast } from '@core/component/Toast/Toast';
 import { match } from 'ts-pattern';
-import { Button, Dialog, Panel, Tooltip } from '@ui';
+import { Button, Dialog, Panel, ToggleSwitch, Tooltip } from '@ui';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   ENABLE_INBOX_RESYNC,
@@ -11,6 +11,7 @@ import GmailIcon from '@icon/mcp-gmail.svg';
 import XIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
 import ArrowsClockwiseIcon from '@phosphor-icons/core/regular/arrows-clockwise.svg?component-solid';
 import PlusIcon from '@phosphor-icons/core/regular/plus.svg?component-solid';
+import SignatureIcon from '@phosphor-icons/core/regular/signature.svg?component-solid';
 import {
   type BackfillJob,
   BackfillJobStatus,
@@ -24,7 +25,16 @@ import {
   getBackfillProgress,
   useBackfillJobsQuery,
 } from '@queries/email/backfill';
-import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
+import {
+  createMemo,
+  createSignal,
+  For,
+  lazy,
+  Match,
+  Show,
+  Suspense,
+  Switch,
+} from 'solid-js';
 import {
   useAddInboxFlow,
   useEmailLinks,
@@ -35,9 +45,30 @@ import {
   openAddInboxDialog,
   useAddInboxGate,
 } from '../AddInboxDialog';
-import { useRemoveInboxMutation } from '@queries/email/link';
+import {
+  useEmailSignature,
+  useRemoveInboxMutation,
+} from '@queries/email/link';
+import { useUpdateEmailSettingsMutation } from '@queries/email/settings';
 import { IntegrationRow, SettingsCard, SettingsRow } from './primitives';
 import { ConnectAction, StatusDot } from './integration-ui';
+
+// Quill (and its CSS) is heavy and only needed once a signature section is
+// expanded, so load it as its own chunk on demand instead of in the settings
+// bundle.
+const SignatureEditor = lazy(() => import('./SignatureEditor'));
+
+// Unsaved signature drafts and per-inbox expanded state, keyed by link id and
+// held at module scope. The settings modal unmounts the Connected Accounts tab
+// when you switch away (and the links query can recreate an inbox row on
+// refetch); keeping this outside that subtree means tabbing away and back no
+// longer closes the editor or discards unsaved edits. Cleared on save/remove.
+const [signatureDrafts, setSignatureDrafts] = createSignal<
+  Record<string, string>
+>({});
+const [signatureExpanded, setSignatureExpanded] = createSignal<
+  Record<string, boolean>
+>({});
 
 /**
  * Gmail integration as a single Connected-accounts card: a header row with the
@@ -379,106 +410,258 @@ function InboxRow(props: {
   onReconnect: () => void;
   onRemove: () => void;
 }) {
+  const showSignature = () => signatureExpanded()[props.link.id] ?? false;
+  const toggleSignature = () =>
+    setSignatureExpanded((prev) => ({
+      ...prev,
+      [props.link.id]: !showSignature(),
+    }));
+  const signatureSectionId = `signature-section-${props.link.id}`;
   return (
-    <div class="bg-surface flex items-center justify-between gap-3 min-h-15.25 py-2 px-6">
-      <div class="min-w-0 flex flex-col gap-0.5">
-        <div class="flex items-center gap-2 min-w-0">
-          <span class="ph-no-capture text-sm truncate">
-            {props.link.email_address}
-          </span>
-          <Show when={props.isPrimary}>
-            <Chip label="Primary" />
-          </Show>
-          <Show when={!props.isPrimary && !props.isOwn}>
-            <Chip label="Shared" />
-          </Show>
-        </div>
-        <Show when={ENABLE_INBOX_SYNC_STATUS}>
-          <Switch
-            fallback={
-              <Show when={props.link.sync_status !== SyncStatus.UP_TO_DATE}>
-                <span
-                  class="flex items-center gap-1 text-xs"
-                  classList={{
-                    'text-failure':
-                      props.link.sync_status === SyncStatus.ERROR ||
-                      props.link.sync_status === SyncStatus.NEEDS_REAUTH,
-                    'text-ink-muted':
-                      props.link.sync_status !== SyncStatus.ERROR &&
-                      props.link.sync_status !== SyncStatus.NEEDS_REAUTH,
-                  }}
-                >
-                  <Show when={props.link.sync_status === SyncStatus.SYNCING}>
-                    <ArrowsClockwiseIcon class="size-3 animate-spin" />
-                  </Show>
-                  {syncStatusLabel(props.link.sync_status)}
-                </span>
-              </Show>
-            }
-          >
-            {/* Live backfill progress (connection gateway) wins over the coarse
-                sync_status while a backfill is actively running. */}
-            <Match when={getBackfillProgress(props.link.id)}>
-              {(progress) => <BackfillProgressBar progress={progress()} />}
-            </Match>
-            {/* Settled inbox with a completed backfill from the BE list. */}
-            <Match
-              when={
-                props.link.sync_status === SyncStatus.UP_TO_DATE &&
-                props.hasCompletedBackfill
+    <div class="bg-surface flex flex-col">
+      <div class="flex items-center justify-between gap-3 min-h-15.25 py-2 px-6">
+        <div class="min-w-0 flex flex-col gap-0.5">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="ph-no-capture text-sm truncate">
+              {props.link.email_address}
+            </span>
+            <Show when={props.isPrimary}>
+              <Chip label="Primary" />
+            </Show>
+            <Show when={!props.isPrimary && !props.isOwn}>
+              <Chip label="Shared" />
+            </Show>
+          </div>
+          <Show when={ENABLE_INBOX_SYNC_STATUS}>
+            <Switch
+              fallback={
+                <Show when={props.link.sync_status !== SyncStatus.UP_TO_DATE}>
+                  <span
+                    class="flex items-center gap-1 text-xs"
+                    classList={{
+                      'text-failure':
+                        props.link.sync_status === SyncStatus.ERROR ||
+                        props.link.sync_status === SyncStatus.NEEDS_REAUTH,
+                      'text-ink-muted':
+                        props.link.sync_status !== SyncStatus.ERROR &&
+                        props.link.sync_status !== SyncStatus.NEEDS_REAUTH,
+                    }}
+                  >
+                    <Show when={props.link.sync_status === SyncStatus.SYNCING}>
+                      <ArrowsClockwiseIcon class="size-3 animate-spin" />
+                    </Show>
+                    {syncStatusLabel(props.link.sync_status)}
+                  </span>
+                </Show>
               }
             >
-              <span class="text-xs text-ink-muted">Initial sync complete</span>
-            </Match>
-          </Switch>
-        </Show>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <Show
-          when={
-            ENABLE_INBOX_SYNC_STATUS &&
-            props.link.sync_status === SyncStatus.NEEDS_REAUTH
-          }
-        >
-          <Button
-            variant="active"
-            size="sm"
-            depth={3}
-            onClick={props.onReconnect}
-            aria-label={`Reconnect ${props.link.email_address}`}
+              {/* Live backfill progress (connection gateway) wins over the coarse
+                  sync_status while a backfill is actively running. */}
+              <Match when={getBackfillProgress(props.link.id)}>
+                {(progress) => <BackfillProgressBar progress={progress()} />}
+              </Match>
+              {/* Settled inbox with a completed backfill from the BE list. */}
+              <Match
+                when={
+                  props.link.sync_status === SyncStatus.UP_TO_DATE &&
+                  props.hasCompletedBackfill
+                }
+              >
+                <span class="text-xs text-ink-muted">Initial sync complete</span>
+              </Match>
+            </Switch>
+          </Show>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <Show when={props.isOwn}>
+            <Tooltip label="Edit signature">
+              <Button
+                variant="base"
+                size="icon-sm"
+                depth={3}
+                onClick={toggleSignature}
+                aria-label={`Edit signature for ${props.link.email_address}`}
+                aria-expanded={showSignature()}
+                aria-controls={signatureSectionId}
+              >
+                <SignatureIcon class="size-4" />
+              </Button>
+            </Tooltip>
+          </Show>
+          <Show
+            when={
+              ENABLE_INBOX_SYNC_STATUS &&
+              props.link.sync_status === SyncStatus.NEEDS_REAUTH
+            }
           >
-            Reconnect
-          </Button>
-        </Show>
-        <Show when={ENABLE_INBOX_RESYNC}>
-          <Tooltip label="Force sync">
+            <Button
+              variant="active"
+              size="sm"
+              depth={3}
+              onClick={props.onReconnect}
+              aria-label={`Reconnect ${props.link.email_address}`}
+            >
+              Reconnect
+            </Button>
+          </Show>
+          <Show when={ENABLE_INBOX_RESYNC}>
+            <Tooltip label="Force sync">
+              <Button
+                variant="base"
+                size="icon-sm"
+                depth={3}
+                disabled={
+                  props.resyncing ||
+                  (ENABLE_INBOX_SYNC_STATUS &&
+                    props.link.sync_status === SyncStatus.SYNCING)
+                }
+                onClick={props.onResync}
+                aria-label={`Force sync ${props.link.email_address}`}
+              >
+                <ArrowsClockwiseIcon class="size-4" />
+              </Button>
+            </Tooltip>
+          </Show>
+          <Tooltip label="Remove inbox">
             <Button
               variant="base"
               size="icon-sm"
               depth={3}
-              disabled={
-                props.resyncing ||
-                (ENABLE_INBOX_SYNC_STATUS &&
-                  props.link.sync_status === SyncStatus.SYNCING)
-              }
-              onClick={props.onResync}
-              aria-label={`Force sync ${props.link.email_address}`}
+              onClick={props.onRemove}
+              aria-label={`Remove ${props.link.email_address}`}
             >
-              <ArrowsClockwiseIcon class="size-4" />
+              <XIcon class="size-4" />
             </Button>
           </Tooltip>
-        </Show>
-        <Tooltip label="Remove inbox">
+        </div>
+      </div>
+      <Show when={props.isOwn && showSignature()}>
+        <div id={signatureSectionId} class="px-6 pb-4">
+          <SignatureSection link={props.link} />
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+// Per-inbox signature editor. Reads the persisted signature from the links
+// query (no extra fetch) into the Quill editor, tracks an unsaved draft, and
+// patches `email_settings` on save. The "replies & forwards" toggle patches
+// immediately (the backend patch is partial, so it leaves the signature alone).
+function SignatureSection(props: { link: EmailLink }) {
+  const signature = useEmailSignature(() => props.link.id);
+  // Draft lives in the module-level store (keyed by link id) so it survives the
+  // settings tab unmounting; `null` means "no unsaved edit".
+  const draft = () => signatureDrafts()[props.link.id] ?? null;
+  const setDraft = (html: string | null) =>
+    setSignatureDrafts((prev) => {
+      if (html === null) {
+        const next = { ...prev };
+        delete next[props.link.id];
+        return next;
+      }
+      return { ...prev, [props.link.id]: html };
+    });
+
+  const persisted = () => signature() ?? '';
+  const isDirty = () => draft() !== null && draft() !== persisted();
+  // Enabled when there's a saved signature or unsaved draft text to clear — so
+  // "Remove" stays available even after the user manually empties the editor.
+  const hasContent = () =>
+    persisted().length > 0 || (draft()?.length ?? 0) > 0;
+
+  const updateSettings = useUpdateEmailSettingsMutation();
+  // Imperative handle to the editor, so Save/Remove sync its content directly
+  // (the reactive `value` path alone didn't reliably clear the box on Remove).
+  let editorApi: { setContent: (html: string) => void } | undefined;
+
+  const saveSignature = () => {
+    const next = draft();
+    if (next === null) return;
+    updateSettings.mutate(
+      { linkId: props.link.id, settings: { signature: next } },
+      {
+        onSuccess: (data) => {
+          setDraft(null);
+          editorApi?.setContent(data.settings.signature ?? '');
+          toast.success('Signature saved');
+        },
+        onError: () =>
+          toast.failure('Failed to save signature. Please try again.'),
+      }
+    );
+  };
+
+  // Clears the stored signature. Sending an empty string is the backend's
+  // "clear" contract; the editor reseeds to empty once the cache updates.
+  const removeSignature = () => {
+    updateSettings.mutate(
+      { linkId: props.link.id, settings: { signature: '' } },
+      {
+        onSuccess: () => {
+          setDraft(null);
+          editorApi?.setContent('');
+          toast.success('Signature removed');
+        },
+        onError: () =>
+          toast.failure('Failed to remove signature. Please try again.'),
+      }
+    );
+  };
+
+  const setOnRepliesForwards = (checked: boolean) => {
+    updateSettings.mutate(
+      {
+        linkId: props.link.id,
+        settings: { signature_on_replies_forwards: checked },
+      },
+      { onError: () => toast.failure('Failed to update setting.') }
+    );
+  };
+
+  return (
+    <div class="flex flex-col gap-3 rounded-xl border border-edge-muted p-3">
+      <Suspense
+        fallback={
+          <div class="h-44 animate-pulse rounded-lg border border-edge-muted" />
+        }
+      >
+        <SignatureEditor
+          value={draft() ?? persisted()}
+          onInput={setDraft}
+          onReady={(api) => {
+            editorApi = api;
+          }}
+        />
+      </Suspense>
+      <div class="flex items-center justify-between gap-3">
+        <ToggleSwitch
+          checked={props.link.settings.signature_on_replies_forwards ?? false}
+          onChange={setOnRepliesForwards}
+          label={
+            <span class="text-sm text-ink-muted">Add to replies & forwards</span>
+          }
+        />
+        <div class="flex items-center gap-2">
           <Button
             variant="base"
-            size="icon-sm"
+            size="sm"
             depth={3}
-            onClick={props.onRemove}
-            aria-label={`Remove ${props.link.email_address}`}
+            disabled={!hasContent() || updateSettings.isPending}
+            onClick={removeSignature}
           >
-            <XIcon class="size-4" />
+            Remove
           </Button>
-        </Tooltip>
+          <Button
+            variant="active"
+            size="sm"
+            depth={3}
+            disabled={!isDirty() || updateSettings.isPending}
+            onClick={saveSignature}
+          >
+            Save
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -20,6 +20,8 @@ import type {
   ListEmailFiltersResponse,
   ListLabelsResponse,
   ListLinksResponse,
+  PatchSettingsRequest,
+  PatchSettingsResponse,
   ResyncResponse,
   SendMessageRequest,
   SendMessageResponse,
@@ -266,6 +268,19 @@ export const emailClient = {
     return (
       await emailFetch<ListBackfillJobsResponse>('/email/backfill/gmail', {
         method: 'GET',
+      })
+    ).map((result) => result);
+  },
+
+  // Patches the settings for one inbox. Scoped to `linkId` via the
+  // X-Email-Link-Id header (the backend resolves the link from it); omit for
+  // the primary inbox. Partial: fields omitted from `settings` are left as-is.
+  async patchSettings(args: PatchSettingsRequest, linkId?: string) {
+    return (
+      await emailFetch<PatchSettingsResponse>('/email/settings', {
+        method: 'PATCH',
+        body: JSON.stringify(args),
+        headers: emailLinkHeaders(linkId),
       })
     ).map((result) => result);
   },
