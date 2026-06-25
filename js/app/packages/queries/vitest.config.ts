@@ -15,7 +15,13 @@ export default defineConfig({
     deps: {
       optimizer: {
         web: {
-          include: ['solid-js', '@tanstack/solid-query', 'zod'],
+          include: [
+            'solid-js',
+            '@tanstack/solid-query',
+            'zod',
+            'solid-transition-group',
+            '@solid-primitives/transition-group',
+          ],
         },
       },
     },

@@ -19,5 +19,15 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    deps: {
+      optimizer: {
+        web: {
+          include: [
+            'solid-transition-group',
+            '@solid-primitives/transition-group',
+          ],
+        },
+      },
+    },
   },
 } as any);
