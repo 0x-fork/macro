@@ -28,6 +28,9 @@ import type {
   PatchChatRequest,
   ProjectionStateResponse,
   RejectToolCallRequest,
+  ResolveChatError,
+  ResolveChatRequest,
+  ResolveChatResponse,
   SendChatMessageResponse,
   ServerResponse,
   SetPricingRequest,
@@ -1783,6 +1786,67 @@ export const stopChatStream = async (
     status: res.status,
     headers: res.headers,
   } as stopChatStreamResponse;
+};
+
+/**
+ * @summary Resolve a suspended chat's pending tool calls and, if it becomes ready,
+resume streaming.
+ */
+export type resolveChatToolCallsResponse200 = {
+  data: ResolveChatResponse;
+  status: 200;
+};
+
+export type resolveChatToolCallsResponse400 = {
+  data: ResolveChatError;
+  status: 400;
+};
+
+export type resolveChatToolCallsResponse403 = {
+  data: ResolveChatError;
+  status: 403;
+};
+
+export type resolveChatToolCallsResponseSuccess =
+  resolveChatToolCallsResponse200 & {
+    headers: Headers;
+  };
+export type resolveChatToolCallsResponseError = (
+  | resolveChatToolCallsResponse400
+  | resolveChatToolCallsResponse403
+) & {
+  headers: Headers;
+};
+
+export type resolveChatToolCallsResponse =
+  | resolveChatToolCallsResponseSuccess
+  | resolveChatToolCallsResponseError;
+
+export const getResolveChatToolCallsUrl = () => {
+  return `/stream/chat/resolve`;
+};
+
+export const resolveChatToolCalls = async (
+  resolveChatRequest: ResolveChatRequest,
+  options?: RequestInit
+): Promise<resolveChatToolCallsResponse> => {
+  const res = await fetch(getResolveChatToolCallsUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(resolveChatRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: resolveChatToolCallsResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as resolveChatToolCallsResponse;
 };
 
 export type structuredCompletionResponse200 = {

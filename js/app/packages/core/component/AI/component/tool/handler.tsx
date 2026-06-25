@@ -45,6 +45,7 @@ import {
   type ToolHandler,
   type ToolHandlerMap,
   type ToolRenderContext,
+  type ToolTerminalStatus,
 } from './ToolRenderer';
 import { updateThreadLabelsHandler } from './UpdateThreadLabels';
 import { webFetchHandler } from './WebFetch';
@@ -94,12 +95,33 @@ type ToolProps = {
     json: unknown;
     name: string;
   };
+  /** Description of the matching `toolCallErr`, if the call errored. The
+   * permission flow uses "denied" / "cancelled"; anything else is a generic
+   * failure. */
+  errorDescription?: string;
+  /** The call is dangling, awaiting the user's permission decision. */
+  unresolved?: boolean;
   part_index: number;
   chat_id: string;
   message_id: string;
   isComplete: boolean;
   renderContext: RenderContext;
 };
+
+/** Classify a tool's terminal status for the renderer (see [`ToolTerminalStatus`]). */
+function terminalStatus(args: {
+  unresolved?: boolean;
+  isComplete: boolean;
+  hasResponse: boolean;
+  errorDescription?: string;
+}): ToolTerminalStatus | undefined {
+  if (args.unresolved) return 'unresolved';
+  if (args.errorDescription === 'denied') return 'denied';
+  if (args.errorDescription === 'cancelled') return 'cancelled';
+  // Completed with no JSON response ⇒ a generic failure.
+  if (args.isComplete && !args.hasResponse) return 'failed';
+  return undefined;
+}
 
 type TriggerToolArgs = Omit<
   ToolProps,
@@ -144,7 +166,14 @@ export function RenderTool(props: ToolProps) {
 
   return (
     <ToolErrorContext.Provider
-      value={() => (props.isComplete && !response() ? 'failed' : undefined)}
+      value={() =>
+        terminalStatus({
+          unresolved: props.unresolved,
+          isComplete: props.isComplete,
+          hasResponse: !!response(),
+          errorDescription: props.errorDescription,
+        })
+      }
     >
       <Dynamic
         component={handler.render}

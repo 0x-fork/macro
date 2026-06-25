@@ -1,6 +1,8 @@
 //! The core ToolSet trait implemented by the ToolSet and AsyncToolset
 use crate::toolset::types::{RequestSchema, ToolInfo};
-use crate::{AsyncToolCollection, RequestContext, SearchableTool, ToolResult, ToolSetError};
+use crate::{
+    AsyncToolCollection, RequestContext, SearchableTool, ToolAnnotations, ToolResult, ToolSetError,
+};
 use std::pin::Pin;
 
 /// An object with a set of tools
@@ -39,6 +41,17 @@ pub trait ToolSet<Context>: Send + Sync {
     fn routing_description<'a>(&'a self, _tool_name: &'a str) -> Option<ToolInfo> {
         None
     }
+
+    /// MCP-style behavioural hints for the tool named `tool_name`.
+    ///
+    /// Two consumers read this: the permission layer (to derive a default
+    /// permission from `destructive_hint` before dispatch) and MCP advertising
+    /// (to expose our tools' hints to external consumers). Returns `None` when
+    /// the tool is unknown to this toolset. Defaults to `None` so toolsets that
+    /// carry no hints (and pre-existing impls) need not implement it.
+    fn tool_annotations(&self, _tool_name: &str) -> Option<ToolAnnotations> {
+        None
+    }
 }
 
 impl<Context> ToolSet<Context> for AsyncToolCollection<Context>
@@ -71,5 +84,98 @@ where
         } else {
             Some(schemas)
         }
+    }
+
+    fn tool_annotations(&self, tool_name: &str) -> Option<ToolAnnotations> {
+        self.tools
+            .get(tool_name)
+            .map(|tool| tool.annotations.clone())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        AsyncTool, AsyncToolCollection, RequestContext, ServiceContext, ToolAnnotations,
+        ToolResult, ToolSet,
+    };
+    use schemars::JsonSchema;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(JsonSchema, Deserialize, Serialize)]
+    #[schemars(title = "ReadThing", description = "A read-only tool")]
+    struct ReadThing {
+        id: String,
+    }
+
+    #[async_trait::async_trait]
+    impl AsyncTool<()> for ReadThing {
+        type Output = serde_json::Value;
+        async fn call(
+            &self,
+            _ctx: ServiceContext<()>,
+            _req: RequestContext,
+        ) -> ToolResult<Self::Output> {
+            Ok(serde_json::json!({ "id": self.id }))
+        }
+        // Uses the default (non-destructive) annotations.
+    }
+
+    #[derive(JsonSchema, Deserialize, Serialize)]
+    #[schemars(title = "DeleteThing", description = "A destructive tool")]
+    struct DeleteThing {
+        id: String,
+    }
+
+    #[async_trait::async_trait]
+    impl AsyncTool<()> for DeleteThing {
+        type Output = serde_json::Value;
+        async fn call(
+            &self,
+            _ctx: ServiceContext<()>,
+            _req: RequestContext,
+        ) -> ToolResult<Self::Output> {
+            Ok(serde_json::json!({ "deleted": self.id }))
+        }
+        fn annotations() -> ToolAnnotations {
+            ToolAnnotations::destructive()
+        }
+    }
+
+    fn toolset() -> AsyncToolCollection<()> {
+        AsyncToolCollection::<()>::new()
+            .add_tool::<ReadThing, ()>()
+            .add_tool::<DeleteThing, ()>()
+    }
+
+    #[test]
+    fn non_destructive_tool_defaults_to_non_destructive() {
+        let ts = toolset();
+        let ann = ts.tool_annotations("ReadThing").expect("tool present");
+        assert!(!ann.is_destructive());
+        assert_eq!(ann.destructive_hint, None);
+    }
+
+    #[test]
+    fn destructive_tool_surfaces_destructive_hint() {
+        let ts = toolset();
+        let ann = ts.tool_annotations("DeleteThing").expect("tool present");
+        assert!(ann.is_destructive());
+        assert_eq!(ann.destructive_hint, Some(true));
+    }
+
+    #[test]
+    fn unknown_tool_has_no_annotations() {
+        let ts = toolset();
+        assert!(ts.tool_annotations("Nope").is_none());
+    }
+
+    #[test]
+    fn user_tool_forwards_wrapped_annotations() {
+        // A destructive user tool must still report destructive so the
+        // permission layer gates it (permissions are orthogonal to user-tools).
+        let ts = AsyncToolCollection::<()>::new().add_user_tool::<DeleteThing, ()>();
+        let ann = ts.tool_annotations("DeleteThing").expect("tool present");
+        assert!(ann.is_destructive());
     }
 }

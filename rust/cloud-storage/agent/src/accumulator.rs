@@ -26,6 +26,16 @@ impl StreamAccumulator {
         Self::default()
     }
 
+    /// Create an accumulator pre-seeded with already-resolved parts.
+    ///
+    /// Used when resuming a suspended turn: the resolved tool call(s) and their
+    /// spliced results are seeded first so the persisted message ends up as one
+    /// message (resolved parts followed by the model's continuation). The seeded
+    /// parts are stored as-is, in order, before any streamed parts.
+    pub fn seeded(parts: Vec<AssistantMessagePart>) -> Self {
+        Self { parts }
+    }
+
     /// Convert a [`StreamPart`] into the [`AssistantMessagePart`] it persists
     /// as, accumulate it, and return a reference to the stored part.
     ///

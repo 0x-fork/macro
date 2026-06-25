@@ -164,6 +164,8 @@ where
             return Err(ValidationError::ExpectedObject);
         };
 
+        let annotations = T::annotations();
+
         let deserializer = Box::new(|data: &serde_json::Value| {
             serde_json::from_value::<T>(data.clone()).map(|tool| {
                 Box::new(ToolContextAdapter::<ToolSetContext, ToolContext, T>::new(
@@ -183,6 +185,7 @@ where
             name,
             input_schema: input_schema_json,
             description,
+            annotations,
             deserializer,
             schema_registrar,
         })
@@ -264,6 +267,7 @@ where
             name: self.name,
             input_schema: self.input_schema,
             description: self.description,
+            annotations: self.annotations,
             deserializer: new_deserializer,
             schema_registrar: self.schema_registrar,
         }

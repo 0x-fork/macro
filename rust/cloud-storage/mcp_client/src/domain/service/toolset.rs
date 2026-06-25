@@ -1,8 +1,8 @@
 use crate::domain::models::{Error, McpServer, McpServerRecord};
 use crate::domain::ports::McpConnector;
 use ai_toolset::{
-    AsyncToolCollection, RequestContext, RequestSchema, SearchableTool, ToolCallError, ToolInfo,
-    ToolResult, ToolSet, ToolSetError,
+    AsyncToolCollection, RequestContext, RequestSchema, SearchableTool, ToolAnnotations,
+    ToolCallError, ToolInfo, ToolResult, ToolSet, ToolSetError,
 };
 use rmcp::RoleClient;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
@@ -256,6 +256,29 @@ impl<Context: Send + Sync + 'static> ToolSet<Context> for McpToolSet {
             display_name,
         })
     }
+
+    fn tool_annotations(&self, tool_name: &str) -> Option<ToolAnnotations> {
+        let key = MangledName(tool_name.to_owned());
+        let entry = self.tools.get(&key)?;
+        Some(map_mcp_annotations(entry.tool.annotations.as_ref()))
+    }
+}
+
+/// Map an external MCP server's [`rmcp`] tool annotations into our
+/// [`ToolAnnotations`] so they flow through the same permission / advertising
+/// path as our first-party tools. An absent annotation block maps to the
+/// default (non-destructive).
+fn map_mcp_annotations(annotations: Option<&rmcp::model::ToolAnnotations>) -> ToolAnnotations {
+    match annotations {
+        None => ToolAnnotations::default(),
+        Some(a) => ToolAnnotations {
+            title: a.title.clone(),
+            read_only_hint: a.read_only_hint,
+            destructive_hint: a.destructive_hint,
+            idempotent_hint: a.idempotent_hint,
+            open_world_hint: a.open_world_hint,
+        },
+    }
 }
 
 /// Wraps a static [`AsyncToolCollection`] and an optional [`McpToolSet`],
@@ -319,6 +342,14 @@ impl<T: Send + Sync + 'static> ToolSet<T> for CombinedToolSet<T> {
             <McpToolSet as ToolSet<T>>::routing_description(&self.mcp_tools, tool_name)
         } else {
             self.static_tools.routing_description(tool_name)
+        }
+    }
+
+    fn tool_annotations(&self, tool_name: &str) -> Option<ToolAnnotations> {
+        if tool_name.starts_with(MANGLED_PREFIX) {
+            <McpToolSet as ToolSet<T>>::tool_annotations(&self.mcp_tools, tool_name)
+        } else {
+            self.static_tools.tool_annotations(tool_name)
         }
     }
 }

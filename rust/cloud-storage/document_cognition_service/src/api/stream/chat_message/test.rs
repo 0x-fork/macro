@@ -39,26 +39,26 @@ fn cancelled_err(id: &str) -> AssistantMessagePart {
 #[test]
 fn noop_when_no_tool_calls() {
     let parts = vec![text("a"), text("b")];
-    assert_eq!(resolve_pending_tool_calls(parts.clone()), parts);
+    assert_eq!(resolve_pending_tool_calls(parts.clone(), true), parts);
 }
 
 #[test]
 fn noop_when_all_tool_calls_resolved() {
     let parts = vec![text("a"), call("1"), resp("1"), text("b")];
-    assert_eq!(resolve_pending_tool_calls(parts.clone()), parts);
+    assert_eq!(resolve_pending_tool_calls(parts.clone(), true), parts);
 }
 
 #[test]
 fn inserts_cancelled_err_after_trailing_unmatched_call() {
     let parts = vec![text("a"), call("1")];
-    let out = resolve_pending_tool_calls(parts);
+    let out = resolve_pending_tool_calls(parts, true);
     assert_eq!(out, vec![text("a"), call("1"), cancelled_err("1")]);
 }
 
 #[test]
 fn inserts_cancelled_err_immediately_after_unmatched_call() {
     let parts = vec![text("a"), call("1"), text("b")];
-    let out = resolve_pending_tool_calls(parts);
+    let out = resolve_pending_tool_calls(parts, true);
     assert_eq!(
         out,
         vec![text("a"), call("1"), cancelled_err("1"), text("b")]
@@ -75,7 +75,7 @@ fn leaves_resolved_calls_alone_resolves_pending_ones() {
         call("2"),
         text("c"),
     ];
-    let out = resolve_pending_tool_calls(parts);
+    let out = resolve_pending_tool_calls(parts, true);
     assert_eq!(
         out,
         vec![
@@ -93,7 +93,7 @@ fn leaves_resolved_calls_alone_resolves_pending_ones() {
 #[test]
 fn resolves_multiple_unmatched_calls() {
     let parts = vec![call("1"), text("x"), call("2")];
-    let out = resolve_pending_tool_calls(parts);
+    let out = resolve_pending_tool_calls(parts, true);
     assert_eq!(
         out,
         vec![
@@ -108,5 +108,23 @@ fn resolves_multiple_unmatched_calls() {
 
 #[test]
 fn empty_input_stays_empty() {
-    assert!(resolve_pending_tool_calls(vec![]).is_empty());
+    assert!(resolve_pending_tool_calls(vec![], true).is_empty());
+}
+
+#[test]
+fn permission_suspend_leaves_dangling_call_untouched() {
+    // A permission suspend (not a cancellation) must leave the gated call
+    // dangling so the saved chain derives as Suspended — no synthetic cancel.
+    let parts = vec![text("a"), call("1")];
+    let out = resolve_pending_tool_calls(parts.clone(), false);
+    assert_eq!(out, parts);
+}
+
+#[test]
+fn permission_suspend_preserves_executed_results() {
+    // Allowed calls in the suspending turn keep their real results; the gated
+    // remainder stays dangling.
+    let parts = vec![call("1"), resp("1"), call("2")];
+    let out = resolve_pending_tool_calls(parts.clone(), false);
+    assert_eq!(out, parts);
 }

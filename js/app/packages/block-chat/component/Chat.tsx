@@ -11,7 +11,11 @@ import { useBlockId, useIsNestedBlock } from '@core/block';
 import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import { buildChatEditor } from '@core/component/AI/component/input/buildChatEditor';
 import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
-import { useSendChatMessage } from '@core/component/AI/component/input/buildRequest';
+import {
+  useResolveChatToolCalls,
+  useSendChatMessage,
+} from '@core/component/AI/component/input/buildRequest';
+import type { ResolveDecision } from '@core/component/AI/component/input/PermissionDialog';
 import { ChatMessages } from '@core/component/AI/component/message/ChatMessages';
 import {
   ChatInputProvider,
@@ -26,6 +30,8 @@ import {
   peekPendingSend,
 } from '@core/component/AI/signal/pendingSend';
 import { registerToolHandler } from '@core/component/AI/signal/tool';
+import { canSend } from '@core/component/AI/state/chatState';
+import type { AssistantMessagePart } from '@core/component/AI/types';
 import { deriveChatName } from '@core/component/AI/util/deriveName';
 import { parseModel } from '@core/component/AI/util/parse';
 import {
@@ -52,7 +58,14 @@ import { cognitionApiServiceClient } from '@service-cognition/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { Button } from '@ui';
 import { ChatInput } from 'core/component/AI/component/input/ChatInput';
-import { createEffect, createSignal, getOwner, Show, Suspense } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  getOwner,
+  Show,
+  Suspense,
+} from 'solid-js';
 
 export function Chat(props: { data: ChatData }) {
   const loadedState = getChatInputStoredState(props.data.chat.id);
@@ -146,6 +159,9 @@ function ChatInner(props: {
   const renameMutation = createRenameDssEntityMutation();
 
   const onSend = createCallback(async (request: ChatSendInput) => {
+    // Single send precondition (idle ∧ ready): a suspended chat must resolve its
+    // pending tool calls (via the dialog) before a new message can be sent.
+    if (!canSend(chat.phase())) return;
     const isFirstMessage = chat.messages().length === 0;
     const optimisticId = crypto.randomUUID();
 
@@ -196,6 +212,142 @@ function ChatInner(props: {
     });
   };
 
+  // The chat's suspended chain, when awaiting tool permission. The exposed
+  // `idle` phase OWNS the derived message-chain (recomputed reactively and on
+  // mount), so a refresh / another device reconstructs the dialog from the
+  // persisted messages alone. The chain only exists on `idle`, so this is also
+  // implicitly gated to the idle phase (not streaming / sending).
+  const suspendedChain = createMemo(() => {
+    const phase = chat.phase();
+    return phase.type === 'idle' && phase.messageChain.type === 'suspended'
+      ? phase.messageChain
+      : undefined;
+  });
+
+  // The dialog shows iff the chain is suspended (which already implies idle).
+  const showDialog = createMemo(() => suspendedChain() !== undefined);
+
+  const resolveChatToolCalls = useResolveChatToolCalls();
+
+  // Guards re-entrancy across BOTH the dialog buttons and the keyboard
+  // shortcuts (Enter/Escape go through `onAccept`/`onDeny` directly, bypassing
+  // the dialog's own busy state), so a fast double Enter can't double-submit.
+  const [resolving, setResolving] = createSignal(false);
+
+  // Replace the suspended message's parts in the chain with the server-resolved
+  // parts (which include the accepted tool's server-computed result, the
+  // "denied"/"cancelled" markers, etc. — the frontend cannot construct these).
+  // Suspension is derived from the chain, so patching clears (or keeps) the
+  // dialog automatically.
+  const patchResolvedMessage = (
+    messageId: string,
+    parts: AssistantMessagePart[]
+  ) => {
+    chat.setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, content: parts } : m))
+    );
+  };
+
+  // Apply accept/deny decisions for the pending tool calls. The server returns
+  // the resolved `parts` (and, on resume, a fresh `stream_id` for the
+  // continuation). We splice the parts into the message by id — suspension
+  // re-derives automatically — and, on resume, subscribe to the fresh stream so
+  // the continuation merges into the SAME message bubble (in place, by id).
+  const onResolve = createCallback(async (decisions: ResolveDecision[]) => {
+    if (!suspendedChain() || resolving()) return;
+    setResolving(true);
+    try {
+      const result = await resolveChatToolCalls({
+        chatId: chat.chatId(),
+        model: input.model(),
+        toolset: { type: 'all' },
+        action: {
+          action: 'resolve',
+          decisions: decisions.map((d) => ({
+            kind: d.kind,
+            call_id: d.callId,
+          })),
+        },
+      });
+
+      if ('error' in result) {
+        // Leave the chat suspended so the user can retry.
+        return;
+      }
+
+      if (result.resumed) {
+        // Patch the suspended message with the resolved parts so it stays in
+        // its slot showing the resolved tool call, then attach the resumed
+        // stream (fresh stream_id, message_id == this message's id). The live
+        // continuation merges INTO this message by id via `effectiveMessages`,
+        // and `stream_done` upserts the finished message in place — so it never
+        // leaves its position in the chain.
+        patchResolvedMessage(result.messageId, result.parts);
+        chat.dispatch({
+          type: 'stream_connected',
+          stream: result.stream,
+          owner,
+        });
+        invalidateUserQuota();
+        return;
+      }
+
+      // Partial resolve — patch the message with the server-resolved parts; the
+      // derived chain stays suspended on the remainder (or clears).
+      patchResolvedMessage(result.messageId, result.parts);
+    } finally {
+      setResolving(false);
+    }
+  });
+
+  // The current call the dialog acts on: the first pending tool call. Accept /
+  // deny resolve just this one; the backend re-derives and the next pending
+  // call (if any) surfaces.
+  const currentCall = createMemo(() => suspendedChain()?.unresolved[0]);
+
+  // Single-call accept / deny — reuse the batch `onResolve` with a size-1 batch.
+  const onAccept = createCallback(async () => {
+    const call = currentCall();
+    if (!call) return;
+    await onResolve([{ kind: 'accept', callId: call.id }]);
+  });
+  const onDeny = createCallback(async () => {
+    const call = currentCall();
+    if (!call) return;
+    await onResolve([{ kind: 'deny', callId: call.id }]);
+  });
+
+  // Cancel all pending tool calls — never resumes; patch the message with the
+  // cancelled parts so each call renders its "cancelled" outcome and the dialog
+  // clears via derivation.
+  const onCancel = createCallback(async () => {
+    if (!suspendedChain() || resolving()) return;
+    setResolving(true);
+    try {
+      const result = await resolveChatToolCalls({
+        chatId: chat.chatId(),
+        model: input.model(),
+        toolset: { type: 'all' },
+        action: { action: 'cancel' },
+      });
+      if ('error' in result) return;
+      if (result.resumed) {
+        // Cancel never resumes server-side; handle defensively like a resume —
+        // patch in place, then attach the stream (merges by id).
+        patchResolvedMessage(result.messageId, result.parts);
+        chat.dispatch({
+          type: 'stream_connected',
+          stream: result.stream,
+          owner,
+        });
+        return;
+      }
+      patchResolvedMessage(result.messageId, result.parts);
+    } finally {
+      setResolving(false);
+    }
+  });
+
   const saveChatState = (state: StoredStuff) => {
     storeChatState(props.data.chat.id, state);
   };
@@ -237,12 +389,40 @@ function ChatInner(props: {
   registerScopeSignalHotkey(scopeId, {
     hotkey: 'enter',
     description: 'Focus Chat Input',
+    // While the permission dialog is up, Enter accepts the tool instead (see
+    // below); don't steal it to focus the input.
+    condition: () => !showDialog(),
     keyDownHandler: () => {
       editor.controls.focus();
       return true;
     },
     hotkeyToken: TOKENS.block.focus,
     hide: true,
+  });
+
+  // While the permission dialog is up: Enter accepts the current tool call,
+  // Escape denies it. The dialog is the single source for these keys (the
+  // buttons are not autofocused), so Enter resolves exactly one accept.
+  registerScopeSignalHotkey(scopeId, {
+    hotkey: 'enter',
+    description: 'Allow tool',
+    condition: () => showDialog(),
+    keyDownHandler: () => {
+      void onAccept();
+      return true;
+    },
+    hotkeyToken: TOKENS.chat.acceptTool,
+  });
+
+  registerScopeSignalHotkey(scopeId, {
+    hotkey: 'escape',
+    description: 'Deny tool',
+    condition: () => showDialog(),
+    keyDownHandler: () => {
+      void onDeny();
+      return true;
+    },
+    hotkeyToken: TOKENS.chat.denyTool,
   });
 
   // Ctrl+C while AI is generating stops the stream.
@@ -333,6 +513,12 @@ function ChatInner(props: {
                 onSend={onSend}
                 onStop={onStop}
                 autoFocusOnMount={!isPreview && !navigatedFromJK()}
+                permission={{
+                  show: showDialog(),
+                  onAccept,
+                  onDeny,
+                  onCancel,
+                }}
               />
             </div>
           </div>

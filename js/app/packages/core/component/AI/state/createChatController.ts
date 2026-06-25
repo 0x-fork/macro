@@ -7,6 +7,7 @@ import { getEntityStreams } from '@service-connection/stream';
 import type { Accessor, Owner, Setter } from 'solid-js';
 import {
   createEffect,
+  createMemo,
   createSignal,
   getOwner,
   on,
@@ -15,8 +16,11 @@ import {
 } from 'solid-js';
 import { match } from 'ts-pattern';
 import {
+  type BasePhase,
   type ChatEvent,
   type ChatPhase,
+  createChatPhase,
+  initialBasePhase,
   type SideEffect,
   transition,
 } from './chatState';
@@ -33,9 +37,24 @@ type ControllerEvent =
 
 export type ChatController = {
   chatId: Accessor<string>;
+  /**
+   * The exposed phase. Its `idle` arm OWNS the derived `messageChain`
+   * (suspended/ready) state — the single source consumers read for the
+   * permission dialog and the send gate (`canSend`).
+   */
   phase: Accessor<ChatPhase>;
+  /** The persisted message chain (source of truth for what is saved). */
   messages: Accessor<ChatMessageWithAttachments[]>;
   setMessages: Setter<ChatMessageWithAttachments[]>;
+  /**
+   * The render chain: `messages` with the in-flight streaming message merged in
+   * BY id (replace if its id is already present, else append). The UI renders
+   * from THIS so a live continuation updates its message in place (keeping its
+   * slot — a resume merges into the suspended bubble), and a brand-new turn's
+   * streaming message appends at the end. There is no separate trailing
+   * "generating" bubble.
+   */
+  effectiveMessages: Accessor<ChatMessageWithAttachments[]>;
   stream: Accessor<ChatMessageStream | undefined>;
   isGenerating: Accessor<boolean>;
   isWaiting: Accessor<boolean>;
@@ -54,10 +73,53 @@ export function createChatController(
   initialMessages: ChatMessageWithAttachments[],
   options?: ChatControllerOptions
 ): ChatController {
-  const [phase, setPhase] = createSignal<ChatPhase>({ type: 'idle' });
+  // The FSM base state. The exposed `phase` (below) attaches the derived
+  // message-chain state to its `idle` arm.
+  const [baseState, setBaseState] = createSignal<BasePhase>(initialBasePhase);
   const [messages, setMessages] =
     createSignal<ChatMessageWithAttachments[]>(initialMessages);
   const [stream, setStream] = createSignal<ChatMessageStream>();
+
+  // THE exposed phase: base state + the derived, memoized message-chain owned by
+  // `idle`. The chain derives from the COMMITTED `messages` (when idle, the
+  // finished message has already been upserted by `stream_done`).
+  const phase = createChatPhase(baseState, messages);
+
+  // The in-flight stream rendered as a message (by its chunks' `message_id`),
+  // while it is still streaming. `undefined` once done or with no renderable
+  // content yet (so we never merge an empty assistant bubble into the chain —
+  // the spinner covers that gap).
+  const streamingMessage = createMemo<ChatMessageWithAttachments | undefined>(
+    () => {
+      const s = stream();
+      if (!s || s.isDone()) return undefined;
+      const message = asChatMessage(s.data());
+      if (!message) return undefined;
+      const content = message.content;
+      const isEmpty =
+        (typeof content === 'string' || Array.isArray(content)) &&
+        content.length === 0;
+      return isEmpty ? undefined : message;
+    }
+  );
+
+  // The effective chain used for RENDERING: persisted `messages` with the
+  // in-flight streaming message merged in BY id (replace if an id match exists,
+  // else append). This keeps a live continuation in its slot (a resume merges
+  // into the suspended bubble) and appends a brand-new turn's streaming message
+  // at the end — there is no separate trailing "generating" bubble. The
+  // message-chain (suspended/ready) state, by contrast, derives from committed
+  // `messages` via the exposed `phase`.
+  const effectiveMessages = createMemo<ChatMessageWithAttachments[]>(() => {
+    const base = messages();
+    const live = streamingMessage();
+    if (!live) return base;
+    const idx = base.findIndex((m) => m.id === live.id);
+    if (idx === -1) return [...base, live];
+    const next = base.slice();
+    next[idx] = live;
+    return next;
+  });
 
   function executeEffects(effects: SideEffect[]) {
     for (const effect of effects) {
@@ -99,7 +161,9 @@ export function createChatController(
       )
     );
 
-    // Watch stream completion
+    // Watch stream completion. The completed message upserts into `messages` by
+    // id (see `stream_done`), so a resumed continuation merges into the SAME
+    // bubble and the derived message-chain updates from the final chain.
     createEffect(() => {
       if (!newStream.isDone()) return;
       const message = asChatMessage(newStream.data());
@@ -123,8 +187,10 @@ export function createChatController(
       }
       setStream(newStream);
 
-      const result = transition(untrack(phase), { type: 'stream_connected' });
-      setPhase(result.phase);
+      const result = transition(untrack(baseState), {
+        type: 'stream_connected',
+      });
+      setBaseState(result.phase);
       executeEffects(result.effects);
 
       if (owner) {
@@ -135,8 +201,8 @@ export function createChatController(
       return;
     }
 
-    const result = transition(untrack(phase), event);
-    setPhase(result.phase);
+    const result = transition(untrack(baseState), event);
+    setBaseState(result.phase);
     if (result.messages) {
       setMessages(result.messages);
     }
@@ -147,7 +213,12 @@ export function createChatController(
     executeEffects(result.effects);
   }
 
-  // Reconnect active streams on page refresh / chat switch
+  // Reconnect active streams on page refresh / chat switch. Streams are keyed
+  // by `stream_id`; a resumed stream uses a FRESH stream_id (its `message_id`
+  // equals the suspended message's id, but the ids are decoupled), so it never
+  // collides with the suspended message already in the chain — reconnect/replay
+  // works and the continuation merges into that message by `message_id` via the
+  // streaming-message merge above + `stream_done` upsert.
   createEffect(() => {
     const activeStreams = getEntityStreams('chat', chatId)();
     const currentStream = untrack(stream);
@@ -162,13 +233,28 @@ export function createChatController(
         console.warn('reject chat stream: duplicate stream');
         continue;
       }
-
-      const isInMessages = untrack(() => messages().some((m) => m.id === sid));
-      if (isInMessages) {
+      // Already attached to this exact (live) stream — don't re-attach.
+      if (currentStream && currentStream.id()?.stream_id === sid) {
+        continue;
+      }
+      // A finished stream whose message is already in the chain is a replay of
+      // a completed turn — skip it (re-attaching would briefly flip to
+      // streaming then immediately complete). A resumed stream uses a fresh
+      // stream_id and is live, so it is never skipped here even though its
+      // message id matches the suspended message.
+      const isReplayOfFinishedMessage =
+        s.isDone() && untrack(() => messages().some((m) => m.id === sid));
+      if (isReplayOfFinishedMessage) {
         console.warn('reject chat stream: already has message');
         continue;
       }
 
+      // Refresh-mid-resume: a live resumed stream rebuilds the (still
+      // persisted, still suspended) message it continues, keyed by the stream's
+      // chunk `message_id`. No need to strip anything — `effectiveMessages`
+      // merges the live stream into that existing message BY id, so it renders
+      // in place (no duplicate bubble), and `stream_done` upserts it back into
+      // the persisted chain in its original slot.
       dispatch({ type: 'stream_connected', stream: s });
       break;
     }
@@ -179,9 +265,10 @@ export function createChatController(
     phase,
     messages,
     setMessages,
+    effectiveMessages,
     stream,
-    isGenerating: () => phase().type === 'streaming',
-    isWaiting: () => phase().type === 'sending',
+    isGenerating: () => baseState().type === 'streaming',
+    isWaiting: () => baseState().type === 'sending',
 
     dispatch,
     setStream,

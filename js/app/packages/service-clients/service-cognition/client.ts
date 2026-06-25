@@ -20,6 +20,8 @@ import type { GetChatResponse } from './generated/schemas/getChatResponse';
 import type { GetChatsForAttachmentResponse } from './generated/schemas/getChatsForAttachmentResponse';
 import type { HttpSendChatMessageRequest } from './generated/schemas/httpSendChatMessageRequest';
 import type { PatchChatRequest } from './generated/schemas/patchChatRequest';
+import type { ResolveChatRequest } from './generated/schemas/resolveChatRequest';
+import type { ResolveChatResponse } from './generated/schemas/resolveChatResponse';
 import type { SendChatMessageResponse } from './generated/schemas/sendChatMessageResponse';
 import type { ServerResponse } from './generated/schemas/serverResponse';
 import type { StartAuthRequest } from './generated/schemas/startAuthRequest';
@@ -312,6 +314,19 @@ export const cognitionApiServiceClient = {
   async stopChatStream(args: StopChatStreamRequest) {
     return (
       await dcsFetch<StopChatStreamResponse>(`/stream/chat/message/stop`, {
+        method: 'POST',
+        body: JSON.stringify(args),
+      })
+    ).map((result) => result);
+  },
+
+  /** Resolve a suspended chat's pending tool permissions (accept / deny a
+   * batch, or cancel all). When the resulting chain becomes ready and the
+   * action was not a cancel, the response carries a new stream to subscribe to
+   * (same shape as `sendStreamChatMessage`). */
+  async resolveChatToolCalls(args: ResolveChatRequest) {
+    return (
+      await dcsFetch<ResolveChatResponse>(`/stream/chat/resolve`, {
         method: 'POST',
         body: JSON.stringify(args),
       })

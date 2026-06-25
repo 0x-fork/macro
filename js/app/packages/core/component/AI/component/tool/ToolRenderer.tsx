@@ -4,8 +4,25 @@ import type {
 } from '@service-cognition/generated/tools/tool';
 import { type Component, createContext, useContext } from 'solid-js';
 
+/**
+ * The terminal status of a tool call, surfaced to renderers via
+ * [`ToolErrorContext`]:
+ * - `failed` — the call completed with an error response.
+ * - `denied` — the user denied a permission-gated call (`ToolCallErr`
+ *   "denied").
+ * - `cancelled` — a permission-gated call was cancelled (`ToolCallErr`
+ *   "cancelled").
+ * - `unresolved` — the call is dangling, awaiting the user's permission
+ *   decision (no result yet).
+ */
+export type ToolTerminalStatus =
+  | 'failed'
+  | 'denied'
+  | 'cancelled'
+  | 'unresolved';
+
 export const ToolErrorContext = createContext<
-  (() => string | undefined) | undefined
+  (() => ToolTerminalStatus | undefined) | undefined
 >();
 export const useToolError = () => {
   const accessor = useContext(ToolErrorContext);

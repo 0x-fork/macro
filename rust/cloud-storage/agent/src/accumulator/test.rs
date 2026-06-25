@@ -217,3 +217,56 @@ fn parts_does_not_consume_and_matches_into_parts() {
         }]
     );
 }
+
+#[test]
+fn seeded_prepends_resolved_parts_before_streamed_continuation() {
+    // Resume case: the accumulator is seeded with the resolved tool call + its
+    // result, then the model's continuation streams in. The persisted message
+    // must be tool call → result → continuation as ONE message.
+    let resolved = vec![
+        AssistantMessagePart::ToolCall {
+            name: "Delete".to_owned(),
+            json: json!({"id": "1"}),
+            id: "call-1".to_owned(),
+        },
+        AssistantMessagePart::ToolCallResponseJson {
+            name: "Delete".to_owned(),
+            json: json!({"deleted": true}),
+            id: "call-1".to_owned(),
+        },
+    ];
+    let mut acc = StreamAccumulator::seeded(resolved);
+    acc.push(content("Done — "));
+    acc.push(content("deleted it."));
+
+    assert_eq!(
+        acc.into_parts(),
+        vec![
+            AssistantMessagePart::ToolCall {
+                name: "Delete".to_owned(),
+                json: json!({"id": "1"}),
+                id: "call-1".to_owned(),
+            },
+            AssistantMessagePart::ToolCallResponseJson {
+                name: "Delete".to_owned(),
+                json: json!({"deleted": true}),
+                id: "call-1".to_owned(),
+            },
+            AssistantMessagePart::Text {
+                text: "Done — deleted it.".to_owned()
+            },
+        ]
+    );
+}
+
+#[test]
+fn seeded_empty_is_equivalent_to_new() {
+    let mut acc = StreamAccumulator::seeded(vec![]);
+    acc.push(content("hi"));
+    assert_eq!(
+        acc.into_parts(),
+        vec![AssistantMessagePart::Text {
+            text: "hi".to_owned()
+        }]
+    );
+}

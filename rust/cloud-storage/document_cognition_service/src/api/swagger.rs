@@ -6,6 +6,10 @@ use crate::api::{
     stream::chat_message::{
         self, ChatMessageError, HttpSendChatMessageRequest, SendChatMessageResponse,
     },
+    stream::resolve::{
+        self as stream_resolve, ResolveAction, ResolveChatError, ResolveChatRequest,
+        ResolveChatResponse, ToolResolution,
+    },
     stream::stop::{
         self as stream_stop, StopChatStreamError, StopChatStreamRequest, StopChatStreamResponse,
     },
@@ -81,6 +85,7 @@ use utoipa::OpenApi;
             chat_history::get_chat_history_handler,
             chat_history_batch_messages::get_chat_history_batch_messages_handler,
             chat_message::send_chat_message,
+            stream_resolve::resolve_chat_tool_calls,
             stream_stop::stop_chat_stream,
             structured_completion::structured_completion,
             memory_api::get_memory_handler,
@@ -159,6 +164,11 @@ use utoipa::OpenApi;
                 HttpSendChatMessageRequest,
                 SendChatMessageResponse,
                 ChatMessageError,
+                ResolveChatRequest,
+                ResolveChatResponse,
+                ResolveChatError,
+                ResolveAction,
+                ToolResolution,
                 StopChatStreamRequest,
                 StopChatStreamResponse,
                 StopChatStreamError,

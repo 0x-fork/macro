@@ -1,8 +1,9 @@
 /// The main entry point: [`AgentLoop`] and [`Session`].
 use crate::error::AgentError;
-use crate::hook::{RegisterFn, ToolRouter};
+use crate::hook::{PermissionGate, RegisterFn, ToolRouter};
 use crate::model::PredefinedModel;
 use crate::model::router::{ModelRouter, ProviderAgent};
+use crate::permissions::{HintPermissionsRepo, PermissionsRepo, permission_for};
 use crate::stream::ChatCompletionStream;
 use crate::tool_adapter::DynToolSetAdapter;
 use ai_toolset::{RequestContext, SearchableTool, ToolLoader, ToolSet as AiToolSet};
@@ -29,6 +30,10 @@ pub struct AgentLoop {
     max_turns: usize,
     max_tokens: u64,
     recorder: Arc<dyn UsageRecorder>,
+    /// Decides which tools require user permission before they run. The loop
+    /// suspends (ends the stream, leaving the call dangling) when a gated tool
+    /// is called. Defaults to [`HintPermissionsRepo`] (destructive → gated).
+    permissions: Arc<dyn PermissionsRepo>,
 }
 
 impl AgentLoop {
@@ -45,7 +50,17 @@ impl AgentLoop {
             max_turns: DEFAULT_MAX_TURNS,
             max_tokens: DEFAULT_MAX_TOKENS,
             recorder,
+            permissions: Arc::new(HintPermissionsRepo),
         }
+    }
+
+    /// Override the permissions repo (defaults to [`HintPermissionsRepo`]).
+    ///
+    /// Different AI surfaces can supply different policies — the interactive
+    /// chat gates destructive tools, while memory / automations may differ.
+    pub fn with_permissions(mut self, permissions: Arc<dyn PermissionsRepo>) -> Self {
+        self.permissions = permissions;
+        self
     }
 
     /// Override the model.
@@ -113,6 +128,15 @@ impl AgentLoop {
         let routing_toolset = toolset.clone();
         let routing: ToolRouter =
             Arc::new(move |name: &str| routing_toolset.routing_description(name));
+
+        // Permission gate: resolve a tool's permission from its annotations (via
+        // the toolset) and the session's repo, before dispatch. Context-erased
+        // for the bridge, like `routing`.
+        let permission_toolset = toolset.clone();
+        let permissions = self.permissions.clone();
+        let permission_gate: PermissionGate = Arc::new(move |name: &str| {
+            permission_for(permissions.as_ref(), permission_toolset.as_ref(), name)
+        });
 
         let adapters = DynToolSetAdapter::from_toolset(
             toolset.clone(),
@@ -204,6 +228,7 @@ impl AgentLoop {
             history: Vec::new(),
             max_turns: self.max_turns,
             routing,
+            permission_gate,
             loaded_buffer,
             register_loaded,
             recorder: self.recorder.clone(),
@@ -219,6 +244,8 @@ pub struct Session {
     history: Vec<Message>,
     max_turns: usize,
     routing: ToolRouter,
+    /// Resolves tool permissions before dispatch (see [`PermissionGate`]).
+    permission_gate: PermissionGate,
     /// Tools `SearchTools` asked to load, shared with the stream bridge.
     loaded_buffer: Arc<Mutex<Vec<SearchableTool>>>,
     /// Registers loaded tools with the live tool server (see [`RegisterFn`]).
@@ -253,6 +280,7 @@ impl Session {
                 history.to_vec(),
                 self.max_turns,
                 self.routing.clone(),
+                self.permission_gate.clone(),
                 self.loaded_buffer.clone(),
                 self.register_loaded.clone(),
                 self.recorder.clone(),

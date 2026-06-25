@@ -301,6 +301,8 @@ export const TOKENS = {
     new: 'chat-new',
     stop: 'chat-stop',
     send: 'chat-send',
+    acceptTool: 'chat-accept-tool',
+    denyTool: 'chat-deny-tool',
   },
 } as const;
 

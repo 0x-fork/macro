@@ -102,6 +102,19 @@ export function AssistantMessageParts(props: {
     return responseMap;
   });
 
+  // Error responses by tool-call id. The permission flow persists denied /
+  // cancelled gated calls as `toolCallErr` with description "denied" /
+  // "cancelled"; other errors are generic failures.
+  const errById = createMemo(() => {
+    const errMap = new Map<string, string>();
+    for (const part of props.parts) {
+      if (part.type === 'toolCallErr') {
+        errMap.set(part.id, part.description);
+      }
+    }
+    return errMap;
+  });
+
   const parts = createMemo(() => {
     return props.parts.filter(
       (part) =>
@@ -208,6 +221,10 @@ export function AssistantMessageParts(props: {
                 json={part().json}
                 name={part().name}
                 response={responseById().get(part().id)}
+                errorDescription={errById().get(part().id)}
+                unresolved={
+                  !outer.isStreaming && !isCompleteSelector(part().id)
+                }
                 message_id={outer.message.id}
                 part_index={props.entry().index}
                 isComplete={isCompleteSelector(part().id)}
@@ -283,6 +300,8 @@ export function AssistantMessageParts(props: {
         json={part().json}
         name={part().name}
         response={responseById().get(part().id)}
+        errorDescription={errById().get(part().id)}
+        unresolved={!outer.isStreaming && !isCompleteSelector(part().id)}
         message_id={outer.message.id}
         part_index={props.item().index}
         isComplete={isCompleteSelector(part().id)}

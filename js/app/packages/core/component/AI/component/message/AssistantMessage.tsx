@@ -46,7 +46,7 @@ function extractMessageText(content: ChatMessageContent) {
 
 export function AssistantMessage(props: {
   message: ChatMessageWithAttachments;
-  isStreaming?: true;
+  isStreaming?: boolean;
   ttft?: number;
 }) {
   const [copied, setCopied] = createSignal(false);

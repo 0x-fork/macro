@@ -20,6 +20,7 @@ import { Button, cn, Surface, SendButton as UiSendButton } from '@ui';
 import { createEffect, createMemo, createSignal, Show } from 'solid-js';
 import { AttachmentList } from './Attachment';
 import { ChatAttachMenu } from './ChatAttachMenu';
+import { PermissionDialog } from './PermissionDialog';
 import { useAiDataConsentGate } from './useAiDataConsent';
 
 type ChatInputProps = {
@@ -37,6 +38,18 @@ type ChatInputComponentProps = {
   editor: EditorConfigBuilder;
   initialValue?: string;
   onChange?: (markdown: string) => void;
+  /**
+   * Tool-permission state. When `show` is true the chat is suspended awaiting a
+   * decision: the compose UI (editor + controls) is hidden — but kept mounted,
+   * so its Lexical editor isn't torn down — and the permission dialog renders in
+   * its place. Omitted by non-chat callers (e.g. Soup), which never suspend.
+   */
+  permission?: {
+    show: boolean;
+    onAccept: () => Promise<void> | void;
+    onDeny: () => Promise<void> | void;
+    onCancel: () => Promise<void> | void;
+  };
 } & ChatInputProps;
 
 export function ChatInput(props: ChatInputComponentProps) {
@@ -259,122 +272,137 @@ export function ChatInput(props: ChatInputComponentProps) {
   const isTallVariant = createMemo(() => props.variant === 'tall');
 
   return (
-    <div class="relative">
-      <Surface active={isFocused()} class="rounded-xl" depth={2} solid>
-        <div
-          onFocusOut={(e) => {
-            const next = e.relatedTarget as Node | null;
-            if (next && containerRef.contains(next)) return;
-            setIsFocused(false);
-          }}
-          onFocusIn={() => setIsFocused(true)}
-          class="relative flex flex-col"
-          ref={containerRef}
-          id="chat-input"
-        >
-          <Show when={!isTallVariant()}>
-            <Attachments />
-          </Show>
-
-          <Show when={showAttachMenu()}>
-            <ChatAttachMenu
-              anchorRef={attachMenuAnchorRef()!}
-              close={() => setShowAttachMenu(false)}
-              containerRef={containerRef}
-              open={showAttachMenu()}
-              onAttach={(attachment) => {
-                analytics.track('ai_attachment_add');
-                attachments.addAttachment(attachment);
-              }}
-            />
-          </Show>
-
+    <>
+      {/* Compose UI stays mounted while suspended (hidden, not unmounted) so its
+          Lexical editor is never torn down; the dialog renders in its place. */}
+      <div class="relative" classList={{ hidden: !!props.permission?.show }}>
+        <Surface active={isFocused()} class="rounded-xl" depth={2} solid>
           <div
-            ref={setLineEl}
-            class={cn('relative px-2 py-1.5', {
-              'flex flex-col px-3 py-2': isTallVariant(),
-            })}
+            onFocusOut={(e) => {
+              const next = e.relatedTarget as Node | null;
+              if (next && containerRef.contains(next)) return;
+              setIsFocused(false);
+            }}
+            onFocusIn={() => setIsFocused(true)}
+            class="relative flex flex-col"
+            ref={containerRef}
+            id="chat-input"
           >
-            {/* Invisible reference of the fully-expanded control row laid out
+            <Show when={!isTallVariant()}>
+              <Attachments />
+            </Show>
+
+            <Show when={showAttachMenu()}>
+              <ChatAttachMenu
+                anchorRef={attachMenuAnchorRef()!}
+                close={() => setShowAttachMenu(false)}
+                containerRef={containerRef}
+                open={showAttachMenu()}
+                onAttach={(attachment) => {
+                  analytics.track('ai_attachment_add');
+                  attachments.addAttachment(attachment);
+                }}
+              />
+            </Show>
+
+            <div
+              ref={setLineEl}
+              class={cn('relative px-2 py-1.5', {
+                'flex flex-col px-3 py-2': isTallVariant(),
+              })}
+            >
+              {/* Invisible reference of the fully-expanded control row laid out
                 inline (paperclip + min editor room + full selector + send). Its
                 measured width is the space the expanded selector needs; when
                 that exceeds the line, the visible selector collapses. */}
-            <Show when={!isTallVariant()}>
-              <div
-                ref={setProbeEl}
-                aria-hidden="true"
-                inert
-                class="pointer-events-none invisible absolute flex w-max items-center gap-1"
-              >
-                <div class="size-7.5 shrink-0" />
+              <Show when={!isTallVariant()}>
                 <div
-                  class="shrink-0"
-                  style={{ width: `${MIN_EDITOR_WIDTH}px` }}
-                />
-                <ModelSelector
-                  selectedModel={model()}
-                  models={modelOptions()}
-                  onSelect={() => {}}
-                />
-                <div class="size-7.5 shrink-0" />
-              </div>
-            </Show>
-            <div
-              id="chat-input-text-area"
-              class={cn('text-sm sm:text-sm text-ink')}
-              classList={{
-                'pl-8': !isMultiline() && !isTallVariant(),
-                'px-0 pb-8': isMultiline() && !isTallVariant(),
-                // While empty, the only thing rendered is the placeholder.
-                // `white-space` inherits, so this keeps it on one line (clipped)
-                // instead of wrapping into the single-line height. Typing clears
-                // it, restoring normal wrapping / grow-to-multiline.
-                'overflow-hidden whitespace-nowrap': isEmptyInput(),
-              }}
-              style={
-                !isMultiline() && !isTallVariant()
-                  ? { 'padding-right': `${rightControlsInset()}px` }
-                  : undefined
-              }
-              ref={mdRef}
-            >
-              <MarkdownShell
-                config={props.editor}
-                placeholder="Ask AI, @mention anything"
-                initialValue={props.initialValue}
-                autofocus={
-                  !isMobile() &&
-                  !isTouchDevice() &&
-                  props.autoFocusOnMount !== false
+                  ref={setProbeEl}
+                  aria-hidden="true"
+                  inert
+                  class="pointer-events-none invisible absolute flex w-max items-center gap-1"
+                >
+                  <div class="size-7.5 shrink-0" />
+                  <div
+                    class="shrink-0"
+                    style={{ width: `${MIN_EDITOR_WIDTH}px` }}
+                  />
+                  <ModelSelector
+                    selectedModel={model()}
+                    models={modelOptions()}
+                    onSelect={() => {}}
+                  />
+                  <div class="size-7.5 shrink-0" />
+                </div>
+              </Show>
+              <div
+                id="chat-input-text-area"
+                class={cn('text-sm sm:text-sm text-ink')}
+                classList={{
+                  'pl-8': !isMultiline() && !isTallVariant(),
+                  'px-0 pb-8': isMultiline() && !isTallVariant(),
+                  // While empty, the only thing rendered is the placeholder.
+                  // `white-space` inherits, so this keeps it on one line (clipped)
+                  // instead of wrapping into the single-line height. Typing clears
+                  // it, restoring normal wrapping / grow-to-multiline.
+                  'overflow-hidden whitespace-nowrap': isEmptyInput(),
+                }}
+                style={
+                  !isMultiline() && !isTallVariant()
+                    ? { 'padding-right': `${rightControlsInset()}px` }
+                    : undefined
                 }
-              />
-              <Show when={isTallVariant()}>
-                <div class="h-4" />
-              </Show>
-              <Show when={isTallVariant()}>
-                <Attachments />
-              </Show>
-            </div>
-
-            <div
-              class={cn('contents', {
-                'flex justify-between items-center': isTallVariant(),
-              })}
-            >
-              <div class={cn(!isTallVariant() && 'absolute left-2 bottom-1.5')}>
-                <LeftButton />
+                ref={mdRef}
+              >
+                <MarkdownShell
+                  config={props.editor}
+                  placeholder="Ask AI, @mention anything"
+                  initialValue={props.initialValue}
+                  autofocus={
+                    !isMobile() &&
+                    !isTouchDevice() &&
+                    props.autoFocusOnMount !== false
+                  }
+                />
+                <Show when={isTallVariant()}>
+                  <div class="h-4" />
+                </Show>
+                <Show when={isTallVariant()}>
+                  <Attachments />
+                </Show>
               </div>
 
               <div
-                class={cn(!isTallVariant() && 'absolute right-1.5 bottom-1.5')}
+                class={cn('contents', {
+                  'flex justify-between items-center': isTallVariant(),
+                })}
               >
-                <RightControls />
+                <div
+                  class={cn(!isTallVariant() && 'absolute left-2 bottom-1.5')}
+                >
+                  <LeftButton />
+                </div>
+
+                <div
+                  class={cn(
+                    !isTallVariant() && 'absolute right-1.5 bottom-1.5'
+                  )}
+                >
+                  <RightControls />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <ConsentDialog />
-      </Surface>
-    </div>
+          <ConsentDialog />
+        </Surface>
+      </div>
+      <Show when={props.permission?.show}>
+        <PermissionDialog
+          onAccept={props.permission!.onAccept}
+          onDeny={props.permission!.onDeny}
+          onCancel={props.permission!.onCancel}
+        />
+      </Show>
+    </>
   );
 }

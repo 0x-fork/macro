@@ -354,6 +354,8 @@ async fn send_chat_message_inner(
         request.attachments.clone().unwrap_or_default(),
         durable_stream_id,
         cancellation_sub,
+        // Normal send: no resolved parts to prepend.
+        Vec::new(),
     );
 
     Ok(Json(SendChatMessageResponse {
@@ -407,13 +409,38 @@ async fn create_new_chat(
     Ok((chat, new_chat_id))
 }
 
-/// For every `ToolCall` in `parts` that has no matching response, insert a
-/// synthetic `ToolCallErr { description: "cancelled", .. }` immediately after
-/// it. Used on cancellation so the persisted assistant message stays
-/// well-formed: every tool call has a matching response (so future
+/// Whether a stream ended because the agent loop suspended awaiting tool
+/// permission, as opposed to natural completion or user cancellation.
+///
+/// On a permission suspend the gated tool call is intentionally left dangling
+/// so the saved chain derives as [`agent::MessageChainState::Suspended`] and the
+/// `/stream/chat/resolve` endpoint can later accept / deny / cancel it. We must
+/// NOT synthesize a "cancelled" result for it (that is reserved for genuine
+/// cancellation).
+///
+/// When `force_resolve` is true, for every `ToolCall` in `parts` that has no
+/// matching response we insert a synthetic `ToolCallErr { description:
+/// "cancelled", .. }` immediately after it, so the persisted assistant message
+/// stays well-formed: every tool call has a matching response (so future
 /// conversation turns don't break on an unmatched `tool_call_id`) and the UI
-/// can render the cancellation via the existing `ToolCallErr` variant.
-fn resolve_pending_tool_calls(parts: Vec<AssistantMessagePart>) -> Vec<AssistantMessagePart> {
+/// can render it via the existing `ToolCallErr` variant.
+///
+/// `force_resolve` must be set for any **abnormal** termination — user
+/// cancellation, stream error, or idle timeout — because those can leave a tool
+/// call dangling mid-turn, and a dangling call must NOT be allowed to derive as
+/// a resumable permission suspend (the `/stream/chat/resolve` endpoint would
+/// then execute a tool that was never permission-gated).
+///
+/// When `force_resolve` is false, dangling calls are left untouched: either the
+/// turn completed cleanly (no dangling calls) or the loop suspended on a
+/// permission gate (dangling calls must persist as-is to derive as suspended).
+fn resolve_pending_tool_calls(
+    parts: Vec<AssistantMessagePart>,
+    force_resolve: bool,
+) -> Vec<AssistantMessagePart> {
+    if !force_resolve {
+        return parts;
+    }
     use std::collections::HashSet;
     let mut pending: HashSet<String> = HashSet::new();
     for part in &parts {
@@ -460,8 +487,8 @@ fn resolve_pending_tool_calls(parts: Vec<AssistantMessagePart>) -> Vec<Assistant
 /// Creates a payload stream, publishes it via `from_async_stream`, and stores
 /// the conversation messages after the stream finishes.
 #[expect(clippy::too_many_arguments, reason = "matches WS handler signature")]
-#[tracing::instrument(skip(ctx, request, user_message_content, cancellation_sub))]
-fn stream_and_save_message(
+#[tracing::instrument(skip(ctx, request, user_message_content, cancellation_sub, prepend_parts))]
+pub(crate) fn stream_and_save_message(
     ctx: Arc<ApiContext>,
     request: Vec<ChatMessage>,
     system_prompt: String,
@@ -477,6 +504,14 @@ fn stream_and_save_message(
     user_message_attachments: Vec<Entity<'static>>,
     durable_stream_id: StreamId,
     cancellation_sub: CancellationSubscription,
+    // Already-resolved parts to splice into the front of the message on resume
+    // (the gated tool call(s) + their results). Empty for the normal send path.
+    // When present, the stream first re-emits these as `ChatMessageResponse`
+    // chunks and seeds the accumulator with them, and the final persist updates
+    // the existing `message_id` (which already holds the suspended message)
+    // rather than inserting a new row — so resolution + continuation render and
+    // persist as ONE message.
+    prepend_parts: Vec<AssistantMessagePart>,
 ) {
     tracing::trace!(request=?request, "streaming chat request");
     let tool_context = ctx.tool_service_context.clone();
@@ -496,16 +531,39 @@ fn stream_and_save_message(
         // impl aborts the Redis subscriber task.
         let _cancellation_sub = cancellation_sub;
 
-        // Yield the user message as the first item so other clients can display it
-        let user_msg = ChatStream::ChatUserMessage {
-            stream_id: stream_id.clone(),
-            chat_id: chat_id.clone(),
-            message_id: user_message_id,
-            content: user_message_content,
-            attachments: user_message_attachments,
-        };
-        if let Ok(json) = serde_json::to_value(&user_msg) {
-            yield json;
+        // Yield the user message as the first item so other clients can display
+        // it. On resume (the `/stream/chat/resolve` path) there is no new user
+        // message — the caller passes an empty id/content — so skip the prelude
+        // to avoid emitting a blank user message into the stream.
+        if !user_message_id.is_empty() {
+            let user_msg = ChatStream::ChatUserMessage {
+                stream_id: stream_id.clone(),
+                chat_id: chat_id.clone(),
+                message_id: user_message_id,
+                content: user_message_content,
+                attachments: user_message_attachments,
+            };
+            if let Ok(json) = serde_json::to_value(&user_msg) {
+                yield json;
+            }
+        }
+
+        // On resume, re-emit the already-resolved parts (the gated tool call(s)
+        // and their spliced results) as the first chunks of THIS message so the
+        // single rebuilt message renders tool → result → continuation. They are
+        // also seeded into the accumulator below so the persisted message
+        // includes them.
+        let resuming = !prepend_parts.is_empty();
+        for part in &prepend_parts {
+            let response = ChatStream::ChatMessageResponse {
+                stream_id: stream_id.clone(),
+                chat_id: chat_id.clone(),
+                message_id: message_id.clone(),
+                content: part.clone(),
+            };
+            if let Ok(json) = serde_json::to_value(&response) {
+                yield json;
+            }
         }
 
         let mcp_records = mcp_store.list(&user_id).await.unwrap_or_default();
@@ -542,7 +600,18 @@ fn stream_and_save_message(
         let mut is_first_token = false;
         let idle_timeout = std::time::Duration::from_secs(3 * 60);
         let mut was_cancelled = false;
-        let mut accumulator = StreamAccumulator::new();
+        // Set when the stream ends because of an error or idle timeout rather
+        // than natural completion / permission suspend. Such an exit can leave a
+        // tool call dangling mid-turn; we must NOT let that derive as a resumable
+        // permission suspend, so we force-resolve dangling calls in that case.
+        let mut errored = false;
+        // Seed the accumulator with the resolved parts on resume so the
+        // persisted message is tool → result → continuation as one message.
+        let mut accumulator = if resuming {
+            StreamAccumulator::seeded(prepend_parts)
+        } else {
+            StreamAccumulator::new()
+        };
 
         loop {
             let next_item = tokio::select! {
@@ -557,6 +626,7 @@ fn stream_and_save_message(
                         Ok(item) => item,
                         Err(_) => {
                             tracing::error!(chat_id = %chat_id, user_id = %user_id, stream_id = %stream_id, "AI stream idle timeout: no token received within {idle_timeout:?}");
+                            errored = true;
                             let stream_error = StreamError::InternalError {
                                 stream_id: stream_id.clone(),
                             };
@@ -600,6 +670,7 @@ fn stream_and_save_message(
                 }
                 Err(e) => {
                     tracing::error!(error=?e, chat_id = %chat_id, user_id = %user_id, stream_id = %stream_id, "error in AI stream");
+                    errored = true;
                     let stream_error = StreamError::InternalError {
                         stream_id: stream_id.clone(),
                     };
@@ -623,7 +694,8 @@ fn stream_and_save_message(
         // Build the set of messages to persist from the parts we yielded.
         // This matches exactly what the user saw in the streamed chunks.
         let new_messages = {
-            let resolved_parts = resolve_pending_tool_calls(accumulator.into_parts());
+            let resolved_parts =
+                resolve_pending_tool_calls(accumulator.into_parts(), was_cancelled || errored);
             if resolved_parts.is_empty() {
                 vec![]
             } else {
@@ -641,7 +713,26 @@ fn stream_and_save_message(
             .find(|m| m.role == agent::types::Role::Assistant)
             .and_then(|m| m.content.assistant_message_text());
 
-        if let Err(err) = store_conversation_messages(
+        // Persist. On resume the assistant message already exists (it is the
+        // suspended message we are continuing), so UPDATE it in place — the
+        // accumulated parts are the resolved tool call(s) + their results +
+        // the continuation, written as ONE message. `create_message` is a plain
+        // INSERT and would unique-violate on the existing id, so we must not use
+        // the insert path here. The normal send path inserts as before.
+        if resuming {
+            let assistant_content = new_messages
+                .into_iter()
+                .find(|m| m.role == agent::types::Role::Assistant)
+                .map(|m| m.content);
+            if let Some(content) = assistant_content
+                && let Err(err) = ctx
+                    .message_service
+                    .update(&user_id, &chat_id, &message_id, &content)
+                    .await
+            {
+                tracing::error!(error=?err, chat_id = %chat_id, user_id = %user_id, stream_id = %stream_id, "failed to update resumed message");
+            }
+        } else if let Err(err) = store_conversation_messages(
             ctx.clone(),
             user_id.0.as_ref(),
             &chat_id,

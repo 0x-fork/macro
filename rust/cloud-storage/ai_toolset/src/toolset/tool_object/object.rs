@@ -1,3 +1,4 @@
+use crate::ToolAnnotations;
 use schemars::SchemaGenerator;
 use serde_json::Map;
 use serde_json::Value;
@@ -17,6 +18,9 @@ pub struct ToolObject<T> {
     pub description: String,
     /// The unique name of the tool.
     pub name: String,
+    /// MCP-style behavioural hints for the tool, captured at registration. Read
+    /// by the permission layer and advertised to external MCP consumers.
+    pub annotations: ToolAnnotations,
     /// The deserializer function for converting JSON to the tool type.
     pub deserializer: T,
     /// Registers this tool's input/output types with a shared generator

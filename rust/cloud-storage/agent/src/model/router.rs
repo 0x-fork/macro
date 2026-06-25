@@ -35,7 +35,7 @@ use super::anthropic::AnthropicModel;
 use super::openai::{OpenAiChatCompletionsModel, OpenAiResponsesModel};
 use super::types::Model;
 use crate::error::AgentError;
-use crate::hook::{RegisterFn, StreamBridge, ToolRouter};
+use crate::hook::{PermissionGate, RegisterFn, StreamBridge, ToolRouter};
 use crate::stream::{ChatCompletionStream, StreamPart};
 
 env_var! {
@@ -139,6 +139,7 @@ impl ProviderAgent {
         history: Vec<Message>,
         max_turns: usize,
         routing: ToolRouter,
+        permission_gate: PermissionGate,
         loaded_buffer: Arc<Mutex<Vec<SearchableTool>>>,
         register_loaded: RegisterFn,
         recorder: Arc<dyn UsageRecorder>,
@@ -153,6 +154,7 @@ impl ProviderAgent {
                     history,
                     max_turns,
                     routing,
+                    permission_gate,
                     loaded_buffer,
                     register_loaded,
                     recorder,
@@ -168,6 +170,7 @@ impl ProviderAgent {
                     history,
                     max_turns,
                     routing,
+                    permission_gate,
                     loaded_buffer,
                     register_loaded,
                     recorder,
@@ -183,6 +186,7 @@ impl ProviderAgent {
                     history,
                     max_turns,
                     routing,
+                    permission_gate,
                     loaded_buffer,
                     register_loaded,
                     recorder,
@@ -376,6 +380,7 @@ async fn drive_stream<M>(
     history: Vec<Message>,
     max_turns: usize,
     routing: ToolRouter,
+    permission_gate: PermissionGate,
     loaded_buffer: Arc<Mutex<Vec<SearchableTool>>>,
     register_loaded: RegisterFn,
     recorder: Arc<dyn UsageRecorder>,
@@ -386,7 +391,8 @@ where
     M: CompletionModel + 'static,
     M::StreamingResponse: GetTokenUsage + Send + Sync,
 {
-    let (bridge, mut rx) = StreamBridge::channel(routing, loaded_buffer, register_loaded);
+    let (bridge, mut rx) =
+        StreamBridge::channel(routing, permission_gate, loaded_buffer, register_loaded);
 
     let mut rig_stream = agent
         .stream_prompt(prompt)
@@ -427,7 +433,17 @@ where
                             }));
                         }
                         Err(e) => {
-                            yield Err(AgentError::Streaming(e));
+                            let err = AgentError::Streaming(e);
+                            // A permission-gate Terminate surfaces as a cancelled
+                            // prompt carrying our reason. Swallow it: the stream
+                            // ends cleanly with the gated tool call left dangling,
+                            // so the saved chain derives as suspended. Any other
+                            // error is forwarded.
+                            if crate::hook::is_permission_suspend(&err) {
+                                tracing::debug!("stream suspended awaiting tool permission");
+                                break;
+                            }
+                            yield Err(err);
                         }
                         _ => {}
                     }

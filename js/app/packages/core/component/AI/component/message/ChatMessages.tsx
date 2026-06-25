@@ -56,7 +56,13 @@ function messageContentIsEmpty(message: ChatMessageWithAttachments) {
 
 export function ChatMessages(props: ChatMessagesProps) {
   const chat = useChatContext();
-  const messages = chat.messages;
+  // Render from the EFFECTIVE chain: persisted `messages` with the in-flight
+  // streaming message merged in by id. The streaming message is an in-place
+  // entry in this list (a brand-new turn appends at the end; a resume merges
+  // into the message it continues, keeping its slot), so there is no separate
+  // trailing "generating" bubble — which is what previously pulled a resumed
+  // message out of order.
+  const messages = chat.effectiveMessages;
   const stream = chat.stream;
 
   const timedStream = createMemo(() => {
@@ -79,22 +85,23 @@ export function ChatMessages(props: ChatMessagesProps) {
 
   let messagesRef: HTMLDivElement | undefined;
 
-  const generatingMessage = () => {
-    const s = stream();
-    if (!s) return;
-    if (s.isDone()) return;
-    const parts = s.data();
-    const message = asChatMessage(parts);
-    if (!message) return;
-    if (messageContentIsEmpty(message)) return;
-    return message;
-  };
-
   const isStream = () => {
     const s = stream();
     if (!s) return false;
     return !s.isDone();
   };
+
+  // The id of the message currently being streamed (if any), so we can flag it
+  // `isStreaming` in the list. While the stream has produced no renderable
+  // content yet the spinner (PulsingStar) covers the gap.
+  const streamingMessageId = () => {
+    const s = stream();
+    if (!s || s.isDone()) return undefined;
+    const message = asChatMessage(s.data());
+    if (!message || messageContentIsEmpty(message)) return undefined;
+    return message.id;
+  };
+  const isStreamingMessage = createSelector(streamingMessageId);
 
   const [parentHeight, setParentHeight] = createSignal(0);
 
@@ -180,9 +187,13 @@ export function ChatMessages(props: ChatMessagesProps) {
     }
   });
 
+  // The streaming assistant message is now an in-place entry in `messages()`
+  // (the effective chain), so the trailing block is the last *pair*
+  // (user + assistant) in every case except while merely waiting for the
+  // stream to start — then only the just-sent user message exists yet.
   const lastPair = () => {
     const msgs = messages();
-    if (generatingMessage() || isStream()) {
+    if (chat.isWaiting()) {
       return msgs.slice(-1);
     } else if (msgs.length >= 2) {
       return msgs.slice(-2);
@@ -193,7 +204,7 @@ export function ChatMessages(props: ChatMessagesProps) {
 
   const allButLastMessagePair = () => {
     const msgs = messages();
-    if (generatingMessage() || isStream()) {
+    if (chat.isWaiting()) {
       return msgs.slice(0, -1);
     } else if (msgs.length >= 2) {
       return msgs.slice(0, -2);
@@ -208,8 +219,7 @@ export function ChatMessages(props: ChatMessagesProps) {
     !isMobileWidth() &&
     !isTouchDevice() &&
     !isStream() &&
-    !chat.isWaiting() &&
-    !generatingMessage();
+    !chat.isWaiting();
 
   return (
     <StaticMarkdownContext theme={aiChatTheme}>
@@ -238,6 +248,7 @@ export function ChatMessages(props: ChatMessagesProps) {
                         <AssistantMessage
                           message={msg}
                           ttft={messageTimingMap[msg.id]}
+                          isStreaming={isStreamingMessage(msg.id)}
                         />
                       </Match>
                     </Switch>
@@ -280,6 +291,7 @@ export function ChatMessages(props: ChatMessagesProps) {
                                 <AssistantMessage
                                   message={msg}
                                   ttft={messageTimingMap[msg.id]}
+                                  isStreaming={isStreamingMessage(msg.id)}
                                 />
                               </Match>
                             </Switch>
@@ -287,15 +299,6 @@ export function ChatMessages(props: ChatMessagesProps) {
                         )}
                       </For>
                     )}
-                  </Show>
-                  <Show when={generatingMessage()}>
-                    {(msg) => {
-                      return (
-                        <div id={'chat-' + msg().id}>
-                          <AssistantMessage message={msg()} isStreaming />
-                        </div>
-                      );
-                    }}
                   </Show>
                   <Show when={isStream() || chat.isWaiting()}>
                     <OnMount

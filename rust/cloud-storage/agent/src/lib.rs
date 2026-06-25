@@ -9,6 +9,11 @@ mod convert;
 mod error;
 mod hook;
 mod model;
+/// Tool permissions: deriving whether a tool may run, requires user
+/// permission, or is denied.
+pub mod permissions;
+/// Derived message-chain state and permission-resolution transitions.
+pub mod state;
 mod stream;
 /// Structured output via prompted JSON generation.
 pub mod structured_output;
@@ -22,6 +27,11 @@ pub use convert::{merge_consecutive_parts, to_rig_messages};
 pub use error::AgentError;
 pub use hook::StreamBridge;
 pub use model::PredefinedModel;
+pub use permissions::{HintPermissionsRepo, Permission, PermissionsRepo, permission_for};
+pub use state::{
+    AcceptResult, MessageChainState, ResolutionEvent, ToolDecision, TransitionOutcome,
+    UnresolvedCall, derive_state, transition_suspended,
+};
 pub use stream::{ChatCompletionStream, McpInfo, StreamPart, ToolCall, ToolResponse, Usage};
 pub use tool_adapter::{DynToolSetAdapter, ToolsetToolAdapter, normalize_request_schema};
 

@@ -4,6 +4,7 @@
 mod test;
 
 use crate::AgentError;
+use crate::permissions::Permission;
 use crate::stream::{McpInfo, StreamPart, ToolCall, ToolResponse, Usage};
 use ai_toolset::{SearchableTool, ToolInfo};
 use rig_core::agent::{HookAction, PromptHook, ToolCallHookAction};
@@ -30,12 +31,53 @@ pub type ToolRouter = Arc<dyn Fn(&str) -> Option<ToolInfo> + Send + Sync>;
 pub type RegisterFn =
     Arc<dyn Fn(Vec<SearchableTool>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
+/// Resolves the [`Permission`] for a tool by (mangled) name, before dispatch.
+///
+/// Built by the agent layer from the session's [`PermissionsRepo`] and toolset
+/// (which together know each tool's annotations). Context-erased so the bridge
+/// stays generic-free, mirroring [`ToolRouter`]. The bridge consults this in
+/// [`PromptHook::on_tool_call`]: a [`Permission::NeedsPermission`] (or
+/// `AlwaysDeny`) terminates the loop, leaving the tool call dangling so the
+/// saved chain derives as suspended.
+///
+/// [`PermissionsRepo`]: crate::permissions::PermissionsRepo
+pub type PermissionGate = Arc<dyn Fn(&str) -> Permission + Send + Sync>;
+
+/// The reason string a permission-suspend terminates the loop with.
+///
+/// Distinguishes a permission-driven halt from a user cancellation so the DCS
+/// layer can leave gated calls dangling (vs. synthesizing "cancelled").
+pub const PERMISSION_SUSPEND_REASON: &str = "tool requires permission";
+
+/// Whether `err` is the controlled stream termination produced by the permission
+/// gate (a `Terminate` from [`StreamBridge::on_tool_call`]).
+///
+/// rig surfaces a [`ToolCallHookAction::Terminate`] as a
+/// `PromptError::PromptCancelled` carrying our reason. The drive loop swallows
+/// this (rather than yielding it as an error) so the stream ends cleanly with
+/// the gated tool call left dangling — the saved chain then derives as
+/// suspended.
+pub fn is_permission_suspend(err: &AgentError) -> bool {
+    use rig_core::agent::StreamingError;
+    use rig_core::completion::PromptError;
+    let AgentError::Streaming(StreamingError::Prompt(prompt_err)) = err else {
+        return false;
+    };
+    matches!(
+        prompt_err.as_ref(),
+        PromptError::PromptCancelled { reason, .. } if reason == PERMISSION_SUSPEND_REASON
+    )
+}
+
 /// Sends [`StreamPart`] items through an unbounded channel as the RIG agentic
 /// loop produces events.
 #[derive(Clone)]
 pub struct StreamBridge {
     tx: mpsc::UnboundedSender<Result<StreamPart, AgentError>>,
     routing: ToolRouter,
+    /// Resolves a tool's permission before dispatch. Gated tools terminate the
+    /// loop, leaving the call dangling (suspended).
+    permission_gate: PermissionGate,
     /// Tools the `SearchTools` tool asked to load this turn, awaiting
     /// registration. Drained in [`Self::on_tool_result`].
     loaded_buffer: Arc<Mutex<Vec<SearchableTool>>>,
@@ -53,6 +95,7 @@ impl StreamBridge {
     /// next turn (see [`Self::on_tool_result`]).
     pub fn channel(
         routing: ToolRouter,
+        permission_gate: PermissionGate,
         loaded_buffer: Arc<Mutex<Vec<SearchableTool>>>,
         register_loaded: RegisterFn,
     ) -> (
@@ -64,6 +107,7 @@ impl StreamBridge {
             Self {
                 tx,
                 routing,
+                permission_gate,
                 loaded_buffer,
                 register_loaded,
             },
@@ -108,6 +152,18 @@ where
             json,
             mcp,
         })));
+
+        // Permission gate, checked BEFORE dispatch. A tool that needs permission
+        // (or is denied) terminates the loop, leaving this call dangling (no tool
+        // result). The saved chain then derives as suspended-on-this-call and the
+        // frontend prompts the user to accept / deny / cancel. The ToolCall part
+        // was already streamed above so the unresolved call is rendered in place.
+        if (self.permission_gate)(tool_name).requires_resolution() {
+            return ToolCallHookAction::Terminate {
+                reason: PERMISSION_SUSPEND_REASON.to_owned(),
+            };
+        }
+
         ToolCallHookAction::Continue
     }
 

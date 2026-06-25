@@ -1493,6 +1493,55 @@
         }
       }
     },
+    "/stream/chat/resolve": {
+      "post": {
+        "tags": ["stream_resolve"],
+        "summary": "Resolve a suspended chat's pending tool calls and, if it becomes ready,\nresume streaming.",
+        "operationId": "resolve_chat_tool_calls",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Resolution applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveChatResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveChatError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveChatError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/structured-completion": {
       "post": {
         "tags": ["structured_completion"],
@@ -3206,6 +3255,108 @@
           }
         }
       },
+      "ResolveAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Apply per-call decisions. May cover only some pending calls (partial),\nin which case the chat stays suspended on the remainder.",
+            "required": ["decisions", "action"],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": ["resolve"]
+              },
+              "decisions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ToolResolution"
+                },
+                "description": "The per-call decisions."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Cancel: resolve all pending calls as cancelled. Never resumes the loop.",
+            "required": ["action"],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": ["cancel"]
+              }
+            }
+          }
+        ],
+        "description": "The resolution action: a batch of per-call accept/deny, or a cancel-all."
+      },
+      "ResolveChatError": {
+        "type": "object",
+        "description": "Error response for the resolve endpoint.",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Human-readable error."
+          }
+        }
+      },
+      "ResolveChatRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ResolveAction",
+            "description": "The resolution action."
+          },
+          {
+            "type": "object",
+            "required": ["chat_id", "model"],
+            "properties": {
+              "chat_id": {
+                "type": "string",
+                "description": "The chat whose pending tool calls are being resolved."
+              },
+              "model": {
+                "type": "string",
+                "description": "The model to resume streaming with (`provider/model` id)."
+              },
+              "toolset": {
+                "$ref": "#/components/schemas/ToolSet",
+                "description": "Which toolset to use when executing accepted tools / resuming."
+              }
+            }
+          }
+        ],
+        "description": "HTTP request to resolve a suspended chat's pending tool permissions."
+      },
+      "ResolveChatResponse": {
+        "type": "object",
+        "description": "Response for a resolution request.\n\nThe suspended assistant message and its resumption are ONE message,\nidentified by `message_id` (= the suspended message's id) in every case —\nresume, partial resolve, and cancel. `parts` is the resolved suspended-message\nparts (`outcome.parts`): the frontend patches that message in place with\nthem. On a resume, `stream_id` (also = the suspended message's id) carries the\ncontinuation, which rebuilds the same message live.",
+        "required": ["stream_id", "message_id", "chat_id", "resumed", "parts"],
+        "properties": {
+          "chat_id": {
+            "type": "string",
+            "description": "The chat id."
+          },
+          "message_id": {
+            "type": "string",
+            "description": "The id of the (single) assistant message — the suspended message's id in\nevery case, so the frontend can patch / rebuild it in place."
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantMessagePart"
+            },
+            "description": "The resolved parts of the suspended message (tool call(s) + their\nspliced results). The frontend replaces the suspended message's parts\nwith these."
+          },
+          "resumed": {
+            "type": "boolean",
+            "description": "Whether the loop resumed streaming."
+          },
+          "stream_id": {
+            "type": "string",
+            "description": "The stream that will carry the resumed response (empty when not resumed)."
+          }
+        }
+      },
       "Role": {
         "type": "string",
         "description": "The role of a message participant.",
@@ -3513,6 +3664,41 @@
         "type": "string",
         "description": "The kind of entity a projection is materialized for.",
         "enum": ["user", "team"]
+      },
+      "ToolResolution": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Run the tool. Execution happens server-side through the toolset.",
+            "required": ["call_id", "kind"],
+            "properties": {
+              "call_id": {
+                "type": "string",
+                "description": "The id of the tool call being accepted."
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["accept"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Reject the tool; the model sees a \"denied\" result.",
+            "required": ["call_id", "kind"],
+            "properties": {
+              "call_id": {
+                "type": "string",
+                "description": "The id of the tool call being denied."
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["deny"]
+              }
+            }
+          }
+        ],
+        "description": "A single per-tool decision in a resolution request."
       },
       "ToolSet": {
         "oneOf": [
