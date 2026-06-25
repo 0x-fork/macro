@@ -114,7 +114,7 @@ export function ChatInput(props: ChatInputComponentProps) {
   const [attachMenuAnchorRef, setAttachMenuAnchorRef] =
     createSignal<HTMLDivElement>();
   const [markdownText, setMarkdownText] = createSignal('');
-  const [isFocused, setIsFocused] = createSignal(false);
+  const [_isFocused, setIsFocused] = createSignal(false);
 
   createEffect(() => {
     const uploaded = uploadQueue.popComplete();
@@ -272,7 +272,7 @@ export function ChatInput(props: ChatInputComponentProps) {
 
   return (
     <div class="relative">
-      <Surface active={isFocused()} class="rounded-xl" depth={2} solid>
+      <Surface class="rounded-xl" depth={2} solid>
         <div
           onFocusOut={(e) => {
             const next = e.relatedTarget as Node | null;
