@@ -1,6 +1,6 @@
 import { toast } from '@core/component/Toast/Toast';
 import { match } from 'ts-pattern';
-import { Button, Dialog, Panel, ToggleSwitch, Tooltip } from '@ui';
+import { Button, Dialog, Panel, Tooltip } from '@ui';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   ENABLE_INBOX_RESYNC,
@@ -25,16 +25,7 @@ import {
   getBackfillProgress,
   useBackfillJobsQuery,
 } from '@queries/email/backfill';
-import {
-  createMemo,
-  createSignal,
-  For,
-  lazy,
-  Match,
-  Show,
-  Suspense,
-  Switch,
-} from 'solid-js';
+import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
 import {
   useAddInboxFlow,
   useEmailLinks,
@@ -45,30 +36,15 @@ import {
   openAddInboxDialog,
   useAddInboxGate,
 } from '../AddInboxDialog';
-import {
-  useEmailSignature,
-  useRemoveInboxMutation,
-} from '@queries/email/link';
-import { useUpdateEmailSettingsMutation } from '@queries/email/settings';
+import { useRemoveInboxMutation } from '@queries/email/link';
 import { IntegrationRow, SettingsCard, SettingsRow } from './primitives';
 import { ConnectAction, StatusDot } from './integration-ui';
-
-// Quill (and its CSS) is heavy and only needed once a signature section is
-// expanded, so load it as its own chunk on demand instead of in the settings
-// bundle.
-const SignatureEditor = lazy(() => import('./SignatureEditor'));
-
-// Unsaved signature drafts and per-inbox expanded state, keyed by link id and
-// held at module scope. The settings modal unmounts the Connected Accounts tab
-// when you switch away (and the links query can recreate an inbox row on
-// refetch); keeping this outside that subtree means tabbing away and back no
-// longer closes the editor or discards unsaved edits. Cleared on save/remove.
-const [signatureDrafts, setSignatureDrafts] = createSignal<
-  Record<string, string>
->({});
-const [signatureExpanded, setSignatureExpanded] = createSignal<
-  Record<string, boolean>
->({});
+import {
+  clearSignatureState,
+  isSignatureExpanded,
+  SignatureSection,
+  toggleSignatureExpanded,
+} from './SignatureSection';
 
 /**
  * Gmail integration as a single Connected-accounts card: a header row with the
@@ -108,7 +84,10 @@ export function EmailCard() {
     latestBackfillByLinkId().get(linkId)?.status === BackfillJobStatus.Complete;
 
   const removeInboxMutation = useRemoveInboxMutation({
-    onSuccess: () => toast.success('Inbox removed'),
+    onSuccess: (_data, linkId) => {
+      clearSignatureState(linkId);
+      toast.success('Inbox removed');
+    },
     onError: () => toast.failure('Failed to remove inbox. Please try again.'),
   });
   const [removeTarget, setRemoveTarget] = createSignal<{
@@ -410,12 +389,7 @@ function InboxRow(props: {
   onReconnect: () => void;
   onRemove: () => void;
 }) {
-  const showSignature = () => signatureExpanded()[props.link.id] ?? false;
-  const toggleSignature = () =>
-    setSignatureExpanded((prev) => ({
-      ...prev,
-      [props.link.id]: !showSignature(),
-    }));
+  const showSignature = () => isSignatureExpanded(props.link.id);
   const signatureSectionId = `signature-section-${props.link.id}`;
   return (
     <div class="bg-surface flex flex-col">
@@ -479,7 +453,7 @@ function InboxRow(props: {
                 variant="base"
                 size="icon-sm"
                 depth={3}
-                onClick={toggleSignature}
+                onClick={() => toggleSignatureExpanded(props.link.id)}
                 aria-label={`Edit signature for ${props.link.email_address}`}
                 aria-expanded={showSignature()}
                 aria-controls={signatureSectionId}
@@ -544,125 +518,3 @@ function InboxRow(props: {
   );
 }
 
-// Per-inbox signature editor. Reads the persisted signature from the links
-// query (no extra fetch) into the Quill editor, tracks an unsaved draft, and
-// patches `email_settings` on save. The "replies & forwards" toggle patches
-// immediately (the backend patch is partial, so it leaves the signature alone).
-function SignatureSection(props: { link: EmailLink }) {
-  const signature = useEmailSignature(() => props.link.id);
-  // Draft lives in the module-level store (keyed by link id) so it survives the
-  // settings tab unmounting; `null` means "no unsaved edit".
-  const draft = () => signatureDrafts()[props.link.id] ?? null;
-  const setDraft = (html: string | null) =>
-    setSignatureDrafts((prev) => {
-      if (html === null) {
-        const next = { ...prev };
-        delete next[props.link.id];
-        return next;
-      }
-      return { ...prev, [props.link.id]: html };
-    });
-
-  const persisted = () => signature() ?? '';
-  const isDirty = () => draft() !== null && draft() !== persisted();
-  // Enabled when there's a saved signature or unsaved draft text to clear — so
-  // "Remove" stays available even after the user manually empties the editor.
-  const hasContent = () =>
-    persisted().length > 0 || (draft()?.length ?? 0) > 0;
-
-  const updateSettings = useUpdateEmailSettingsMutation();
-  // Imperative handle to the editor, so Save/Remove sync its content directly
-  // (the reactive `value` path alone didn't reliably clear the box on Remove).
-  let editorApi: { setContent: (html: string) => void } | undefined;
-
-  const saveSignature = () => {
-    const next = draft();
-    if (next === null) return;
-    updateSettings.mutate(
-      { linkId: props.link.id, settings: { signature: next } },
-      {
-        onSuccess: (data) => {
-          setDraft(null);
-          editorApi?.setContent(data.settings.signature ?? '');
-          toast.success('Signature saved');
-        },
-        onError: () =>
-          toast.failure('Failed to save signature. Please try again.'),
-      }
-    );
-  };
-
-  // Clears the stored signature. Sending an empty string is the backend's
-  // "clear" contract; the editor reseeds to empty once the cache updates.
-  const removeSignature = () => {
-    updateSettings.mutate(
-      { linkId: props.link.id, settings: { signature: '' } },
-      {
-        onSuccess: () => {
-          setDraft(null);
-          editorApi?.setContent('');
-          toast.success('Signature removed');
-        },
-        onError: () =>
-          toast.failure('Failed to remove signature. Please try again.'),
-      }
-    );
-  };
-
-  const setOnRepliesForwards = (checked: boolean) => {
-    updateSettings.mutate(
-      {
-        linkId: props.link.id,
-        settings: { signature_on_replies_forwards: checked },
-      },
-      { onError: () => toast.failure('Failed to update setting.') }
-    );
-  };
-
-  return (
-    <div class="flex flex-col gap-3 rounded-xl border border-edge-muted p-3">
-      <Suspense
-        fallback={
-          <div class="h-44 animate-pulse rounded-lg border border-edge-muted" />
-        }
-      >
-        <SignatureEditor
-          value={draft() ?? persisted()}
-          onInput={setDraft}
-          onReady={(api) => {
-            editorApi = api;
-          }}
-        />
-      </Suspense>
-      <div class="flex items-center justify-between gap-3">
-        <ToggleSwitch
-          checked={props.link.settings.signature_on_replies_forwards ?? false}
-          onChange={setOnRepliesForwards}
-          label={
-            <span class="text-sm text-ink-muted">Add to replies & forwards</span>
-          }
-        />
-        <div class="flex items-center gap-2">
-          <Button
-            variant="base"
-            size="sm"
-            depth={3}
-            disabled={!hasContent() || updateSettings.isPending}
-            onClick={removeSignature}
-          >
-            Remove
-          </Button>
-          <Button
-            variant="active"
-            size="sm"
-            depth={3}
-            disabled={!isDirty() || updateSettings.isPending}
-            onClick={saveSignature}
-          >
-            Save
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
