@@ -40,6 +40,18 @@ docker_up *ARGS:
   echo "startup docker compose"
   docker compose up {{ ARGS }}
 
+# Start Postgres (wal_level=logical) + the ElectricSQL sync service.
+# Electric serves the soup_items shape at http://localhost:3100/v1/shape.
+run_electric *ARGS:
+  just create_networks
+  docker compose -f docker-compose-databases.yml up postgres --wait
+  docker compose up electric --wait {{ ARGS }}
+
+# End-to-end check that soup syncs through Electric (writes a Document, reads
+# the shape API). Pass a USER_ID to scope the demo (defaults to demo-user).
+verify_soup_electric *ARGS:
+  bash scripts/verify-soup-electric.sh {{ ARGS }}
+
 # Run all services locally using docker-compose
 # Requires .env file (from `just get_environment`) and FusionAuth setup (from `just setup`).
 # Automatically patches .env with local FusionAuth values before starting services.

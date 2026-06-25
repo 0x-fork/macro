@@ -1,7 +1,12 @@
 import { filterSoupItemByRequestBody } from '@app/component/next-soup/filters/query-filters';
+import { useUserId } from '@core/context/user';
 import { throwOnErr } from '@core/util/result';
 import type { EntityData } from '@entity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
+import {
+  isSoupElectricEnabled,
+  useElectricSoupItems,
+} from '@queries/soup/electric';
 import {
   parseGroupMeta,
   serializeGroupByField,
@@ -137,6 +142,37 @@ export const useSoupItemsQuery = (
     placeholderData: (p) => p,
     meta: { itemFilter, normalize: true },
   }));
+};
+
+/**
+ * Soup feed as a flat `EntityData[]` accessor, with a swappable data source.
+ *
+ * When `VITE_SOUP_ELECTRIC=true` the feed is served live from the ElectricSQL
+ * `soup_items` shape (see `@queries/soup/electric`); otherwise it falls back to
+ * the existing HTTP infinite query. Both hooks are always invoked (Rules of
+ * Hooks), but only the active source does work — the inactive one is disabled
+ * (Electric gets an `undefined` user; HTTP gets `enabled: false`).
+ *
+ * This is the single seam a feed component swaps to in order to adopt Electric
+ * without changing its own code when the flag flips.
+ */
+export const useSoupItemsFeed = (
+  args: Accessor<SoupItemsQueryArgs>,
+  options?: Accessor<SoupItemsQueryOptions>
+): Accessor<EntityData[]> => {
+  const electricEnabled = isSoupElectricEnabled();
+  const userId = useUserId();
+
+  const electric = useElectricSoupItems(() =>
+    electricEnabled ? (userId() ?? undefined) : undefined
+  );
+
+  const query = useSoupItemsQuery(args, () => ({
+    ...options?.(),
+    enabled: electricEnabled ? false : options?.().enabled,
+  }));
+
+  return () => (electricEnabled ? electric.entities() : (query.data ?? []));
 };
 
 export const useSoupAstItemsQuery = (

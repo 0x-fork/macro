@@ -435,6 +435,35 @@ services:
       retries: 3
       start_period: 10s
 
+  # ============================================================================
+  # electric (Port 3100 -> 3000)
+  # ElectricSQL sync engine. Connects to MacroDB via logical replication and
+  # exposes the HTTP shape API. Used to sync the `soup_items` shape to clients.
+  # Host port 3100 (the frontend dev server owns 3000). ELECTRIC_INSECURE
+  # disables Electric's auth for local dev — production fronts it with a
+  # gatekeeper/proxy that authorizes per-user shape access.
+  # ============================================================================
+  electric:
+    image: electricsql/electric:1.7.3
+    ports:
+      - "3100:3000"
+    environment:
+      - DATABASE_URL=postgres://user:password@postgres:5432/macrodb?sslmode=disable
+      - ELECTRIC_INSECURE=true
+    depends_on:
+      - postgres
+    networks:
+      databases:
+      services:
+        aliases:
+          - electric
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
 networks:
   services:
     driver: bridge

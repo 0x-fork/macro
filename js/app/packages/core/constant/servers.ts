@@ -13,6 +13,8 @@ const serverHostLocal: Servers = {
   'email-service': 'http://localhost:8087',
   'image-proxy-service': 'http://localhost:8097',
   'scheduled-action': 'http://localhost:8098',
+  // ElectricSQL shape API. Host 3100 because the frontend dev server owns 3000.
+  electric: 'http://localhost:3100',
 } as const;
 
 const devServerSuffix = import.meta.env.MODE === 'development' ? '-dev' : '';
@@ -37,6 +39,9 @@ const serverHostRemote = {
   'email-service': `https://email-service${devServerSuffix}.macro.com`,
   'image-proxy-service': `https://image-proxy${devServerSuffix}.macro.com`,
   'scheduled-action': `https://agent-schedule${devServerSuffix}.macro.com`,
+  // Production fronts Electric with a gatekeeper/proxy that authorizes per-user
+  // shape access; this host is a placeholder until that endpoint exists.
+  electric: `https://electric${devServerSuffix}.macro.com`,
 } as const;
 
 type Servers = Record<keyof typeof serverHostRemote, string>;
