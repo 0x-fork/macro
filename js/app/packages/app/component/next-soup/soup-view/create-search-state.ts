@@ -1,10 +1,12 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import type { SoupState } from '@app/component/next-soup/create-soup-state';
 import type { FilterContext } from '@app/component/next-soup/filters/configs/base';
+import type { FacetSelection } from '@app/component/next-soup/filters/facet-store';
 import {
   NIL_UUID,
   type QueryState,
 } from '@app/component/next-soup/filters/filter-store';
+import type { CallStatus } from '@app/component/next-soup/filters/filter-store/types';
 import { useSearchContext } from '@app/component/next-soup/search-context';
 import {
   createSoupFreshSearch,
@@ -15,6 +17,7 @@ import { useUserId } from '@core/context/user';
 import { arrayEquals } from '@core/util/compareUtils';
 import { debouncedDependent } from '@core/util/debounce';
 import { type EntityData, isChannelEntity } from '@entity';
+import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import {
   useSearchSoupQuery,
   validateSearchServiceText,
@@ -25,6 +28,7 @@ import type {
   UnifiedSearchRequest,
 } from '@service-search/generated/models';
 import { type Accessor, createMemo, on, type Setter } from 'solid-js';
+import type { SearchTypeValue } from './filters-bar/search/search-filters-state';
 
 // Map the tasks-view property filters (status/priority/assignee/custom) into the
 // search request shape, mirroring the soup path so search and soup agree. Values
@@ -51,7 +55,7 @@ function includePropertiesToFilters(
   return [...byPropId.values()];
 }
 
-function filterDataToQueryFilters(data: QueryState): EntityFilters {
+export function filterDataToQueryFilters(data: QueryState): EntityFilters {
   const filters: EntityFilters = {};
   const { include } = data;
 
@@ -163,6 +167,145 @@ function filterDataToQueryFilters(data: QueryState): EntityFilters {
   const propertyFilters = includePropertiesToFilters(include.properties);
   if (propertyFilters.length) {
     filters.property_filters = propertyFilters;
+  }
+
+  return filters;
+}
+
+// The "match nothing" id field per entity group — used to NIL-exclude every
+// group except the active search type's (so search scopes to one entity type).
+const NIL_FIELD = {
+  document_filters: 'document_ids',
+  email_filters: 'email_thread_ids',
+  channel_filters: 'channel_ids',
+  channel_thread_filters: 'thread_ids',
+  chat_filters: 'chat_ids',
+  project_filters: 'project_ids',
+  call_filters: 'call_ids',
+  foreign_entity_filters: 'ids',
+} as const;
+
+type EntityGroup = keyof typeof NIL_FIELD;
+
+const ACTIVE_GROUP: Record<SearchTypeValue, EntityGroup | null> = {
+  all: null,
+  email: 'email_filters',
+  channels: 'channel_filters',
+  calls: 'call_filters',
+  task: 'document_filters',
+  'document-or-file': 'document_filters',
+  folders: 'project_filters',
+  agent: 'chat_filters',
+};
+
+export function buildSearchEntityFilters(
+  selection: Partial<FacetSelection>
+): EntityFilters {
+  const {
+    'search-type': searchType = [],
+    'email-importance': emailImportance = [],
+    'email-inbox': emailInbox = [],
+    'channel-in': channelIn = [],
+    'channel-from': channelFrom = [],
+    'call-in': callIn = [],
+    'call-from': callFrom = [],
+    'call-status': callStatus = [],
+    'task-status': taskStatus = [],
+    'task-priority': taskPriority = [],
+    assignee = [],
+    'task-created-by': taskCreatedBy = [],
+  } = selection;
+
+  const type = (searchType[0] as SearchTypeValue | undefined) ?? 'all';
+
+  if (type === 'all') {
+    return {
+      channel_thread_filters: { thread_ids: [NIL_UUID] },
+      foreign_entity_filters: { ids: [NIL_UUID] },
+    };
+  }
+
+  const active = ACTIVE_GROUP[type];
+  const filters: EntityFilters = {};
+
+  for (const group of Object.keys(NIL_FIELD) as EntityGroup[]) {
+    if (group === active) {
+      continue;
+    }
+
+    filters[group] = {
+      [NIL_FIELD[group]]: [NIL_UUID],
+    };
+  }
+
+  switch (type) {
+    case 'email': {
+      const ef: NonNullable<EntityFilters['email_filters']> = {};
+
+      if (emailImportance.includes('important')) ef.importance = true;
+      if (emailInbox.length) ef.link_ids = emailInbox;
+
+      if (Object.keys(ef).length) filters.email_filters = ef;
+
+      break;
+    }
+
+    case 'channels': {
+      const cf: NonNullable<EntityFilters['channel_filters']> = {};
+
+      if (channelIn.length) cf.channel_ids = channelIn;
+      if (channelFrom.length) cf.sender_ids = channelFrom;
+
+      if (Object.keys(cf).length) filters.channel_filters = cf;
+
+      break;
+    }
+
+    case 'calls': {
+      const cf: NonNullable<EntityFilters['call_filters']> = {};
+
+      if (callIn.length) cf.channel_ids = callIn;
+      if (callFrom.length) cf.speaker_ids = callFrom;
+
+      const status = callStatus[0] as CallStatus | undefined;
+      if (status) cf.status = status;
+
+      if (Object.keys(cf).length) filters.call_filters = cf;
+
+      break;
+    }
+
+    case 'task': {
+      const df: NonNullable<EntityFilters['document_filters']> = {
+        sub_types: ['task'],
+      };
+
+      if (taskCreatedBy.length) df.owners = taskCreatedBy;
+
+      filters.document_filters = df;
+
+      const properties = includePropertiesToFilters([
+        ...taskStatus.map((value) => ({
+          propertyId: SYSTEM_PROPERTY_IDS.STATUS,
+          type: 'select' as const,
+          value,
+        })),
+        ...taskPriority.map((value) => ({
+          propertyId: SYSTEM_PROPERTY_IDS.PRIORITY,
+          type: 'select' as const,
+          value,
+        })),
+        ...assignee.map((value) => ({
+          propertyId: SYSTEM_PROPERTY_IDS.ASSIGNEES,
+          type: 'entity' as const,
+          value,
+        })),
+      ]);
+
+      if (properties.length) filters.property_filters = properties;
+
+      break;
+    }
   }
 
   return filters;

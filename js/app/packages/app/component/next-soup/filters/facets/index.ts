@@ -12,11 +12,13 @@ import { OWNERSHIP, SCOPE } from './presets';
 import {
   CALL_FROM,
   CALL_IN,
+  CALL_STATUS,
   CHANNEL_FROM,
   CHANNEL_IN,
   EMAIL_IMPORTANCE,
   EMAIL_INBOX,
   SEARCH_TYPE,
+  TASK_CREATED_BY,
 } from './search';
 import { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from './tasks';
 
@@ -33,11 +35,13 @@ export { OWNERSHIP, SCOPE } from './presets';
 export {
   CALL_FROM,
   CALL_IN,
+  CALL_STATUS,
   CHANNEL_FROM,
   CHANNEL_IN,
   EMAIL_IMPORTANCE,
   EMAIL_INBOX,
   SEARCH_TYPE,
+  TASK_CREATED_BY,
 } from './search';
 export { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from './tasks';
 
@@ -62,6 +66,8 @@ export const ALL_FACETS = [
   CHANNEL_FROM,
   CALL_IN,
   CALL_FROM,
+  CALL_STATUS,
+  TASK_CREATED_BY,
 ] as const;
 
 export type FacetId = (typeof ALL_FACETS)[number]['id'];

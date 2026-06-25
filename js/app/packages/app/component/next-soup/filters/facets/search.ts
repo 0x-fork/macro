@@ -1,7 +1,3 @@
-// Search facets. TYPE is a single-select RESTRICT facet — "is this type" via the
-// exclude pattern (idField ≠ NIL). Per-type sub-facets are scoped at compile by
-// the consumer (pass only the active type's facets); the store retains all
-// selections, so switching types rehydrates prior picks for free (no stash).
 import { facet, NIL } from './base';
 
 export const SEARCH_TYPE = facet({
@@ -81,6 +77,21 @@ export const CALL_FROM = facet({
   }),
 });
 
-// NOTE: which sub-facets apply per search type (and per-view facet lists) is a
-// consumer concern — compose `compileFacets(selection, [SEARCH_TYPE, …], ctx)`
-// with the active type's sub-facets in the soup view, not here.
+export const CALL_STATUS = facet({
+  id: 'call-status',
+  mode: 'or',
+  multiple: false,
+  options: (status) => ({
+    id: status,
+    clause: (b) => ({ callf: b.eq('callStatus', status) }),
+  }),
+});
+
+export const TASK_CREATED_BY = facet({
+  id: 'task-created-by',
+  mode: 'or',
+  options: (userId) => ({
+    id: userId,
+    clause: (b) => ({ df: b.eq('documentOwnerId', userId) }),
+  }),
+});
