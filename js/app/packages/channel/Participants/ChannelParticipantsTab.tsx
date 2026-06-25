@@ -5,6 +5,7 @@ import {
   ENABLE_CHANNEL_BOTS_FLAG,
   ENABLE_CHANNEL_BOTS_OVERRIDE,
 } from '@core/constant/featureFlags';
+import { SERVER_HOSTS } from '@core/constant/servers';
 import { useChannelName, useChannelType } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
 import { idToDisplayName } from '@core/user';
@@ -34,6 +35,10 @@ import {
   type ParticipantsListItemData,
 } from './ParticipantsList';
 import { ParticipantsSearchInput } from './ParticipantsSearchInput';
+
+function channelWebhookEndpoint(channelId: string): string {
+  return `${SERVER_HOSTS['document-storage-service']}/channels/${channelId}/webhook`;
+}
 
 export function ChannelParticipantsTab(props: { channelId: string }) {
   const { replaceOrInsertSplit } = useSplitLayout();
@@ -272,6 +277,7 @@ export function ChannelParticipantsTab(props: { channelId: string }) {
         open={addBotOpen()}
         onOpenChange={setAddBotOpen}
         onCreated={(bot) => addBot(bot.id)}
+        webhookUrl={channelWebhookEndpoint(props.channelId)}
       />
     </>
   );

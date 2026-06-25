@@ -59,13 +59,13 @@ function BotAvatarPreview(props: {
 
 function CreatedBotPreview(props: { bot: Bot }) {
   return (
-    <div class="flex min-w-0 items-center gap-3 rounded-lg border border-edge-muted bg-surface px-3 py-2">
-      <Avatar size="md">
+    <div class="flex items-center gap-3 rounded-xl border border-edge-muted bg-surface p-3">
+      <Avatar size="lg">
         <Show
           when={props.bot.avatar_url}
           fallback={
             <Avatar.Fallback>
-              <IconRobot class="size-4" />
+              <IconRobot class="size-5" />
             </Avatar.Fallback>
           }
         >
@@ -75,12 +75,23 @@ function CreatedBotPreview(props: { bot: Bot }) {
         </Show>
       </Avatar>
       <div class="min-w-0 flex-1 text-left">
-        <div class="truncate text-base font-medium text-ink">
-          {props.bot.name}
+        <div class="flex min-w-0 items-center gap-1.5">
+          <span class="truncate text-base font-medium text-ink">
+            {props.bot.name}
+          </span>
+          <Show when={props.bot.handle}>
+            {(handle) => (
+              <span class="shrink-0 text-sm text-ink-extra-muted">
+                @{handle()}
+              </span>
+            )}
+          </Show>
         </div>
-        <Show when={props.bot.handle}>
-          {(handle) => (
-            <div class="truncate text-sm text-ink-extra-muted">@{handle()}</div>
+        <Show when={props.bot.description}>
+          {(description) => (
+            <div class="mt-0.5 truncate text-sm text-ink-muted">
+              {description()}
+            </div>
           )}
         </Show>
       </div>
@@ -88,10 +99,43 @@ function CreatedBotPreview(props: { bot: Bot }) {
   );
 }
 
+const WEBHOOK_TOKEN_HEADER = 'x-macro-channel-bot-token';
+
+const exampleRequest = (url: string, botToken: string) =>
+  [
+    `curl -X POST '${url}' \\`,
+    `  -H '${WEBHOOK_TOKEN_HEADER}: ${botToken}' \\`,
+    `  -H 'Content-Type: application/json' \\`,
+    `  -d '{"content":"Hello from your bot"}'`,
+  ].join('\n');
+
+function CopyButton(props: {
+  copied: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant={props.copied ? 'success' : 'ghost'}
+      size={props.copied ? 'sm' : 'icon-sm'}
+      label={props.label}
+      onClick={props.onClick}
+    >
+      <Show when={props.copied} fallback={<IconCopy />}>
+        <IconCheck />
+        Copied
+      </Show>
+    </Button>
+  );
+}
+
 export function AddBotDialog(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (bot: Bot) => void;
+  /** Channel webhook URL to surface in the success step (omit for standalone use). */
+  webhookUrl?: string;
 }) {
   const createBotWithTokenMutation = useCreateBotWithTokenMutation();
 
@@ -100,7 +144,7 @@ export function AddBotDialog(props: {
   const [errors, setErrors] = createSignal<CreateBotFormErrors>({});
 
   const [token, setToken] = createSignal<string | undefined>(undefined);
-  const [tokenCopied, setTokenCopied] = createSignal(false);
+  const [copied, setCopied] = createSignal<'token' | 'url' | 'request'>();
   const [createdBot, setCreatedBot] = createSignal<Bot | undefined>(undefined);
 
   const [botCreation, setBotCreation] = createStore({
@@ -115,7 +159,7 @@ export function AddBotDialog(props: {
     setHandleEdited(false);
     setErrors({});
     setToken(undefined);
-    setTokenCopied(false);
+    setCopied(undefined);
     setCreatedBot(undefined);
     setBotCreation({
       name: '',
@@ -180,16 +224,13 @@ export function AddBotDialog(props: {
     );
   };
 
-  const copyCreatedBotToken = async () => {
-    const currentToken = token();
-    if (!currentToken) return;
-
+  const copy = async (key: 'token' | 'url' | 'request', value: string) => {
     try {
-      await navigator.clipboard.writeText(currentToken);
-      setTokenCopied(true);
-      window.setTimeout(() => setTokenCopied(false), 1500);
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      window.setTimeout(() => setCopied(undefined), 1500);
     } catch {
-      toast.failure('Failed to copy token');
+      toast.failure('Failed to copy');
     }
   };
 
@@ -373,53 +414,111 @@ export function AddBotDialog(props: {
             <Stepper.Step>
               <Show when={token()}>
                 {(token) => (
-                  <div class="flex flex-col gap-12">
-                    <div class="flex flex-col items-center gap-4">
-                      <div class="flex items-center justify-center gap-2 text-2xl font-semibold text-ink">
-                        <IconCheckCircle class="size-8 text-success" />
-                        Bot created
+                  <div class="flex flex-col gap-5">
+                    <div class="flex flex-col gap-3">
+                      <div class="flex items-center gap-3 rounded-lg border border-success/30 bg-success-bg px-3 py-2.5">
+                        <IconCheckCircle class="size-5 shrink-0 text-success" />
+                        <div class="min-w-0">
+                          <div class="text-sm font-medium text-ink">
+                            Bot created
+                          </div>
+                          <div class="text-xs text-ink-muted">
+                            Your bot is ready to post to this channel.
+                          </div>
+                        </div>
                       </div>
+
                       <Show when={createdBot()}>
-                        {(bot) => (
-                          <div class="w-full max-w-lg">
-                            <CreatedBotPreview bot={bot()} />
+                        {(bot) => <CreatedBotPreview bot={bot()} />}
+                      </Show>
+                    </div>
+
+                    <div class="h-px bg-edge-muted" />
+
+                    <div class="flex w-full flex-col gap-5">
+                      <Show when={props.webhookUrl}>
+                        {(url) => (
+                          <label class="flex flex-col gap-1.5 text-sm">
+                            <span class="font-medium text-ink">
+                              Webhook URL
+                            </span>
+                            <span class="text-sm text-ink-muted">
+                              Send a POST request to this URL to post a message
+                              into the channel as this bot.
+                            </span>
+                            <div class="flex w-full items-center gap-2 rounded-lg border border-edge-muted bg-surface px-3 py-2">
+                              <input
+                                readOnly
+                                value={url()}
+                                class="min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none"
+                                onClick={(event) =>
+                                  event.currentTarget.select()
+                                }
+                              />
+                              <CopyButton
+                                copied={copied() === 'url'}
+                                label="Copy URL"
+                                onClick={() => copy('url', url())}
+                              />
+                            </div>
+                          </label>
+                        )}
+                      </Show>
+
+                      <label class="flex flex-col gap-1.5 text-sm">
+                        <span class="font-medium text-ink">Webhook token</span>
+                        <span class="text-sm text-ink-muted">
+                          Pass this token in the{' '}
+                          <code class="rounded bg-ink/10 px-1 py-0.5 font-mono text-xs">
+                            {WEBHOOK_TOKEN_HEADER}
+                          </code>{' '}
+                          header to authenticate requests.
+                        </span>
+                        <div class="flex w-full items-center gap-2 rounded-lg border border-edge-muted bg-surface px-3 py-2">
+                          <input
+                            readOnly
+                            value={token()}
+                            class="min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none"
+                            onClick={(event) => event.currentTarget.select()}
+                          />
+                          <CopyButton
+                            copied={copied() === 'token'}
+                            label="Copy token"
+                            onClick={() => copy('token', token())}
+                          />
+                        </div>
+                        <div class="text-sm text-alert-ink">
+                          This token is only shown once. If you lose it, create
+                          a new token for the bot.
+                        </div>
+                      </label>
+
+                      <Show when={props.webhookUrl}>
+                        {(url) => (
+                          <div class="flex flex-col gap-1.5 text-sm">
+                            <div class="flex items-center justify-between gap-2">
+                              <span class="font-medium text-ink">
+                                Example request
+                              </span>
+                              <CopyButton
+                                copied={copied() === 'request'}
+                                label="Copy request"
+                                onClick={() =>
+                                  copy(
+                                    'request',
+                                    exampleRequest(url(), token())
+                                  )
+                                }
+                              />
+                            </div>
+                            <pre class="w-full overflow-x-auto rounded-lg border border-edge-muted bg-surface px-3 py-2 font-mono text-xs text-ink">
+                              {exampleRequest(url(), token())}
+                            </pre>
                           </div>
                         )}
                       </Show>
                     </div>
-                    <label class="flex flex-col gap-1.5 text-sm items-center self-center max-w-lg">
-                      <span class="font-medium self-start text-ink">
-                        Webhook token
-                      </span>
-                      <span class="self-start text-sm text-ink-muted">
-                        Use this token to authenticate webhook requests that
-                        post messages to channels as this bot.
-                      </span>
-                      <div class="w-full flex items-center gap-2 rounded-lg border border-edge-muted bg-surface px-3 py-2">
-                        <input
-                          readOnly
-                          value={token()}
-                          class="min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none"
-                          onClick={(event) => event.currentTarget.select()}
-                        />
-                        <Button
-                          type="button"
-                          variant={tokenCopied() ? 'success' : 'ghost'}
-                          size={tokenCopied() ? 'sm' : 'icon-sm'}
-                          label="Copy token"
-                          onClick={copyCreatedBotToken}
-                        >
-                          <Show when={tokenCopied()} fallback={<IconCopy />}>
-                            <IconCheck />
-                            Copied
-                          </Show>
-                        </Button>
-                      </div>
-                      <div class="text-sm text-alert-ink">
-                        This token is only shown once. If you lose it, create a
-                        new token for the bot.
-                      </div>
-                    </label>
+
                     <div class="flex justify-end gap-2 pt-2">
                       <Button type="button" variant="cta" onClick={close}>
                         <IconCheck class="size-4" />
