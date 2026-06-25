@@ -18,10 +18,7 @@ import {
   mergeAst,
 } from '@app/component/next-soup/filters/facet-store';
 import { EMAIL_INBOX } from '@app/component/next-soup/filters/facets';
-import {
-  NIL_UUID,
-  type QueryState,
-} from '@app/component/next-soup/filters/filter-store';
+import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import {
   createQueryStore,
@@ -325,18 +322,6 @@ export const SoupViewContextProvider: FlowComponent<
     if (!taskActive) setAssigneeFilter([]);
   });
 
-  const applyInboxFilter = (state: QueryState): QueryState => {
-    const inboxes = inboxFilter();
-    if (inboxes === undefined) return state;
-    return {
-      ...state,
-      include: {
-        ...state.include,
-        emailLinkId: inboxes.length ? inboxes : [NIL_UUID],
-      },
-    };
-  };
-
   const activeListView = createMemo<ListView | undefined>(() => {
     const content = panel.handle.content();
     if (content.type !== 'component') return;
@@ -378,7 +363,7 @@ export const SoupViewContextProvider: FlowComponent<
 
   const search = createSearchState({
     soup,
-    filters: () => applyInboxFilter(queryFilters.state),
+    inboxFilter,
     assignees: assigneeFilter,
     disableLocalSearch: () => config().disableLocalSearch ?? false,
     searchPaused: sourceSearchPaused,

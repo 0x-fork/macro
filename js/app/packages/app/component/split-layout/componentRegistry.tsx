@@ -1,6 +1,7 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import { getViewPreset } from '@app/component/app-sidebar/soup-filter-presets';
 import { Home } from '@app/component/home';
+import type { FacetSelection } from '@app/component/next-soup/filters/facet-store';
 import { queryStateFrom } from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import { mergeQuery } from '@app/component/next-soup/filters/filter-store/query-store';
@@ -325,8 +326,7 @@ registerComponent(
 
 type SearchComponentParams = {
   initialQuery?: string;
-  initialFilters?: Query;
-  initialClientFilters?: SetPredicatesInput<string>;
+  initialFacets?: FacetSelection;
 };
 
 registerComponent(
@@ -337,11 +337,9 @@ registerComponent(
     return (
       <SoupView
         viewName="Search"
-        initialFilters={params.initialFilters ?? preset?.filters}
-        initialClientFilters={
-          params.initialClientFilters ?? preset?.clientFilters
-        }
-        initialFacets={preset?.initialFacets}
+        initialFilters={preset?.filters}
+        initialClientFilters={preset?.clientFilters}
+        initialFacets={params.initialFacets ?? preset?.initialFacets}
         initialSearchText={params.initialQuery}
       />
     );

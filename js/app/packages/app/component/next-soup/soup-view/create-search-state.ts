@@ -321,7 +321,7 @@ const freshSearch = createSoupFreshSearch();
 
 interface CreateSearchStateArgs {
   soup: SoupState;
-  filters: Accessor<QueryState>;
+  inboxFilter: Accessor<string[] | undefined>;
   assignees: Accessor<string[]>;
   disableLocalSearch?: Accessor<boolean>;
   searchPaused?: Accessor<boolean>;
@@ -335,7 +335,7 @@ interface CreateSearchStateArgs {
 
 export const createSearchState = ({
   soup,
-  filters,
+  inboxFilter,
   assignees,
   disableLocalSearch,
   searchPaused,
@@ -375,15 +375,26 @@ export const createSearchState = ({
 
   const searchUnifiedNameContentRequest = createMemo(
     (): UnifiedSearchRequest => {
-      const state = filters();
       const query = debouncedSearchForService();
-      const baseFilters = filterDataToQueryFilters(state);
+      const baseFilters = buildSearchEntityFilters(soup.facets.serialize());
 
-      // CRM is opt-in on the backend. A view includes CRM in search unless it
-      // NIL-excludes the CRM target (the same sentinel pattern other entity
-      // types use) — so the Companies view (CRM-scoped) searches CRM, while
-      // every other view (including the global Search view) excludes it.
-      const includeCrm = !(state.include.crmCompanyId ?? []).includes(NIL_UUID);
+      // The mail view scopes search to the selected inbox account(s). `[]` =
+      // explicitly none → NIL so nothing matches; a subset → those accounts.
+      const inboxes = inboxFilter();
+      if (inboxes !== undefined) {
+        baseFilters.email_filters = {
+          ...baseFilters.email_filters,
+          link_ids: inboxes.length ? inboxes : [NIL_UUID],
+        };
+      }
+
+      // CRM is opt-in on the backend. A view includes CRM in search when its
+      // `scope` facet selects a CRM company scope (active or hidden) — so the
+      // Companies view searches CRM, while every other view (including the
+      // global Search view) excludes it.
+      const includeCrm =
+        soup.facets.has('scope', 'crm-company-active') ||
+        soup.facets.has('scope', 'crm-company-hidden');
 
       if (!includeCrm) {
         return {
@@ -395,11 +406,12 @@ export const createSearchState = ({
       }
 
       // CRM is opt-in on the backend. Search surfaces visible companies
-      // everywhere except the admin Companies → Hidden tab, which sets
-      // `crmCompanyHidden: true` to search the hidden set. Elsewhere
-      // (Companies → Active) `crmCompanyHidden` is false/undefined →
-      // visible only. Non-CRM targets are already NIL-excluded by the
-      // Companies preset.
+      // everywhere except the admin Companies → Hidden tab, which selects the
+      // `crm-company-hidden` scope to search the hidden set. Elsewhere
+      // (Companies → Active) the scope is `crm-company-active` → visible only.
+      // Non-CRM targets are already NIL-excluded by the Companies preset.
+      const crmCompanyHidden = soup.facets.has('scope', 'crm-company-hidden');
+
       return {
         search_on: 'name_content',
         match_type: 'partial',
@@ -407,7 +419,7 @@ export const createSearchState = ({
         include_crm: true,
         filters: {
           ...baseFilters,
-          crm_company_filters: { hidden: state.include.crmCompanyHidden },
+          crm_company_filters: { hidden: crmCompanyHidden },
         },
       };
     }
@@ -464,12 +476,9 @@ export const createSearchState = ({
   });
 
   // we will hide local results if there are channel filters because we only want message results
-  const hasChannelQueryFilters = () => {
-    const filters_ = filters().include;
-    const channelIds = filters_.channelId ?? [];
-    const senderIds = filters_.channelSenderId ?? [];
-    return channelIds.length > 0 || senderIds.length > 0;
-  };
+  const hasChannelQueryFilters = () =>
+    soup.facets.getSelected('channel-in').length > 0 ||
+    soup.facets.getSelected('channel-from').length > 0;
 
   const filteredLocalFuzzyResults = createMemo(() => {
     if (!localFuzzyResults()) return [];

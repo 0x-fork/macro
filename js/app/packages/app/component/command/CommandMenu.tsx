@@ -1,5 +1,4 @@
 import { useAnalytics } from '@app/component/analytics-context';
-import { getViewPreset } from '@app/component/app-sidebar/soup-filter-presets';
 import { openChatWithMessage } from '@app/component/ChatWithAgentButton';
 import { getSearchSplit } from '@app/component/next-soup/soup-view/search-controllers';
 import { isListViewID } from '@app/constants/list-views';
@@ -283,13 +282,12 @@ export function CommandMenuInner(props: {
     }
 
     if (isSearchItem(item)) {
-      // Fall back to the search preset (not `{}`) so uncategorized searches
-      // keep the search view's baseline exclusions (foreign entities, CRM).
-      const preset = getViewPreset('search');
-      const overrides = getCategorySearchFilters(item.category);
-      const filters = overrides?.filters ?? preset?.filters ?? {};
-      const clientFilters =
-        overrides?.clientFilters ?? preset?.clientFilters ?? {};
+      // Uncategorized searches fall back to the search view's baseline scope
+      // (`search-supported`) so they keep the same exclusions (foreign
+      // entities, CRM) as a search picked from the filter row.
+      const facets = getCategorySearchFilters(item.category)?.facets ?? {
+        scope: ['search-supported'],
+      };
       const splitManager = globalSplitManager();
       const active = splitManager?.activeSplit();
       const activeContent = active?.content();
@@ -301,8 +299,7 @@ export function CommandMenuInner(props: {
         if (controller) {
           controller.applyOverrides({
             query: item.query,
-            filters,
-            clientFilters,
+            facets,
           });
           active.activate();
           CommandState.close();
@@ -320,8 +317,7 @@ export function CommandMenuInner(props: {
           preserveParams: true,
           params: {
             initialQuery: item.query,
-            initialFilters: filters,
-            initialClientFilters: clientFilters,
+            initialFacets: facets,
           },
         },
         {

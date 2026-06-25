@@ -1,14 +1,9 @@
-import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
-import type { Query } from '@app/component/next-soup/filters/filter-store/types';
-import {
-  SEARCH_INDEX_SEEDS,
-  type SearchIndexId,
-} from '@app/component/next-soup/soup-view/filters-bar/search/search-filters-state';
+import type { FacetSelection } from '@app/component/next-soup/filters/facet-store';
+import type { SearchIndexId } from '@app/component/next-soup/soup-view/filters-bar/search/search-filters-state';
 import type { CategoryFilter } from './types';
 
 type CategorySearchFilters = {
-  filters: Query;
-  clientFilters: SetPredicatesInput<string>;
+  facets: FacetSelection;
 };
 
 // Each Cmd+K category maps to a search-view index type so the resulting
@@ -32,7 +27,9 @@ export function getCategorySearchFilters(
   if (!indexValue) return undefined;
 
   return {
-    filters: SEARCH_INDEX_SEEDS[indexValue],
-    clientFilters: { and: ['search-supported'], or: [indexValue] },
+    facets: {
+      scope: ['search-supported'],
+      'search-type': [indexValue],
+    },
   };
 }

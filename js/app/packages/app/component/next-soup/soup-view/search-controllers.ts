@@ -1,11 +1,9 @@
-import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
-import type { Query } from '@app/component/next-soup/filters/filter-store/types';
+import type { FacetSelection } from '@app/component/next-soup/filters/facet-store';
 import type { SplitId } from '@app/component/split-layout/layoutManager';
 
 type SearchSplitOverrides = {
   query: string;
-  filters: Query;
-  clientFilters: SetPredicatesInput<string>;
+  facets: FacetSelection;
 };
 
 type SearchSplitController = {

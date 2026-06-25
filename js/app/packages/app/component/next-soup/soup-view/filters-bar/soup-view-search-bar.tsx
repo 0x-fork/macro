@@ -42,8 +42,7 @@ const variantStyles: Record<SearchbarVariant, string> = {
 };
 
 export const SoupSearchbar = (props: SoupSearchbarProps) => {
-  const { searchText, setSearchText, setSearchPaused, queryFilters } =
-    useSoupView();
+  const { searchText, setSearchText, setSearchPaused } = useSoupView();
   const soup = useSoup();
   const panel = useSplitPanelOrThrow();
 
@@ -124,15 +123,14 @@ export const SoupSearchbar = (props: SoupSearchbarProps) => {
     const content = panel.handle.content();
     if (content.type !== 'component' || content.id !== 'search') return;
     const dispose = registerSearchSplit(panel.handle.id, {
-      applyOverrides: ({ query, filters, clientFilters }) => {
+      applyOverrides: ({ query, facets }) => {
         batch(() => {
           editor.controls.setMarkdown(query);
           editor.controls.getLexical().update(() => {
             $getRoot().selectEnd();
           });
           editor.controls.blur();
-          queryFilters.replace(filters);
-          soup.predicates.set(clientFilters);
+          soup.facets.hydrate(facets);
         });
         // Restore focus to the split panel so hotkey navigation works. The
         // command menu suppresses Kobalte's onCloseAutoFocus for search

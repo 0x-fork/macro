@@ -3,16 +3,15 @@ import {
   NIL_UUID,
   type Query,
 } from '@app/component/next-soup/filters/filter-store';
-import {
-  type CallStatus,
-  callStatusFromAttended,
-  type FieldFilters,
-  type PropertyFilter,
+import type {
+  CallStatus,
+  FieldFilters,
+  PropertyFilter,
 } from '@app/component/next-soup/filters/filter-store/types';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { ENABLE_SNIPPETS } from '@core/constant/featureFlags';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
-import { batch, createMemo } from 'solid-js';
+import { createMemo } from 'solid-js';
 
 const searchBaseline = (): Query => ({
   include: {
@@ -143,180 +142,83 @@ export function compileSearchQuery(state: SearchFiltersState): Query {
 }
 
 /**
- * Facet state is derived from the soup view's `queryFilters` +
- * `soup.predicates` (the single source of truth — external writers like
- * Cmd+K search overrides and per-entry restore keep working untouched).
- * Setters recompile the full state through `compileSearchQuery` and replace
- * the store wholesale.
+ * Facet state is read from and written to `soup.facets` (the single source of
+ * truth). Every getter projects the relevant facet selection; every setter
+ * writes it back. External writers (Cmd+K search overrides, per-entry restore)
+ * go through the same facet store, so they stay in sync automatically.
  */
 export function createSearchFiltersController() {
-  const { soup, queryFilters } = useSoupView();
+  const { soup } = useSoupView();
 
-  const type = createMemo<SearchTypeValue>(
-    () =>
-      soup.predicates
-        .orIds()
-        .find((id): id is SearchIndexId => id in SEARCH_INDEX_SEEDS) ?? 'all'
-  );
+  const type = () =>
+    (soup.facets.getSelected('search-type')[0] as SearchTypeValue) ?? 'all';
+  const setType = (next: SearchTypeValue) =>
+    soup.facets.set('search-type', next === 'all' ? [] : [next]);
 
-  const include = () => queryFilters.state.include;
-  const withoutNil = (ids: string[] | undefined) =>
-    (ids ?? []).filter((id) => id !== NIL_UUID);
+  const emailImportance = () =>
+    soup.facets.has('email-importance', 'important') ? true : undefined;
+  const setEmailImportance = (importance: boolean | undefined) =>
+    soup.facets.set('email-importance', importance ? ['important'] : []);
 
-  const emailImportance = () => include().emailImportance;
-  const emailInbox = createMemo<string[] | undefined>(() => {
-    const ids = include().emailLinkId;
-    return ids === undefined ? undefined : withoutNil(ids);
-  });
-  const channelIn = createMemo(() => withoutNil(include().channelId));
-  const channelFrom = createMemo(() => withoutNil(include().channelSenderId));
-  const callIn = createMemo(() => withoutNil(include().callChannelId));
-  const callFrom = createMemo(() => withoutNil(include().callSpeakerId));
+  const emailInbox = createMemo(() => soup.facets.getSelected('email-inbox'));
+  const setEmailInbox = (ids: string[] | undefined) =>
+    soup.facets.set('email-inbox', ids ?? []);
+
+  const channelIn = createMemo(() => soup.facets.getSelected('channel-in'));
+  const setChannelIn = (ids: string[]) => soup.facets.set('channel-in', ids);
+  const channelFrom = createMemo(() => soup.facets.getSelected('channel-from'));
+  const setChannelFrom = (ids: string[]) =>
+    soup.facets.set('channel-from', ids);
+
+  const callIn = createMemo(() => soup.facets.getSelected('call-in'));
+  const setCallIn = (ids: string[]) => soup.facets.set('call-in', ids);
+  const callFrom = createMemo(() => soup.facets.getSelected('call-from'));
+  const setCallFrom = (ids: string[]) => soup.facets.set('call-from', ids);
   const callStatus = () =>
-    include().callStatus ?? callStatusFromAttended(include().callAttended);
+    soup.facets.getSelected('call-status')[0] as CallStatus | undefined;
+  const setCallStatus = (status: CallStatus | undefined) =>
+    soup.facets.set('call-status', status ? [status] : []);
 
-  const taskProperty = (propertyId: string) =>
-    (include().properties ?? [])
-      .filter((p) => p.propertyId === propertyId)
-      .map((p) => p.value);
-  const taskStatus = createMemo(() => taskProperty(SYSTEM_PROPERTY_IDS.STATUS));
+  const taskStatus = createMemo(() => soup.facets.getSelected('task-status'));
+  const setTaskStatus = (ids: string[]) => soup.facets.set('task-status', ids);
   const taskPriority = createMemo(() =>
-    taskProperty(SYSTEM_PROPERTY_IDS.PRIORITY)
+    soup.facets.getSelected('task-priority')
   );
-  const taskAssignees = createMemo(() =>
-    taskProperty(SYSTEM_PROPERTY_IDS.ASSIGNEES)
+  const setTaskPriority = (ids: string[]) =>
+    soup.facets.set('task-priority', ids);
+  const taskAssignees = createMemo(() => soup.facets.getSelected('assignee'));
+  const setTaskAssignees = (ids: string[]) => soup.facets.set('assignee', ids);
+  const taskCreatedBy = createMemo(() =>
+    soup.facets.getSelected('task-created-by')
   );
-  const taskCreatedBy = createMemo(() => withoutNil(include().documentOwnerId));
-
-  const currentSections = (): SearchFiltersSections => ({
-    email: { importance: emailImportance(), inboxIds: emailInbox() },
-    channels: { in: channelIn(), from: channelFrom() },
-    calls: { in: callIn(), from: callFrom(), status: callStatus() },
-    task: {
-      status: taskStatus(),
-      priority: taskPriority(),
-      assignees: taskAssignees(),
-      createdBy: taskCreatedBy(),
-    },
-  });
-
-  // Per-index values are remembered for the lifetime of the view: switching
-  // the type away stashes the active section, switching back rehydrates it.
-  let stash: SearchFiltersSections = structuredClone(DEFAULT_SECTIONS);
-
-  const apply = (state: SearchFiltersState) =>
-    batch(() => {
-      queryFilters.replace(compileSearchQuery(state));
-      soup.predicates.set(({ andIds }) => ({
-        and: andIds,
-        or: state.type === 'all' ? [] : [state.type],
-      }));
-    });
-
-  const applySections = (sections: Partial<SearchFiltersSections>) =>
-    apply({ type: type(), ...currentSections(), ...sections });
-
-  const setType = (next: SearchTypeValue) => {
-    const current = type();
-    if (next === current) return;
-
-    if (current === 'email') {
-      stash = {
-        ...stash,
-        email: { importance: emailImportance(), inboxIds: emailInbox() },
-      };
-    } else if (current === 'channels') {
-      stash = { ...stash, channels: { in: channelIn(), from: channelFrom() } };
-    } else if (current === 'calls') {
-      stash = {
-        ...stash,
-        calls: { in: callIn(), from: callFrom(), status: callStatus() },
-      };
-    } else if (current === 'task') {
-      stash = {
-        ...stash,
-        task: {
-          status: taskStatus(),
-          priority: taskPriority(),
-          assignees: taskAssignees(),
-          createdBy: taskCreatedBy(),
-        },
-      };
-    }
-
-    apply({ type: next, ...stash });
-  };
+  const setTaskCreatedBy = (ids: string[]) =>
+    soup.facets.set('task-created-by', ids);
 
   return {
     type,
     setType,
     emailImportance,
-    setEmailImportance: (importance: boolean | undefined) =>
-      applySections({ email: { importance, inboxIds: emailInbox() } }),
+    setEmailImportance,
     emailInbox,
-    setEmailInbox: (ids: string[] | undefined) =>
-      applySections({
-        email: { importance: emailImportance(), inboxIds: ids },
-      }),
+    setEmailInbox,
     channelIn,
-    setChannelIn: (ids: string[]) =>
-      applySections({ channels: { in: ids, from: channelFrom() } }),
+    setChannelIn,
     channelFrom,
-    setChannelFrom: (ids: string[]) =>
-      applySections({ channels: { in: channelIn(), from: ids } }),
+    setChannelFrom,
     callIn,
-    setCallIn: (ids: string[]) =>
-      applySections({
-        calls: { in: ids, from: callFrom(), status: callStatus() },
-      }),
+    setCallIn,
     callFrom,
-    setCallFrom: (ids: string[]) =>
-      applySections({
-        calls: { in: callIn(), from: ids, status: callStatus() },
-      }),
+    setCallFrom,
     callStatus,
-    setCallStatus: (status: CallStatus | undefined) =>
-      applySections({ calls: { in: callIn(), from: callFrom(), status } }),
+    setCallStatus,
     taskStatus,
-    setTaskStatus: (ids: string[]) =>
-      applySections({
-        task: {
-          status: ids,
-          priority: taskPriority(),
-          assignees: taskAssignees(),
-          createdBy: taskCreatedBy(),
-        },
-      }),
+    setTaskStatus,
     taskPriority,
-    setTaskPriority: (ids: string[]) =>
-      applySections({
-        task: {
-          status: taskStatus(),
-          priority: ids,
-          assignees: taskAssignees(),
-          createdBy: taskCreatedBy(),
-        },
-      }),
+    setTaskPriority,
     taskAssignees,
-    setTaskAssignees: (ids: string[]) =>
-      applySections({
-        task: {
-          status: taskStatus(),
-          priority: taskPriority(),
-          assignees: ids,
-          createdBy: taskCreatedBy(),
-        },
-      }),
+    setTaskAssignees,
     taskCreatedBy,
-    setTaskCreatedBy: (ids: string[]) =>
-      applySections({
-        task: {
-          status: taskStatus(),
-          priority: taskPriority(),
-          assignees: taskAssignees(),
-          createdBy: ids,
-        },
-      }),
+    setTaskCreatedBy,
   };
 }
 
