@@ -3,17 +3,13 @@ import {
   type PresetContext,
   VIEW_TAB_PRESETS,
 } from '@app/component/app-sidebar/soup-filter-presets';
-import {
-  type FilterID,
-  NO_ASSIGNEE,
-} from '@app/component/next-soup/filters';
+import { type FilterID, NO_ASSIGNEE } from '@app/component/next-soup/filters';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
 import { isListViewID } from '@app/constants/list-views';
 import { UserIcon } from '@core/component/UserIcon';
 import { useUserContext, useUserId } from '@core/context/user';
-import { deepEqual } from '@core/util/compareUtils';
 import CircleDashedIcon from '@phosphor/circle-dashed.svg';
 import { useContacts } from '@queries/contacts/contacts';
 import { batch, createMemo, createSignal, type JSX } from 'solid-js';
@@ -51,15 +47,8 @@ const TAB_ONLY_FILTERS = new Set([
  * and a function to reset filters to the current tab's default state.
  */
 export function useFilterRefinements() {
-  const {
-    soup,
-    items,
-    queryFilters,
-    assigneeFilter,
-    setAssigneeFilter,
-    activeTab,
-  } = useSoupView();
-  const filterData = () => queryFilters.state;
+  const { soup, items, assigneeFilter, setAssigneeFilter, activeTab } =
+    useSoupView();
   const panel = useSplitPanelOrThrow();
   const user = useUserContext();
   const contacts = useContacts();
@@ -98,24 +87,22 @@ export function useFilterRefinements() {
     const preset = currentPreset();
     if (!preset) return false;
 
-    // Check if there are any external filters set (normalize undefined vs {} for comparison)
-    const currentFilterData = filterData();
-    const presetFilters = preset.filters;
-    const hasQueryFilterDiff =
-      !deepEqual(currentFilterData.include, presetFilters.include ?? {}) ||
-      !deepEqual(currentFilterData.exclude, presetFilters.exclude ?? {}) ||
-      currentFilterData.emailView !== presetFilters.emailView;
-
     const hasSubFilters = assigneeFilter().length > 0;
 
-    // a facet is a refinement only if it diverges from the preset's seed
+    // A facet is a refinement when its current selection diverges from the
+    // tab's seed — the user added or removed options for that facet.
     const seed = (preset.initialFacets ?? {}) as Record<string, string[]>;
     const sel = soup.facets.selection as Record<string, string[]>;
-    const hasFacetRefinements = [
-      ...new Set([...Object.keys(sel), ...Object.keys(seed)]),
-    ].some((k) => !sameIds(sel[k] ?? [], seed[k] ?? []));
 
-    return hasQueryFilterDiff || hasSubFilters || hasFacetRefinements;
+    let hasFacetRefinements = false;
+    for (const key of Object.keys(sel)) {
+      if (!sameIds(sel[key] ?? [], seed[key] ?? [])) {
+        hasFacetRefinements = true;
+        break;
+      }
+    }
+
+    return hasSubFilters || hasFacetRefinements;
   });
 
   /**
@@ -474,7 +461,6 @@ export function useFilterRefinements() {
 
     batch(() => {
       soup.predicates.set(preset.clientFilters);
-      queryFilters.replace(preset.filters ?? null);
       // restore the tab's seeded facets, dropping user refinements
       soup.facets.hydrate(preset.initialFacets ?? {});
       setAssigneeFilter([]);

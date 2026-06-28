@@ -83,7 +83,9 @@ export const createFacetStore = <
   };
 };
 
-export const serializeFacets = (selection: FacetSelection): FacetSelection => {
+export const serializeFacets = (
+  selection: Partial<FacetSelection>
+): FacetSelection => {
   const result: FacetSelection = {};
 
   for (const facetId of Object.keys(selection).sort()) {

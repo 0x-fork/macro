@@ -20,11 +20,7 @@ import {
 import { EMAIL_INBOX } from '@app/component/next-soup/filters/facets';
 import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
-import {
-  createQueryStore,
-  type Query,
-  type QueryStore,
-} from '@app/component/next-soup/filters/filter-store/query-store';
+import type { Query } from '@app/component/next-soup/filters/filter-store/query-store';
 import { createGroupedSoupQueries } from '@app/component/next-soup/soup-view/create-grouped-soup-queries';
 import { createSearchState } from '@app/component/next-soup/soup-view/create-search-state';
 import {
@@ -79,7 +75,6 @@ import {
   Suspense,
   useContext,
 } from 'solid-js';
-import { unwrap } from 'solid-js/store';
 
 type DataSource<T> = {
   data: Accessor<T[]>;
@@ -118,7 +113,6 @@ interface SoupViewContextValues {
   rows: Accessor<SoupRow[]>;
   isSearchServiceLoading: Accessor<boolean>;
   isLocalSearchSettling: Accessor<boolean>;
-  queryFilters: QueryStore;
   assigneeFilter: Accessor<string[]>;
   setAssigneeFilter: (ids: string[]) => void;
   inboxFilter: Accessor<string[] | undefined>;
@@ -182,8 +176,6 @@ export const SoupViewContextProvider: FlowComponent<
     additionalEntities: props.additionalEntities,
   });
 
-  const queryClient = useQueryClient();
-
   const soupParams = createMemo((): SoupParams => {
     const sortId = soup.sort.active()[0]?.id ?? 'updated_at';
 
@@ -199,16 +191,7 @@ export const SoupViewContextProvider: FlowComponent<
   });
 
   const panel = useSplitPanelOrThrow();
-
-  const store = createQueryStore({
-    initial: props.initialQuery,
-  });
-
-  const filterCaptorTeardown = panel.handle.registerEntryStateCaptor(
-    'search.filters',
-    () => structuredClone(unwrap(store.state)) as Query
-  );
-  onCleanup(filterCaptorTeardown);
+  const queryClient = useQueryClient();
 
   // Client-side predicate state (drives the "Type: X" chips and other
   // toggleable filters) also needs to round-trip per entry, since the chip UI
@@ -228,43 +211,6 @@ export const SoupViewContextProvider: FlowComponent<
     (): FacetSelection => soup.facets.serialize()
   );
   onCleanup(facetsCaptorTeardown);
-
-  const invalidateCache = () => {
-    queryClient.setQueryData(
-      soupKeys.astItems({
-        params: soupParams(),
-        body: soupBody(),
-      }).queryKey,
-      (prev: InfiniteData<SoupPage> | SoupPage | undefined) => {
-        if (!prev) return;
-        if ('pages' in prev) {
-          prev.pages.splice(1, prev.pages.length);
-          return prev;
-        }
-        return prev;
-      }
-    );
-  };
-
-  const queryFilters: QueryStore = {
-    ...store,
-    set: (query) => {
-      invalidateCache();
-      store.set(query);
-    },
-    replace: (query) => {
-      invalidateCache();
-      store.replace(query);
-    },
-    add: (query) => {
-      invalidateCache();
-      store.add(query);
-    },
-    remove: (query) => {
-      invalidateCache();
-      store.remove(query);
-    },
-  };
 
   const [searchPaused, setSearchPaused] = createSignal(false);
   const sourceSearchPaused = createMemo(() => searchPaused() || !enabled());
@@ -357,6 +303,27 @@ export const SoupViewContextProvider: FlowComponent<
     };
   });
 
+  // Changing a filter changes the query key. Trim the previous body's cached
+  // pages back to the first page so returning to that filter state refetches a
+  // fresh page 1 instead of restoring stale deep-paginated results.
+  createEffect(
+    on(
+      soupBody,
+      (_body, prevBody) => {
+        if (!prevBody) return;
+        queryClient.setQueryData(
+          soupKeys.astItems({ params: soupParams(), body: prevBody }).queryKey,
+          (prev: InfiniteData<SoupPage> | SoupPage | undefined) => {
+            if (!prev || !('pages' in prev)) return prev;
+            prev.pages.splice(1, prev.pages.length);
+            return prev;
+          }
+        );
+      },
+      { defer: true }
+    )
+  );
+
   const [searchText, setSearchText] = useEntryState<string>('search.text', {
     default: props.initialSearchText ?? '',
   });
@@ -374,7 +341,6 @@ export const SoupViewContextProvider: FlowComponent<
   const initialize = (options: SoupViewInitializeOptions = {}) => {
     batch(() => {
       setConfig(options);
-      queryFilters.replace(options.initialQuery ?? null);
       soup.predicates.set(options.initialClientFilters ?? {});
       soup.facets.hydrate(options.initialFacets ?? {});
       setSearchText(options.initialSearchText ?? '');
@@ -675,7 +641,6 @@ export const SoupViewContextProvider: FlowComponent<
     featuredIds: search.featuredIds,
     isSearchServiceLoading: search.isSearchServiceLoading,
     isLocalSearchSettling: search.isLocalSearchSettling,
-    queryFilters,
     assigneeFilter,
     setAssigneeFilter,
     inboxFilter,

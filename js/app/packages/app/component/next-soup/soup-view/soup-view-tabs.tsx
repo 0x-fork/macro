@@ -102,7 +102,7 @@ const useCurrentListView = () => {
 
 export const useApplyPreset = () => {
   const soup = useSoup();
-  const { queryFilters, setActiveTab, activeTab } = useSoupView();
+  const { setActiveTab, activeTab } = useSoupView();
   const user = useUserContext();
   const isTeamAdmin = useIsTeamAdmin();
 
@@ -142,7 +142,6 @@ export const useApplyPreset = () => {
 
     batch(() => {
       setActiveTab(tabId);
-      queryFilters.replace(preset.filters);
       soup.predicates.set(preset.clientFilters);
       seedFacets(oldSeed, preset.initialFacets ?? {});
       soup.grouping.setActiveGroupId(preset.groupBy);
