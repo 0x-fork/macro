@@ -20,10 +20,11 @@ import { QuickAccessProvider } from '@core/context/quickAccess';
 import { TeamContextProvider } from '@core/context/team';
 import {
   UserContextProvider,
+  useIsAuthenticated,
   useUserId,
   useUserInfo,
 } from '@core/context/user';
-import { initAndStartEmailSync } from '@core/email-link';
+import { initAndStartEmailSync, useEmailLinks } from '@core/email-link';
 import { IosPushNotificationModal } from '@core/mobile/IosPushNotificationModal';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { createBlockOrchestrator } from '@core/orchestrator';
@@ -84,6 +85,7 @@ import {
   onCleanup,
   onMount,
   type ParentProps,
+  Show,
   Suspense,
   Switch,
 } from 'solid-js';
@@ -501,6 +503,84 @@ function QuerySyncProviderWithUserId() {
   return <QuerySyncProvider userId={userId} />;
 }
 
+// Routes that own email-link provisioning themselves (or are pre-auth). The
+// auto-provision below must not race the init they already run.
+function isOnAuthProvisioningRoute() {
+  const path = window.location.pathname;
+  return (
+    path.includes('/login') ||
+    path.includes('/signup') ||
+    path.includes('/welcome') ||
+    path.includes('/email-signup-callback') ||
+    path.includes('/inbox-link-callback')
+  );
+}
+
+// Provisioning the first inbox (POST /email/init) is not a side effect of
+// authentication — it is hand-wired into individual login UIs. A signup that
+// arrives already authenticated on /app (e.g. marketing SSO returning to the app
+// root) never passes through one of those, so the inbox is never created and the
+// user is stranded on the "Connect your email" empty state.
+//
+// Do it from one always-mounted place, gated on the durable precondition —
+// authenticated with zero inboxes — not on a one-time onboarding flag. The email
+// service only provisions a user who actually holds a Google grant, and a
+// disconnect removes that grant, so this safely no-ops for anyone who never
+// connected or who deliberately disconnected. Keying on "no inbox" rather than a
+// flag also recovers users already stranded by this bug and re-attempts on the
+// next load after a transient failure.
+function ProvisionFirstInbox() {
+  const userInfoQuery = useUserInfoQuery();
+  const { query: emailLinksQuery } = useEmailLinks();
+
+  // One attempt per user per session. A fresh attempt happens on the next load
+  // (the gate persists while no inbox exists) and on a logout→login of another user.
+  let attemptedForUserId: string | undefined;
+
+  createEffect(() => {
+    const user = userInfoQuery.data;
+    if (user?.authenticated !== true) return;
+
+    // Only act on a definitive empty inbox list — never provision off a loading or
+    // errored list, and stop once any inbox exists.
+    if (!emailLinksQuery.isSuccess || emailLinksQuery.data.links.length > 0)
+      return;
+
+    // The login/signup/add-inbox callbacks run their own init on these routes.
+    if (isOnAuthProvisioningRoute()) return;
+
+    if (attemptedForUserId === user.id) return;
+    attemptedForUserId = user.id;
+
+    void initAndStartEmailSync().match(
+      () => {},
+      (err) => {
+        // AlreadyInitialized: a link exists server-side but our list was stale, so
+        // refetch to leave the empty state. Any other failure (no grant, transient)
+        // leaves the empty state — the next load re-attempts because the gate holds.
+        if (err.tag === 'AlreadyInitialized') {
+          void emailLinksQuery.refetch();
+          return;
+        }
+        console.error('Failed to provision first inbox', err);
+      }
+    );
+  });
+
+  return null;
+}
+
+// Gates the email-links subscription (and the effect) to authenticated sessions so
+// the always-mounted provider tree doesn't fetch links on the login screen.
+function ProvisionFirstInboxGate() {
+  const isAuthenticated = useIsAuthenticated();
+  return (
+    <Show when={isAuthenticated() === true}>
+      <ProvisionFirstInbox />
+    </Show>
+  );
+}
+
 function InitialInteractiveOnboardingModal() {
   const userInfoQuery = useUserInfoQuery();
   const [open, setOpen] = createSignal(true);
@@ -516,28 +596,6 @@ function InitialInteractiveOnboardingModal() {
     if (modalOpen()) {
       setOnboardingStarted(true);
     }
-  });
-
-  // First-time users (tutorial not yet completed) reach the app without passing
-  // through a login route that inits the email link — e.g. marketing SSO returns to
-  // /app, not /login — so kick off email sync once here. Idempotent on the backend;
-  // AlreadyInitialized is ignored. Keyed by user id (not a bare flag) so a native
-  // mobile logout→login of a different user in the same session still inits.
-  let emailInitForUserId: string | undefined;
-  createEffect(() => {
-    const data = userInfoQuery.data;
-    if (data?.authenticated !== true || data.tutorialComplete !== false) return;
-    if (emailInitForUserId === data.id) return;
-    emailInitForUserId = data.id;
-
-    void initAndStartEmailSync().match(
-      () => {},
-      (err) => {
-        if (err.tag !== 'AlreadyInitialized') {
-          console.error('Failed to init email link for new user', err);
-        }
-      }
-    );
   });
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -589,6 +647,7 @@ export function Root() {
                 <GlobalShareInboxConflictDialog />
                 <QuerySyncProviderWithUserId />
                 <UserInfoSideEffects />
+                <ProvisionFirstInboxGate />
                 <TeamContextProvider>
                   <ConfiguredGlobalAppStateProvider>
                     <MutationUndoProvider>
