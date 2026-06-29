@@ -82,7 +82,7 @@
         outputHashMode = "recursive";
         outputHash =
           if isAarch64Darwin then
-            "sha256-R0C2jkhk/QiS5v5Lm5cLiv3qU/8UzssTF37+8f3wrH4="
+            "sha256-ol8WR1tRcKE5/nFwI2e/6Dk9qbAvcZV2gZwVfAyRM2Y="
           else
             "sha256-T7LUQ6yNLxTnq6TK9nFzYKSqvrZ9MYRwCK/cYzPzuv8=";
       };
