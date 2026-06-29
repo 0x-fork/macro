@@ -1,6 +1,7 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import { SidebarActiveCallWidget } from '@app/component/app-sidebar/active-call-widget';
 import { ChannelsUnreadWidget } from '@app/component/app-sidebar/channels-unread-widget';
+import { RecentHistoryWidget } from '@app/component/app-sidebar/recent-history-widget';
 import {
   InviteModal,
   setInviteModalOpen,
@@ -995,6 +996,10 @@ export const AppSidebar = (props: AppSidebarProps) => {
 
       <div class="block max-h-[clamp(10%,60%,20rem)]">
         <ChannelsUnreadWidget sidebarState={props.sidebarState ?? 'expanded'} />
+      </div>
+
+      <div class="flex-1 min-h-0 overflow-y-auto py-1">
+        <RecentHistoryWidget sidebarState={props.sidebarState ?? 'expanded'} />
       </div>
 
       <div class="mt-auto">
