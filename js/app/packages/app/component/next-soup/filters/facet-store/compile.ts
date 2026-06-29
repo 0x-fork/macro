@@ -2,19 +2,20 @@ import {
   AST,
   type BackendAstMap,
   type BackendAstNode,
+  clause,
   compileExpr,
   eq,
   isBackendAstNode,
   type TargetExpr,
 } from './clause';
-import {
-  type Facet,
-  type FacetSelection,
-  type OptionClause,
-  optionFor,
-  resolveClause,
-} from './facets';
 import { TARGETS, type Target } from './targets';
+import type {
+  ClauseDef,
+  Facet,
+  FacetOption,
+  FacetSelection,
+  OptionClause,
+} from './types';
 
 const ENTITY_TARGETS = [
   'df',
@@ -44,7 +45,6 @@ const ID_BACKEND: Record<EntityTarget, string> = {
 
 export const NIL = '00000000-0000-0000-0000-000000000000';
 
-// The id field (facet field key) per entity target, used to NIL-fill.
 const ID_FIELD: Record<EntityTarget, string> = {
   df: 'documentId',
   ef: 'threadId',
@@ -57,9 +57,25 @@ const ID_FIELD: Record<EntityTarget, string> = {
   ccf: 'crmCompanyId',
 };
 
-// Confine a clause to the entity types it references — NIL-fill every other
-// entity target (id ≠ NIL ⇒ matches nothing). When confined clauses compose,
-// the duplicate NIL-fills collapse to one per target during compile.
+// no match (catalog miss / resolver undefined) → inert: no clause, no predicate
+export const optionFor = <Ctx>(
+  facet: Facet<Ctx>,
+  optionId: string,
+  ctx: Ctx
+): FacetOption<Ctx> | undefined =>
+  typeof facet.options === 'function'
+    ? facet.options(optionId, ctx)
+    : facet.options.find((o) => o.id === optionId);
+
+export const resolveClause = <Ctx>(
+  def: ClauseDef<Ctx> | undefined,
+  ctx: Ctx
+): OptionClause =>
+  def == null ? {} : typeof def === 'function' ? def(clause, ctx) : def;
+
+// Sets id field for unused targets to match on NIL id to exclude them.
+// Compiler handle deduplicating/collapsing multiple NIL fills for the
+// same target
 export const confine = (clause: OptionClause): OptionClause => {
   const out: OptionClause = { ...clause };
   for (const target of ENTITY_TARGETS) {
@@ -71,11 +87,7 @@ export const confine = (clause: OptionClause): OptionClause => {
 const isEntityTarget = (target: Target): target is EntityTarget =>
   (ENTITY_TARGETS as readonly Target[]).includes(target);
 
-// `confine` emits a bare `id = NIL` leaf at the top level of each excluded
-// target (matches nothing). Recognize it so composed restricts collapse to one
-// NIL-fill per target instead of carrying a duplicate per contributing clause.
-// Verified against the legacy `defineQueryFilters`: NIL only ever appears as a
-// top-level per-target leaf in an AND context, never nested or OR'd.
+// Used to identify NIL fields
 const isNilExpr = (expr: TargetExpr): boolean =>
   'field' in expr && (expr as { value: unknown }).value === NIL;
 

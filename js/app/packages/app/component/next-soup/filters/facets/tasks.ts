@@ -1,7 +1,10 @@
-// Task facets — one facet per property id (OR within, AND across). Assignee is
-// parametric (dynamic ids) and carries a predicate resolver for the client path.
+import { isTaskEntity } from '@entity';
+import { getTaskAssigneeIds } from '@entity/utils/task-properties';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { facet, NO_ASSIGNEE, selectProp } from './base';
+
+// One facet per property id (OR within, AND across). Assignee is
+// parametric (dynamic ids) and carries a predicate resolver for the client path.
 
 const STATUS = SYSTEM_PROPERTY_IDS.STATUS;
 const PRIORITY = SYSTEM_PROPERTY_IDS.PRIORITY;
@@ -13,8 +16,14 @@ export const TASK_STATUS = facet({
   mode: 'or',
   multiple: true,
   options: [
-    { id: 'task-not-started', clause: selectProp(STATUS, P.STATUS.NOT_STARTED) },
-    { id: 'task-in-progress', clause: selectProp(STATUS, P.STATUS.IN_PROGRESS) },
+    {
+      id: 'task-not-started',
+      clause: selectProp(STATUS, P.STATUS.NOT_STARTED),
+    },
+    {
+      id: 'task-in-progress',
+      clause: selectProp(STATUS, P.STATUS.IN_PROGRESS),
+    },
     { id: 'task-in-review', clause: selectProp(STATUS, P.STATUS.IN_REVIEW) },
     { id: 'task-completed', clause: selectProp(STATUS, P.STATUS.COMPLETED) },
     { id: 'task-canceled', clause: selectProp(STATUS, P.STATUS.CANCELED) },
@@ -35,7 +44,10 @@ export const TASK_PRIORITY = facet({
   options: [
     { id: 'task-urgent', clause: selectProp(PRIORITY, P.PRIORITY.URGENT) },
     { id: 'task-high-priority', clause: selectProp(PRIORITY, P.PRIORITY.HIGH) },
-    { id: 'task-medium-priority', clause: selectProp(PRIORITY, P.PRIORITY.MEDIUM) },
+    {
+      id: 'task-medium-priority',
+      clause: selectProp(PRIORITY, P.PRIORITY.MEDIUM),
+    },
     { id: 'task-low-priority', clause: selectProp(PRIORITY, P.PRIORITY.LOW) },
     {
       id: 'task-no-priority',
@@ -43,7 +55,13 @@ export const TASK_PRIORITY = facet({
       clause: (b) => ({
         propf: b.and(
           ...namedPriorities.map((value) =>
-            b.not(b.eq('properties', { propertyId: PRIORITY, type: 'select', value }))
+            b.not(
+              b.eq('properties', {
+                propertyId: PRIORITY,
+                type: 'select',
+                value,
+              })
+            )
           )
         ),
       }),
@@ -58,12 +76,21 @@ export const TASK_ASSIGNEE = facet({
   mode: 'or',
   options: (optionId) =>
     optionId === NO_ASSIGNEE
-      ? { id: optionId, predicate: (e) => (e?.assignees ?? []).length === 0 }
+      ? {
+          id: optionId,
+          predicate: (e) =>
+            isTaskEntity(e) && getTaskAssigneeIds(e).length === 0,
+        }
       : {
           id: optionId,
           clause: (b) => ({
-            propf: b.eq('properties', { propertyId: ASSIGNEES, type: 'entity', value: optionId }),
+            propf: b.eq('properties', {
+              propertyId: ASSIGNEES,
+              type: 'entity',
+              value: optionId,
+            }),
           }),
-          predicate: (e) => (e?.assignees ?? []).includes(optionId),
+          predicate: (e) =>
+            isTaskEntity(e) && getTaskAssigneeIds(e).includes(optionId),
         },
 });

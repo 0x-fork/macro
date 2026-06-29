@@ -2,7 +2,7 @@ import { createRoot, createSignal } from 'solid-js';
 import { describe, expect, it } from 'vitest';
 import { and, type BackendAstMap, eq, not } from './clause';
 import { mergeAst } from './compile';
-import type { Facet } from './facets';
+import type { Facet } from './types';
 import { createFacetStore, deserializeFacets, serializeFacets } from './store';
 
 // ── helpers ───────────────────────────────────────────────────────────────────

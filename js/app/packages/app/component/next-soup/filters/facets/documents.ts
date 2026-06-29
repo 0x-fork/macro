@@ -1,5 +1,3 @@
-// Documents view "Type" — multi-select OR facet (the union v5 couldn't do).
-// Clause via `b`; markdown/snippet distinguished server-side via subType.
 import { facet } from './base';
 
 export const DOCUMENT_TYPE = facet({
@@ -31,11 +29,23 @@ export const DOCUMENT_TYPE = facet({
       clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:canvas') }),
       predicate: (e) => e.type === 'document' && e.fileType === 'canvas',
     },
-    { id: 'file-code', clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:code') }) },
-    { id: 'file-image', clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:image') }) },
+    {
+      id: 'file-code',
+      clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:code') }),
+    },
+    {
+      id: 'file-image',
+      clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:image') }),
+    },
     { id: 'file-pdf', clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:pdf') }) },
-    { id: 'file-docx', clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:document') }) },
-    { id: 'file-video', clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:video') }) },
+    {
+      id: 'file-docx',
+      clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:document') }),
+    },
+    {
+      id: 'file-video',
+      clause: (b) => ({ df: b.eq('fileAssoc', 'assoc:video') }),
+    },
     {
       id: 'file-other',
       clause: (b) => ({

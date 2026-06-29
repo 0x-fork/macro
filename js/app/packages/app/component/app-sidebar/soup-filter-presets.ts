@@ -26,16 +26,15 @@ import { startOfDay, subWeeks } from 'date-fns';
 type EmailView = NonNullable<Query['emailView']>;
 
 type SoupFiltersPreset = {
-  /** Filter data for server query */
+  /** @deprecated */
   filters: Query;
-  /** Client filters to apply (legacy predicates; migrating to `initialFacets`) */
+  /** @deprecated */
   clientFilters: { and?: FilterID[]; or?: FilterID[] };
   /** Facet selection to seed for this tab (preset-owned facets). */
   initialFacets?: FacetSelection;
   /**
-   * Inline facet definitions for this tab's Facet — facets used here that
-   * don't live in the shared catalog (`ALL_FACETS`). Handed to the store via
-   * `setExtraFacets` so they participate in compile/test like catalog facets.
+   * Facets used by the tabs for this preset and that need to be
+   * registered on preset selected
    */
   facets?: readonly Facet<FacetCtx>[];
   /**
@@ -95,7 +94,7 @@ const openStatusExprs = OPEN_TASK_STATUS_INCLUDE_PROPS.map((p) =>
 
 type TabSpec = {
   emailView?: EmailView;
-  /** Catalog facet seeds for this tab, WITHOUT the `{ [view]: [tab] }` entry. */
+  /** Facets to activate for this tab */
   initialFacets?: FacetSelection;
   groupBy?: string;
   /** Tab is hidden (resolver returns `undefined`) when this returns false. */
@@ -113,8 +112,7 @@ type ViewConfig = {
   tabs: Record<string, TabSpec>;
 };
 
-// A single-select facet for a view; its options carry the tab clauses.
-const viewFacet = (
+const defineViewFacet = (
   id: ListView,
   options: readonly FacetOption<FacetCtx>[]
 ): readonly Facet<FacetCtx>[] => [
@@ -126,7 +124,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
     default: 'signal',
     facets: () => {
       const cutoff = subWeeks(startOfDay(new Date()), 2).toISOString();
-      return viewFacet('inbox', [
+      return defineViewFacet('inbox', [
         {
           id: 'signal',
           clause: defineClause({
@@ -193,7 +191,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   agents: {
     default: 'owned',
     facets: (ctx) =>
-      viewFacet('agents', [
+      defineViewFacet('agents', [
         { id: 'owned', clause: defineClause({ chatOwnerId: ctx.userId }) },
         { id: 'running', clause: defineClause({ chatOwnerId: ctx.userId }) },
         {
@@ -221,7 +219,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   mail: {
     default: 'important',
     facets: (ctx) =>
-      viewFacet('mail', [
+      defineViewFacet('mail', [
         {
           id: 'important',
           clause: defineClause({
@@ -286,7 +284,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   documents: {
     default: 'owned',
     facets: (ctx) =>
-      viewFacet('documents', [
+      defineViewFacet('documents', [
         {
           id: 'owned',
           clause: defineClause({
@@ -341,7 +339,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   tasks: {
     default: 'assigned-to-me',
     facets: (ctx) =>
-      viewFacet('tasks', [
+      defineViewFacet('tasks', [
         {
           id: 'assigned-to-me',
           clause: defineClause({
@@ -396,7 +394,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   channels: {
     default: 'recent',
     facets: () =>
-      viewFacet('channels', [
+      defineViewFacet('channels', [
         { id: 'recent', clause: defineClause({ channelImportance: true }) },
         {
           id: 'people',
@@ -416,7 +414,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   calls: {
     default: 'all',
     facets: () =>
-      viewFacet('calls', [
+      defineViewFacet('calls', [
         { id: 'all', clause: defineClause({ callId: { not: NIL_UUID } }) },
         { id: 'missed', clause: defineClause({ callStatus: 'MISSED' }) },
         {
@@ -433,7 +431,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   companies: {
     default: 'active',
     facets: () =>
-      viewFacet('companies', [
+      defineViewFacet('companies', [
         { id: 'active', clause: defineClause({ crmCompanyHidden: false }) },
         { id: 'hidden', clause: defineClause({ crmCompanyHidden: true }) },
       ]),
@@ -450,7 +448,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   folders: {
     default: 'owned',
     facets: (ctx) =>
-      viewFacet('folders', [
+      defineViewFacet('folders', [
         { id: 'owned', clause: defineClause({ folderOwnerId: ctx.userId }) },
         { id: 'all', clause: defineClause({ folderId: { not: NIL_UUID } }) },
       ]),
@@ -465,7 +463,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   search: {
     default: 'all',
     facets: () =>
-      viewFacet('search', [
+      defineViewFacet('search', [
         {
           id: 'all',
           clause: defineClause(

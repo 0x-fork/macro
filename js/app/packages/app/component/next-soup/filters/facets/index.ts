@@ -1,5 +1,3 @@
-// Facet configs, exported individually. Composing them into per-view or
-// per-search-type lists is a consumer concern (the soup view), not config.
 import { DOCUMENT_TYPE } from './documents';
 import { ENTITY_TYPE, INBOX_FOCUS } from './inbox';
 import {

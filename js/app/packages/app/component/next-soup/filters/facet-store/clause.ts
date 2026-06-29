@@ -19,11 +19,8 @@ export const not = (expr: TargetExpr): TargetExpr => ({ not: expr });
 export const and = (...exprs: TargetExpr[]): TargetExpr => ({ and: exprs });
 export const or = (...exprs: TargetExpr[]): TargetExpr => ({ or: exprs });
 
-// Bundled authoring builder — the same shape clause functions receive as `b`,
-// so consumers build clauses from one import instead of each helper.
 export const clause = { eq, not, and, or };
 
-// ── backend AST ──────────────────────────────────────────────────────────────
 export type BackendAstNode =
   | { '&': [BackendAstNode, BackendAstNode] }
   | { '|': [BackendAstNode, BackendAstNode] }

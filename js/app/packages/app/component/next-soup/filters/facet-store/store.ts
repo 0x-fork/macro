@@ -1,13 +1,13 @@
+import type { EntityData } from '@entity';
 import { createSignal } from 'solid-js';
 import { createStore, produce, reconcile } from 'solid-js/store';
-import { compileFacets } from './compile';
+import { compileFacets, optionFor } from './compile';
 import type {
   Facet,
   FacetKey,
   FacetSelection,
   FacetSelectionOf,
-} from './facets';
-import { testFacets } from './facets';
+} from './types';
 
 export const createFacetStore = <
   Ctx = unknown,
@@ -17,9 +17,7 @@ export const createFacetStore = <
 ) => {
   const [selection, setSelection] = createStore<FacetSelection>({});
 
-  // Extra facets supplied by the consumer (e.g. a preset's inline baseline
-  // facets) that aren't in the static catalog. They participate in compile/test
-  // alongside the catalog; the store stays unaware of where they come from.
+  // Externally registered facets that are not provided in the `facets` arg
   const [extraFacets, setExtraFacets] = createSignal<readonly Facet<Ctx>[]>([]);
 
   const activeFacets = (): readonly Facet<Ctx>[] => [
@@ -27,8 +25,8 @@ export const createFacetStore = <
     ...extraFacets(),
   ];
 
-  // facet ids are a closed catalog (typed); option ids are an open space
-  // (resolver facets), so they stay string. unknown ids are inert at compile.
+  // Option ids can be dynamic and unknown. Ids for the facets passed in `facets`
+  // arg can be inferred
   const has = (facetId: FacetKey<F>, optionId: string) =>
     (selection[facetId] ?? []).includes(optionId);
 
@@ -58,14 +56,12 @@ export const createFacetStore = <
   const hydrate = (next: FacetSelection) =>
     setSelection(reconcile({ ...next }));
 
-  // ctx is supplied at call time (consumed by ctx-relative clauses/predicates)
   const compile = (ctx: Ctx = {} as Ctx) =>
     compileFacets(selection, activeFacets(), ctx);
 
-  const test = (entity: unknown, ctx: Ctx = {} as Ctx) =>
+  const test = (entity: EntityData, ctx: Ctx = {} as Ctx) =>
     testFacets(selection, activeFacets(), entity, ctx);
 
-  // canonical blob for entry-state persistence; restore via `hydrate`
   const serialize = () => serializeFacets(selection);
 
   return {
@@ -116,3 +112,24 @@ export const deserializeFacets = <Ctx>(
 
   return result;
 };
+
+export const testFacets = <Ctx>(
+  selection: FacetSelection,
+  facets: readonly Facet<Ctx>[],
+  entity: EntityData,
+  ctx: Ctx
+): boolean =>
+  facets.every((facet) => {
+    const active = selection[facet.id] ?? [];
+    if (!active.length) return true;
+
+    const results = active.map((id) =>
+      optionFor(facet, id, ctx)?.predicate?.(entity, ctx)
+    );
+    const testable = results.filter((r): r is boolean => r !== undefined);
+    if (!testable.length) return true;
+
+    return facet.mode === 'and'
+      ? testable.every(Boolean)
+      : testable.some(Boolean) || results.some((r) => r === undefined);
+  });

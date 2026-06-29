@@ -22,8 +22,7 @@ export type FilterFieldMeta = {
   compile?: FilterFieldCompileKind;
   formatValue?: (value: unknown) => unknown;
   /**
-   * Closed value domain. If a field's include set covers the whole domain the
-   * field contributes nothing (e.g. read + unread → show all). Compile-only.
+   * The entire possibility of values for this field
    */
   domain?: readonly unknown[];
 };
@@ -259,17 +258,6 @@ export type FieldsForTarget<T extends Target> = keyof FilterTargets[T] & string;
 export type FieldKey = {
   [T in Target]: FieldsForTarget<T>;
 }[Target];
-
-type ValueElement<T> = T extends readonly (infer S)[] ? S : T;
-
-export type TargetFieldValue<
-  T extends Target,
-  K extends FieldsForTarget<T>,
-> = ValueElement<FilterTargets[T][K]>;
-
-export type TargetFieldValues<T extends Target> = {
-  [K in FieldsForTarget<T>]: TargetFieldValue<T, K>;
-};
 
 export const fieldMeta = (target: Target, field: string): FilterFieldMeta => {
   const targetFields = FILTER_TARGETS[target];

@@ -1,17 +1,12 @@
-// Inbox "Type" — a RESTRICT facet (confines visible entity types). Each option
-// encodes both the backend clause (built via `b`, no imports) and the client
-// predicate. "Is this type" uses the exclude pattern (idField ≠ NIL).
-// (Predicates here are illustrative; production wires the real ones from `../predicates`.)
+import { NIL_UUID } from '../facet-store';
 import {
   explicitNoiseFilter,
   noiseFilter,
   signalFilter,
 } from '../inbox-filters';
 import { notDoneFilter } from '../predicates';
-import { facet, NIL } from './base';
+import { facet } from './base';
 
-// Inbox "focus" — a single-select preset facet (predicate-only; the backend
-// baseline lives in the tab preset). Reuses the existing signal/noise predicates.
 export const INBOX_FOCUS = facet({
   id: 'focus',
   mode: 'or',
@@ -51,7 +46,7 @@ export const ENTITY_TYPE = facet({
     },
     {
       id: 'agent',
-      clause: (b) => ({ cf: b.not(b.eq('chatId', NIL)) }),
+      clause: (b) => ({ cf: b.not(b.eq('chatId', NIL_UUID)) }),
       predicate: (e) => e.type === 'chat',
     },
     {
@@ -89,8 +84,8 @@ export const ENTITY_TYPE = facet({
     },
     {
       id: 'github-pr',
-      clause: (b) => ({ fef: b.not(b.eq('foreignEntityRecordId', NIL)) }),
-      predicate: (e) => e.type === 'foreignEntity',
+      clause: (b) => ({ fef: b.not(b.eq('foreignEntityRecordId', NIL_UUID)) }),
+      predicate: (e) => e.type === 'foreign',
     },
   ],
 });

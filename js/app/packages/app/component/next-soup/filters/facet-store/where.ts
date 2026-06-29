@@ -1,6 +1,6 @@
-import { and, clause as builder, eq, not, or, type TargetExpr } from './clause';
+import { and, clause as builder, type TargetExpr } from './clause';
 import { confine } from './compile';
-import type { ClauseBuilder, OptionClause } from './facets';
+import type { ClauseBuilder, OptionClause } from './types';
 import {
   FILTER_TARGETS,
   type FieldKey,
@@ -20,21 +20,28 @@ for (const target of TARGETS) {
 }
 
 // scalar ⇒ equals, array ⇒ "any of" (OR)
-const leaf = (field: string, value: unknown): TargetExpr =>
-  Array.isArray(value)
-    ? or(...value.map((v) => eq(field, v)))
-    : eq(field, value);
+const leaf = (field: string, value: unknown): TargetExpr => {
+  if (Array.isArray(value)) {
+    return builder.or(...value.map((v) => builder.eq(field, v)));
+  }
+  return builder.eq(field, value);
+};
 
 // `{ not: x }` negates. Date ranges (`{ gte }`) and properties have no `not`
 // key, so they fall through to a bare leaf — compileLeaf reads their compile
 // config. No other operators: arrays cover "in", `{ not: [...] }` covers "not in".
-const exprFor = (field: string, value: unknown): TargetExpr =>
-  value !== null &&
-  typeof value === 'object' &&
-  !Array.isArray(value) &&
-  'not' in value
-    ? not(leaf(field, (value as { not: unknown }).not))
-    : leaf(field, value);
+const exprFor = (field: string, value: unknown): TargetExpr => {
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    'not' in value
+  ) {
+    return builder.not(leaf(field, (value as { not: unknown }).not));
+  }
+
+  return leaf(field, value);
+};
 
 type Elem<V> = V extends readonly (infer E)[] ? E : V;
 type Value<K extends FieldKey> = {
@@ -53,8 +60,7 @@ export type WhereBag = Partial<{
   $clause?: (b: ClauseBuilder) => OptionClause;
 };
 
-// One declarative bag → an OptionClause: target inferred per field, fields on
-// the same target AND together.
+// Fields on the same target AND together.
 const where = (spec: WhereBag): OptionClause => {
   const byTarget = new Map<Target, TargetExpr[]>();
 
@@ -84,10 +90,8 @@ const where = (spec: WhereBag): OptionClause => {
   return out;
 };
 
-// Define a facet option's clause from a `where` bag. Confined by default
-// (`restrict`) — NIL-fills every entity target the clause doesn't reference, so
-// the option matches only its own entity types. Pass `{ restrict: false }` for
-// an unconfined clause (e.g. "show everything of these types").
+// Define a facet option's clause from a `where` bag. Confined by default.
+// Pass `{ restrict: false }` for an unconfined clause
 export const defineClause = (
   spec: WhereBag,
   { restrict = true }: { restrict?: boolean } = {}

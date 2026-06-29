@@ -1,5 +1,3 @@
-// Cross-cutting preset facets: seeded by tab presets, predicate-only (the backend
-// baseline lives in the preset query). Reuse the existing predicate functions.
 import {
   agentFilter,
   automationFilter,
@@ -44,7 +42,7 @@ export const SCOPE = facet({
   ],
 });
 
-// Relationship to the current user (predicate-only, ctx-relative).
+// Relationship to the current user
 export const OWNERSHIP = facet({
   id: 'ownership',
   mode: 'or',
