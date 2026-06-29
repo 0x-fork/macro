@@ -146,7 +146,10 @@ interface SoupViewContextProviderProps extends SoupViewInitializeOptions {
   initialEnabled?: boolean;
 }
 
-type ApiSortMethod = NonNullable<SoupParams['sort_method']>;
+type ApiSortMethod = Exclude<
+  NonNullable<SoupParams['sort_method']>,
+  'frecency'
+>;
 const VALID_API_SORT_METHODS: ApiSortMethod[] = [
   'viewed_at',
   'created_at',
@@ -176,7 +179,7 @@ export const SoupViewContextProvider: FlowComponent<
     additionalEntities: props.additionalEntities,
   });
 
-  const soupParams = createMemo((): SoupParams => {
+  const soupParams = createMemo(() => {
     const sortId = soup.sort.active()[0]?.id ?? 'updated_at';
 
     // Client-only sorts (priority, status) fall back to created_at for the API

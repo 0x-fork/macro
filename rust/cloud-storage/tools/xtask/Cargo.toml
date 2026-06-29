@@ -7,6 +7,7 @@ description = "Repo automation: regenerates workspace-hack and the deploy dep-cl
 
 [dependencies]
 anyhow = { workspace = true }
+graphql_soup = { path = "../../graphql_soup" }
 serde_json = { workspace = true }
 # Pinned engine for the generated dependency artifacts. These versions live in
 # Cargo.lock, so dev machines and CI always run the identical generator —
@@ -14,3 +15,7 @@ serde_json = { workspace = true }
 # version this hakari release is built against.
 hakari = { version = "0.17.9", features = ["cli-support"] }
 guppy = "0.17.24"
+# Define GitHub Actions workflows in Rust (`cargo run -p xtask -- workflows`).
+# xtask is excluded from hakari traversal, so these stay out of workspace-hack.
+gh-workflow = "0.8"
+indoc = "2"

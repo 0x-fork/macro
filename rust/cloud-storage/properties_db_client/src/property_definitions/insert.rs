@@ -5,23 +5,42 @@ use models_properties::service::property_definition::PropertyDefinition;
 use models_properties::service::property_option::PropertyOption;
 use models_properties::{DataType, EntityType, db};
 use sqlx::{Pool, Postgres};
+use uuid::Uuid;
 
 type Result<T> = std::result::Result<T, PropertiesDatabaseError>;
+
+/// The owner of a user- or team-created property definition. Encodes the
+/// "exactly one of user / team" invariant in the type, so neither a both-owners
+/// nor a no-owner row is representable. System properties are not created here.
+#[derive(Debug, Clone, Copy)]
+pub enum DefinitionOwner<'a> {
+    /// Owned by a single user.
+    User(&'a str),
+    /// Owned by a team.
+    Team(Uuid),
+}
+
+impl<'a> DefinitionOwner<'a> {
+    /// Split into the nullable (team_id, user_id) columns the row stores.
+    fn into_ids(self) -> (Option<Uuid>, Option<&'a str>) {
+        match self {
+            DefinitionOwner::User(user_id) => (None, Some(user_id)),
+            DefinitionOwner::Team(team_id) => (Some(team_id), None),
+        }
+    }
+}
 
 /// Creates a new property definition.
 #[tracing::instrument(skip(db))]
 pub async fn create_property_definition(
     db: &Pool<Postgres>,
-    organization_id: Option<i32>,
-    user_id: Option<&str>,
+    owner: DefinitionOwner<'_>,
     display_name: &str,
     data_type: DataType,
     is_multi_select: bool,
     specific_entity_type: Option<EntityType>,
 ) -> Result<PropertyDefinition> {
-    if organization_id.is_none() && user_id.is_none() {
-        return Err(PropertiesDatabaseError::MissingOwner);
-    }
+    let (team_id, user_id) = owner.into_ids();
 
     let id = macro_uuid::generate_uuid_v7();
 
@@ -29,17 +48,17 @@ pub async fn create_property_definition(
         r#"
         INSERT INTO property_definitions (
             id,
-            organization_id, 
-            user_id, 
-            display_name, 
-            data_type, 
+            team_id,
+            user_id,
+            display_name,
+            data_type,
             is_multi_select,
             specific_entity_type
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING 
+        RETURNING
             id,
-            organization_id,
+            team_id,
             user_id,
             display_name,
             data_type as "data_type: DataType",
@@ -49,7 +68,7 @@ pub async fn create_property_definition(
             updated_at
         "#,
         id,
-        organization_id,
+        team_id,
         user_id,
         display_name,
         data_type as DataType,
@@ -61,7 +80,7 @@ pub async fn create_property_definition(
 
     let db_result = db::PropertyDefinition {
         id: row.id,
-        organization_id: row.organization_id,
+        team_id: row.team_id,
         user_id: row.user_id,
         display_name: row.display_name,
         data_type: row.data_type,
@@ -77,23 +96,16 @@ pub async fn create_property_definition(
 
 /// Creates a property definition with options in a single transaction.
 #[tracing::instrument(skip(db, options))]
-#[expect(
-    clippy::too_many_arguments,
-    reason = "no good reason but too hard to fix right now"
-)]
 pub async fn create_property_definition_with_options(
     db: &Pool<Postgres>,
-    organization_id: Option<i32>,
-    user_id: Option<&str>,
+    owner: DefinitionOwner<'_>,
     display_name: &str,
     data_type: DataType,
     is_multi_select: bool,
     specific_entity_type: Option<EntityType>,
     options: Vec<PropertyOption>,
 ) -> Result<PropertyDefinition> {
-    if organization_id.is_none() && user_id.is_none() {
-        return Err(PropertiesDatabaseError::MissingOwner);
-    }
+    let (team_id, user_id) = owner.into_ids();
 
     let mut tx = db.begin().await?;
 
@@ -103,17 +115,17 @@ pub async fn create_property_definition_with_options(
         r#"
         INSERT INTO property_definitions (
             id,
-            organization_id, 
-            user_id, 
-            display_name, 
-            data_type, 
+            team_id,
+            user_id,
+            display_name,
+            data_type,
             is_multi_select,
             specific_entity_type
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING 
+        RETURNING
             id,
-            organization_id,
+            team_id,
             user_id,
             display_name,
             data_type as "data_type: DataType",
@@ -123,7 +135,7 @@ pub async fn create_property_definition_with_options(
             updated_at
         "#,
         id,
-        organization_id,
+        team_id,
         user_id,
         display_name,
         data_type as DataType,
@@ -152,7 +164,7 @@ pub async fn create_property_definition_with_options(
 
     let db_property_def = db::PropertyDefinition {
         id: row.id,
-        organization_id: row.organization_id,
+        team_id: row.team_id,
         user_id: row.user_id,
         display_name: row.display_name,
         data_type: row.data_type,
@@ -206,6 +218,10 @@ mod tests {
     use models_properties::service::property_option::PropertyOptionValue;
     use sqlx::{Pool, Postgres};
 
+    fn team_1() -> Uuid {
+        "0e000000-0000-0000-0000-000000000001".parse().unwrap()
+    }
+
     #[sqlx::test(
         migrator = "MACRO_DB_MIGRATIONS",
         fixtures(path = "../../fixtures", scripts("properties"))
@@ -215,8 +231,7 @@ mod tests {
 
         let property = create_property_definition(
             &pool,
-            Some(1),
-            None,
+            DefinitionOwner::Team(team_1()),
             "New Test Property",
             DataType::String,
             false,
@@ -243,8 +258,7 @@ mod tests {
 
         let property = create_property_definition(
             &pool,
-            None,
-            Some("user1"),
+            DefinitionOwner::User("user1"),
             "User Property",
             DataType::Number,
             false,
@@ -263,45 +277,15 @@ mod tests {
         migrator = "MACRO_DB_MIGRATIONS",
         fixtures(path = "../../fixtures", scripts("properties"))
     )]
-    async fn test_create_property_definition_no_owner_fails(
-        pool: Pool<Postgres>,
-    ) -> anyhow::Result<()> {
-        const _: &sqlx::migrate::Migrator = &MACRO_DB_MIGRATIONS;
-
-        let result = create_property_definition(
-            &pool,
-            None,
-            None,
-            "No Owner Property",
-            DataType::String,
-            false,
-            None,
-        )
-        .await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            PropertiesDatabaseError::MissingOwner => {}
-            _ => panic!("Expected MissingOwner error"),
-        }
-
-        Ok(())
-    }
-
-    #[sqlx::test(
-        migrator = "MACRO_DB_MIGRATIONS",
-        fixtures(path = "../../fixtures", scripts("properties"))
-    )]
     async fn test_create_property_definition_duplicate_name_fails(
         pool: Pool<Postgres>,
     ) -> anyhow::Result<()> {
         const _: &sqlx::migrate::Migrator = &MACRO_DB_MIGRATIONS;
 
-        // Try to create a property with the same name as an existing one in org 1
+        // Try to create a property with the same name as an existing one in team 1
         let result = create_property_definition(
             &pool,
-            Some(1),
-            None,
+            DefinitionOwner::Team(team_1()),
             "Test Priority", // Already exists in fixtures
             DataType::String,
             false,
@@ -344,8 +328,7 @@ mod tests {
 
         let property = create_property_definition_with_options(
             &pool,
-            Some(1),
-            None,
+            DefinitionOwner::Team(team_1()),
             "Property With Options",
             DataType::SelectString,
             false,
@@ -377,8 +360,7 @@ mod tests {
 
         let property = create_property_definition(
             &pool,
-            Some(1),
-            None,
+            DefinitionOwner::Team(team_1()),
             "Multi Select Property",
             DataType::SelectString,
             true, // multi-select
@@ -403,8 +385,7 @@ mod tests {
 
         let property = create_property_definition(
             &pool,
-            Some(1),
-            None,
+            DefinitionOwner::Team(team_1()),
             "Multi Select Documents",
             DataType::Entity,
             true,

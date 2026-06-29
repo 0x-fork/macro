@@ -19,6 +19,37 @@ pub enum AgentError {
     /// Unknown completion model
     #[error("unknown completion model [{0}]")]
     UnknownModel(String),
+    /// Model id missing a `provider/` segment.
+    #[error("malformed model")]
+    MalformedModel(String),
+    /// Expected env var
+    #[error(transparent)]
+    EnvVar(#[from] macro_env_var::VarNameErr),
+    /// Provider client error
+    #[error(transparent)]
+    ProviderClientError(#[from] rig_core::client::ProviderClientError),
+    /// Rig http client error
+    #[error(transparent)]
+    RigHttpClient(#[from] rig_core::http_client::Error),
 }
 
-pub type Result<T> = std::result::Result<T, AgentError>;
+impl AgentError {
+    /// is the error caused by a cancellation
+    pub fn was_cancelled(&self) -> bool {
+        use rig_core::agent::StreamingError;
+        use rig_core::completion::PromptError;
+        match self {
+            // A direct prompt error.
+            Self::Prompt(PromptError::PromptCancelled { .. }) => true,
+            // The agent loop streams its errors, so a cancellation surfaces
+            // wrapped: `Streaming(Prompt(PromptCancelled { .. }))`.
+            Self::Streaming(StreamingError::Prompt(e)) => {
+                matches!(**e, PromptError::PromptCancelled { .. })
+            }
+            _ => false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test;

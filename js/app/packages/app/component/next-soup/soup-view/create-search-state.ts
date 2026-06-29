@@ -29,6 +29,18 @@ import type {
 import { type Accessor, createMemo, on, type Setter } from 'solid-js';
 import type { SearchTypeValue } from './filters-bar/search/search-filters-state';
 
+// A fully-quoted term searches exactly, not as a prefix. Quotes stay in the
+// query so the backend tokenizer still groups a quoted phrase.
+function isSingleQuotedTerm(query: string): boolean {
+  const trimmed = query.trim();
+  return (
+    trimmed.length >= 2 &&
+    trimmed.startsWith('"') &&
+    trimmed.endsWith('"') &&
+    trimmed.indexOf('"', 1) === trimmed.length - 1
+  );
+}
+
 // Map the tasks-view property filters (status/priority/assignee/custom) into the
 // search request shape, mirroring the soup path so search and soup agree. Values
 // are grouped by property id: multiple values on one property are OR'd (a task
@@ -259,6 +271,7 @@ export const createSearchState = ({
     (): UnifiedSearchRequest => {
       const query = debouncedSearchForService();
       const baseFilters = buildSearchEntityFilters(soup.facets.serialize());
+      const matchType = isSingleQuotedTerm(query) ? 'exact' : 'partial';
 
       // The mail view scopes search to the selected inbox account(s). `[]` =
       // explicitly none → NIL so nothing matches; a subset → those accounts.
@@ -281,7 +294,7 @@ export const createSearchState = ({
       if (!includeCrm) {
         return {
           search_on: 'name_content',
-          match_type: 'partial',
+          match_type: matchType,
           query,
           filters: baseFilters,
         };
@@ -296,7 +309,7 @@ export const createSearchState = ({
 
       return {
         search_on: 'name_content',
-        match_type: 'partial',
+        match_type: matchType,
         query,
         include_crm: true,
         filters: {
