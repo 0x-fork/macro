@@ -1,6 +1,5 @@
-import { and, clause as builder, type TargetExpr } from './clause';
+import { clause as builder, type TargetExpr } from './clause';
 import { confine } from './compile';
-import type { ClauseBuilder, OptionClause } from './types';
 import {
   FILTER_TARGETS,
   type FieldKey,
@@ -9,6 +8,7 @@ import {
   TARGETS,
   type Target,
 } from './targets';
+import type { ClauseBuilder, OptionClause } from './types';
 
 // field key → owning target. Field keys are globally unique (each is prefixed
 // by its entity), so the inversion is unambiguous.
@@ -85,7 +85,7 @@ const where = (spec: WhereBag): OptionClause => {
 
   const out: OptionClause = {};
   for (const [target, exprs] of byTarget) {
-    out[target] = exprs.length === 1 ? exprs[0] : and(...exprs);
+    out[target] = exprs.length === 1 ? exprs[0] : builder.and(...exprs);
   }
   return out;
 };
