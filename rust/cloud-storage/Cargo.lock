@@ -14659,6 +14659,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "gh-workflow",
+ "graphql_soup",
  "guppy",
  "hakari",
  "indoc",
