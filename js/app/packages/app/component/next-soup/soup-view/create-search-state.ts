@@ -10,7 +10,6 @@ import type { CallStatus } from '@app/component/next-soup/filters/filter-store/t
 import { useSearchContext } from '@app/component/next-soup/search-context';
 import {
   createSoupFreshSearch,
-  intersectEntityPools,
   nameFuzzySearchFilter,
 } from '@app/component/next-soup/search-utils';
 import { useUserId } from '@core/context/user';
@@ -345,19 +344,6 @@ export const createSearchState = ({
     })
   );
 
-  const allFiltersResults = createMemo((): Map<string, EntityData[]> => {
-    if (!localFuzzyResults()) return new Map();
-    const filterToResultMap = new Map<string, EntityData[]>();
-    const ctx = getFilterContext();
-    for (const filter of soup.predicates.available) {
-      filterToResultMap.set(
-        filter.id,
-        localFuzzyResults().filter((e) => filter.predicate(e, ctx))
-      );
-    }
-    return filterToResultMap;
-  });
-
   // we will hide local results if there are channel filters because we only want message results
   const hasChannelQueryFilters = () =>
     soup.facets.getSelected('channel-in').length > 0 ||
@@ -366,15 +352,8 @@ export const createSearchState = ({
   const filteredLocalFuzzyResults = createMemo(() => {
     if (!localFuzzyResults()) return [];
     if (hasChannelQueryFilters()) return [];
-    const activeIds = soup.predicates
-      .activeIds()
-      .filter((id) => id !== 'explicit-noise');
-    const results =
-      activeIds.length === 0
-        ? localFuzzyResults()
-        : intersectEntityPools(
-            activeIds.map((id) => allFiltersResults().get(id) ?? [])
-          );
+    const ctx = getFilterContext();
+    const results = localFuzzyResults().filter((e) => soup.facets.test(e, ctx));
     const channels = results.filter((e) => isChannelEntity(e));
     const nonChannels = results
       .filter((e) => !isChannelEntity(e))

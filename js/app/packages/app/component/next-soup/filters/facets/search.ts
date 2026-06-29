@@ -1,5 +1,15 @@
+import {
+  isCallEntity,
+  isChannelEntity,
+  isDocumentEntity,
+  isEmailEntity,
+  isTaskEntity,
+} from '@entity';
 import { facet, NIL } from './base';
 
+// Client predicates mirror each clause so the featured local-fuzzy results
+// respect the selected type. `folders` maps to a property filter with no local
+// entity kind, so it stays clause-only (lenient client-side).
 export const SEARCH_TYPE = facet({
   id: 'search-type',
   mode: 'or',
@@ -9,16 +19,30 @@ export const SEARCH_TYPE = facet({
     {
       id: 'document-or-file',
       clause: (b) => ({ df: b.not(b.eq('subType', 'task')) }),
+      predicate: (e) => isDocumentEntity(e) && !isTaskEntity(e),
     },
-    { id: 'task', clause: (b) => ({ df: b.eq('subType', 'task') }) },
-    { id: 'email', clause: (b) => ({ ef: b.and() }) },
+    {
+      id: 'task',
+      clause: (b) => ({ df: b.eq('subType', 'task') }),
+      predicate: isTaskEntity,
+    },
+    { id: 'email', clause: (b) => ({ ef: b.and() }), predicate: isEmailEntity },
     {
       id: 'channels',
       clause: (b) => ({ chanf: b.not(b.eq('channelId', NIL)) }),
+      predicate: isChannelEntity,
     },
-    { id: 'calls', clause: (b) => ({ callf: b.not(b.eq('callId', NIL)) }) },
+    {
+      id: 'calls',
+      clause: (b) => ({ callf: b.not(b.eq('callId', NIL)) }),
+      predicate: isCallEntity,
+    },
     { id: 'folders', clause: (b) => ({ pf: b.not(b.eq('folderId', NIL)) }) },
-    { id: 'agent', clause: (b) => ({ cf: b.not(b.eq('chatId', NIL)) }) },
+    {
+      id: 'agent',
+      clause: (b) => ({ cf: b.not(b.eq('chatId', NIL)) }),
+      predicate: (e) => e.type === 'chat',
+    },
   ],
 });
 
