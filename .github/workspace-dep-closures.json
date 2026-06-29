@@ -1406,6 +1406,7 @@
       "teams",
       "unfurl",
       "user_quota",
+      "webhook",
       "workspace-hack"
     ],
     "document_storage_service_client": [
@@ -4547,6 +4548,16 @@
     ],
     "user_quota": [
       "user_quota",
+      "workspace-hack"
+    ],
+    "webhook": [
+      "cowlike",
+      "macro_user_id",
+      "macro_uuid",
+      "model-error-response",
+      "model_user",
+      "rate_limit",
+      "webhook",
       "workspace-hack"
     ],
     "worker_trigger": [

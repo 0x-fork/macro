@@ -3905,6 +3905,7 @@ dependencies = [
  "properties",
  "properties_db_client",
  "properties_service",
+ "rate_limit",
  "rayon",
  "readonly_pool",
  "redis",
@@ -3935,6 +3936,7 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
+ "webhook",
  "workspace-hack",
  "zip 2.4.2",
 ]
@@ -13939,6 +13941,37 @@ dependencies = [
  "phf_codegen 0.11.3",
  "string_cache",
  "string_cache_codegen",
+]
+
+[[package]]
+name = "webhook"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-extra",
+ "chrono",
+ "hex",
+ "hmac 0.12.1",
+ "macro_db_migrator",
+ "macro_user_id",
+ "macro_uuid",
+ "model-error-response",
+ "model_user",
+ "rate_limit",
+ "reqwest 0.13.4",
+ "rootcause",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tower 0.5.3",
+ "tracing",
+ "url",
+ "utoipa",
+ "workspace-hack",
 ]
 
 [[package]]
