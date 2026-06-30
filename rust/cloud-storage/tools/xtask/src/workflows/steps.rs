@@ -39,8 +39,9 @@ fn uses_local(name: &str, path: &str) -> Step<Use> {
     step
 }
 
-/// `actions/checkout`, pinned. `full_history` fetches the full history, which the
-/// path-filter diff in `path-check` needs.
+/// `actions/checkout`, pinned. `full_history` fetches the full history, which
+/// the path-filter diff in `path-check` needs. `persist_credentials` controls
+/// whether checkout leaves the token in git config for later steps.
 pub fn checkout(full_history: bool, persist_credentials: bool) -> Step<Use> {
     Step::new("Checkout")
         .uses(
