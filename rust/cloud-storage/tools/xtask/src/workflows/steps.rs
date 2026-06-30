@@ -49,6 +49,7 @@ pub fn checkout(full_history: bool) -> Step<Use> {
             "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
         ) // v4
         .add_with(("clean", false))
+        .add_with(("persist-credentials", false))
         .when(full_history, |step| step.add_with(("fetch-depth", 0)))
 }
 

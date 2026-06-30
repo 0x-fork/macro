@@ -18,7 +18,7 @@ pub fn assign_labels() -> Workflow {
 
 fn label_job() -> Job {
     Job::default()
-        .runs_on(runners::Runner::LinuxTinyNoCache.to_string())
+        .runs_on(runners::Runner::TinyNoCache.to_string())
         .permissions(Permissions {
             contents: Some(Level::Read),
             pull_requests: Some(Level::Write),
@@ -31,18 +31,32 @@ fn label_job() -> Job {
 
 fn changed_files() -> Step<gh_workflow::Use> {
     Step::new("Get changed files")
-        .uses("tj-actions", "changed-files", "v47")
+        .uses(
+            "tj-actions",
+            "changed-files",
+            "24d32ffd492484c1d75e0c0b894501ddb9d30d62",
+        )
         .id("changed-files")
+        .add_with(("json", true))
+        .add_with(("escape_json", false))
 }
 
 fn label_by_paths() -> Step<gh_workflow::Use> {
     Step::new("Label based on paths")
-        .uses("actions", "github-script", "v7")
+        .uses(
+            "actions",
+            "github-script",
+            "f28e40c7f34bde8b3046d885e986cb6290c5673b",
+        )
+        .add_env((
+            "CHANGED_FILES_JSON",
+            "${{ steps.changed-files.outputs.all_changed_files }}",
+        ))
         .add_with(("github-token", "${{ secrets.GITHUB_TOKEN }}"))
         .add_with((
             "script",
             indoc::indoc! {r#"
-                const changedFiles = `${{ steps.changed-files.outputs.all_changed_files }}`.split(' ');
+                const changedFiles = JSON.parse(process.env.CHANGED_FILES_JSON || '[]');
                 const labels = new Set();
 
                 // Define path-to-label mappings

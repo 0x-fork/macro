@@ -37,7 +37,7 @@ pub fn code_check_cloud_storage() -> Workflow {
 /// Decide whether the rest of the workflow runs, and compute the nextest filter.
 fn path_check() -> Job {
     Job::default()
-        .runs_on(runners::Runner::LinuxSmall.to_string())
+        .runs_on(runners::Runner::Small.to_string())
         .add_output("should_run", "${{ steps.filter.outputs.should_run }}")
         .add_output(
             "nextest_filter",
@@ -58,7 +58,7 @@ fn path_check() -> Job {
 /// fmt + clippy (and Doppler-config validation).
 fn check() -> Job {
     steps::gated_job()
-        .runs_on(runners::Runner::LinuxRustCi.with_cache_tag(vars::CI_CACHE_TAG))
+        .runs_on(runners::Runner::RustCi.with_cache_tag(vars::CI_CACHE_TAG))
         .add_env((
             "RUSTFLAGS",
             "-Dwarnings -Dclippy::disallowed_methods -C link-arg=-fuse-ld=mold",
@@ -78,7 +78,7 @@ fn check() -> Job {
 /// cargo nextest against postgres + redis service containers.
 fn test() -> Job {
     steps::gated_job()
-        .runs_on(runners::Runner::LinuxRustCi.with_cache_tag(vars::CI_CACHE_TAG))
+        .runs_on(runners::Runner::RustCi.with_cache_tag(vars::CI_CACHE_TAG))
         .add_env((
             "NEXTEST_FILTER",
             "${{ needs.path-check.outputs.nextest_filter }}",
@@ -103,7 +103,7 @@ fn test() -> Job {
 fn status_check() -> Job {
     Job::default()
         .name("Cloud Storage Status Check")
-        .runs_on(runners::Runner::LinuxSmall.to_string())
+        .runs_on(runners::Runner::Small.to_string())
         .cond(Expression::new("always()"))
         .needs(vec![
             "path-check".to_string(),

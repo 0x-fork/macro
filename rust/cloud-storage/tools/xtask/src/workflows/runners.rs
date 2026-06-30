@@ -13,21 +13,21 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Runner {
     /// Tiny profile for lightweight automation that does not need cache volume.
-    LinuxTinyNoCache,
+    TinyNoCache,
     /// Small profile for light jobs (path filtering, status aggregation).
-    LinuxSmall,
+    Small,
     /// Dedicated CI profile for the heavy compile + test jobs. Has its own
     /// cache volume, isolated from the deploy profiles so deploy's churn can't
     /// evict the CI sccache/cargo caches.
-    LinuxRustCi,
+    RustCi,
 }
 
 impl fmt::Display for Runner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Runner::LinuxTinyNoCache => "namespace-profile-linux-tiny-no-cache",
-            Runner::LinuxSmall => "namespace-profile-linux-small",
-            Runner::LinuxRustCi => "namespace-profile-linux-rust-ci",
+            Runner::TinyNoCache => "namespace-profile-linux-tiny-no-cache",
+            Runner::Small => "namespace-profile-linux-small",
+            Runner::RustCi => "namespace-profile-linux-rust-ci",
         })
     }
 }

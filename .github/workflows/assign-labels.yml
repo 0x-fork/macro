@@ -18,16 +18,20 @@ jobs:
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         clean: 'false'
+        persist-credentials: 'false'
         fetch-depth: '0'
     - id: changed-files
       name: Get changed files
-      uses: tj-actions/changed-files@v47
+      uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62
+      with:
+        json: 'true'
+        escape_json: 'false'
     - name: Label based on paths
-      uses: actions/github-script@v7
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const changedFiles = `${{ steps.changed-files.outputs.all_changed_files }}`.split(' ');
+          const changedFiles = JSON.parse(process.env.CHANGED_FILES_JSON || '[]');
           const labels = new Set();
 
           // Define path-to-label mappings
@@ -59,3 +63,5 @@ jobs:
           } else {
             console.log('No matching labels found for changed files');
           }
+      env:
+        CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.all_changed_files }}
