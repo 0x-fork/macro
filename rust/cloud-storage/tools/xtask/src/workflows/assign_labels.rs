@@ -24,7 +24,7 @@ fn label_job() -> Job {
             pull_requests: Some(Level::Write),
             ..Default::default()
         })
-        .add_step(steps::checkout(true))
+        .add_step(steps::checkout(true, false))
         .add_step(changed_files())
         .add_step(label_by_paths())
 }

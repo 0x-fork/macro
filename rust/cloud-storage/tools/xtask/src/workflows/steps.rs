@@ -39,9 +39,10 @@ fn uses_local(name: &str, path: &str) -> Step<Use> {
     step
 }
 
-/// `actions/checkout`, pinned. `full_history` fetches the full history, which the
-/// path-filter diff in `path-check` needs.
-pub fn checkout(full_history: bool) -> Step<Use> {
+/// `actions/checkout`, pinned. `full_history` fetches the full history, which
+/// the path-filter diff in `path-check` needs. `persist_credentials` controls
+/// whether checkout leaves the token in git config for later steps.
+pub fn checkout(full_history: bool, persist_credentials: bool) -> Step<Use> {
     Step::new("Checkout")
         .uses(
             "actions",
@@ -49,8 +50,10 @@ pub fn checkout(full_history: bool) -> Step<Use> {
             "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
         ) // v4
         .add_with(("clean", false))
-        .add_with(("persist-credentials", false))
         .when(full_history, |step| step.add_with(("fetch-depth", 0)))
+        .when(!persist_credentials, |step| {
+            step.add_with(("persist-credentials", false))
+        })
 }
 
 /// Install the Rust toolchain only (no sccache, no cache) — for the lightweight
