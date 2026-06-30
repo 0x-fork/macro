@@ -2925,8 +2925,6 @@
       "workspace-hack"
     ],
     "mention_utils": [
-      "cowlike",
-      "macro_user_id",
       "mention_utils",
       "workspace-hack"
     ],
