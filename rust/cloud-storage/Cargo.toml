@@ -58,7 +58,10 @@ members = [
   "upload_extractor_lambda_trigger",
   "user_link_cleanup_handler",
   "worker_trigger",
+  "macro_config",
   "macro_event_broker",
+  "macro_event_topics",
+  "macro_queues",
   "prompt",
   "workspace-hack",
   "tools/xtask",
@@ -108,6 +111,7 @@ http = "1"
 http-body-util = "0.1.2"
 image = "0.25"
 inquire = "0.7"
+indexmap = "2"
 itertools = "0.14"
 jsonwebtoken = { git = "https://github.com/whutchinson98/jsonwebtoken", features = [
   "rust_crypto",
