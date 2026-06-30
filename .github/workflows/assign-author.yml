@@ -1,13 +1,15 @@
+# DO NOT EDIT — regenerate with `cargo x workflows` (from rust/cloud-storage).
+# Source: rust/cloud-storage/tools/xtask/src/workflows/assign_author.rs
 name: Pull Request
-
-on:
+'on':
   pull_request:
-    types: [opened, reopened]
-
+    types:
+    - opened
+    - reopened
 jobs:
-  assignAuthor:
+  assign_author:
     name: Assign author to PR
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-linux-tiny-no-cache
     steps:
-      - name: Assign author to PR
-        uses: technote-space/assign-author@v1
+    - name: Assign author to PR
+      uses: technote-space/assign-author@v1

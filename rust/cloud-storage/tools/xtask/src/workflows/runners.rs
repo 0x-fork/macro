@@ -12,6 +12,8 @@ use std::fmt;
 /// closed; `Display` renders the `runs-on` label.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Runner {
+    /// Tiny profile for lightweight automation that does not need cache volume.
+    LinuxTinyNoCache,
     /// Small profile for light jobs (path filtering, status aggregation).
     LinuxSmall,
     /// Dedicated CI profile for the heavy compile + test jobs. Has its own
@@ -23,6 +25,7 @@ pub enum Runner {
 impl fmt::Display for Runner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
+            Runner::LinuxTinyNoCache => "namespace-profile-linux-tiny-no-cache",
             Runner::LinuxSmall => "namespace-profile-linux-small",
             Runner::LinuxRustCi => "namespace-profile-linux-rust-ci",
         })
