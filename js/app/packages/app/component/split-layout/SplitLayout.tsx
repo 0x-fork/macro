@@ -72,9 +72,15 @@ function createLayoutUrlSync(
   /** Syncs changes from the layout manager to the URL*/
   createEffect(
     on([() => splitManager.getUrlSegments().join('/')], () => {
+      // Always consume the flag so it can't leak into a later, unrelated sync.
+      const shouldReplace = splitManager.takeUrlReplace();
       if (urlLayoutDrift()) {
-        // Flush the state to the url
-        navigate(`/${splitManager.getUrlSegments().join('/')}`);
+        // Flush the state to the url. When the change came from a history merge
+        // (e.g. a `loading` placeholder resolving to its real id) replace the
+        // entry instead of pushing, so the placeholder isn't left in the back stack.
+        navigate(`/${splitManager.getUrlSegments().join('/')}`, {
+          replace: shouldReplace,
+        });
       }
     })
   );

@@ -347,6 +347,14 @@ export type SplitManager = {
    */
   setNavigationInterceptor: (fn: NavigationInterceptor | undefined) => void;
 
+  /**
+   * Returns whether the most recent layout change should *replace* the browser
+   * URL rather than push a new entry (set when a history merge drops the current
+   * entry, e.g. resolving a `loading` placeholder), then clears the flag.
+   * Read once per URL sync.
+   */
+  takeUrlReplace: () => boolean;
+
   /** Get reactive accessor to popovers map */
   popovers: () => Map<
     string,
@@ -524,6 +532,12 @@ export function createSplitLayout(
   });
 
   const [resizeContext, setResizeContext] = createSignal<ResizeZoneCtx>();
+
+  // When the next layout change is a history merge (e.g. swapping a transient
+  // `loading` placeholder for the resolved content), the browser URL should be
+  // *replaced* rather than pushed, so the placeholder doesn't linger in the
+  // back stack. The URL sync effect reads and clears this via `takeUrlReplace`.
+  let pendingUrlReplace = false;
 
   let exclusionFilter: ((split: SplitState) => boolean) | undefined;
   let navigationInterceptor: NavigationInterceptor | undefined;
@@ -782,6 +796,10 @@ export function createSplitLayout(
     captureCurrentEntryState(split);
     if (mergeHistory) {
       split.history.merge(content);
+      // Merging drops the current entry from this split's history; mirror that
+      // in the browser history by replacing the URL instead of pushing a new
+      // entry, so the replaced content (e.g. `loading`) isn't reachable via back.
+      pendingUrlReplace = true;
     } else {
       split.history.push(content);
     }
@@ -1335,6 +1353,11 @@ export function createSplitLayout(
     createNewSplit,
     getUrlSegments,
     getUrl,
+    takeUrlReplace: () => {
+      const value = pendingUrlReplace;
+      pendingUrlReplace = false;
+      return value;
+    },
     activateSplit,
     hasSplit,
     getSplitByContent,

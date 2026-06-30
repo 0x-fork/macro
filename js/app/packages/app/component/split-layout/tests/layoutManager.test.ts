@@ -208,4 +208,44 @@ describe('layoutManager', () => {
       });
     });
   });
+
+  describe('takeUrlReplace', () => {
+    it('flags a URL replace after a mergeHistory replace and clears it once read', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'loading' },
+        ]);
+
+        expect(manager.takeUrlReplace()).toBe(false);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({
+          next: { type: 'md', id: 'resolved' },
+          mergeHistory: true,
+        });
+
+        // First read returns true, then the flag is cleared so a later
+        // unrelated URL sync can't inadvertently replace history.
+        expect(manager.takeUrlReplace()).toBe(true);
+        expect(manager.takeUrlReplace()).toBe(false);
+
+        dispose();
+      });
+    });
+
+    it('does not flag a URL replace for a non-merging replace', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'loading' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({ next: { type: 'md', id: 'resolved' } });
+
+        expect(manager.takeUrlReplace()).toBe(false);
+
+        dispose();
+      });
+    });
+  });
 });
