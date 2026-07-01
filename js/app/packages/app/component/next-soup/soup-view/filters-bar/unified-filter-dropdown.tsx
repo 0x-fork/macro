@@ -760,7 +760,7 @@ export const UnifiedFilterDropdown = (
           </Switch>
         </Show>
 
-        <Dropdown.Content>
+        <Dropdown.Content class="shadow-menu">
           <Dropdown.Group>
             <Show when={isNewInbox()}>
               <ReadStatusSubmenu
