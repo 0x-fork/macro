@@ -437,6 +437,13 @@ export const ENABLE_HOME_OVERRIDE = DEV_MODE_ENV ? true : undefined;
 export const ENABLE_NEW_PRICING_OVERRIDE =
   resolveFeatureFlag('ENABLE_NEW_PRICING', DEV_MODE_ENV) || undefined;
 
+// New inbox: renders the Inbox list view with the notification card layout and
+// expandable thread reply sub-items. PostHog-gated with a dev-mode default;
+// override with VITE_ENABLE_NEW_INBOX.
+export const ENABLE_NEW_INBOX_FLAG = 'enable-new-inbox-view';
+export const ENABLE_NEW_INBOX_OVERRIDE =
+  resolveFeatureFlag('ENABLE_NEW_INBOX', DEV_MODE_ENV) || undefined;
+
 export const ENABLE_TAGS_FE_FLAG = 'enable-tags-fe';
 export const ENABLE_TAGS_FE_OVERRIDE =
   resolveFeatureFlag('ENABLE_TAGS_FE', DEV_MODE_ENV) || undefined;
