@@ -5,7 +5,6 @@ import { Resize } from '@core/component/Resize';
 import { splitContainerSelector } from '@core/dom-selectors';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { tabTitleSignal } from '@core/signal/tabTitle';
-import { useNavigate } from '@solidjs/router';
 import { cn } from '@ui';
 import {
   type Accessor,
@@ -24,7 +23,6 @@ import { SplitPanel } from './components/SplitPanel';
 import { SplitLayoutContext } from './context';
 import {
   createSplitLayout,
-  type SplitContent,
   SplitEvent,
   type SplitEventWithType,
   type SplitId,
@@ -37,6 +35,7 @@ import {
   type MobileSwipeLayout,
 } from './mobile/createMobileSwipeLayout';
 import { MobileSplitContainer } from './mobile/MobileSplitContainer';
+import { createLayoutUrlSync } from './url-sync';
 
 type SplitLayoutContainerProps = {
   pairs: string[];
@@ -50,75 +49,6 @@ function getParentSplitId(element: Element | null) {
   const splitId = splitParent.getAttribute('data-split-id');
   if (!splitId) return null;
   return splitId as SplitId;
-}
-
-function sameSplitContentIdentity(a: SplitContent, b: SplitContent) {
-  return a.type === b.type && a.id === b.id;
-}
-
-function getUrlSyncAffectedSplit(
-  splitManager: SplitManager,
-  currentPairs: SplitContent[],
-  nextPairs: SplitContent[]
-) {
-  const changedIndex = nextPairs.findIndex(
-    (nextPair, index) =>
-      !currentPairs[index] ||
-      !sameSplitContentIdentity(currentPairs[index], nextPair)
-  );
-
-  if (changedIndex < 0) return undefined;
-
-  const affectedPair = nextPairs[changedIndex];
-  return splitManager
-    .splits()
-    .find((split) => sameSplitContentIdentity(split.content, affectedPair));
-}
-
-/**
- * Creates an effect that syncs the layout manager with the URL.
- *
- * @param splitManager The layout manager to sync with
- * @param pairs The accessor to the current pairs
- * @param decodedPairs The accessor to the decoded pairs
- */
-function createLayoutUrlSync(
-  splitManager: SplitManager,
-  pairs: Accessor<string[]>,
-  decodedPairs: Accessor<SplitContent[]>
-) {
-  const navigate = useNavigate();
-  const urlLayoutDrift = createMemo(
-    () => splitManager.getUrlSegments().join('/') !== pairs().join('/')
-  );
-
-  /** Syncs changes from the layout manager to the URL*/
-  createEffect(
-    on([() => splitManager.getUrlSegments().join('/')], () => {
-      if (urlLayoutDrift()) {
-        const nextUrlSegments = splitManager.getUrlSegments();
-        const nextPairs = decodePairs(nextUrlSegments);
-        const affectedSplit = getUrlSyncAffectedSplit(
-          splitManager,
-          decodedPairs(),
-          nextPairs
-        );
-        const replace = affectedSplit?.lastNavigationCause === 'replace';
-
-        // Flush the state to the url
-        navigate(`/${nextUrlSegments.join('/')}`, { replace });
-      }
-    })
-  );
-
-  /** Syncs changes from the URL to the layout manager */
-  createEffect(
-    on([pairs], () => {
-      if (urlLayoutDrift()) {
-        splitManager.reconcile(decodedPairs());
-      }
-    })
-  );
 }
 
 /**
