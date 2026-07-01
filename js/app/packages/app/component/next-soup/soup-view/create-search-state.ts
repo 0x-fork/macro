@@ -216,6 +216,14 @@ const freshSearch = createSoupFreshSearch();
 interface CreateSearchStateArgs {
   soup: SoupState;
   inboxFilter: Accessor<string[] | undefined>;
+  /**
+   * Extra entity filters to merge onto the facet-derived search request, for
+   * view state that lives outside the facet store (e.g. the new inbox's
+   * mentioned-thread, read/unread, and missed-call scoping). Each namespace is
+   * shallow-merged over the base (the override wins on conflicts); `undefined`
+   * applies nothing.
+   */
+  queryFilters?: Accessor<EntityFilters | undefined>;
   assignees: Accessor<string[]>;
   disableLocalSearch?: Accessor<boolean>;
   searchPaused?: Accessor<boolean>;
@@ -230,6 +238,7 @@ interface CreateSearchStateArgs {
 export const createSearchState = ({
   soup,
   inboxFilter,
+  queryFilters,
   assignees,
   disableLocalSearch,
   searchPaused,
@@ -281,6 +290,29 @@ export const createSearchState = ({
           ...baseFilters.email_filters,
           link_ids: inboxes.length ? inboxes : [NIL_UUID],
         };
+      }
+
+      // Merge caller-supplied entity filters (e.g. the new inbox's thread /
+      // read / missed-call scoping) over the facet-derived base. Each namespace
+      // is shallow-merged so the override refines rather than clobbers.
+      const overrides = queryFilters?.();
+      if (overrides) {
+        const target = baseFilters as Record<string, unknown>;
+        for (const [key, value] of Object.entries(overrides)) {
+          if (value === undefined) continue;
+
+          const existing = target[key];
+          const isMergeable =
+            !Array.isArray(value) &&
+            typeof existing === 'object' &&
+            existing !== null;
+
+          if (isMergeable) {
+            target[key] = { ...existing, ...value };
+          } else {
+            target[key] = value;
+          }
+        }
       }
 
       // CRM is opt-in on the backend. A view includes CRM in search when its

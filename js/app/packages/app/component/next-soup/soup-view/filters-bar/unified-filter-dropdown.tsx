@@ -1,9 +1,17 @@
 import { NO_ASSIGNEE } from '@app/component/next-soup/filters/configs/';
-import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
+import {
+  type ReadFilter,
+  useSoupView,
+} from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
 import { isListViewID } from '@app/constants/list-views';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { UserIcon } from '@core/component/UserIcon';
+import {
+  ENABLE_NEW_INBOX_FLAG,
+  ENABLE_NEW_INBOX_OVERRIDE,
+} from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -148,6 +156,53 @@ interface UnifiedFilterDropdownProps {
   hideTrigger?: boolean;
 }
 
+const READ_FILTER_OPTIONS: { id: ReadFilter; label: string }[] = [
+  { id: 'unread', label: 'Unread' },
+  { id: 'read', label: 'Read' },
+  { id: 'all', label: 'All' },
+];
+
+/** Single-select read/unread/all submenu for the inbox. */
+const ReadStatusSubmenu = (props: {
+  value: ReadFilter;
+  onChange: (value: ReadFilter) => void;
+}) => {
+  return (
+    <Dropdown.Sub>
+      <Dropdown.SubTrigger>
+        <span class="text-ink">Status</span>
+        <CaretRightIcon class="size-3 text-ink-muted" />
+      </Dropdown.SubTrigger>
+
+      <Dropdown.SubContent>
+        <Dropdown.Group>
+          <For each={READ_FILTER_OPTIONS}>
+            {(option) => {
+              const active = () => props.value === option.id;
+              return (
+                <Dropdown.Item
+                  onSelect={() => props.onChange(option.id)}
+                  closeOnSelect
+                >
+                  <TypeIndicator active={active()} />
+                  <span
+                    class={cn(
+                      'flex-1 truncate',
+                      active() ? 'text-ink' : 'text-ink-muted'
+                    )}
+                  >
+                    {option.label}
+                  </span>
+                </Dropdown.Item>
+              );
+            }}
+          </For>
+        </Dropdown.Group>
+      </Dropdown.SubContent>
+    </Dropdown.Sub>
+  );
+};
+
 export const UnifiedFilterDropdown = (
   props: UnifiedFilterDropdownProps = {}
 ) => {
@@ -158,7 +213,8 @@ export const UnifiedFilterDropdown = (
     props.onOpenChange?.(v);
   };
   const panel = useSplitPanelOrThrow();
-  const { soup, assigneeFilter, setAssigneeFilter } = useSoupView();
+  const { soup, assigneeFilter, setAssigneeFilter, readFilter, setReadFilter } =
+    useSoupView();
   const contacts = useContacts();
   const userId = useUserId();
 
@@ -168,6 +224,11 @@ export const UnifiedFilterDropdown = (
       return undefined;
     return content.id;
   });
+
+  const newInboxFlag = useFeatureFlag(ENABLE_NEW_INBOX_FLAG, {
+    enabledOverride: ENABLE_NEW_INBOX_OVERRIDE,
+  });
+  const isNewInbox = () => currentView() === 'inbox' && newInboxFlag().enabled;
 
   const githubLinkStatus = useGithubLinkStatusQuery({
     enabled: () => currentView() === 'inbox',
@@ -277,7 +338,7 @@ export const UnifiedFilterDropdown = (
   };
 
   return (
-    <Show when={categories().length > 0 || isTasksView()}>
+    <Show when={categories().length > 0 || isTasksView() || isNewInbox()}>
       <Dropdown
         open={open()}
         onOpenChange={handleOpenChange}
@@ -299,8 +360,16 @@ export const UnifiedFilterDropdown = (
 
         <Dropdown.Content>
           <Dropdown.Group>
+            <Show when={isNewInbox()}>
+              <ReadStatusSubmenu
+                value={readFilter()}
+                onChange={setReadFilter}
+              />
+            </Show>
             <Show
-              when={categories().length === 1 && !isTasksView()}
+              when={
+                categories().length === 1 && !isTasksView() && !isNewInbox()
+              }
               fallback={
                 <>
                   <For each={categories()}>

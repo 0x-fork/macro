@@ -18,7 +18,10 @@ import {
   mergeAst,
 } from '@app/component/next-soup/filters/facet-store';
 import { EMAIL_INBOX } from '@app/component/next-soup/filters/facets';
-import { NIL_UUID } from '@app/component/next-soup/filters/filter-store';
+import {
+  compileToAst,
+  NIL_UUID,
+} from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import type { Query } from '@app/component/next-soup/filters/filter-store/query-store';
 import { createGroupedSoupQueries } from '@app/component/next-soup/soup-view/create-grouped-soup-queries';
@@ -38,6 +41,8 @@ import {
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   ENABLE_FEATURED_SEARCH_RESULTS,
+  ENABLE_NEW_INBOX_FLAG,
+  ENABLE_NEW_INBOX_OVERRIDE,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
 } from '@core/constant/featureFlags';
@@ -48,7 +53,10 @@ import {
   isWithNotification,
   toNotificationEntity,
 } from '@entity';
-import { useNotificationsForEntity } from '@notifications';
+import {
+  useEntityTypeNotifications,
+  useNotificationsForEntity,
+} from '@notifications';
 import { useQueryClient } from '@queries/client';
 import type {
   GroupMeta as ApiGroupMeta,
@@ -58,6 +66,7 @@ import type { SoupParams } from '@queries/soup/items';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import { soupKeys } from '@queries/soup/keys';
 import { useIsTeamAdmin } from '@queries/team/teams';
+import type { EntityFilters } from '@service-search/generated/models';
 import type { SoupPage } from '@service-storage/generated/schemas';
 import type { InfiniteData } from '@tanstack/solid-query';
 import {
@@ -100,6 +109,8 @@ type SoupViewInitializeOptions = {
   additionalEntities?: Accessor<EntityData[]>;
 };
 
+export type ReadFilter = 'all' | 'unread' | 'read';
+
 interface SoupViewContextValues {
   soup: SoupState;
   initialize: (options?: SoupViewInitializeOptions) => void;
@@ -119,6 +130,8 @@ interface SoupViewContextValues {
   setInboxFilter: Setter<string[] | undefined>;
   activeTab: Accessor<string | undefined>;
   setActiveTab: Setter<string | undefined>;
+  readFilter: Accessor<ReadFilter>;
+  setReadFilter: Setter<ReadFilter>;
   groupByField: Accessor<GroupByField | undefined>;
   fetchNextGroupPage: (groupKey: string) => Promise<void>;
   isFetchingGroupPage: (groupKey: string) => boolean;
@@ -246,6 +259,10 @@ export const SoupViewContextProvider: FlowComponent<
     'soup.tab',
     { default: undefined }
   );
+  const [readFilter, setReadFilter] = useEntryState<ReadFilter>(
+    'soup.readFilter',
+    { default: 'unread' }
+  );
 
   const groupByField = createMemo((): GroupByField | undefined => {
     const id = soup.grouping.activeGroupId();
@@ -277,6 +294,45 @@ export const SoupViewContextProvider: FlowComponent<
     return isListViewID(content.id) ? content.id : undefined;
   });
 
+  // New-inbox: surface channel threads the user was mentioned in or replied to
+  // (soup otherwise only surfaces whole channels), scope to missed calls, and
+  // apply the read/unread toggle. These live outside the facet store, so they're
+  // applied to both the soup body and the search request below.
+  const newInboxFlag = useFeatureFlag(ENABLE_NEW_INBOX_FLAG, {
+    enabledOverride: ENABLE_NEW_INBOX_OVERRIDE,
+  });
+  const isNewInbox = () =>
+    activeListView() === 'inbox' && newInboxFlag().enabled;
+  const channelNotifications = useEntityTypeNotifications(
+    notificationSource,
+    'channel'
+  );
+  const mentionedMessages = createMemo(() =>
+    channelNotifications()
+      .map((notification) => {
+        const metadata = notification.notification_metadata;
+        if (metadata.tag === 'channel_mention') {
+          return metadata.content.threadId ?? metadata.content.messageId;
+        }
+        if (metadata.tag === 'channel_message_reply') {
+          return metadata.content.threadId;
+        }
+        return undefined;
+      })
+      .filter((id): id is string => Boolean(id))
+  );
+
+  // The dynamic new-inbox filters, shared by the soup body and the search
+  // request. `undefined` when the new inbox isn't active. `seen`: `true` = read,
+  // `false` = unread, `undefined` = all.
+  const newInboxParams = () =>
+    isNewInbox()
+      ? {
+          threadIds: mentionedMessages(),
+          seen: readFilter() === 'all' ? undefined : readFilter() === 'read',
+        }
+      : undefined;
+
   const activePreset = createMemo(() => {
     const view = activeListView();
     return view ? getViewPreset(view, activeTab(), presetCtx()) : undefined;
@@ -298,10 +354,73 @@ export const SoupViewContextProvider: FlowComponent<
     );
   };
 
+  // New-inbox filters that the inbox preset can't express statically: the
+  // mentioned/replied channel threads, missed calls, and the read/unread scope.
+  // The preset confines channel threads and calls away, so `cthf`/`callf`
+  // replace those NILs while the per-type `seen` clauses AND onto the base.
+  const applyNewInboxFilters = (base: BackendAstMap): BackendAstMap => {
+    const params = newInboxParams();
+    if (!params) return base;
+
+    const { threadIds, seen } = params;
+
+    const dynamic = compileToAst({
+      include: {
+        ...(threadIds.length ? { channelThreadId: threadIds } : {}),
+        callStatus: 'MISSED',
+        ...(seen !== undefined
+          ? {
+              documentSeen: seen,
+              emailSeen: seen,
+              channelSeen: seen,
+              chatSeen: seen,
+              folderSeen: seen,
+            }
+          : {}),
+      },
+      exclude: {},
+    });
+
+    const seenAst: BackendAstMap = {};
+    for (const target of ['df', 'ef', 'chanf', 'cf', 'pf'] as const) {
+      const clause = dynamic[target];
+      if (clause) seenAst[target] = clause;
+    }
+
+    const merged = mergeAst(base, seenAst);
+    if (dynamic.cthf) merged.cthf = dynamic.cthf;
+    if (dynamic.callf) merged.callf = dynamic.callf;
+    return merged;
+  };
+
+  const newInboxSearchFilters = (): EntityFilters | undefined => {
+    const params = newInboxParams();
+    if (!params) return undefined;
+
+    const { threadIds, seen } = params;
+    const filters: EntityFilters = {
+      channel_thread_filters: {
+        thread_ids: threadIds.length ? threadIds : [NIL_UUID],
+      },
+      call_filters: { status: 'MISSED' },
+    };
+
+    if (seen !== undefined) {
+      const notification_filters = { seen };
+      filters.document_filters = { notification_filters };
+      filters.email_filters = { notification_filters };
+      filters.channel_filters = { notification_filters };
+      filters.chat_filters = { notification_filters };
+      filters.project_filters = { notification_filters };
+    }
+
+    return filters;
+  };
+
   const soupBody = createMemo(() => {
     const emailView = activePreset()?.filters?.emailView;
     return {
-      ...mergeAst(inboxFacetAst(), soup.facets.compile()),
+      ...applyNewInboxFilters(mergeAst(inboxFacetAst(), soup.facets.compile())),
       ...(emailView ? { emailView } : {}),
     };
   });
@@ -334,6 +453,7 @@ export const SoupViewContextProvider: FlowComponent<
   const search = createSearchState({
     soup,
     inboxFilter,
+    queryFilters: newInboxSearchFilters,
     assignees: assigneeFilter,
     disableLocalSearch: () => config().disableLocalSearch ?? false,
     searchPaused: sourceSearchPaused,
@@ -650,6 +770,8 @@ export const SoupViewContextProvider: FlowComponent<
     setInboxFilter,
     activeTab,
     setActiveTab,
+    readFilter,
+    setReadFilter,
     groupByField,
     fetchNextGroupPage,
     isFetchingGroupPage,
