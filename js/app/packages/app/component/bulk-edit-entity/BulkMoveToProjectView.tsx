@@ -1,7 +1,8 @@
+import { analytics } from '@app/lib/analytics';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { toast } from '@core/component/Toast/Toast';
 import { scrollToKeepGap } from '@core/util/scrollToKeepGap';
-import { type EntityData, InlineEntity } from '@entity';
+import { type EntityData, InlineEntity, isTaskEntity } from '@entity';
 import { Dialog } from '@kobalte/core/dialog';
 import { createBulkMoveToProjectDssEntityMutation } from '@macro-entity';
 import FolderPlusIcon from '@phosphor-icons/core/regular/folder-plus.svg?component-solid';
@@ -403,6 +404,17 @@ export const BulkMoveToProjectView = (props: {
           })),
           project: { id: projectId, name: projectName },
         });
+
+        const isBulk = props.entities.length > 1;
+        for (const task of props.entities.filter(isTaskEntity)) {
+          analytics.track('task_moved_to_project', {
+            entityId: task.id,
+            newProjectId: projectId,
+            isBulk,
+            bulkCount: props.entities.length,
+            source: 'bulk_move',
+          });
+        }
 
         props.onFinish();
       } catch (error) {

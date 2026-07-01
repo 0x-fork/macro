@@ -1,3 +1,5 @@
+import { analytics } from '@app/lib/analytics';
+import type { TrackedSource } from '@app/lib/analytics/app-events';
 import { ENABLE_PROJECT_SHARING } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { compareDateDesc } from '@core/util/date';
@@ -91,6 +93,7 @@ export async function createProject(params: {
   name: string;
   parentId?: string;
   sharePermission?: null;
+  source?: TrackedSource;
 }): Promise<string | undefined> {
   const result = await storageServiceClient.projects.create({
     name: params.name,
@@ -110,6 +113,13 @@ export async function createProject(params: {
       itemType: 'project',
     });
     await Promise.all([invalidateProjects(), refetchHistory()]);
+
+    analytics.track('project_created', {
+      entityId: projectId,
+      parentId: params.parentId,
+      source: params.source,
+    });
+
     return projectId;
   }
 

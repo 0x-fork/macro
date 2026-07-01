@@ -1,3 +1,4 @@
+import { analytics } from '@app/lib/analytics';
 import {
   isKrispNoiseFilterSupported,
   KrispNoiseFilter,
@@ -1077,6 +1078,11 @@ function createCallState() {
     try {
       await r.localParticipant.setScreenShareEnabled(newSharing);
       setStore('isScreenSharing', newSharing);
+      analytics.track('call_screen_share_toggled', {
+        callId: store.activeCallId ?? undefined,
+        channelId: store.activeChannelId ?? '',
+        enabled: newSharing,
+      });
     } catch (e) {
       console.error('failed to toggle screen share', e);
     }

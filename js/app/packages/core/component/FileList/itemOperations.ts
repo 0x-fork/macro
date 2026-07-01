@@ -127,6 +127,11 @@ export async function renameItem(args: {
     return false;
   }
 
+  analytics.track('document_renamed', {
+    entityType: itemType,
+    entityId: id,
+  });
+
   return true;
 }
 
@@ -199,6 +204,12 @@ export async function deleteItem(args: {
     const removed = await removeHistoryItem(itemType, id);
     if (!removed) return false;
   }
+
+  analytics.track('document_deleted', {
+    entityType: itemType,
+    entityId: id,
+    deleteType: 'soft',
+  });
 
   refetchResources();
   return true;
@@ -287,6 +298,13 @@ export async function moveToFolder(args: {
   if (result.isErr()) {
     return false;
   }
+
+  analytics.track('document_moved', {
+    entityType: itemType,
+    entityId: id,
+    destProjectId: folderId,
+  });
+
   refetchResources();
   return true;
 }
@@ -369,6 +387,12 @@ export async function copyItem(args: {
     default:
       return null;
   }
+
+  analytics.track('document_duplicated', {
+    entityType: itemType,
+    sourceId: id,
+    newId,
+  });
 
   refetchResources();
   return newId;
@@ -508,6 +532,11 @@ export async function permanentlyDelete(args: {
   }
 
   analytics.track('delete_entity', { entityType: itemType });
+  analytics.track('document_deleted', {
+    entityType: itemType,
+    entityId: id,
+    deleteType: 'permanent',
+  });
   return true;
 }
 

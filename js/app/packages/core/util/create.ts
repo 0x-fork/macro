@@ -1,3 +1,5 @@
+import { analytics } from '@app/lib/analytics';
+import type { TrackedSource } from '@app/lib/analytics/app-events';
 import { DEFAULT_CHAT_NAME } from '@block-chat/definition';
 import type { CodeFileExtension } from '@block-code/util/languageSupport';
 import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
@@ -29,6 +31,7 @@ type CreateMarkdownFileArgs = {
   title?: string;
   content?: string;
   projectId?: string;
+  source?: TrackedSource;
 };
 
 /**
@@ -63,6 +66,14 @@ export async function createMarkdownFile(
     fileType: 'md',
   });
   refetchSoupEntity(documentId, 'document');
+
+  analytics.track('document_created', {
+    entityType: 'md',
+    entityId: documentId,
+    projectId: args?.projectId,
+    source: args?.source,
+  });
+
   return documentId;
 }
 
@@ -71,6 +82,7 @@ type CreateTaskArgs = {
   content?: string;
   projectId?: string;
   propertyValues?: PropertyInput[];
+  source?: TrackedSource;
 };
 
 /**
@@ -126,6 +138,25 @@ export async function createTask(
     subType: { type: 'task', is_completed: false },
   });
   refetchSoupEntity(documentId, 'document');
+
+  analytics.track('task_created', {
+    entityId: documentId,
+    projectId: args?.projectId,
+    source: args?.source,
+    hasAssignee: propertyValues.some(
+      (p) => p.propertyId === SYSTEM_PROPERTY_IDS.ASSIGNEES
+    ),
+    hasDueDate: propertyValues.some(
+      (p) => p.propertyId === SYSTEM_PROPERTY_IDS.DUE_DATE
+    ),
+    hasPriority: propertyValues.some(
+      (p) => p.propertyId === SYSTEM_PROPERTY_IDS.PRIORITY
+    ),
+    isSubtask: propertyValues.some(
+      (p) => p.propertyId === SYSTEM_PROPERTY_IDS.PARENT_TASK
+    ),
+  });
+
   return documentId;
 }
 
@@ -133,6 +164,7 @@ type CreateSnippetArgs = {
   title?: string;
   content?: string;
   projectId?: string;
+  source?: TrackedSource;
 };
 
 /**
@@ -163,6 +195,14 @@ export async function createSnippet(
     subType: { type: 'snippet' },
   });
   refetchSoupEntity(documentId, 'document');
+
+  analytics.track('document_created', {
+    entityType: 'snippet',
+    entityId: documentId,
+    projectId: args?.projectId,
+    source: args?.source,
+  });
+
   return documentId;
 }
 
@@ -171,11 +211,13 @@ export async function createCodeFileFromText({
   extension,
   language,
   title,
+  source,
 }: {
   code: string;
   title?: string;
   extension?: CodeFileExtension;
   language?: string;
+  source?: TrackedSource;
 }) {
   const encoder = new TextEncoder();
   const buffer = encoder.encode(code);
@@ -244,6 +286,14 @@ export async function createCodeFileFromText({
     fileType: finalExtension,
   });
   refetchSoupEntity(document.metadata.documentId, 'document');
+
+  analytics.track('document_created', {
+    entityType: 'code',
+    entityId: document.metadata.documentId,
+    source,
+    extension: finalExtension,
+  });
+
   return ok({ documentId: document.metadata.documentId });
 }
 
@@ -251,8 +301,9 @@ export async function createCanvasFileFromJsonString(args: {
   json: string;
   title?: string;
   projectId?: string;
+  source?: TrackedSource;
 }) {
-  const { json, title, projectId } = args;
+  const { json, title, projectId, source } = args;
   const encoder = new TextEncoder();
   const buffer = encoder.encode(json);
   const sha = await contentHash(buffer);
@@ -284,10 +335,21 @@ export async function createCanvasFileFromJsonString(args: {
     fileType: 'canvas',
   });
   refetchSoupEntity(canvas.metadata.documentId, 'document');
+
+  analytics.track('document_created', {
+    entityType: 'canvas',
+    entityId: canvas.metadata.documentId,
+    projectId,
+    source,
+  });
+
   return { documentId: canvas.metadata.documentId };
 }
 
-export async function createChat(args?: CreateChatRequest) {
+export async function createChat(
+  args?: CreateChatRequest,
+  opts?: { source?: TrackedSource }
+) {
   const { showPaywall } = usePaywallState();
 
   const maybeChat = await cognitionApiServiceClient.createChat(args ?? {});
@@ -307,6 +369,12 @@ export async function createChat(args?: CreateChatRequest) {
     name: args?.name ?? DEFAULT_CHAT_NAME,
   });
   refetchSoupEntity(chat.id, 'chat');
+
+  analytics.track('chat_created', {
+    entityId: chat.id,
+    source: opts?.source,
+  });
+
   return { chatId: chat.id };
 }
 

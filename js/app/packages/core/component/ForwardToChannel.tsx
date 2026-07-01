@@ -287,6 +287,34 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
     };
   };
 
+  // Typed replacement for the generic `share_entity` forward event: records the
+  // actual entity type and target, which `share_entity` (location-only) loses.
+  const trackForwardShare = (targetType: 'channel' | 'user') => {
+    const itemType =
+      blockName != null ? blockNameToItemType(blockName) : undefined;
+    const entityId = blockId ?? '';
+    if (itemType === 'email') {
+      analytics.track('email_shared', {
+        entityId,
+        shareMethod: 'forward_to_channel',
+        targetType,
+      });
+    } else if (itemType === 'chat') {
+      analytics.track('chat_shared', {
+        entityId,
+        shareMethod: 'forward_to_channel',
+        targetType,
+      });
+    } else if (itemType != null) {
+      analytics.track('document_shared', {
+        entityType: itemType,
+        entityId,
+        shareMethod: 'forward_to_channel',
+        targetType,
+      });
+    }
+  };
+
   function handleSubmit() {
     let options = selectedOptions();
     if (!options || options.length === 0) {
@@ -318,6 +346,7 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
             ],
           });
           analytics.track('share_entity', { location: 'forward_to_channel' });
+          trackForwardShare('user');
         });
       } else {
         toast.failure('Message failed to send');
@@ -354,6 +383,7 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
               analytics.track('share_entity', {
                 location: 'forward_to_channel',
               });
+              trackForwardShare('channel');
             }),
           ]);
         } else {
@@ -383,6 +413,7 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
               });
             }
             analytics.track('share_entity', { location: 'forward_to_channel' });
+            trackForwardShare('user');
           });
         }
       }

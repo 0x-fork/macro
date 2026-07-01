@@ -785,6 +785,32 @@ export function ShareModal(props: ShareModalProps) {
             subtext: accessLevelText(accessLevel),
           });
         }
+
+        if (props.itemType === 'email') {
+          analytics.track('email_shared', {
+            entityId: props.id,
+            shareMethod: 'channel',
+            targetType: 'channel',
+          });
+        } else if (props.itemType === 'chat') {
+          analytics.track('chat_shared', {
+            entityId: props.id,
+            shareMethod: 'channel',
+            accessLevel,
+            targetType: 'channel',
+          });
+        } else if (
+          props.itemType === 'document' ||
+          props.itemType === 'project'
+        ) {
+          analytics.track('document_shared', {
+            entityType: props.itemType,
+            entityId: props.id,
+            shareMethod: 'channel',
+            accessLevel,
+            targetType: 'channel',
+          });
+        }
       } else {
         toast.alert('Failed to change channel access', {
           subtext: 'Please try again',
@@ -832,6 +858,13 @@ export function ShareModal(props: ShareModalProps) {
               isPublic: true,
             });
           }
+
+          analytics.track('chat_shared', {
+            entityId: props.id,
+            shareMethod: 'public_link',
+            accessLevel,
+            targetType: 'public',
+          });
         } else {
           toast.alert('Failed to change chat access', {
             subtext: 'Please try again',
@@ -863,6 +896,14 @@ export function ShareModal(props: ShareModalProps) {
               isPublic: true,
             });
           }
+
+          analytics.track('document_shared', {
+            entityType: 'document',
+            entityId: props.id,
+            shareMethod: 'public_link',
+            accessLevel,
+            targetType: 'public',
+          });
         } else {
           toast.alert('Failed to change document access', {
             subtext: 'Please try again',
@@ -894,6 +935,14 @@ export function ShareModal(props: ShareModalProps) {
               isPublic: true,
             });
           }
+
+          analytics.track('document_shared', {
+            entityType: 'project',
+            entityId: props.id,
+            shareMethod: 'public_link',
+            accessLevel,
+            targetType: 'public',
+          });
         } else {
           toast.alert('Failed to change folder access', {
             subtext: 'Please try again',

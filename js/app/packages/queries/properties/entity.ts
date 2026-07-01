@@ -1,5 +1,7 @@
+import { analytics } from '@app/lib/analytics';
 import { toast } from '@core/component/Toast/Toast';
 import { throwOnErr } from '@core/util/result';
+import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import {
   entityPropertyFromApi,
   propertyValueToApi,
@@ -296,6 +298,70 @@ type BulkSaveEntityPropertiesContext = {
   soupTxns: SoupTransaction[];
 };
 
+/**
+ * Emits task lifecycle analytics for a saved property value. Gated on the
+ * property being a task system property (STATUS / PRIORITY / ASSIGNEES /
+ * DUE_DATE), so non-task entities never fire these. Call only on save success.
+ */
+function trackTaskPropertyChange(
+  entityId: string,
+  propertyId: string,
+  apiValues: PropertyApiValues
+) {
+  switch (propertyId) {
+    case SYSTEM_PROPERTY_IDS.STATUS: {
+      const newStatus =
+        apiValues.valueType === 'SELECT_STRING'
+          ? (apiValues.values?.[0] ?? '')
+          : '';
+      if (!newStatus) break;
+      analytics.track('task_status_changed', {
+        entityId,
+        newStatus,
+        source: 'property_editor',
+      });
+      if (newStatus === PROPERTY_OPTION_IDS.STATUS.COMPLETED) {
+        analytics.track('task_completed', {
+          entityId,
+          source: 'property_editor',
+        });
+      }
+      break;
+    }
+    case SYSTEM_PROPERTY_IDS.PRIORITY: {
+      analytics.track('task_priority_changed', {
+        entityId,
+        newPriority:
+          apiValues.valueType === 'SELECT_STRING'
+            ? (apiValues.values?.[0] ?? undefined)
+            : undefined,
+        source: 'property_editor',
+      });
+      break;
+    }
+    case SYSTEM_PROPERTY_IDS.ASSIGNEES: {
+      analytics.track('task_assignee_changed', {
+        entityId,
+        assigneeCount:
+          apiValues.valueType === 'ENTITY' ? (apiValues.refs?.length ?? 0) : 0,
+        source: 'property_editor',
+      });
+      break;
+    }
+    case SYSTEM_PROPERTY_IDS.DUE_DATE: {
+      analytics.track('task_due_date_changed', {
+        entityId,
+        hasDueDate:
+          apiValues.valueType === 'DATE' ? apiValues.value != null : false,
+        source: 'property_editor',
+      });
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 /** Saves multiple entity properties in bulk using parallel requests */
 export function useBulkSaveEntityPropertiesMutation(
   callbacks?: MutationCallbacks<
@@ -380,6 +446,15 @@ export function useBulkSaveEntityPropertiesMutation(
               invalidateSoupEntity(p.entityId);
             }
           });
+          if (!error) {
+            for (const p of variables.properties) {
+              trackTaskPropertyChange(
+                p.entityId,
+                getPropertyDefinitionId(p.property),
+                p.apiValues
+              );
+            }
+          }
         },
       },
       callbacks
