@@ -23,6 +23,8 @@ import {
   WebsocketBuilder,
   WebsocketConnectionState,
 } from '@websocket';
+import { platformWebSocketFactory } from '@websocket/platform/factory';
+import { framedWebSocketFactory } from '@websocket/platform/framed-websocket';
 import {
   createReconnectEffect,
   createSocketEffect,
@@ -86,6 +88,8 @@ function createSyncServiceSocket(documentId: string, initialToken: string) {
   return (
     new WebsocketBuilder(getUrl)
       .withSerializer(new BebopSerializer(FromPeer, FromRemote))
+      // We chunk all messages.
+      .withFactory(framedWebSocketFactory(platformWebSocketFactory))
       // Capped exponential backoff. The scheduler calls next() before the first
       // retry, so the delays are 250*2^1 = 500ms doubling to a 250*2^5 = 8s
       // cap; 20 retries ≈ 2 minutes of automatic attempts, after which
