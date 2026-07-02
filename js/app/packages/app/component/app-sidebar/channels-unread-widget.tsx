@@ -234,7 +234,7 @@ function ChannelGroupItem(props: {
         <span class="text-[13px] font-medium truncate">{displayName()}</span>
 
         <Show when={count() > 0}>
-          <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-[13px] font-medium bg-ink/6 text-ink-muted rounded-md ml-auto">
+          <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-xs font-medium bg-ink/6 text-ink-muted rounded-md ml-auto">
             {count()}
           </span>
         </Show>
@@ -300,7 +300,7 @@ function ChannelGroupDropdownItem(props: {
   };
   return (
     <Dropdown.Item
-      class="min-h-8 gap-2 px-2.5"
+      class="min-h-8 gap-2 px-2.5 text-[13px]"
       onSelect={navigateToLatestNotification}
     >
       <Show
@@ -315,7 +315,7 @@ function ChannelGroupDropdownItem(props: {
         />
       </Show>
       <span class="min-w-0 flex-1 truncate text-ink">{displayName()}</span>
-      <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-[13px] font-medium bg-ink/6 text-ink-muted rounded-md">
+      <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-xs font-medium bg-ink/6 text-ink-muted rounded-md">
         {count()}
       </span>
     </Dropdown.Item>
@@ -426,7 +426,7 @@ export const ChannelsUnreadWidget = (props: {
               )}
             </For>
             <Show when={slimOverflow() > 0}>
-              <span class="w-full text-center text-[13px] text-ink-muted mt-1">
+              <span class="w-full text-center text-xxs text-ink-muted mt-1">
                 +{slimOverflow()}
               </span>
             </Show>
@@ -441,7 +441,10 @@ export const ChannelsUnreadWidget = (props: {
           onOpenChange={() => props.onSectionOpenChange?.()}
           onDropdownOpenChange={props.onDropdownOpenChange}
           dropdownFooter={() => (
-            <Dropdown.Item class="min-h-8 gap-2 px-2.5" onSelect={openChannels}>
+            <Dropdown.Item
+              class="min-h-8 gap-2 px-2.5 text-[13px]"
+              onSelect={openChannels}
+            >
               <span class="flex-1 text-ink">Go to channels</span>
             </Dropdown.Item>
           )}

@@ -486,7 +486,7 @@ const SidebarDropdownLink = (props: SidebarItem) => {
 
   return (
     <Dropdown.Item
-      class="min-h-8 gap-2 px-2.5"
+      class="min-h-8 gap-2 px-2.5 text-[13px]"
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       onSelect={open}

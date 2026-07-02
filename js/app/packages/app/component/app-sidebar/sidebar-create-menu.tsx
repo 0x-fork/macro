@@ -109,7 +109,7 @@ export const SidebarCreateMenu = (props: {
               Create
             </span>
             <Show when={open()}>
-              <div class="text-[13px] text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:hidden">
+              <div class="text-xxs text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:hidden">
                 <Hotkey
                   token={TOKENS.global.createCommand}
                   class="flex gap-1"
