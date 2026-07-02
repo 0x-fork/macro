@@ -6,10 +6,13 @@ import { globalSplitManager } from '@app/signal/splitLayout';
 import { getChannelParams } from '@block-channel/utils/link';
 import { fileTypeToBlockName, itemToBlockName } from '@core/constant/allBlocks';
 import { useUserId } from '@core/context/user';
+import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import type { EntityData } from '@entity';
+import Star from '@phosphor-icons/core/regular/star.svg?component-solid';
 import { useSetCompanyHiddenMutation } from '@queries/crm/companies';
 import { useIsTeamAdmin } from '@queries/team/teams';
+import type { Component, JSX } from 'solid-js';
 import {
   makeBlockSenderAction,
   makeCopyAction,
@@ -17,6 +20,7 @@ import {
   makeCopyEntityIdAction,
   makeCopyLinkAction,
   makeDeleteAction,
+  makeFavoriteAction,
   makeHideCompanyAction,
   makeMarkDoneAction,
   makeMarkSenderNoiseAction,
@@ -37,6 +41,8 @@ const NOISE_TABS = new Set(['noise']);
 type SoupEntityActionItem = {
   id: string;
   label: string;
+  icon?: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
+  hotkeyToken?: HotkeyToken;
   onClick: () => void | Promise<void>;
   destructive?: boolean;
 };
@@ -77,6 +83,7 @@ export function createSoupEntityActions(): {
   });
 
   const copyAction = makeCopyAction();
+  const favoriteAction = makeFavoriteAction();
   const moveToProjectAction = makeMoveToProjectAction();
   const copyLinkAction = makeCopyLinkAction();
   const copyBranchNameAction = makeCopyBranchNameAction();
@@ -222,6 +229,33 @@ export function createSoupEntityActions(): {
         label: 'Rename',
         onClick: handle(renameAction.executeWithSoup),
       });
+    }
+
+    if (canExecuteAll(favoriteAction.canExecute)) {
+      const allFavorited = entities.every((entity) =>
+        favoriteAction.isFavorited(entity)
+      );
+      middleItems.push({
+        id: 'favorite',
+        label: allFavorited ? 'Unfavorite' : 'Favorite',
+        icon: Star,
+        hotkeyToken: TOKENS.entity.action.favorite,
+        onClick: handle(favoriteAction.executeWithSoup),
+      });
+
+      if (favoriteAction.hasTeam()) {
+        const allTeamFavorited = entities.every((entity) =>
+          favoriteAction.isFavorited(entity, 'team')
+        );
+        middleItems.push({
+          id: 'favorite-team',
+          label: allTeamFavorited
+            ? 'Remove from team favorites'
+            : 'Add to team favorites',
+          icon: Star,
+          onClick: () => favoriteAction.executeWithSoup(entities, soup, 'team'),
+        });
+      }
     }
 
     if (canExecuteAll(moveToProjectAction.canExecute)) {

@@ -1,0 +1,153 @@
+//! Favorites service implementation.
+
+use std::collections::HashSet;
+
+use macro_user_id::user_id::MacroUserIdStr;
+use model_entity::Entity;
+use uuid::Uuid;
+
+use crate::domain::models::{Favorite, FavoriteOwner, FavoritesError};
+use crate::domain::ports::{FavoritesRepo, FavoritesService};
+
+/// Upper bound on favorites per collection; keeps reorder payloads and
+/// sidebar lists sane.
+pub const MAX_FAVORITES_PER_COLLECTION: usize = 500;
+
+/// Concrete favorites service backed by a [FavoritesRepo].
+#[derive(Debug, Clone)]
+pub struct FavoritesServiceImpl<R> {
+    repo: R,
+}
+
+impl<R> FavoritesServiceImpl<R>
+where
+    R: FavoritesRepo,
+    anyhow::Error: From<R::Err>,
+{
+    /// Create a favorites service backed by the provided repository.
+    pub fn new(repo: R) -> Self {
+        Self { repo }
+    }
+}
+
+fn validate_entity(entity: &Entity<'_>) -> Result<(), FavoritesError> {
+    if entity.entity_id.trim().is_empty() {
+        return Err(FavoritesError::BadRequest(
+            "entity_id must not be empty".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+impl<R> FavoritesService for FavoritesServiceImpl<R>
+where
+    R: FavoritesRepo,
+    anyhow::Error: From<R::Err>,
+{
+    #[tracing::instrument(err, skip(self))]
+    async fn add_favorite(
+        &self,
+        owner: &FavoriteOwner<'_>,
+        entity: &Entity<'_>,
+        created_by: &MacroUserIdStr<'_>,
+    ) -> Result<Favorite, FavoritesError> {
+        validate_entity(entity)?;
+        Ok(self
+            .repo
+            .add_favorite(owner, entity, created_by)
+            .await
+            .map_err(anyhow::Error::from)?)
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn list_favorites(
+        &self,
+        owner: &FavoriteOwner<'_>,
+    ) -> Result<Vec<Favorite>, FavoritesError> {
+        Ok(self
+            .repo
+            .list_favorites(owner)
+            .await
+            .map_err(anyhow::Error::from)?)
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn remove_favorite_by_id(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+        id: Uuid,
+    ) -> Result<(), FavoritesError> {
+        let removed = self
+            .repo
+            .remove_favorite_by_id(user_id, id)
+            .await
+            .map_err(anyhow::Error::from)?;
+        if removed {
+            Ok(())
+        } else {
+            Err(FavoritesError::NotFound)
+        }
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn remove_favorite_by_entity(
+        &self,
+        owner: &FavoriteOwner<'_>,
+        entity: &Entity<'_>,
+    ) -> Result<(), FavoritesError> {
+        validate_entity(entity)?;
+        let removed = self
+            .repo
+            .remove_favorite_by_entity(owner, entity)
+            .await
+            .map_err(anyhow::Error::from)?;
+        if removed {
+            Ok(())
+        } else {
+            Err(FavoritesError::NotFound)
+        }
+    }
+
+    #[tracing::instrument(err, skip(self, ordered_ids))]
+    async fn reorder_favorites(
+        &self,
+        owner: &FavoriteOwner<'_>,
+        ordered_ids: &[Uuid],
+    ) -> Result<(), FavoritesError> {
+        if ordered_ids.is_empty() {
+            return Ok(());
+        }
+        if ordered_ids.len() > MAX_FAVORITES_PER_COLLECTION {
+            return Err(FavoritesError::BadRequest(format!(
+                "cannot reorder more than {MAX_FAVORITES_PER_COLLECTION} favorites"
+            )));
+        }
+        let unique: HashSet<&Uuid> = ordered_ids.iter().collect();
+        if unique.len() != ordered_ids.len() {
+            return Err(FavoritesError::BadRequest(
+                "ordered ids must not contain duplicates".to_string(),
+            ));
+        }
+        Ok(self
+            .repo
+            .reorder_favorites(owner, ordered_ids)
+            .await
+            .map_err(anyhow::Error::from)?)
+    }
+
+    #[tracing::instrument(err, skip(self, entities))]
+    async fn favorited_entities(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+        entities: &[Entity<'_>],
+    ) -> Result<HashSet<Entity<'static>>, FavoritesError> {
+        if entities.is_empty() {
+            return Ok(HashSet::new());
+        }
+        Ok(self
+            .repo
+            .favorited_entities(user_id, entities)
+            .await
+            .map_err(anyhow::Error::from)?)
+    }
+}

@@ -226,6 +226,9 @@ export function CommandMenuInner(props: {
         );
         CommandState.setQuery('');
         CommandState.setCommandScopeCommands(nestedCommands);
+        CommandState.activateCommandScopePlaceholder(
+          command.activateCommandScopeId
+        );
         CommandState.setSelectedIndex(0);
         return;
       }
@@ -561,7 +564,10 @@ export function CommandMenuInner(props: {
         <input
           type="text"
           class="flex-1 bg-transparent border-0 outline-none focus:outline-none ring-0 focus:ring-0 text-ink-muted placeholder:text-ink-placeholder"
-          placeholder={isEntityActionMode() ? 'Search actions...' : 'Search...'}
+          placeholder={
+            CommandState.commandScopePlaceholder() ??
+            (isEntityActionMode() ? 'Search actions...' : 'Search...')
+          }
           value={CommandState.query()}
           onInput={(e) => CommandState.setQuery(e.currentTarget.value)}
           autofocus

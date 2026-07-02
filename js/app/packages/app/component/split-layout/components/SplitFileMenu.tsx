@@ -1,17 +1,20 @@
 import { openBulkEditModal } from '@app/component/bulk-edit-entity/BulkEditEntityModal';
 import { MobileDrawer } from '@app/component/mobile/MobileDrawer';
+import { makeFavoriteAction } from '@app/component/next-soup/actions';
 import type { BlockTool } from '@app/component/ResponsiveBlockToolbar';
 import { useBlockAliasedName, useBlockName } from '@core/block';
 import { useItemOperations } from '@core/component/FileList/useItemOperations';
 import { toast } from '@core/component/Toast/Toast';
+import { useQuickAccess } from '@core/context/quickAccess';
 import { triggerFocusInput } from '@core/directive/focusInput';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { useIsDocumentOwner } from '@core/signal/permissions';
-import { buildEntityData } from '@entity';
+import { buildEntityData, type EntityData } from '@entity';
 import DotsThree from '@icon/dots-three-large.svg';
 import ArrowRight from '@phosphor/arrow-right.svg';
 import Copy from '@phosphor/copy.svg';
 import Rename from '@phosphor/pencil-line.svg';
+import Star from '@phosphor/star.svg';
 import Trash from '@phosphor/trash-simple.svg';
 import { blockNameToItemType, type ItemType } from '@service-storage/client';
 import { cn, Dropdown } from '@ui';
@@ -183,8 +186,35 @@ export function SplitFileMenu(props: {
 
   const [open, setOpen] = createSignal(false);
   const itemOperations = useItemOperations();
+  const quickAccess = useQuickAccess();
+  const favoriteAction = makeFavoriteAction();
 
   const { replaceOrInsertSplit, resetSplit } = useSplitLayout();
+
+  // The entity this menu operates on: prefer the quick-access cache (richer
+  // data, covers channels/calls), fall back to building it from the block's
+  // id/name/blockName like the rename/move ops do.
+  const menuEntity = createMemo<EntityData | undefined>(() => {
+    const item = quickAccess.getById(props.id);
+    if (item?.kind === 'entity') return item.data;
+    return buildEntityData({
+      id: props.id,
+      name: props.name,
+      blockName: aliasedBlockName,
+    });
+  });
+
+  const favoriteOp = (): SplitFileMenuAction | undefined => {
+    const entity = menuEntity();
+    if (!entity || !favoriteAction.canExecute(entity)) return undefined;
+    return {
+      label: favoriteAction.isFavorited(entity) ? 'Unfavorite' : 'Favorite',
+      icon: Star,
+      action: () => {
+        void favoriteAction.execute([entity]);
+      },
+    };
+  };
 
   createEffect(() => {
     const openMenu = () => setOpen(true);
@@ -193,7 +223,8 @@ export function SplitFileMenu(props: {
   });
 
   const ops = createMemo<SplitFileMenuAction[]>(() => {
-    return props.ops
+    const favorite = favoriteOp();
+    const mapped = props.ops
       .map((op) => {
         if (isDefaultFileOperation(op)) {
           switch (op.op) {
@@ -292,6 +323,7 @@ export function SplitFileMenu(props: {
         }
       })
       .filter((op) => !!op);
+    return favorite ? [favorite, ...mapped] : mapped;
   });
 
   const filteredTools = createMemo(() =>

@@ -235,6 +235,41 @@ const ViewsSvc = new Svc('Views Service')
     throws: withFetchErrors(),
   });
 
+const FavoritesSvc = new Svc('Favorites Service')
+  .use('fetchErrors', fetchErrorsSvc)
+  .fn('getFavorites', {
+    description: "Get the user's favorites and their team's favorites",
+    result: schemas.listFavoritesResponse.shape,
+    throws: withFetchErrors(),
+  })
+  .fn('addFavorite', {
+    description: 'Favorite an entity in the user or team collection',
+    args: schemas.addFavoriteBody.shape,
+    modifies: true,
+    result: schemas.addFavoriteResponse.shape,
+    throws: withFetchErrors(),
+  })
+  .fn('removeFavorite', {
+    description: 'Remove a favorite by id',
+    args: {
+      favoriteId: z.string(),
+    },
+    modifies: true,
+    throws: withFetchErrors(),
+  })
+  .fn('removeFavoriteByEntity', {
+    description: 'Remove a favorite by entity and scope',
+    args: schemas.removeFavoriteByEntityQueryParams.shape,
+    modifies: true,
+    throws: withFetchErrors(),
+  })
+  .fn('reorderFavorites', {
+    description: 'Persist a manual order for a favorites collection',
+    args: schemas.reorderFavoritesBody.shape,
+    modifies: true,
+    throws: withFetchErrors(),
+  });
+
 const PermissionsTokensSvc = new Svc('Permissions Tokens Service')
   .use('fetchErrors', fetchErrorsSvc)
   .fn('createPermissionToken', {
@@ -682,7 +717,8 @@ export const StorageService = new Svc('Document++ Storage Service API')
   .use('projects', ProjectsSvc)
   .use('permissionsTokens', PermissionsTokensSvc)
   .use('instructions', InstructionsSvc)
-  .use('views', ViewsSvc);
+  .use('views', ViewsSvc)
+  .use('favorites', FavoritesSvc);
 
 export type StorageService = typeof StorageService;
 export type StorageServiceClient = ServiceClient<StorageService>;

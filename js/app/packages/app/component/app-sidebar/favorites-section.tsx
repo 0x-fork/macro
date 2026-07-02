@@ -1,0 +1,268 @@
+import type { SidebarState } from '@app/component/app-sidebar/sidebar';
+import { useSplitLayout } from '@app/component/split-layout/layout';
+import { globalSplitManager } from '@app/signal/splitLayout';
+import {
+  favoriteDisplayName,
+  favoriteIconType,
+  favoriteSplitContent,
+} from '@app/util/favorites';
+import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
+import {
+  EntityIcon,
+  type EntityIconSelector,
+} from '@core/component/EntityIcon';
+import { ContextMenu } from '@kobalte/core/context-menu';
+import CaretDownIcon from '@phosphor/caret-down.svg';
+import {
+  useFavoritesQuery,
+  useRemoveFavoriteMutation,
+  useReorderFavoritesMutation,
+} from '@queries/favorites/favorites';
+import type { Favorite } from '@service-storage/generated/schemas/favorite';
+import type { FavoriteScope } from '@service-storage/generated/schemas/favoriteScope';
+import { makePersisted } from '@solid-primitives/storage';
+import {
+  createSortable,
+  SortableProvider,
+  useDragDropContext,
+} from '@thisbeyond/solid-dnd';
+import { cn, NavRow } from '@ui';
+import { createMemo, createSignal, For, Show } from 'solid-js';
+
+/**
+ * Drag data carried by favorite row sortables. Distinct from `EntityDragData`
+ * (`dragType: 'entity'`) so entity drop consumers ignore favorite drags; the
+ * global `ItemDragOverlay` branches on it to render its chip.
+ */
+export type FavoriteDragData = {
+  dragType: 'favorite';
+  scope: FavoriteScope;
+  iconType: EntityIconSelector;
+  name: string;
+};
+
+/**
+ * Linear-style favorites for the expanded sidebar: a collapsible "Favorites"
+ * list of the user's favorited entities, plus a "Team favorites" list when
+ * the user belongs to a team. Rows navigate like other sidebar rows and are
+ * drag-reorderable within their own list (never across scopes). Hidden
+ * entirely in slim mode and when a scope has no favorites.
+ */
+export const FavoritesSection = (props: { sidebarState: SidebarState }) => {
+  const favoritesQuery = useFavoritesQuery();
+
+  const userFavorites = () => favoritesQuery.data?.user ?? [];
+  const teamFavorites = () => favoritesQuery.data?.team ?? [];
+
+  return (
+    <Show
+      when={
+        props.sidebarState === 'expanded' &&
+        (userFavorites().length > 0 || teamFavorites().length > 0)
+      }
+    >
+      <div class="w-full shrink-0 max-h-[40%] overflow-y-auto overscroll-contain">
+        <Show when={userFavorites().length > 0}>
+          <FavoritesGroup
+            label="Favorites"
+            scope="user"
+            favorites={userFavorites()}
+            persistKey="sidebar-favorites-expanded"
+          />
+        </Show>
+        <Show when={teamFavorites().length > 0}>
+          <FavoritesGroup
+            label="Team favorites"
+            scope="team"
+            favorites={teamFavorites()}
+            persistKey="sidebar-team-favorites-expanded"
+          />
+        </Show>
+      </div>
+    </Show>
+  );
+};
+
+const FavoritesGroup = (props: {
+  label: string;
+  scope: FavoriteScope;
+  favorites: Favorite[];
+  persistKey: string;
+}) => {
+  const [expanded, setExpanded] = makePersisted(createSignal(true), {
+    name: props.persistKey,
+  });
+  const reorderMutation = useReorderFavoritesMutation();
+
+  const ids = createMemo(() => props.favorites.map((favorite) => favorite.id));
+
+  // The sidebar lives inside the app-wide DragDropProvider (ItemDndProvider);
+  // register on its events rather than mounting a nested provider.
+  const [, dndActions] = useDragDropContext() ?? [];
+
+  dndActions?.onDragEnd(({ draggable, droppable }) => {
+    const dragData = draggable.data;
+    if (dragData?.dragType !== 'favorite' || dragData.scope !== props.scope) {
+      return;
+    }
+    // Only reorder within this list: dropping outside it (including on the
+    // other scope's rows) leaves the order unchanged.
+    if (!droppable) return;
+    const dropData = droppable.data;
+    if (dropData?.dragType !== 'favorite' || dropData.scope !== props.scope) {
+      return;
+    }
+    const current = ids();
+    const fromIndex = current.indexOf(String(draggable.id));
+    const toIndex = current.indexOf(String(droppable.id));
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+    const next = current.slice();
+    next.splice(toIndex, 0, ...next.splice(fromIndex, 1));
+    reorderMutation.mutate({ scope: props.scope, favoriteIds: next });
+  });
+
+  return (
+    <section class="w-full py-1.5">
+      <header class="shrink-0 my-1 px-1">
+        <button
+          type="button"
+          class="w-full flex items-center gap-1 text-xs font-medium text-ink-extra-muted/50 hover:text-ink-muted transition-colors"
+          aria-expanded={expanded()}
+          onClick={() => setExpanded(!expanded())}
+        >
+          <h1>{props.label}</h1>
+          <CaretDownIcon
+            class={cn(
+              'size-3 transition-transform duration-200',
+              expanded() && 'rotate-180'
+            )}
+          />
+        </button>
+      </header>
+
+      <div
+        class="grid w-full transition-[grid-template-rows] duration-200 ease-out"
+        style={{ 'grid-template-rows': expanded() ? '1fr' : '0fr' }}
+      >
+        <ul class="min-h-0 overflow-hidden flex flex-col gap-0.5">
+          <SortableProvider ids={ids()}>
+            <For each={props.favorites}>
+              {(favorite, index) => (
+                <li
+                  class={cn(
+                    'w-full transition-[opacity,transform] duration-200 ease-out',
+                    expanded()
+                      ? 'opacity-100 translate-y-0'
+                      : 'opacity-0 -translate-y-2'
+                  )}
+                  style={{
+                    'transition-delay': expanded()
+                      ? `${index() * 30}ms`
+                      : '0ms',
+                  }}
+                >
+                  <FavoriteRow
+                    favorite={favorite}
+                    scope={props.scope}
+                    disabled={!expanded()}
+                  />
+                </li>
+              )}
+            </For>
+          </SortableProvider>
+        </ul>
+      </div>
+    </section>
+  );
+};
+
+const FavoriteRow = (props: {
+  favorite: Favorite;
+  scope: FavoriteScope;
+  disabled: boolean;
+}) => {
+  const layout = useSplitLayout();
+  const removeMutation = useRemoveFavoriteMutation();
+  const [dndState] = useDragDropContext() ?? [];
+
+  const iconType = () => favoriteIconType(props.favorite);
+  const displayName = () => favoriteDisplayName(props.favorite);
+
+  // `For` keys rows by favorite identity, so the favorite (and drag data
+  // derived from it) is stable for the row's lifetime.
+  const sortable = createSortable(props.favorite.id, {
+    dragType: 'favorite',
+    scope: props.scope,
+    iconType: favoriteIconType(props.favorite),
+    name: favoriteDisplayName(props.favorite),
+  } satisfies FavoriteDragData);
+
+  const content = () => favoriteSplitContent(props.favorite);
+
+  const isActive = () => {
+    const active = globalSplitManager()?.activeSplit()?.content();
+    return (
+      !!active &&
+      active.type !== 'component' &&
+      active.id === props.favorite.entityId
+    );
+  };
+
+  const open = (e: MouseEvent) => {
+    layout.openWithSplit(content(), {
+      referredFrom: 'sidebar',
+      activate: true,
+      preferNewSplit: e.shiftKey,
+    });
+    globalSplitManager()?.returnFocus();
+  };
+
+  const removeFromFavorites = () => {
+    removeMutation.mutate({
+      entityType: props.favorite.entityType,
+      entityId: props.favorite.entityId,
+      scope: props.scope,
+    });
+  };
+
+  return (
+    <div
+      ref={sortable}
+      class={cn(
+        'w-full',
+        // Smoothly shift rows out of the way while a drag is live; snap
+        // (no transition) when it ends so the settled order doesn't animate
+        // twice.
+        !!dndState?.active.draggable && 'transition-transform',
+        sortable.isActiveDraggable && 'opacity-40'
+      )}
+    >
+      <ContextMenu>
+        <ContextMenu.Trigger class="w-full h-8">
+          <NavRow
+            draggable={false}
+            disabled={props.disabled}
+            data-sidebar-favorite={props.favorite.id}
+            data-active={isActive() ? '' : undefined}
+            active={isActive()}
+            class="h-8"
+            fullWidth
+            onClick={open}
+          >
+            <EntityIcon size="xs" targetType={iconType()} />
+            <span class="truncate">{displayName()}</span>
+          </NavRow>
+        </ContextMenu.Trigger>
+
+        <ContextMenu.Portal>
+          <ContextMenuContent class="text-xs text-ink-muted">
+            <MenuItem
+              text="Remove from favorites"
+              onClick={removeFromFavorites}
+            />
+          </ContextMenuContent>
+        </ContextMenu.Portal>
+      </ContextMenu>
+    </div>
+  );
+};

@@ -32,7 +32,11 @@ import { err, ok, type Result } from 'neverthrow';
 import type { ApiChannelWithLatest } from './channel-list-types';
 import type {
   AccessLevel,
+  AddFavoriteRequest,
   CallRecordPreview,
+  Favorite,
+  FavoriteScope,
+  FavoritesList,
   ForeignEntity,
   GithubPullRequestsResponse,
   GroupedSoupGroupPage,
@@ -43,6 +47,7 @@ import type {
   PostGroupedSoupAstRequest,
   PostSoupAstRequest,
   PostSoupRequest,
+  ReorderFavoritesRequest,
   SoupPage,
   View,
   ViewsResponse,
@@ -2096,6 +2101,43 @@ export const storageServiceClient = {
     async deleteView(params) {
       return await dssFetch(`/saved_views/${params.savedViewId}`, {
         method: 'DELETE',
+        body: JSON.stringify(params),
+      });
+    },
+  },
+
+  favorites: {
+    async getFavorites() {
+      return await dssFetch<FavoritesList>('/favorites');
+    },
+    async addFavorite(params: AddFavoriteRequest) {
+      return await dssFetch<Favorite>('/favorites', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      });
+    },
+    async removeFavorite(params: { favoriteId: string }) {
+      return await dssFetch(`/favorites/${params.favoriteId}`, {
+        method: 'DELETE',
+      });
+    },
+    async removeFavoriteByEntity(params: {
+      entityType: AddFavoriteRequest['entityType'];
+      entityId: string;
+      scope: FavoriteScope;
+    }) {
+      const searchParams = new URLSearchParams({
+        entityType: params.entityType,
+        entityId: params.entityId,
+        scope: params.scope,
+      });
+      return await dssFetch(`/favorites?${searchParams}`, {
+        method: 'DELETE',
+      });
+    },
+    async reorderFavorites(params: ReorderFavoritesRequest) {
+      return await dssFetch('/favorites/reorder', {
+        method: 'PATCH',
         body: JSON.stringify(params),
       });
     },
