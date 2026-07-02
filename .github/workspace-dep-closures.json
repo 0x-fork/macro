@@ -2314,6 +2314,9 @@
       "user_quota",
       "workspace-hack"
     ],
+    "h2_bench": [
+      "h2_bench"
+    ],
     "image_optimizer": [
       "image_optimizer",
       "macro_aws_config",

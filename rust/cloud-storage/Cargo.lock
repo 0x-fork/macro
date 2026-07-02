@@ -5654,6 +5654,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "h2_bench"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "bytes",
+ "reqwest 0.13.4",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "hakari"
 version = "0.17.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
