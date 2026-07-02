@@ -20,6 +20,7 @@ import type {
   DocumentMentionDecoratorProps,
   DocumentMentionNode,
 } from './nodes/DocumentMentionNode';
+import type { EmbedDecoratorProps, EmbedNode } from './nodes/EmbedNode';
 import type {
   EquationDecoratorProps,
   EquationNode,
@@ -126,6 +127,10 @@ export interface NodeDecoratorMap {
   VideoNode: {
     klass: typeof VideoNode;
     props: VideoDecoratorProps;
+  };
+  EmbedNode: {
+    klass: typeof EmbedNode;
+    props: EmbedDecoratorProps;
   };
   HtmlRenderNode: {
     klass: typeof HtmlRenderNode;

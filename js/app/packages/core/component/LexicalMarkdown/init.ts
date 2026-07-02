@@ -5,6 +5,7 @@ import {
   DiffInsertNode,
   DocumentCardNode,
   DocumentMentionNode,
+  EmbedNode,
   EquationNode,
   GroupMentionNode,
   HorizontalRuleNode,
@@ -30,6 +31,7 @@ import { Equation } from './component/decorator/Equation';
 import { GroupMention } from './component/decorator/GroupMention';
 import { HorizontalRule } from './component/decorator/HorizontalRule';
 import { HtmlRender } from './component/decorator/HtmlRender';
+import { MarkdownEmbed } from './component/decorator/MarkdownEmbed';
 import { MarkdownImage } from './component/decorator/MarkdownImage';
 import { MarkdownVideo } from './component/decorator/MarkdownVideo';
 import { PasteNode } from './component/decorator/PasteNode';
@@ -58,6 +60,7 @@ export function initializeLexical() {
   setDecorator(DiffInsertNode, DiffInsert);
   setDecorator(ImageNode, MarkdownImage);
   setDecorator(VideoNode, MarkdownVideo);
+  setDecorator(EmbedNode, MarkdownEmbed);
   setDecorator(EquationNode, Equation);
   setDecorator(SnapshotNode, Snapshot);
   setDecorator(HtmlRenderNode, HtmlRender);

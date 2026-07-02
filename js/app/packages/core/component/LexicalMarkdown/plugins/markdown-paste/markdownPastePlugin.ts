@@ -1,6 +1,10 @@
 import { mergeRegister } from '@lexical/utils';
+import { EmbedNode, isLoneEmbedUrl } from '@lexical-core';
 import {
+  $getSelection,
   $insertNodes,
+  $isParagraphNode,
+  $isRangeSelection,
   $parseSerializedNode,
   COMMAND_PRIORITY_LOW,
   createEditor,
@@ -48,6 +52,26 @@ function registerMarkdownPastePlugin(editor: LexicalEditor) {
           const pastedText = clipboard.getData('text/plain');
           if (!pastedText) {
             return false;
+          }
+
+          // A pasted lone embeddable URL becomes an embed block through the
+          // markdown parse below. Only allow that on an empty top-level
+          // paragraph — pasting into surrounding text keeps the URL inline.
+          if (editor.hasNodes([EmbedNode]) && isLoneEmbedUrl(pastedText)) {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              const anchorBlock = selection.isCollapsed()
+                ? selection.anchor.getNode().getTopLevelElement()
+                : null;
+              const onEmptyParagraph =
+                $isParagraphNode(anchorBlock) &&
+                anchorBlock.getTextContent().trim() === '';
+              if (!onEmptyParagraph) {
+                event.preventDefault();
+                selection.insertText(pastedText.trim());
+                return true;
+              }
+            }
           }
 
           event.preventDefault();

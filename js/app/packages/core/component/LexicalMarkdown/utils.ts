@@ -22,6 +22,7 @@ import {
 } from '@lexical/utils';
 import {
   $isDocumentMentionNode,
+  $isEmbedNode,
   $isMentionNode,
   $isWatermarkNode,
   ALL_TRANSFORMERS,
@@ -1226,6 +1227,13 @@ export function forceSingleLine(editor: LexicalEditor) {
       let firstChild: ElementNode | null = null;
 
       for (const child of rootChildren) {
+        // Embeds render as full iframes — show their URL in single-line mode.
+        if ($isEmbedNode(child)) {
+          firstChild = $createParagraphNode().append(
+            $createTextNode(child.getUrl())
+          );
+          break;
+        }
         if (!$isElementNode(child)) continue;
         const normalized = $singleLineNode(child);
         if (normalized) {

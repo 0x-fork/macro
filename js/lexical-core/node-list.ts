@@ -25,6 +25,7 @@ import { DiffInsertNode } from './nodes/DiffInsertNode';
 import { DiffNode } from './nodes/DiffNode';
 import { DocumentCardNode } from './nodes/DocumentCardNode';
 import { DocumentMentionNode } from './nodes/DocumentMentionNode';
+import { EmbedNode } from './nodes/EmbedNode';
 import { EquationNode } from './nodes/EquationNode';
 import { GroupMentionNode } from './nodes/GroupMentionNode';
 import { HorizontalRuleNode } from './nodes/HorizontalRuleNode';
@@ -84,6 +85,7 @@ export const SupportedNodeTypes = [
   TabNode,
   ImageNode,
   VideoNode,
+  EmbedNode,
   TableNode,
   TableCellNode,
   TableRowNode,
@@ -126,6 +128,6 @@ export const RegisteredNodesByType: { [K in EditorType]: ValidNode[] } = {
   'plain-text': [ParagraphNode, TextNode],
   markdown: [...SupportedNodeTypes],
   'markdown-sync': [...SupportedNodeTypes],
-  chat: exclude([ImageNode, VideoNode]),
+  chat: exclude([ImageNode, VideoNode, EmbedNode]),
   title: [ParagraphNode, TextNode, InlineSearchNode],
 } as const;

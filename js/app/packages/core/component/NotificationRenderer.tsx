@@ -89,7 +89,7 @@ export function NotificationRenderer(props: NotificationRendererProps) {
 
             <Show when={content()}>
               <div class="text-xs text-ink-muted">
-                <StaticMarkdown markdown={content() || ''} />
+                <StaticMarkdown markdown={content() || ''} embedsAsLinks />
               </div>
             </Show>
 

@@ -15,6 +15,7 @@ export * from './nodes/DiffInsertNode';
 export * from './nodes/DiffNode';
 export * from './nodes/DocumentCardNode';
 export * from './nodes/DocumentMentionNode';
+export * from './nodes/EmbedNode';
 export * from './nodes/EquationNode';
 export * from './nodes/GroupMentionNode';
 export * from './nodes/HorizontalRuleNode';
@@ -36,5 +37,6 @@ export * from './plugins/nodeIdPlugin';
 export * from './plugins/peerIdPlugin';
 
 export * from './transformers';
+export * from './utils/embed';
 export * from './utils/markdown-state';
 export * from './utils/mentions';

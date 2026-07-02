@@ -18,6 +18,7 @@ import {
   DEFAULT_LANGUAGE,
   type DocumentCardNode,
   type DocumentMentionNode,
+  type EmbedNode,
   type EquationNode,
   type GroupMentionNode,
   type HorizontalRuleNode,
@@ -79,6 +80,7 @@ import { DocumentMention as DocumentMentionDecorator } from '../decorator/Docume
 import { Equation as EquationDecorator } from '../decorator/Equation';
 import { GroupMention as GroupMentionDecorator } from '../decorator/GroupMention';
 import { LazyDecorator } from '../decorator/LazyDecorator';
+import { MarkdownEmbed as EmbedDecorator } from '../decorator/MarkdownEmbed';
 import { MarkdownImage as ImageDecorator } from '../decorator/MarkdownImage';
 import { MarkdownVideo as VideoDecorator } from '../decorator/MarkdownVideo';
 import { PasteNode as PasteNodeDecorator } from '../decorator/PasteNode';
@@ -252,6 +254,7 @@ type ElementNodeComponent<T extends ElementNode = ElementNode> = ParentProps &
 
 type StaticRenderOptions = {
   lazy: boolean;
+  embedsAsLinks: boolean;
 };
 
 type RenderableEntity<T extends LexicalNode = LexicalNode> = {
@@ -463,6 +466,25 @@ const Image: RenderableEntity<ImageNode> = {
 const Video: RenderableEntity<VideoNode> = {
   guard: (node: LexicalNode): node is VideoNode => node.__type === 'video',
   render: (props) => VideoDecorator(props.node.exportComponentProps()),
+};
+
+const Embed: RenderableEntity<EmbedNode> = {
+  guard: (node: LexicalNode): node is EmbedNode => node.__type === 'embed',
+  render: (props, options) => {
+    const url = props.node.getUrl();
+    if (options.embedsAsLinks) {
+      return (
+        <LinkWithPreview url={url} class={props.theme.link} title={url}>
+          {url}
+        </LinkWithPreview>
+      );
+    }
+    return EmbedDecorator({
+      ...props.node.exportComponentProps(),
+      key: props.node.getKey(),
+      theme: props.theme,
+    });
+  },
 };
 
 const Paragraph: RenderableElement<ParagraphNode> = {
@@ -776,6 +798,7 @@ const InlineEntities: Array<RenderableEntity> = [
   Snapshot,
   Image,
   Video,
+  Embed,
   HorizontalRule,
   Equation,
   ThemeMention,
@@ -803,6 +826,11 @@ const Elements: RenderableElement[] = [
 function Render(
   props: (NodeComponent | ElementNodeComponent) & StaticRenderOptions
 ) {
+  const options: StaticRenderOptions = {
+    lazy: props.lazy,
+    embedsAsLinks: props.embedsAsLinks,
+  };
+
   let entity = InlineEntities.find((entity) => entity.guard(props.node));
   if (entity) {
     return entity.render(
@@ -810,7 +838,7 @@ function Render(
         ...props,
         theme: props.theme,
       },
-      { lazy: props.lazy }
+      options
     );
   }
 
@@ -825,10 +853,11 @@ function Render(
           children: elemNode.getChildren(),
           theme: props.theme,
           lazy: props.lazy,
+          embedsAsLinks: props.embedsAsLinks,
         }),
         theme: props.theme,
       },
-      { lazy: props.lazy }
+      options
     );
   }
 
@@ -840,9 +869,15 @@ function MapRender(props: {
   children: LexicalNode[];
   theme: EditorThemeClasses;
   lazy: boolean;
+  embedsAsLinks: boolean;
 }) {
   return props.children.map((child) => (
-    <Render node={child} theme={props.theme} lazy={props.lazy} />
+    <Render
+      node={child}
+      theme={props.theme}
+      lazy={props.lazy}
+      embedsAsLinks={props.embedsAsLinks}
+    />
   ));
 }
 
@@ -850,6 +885,7 @@ function Document(props: {
   rootNode: RootNode;
   theme: EditorThemeClasses;
   lazy: boolean;
+  embedsAsLinks: boolean;
   rootRef?: (ref: HTMLDivElement) => void;
   singleLine?: boolean;
 }): JSX.Element {
@@ -866,6 +902,7 @@ function Document(props: {
         children={props.rootNode.getChildren()}
         theme={props.theme}
         lazy={props.lazy}
+        embedsAsLinks={props.embedsAsLinks}
       />
     </div>
   );
@@ -886,6 +923,8 @@ export function StaticMarkdown(props: {
   target?: 'internal' | 'external' | 'both';
   singleLine?: boolean;
   lazy?: boolean;
+  /** Render embed nodes as plain links, for compact contexts like search results. */
+  embedsAsLinks?: boolean;
 }) {
   let {
     editor: contextEditor,
@@ -952,6 +991,7 @@ export function StaticMarkdown(props: {
         rootNode: $getRoot(),
         theme: mergedTheme(),
         lazy: lazy(),
+        embedsAsLinks: props.embedsAsLinks ?? false,
         rootRef: props.rootRef,
       });
     });

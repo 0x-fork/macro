@@ -167,6 +167,7 @@ function ChannelReferenceRow(props: {
           <StaticMarkdown
             markdown={props.reference.message_content || ''}
             theme={twoLineClampMarkdownTheme}
+            embedsAsLinks
           />
         ) : undefined
       }
