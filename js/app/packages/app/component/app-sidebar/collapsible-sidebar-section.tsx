@@ -54,10 +54,10 @@ export function CollapsibleSidebarSection(props: {
 
   return (
     <section class="w-full flex flex-col">
-      <header class="pt-1">
+      <header>
         <button
           type="button"
-          class="group/section flex h-7 w-full items-center justify-between rounded-md px-2 text-left text-xs font-medium text-ink-extra-muted/60 transition-colors hover:bg-ink/3 hover:text-ink-muted"
+          class="group/section flex h-7 w-full items-center justify-between rounded-md px-2 text-left text-[13px] font-medium text-ink-extra-muted/60 transition-colors hover:bg-ink/3 hover:text-ink-muted"
           aria-expanded={open()}
           onClick={toggleOpen}
         >
@@ -95,7 +95,7 @@ export function CollapsibleSidebarSection(props: {
             >
               <Dropdown.Trigger
                 as={NavRow}
-                class="h-8 border-0! focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                class="h-8 border-0! text-[13px] focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                 fullWidth
                 label={`${props.label} more`}
                 tooltipPlacement="right"

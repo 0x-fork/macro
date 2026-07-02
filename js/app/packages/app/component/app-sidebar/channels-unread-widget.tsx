@@ -193,7 +193,7 @@ function ChannelGroupItem(props: {
   const ButtonContent = () => (
     <NavRow
       class={cn(
-        'transition-[opacity,transform] justify-start gap-2 w-full h-8 p-1.25'
+        'transition-[opacity,transform] justify-start gap-2 w-full h-8 p-1.25 text-[13px]'
       )}
       draggable={false}
       classList={{
@@ -231,10 +231,10 @@ function ChannelGroupItem(props: {
       </div>
 
       <Show when={!isSlim()}>
-        <span class="text-sm font-medium truncate">{displayName()}</span>
+        <span class="text-[13px] font-medium truncate">{displayName()}</span>
 
         <Show when={count() > 0}>
-          <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-xs font-medium bg-ink/6 text-ink-muted rounded-md ml-auto">
+          <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-[13px] font-medium bg-ink/6 text-ink-muted rounded-md ml-auto">
             {count()}
           </span>
         </Show>
@@ -315,7 +315,7 @@ function ChannelGroupDropdownItem(props: {
         />
       </Show>
       <span class="min-w-0 flex-1 truncate text-ink">{displayName()}</span>
-      <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-xs font-medium bg-ink/6 text-ink-muted rounded-md">
+      <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-[13px] font-medium bg-ink/6 text-ink-muted rounded-md">
         {count()}
       </span>
     </Dropdown.Item>
@@ -426,7 +426,7 @@ export const ChannelsUnreadWidget = (props: {
               )}
             </For>
             <Show when={slimOverflow() > 0}>
-              <span class="w-full text-center text-xxs text-ink-muted mt-1">
+              <span class="w-full text-center text-[13px] text-ink-muted mt-1">
                 +{slimOverflow()}
               </span>
             </Show>

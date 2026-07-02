@@ -91,7 +91,7 @@ export const SidebarCreateMenu = (props: {
         fallback={
           <Dropdown.Trigger
             as={NavRow}
-            class="center h-8 bg-ink/4"
+            class="center h-8 bg-ink/4 text-[13px]"
             fullWidth
             tooltipPlacement="right"
             tooltipDisabled={!props.isSlim()}
@@ -109,7 +109,7 @@ export const SidebarCreateMenu = (props: {
               Create
             </span>
             <Show when={open()}>
-              <div class="text-xxs text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:hidden">
+              <div class="text-[13px] text-ink-extra-muted/50 rounded-sm ml-auto border border-ink/5 px-1.5 py-px -my-1 group-data-[slim=true]/sidebar:hidden">
                 <Hotkey
                   token={TOKENS.global.createCommand}
                   class="flex gap-1"
@@ -121,7 +121,7 @@ export const SidebarCreateMenu = (props: {
       >
         <Dropdown.Trigger
           as={Button}
-          class="rounded-md p-1 text-ink-extra-muted size-8 [&_svg]:size-4"
+          class="rounded-md p-0.5 text-ink-extra-muted size-7 [&_svg]:size-4"
           size="icon-sm"
           label="Create"
           hotkey={TOKENS.global.createCommand}

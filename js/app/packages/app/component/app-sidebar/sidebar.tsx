@@ -147,7 +147,7 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'documents',
-    label: 'File',
+    label: 'Files',
     href: LIST_VIEW_PATHS.documents,
     icon: AnimatedFileMdIcon,
     hotkey: 'f',
@@ -440,7 +440,7 @@ const SidebarShortcutLink = (props: SidebarShortcutLinkProps) => {
   return (
     <NavRow
       draggable={false}
-      class="h-8"
+      class="h-8 text-[13px]"
       fullWidth
       tooltipPlacement="right"
       label={props.isSlim() ? props.label : undefined}
@@ -517,7 +517,7 @@ const SidebarHeaderIconButton = (props: {
   const [hovering, setHovering] = createSignal(false);
   return (
     <Button
-      class="rounded-md p-1 text-ink-extra-muted size-8 [&_svg]:size-4"
+      class="rounded-md p-0.5 text-ink-extra-muted size-7 [&_svg]:size-4"
       size="icon-sm"
       label={props.label}
       hotkey={props.hotkey}
@@ -628,7 +628,7 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
             </div>
           )}
         </Show>
-        <span class="flex-1 min-w-0 text-left whitespace-nowrap text-sm truncate group-data-[slim=true]/sidebar:hidden">
+        <span class="flex-1 min-w-0 text-left whitespace-nowrap text-[13px] truncate group-data-[slim=true]/sidebar:hidden">
           Settings
         </span>
         <CaretUpIcon class="size-3 text-ink-extra-muted shrink-0 group-data-[slim=true]/sidebar:hidden" />
@@ -652,15 +652,15 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
               )}
             </Show>
             <div class="min-w-0">
-              <div class="truncate text-sm font-semibold text-ink">
+              <div class="truncate text-[13px] font-semibold text-ink">
                 {author()}
               </div>
-              <div class="truncate text-sm text-ink-muted">{email()}</div>
+              <div class="truncate text-[13px] text-ink-muted">{email()}</div>
             </div>
           </div>
           <div class="-mx-1.5 mt-2 mb-1.5 h-px bg-edge-muted" />
           <Dropdown.Item
-            class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-ink-muted"
+            class="flex items-center gap-2 px-2.5 py-2 text-[13px] cursor-default outline-none text-ink-muted"
             onSelect={() => CommandState.open()}
           >
             <span class="size-5 flex items-center justify-center text-ink-extra-muted">
@@ -674,7 +674,7 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
             />
           </Dropdown.Item>
           <Dropdown.Item
-            class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-ink-muted"
+            class="flex items-center gap-2 px-2.5 py-2 text-[13px] cursor-default outline-none text-ink-muted"
             onSelect={() => props.onSelect('Account')}
           >
             <span class="size-5 flex items-center justify-center">
@@ -688,7 +688,7 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
             />
           </Dropdown.Item>
           <Dropdown.Item
-            class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-red-500"
+            class="flex items-center gap-2 px-2.5 py-2 text-[13px] cursor-default outline-none text-red-500"
             onSelect={() => logout()}
           >
             <span class="size-5 flex items-center justify-center">
@@ -996,7 +996,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
   return (
     <div
       class={cn(
-        'group/sidebar flex flex-col gap-0 overflow-hidden bg-surface',
+        'group/sidebar flex flex-col gap-0 overflow-hidden bg-surface text-[13px]',
         isExpanded() &&
           'relative h-full shrink-0 max-w-52 w-52 p-3 opacity-100',
         props.sidebarState === 'hidden' &&
@@ -1028,7 +1028,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
           <LogoIcon class="size-4 shrink-0" />
           <Show when={currentTeamName()}>
             {(teamName) => (
-              <span class="min-w-0 truncate text-sm font-medium text-ink">
+              <span class="min-w-0 truncate text-[13px] font-medium text-ink">
                 {teamName()}
               </span>
             )}
@@ -1076,7 +1076,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
         <div
           ref={setMiddleScrollRef}
           onScroll={updateMiddleScrollShadows}
-          class="size-full overflow-y-auto overscroll-contain flex flex-col gap-3 pr-1 -mr-1"
+          class="size-full overflow-y-auto flex flex-col gap-1.5 pr-1 -mr-1"
         >
           <CollapsibleSidebarSection
             label="Workspace"
@@ -1262,7 +1262,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
           data-sidebar-link={props.id}
           data-active={isActive() ? '' : undefined}
           active={isActive() && !props.suppressActiveStyle}
-          class="h-8"
+          class="h-8 text-[13px]"
           fullWidth
           tooltipPlacement="right"
           onMouseEnter={() => setIsHovering(true)}
