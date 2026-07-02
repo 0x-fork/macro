@@ -141,7 +141,7 @@ registerComponent(
     const preset = getViewPreset('inbox');
     return (
       <SoupView
-        viewName="Inbox"
+        viewName="Triage"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
         initialGroupBy={preset?.groupBy}
@@ -181,7 +181,7 @@ registerComponent(
     const preset = getViewPreset('mail');
     return (
       <SoupView
-        viewName="Email"
+        viewName="Inbox"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
         initialGroupBy={preset?.groupBy}

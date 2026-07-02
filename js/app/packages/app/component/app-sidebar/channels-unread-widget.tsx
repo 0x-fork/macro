@@ -1,6 +1,11 @@
+import {
+  CollapsibleSidebarSection,
+  type CollapsibleSidebarSectionItem,
+} from '@app/component/app-sidebar/collapsible-sidebar-section';
 import type { SidebarState } from '@app/component/app-sidebar/sidebar';
 import { useSenderName } from '@app/component/app-sidebar/utils';
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
+import { useSplitLayout } from '@app/component/split-layout/layout';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import { UserIcon } from '@core/component/UserIcon';
@@ -10,15 +15,13 @@ import { openNotification } from '@notifications';
 import { isChannelNotification } from '@notifications/notification-helpers';
 import { getChannelNotificationParams } from '@notifications/notification-navigation';
 import type { UnifiedNotification } from '@notifications/types';
-import { createElementSize } from '@solid-primitives/resize-observer';
-import { Avatar, cn, NavRow, Tooltip } from '@ui';
+import { Avatar, cn, Dropdown, NavRow, Tooltip } from '@ui';
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
   on,
-  onCleanup,
   onMount,
   Show,
 } from 'solid-js';
@@ -274,12 +277,62 @@ function ChannelGroupItem(props: {
   );
 }
 
+function ChannelGroupDropdownItem(props: {
+  group: ChannelGroup;
+  channelLetters?: string;
+}) {
+  const senderName = useSenderName(props.group.latestSenderId);
+  const count = () => props.group.notifications.length;
+  const displayName = () => {
+    if (props.group.isDM) {
+      return senderName() ?? 'Direct Message';
+    }
+    return props.group.channelName
+      ? `#${props.group.channelName}`
+      : 'Unknown Channel';
+  };
+
+  const latestNotification = () => props.group.notifications[0];
+  const navigateToLatestNotification = () => {
+    const manager = globalSplitManager();
+    if (!manager) return;
+    openNotification(latestNotification(), manager, false);
+  };
+  return (
+    <Dropdown.Item
+      class="min-h-8 gap-2 px-2.5"
+      onSelect={navigateToLatestNotification}
+    >
+      <Show
+        when={props.group.isDM && props.group.latestSenderId}
+        fallback={<ChannelLetterIcon letters={props.channelLetters ?? '?'} />}
+      >
+        <UserIcon
+          id={props.group.latestSenderId!}
+          size="md"
+          suppressClick
+          showTooltip={false}
+        />
+      </Show>
+      <span class="min-w-0 flex-1 truncate text-ink">{displayName()}</span>
+      <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-xs font-medium bg-ink/6 text-ink-muted rounded-md">
+        {count()}
+      </span>
+    </Dropdown.Item>
+  );
+}
+
 function filterUnreadNotDone(notifications: UnifiedNotification[]) {
   return notifications.filter((n) => !n.viewed_at && !n.done);
 }
 
-export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
+export const ChannelsUnreadWidget = (props: {
+  sidebarState: SidebarState;
+  onSectionOpenChange?: () => void;
+  onDropdownOpenChange?: (open: boolean) => void;
+}) => {
   const notificationSource = useGlobalNotificationSource();
+  const layout = useSplitLayout();
   const allNotifications = () => [...notificationSource.notifications()];
 
   const filteredNotifications = () => filterUnreadNotDone(allNotifications());
@@ -325,78 +378,36 @@ export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
   const SLIM_MAX = 4;
   const slimVisible = () => channelGroups().slice(0, SLIM_MAX);
   const slimOverflow = () => Math.max(0, channelGroups().length - SLIM_MAX);
-  const [hasOverflowTop, setHasOverflowTop] = createSignal(false);
-  const [hasOverflowBottom, setHasOverflowBottom] = createSignal(false);
-  const [scrollRef, setScrollRef] = createSignal<HTMLDivElement>();
-  const [scrollFrameRef, setScrollFrameRef] = createSignal<HTMLDivElement>();
-  const scrollSize = createElementSize(scrollRef);
-  const scrollFrameSize = createElementSize(scrollFrameRef);
-  let scrollShadowFrame: number | undefined;
-  let detachScrollShadowObservers: VoidFunction | undefined;
-
-  const updateScrollShadows = () => {
-    const el = scrollRef();
-    if (!el) return;
-    const maxScrollTop = el.scrollHeight - el.clientHeight;
-    setHasOverflowTop(el.scrollTop > 1);
-    setHasOverflowBottom(maxScrollTop - el.scrollTop > 1);
-  };
-
-  const scheduleScrollShadowUpdate = () => {
-    if (scrollShadowFrame !== undefined) {
-      cancelAnimationFrame(scrollShadowFrame);
-    }
-    scrollShadowFrame = requestAnimationFrame(() => {
-      scrollShadowFrame = undefined;
-      updateScrollShadows();
-    });
-  };
-
-  const detachScrollObservers = () => {
-    detachScrollShadowObservers?.();
-    detachScrollShadowObservers = undefined;
-  };
-
-  const attachScrollEl = (el: HTMLDivElement) => {
-    detachScrollObservers();
-    setScrollRef(el);
-
-    const mutationObserver = new MutationObserver(scheduleScrollShadowUpdate);
-    const sidebarRoot = el.closest('[data-expanded]');
-
-    mutationObserver.observe(sidebarRoot ?? el, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
-
-    scheduleScrollShadowUpdate();
-
-    detachScrollShadowObservers = () => {
-      mutationObserver.disconnect();
-    };
-  };
-
-  onCleanup(() => {
-    detachScrollObservers();
-    if (scrollShadowFrame !== undefined) {
-      cancelAnimationFrame(scrollShadowFrame);
-    }
-  });
-
-  createEffect(
-    on(channelGroups, () => {
-      scheduleScrollShadowUpdate();
-    })
+  const sectionItems = createMemo<CollapsibleSidebarSectionItem[]>(() =>
+    channelGroups().map((group) => ({
+      id: group.entityId,
+      visible: () => (
+        <ChannelGroupItem
+          group={group}
+          animate={false}
+          channelLetters={channelLettersMap().get(group.entityId)}
+        />
+      ),
+      dropdown: () => (
+        <ChannelGroupDropdownItem
+          group={group}
+          channelLetters={channelLettersMap().get(group.entityId)}
+        />
+      ),
+    }))
   );
 
-  createEffect(() => {
-    scrollSize.width;
-    scrollSize.height;
-    scrollFrameSize.width;
-    scrollFrameSize.height;
-    scheduleScrollShadowUpdate();
-  });
+  const openChannels = () => {
+    layout.openWithSplit(
+      { type: 'component', id: 'channels' },
+      {
+        allowDuplicate: true,
+        mergeHistory: false,
+        referredFrom: 'sidebar',
+      }
+    );
+    globalSplitManager()?.returnFocus();
+  };
 
   return (
     <Show when={channelGroups().length > 0}>
@@ -422,41 +433,19 @@ export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
           </section>
         }
       >
-        <section class="size-full min-h-0 flex flex-col px-0 py-1.5">
-          <header class="shrink-0 text-xs font-medium text-ink-extra-muted/50 my-1 px-1">
-            <h1>Unread</h1>
-          </header>
-
-          <div ref={setScrollFrameRef} class="relative min-h-0 flex-1">
-            <div
-              ref={attachScrollEl}
-              onScroll={updateScrollShadows}
-              class="size-full overflow-y-auto overscroll-contain flex flex-col gap-0.5 pr-1 -mr-1"
-            >
-              <For each={channelGroups()}>
-                {(group) => (
-                  <ChannelGroupItem
-                    group={group}
-                    animate={false}
-                    channelLetters={channelLettersMap().get(group.entityId)}
-                  />
-                )}
-              </For>
-            </div>
-            <div
-              class={cn(
-                'pointer-events-none absolute inset-x-0 top-0 h-3 transition-opacity bg-gradient-to-b from-surface to-transparent',
-                hasOverflowTop() ? 'opacity-100' : 'opacity-0'
-              )}
-            />
-            <div
-              class={cn(
-                'pointer-events-none absolute inset-x-0 bottom-0 h-3 transition-opacity bg-gradient-to-t from-surface to-transparent',
-                hasOverflowBottom() ? 'opacity-100' : 'opacity-0'
-              )}
-            />
-          </div>
-        </section>
+        <CollapsibleSidebarSection
+          label="Unread"
+          items={sectionItems()}
+          visibleCount={3}
+          dropdownMax={10}
+          onOpenChange={() => props.onSectionOpenChange?.()}
+          onDropdownOpenChange={props.onDropdownOpenChange}
+          dropdownFooter={() => (
+            <Dropdown.Item class="min-h-8 gap-2 px-2.5" onSelect={openChannels}>
+              <span class="flex-1 text-ink">Go to channels</span>
+            </Dropdown.Item>
+          )}
+        />
       </Show>
     </Show>
   );

@@ -1,14 +1,17 @@
+import { SidebarActiveCallWidget } from '@app/component/app-sidebar/active-call-widget';
 import {
   AppSidebar,
   type SidebarState,
 } from '@app/component/app-sidebar/sidebar';
 import {
   isSidebarVisible,
+  SidebarCollapseContext,
   SidebarVisibilityContext,
 } from '@app/component/sidebarVisibility';
 import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 import { mountGlobalFocusListener } from '@app/signal/focus';
 import { AutomationComposer } from '@block-automation/component';
+import { InCallPanel, useCallContextOptional } from '@channel/Call';
 import { useIsAuthenticated } from '@core/auth';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { isMobile } from '@core/mobile/isMobile';
@@ -84,7 +87,14 @@ export function Layout(props: RouteSectionProps) {
 
   return (
     <SidebarVisibilityContext.Provider value={sidebarVisible}>
-      <LayoutInner {...props} />
+      <SidebarCollapseContext.Provider
+        value={{
+          isCollapsed: () => sidebarVisible() && sidebarState() === 'slim',
+          expand: () => setSidebarState('expanded'),
+        }}
+      >
+        <LayoutInner {...props} />
+      </SidebarCollapseContext.Provider>
     </SidebarVisibilityContext.Provider>
   );
 }
@@ -93,6 +103,17 @@ function LayoutInner(props: RouteSectionProps) {
   const isAuthenticated = useIsAuthenticated();
   const { paywallOpen, showPaywall } = usePaywallState();
   const location = useLocation();
+  const [sidebarOverlayOpen, setSidebarOverlayOpen] = createSignal(false);
+  const callCtx = useCallContextOptional();
+  const sidebarCollapsed = createMemo(
+    () => isSidebarVisible() && sidebarState() === 'slim'
+  );
+
+  createEffect(() => {
+    if (!sidebarCollapsed()) {
+      setSidebarOverlayOpen(false);
+    }
+  });
 
   useAppSquishHandlers();
 
@@ -171,6 +192,8 @@ function LayoutInner(props: RouteSectionProps) {
         <Show when={isSidebarVisible()}>
           <AppSidebar
             sidebarState={sidebarState()}
+            overlayOpen={sidebarOverlayOpen()}
+            onOverlayOpenChange={setSidebarOverlayOpen}
             onOpenChange={(open) => {
               if (!open) {
                 setSidebarState(isMobile() ? 'hidden' : 'slim');
@@ -181,6 +204,15 @@ function LayoutInner(props: RouteSectionProps) {
             }}
           />
         </Show>
+        <Show when={sidebarCollapsed() && sidebarOverlayOpen()}>
+          <div class="fixed inset-0 z-side-panel-layout bg-ink/20" />
+        </Show>
+        <Show when={sidebarCollapsed()}>
+          <div
+            class="fixed left-0 top-0 bottom-0 z-page-overlay w-8"
+            onPointerEnter={() => setSidebarOverlayOpen(true)}
+          />
+        </Show>
 
         <ItemDndProvider>
           <div class="flex-1 w-full min-h-0 font-sans text-ink caret-accent">
@@ -188,6 +220,24 @@ function LayoutInner(props: RouteSectionProps) {
           </div>
         </ItemDndProvider>
       </div>
+      <Show when={isSidebarVisible()}>
+        <div
+          class="fixed bottom-3 z-page-overlay w-64 flex flex-col gap-2"
+          style={{
+            left: sidebarState() === 'expanded' ? '13.75rem' : '0.75rem',
+          }}
+        >
+          <Show when={callCtx?.isInCall()}>
+            <div data-ui="in-call-panel">
+              <InCallPanel isSlim={() => false} />
+            </div>
+          </Show>
+          <SidebarActiveCallWidget
+            sidebarState="expanded"
+            class="rounded-xl border border-edge-muted bg-surface shadow-menu p-1"
+          />
+        </div>
+      </Show>
       <Show
         when={
           isMobile() &&

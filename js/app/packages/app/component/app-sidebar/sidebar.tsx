@@ -1,6 +1,9 @@
 import { useAnalytics } from '@app/component/analytics-context';
-import { SidebarActiveCallWidget } from '@app/component/app-sidebar/active-call-widget';
 import { ChannelsUnreadWidget } from '@app/component/app-sidebar/channels-unread-widget';
+import {
+  CollapsibleSidebarSection,
+  type CollapsibleSidebarSectionItem,
+} from '@app/component/app-sidebar/collapsible-sidebar-section';
 import {
   InviteModal,
   setInviteModalOpen,
@@ -30,8 +33,6 @@ import { LIST_VIEW_PATHS, type ListView } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { InCallPanel } from '@channel/Call';
-import { useCallContextOptional } from '@channel/Call/CallContext';
 import { useHasPaidAccess } from '@core/auth';
 import { useLogout } from '@core/auth/logout';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
@@ -40,7 +41,6 @@ import { UserIcon } from '@core/component/UserIcon';
 import {
   ENABLE_CALLS,
   ENABLE_CRM,
-  ENABLE_HOME_OVERRIDE,
   ENABLE_NEW_PRICING_OVERRIDE,
 } from '@core/constant/featureFlags';
 import {
@@ -74,7 +74,10 @@ import CaretUpIcon from '@phosphor/caret-up.svg';
 import GearIcon from '@phosphor/gear.svg';
 import HomeIcon from '@phosphor/house.svg';
 import SignOutIcon from '@phosphor/sign-out.svg';
+import UsersThreeIcon from '@phosphor/users-three.svg';
 import { useEmailLinksQuery } from '@queries/email/link';
+import { useCurrentTeamQuery } from '@queries/team/teams';
+import { createElementSize } from '@solid-primitives/resize-observer';
 import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
 import { useLocation } from '@solidjs/router';
@@ -110,10 +113,10 @@ const markdownDocumentsQuery = buildDocumentTypeQuery(['doc-markdown']);
 const SIDEBAR_LINKS = [
   {
     id: 'inbox',
-    label: 'Inbox',
+    label: 'Triage',
     href: LIST_VIEW_PATHS.inbox,
     icon: AnimatedInboxIcon,
-    hotkey: 'i',
+    hotkey: 'r',
     hotkeyToken: TOKENS.sidebar.goTo.inbox,
   },
   {
@@ -124,6 +127,7 @@ const SIDEBAR_LINKS = [
     hotkey: '/',
     hotkeyToken: TOKENS.sidebar.goTo.search,
     standaloneHotkey: true,
+    hiddenFromSidebar: true,
   },
   {
     id: 'agents',
@@ -135,15 +139,15 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'mail',
-    label: 'Email',
+    label: 'Inbox',
     href: LIST_VIEW_PATHS.mail,
     icon: AnimatedEmailIcon,
-    hotkey: 'e',
+    hotkey: 'i',
     hotkeyToken: TOKENS.sidebar.goTo.mail,
   },
   {
     id: 'documents',
-    label: 'Files',
+    label: 'File',
     href: LIST_VIEW_PATHS.documents,
     icon: AnimatedFileMdIcon,
     hotkey: 'f',
@@ -175,7 +179,7 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'channels',
-    label: 'Channels',
+    label: 'Messages',
     href: LIST_VIEW_PATHS.channels,
     icon: AnimatedChannelIcon,
     hotkey: 'c',
@@ -199,85 +203,19 @@ export type SidebarState = 'hidden' | 'expanded' | 'slim';
 
 /** Root sidebar `max-width` transition (see `SIDEBAR_MAX_WIDTH_TRANSITION_STYLE`). */
 const SIDEBAR_MAX_WIDTH_TRANSITION_MS = 120;
-const SIDEBAR_MAX_WIDTH_TRANSITION_STYLE = `max-width ease-in-out ${SIDEBAR_MAX_WIDTH_TRANSITION_MS}ms`;
-
-/**
- * InCallPanel stays in slim layout until the sidebar shell finishes widening.
- * Uses `transitionend` on that element’s `max-width` (no timer on the happy path);
- * a short fallback timeout covers reduced-motion / no-op layout.
- */
-function createInCallPanelSlimToggle(args: {
-  initialSlim: boolean;
-  parentOnOpenChange: (open: boolean) => void;
-  getShell: () => HTMLDivElement | undefined;
-}) {
-  const [panelIsSlim, setPanelIsSlim] = createSignal(args.initialSlim);
-  let shellEl: HTMLDivElement | undefined;
-  let onMaxWidthEnd: ((e: TransitionEvent) => void) | undefined;
-  let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
-
-  const detachExpandTracking = () => {
-    const el = shellEl;
-    const handler = onMaxWidthEnd;
-    shellEl = undefined;
-    onMaxWidthEnd = undefined;
-    if (el && handler) {
-      el.removeEventListener('transitionend', handler);
-    }
-    if (fallbackTimer !== undefined) {
-      globalThis.clearTimeout(fallbackTimer);
-      fallbackTimer = undefined;
-    }
-  };
-
-  const finishExpand = () => {
-    detachExpandTracking();
-    setPanelIsSlim(false);
-  };
-
-  onCleanup(detachExpandTracking);
-
-  return {
-    panelIsSlim,
-    handleSidebarOpenChange(open: boolean) {
-      detachExpandTracking();
-
-      if (!open) {
-        setPanelIsSlim(true);
-        args.parentOnOpenChange(open);
-        return;
-      }
-
-      args.parentOnOpenChange(open);
-
-      requestAnimationFrame(() => {
-        const el = args.getShell();
-        if (!el) {
-          setPanelIsSlim(false);
-          return;
-        }
-
-        const onEnd = (e: TransitionEvent) => {
-          if (e.propertyName !== 'max-width' || e.target !== el) return;
-          finishExpand();
-        };
-
-        shellEl = el;
-        onMaxWidthEnd = onEnd;
-        el.addEventListener('transitionend', onEnd);
-
-        fallbackTimer = globalThis.setTimeout(
-          finishExpand,
-          SIDEBAR_MAX_WIDTH_TRANSITION_MS + 80
-        );
-      });
-    },
-  } as const;
-}
+const SIDEBAR_MAX_WIDTH_TRANSITION_STYLE = [
+  `max-width ease-in-out ${SIDEBAR_MAX_WIDTH_TRANSITION_MS}ms`,
+  `width ease-in-out ${SIDEBAR_MAX_WIDTH_TRANSITION_MS}ms`,
+  `padding ease-in-out ${SIDEBAR_MAX_WIDTH_TRANSITION_MS}ms`,
+  `opacity ease-in-out ${SIDEBAR_MAX_WIDTH_TRANSITION_MS}ms`,
+  `transform ease-in-out ${SIDEBAR_MAX_WIDTH_TRANSITION_MS}ms`,
+].join(', ');
 
 type AppSidebarProps = {
   sidebarState?: SidebarState;
   onOpenChange: (open: boolean) => void;
+  overlayOpen?: boolean;
+  onOverlayOpenChange?: (open: boolean) => void;
 };
 
 type SidebarHotkeyDeps = {
@@ -525,6 +463,45 @@ const SidebarShortcutLink = (props: SidebarShortcutLinkProps) => {
   );
 };
 
+const SidebarDropdownLink = (props: SidebarItem) => {
+  const analytics = useAnalytics();
+  const layout = useSplitLayout();
+  const [isHovering, setIsHovering] = createSignal(false);
+
+  const open = () => {
+    analytics.track('sidebar_click', { view: props.id });
+    const handle = navigateToSidebarView({
+      viewId: props.id,
+      params: props.params,
+      shiftKey: false,
+      activeSplit: globalSplitManager()?.activeSplit(),
+      openWithSplit: layout.openWithSplit,
+      referredFrom: 'sidebar',
+    });
+    if (props.id === 'search' && handle) {
+      requestSearchFocus(handle.id);
+    }
+    globalSplitManager()?.returnFocus();
+  };
+
+  return (
+    <Dropdown.Item
+      class="min-h-8 gap-2 px-2.5"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      onSelect={open}
+    >
+      <Show when={props.icon}>
+        <div class="shrink-0 [&_svg]:size-4">
+          <Dynamic component={props.icon} triggerAnimation={isHovering()} />
+        </div>
+      </Show>
+      <span class="min-w-0 flex-1 truncate text-ink">{props.label}</span>
+      <Hotkey token={props.hotkeyToken} theme="subtle" class="ml-6" />
+    </Dropdown.Item>
+  );
+};
+
 /**
  * Compact icon-only button for the sidebar header row. Encapsulates the hover
  * signal so animated icons play on hover, mirroring `SidebarActionButton`.
@@ -555,9 +532,58 @@ const SidebarHeaderIconButton = (props: {
   );
 };
 
+const SidebarHeaderSearchButton = (props: { link: SidebarItem }) => {
+  const analytics = useAnalytics();
+  const layout = useSplitLayout();
+
+  const openSearch = (event: MouseEvent) => {
+    analytics.track('sidebar_click', { view: props.link.id });
+    let currentContentHandle = globalSplitManager()?.activeSplit();
+    const content = currentContentHandle?.content();
+
+    if (
+      currentContentHandle &&
+      content?.type === 'component' &&
+      content.id === 'search'
+    ) {
+      requestSearchFocus(currentContentHandle.id);
+      globalSplitManager()?.returnFocus();
+      return;
+    }
+
+    currentContentHandle = navigateToSidebarView({
+      viewId: props.link.id,
+      params: props.link.params,
+      shiftKey: event.shiftKey,
+      activeSplit: currentContentHandle,
+      openWithSplit: layout.openWithSplit,
+      referredFrom: 'sidebar',
+    });
+
+    if (currentContentHandle) {
+      requestSearchFocus(currentContentHandle.id);
+    }
+    globalSplitManager()?.returnFocus();
+  };
+
+  return (
+    <SidebarHeaderIconButton
+      label="Search"
+      hotkey={props.link.hotkeyToken}
+      onMouseDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+      }}
+      onClick={openSearch}
+      icon={props.link.icon ?? AnimatedSearchIcon}
+    />
+  );
+};
+
 type SidebarSettingsWidgetProps = {
   isSlim: () => boolean;
   onSelect: (tab: SettingsTab) => void;
+  onMenuOpenChange?: (open: boolean) => void;
 };
 
 const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
@@ -567,7 +593,11 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
   const logout = useLogout();
 
   return (
-    <Dropdown placement="top-start" gutter={6}>
+    <Dropdown
+      placement="top-start"
+      gutter={6}
+      onOpenChange={props.onMenuOpenChange}
+    >
       <Dropdown.Trigger
         variant="ghost"
         class={cn(
@@ -690,22 +720,11 @@ const DASHBOARD_LINK: SidebarItem = {
   hotkeyToken: TOKENS.sidebar.goTo.home,
 };
 
-/**
- * Settings tabs surfaced as always-visible quick links above the settings
- * widget. Label/icon come from the settings tab config (see
- * `getSettingsTabItem`); this list only decides which tabs to promote.
- */
-const PROMOTED_SETTINGS_TABS: SettingsTab[] = ['Mobile App', 'Agent', 'Team'];
-
 export const AppSidebar = (props: AppSidebarProps) => {
   const layout = useSplitLayout();
   const { openSettings, setActiveTabId, settingsOpen } = useSettingsState();
   const isTabAvailable = useSettingsTabAvailable();
-  const callCtx = useCallContextOptional();
-
-  const homeViewEnabled = useFeatureFlag('enable-home-view', {
-    enabledOverride: ENABLE_HOME_OVERRIDE,
-  });
+  const currentTeamQuery = useCurrentTeamQuery();
 
   const hasPaidAccess = useHasPaidAccess();
 
@@ -721,27 +740,8 @@ export const AppSidebar = (props: AppSidebarProps) => {
 
   const [hotkeyVisible, setHotkeyVisible] = createSignal(false);
 
-  const visibleLinks = createMemo((): SidebarItem[] => {
-    let links: SidebarItem[] = [...SIDEBAR_LINKS];
-
-    if (homeViewEnabled().enabled) {
-      links = [DASHBOARD_LINK, ...links];
-    }
-
-    if (ENABLE_CALLS()) {
-      const idx = links.findIndex((l) => l.id === 'channels');
-      links = [...links.slice(0, idx + 1), CALLS_LINK, ...links.slice(idx + 1)];
-    }
-
-    return links.filter((link) => !link.hiddenFromSidebar);
-  });
-
-  const hotkeyLinks = createMemo((): SidebarItem[] => {
-    let links: SidebarItem[] = [...SIDEBAR_LINKS];
-
-    if (homeViewEnabled().enabled) {
-      links = [DASHBOARD_LINK, ...links];
-    }
+  const allLinks = createMemo((): SidebarItem[] => {
+    let links: SidebarItem[] = [DASHBOARD_LINK, ...SIDEBAR_LINKS];
 
     if (ENABLE_CALLS()) {
       const idx = links.findIndex((l) => l.id === 'channels');
@@ -750,6 +750,8 @@ export const AppSidebar = (props: AppSidebarProps) => {
 
     return links;
   });
+
+  const hotkeyLinks = allLinks;
 
   const resetHotkeysState = () => {
     setHotkeyVisible(false);
@@ -770,13 +772,220 @@ export const AppSidebar = (props: AppSidebarProps) => {
   };
 
   const isExpanded = () => props.sidebarState === 'expanded';
-  const isSlim = () => props.sidebarState === 'slim';
+  const isCollapsed = () => props.sidebarState === 'slim';
+  const overlayOpen = () => props.overlayOpen === true;
+  const isOverlayExpanded = () => isCollapsed() && overlayOpen();
+  const isExpandedView = () => isExpanded() || isOverlayExpanded();
+  const isSlim = () => isCollapsed() && !isOverlayExpanded();
+  const sidebarDisplayState = (): SidebarState =>
+    isExpandedView() ? 'expanded' : (props.sidebarState ?? 'expanded');
+  const currentTeamName = () => currentTeamQuery.data?.team.name?.trim();
 
-  let sidebarShell: HTMLDivElement | undefined;
-  const { panelIsSlim, handleSidebarOpenChange } = createInCallPanelSlimToggle({
-    initialSlim: isSlim(),
-    parentOnOpenChange: props.onOpenChange,
-    getShell: () => sidebarShell,
+  const [hasOverflowTop, setHasOverflowTop] = createSignal(false);
+  const [hasOverflowBottom, setHasOverflowBottom] = createSignal(false);
+  const [middleScrollRef, setMiddleScrollRef] = createSignal<HTMLDivElement>();
+  const middleScrollSize = createElementSize(middleScrollRef);
+  const [overlayPointerInside, setOverlayPointerInside] = createSignal(false);
+  const [overlayDropdownOpen, setOverlayDropdownOpen] = createSignal(false);
+  let middleScrollFrame: number | undefined;
+  let overlayCloseTimer: ReturnType<typeof setTimeout> | undefined;
+  let overlayDropdownCloseTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const cancelOverlayClose = () => {
+    if (overlayCloseTimer !== undefined) {
+      clearTimeout(overlayCloseTimer);
+      overlayCloseTimer = undefined;
+    }
+  };
+
+  const requestOverlayClose = () => {
+    if (!isCollapsed()) return;
+    cancelOverlayClose();
+    overlayCloseTimer = setTimeout(() => {
+      overlayCloseTimer = undefined;
+      if (!overlayPointerInside() && !overlayDropdownOpen()) {
+        props.onOverlayOpenChange?.(false);
+      }
+    }, SIDEBAR_MAX_WIDTH_TRANSITION_MS);
+  };
+
+  const handleOverlayDropdownOpenChange = (open: boolean) => {
+    if (!isCollapsed()) return;
+
+    if (overlayDropdownCloseTimer !== undefined) {
+      clearTimeout(overlayDropdownCloseTimer);
+      overlayDropdownCloseTimer = undefined;
+    }
+
+    if (open) {
+      setOverlayDropdownOpen(true);
+      props.onOverlayOpenChange?.(true);
+      cancelOverlayClose();
+      return;
+    }
+
+    overlayDropdownCloseTimer = setTimeout(() => {
+      overlayDropdownCloseTimer = undefined;
+      setOverlayDropdownOpen(false);
+      if (!overlayPointerInside()) {
+        requestOverlayClose();
+      }
+    }, SIDEBAR_MAX_WIDTH_TRANSITION_MS);
+  };
+
+  const updateMiddleScrollShadows = () => {
+    const el = middleScrollRef();
+    if (!el) return;
+    const maxScrollTop = el.scrollHeight - el.clientHeight;
+    setHasOverflowTop(el.scrollTop > 1);
+    setHasOverflowBottom(maxScrollTop - el.scrollTop > 1);
+  };
+
+  const scheduleMiddleScrollUpdate = () => {
+    if (middleScrollFrame !== undefined) {
+      cancelAnimationFrame(middleScrollFrame);
+    }
+    middleScrollFrame = requestAnimationFrame(() => {
+      middleScrollFrame = undefined;
+      updateMiddleScrollShadows();
+    });
+  };
+
+  onCleanup(() => {
+    if (middleScrollFrame !== undefined) {
+      cancelAnimationFrame(middleScrollFrame);
+    }
+    if (overlayCloseTimer !== undefined) {
+      clearTimeout(overlayCloseTimer);
+    }
+    if (overlayDropdownCloseTimer !== undefined) {
+      clearTimeout(overlayDropdownCloseTimer);
+    }
+  });
+
+  const findLink = (id: SidebarItem['id']) =>
+    allLinks().find((link) => link.id === id && !link.hiddenFromSidebar);
+  const searchLink = () => allLinks().find((link) => link.id === 'search');
+
+  const renderSidebarLink = (link: SidebarItem) => (
+    <Dynamic
+      component={link.id === 'mail' ? SidebarMailLink : SidebarLink}
+      {...link}
+      sidebarState={sidebarDisplayState()}
+      hotkeyVisible={hotkeyVisible()}
+    />
+  );
+
+  const toSectionItem = (link: SidebarItem): CollapsibleSidebarSectionItem => ({
+    id: String(link.id),
+    visible: () => renderSidebarLink(link),
+    dropdown: () => <SidebarDropdownLink {...link} />,
+  });
+
+  const topLinks = createMemo(() =>
+    ['home', 'inbox']
+      .map((id) => findLink(id))
+      .filter((link): link is SidebarItem => link !== undefined)
+  );
+
+  const workspaceItems = createMemo(() =>
+    ['mail', 'documents', 'channels', 'tasks', 'calls']
+      .map((id) => findLink(id))
+      .filter((link): link is SidebarItem => link !== undefined)
+      .map(toSectionItem)
+  );
+
+  const tryItems = createMemo<CollapsibleSidebarSectionItem[]>(() => {
+    const items: CollapsibleSidebarSectionItem[] = [];
+    const connected = getSettingsTabItem('Connected');
+    if (connected && isTabAvailable('Connected')) {
+      items.push({
+        id: 'connect',
+        visible: () => (
+          <SidebarShortcutLink
+            label="Connect"
+            isSlim={isSlim}
+            onClick={() => openSettingsTab('Connected')}
+            icon={connected.icon}
+          />
+        ),
+        dropdown: () => (
+          <SidebarShortcutLink
+            label="Connect"
+            isSlim={isSlim}
+            onClick={() => openSettingsTab('Connected')}
+            icon={connected.icon}
+          />
+        ),
+      });
+    }
+
+    items.push({
+      id: 'invite',
+      visible: () => (
+        <SidebarShortcutLink
+          label="Invite"
+          isSlim={isSlim}
+          onClick={() => setInviteModalOpen(true)}
+          icon={UsersThreeIcon}
+        />
+      ),
+      dropdown: () => (
+        <SidebarShortcutLink
+          label="Invite"
+          isSlim={isSlim}
+          onClick={() => setInviteModalOpen(true)}
+          icon={UsersThreeIcon}
+        />
+      ),
+    });
+
+    const mobile = getSettingsTabItem('Mobile App');
+    if (mobile && isTabAvailable('Mobile App')) {
+      items.push({
+        id: 'mobile',
+        visible: () => (
+          <SidebarShortcutLink
+            label="Mobile"
+            isSlim={isSlim}
+            onClick={() => openSettingsTab('Mobile App')}
+            icon={mobile.icon}
+          />
+        ),
+        dropdown: () => (
+          <SidebarShortcutLink
+            label="Mobile"
+            isSlim={isSlim}
+            onClick={() => openSettingsTab('Mobile App')}
+            icon={mobile.icon}
+          />
+        ),
+      });
+    }
+
+    return items;
+  });
+
+  createEffect(() => {
+    middleScrollSize.width;
+    middleScrollSize.height;
+    workspaceItems().length;
+    tryItems().length;
+    props.overlayOpen;
+    scheduleMiddleScrollUpdate();
+  });
+
+  createEffect(() => {
+    if (isOverlayExpanded()) {
+      requestOverlayClose();
+      return;
+    }
+
+    if (isCollapsed()) {
+      cancelOverlayClose();
+      setOverlayPointerInside(false);
+      setOverlayDropdownOpen(false);
+    }
   });
 
   registerSidebarHotkeys({
@@ -784,170 +993,190 @@ export const AppSidebar = (props: AppSidebarProps) => {
     hotkeyVisible,
     setHotkeyVisible,
     resetHotkeysState,
-    isSlim,
-    onOpenChange: handleSidebarOpenChange,
+    isSlim: isCollapsed,
+    onOpenChange: props.onOpenChange,
     openWithSplit: layout.openWithSplit,
   });
 
   return (
     <div
-      ref={(el) => {
-        sidebarShell = el ?? undefined;
-      }}
       class={cn(
-        'group/sidebar h-full p-3 flex flex-col gap-0 mobile:absolute mobile:z-modal-content overflow-hidden',
+        'group/sidebar flex flex-col gap-0 overflow-hidden bg-surface',
         isExpanded() &&
-          'max-w-52 w-full mobile:max-w-2/3 translate-x-0 opacity-100',
+          'relative h-full shrink-0 max-w-52 w-52 p-3 opacity-100',
         props.sidebarState === 'hidden' &&
-          '-translate-x-full overflow-hidden opacity-0',
-
-        isSlim() && 'max-w-14 w-full mobile:max-w-2/3 translate-x-0 opacity-100'
+          'fixed left-0 top-0 bottom-0 h-full -translate-x-full max-w-0 w-0 p-0 opacity-0 pointer-events-none',
+        isCollapsed() && 'fixed z-modal-content',
+        isCollapsed() &&
+          !overlayOpen() &&
+          'left-0 top-12 bottom-2 max-w-0 w-0 p-0 opacity-0 pointer-events-none -translate-x-2',
+        isOverlayExpanded() &&
+          'left-1.5 top-12 bottom-2 max-w-52 w-52 p-3 opacity-100 translate-x-0 rounded-xl border border-edge-muted shadow-menu'
       )}
-      data-expanded={isExpanded()}
+      data-expanded={isExpandedView()}
       data-slim={isSlim()}
       style={{ transition: SIDEBAR_MAX_WIDTH_TRANSITION_STYLE }}
+      onPointerEnter={() => {
+        if (!isCollapsed()) return;
+        setOverlayPointerInside(true);
+        props.onOverlayOpenChange?.(true);
+        cancelOverlayClose();
+      }}
+      onPointerLeave={() => {
+        if (!isCollapsed()) return;
+        setOverlayPointerInside(false);
+        requestOverlayClose();
+      }}
     >
-      <div class="flex items-center justify-between w-full relative group/logo-area">
-        <div class="text-accent group-data-[slim=true]/sidebar:opacity-0 group-data-[slim=true]/sidebar:max-w-0 min-w-0 pl-1 group-data-[slim=true]/sidebar:pl-0 transition-[opacity,padding]">
-          <LogoIcon class="size-6 translate-x-1" />
+      <div class="shrink-0 flex items-center justify-between w-full relative group/logo-area">
+        <div class="text-accent min-w-0 flex flex-1 items-center gap-2 pl-1">
+          <LogoIcon class="size-4 shrink-0" />
+          <Show when={currentTeamName()}>
+            {(teamName) => (
+              <span class="min-w-0 truncate text-sm font-medium text-ink">
+                {teamName()}
+              </span>
+            )}
+          </Show>
         </div>
-        <SidebarHeaderIconButton
-          label={isExpanded() ? 'Shrink Sidebar' : 'Expand Sidebar'}
-          hotkey={TOKENS.global.toggleSidebar}
-          onMouseDown={(e) => {
-            if (e.button !== 0) return;
-            e.preventDefault();
-          }}
-          onClick={() => {
-            handleSidebarOpenChange(!isExpanded());
-            globalSplitManager()?.returnFocus();
-          }}
-          icon={AnimatedSquareSidebarIcon}
-        />
+        <div class="flex shrink-0 items-center gap-0.5">
+          <SidebarCreateMenu
+            isSlim={isSlim}
+            variant="icon"
+            onMenuOpenChange={handleOverlayDropdownOpenChange}
+          />
+          <Show when={searchLink()}>
+            {(link) => <SidebarHeaderSearchButton link={link()} />}
+          </Show>
+          <SidebarHeaderIconButton
+            label={isExpanded() ? 'Collapse Sidebar' : 'Expand Sidebar'}
+            hotkey={TOKENS.global.toggleSidebar}
+            onMouseDown={(e) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+            }}
+            onClick={() => {
+              props.onOpenChange(!isExpanded());
+              props.onOverlayOpenChange?.(false);
+              globalSplitManager()?.returnFocus();
+            }}
+            icon={AnimatedSquareSidebarIcon}
+          />
+        </div>
       </div>
 
-      <div class="w-full my-2.5">
-        <SidebarCreateMenu isSlim={isSlim} />
-      </div>
-
-      <nav>
+      <nav class="shrink-0 mt-2">
         <ul class="size-full flex flex-col gap-0.5">
-          <For each={visibleLinks()}>
+          <For each={topLinks()}>
             {(link) => (
               <li class="flex flex-col items-center justify-center">
-                <Dynamic
-                  component={link.id === 'mail' ? SidebarMailLink : SidebarLink}
-                  {...link}
-                  sidebarState={props.sidebarState ?? 'expanded'}
-                  hotkeyVisible={hotkeyVisible()}
-                />
+                {renderSidebarLink(link)}
               </li>
             )}
           </For>
         </ul>
       </nav>
 
-      <div class="px-2">
-        <hr class="border-transparent my-2" />
-      </div>
-
-      <div class="min-h-0 flex-1 overflow-hidden">
-        <ChannelsUnreadWidget sidebarState={props.sidebarState ?? 'expanded'} />
-      </div>
-
-      <div class="mt-auto">
-        <Show when={ENABLE_CALLS()}>
-          <div class="block max-h-[clamp(10%,60%,20rem)]">
-            <SidebarActiveCallWidget
-              sidebarState={props.sidebarState ?? 'expanded'}
-            />
-          </div>
-        </Show>
-
-        <Show when={callCtx?.isInCall()}>
-          <div class="my-3" data-ui="in-call-panel">
-            <InCallPanel isSlim={panelIsSlim} />
-          </div>
-        </Show>
-      </div>
-
-      <div class="px-2 w-full">
-        <hr class="border-transparent mb-2" />
-      </div>
-
-      <Show
-        when={
-          !hasPaidAccess() &&
-          !isSlim() &&
-          !premiumCardDismissed() &&
-          newPricingFF().enabled
-        }
-      >
-        <div class="w-full px-2 mb-2">
-          <SidebarPromoCard
-            label="Upgrade to Premium"
-            description="Unlock MCP integrations, better AI models, and team collaboration."
-            onDismiss={() => {
-              setPremiumCardDismissed(true);
-              setPremiumHintVisible(true);
-            }}
-            primaryAction={{
-              label: 'Upgrade',
-              onClick: () => openSettingsTab('Billing'),
-            }}
-            secondaryAction={{
-              label: 'Later',
-              onClick: () => {
-                setPremiumCardDismissed(true);
-                setPremiumHintVisible(true);
-              },
-            }}
+      <div class="relative min-h-0 flex-1 my-2">
+        <div
+          ref={setMiddleScrollRef}
+          onScroll={updateMiddleScrollShadows}
+          class="size-full overflow-y-auto overscroll-contain flex flex-col gap-3 pr-1 -mr-1"
+        >
+          <CollapsibleSidebarSection
+            label="Workspace"
+            items={workspaceItems()}
+            visibleCount={3}
+            onOpenChange={() => scheduleMiddleScrollUpdate()}
+            onDropdownOpenChange={handleOverlayDropdownOpenChange}
           />
-        </div>
-      </Show>
-      <Show
-        when={
-          !hasPaidAccess() &&
-          !isSlim() &&
-          premiumHintVisible() &&
-          premiumCardDismissed() &&
-          newPricingFF().enabled
-        }
-      >
-        <div class="w-full px-2 mb-2">
-          <SidebarPromoHint
-            title="Maybe later"
-            message="You can upgrade anytime from Account settings."
-            onDone={() => setPremiumHintVisible(false)}
-            secondaryAction={{
-              label: 'Take me there',
-              onClick: () => openSettingsTab('Account'),
-            }}
-          />
-        </div>
-      </Show>
 
-      <div class="w-full flex flex-col gap-0.5 mb-1">
-        <For each={PROMOTED_SETTINGS_TABS}>
-          {(tab) => (
-            <Show
-              when={isTabAvailable(tab) ? getSettingsTabItem(tab) : undefined}
-            >
-              {(item) => (
-                <SidebarShortcutLink
-                  label={item().label}
-                  isSlim={isSlim}
-                  onClick={() => openSettingsTab(tab)}
-                  icon={item().icon}
-                />
-              )}
-            </Show>
+          <ChannelsUnreadWidget
+            sidebarState={sidebarDisplayState()}
+            onSectionOpenChange={() => scheduleMiddleScrollUpdate()}
+            onDropdownOpenChange={handleOverlayDropdownOpenChange}
+          />
+
+          <CollapsibleSidebarSection
+            label="Try"
+            items={tryItems()}
+            visibleCount={3}
+            onOpenChange={() => scheduleMiddleScrollUpdate()}
+            onDropdownOpenChange={handleOverlayDropdownOpenChange}
+          />
+
+          <Show
+            when={
+              !hasPaidAccess() &&
+              isExpandedView() &&
+              !premiumCardDismissed() &&
+              newPricingFF().enabled
+            }
+          >
+            <div class="w-full px-2">
+              <SidebarPromoCard
+                label="Upgrade to Premium"
+                description="Unlock MCP integrations, better AI models, and team collaboration."
+                onDismiss={() => {
+                  setPremiumCardDismissed(true);
+                  setPremiumHintVisible(true);
+                }}
+                primaryAction={{
+                  label: 'Upgrade',
+                  onClick: () => openSettingsTab('Billing'),
+                }}
+                secondaryAction={{
+                  label: 'Later',
+                  onClick: () => {
+                    setPremiumCardDismissed(true);
+                    setPremiumHintVisible(true);
+                  },
+                }}
+              />
+            </div>
+          </Show>
+          <Show
+            when={
+              !hasPaidAccess() &&
+              isExpandedView() &&
+              premiumHintVisible() &&
+              premiumCardDismissed() &&
+              newPricingFF().enabled
+            }
+          >
+            <div class="w-full px-2">
+              <SidebarPromoHint
+                title="Maybe later"
+                message="You can upgrade anytime from Account settings."
+                onDone={() => setPremiumHintVisible(false)}
+                secondaryAction={{
+                  label: 'Take me there',
+                  onClick: () => openSettingsTab('Account'),
+                }}
+              />
+            </div>
+          </Show>
+        </div>
+        <div
+          class={cn(
+            'pointer-events-none absolute inset-x-0 top-0 h-3 transition-opacity bg-gradient-to-b from-surface to-transparent',
+            hasOverflowTop() ? 'opacity-100' : 'opacity-0'
           )}
-        </For>
+        />
+        <div
+          class={cn(
+            'pointer-events-none absolute inset-x-0 bottom-0 h-3 transition-opacity bg-gradient-to-t from-surface to-transparent',
+            hasOverflowBottom() ? 'opacity-100' : 'opacity-0'
+          )}
+        />
       </div>
 
-      <div class="w-full">
-        <SidebarSettingsWidget isSlim={isSlim} onSelect={openSettingsTab} />
+      <div class="shrink-0 w-full pt-2">
+        <SidebarSettingsWidget
+          isSlim={isSlim}
+          onSelect={openSettingsTab}
+          onMenuOpenChange={handleOverlayDropdownOpenChange}
+        />
       </div>
       <InviteModal />
     </div>
