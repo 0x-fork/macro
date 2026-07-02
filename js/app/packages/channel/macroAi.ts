@@ -1,15 +1,21 @@
 import {
   MACRO_AGENT_BOT_ID,
   MACRO_AGENT_NAME,
+  TASK_AGENT_BOT_ID,
+  TASK_AGENT_NAME,
 } from '@core/constant/macroAgent';
 import type { IUser } from '@core/user/types';
 
 // Re-export the shared Macro identity under the names used in this package.
 export {
+  isAgentBotId,
   isMacroAgentId as isMacroAiId,
+  isTaskAgentId,
   MACRO_AGENT_BOT_ID as MACRO_AI_BOT_ID,
   MACRO_AGENT_HANDLE as MACRO_AI_HANDLE,
   MACRO_AGENT_NAME as MACRO_AI_NAME,
+  TASK_AGENT_BOT_ID,
+  TASK_AGENT_NAME,
 } from '@core/constant/macroAgent';
 
 /**
@@ -23,5 +29,18 @@ export function macroAiMentionUser(): IUser {
     id: MACRO_AGENT_BOT_ID,
     name: MACRO_AGENT_NAME,
     email: MACRO_AGENT_NAME,
+  };
+}
+
+/**
+ * A synthetic [`IUser`] entry so the TaskAgent shorthand appears in the channel
+ * `@`-mention typeahead alongside Macro. Mentioning it asks Macro to create a
+ * task from the message; replies are still posted by Macro.
+ */
+export function taskAgentMentionUser(): IUser {
+  return {
+    id: TASK_AGENT_BOT_ID,
+    name: TASK_AGENT_NAME,
+    email: TASK_AGENT_NAME,
   };
 }

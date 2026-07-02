@@ -32,7 +32,7 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import { MACRO_AI_BOT_ID, macroAiMentionUser } from '../macroAi';
+import { macroAiMentionUser, taskAgentMentionUser } from '../macroAi';
 import { CHANNEL_FILE_PICKER_ACCEPT } from './accepted-file-types';
 import { createInputAttachmentTracker } from './attachment-tracker';
 import { createConfiguredChannelMarkdownEditor } from './configured-markdown-editor';
@@ -216,13 +216,15 @@ export function ChannelInput(props: ChannelInputProps) {
     queueMicrotask(() => markdownEditor.controls.focus());
   };
 
-  // Macro AI is mentionable in every channel. It is surfaced through the same
-  // `@`-mention typeahead as participants and re-tagged as a bot at send time.
+  // Macro AI and the TaskAgent shorthand are mentionable in every channel.
+  // They are surfaced through the same `@`-mention typeahead as participants
+  // and re-tagged as bots at send time.
   const mentionUsers: Accessor<IUser[]> = () => {
     const base = props.participants?.() ?? [];
-    return base.some((user) => user.id === MACRO_AI_BOT_ID)
-      ? base
-      : [macroAiMentionUser(), ...base];
+    const agents = [macroAiMentionUser(), taskAgentMentionUser()].filter(
+      (agent) => !base.some((user) => user.id === agent.id)
+    );
+    return [...agents, ...base];
   };
 
   const markdownEditor = createConfiguredChannelMarkdownEditor({

@@ -7,7 +7,7 @@ use channels::domain::side_effects::ChannelBotTrigger;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::domain::{
-    models::{BotEvent, BotTrigger},
+    models::{BotEvent, BotPersona, BotTrigger},
     ports::AgentResponder,
     service::MacroAiHandler,
 };
@@ -66,21 +66,27 @@ where
         let reply_thread_id = trigger.message.thread_id.unwrap_or(trigger.message.id);
 
         for id in &trigger.bot_ids {
+            // System bots are defined in code — no database lookup required.
+            let persona = if *id == bot_id::MACRO_AI_BOT_ID {
+                BotPersona::MacroAi
+            } else if *id == bot_id::TASK_AGENT_BOT_ID {
+                BotPersona::TaskAgent
+            } else {
+                tracing::debug!(bot_id = %id, "no system bot handler registered for bot trigger");
+                continue;
+            };
+
             let event = BotEvent {
                 trigger: BotTrigger::Mention,
+                persona,
                 channel_id: trigger.channel_id,
                 message: trigger.message.clone(),
                 reply_thread_id,
                 requesting_user: requesting_user.clone(),
             };
 
-            // System bots are defined in code — no database lookup required.
-            if *id == bot_id::MACRO_AI_BOT_ID {
-                if let Err(err) = self.macro_ai.handle(&event).await {
-                    tracing::error!(error=?err, bot_id = %id, "system bot handler failed");
-                }
-            } else {
-                tracing::debug!(bot_id = %id, "no system bot handler registered for bot trigger");
+            if let Err(err) = self.macro_ai.handle(&event).await {
+                tracing::error!(error=?err, bot_id = %id, "system bot handler failed");
             }
         }
     }

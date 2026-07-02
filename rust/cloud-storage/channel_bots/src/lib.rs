@@ -7,11 +7,12 @@
 //! [`BotTriggerRouter`](inbound::BotTriggerRouter) resolves each mentioned
 //! system bot and runs the appropriate domain service:
 //!
-//! * **System bots** (defined inside Macro) run in-process. The only one today
-//!   is Macro AI, handled by
+//! * **System bots** (defined inside Macro) run in-process. Both Macro AI
+//!   (`@macro`) and the TaskAgent shorthand (`@taskagent`) are handled by
 //!   [`MacroAiHandler`](domain::service::MacroAiHandler), which posts an
 //!   immediate "thinking" message, runs the agent loop, then edits the message
-//!   with the answer.
+//!   with the answer. `@taskagent` layers canned task-creation instructions
+//!   onto the prompt; its replies are still posted as the Macro bot.
 
 /// Domain layer: bot trigger models, ports, and service implementation.
 pub mod domain;

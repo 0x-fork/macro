@@ -17,6 +17,26 @@ pub const MACRO_AI_HANDLE: &str = "macro";
 /// Display name for the "Macro" system bot.
 pub const MACRO_AI_NAME: &str = "Macro";
 
+/// Stable [`BotId`] for the "TaskAgent" mention shorthand.
+///
+/// Mentioning `@taskagent` asks Macro AI to create a task from the message and
+/// assign it; replies are still posted by the Macro bot. The id exists only so
+/// the shorthand can be surfaced and recognized as its own mention target.
+pub const TASK_AGENT_BOT_ID: BotId =
+    BotId::from_uuid(Uuid::from_u128(0x0000_0000_0000_0000_0000_0000_0000_a1a2));
+
+/// Handle for the "TaskAgent" shorthand (used for `@` mentions).
+pub const TASK_AGENT_HANDLE: &str = "taskagent";
+
+/// Display name for the "TaskAgent" shorthand.
+pub const TASK_AGENT_NAME: &str = "TaskAgent";
+
+/// Whether `id` is a first-party system bot surfaced through the user-mention
+/// UI (so a `user`-tagged mention of it must be treated as a bot mention).
+pub fn is_system_bot(id: BotId) -> bool {
+    id == MACRO_AI_BOT_ID || id == TASK_AGENT_BOT_ID
+}
+
 /// A bot id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]

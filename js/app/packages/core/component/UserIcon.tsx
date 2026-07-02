@@ -1,5 +1,5 @@
 import { ENABLE_PROFILE_PICTURES } from '@core/constant/featureFlags';
-import { isMacroAgentId } from '@core/constant/macroAgent';
+import { isAgentBotId } from '@core/constant/macroAgent';
 import { staticFileSizedUrl } from '@core/constant/servers';
 import { internalDrag } from '@core/directive/internalDragState';
 import { useProfilePictureUrl } from '@core/signal/profilePicture';
@@ -170,7 +170,7 @@ export function UserIcon(props: UserIconProps) {
 
   return (
     <Switch>
-      <Match when={isMacroAgentId(props.id)}>
+      <Match when={isAgentBotId(props.id)}>
         <Avatar
           size={size()}
           class={cn(

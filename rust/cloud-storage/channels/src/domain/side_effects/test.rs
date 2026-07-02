@@ -976,12 +976,14 @@ fn mention(entity_type: &str, entity_id: &str) -> SimpleMention {
 }
 
 #[test]
-fn bot_mentions_recognize_bot_and_macro_ai_user_tags() {
+fn bot_mentions_recognize_bot_and_system_bot_user_tags() {
     let macro_ai = bot_id::MACRO_AI_BOT_ID.as_uuid().to_string();
+    let task_agent = bot_id::TASK_AGENT_BOT_ID.as_uuid().to_string();
     let other_bot = Uuid::new_v4().to_string();
     let mentions = vec![
-        // Macro AI surfaced through the user-mention UI.
+        // System bots surfaced through the user-mention UI.
         mention("user", &macro_ai),
+        mention("user", &task_agent),
         // Duplicate bot mentions are dispatched once.
         mention("user", &macro_ai),
         // A real user mention is ignored.
@@ -996,16 +998,29 @@ fn bot_mentions_recognize_bot_and_macro_ai_user_tags() {
         bots,
         vec![
             bot_id::MACRO_AI_BOT_ID,
+            bot_id::TASK_AGENT_BOT_ID,
             BotId::parse_uuid_str(&other_bot).unwrap()
         ]
     );
 }
 
 #[test]
-fn macro_ai_user_mention_is_not_a_user_recipient() {
+fn unknown_bare_uuid_user_mention_is_not_a_bot_mention() {
+    // A user-tagged mention of a random UUID is neither a user recipient
+    // nor a bot trigger.
+    let mentions = vec![mention("user", &Uuid::new_v4().to_string())];
+    assert!(bot_mention_ids(&mentions).is_empty());
+}
+
+#[test]
+fn system_bot_user_mention_is_not_a_user_recipient() {
     assert!(is_bot_user_mention(&mention(
         "user",
         &bot_id::MACRO_AI_BOT_ID.as_uuid().to_string()
+    )));
+    assert!(is_bot_user_mention(&mention(
+        "user",
+        &bot_id::TASK_AGENT_BOT_ID.as_uuid().to_string()
     )));
     assert!(!is_bot_user_mention(&mention(
         "user",

@@ -11,7 +11,7 @@ use channels::domain::models::{
 use channels::domain::ports::{ChannelMutationErr, ChannelService};
 use uuid::Uuid;
 
-use super::models::BotEvent;
+use super::models::{BotEvent, BotPersona};
 use super::ports::AgentResponder;
 
 /// How many channel messages to include around the trigger.
@@ -35,6 +35,9 @@ mention.";
 
 const CHANNEL_CONTEXT_INSTRUCTION: &str = "Recent messages in the channel around the mention \
 (oldest to newest).";
+
+const CHANNEL_PARTICIPANTS_INSTRUCTION: &str = "Users currently in this channel. These ids are \
+usable directly for task assignment.";
 
 /// Human-readable label for a message sender storage id.
 fn sender_label(sender_id: &str) -> String {
@@ -170,6 +173,21 @@ where
         (lines, thread_ids)
     }
 
+    /// Ids of users currently in the channel, for the task-agent
+    /// participants block. Bot participants are excluded.
+    async fn active_participant_ids(&self, channel_id: Uuid) -> Vec<String> {
+        self.channels
+            .get_channel_participants(channel_id)
+            .await
+            .inspect_err(|err| tracing::warn!(error=?err, "failed to load channel participants"))
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|participant| participant.left_at.is_none())
+            .map(|participant| participant.user_id)
+            .filter(|id| bot_id::BotId::parse_storage_str(id).is_err())
+            .collect()
+    }
+
     /// Build the prompt for a mention.
     ///
     /// When the mention is a thread reply, the thread (parent + replies) is the
@@ -177,9 +195,16 @@ where
     /// labeled background block. For a top-level mention, the chronological
     /// channel slice is the primary context. In both cases the triggering
     /// message is marked inline rather than repeated at the end.
+    ///
+    /// For the TaskAgent persona the prompt additionally carries the channel
+    /// participant list and the canned task-creation instructions.
     async fn build_prompt(&self, event: &BotEvent) -> String {
         let mentioner = sender_label(event.requesting_user.as_ref());
         let trigger_id = event.message.id;
+        let mention_label = match event.persona {
+            BotPersona::MacroAi => "you (@macro)",
+            BotPersona::TaskAgent => "@taskagent (your task-creation shorthand)",
+        };
 
         let nearby = self
             .channels
@@ -197,7 +222,7 @@ where
         if let Some(parent_id) = event.message.thread_id {
             let _ = writeln!(
                 prompt,
-                "{mentioner} mentioned you (@macro) in a channel thread."
+                "{mentioner} mentioned {mention_label} in a channel thread."
             );
             let (thread, thread_ids) = self.thread_lines(event, parent_id).await;
             append_block(&mut prompt, "thread", THREAD_INSTRUCTION, &thread);
@@ -223,7 +248,10 @@ where
                 &background,
             );
         } else {
-            let _ = writeln!(prompt, "{mentioner} mentioned you (@macro) in a channel.");
+            let _ = writeln!(
+                prompt,
+                "{mentioner} mentioned {mention_label} in a channel."
+            );
             let mut lines: Vec<PromptLine> = nearby
                 .iter()
                 .filter(|message| {
@@ -246,11 +274,29 @@ where
             );
         }
 
+        if event.persona == BotPersona::TaskAgent {
+            let participants = self.active_participant_ids(event.channel_id).await;
+            if !participants.is_empty() {
+                let _ = write!(
+                    prompt,
+                    "\n<channel_participants>\n{CHANNEL_PARTICIPANTS_INSTRUCTION}\n\n"
+                );
+                for id in &participants {
+                    let _ = writeln!(prompt, "{id}");
+                }
+                let _ = writeln!(prompt, "</channel_participants>");
+            }
+            let _ = write!(prompt, "\n{}\n", prompt::task_agent::INSTRUCTIONS);
+        }
+
         let _ = write!(prompt, "\nReply to {mentioner}.");
         prompt
     }
 
-    /// React to a Macro AI mention.
+    /// React to a system-bot mention.
+    ///
+    /// Replies are always posted as the Macro bot, whichever persona was
+    /// mentioned.
     #[tracing::instrument(skip(self, event), fields(channel_id = %event.channel_id), err)]
     pub(crate) async fn handle(&self, event: &BotEvent) -> anyhow::Result<()> {
         let actor = Sender::Bot(bot_id::MACRO_AI_BOT_ID);

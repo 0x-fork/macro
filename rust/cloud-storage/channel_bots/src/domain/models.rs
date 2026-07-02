@@ -11,11 +11,26 @@ pub enum BotTrigger {
     Mention,
 }
 
+/// Which system-bot persona a mention targeted.
+///
+/// Every persona replies as the Macro bot; they differ only in the behavior
+/// instructions layered onto the prompt built for the mention.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BotPersona {
+    /// The general-purpose Macro assistant (`@macro`).
+    MacroAi,
+    /// Task-creation shorthand (`@taskagent`): create a task from the
+    /// triggering message and assign it to the correct person.
+    TaskAgent,
+}
+
 /// A normalized trigger delivered to a system bot handler.
 #[derive(Debug, Clone)]
 pub struct BotEvent {
     /// What triggered the bot.
     pub trigger: BotTrigger,
+    /// Which persona was mentioned.
+    pub persona: BotPersona,
     /// Channel the trigger occurred in.
     pub channel_id: Uuid,
     /// The user-authored message that triggered the bot.

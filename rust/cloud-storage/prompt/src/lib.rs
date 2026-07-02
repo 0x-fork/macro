@@ -14,6 +14,7 @@ pub mod email;
 pub mod math;
 pub mod mcp_item_links;
 pub mod mentions;
+pub mod task_agent;
 pub mod tone;
 pub mod tool_usage;
 mod types;

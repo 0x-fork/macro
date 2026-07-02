@@ -4,7 +4,7 @@ import type { NewChannelAttachment as NewAttachment } from '@service-storage/gen
 import type { PostMessageRequest } from '@service-storage/generated/schemas/postMessageRequest';
 import type { SimpleMention } from '@service-storage/generated/schemas/simpleMention';
 import { match } from 'ts-pattern';
-import { isMacroAiId } from '../macroAi';
+import { isAgentBotId } from '../macroAi';
 import type { InputAttachmentData, InputSnapshot } from './types';
 
 export function attachmentEntityType(
@@ -59,10 +59,11 @@ export function expandMentions(
     } else if (mention.itemType === 'user') {
       if (seenUserIds.has(mention.itemId)) continue;
       seenUserIds.add(mention.itemId);
-      // Macro AI rides the user-mention machinery in the editor but is a bot;
-      // re-tag it so the backend dispatches a bot trigger.
+      // The agents (Macro, TaskAgent) ride the user-mention machinery in the
+      // editor but are bots; re-tag them so the backend dispatches bot
+      // triggers.
       result.push({
-        entity_type: isMacroAiId(mention.itemId) ? 'bot' : 'user',
+        entity_type: isAgentBotId(mention.itemId) ? 'bot' : 'user',
         entity_id: mention.itemId,
       });
     } else {

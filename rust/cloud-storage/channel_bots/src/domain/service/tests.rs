@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use super::*;
 use crate::domain::{
-    models::{BotEvent, BotTrigger},
+    models::{BotEvent, BotPersona, BotTrigger},
     ports::AgentResponder,
 };
 
@@ -25,6 +25,7 @@ struct TestChannelService {
     around_args: Mutex<Option<(Uuid, Uuid, i64, i64)>>,
     around_messages: Vec<ChannelContextMessage>,
     thread_replies: Vec<ThreadReply>,
+    participants: Vec<ChannelParticipant>,
 }
 
 impl ChannelService for TestChannelService {
@@ -54,7 +55,8 @@ impl ChannelService for TestChannelService {
         &self,
         _channel_id: Uuid,
     ) -> impl Future<Output = Result<Vec<ChannelParticipant>, ChannelMessagesErr>> + Send {
-        async move { unimplemented!("not needed for prompt tests") }
+        let participants = self.participants.clone();
+        async move { Ok(participants) }
     }
 
     fn get_message_context(
@@ -124,6 +126,7 @@ impl AgentResponder for TestResponder {
 /// missing (deleted while the agent ran).
 struct MutationChannelService {
     thinking_deleted: bool,
+    posted_actors: Mutex<Vec<Sender>>,
     posted_policies: Mutex<Vec<PostMessageNotificationPolicy>>,
     patched: Mutex<Vec<String>>,
     patched_policies: Mutex<Vec<PatchMessageNotificationPolicy>>,
@@ -133,6 +136,7 @@ impl MutationChannelService {
     fn new(thinking_deleted: bool) -> Self {
         Self {
             thinking_deleted,
+            posted_actors: Mutex::new(Vec::new()),
             posted_policies: Mutex::new(Vec::new()),
             patched: Mutex::new(Vec::new()),
             patched_policies: Mutex::new(Vec::new()),
@@ -167,7 +171,7 @@ impl ChannelService for MutationChannelService {
         &self,
         _channel_id: Uuid,
     ) -> impl Future<Output = Result<Vec<ChannelParticipant>, ChannelMessagesErr>> + Send {
-        async move { unimplemented!("not needed for mutation tests") }
+        async move { Ok(Vec::new()) }
     }
 
     fn get_message_context(
@@ -217,10 +221,11 @@ impl ChannelService for MutationChannelService {
 
     fn post_message(
         &self,
-        _actor: Sender,
+        actor: Sender,
         _channel_id: Uuid,
         req: PostMessageRequest,
     ) -> impl Future<Output = Result<PostMessageResponse, ChannelMutationErr>> + Send {
+        self.posted_actors.lock().unwrap().push(actor);
         self.posted_policies
             .lock()
             .unwrap()
@@ -314,7 +319,35 @@ fn thread_reply(id: Uuid, sender_id: &str, content: &str) -> ThreadReply {
     }
 }
 
+fn participant(channel_id: Uuid, user_id: &str) -> ChannelParticipant {
+    ChannelParticipant {
+        channel_id,
+        user_id: user_id.to_string(),
+        role: ParticipantRole::Member,
+        joined_at: Utc::now(),
+        left_at: None,
+    }
+}
+
 fn mention_event(
+    channel_id: Uuid,
+    trigger_id: Uuid,
+    thread_id: Option<Uuid>,
+    sender_email: &str,
+    content: &str,
+) -> BotEvent {
+    persona_event(
+        BotPersona::MacroAi,
+        channel_id,
+        trigger_id,
+        thread_id,
+        sender_email,
+        content,
+    )
+}
+
+fn persona_event(
+    persona: BotPersona,
     channel_id: Uuid,
     trigger_id: Uuid,
     thread_id: Option<Uuid>,
@@ -323,6 +356,7 @@ fn mention_event(
 ) -> BotEvent {
     BotEvent {
         trigger: BotTrigger::Mention,
+        persona,
         channel_id,
         message: MutatedMessage {
             id: trigger_id,
@@ -411,6 +445,7 @@ async fn top_level_prompt_marks_trigger_inline_in_channel_context() {
             context_message(channel_id, after_id, "macro|bob@example.com", "after"),
         ],
         thread_replies: Vec::new(),
+        participants: Vec::new(),
     });
     let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
     let event = mention_event(
@@ -481,6 +516,7 @@ async fn thread_prompt_puts_thread_first_and_demotes_channel_noise() {
             "macro|austin@example.com",
             "@macro can you make a task out of this?",
         )],
+        participants: Vec::new(),
     });
     let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
     let event = mention_event(
@@ -545,6 +581,7 @@ async fn thread_prompt_includes_trigger_when_reply_fetch_fails_to_return_it() {
             "parent message",
         )],
         thread_replies: Vec::new(),
+        participants: Vec::new(),
     });
     let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
     let event = mention_event(
@@ -559,4 +596,136 @@ async fn thread_prompt_includes_trigger_when_reply_fetch_fails_to_return_it() {
 
     assert!(prompt.contains("peter: parent message"));
     assert!(prompt.contains("austin [this message mentioned you]: @macro help with this"));
+}
+
+#[tokio::test]
+async fn task_agent_prompt_layers_instructions_and_participants() {
+    let channel_id = Uuid::new_v4();
+    let trigger_id = Uuid::new_v4();
+    let channels = Arc::new(TestChannelService {
+        around_args: Mutex::new(None),
+        around_messages: vec![context_message(
+            channel_id,
+            trigger_id,
+            "macro|teo@example.com",
+            "@taskagent",
+        )],
+        thread_replies: Vec::new(),
+        participants: vec![
+            participant(channel_id, "macro|alice@example.com"),
+            participant(channel_id, "macro|teo@example.com"),
+            // Bot participants are not assignment candidates.
+            participant(channel_id, &bot_id::MACRO_AI_BOT_ID.to_storage_string()),
+        ],
+    });
+    let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
+    let event = persona_event(
+        BotPersona::TaskAgent,
+        channel_id,
+        trigger_id,
+        None,
+        "teo@example.com",
+        "@taskagent",
+    );
+
+    let prompt = handler.build_prompt(&event).await;
+
+    assert!(
+        prompt.contains("teo mentioned @taskagent (your task-creation shorthand) in a channel.")
+    );
+    assert!(!prompt.contains("mentioned you (@macro)"));
+
+    // Participants are listed for assignment, without bot participants.
+    let participants_start = prompt
+        .find("<channel_participants>")
+        .expect("participants block");
+    let participants_end = prompt
+        .find("</channel_participants>")
+        .expect("participants block end");
+    let participants_block = &prompt[participants_start..participants_end];
+    assert!(participants_block.contains("macro|alice@example.com"));
+    assert!(participants_block.contains("macro|teo@example.com"));
+    assert!(!participants_block.contains("bot|"));
+
+    // The canned task instructions follow the participants block.
+    let instructions_start = prompt
+        .find(prompt::task_agent::INSTRUCTIONS)
+        .expect("task instructions");
+    assert!(instructions_start > participants_end);
+    assert!(prompt.ends_with("Reply to teo."));
+}
+
+#[tokio::test]
+async fn task_agent_prompt_omits_participants_block_when_lookup_is_empty() {
+    let channel_id = Uuid::new_v4();
+    let trigger_id = Uuid::new_v4();
+    let channels = Arc::new(TestChannelService {
+        around_args: Mutex::new(None),
+        around_messages: Vec::new(),
+        thread_replies: Vec::new(),
+        participants: Vec::new(),
+    });
+    let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
+    let event = persona_event(
+        BotPersona::TaskAgent,
+        channel_id,
+        trigger_id,
+        None,
+        "teo@example.com",
+        "@taskagent",
+    );
+
+    let prompt = handler.build_prompt(&event).await;
+
+    // The instructions mention the tag in prose; the block itself (tag on its
+    // own line) must be absent.
+    assert!(!prompt.contains("<channel_participants>\n"));
+    assert!(prompt.contains(prompt::task_agent::INSTRUCTIONS));
+}
+
+#[tokio::test]
+async fn macro_prompt_carries_no_task_instructions() {
+    let channel_id = Uuid::new_v4();
+    let trigger_id = Uuid::new_v4();
+    let channels = Arc::new(TestChannelService {
+        around_args: Mutex::new(None),
+        around_messages: Vec::new(),
+        thread_replies: Vec::new(),
+        participants: vec![participant(channel_id, "macro|alice@example.com")],
+    });
+    let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
+    let event = mention_event(channel_id, trigger_id, None, "teo@example.com", "@macro hi");
+
+    let prompt = handler.build_prompt(&event).await;
+
+    assert!(!prompt.contains("<channel_participants>"));
+    assert!(!prompt.contains(prompt::task_agent::INSTRUCTIONS));
+}
+
+#[tokio::test]
+async fn task_agent_reply_is_posted_as_the_macro_bot() {
+    let channel_id = Uuid::new_v4();
+    let channels = Arc::new(MutationChannelService::new(false));
+    let handler = MacroAiHandler::new(channels.clone(), Arc::new(FixedResponder("task filed")));
+
+    handler
+        .handle(&persona_event(
+            BotPersona::TaskAgent,
+            channel_id,
+            Uuid::new_v4(),
+            None,
+            "teo@example.com",
+            "@taskagent",
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        channels.posted_actors.lock().unwrap().clone(),
+        vec![Sender::Bot(bot_id::MACRO_AI_BOT_ID)]
+    );
+    assert_eq!(
+        channels.patched.lock().unwrap().clone(),
+        vec!["task filed".to_string()]
+    );
 }
