@@ -12,6 +12,7 @@ import {
   makeInputValuePersistenceKey,
 } from '@channel/Input/utils/persistence';
 import { SearchHighlightTermsProvider } from '@channel/Message';
+import { registerMessageEntrance } from '@channel/Message/entrance-animation';
 import { MaybeMessageActionDrawerManager } from '@channel/Mobile/MessageActionDrawerManager';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { FindBar } from '@core/component/FindBar';
@@ -484,11 +485,13 @@ export function Channel(props: ChannelProps) {
       participantIds: participants.ids(),
     });
 
+    const optimisticId = crypto.randomUUID();
+    registerMessageEntrance(optimisticId);
     sendMessageMutation.mutate(
       {
         channelID: props.channelId,
         senderId,
-        optimisticId: crypto.randomUUID(),
+        optimisticId,
         ...payload,
       },
       {

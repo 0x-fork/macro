@@ -2,6 +2,7 @@ import {
   makeAttachmentTrackerPersistenceKey,
   makeInputValuePersistenceKey,
 } from '@channel/Input/utils/persistence';
+import { registerMessageEntrance } from '@channel/Message/entrance-animation';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { useUserId } from '@core/context/user';
 import { useSendMessageMutation } from '@queries/channel/message';
@@ -150,11 +151,13 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                   participantIds: participants.ids(),
                 });
 
+                const optimisticId = crypto.randomUUID();
+                registerMessageEntrance(optimisticId);
                 sendMessageMutation.mutate(
                   {
                     channelID: props.channelId,
                     senderId,
-                    optimisticId: crypto.randomUUID(),
+                    optimisticId,
                     ...payload,
                   },
                   {

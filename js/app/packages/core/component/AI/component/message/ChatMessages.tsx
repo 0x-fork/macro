@@ -19,6 +19,7 @@ import {
   onMount,
   Show,
   Switch,
+  untrack,
 } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { idStream, timeStream } from '../../util/stream/extendedStream';
@@ -202,6 +203,15 @@ export function ChatMessages(props: ChatMessagesProps) {
     }
   };
 
+  // A message animates in only when it mounts as the optimistic message of
+  // an in-flight send. History loads and messages shuffling between the two
+  // <For> lists never animate. Checked once at row creation (untracked).
+  const isJustSent = (msg: ChatMessageWithAttachments) =>
+    untrack(() => {
+      const p = chat.phase();
+      return p.type === 'sending' && p.optimisticMessageId === msg.id;
+    });
+
   const activeIdSelector = createSelector(activeTargetMessageId);
   const isEmptyChat = () =>
     messages().length === 0 &&
@@ -264,27 +274,33 @@ export function ChatMessages(props: ChatMessagesProps) {
                   <Show when={lastPair()}>
                     {(pair) => (
                       <For each={pair()}>
-                        {(msg) => (
-                          <div
-                            id={'chat-' + msg.id}
-                            class="w-full transition-colors duration-300"
-                            classList={{
-                              'bg-accent': activeIdSelector(msg.id),
-                            }}
-                          >
-                            <Switch>
-                              <Match when={msg.role === 'user'}>
-                                <UserMessage message={msg} />
-                              </Match>
-                              <Match when={msg.role === 'assistant'}>
-                                <AssistantMessage
-                                  message={msg}
-                                  ttft={messageTimingMap[msg.id]}
-                                />
-                              </Match>
-                            </Switch>
-                          </div>
-                        )}
+                        {(msg) => {
+                          // Captured at row creation so the class survives the
+                          // sending -> streaming phase change mid-animation.
+                          const animateSendIn = isJustSent(msg);
+                          return (
+                            <div
+                              id={'chat-' + msg.id}
+                              class="w-full transition-colors duration-300"
+                              classList={{
+                                'bg-accent': activeIdSelector(msg.id),
+                                'message-send-in-animation': animateSendIn,
+                              }}
+                            >
+                              <Switch>
+                                <Match when={msg.role === 'user'}>
+                                  <UserMessage message={msg} />
+                                </Match>
+                                <Match when={msg.role === 'assistant'}>
+                                  <AssistantMessage
+                                    message={msg}
+                                    ttft={messageTimingMap[msg.id]}
+                                  />
+                                </Match>
+                              </Switch>
+                            </div>
+                          );
+                        }}
                       </For>
                     )}
                   </Show>
