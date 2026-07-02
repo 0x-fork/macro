@@ -889,7 +889,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
   );
 
   const workspaceItems = createMemo(() =>
-    ['mail', 'documents', 'channels', 'tasks', 'calls']
+    ['mail', 'documents', 'channels', 'tasks', 'calls', 'agents']
       .map((id) => findLink(id))
       .filter((link): link is SidebarItem => link !== undefined)
       .map(toSectionItem)
@@ -976,12 +976,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
   });
 
   createEffect(() => {
-    if (isOverlayExpanded()) {
-      requestOverlayClose();
-      return;
-    }
-
-    if (isCollapsed()) {
+    if (isCollapsed() && !overlayOpen()) {
       cancelOverlayClose();
       setOverlayPointerInside(false);
       setOverlayDropdownOpen(false);

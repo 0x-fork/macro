@@ -26,6 +26,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  onCleanup,
   onMount,
   Show,
   Suspense,
@@ -104,16 +105,44 @@ function LayoutInner(props: RouteSectionProps) {
   const { paywallOpen, showPaywall } = usePaywallState();
   const location = useLocation();
   const [sidebarOverlayOpen, setSidebarOverlayOpen] = createSignal(false);
+  const [sidebarOverlayTriggerHovered, setSidebarOverlayTriggerHovered] =
+    createSignal(false);
   const callCtx = useCallContextOptional();
   const sidebarCollapsed = createMemo(
     () => isSidebarVisible() && sidebarState() === 'slim'
   );
+  let sidebarOverlayCloseTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const clearSidebarOverlayCloseTimer = () => {
+    if (sidebarOverlayCloseTimer === undefined) return;
+    clearTimeout(sidebarOverlayCloseTimer);
+    sidebarOverlayCloseTimer = undefined;
+  };
+
+  const setSidebarOverlayOpenGuarded = (open: boolean) => {
+    clearSidebarOverlayCloseTimer();
+    if (open) {
+      setSidebarOverlayOpen(true);
+      return;
+    }
+
+    sidebarOverlayCloseTimer = setTimeout(() => {
+      sidebarOverlayCloseTimer = undefined;
+      if (!sidebarOverlayTriggerHovered()) {
+        setSidebarOverlayOpen(false);
+      }
+    }, 120);
+  };
 
   createEffect(() => {
     if (!sidebarCollapsed()) {
+      clearSidebarOverlayCloseTimer();
+      setSidebarOverlayTriggerHovered(false);
       setSidebarOverlayOpen(false);
     }
   });
+
+  onCleanup(clearSidebarOverlayCloseTimer);
 
   useAppSquishHandlers();
 
@@ -193,7 +222,7 @@ function LayoutInner(props: RouteSectionProps) {
           <AppSidebar
             sidebarState={sidebarState()}
             overlayOpen={sidebarOverlayOpen()}
-            onOverlayOpenChange={setSidebarOverlayOpen}
+            onOverlayOpenChange={setSidebarOverlayOpenGuarded}
             onOpenChange={(open) => {
               if (!open) {
                 setSidebarState(isMobile() ? 'hidden' : 'slim');
@@ -209,8 +238,15 @@ function LayoutInner(props: RouteSectionProps) {
         </Show>
         <Show when={sidebarCollapsed()}>
           <div
-            class="fixed left-0 top-0 bottom-0 z-page-overlay w-8"
-            onPointerEnter={() => setSidebarOverlayOpen(true)}
+            class="fixed left-0 top-12 bottom-2 z-modal-content w-8"
+            onPointerEnter={() => {
+              setSidebarOverlayTriggerHovered(true);
+              setSidebarOverlayOpenGuarded(true);
+            }}
+            onPointerLeave={() => {
+              setSidebarOverlayTriggerHovered(false);
+              setSidebarOverlayOpenGuarded(false);
+            }}
           />
         </Show>
 

@@ -75,11 +75,12 @@ export function CollapsibleSidebarSection(props: {
         aria-hidden={!open()}
         style={{
           'grid-template-rows': open() ? '1fr' : '0fr',
+          'margin-top': open() ? '0.125rem' : '0',
           opacity: open() ? '1' : '0',
           visibility: open() ? 'visible' : 'hidden',
           transition: open()
-            ? 'grid-template-rows 120ms ease-in-out, opacity 120ms ease-in-out, visibility 0ms linear 0ms'
-            : 'grid-template-rows 120ms ease-in-out, opacity 120ms ease-in-out, visibility 0ms linear 120ms',
+            ? 'grid-template-rows 120ms ease-in-out, margin-top 120ms ease-in-out, opacity 120ms ease-in-out, visibility 0ms linear 0ms'
+            : 'grid-template-rows 120ms ease-in-out, margin-top 120ms ease-in-out, opacity 120ms ease-in-out, visibility 0ms linear 120ms',
         }}
       >
         <div class="min-h-0 overflow-hidden flex flex-col gap-0.5">
@@ -94,7 +95,7 @@ export function CollapsibleSidebarSection(props: {
             >
               <Dropdown.Trigger
                 as={NavRow}
-                class="h-8"
+                class="h-8 border-0! focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                 fullWidth
                 label={`${props.label} more`}
                 tooltipPlacement="right"
