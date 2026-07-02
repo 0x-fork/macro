@@ -35,7 +35,7 @@ const GENERATING_STATUSES: ProjectionStatus[] = [
  * bumps the projection's keepalive). */
 const PROJECTION_STALE_TIME = 30 * 1000;
 
-export type UseProjectionOptions<Schema extends z.ZodType = z.ZodType> = {
+export type CreateAIProjectionOptions<Schema extends z.ZodType = z.ZodType> = {
   /** Frontend-defined projection id (e.g. `notification_important_widget`). */
   id: string;
   /** The prompt materialized by the projection. Changing the prompt (or
@@ -102,7 +102,7 @@ function toProjectionState(
  *
  * @example
  * ```tsx
- * const projection = useProjection(() => ({
+ * const projection = createAIProjection(() => ({
  *   id: 'inbox/important',
  *   prompt: 'Summarize my most important unread emails.',
  *   schema: z.object({ items: z.array(z.string()) }),
@@ -115,8 +115,8 @@ function toProjectionState(
  * <Button onClick={() => projection.refresh()} />
  * ```
  */
-export function useProjection<Schema extends z.ZodType>(
-  options: Accessor<UseProjectionOptions<Schema>>
+export function createAIProjection<Schema extends z.ZodType>(
+  options: Accessor<CreateAIProjectionOptions<Schema>>
 ) {
   const targetType = () => options().targetType ?? 'user';
   const queryKey = () => aiProjectionQueryKey(options().id, targetType());

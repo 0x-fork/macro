@@ -1,4 +1,4 @@
-import { useProjection } from '@queries/ai/projection';
+import { createAIProjection } from '@queries/ai/projection';
 import type { Expiry } from '@service-cognition/generated/schemas/expiry';
 import type { RefreshCadence } from '@service-cognition/generated/schemas/refreshCadence';
 import { createConnectionWebsocketEffect } from '@service-connection/websocket';
@@ -29,7 +29,7 @@ const MODEL_IDS: Record<Exclude<ModelChoice, 'custom'>, string | undefined> = {
 const AI_PROJECTION_UPDATED_MESSAGE_TYPE = 'ai_projection_updated';
 
 /**
- * Dev playground for AI projections (`useProjection`).
+ * Dev playground for AI projections (`createAIProjection`).
  *
  * Variations to poke at:
  * - text vs structured output (zod schema -> non-strict JSON generation)
@@ -58,7 +58,7 @@ export default function ProjectionPlayground() {
       ? customModel() || undefined
       : MODEL_IDS[modelChoice() as Exclude<ModelChoice, 'custom'>];
 
-  const projection = useProjection(() => ({
+  const projection = createAIProjection(() => ({
     id: id(),
     prompt: prompt(),
     schema: outputMode() === 'structured' ? DEMO_SCHEMA : undefined,
