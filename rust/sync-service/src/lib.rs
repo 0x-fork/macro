@@ -10,13 +10,13 @@ pub mod keepalive;
 mod metrics;
 mod mutex;
 mod secrets;
+mod socket;
 #[cfg(feature = "search-service")]
 mod sps;
 mod state;
 mod storage;
 mod tags;
 mod timeout;
-mod websocket;
 
 use tracing_subscriber::{
     EnvFilter, fmt::time::UtcTime, layer::SubscriberExt, util::SubscriberInitExt,

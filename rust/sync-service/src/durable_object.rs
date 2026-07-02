@@ -11,7 +11,7 @@ use matchit::Router;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, instrument, trace, warn};
 use worker::{
-    Context, Cors, Date, DurableObject, Env, Error, Method, Request, Response, ResponseBody,
+    Cors, Date, DurableObject, Env, Error, Method, Request, Response, ResponseBody,
     ResponseBuilder, Result, ScheduledTime, State, WebSocket, WebSocketIncomingMessage,
     WebSocketPair, durable_object,
 };
@@ -25,13 +25,14 @@ use crate::{
     generated::schema::InitializeFromSnapshotRequest,
     keepalive::{DEFAULT_TIME_TO_LIVE, keepalive},
     mutex::Mutex,
+    socket::{Socket, protocol},
     state::DocumentState,
     storage::{
         SessionStorage, backends::durable_kv::DurableKVStorage, get_snapshot_storage,
         snapshot::SnapshotStorage,
     },
     tags::{get_ws_id_from_tags, new_ws_id},
-    timeit, websocket,
+    timeit,
 };
 
 pub const NO_SUCH_VALUE_ERR_STR: &str = "No such value in storage.";
@@ -116,7 +117,6 @@ pub struct DocumentSyncSession {
     awareness: EphemeralStore,
     /// a map from websocket's ID's to websocket metadata
     ws_meta_map: Arc<Mutex<WsMetaMap>>,
-    msg_buffer: Arc<Mutex<Vec<u8>>>,
 }
 
 mod u64_serde_strings {
@@ -299,9 +299,14 @@ async fn bump_alarm(state: &State) -> Result<()> {
 }
 
 impl DocumentSyncSession {
-    pub fn get_websockets(&self) -> Vec<WebSocket> {
-        self.state.get_websockets()
+    pub(crate) fn socket_for(&self, ws: &WebSocket) -> Socket {
+        Socket::new(ws.clone())
     }
+
+    pub(crate) fn get_sockets(&self) -> Vec<Socket> {
+        self.state.get_websockets().into_iter().map(Socket::new).collect()
+    }
+
     async fn inner_fetch(&self, req: Request) -> Result<Response> {
         let url = req.url()?;
         let matched = ROUTER
@@ -407,13 +412,10 @@ impl DocumentSyncSession {
             && let Ok(snapshot) = state.export_shallow_snapshot()
         {
             let awareness = self.awareness.encode_all();
-            for ws in &self.state.get_websockets() {
-                if let Err(e) = websocket::send_initial_sync(
-                    ws,
-                    snapshot.as_slice(),
-                    awareness.as_slice(),
-                    self.msg_buffer.clone(),
-                ) {
+            for socket in self.get_sockets() {
+                if let Err(e) =
+                    protocol::send_initial_sync(&socket, snapshot.as_slice(), awareness.as_slice())
+                {
                     warn!(
                         error =? e,
                         "failed to send delayed initial sync to a waiting peer"
@@ -432,8 +434,8 @@ impl DocumentSyncSession {
 
     async fn active_peer_ids_handler(&self) -> Result<Response> {
         let mut peer_ids: BTreeSet<u64> = BTreeSet::new();
-        for ws in self.state.get_websockets() {
-            let new_peer_ids = Wsm::new(self, &ws).get_peer_ids().await?;
+        for socket in self.get_sockets() {
+            let new_peer_ids = Wsm::new(self, socket.websocket()).get_peer_ids().await?;
             peer_ids.extend(new_peer_ids);
         }
         let str_ids = peer_ids
@@ -607,11 +609,10 @@ impl DocumentSyncSession {
                 .and_then(|state| state.export_shallow_snapshot());
 
             if let Ok(snapshot) = snapshot {
-                websocket::send_initial_sync(
-                    &pair.server,
+                protocol::send_initial_sync(
+                    &self.socket_for(&pair.server),
                     snapshot.as_slice(),
                     self.awareness.encode_all().as_slice(),
-                    self.msg_buffer.clone(),
                 )
                 .context("failed to send initial sync message")?;
             } else {
@@ -818,7 +819,6 @@ impl DurableObject for DocumentSyncSession {
             session_storage: Mutex::new(None),
             awareness: EphemeralStore::new(5_000),
             ws_meta_map: Arc::new(Mutex::new(Default::default())),
-            msg_buffer: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -868,14 +868,13 @@ impl DurableObject for DocumentSyncSession {
             WebSocketIncomingMessage::Binary(bm) => bm,
         };
 
-        websocket::process_message(
-            &ws,
+        protocol::process_message(
+            &self.socket_for(&ws),
             &self.document_id().await?,
             &*self.document_state().await?,
             &*self.session_storage().await?,
             &self.awareness,
             binary_message,
-            self.msg_buffer.clone(),
             self,
         )
         .await
@@ -944,7 +943,7 @@ impl DurableObject for DocumentSyncSession {
         // peers when they happen (PeerUpdate broadcast); pushing a full
         // snapshot to every client on every alarm tick only burned bandwidth
         // and stalled clients on large documents.
-        if !self.state.get_websockets().is_empty() {
+        if !self.get_sockets().is_empty() {
             bump_alarm(&self.state)
                 .await
                 .context("failed to keep document alive")?;
@@ -968,16 +967,11 @@ impl DurableObject for DocumentSyncSession {
             let update = self.awareness.encode(&peer_id.to_string());
 
             // Don't silently discard the error
-            websocket::broadcast_awareness(
-                &ws,
-                self.state.get_websockets().as_slice(),
-                update.as_slice(),
-                self.msg_buffer.clone(),
-            )
-            .context("failed to broadcast awareness")?;
+            protocol::broadcast_awareness(self, &self.socket_for(&ws), update.as_slice())
+                .context("failed to broadcast awareness")?;
         }
 
-        if self.state.get_websockets().len() == 1 {
+        if self.get_sockets().len() == 1 {
             if let Ok(document_id) = self.document_id().await
                 && let Ok(state) = self.document_state().await
                 && let Ok(snapshot) = state.export_shallow_snapshot()
