@@ -165,6 +165,29 @@ impl FavoritesRepo for PgFavoritesRepo {
     }
 
     #[tracing::instrument(err, skip(self))]
+    async fn count_favorites(&self, owner: &FavoriteOwner<'_>) -> Result<i64, Self::Err> {
+        let count = match owner {
+            FavoriteOwner::User(user_id) => {
+                sqlx::query_scalar!(
+                    r#"SELECT COUNT(*) as "count!" FROM favorite WHERE owner_user_id = $1"#,
+                    user_id.as_ref(),
+                )
+                .fetch_one(&self.pool)
+                .await?
+            }
+            FavoriteOwner::Team(team_id) => {
+                sqlx::query_scalar!(
+                    r#"SELECT COUNT(*) as "count!" FROM favorite WHERE owner_team_id = $1"#,
+                    team_id,
+                )
+                .fetch_one(&self.pool)
+                .await?
+            }
+        };
+        Ok(count)
+    }
+
+    #[tracing::instrument(err, skip(self))]
     async fn list_favorites(&self, owner: &FavoriteOwner<'_>) -> Result<Vec<Favorite>, Self::Err> {
         // The two queries below are identical except for the owner predicate
         // ($1 is a user id in one and a team uuid in the other). They resolve

@@ -39,6 +39,8 @@ export type FavoriteDragData = {
   scope: FavoriteScope;
   iconType: EntityIconSelector;
   name: string;
+  /** Read by the `pointerWithin` collision detector to skip collapsed rows. */
+  isDropTargetDisabled: () => boolean;
 };
 
 /**
@@ -190,11 +192,19 @@ const FavoriteRow = (props: {
 
   // `For` keys rows by favorite identity, so the favorite (and drag data
   // derived from it) is stable for the row's lifetime.
+  //
+  // `isDropTargetDisabled` is read by the app's `pointerWithin` collision
+  // detector (see ItemDragAndDrop). A collapsed group still renders its rows
+  // (clipped to 0 height for the expand/collapse animation), so without this
+  // their stale layout rects would overlap the other list and silently
+  // capture drops. Gating on `disabled` keeps collapsed rows out of collision
+  // detection entirely.
   const sortable = createSortable(props.favorite.id, {
     dragType: 'favorite',
     scope: props.scope,
     iconType: favoriteIconType(props.favorite),
     name: favoriteDisplayName(props.favorite),
+    isDropTargetDisabled: () => props.disabled,
   } satisfies FavoriteDragData);
 
   const content = () => favoriteSplitContent(props.favorite);

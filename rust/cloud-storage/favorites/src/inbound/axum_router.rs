@@ -72,6 +72,39 @@ where
         .and_then(|receipt| Uuid::parse_str(&receipt.entity().entity_id).ok())
 }
 
+/// Ensure the caller has at least view access to the entity they are trying
+/// to favorite.
+///
+/// Favorites hydrate display metadata (names, email subjects, channel types)
+/// on read, so without this check a caller could favorite an arbitrary id and
+/// use `GET /favorites` as an oracle for entities they cannot see. Entity
+/// types the access layer does not recognize (e.g. channel messages) resolve
+/// to "no access" and are rejected.
+async fn ensure_entity_access<AccessSvc>(
+    access_service: &AccessSvc,
+    user: &MacroUserExtractor,
+    entity_type: EntityType,
+    entity_id: &str,
+) -> Result<(), FavoritesApiError>
+where
+    AccessSvc: EntityAccessService,
+{
+    let access = access_service
+        .get_access_level(Some(&user.macro_user_id), entity_id, entity_type)
+        .await
+        .map_err(|e| {
+            tracing::error!(error=?e, "favorites: failed to check entity access");
+            FavoritesApiError::Favorites(FavoritesError::Internal(anyhow::anyhow!(
+                "failed to check entity access"
+            )))
+        })?;
+    if access.is_some() {
+        Ok(())
+    } else {
+        Err(FavoritesApiError::Forbidden)
+    }
+}
+
 /// Resolve the owner for the requested scope, erroring when a team scope is
 /// requested without a qualifying team membership.
 fn owner_for_scope<'a, AccessSvc>(
@@ -223,6 +256,16 @@ where
     AccessSvc: EntityAccessService,
 {
     let owner = owner_for_scope(req.scope, &user, &team)?;
+    // Only let the caller favorite entities they can actually access, so a
+    // favorite can't be used as an oracle for entity metadata (name, subject,
+    // private-channel type) they were never allowed to see.
+    ensure_entity_access(
+        state.access_service.as_ref(),
+        &user,
+        req.entity_type,
+        &req.entity_id,
+    )
+    .await?;
     let entity = req.entity_type.with_entity_str(&req.entity_id);
     let favorite = state
         .service
@@ -337,6 +380,9 @@ pub enum FavoritesApiError {
     /// A team-scoped operation was requested by a user without a team.
     #[error("you are not a member of a team")]
     NotInTeam,
+    /// The caller does not have access to the entity they tried to favorite.
+    #[error("you do not have access to this entity")]
+    Forbidden,
     /// Domain error.
     #[error(transparent)]
     Favorites(#[from] FavoritesError),
@@ -346,6 +392,7 @@ impl IntoResponse for FavoritesApiError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match &self {
             FavoritesApiError::NotInTeam => StatusCode::FORBIDDEN,
+            FavoritesApiError::Forbidden => StatusCode::FORBIDDEN,
             FavoritesApiError::Favorites(FavoritesError::NotFound) => StatusCode::NOT_FOUND,
             FavoritesApiError::Favorites(FavoritesError::BadRequest(_)) => StatusCode::BAD_REQUEST,
             FavoritesApiError::Favorites(FavoritesError::Internal(_)) => {

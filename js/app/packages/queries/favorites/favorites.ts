@@ -33,9 +33,11 @@ export function favoriteEntityType(
       return 'email_thread';
     case 'channel':
       return 'channel';
-    case 'channel_message':
-    case 'channel_thread':
-      return 'channel_message';
+    // Individual channel messages/threads are intentionally not favoritable:
+    // their frontend id is a composite `channelId:messageId` that never
+    // hydrates or navigates, and the entity-access layer has no access level
+    // for a message, so a message favorite can't be authorized like every
+    // other type. Favorite the channel instead.
     case 'call':
       return 'call';
     case 'crm_company':
@@ -121,7 +123,10 @@ export function useAddFavoriteMutation(callbacks?: AddFavoriteCallbacks) {
       await throwOnErr(() => storageServiceClient.favorites.addFavorite(args)),
     ...withCallbacks<Favorite, Error, AddFavoriteArgs, FavoriteMutationContext>(
       {
-        onMutate: (args: AddFavoriteArgs) => {
+        onMutate: async (args: AddFavoriteArgs) => {
+          await queryClient.cancelQueries({
+            queryKey: favoriteKeys.list.queryKey,
+          });
           const previous = readList();
           const optimistic: Favorite = {
             id: `optimistic-${args.entityType}-${args.entityId}`,
@@ -176,7 +181,10 @@ export function useRemoveFavoriteMutation(callbacks?: RemoveFavoriteCallbacks) {
     },
     ...withCallbacks<void, Error, RemoveFavoriteArgs, FavoriteMutationContext>(
       {
-        onMutate: (args: RemoveFavoriteArgs) => {
+        onMutate: async (args: RemoveFavoriteArgs) => {
+          await queryClient.cancelQueries({
+            queryKey: favoriteKeys.list.queryKey,
+          });
           const previous = readList();
           const keep = (favorite: Favorite) =>
             !(
@@ -222,8 +230,19 @@ export function useReorderFavoritesMutation(
 ) {
   return useMutation(() => ({
     mutationFn: async (args: ReorderFavoritesArgs) => {
+      // A reorder can race an in-flight add whose optimistic row carries a
+      // placeholder id the server has never seen. Sending it would fail the
+      // whole reorder (the backend expects real UUIDs); drop it and reorder
+      // the persisted ids only.
+      const favoriteIds = args.favoriteIds.filter(
+        (id) => !id.startsWith('optimistic-')
+      );
+      if (favoriteIds.length === 0) return;
       await throwOnErr(() =>
-        storageServiceClient.favorites.reorderFavorites(args)
+        storageServiceClient.favorites.reorderFavorites({
+          scope: args.scope,
+          favoriteIds,
+        })
       );
     },
     ...withCallbacks<
@@ -233,7 +252,10 @@ export function useReorderFavoritesMutation(
       FavoriteMutationContext
     >(
       {
-        onMutate: (args: ReorderFavoritesArgs) => {
+        onMutate: async (args: ReorderFavoritesArgs) => {
+          await queryClient.cancelQueries({
+            queryKey: favoriteKeys.list.queryKey,
+          });
           const previous = readList();
           const reorder = (favorites: Favorite[]) => {
             const byId = new Map(favorites.map((f) => [f.id, f]));

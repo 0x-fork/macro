@@ -522,6 +522,11 @@ export function CommandMenuInner(props: {
     if (!isInCommandScope()) return;
     CommandState.clearCommandScopeCommands();
     CommandState.setSelectedIndex(0);
+    // Match the Escape/Backspace handlers: restore the menu's hotkey scope.
+    // Clicking the back button doesn't focus it in some browsers, so without
+    // this the sub-view's command scope stays active and stray keypresses
+    // (e.g. digits) would be routed to it.
+    setActiveScope(hotkeyScope);
   };
 
   const resultsHeight = () => {

@@ -4,11 +4,13 @@ import {
   favoriteSplitContent,
 } from '@app/util/favorites';
 import { EntityIcon } from '@core/component/EntityIcon';
-import type { ValidHotkey } from '@core/hotkey/types';
 import { registerScope } from '@core/hotkey/utils';
 import Star from '@phosphor/star.svg';
+import { queryClient } from '@queries/client';
 import { useFavoritesQuery } from '@queries/favorites/favorites';
+import { favoriteKeys } from '@queries/favorites/keys';
 import type { Favorite } from '@service-storage/generated/schemas/favorite';
+import type { FavoritesList } from '@service-storage/generated/schemas/favoritesList';
 import { createHotkeyGroup, registerHotkey } from 'core/hotkey/hotkeys';
 import { createEffect, onCleanup } from 'solid-js';
 import { useSplitLayout } from '../split-layout/layout';
@@ -32,19 +34,6 @@ registerScope({
 
 const FAVORITES_KEYWORDS = ['favorites', 'favorite', 'starred', 'pinned'];
 
-/** Digit shortcuts for the first nine favorites in each scope. */
-const DIGIT_HOTKEYS: ValidHotkey[] = [
-  '1',
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
-];
-
 /**
  * Registers the "Your favorites" / "Team favorites" command-menu commands and
  * keeps the per-favorite commands in their sub-view scopes in sync with the
@@ -54,12 +43,22 @@ export function FavoritesCommands() {
   const favorites = useFavoritesQuery();
   const { openWithSplit } = useSplitLayout();
 
+  // The command menu evaluates command `condition()`s (and mounts) under a
+  // Suspense boundary. Reading `favorites.data` off the solid-query proxy while
+  // the query is pending suspends that boundary, blanking the menu and killing
+  // its keyboard navigation until the request settles. Read the cache
+  // imperatively instead, using `dataUpdatedAt` only as a non-suspending
+  // reactive trigger so registrations still refresh when favorites change.
+  const favoritesData = (): FavoritesList | undefined => {
+    void favorites.dataUpdatedAt;
+    return queryClient.getQueryData<FavoritesList>(favoriteKeys.list.queryKey);
+  };
+
   const openFavorite = (favorite: Favorite) => {
     openWithSplit(favoriteSplitContent(favorite), {
       referredFrom: 'kommand-menu',
     });
-    // Digit hotkeys run through the hotkey engine rather than the menu's
-    // selection path, so the menu must be closed here.
+    // Close the menu and clear the query once a favorite is opened.
     CommandState.close();
     CommandState.setQuery('');
   };
@@ -86,7 +85,7 @@ export function FavoritesCommands() {
       description: 'Your favorites',
       // An empty sub-view is a dead end, so hide the command until the user
       // has favorites.
-      condition: () => (favorites.data?.user.length ?? 0) > 0,
+      condition: () => (favoritesData()?.user.length ?? 0) > 0,
       keyDownHandler: () => true,
       activateCommandScopeId: USER_FAVORITES_COMMAND_SCOPE,
       keywords: FAVORITES_KEYWORDS,
@@ -99,7 +98,7 @@ export function FavoritesCommands() {
       scopeId: 'global',
       description: 'Team favorites',
       // `team` is undefined when the user does not belong to a team.
-      condition: () => (favorites.data?.team?.length ?? 0) > 0,
+      condition: () => (favoritesData()?.team?.length ?? 0) > 0,
       keyDownHandler: () => true,
       activateCommandScopeId: TEAM_FAVORITES_COMMAND_SCOPE,
       keywords: FAVORITES_KEYWORDS,
@@ -108,11 +107,13 @@ export function FavoritesCommands() {
   );
 
   const registerFavorites = (list: Favorite[], scopeId: string) => {
-    list.forEach((favorite, index) => {
+    // Registered without a hotkey: bare digits would fight type-to-filter in
+    // the sub-view's search input. The entries are still listed and openable
+    // via arrow/enter or click (the handler runs with `e` undefined).
+    list.forEach((favorite) => {
       dynamicGroup.add(
         registerHotkey({
           scopeId,
-          hotkey: DIGIT_HOTKEYS[index],
           description: favoriteDisplayName(favorite),
           keyDownHandler: () => {
             openFavorite(favorite);
@@ -124,7 +125,6 @@ export function FavoritesCommands() {
               class={props.class}
             />
           ),
-          runWithInputFocused: true,
         })
       );
     });
@@ -133,7 +133,7 @@ export function FavoritesCommands() {
   // Hotkey registrations are non-reactive, so sync them with the favorites
   // data: dispose and re-register the per-favorite commands on every change.
   createEffect(() => {
-    const data = favorites.data;
+    const data = favoritesData();
     dynamicGroup.dispose();
     if (!data) return;
     registerFavorites(data.user, USER_FAVORITES_COMMAND_SCOPE);

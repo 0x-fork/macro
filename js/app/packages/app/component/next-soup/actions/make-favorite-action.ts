@@ -47,49 +47,49 @@ export const makeFavoriteAction = () => {
   ) => {
     const favoritable = entities.filter(canExecute);
     if (favoritable.length === 0) return;
+    // Ignore re-triggers while a toggle is still settling so a rapid
+    // double-press can't fire an add and its own remove against each other.
+    if (addMutation.isPending || removeMutation.isPending) return;
 
     const shouldRemove = favoritable.every((entity) =>
       isFavorited(entity, scope)
     );
     const label = scope === 'team' ? 'team favorites' : 'favorites';
+    const verb = shouldRemove ? 'Removed' : 'Added';
+    const preposition = shouldRemove ? 'from' : 'to';
 
-    try {
-      if (shouldRemove) {
-        await Promise.all(
-          favoritable.map((entity) =>
-            removeMutation.mutateAsync({
-              entityType: favoriteEntityType(entity.type)!,
-              entityId: entity.id,
-              scope,
-            })
-          )
-        );
-        toast.success(
-          favoritable.length > 1
-            ? `Removed ${favoritable.length} items from ${label}`
-            : `Removed from ${label}`
-        );
-      } else {
-        await Promise.all(
-          favoritable
-            .filter((entity) => !isFavorited(entity, scope))
-            .map((entity) =>
-              addMutation.mutateAsync({
-                entityType: favoriteEntityType(entity.type)!,
-                entityId: entity.id,
-                scope,
-              })
-            )
-        );
-        toast.success(
-          favoritable.length > 1
-            ? `Added ${favoritable.length} items to ${label}`
-            : `Added to ${label}`
-        );
-      }
-    } catch (error) {
-      console.error('Failed to update favorites', error);
+    // On add, skip entities already favorited so counts reflect real work.
+    const targets = shouldRemove
+      ? favoritable
+      : favoritable.filter((entity) => !isFavorited(entity, scope));
+    if (targets.length === 0) return;
+
+    const results = await Promise.allSettled(
+      targets.map((entity) => {
+        const entityType = favoriteEntityType(entity.type)!;
+        const args = { entityType, entityId: entity.id, scope };
+        return shouldRemove
+          ? removeMutation.mutateAsync(args)
+          : addMutation.mutateAsync(args);
+      })
+    );
+
+    // Each mutation rolls its own optimistic change back on failure, so report
+    // what actually happened rather than an all-or-nothing result.
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    const succeeded = results.length - failed;
+    if (failed === 0) {
+      toast.success(
+        succeeded > 1
+          ? `${verb} ${succeeded} items ${preposition} ${label}`
+          : `${verb} ${preposition} ${label}`
+      );
+    } else if (succeeded === 0) {
       toast.failure('Failed to update favorites');
+    } else {
+      toast.failure(
+        `${verb} ${succeeded} of ${results.length} items ${preposition} ${label}; ${failed} failed`
+      );
     }
   };
 

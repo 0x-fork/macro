@@ -102,6 +102,41 @@ async fn add_favorite_appends_and_is_idempotent(pool: PgPool) {
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn count_favorites_counts_owner_collection(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    let repo = PgFavoritesRepo::new(pool);
+    let owner = FavoriteOwner::User(user(USER_A));
+
+    assert_eq!(
+        repo.count_favorites(&owner).await.expect("count should run"),
+        0
+    );
+
+    for entity_id in ["doc-1", "doc-2", "doc-3"] {
+        repo.add_favorite(
+            &owner,
+            &EntityType::Document.with_entity_str(entity_id),
+            &user(USER_A),
+        )
+        .await
+        .expect("favorite should insert");
+    }
+    // Re-adding an existing entity is a no-op and must not inflate the count.
+    repo.add_favorite(
+        &owner,
+        &EntityType::Document.with_entity_str("doc-1"),
+        &user(USER_A),
+    )
+    .await
+    .expect("duplicate favorite should be a no-op");
+
+    assert_eq!(
+        repo.count_favorites(&owner).await.expect("count should run"),
+        3
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn list_favorites_hydrates_names_and_skips_deleted(pool: PgPool) {
     insert_user(&pool, USER_A).await;
     insert_document(&pool, "doc-live", "Launch plan", USER_A).await;

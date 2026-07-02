@@ -52,6 +52,21 @@ where
         created_by: &MacroUserIdStr<'_>,
     ) -> Result<Favorite, FavoritesError> {
         validate_entity(entity)?;
+        // Cap the collection at add time. Enforcing it here (rather than only
+        // in `reorder_favorites`) keeps table growth bounded and guarantees a
+        // reorder payload can never exceed the limit and be rejected. Re-adding
+        // an already-favorited entity while exactly at the cap is rejected too;
+        // that is a harmless, fail-closed edge.
+        let count = self
+            .repo
+            .count_favorites(owner)
+            .await
+            .map_err(anyhow::Error::from)?;
+        if count as usize >= MAX_FAVORITES_PER_COLLECTION {
+            return Err(FavoritesError::BadRequest(format!(
+                "cannot have more than {MAX_FAVORITES_PER_COLLECTION} favorites"
+            )));
+        }
         Ok(self
             .repo
             .add_favorite(owner, entity, created_by)

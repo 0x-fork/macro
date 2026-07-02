@@ -24,6 +24,12 @@ pub trait FavoritesRepo: Send + Sync + 'static {
         created_by: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<Favorite, Self::Err>> + Send;
 
+    /// Count the favorites currently in the owner's collection.
+    fn count_favorites(
+        &self,
+        owner: &FavoriteOwner<'_>,
+    ) -> impl Future<Output = Result<i64, Self::Err>> + Send;
+
     /// List the owner's favorites in manual order, hydrated with display
     /// metadata. Favorites pointing at deleted entities are omitted.
     fn list_favorites(
