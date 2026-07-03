@@ -156,5 +156,29 @@ pub async fn handler(
             .into_response());
     }
 
-    Ok(Redirect::to(&passwordless_response.state.redirect_uri).into_response())
+    // If this account was created during this auth flow (create-user webhook
+    // marks it), flag the redirect so the app can attribute the session as a
+    // signup for analytics. Best-effort: never fails the login.
+    let mut redirect_uri = passwordless_response.state.redirect_uri.clone();
+    match ctx
+        .macro_cache_client
+        .take_user_just_signed_up(&passwordless_response.user.email.to_lowercase())
+        .await
+    {
+        Ok(true) => match url::Url::parse(&redirect_uri) {
+            Ok(mut url) => {
+                url.query_pairs_mut().append_pair("signed_up", "true");
+                redirect_uri = url.to_string();
+            }
+            Err(e) => {
+                tracing::error!(error=?e, "unable to parse redirect uri for signup attribution");
+            }
+        },
+        Ok(false) => {}
+        Err(e) => {
+            tracing::error!(error=?e, "unable to check just-signed-up marker");
+        }
+    }
+
+    Ok(Redirect::to(&redirect_uri).into_response())
 }

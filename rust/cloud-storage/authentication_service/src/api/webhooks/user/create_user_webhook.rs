@@ -177,6 +177,14 @@ async fn create_user_webhook(ctx: &ApiContext, req: FusionAuthUserWebhook) -> an
 
     tracing::trace!(user_id=?user_id, organization_id=?organization_id, "created user");
 
+    // Mark the account as freshly created so the auth callback completing this
+    // flow can attribute the login as a signup (analytics). Best-effort.
+    let _ = ctx
+        .macro_cache_client
+        .mark_user_just_signed_up(&email)
+        .await
+        .inspect_err(|e| tracing::error!(error=?e, "unable to mark user as just signed up"));
+
     // add user to all active experiments
     tokio::spawn({
         let db = ctx.db.clone();

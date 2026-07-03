@@ -112,23 +112,47 @@ pub async fn handler(
         None
     };
 
-    let redirect_url = get_redirect_url(&state, write_db)
+    let mut redirect_url = get_redirect_url(&state, write_db)
         .await
         .map_err(IntoResponse::into_response)?;
 
     tracing::trace!("redirect url {redirect_url}");
 
+    let decoded_user_id = decode_macro_access_token_allow_expired(&access_token, &ctx.jwt_args);
+
     if let Some(state) = state.as_ref()
         && let Some(referral_code) = state.referral_code.as_ref()
     {
-        let user_id = decode_macro_access_token_allow_expired(&access_token, &ctx.jwt_args)
+        let user_id = decoded_user_id
+            .as_ref()
             .map_err(|_| InnerErr::InvalidJwtError.into_response())?;
 
         let _ = ctx
             .referral_service
-            .track_referral(&user_id, &ReferralCode(referral_code.clone()))
+            .track_referral(user_id, &ReferralCode(referral_code.clone()))
             .await
             .inspect_err(|e| tracing::error!(error=?e, "unable to complete referral for user"));
+    }
+
+    // If this account was created during this auth flow (create-user webhook
+    // marks it), flag the redirect so the app can attribute the session as a
+    // signup for analytics. Best-effort: never fails the login.
+    if let Ok(user_id) = decoded_user_id.as_ref() {
+        match ctx
+            .macro_cache_client
+            .take_user_just_signed_up(user_id.email_str())
+            .await
+        {
+            Ok(true) => {
+                redirect_url
+                    .query_pairs_mut()
+                    .append_pair("signed_up", "true");
+            }
+            Ok(false) => {}
+            Err(e) => {
+                tracing::error!(error=?e, "unable to check just-signed-up marker");
+            }
+        }
     }
 
     // Set cookies
