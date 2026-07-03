@@ -29,12 +29,14 @@ export function Surface(props: SurfaceProps) {
     'hideBorder',
   ]);
 
-  const bgVariable = () =>
-    local.bgToken ? `--color-${local.bgToken}` : '--b0';
+  const backgroundColor = () =>
+    local.bgToken
+      ? `var(--color-${local.bgToken})`
+      : 'var(--surface-fill, var(--b0))';
 
   const style = (): JSX.CSSProperties => {
     const base: JSX.CSSProperties = {
-      'background-color': `var(${bgVariable()})`,
+      'background-color': backgroundColor(),
     };
 
     if (!local.hideBorder) {
