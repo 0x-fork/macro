@@ -85,7 +85,7 @@ function MobileDockButton(props: MobileDockButtonProps) {
         props.class
       )}
     >
-      <div class={cn('size-6 [&_svg]:size-6', props.iconClass)}>
+      <div class={cn('size-6 [&_svg]:size-6 shrink-0', props.iconClass)}>
         {props.animateIcon === false ? (
           <Dynamic component={props.icon} />
         ) : (
@@ -93,7 +93,7 @@ function MobileDockButton(props: MobileDockButtonProps) {
         )}
       </div>
       <Show when={props.label}>
-        <span class="text-sm font-medium">{props.label}</span>
+        <span class="text-sm font-medium truncate">{props.label}</span>
       </Show>
     </button>
   );
@@ -175,7 +175,11 @@ function CreateMenu() {
   );
 }
 
-export function MobileDock() {
+type MobileDockProps = {
+  class?: string;
+};
+
+export function MobileDock(props: MobileDockProps) {
   const { openWithSplit } = useSplitLayout();
   const location = useLocation();
 
@@ -199,26 +203,31 @@ export function MobileDock() {
   };
 
   return (
-    <div class="flex items-center gap-3 px-(--mobile-chrome-gutter)">
+    <div
+      class={cn(
+        'flex items-center gap-3 px-(--mobile-chrome-gutter)',
+        props.class
+      )}
+    >
       <MobileDockButton
         icon={HomeIcon}
         ariaLabel="Home"
         animateIcon={false}
-        class="size-10 rounded-full"
+        class="size-10 rounded-full shrink-0"
         active={isActive('home')}
         onClick={() => navigate('home')}
       />
       <MobileDockButton
         icon={AnimatedInboxIcon}
         ariaLabel="Inbox"
-        class="size-10 rounded-full"
+        class="size-10 rounded-full shrink-0"
         active={isActive('inbox')}
         onClick={() => navigate('inbox')}
       />
       <MobileDockButton
         icon={AnimatedSearchIcon}
         label="Search"
-        class="h-10 flex-1 gap-1 rounded-full px-3"
+        class="h-10 flex-1 min-w-0 gap-1 rounded-full px-3"
         onClick={() => {
           SearchState.maybeResetState();
           // Arm the focus before opening: iOS only raises the keyboard for a
