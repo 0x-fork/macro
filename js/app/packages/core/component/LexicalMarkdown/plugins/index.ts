@@ -11,6 +11,7 @@ export * from './document-metadata';
 export * from './drag-insert';
 export * from './draggable-block';
 export * from './element-event';
+export * from './embed';
 export * from './emojis';
 export * from './file-paste';
 export * from './find-and-replace';

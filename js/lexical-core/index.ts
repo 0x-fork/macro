@@ -22,6 +22,7 @@ export * from './nodes/HorizontalRuleNode';
 export * from './nodes/HtmlRenderNode';
 export * from './nodes/ImageNode';
 export * from './nodes/InlineSearchNode';
+export * from './nodes/LinkMentionNode';
 export * from './nodes/MediaNode';
 export * from './nodes/PasteNode';
 export * from './nodes/PullRequestMentionNode';

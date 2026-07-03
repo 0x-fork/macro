@@ -26,6 +26,10 @@ import { FloatingEquationMenu } from '@core/component/LexicalMarkdown/component/
 import { FloatingLinkMenu } from '@core/component/LexicalMarkdown/component/menu/FloatingLinkMenu';
 import { GenerateMenu } from '@core/component/LexicalMarkdown/component/menu/GenerateMenu';
 import { MentionsMenu } from '@core/component/LexicalMarkdown/component/menu/MentionsMenu/MentionsMenu';
+import {
+  PasteAsMenu,
+  type PasteAsMenuState,
+} from '@core/component/LexicalMarkdown/component/menu/PasteAsMenu';
 import { SnippetsMenu } from '@core/component/LexicalMarkdown/component/menu/SnippetsMenu';
 import TableActionMenu, {
   anchorElemRefSignal,
@@ -55,6 +59,7 @@ import {
   documentMetadataPlugin,
   draggableBlockPlugin,
   dragInsertPlugin,
+  embedPastePlugin,
   filePastePlugin,
   generatePlugin,
   horizontalRulePlugin,
@@ -309,6 +314,8 @@ export function MarkdownEditor(props: {
   const emojiMenuOperations = createMenuOperations();
   const actionsMenuOperations = createMenuOperations();
   const snippetsMenuOperations = createMenuOperations();
+  const [pasteAsMenuState, setPasteAsMenuState] =
+    createSignal<PasteAsMenuState>(null);
 
   // store for the drag insert pluign.
   const [dragInsertStore, setDragInsertStore] = createDragInsertStore();
@@ -585,6 +592,7 @@ export function MarkdownEditor(props: {
       })
     )
     .use(textPastePlugin())
+    .use(embedPastePlugin({ onPaste: setPasteAsMenuState }))
     .use(restoreFocusPlugin())
     .use(markdownPastePlugin())
     .use(normalizeEnterPlugin())
@@ -1080,6 +1088,12 @@ export function MarkdownEditor(props: {
             sourceDocumentId: blockId,
             sourceBlockName: blockName,
           }}
+        />
+
+        <PasteAsMenu
+          editor={editor}
+          state={pasteAsMenuState}
+          setState={setPasteAsMenuState}
         />
 
         <FloatingMenuGroup>

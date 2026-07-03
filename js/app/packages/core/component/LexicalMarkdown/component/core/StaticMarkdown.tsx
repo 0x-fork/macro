@@ -24,6 +24,7 @@ import {
   type HorizontalRuleNode,
   type ImageNode,
   isSupportedLanguage,
+  type LinkMentionNode,
   normalizedLanguage,
   type PasteNode,
   type SnapshotNode,
@@ -80,6 +81,7 @@ import { DocumentMention as DocumentMentionDecorator } from '../decorator/Docume
 import { Equation as EquationDecorator } from '../decorator/Equation';
 import { GroupMention as GroupMentionDecorator } from '../decorator/GroupMention';
 import { LazyDecorator } from '../decorator/LazyDecorator';
+import { LinkMention as LinkMentionDecorator } from '../decorator/LinkMention';
 import { MarkdownEmbed as EmbedDecorator } from '../decorator/MarkdownEmbed';
 import { MarkdownImage as ImageDecorator } from '../decorator/MarkdownImage';
 import { MarkdownVideo as VideoDecorator } from '../decorator/MarkdownVideo';
@@ -458,6 +460,20 @@ const UnknownMention: RenderableEntity<UnknownMentionNode> = {
   ),
 };
 
+const LinkMention: RenderableEntity<LinkMentionNode> = {
+  guard: (node: LexicalNode): node is LinkMentionNode =>
+    node.__type === 'link-mention',
+  render: (props) => (
+    <span>
+      {LinkMentionDecorator({
+        ...props.node.exportComponentProps(),
+        key: props.node.getKey(),
+        theme: props.theme,
+      })}
+    </span>
+  ),
+};
+
 const Image: RenderableEntity<ImageNode> = {
   guard: (node: LexicalNode): node is ImageNode => node.__type === 'image',
   render: (props) => ImageDecorator(props.node.exportComponentProps()),
@@ -794,6 +810,7 @@ const InlineEntities: Array<RenderableEntity> = [
   ContactMention,
   DateMention,
   GroupMention,
+  LinkMention,
   Await,
   Snapshot,
   Image,

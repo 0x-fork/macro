@@ -38,6 +38,10 @@ import type {
   HtmlRenderNode,
 } from './nodes/HtmlRenderNode';
 import type { ImageDecoratorProps, ImageNode } from './nodes/ImageNode';
+import type {
+  LinkMentionDecoratorProps,
+  LinkMentionNode,
+} from './nodes/LinkMentionNode';
 import type { PasteNode, PasteNodeDecoratorProps } from './nodes/PasteNode';
 import type {
   PullRequestMentionDecoratorProps,
@@ -111,6 +115,10 @@ export interface NodeDecoratorMap {
   PullRequestMentionNode: {
     klass: typeof PullRequestMentionNode;
     props: PullRequestMentionDecoratorProps;
+  };
+  LinkMentionNode: {
+    klass: typeof LinkMentionNode;
+    props: LinkMentionDecoratorProps;
   };
   EquationNode: {
     klass: typeof EquationNode;

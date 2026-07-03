@@ -73,3 +73,32 @@ export function isLoneEmbedUrl(text: string): boolean {
   if (!trimmed || /\s/.test(trimmed)) return false;
   return parseEmbedUrl(trimmed) !== null;
 }
+
+/** The @handle from an X/Twitter status URL, e.g. "lulumeservey". */
+export function getXHandle(url: string): string | null {
+  return (
+    url.match(
+      /^https?:\/\/(?:www\.|mobile\.)?(?:twitter\.com|x\.com)\/(?:#!\/)?(\w{1,15})\/status/i
+    )?.[1] ?? null
+  );
+}
+
+const URL_SCAN_REGEX = /https?:\/\/[^\s"'<>)\]]+/g;
+
+/**
+ * Find embeddable URLs anywhere in a text (markdown, link tags, plain text),
+ * deduped and in order of appearance.
+ */
+export function findEmbedUrls(text: string, limit = Infinity): EmbedData[] {
+  const results: EmbedData[] = [];
+  const seen = new Set<string>();
+  for (const match of text.matchAll(URL_SCAN_REGEX)) {
+    const candidate = match[0].replace(/[.,;:!?]+$/, '');
+    const embed = parseEmbedUrl(candidate);
+    if (!embed || seen.has(embed.url)) continue;
+    seen.add(embed.url);
+    results.push(embed);
+    if (results.length >= limit) break;
+  }
+  return results;
+}

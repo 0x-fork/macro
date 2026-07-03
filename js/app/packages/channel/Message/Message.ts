@@ -4,6 +4,7 @@ import { Attachments } from './Attachments';
 import { Content } from './Content';
 import { DateDivider } from './DateDivider';
 import { EditedIndicator } from './EditedIndicator';
+import { Embeds } from './Embeds';
 import { FromPill } from './FromPill';
 import { HoverActions } from './HoverActions';
 import { Layout } from './Layout';
@@ -27,6 +28,7 @@ export const Message = {
   SenderIcon,
   Timestamp,
   Content,
+  Embeds,
   Attachments,
   DateDivider,
   NewDivider,

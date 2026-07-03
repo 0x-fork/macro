@@ -2,7 +2,7 @@ import type { Transformer } from '@lexical/markdown';
 import { I_AWAIT_NODE } from './await';
 import { HTML_BLOCKQUOTE, I_MACRO_QUOTE } from './classedBlock';
 import { CUSTOM_TRANSFORMERS } from './customTransformers';
-import { I_EMBED } from './embed';
+import { E_EMBED, I_EMBED } from './embed';
 import { I_IMAGE_CONSTRAINED, IMAGE } from './image';
 import {
   E_BLOCK_EQUATION_NODE,
@@ -10,6 +10,7 @@ import {
   E_MULTILINE_BLOCK_EQUATION_NODE,
   I_EQUATION_NODE,
 } from './katex';
+import { E_LINK_MENTION, I_LINK_MENTION } from './linkMention';
 import {
   E_CONTACT_MENTION,
   E_DATE_MENTION,
@@ -68,6 +69,7 @@ export const INTERNAL_TRANSFORMERS: Transformer[] = [
   I_DOCUMENT_MENTION,
   I_DOCUMENT_CARD,
   I_PR_MENTION,
+  I_LINK_MENTION,
   I_CONTACT_MENTION,
   I_DATE_MENTION,
   I_AWAIT_NODE,
@@ -87,7 +89,7 @@ export const INTERNAL_TRANSFORMERS: Transformer[] = [
 export const EXTERNAL_TRANSFORMERS: Transformer[] = [
   HR,
   MARK_XML,
-  I_EMBED,
+  E_EMBED,
   I_VIDEO,
   IMAGE,
   BR_TAG_TO_LINE_BREAK,
@@ -102,6 +104,7 @@ export const EXTERNAL_TRANSFORMERS: Transformer[] = [
   E_DOCUMENT_CARD,
   I_PR_MENTION,
   E_PR_MENTION,
+  E_LINK_MENTION,
   E_CONTACT_MENTION,
   E_DATE_MENTION,
   // order matters
@@ -128,6 +131,7 @@ export const ALL_TRANSFORMERS: Transformer[] = [
   SEARCH_MATCH,
   HR,
   I_EMBED,
+  E_EMBED,
   I_VIDEO,
   I_IMAGE_CONSTRAINED,
   IMAGE,
@@ -146,6 +150,8 @@ export const ALL_TRANSFORMERS: Transformer[] = [
   E_DOCUMENT_CARD,
   I_PR_MENTION,
   E_PR_MENTION,
+  I_LINK_MENTION,
+  E_LINK_MENTION,
   I_CONTACT_MENTION,
   E_CONTACT_MENTION,
   I_DATE_MENTION,

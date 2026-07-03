@@ -65,6 +65,7 @@ function MessageFooter(props: { messageEditor?: MessageEditor }) {
 
   return (
     <Show when={!isEditingMessage(props.messageEditor, message().id)}>
+      <Message.Embeds />
       <Message.Attachments />
       <Message.Reactions />
     </Show>

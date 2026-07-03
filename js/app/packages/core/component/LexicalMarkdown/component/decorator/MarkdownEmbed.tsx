@@ -165,6 +165,23 @@ function FigmaFrame(props: { url: string }) {
   );
 }
 
+/** The bare provider iframe for an embed, reusable outside the editor. */
+export function EmbedFrame(props: { provider: EmbedProvider; url: string }) {
+  return (
+    <>
+      {match(props.provider)
+        .with('x', () => <TweetFrame url={props.url} />)
+        .with('youtube', () => <YouTubeFrame url={props.url} />)
+        .with('figma', () => <FigmaFrame url={props.url} />)
+        .otherwise(() => (
+          <a href={props.url} target="_blank" rel="noopener">
+            {props.url}
+          </a>
+        ))}
+    </>
+  );
+}
+
 export function MarkdownEmbed(props: EmbedDecoratorProps) {
   let containerRef!: HTMLDivElement;
 
@@ -213,15 +230,7 @@ export function MarkdownEmbed(props: EmbedDecoratorProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {match(props.provider)
-        .with('x', () => <TweetFrame url={props.url} />)
-        .with('youtube', () => <YouTubeFrame url={props.url} />)
-        .with('figma', () => <FigmaFrame url={props.url} />)
-        .otherwise(() => (
-          <a href={props.url} target="_blank" rel="noopener">
-            {props.url}
-          </a>
-        ))}
+      <EmbedFrame provider={props.provider} url={props.url} />
       <Show when={isSelectedAsNode() || hovered()}>
         <MediaButtons
           delete={interactable() ? deleteEmbed : undefined}

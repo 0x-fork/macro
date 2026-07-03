@@ -8,7 +8,9 @@ import { SupportedNodeTypes } from '../node-list';
 import { $createEmbedNode, $isEmbedNode } from '../nodes/EmbedNode';
 import { EXTERNAL_TRANSFORMERS, INTERNAL_TRANSFORMERS } from '../transformers';
 import {
+  findEmbedUrls,
   getTweetId,
+  getXHandle,
   getYouTubeStartSeconds,
   getYouTubeVideoId,
   isLoneEmbedUrl,
@@ -54,6 +56,9 @@ describe('parseEmbedUrl', () => {
         ?.provider
     ).toBe('x');
     expect(getTweetId('https://x.com/a/status/987654321')).toBe('987654321');
+    expect(getXHandle('https://x.com/lulumeservey/status/987654321')).toBe(
+      'lulumeservey'
+    );
   });
 
   it('recognizes YouTube urls', () => {
@@ -119,101 +124,45 @@ describe('parseEmbedUrl', () => {
   });
 });
 
-describe('embed transformer import', () => {
-  it('imports a bare provider url line as an embed node', async () => {
-    for (const url of [
-      'https://x.com/someuser/status/1234567890',
-      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      'https://www.figma.com/design/AbC123/My-File',
-    ]) {
-      const editor = await importMarkdown(url);
-      editor.getEditorState().read(() => {
-        const node = $getRoot().getChildren().find($isEmbedNode);
-        expect(node).toBeDefined();
-        expect(node?.getUrl()).toBe(url);
-      });
-    }
+describe('findEmbedUrls', () => {
+  it('finds embeddable urls in plain text and link tags', () => {
+    const text = [
+      'check this out https://youtu.be/dQw4w9WgXcQ wow',
+      `<m-link>${JSON.stringify({
+        url: 'https://x.com/someuser/status/123456',
+        text: 'https://x.com/someuser/status/123456',
+        title: '',
+      })}</m-link>`,
+      'not embeddable: https://example.com/page',
+    ].join('\n');
+
+    expect(findEmbedUrls(text)).toEqual([
+      { provider: 'youtube', url: 'https://youtu.be/dQw4w9WgXcQ' },
+      { provider: 'x', url: 'https://x.com/someuser/status/123456' },
+    ]);
   });
 
-  it('imports an auto-linked lone provider url as an embed node', async () => {
-    const url = 'https://x.com/someuser/status/1234567890';
-    const markdown = `<m-link>${JSON.stringify({
-      url,
-      text: url,
-      title: '',
-    })}</m-link>`;
-    const editor = await importMarkdown(markdown);
-    editor.getEditorState().read(() => {
-      const node = $getRoot().getChildren().find($isEmbedNode);
-      expect(node).toBeDefined();
-      expect(node?.getProvider()).toBe('x');
-    });
+  it('dedupes repeated urls and respects the limit', () => {
+    const url = 'https://youtu.be/dQw4w9WgXcQ';
+    expect(findEmbedUrls(`${url}\n${url}`)).toHaveLength(1);
+
+    const many = [
+      'https://youtu.be/dQw4w9WgXc1',
+      'https://youtu.be/dQw4w9WgXc2',
+      'https://youtu.be/dQw4w9WgXc3',
+    ].join('\n');
+    expect(findEmbedUrls(many, 2)).toHaveLength(2);
   });
 
-  it('imports a protocol-less auto-linked url as an embed node', async () => {
-    const markdown = `<m-link>${JSON.stringify({
-      url: 'https://youtu.be/dQw4w9WgXcQ',
-      text: 'youtu.be/dQw4w9WgXcQ',
-      title: '',
-    })}</m-link>`;
-    const editor = await importMarkdown(markdown);
-    editor.getEditorState().read(() => {
-      expect($getRoot().getChildren().find($isEmbedNode)).toBeDefined();
-    });
-  });
-
-  it('keeps titled links as links', async () => {
-    const markdown = `<m-link>${JSON.stringify({
-      url: 'https://youtu.be/dQw4w9WgXcQ',
-      text: 'watch this video',
-      title: '',
-    })}</m-link>`;
-    const editor = await importMarkdown(markdown);
-    editor.getEditorState().read(() => {
-      const root = $getRoot();
-      expect(root.getChildren().find($isEmbedNode)).toBeUndefined();
-      expect(root.getTextContent()).toContain('watch this video');
-    });
-  });
-
-  it('does not embed urls inside surrounding text', async () => {
-    const markdown = 'check out https://youtu.be/dQw4w9WgXcQ today';
-    const editor = await importMarkdown(markdown);
-    editor.getEditorState().read(() => {
-      const root = $getRoot();
-      expect(root.getChildren().find($isEmbedNode)).toBeUndefined();
-      expect(root.getTextContent()).toContain('check out');
-    });
-  });
-
-  it('keeps non-embeddable url lines intact', async () => {
-    const markdown = 'https://example.com/some/page';
-    const editor = await importMarkdown(markdown);
-    editor.getEditorState().read(() => {
-      const root = $getRoot();
-      expect(root.getChildren().find($isEmbedNode)).toBeUndefined();
-      expect(root.getTextContent()).toBe(markdown);
-    });
-  });
-
-  it('keeps non-embeddable m-link lines as links', async () => {
-    const url = 'https://example.com/some/page';
-    const markdown = `<m-link>${JSON.stringify({
-      url,
-      text: url,
-      title: '',
-    })}</m-link>`;
-    const editor = await importMarkdown(markdown);
-    editor.getEditorState().read(() => {
-      const root = $getRoot();
-      expect(root.getChildren().find($isEmbedNode)).toBeUndefined();
-      expect(root.getTextContent()).toBe(url);
-    });
+  it('ignores trailing punctuation', () => {
+    expect(findEmbedUrls('see https://youtu.be/dQw4w9WgXcQ.')).toEqual([
+      { provider: 'youtube', url: 'https://youtu.be/dQw4w9WgXcQ' },
+    ]);
   });
 });
 
-describe('embed transformer export', () => {
-  it('exports embed nodes as their plain url and round-trips', async () => {
+describe('embed transformer', () => {
+  it('round-trips embed nodes through internal markdown', async () => {
     const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
     const editor = makeEditor();
     await new Promise<void>((resolve) => {
@@ -233,7 +182,9 @@ describe('embed transformer export', () => {
       internal = $convertToMarkdownString(INTERNAL_TRANSFORMERS);
       external = $convertToMarkdownString(EXTERNAL_TRANSFORMERS);
     });
-    expect(internal).toBe(url);
+    expect(internal).toContain('<m-embed>');
+    expect(internal).toContain(url);
+    // External markdown degrades to the plain url.
     expect(external).toBe(url);
 
     const reimported = await importMarkdown(internal);
@@ -241,6 +192,44 @@ describe('embed transformer export', () => {
       const node = $getRoot().getChildren().find($isEmbedNode);
       expect(node?.getUrl()).toBe(url);
       expect(node?.getProvider()).toBe('youtube');
+    });
+  });
+
+  it('derives the provider from the url on import', async () => {
+    const url = 'https://x.com/someuser/status/123456';
+    const markdown = `<m-embed>${JSON.stringify({
+      provider: 'youtube',
+      url,
+    })}</m-embed>`;
+    const editor = await importMarkdown(markdown);
+    editor.getEditorState().read(() => {
+      const node = $getRoot().getChildren().find($isEmbedNode);
+      expect(node?.getProvider()).toBe('x');
+    });
+  });
+
+  it('does not auto-convert bare url lines', async () => {
+    const markdown = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    const editor = await importMarkdown(markdown);
+    editor.getEditorState().read(() => {
+      const root = $getRoot();
+      expect(root.getChildren().find($isEmbedNode)).toBeUndefined();
+      expect(root.getTextContent()).toBe(markdown);
+    });
+  });
+
+  it('does not auto-convert lone link tags', async () => {
+    const url = 'https://youtu.be/dQw4w9WgXcQ';
+    const markdown = `<m-link>${JSON.stringify({
+      url,
+      text: url,
+      title: '',
+    })}</m-link>`;
+    const editor = await importMarkdown(markdown);
+    editor.getEditorState().read(() => {
+      const root = $getRoot();
+      expect(root.getChildren().find($isEmbedNode)).toBeUndefined();
+      expect(root.getTextContent()).toBe(url);
     });
   });
 
