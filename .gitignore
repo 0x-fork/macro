@@ -5,6 +5,7 @@
 **/.DS_Store
 .run/
 .claude/.local
+.claude/worktrees/
 temp/
 .env.local
 run-local.fish
