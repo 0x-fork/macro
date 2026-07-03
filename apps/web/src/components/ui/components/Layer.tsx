@@ -1,6 +1,10 @@
 import { isMobile } from '@core/mobile/isMobile';
 import { DEFAULT_LIGHT_THEME } from '@theme/constants';
-import { currentThemeId, themeDepth } from '@theme/signals/themeSignals';
+import {
+  currentThemeId,
+  semanticV2,
+  themeDepth,
+} from '@theme/signals/themeSignals';
 import { createMemo, type JSX } from 'solid-js';
 
 type LayerProps = {
@@ -22,12 +26,12 @@ export function Layer(props: LayerProps) {
   const nearBlackStepMin = () =>
     (props.depth ?? 0) > 0 && isMobile() ? 0.19 : 0;
 
-  return (
-    <div
-      data-layer-depth={props.depth}
-      style={{
-        display: 'contents',
-        '--b0': `oklch(max(var(--b0l) + ${depth()}, ${nearBlackStepMin()}) var(--b0c) var(--b0h))`,
+  const style = (): JSX.CSSProperties =>
+    semanticV2()
+      ? { display: 'contents' }
+      : {
+          display: 'contents',
+          '--b0': `oklch(max(var(--b0l) + ${depth()}, ${nearBlackStepMin()}) var(--b0c) var(--b0h))`,
         '--b1': `oklch(calc(var(--b1l) + ${depth()}) var(--b1c) var(--b1h))`,
         '--b2': `oklch(calc(var(--b2l) + ${depth()}) var(--b2c) var(--b2h))`,
         '--b3': `oklch(calc(var(--b3l) + ${depth() * BORDER_SCALAR}) var(--b3c) var(--b3h))`,
@@ -70,10 +74,12 @@ export function Layer(props: LayerProps) {
         '--color-active': 'var(--theme-active, var(--b1))',
         '--color-hover': 'var(--theme-hover, var(--b2))',
         '--color-button': 'var(--theme-button, var(--b0))',
-        '--color-chrome':
-          'var(--theme-chrome, color-mix(in oklch, var(--color-menu) 85%, var(--color-active)))',
-      }}
-    >
+          '--color-chrome':
+            'var(--theme-chrome, color-mix(in oklch, var(--color-menu) 85%, var(--color-active)))',
+        };
+
+  return (
+    <div data-layer-depth={props.depth} style={style()}>
       {props.children}
     </div>
   );
