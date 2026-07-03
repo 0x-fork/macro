@@ -6,14 +6,14 @@ import { GitHubCard } from './GitHub';
 import { IntegrationsSection } from './Integrations';
 
 /**
- * Consolidated "Connected accounts" page: one card per external account the
- * user can link (Gmail, GitHub), plus the agent's MCP integrations — so
- * everything Macro is connected to lives in one place.
+ * Consolidated "Connections" page: one card per external account the user can
+ * link (Gmail, GitHub), plus the agent's MCP integrations — so everything
+ * Macro is connected to lives in one place.
  */
 export function ConnectedAccounts() {
   return (
     <SettingsPage
-      title="Connected accounts"
+      title="Connections"
       description="Connect your accounts so Macro can work across the tools you already use."
     >
       <SettingsSection title="Accounts">

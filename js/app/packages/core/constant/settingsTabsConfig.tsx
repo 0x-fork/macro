@@ -56,7 +56,7 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
       { tab: 'Team', label: 'Team', icon: UsersThreeIcon },
       {
         tab: 'Connected',
-        label: 'Connected accounts',
+        label: 'Connections',
         icon: CpuIcon,
       },
       { tab: 'Agent', label: 'MCP server', icon: PlugIcon },

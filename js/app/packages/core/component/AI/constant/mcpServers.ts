@@ -56,7 +56,7 @@ export const QUICK_CONNECT_SERVERS = [
 export type QuickConnectServer = (typeof QUICK_CONNECT_SERVERS)[number];
 
 /**
- * Quick Connect servers surfaced directly on the Connected accounts page (with
+ * Quick Connect servers surfaced directly on the Connections page (with
  * a one-line pitch) to encourage connecting, rather than being tucked away in
  * the "Add server" dialog. Derived from {@link QUICK_CONNECT_SERVERS} so
  * availability gating (e.g. dev-only Slack) applies automatically.

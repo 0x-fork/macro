@@ -439,7 +439,7 @@ function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
 }
 
 /**
- * The "Integrations" section of the Connected accounts page: MCP servers the
+ * The "MCP integrations" section of the Connections page: MCP servers the
  * user has connected, followed by featured suggestions they haven't, with the
  * full catalog (and custom servers) behind the "Add server" dialog.
  */
@@ -454,8 +454,8 @@ export function IntegrationsSection() {
 
   return (
     <SettingsSection
-      title="Integrations"
-      description="Give Macro's agent access to the tools your team already uses."
+      title="MCP integrations"
+      description="Connect MCP servers to give Macro's agent access to the tools your team already uses."
       actions={
         <Button
           variant="base"

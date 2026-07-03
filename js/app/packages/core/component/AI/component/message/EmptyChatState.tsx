@@ -38,7 +38,7 @@ function EmptyStateCard(props: {
 export function EmptyChatState(props: { minHeight: number }) {
   const { openSettings } = useSettingsState();
 
-  // Connector management lives on the Connected accounts tab; the Agent tab
+  // Connector management lives on the Connections tab; the Agent tab
   // holds the Macro MCP server setup instructions.
   const openIntegrations = () => openSettings('Connected');
   const openMcpServer = () => openSettings('Agent');
