@@ -15,9 +15,17 @@ import {
   AnalyticsContextProvider,
   useAnalytics,
 } from '@app/lib/analytics/analytics-context';
-import { PosthogProvider, usePosthog } from '@app/lib/analytics/posthog';
+import {
+  PosthogProvider,
+  useFeatureFlag,
+  usePosthog,
+} from '@app/lib/analytics/posthog';
 import { trackSignupCompletion } from '@app/lib/analytics/signupCompletion';
 import { setHotkeyRoot } from '@app/signal/hotkeyRoot';
+import {
+  ENABLE_SEMANTIC_V2_FLAG,
+  ENABLE_SEMANTIC_V2_OVERRIDE,
+} from '@core/constant/featureFlags';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { CallProvider } from '@channel/Call/CallContext';
 import { CallStartedNotifier } from '@channel/Call/CallStartedNotifier';
@@ -88,7 +96,11 @@ import {
   type RouterProps,
   useSearchParams,
 } from '@solidjs/router';
-import { currentThemeId } from '@theme/signals/themeSignals';
+import {
+  currentThemeId,
+  setSemanticV2,
+  themeDepth,
+} from '@theme/signals/themeSignals';
 import {
   applyTheme,
   ensureMinimalThemeContrast,
@@ -444,6 +456,24 @@ function UserInfoSideEffects() {
 
   // Keep the active theme following the OS color scheme when auto-detect is on.
   systemThemeEffect();
+
+  // Semantic-token migration flag → toggle the `semantic-v2` class on <html>
+  // (flips the migrated token values in index.css) and mirror it into the
+  // semanticV2 signal (which disables the Surface/Layer elevation logic).
+  const semanticV2Flag = useFeatureFlag(ENABLE_SEMANTIC_V2_FLAG, {
+    enabledOverride: ENABLE_SEMANTIC_V2_OVERRIDE,
+  });
+  createEffect(() => {
+    const enabled = semanticV2Flag().enabled;
+    document.documentElement.classList.toggle('semantic-v2', enabled);
+    setSemanticV2(enabled);
+  });
+
+  // Expose the live theme depth as a CSS var so the elevation-derived surface
+  // tokens (elev(f) in index.css) track per-theme depth like Layer does.
+  createEffect(() => {
+    document.documentElement.style.setProperty('--depth', `${themeDepth()}`);
+  });
 
   let identified = false;
   createEffect(

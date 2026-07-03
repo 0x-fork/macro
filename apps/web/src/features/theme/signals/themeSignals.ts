@@ -82,3 +82,8 @@ export const [showDarkThemes, setShowDarkThemes] = makePersisted(
 );
 
 export const [themeDepth, setThemeDepth] = createSignal<number>(0.15);
+
+/** Whether the semantic-token migration (ENABLE_SEMANTIC_V2) is active. Mirrored
+ *  from the feature flag in Root.tsx; read by Layer to disable its elevation logic
+ *  (the new token system owns elevation when this is on). */
+export const [semanticV2, setSemanticV2] = createSignal<boolean>(false);

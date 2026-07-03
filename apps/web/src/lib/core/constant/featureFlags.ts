@@ -505,6 +505,14 @@ export const ENABLE_TAGS_SEARCH_FE_FLAG = 'enable-tags-search-fe';
 export const ENABLE_TAGS_SEARCH_FE_OVERRIDE =
   resolveFeatureFlag('ENABLE_TAGS_SEARCH_FE', DEV_MODE_ENV) || undefined;
 
+// Semantic-token migration: adds the `semantic-v2` class to <html>, flipping the
+// component-role tokens (bg-menu, bg-input, ...) from their legacy aliases to their
+// distinct migrated values (see the :root.semantic-v2 block in apps/web/src/index.css).
+// PostHog-gated with a dev-mode default; override with VITE_ENABLE_SEMANTIC_V2.
+export const ENABLE_SEMANTIC_V2_FLAG = 'enable-semantic-v2-tokens';
+export const ENABLE_SEMANTIC_V2_OVERRIDE =
+  resolveFeatureFlag('ENABLE_SEMANTIC_V2', DEV_MODE_ENV) || undefined;
+
 // Channel mode where replying and editing do not happen inline, but in a single unified input instead.
 export const UNIFIED_CHANNEL_INPUT = resolveFeatureFlag(
   'UNIFIED_CHANNEL_INPUT',
