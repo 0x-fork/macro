@@ -13,8 +13,16 @@ import {
   type NeedsAttentionVariant,
 } from '@queries/ai/needs-attention';
 import { EntityType } from '@service-cognition/generated/schemas/entityType';
-import { Button, cn } from '@ui';
-import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
+import { cn, Layer } from '@ui';
+import {
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  Show,
+  Suspense,
+  Switch,
+} from 'solid-js';
 
 const COLLAPSED_COUNT = 3;
 
@@ -78,29 +86,40 @@ function fallbackSplitContent(item: AttentionItem) {
   }
 }
 
-function SkeletonRow() {
-  return (
-    <div class="flex items-center gap-3 border-edge-muted border-t px-3 py-2.5">
-      <div class="skeleton-shimmer size-4 shrink-0 rounded-full bg-edge-muted/50" />
-      <div class="min-w-0 flex-1 space-y-1.5">
-        <div class="skeleton-shimmer h-3 w-1/3 rounded-full bg-edge-muted/50" />
-        <div class="skeleton-shimmer h-2.5 w-2/3 rounded-full bg-edge-muted/50" />
+function SkeletonRows() {
+  const Row = () => (
+    <div class="flex flex-col gap-1.5 px-4 py-2.5">
+      <div class="skeleton-shimmer h-3.5 w-2/5 rounded-full bg-edge-muted/50" />
+      <div class="flex items-center gap-2">
+        <div class="skeleton-shimmer size-4 shrink-0 rounded bg-edge-muted/50" />
+        <div class="skeleton-shimmer h-3 w-3/5 rounded-full bg-edge-muted/50" />
       </div>
-      <div class="skeleton-shimmer h-5 w-24 shrink-0 rounded-full bg-edge-muted/50" />
     </div>
+  );
+  return (
+    <>
+      <Row />
+      <Row />
+      <Row />
+    </>
   );
 }
 
 /**
- * AI-triage banner rendered above the inbox/email list: the 5-10 items that
+ * AI-triage section rendered above the inbox/email list: the 5-10 items that
  * most need the user's attention, each with a reason and a suggested next
  * step. Backed by the `needs-attention` AI projections (cached server-side,
  * refreshed in the background, pushed over the connection gateway).
  *
  * Shows three items by default and expands to the full set. Rows open the
- * underlying entity; the action pill hands the suggested step to a fresh AI
+ * underlying entity; the trailing pill hands the suggested step to a fresh AI
  * chat with the item attached (e.g. drafting the reply). The section is not a
  * soup row, so j/k list navigation is unaffected.
+ *
+ * All query-data reads live under the section's own `<Suspense>` boundary —
+ * solid-query suspends the nearest boundary while fetching, and without a
+ * local one the section would suspend the soup list's boundary and remount
+ * the whole list.
  */
 export function NeedsAttentionSection(props: NeedsAttentionSectionProps) {
   const panel = useSplitPanelOrThrow();
@@ -130,11 +149,10 @@ export function NeedsAttentionSection(props: NeedsAttentionSectionProps) {
   const visibleItems = () =>
     expanded() ? items() : items().slice(0, COLLAPSED_COUNT);
   const hiddenCount = () => Math.max(0, items().length - COLLAPSED_COUNT);
+  /** Server-side generation in flight with nothing to show yet. Only read
+   * under the Suspense boundary (touches query data). */
   const showSkeleton = () =>
     (active()?.isGenerating() ?? false) && !active()?.hasResult();
-  const isRefreshing = () =>
-    refreshing() ||
-    ((active()?.isGenerating() ?? false) && active()?.hasResult());
 
   const entityById = createMemo(() => {
     const map = new Map<string, SoupEntity>();
@@ -190,115 +208,122 @@ export function NeedsAttentionSection(props: NeedsAttentionSectionProps) {
 
   return (
     <Show when={props.variant() && active()}>
-      <section class="mx-2 mt-2 mb-1 overflow-hidden rounded-lg border border-edge-muted bg-surface">
-        <div class="flex h-9 items-center gap-2 px-3">
-          <button
-            type="button"
-            class="flex min-w-0 flex-1 items-center gap-2 text-left"
-            onClick={() => setCollapsed((prev) => !prev)}
+      <div class="pb-1">
+        {/* Header pill, mirroring SoupSectionHeader's styling (imported
+            directly it would cycle back into soup-view.tsx). Keeps to local
+            state only — query-data reads would suspend outside the boundary
+            below. */}
+        <Layer depth={2}>
+          <div
+            class={cn(
+              'group/header relative mx-1 my-0.5 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-2 py-2 font-semibold text-xs tracking-tight',
+              'relative border border-edge-muted bg-surface text-text-muted'
+            )}
           >
-            <SparkleIcon class="size-3.5 shrink-0 text-accent" />
-            <span class="truncate font-medium text-sm">
-              Needs your attention
-            </span>
-            <Show when={!showSkeleton() && items().length > 0}>
-              <span class="rounded-full bg-hover px-1.5 text-ink-muted text-xs tabular-nums">
-                {items().length}
-              </span>
-            </Show>
-            <CaretDownIcon
-              class={cn(
-                'size-3 shrink-0 text-ink-extra-muted transition-transform duration-200',
-                collapsed() && '-rotate-90'
-              )}
-            />
-          </button>
-          <Button
-            variant="base"
-            size="sm"
-            tooltip="Regenerate"
-            disabled={isRefreshing() || showSkeleton()}
-            onClick={() => void refresh()}
-          >
-            <ArrowClockwiseIcon
-              class={cn('size-3.5', isRefreshing() && 'animate-spin')}
-            />
-          </Button>
-        </div>
+            <button
+              type="button"
+              class="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+              onClick={() => setCollapsed((prev) => !prev)}
+            >
+              <SparkleIcon class="size-3.5 shrink-0 text-accent" />
+              <span class="truncate">Needs your attention</span>
+              <CaretDownIcon
+                class={cn(
+                  'size-3 shrink-0 text-ink-extra-muted transition-transform duration-200',
+                  collapsed() && '-rotate-90'
+                )}
+              />
+            </button>
+            <button
+              type="button"
+              title="Regenerate"
+              class="shrink-0 rounded-md p-1 text-ink-muted hover:bg-active"
+              disabled={refreshing()}
+              onClick={() => void refresh()}
+            >
+              <ArrowClockwiseIcon
+                class={cn('size-3.5', refreshing() && 'animate-spin')}
+              />
+            </button>
+          </div>
+        </Layer>
 
         <Show when={!collapsed()}>
-          <Switch>
-            <Match when={showSkeleton()}>
-              <SkeletonRow />
-              <SkeletonRow />
-              <SkeletonRow />
-            </Match>
+          <Suspense fallback={<SkeletonRows />}>
+            <Switch>
+              <Match when={showSkeleton()}>
+                <SkeletonRows />
+              </Match>
 
-            <Match when={active()?.error() && items().length === 0}>
-              <div class="flex items-center gap-2 border-edge-muted border-t px-3 py-2.5 text-ink-muted text-sm">
-                <span class="min-w-0 flex-1 truncate">
-                  Couldn't triage your{' '}
-                  {props.variant() === 'email' ? 'email' : 'inbox'} right now.
-                </span>
-                <Button variant="base" size="sm" onClick={() => void refresh()}>
-                  Retry
-                </Button>
-              </div>
-            </Match>
+              <Match when={active()?.error() && items().length === 0}>
+                <div class="flex items-center gap-3 px-4 py-2.5 text-ink-muted text-sm">
+                  <span class="min-w-0 flex-1 truncate">
+                    Couldn't triage your{' '}
+                    {props.variant() === 'email' ? 'email' : 'inbox'} right now.
+                  </span>
+                  <button
+                    type="button"
+                    class="shrink-0 rounded-md px-2 py-1 text-xs hover:bg-active"
+                    onClick={() => void refresh()}
+                  >
+                    Retry
+                  </button>
+                </div>
+              </Match>
 
-            <Match when={items().length === 0}>
-              <div class="border-edge-muted border-t px-3 py-2.5 text-ink-muted text-sm">
-                Nothing needs your attention right now.
-              </div>
-            </Match>
+              <Match when={items().length === 0}>
+                <div class="px-4 py-2.5 text-ink-muted text-sm">
+                  Nothing needs your attention right now.
+                </div>
+              </Match>
 
-            <Match when={items().length > 0}>
-              <For each={visibleItems()}>
-                {(item, index) => (
-                  <div class="group flex items-center gap-3 border-edge-muted border-t px-3 py-2 hover:bg-hover/30">
-                    <span class="w-4 shrink-0 text-center font-medium text-ink-extra-muted text-xs tabular-nums">
-                      {index() + 1}
-                    </span>
-                    <button
-                      type="button"
-                      class="min-w-0 flex-1 text-left"
-                      onClick={() => void openItem(item)}
-                    >
-                      <div class="truncate font-medium text-sm">
-                        {resolve(item)?.name || item.title}
-                      </div>
-                      <div class="truncate text-ink-muted text-xs">
-                        {item.reason}
-                      </div>
-                    </button>
-                    <Button
-                      variant="base"
-                      size="sm"
-                      class="max-w-48 shrink-0"
-                      tooltip={item.suggested_action}
-                      onClick={() => void runAction(item)}
-                    >
-                      <SparkleIcon class="size-3 shrink-0" />
-                      <span class="truncate text-xs">
-                        {item.suggested_action}
-                      </span>
-                    </Button>
-                  </div>
-                )}
-              </For>
-              <Show when={hiddenCount() > 0 || expanded()}>
-                <button
-                  type="button"
-                  class="flex h-8 w-full items-center justify-center border-edge-muted border-t text-ink-muted text-xs hover:bg-hover/30"
-                  onClick={() => setExpanded((prev) => !prev)}
-                >
-                  {expanded() ? 'Show less' : `Show all ${items().length}`}
-                </button>
-              </Show>
-            </Match>
-          </Switch>
+              <Match when={items().length > 0}>
+                <For each={visibleItems()}>
+                  {(item) => (
+                    <div class="group flex items-center gap-3 px-4 py-1 hover:bg-hover/30">
+                      <button
+                        type="button"
+                        class="min-w-0 flex-1 py-1.5 text-left"
+                        onClick={() => void openItem(item)}
+                      >
+                        <div class="truncate font-semibold text-ink text-sm">
+                          {resolve(item)?.name || item.title}
+                        </div>
+                        <div class="mt-1 flex items-center gap-2">
+                          <span class="flex size-4 shrink-0 items-center justify-center rounded bg-accent/15">
+                            <SparkleIcon class="size-2.5 text-accent" />
+                          </span>
+                          <span class="truncate text-ink-muted text-sm">
+                            {item.reason}
+                          </span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        title={item.suggested_action}
+                        class="flex max-w-44 shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-ink-extra-muted text-xs opacity-70 transition hover:bg-accent/10 hover:text-accent group-hover:opacity-100"
+                        onClick={() => void runAction(item)}
+                      >
+                        <SparkleIcon class="size-3 shrink-0" />
+                        <span class="truncate">{item.suggested_action}</span>
+                      </button>
+                    </div>
+                  )}
+                </For>
+                <Show when={hiddenCount() > 0 || expanded()}>
+                  <button
+                    type="button"
+                    class="w-full px-4 py-1.5 text-left text-ink-extra-muted text-xs hover:text-ink-muted"
+                    onClick={() => setExpanded((prev) => !prev)}
+                  >
+                    {expanded() ? 'Show less' : `Show all ${items().length}`}
+                  </button>
+                </Show>
+              </Match>
+            </Switch>
+          </Suspense>
         </Show>
-      </section>
+      </div>
     </Show>
   );
 }

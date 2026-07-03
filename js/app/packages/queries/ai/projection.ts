@@ -8,7 +8,7 @@ import type { TargetType } from '@service-cognition/generated/schemas/targetType
 import type { UpsertProjectionRequest } from '@service-cognition/generated/schemas/upsertProjectionRequest';
 import { createConnectionWebsocketEffect } from '@service-connection/websocket';
 import { useQuery } from '@tanstack/solid-query';
-import { type Accessor, createMemo } from 'solid-js';
+import type { Accessor } from 'solid-js';
 import { z } from 'zod';
 import { queryClient } from '../client';
 
@@ -188,8 +188,13 @@ export function createAIProjection<Schema extends z.ZodType>(
 
   /** The projection result: schema-parsed object when a schema is set,
    * otherwise the raw text. Undefined until a result exists (stale results
-   * remain visible while refreshing). */
-  const data = createMemo((): z.infer<Schema> | string | undefined => {
+   * remain visible while refreshing).
+   *
+   * Deliberately a plain derived function, not a `createMemo`: memos evaluate
+   * eagerly at creation, and reading query data during hook setup would
+   * suspend the caller's nearest Suspense boundary instead of the one the
+   * consumer actually renders under. */
+  const data = (): z.infer<Schema> | string | undefined => {
     const raw = query.data?.data;
     if (raw === null || raw === undefined) return undefined;
 
@@ -213,7 +218,7 @@ export function createAIProjection<Schema extends z.ZodType>(
       return undefined;
     }
     return parsed.data;
-  });
+  };
 
   const status = () => query.data?.status;
 
