@@ -1,7 +1,7 @@
 import { cn } from '@ui';
 import { type JSX, splitProps } from 'solid-js';
 import { MessageActionsProvider, MessageProvider } from './context';
-import { consumeMessageEntrance } from './entrance-animation';
+import { consumeMessageEntrance, isSendPending } from './local-send';
 import type { MessageActions, MessageData } from './types';
 
 type RootProps = JSX.HTMLAttributes<HTMLDivElement> & {
@@ -22,15 +22,18 @@ export function Root(props: RootProps) {
   ]);
 
   // Consumed once at mount: true only for the row created by the local
-  // user's own send (see entrance-animation.ts).
+  // user's own send (see local-send.ts).
   const animateSendIn = consumeMessageEntrance(props.message.id);
 
   return (
     <div
       class={cn(
         'group/message relative touch:no-select-children',
+        'transition-opacity duration-200',
         animateSendIn &&
           'message-send-in-animation [--message-send-in-origin:bottom_left]',
+        // Grayed out until the local user's send settles.
+        isSendPending(local.message.id) && 'opacity-50',
         local.class
       )}
       data-message

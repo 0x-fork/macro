@@ -12,7 +12,10 @@ import {
   makeInputValuePersistenceKey,
 } from '@channel/Input/utils/persistence';
 import { SearchHighlightTermsProvider } from '@channel/Message';
-import { registerMessageEntrance } from '@channel/Message/entrance-animation';
+import {
+  registerLocalSend,
+  resolveLocalSend,
+} from '@channel/Message/local-send';
 import { MaybeMessageActionDrawerManager } from '@channel/Mobile/MessageActionDrawerManager';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { FindBar } from '@core/component/FindBar';
@@ -486,7 +489,7 @@ export function Channel(props: ChannelProps) {
     });
 
     const optimisticId = crypto.randomUUID();
-    registerMessageEntrance(optimisticId);
+    registerLocalSend(optimisticId);
     sendMessageMutation.mutate(
       {
         channelID: props.channelId,
@@ -495,6 +498,7 @@ export function Channel(props: ChannelProps) {
         ...payload,
       },
       {
+        onSettled: () => resolveLocalSend(optimisticId),
         onError: () => {
           const handle = channelInputHandle();
           if (!handle) return;

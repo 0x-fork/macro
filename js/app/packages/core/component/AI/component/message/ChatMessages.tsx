@@ -207,10 +207,14 @@ export function ChatMessages(props: ChatMessagesProps) {
   // an in-flight send. History loads and messages shuffling between the two
   // <For> lists never animate. Checked once at row creation (untracked).
   const isJustSent = (msg: ChatMessageWithAttachments) =>
-    untrack(() => {
-      const p = chat.phase();
-      return p.type === 'sending' && p.optimisticMessageId === msg.id;
-    });
+    untrack(() => isPendingSend(msg.id));
+
+  // Reactive: the optimistic message stays grayed out until the send is
+  // acknowledged (phase leaves `sending`).
+  const isPendingSend = (id: string) => {
+    const p = chat.phase();
+    return p.type === 'sending' && p.optimisticMessageId === id;
+  };
 
   const activeIdSelector = createSelector(activeTargetMessageId);
   const isEmptyChat = () =>
@@ -281,10 +285,11 @@ export function ChatMessages(props: ChatMessagesProps) {
                           return (
                             <div
                               id={'chat-' + msg.id}
-                              class="w-full transition-colors duration-300"
+                              class="w-full transition-[color,background-color,opacity] duration-300"
                               classList={{
                                 'bg-accent': activeIdSelector(msg.id),
                                 'message-send-in-animation': animateSendIn,
+                                'opacity-50': isPendingSend(msg.id),
                               }}
                             >
                               <Switch>

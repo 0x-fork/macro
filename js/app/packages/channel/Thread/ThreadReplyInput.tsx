@@ -2,7 +2,10 @@ import {
   makeAttachmentTrackerPersistenceKey,
   makeInputValuePersistenceKey,
 } from '@channel/Input/utils/persistence';
-import { registerMessageEntrance } from '@channel/Message/entrance-animation';
+import {
+  registerLocalSend,
+  resolveLocalSend,
+} from '@channel/Message/local-send';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { useUserId } from '@core/context/user';
 import { useSendMessageMutation } from '@queries/channel/message';
@@ -152,7 +155,7 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                 });
 
                 const optimisticId = crypto.randomUUID();
-                registerMessageEntrance(optimisticId);
+                registerLocalSend(optimisticId);
                 sendMessageMutation.mutate(
                   {
                     channelID: props.channelId,
@@ -161,6 +164,7 @@ export function ThreadReplyInput(props: ThreadReplyInputProps) {
                     ...payload,
                   },
                   {
+                    onSettled: () => resolveLocalSend(optimisticId),
                     onSuccess: () => {
                       props.setReplyInputState(undefined);
                       props.setIsReplying(false);
