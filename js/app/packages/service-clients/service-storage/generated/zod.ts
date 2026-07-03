@@ -8434,7 +8434,7 @@ export const getItemsSoupResponse = zod
             is_favorited: zod
               .boolean()
               .describe(
-                'Whether the requesting user (or their team) has favorited this entity.'
+                'Whether the requesting user has favorited this entity.'
               ),
           })
         )
@@ -10768,7 +10768,7 @@ export const postItemsSoupResponse = zod
             is_favorited: zod
               .boolean()
               .describe(
-                'Whether the requesting user (or their team) has favorited this entity.'
+                'Whether the requesting user has favorited this entity.'
               ),
           })
         )
@@ -12646,7 +12646,7 @@ export const postItemsSoupAstResponse = zod
             is_favorited: zod
               .boolean()
               .describe(
-                'Whether the requesting user (or their team) has favorited this entity.'
+                'Whether the requesting user has favorited this entity.'
               ),
           })
         )
@@ -14854,7 +14854,7 @@ export const postItemsSoupAstGroupedResponse = zod
                   is_favorited: zod
                     .boolean()
                     .describe(
-                      'Whether the requesting user (or their team) has favorited this entity.'
+                      'Whether the requesting user has favorited this entity.'
                     ),
                 })
               )
@@ -16734,7 +16734,7 @@ export const postItemsSoupAstGroupedResponse = zod
                   is_favorited: zod
                     .boolean()
                     .describe(
-                      'Whether the requesting user (or their team) has favorited this entity.'
+                      'Whether the requesting user has favorited this entity.'
                     ),
                 })
               )

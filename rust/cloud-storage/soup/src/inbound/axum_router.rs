@@ -670,7 +670,7 @@ pub struct SoupApiItem {
     #[serde(flatten)]
     item: SoupItem,
     frecency_score: f64,
-    /// Whether the requesting user (or their team) has favorited this entity.
+    /// Whether the requesting user has favorited this entity.
     is_favorited: bool,
 }
 

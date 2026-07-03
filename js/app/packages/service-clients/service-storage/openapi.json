@@ -18031,7 +18031,7 @@
               },
               "is_favorited": {
                 "type": "boolean",
-                "description": "Whether the requesting user (or their team) has favorited this entity."
+                "description": "Whether the requesting user has favorited this entity."
               }
             }
           }
