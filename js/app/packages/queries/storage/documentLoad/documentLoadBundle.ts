@@ -2,6 +2,7 @@ import { storageServiceClient } from '@service-storage/client';
 import type { AccessLevel } from '@service-storage/generated/schemas/accessLevel';
 import type { DocumentMetadata } from '@service-storage/generated/schemas/documentMetadata';
 import { queryClient } from '../../client';
+import { readPersistedAppQueryData } from '../../persistence-scopes';
 import { documentLoadKeys } from './keys';
 
 export type DocumentLoadBundle = {
@@ -50,5 +51,19 @@ export function seedDocumentLoadBundle(
   queryClient.setQueryData(
     documentLoadKeys.bundle(documentId).queryKey,
     bundle
+  );
+}
+
+/**
+ * Reads a previously persisted load bundle from IndexedDB. Used as an
+ * offline fallback when the metadata/token fetches fail; the persisted
+ * bundle carries a blanked token, which the sync source refreshes on its
+ * first (re)connect once the network is back.
+ */
+export function readPersistedDocumentLoadBundle(
+  documentId: string
+): Promise<DocumentLoadBundle | undefined> {
+  return readPersistedAppQueryData<DocumentLoadBundle>(
+    documentLoadKeys.bundle(documentId).queryKey
   );
 }

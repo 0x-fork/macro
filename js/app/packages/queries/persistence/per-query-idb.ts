@@ -14,6 +14,11 @@ export type PerQueryPersistence = {
   set: (entry: PersistedQueryEntry) => void;
   remove: (queryHash: string) => void;
   flush: () => Promise<void>;
+  /**
+   * Deletes every persisted entry that fails the predicate. Scopes that keep
+   * entries across query-cache eviction rely on this to bound growth.
+   */
+  sweep?: (isValid: (entry: PersistedQueryEntry) => boolean) => Promise<void>;
 };
 
 type PerQueryPersistenceOptions = Readonly<{
@@ -118,10 +123,18 @@ export function createPerQueryIDBStore(
   };
 
   return {
-    get: (queryHash) =>
-      withStore<PersistedQueryEntry | undefined>(dbName, 'readonly', (store) =>
-        store.get(queryHash)
-      ),
+    get: (queryHash) => {
+      // Serve reads from the debounce buffer first so a just-written entry
+      // is visible before the batched IDB flush lands.
+      if (pendingDeletes.has(queryHash)) return Promise.resolve(undefined);
+      const pending = pendingPuts.get(queryHash);
+      if (pending) return Promise.resolve(pending);
+      return withStore<PersistedQueryEntry | undefined>(
+        dbName,
+        'readonly',
+        (store) => store.get(queryHash)
+      );
+    },
 
     set: (entry) => {
       pendingDeletes.delete(entry.queryHash);
@@ -141,6 +154,25 @@ export function createPerQueryIDBStore(
         timer = null;
       }
       await flush();
+    },
+
+    sweep: async (isValid) => {
+      const db = await openDB(dbName);
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const cursorReq = store.openCursor();
+        cursorReq.onsuccess = () => {
+          const cursor = cursorReq.result;
+          if (!cursor) return;
+          const entry = cursor.value as PersistedQueryEntry;
+          if (!isValid(entry)) cursor.delete();
+          cursor.continue();
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
     },
   };
 }

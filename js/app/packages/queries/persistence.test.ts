@@ -2,12 +2,25 @@ import { partialMatchKey } from '@tanstack/query-core';
 import { QueryClient } from '@tanstack/solid-query';
 import { describe, expect, it, vi } from 'vitest';
 import { channelKeys } from './channel/keys';
-import { type PersistScope, setupQueryPersistence } from './persistence';
+import {
+  dehydrateChannelContentQuery,
+  shouldPersistChannelContentQuery,
+} from './channel/message-persistence';
+import {
+  type PersistScope,
+  readPersistedQueryData,
+  setupQueryPersistence,
+} from './persistence';
 import type {
   PerQueryPersistence,
   PersistedQueryEntry,
 } from './persistence/per-query-idb';
-import { shouldPersistChannelQuery } from './persistence-scopes';
+import {
+  dehydrateDocumentLoadQuery,
+  shouldPersistChannelQuery,
+  shouldPersistDocumentLoadQuery,
+} from './persistence-scopes';
+import { documentLoadKeys } from './storage/documentLoad/keys';
 
 function createMockStore(): PerQueryPersistence & {
   entries: Map<string, PersistedQueryEntry>;
@@ -58,6 +71,30 @@ describe('setupQueryPersistence', () => {
     expect(shouldPersistChannelQuery(['channel', 'future-family', 'a'])).toBe(
       false
     );
+  });
+
+  it('allowlists persisted channel content query families', () => {
+    expect(
+      shouldPersistChannelContentQuery(channelKeys.messages('a', null).queryKey)
+    ).toBe(true);
+    expect(
+      shouldPersistChannelContentQuery(
+        channelKeys.threadReplies('a', 'm').queryKey
+      )
+    ).toBe(true);
+    expect(
+      shouldPersistChannelContentQuery(channelKeys.withID('a').queryKey)
+    ).toBe(false);
+    expect(
+      shouldPersistChannelContentQuery(channelKeys.listChannels.queryKey)
+    ).toBe(false);
+  });
+
+  it('allowlists persisted document load bundles', () => {
+    expect(
+      shouldPersistDocumentLoadQuery(documentLoadKeys.bundle('doc-1').queryKey)
+    ).toBe(true);
+    expect(shouldPersistDocumentLoadQuery(['channel', 'doc-1'])).toBe(false);
   });
 
   it('writes only the changed query on update', () => {
@@ -119,22 +156,107 @@ describe('setupQueryPersistence', () => {
     expect(store.set).not.toHaveBeenCalled();
   });
 
-  it('does not restore or persist channel message queries', async () => {
+  it('persists bottom-of-conversation channel message queries, trimmed', () => {
     const queryClient = new QueryClient();
     const store = createMockStore();
     const scope = createScope(['channel'], store, {
-      shouldPersist: shouldPersistChannelQuery,
+      shouldPersist: shouldPersistChannelContentQuery,
+      dehydrate: dehydrateChannelContentQuery,
+      evictOnRemoval: false,
     });
-    const messageQueryKey = [
-      'channel',
-      'a',
-      { loadAroundMessageId: null },
-    ] as const;
+    setupQueryPersistence({ queryClient, scopes: [scope] });
 
-    store.entries.set(JSON.stringify(messageQueryKey), {
-      queryHash: JSON.stringify(messageQueryKey),
+    const page = (id: number, previous_cursor: string | null = null) => ({
+      items: [{ id: `m-${id}` }],
+      next_cursor: `next-${id}`,
+      previous_cursor,
+    });
+
+    queryClient.setQueryData(channelKeys.messages('a', null).queryKey, {
+      pages: [page(0), page(1), page(2), page(3)],
+      pageParams: [
+        null,
+        { next_cursor: 'next-0' },
+        { next_cursor: 'next-1' },
+        { next_cursor: 'next-2' },
+      ],
+    });
+
+    expect(store.set).toHaveBeenCalledTimes(1);
+    const entry = store.set.mock.calls[0]![0] as PersistedQueryEntry;
+    const data = entry.data as { pages: unknown[]; pageParams: unknown[] };
+    expect(data.pages).toHaveLength(3);
+    expect(data.pageParams).toHaveLength(3);
+    expect(data.pageParams[0]).toBeNull();
+  });
+
+  it('skips persisting mid-conversation and load-around channel message slices', () => {
+    const queryClient = new QueryClient();
+    const store = createMockStore();
+    const scope = createScope(['channel'], store, {
+      shouldPersist: shouldPersistChannelContentQuery,
+      dehydrate: dehydrateChannelContentQuery,
+      evictOnRemoval: false,
+    });
+    setupQueryPersistence({ queryClient, scopes: [scope] });
+
+    // Load-around variant: keyed by a target message id.
+    queryClient.setQueryData(channelKeys.messages('a', 'target').queryKey, {
+      pages: [{ items: [], previous_cursor: null }],
+      pageParams: [null],
+    });
+    expect(store.set).not.toHaveBeenCalled();
+
+    // Default variant left mid-conversation (has a previous cursor).
+    queryClient.setQueryData(channelKeys.messages('b', null).queryKey, {
+      pages: [{ items: [], previous_cursor: 'prev' }],
+      pageParams: [null],
+    });
+    expect(store.set).not.toHaveBeenCalled();
+
+    // Default variant paginated upward (pageParams[0] set).
+    queryClient.setQueryData(channelKeys.messages('c', null).queryKey, {
+      pages: [{ items: [], previous_cursor: null }],
+      pageParams: [{ previous_cursor: 'prev' }],
+    });
+    expect(store.set).not.toHaveBeenCalled();
+
+    // Transient empty state must not clobber a previously good snapshot.
+    queryClient.setQueryData(channelKeys.messages('d', null).queryKey, {
+      pages: [],
+      pageParams: [],
+    });
+    expect(store.set).not.toHaveBeenCalled();
+
+    // Thread replies pass through untouched.
+    queryClient.setQueryData(channelKeys.threadReplies('a', 'm').queryKey, [
+      { id: 'r-1' },
+    ]);
+    expect(store.set).toHaveBeenCalledTimes(1);
+    expect((store.set.mock.calls[0]![0] as PersistedQueryEntry).data).toEqual([
+      { id: 'r-1' },
+    ]);
+  });
+
+  it('restores channel message queries from the store', async () => {
+    const queryClient = new QueryClient();
+    const store = createMockStore();
+    const scope = createScope(['channel'], store, {
+      shouldPersist: shouldPersistChannelContentQuery,
+      dehydrate: dehydrateChannelContentQuery,
+      evictOnRemoval: false,
+    });
+    const messageQueryKey = channelKeys.messages('a', null).queryKey;
+    const hash = JSON.stringify(messageQueryKey);
+    const restored = {
+      pages: [{ items: [{ id: 'm-1' }], previous_cursor: null }],
+      pageParams: [null],
+    };
+
+    store.entries.set(hash, {
+      queryHash: hash,
       queryKey: messageQueryKey,
-      data: { value: 'from-idb' },
+      data: restored,
       dataUpdatedAt: Date.now() - 1000,
       persistedAt: Date.now() - 1000,
       buster: 'test',
@@ -150,19 +272,149 @@ describe('setupQueryPersistence', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(store.get).not.toHaveBeenCalled();
-    expect(queryClient.getQueryData(messageQueryKey)).toBeUndefined();
+    expect(queryClient.getQueryData(messageQueryKey)).toEqual(restored);
+  });
 
-    queryClient.setQueryData(messageQueryKey, { value: 'skip' });
-    expect(store.set).not.toHaveBeenCalled();
-
-    queryClient.setQueryData(channelKeys.listChannels.queryKey, {
-      value: 'persist',
-    });
-    expect(store.set).toHaveBeenCalledTimes(1);
+  it('blanks the token when persisting document load bundles', () => {
     expect(
-      (store.set.mock.calls[0]![0] as PersistedQueryEntry).queryKey
-    ).toEqual(channelKeys.listChannels.queryKey);
+      dehydrateDocumentLoadQuery(documentLoadKeys.bundle('d').queryKey, {
+        documentMetadata: { documentId: 'd' },
+        userAccessLevel: 'owner',
+        token: 'secret',
+      })
+    ).toEqual({
+      documentMetadata: { documentId: 'd' },
+      userAccessLevel: 'owner',
+      token: '',
+    });
+  });
+
+  it('keeps persisted entries on query removal when evictOnRemoval is false', () => {
+    const queryClient = new QueryClient();
+    const store = createMockStore();
+    const scope = createScope(['channel'], store, { evictOnRemoval: false });
+
+    setupQueryPersistence({ queryClient, scopes: [scope] });
+
+    queryClient.setQueryData(['channel', 'a'], { value: 1 });
+    expect(store.set).toHaveBeenCalledTimes(1);
+
+    queryClient.removeQueries({ queryKey: ['channel', 'a'] });
+    expect(store.remove).not.toHaveBeenCalled();
+  });
+
+  it('sweeps expired and buster-mismatched entries after startup', () => {
+    vi.useFakeTimers();
+    try {
+      const queryClient = new QueryClient();
+      const store = createMockStore();
+      const sweep = vi.fn(
+        async (isValid: (e: PersistedQueryEntry) => boolean) => {
+          for (const [hash, entry] of store.entries) {
+            if (!isValid(entry)) store.entries.delete(hash);
+          }
+        }
+      );
+      const scope = createScope(['channel'], store, {
+        store: { ...store, sweep },
+        evictOnRemoval: false,
+      });
+
+      const valid: PersistedQueryEntry = {
+        queryHash: 'valid',
+        queryKey: ['channel', 'v'],
+        data: 1,
+        dataUpdatedAt: Date.now() - 1000,
+        persistedAt: Date.now() - 1000,
+        buster: 'test',
+      };
+      const expired: PersistedQueryEntry = {
+        ...valid,
+        queryHash: 'expired',
+        dataUpdatedAt: Date.now() - 8 * 24 * 60 * 60 * 1000,
+      };
+      const mismatched: PersistedQueryEntry = {
+        ...valid,
+        queryHash: 'mismatched',
+        buster: 'other',
+      };
+      store.entries.set(valid.queryHash, valid);
+      store.entries.set(expired.queryHash, expired);
+      store.entries.set(mismatched.queryHash, mismatched);
+
+      setupQueryPersistence({ queryClient, scopes: [scope] });
+      vi.advanceTimersByTime(20_000);
+
+      expect(sweep).toHaveBeenCalledTimes(1);
+      expect([...store.entries.keys()]).toEqual(['valid']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not sweep scopes that evict on removal', () => {
+    vi.useFakeTimers();
+    try {
+      const queryClient = new QueryClient();
+      const store = createMockStore();
+      const sweep = vi.fn(async () => {});
+      const scope = createScope(['channel'], store, {
+        store: { ...store, sweep },
+      });
+
+      setupQueryPersistence({ queryClient, scopes: [scope] });
+      vi.advanceTimersByTime(20_000);
+
+      expect(sweep).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reads persisted data imperatively via readPersistedQueryData', async () => {
+    const store = createMockStore();
+    const scope = createScope(['documentLoad'], store);
+    const queryKey = documentLoadKeys.bundle('doc-1').queryKey;
+    const hash = JSON.stringify(queryKey);
+
+    store.entries.set(hash, {
+      queryHash: hash,
+      queryKey,
+      data: { token: '' },
+      dataUpdatedAt: Date.now() - 1000,
+      persistedAt: Date.now() - 1000,
+      buster: 'test',
+    });
+
+    await expect(readPersistedQueryData([scope], queryKey)).resolves.toEqual({
+      token: '',
+    });
+    await expect(
+      readPersistedQueryData([scope], ['unmatched', 'key'])
+    ).resolves.toBeUndefined();
+  });
+
+  it('drops expired entries in readPersistedQueryData', async () => {
+    const store = createMockStore();
+    const scope = createScope(['documentLoad'], store, {
+      maxAge: { value: 1000, unit: 'ms' },
+    });
+    const queryKey = documentLoadKeys.bundle('doc-1').queryKey;
+    const hash = JSON.stringify(queryKey);
+
+    store.entries.set(hash, {
+      queryHash: hash,
+      queryKey,
+      data: { token: '' },
+      dataUpdatedAt: Date.now() - 2000,
+      persistedAt: Date.now() - 2000,
+      buster: 'test',
+    });
+
+    await expect(
+      readPersistedQueryData([scope], queryKey)
+    ).resolves.toBeUndefined();
+    expect(store.remove).toHaveBeenCalledWith(hash);
   });
 
   it('restores query data from store on added event', async () => {

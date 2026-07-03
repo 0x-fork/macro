@@ -55,8 +55,12 @@ function mapToSyncStatus(status: WebsocketConnectionState): SyncSourceStatus {
 function createSyncServiceSocket(documentId: string, initialToken: string) {
   const connectUrl = (token: string) =>
     `${SYNC_SERVICE_WS_URL}/${documentId}/connect?token=${token}`;
-  let initialUrl: string | undefined = connectUrl(initialToken);
-  let fallbackUrl = initialUrl;
+  // An empty token (e.g. a bundle restored from offline cache, which blanks
+  // the credential) skips the doomed initial connect and fetches fresh.
+  let initialUrl: string | undefined = initialToken
+    ? connectUrl(initialToken)
+    : undefined;
+  let fallbackUrl = connectUrl(initialToken);
 
   /**
    * Uses the already-fetched token for the initial connect, then refetches on reconnect.

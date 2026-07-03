@@ -2,6 +2,7 @@ import {
   type ChannelMessagesData,
   getChannelMessagesQueryKey,
 } from '@queries/channel/channel-messages';
+import { isBottomOfConversationSlice } from '@queries/channel/message-persistence';
 import { queryClient } from '@queries/client';
 import { type Accessor, createEffect, on } from 'solid-js';
 import { createStore } from 'solid-js/store';
@@ -176,14 +177,7 @@ export function clearStaleRestoredChannelData(channelId: string) {
   const cached = queryClient.getQueryData<ChannelMessagesData>(defaultKey);
   if (!cached?.pages.length) return;
 
-  // Check both the page cursor AND pageParams[0]. After fetchPreviousPage,
-  // pageParams[0] contains { previous_cursor } even if pages[0].previous_cursor
-  // might be different. A fresh load should have pageParams[0] = null.
-  const pageParams = cached.pageParams;
-  const hasStalePageParams = pageParams?.[0] != null;
-  const hasStalePageCursor = !!cached.pages[0].previous_cursor;
-
-  if (hasStalePageParams || hasStalePageCursor) {
+  if (!isBottomOfConversationSlice(cached)) {
     queryClient.removeQueries({ queryKey: defaultKey });
   }
 }
