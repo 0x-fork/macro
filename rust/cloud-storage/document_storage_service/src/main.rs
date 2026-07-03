@@ -88,10 +88,11 @@ use std::sync::Arc;
 use sync_service_client::SyncServiceClient;
 use system_properties::{PgSystemPropertiesRepository, SystemPropertiesServiceImpl};
 use task_dedup::{
-    TaskDedupService,
+    DocumentSimilarityService, TaskDedupService,
     outbound::{
         cohere::CohereReranker,
         connection_gateway::ConnectionGatewayTaskDedupNotifier,
+        document_postgres::PgDocumentVectorDb,
         judge::AgentDuplicateJudge,
         postgres::{PgTaskMatchRepo, PgTaskVectorDb},
     },
@@ -601,14 +602,23 @@ async fn main() -> anyhow::Result<()> {
         "Cohere API key is required for task dedup reranking",
     );
     let task_dedup_service = Arc::new(TaskDedupService::new(
-        TextEmbedding3Small::new(openai_api_key),
+        TextEmbedding3Small::new(openai_api_key.clone()),
         PgTaskVectorDb::new(db.clone()),
-        CohereReranker::new(cohere_api_key),
+        CohereReranker::new(cohere_api_key.clone()),
         Arc::new(AgentDuplicateJudge::new(ai_usage::pg_recorder(db.clone()))),
         Arc::new(ConnectionGatewayTaskDedupNotifier::new(
             conn_gateway_client.clone(),
         )),
         Arc::new(PgTaskMatchRepo::new(db.clone())),
+    ));
+    // Document similarity search shares task dedup's embedder and reranker
+    // vendors but runs over its own document embedding store.
+    let document_vector_db = PgDocumentVectorDb::new(db.clone());
+    let document_similarity_service = Arc::new(DocumentSimilarityService::new(
+        TextEmbedding3Small::new(openai_api_key),
+        document_vector_db.clone(),
+        CohereReranker::new(cohere_api_key),
+        Arc::new(document_vector_db),
     ));
     let channels_repo = PgChannelsRepo::new(db.clone());
     let bots_repo = bots::outbound::pg_bots_repo::PgBotsRepo::new(db.clone());
@@ -708,6 +718,7 @@ async fn main() -> anyhow::Result<()> {
             access_service: entity_access_service.clone(),
             pool: db.clone(),
             task_dedup_service,
+            document_similarity_service,
             lexical_client: lexical_client.clone(),
             creator: documents_hex::domain::create::DocumentCreator::new(
                 document_service,

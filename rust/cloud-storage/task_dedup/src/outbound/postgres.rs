@@ -527,7 +527,7 @@ pub fn vector_sql_literal(embedding: &[f32]) -> String {
 }
 
 /// Parses a pgvector text literal (`[a,b,c]`) back into a fixed-size embedding.
-fn parse_vector(text: &str) -> anyhow::Result<[f32; DIMS]> {
+pub(crate) fn parse_vector(text: &str) -> anyhow::Result<[f32; DIMS]> {
     let inner = text.trim().trim_start_matches('[').trim_end_matches(']');
     let mut embedding = [0.0_f32; DIMS];
     let mut count = 0usize;
@@ -557,7 +557,7 @@ fn parse_vector(text: &str) -> anyhow::Result<[f32; DIMS]> {
 /// build, or bad data). Callers skip those rows rather than leaking the string
 /// into `'static`, which would grow the heap permanently on a mixed-version
 /// rollout.
-fn search_key_static(key: &str) -> Option<&'static str> {
+pub(crate) fn search_key_static(key: &str) -> Option<&'static str> {
     match key {
         "title" => Some("title"),
         "body" => Some("body"),

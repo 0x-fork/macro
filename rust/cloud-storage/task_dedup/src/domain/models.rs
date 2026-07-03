@@ -85,6 +85,40 @@ pub struct TaskSimilarityResult {
     pub vector_score: f64,
 }
 
+/// Filters applied to a document vector search.
+///
+/// This is the
+/// [`VectorStore::SearchParameters`](embedding::VectorStore::SearchParameters)
+/// for the document similarity store: it scopes a cosine search to the plain
+/// markdown documents a user can see (their own plus ones shared with them
+/// directly or through their team) and excludes the query document itself.
+#[derive(Debug, Clone)]
+pub struct DocumentSearchParameters {
+    /// User whose accessible documents are in scope.
+    pub user: String,
+    /// Team whose shared documents are also in scope, when set.
+    pub team_id: Option<Uuid>,
+    /// Maximum number of candidate documents to return.
+    pub limit: i64,
+    /// Document id to exclude from results (the query document itself), when
+    /// set.
+    pub exclude_document_id: Option<String>,
+}
+
+/// A similar existing document computed for the document a user is viewing,
+/// returned to the similar-documents surface without persisting any match
+/// state.
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SimilarDocument {
+    /// The matching existing document.
+    pub document_id: String,
+    /// The matching document's display name.
+    pub document_name: String,
+    /// Cosine similarity from vector search.
+    pub vector_score: f64,
+}
+
 /// Output from a duplicate judge.
 #[derive(Debug, Clone)]
 pub struct JudgeResult {

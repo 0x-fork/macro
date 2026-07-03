@@ -31,6 +31,7 @@ pub mod get_github_pull_requests;
 pub mod get_location;
 pub mod get_short_id;
 pub mod put_snapshot;
+pub mod similar_documents;
 pub mod task_duplicates;
 pub mod team_share;
 
@@ -49,7 +50,7 @@ use lexical_client::LexicalClient;
 use model_error_response::ErrorResponse;
 use serde::Deserialize;
 use sqlx::PgPool;
-use task_dedup::PgTaskDedupService;
+use task_dedup::{PgDocumentSimilarityService, PgTaskDedupService};
 
 #[cfg(feature = "document_create")]
 use self::create_markdown::create_markdown_handler;
@@ -68,6 +69,7 @@ use self::{
     get_location::get_location_v3_handler,
     get_short_id::get_short_id_handler,
     put_snapshot::put_snapshot_handler,
+    similar_documents::get_similar_documents_handler,
     task_duplicates::{
         delete_this_duplicate_task_handler, dismiss_task_duplicates_handler,
         get_task_duplicates_handler, task_similarity_search_handler,
@@ -152,6 +154,8 @@ pub struct DocumentRouterState<T, Svc> {
     pub pool: PgPool,
     /// Task duplicate detection service.
     pub task_dedup_service: Arc<PgTaskDedupService>,
+    /// Document similarity search service.
+    pub document_similarity_service: Arc<PgDocumentSimilarityService>,
     /// Lexical service client, used to fetch embedding-format markdown for
     /// task duplicate detection.
     pub lexical_client: Arc<LexicalClient>,
@@ -170,6 +174,7 @@ impl<T, Svc> Clone for DocumentRouterState<T, Svc> {
             access_service: self.access_service.clone(),
             pool: self.pool.clone(),
             task_dedup_service: self.task_dedup_service.clone(),
+            document_similarity_service: self.document_similarity_service.clone(),
             lexical_client: self.lexical_client.clone(),
             #[cfg(feature = "document_create_adapters")]
             creator: self.creator.clone(),
@@ -228,6 +233,10 @@ where
         .route(
             "/{document_id}/duplicates",
             axum::routing::get(get_task_duplicates_handler::<T, Svc>),
+        )
+        .route(
+            "/{document_id}/similar_documents",
+            axum::routing::get(get_similar_documents_handler::<T, Svc>),
         )
         .route(
             "/{document_id}/duplicates/dismiss",

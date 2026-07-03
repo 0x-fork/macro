@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "TRUNCATE TABLE document_similarity_embedding",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "f7181874d25a3c66ba2988c4544bf0d21a2730f154753dd69b273909388d819b"
+}

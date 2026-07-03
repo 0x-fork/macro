@@ -251,6 +251,16 @@ export type TaskSimilaritySearchResponse = {
   results: TaskSimilarityResult[];
 };
 
+export type SimilarDocument = {
+  documentId: string;
+  documentName: string;
+  vectorScore: number;
+};
+
+export type SimilarDocumentsResponse = {
+  results: SimilarDocument[];
+};
+
 type WithBotId = { bot_id: string };
 type WithChannelId = { channel_id: string };
 type WithMessageId = { message_id: string };
@@ -1210,6 +1220,14 @@ export const storageServiceClient = {
         `/documents/${params.documentId}/duplicates`
       )
     ).map((result) => result.duplicates);
+  },
+
+  async getSimilarDocuments(params: { documentId: string }) {
+    return (
+      await dssFetch<SimilarDocumentsResponse>(
+        `/documents/${params.documentId}/similar_documents`
+      )
+    ).map((result) => result.results);
   },
 
   async searchSimilarTasks(params: { taskName: string; markdown?: string }) {

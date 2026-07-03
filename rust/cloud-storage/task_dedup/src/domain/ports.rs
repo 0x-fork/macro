@@ -84,6 +84,17 @@ pub trait TaskMatchRepo: Send + Sync {
     ) -> Result<HashMap<String, String>, TaskDedupError>;
 }
 
+/// Resolves display names for the documents surfaced by similarity search.
+#[async_trait]
+pub trait DocumentNameRepo: Send + Sync {
+    /// Returns the display name of each requested document, keyed by document
+    /// id. Missing or deleted documents are omitted.
+    async fn document_names(
+        &self,
+        document_ids: &[String],
+    ) -> Result<HashMap<String, String>, TaskDedupError>;
+}
+
 /// Sends live updates for documents whose duplicate state changed.
 #[async_trait]
 pub trait TaskDedupNotifier: Send + Sync {

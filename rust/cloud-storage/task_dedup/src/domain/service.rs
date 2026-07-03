@@ -4,11 +4,11 @@
 mod test;
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use embedding::entity::Task;
-use embedding::{Content, EmbeddingModel, KeyedEmbedding, RerankModel, SearchResults, VectorStore};
+use embedding::{EmbeddingModel, KeyedEmbedding, RerankModel, SearchResults, VectorStore};
 use futures::StreamExt;
 use lexical_client::parse_markdown::EmbeddingMarkdown;
 use uuid::Uuid;
@@ -17,6 +17,7 @@ use super::models::{
     JudgeResult, NewTask, TaskDedupError, TaskDuplicate, TaskSearchParameters, TaskSimilarityResult,
 };
 use super::ports::{TaskDedupNotifier, TaskDuplicateJudge, TaskMatchRepo};
+use super::retrieval::{self, Candidate, full_text};
 
 /// Configuration for the task duplicate detection pipeline.
 #[derive(Debug, Clone)]
@@ -58,17 +59,6 @@ impl Default for TaskDedupConfig {
             judge_concurrency: 4,
         }
     }
-}
-
-/// A candidate task surfaced by vector retrieval, collapsed from the per-field
-/// [`SearchResults`] into a single score and a reconstructed text used for
-/// reranking and judging.
-struct Candidate {
-    document_id: String,
-    /// The candidate's stored field contents joined back together.
-    content: String,
-    /// Best cosine similarity across the query × stored field cross-product.
-    vector_score: f64,
 }
 
 /// Task duplicate detection service.
@@ -399,72 +389,21 @@ where
         Ok(active_document_ids)
     }
 
-    /// Collapses a single entity's per-field [`SearchResults`] into a
-    /// [`Candidate`]: the vector score is the best similarity across the query ×
-    /// stored-field cross-product, and the content is the entity's matched field
-    /// texts joined back together for judging. Returns `None` when the entity
-    /// falls below the configured similarity floor.
-    fn collapse(&self, result: &SearchResults<String, DIMS>) -> Option<Candidate> {
-        let vector_score = result
-            .matches
-            .iter()
-            .map(|matched| matched.score as f64)
-            .fold(f64::NEG_INFINITY, f64::max);
-        if !vector_score.is_finite() || vector_score < self.config.min_vector_similarity {
-            return None;
-        }
-        let content = result
-            .matches
-            .iter()
-            .map(|matched| matched.embedding.content.as_ref())
-            .collect::<Vec<_>>()
-            .join("\n");
-        Some(Candidate {
-            document_id: result.metadata.clone(),
-            content,
-            vector_score,
-        })
-    }
-
     /// Drops results below the similarity floor, reranks the survivors against
     /// `query`, and returns them as [`Candidate`]s (paired with their rerank
-    /// score) ordered by descending relevance. The reranker only carries each
-    /// result's `document_id` through, so the collapsed content and vector score
-    /// are looked back up afterwards. An empty survivor set skips the reranker
-    /// entirely.
+    /// score) ordered by descending relevance. See [`retrieval::rerank`].
     async fn rerank(
         &self,
         query: &str,
         results: Vec<SearchResults<String, DIMS>>,
     ) -> Result<Vec<(Candidate, f32)>, TaskDedupError> {
-        let mut lookup: HashMap<String, Candidate> = HashMap::new();
-        let mut survivors: Vec<SearchResults<String, DIMS>> = Vec::new();
-        for result in results {
-            let Some(candidate) = self.collapse(&result) else {
-                continue;
-            };
-            lookup.insert(candidate.document_id.clone(), candidate);
-            survivors.push(result);
-        }
-
-        if survivors.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let reranked = self
-            .reranker
-            .rerank(Content::Borrowed(query), survivors)
-            .await
-            .map_err(TaskDedupError::Dependency)?;
-
-        Ok(reranked
-            .into_iter()
-            .filter_map(|scored| {
-                lookup
-                    .remove(&scored.item)
-                    .map(|candidate| (candidate, scored.score))
-            })
-            .collect())
+        retrieval::rerank(
+            &self.reranker,
+            query,
+            results,
+            self.config.min_vector_similarity,
+        )
+        .await
     }
 
     async fn notify_documents<I>(&self, document_ids: I)
@@ -509,12 +448,6 @@ where
         component.sort();
         Ok(component)
     }
-}
-
-/// Builds the full task text used as the rerank/judge query, joining the title
-/// and body the same way they read to a user.
-fn full_text(title: &str, markdown: &str) -> String {
-    format!("{}\n{}", title.trim(), markdown.trim())
 }
 
 /// Returns a stable ordered pair.

@@ -211,7 +211,7 @@ pub fn spawn_task_duplicate_detection(
     });
 }
 
-fn task_dedup_error(error: TaskDedupError) -> DocumentError {
+pub(super) fn task_dedup_error(error: TaskDedupError) -> DocumentError {
     match error {
         TaskDedupError::MatchNotFound => {
             DocumentError::NotFound("duplicate match not found".to_string())

@@ -1,0 +1,51 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH query AS (\n                SELECT key, vec::vector AS vec\n                FROM unnest($1::text[], $2::text[]) AS t(key, vec)\n            ),\n            scored AS (\n                SELECT\n                    e.document_id,\n                    e.search_key,\n                    e.content,\n                    e.embedding::text AS embedding_text,\n                    MAX(1 - (e.embedding <=> q.vec))::real AS score\n                FROM document_similarity_embedding e\n                JOIN \"Document\" d ON d.id = e.document_id\n                CROSS JOIN query q\n                WHERE d.\"deletedAt\" IS NULL\n                  AND d.\"fileType\" = 'md'\n                  AND NOT EXISTS (\n                    SELECT 1\n                    FROM document_sub_type dst\n                    WHERE dst.document_id = d.id\n                  )\n                  AND ($4::text IS NULL OR e.document_id <> $4)\n                  AND (\n                    d.owner = $3\n                    OR EXISTS (\n                        SELECT 1\n                        FROM entity_access ea\n                        WHERE ea.entity_id::text = e.document_id\n                          AND ea.entity_type = 'document'\n                          AND (\n                            (ea.source_type = 'user' AND ea.source_id = $3)\n                            OR (\n                                $5::text IS NOT NULL\n                                AND ea.source_type = 'team'\n                                AND ea.source_id = $5\n                            )\n                          )\n                    )\n                  )\n                GROUP BY e.document_id, e.search_key, e.content, e.embedding\n            ),\n            ranked AS (\n                SELECT document_id, MAX(score) AS best\n                FROM scored\n                GROUP BY document_id\n                ORDER BY best DESC\n                LIMIT $6\n            )\n            SELECT\n                s.document_id AS \"document_id!\",\n                s.search_key AS \"search_key!\",\n                s.content AS \"content!\",\n                s.embedding_text AS \"embedding_text!\",\n                s.score AS \"score!\"\n            FROM scored s\n            JOIN ranked r ON r.document_id = s.document_id\n            ORDER BY r.best DESC, s.document_id, s.score DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "search_key!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "content!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "embedding_text!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "score!",
+        "type_info": "Float4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "Text",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "c779eec279a911ebeb7d6f5e42f3d7d8a2fef955c7b09bf790fca1671cb6a901"
+}

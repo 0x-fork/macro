@@ -10,6 +10,11 @@ path = "src/bin/backfill_task_embeddings.rs"
 required-features = ["backfill"]
 
 [[bin]]
+name = "backfill_document_embeddings"
+path = "src/bin/backfill_document_embeddings.rs"
+required-features = ["backfill"]
+
+[[bin]]
 name = "pull_task_corpus"
 path = "src/bin/pull_task_corpus.rs"
 required-features = ["backfill"]

@@ -53,6 +53,7 @@ import {
   Show,
 } from 'solid-js';
 import { mdStore } from '../../signal/markdownBlockData';
+import { SimilarDocumentsSidePanelSection } from '../SimilarDocuments';
 import { TaskDuplicateMatchesSidePanelSection } from '../TaskDuplicateMatches';
 
 interface MarkdownSidePanelSectionsProps {
@@ -105,6 +106,9 @@ export function MarkdownSidePanelSections(
       <GithubSectionConditional documentId={blockId} isTask={isTask()} />
       <NotificationsSectionConditional entity={entity()} />
       <ReferencesSectionConditional documentId={blockId} />
+      <Show when={!isTask() && !isSnippet()}>
+        <SimilarDocumentsSidePanelSection />
+      </Show>
       <Show when={isTask()}>
         <TaskDuplicateMatchesSidePanelSection />
       </Show>

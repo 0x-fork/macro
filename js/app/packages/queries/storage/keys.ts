@@ -73,6 +73,9 @@ export const entityKeys = createQueryKeys('entity', {
   taskDuplicates: (documentId: string) => ({
     queryKey: [documentId, 'duplicates'],
   }),
+  similarDocuments: (documentId: string) => ({
+    queryKey: [documentId, 'similarDocuments'],
+  }),
   documentTeamShare: (documentId: string) => ({
     queryKey: [documentId, 'teamShare'],
   }),

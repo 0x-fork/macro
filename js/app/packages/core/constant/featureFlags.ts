@@ -387,6 +387,13 @@ export const ENABLE_SOUP_GROUP_BY_OVERRIDE = DEV_MODE_ENV ? true : undefined;
 export const ENABLE_TASK_DUPLICATES_FLAG = 'enable-task-duplicates';
 export const ENABLE_TASK_DUPLICATES_OVERRIDE = DEV_MODE_ENV ? true : undefined;
 
+// Similar Documents side-panel section in the document view, powered by the
+// same embedding similarity system as task duplicate detection.
+export const ENABLE_SIMILAR_DOCUMENTS_FLAG = 'enable-similar-documents';
+export const ENABLE_SIMILAR_DOCUMENTS_OVERRIDE = DEV_MODE_ENV
+  ? true
+  : undefined;
+
 // Snippets: reusable markdown documents, the `c` launcher entry, and the `;`
 // insert menu. PostHog-gated (currently targeted at the Macro team) with a
 // dev-mode default; override with VITE_ENABLE_SNIPPETS.
