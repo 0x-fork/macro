@@ -101,6 +101,42 @@
   --c3: oklch(var(--c3l) var(--c3c) var(--c3h));
   --c4: oklch(var(--c4l) var(--c4c) var(--c4h));
 
+  /* ── Semantic design tokens (v2) — our own namespace ──────────────────────
+     @theme maps --color-<name> → these vars (so Tailwind emits the utilities),
+     and the :root.semantic-v2 block flips the value-change ones. Values here are
+     the flag-off ALIAS = zero visual change. Elevation helper:
+       elev(f) = oklch(calc(var(--b0l) + var(--depth)*f) var(--b0c) var(--b0h)) */
+  --depth: 0.15; /* fallback; Root.tsx mirrors the live themeDepth signal here */
+
+  /* Surfaces — opaque, elevation-derived */
+  --surface-card:   var(--b0);
+  --surface-input:  transparent;
+  --surface-modal:  var(--b0);
+  --surface-menu:   var(--b0);
+  --surface-toast:  var(--b0);
+
+  /* Content — text emphasis ramp + links */
+  --content-primary:    var(--c0);
+  --content-secondary:  var(--c1);
+  --content-tertiary:   var(--c2);
+  --content-link:       var(--a0);
+  --content-link-hover: oklch(from var(--a0) l c h / 0.8);
+
+  /* Borders — translucent, ink-tinted, adaptive */
+  --border-primary:   var(--b4);
+  --border-secondary: var(--b3);
+  --border-divider:   var(--b3);
+
+  /* Buttons — neutral fill ramp (foregrounds reuse the content ramp; no on-* tokens) */
+  --button-primary:   var(--b4);
+  --button-secondary: var(--b2);
+  --button-tertiary:  transparent;
+
+  /* Button interaction states — translucent overlays */
+  --button-hover:    var(--b2);
+  --button-active:   var(--b1);
+  --button-selected: var(--color-accent-bg);
+
   /* scuffed: defualt 0.15, used for transition jamming, currently disabled */
   --transition: 0s;
 
@@ -130,6 +166,34 @@
   --color-edge-muted:      var(--b3);
   --color-edge:            var(--b4);
   --color-rail:            color-mix(in oklch, var(--b4) 90%, var(--c0));
+
+  /* ── Semantic design tokens (v2) ─────────────────────────────────────────
+     Thin mappings onto our own token namespace (defined in :root above). The
+     :root.semantic-v2 block flips those vars on the ENABLE_SEMANTIC_V2 flag;
+     these mappings stay static. Surfaces drop the `surface-` prefix, links map
+     from `content-*`, borders map from `border-*` onto the `edge-*` color name. */
+  --color-card:              var(--surface-card);
+  --color-input:             var(--surface-input);
+  --color-modal:             var(--surface-modal);
+  --color-menu:              var(--surface-menu);
+  --color-toast:             var(--surface-toast);
+
+  --color-content-primary:   var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-tertiary:  var(--content-tertiary);
+  --color-content-link:       var(--content-link);
+  --color-content-link-hover: var(--content-link-hover);
+
+  --color-edge-primary:      var(--border-primary);
+  --color-edge-secondary:    var(--border-secondary);
+  --color-edge-divider:      var(--border-divider);
+
+  --color-button-primary:    var(--button-primary);
+  --color-button-secondary:  var(--button-secondary);
+  --color-button-tertiary:   var(--button-tertiary);
+  --color-button-hover:      var(--button-hover);
+  --color-button-active:     var(--button-active);
+  --color-button-selected:   var(--button-selected);
 
   --color-ink:             var(--c0);
   --color-ink-muted:       var(--c1);
@@ -234,6 +298,31 @@
      `grid-cols-[var(--sidepanel-label-width,auto)_1fr]` so the column falls
      back to auto when the variable isn't set. */
   --sidepanel-label-width: 5.5rem;
+}
+
+/* Migrated (flag-on) values, applied when the ENABLE_SEMANTIC_V2 flag adds the
+   `semantic-v2` class to <html> (see Root.tsx). Overrides our own token vars (not
+   the color mappings), so this is the single place the migrated look is defined.
+   Every value derives from the raw a/b/c channels plus --depth, so custom themes
+   recolor for free. Higher specificity plus unlayered wins over :root. Only
+   value-change tokens live here; renames (content, buttons, links) do not. */
+:root.semantic-v2 {
+  /* Surfaces become elevation-derived (raised 0.4 / overlay 0.6 / top 1.0). */
+  --surface-card:   oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
+  --surface-input:  oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
+  --surface-modal:  oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
+  --surface-menu:   oklch(calc(var(--b0l) + var(--depth) * 0.6) var(--b0c) var(--b0h));
+  --surface-toast:  oklch(calc(var(--b0l) + var(--depth) * 1.0) var(--b0c) var(--b0h));
+
+  /* Borders become translucent ink tints (adapt to any surface). */
+  --border-primary:   oklch(from var(--c0) l c h / 0.20);
+  --border-secondary: oklch(from var(--c0) l c h / 0.12);
+  --border-divider:   oklch(from var(--c0) l c h / 0.07);
+
+  /* Button interaction states become translucent overlays. */
+  --button-hover:    oklch(from var(--c0) l c h / 0.05);
+  --button-active:   oklch(from var(--c0) l c h / 0.09);
+  --button-selected: oklch(from var(--a0) l c h / 0.12);
 }
 
 /* scuffed: might wan to use signals for this */
