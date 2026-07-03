@@ -111,6 +111,7 @@
   /* Surfaces — opaque, elevation-derived */
   --surface-card:   var(--b0);
   --surface-input:  transparent;
+  --surface-input-hover: transparent;
   --surface-modal:  var(--b0);
   --surface-menu:   var(--b0);
   --surface-toast:  var(--b0);
@@ -174,6 +175,7 @@
      from `content-*`, borders map from `border-*` onto the `edge-*` color name. */
   --color-card:              var(--surface-card);
   --color-input:             var(--surface-input);
+  --color-input-hover:       var(--surface-input-hover);
   --color-modal:             var(--surface-modal);
   --color-menu:              var(--surface-menu);
   --color-toast:             var(--surface-toast);
@@ -312,7 +314,8 @@
      off-flag consumers fall through to Surface's var(--b0) fallback. */
   --color-panel:    oklch(calc(var(--b0l) + var(--depth) * 0.2) var(--b0c) var(--b0h));
   --surface-card:   oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
-  --surface-input:  oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
+  --surface-input:  oklch(calc(var(--b0l) + var(--depth) * 0.8) var(--b0c) var(--b0h));
+  --surface-input-hover: oklch(calc(var(--b0l) + var(--depth) * 1.0) var(--b0c) var(--b0h));
   --surface-modal:  oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
   --surface-menu:   oklch(calc(var(--b0l) + var(--depth) * 0.6) var(--b0c) var(--b0h));
   --surface-toast:  oklch(calc(var(--b0l) + var(--depth) * 1.0) var(--b0c) var(--b0h));
