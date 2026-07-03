@@ -1,3 +1,4 @@
+import { VIEW_TAB_PRESETS } from '@app/component/app-sidebar/soup-filter-presets';
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import {
   createSoupState,
@@ -24,6 +25,10 @@ import {
   INBOX_FILTER_ENTRY_KEY,
   registerInboxFilterSplit,
 } from '@app/component/next-soup/soup-view/inbox-filter-controllers';
+import {
+  ATTENTION_GROUP_KEY,
+  AttentionGroupHeader,
+} from '@app/component/next-soup/soup-view/needs-attention-section';
 import { deduplicateEntities } from '@app/component/next-soup/utils';
 import { useEntryState } from '@app/component/split-layout/entry-state';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
@@ -52,6 +57,11 @@ import {
   useEntityTypeNotifications,
   useNotificationsForEntity,
 } from '@notifications';
+import {
+  type AttentionItem,
+  createNeedsAttentionProjection,
+  type NeedsAttentionVariant,
+} from '@queries/ai/needs-attention';
 import { useQueryClient } from '@queries/client';
 import type {
   GroupMeta as ApiGroupMeta,
@@ -130,6 +140,17 @@ interface SoupViewContextValues {
   fetchNextGroupPage: (groupKey: string) => Promise<void>;
   isFetchingGroupPage: (groupKey: string) => boolean;
   hasNextGroupPage: (groupKey: string) => boolean;
+  /** AI "Needs your attention" triage state for the inbox/mail views. */
+  attention: {
+    variant: Accessor<NeedsAttentionVariant | undefined>;
+    /** True while the triage generates with nothing to show yet. */
+    showSkeleton: Accessor<boolean>;
+    /** The triage item behind an attention row, for the reason/action line. */
+    itemFor: (entityId: string) => AttentionItem | undefined;
+    /** Suppression synced from the filters bar: hidden while the user has
+     * refined the view beyond the tab defaults. */
+    setSuppressed: Setter<boolean>;
+  };
 }
 
 const SoupViewContext = createContext<SoupViewContextValues>();
@@ -620,7 +641,129 @@ export const SoupViewContextProvider: FlowComponent<
 
   const groupQueryFor = (groupKey: string) => groupQueries.map().get(groupKey);
 
+  // --- AI "Needs your attention" triage ------------------------------------
+  // Surfaced as a synthetic group at the top of the ungrouped inbox/mail rows
+  // so the items are real soup rows: j/k navigation, selection, h/l collapse,
+  // context menus, and the per-view row components all apply unchanged.
+
+  const ATTENTION_REST_GROUP_KEY = 'attention-rest';
+  const ATTENTION_COLLAPSED_COUNT = 3;
+
+  const attentionVariant = (): NeedsAttentionVariant | undefined => {
+    const view = activeListView();
+    if (view === 'inbox') return 'inbox';
+    if (view === 'mail') return 'email';
+    return undefined;
+  };
+
+  // Only the view's default tab shows triage (signal / important).
+  const attentionOnDefaultTab = () => {
+    const view = activeListView();
+    if (!view) return false;
+    const defaultTab = VIEW_TAB_PRESETS[view]?.default;
+    const tab = activeTab();
+    return !defaultTab || !tab || tab === defaultTab;
+  };
+
+  const [attentionSuppressed, setAttentionSuppressed] = createSignal(false);
+  const [attentionExpanded, setAttentionExpanded] = createSignal(false);
+  const [attentionRefreshing, setAttentionRefreshing] = createSignal(false);
+
+  const attentionEligible = () =>
+    enabled() &&
+    attentionVariant() !== undefined &&
+    attentionOnDefaultTab() &&
+    !attentionSuppressed() &&
+    !groupByField() &&
+    !search.isSearching();
+
+  const attentionInbox = createNeedsAttentionProjection(
+    'inbox',
+    () => attentionEligible() && attentionVariant() === 'inbox'
+  );
+  const attentionEmail = createNeedsAttentionProjection(
+    'email',
+    () => attentionEligible() && attentionVariant() === 'email'
+  );
+  const attentionProjection = () => {
+    const variant = attentionVariant();
+    if (variant === 'inbox') return attentionInbox;
+    if (variant === 'email') return attentionEmail;
+    return undefined;
+  };
+
+  /** Triage items resolved against loaded entities, in triage order. Items
+   * whose entity is not (or no longer) in the list drop out. */
+  const attentionResolved = createMemo(
+    (): { entity: SoupEntity; item: AttentionItem }[] => {
+      if (!attentionEligible()) return [];
+      const projection = attentionProjection();
+      if (!projection) return [];
+      const byId = new Map(entities().map((e) => [e.id, e] as const));
+      const seen = new Set<string>();
+      const out: { entity: SoupEntity; item: AttentionItem }[] = [];
+      for (const item of projection.items()) {
+        const entity = byId.get(item.entity_id);
+        if (!entity || seen.has(entity.id)) continue;
+        seen.add(entity.id);
+        out.push({ entity, item });
+      }
+      return out;
+    }
+  );
+
+  const attentionItemByEntityId = createMemo(
+    () =>
+      new Map(attentionResolved().map(({ entity, item }) => [entity.id, item]))
+  );
+
+  const attentionShowSkeleton = () =>
+    attentionEligible() &&
+    attentionResolved().length === 0 &&
+    (attentionProjection()?.isGenerating() ?? false) &&
+    !attentionProjection()?.hasResult();
+
+  const refreshAttention = () => {
+    const projection = attentionProjection();
+    if (!projection || attentionRefreshing()) return;
+    setAttentionRefreshing(true);
+    projection
+      .refresh()
+      .catch((error) => console.error('needs-attention refresh failed', error))
+      .finally(() => setAttentionRefreshing(false));
+  };
+
+  const attentionGroupMeta = (): GroupMeta => ({
+    key: ATTENTION_GROUP_KEY,
+    value: '',
+    label: 'Needs your attention',
+    count: attentionResolved().length,
+    isExpanded: () => soup.grouping.isExpanded(ATTENTION_GROUP_KEY),
+    toggle: () => soup.grouping.toggle(ATTENTION_GROUP_KEY),
+    renderHeader: (headerProps) => (
+      <AttentionGroupHeader
+        {...headerProps}
+        refreshing={attentionRefreshing}
+        onRefresh={refreshAttention}
+      />
+    ),
+  });
+
+  const attentionRestGroupMeta = (count: number): GroupMeta => ({
+    key: ATTENTION_REST_GROUP_KEY,
+    value: '',
+    label: attentionVariant() === 'email' ? 'Email' : 'Inbox',
+    count,
+    isExpanded: () => soup.grouping.isExpanded(ATTENTION_REST_GROUP_KEY),
+    toggle: () => soup.grouping.toggle(ATTENTION_REST_GROUP_KEY),
+  });
+
   const fetchNextGroupPage = async (groupKey: string) => {
+    // The attention group's "Load More" expands the capped triage list.
+    if (groupKey === ATTENTION_GROUP_KEY) {
+      setAttentionExpanded(true);
+      return;
+    }
     await groupQueryFor(groupKey)?.fetchNextPage();
   };
 
@@ -647,9 +790,89 @@ export const SoupViewContextProvider: FlowComponent<
     const groups = itemsQuery.data?.groups;
 
     if (!enabled() || !field || !groups || search.isSearching()) {
-      return entities().map((entity, index) =>
-        soup.buildRow({ id: entity.id, index, original: entity })
+      const base = entities();
+      const attention = attentionResolved();
+      if (attention.length === 0) {
+        return base.map((entity, index) =>
+          soup.buildRow({ id: entity.id, index, original: entity })
+        );
+      }
+
+      // Pull triaged entities up into a synthetic group; the rest of the list
+      // follows under its own header so the sections read like a group-by.
+      const attentionIds = new Set(attention.map(({ entity }) => entity.id));
+      const visible = attentionExpanded()
+        ? attention
+        : attention.slice(0, ATTENTION_COLLAPSED_COUNT);
+      const firstVisible = visible[0];
+      const lastVisible = visible[visible.length - 1];
+      if (!firstVisible || !lastVisible) {
+        return base.map((entity, index) =>
+          soup.buildRow({ id: entity.id, index, original: entity })
+        );
+      }
+      const rest = base.filter((entity) => !attentionIds.has(entity.id));
+
+      const result: SoupRow[] = [];
+      let index = 0;
+
+      const attentionGroup = attentionGroupMeta();
+      result.push(
+        soup.buildRow({
+          id: `header:${ATTENTION_GROUP_KEY}`,
+          index: index++,
+          original: firstVisible.entity,
+          group: attentionGroup,
+          isGrouped: true,
+        })
       );
+      for (const { entity } of visible) {
+        result.push(
+          soup.buildRow({
+            id: entity.id,
+            index: index++,
+            original: entity,
+            group: attentionGroup,
+          })
+        );
+      }
+      if (!attentionExpanded() && attention.length > visible.length) {
+        result.push(
+          soup.buildRow({
+            id: `loadmore:${ATTENTION_GROUP_KEY}`,
+            index: index++,
+            original: lastVisible.entity,
+            group: attentionGroup,
+            isLoadMore: true,
+          })
+        );
+      }
+
+      const firstRest = rest[0];
+      if (firstRest) {
+        const restGroup = attentionRestGroupMeta(rest.length);
+        result.push(
+          soup.buildRow({
+            id: `header:${ATTENTION_REST_GROUP_KEY}`,
+            index: index++,
+            original: firstRest,
+            group: restGroup,
+            isGrouped: true,
+          })
+        );
+        for (const entity of rest) {
+          result.push(
+            soup.buildRow({
+              id: entity.id,
+              index: index++,
+              original: entity,
+              group: restGroup,
+            })
+          );
+        }
+      }
+
+      return result;
     }
 
     const result: SoupRow[] = [];
@@ -761,6 +984,12 @@ export const SoupViewContextProvider: FlowComponent<
     fetchNextGroupPage,
     isFetchingGroupPage,
     hasNextGroupPage,
+    attention: {
+      variant: attentionVariant,
+      showSkeleton: attentionShowSkeleton,
+      itemFor: (entityId: string) => attentionItemByEntityId().get(entityId),
+      setSuppressed: setAttentionSuppressed,
+    },
   };
 
   return (

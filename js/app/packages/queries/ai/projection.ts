@@ -8,7 +8,7 @@ import type { TargetType } from '@service-cognition/generated/schemas/targetType
 import type { UpsertProjectionRequest } from '@service-cognition/generated/schemas/upsertProjectionRequest';
 import { createConnectionWebsocketEffect } from '@service-connection/websocket';
 import { useQuery } from '@tanstack/solid-query';
-import type { Accessor } from 'solid-js';
+import { type Accessor, createEffect, createSignal } from 'solid-js';
 import { z } from 'zod';
 import { queryClient } from '../client';
 
@@ -152,6 +152,17 @@ export function createAIProjection<Schema extends z.ZodType>(
     staleTime: PROJECTION_STALE_TIME,
   }));
 
+  // Suspense-free mirror of the query result. Reading `query.data` registers
+  // with the nearest Suspense boundary of whatever computation performs the
+  // read, and projections are consumed from arbitrary hosts (the soup rows
+  // pipeline, list rows) where faulting a shared boundary would remount the
+  // host. Effects don't participate in Suspense, so all reads below go
+  // through this signal instead of the query proxy.
+  const [state, setState] = createSignal<ProjectionStateResponse | undefined>(
+    undefined
+  );
+  createEffect(() => setState(query.data));
+
   // Materializations finish out-of-band (SQS worker or refresh sweeps); the
   // gateway pushes the final state, which we write straight into the cache.
   createConnectionWebsocketEffect((message) => {
@@ -188,14 +199,9 @@ export function createAIProjection<Schema extends z.ZodType>(
 
   /** The projection result: schema-parsed object when a schema is set,
    * otherwise the raw text. Undefined until a result exists (stale results
-   * remain visible while refreshing).
-   *
-   * Deliberately a plain derived function, not a `createMemo`: memos evaluate
-   * eagerly at creation, and reading query data during hook setup would
-   * suspend the caller's nearest Suspense boundary instead of the one the
-   * consumer actually renders under. */
+   * remain visible while refreshing). */
   const data = (): z.infer<Schema> | string | undefined => {
-    const raw = query.data?.data;
+    const raw = state()?.data;
     if (raw === null || raw === undefined) return undefined;
 
     const schema = options().schema;
@@ -220,7 +226,7 @@ export function createAIProjection<Schema extends z.ZodType>(
     return parsed.data;
   };
 
-  const status = () => query.data?.status;
+  const status = () => state()?.status;
 
   return {
     /** Parsed result (see above). */
@@ -234,10 +240,11 @@ export function createAIProjection<Schema extends z.ZodType>(
       return current !== undefined && GENERATING_STATUSES.includes(current);
     },
     /** Materialization error (from the projection) or request error message. */
-    error: () => query.data?.error ?? query.error?.message ?? undefined,
+    error: () => state()?.error ?? query.error?.message ?? undefined,
     /** Re-trigger generation, keeping stale data visible meanwhile. */
     refresh,
-    /** The underlying tanstack query, for advanced use. */
+    /** The underlying tanstack query, for advanced use. Reads through `data`
+     * on this object participate in Suspense; the accessors above do not. */
     query,
   };
 }

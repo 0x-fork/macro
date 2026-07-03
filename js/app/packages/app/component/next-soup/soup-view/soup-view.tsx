@@ -132,7 +132,11 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
-import { NeedsAttentionSection } from './needs-attention-section';
+import {
+  ATTENTION_GROUP_KEY,
+  AttentionReasonLine,
+  AttentionSkeleton,
+} from './needs-attention-section';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
@@ -723,7 +727,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
     soup,
     source,
     rows,
-    items,
     searchText,
     featuredIds,
     isSearchServiceLoading,
@@ -731,9 +734,14 @@ export const SoupViewList = (props: SoupViewListProps) => {
     activeTab,
     fetchNextGroupPage,
     isFetchingGroupPage,
+    attention,
   } = useSoupView();
   const { hasActiveRefinements, hasHiddenItems, resetToTabDefaults } =
     useFilterRefinements();
+
+  // The triage section only shows on an unrefined default view; the filters
+  // bar owns refinement detection, so sync it into the context here.
+  createEffect(() => attention.setSuppressed(hasActiveRefinements()));
 
   // Debug: force nav views to render their empty state regardless of content.
   const forceEmptyState = useDebugSetting(
@@ -844,15 +852,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
     const { type, id } = panel.handle.content();
     if (type !== 'component') return;
     return isListViewID(id) ? id : undefined;
-  };
-
-  // AI "Needs your attention" triage banner: only the inbox and mail views
-  // have a variant; everything else renders nothing.
-  const attentionVariant = () => {
-    const view = currentView();
-    if (view === 'inbox') return 'inbox' as const;
-    if (view === 'mail') return 'email' as const;
-    return undefined;
   };
 
   // Render the inbox with the new notification card layout when the flag is on.
@@ -1309,16 +1308,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
                               return (
                                 <>
                                   <Show
-                                    when={
-                                      i() === 0 &&
-                                      attentionVariant() !== undefined &&
-                                      !searchText()
-                                    }
+                                    when={i() === 0 && attention.showSkeleton()}
                                   >
-                                    <NeedsAttentionSection
-                                      variant={attentionVariant}
-                                      entities={items}
-                                    />
+                                    <AttentionSkeleton />
                                   </Show>
                                   <Show when={i() === 0 && featuredCount() > 0}>
                                     <SoupSectionHeader>
@@ -1503,6 +1495,25 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                       </SoupEntityContextMenu>
                                     </Match>
                                   </Switch>
+                                  <Show
+                                    when={
+                                      row.group?.key === ATTENTION_GROUP_KEY &&
+                                      !row.getIsGrouped() &&
+                                      !row.getIsLoadMore() &&
+                                      row.group?.isExpanded()
+                                    }
+                                  >
+                                    <AttentionReasonLine
+                                      variant={
+                                        attention.variant() === 'email'
+                                          ? 'email'
+                                          : 'inbox'
+                                      }
+                                      item={() =>
+                                        attention.itemFor(row.original.id)
+                                      }
+                                    />
+                                  </Show>
                                   <Show
                                     when={
                                       i() === rows().length - 1 &&
